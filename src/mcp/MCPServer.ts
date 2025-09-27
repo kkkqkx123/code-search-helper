@@ -3,12 +3,15 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
+import { Logger } from '../utils/logger.js';
 
 export class MCPServer {
   private server: McpServer;
   private transport: StdioServerTransport;
+  private logger: Logger;
 
-  constructor() {
+  constructor(logger: Logger) {
+    this.logger = logger;
     // 初始化MCP服务器
     this.server = new McpServer({
       name: 'codebase-index-mcp',
@@ -58,15 +61,17 @@ export class MCPServer {
   private async handleSearch(args: any): Promise<any> {
     // 第一阶段使用模拟数据
     try {
+      await this.logger.debug('Handling search request:', args);
       const mockData = await this.loadMockData();
       const query = args.query.toLowerCase();
       
-      const results = mockData.snippets.filter((snippet: any) => 
+      const results = mockData.snippets.filter((snippet: any) =>
         snippet.content.toLowerCase().includes(query) ||
         snippet.name?.toLowerCase().includes(query) ||
         snippet.metadata?.description?.toLowerCase().includes(query)
       ).slice(0, args.options?.limit || 10);
 
+      await this.logger.debug('Search completed, found', results.length, 'results');
       return {
         results: results.map((result: any, index: number) => ({
           id: `result_${index + 1}`,
@@ -78,6 +83,7 @@ export class MCPServer {
         query: args.query
       };
     } catch (error) {
+      await this.logger.error('Search failed:', error);
       return {
         error: error instanceof Error ? error.message : 'Unknown error',
         results: [],
@@ -91,9 +97,11 @@ export class MCPServer {
     try {
       // 在实际实现中会从文件系统读取
       const dataPath = path.join(process.cwd(), 'data', 'mock', 'code-snippets.json');
+      await this.logger.debug('Loading mock data from:', dataPath);
       const data = await fs.readFile(dataPath, 'utf-8');
       return JSON.parse(data);
     } catch (error) {
+      await this.logger.warn('Failed to load mock data, using defaults:', error);
       // 如果无法读取文件，返回默认模拟数据
       return {
         snippets: [
@@ -122,9 +130,9 @@ export class MCPServer {
   async start(): Promise<void> {
     try {
       await this.server.connect(this.transport);
-      console.log('MCP Server started successfully');
+      await this.logger.info('MCP Server started successfully');
     } catch (error) {
-      console.error('Failed to start MCP Server:', error);
+      await this.logger.error('Failed to start MCP Server:', error);
       throw error;
     }
   }
@@ -132,9 +140,9 @@ export class MCPServer {
   async stop(): Promise<void> {
     try {
       this.server.close();
-      console.log('MCP Server stopped');
+      await this.logger.info('MCP Server stopped');
     } catch (error) {
-      console.error('Failed to stop MCP Server:', error);
+      await this.logger.error('Failed to stop MCP Server:', error);
       throw error;
     }
   }

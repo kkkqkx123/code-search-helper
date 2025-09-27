@@ -4,3 +4,5 @@ coverage
 .env
 logs
 .env.test
+frontend/node_modules
+frontend/dist
