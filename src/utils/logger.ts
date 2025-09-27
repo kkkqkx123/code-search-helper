@@ -11,13 +11,19 @@ export class Logger {
     const logFileName = `${serviceName}-${timestamp}.log`;
     this.logFilePath = path.join(process.cwd(), 'logs', logFileName);
     
-    // 立即初始化日志目录和流
-    this.initialize().catch(error => {
-      console.error('Failed to initialize logger:', error);
-    });
-    
-    // 设置进程退出处理
-    this.setupExitHandlers();
+    // 检查是否在测试环境中
+    if (process.env.NODE_ENV === 'test') {
+      // 测试环境中不创建日志文件，只输出到控制台
+      this.isNormalExit = true; // 标记为正常退出，避免不必要的清理
+    } else {
+      // 非测试环境中初始化日志目录和流
+      this.initialize().catch(error => {
+        console.error('Failed to initialize logger:', error);
+      });
+      
+      // 设置进程退出处理
+      this.setupExitHandlers();
+    }
   }
 
   /**

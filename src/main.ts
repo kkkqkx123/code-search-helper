@@ -40,6 +40,10 @@ class Application {
     try {
       await this.logger.info('Starting application...');
 
+      // 检查环境变量配置
+      await this.loggerService.info('Checking environment configuration...');
+      this.validateEmbeddingProviderConfig();
+
       // 初始化数据库服务
       await this.loggerService.info('Initializing database services...');
       const dbConnected = await this.qdrantService.initialize();
@@ -73,6 +77,78 @@ class Application {
     } catch (error) {
       await this.logger.error('Failed to start application:', error);
       process.exit(1);
+    }
+  }
+
+  /**
+   * 验证嵌入提供者的环境变量配置
+   * 仅检查 EMBEDDING_PROVIDER 设置的提供者相关字段是否非空
+   */
+  private validateEmbeddingProviderConfig(): void {
+    const selectedProvider = process.env.EMBEDDING_PROVIDER || 'openai';
+    
+    let missingEnvVars: string[] = [];
+    
+    switch (selectedProvider.toLowerCase()) {
+      case 'openai':
+        if (!process.env.OPENAI_API_KEY) {
+          missingEnvVars.push('OPENAI_API_KEY');
+        }
+        break;
+      case 'ollama':
+        if (!process.env.OLLAMA_BASE_URL) {
+          missingEnvVars.push('OLLAMA_BASE_URL');
+        }
+        break;
+      case 'gemini':
+        if (!process.env.GEMINI_API_KEY) {
+          missingEnvVars.push('GEMINI_API_KEY');
+        }
+        break;
+      case 'mistral':
+        if (!process.env.MISTRAL_API_KEY) {
+          missingEnvVars.push('MISTRAL_API_KEY');
+        }
+        break;
+      case 'siliconflow':
+        if (!process.env.SILICONFLOW_API_KEY) {
+          missingEnvVars.push('SILICONFLOW_API_KEY');
+        }
+        break;
+      case 'custom1':
+        if (!process.env.CUSTOM_CUSTOM1_API_KEY) {
+          missingEnvVars.push('CUSTOM_CUSTOM1_API_KEY');
+        }
+        if (!process.env.CUSTOM_CUSTOM1_BASE_URL) {
+          missingEnvVars.push('CUSTOM_CUSTOM1_BASE_URL');
+        }
+        break;
+      case 'custom2':
+        if (!process.env.CUSTOM_CUSTOM2_API_KEY) {
+          missingEnvVars.push('CUSTOM_CUSTOM2_API_KEY');
+        }
+        if (!process.env.CUSTOM_CUSTOM2_BASE_URL) {
+          missingEnvVars.push('CUSTOM_CUSTOM2_BASE_URL');
+        }
+        break;
+      case 'custom3':
+        if (!process.env.CUSTOM_CUSTOM3_API_KEY) {
+          missingEnvVars.push('CUSTOM_CUSTOM3_API_KEY');
+        }
+        if (!process.env.CUSTOM_CUSTOM3_BASE_URL) {
+          missingEnvVars.push('CUSTOM_CUSTOM3_BASE_URL');
+        }
+        break;
+      default:
+        // 如果提供者不支持，记录警告
+        this.loggerService.warn(`Unsupported embedding provider: ${selectedProvider}`);
+        break;
+    }
+
+    if (missingEnvVars.length > 0) {
+      this.loggerService.warn(`Missing environment variables for provider '${selectedProvider}':`, { missingEnvVars });
+    } else {
+      this.loggerService.info(`Environment configuration validated for provider: ${selectedProvider}`);
     }
   }
 

@@ -19,6 +19,34 @@ const mockOllamaEmbedder = {
   isAvailable: jest.fn().mockResolvedValue(true)
 };
 
+const mockSiliconFlowEmbedder = {
+  embed: jest.fn(),
+  getDimensions: jest.fn().mockReturnValue(1024),
+  getModelName: jest.fn().mockReturnValue('BAAI/bge-m3'),
+  isAvailable: jest.fn().mockResolvedValue(true)
+};
+
+const mockCustom1Embedder = {
+  embed: jest.fn(),
+  getDimensions: jest.fn().mockReturnValue(768),
+  getModelName: jest.fn().mockReturnValue('custom1-model'),
+  isAvailable: jest.fn().mockResolvedValue(true)
+};
+
+const mockCustom2Embedder = {
+  embed: jest.fn(),
+  getDimensions: jest.fn().mockReturnValue(768),
+  getModelName: jest.fn().mockReturnValue('custom2-model'),
+  isAvailable: jest.fn().mockResolvedValue(true)
+};
+
+const mockCustom3Embedder = {
+  embed: jest.fn(),
+  getDimensions: jest.fn().mockReturnValue(768),
+  getModelName: jest.fn().mockReturnValue('custom3-model'),
+  isAvailable: jest.fn().mockResolvedValue(true)
+};
+
 // Mock the require calls in EmbedderFactory
 jest.mock('../OpenAIEmbedder', () => {
   return {
@@ -29,6 +57,29 @@ jest.mock('../OpenAIEmbedder', () => {
 jest.mock('../OllamaEmbedder', () => {
   return {
     OllamaEmbedder: jest.fn().mockImplementation(() => mockOllamaEmbedder)
+  };
+});
+
+jest.mock('../SiliconFlowEmbedder', () => {
+  return {
+    SiliconFlowEmbedder: jest.fn().mockImplementation(() => mockSiliconFlowEmbedder)
+  };
+});
+
+jest.mock('../CustomEmbedder', () => {
+  return {
+    CustomEmbedder: jest.fn().mockImplementation((logger, errorHandler, cacheService, providerName) => {
+      switch (providerName) {
+        case 'custom1':
+          return mockCustom1Embedder;
+        case 'custom2':
+          return mockCustom2Embedder;
+        case 'custom3':
+          return mockCustom3Embedder;
+        default:
+          return mockCustom1Embedder;
+      }
+    })
   };
 });
 
@@ -57,7 +108,11 @@ describe('EmbedderFactory', () => {
       const providers = embedderFactory.getRegisteredProviders();
       expect(providers).toContain('openai');
       expect(providers).toContain('ollama');
-      expect(providers.length).toBeGreaterThanOrEqual(2);
+      expect(providers).toContain('siliconflow');
+      expect(providers).toContain('custom1');
+      expect(providers).toContain('custom2');
+      expect(providers).toContain('custom3');
+      expect(providers.length).toBeGreaterThanOrEqual(6);
     });
 
     test('✅ OpenAI嵌入器能够生成嵌入', async () => {
@@ -96,11 +151,47 @@ describe('EmbedderFactory', () => {
       expect(mockOllamaEmbedder.embed).toHaveBeenCalledWith(input);
     });
 
+    test('✅ SiliconFlow嵌入器能够生成嵌入', async () => {
+      const input = { text: 'test text for embedding' };
+      const mockResult = {
+        vector: [0.7, 0.8, 0.9],
+        dimensions: 1024,
+        model: 'BAAI/bge-m3',
+        processingTime: 120
+      };
+      
+      mockSiliconFlowEmbedder.embed.mockResolvedValue(mockResult);
+      
+      const embedder = await embedderFactory.getEmbedder('siliconflow');
+      const result = await embedder.embed(input);
+      
+      expect(result).toEqual(mockResult);
+      expect(mockSiliconFlowEmbedder.embed).toHaveBeenCalledWith(input);
+    });
+
+    test('✅ 自定义嵌入器能够生成嵌入', async () => {
+      const input = { text: 'test text for embedding' };
+      const mockResult = {
+        vector: [0.1, 0.2, 0.3],
+        dimensions: 768,
+        model: 'custom1-model',
+        processingTime: 100
+      };
+      
+      mockCustom1Embedder.embed.mockResolvedValue(mockResult);
+      
+      const embedder = await embedderFactory.getEmbedder('custom1');
+      const result = await embedder.embed(input);
+      
+      expect(result).toEqual(mockResult);
+      expect(mockCustom1Embedder.embed).toHaveBeenCalledWith(input);
+    });
+
     test('✅ 能够自动选择可用嵌入器', async () => {
       // Test with default provider available
       const selectedProvider = await embedderFactory.autoSelectProvider();
       expect(typeof selectedProvider).toBe('string');
-      expect(['openai', 'ollama']).toContain(selectedProvider);
+      expect(['openai', 'ollama', 'siliconflow', 'custom1', 'custom2', 'custom3']).toContain(selectedProvider);
     });
   });
 
@@ -114,11 +205,19 @@ describe('EmbedderFactory', () => {
     test('✅ 能够获取可用的提供者列表', async () => {
       mockOpenAIEmbedder.isAvailable.mockResolvedValue(true);
       mockOllamaEmbedder.isAvailable.mockResolvedValue(true);
+      mockSiliconFlowEmbedder.isAvailable.mockResolvedValue(true);
+      mockCustom1Embedder.isAvailable.mockResolvedValue(true);
+      mockCustom2Embedder.isAvailable.mockResolvedValue(true);
+      mockCustom3Embedder.isAvailable.mockResolvedValue(true);
       
       const availableProviders = await embedderFactory.getAvailableProviders();
       expect(Array.isArray(availableProviders)).toBe(true);
       expect(availableProviders).toContain('openai');
       expect(availableProviders).toContain('ollama');
+      expect(availableProviders).toContain('siliconflow');
+      expect(availableProviders).toContain('custom1');
+      expect(availableProviders).toContain('custom2');
+      expect(availableProviders).toContain('custom3');
     });
 
     test('✅ 能够获取提供者信息', async () => {

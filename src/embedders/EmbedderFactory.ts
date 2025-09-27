@@ -38,14 +38,30 @@ export class EmbedderFactory {
       // 动态导入嵌入器类，避免循环依赖
       const { OpenAIEmbedder } = require('./OpenAIEmbedder');
       const { OllamaEmbedder } = require('./OllamaEmbedder');
+      const { SiliconFlowEmbedder } = require('./SiliconFlowEmbedder');
+      const { CustomEmbedder } = require('./CustomEmbedder');
+      const { GeminiEmbedder } = require('./GeminiEmbedder');
+      const { MistralEmbedder } = require('./MistralEmbedder');
 
       // 创建嵌入器实例
       const openAIEmbedder = new OpenAIEmbedder(this.logger, this.errorHandler, this.cacheService);
       const ollamaEmbedder = new OllamaEmbedder(this.logger, this.errorHandler, this.cacheService);
+      const siliconFlowEmbedder = new SiliconFlowEmbedder(this.logger, this.errorHandler, this.cacheService);
+      const custom1Embedder = new CustomEmbedder(this.logger, this.errorHandler, this.cacheService, 'custom1');
+      const custom2Embedder = new CustomEmbedder(this.logger, this.errorHandler, this.cacheService, 'custom2');
+      const custom3Embedder = new CustomEmbedder(this.logger, this.errorHandler, this.cacheService, 'custom3');
+      const geminiEmbedder = new GeminiEmbedder(this.logger, this.errorHandler, this.cacheService);
+      const mistralEmbedder = new MistralEmbedder(this.logger, this.errorHandler, this.cacheService);
 
       // 注册嵌入器
       this.registerProvider('openai', openAIEmbedder);
       this.registerProvider('ollama', ollamaEmbedder);
+      this.registerProvider('siliconflow', siliconFlowEmbedder);
+      this.registerProvider('custom1', custom1Embedder);
+      this.registerProvider('custom2', custom2Embedder);
+      this.registerProvider('custom3', custom3Embedder);
+      this.registerProvider('gemini', geminiEmbedder);
+      this.registerProvider('mistral', mistralEmbedder);
 
       this.logger.info('Embedder factory initialized', {
         providers: Array.from(this.embedders.keys()),
