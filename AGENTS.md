@@ -80,7 +80,7 @@ npm run test:utils
 ## 📁 项目结构
 
 ```
-codebase-search-helper/
+code-search-helper/
 ├── 📁 config/                 # 配置文件
 ├── 📁 src/                    # 主项目源代码
 │   ├── 📁 api/               # API路由和控制器

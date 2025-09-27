@@ -1,5 +1,7 @@
-import { injectable } from 'inversify';
+import { injectable, inject } from 'inversify';
 import { Logger } from './logger';
+import { TYPES } from '../types';
+import { ConfigService } from '../config/ConfigService';
 
 /**
  * 日志服务类
@@ -9,54 +11,39 @@ import { Logger } from './logger';
 export class LoggerService {
   private logger: Logger;
 
-  constructor(component?: string) {
-    const serviceName = component || 'code-search-helper';
-    this.logger = new Logger(serviceName);
+  constructor(@inject(TYPES.ConfigService) private configService: ConfigService) {
+    const serviceName = 'code-search-helper';
+    const logLevel = this.configService.get('logging')?.level;
+    this.logger = new Logger(serviceName, logLevel);
   }
 
   /**
    * 记录信息级别日志
    */
   async info(message: string, meta?: any): Promise<void> {
-    if (meta) {
-      await this.logger.info(message, meta);
-    } else {
-      await this.logger.info(message);
-    }
+    await this.logger.info(message, meta || {});
   }
 
   /**
    * 记录错误级别日志
    */
   async error(message: string, error?: any): Promise<void> {
-    if (error) {
-      await this.logger.error(message, error);
-    } else {
-      await this.logger.error(message);
-    }
-  }
+    await this.logger.error(message, error || {});
+ }
 
   /**
    * 记录警告级别日志
    */
   async warn(message: string, meta?: any): Promise<void> {
-    if (meta) {
-      await this.logger.warn(message, meta);
-    } else {
-      await this.logger.warn(message);
-    }
+    await this.logger.warn(message, meta || {});
   }
 
   /**
    * 记录调试级别日志
    */
   async debug(message: string, meta?: any): Promise<void> {
-    if (meta) {
-      await this.logger.debug(message, meta);
-    } else {
-      await this.logger.debug(message);
-    }
-  }
+    await this.logger.debug(message, meta || {});
+ }
 
   /**
    * 获取日志文件路径

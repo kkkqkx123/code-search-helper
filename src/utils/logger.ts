@@ -4,9 +4,13 @@ import path from 'path';
 export class Logger {
   private logFilePath: string;
   private logStream: fs.FileHandle | null = null;
-  private isNormalExit: boolean = false;
+ private isNormalExit: boolean = false;
+  private logLevel: string;
 
-  constructor(serviceName: string) {
+  constructor(serviceName: string, logLevel?: string) {
+    // 设置日志级别，默认为 'info'
+    this.logLevel = logLevel?.toUpperCase() || 'INFO';
+    
     const timestamp = this.getChinaTimeString().replace(/[:.]/g, '-');
     const logFileName = `${serviceName}-${timestamp}.log`;
     this.logFilePath = path.join(process.cwd(), 'logs', logFileName);
@@ -31,21 +35,17 @@ export class Logger {
    */
   private getChinaTimeString(): string {
     const now = new Date();
-    // 获取UTC时间戳（毫秒）
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
-    // 加上8小时的毫秒数
-    const chinaTime = new Date(utcTime + (8 * 60 * 60 * 1000));
+    // 使用标准的toLocaleString方法获取+8时区时间
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
     
-    // 手动格式化为ISO字符串但保持+8时区
-    const year = chinaTime.getFullYear();
-    const month = String(chinaTime.getMonth() + 1).padStart(2, '0');
-    const day = String(chinaTime.getDate()).padStart(2, '0');
-    const hours = String(chinaTime.getHours()).padStart(2, '0');
-    const minutes = String(chinaTime.getMinutes()).padStart(2, '0');
-    const seconds = String(chinaTime.getSeconds()).padStart(2, '0');
-    const milliseconds = String(chinaTime.getMilliseconds()).padStart(3, '0');
-    
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}Z`;
+    // 返回格式为 YYYY-MM-DDTHH:MM:SS.sss+08:00 的时间字符串
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+08:00`;
   }
 
   private async initialize(): Promise<void> {
@@ -124,7 +124,26 @@ export class Logger {
     }
   }
 
+  private shouldLog(level: string): boolean {
+    const levels: { [key: string]: number } = {
+      'DEBUG': 0,
+      'INFO': 1,
+      'WARN': 2,
+      'ERROR': 3
+    };
+    
+    const currentLevel = levels[this.logLevel] ?? levels['INFO'];
+    const messageLevel = levels[level] ?? levels['INFO'];
+    
+    return messageLevel >= currentLevel;
+  }
+
   private async writeLog(level: string, ...args: any[]): Promise<void> {
+    // 检查是否应该记录此级别的日志
+    if (!this.shouldLog(level)) {
+      return;
+    }
+    
     const timestamp = this.getChinaTimeString();
     const message = args.map(arg =>
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
