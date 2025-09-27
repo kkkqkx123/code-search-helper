@@ -152,8 +152,9 @@ const configSchema = Joi.object({
   }).optional(),
 
   caching: Joi.object({
-    defaultTL: Joi.number().positive().default(300), // 5 minutes
+    defaultTTL: Joi.number().positive().default(300), // 5 minutes
     maxSize: Joi.number().positive().default(1000),
+    cleanupInterval: Joi.number().positive().default(600000), // 10 minutes
   }).optional(),
 
   redis: Joi.object({
@@ -402,6 +403,7 @@ export interface Config {
   caching: {
     defaultTTL: number;
     maxSize: number;
+    cleanupInterval: number;
  };
   indexing: {
     batchSize: number;
@@ -623,10 +625,11 @@ export class ConfigService {
         },
       },
       caching:
-        process.env.CACHE_DEFAULT_TTL || process.env.CACHE_MAX_SIZE
+        process.env.CACHE_DEFAULT_TTL || process.env.CACHE_MAX_SIZE || process.env.CACHE_CLEANUP_INTERVAL
           ? {
               defaultTTL: parseInt(process.env.CACHE_DEFAULT_TTL || '300'),
               maxSize: parseInt(process.env.CACHE_MAX_SIZE || '1000'),
+              cleanupInterval: parseInt(process.env.CACHE_CLEANUP_INTERVAL || '600000'),
             }
           : undefined,
       indexing: {

@@ -196,6 +196,7 @@ export interface MLRerankingConfig {
 export interface CachingConfig {
   defaultTTL: number;
   maxSize: number;
+  cleanupInterval: number;
 }
 
 export interface IndexingConfig {

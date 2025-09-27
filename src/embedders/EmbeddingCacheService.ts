@@ -2,6 +2,8 @@ import { LoggerService } from '../utils/LoggerService';
 import { Logger } from '../utils/logger';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingResult } from './BaseEmbedder';
+import { ConfigService } from '../config/ConfigService';
+import { ConfigFactory } from '../config/ConfigFactory';
 
 /**
  * 简化的嵌入缓存服务
@@ -13,6 +15,7 @@ export class EmbeddingCacheService {
   private errorHandler: ErrorHandlerService;
   private defaultTTL: number;
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private configFactory: ConfigFactory;
 
   constructor(
     logger: LoggerService | Logger,
@@ -20,6 +23,7 @@ export class EmbeddingCacheService {
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
+    this.configFactory = new ConfigFactory(ConfigService.getInstance());
 
     // 简化配置获取
     this.defaultTTL = parseInt(process.env.EMBEDDING_CACHE_TTL || '86400'); // 默认24小时（秒）
@@ -71,10 +75,11 @@ export class EmbeddingCacheService {
    * 启动定期清理
    */
   private startCleanupInterval(): void {
-    // 10分钟清理一次
+    // 从配置中获取清理间隔，默认为10分钟
+    const cleanupInterval = this.configFactory.getCachingConfig().cleanupInterval || 600000;
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
-    }, 600000); // 10分钟
+    }, cleanupInterval);
   }
 
   /**

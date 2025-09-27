@@ -16,6 +16,20 @@ export class ConfigFactory {
   getAppConfig(): AppConfig {
     const config = this.configService.getAll();
     
+    // 确保caching配置包含所有必需的属性
+    const cachingConfig = config.caching;
+    const processedCachingConfig: AppConfig['caching'] = cachingConfig
+      ? {
+          defaultTTL: cachingConfig.defaultTTL,
+          maxSize: cachingConfig.maxSize,
+          cleanupInterval: (cachingConfig as any).cleanupInterval || 600000, // 10 minutes as default
+        }
+      : {
+          defaultTTL: 300,
+          maxSize: 1000,
+          cleanupInterval: 600000, // 10 minutes
+        };
+    
     return {
       environment: {
         nodeEnv: config.nodeEnv,
@@ -33,7 +47,7 @@ export class ConfigFactory {
       lsp: config.lsp,
       semgrep: config.semgrep,
       mlReranking: config.mlReranking,
-      caching: config.caching,
+      caching: processedCachingConfig,
       indexing: config.indexing,
       nebula: config.nebula,
       performance: config.performance,
@@ -129,7 +143,21 @@ export class ConfigFactory {
    * 获取缓存配置
    */
   getCachingConfig(): AppConfig['caching'] {
-    return this.configService.get('caching');
+    const cachingConfig = this.configService.get('caching');
+    if (cachingConfig) {
+      // 确保返回的对象包含所有必需的字段
+      return {
+        defaultTTL: cachingConfig.defaultTTL,
+        maxSize: cachingConfig.maxSize,
+        cleanupInterval: (cachingConfig as any).cleanupInterval || 600000, // 10 minutes as default
+      };
+    }
+    // 返回默认值
+    return {
+      defaultTTL: 300,
+      maxSize: 1000,
+      cleanupInterval: 600000, // 10 minutes
+    };
   }
 
   /**
