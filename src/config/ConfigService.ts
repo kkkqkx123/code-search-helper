@@ -178,6 +178,10 @@ const configSchema = Joi.object({
     }),
   }),
 
+  project: Joi.object({
+    mappingPath: Joi.string().default('./data/project-mapping.json'),
+  }),
+
   indexing: Joi.object({
     batchSize: Joi.number().positive().default(50),
     maxConcurrency: Joi.number().positive().default(3),
@@ -494,6 +498,9 @@ export interface Config {
     password: string;
     space: string;
   };
+  project: {
+    mappingPath?: string;
+  };
 }
 
 @injectable()
@@ -711,6 +718,9 @@ export class ConfigService {
               trainingEnabled: process.env.ML_RERANKING_TRAINING_ENABLED !== 'false',
             }
           : undefined,
+      project: {
+        mappingPath: process.env.PROJECT_MAPPING_PATH || './data/project-mapping.json',
+      },
     };
 
     const { error, value } = configSchema.validate(rawConfig, { allowUnknown: false });

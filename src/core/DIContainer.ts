@@ -3,6 +3,8 @@ import { ConfigService } from '../config/ConfigService';
 import { QdrantService } from '../database/QdrantService';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
+import { ProjectIdManager } from '../database/ProjectIdManager';
+import { ProjectLookupService } from '../database/ProjectLookupService';
 import { TYPES } from '../types';
 
 // 创建依赖注入容器
@@ -13,5 +15,7 @@ diContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(ConfigServi
 diContainer.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
 diContainer.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
 diContainer.bind<QdrantService>(TYPES.QdrantService).to(QdrantService).inSingletonScope();
+diContainer.bind<ProjectIdManager>(TYPES.ProjectIdManager).to(ProjectIdManager).inSingletonScope();
+diContainer.bind<ProjectLookupService>(TYPES.ProjectLookupService).to(ProjectLookupService).inSingletonScope();
 
 export { diContainer };

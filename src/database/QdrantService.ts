@@ -5,6 +5,7 @@ import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from './IVectorStore';
 import { ConfigService } from '../config/ConfigService';
 import { TYPES } from '../types';
+import { ProjectIdManager } from './ProjectIdManager';
 
 export interface QdrantConfig {
   host: string;
@@ -27,7 +28,8 @@ export class QdrantService implements IVectorStore {
   constructor(
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService
+    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
+    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -212,9 +214,27 @@ export class QdrantService implements IVectorStore {
          return true;
        }
  
+       // Add project ID to all vectors if not already present
+       const processedVectors = vectors.map(vector => {
+         // Extract project ID from collection name if not in payload
+         if (!vector.payload.projectId) {
+           const projectId = collectionName.startsWith('project-') ? collectionName.substring(8) : null;
+           if (projectId) {
+             return {
+               ...vector,
+               payload: {
+                 ...vector.payload,
+                 projectId
+               }
+             };
+           }
+         }
+         return vector;
+       });
+ 
        const batchSize = 100;
-       for (let i = 0; i < vectors.length; i += batchSize) {
-         const batch = vectors.slice(i, i + batchSize);
+       for (let i = 0; i < processedVectors.length; i += batchSize) {
+         const batch = processedVectors.slice(i, i + batchSize);
  
          await this.client!.upsert(collectionName, {
            points: batch.map(point => ({
@@ -228,7 +248,7 @@ export class QdrantService implements IVectorStore {
          });
        }
  
-       this.logger.info(`Upserted ${vectors.length} points to collection ${collectionName}`);
+       this.logger.info(`Upserted ${processedVectors.length} points to collection ${collectionName}`);
        return true;
      } catch (error) {
        this.errorHandler.handleError(
@@ -548,5 +568,160 @@ export class QdrantService implements IVectorStore {
     }
 
     return must.length > 0 ? { must } : undefined;
+  }
+
+  /**
+   * Create a collection for a specific project
+   */
+  async createCollectionForProject(projectPath: string, vectorSize: number, distance: 'Cosine' | 'Euclid' | 'Dot' | 'Manhattan' = 'Cosine'): Promise<boolean> {
+    try {
+      // Generate project ID and get collection name
+      const projectId = await this.projectIdManager.generateProjectId(projectPath);
+      const collectionName = this.projectIdManager.getCollectionName(projectId);
+      
+      if (!collectionName) {
+        throw new Error(`Failed to generate collection name for project: ${projectPath}`);
+      }
+
+      return await this.createCollection(collectionName, vectorSize, distance);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to create collection for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'QdrantService', operation: 'createCollectionForProject' }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Upsert vectors to a project-specific collection
+   */
+  async upsertVectorsForProject(projectPath: string, vectors: VectorPoint[]): Promise<boolean> {
+    try {
+      // Get project ID and collection name
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+      
+      const collectionName = this.projectIdManager.getCollectionName(projectId);
+      if (!collectionName) {
+        throw new Error(`Collection name not found for project: ${projectPath}`);
+      }
+
+      // Add project ID to all vectors if not already present
+      const vectorsWithProjectId = vectors.map(vector => ({
+        ...vector,
+        payload: {
+          ...vector.payload,
+          projectId
+        }
+      }));
+
+      return await this.upsertVectors(collectionName, vectorsWithProjectId);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to upsert vectors for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'QdrantService', operation: 'upsertVectorsForProject' }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Search vectors in a project-specific collection
+   */
+  async searchVectorsForProject(projectPath: string, query: number[], options: SearchOptions = {}): Promise<SearchResult[]> {
+    try {
+      // Get project ID and collection name
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+      
+      const collectionName = this.projectIdManager.getCollectionName(projectId);
+      if (!collectionName) {
+        throw new Error(`Collection name not found for project: ${projectPath}`);
+      }
+
+      // Ensure projectId filter is applied
+      const searchOptions = {
+        ...options,
+        filter: {
+          ...options.filter,
+          projectId
+        }
+      };
+
+      return await this.searchVectors(collectionName, query, searchOptions);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to search vectors for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'QdrantService', operation: 'searchVectorsForProject' }
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Get collection info for a specific project
+   */
+  async getCollectionInfoForProject(projectPath: string): Promise<CollectionInfo | null> {
+    try {
+      // Get project ID and collection name
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+      
+      const collectionName = this.projectIdManager.getCollectionName(projectId);
+      if (!collectionName) {
+        throw new Error(`Collection name not found for project: ${projectPath}`);
+      }
+
+      return await this.getCollectionInfo(collectionName);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to get collection info for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'QdrantService', operation: 'getCollectionInfoForProject' }
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Delete collection for a specific project
+   */
+  async deleteCollectionForProject(projectPath: string): Promise<boolean> {
+    try {
+      // Get project ID and collection name
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+      
+      const collectionName = this.projectIdManager.getCollectionName(projectId);
+      if (!collectionName) {
+        throw new Error(`Collection name not found for project: ${projectPath}`);
+      }
+
+      return await this.deleteCollection(collectionName);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to delete collection for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'QdrantService', operation: 'deleteCollectionForProject' }
+      );
+      return false;
+    }
   }
 }

@@ -241,4 +241,7 @@ export interface AppConfig {
     recencyWeight?: number;
     popularityWeight?: number;
   };
+  project?: {
+    mappingPath?: string;
+  };
 }

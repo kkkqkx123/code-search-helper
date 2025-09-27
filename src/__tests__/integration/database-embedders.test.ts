@@ -5,6 +5,7 @@ import { Logger } from '../../utils/logger';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
+import { ProjectIdManager } from '../../database/ProjectIdManager';
 
 // 确保在测试环境中运行
 process.env.NODE_ENV = 'test';
@@ -19,6 +20,7 @@ describe('Database and Embedders Integration', () => {
   let cacheService: EmbeddingCacheService;
   let embedderFactory: EmbedderFactory;
   let qdrantService: QdrantService;
+  let mockProjectIdManager: ProjectIdManager;
 
   beforeAll(() => {
     // 初始化服务
@@ -37,6 +39,9 @@ describe('Database and Embedders Integration', () => {
             timeout: 30000
           };
         }
+        if (key === 'project') {
+          return { mappingPath: './data/test-project-mapping.json' };
+        }
         return undefined;
       })
     } as unknown as ConfigService;
@@ -44,9 +49,13 @@ describe('Database and Embedders Integration', () => {
     logger = new LoggerService(mockConfigService);
     loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
+    
+    // Create a mock ProjectIdManager
+    mockProjectIdManager = new ProjectIdManager(logger, errorHandler, mockConfigService);
+    
     cacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
     embedderFactory = new EmbedderFactory(loggerInstance, errorHandler, cacheService);
-    qdrantService = new QdrantService(mockConfigService, logger, errorHandler);
+    qdrantService = new QdrantService(mockConfigService, logger, errorHandler, mockProjectIdManager);
   });
 
   afterAll(async () => {
