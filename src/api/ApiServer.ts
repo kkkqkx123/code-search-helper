@@ -7,7 +7,7 @@ export class ApiServer {
   private app: express.Application;
   private port: number;
 
-  constructor(port: number = 3000) {
+  constructor(port: number = 3010) {
     this.app = express();
     this.port = port;
 

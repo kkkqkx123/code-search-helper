@@ -6,11 +6,16 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/src/main.js",
-    "dev": "ts-node src/main.ts",
+    "dev": "tsx src/main.ts",
     "dev:memory": "node --max-old-space-size=2048 --expose-gc node_modules/ts-node/dist/bin.js src/main.ts",
     "start:memory": "node --max-old-space-size=4096 dist/main.js",
     "start:memory-optimized": "dotenv -e .env.memory-optimized node --max-old-space-size=4096 dist/main.js",
     "test": "jest",
+    "test:utils": "jest src/utils",
+    "test:api": "jest src/api",
+    "test:mcp": "jest src/mcp",
+    "test:frontend": "cd frontend && npm test",
+    "test:all": "tsx scripts/run-tests.ts",
     "test:performance": "node --expose-gc --max-old-space-size=1536 node_modules/jest/bin/jest.js --config jest.performance.config.js --runInBand --logHeapUsage",
     "test:performance:light": "node --expose-gc --max-old-space-size=1024 node_modules/jest/bin/jest.js --config jest.performance.light.config.js --runInBand --logHeapUsage",
     "test:performance:single": "node --expose-gc --max-old-space-size=768 node_modules/jest/bin/jest.js --config jest.performance.config.js --runInBand --testNamePattern",
@@ -43,7 +48,7 @@
     "cache-manager-ioredis": "^2.1.0",
     "chokidar": "^4.0.3",
     "dotenv": "^17.2.1",
-    "express": "^5.1.0",
+    "express": "^4.21.2",
     "inversify": "^7.9.1",
     "ioredis": "^5.7.0",
     "joi": "^18.0.1",
@@ -68,6 +73,7 @@
   },
   "devDependencies": {
     "@types/cache-manager": "^4.0.6",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
@@ -92,6 +98,10 @@
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "ws": "^8.18.3"
+  },
+  "ts-node": {
+    "esm": false,
+    "experimentalSpecifierResolution": "node"
   },
   "engines": {
     "node": ">=18.0"
