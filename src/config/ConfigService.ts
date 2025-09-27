@@ -88,7 +88,7 @@ const configSchema = Joi.object({
   logging: Joi.object({
     level: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
     format: Joi.string().valid('json', 'text').default('json'),
- }),
+  }),
 
   monitoring: Joi.object({
     enabled: Joi.boolean().default(true),
@@ -408,7 +408,7 @@ export interface Config {
     defaultTTL: number;
     maxSize: number;
     cleanupInterval: number;
- };
+  };
   indexing: {
     batchSize: number;
     maxConcurrency: number;
@@ -499,6 +499,7 @@ export interface Config {
     space: string;
   };
   project: {
+    statePath: string;
     mappingPath?: string;
   };
 }
@@ -634,10 +635,10 @@ export class ConfigService {
       caching:
         process.env.CACHE_DEFAULT_TTL || process.env.CACHE_MAX_SIZE || process.env.CACHE_CLEANUP_INTERVAL
           ? {
-              defaultTTL: parseInt(process.env.CACHE_DEFAULT_TTL || '300'),
-              maxSize: parseInt(process.env.CACHE_MAX_SIZE || '1000'),
-              cleanupInterval: parseInt(process.env.CACHE_CLEANUP_INTERVAL || '600000'),
-            }
+            defaultTTL: parseInt(process.env.CACHE_DEFAULT_TTL || '300'),
+            maxSize: parseInt(process.env.CACHE_MAX_SIZE || '1000'),
+            cleanupInterval: parseInt(process.env.CACHE_CLEANUP_INTERVAL || '600000'),
+          }
           : undefined,
       indexing: {
         batchSize: parseInt(process.env.INDEXING_BATCH_SIZE || '50'),
@@ -655,16 +656,16 @@ export class ConfigService {
         configPaths: process.env.SEMGREP_CONFIG_PATHS
           ? process.env.SEMGREP_CONFIG_PATHS.split(',')
           : [
-              'auto',
-              'p/security-audit',
-              'p/secrets',
-              'p/owasp-top-ten',
-              'p/javascript',
-              'p/python',
-              'p/java',
-              'p/go',
-              'p/typescript',
-            ],
+            'auto',
+            'p/security-audit',
+            'p/secrets',
+            'p/owasp-top-ten',
+            'p/javascript',
+            'p/python',
+            'p/java',
+            'p/go',
+            'p/typescript',
+          ],
         customRulesPath: process.env.SEMGREP_CUSTOM_RULES_PATH || './config/semgrep-rules',
         enableControlFlow: process.env.SEMGREP_ENABLE_CONTROL_FLOW !== 'false',
         enableDataFlow: process.env.SEMGREP_ENABLE_DATA_FLOW !== 'false',
@@ -676,17 +677,17 @@ export class ConfigService {
         excludePatterns: process.env.SEMGREP_EXCLUDE_PATTERNS
           ? process.env.SEMGREP_EXCLUDE_PATTERNS.split(',')
           : [
-              'node_modules',
-              '.git',
-              'dist',
-              'build',
-              'coverage',
-              '*.min.js',
-              '*.min.css',
-              'vendor',
-              'test/fixtures',
-              'tests/fixtures',
-            ],
+            'node_modules',
+            '.git',
+            'dist',
+            'build',
+            'coverage',
+            '*.min.js',
+            '*.min.css',
+            'vendor',
+            'test/fixtures',
+            'tests/fixtures',
+          ],
         includePatterns: process.env.SEMGREP_INCLUDE_PATTERNS
           ? process.env.SEMGREP_INCLUDE_PATTERNS.split(',')
           : ['*.js', '*.ts', '*.jsx', '*.tsx', '*.py', '*.java', '*.go', '*.php', '*.rb', '*.cs'],
@@ -697,26 +698,26 @@ export class ConfigService {
       },
       mlReranking:
         process.env.ML_RERANKING_MODEL_PATH ||
-        process.env.ML_RERANKING_MODEL_TYPE ||
-        process.env.ML_RERANKING_FEATURES ||
-        process.env.ML_RERANKING_TRAINING_ENABLED
+          process.env.ML_RERANKING_MODEL_TYPE ||
+          process.env.ML_RERANKING_FEATURES ||
+          process.env.ML_RERANKING_TRAINING_ENABLED
           ? {
-              modelPath: process.env.ML_RERANKING_MODEL_PATH || undefined,
-              modelType:
-                (process.env.ML_RERANKING_MODEL_TYPE as 'linear' | 'neural' | 'ensemble') ||
-                'linear',
-              features: process.env.ML_RERANKING_FEATURES
-                ? process.env.ML_RERANKING_FEATURES.split(',')
-                : [
-                    'semanticScore',
-                    'graphScore',
-                    'contextualScore',
-                    'recencyScore',
-                    'popularityScore',
-                    'originalScore',
-                  ],
-              trainingEnabled: process.env.ML_RERANKING_TRAINING_ENABLED !== 'false',
-            }
+            modelPath: process.env.ML_RERANKING_MODEL_PATH || undefined,
+            modelType:
+              (process.env.ML_RERANKING_MODEL_TYPE as 'linear' | 'neural' | 'ensemble') ||
+              'linear',
+            features: process.env.ML_RERANKING_FEATURES
+              ? process.env.ML_RERANKING_FEATURES.split(',')
+              : [
+                'semanticScore',
+                'graphScore',
+                'contextualScore',
+                'recencyScore',
+                'popularityScore',
+                'originalScore',
+              ],
+            trainingEnabled: process.env.ML_RERANKING_TRAINING_ENABLED !== 'false',
+          }
           : undefined,
       project: {
         mappingPath: process.env.PROJECT_MAPPING_PATH || './data/project-mapping.json',

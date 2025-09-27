@@ -1,0 +1,641 @@
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../types';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { FileSystemTraversal } from '../filesystem/FileSystemTraversal';
+import { FileWatcherService } from '../filesystem/FileWatcherService';
+import { ChangeDetectionService } from '../filesystem/ChangeDetectionService';
+import { QdrantService } from '../../database/QdrantService';
+import { ProjectIdManager } from '../../database/ProjectIdManager';
+import { EmbedderFactory } from '../../embedders/EmbedderFactory';
+import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
+import { PerformanceOptimizerService } from '../resilience/ResilientBatchingService';
+import { VectorPoint } from '../../database/IVectorStore';
+import { EmbeddingInput, EmbeddingResult } from '../../embedders/BaseEmbedder';
+import fs from 'fs/promises';
+import path from 'path';
+
+export interface IndexSyncOptions {
+  batchSize?: number;
+  maxConcurrency?: number;
+  includePatterns?: string[];
+  excludePatterns?: string[];
+  chunkSize?: number;
+  chunkOverlap?: number;
+}
+
+export interface IndexSyncStatus {
+  projectId: string;
+  projectPath: string;
+  isIndexing: boolean;
+  lastIndexed: Date | null;
+  totalFiles: number;
+  indexedFiles: number;
+  failedFiles: number;
+  progress: number;
+}
+
+export interface FileChunk {
+  content: string;
+  filePath: string;
+  startLine: number;
+  endLine: number;
+  language: string;
+  chunkType: string;
+  functionName?: string;
+  className?: string;
+}
+
+@injectable()
+export class IndexSyncService {
+  private eventListeners: Map<string, Array<(...args: any[]) => Promise<void>>> = new Map();
+
+  on(event: 'indexingStarted', listener: (projectId: string) => Promise<void>): void;
+  on(event: 'indexingProgress', listener: (projectId: string, progress: number) => Promise<void>): void;
+  on(event: 'indexingCompleted', listener: (projectId: string) => Promise<void>): void;
+  on(event: 'indexingError', listener: (projectId: string, error: Error) => Promise<void>): void;
+  on(event: string, listener: (...args: any[]) => Promise<void>): void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, []);
+    }
+    this.eventListeners.get(event)!.push(listener);
+  }
+
+  private async emit(event: 'indexingStarted', projectId: string): Promise<void>;
+  private async emit(event: 'indexingProgress', projectId: string, progress: number): Promise<void>;
+  private async emit(event: 'indexingCompleted', projectId: string): Promise<void>;
+  private async emit(event: 'indexingError', projectId: string, error: Error): Promise<void>;
+  private async emit(event: string, ...args: any[]): Promise<void> {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      for (const listener of listeners) {
+        try {
+          await listener(...args);
+        } catch (error) {
+          this.logger.error(`Error in event listener for ${event}:`, { error });
+        }
+      }
+    }
+  }
+  private indexingProjects: Map<string, IndexSyncStatus> = new Map();
+  private indexingQueue: Array<{ projectPath: string; options?: IndexSyncOptions }> = [];
+  private isProcessingQueue: boolean = false;
+
+  constructor(
+    @inject(TYPES.LoggerService) private logger: LoggerService,
+    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
+    @inject(TYPES.FileSystemTraversal) private fileSystemTraversal: FileSystemTraversal,
+    @inject(TYPES.FileWatcherService) private fileWatcherService: FileWatcherService,
+    @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
+    @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
+    @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
+    @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
+    @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService
+  ) {
+    // 设置文件变化监听器
+    this.setupFileChangeListeners();
+  }
+
+  /**
+   * 设置文件变化监听器
+   */
+  private setupFileChangeListeners(): void {
+    this.fileWatcherService.setCallbacks({
+      onFileAdded: async (fileInfo) => {
+        await this.handleFileChange(fileInfo.path, this.getProjectPathFromFileInfo(fileInfo), 'added');
+      },
+      onFileChanged: async (fileInfo) => {
+        await this.handleFileChange(fileInfo.path, this.getProjectPathFromFileInfo(fileInfo), 'modified');
+      },
+      onFileDeleted: async (filePath) => {
+        await this.handleFileChange(filePath, this.getProjectPathFromFilePath(filePath), 'deleted');
+      }
+    });
+  }
+
+  /**
+   * 从文件信息获取项目路径
+   */
+  private getProjectPathFromFileInfo(fileInfo: any): string {
+    // 简化实现，实际应该根据文件路径确定项目路径
+    const pathParts = fileInfo.path.split(path.sep);
+    // 假设项目路径是文件路径的父目录的父目录
+    return pathParts.slice(0, -2).join(path.sep);
+  }
+
+  /**
+   * 从文件路径获取项目路径
+   */
+  private getProjectPathFromFilePath(filePath: string): string {
+    // 简化实现，实际应该根据文件路径确定项目路径
+    const pathParts = filePath.split(path.sep);
+    // 假设项目路径是文件路径的父目录的父目录
+    return pathParts.slice(0, -2).join(path.sep);
+  }
+
+  /**
+   * 处理文件变化
+   */
+  private async handleFileChange(filePath: string, projectPath: string, changeType: 'added' | 'modified' | 'deleted'): Promise<void> {
+    try {
+      const projectId = this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        this.logger.warn(`Project ID not found for path: ${projectPath}`);
+        return;
+      }
+
+      if (changeType === 'deleted') {
+        // 从索引中删除文件
+        await this.removeFileFromIndex(projectPath, filePath);
+      } else {
+        // 重新索引文件
+        await this.indexFile(projectPath, filePath);
+      }
+
+      // 更新项目时间戳
+      this.projectIdManager.updateProjectTimestamp(projectId);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to handle file change: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexSyncService', operation: 'handleFileChange', filePath, projectPath, changeType }
+      );
+    }
+  }
+
+  /**
+   * 开始索引项目
+   */
+  async startIndexing(projectPath: string, options?: IndexSyncOptions): Promise<string> {
+    try {
+      // 生成或获取项目ID
+      const projectId = await this.projectIdManager.generateProjectId(projectPath);
+
+      // 检查是否正在索引
+      const currentStatus = this.indexingProjects.get(projectId);
+      if (currentStatus && currentStatus.isIndexing) {
+        throw new Error(`Project ${projectId} is already being indexed`);
+      }
+
+      // 创建集合
+      const collectionCreated = await this.qdrantService.createCollectionForProject(
+        projectPath,
+        1536, // 默认向量维度，可以根据嵌入器配置调整
+        'Cosine'
+      );
+
+      if (!collectionCreated) {
+        throw new Error(`Failed to create collection for project: ${projectPath}`);
+      }
+
+      // 初始化索引状态
+      const status: IndexSyncStatus = {
+        projectId,
+        projectPath,
+        isIndexing: true,
+        lastIndexed: null,
+        totalFiles: 0,
+        indexedFiles: 0,
+        failedFiles: 0,
+        progress: 0
+      };
+
+      this.indexingProjects.set(projectId, status);
+
+      // 添加到索引队列
+      this.indexingQueue.push({ projectPath, options });
+
+      // 处理队列
+      if (!this.isProcessingQueue) {
+        this.processIndexingQueue();
+      }
+
+      // 触发索引开始事件
+      await this.emit('indexingStarted', projectId);
+
+      this.logger.info(`Started indexing project: ${projectId}`, { projectPath, options });
+      return projectId;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to start indexing: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexSyncService', operation: 'startIndexing', projectPath, options }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 处理索引队列
+   */
+  private async processIndexingQueue(): Promise<void> {
+    if (this.isProcessingQueue || this.indexingQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingQueue = true;
+
+    try {
+      while (this.indexingQueue.length > 0) {
+        const { projectPath, options } = this.indexingQueue.shift()!;
+        await this.indexProject(projectPath, options);
+      }
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Error processing indexing queue: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexSyncService', operation: 'processIndexingQueue' }
+      );
+    } finally {
+      this.isProcessingQueue = false;
+    }
+  }
+
+  /**
+   * 索引项目
+   */
+  private async indexProject(projectPath: string, options?: IndexSyncOptions): Promise<void> {
+    const projectId = this.projectIdManager.getProjectId(projectPath);
+    if (!projectId) {
+      throw new Error(`Project ID not found for path: ${projectPath}`);
+    }
+
+    const status = this.indexingProjects.get(projectId);
+    if (!status) {
+      throw new Error(`Indexing status not found for project: ${projectId}`);
+    }
+
+    try {
+      // 获取项目中的所有文件
+      const traversalResult = await this.performanceOptimizer.executeWithRetry(
+        () => this.fileSystemTraversal.traverseDirectory(projectPath, {
+          includePatterns: options?.includePatterns,
+          excludePatterns: options?.excludePatterns
+        }),
+        'traverseDirectory'
+      );
+
+      const files = traversalResult.files;
+      status.totalFiles = files.length;
+      this.logger.info(`Found ${files.length} files to index in project: ${projectId}`);
+
+      // 处理每个文件
+      const batchSize = options?.batchSize || this.performanceOptimizer.getCurrentBatchSize();
+      const maxConcurrency = options?.maxConcurrency || 3;
+
+      // 使用性能优化器批量处理文件
+      await this.performanceOptimizer.processBatches(
+        files,
+        async (batch) => {
+          const promises = batch.map(async (file) => {
+            try {
+              await this.performanceOptimizer.executeWithRetry(
+                () => this.indexFile(projectPath, file.path),
+                `indexFile:${file.path}`
+              );
+              status.indexedFiles++;
+            } catch (error) {
+              status.failedFiles++;
+              this.logger.error(`Failed to index file: ${file.path}`, { error });
+            }
+          });
+
+          // 限制并发数
+          await this.processWithConcurrency(promises, maxConcurrency);
+
+
+          // 更新进度
+          status.progress = Math.round((status.indexedFiles + status.failedFiles) / status.totalFiles * 100);
+          // 触发索引进度更新事件
+          await this.emit('indexingProgress', projectId, status.progress);
+          this.logger.debug(`Indexing progress: ${status.progress}%`, {
+            projectId,
+            indexedFiles: status.indexedFiles,
+            failedFiles: status.failedFiles,
+            totalFiles: status.totalFiles
+          });
+          // 返回空数组以满足processBatches的返回类型要求
+          return [];
+        },
+        'indexProjectFiles'
+      );
+
+      // 完成索引
+      status.isIndexing = false;
+      status.lastIndexed = new Date();
+      this.indexingProjects.set(projectId, status);
+
+      // 触发索引完成事件
+      await this.emit('indexingCompleted', projectId);
+
+      this.logger.info(`Completed indexing project: ${projectId}`, {
+        totalFiles: status.totalFiles,
+        indexedFiles: status.indexedFiles,
+        failedFiles: status.failedFiles
+      });
+    } catch (error) {
+      status.isIndexing = false;
+      this.indexingProjects.set(projectId, status);
+
+      this.errorHandler.handleError(
+        new Error(`Failed to index project: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexSyncService', operation: 'indexProject', projectPath, projectId }
+      );
+      // 触发索引错误事件
+      await this.emit('indexingError', projectId, error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+  }
+
+  /**
+   * 索引单个文件
+   */
+  private async indexFile(projectPath: string, filePath: string): Promise<void> {
+    try {
+      // 读取文件内容
+      const content = await fs.readFile(filePath, 'utf-8');
+
+      // 分割文件为块
+      const chunks = this.chunkFile(content, filePath);
+
+      // 转换为向量点
+      const vectorPoints = await this.convertChunksToVectorPoints(chunks, projectPath);
+
+      // 存储到Qdrant
+      const success = await this.qdrantService.upsertVectorsForProject(projectPath, vectorPoints);
+
+      if (!success) {
+        throw new Error(`Failed to upsert vectors for file: ${filePath}`);
+      }
+
+      this.logger.debug(`Indexed file: ${filePath}`, { chunks: chunks.length });
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to index file: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexSyncService', operation: 'indexFile', projectPath, filePath }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 从索引中删除文件
+   */
+  private async removeFileFromIndex(projectPath: string, filePath: string): Promise<void> {
+    try {
+      const projectId = this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project ID not found for path: ${projectPath}`);
+      }
+
+      const collectionName = this.projectIdManager.getCollectionName(projectId);
+      if (!collectionName) {
+        throw new Error(`Collection name not found for project: ${projectId}`);
+      }
+
+      // 获取文件的所有块ID
+      const chunkIds = await this.qdrantService.getChunkIdsByFiles(collectionName, [filePath]);
+
+      if (chunkIds.length > 0) {
+        // 删除这些块
+        const success = await this.qdrantService.deletePoints(collectionName, chunkIds);
+
+        if (!success) {
+          throw new Error(`Failed to delete chunks for file: ${filePath}`);
+        }
+
+        this.logger.debug(`Removed file from index: ${filePath}`, { chunks: chunkIds.length });
+      }
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to remove file from index: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexSyncService', operation: 'removeFileFromIndex', projectPath, filePath }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 分割文件为块
+   */
+  private chunkFile(content: string, filePath: string): FileChunk[] {
+    const lines = content.split('\n');
+    const chunks: FileChunk[] = [];
+
+    // 简单的按行分割策略，可以根据需要实现更复杂的分割逻辑
+    const chunkSize = 100; // 每个块的行数
+    const chunkOverlap = 10; // 块之间的重叠行数
+
+    for (let i = 0; i < lines.length; i += chunkSize - chunkOverlap) {
+      const startLine = i;
+      const endLine = Math.min(i + chunkSize, lines.length);
+      const chunkContent = lines.slice(startLine, endLine).join('\n');
+
+      // 检测语言
+      const language = this.detectLanguage(filePath);
+
+      chunks.push({
+        content: chunkContent,
+        filePath,
+        startLine: startLine + 1,
+        endLine: endLine,
+        language,
+        chunkType: 'code'
+      });
+    }
+
+    return chunks;
+  }
+
+  /**
+   * 检测文件语言
+   */
+  private detectLanguage(filePath: string): string {
+    const ext = path.extname(filePath).toLowerCase();
+
+    const languageMap: Record<string, string> = {
+      '.js': 'javascript',
+      '.ts': 'typescript',
+      '.jsx': 'javascript',
+      '.tsx': 'typescript',
+      '.py': 'python',
+      '.java': 'java',
+      '.cpp': 'cpp',
+      '.c': 'c',
+      '.h': 'cpp',
+      '.cs': 'csharp',
+      '.go': 'go',
+      '.rs': 'rust',
+      '.php': 'php',
+      '.rb': 'ruby',
+      '.swift': 'swift',
+      '.kt': 'kotlin',
+      '.scala': 'scala',
+      '.md': 'markdown',
+      '.json': 'json',
+      '.xml': 'xml',
+      '.yaml': 'yaml',
+      '.yml': 'yaml',
+      '.sql': 'sql',
+      '.sh': 'shell',
+      '.bash': 'shell',
+      '.zsh': 'shell',
+      '.fish': 'shell',
+      '.html': 'html',
+      '.css': 'css',
+      '.scss': 'scss',
+      '.sass': 'sass',
+      '.less': 'less',
+      '.vue': 'vue',
+      '.svelte': 'svelte'
+    };
+
+    return languageMap[ext] || 'unknown';
+  }
+
+  /**
+   * 将文件块转换为向量点
+   */
+  private async convertChunksToVectorPoints(chunks: FileChunk[], projectPath: string): Promise<VectorPoint[]> {
+    const projectId = this.projectIdManager.getProjectId(projectPath);
+    if (!projectId) {
+      throw new Error(`Project ID not found for path: ${projectPath}`);
+    }
+
+    // 准备嵌入输入
+    const embeddingInputs: EmbeddingInput[] = chunks.map(chunk => ({
+      text: chunk.content,
+      metadata: {
+        filePath: chunk.filePath,
+        language: chunk.language,
+        chunkType: chunk.chunkType,
+        startLine: chunk.startLine,
+        endLine: chunk.endLine,
+        functionName: chunk.functionName,
+        className: chunk.className
+      }
+    }));
+
+    // 生成嵌入
+    const embeddingResults = await this.embedderFactory.embed(embeddingInputs);
+    const results = Array.isArray(embeddingResults) ? embeddingResults : [embeddingResults];
+
+    // 转换为向量点
+    return results.map((result, index) => {
+      const chunk = chunks[index];
+      return {
+        id: `${chunk.filePath}:${chunk.startLine}-${chunk.endLine}`,
+        vector: result.vector,
+        payload: {
+          content: chunk.content,
+          filePath: chunk.filePath,
+          language: chunk.language,
+          chunkType: chunk.chunkType,
+          startLine: chunk.startLine,
+          endLine: chunk.endLine,
+          functionName: chunk.functionName,
+          className: chunk.className,
+          snippetMetadata: {
+            snippetType: chunk.chunkType
+          },
+          metadata: {
+            model: result.model,
+            dimensions: result.dimensions,
+            processingTime: result.processingTime
+          },
+          timestamp: new Date(),
+          projectId
+        }
+      };
+    });
+  }
+
+  /**
+   * 并发处理任务
+   */
+  private async processWithConcurrency<T>(promises: Promise<T>[], maxConcurrency: number): Promise<void> {
+    const results: Promise<T>[] = [];
+    const executing: Set<Promise<T>> = new Set();
+
+    for (const promise of promises) {
+      if (executing.size >= maxConcurrency) {
+        await Promise.race(executing);
+      }
+
+      const p = promise.then(result => {
+        executing.delete(p);
+        return result;
+      });
+
+      executing.add(p);
+      results.push(p);
+    }
+
+    await Promise.all(results);
+  }
+
+  /**
+   * 获取索引状态
+   */
+  getIndexStatus(projectId: string): IndexSyncStatus | null {
+    return this.indexingProjects.get(projectId) || null;
+  }
+
+  /**
+   * 获取所有索引状态
+   */
+  getAllIndexStatuses(): IndexSyncStatus[] {
+    return Array.from(this.indexingProjects.values());
+  }
+
+  /**
+   * 停止索引项目
+   */
+  async stopIndexing(projectId: string): Promise<boolean> {
+    try {
+      const status = this.indexingProjects.get(projectId);
+      if (!status) {
+        return false;
+      }
+
+      // 从队列中移除
+      this.indexingQueue = this.indexingQueue.filter(item => {
+        const itemProjectId = this.projectIdManager.getProjectId(item.projectPath);
+        return itemProjectId !== projectId;
+      });
+
+      // 更新状态
+      status.isIndexing = false;
+      this.indexingProjects.set(projectId, status);
+
+      this.logger.info(`Stopped indexing project: ${projectId}`);
+      return true;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to stop indexing: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexSyncService', operation: 'stopIndexing', projectId }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 重新索引项目
+   */
+  async reindexProject(projectPath: string, options?: IndexSyncOptions): Promise<string> {
+    try {
+      const projectId = this.projectIdManager.getProjectId(projectPath);
+      if (projectId) {
+        // 删除现有集合
+        await this.qdrantService.deleteCollectionForProject(projectPath);
+      }
+
+      // 开始新的索引
+      return await this.startIndexing(projectPath, options);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to reindex project: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexSyncService', operation: 'reindexProject', projectPath, options }
+      );
+      throw error;
+    }
+  }
+}
