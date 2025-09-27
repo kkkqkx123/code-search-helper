@@ -1,5 +1,6 @@
-import { MCPServer } from '../MCPServer.js';
+import { MCPServer } from '../MCPServer';
 import fs from 'fs/promises';
+import { Logger } from '../../utils/logger';
 
 // Mock MCP SDK
 jest.mock('@modelcontextprotocol/sdk/server/mcp.js');
@@ -11,10 +12,12 @@ const mockFs = fs as jest.Mocked<typeof fs>;
 
 describe('MCPServer', () => {
   let server: MCPServer;
+  let logger: Logger;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    server = new MCPServer();
+    logger = new Logger('MCPServerTest');
+    server = new MCPServer(logger);
   });
 
   describe('constructor', () => {
@@ -51,12 +54,12 @@ describe('MCPServer', () => {
     it('should return default mock data when file reading fails', async () => {
       mockFs.readFile = jest.fn().mockRejectedValue(new Error('File not found'));
 
-      const args = { query: 'test', options: { limit: 5 } };
+      const args = { query: 'calculate', options: { limit: 5 } };
       const result = await (server as any).handleSearch(args);
 
       expect(result).toBeDefined();
       expect(result.results).toHaveLength(1);
-      expect(result.query).toBe('test');
+      expect(result.query).toBe('calculate');
     });
 
     it('should filter results based on query', async () => {

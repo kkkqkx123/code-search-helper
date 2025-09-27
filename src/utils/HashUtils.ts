@@ -96,7 +96,9 @@ export class HashUtils {
     const extension = this.getFileExtension(filePath);
     const defaultExtensions = [
       'ts',
+      'tsx',
       'js',
+      'jsx',
       'py',
       'java',
       'go',
