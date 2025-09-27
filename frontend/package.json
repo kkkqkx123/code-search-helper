@@ -1,0 +1,18 @@
+{
+  "name": "codebase-index-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for codebase index MCP service",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

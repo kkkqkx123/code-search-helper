@@ -1,0 +1,71 @@
+{
+  "snippets": [
+    {
+      "id": "snippet_001",
+      "content": "function calculateTotal(items) {\n  return items.reduce((sum, item) => sum + item.price, 0);\n}",
+      "filePath": "src/utils/math.js",
+      "language": "javascript",
+      "type": "function",
+      "name": "calculateTotal",
+      "metadata": {
+        "parameters": ["items"],
+        "returnType": "number",
+        "description": "计算商品总价的工具函数"
+      }
+    },
+    {
+      "id": "snippet_002",
+      "content": "class UserService {\n  constructor() {\n    this.users = new Map();\n  }\n  \n  addUser(user) {\n    this.users.set(user.id, user);\n  }\n  \n  getUser(id) {\n    return this.users.get(id);\n  }\n}",
+      "filePath": "src/services/user.js",
+      "language": "javascript",
+      "type": "class",
+      "name": "UserService",
+      "metadata": {
+        "methods": ["addUser", "getUser"],
+        "properties": ["users"],
+        "description": "用户管理服务类"
+      }
+    },
+    {
+      "id": "snippet_003",
+      "content": "const express = require('express');\nconst app = express();\n\napp.get('/', (req, res) => {\n  res.send('Hello World!');\n});\n\napp.listen(3000, () => {\n  console.log('Server running on port 3000');\n});",
+      "filePath": "src/app.js",
+      "language": "javascript",
+      "type": "application",
+      "name": "ExpressApp",
+      "metadata": {
+        "framework": "Express",
+        "port": 3000,
+        "description": "基础Express应用示例"
+      }
+    },
+    {
+      "id": "snippet_004",
+      "content": "interface User {\n  id: number;\n  name: string;\n  email: string;\n  createdAt: Date;\n}\n\ntype UserRole = 'admin' | 'user' | 'guest';\n\nfunction validateUser(user: User): boolean {\n  return user.id > 0 && user.name.length > 0 && user.email.includes('@');\n}",
+      "filePath": "src/types/user.ts",
+      "language": "typescript",
+      "type": "interface",
+      "name": "User",
+      "metadata": {
+        "interfaces": ["User"],
+        "types": ["UserRole"],
+        "functions": ["validateUser"],
+        "description": "用户类型定义和验证函数"
+      }
+    },
+    {
+      "id": "snippet_005",
+      "content": "async function fetchData(url: string): Promise<Response> {\n  const response = await fetch(url);\n  if (!response.ok) {\n    throw new Error(`HTTP error! status: ${response.status}`);\n  }\n  return response;\n}",
+      "filePath": "src/utils/network.ts",
+      "language": "typescript",
+      "type": "function",
+      "name": "fetchData",
+      "metadata": {
+        "parameters": ["url"],
+        "returnType": "Promise<Response>",
+        "async": true,
+        "description": "封装的fetch函数，包含错误处理"
+      }
+    }
+  ]
+}
