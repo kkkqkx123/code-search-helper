@@ -15,6 +15,170 @@
             --success-color: #10b981;
             --error-color: #ef4444;
         }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .main-nav {
+            background-color: var(--card-color);
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-button {
+            background-color: #e2e8f0;
+            color: var(--text-color);
+            border: none;
+            border-radius: 6px;
+            padding: 8px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-button.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .nav-button:hover {
+            background-color: #cbd5e1;
+        }
+        
+        .form-container {
+            background-color: var(--card-color);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .progress-container {
+            margin-top: 20px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: var(--success-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .projects-container {
+            background-color: var(--card-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .projects-toolbar {
+            padding: 15px 20px;
+            background-color: #f1f5f9;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .projects-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .projects-table th,
+        .projects-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .projects-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+        }
+        
+        .action-button {
+            background-color: #e2e8f0;
+            color: var(--text-color);
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-right: 5px;
+        }
+        
+        .action-button:hover {
+            background-color: #cbd5e1;
+        }
+        
+        .action-button.delete {
+            background-color: #fee2e2;
+            color: var(--error-color);
+        }
+        
+        .action-button.delete:hover {
+            background-color: #fecaca;
+        }
+        
+        .action-button.reindex {
+            background-color: #dbeafe;
+            color: var(--primary-color);
+        }
+        
+        .action-button.reindex:hover {
+            background-color: #bfdbfe;
+        }
 
         * {
             margin: 0;
@@ -195,33 +359,120 @@
             <p>基于MCP协议的智能代码分析与搜索平台</p>
         </header>
 
+        <!-- 导航菜单 -->
+        <nav class="main-nav">
+            <button class="nav-button active" onclick="showPage('search')">代码搜索</button>
+            <button class="nav-button" onclick="showPage('index-project')">构建索引</button>
+            <button class="nav-button" onclick="showPage('projects')">已索引项目</button>
+        </nav>
+
         <div class="status-bar">
             <div id="status">状态: 准备就绪</div>
             <div id="version">版本: 1.0.0</div>
         </div>
 
-        <div class="search-container">
-            <form id="search-form" class="search-form">
-                <input
-                    type="text"
-                    id="search-input"
-                    class="search-input"
-                    placeholder="输入搜索关键词，例如：函数定义、类实现等..."
-                    autocomplete="off"
-                >
-                <button type="submit" class="search-button">搜索</button>
-            </form>
-            <div style="margin-top: 15px; text-align: center;">
-                <button id="example-search" class="search-button" style="background-color: #64748b; padding: 8px 15px; font-size: 14px;">示例搜索：function</button>
+        <!-- 搜索页面 -->
+        <div id="search-page" class="page active">
+            <div class="search-container">
+                <form id="search-form" class="search-form">
+                    <input
+                        type="text"
+                        id="search-input"
+                        class="search-input"
+                        placeholder="输入搜索关键词，例如：函数定义、类实现等..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="search-button">搜索</button>
+                </form>
+                <div style="margin-top: 15px; text-align: center;">
+                    <button id="example-search" class="search-button" style="background-color: #64748b; padding: 8px 15px; font-size: 14px;">示例搜索：function</button>
+                </div>
+            </div>
+
+            <div class="results-container">
+                <div class="results-header">搜索结果</div>
+                <div id="results-container">
+                    <div class="no-results" id="initial-message">
+                        请输入搜索关键词开始查询，或点击上方"示例搜索"按钮
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="results-container">
-            <div class="results-header">搜索结果</div>
-            <div id="results-container">
-                <div class="no-results" id="initial-message">
-                    请输入搜索关键词开始查询，或点击上方"示例搜索"按钮
+        <!-- 项目索引构建页面 -->
+        <div id="index-project-page" class="page">
+            <div class="form-container">
+                <h2>构建项目索引</h2>
+                <form id="project-index-form">
+                    <div class="form-group">
+                        <label for="project-path">项目路径:</label>
+                        <input type="text" id="project-path" class="form-control" required
+                               placeholder="/path/to/your/project">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="embedder">嵌入器:</label>
+                        <select id="embedder" class="form-control">
+                            <option value="openai">OpenAI</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="mistral">Mistral</option>
+                            <option value="siliconflow">SiliconFlow</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="batch-size">批次大小:</label>
+                        <input type="number" id="batch-size" class="form-control" value="100" min="1" max="1000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max-files">最大文件数:</label>
+                        <input type="number" id="max-files" class="form-control" value="1000" min="1">
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" id="index-button" class="search-button">开始构建</button>
+                        <button type="button" id="cancel-button" class="search-button" style="background-color: #64748b;">取消</button>
+                    </div>
+                </form>
+
+                <div id="indexing-progress" class="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">处理中: 0%</div>
                 </div>
+                
+                <div id="index-result" class="no-results" style="display: none; margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <!-- 已索引项目页面 -->
+        <div id="projects-page" class="page">
+            <div class="projects-container">
+                <div class="projects-toolbar">
+                    <h2>已索引项目</h2>
+                    <button id="refresh-projects" class="search-button" style="background-color: #64748b; padding: 6px 12px; font-size: 14px;">刷新</button>
+                </div>
+                
+                <table class="projects-table">
+                    <thead>
+                        <tr>
+                            <th>项目名称</th>
+                            <th>路径</th>
+                            <th>文件数</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-list">
+                        <!-- 动态填充 -->
+                    </tbody>
+                </table>
+                
+                <div id="projects-loading" class="loading" style="display: none; padding: 20px;">加载中...</div>
+                <div id="projects-error" class="error" style="display: none; margin: 20px;"></div>
             </div>
         </div>
     </div>
@@ -230,15 +481,18 @@
         class CodebaseSearchApp {
             constructor(apiBaseUrl = 'http://localhost:3010') {
                 this.apiBaseUrl = apiBaseUrl;
+                this.currentProjectId = null;
                 this.initialize();
             }
 
             initialize() {
                 this.setupEventListeners();
                 this.updateStatus();
+                this.loadProjectsList();
             }
 
             setupEventListeners() {
+                // 搜索页面事件监听器
                 const searchForm = document.getElementById('search-form');
                 const searchInput = document.getElementById('search-input');
 
@@ -252,6 +506,24 @@
                     e.preventDefault();
                     searchInput.value = 'function';
                     this.performSearch('function');
+                });
+
+                // 项目索引表单事件监听器
+                const projectIndexForm = document.getElementById('project-index-form');
+                const cancelButton = document.getElementById('cancel-button');
+                const refreshProjectsButton = document.getElementById('refresh-projects');
+
+                projectIndexForm?.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.createProjectIndex();
+                });
+
+                cancelButton?.addEventListener('click', () => {
+                    this.resetIndexForm();
+                });
+
+                refreshProjectsButton?.addEventListener('click', () => {
+                    this.loadProjectsList();
                 });
             }
 
@@ -331,6 +603,176 @@
                 }
             }
 
+            // 项目索引相关方法
+            async createProjectIndex() {
+                const projectPath = document.getElementById('project-path').value;
+                const embedder = document.getElementById('embedder').value;
+                const batchSize = parseInt(document.getElementById('batch-size').value);
+                const maxFiles = parseInt(document.getElementById('max-files').value);
+
+                if (!projectPath.trim()) {
+                    this.showIndexResult('请提供项目路径', 'error');
+                    return;
+                }
+
+                try {
+                    // 显示进度条
+                    document.getElementById('indexing-progress').style.display = 'block';
+                    document.getElementById('progress-text').textContent = '正在初始化...';
+
+                    // 调用API创建项目索引
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/indexing/create`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            projectPath,
+                            options: {
+                                embedder,
+                                batchSize,
+                                maxFiles
+                            }
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.currentProjectId = result.projectId;
+                        this.showIndexResult(`项目索引创建成功，ID: ${result.projectId}`, 'success');
+                        document.getElementById('indexing-progress').style.display = 'none';
+                        // 刷新项目列表
+                        this.loadProjectsList();
+                    } else {
+                        this.showIndexResult(`创建项目索引失败: ${result.error || '未知错误'}`, 'error');
+                        document.getElementById('indexing-progress').style.display = 'none';
+                    }
+                } catch (error) {
+                    this.showIndexResult(`创建项目索引时发生错误: ${error.message}`, 'error');
+                    document.getElementById('indexing-progress').style.display = 'none';
+                }
+            }
+
+            showIndexResult(message, type) {
+                const resultDiv = document.getElementById('index-result');
+                if (resultDiv) {
+                    resultDiv.style.display = 'block';
+                    resultDiv.textContent = message;
+                    resultDiv.className = type === 'error' ? 'error' : 'no-results';
+                }
+            }
+
+            resetIndexForm() {
+                document.getElementById('project-index-form').reset();
+                document.getElementById('indexing-progress').style.display = 'none';
+                document.getElementById('index-result').style.display = 'none';
+            }
+
+            // 项目列表相关方法
+            async loadProjectsList() {
+                const projectsList = document.getElementById('projects-list');
+                const loadingDiv = document.getElementById('projects-loading');
+                const errorDiv = document.getElementById('projects-error');
+
+                if (!projectsList || !loadingDiv || !errorDiv) return;
+
+                loadingDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+                projectsList.innerHTML = '';
+
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/projects`);
+                    const result = await response.json();
+
+                    if (result.success && result.projects) {
+                        this.renderProjectsList(result.projects, projectsList);
+                    } else {
+                        errorDiv.style.display = 'block';
+                        errorDiv.textContent = '加载项目列表失败: ' + (result.error || '未知错误');
+                    }
+                } catch (error) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = '加载项目列表时发生错误: ' + error.message;
+                } finally {
+                    loadingDiv.style.display = 'none';
+                }
+            }
+
+            renderProjectsList(projects, container) {
+                if (!container) return;
+
+                container.innerHTML = projects.map(project => `
+                    <tr>
+                        <td>${this.escapeHtml(project.name || project.id)}</td>
+                        <td>${this.escapeHtml(project.path || 'N/A')}</td>
+                        <td>${project.totalFiles || 0}</td>
+                        <td>
+                            <span class="result-score" style="background-color: ${this.getStatusColor(project.status)}">
+                                ${project.status || 'unknown'}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="action-button reindex" onclick="app.reindexProject('${project.id}')">重新索引</button>
+                            <button class="action-button delete" onclick="app.deleteProject('${project.id}', this)">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            getStatusColor(status) {
+                switch (status) {
+                    case 'indexing':
+                        return '#f59e0b'; // amber
+                    case 'completed':
+                        return '#10b981'; // green
+                    case 'failed':
+                        return '#ef4444'; // red
+                    default:
+                        return '#6b7280'; // gray
+                }
+            }
+
+            async reindexProject(projectId) {
+                if (!confirm('确定要重新索引该项目吗？')) return;
+
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/reindex`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('重新索引已启动');
+                        // 刷新项目列表
+                        this.loadProjectsList();
+                    } else {
+                        alert('重新索引失败: ' + (result.error || '未知错误'));
+                    }
+                } catch (error) {
+                    alert('重新索引时发生错误: ' + error.message);
+                }
+            }
+
+            async deleteProject(projectId, element) {
+                if (!confirm('确定要删除该项目的索引吗？此操作不可撤销。')) return;
+
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        // 从界面移除该项目
+                        element.closest('tr').remove();
+                        alert('项目已删除');
+                    } else {
+                        alert('删除项目失败: ' + (result.error || '未知错误'));
+                    }
+                } catch (error) {
+                    alert('删除项目时发生错误: ' + error.message);
+                }
+            }
+
             escapeHtml(text) {
                 const map = {
                     '&': '&',
@@ -344,8 +786,27 @@
             }
         }
 
+        // 页面切换功能
+        function showPage(pageId) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // 移除所有导航按钮的active类
+            document.querySelectorAll('.nav-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // 显示选中的页面
+            document.getElementById(`${pageId}-page`).classList.add('active');
+            
+            // 高亮选中的导航按钮
+            document.querySelector(`[onclick="showPage('${pageId}')"]`).classList.add('active');
+        }
+
         // 启动应用
-        new CodebaseSearchApp();
+        const app = new CodebaseSearchApp();
     </script>
 </body>
 </html>
