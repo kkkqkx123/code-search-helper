@@ -124,14 +124,36 @@ export class FileSystemTraversal {
     currentPath: string,
     rootPath: string,
     result: TraversalResult,
-    options: Required<TraversalOptions>
+    options: Required<TraversalOptions>,
+    visitedPaths: Set<string> = new Set()
   ): Promise<void> {
     try {
+      // Check for circular references to prevent infinite recursion
+      let realPath: string;
+      try {
+        realPath = fsSync.realpathSync(currentPath);
+      } catch (error) {
+        result.errors.push(`Cannot resolve real path: ${currentPath}`);
+        return;
+      }
+      
+      if (visitedPaths.has(realPath)) {
+        result.errors.push(`Circular reference detected: ${currentPath}`);
+        return;
+      }
+      visitedPaths.add(realPath);
+
+      // Limit recursion depth to prevent stack overflow
+      if (visitedPaths.size > 1000) {
+        result.errors.push(`Maximum recursion depth exceeded: ${currentPath}`);
+        return;
+      }
+
       const stats = await fs.stat(currentPath);
       const relativePath = path.relative(rootPath, currentPath);
 
       if (stats.isDirectory()) {
-        await this.processDirectory(currentPath, relativePath, rootPath, result, options);
+        await this.processDirectory(currentPath, relativePath, rootPath, result, options, visitedPaths);
       } else if (stats.isFile()) {
         await this.processFile(currentPath, relativePath, stats, result, options);
       }
@@ -151,7 +173,8 @@ export class FileSystemTraversal {
     relativePath: string,
     rootPath: string,
     result: TraversalResult,
-    options: Required<TraversalOptions>
+    options: Required<TraversalOptions>,
+    visitedPaths: Set<string>
   ): Promise<void> {
     const dirName = path.basename(dirPath);
 
@@ -170,9 +193,9 @@ export class FileSystemTraversal {
         const fullPath = path.join(dirPath, entry.name);
 
         if (entry.isDirectory()) {
-          await this.traverseRecursive(fullPath, rootPath, result, options);
+          await this.traverseRecursive(fullPath, rootPath, result, options, visitedPaths);
         } else if (entry.isFile() || (entry.isSymbolicLink() && options.followSymlinks)) {
-          await this.traverseRecursive(fullPath, rootPath, result, options);
+          await this.traverseRecursive(fullPath, rootPath, result, options, visitedPaths);
         }
       }
     } catch (error) {
@@ -256,16 +279,18 @@ export class FileSystemTraversal {
       }
     }
 
-    if (options.includePatterns.length > 0) {
-      for (const pattern of options.includePatterns) {
-        if (this.matchesPattern(relativePath, pattern)) {
-          return false;
-        }
-      }
-      return true;
+    // If no include patterns are specified, don't filter by include patterns
+    if (options.includePatterns.length === 0) {
+      return false;
     }
 
-    return false;
+    // If include patterns are specified, file must match at least one
+    for (const pattern of options.includePatterns) {
+      if (this.matchesPattern(relativePath, pattern)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private matchesPattern(filePath: string, pattern: string): boolean {
@@ -393,30 +418,70 @@ export class FileSystemTraversal {
   }
 
   private async isBinaryFile(filePath: string): Promise<boolean> {
+    let fileHandle: fs.FileHandle | null = null;
     try {
-      const buffer = await fs.readFile(filePath, { encoding: null });
-
-      for (let i = 0; i < Math.min(1024, buffer.length); i++) {
+      // Use file handle to ensure proper resource cleanup
+      fileHandle = await fs.open(filePath, 'r');
+      const buffer = Buffer.alloc(1024);
+      const { bytesRead } = await fileHandle.read(buffer, 0, 1024, 0);
+      
+      for (let i = 0; i < bytesRead; i++) {
         if (buffer[i] === 0) {
           return true;
         }
       }
-
+      
       return false;
     } catch (error) {
       return true;
+    } finally {
+      if (fileHandle) {
+        try {
+          await fileHandle.close();
+        } catch (closeError) {
+          // Ignore close errors
+        }
+      }
     }
   }
 
   private async calculateFileHash(filePath: string): Promise<string> {
-    const hash = createHash('sha256');
-    const stream = fsSync.createReadStream(filePath);
-
-    for await (const chunk of stream) {
-      hash.update(chunk);
-    }
-
-    return hash.digest('hex');
+    return new Promise((resolve, reject) => {
+      const hash = createHash('sha256');
+      const stream = fsSync.createReadStream(filePath);
+      let isDestroyed = false;
+      
+      const cleanup = () => {
+        if (!isDestroyed) {
+          isDestroyed = true;
+          stream.destroy();
+        }
+      };
+      
+      stream.on('data', (chunk) => {
+        hash.update(chunk);
+      });
+      
+      stream.on('end', () => {
+        cleanup();
+        resolve(hash.digest('hex'));
+      });
+      
+      stream.on('error', (error) => {
+        cleanup();
+        reject(error);
+      });
+      
+      stream.on('close', cleanup);
+      
+      // Set a timeout to prevent hanging
+      setTimeout(() => {
+        if (!isDestroyed) {
+          cleanup();
+          reject(new Error(`File hash calculation timeout: ${filePath}`));
+        }
+      }, 30000); // 30 second timeout
+    });
   }
 
   async findChangedFiles(

@@ -1,7 +1,14 @@
 import { injectable, inject, optional } from 'inversify';
 import { EventEmitter } from 'events';
-import { LoggerService } from '../../core/LoggerService';
-import { ErrorHandlerService, ErrorContext } from '../../core/ErrorHandlerService';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+
+// 定义错误上下文接口
+interface ErrorContext {
+  component: string;
+  operation: string;
+  metadata?: Record<string, any>;
+}
 import { FileWatcherService, FileWatcherOptions, FileWatcherCallbacks } from './FileWatcherService';
 import { FileSystemTraversal, FileInfo } from './FileSystemTraversal';
 import { TYPES } from '../../types';

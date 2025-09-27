@@ -34,18 +34,41 @@ describe('FileWatcherService', () => {
     // Create a container for dependency injection
     container = new Container();
 
-    // Create mock services
-    mockLogger = new MockedLoggerService();
-    mockErrorHandler = new MockedErrorHandlerService();
-    mockFileSystemTraversal = new MockedFileSystemTraversal();
+    // Create mock services with proper mocks
+    mockLogger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      getLogFilePath: jest.fn(),
+      markAsNormalExit: jest.fn(),
+    } as any;
+
+    mockErrorHandler = {
+      handleError: jest.fn(),
+      getErrorReport: jest.fn(),
+      getAllErrorReports: jest.fn(),
+      clearErrorReport: jest.fn(),
+      clearAllErrorReports: jest.fn(),
+      getErrorStats: jest.fn(),
+    } as any;
+
+    mockFileSystemTraversal = {
+      traverseDirectory: jest.fn(),
+      getFileContent: jest.fn(),
+      getDirectoryStats: jest.fn(),
+      isBinaryFile: jest.fn(),
+      calculateFileHash: jest.fn(),
+    } as any;
 
     // Bind services to container
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandler);
     container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).toConstantValue(mockFileSystemTraversal);
+    container.bind<FileWatcherService>(TYPES.FileWatcherService).to(FileWatcherService);
 
     // Create FileWatcherService instance
-    fileWatcherService = container.resolve(FileWatcherService);
+    fileWatcherService = container.get<FileWatcherService>(TYPES.FileWatcherService);
   });
 
   describe('startWatching', () => {

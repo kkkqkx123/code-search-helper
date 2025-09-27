@@ -2,12 +2,23 @@ import { injectable, inject, optional } from 'inversify';
 import chokidar, { FSWatcher, ChokidarOptions } from 'chokidar';
 import path from 'path';
 import fs from 'fs/promises';
-import { LoggerService } from '../../core/LoggerService';
-import {
-  ErrorHandlerService,
-  CodebaseIndexError,
-  ErrorContext,
-} from '../../core/ErrorHandlerService';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+
+// 定义错误上下文接口
+interface ErrorContext {
+  component: string;
+  operation: string;
+  metadata?: Record<string, any>;
+}
+
+// 定义 CodebaseIndexError 类
+class CodebaseIndexError extends Error {
+  constructor(message: string, public code?: string) {
+    super(message);
+    this.name = 'CodebaseIndexError';
+  }
+}
 import { FileSystemTraversal, FileInfo, TraversalOptions } from './FileSystemTraversal';
 import { TYPES } from '../../types';
 
