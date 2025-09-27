@@ -1,7 +1,10 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
+import { injectable, inject } from 'inversify';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from './IVectorStore';
+import { ConfigService } from '../config/ConfigService';
+import { TYPES } from '../types';
 
 export interface QdrantConfig {
   host: string;
@@ -9,8 +12,10 @@ export interface QdrantConfig {
   apiKey?: string;
   useHttps: boolean;
   timeout: number;
+  collection: string;
 }
 
+@injectable()
 export class QdrantService implements IVectorStore {
   private client: QdrantClient | null = null;
   private config: QdrantConfig;
@@ -20,19 +25,22 @@ export class QdrantService implements IVectorStore {
   private isInitialized: boolean = false;
 
   constructor(
-    logger: LoggerService,
-    errorHandler: ErrorHandlerService
+    @inject(TYPES.ConfigService) configService: ConfigService,
+    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
 
-    // 简化配置获取
+    // 从配置服务获取配置
+    const qdrantConfig = configService.get('qdrant');
     this.config = {
-      host: process.env.QDRANT_HOST || 'localhost',
-      port: parseInt(process.env.QDRANT_PORT || '6333'),
-      apiKey: process.env.QDRANT_API_KEY,
-      useHttps: process.env.QDRANT_USE_HTTPS === 'true',
-      timeout: parseInt(process.env.QDRANT_TIMEOUT || '30000'),
+      host: qdrantConfig.host,
+      port: qdrantConfig.port,
+      apiKey: qdrantConfig.apiKey,
+      useHttps: qdrantConfig.useHttps,
+      timeout: qdrantConfig.timeout,
+      collection: qdrantConfig.collection,
     };
   }
 

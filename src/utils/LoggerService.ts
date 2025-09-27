@@ -1,14 +1,16 @@
+import { injectable } from 'inversify';
 import { Logger } from './logger';
 
 /**
  * 日志服务类
  * 提供结构化的日志记录功能
  */
+@injectable()
 export class LoggerService {
   private logger: Logger;
 
   constructor(component?: string) {
-    const serviceName = component || 'codebase-index-mcp';
+    const serviceName = component || 'code-search-helper';
     this.logger = new Logger(serviceName);
   }
 

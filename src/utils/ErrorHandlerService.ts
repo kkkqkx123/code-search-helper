@@ -1,4 +1,6 @@
+import { injectable, inject } from 'inversify';
 import { LoggerService } from './LoggerService';
+import { TYPES } from '../types';
 
 /**
  * 错误报告接口
@@ -17,11 +19,12 @@ export interface ErrorReport {
  * 错误处理服务类
  * 提供统一的错误处理和报告功能
  */
+@injectable()
 export class ErrorHandlerService {
   private logger: LoggerService;
   private errorReports: Map<string, ErrorReport> = new Map();
 
-  constructor(logger: LoggerService) {
+  constructor(@inject(TYPES.LoggerService) logger: LoggerService) {
     this.logger = logger;
   }
 

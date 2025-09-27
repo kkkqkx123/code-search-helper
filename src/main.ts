@@ -6,30 +6,31 @@ import { ErrorHandlerService } from './utils/ErrorHandlerService';
 import { QdrantService } from './database/QdrantService';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
+import { ConfigService } from './config/ConfigService';
+import { diContainer } from './core/DIContainer';
+import { TYPES } from './types';
 
 class Application {
   private mcpServer: MCPServer;
   private apiServer: ApiServer;
   private logger: Logger;
-  private loggerService: LoggerService;
-  private errorHandler: ErrorHandlerService;
   private qdrantService: QdrantService;
   private embeddingCacheService: EmbeddingCacheService;
   private embedderFactory: EmbedderFactory;
+  loggerService: any;
 
   constructor() {
     this.logger = new Logger('codebase-index-mcp');
 
-    // 初始化核心服务
-    this.loggerService = new LoggerService();
-    this.errorHandler = new ErrorHandlerService(this.loggerService);
-
-    // 初始化数据库服务
-    this.qdrantService = new QdrantService(this.loggerService, this.errorHandler);
+    // 从依赖注入容器获取服务
+    const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
+    const loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
+    const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
+    this.qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
 
     // 初始化嵌入器服务
-    this.embeddingCacheService = new EmbeddingCacheService(this.logger, this.errorHandler);
-    this.embedderFactory = new EmbedderFactory(this.logger, this.errorHandler, this.embeddingCacheService);
+    this.embeddingCacheService = new EmbeddingCacheService(this.logger, errorHandler);
+    this.embedderFactory = new EmbedderFactory(this.logger, errorHandler, this.embeddingCacheService);
 
     // 初始化服务器
     this.mcpServer = new MCPServer(this.logger);
@@ -85,82 +86,90 @@ class Application {
    * 仅检查 EMBEDDING_PROVIDER 设置的提供者相关字段是否非空
    */
   private validateEmbeddingProviderConfig(): void {
-    const selectedProvider = process.env.EMBEDDING_PROVIDER || 'openai';
-    
+    const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
+    const loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
+
+    const config = configService.get('embedding');
+    const selectedProvider = config.provider || 'openai';
+
     let missingEnvVars: string[] = [];
-    
+
     switch (selectedProvider.toLowerCase()) {
       case 'openai':
-        if (!process.env.OPENAI_API_KEY) {
+        if (!config.openai.apiKey) {
           missingEnvVars.push('OPENAI_API_KEY');
         }
         break;
       case 'ollama':
-        if (!process.env.OLLAMA_BASE_URL) {
+        if (!config.ollama.baseUrl) {
           missingEnvVars.push('OLLAMA_BASE_URL');
         }
         break;
       case 'gemini':
-        if (!process.env.GEMINI_API_KEY) {
+        if (!config.gemini.apiKey) {
           missingEnvVars.push('GEMINI_API_KEY');
         }
         break;
       case 'mistral':
-        if (!process.env.MISTRAL_API_KEY) {
+        if (!config.mistral.apiKey) {
           missingEnvVars.push('MISTRAL_API_KEY');
         }
         break;
       case 'siliconflow':
-        if (!process.env.SILICONFLOW_API_KEY) {
+        if (!config.siliconflow.apiKey) {
           missingEnvVars.push('SILICONFLOW_API_KEY');
         }
         break;
       case 'custom1':
-        if (!process.env.CUSTOM_CUSTOM1_API_KEY) {
+        if (!config.custom?.custom1?.apiKey) {
           missingEnvVars.push('CUSTOM_CUSTOM1_API_KEY');
         }
-        if (!process.env.CUSTOM_CUSTOM1_BASE_URL) {
+        if (!config.custom?.custom1?.baseUrl) {
           missingEnvVars.push('CUSTOM_CUSTOM1_BASE_URL');
         }
         break;
       case 'custom2':
-        if (!process.env.CUSTOM_CUSTOM2_API_KEY) {
+        if (!config.custom?.custom2?.apiKey) {
           missingEnvVars.push('CUSTOM_CUSTOM2_API_KEY');
         }
-        if (!process.env.CUSTOM_CUSTOM2_BASE_URL) {
+        if (!config.custom?.custom2?.baseUrl) {
           missingEnvVars.push('CUSTOM_CUSTOM2_BASE_URL');
         }
         break;
       case 'custom3':
-        if (!process.env.CUSTOM_CUSTOM3_API_KEY) {
+        if (!config.custom?.custom3?.apiKey) {
           missingEnvVars.push('CUSTOM_CUSTOM3_API_KEY');
         }
-        if (!process.env.CUSTOM_CUSTOM3_BASE_URL) {
+        if (!config.custom?.custom3?.baseUrl) {
           missingEnvVars.push('CUSTOM_CUSTOM3_BASE_URL');
         }
         break;
       default:
         // 如果提供者不支持，记录警告
-        this.loggerService.warn(`Unsupported embedding provider: ${selectedProvider}`);
+        loggerService.warn(`Unsupported embedding provider: ${selectedProvider}`);
         break;
     }
 
     if (missingEnvVars.length > 0) {
-      this.loggerService.warn(`Missing environment variables for provider '${selectedProvider}':`, { missingEnvVars });
+      loggerService.warn(`Missing environment variables for provider '${selectedProvider}':`, { missingEnvVars });
     } else {
-      this.loggerService.info(`Environment configuration validated for provider: ${selectedProvider}`);
+      loggerService.info(`Environment configuration validated for provider: ${selectedProvider}`);
     }
   }
 
   async stop(): Promise<void> {
     await this.logger.info('Stopping application...');
 
+    // 从依赖注入容器获取服务
+    const loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
+    const qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
+
     // 关闭数据库服务
     try {
-      await this.qdrantService.close();
-      await this.loggerService.info('Database service closed');
+      await qdrantService.close();
+      await loggerService.info('Database service closed');
     } catch (error) {
-      await this.loggerService.error('Error closing database service:', error);
+      await loggerService.error('Error closing database service:', error);
     }
 
     // 关闭MCP服务器
@@ -174,7 +183,7 @@ class Application {
     }
 
     // 通知LoggerService这是一个正常退出
-    await this.loggerService.markAsNormalExit();
+    await loggerService.markAsNormalExit();
   }
 }
 
