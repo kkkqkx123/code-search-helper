@@ -63,9 +63,11 @@ export class Logger {
   }
 
   private setupExitHandlers(): void {
-    // 正常退出处理
+    // 正常退出处理 - 由于在 exit 事件中无法使用异步操作，我们只做最基础的清理
+    // 实际的异步清理操作依赖于其他信号处理器
     process.on('exit', () => {
-      this.cleanup(this.isNormalExit);
+      // 尽可能释放资源，但不执行异步操作
+      // 真正的异步清理依赖于 SIGINT/SIGTERM 事件
     });
 
     // 异常退出处理

@@ -17,16 +17,17 @@ class Application {
   private qdrantService: QdrantService;
   private embeddingCacheService: EmbeddingCacheService;
   private embedderFactory: EmbedderFactory;
-  loggerService: any;
+  private loggerService: LoggerService;
 
   constructor() {
-    this.logger = new Logger('codebase-index-mcp');
-
     // 从依赖注入容器获取服务
     const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
-    const loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
+    this.loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
     const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
     this.qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
+
+    // 使用 LoggerService 创建 Logger 实例
+    this.logger = new Logger('code-search-helper');
 
     // 初始化嵌入器服务
     this.embeddingCacheService = new EmbeddingCacheService(this.logger, errorHandler);

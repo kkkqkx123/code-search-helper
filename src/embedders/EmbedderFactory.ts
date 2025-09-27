@@ -23,8 +23,9 @@ export class EmbedderFactory {
     this.errorHandler = errorHandler;
     this.cacheService = cacheService;
 
-    // 简化配置获取
-    this.defaultProvider = process.env.DEFAULT_EMBEDDING_PROVIDER || 'openai';
+    // 从环境变量获取嵌入提供者配置
+    const configProvider = process.env.EMBEDDING_PROVIDER || 'openai';
+    this.defaultProvider = configProvider;
 
     // 初始化嵌入器
     this.initializeEmbedders();
@@ -113,26 +114,35 @@ export class EmbedderFactory {
       throw error;
     }
   }
-
-  /**
-   * 获取可用的嵌入器提供者列表
-   */
-  async getAvailableProviders(): Promise<string[]> {
-    const available: string[] = [];
-
-    for (const [name, embedder] of this.embedders.entries()) {
-      try {
-        const isAvailable = await embedder.isAvailable();
-        if (isAvailable) {
-          available.push(name);
-        }
-      } catch (error) {
-        this.logger.warn(`Failed to check availability for embedder ${name}`, { error });
+/**
+ * 获取可用的嵌入器提供者列表
+ * 现在只检查配置中指定的提供者
+ */
+async getAvailableProviders(): Promise<string[]> {
+  const available: string[] = [];
+  
+  // 只检查配置中指定的提供者
+  const configProvider = process.env.EMBEDDING_PROVIDER || 'openai';
+  
+  if (this.embedders.has(configProvider)) {
+    try {
+      const embedder = this.embedders.get(configProvider)!;
+      const isAvailable = await embedder.isAvailable();
+      if (isAvailable) {
+        available.push(configProvider);
+        this.logger.info(`Configured embedder provider is available: ${configProvider}`);
+      } else {
+        this.logger.warn(`Configured embedder provider is not available: ${configProvider}`);
       }
+    } catch (error) {
+      this.logger.warn(`Failed to check availability for configured embedder ${configProvider}`, { error });
     }
-
-    return available;
+  } else {
+    this.logger.warn(`Configured embedder provider not found: ${configProvider}`);
   }
+
+  return available;
+}
 
   /**
    * 获取嵌入器信息
