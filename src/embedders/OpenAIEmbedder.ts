@@ -1,4 +1,4 @@
-import { LoggerService } from '../utils/logger';
+import { Logger } from '../utils/logger';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from './EmbeddingCacheService';
 import { BaseEmbedder, EmbeddingInput, EmbeddingResult } from './BaseEmbedder';
@@ -14,12 +14,12 @@ export class OpenAIEmbedder extends BaseEmbedder {
   private dimensions: number;
 
   constructor(
-    logger: LoggerService,
+    logger: Logger,
     errorHandler: ErrorHandlerService,
     cacheService: EmbeddingCacheService
   ) {
     super(logger, errorHandler);
-    
+
     // 简化配置获取
     this.apiKey = process.env.OPENAI_API_KEY || '';
     this.baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com';
@@ -92,7 +92,7 @@ export class OpenAIEmbedder extends BaseEmbedder {
       }
 
       const data = await response.json();
-      
+
       return data.data.map((item: any) => ({
         vector: item.embedding,
         dimensions: item.embedding.length,

@@ -1,5 +1,5 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { LoggerService } from '../utils/logger';
+import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from './IVectorStore';
 
@@ -12,11 +12,12 @@ export interface QdrantConfig {
 }
 
 export class QdrantService implements IVectorStore {
-  private client: QdrantClient;
+  private client: QdrantClient | null = null;
   private config: QdrantConfig;
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
-  private isConnected: boolean = false;
+  private isConnectedFlag: boolean = false;
+  private isInitialized: boolean = false;
 
   constructor(
     logger: LoggerService,
@@ -33,23 +34,30 @@ export class QdrantService implements IVectorStore {
       useHttps: process.env.QDRANT_USE_HTTPS === 'true',
       timeout: parseInt(process.env.QDRANT_TIMEOUT || '30000'),
     };
+  }
 
-    this.client = new QdrantClient({
-      url: `${this.config.useHttps ? 'https' : 'http'}://${this.config.host}:${this.config.port}`,
-      ...(this.config.apiKey ? { apiKey: this.config.apiKey } : {}),
-      timeout: this.config.timeout,
-    });
+  private async ensureClientInitialized(): Promise<boolean> {
+    if (!this.isInitialized) {
+      this.client = new QdrantClient({
+        url: `${this.config.useHttps ? 'https' : 'http'}://${this.config.host}:${this.config.port}`,
+        ...(this.config.apiKey ? { apiKey: this.config.apiKey } : {}),
+        timeout: this.config.timeout,
+      });
+      this.isInitialized = true;
+    }
+    return true;
   }
 
   async initialize(): Promise<boolean> {
     try {
+      await this.ensureClientInitialized();
       // Use getCollections as a health check
-      await this.client.getCollections();
-      this.isConnected = true;
+      await this.client!.getCollections();
+      this.isConnectedFlag = true;
       this.logger.info('Connected to Qdrant successfully');
       return true;
     } catch (error) {
-      this.isConnected = false;
+      this.isConnectedFlag = false;
       this.errorHandler.handleError(
         new Error(
           `Failed to connect to Qdrant: ${error instanceof Error ? error.message : String(error)}`
@@ -67,6 +75,7 @@ export class QdrantService implements IVectorStore {
     recreateIfExists: boolean = false
   ): Promise<boolean> {
     try {
+      await this.ensureClientInitialized();
       const exists = await this.collectionExists(name);
 
       if (exists && recreateIfExists) {
@@ -76,7 +85,7 @@ export class QdrantService implements IVectorStore {
         return true;
       }
 
-      await this.client.createCollection(name, {
+      await this.client!.createCollection(name, {
         vectors: {
           size: vectorSize,
           distance: distance,
@@ -95,7 +104,7 @@ export class QdrantService implements IVectorStore {
         'projectId',
         'snippetMetadata.snippetType'
       ];
-      
+
       for (const field of payloadIndexes) {
         const indexCreated = await this.createPayloadIndex(name, field);
         if (!indexCreated) {
@@ -120,22 +129,24 @@ export class QdrantService implements IVectorStore {
     }
   }
 
-  async collectionExists(name: string): Promise<boolean> {
-    try {
-      const collections = await this.client.getCollections();
-      return collections.collections.some(col => col.name === name);
-    } catch (error) {
-      this.logger.warn('Failed to check collection existence', {
-        collectionName: name,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return false;
-    }
-  }
+   async collectionExists(name: string): Promise<boolean> {
+     try {
+       await this.ensureClientInitialized();
+       const collections = await this.client!.getCollections();
+       return collections.collections.some(col => col.name === name);
+     } catch (error) {
+       this.logger.warn('Failed to check collection existence', {
+         collectionName: name,
+         error: error instanceof Error ? error.message : String(error),
+       });
+       return false;
+     }
+   }
 
   async deleteCollection(name: string): Promise<boolean> {
     try {
-      await this.client.deleteCollection(name);
+      await this.ensureClientInitialized();
+      await this.client!.deleteCollection(name);
       this.logger.info(`Deleted collection ${name}`);
       return true;
     } catch (error) {
@@ -151,7 +162,8 @@ export class QdrantService implements IVectorStore {
 
   async getCollectionInfo(collectionName: string): Promise<CollectionInfo | null> {
     try {
-      const info = await this.client.getCollection(collectionName);
+      await this.ensureClientInitialized();
+      const info = await this.client!.getCollection(collectionName);
 
       // Handle the new structure of vectors configuration
       const vectorsConfig = info.config.params.vectors;
@@ -185,91 +197,94 @@ export class QdrantService implements IVectorStore {
     }
   }
 
-  async upsertVectors(collectionName: string, vectors: VectorPoint[]): Promise<boolean> {
-    try {
-      if (vectors.length === 0) {
-        return true;
-      }
+   async upsertVectors(collectionName: string, vectors: VectorPoint[]): Promise<boolean> {
+     try {
+       await this.ensureClientInitialized();
+       if (vectors.length === 0) {
+         return true;
+       }
+ 
+       const batchSize = 100;
+       for (let i = 0; i < vectors.length; i += batchSize) {
+         const batch = vectors.slice(i, i + batchSize);
+ 
+         await this.client!.upsert(collectionName, {
+           points: batch.map(point => ({
+             id: point.id,
+             vector: point.vector,
+             payload: {
+               ...point.payload,
+               timestamp: point.payload.timestamp.toISOString(),
+             },
+           })),
+         });
+       }
+ 
+       this.logger.info(`Upserted ${vectors.length} points to collection ${collectionName}`);
+       return true;
+     } catch (error) {
+       this.errorHandler.handleError(
+         new Error(
+           `Failed to upsert points to ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
+         ),
+         { component: 'QdrantService', operation: 'upsertVectors' }
+       );
+       return false;
+     }
+   }
 
-      const batchSize = 100;
-      for (let i = 0; i < vectors.length; i += batchSize) {
-        const batch = vectors.slice(i, i + batchSize);
-
-        await this.client.upsert(collectionName, {
-          points: batch.map(point => ({
-            id: point.id,
-            vector: point.vector,
-            payload: {
-              ...point.payload,
-              timestamp: point.payload.timestamp.toISOString(),
-            },
-          })),
-        });
-      }
-
-      this.logger.info(`Upserted ${vectors.length} points to collection ${collectionName}`);
-      return true;
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to upsert points to ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'upsertVectors' }
-      );
-      return false;
-    }
-  }
-
-  async searchVectors(
-    collectionName: string,
-    query: number[],
-    options: SearchOptions = {}
-  ): Promise<SearchResult[]> {
-    try {
-      const searchParams: any = {
-        limit: options.limit || 10,
-        with_payload: options.withPayload !== false,
-        with_vector: options.withVector || false,
-      };
-
-      if (options.scoreThreshold !== undefined) {
-        searchParams.score_threshold = options.scoreThreshold;
-      }
-
-      if (options.filter) {
-        searchParams.filter = this.buildFilter(options.filter);
-      }
-
-      const results = await this.client.search(collectionName, {
-        vector: query,
-        ...searchParams,
-      });
-
-      return results.map(result => ({
-        id: result.id as string,
-        score: result.score,
-        payload: {
-          ...(result.payload as any),
-          timestamp:
-            result.payload?.timestamp && typeof result.payload.timestamp === 'string'
-              ? new Date(result.payload.timestamp)
-              : new Date(),
-        },
-      }));
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to search vectors in ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'searchVectors' }
-      );
-      return [];
-    }
-  }
+   async searchVectors(
+     collectionName: string,
+     query: number[],
+     options: SearchOptions = {}
+   ): Promise<SearchResult[]> {
+     try {
+       await this.ensureClientInitialized();
+       const searchParams: any = {
+         limit: options.limit || 10,
+         with_payload: options.withPayload !== false,
+         with_vector: options.withVector || false,
+       };
+ 
+       if (options.scoreThreshold !== undefined) {
+         searchParams.score_threshold = options.scoreThreshold;
+       }
+ 
+       if (options.filter) {
+         searchParams.filter = this.buildFilter(options.filter);
+       }
+ 
+       const results = await this.client!.search(collectionName, {
+         vector: query,
+         ...searchParams,
+       });
+ 
+       return results.map(result => ({
+         id: result.id as string,
+         score: result.score,
+         payload: {
+           ...(result.payload as any),
+           timestamp:
+             result.payload?.timestamp && typeof result.payload.timestamp === 'string'
+               ? new Date(result.payload.timestamp)
+               : new Date(),
+         },
+       }));
+     } catch (error) {
+       this.errorHandler.handleError(
+         new Error(
+           `Failed to search vectors in ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
+         ),
+         { component: 'QdrantService', operation: 'searchVectors' }
+       );
+       return [];
+     }
+   }
 
   async deletePoints(collectionName: string, pointIds: string[]): Promise<boolean> {
     try {
-      await this.client.delete(collectionName, {
+      await this.ensureClientInitialized();
+      await this.client!.delete(collectionName, {
         filter: {
           must: [
             {
@@ -297,7 +312,8 @@ export class QdrantService implements IVectorStore {
 
   async clearCollection(collectionName: string): Promise<boolean> {
     try {
-      await this.client.delete(collectionName, {
+      await this.ensureClientInitialized();
+      await this.client!.delete(collectionName, {
         filter: {
           must: [
             {
@@ -325,7 +341,8 @@ export class QdrantService implements IVectorStore {
 
   async getPointCount(collectionName: string): Promise<number> {
     try {
-      const info = await this.client.getCollection(collectionName);
+      await this.ensureClientInitialized();
+      const info = await this.client!.getCollection(collectionName);
       return info.points_count || 0;
     } catch (error) {
       this.logger.warn('Failed to get point count', {
@@ -338,7 +355,8 @@ export class QdrantService implements IVectorStore {
 
   async createPayloadIndex(collectionName: string, field: string): Promise<boolean> {
     try {
-      await this.client.createPayloadIndex(collectionName, {
+      await this.ensureClientInitialized();
+      await this.client!.createPayloadIndex(collectionName, {
         field_name: field,
         field_schema: 'keyword',
       });
@@ -352,7 +370,7 @@ export class QdrantService implements IVectorStore {
         this.logger.info(`Payload index for field ${field} already exists in collection ${collectionName}`);
         return true;
       }
-      
+
       this.logger.error('Failed to create payload index', {
         collectionName,
         field,
@@ -364,6 +382,7 @@ export class QdrantService implements IVectorStore {
 
   async getChunkIdsByFiles(collectionName: string, filePaths: string[]): Promise<string[]> {
     try {
+      await this.ensureClientInitialized();
       // Build filter to match any of the provided file paths
       const filter = {
         must: [
@@ -377,7 +396,7 @@ export class QdrantService implements IVectorStore {
       };
 
       // Search for points matching the filter, only retrieving IDs
-      const results = await this.client.scroll(collectionName, {
+      const results = await this.client!.scroll(collectionName, {
         filter,
         with_payload: false,
         with_vector: false,
@@ -406,6 +425,7 @@ export class QdrantService implements IVectorStore {
 
   async getExistingChunkIds(collectionName: string, chunkIds: string[]): Promise<string[]> {
     try {
+      await this.ensureClientInitialized();
       // Build filter to match any of the provided chunk IDs
       const filter = {
         must: [
@@ -419,7 +439,7 @@ export class QdrantService implements IVectorStore {
       };
 
       // Search for points matching the filter, only retrieving IDs
-      const results = await this.client.scroll(collectionName, {
+      const results = await this.client!.scroll(collectionName, {
         filter,
         with_payload: false,
         with_vector: false,
@@ -450,7 +470,7 @@ export class QdrantService implements IVectorStore {
   }
 
   isConnected(): boolean {
-    return this.isConnected;
+    return this.isConnectedFlag;
   }
 
   async close(): Promise<void> {
@@ -463,7 +483,9 @@ export class QdrantService implements IVectorStore {
       }
     }
 
-    this.isConnected = false;
+    this.client = null;
+    this.isConnectedFlag = false;
+    this.isInitialized = false;
     this.logger.info('Qdrant client connection closed');
   }
 

@@ -28,8 +28,8 @@ class Application {
     this.qdrantService = new QdrantService(this.loggerService, this.errorHandler);
 
     // 初始化嵌入器服务
-    this.embeddingCacheService = new EmbeddingCacheService(this.loggerService, this.errorHandler);
-    this.embedderFactory = new EmbedderFactory(this.loggerService, this.errorHandler, this.embeddingCacheService);
+    this.embeddingCacheService = new EmbeddingCacheService(this.logger, this.errorHandler);
+    this.embedderFactory = new EmbedderFactory(this.logger, this.errorHandler, this.embeddingCacheService);
 
     // 初始化服务器
     this.mcpServer = new MCPServer(this.logger);

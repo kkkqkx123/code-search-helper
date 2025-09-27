@@ -1,4 +1,5 @@
-import { LoggerService } from '../utils/logger';
+import { LoggerService } from '../utils/LoggerService';
+import { Logger } from '../utils/logger';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingResult } from './BaseEmbedder';
 
@@ -8,20 +9,20 @@ import { EmbeddingResult } from './BaseEmbedder';
  */
 export class EmbeddingCacheService {
   private cache: Map<string, { data: EmbeddingResult; timestamp: number; ttl: number }> = new Map();
-  private logger: LoggerService;
+  private logger: LoggerService | Logger;
   private errorHandler: ErrorHandlerService;
   private defaultTTL: number;
 
   constructor(
-    logger: LoggerService,
+    logger: LoggerService | Logger,
     errorHandler: ErrorHandlerService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
-    
+
     // 简化配置获取
     this.defaultTTL = parseInt(process.env.EMBEDDING_CACHE_TTL || '86400'); // 默认24小时（秒）
-    
+
     // 定期清理过期缓存
     this.startCleanupInterval();
   }
