@@ -19,9 +19,26 @@ export class ApiServer {
   }
 
   private setupMiddleware(): void {
-    this.app.use(cors());
+    // 配置CORS以允许前端从3011端口访问3010端口的API
+    this.app.use(cors({
+      origin: ['http://localhost:3011'],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization']
+    }));
+    
     this.app.use(express.json());
-    this.app.use(express.static(path.join(process.cwd(), 'frontend')));
+    
+    // 添加请求日志中间件
+    this.app.use((req, res, next) => {
+      this.logger.info(`API Request: ${req.method} ${req.path}`, {
+        method: req.method,
+        path: req.path,
+        origin: req.get('Origin'),
+        body: req.body
+      });
+      next();
+    });
   }
 
   private setupRoutes(): void {
@@ -67,25 +84,56 @@ export class ApiServer {
       res.json({ status: 'healthy' });
     });
 
-    // Serve frontend index.html for all other routes (SPA support)
+    // 404处理
     this.app.get('*', (req, res) => {
-      res.sendFile(path.join(process.cwd(), 'frontend', 'index.html'));
+      res.status(404).json({
+        success: false,
+        error: 'Not Found',
+        message: `Cannot ${req.method} ${req.path}`
+      });
     });
   }
 
   private async performSearch(query: string, options?: any): Promise<any> {
     try {
       await this.logger.debug('Performing search for query:', query);
-      // 尝试从模拟数据文件读取结果
-      const dataPath = path.join(process.cwd(), 'data', 'mock', 'search-results.json');
-      await this.logger.debug('Loading search results from:', dataPath);
-      const data = await fs.readFile(dataPath, 'utf-8');
-      const mockResults = JSON.parse(data);
       
-      // 过滤结果以匹配查询
-      const filteredResults = mockResults.results.filter((result: any) =>
-        result.highlightedContent.toLowerCase().includes(query.toLowerCase())
-      );
+      // 读取搜索结果和代码片段数据
+      const searchResultsPath = path.join(process.cwd(), 'data', 'mock', 'search-results.json');
+      const codeSnippetsPath = path.join(process.cwd(), 'data', 'mock', 'code-snippets.json');
+      
+      await this.logger.debug('Loading search results from:', searchResultsPath);
+      const searchData = await fs.readFile(searchResultsPath, 'utf-8');
+      const mockResults = JSON.parse(searchData);
+      
+      await this.logger.debug('Loading code snippets from:', codeSnippetsPath);
+      const snippetsData = await fs.readFile(codeSnippetsPath, 'utf-8');
+      const codeSnippets = JSON.parse(snippetsData);
+      
+      // 创建snippetId到snippet的映射
+      const snippetMap = new Map();
+      codeSnippets.snippets.forEach((snippet: any) => {
+        snippetMap.set(snippet.id, snippet);
+      });
+      
+      // 过滤结果以匹配查询并转换为前端期望的格式
+      const filteredResults = mockResults.results
+        .filter((result: any) =>
+          result.highlightedContent.toLowerCase().includes(query.toLowerCase())
+        )
+        .map((result: any) => {
+          const snippet = snippetMap.get(result.snippetId);
+          return {
+            id: result.id,
+            score: result.score,
+            snippet: {
+              content: snippet ? snippet.content : `// Content not found for snippet: ${result.snippetId}`,
+              filePath: snippet ? snippet.filePath : 'unknown/file.js',
+              language: snippet ? snippet.language : 'javascript'
+            },
+            matchType: result.matchType
+          };
+        });
       
       await this.logger.debug('Search completed, found', filteredResults.length, 'results');
       return {
@@ -118,7 +166,7 @@ export class ApiServer {
   start(): void {
     this.app.listen(this.port, () => {
       this.logger.info(`API Server running on port ${this.port}`);
-      this.logger.info(`Frontend available at http://localhost:3011`);
+      this.logger.info(`API endpoints available at http://localhost:${this.port}/api`);
     });
   }
 }

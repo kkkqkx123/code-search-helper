@@ -16,11 +16,11 @@ class Application {
   async start(): Promise<void> {
     try {
       await this.logger.info('Starting application...');
-      
+
       // 启动MCP服务器
       await this.mcpServer.start();
       await this.logger.info('MCP Server started successfully');
-      
+
       // 启动API服务器
       this.apiServer.start();
       await this.logger.info('API Server started successfully');
@@ -28,8 +28,7 @@ class Application {
       await this.logger.info('Application started successfully');
       await this.logger.info('MCP Server: Ready for MCP connections');
       await this.logger.info('API Server: http://localhost:3010');
-      await this.logger.info('Frontend available at http://localhost:3011');
-      
+
     } catch (error) {
       await this.logger.error('Failed to start application:', error);
       process.exit(1);

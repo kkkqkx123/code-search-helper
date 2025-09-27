@@ -1,4 +1,4 @@
-import { HashUtils } from './HashUtils.js';
+import { HashUtils } from '../HashUtils';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -17,7 +17,7 @@ describe('HashUtils', () => {
       const testString = 'Hello, World!';
       const hash1 = HashUtils.calculateStringHash(testString);
       const hash2 = HashUtils.calculateStringHash(testString);
-      
+
       expect(hash1).toBe(hash2);
       expect(hash1).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hash format
     });
@@ -25,7 +25,7 @@ describe('HashUtils', () => {
     it('should calculate different hashes for different strings', () => {
       const hash1 = HashUtils.calculateStringHash('Hello, World!');
       const hash2 = HashUtils.calculateStringHash('Hello, Universe!');
-      
+
       expect(hash1).not.toBe(hash2);
     });
   });
@@ -34,16 +34,16 @@ describe('HashUtils', () => {
     it('should calculate hash for file content', async () => {
       const fileContent = 'Test file content';
       mockFs.readFile.mockResolvedValue(Buffer.from(fileContent));
-      
+
       const hash = await HashUtils.calculateFileHash('/test/file.txt');
-      
+
       expect(hash).toMatch(/^[a-f0-9]{64}$/);
       expect(mockFs.readFile).toHaveBeenCalledWith('/test/file.txt');
     });
 
     it('should throw error when file reading fails', async () => {
       mockFs.readFile.mockRejectedValue(new Error('File not found'));
-      
+
       await expect(HashUtils.calculateFileHash('/test/nonexistent.txt'))
         .rejects.toThrow('Failed to calculate hash for /test/nonexistent.txt');
     });
@@ -53,7 +53,7 @@ describe('HashUtils', () => {
     it('should generate unique IDs', () => {
       const id1 = HashUtils.generateId('test');
       const id2 = HashUtils.generateId('test');
-      
+
       expect(id1).not.toBe(id2);
       expect(id1).toMatch(/^test_[a-z0-9]+_[a-z0-9]+$/);
     });
