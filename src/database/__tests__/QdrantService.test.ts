@@ -1,6 +1,7 @@
 import { QdrantService } from '../QdrantService';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
 
 // Mock QdrantClient
 const mockQdrantClient = {
@@ -30,11 +31,30 @@ describe('QdrantService', () => {
     jest.clearAllMocks();
     
     // Setup services
-    logger = new LoggerService();
+    // Create a mock ConfigService for testing
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'logging') {
+          return { level: 'info' };
+        }
+        if (key === 'qdrant') {
+          return {
+            host: 'localhost',
+            port: 6333,
+            collection: 'test-collection',
+            useHttps: false,
+            timeout: 30000
+          };
+        }
+        return undefined;
+      })
+    } as unknown as ConfigService;
+    
+    logger = new LoggerService(mockConfigService);
     errorHandler = new ErrorHandlerService(logger);
     
     // Create QdrantService instance
-    qdrantService = new QdrantService(logger, errorHandler);
+    qdrantService = new QdrantService(mockConfigService, logger, errorHandler);
   });
 
   afterEach(async () => {

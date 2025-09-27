@@ -2,6 +2,7 @@ import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
 import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
 
 describe('EmbeddingCacheService', () => {
   let cacheService: EmbeddingCacheService;
@@ -13,12 +14,22 @@ describe('EmbeddingCacheService', () => {
     jest.clearAllMocks();
     
     // Setup services
-    logger = new LoggerService();
+    // Create a mock ConfigService for testing
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'logging') {
+          return { level: 'info' };
+        }
+        return undefined;
+      })
+    } as unknown as ConfigService;
+    
+    logger = new LoggerService(mockConfigService);
     loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
     
     // Create EmbeddingCacheService instance
-    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    cacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
   });
 
   describe('嵌入器服务验收标准', () => {

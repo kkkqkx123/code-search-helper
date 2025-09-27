@@ -4,6 +4,10 @@ import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
 import { Logger } from '../../utils/logger';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
+
+// 确保在测试环境中运行
+process.env.NODE_ENV = 'test';
 
 /**
  * 数据库和嵌入器集成测试
@@ -18,16 +22,40 @@ describe('Database and Embedders Integration', () => {
 
   beforeAll(() => {
     // 初始化服务
-    logger = new LoggerService();
+    // Create a mock ConfigService for testing
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'logging') {
+          return { level: 'info' };
+        }
+        if (key === 'qdrant') {
+          return {
+            host: 'localhost',
+            port: 6333,
+            collection: 'test-collection',
+            useHttps: false,
+            timeout: 30000
+          };
+        }
+        return undefined;
+      })
+    } as unknown as ConfigService;
+    
+    logger = new LoggerService(mockConfigService);
     loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
     cacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
     embedderFactory = new EmbedderFactory(loggerInstance, errorHandler, cacheService);
-    qdrantService = new QdrantService(logger, errorHandler);
+    qdrantService = new QdrantService(mockConfigService, logger, errorHandler);
   });
 
   afterAll(async () => {
     // 清理资源
+    if (cacheService) {
+      cacheService.stopCleanupInterval();
+      await cacheService.clear();
+    }
+    
     if (qdrantService) {
       await qdrantService.close();
     }
@@ -149,7 +177,7 @@ describe('Database and Embedders Integration', () => {
         // 如果OpenAI服务不可用，会抛出错误，这也是可以接受的
         console.warn('OpenAI service not available, skipping OpenAI embedding test');
       }
-    });
+    }, 15000);
 
     test('✅ Ollama嵌入器能够生成嵌入', async () => {
       try {
@@ -169,7 +197,7 @@ describe('Database and Embedders Integration', () => {
         // 如果Ollama服务不可用，会抛出错误，这也是可以接受的
         console.warn('Ollama service not available, skipping Ollama embedding test');
       }
-    });
+    }, 15000);
 
     test('✅ 嵌入缓存服务正常工作', async () => {
       const text = 'test text for caching';
@@ -248,7 +276,7 @@ describe('Database and Embedders Integration', () => {
         const results = await Promise.all(promises);
         
         expect(results).toHaveLength(5);
-        results.forEach(result => {
+        results.forEach((result: any) => {
           expect(result).toBeDefined();
         });
       } catch (error) {
@@ -275,7 +303,7 @@ describe('Database and Embedders Integration', () => {
         // If service is not available, that's acceptable
         console.warn('Embedder service not available, skipping memory test');
       }
-    });
+    }, 30000);
 
     test('✅ 缓存命中率 ≥ 70%', async () => {
       try {

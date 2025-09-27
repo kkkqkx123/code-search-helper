@@ -3,6 +3,7 @@ import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
 import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
 
 // Mock embedders
 const mockOpenAIEmbedder = {
@@ -120,10 +121,20 @@ describe('EmbedderFactory', () => {
     jest.clearAllMocks();
     
     // Setup services
-    logger = new LoggerService();
+    // Create a mock ConfigService for testing
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'logging') {
+          return { level: 'info' };
+        }
+        return undefined;
+      })
+    } as unknown as ConfigService;
+    
+    logger = new LoggerService(mockConfigService);
     loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    cacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
     
     // Create EmbedderFactory instance
     embedderFactory = new EmbedderFactory(loggerInstance, errorHandler, cacheService);

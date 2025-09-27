@@ -3,6 +3,7 @@ import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
+import { ConfigService } from '../../config/ConfigService';
 
 // Mock the environment variables
 process.env.CUSTOM_CUSTOM1_API_KEY = 'test-api-key';
@@ -25,7 +26,18 @@ describe('CustomEmbedder', () => {
     
     // Setup services
     logger = new Logger('test');
-    loggerService = new LoggerService();
+    
+    // Create a mock ConfigService for testing
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'logging') {
+          return { level: 'info' };
+        }
+        return undefined;
+      })
+    } as unknown as ConfigService;
+    
+    loggerService = new LoggerService(mockConfigService);
     errorHandler = new ErrorHandlerService(loggerService);
     cacheService = new EmbeddingCacheService(logger, errorHandler);
     

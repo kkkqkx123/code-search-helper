@@ -12,6 +12,7 @@ export class EmbeddingCacheService {
   private logger: LoggerService | Logger;
   private errorHandler: ErrorHandlerService;
   private defaultTTL: number;
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
     logger: LoggerService | Logger,
@@ -70,10 +71,10 @@ export class EmbeddingCacheService {
    * 启动定期清理
    */
   private startCleanupInterval(): void {
-    // 每小时清理一次
-    setInterval(() => {
+    // 10分钟清理一次
+    this.cleanupInterval = setInterval(() => {
       this.cleanup();
-    }, 3600000); // 1小时
+    }, 600000); // 10分钟
   }
 
   /**
@@ -143,6 +144,16 @@ export class EmbeddingCacheService {
         new Error(`Error clearing embedding cache: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'EmbeddingCacheService', operation: 'clear' }
       );
+    }
+  }
+
+  /**
+   * 停止清理定时器
+   */
+  stopCleanupInterval(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
   }
 
