@@ -444,6 +444,10 @@ export interface Config {
     excludePatterns: string[];
     includePatterns: string[];
     severityLevels: string[];
+    enableControlFlow: boolean;
+    enableDataFlow: boolean;
+    enableTaintAnalysis: boolean;
+    securitySeverity: string[];
   };
   redis: {
     enabled: boolean;
