@@ -23,8 +23,10 @@ export class EmbeddingCacheService {
     // 简化配置获取
     this.defaultTTL = parseInt(process.env.EMBEDDING_CACHE_TTL || '86400'); // 默认24小时（秒）
 
-    // 定期清理过期缓存
-    this.startCleanupInterval();
+    // 定期清理过期缓存（测试环境中不启动）
+    if (process.env.NODE_ENV !== 'test') {
+      this.startCleanupInterval();
+    }
   }
 
   /**

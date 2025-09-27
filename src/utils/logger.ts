@@ -125,17 +125,24 @@ export class Logger {
   }
 
   private async writeLog(level: string, ...args: any[]): Promise<void> {
-    // 确保日志流可用
-    if (!this.logStream && !this.isNormalExit) {
-      await this.ensureLogStream();
-    }
-    
     const timestamp = this.getChinaTimeString();
     const message = args.map(arg =>
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
     ).join(' ');
     
+    // 在测试环境中，只输出到控制台
+    if (process.env.NODE_ENV === 'test') {
+      console.log(`[${timestamp}] [${level}] ${message}`);
+      return;
+    }
+    
+    // 非测试环境中尝试写入文件
     const logLine = `[${timestamp}] [${level}] ${message}\n`;
+    
+    // 确保日志流可用
+    if (!this.logStream && !this.isNormalExit) {
+      await this.ensureLogStream();
+    }
     
     // 尝试写入文件，如果失败则只输出到控制台
     if (this.logStream && !this.isNormalExit) {
@@ -154,10 +161,7 @@ export class Logger {
     }
     
     // 同时输出到控制台
-    const consoleMessage = args.map(arg =>
-      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-    ).join(' ');
-    console.log(`[${level}] ${consoleMessage}`);
+    console.log(`[${timestamp}] [${level}] ${message}`);
   }
 
   async info(...args: any[]): Promise<void> {

@@ -48,11 +48,7 @@ describe('GeminiEmbedder', () => {
 
       // Mock the fetch call
       global.fetch = jest.fn()
-        .mockResolvedValueOnce({ // First call for availability check
-          ok: true,
-          json: jest.fn().mockResolvedValue({ models: [{ name: 'embedding-001' }] })
-        })
-        .mockResolvedValueOnce({ // Second call for embedding
+        .mockResolvedValueOnce({ // First call for embedding
           ok: true,
           json: jest.fn().mockResolvedValue({
             embedding: {
@@ -63,9 +59,12 @@ describe('GeminiEmbedder', () => {
 
       const result = await geminiEmbedder.embed(input);
       
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual({
+        ...mockResult,
+        processingTime: expect.any(Number)
+      });
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://generativelanguage.googleapis.com/v1beta/models/embedding-01:embedContent?key=test-gemini-api-key',
+        'https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key=test-gemini-api-key',
         expect.objectContaining({
           method: 'POST',
           headers: {
@@ -122,7 +121,7 @@ describe('GeminiEmbedder', () => {
       const mockResult = {
         vector: Array(768).fill(0.5),
         dimensions: 768,
-        model: 'embedding-01',
+        model: 'embedding-001',
         processingTime: 0
       };
 

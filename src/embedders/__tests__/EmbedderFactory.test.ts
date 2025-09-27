@@ -47,6 +47,20 @@ const mockCustom3Embedder = {
   isAvailable: jest.fn().mockResolvedValue(true)
 };
 
+const mockGeminiEmbedder = {
+  embed: jest.fn(),
+  getDimensions: jest.fn().mockReturnValue(768),
+  getModelName: jest.fn().mockReturnValue('text-embedding-004'),
+  isAvailable: jest.fn().mockResolvedValue(true)
+};
+
+const mockMistralEmbedder = {
+  embed: jest.fn(),
+  getDimensions: jest.fn().mockReturnValue(1024),
+  getModelName: jest.fn().mockReturnValue('mistral-embed'),
+  isAvailable: jest.fn().mockResolvedValue(true)
+};
+
 // Mock the require calls in EmbedderFactory
 jest.mock('../OpenAIEmbedder', () => {
   return {
@@ -83,6 +97,18 @@ jest.mock('../CustomEmbedder', () => {
   };
 });
 
+jest.mock('../GeminiEmbedder', () => {
+  return {
+    GeminiEmbedder: jest.fn().mockImplementation(() => mockGeminiEmbedder)
+  };
+});
+
+jest.mock('../MistralEmbedder', () => {
+  return {
+    MistralEmbedder: jest.fn().mockImplementation(() => mockMistralEmbedder)
+  };
+});
+
 describe('EmbedderFactory', () => {
   let embedderFactory: EmbedderFactory;
   let logger: LoggerService;
@@ -112,7 +138,9 @@ describe('EmbedderFactory', () => {
       expect(providers).toContain('custom1');
       expect(providers).toContain('custom2');
       expect(providers).toContain('custom3');
-      expect(providers.length).toBeGreaterThanOrEqual(6);
+      expect(providers).toContain('gemini');
+      expect(providers).toContain('mistral');
+      expect(providers.length).toBeGreaterThanOrEqual(8);
     });
 
     test('✅ OpenAI嵌入器能够生成嵌入', async () => {
@@ -191,7 +219,7 @@ describe('EmbedderFactory', () => {
       // Test with default provider available
       const selectedProvider = await embedderFactory.autoSelectProvider();
       expect(typeof selectedProvider).toBe('string');
-      expect(['openai', 'ollama', 'siliconflow', 'custom1', 'custom2', 'custom3']).toContain(selectedProvider);
+      expect(['openai', 'ollama', 'siliconflow', 'custom1', 'custom2', 'custom3', 'gemini', 'mistral']).toContain(selectedProvider);
     });
   });
 
@@ -209,6 +237,8 @@ describe('EmbedderFactory', () => {
       mockCustom1Embedder.isAvailable.mockResolvedValue(true);
       mockCustom2Embedder.isAvailable.mockResolvedValue(true);
       mockCustom3Embedder.isAvailable.mockResolvedValue(true);
+      mockGeminiEmbedder.isAvailable.mockResolvedValue(true);
+      mockMistralEmbedder.isAvailable.mockResolvedValue(true);
       
       const availableProviders = await embedderFactory.getAvailableProviders();
       expect(Array.isArray(availableProviders)).toBe(true);
@@ -218,6 +248,8 @@ describe('EmbedderFactory', () => {
       expect(availableProviders).toContain('custom1');
       expect(availableProviders).toContain('custom2');
       expect(availableProviders).toContain('custom3');
+      expect(availableProviders).toContain('gemini');
+      expect(availableProviders).toContain('mistral');
     });
 
     test('✅ 能够获取提供者信息', async () => {

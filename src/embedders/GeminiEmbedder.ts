@@ -12,6 +12,7 @@ export class GeminiEmbedder extends BaseEmbedder {
   private baseUrl: string;
   private model: string;
   private dimensions: number;
+  private cacheService: EmbeddingCacheService;
 
   constructor(
     logger: Logger,
@@ -19,6 +20,7 @@ export class GeminiEmbedder extends BaseEmbedder {
     cacheService: EmbeddingCacheService
   ) {
     super(logger, errorHandler);
+    this.cacheService = cacheService;
 
     // 简化配置获取
     this.apiKey = process.env.GEMINI_API_KEY || '';
@@ -32,7 +34,7 @@ export class GeminiEmbedder extends BaseEmbedder {
   ): Promise<EmbeddingResult | EmbeddingResult[]> {
     return await this.embedWithCache(input, async inputs => {
       return await this.makeGeminiRequest(inputs);
-    });
+    }, this.cacheService);
   }
 
   getDimensions(): number {
@@ -100,10 +102,13 @@ export class GeminiEmbedder extends BaseEmbedder {
         }
 
         const data = await response.json();
+        
+        // 添加调试日志
+        this.logger.debug('Gemini API response', { data });
 
         results.push({
-          vector: data.embedding.values || [],
-          dimensions: (data.embedding.values || []).length,
+          vector: (data.embedding && data.embedding.values) || [],
+          dimensions: ((data.embedding && data.embedding.values) || []).length,
           model: this.model,
           processingTime: 0,
         });

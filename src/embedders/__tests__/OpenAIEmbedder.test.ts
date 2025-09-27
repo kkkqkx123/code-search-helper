@@ -4,6 +4,12 @@ import { LoggerService } from '../../utils/LoggerService';
 import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 
+// Mock environment variables
+process.env.OPENAI_API_KEY = 'test-openai-api-key';
+process.env.OPENAI_BASE_URL = 'https://api.openai.com';
+process.env.OPENAI_MODEL = 'text-embedding-ada-002';
+process.env.OPENAI_DIMENSIONS = '1536';
+
 // Mock fetch for API calls
 global.fetch = jest.fn();
 
@@ -61,7 +67,7 @@ describe('OpenAIEmbedder', () => {
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            'Authorization': 'Bearer ',
+            'Authorization': 'Bearer test-openai-api-key',
             'Content-Type': 'application/json'
           }),
           body: JSON.stringify({
@@ -87,15 +93,17 @@ describe('OpenAIEmbedder', () => {
     });
 
     test('✅ 当API密钥未配置时返回不可用', async () => {
-      // Temporarily clear the API key
+      // 保存原始API密钥
       const originalApiKey = process.env.OPENAI_API_KEY;
-      delete process.env.OPENAI_API_KEY;
-      
-      const isAvailable = await openAIEmbedder.isAvailable();
-      expect(isAvailable).toBe(false);
-      
-      // Restore the API key
-      if (originalApiKey) {
+      try {
+        // 创建一个新的OpenAIEmbedder实例，没有API密钥
+        process.env.OPENAI_API_KEY = '';
+        const embedderWithoutApiKey = new OpenAIEmbedder(loggerInstance, errorHandler, cacheService);
+        
+        const isAvailable = await embedderWithoutApiKey.isAvailable();
+        expect(isAvailable).toBe(false);
+      } finally {
+        // 恢复原始API密钥
         process.env.OPENAI_API_KEY = originalApiKey;
       }
     });
@@ -135,7 +143,7 @@ describe('OpenAIEmbedder', () => {
       const endTime = Date.now();
       
       const responseTime = endTime - startTime;
-      expect(responseTime).toBeLessThan(10000); // 10秒 = 10000毫秒
+      expect(responseTime).toBeLessThan(100); // 100毫秒内完成
     });
 
     test('✅ 并发处理能力 ≥ 5个请求', async () => {

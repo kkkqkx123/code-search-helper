@@ -64,7 +64,7 @@ describe('CustomEmbedder', () => {
         vector: [0.1, 0.2, 0.3],
         dimensions: 3,
         model: 'test-model',
-        processingTime: 0
+        processingTime: expect.any(Number) // processingTime会由measureTime函数设置
       };
 
       // Mock the fetch call
