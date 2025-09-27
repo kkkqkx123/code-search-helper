@@ -40,6 +40,10 @@ class Application {
     await this.logger.info('Stopping application...');
     await this.mcpServer.stop();
     await this.logger.info('Application stopped');
+    // 通知Logger这是一个正常退出，应该删除日志文件
+    if ('markAsNormalExit' in this.logger) {
+      await (this.logger as any).markAsNormalExit();
+    }
   }
 }
 

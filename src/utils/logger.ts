@@ -7,15 +7,44 @@ export class Logger {
   private isNormalExit: boolean = false;
 
   constructor(serviceName: string) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = this.getChinaTimeString().replace(/[:.]/g, '-');
     const logFileName = `${serviceName}-${timestamp}.log`;
     this.logFilePath = path.join(process.cwd(), 'logs', logFileName);
     
-    // 确保日志目录存在
-    this.ensureLogDirectory();
+    // 立即初始化日志目录和流
+    this.initialize().catch(error => {
+      console.error('Failed to initialize logger:', error);
+    });
     
     // 设置进程退出处理
     this.setupExitHandlers();
+  }
+
+  /**
+   * 获取中国时区(+8)的时间字符串
+   */
+  private getChinaTimeString(): string {
+    const now = new Date();
+    // 获取UTC时间戳（毫秒）
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
+    // 加上8小时的毫秒数
+    const chinaTime = new Date(utcTime + (8 * 60 * 60 * 1000));
+    
+    // 手动格式化为ISO字符串但保持+8时区
+    const year = chinaTime.getFullYear();
+    const month = String(chinaTime.getMonth() + 1).padStart(2, '0');
+    const day = String(chinaTime.getDate()).padStart(2, '0');
+    const hours = String(chinaTime.getHours()).padStart(2, '0');
+    const minutes = String(chinaTime.getMinutes()).padStart(2, '0');
+    const seconds = String(chinaTime.getSeconds()).padStart(2, '0');
+    const milliseconds = String(chinaTime.getMilliseconds()).padStart(3, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}Z`;
+  }
+
+  private async initialize(): Promise<void> {
+    await this.ensureLogDirectory();
+    await this.ensureLogStream();
   }
 
   private async ensureLogDirectory(): Promise<void> {
@@ -90,31 +119,32 @@ export class Logger {
   }
 
   private async writeLog(level: string, ...args: any[]): Promise<void> {
-    // 如果日志流已关闭或不可用，只输出到控制台
-    if (!this.logStream || this.isNormalExit) {
-      const consoleMessage = args.map(arg =>
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      console.log(`[${level}] ${consoleMessage}`);
-      return;
+    // 确保日志流可用
+    if (!this.logStream && !this.isNormalExit) {
+      await this.ensureLogStream();
     }
     
-    const timestamp = new Date().toISOString();
+    const timestamp = this.getChinaTimeString();
     const message = args.map(arg =>
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
     ).join(' ');
     
     const logLine = `[${timestamp}] [${level}] ${message}\n`;
     
-    try {
-      await this.logStream.write(logLine);
-    } catch (error) {
-      // 文件已关闭或写入失败时，只输出到控制台
-      const consoleMessage = args.map(arg =>
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      console.log(`[${level}] ${consoleMessage}`);
-      console.warn('Failed to write to log file:', error);
+    // 尝试写入文件，如果失败则只输出到控制台
+    if (this.logStream && !this.isNormalExit) {
+      try {
+        await this.logStream.write(logLine);
+      } catch (error) {
+        // 文件已关闭或写入失败时，关闭流并只输出到控制台
+        console.warn('Failed to write to log file, closing stream:', error);
+        try {
+          await this.logStream.close();
+        } catch (closeError) {
+          // 忽略关闭错误
+        }
+        this.logStream = null;
+      }
     }
     
     // 同时输出到控制台
@@ -142,5 +172,10 @@ export class Logger {
 
   getLogFilePath(): string {
     return this.logFilePath;
+  }
+
+  async markAsNormalExit(): Promise<void> {
+    this.isNormalExit = true;
+    await this.cleanup(true);
   }
 }
