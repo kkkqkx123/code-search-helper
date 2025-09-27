@@ -1,0 +1,95 @@
+rules:
+  - id: deep-nesting-function
+    message: Deep nesting detected - consider early returns to reduce complexity
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      function $FUNC($PARAMS) {
+        if (...) {
+          if (...) {
+            if (...) {
+              if (...) {
+                $STMT;
+              }
+            }
+          }
+        }
+      }
+    metadata:
+      category: control-flow
+      technology: [nesting-depth, maintainability]
+      subcategory: [complexity-analysis, refactoring]
+      cwe: ["CWE-1120"]
+      confidence: HIGH
+      impact: MEDIUM
+
+  - id: complex-if-else-chain
+    message: Complex if-else chain - consider switch statement or object mapping
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      if (...) {
+        ...
+      } else if (...) {
+        ...
+      } else if (...) {
+        ...
+      } else if (...) {
+        ...
+      } else if (...) {
+        ...
+      }
+    metadata:
+      category: control-flow
+      technology: [conditional-complexity, maintainability]
+      subcategory: [complexity-analysis, refactoring]
+      cwe: ["CWE-1120"]
+      confidence: HIGH
+      impact: MEDIUM
+
+  - id: large-switch-statement
+    message: Large switch statement - consider using object mapping or strategy pattern
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      switch ($EXPR) {
+        case $CASE1:
+          $STMT1;
+        case $CASE2:
+          $STMT2;
+        case $CASE3:
+          $STMT3;
+        case $CASE4:
+          $STMT4;
+        case $CASE5:
+          $STMT5;
+        case $CASE6:
+          $STMT6;
+      }
+    metadata:
+      category: control-flow
+      technology: [switch-complexity, maintainability]
+      subcategory: [complexity-analysis, refactoring]
+      cwe: ["CWE-1120"]
+      confidence: HIGH
+      impact: MEDIUM
+
+  - id: nested-loops
+    message: Nested loops detected - consider extracting logic or using array methods
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      for ($I = 0; $I < $N; $I++) {
+        for ($J = 0; $J < $M; $J++) {
+          for ($K = 0; $K < $L; $K++) {
+            $STMT;
+          }
+        }
+      }
+    metadata:
+      category: control-flow
+      technology: [loop-complexity, maintainability]
+      subcategory: [complexity-analysis, refactoring]
+      cwe: ["CWE-1120"]
+      confidence: HIGH
+      impact: MEDIUM

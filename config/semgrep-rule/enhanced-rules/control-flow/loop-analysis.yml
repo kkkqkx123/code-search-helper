@@ -1,0 +1,80 @@
+rules:
+  - id: loop-invariant-code
+    message: Loop invariant code detected - consider moving outside the loop
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: INFO
+    patterns:
+      - pattern-inside: |
+          for (...) {
+            ...
+          }
+      - pattern: |
+          $VAR = $CONSTANT;
+    metadata:
+      category: performance
+      cwe: CWE-405
+      confidence: MEDIUM
+
+  - id: unnecessary-loop-creation
+    message: Unnecessary loop creation for simple operations
+    languages: [javascript, typescript, python]
+    severity: INFO
+    patterns:
+      - pattern: |
+          for $ITEM in $LIST:
+            if $CONDITION:
+              $LIST2.append($ITEM)
+      - pattern-not: |
+          for $ITEM in $LIST:
+            ...
+    metadata:
+      category: maintainability
+      confidence: LOW
+
+  - id: off-by-one-error
+    message: Potential off-by-one error in loop boundary
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          for ($i = 0; $i <= $LENGTH; $i++)
+      - pattern: |
+          for ($i = 1; $i < $LENGTH; $i++)
+    metadata:
+      category: correctness
+      cwe: CWE-193
+      confidence: MEDIUM
+
+  - id: empty-loop-body
+    message: Empty loop body detected
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          for (...) {
+            // empty
+          }
+      - pattern: |
+          while (...) {
+            // empty
+          }
+    metadata:
+      category: correctness
+      cwe: CWE-670
+      confidence: HIGH
+
+  - id: loop-condition-modification
+    message: Loop condition variable modified inside loop body
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern-inside: |
+          for ($i = 0; $i < $MAX; $i++) {
+            ...
+          }
+      - pattern: |
+          $i = $NEW_VALUE;
+    metadata:
+      category: correctness
+      cwe: CWE-834
+      confidence: MEDIUM

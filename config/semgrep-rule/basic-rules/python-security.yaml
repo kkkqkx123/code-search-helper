@@ -1,0 +1,81 @@
+rules:
+  - id: python-sql-injection
+    message: Potential SQL injection vulnerability
+    severity: ERROR
+    languages:
+      - python
+    pattern-either:
+      - pattern: |
+          cursor.execute("SELECT * FROM users WHERE id = '" + $USER_INPUT + "'")
+      - pattern: |
+          cursor.execute(f"SELECT * FROM users WHERE id = {user_input}")
+    metadata:
+      category: security
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+
+  - id: python-command-injection
+    message: Potential command injection vulnerability
+    severity: ERROR
+    languages:
+      - python
+    pattern-either:
+      - pattern: |
+          os.system($USER_INPUT)
+      - pattern: |
+          subprocess.call($USER_INPUT, shell=True)
+      - pattern: |
+          subprocess.run($USER_INPUT, shell=True)
+    metadata:
+      category: security
+      cwe: "CWE-78"
+      owasp: "A03:2021"
+
+  - id: python-hardcoded-secret
+    message: Hardcoded secret detected
+    severity: ERROR
+    languages:
+      - python
+    pattern-either:
+      - pattern: |
+          PASSWORD = "..."
+      - pattern: |
+          API_KEY = "..."
+      - pattern: |
+          SECRET_KEY = "..."
+    metadata:
+      category: security
+      cwe: "CWE-798"
+
+  - id: python-deserialization
+    message: Insecure deserialization detected
+    severity: WARNING
+    languages:
+      - python
+    pattern-either:
+      - pattern: |
+          pickle.loads($USER_INPUT)
+      - pattern: |
+          yaml.load($USER_INPUT)
+      - pattern: |
+          json.loads($USER_INPUT)
+    metadata:
+      category: security
+      cwe: "CWE-502"
+      owasp: "A08:2021"
+
+  - id: python-weak-crypto
+    message: Weak cryptographic algorithm detected
+    severity: WARNING
+    languages:
+      - python
+    pattern-either:
+      - pattern: |
+          hashlib.md5(...)
+      - pattern: |
+          hashlib.sha1(...)
+      - pattern: |
+          Crypto.Cipher.DES.new(...)
+    metadata:
+      category: security
+      cwe: "CWE-327"

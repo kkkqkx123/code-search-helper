@@ -1,0 +1,40 @@
+rules:
+  - id: reflection-injection-java
+    languages:
+      - java
+    message: |
+      Code injection vulnerability: Using reflection with user-controlled input can lead to arbitrary code execution.
+      Validate and sanitize reflection inputs thoroughly.
+    severity: ERROR
+    pattern: |
+      Class.forName($USER_INPUT)
+
+  - id: reflection-method-injection
+    languages:
+      - java
+    message: |
+      Code injection vulnerability: Method reflection with user input can lead to arbitrary method invocation.
+      Validate method names and restrict allowed methods.
+    severity: ERROR
+    pattern: |
+      clazz.getMethod($USER_INPUT, $PARAM_TYPES)
+
+  - id: reflection-field-injection
+    languages:
+      - java
+    message: |
+      Code injection vulnerability: Field access via reflection with user input can expose sensitive data.
+      Validate field names and restrict field access.
+    severity: WARNING
+    pattern: |
+      clazz.getField($USER_INPUT)
+
+  - id: reflection-constructor-injection
+    languages:
+      - java
+    message: |
+      Code injection vulnerability: Constructor reflection with user input can instantiate arbitrary classes.
+      Validate class names and restrict instantiation.
+    severity: ERROR
+    pattern: |
+      clazz.getConstructor($PARAM_TYPES).newInstance($ARGS)

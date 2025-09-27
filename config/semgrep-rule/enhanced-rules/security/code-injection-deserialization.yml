@@ -1,0 +1,41 @@
+rules:
+  - id: pickle-deserialization
+    languages:
+      - python
+    message: |
+      Code injection vulnerability: Unsafe pickle deserialization can lead to arbitrary code execution.
+      Use safer serialization formats like JSON or restrict pickle to trusted sources.
+    severity: ERROR
+    pattern: |
+      pickle.loads($USER_INPUT)
+
+  - id: yaml-load-injection
+    languages:
+      - python
+    message: |
+      Code injection vulnerability: Unsafe YAML loading can lead to arbitrary code execution.
+      Use yaml.safe_load() instead of yaml.load() for untrusted input.
+    severity: ERROR
+    pattern: |
+      yaml.load($USER_INPUT)
+
+  - id: json-parse-injection
+    languages:
+      - javascript
+      - typescript
+    message: |
+      Code injection vulnerability: JSON.parse with user input can lead to prototype pollution.
+      Validate and sanitize JSON input before parsing.
+    severity: WARNING
+    pattern: |
+      JSON.parse($USER_INPUT)
+
+  - id: java-deserialization
+    languages:
+      - java
+    message: |
+      Code injection vulnerability: Java deserialization with user input can lead to arbitrary code execution.
+      Validate input sources and use safe deserialization libraries.
+    severity: ERROR
+    pattern: |
+      new ObjectInputStream($USER_INPUT).readObject()

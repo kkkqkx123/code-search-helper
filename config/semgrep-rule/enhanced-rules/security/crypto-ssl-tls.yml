@@ -1,0 +1,52 @@
+rules:
+  - id: ssl-verify-disabled
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      SSL/TLS security risk: SSL certificate verification is disabled.
+      Always verify SSL certificates in production environments.
+    severity: ERROR
+    pattern: |
+      requests.get($URL, verify=False)
+
+  - id: tls-version-weak
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      SSL/TLS security risk: Using weak TLS version.
+      Use TLS 1.2 or higher for secure connections.
+    severity: WARNING
+    pattern: |
+      ssl.PROTOCOL_TLSv1
+
+  - id: insecure-cipher-suites
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      SSL/TLS security risk: Using insecure cipher suites.
+      Use modern cipher suites with strong encryption.
+    severity: WARNING
+    pattern: |
+      ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+
+  - id: hostname-verification-disabled
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      SSL/TLS security risk: Hostname verification is disabled.
+      Always verify hostnames in SSL certificates.
+    severity: ERROR
+    pattern: |
+      ssl._create_unverified_context()

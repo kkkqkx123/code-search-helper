@@ -1,0 +1,33 @@
+rules:
+  - id: race-condition-financial-transaction
+    message: Race condition in financial transaction - no proper locking mechanism
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern: |
+      balance = get_balance(account_id)
+      new_balance = balance - amount
+      update_balance(account_id, new_balance)
+
+  - id: incomplete-workflow-state
+    message: Incomplete workflow state - missing state validation before operation
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern: |
+      if order.status == "pending":
+          process_order(order)
+
+  - id: workflow-bypass-attack
+    message: Workflow bypass attack - direct state manipulation without validation
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern: |
+      order.status = "completed"
+      order.save()
+
+  - id: missing-idempotency-check
+    message: Missing idempotency check - duplicate requests can cause double processing
+    languages: [python, javascript, typescript, java]
+    severity: WARNING
+    pattern: |
+      def process_payment(payment_id, amount):
+          create_transaction(payment_id, amount)

@@ -1,0 +1,48 @@
+rules:
+  - id: timing-attack-user-enumeration
+    message: Timing attack vulnerability - different response times for valid vs invalid users
+    languages: [python, javascript, typescript, java]
+    severity: WARNING
+    pattern: |
+      user = User.objects.filter(email=email).first()
+      if user:
+          return "User exists"
+      else:
+          return "User not found"
+
+  - id: timing-attack-password-reset
+    message: Password reset timing attack - different response times for existing vs non-existing users
+    languages: [python, javascript, typescript, java]
+    severity: WARNING
+    pattern-either:
+      - pattern: |
+          user = User.objects.filter(email=email).first()
+          if user:
+              send_reset_email(user)
+              return "Email sent"
+          else:
+              return "User not found"
+
+  - id: timing-attack-login-timing
+    message: Login timing attack - password verification takes different time for different users
+    languages: [python, javascript, typescript, java]
+    severity: WARNING
+    pattern-either:
+      - pattern: |
+          user = User.objects.filter(username=username).first()
+          if user and check_password(password, user.password):
+              return login_success(user)
+          else:
+              return login_failure()
+
+  - id: timing-attack-coupon-validation
+    message: Coupon validation timing attack - different processing time for valid vs invalid coupons
+    languages: [python, javascript, typescript, java]
+    severity: WARNING
+    pattern-either:
+      - pattern: |
+          coupon = Coupon.objects.filter(code=coupon_code, valid=True).first()
+          if coupon:
+              return apply_discount(coupon)
+          else:
+              return invalid_coupon()

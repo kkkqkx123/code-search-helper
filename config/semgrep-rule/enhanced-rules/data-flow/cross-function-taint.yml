@@ -1,0 +1,50 @@
+rules:
+  - id: cross-function-taint-propagation
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Cross-function taint propagation detected: Source data may reach sink without proper validation.
+      Ensure proper input validation and sanitization before using user input in sensitive operations.
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.get(...)
+          - pattern: input(...)
+          - pattern: req.body
+    pattern-sinks:
+      - pattern-either:
+          - pattern: execute(...)
+          - pattern: query(...)
+          - pattern: eval(...)
+
+  - id: function-return-taint
+    languages:
+      - python
+    message: |
+      Function return value may propagate tainted data
+    severity: WARNING
+    patterns:
+      - pattern: |
+          def $FUNC($X):
+            return $X
+          
+          $Y = $FUNC($TAINTED)
+          query($Y)
+
+  - id: callback-taint-propagation
+    languages:
+      - javascript
+    message: |
+      Callback function may propagate tainted data
+    severity: WARNING
+    patterns:
+      - pattern: |
+          function $FUNC(data) {
+            callback(data);
+          }
+          
+          $FUNC(userInput);

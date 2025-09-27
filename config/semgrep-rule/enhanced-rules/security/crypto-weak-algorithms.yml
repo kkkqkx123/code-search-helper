@@ -1,0 +1,52 @@
+rules:
+  - id: md5-usage
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Weak cryptographic algorithm: MD5 is cryptographically broken and should not be used for security purposes.
+      Use SHA-256 or stronger algorithms instead.
+    severity: ERROR
+    pattern: |
+      hashlib.md5($DATA)
+
+  - id: sha1-usage
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Weak cryptographic algorithm: SHA-1 is cryptographically broken and should not be used for security purposes.
+      Use SHA-256 or stronger algorithms instead.
+    severity: ERROR
+    pattern: |
+      hashlib.sha1($DATA)
+
+  - id: des-usage
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Weak cryptographic algorithm: DES is considered insecure due to small key size.
+      Use AES with 256-bit keys or stronger algorithms.
+    severity: ERROR
+    pattern: |
+      DES.new($KEY, DES.MODE_ECB)
+
+  - id: rc4-usage
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Weak cryptographic algorithm: RC4 is cryptographically broken and should not be used.
+      Use AES-GCM or ChaCha20-Poly1305 instead.
+    severity: ERROR
+    pattern: |
+      ARC4.new($KEY)

@@ -1,0 +1,52 @@
+rules:
+  - id: hardcoded-database-url
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: Database URL is hardcoded in source code.
+      Use environment variables or configuration files for sensitive data.
+    severity: ERROR
+    pattern: |
+      DATABASE_URL = "postgresql://user:pass@localhost/db"
+
+  - id: hardcoded-redis-url
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: Redis URL is hardcoded in source code.
+      Use environment variables for connection strings.
+    severity: WARNING
+    pattern: |
+      REDIS_URL = "redis://localhost:6379"
+
+  - id: hardcoded-api-endpoint
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: API endpoint is hardcoded in source code.
+      Use configuration files or environment variables.
+    severity: WARNING
+    pattern: |
+      API_ENDPOINT = "https://api.example.com"
+
+  - id: hardcoded-port-number
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: Port number is hardcoded in source code.
+      Use environment variables for configuration.
+    severity: WARNING
+    pattern: |
+      PORT = 3000

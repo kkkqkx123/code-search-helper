@@ -1,0 +1,52 @@
+rules:
+  - id: predictable-random
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Insecure random number generation: Using predictable random numbers for security purposes.
+      Use cryptographically secure random number generators.
+    severity: ERROR
+    pattern: |
+      random.random()
+
+  - id: weak-random-seed
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Insecure random seed: Using predictable seed for random number generation.
+      Use cryptographically secure random number generators without manual seeding.
+    severity: WARNING
+    pattern: |
+      random.seed($SEED)
+
+  - id: insecure-token-generation
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Insecure token generation: Using weak random generation for security tokens.
+      Use cryptographically secure random generators like secrets.token_hex() or crypto.randomBytes().
+    severity: ERROR
+    pattern: |
+      str(random.randint(0, 999999))
+
+  - id: math-random-usage
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Insecure random generation: Math.random() is not cryptographically secure.
+      Use crypto.getRandomValues() or secure random libraries.
+    severity: ERROR
+    pattern: |
+      Math.random()

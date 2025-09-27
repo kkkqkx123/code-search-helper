@@ -1,0 +1,49 @@
+rules:
+  - id: js-sql-injection
+    message: SQL injection vulnerability in JavaScript/Node.js
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          $QUERY = "SELECT * FROM $TABLE WHERE $COL = '" + $INPUT + "'"
+      - pattern: |
+          `SELECT * FROM $TABLE WHERE $COL = ${$INPUT}`
+      - pattern: |
+          $DB.query("SELECT * FROM $TABLE WHERE $COL = '" + $INPUT + "'")
+    metadata:
+      category: security
+      cwe: CWE-89
+      confidence: HIGH
+
+  - id: js-xss-innerhtml
+    message: XSS vulnerability via innerHTML in JavaScript
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      $ELEMENT.innerHTML = $USER_INPUT
+    metadata:
+      category: security
+      cwe: CWE-79
+      confidence: HIGH
+
+  - id: js-command-exec
+    message: Command injection vulnerability via exec
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      require('child_process').exec($USER_INPUT)
+    metadata:
+      category: security
+      cwe: CWE-78
+      confidence: HIGH
+
+  - id: js-path-join
+    message: Path traversal vulnerability via path.join
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      require('path').join($DIR, $USER_INPUT)
+    metadata:
+      category: security
+      cwe: CWE-22
+      confidence: HIGH

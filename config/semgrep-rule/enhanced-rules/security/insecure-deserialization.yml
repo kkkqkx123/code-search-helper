@@ -1,0 +1,48 @@
+rules:
+  - id: insecure-deserialization-json-parse
+    pattern: |
+      $OBJECT = JSON.parse($USER_INPUT);
+      eval($OBJECT.function); // 危险的反序列化
+    message: "不安全的反序列化：JSON反序列化后执行代码"
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [insecure-deserialization]
+      cwe: ["CWE-502"]
+      owasp: ["A08:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: insecure-deserialization-pickle
+    pattern: |
+      import pickle
+      $DATA = pickle.loads($USER_INPUT);
+    message: "不安全的反序列化：使用不安全的pickle模块"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [insecure-deserialization]
+      cwe: ["CWE-502"]
+      owasp: ["A08:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: insecure-deserialization-xml-external
+    pattern: |
+      $PARSER = new XMLParser();
+      $PARSER.parseFromString($MALICIOUS_XML); // 可能存在XXE攻击
+    message: "不安全的反序列化：XML解析可能存在XXE攻击"
+    languages: [javascript, typescript, java]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [insecure-deserialization]
+      cwe: ["CWE-611"]
+      owasp: ["A04:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH

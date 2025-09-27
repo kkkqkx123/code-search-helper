@@ -1,0 +1,32 @@
+rules:
+  # 1. 复杂嵌套条件检测
+  - id: complex-nested-conditions
+    message: "Complex nested conditions detected"
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern-either:
+      - pattern: |
+          if ($COND1) {
+            if ($COND2) {
+              if ($COND3) {
+                if ($COND4) {
+                  $BODY
+                }
+              }
+            }
+          }
+      - pattern: |
+          if ($COND1) {
+            if ($COND2) {
+              if ($COND3) {
+                $BODY
+              }
+            }
+          }
+    metadata:
+      category: control-flow
+      technology: [cfg, complexity]
+      subcategory: [nesting, maintainability]
+      cwe: ["CWE-570"]
+      confidence: MEDIUM
+      impact: LOW

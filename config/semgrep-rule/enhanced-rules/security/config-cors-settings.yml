@@ -1,0 +1,52 @@
+rules:
+  - id: cors-wildcard-origin
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: CORS allows all origins with wildcard.
+      Restrict allowed origins to specific domains in production.
+    severity: ERROR
+    pattern: |
+      cors.CORS(app, origins="*")
+
+  - id: cors-credentials-with-wildcard
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: CORS credentials allowed with wildcard origin.
+      This is a security vulnerability - specify exact origins when allowing credentials.
+    severity: ERROR
+    pattern: |
+      cors.CORS(app, origins="*", supports_credentials=True)
+
+  - id: cors-allowed-headers-wildcard
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: CORS allows all headers with wildcard.
+      Restrict allowed headers to specific ones needed by your application.
+    severity: WARNING
+    pattern: |
+      cors.CORS(app, allow_headers="*")
+
+  - id: cors-exposed-headers-wildcard
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: CORS exposes all headers with wildcard.
+      Explicitly specify which headers should be exposed to clients.
+    severity: WARNING
+    pattern: |
+      cors.CORS(app, expose_headers="*")

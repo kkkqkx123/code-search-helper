@@ -1,0 +1,36 @@
+rules:
+  - id: xss-reflected-user-input
+    languages:
+      - python
+    message: |
+      Reflected XSS: User input directly reflected in HTML output without encoding.
+      Encode user input before rendering in HTML context.
+    severity: ERROR
+    pattern: response.write($USER_INPUT)
+
+  - id: xss-dom-manipulation
+    languages:
+      - javascript
+    message: |
+      DOM-based XSS: User input used in DOM manipulation without proper escaping.
+      Use textContent instead of innerHTML or properly escape HTML.
+    severity: ERROR
+    pattern: element.innerHTML = $USER_INPUT
+
+  - id: xss-javascript-context
+    languages:
+      - python
+    message: |
+      JavaScript context XSS: User input used in JavaScript context without escaping.
+      Escape user input for JavaScript context or use safe APIs.
+    severity: ERROR
+    pattern: $USER_INPUT
+
+  - id: xss-attribute-injection
+    languages:
+      - python
+    message: |
+      Attribute injection XSS: User input used in HTML attributes without escaping.
+      Escape user input for attribute context or use safe templating.
+    severity: WARNING
+    pattern: $USER_INPUT

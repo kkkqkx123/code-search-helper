@@ -1,0 +1,39 @@
+rules:
+  - id: missing-input-validation
+    message: Missing input validation - user input used directly without validation
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          amount = request.POST['amount']
+          process_payment(amount)
+      - pattern: |
+          amount = request.json['amount']
+          process_payment(amount)
+
+  - id: insufficient-type-checking
+    message: Insufficient type checking - no validation of input data types
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          user_input = request.GET['id']
+          user_id = int(user_input)
+
+  - id: business-logic-bypass
+    message: Business logic bypass - negative values or zero allowed in financial calculations
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern: |
+      if amount > 0:
+          process_transaction(amount)
+
+  - id: mass-assignment-vulnerability
+    message: Mass assignment vulnerability - all user input fields directly assigned to model
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          user = User(**request.POST.dict())
+      - pattern: |
+          user = User(**request.json)

@@ -1,0 +1,71 @@
+rules:
+  - id: js-complex-nested-if
+    message: Complex nested if statements - consider refactoring
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      if (...) {
+        if (...) {
+          if (...) {
+            ...
+          }
+        }
+      }
+    metadata:
+      category: maintainability
+      cwe: CWE-570
+      confidence: MEDIUM
+
+  - id: js-empty-catch
+    message: Empty catch block - exceptions are being swallowed
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      try {
+        ...
+      } catch (e) {
+      }
+    metadata:
+      category: reliability
+      cwe: CWE-390
+      confidence: HIGH
+
+  - id: js-return-in-finally
+    message: Return in finally block may suppress exceptions
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      try {
+        ...
+      } finally {
+        return ...;
+      }
+    metadata:
+      category: correctness
+      cwe: CWE-703
+      confidence: HIGH
+
+  - id: js-infinite-loop
+    message: Potential infinite loop with while(true)
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      while (true) {
+        ...
+      }
+    metadata:
+      category: correctness
+      cwe: CWE-835
+      confidence: HIGH
+
+  - id: js-unused-loop-variable
+    message: Loop variable is not used within the loop
+    languages: [javascript, typescript]
+    severity: INFO
+    pattern: |
+      for (let $VAR of $ARRAY) {
+        ...
+      }
+    metadata:
+      category: maintainability
+      confidence: LOW

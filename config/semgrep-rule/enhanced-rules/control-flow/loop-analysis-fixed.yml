@@ -1,0 +1,76 @@
+rules:
+  - id: loop-invariant-code
+    message: Loop invariant code detected - consider moving outside the loop
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: INFO
+    patterns:
+      - pattern-inside: |
+          for (...) {
+            ...
+          }
+      - pattern: |
+          $VAR = 100;
+    metadata:
+      category: performance
+      cwe: CWE-405
+      confidence: MEDIUM
+
+  - id: empty-loop-body
+    message: Empty loop body detected
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          for (...) {
+            
+          }
+      - pattern: |
+          while (...) {
+            
+          }
+    metadata:
+      category: correctness
+      cwe: CWE-670
+      confidence: HIGH
+
+  - id: off-by-one-error
+    message: Potential off-by-one error in loop boundary
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          for ($i = 0; $i <= $LENGTH; $i++)
+    metadata:
+      category: correctness
+      cwe: CWE-193
+      confidence: MEDIUM
+
+  - id: loop-condition-modification
+    message: Loop condition variable modified inside loop body
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern-inside: |
+          for ($i = 0; $i < $MAX; $i++) {
+            ...
+          }
+      - pattern: |
+          $i = $NEW_VALUE;
+    metadata:
+      category: correctness
+      cwe: CWE-834
+      confidence: MEDIUM
+
+  - id: infinite-loop-risk
+    message: Potential infinite loop - condition may never be false
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          while (true) {
+            ...
+          }
+    metadata:
+      category: correctness
+      cwe: CWE-835
+      confidence: HIGH

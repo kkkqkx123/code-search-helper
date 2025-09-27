@@ -1,0 +1,86 @@
+{
+  "lsp": {
+    "enabled": true,
+    "timeout": 30000,
+    "maxRetries": 3,
+    "enableCaching": true,
+    "batchSize": 20,
+    "maxConcurrency": 3,
+    "supportedLanguages": [
+      "typescript",
+      "javascript",
+      "python",
+      "java",
+      "c",
+      "cpp",
+      "csharp",
+      "go",
+      "rust",
+      "php",
+      "ruby",
+      "scala",
+      "kotlin",
+      "swift",
+      "dart"
+    ],
+    "languageServers": {
+      "typescript": {
+        "command": "typescript-language-server",
+        "args": ["--stdio"],
+        "initializationOptions": {
+          "tsserver": {
+            "logVerbosity": "verbose",
+            "trace": "verbose"
+          }
+        }
+      },
+      "python": {
+        "command": "pylsp",
+        "args": [],
+        "initializationOptions": {
+          "plugins": {
+            "pycodestyle": {
+              "enabled": true
+            },
+            "pyflakes": {
+              "enabled": true
+            },
+            "mccabe": {
+              "enabled": true,
+              "threshold": 15
+            }
+          }
+        }
+      },
+      "java": {
+        "command": "java",
+        "args": [
+          "-jar",
+          "/path/to/eclipse.jdt.ls/org.eclipse.jdt.ls.product/target/repository/plugins/org.eclipse.equinox.launcher_*.jar",
+          "-configuration",
+          "/path/to/eclipse.jdt.ls/org.eclipse.jdt.ls.product/target/repository/config_linux",
+          "-data",
+          "/tmp/jdtls"
+        ]
+      },
+      "go": {
+        "command": "gopls",
+        "args": ["serve", "-rpc.trace"]
+      },
+      "rust": {
+        "command": "rust-analyzer",
+        "args": []
+      }
+    },
+    "cache": {
+      "enabled": true,
+      "ttl": 3600000,
+      "maxSize": 1000
+    },
+    "healthCheck": {
+      "enabled": true,
+      "interval": 60000,
+      "timeout": 5000
+    }
+  }
+}

@@ -1,0 +1,71 @@
+rules:
+  - id: swallowing-exceptions
+    message: Exception swallowed without proper handling
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          try {
+            ...
+          } catch ($EX) {
+            // empty or just logging
+          }
+    metadata:
+      category: reliability
+      cwe: CWE-390
+      confidence: HIGH
+
+  - id: broad-exception-catching
+    message: Catching overly broad exception types
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: INFO
+    patterns:
+      - pattern: |
+          try {
+            ...
+          } catch (...) {
+            ...
+          }
+    metadata:
+      category: best-practice
+      cwe: CWE-396
+      confidence: LOW
+
+  - id: exception-without-finally
+    message: Resource handling might miss cleanup in exception path
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: INFO
+    patterns:
+      - pattern: |
+          try {
+            $RESOURCE = acquire_resource(...)
+            ...
+          } catch (...) {
+            ...
+          }
+      - pattern-not: |
+          try {
+            ...
+          } finally {
+            ...
+          }
+    metadata:
+      category: reliability
+      cwe: CWE-459
+      confidence: MEDIUM
+
+  - id: return-in-finally
+    message: Return statement in finally block may suppress exceptions
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          try {
+            ...
+          } finally {
+            return ...;
+          }
+    metadata:
+      category: correctness
+      cwe: CWE-703
+      confidence: HIGH

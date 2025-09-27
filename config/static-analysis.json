@@ -1,0 +1,92 @@
+{
+  "staticAnalysis": {
+    "enabled": true,
+    "defaultTool": "semgrep",
+    "scanOnChange": true,
+    "batchSize": 50,
+    "resultRetentionDays": 30,
+    "semgrep": {
+      "enabled": true,
+      "binaryPath": "semgrep",
+      "timeout": 30000,
+      "maxMemory": 512,
+      "maxTargetBytes": 1000000,
+      "jobs": 4,
+      "noGitIgnore": false,
+      "noRewriteRuleIds": false,
+      "strict": false,
+      "configPaths": [
+        "auto",
+        "p/security-audit",
+        "p/secrets",
+        "p/owasp-top-ten",
+        "p/javascript",
+        "p/python",
+        "p/java",
+        "p/go",
+        "p/typescript"
+      ],
+      "customRulesPath": "./config/semgrep-rules",
+      "outputFormat": "json",
+      "excludePatterns": [
+        "node_modules",
+        ".git",
+        "dist",
+        "build",
+        "coverage",
+        "*.min.js",
+        "*.min.css",
+        "vendor",
+        "test/fixtures",
+        "tests/fixtures"
+      ],
+      "includePatterns": [
+        "*.js",
+        "*.ts",
+        "*.jsx",
+        "*.tsx",
+        "*.py",
+        "*.java",
+        "*.go",
+        "*.php",
+        "*.rb",
+        "*.cs"
+      ],
+      "severityLevels": ["ERROR", "WARNING", "INFO"],
+      "maxConcurrentScans": 5,
+      "cacheEnabled": true,
+      "cacheTtl": 3600
+    },
+    "analysis": {
+      "autoScanOnFileChange": true,
+      "autoScanOnProjectIndex": true,
+      "maxConcurrentScans": 3,
+      "scanQueueSize": 100,
+      "retentionDays": 30,
+      "cleanupInterval": 86400000
+    },
+    "storage": {
+      "graphDatabase": {
+        "enabled": true,
+        "nodeTypes": ["Finding", "Rule", "File", "Project"],
+        "edgeTypes": ["HAS_FINDING", "USES_RULE", "BELONGS_TO", "RELATED_TO"]
+      },
+      "vectorDatabase": {
+        "enabled": true,
+        "collectionName": "static_analysis",
+        "vectorSize": 384,
+        "distanceMetric": "cosine"
+      }
+    },
+    "api": {
+      "rateLimit": {
+        "windowMs": 60000,
+        "max": 100
+      },
+      "pagination": {
+        "defaultLimit": 20,
+        "maxLimit": 100
+      }
+    }
+  }
+}

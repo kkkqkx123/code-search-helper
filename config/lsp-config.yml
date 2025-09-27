@@ -1,0 +1,54 @@
+# LSP配置 - 阶段1基础配置
+lsp:
+  enabled: true
+  
+  # 语言服务器配置
+  languages:
+    typescript:
+      enabled: true
+      server: "typescript-language-server"
+      command: "typescript-language-server"
+      args: ["--stdio"]
+      timeout: 30000
+      
+    javascript:
+      enabled: true
+      server: "typescript-language-server"
+      command: "typescript-language-server"
+      args: ["--stdio"]
+      timeout: 30000
+      
+    python:
+      enabled: false  # 阶段1暂不启用
+      server: "pylsp"
+      command: "pylsp"
+      timeout: 15000
+
+  # 连接池配置
+  connection_pool:
+    max_connections: 10
+    initial_connections: 2
+    idle_timeout: 300000  # 5分钟
+    retry_attempts: 3
+    retry_delay: 1000    # 1秒
+
+  # 项目检测配置
+  project_detection:
+    enabled: true
+    config_files:
+      typescript: ["tsconfig.json", "package.json"]
+      javascript: ["package.json"]
+      python: ["requirements.txt", "setup.py", "pyproject.toml"]
+
+  # 错误处理配置
+  error_handling:
+    max_restarts: 5
+    restart_delay: 2000
+    fallback_to_treesitter: true
+    log_level: "INFO"
+
+  # 开发调试配置
+  debug:
+    enable_logging: true
+    log_file: "lsp-debug.log"
+    log_communication: false

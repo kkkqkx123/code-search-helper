@@ -1,0 +1,56 @@
+rules:
+  - id: rbac-missing-role-check
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Access control flaw: Missing role-based access control check.
+      Implement proper role-based access control for sensitive operations.
+    severity: ERROR
+    pattern: |
+      if user.is_authenticated:
+        delete_user_account()
+
+  - id: rbac-privilege-escalation
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Access control flaw: Potential privilege escalation vulnerability.
+      Validate user permissions before allowing role changes.
+    severity: ERROR
+    pattern: |
+      user.role = "admin"
+
+  - id: rbac-horizontal-access
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Access control flaw: Horizontal privilege escalation detected.
+      Ensure users can only access their own resources.
+    severity: ERROR
+    pattern: |
+      user_id = request.GET['id']
+      ...
+      return get_user_data(user_id)
+
+  - id: rbac-vertical-access
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Access control flaw: Vertical privilege escalation risk.
+      Verify user has appropriate role for the requested action.
+    severity: ERROR
+    pattern: |
+      if user.role in ['user', 'admin']:
+        access_admin_panel()

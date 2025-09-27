@@ -1,0 +1,42 @@
+rules:
+  - id: template-injection-python
+    languages:
+      - python
+    message: |
+      Code injection vulnerability: Template engine with user input can lead to server-side template injection.
+      Use safe template contexts and validate user input.
+    severity: ERROR
+    pattern: |
+      Template($USER_INPUT).render($CONTEXT)
+
+  - id: jinja2-injection
+    languages:
+      - python
+    message: |
+      Code injection vulnerability: Jinja2 template with user input can lead to SSTI.
+      Use sandboxed environments and validate template variables.
+    severity: ERROR
+    pattern: |
+      jinja2.Template($USER_INPUT).render($CONTEXT)
+
+  - id: template-injection-node
+    languages:
+      - javascript
+      - typescript
+    message: |
+      Code injection vulnerability: Template engine with user input can lead to server-side template injection.
+      Use safe template contexts and validate user input.
+    severity: ERROR
+    pattern: |
+      template.compile($USER_INPUT)($CONTEXT)
+
+  - id: eval-template-string
+    languages:
+      - javascript
+      - typescript
+    message: |
+      Code injection vulnerability: Template literal evaluation with user input can lead to code injection.
+      Avoid template literals with user input or sanitize thoroughly.
+    severity: WARNING
+    pattern: |
+      `${$USER_INPUT}`

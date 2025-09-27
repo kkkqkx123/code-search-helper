@@ -1,0 +1,49 @@
+rules:
+  - id: dead-code-constant-condition
+    languages:
+      - python
+    message: |
+      Dead code due to constant condition: Code block will never execute due to constant condition.
+      Remove unreachable code or fix the condition.
+    severity: WARNING
+    pattern: |
+      if False:
+        ...
+
+  - id: constant-foldable-expressions
+    languages:
+      - python
+    message: |
+      Constant foldable expressions: Expression can be simplified to a constant value.
+      Consider simplifying the expression for better readability.
+    severity: INFO
+    pattern: 1 + 1
+
+  - id: redundant-variable-assignment
+    languages:
+      - python
+    message: |
+      Redundant variable assignment: Variable is assigned a value that is never used.
+      Consider removing the redundant assignment.
+    severity: INFO
+    pattern: $X = 1
+
+  - id: constant-loop-condition
+    languages:
+      - python
+    message: |
+      Constant loop condition: Loop condition is always true or false.
+      Review loop condition to ensure intended behavior.
+    severity: WARNING
+    pattern: |
+      while True:
+        ...
+
+  - id: string-format-constant
+    languages:
+      - python
+    message: |
+      String format with constant: String formatting operation uses constant values.
+      Consider if the formatting is necessary.
+    severity: INFO
+    pattern: "hello"

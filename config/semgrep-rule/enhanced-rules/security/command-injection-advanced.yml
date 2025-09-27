@@ -1,0 +1,60 @@
+rules:
+  - id: command-injection-shell-concat
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+      - php
+    message: |
+      Command injection via shell concatenation: User input directly concatenated into shell command.
+      Use parameterized commands or proper input validation.
+    severity: ERROR
+    pattern-either:
+      - pattern: os.system($COMMAND + $USER_INPUT)
+      - pattern: subprocess.call($COMMAND + $USER_INPUT)
+      - pattern: exec($COMMAND + $USER_INPUT)
+      - pattern: Runtime.getRuntime().exec($COMMAND + $USER_INPUT)
+
+  - id: command-injection-dynamic-construction
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Dynamic command construction: Command string built from user input.
+      Use command arrays or safe execution methods.
+    severity: ERROR
+    pattern: |
+      $CMD = "ls -la " + $USER_INPUT
+      ...
+      os.system($CMD)
+
+  - id: shell-metacharacter-injection
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+      - php
+    message: |
+      Shell metacharacter injection: User input contains shell metacharacters like ;, &, |, $.
+      Sanitize input or avoid shell execution.
+    severity: ERROR
+    pattern: |
+      if re.search('[;&|`$]', $USER_INPUT):
+        ...
+
+  - id: unsafe-shell-execution
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Unsafe shell execution: Using shell=True or equivalent with user input.
+      Avoid shell execution or use safe alternatives.
+    severity: WARNING
+    pattern: |
+      subprocess.run($USER_INPUT, shell=True)

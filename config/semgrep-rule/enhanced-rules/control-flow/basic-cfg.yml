@@ -1,0 +1,58 @@
+rules:
+  - id: basic-control-flow
+    pattern: |
+      if ($CONDITION) {
+        $THEN_BODY
+      } else {
+        $ELSE_BODY
+      }
+    message: "基本控制流结构：if-else分支"
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: INFO
+    metadata:
+      category: control-flow
+      technology: [cfg]
+      subcategory: [branching]
+
+  - id: loop-control-flow
+    pattern: |
+      for ($INIT; $CONDITION; $UPDATE) {
+        $BODY
+      }
+    message: "循环控制流结构：for循环"
+    languages: [javascript, typescript, java, go, csharp]
+    severity: INFO
+    metadata:
+      category: control-flow
+      technology: [cfg]
+      subcategory: [looping]
+
+  - id: while-loop-control-flow
+    pattern: |
+      while ($CONDITION) {
+        $BODY
+      }
+    message: "循环控制流结构：while循环"
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: INFO
+    metadata:
+      category: control-flow
+      technology: [cfg]
+      subcategory: [looping]
+
+  - id: switch-control-flow
+    pattern: |
+      switch ($EXPR) {
+        case $VALUE:
+          $BODY
+          break;
+        default:
+          $DEFAULT_BODY
+      }
+    message: "控制流结构：switch-case分支"
+    languages: [javascript, typescript, java, go, csharp]
+    severity: INFO
+    metadata:
+      category: control-flow
+      technology: [cfg]
+      subcategory: [branching]

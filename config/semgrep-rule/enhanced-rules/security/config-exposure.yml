@@ -1,0 +1,52 @@
+rules:
+  - id: config-file-exposure
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration exposure: Sensitive configuration files may be exposed.
+      Ensure configuration files are not accessible via web requests.
+    severity: ERROR
+    pattern: |
+      app.run(debug=True)
+
+  - id: debug-mode-enabled
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration exposure: Debug mode is enabled in production.
+      Disable debug mode in production environments.
+    severity: ERROR
+    pattern: |
+      DEBUG = True
+
+  - id: env-file-exposure
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration exposure: Environment files may be exposed.
+      Ensure .env files are not accessible via web requests.
+    severity: WARNING
+    pattern: |
+      send_file('.env')
+
+  - id: stack-trace-exposure
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration exposure: Stack traces are exposed in error responses.
+      Disable detailed error messages in production.
+    severity: WARNING
+    pattern: |
+      app.config['DEBUG'] = True

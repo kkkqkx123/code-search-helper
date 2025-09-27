@@ -1,0 +1,52 @@
+rules:
+  - id: session-fixation-vulnerability
+    languages:
+      - python
+      - javascript
+      - typescript
+      - php
+    message: |
+      Session fixation vulnerability: Session ID not regenerated after authentication.
+      Regenerate session ID after successful login to prevent fixation attacks.
+    severity: ERROR
+    pattern: |
+      user.login()
+
+  - id: session-invalidation-missing
+    languages:
+      - python
+      - javascript
+      - typescript
+      - php
+    message: |
+      Session management flaw: Session not invalidated on logout.
+      Properly invalidate sessions when user logs out.
+    severity: ERROR
+    pattern: |
+      session.clear()
+
+  - id: session-timeout-not-set
+    languages:
+      - python
+      - javascript
+      - typescript
+      - php
+    message: |
+      Session management flaw: Session timeout not configured.
+      Set appropriate session timeout to prevent session hijacking.
+    severity: WARNING
+    pattern: |
+      session.permanent = True
+
+  - id: session-cookie-secure-flag
+    languages:
+      - python
+      - javascript
+      - typescript
+      - php
+    message: |
+      Session security: Cookie secure flag not set.
+      Set secure flag for session cookies in production.
+    severity: WARNING
+    pattern: |
+      response.set_cookie("session", $VALUE)

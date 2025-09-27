@@ -1,0 +1,93 @@
+rules:
+  - id: price-manipulation-negative-price
+    message: Price manipulation - negative price values allowed in calculations
+    languages: [python]
+    severity: ERROR
+    pattern: |
+      total = price * quantity
+
+  - id: price-manipulation-negative-price-js
+    message: Price manipulation - negative price values allowed in calculations
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      const total = price * quantity
+
+  - id: price-manipulation-zero-price
+    message: Price manipulation - zero price items allowed without validation
+    languages: [python]
+    severity: ERROR
+    pattern: |
+      if price >= 0:
+          ...
+
+  - id: price-manipulation-zero-price-js
+    message: Price manipulation - zero price items allowed without validation
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      if (price >= 0) {
+          ...
+      }
+
+  - id: discount-manipulation-unlimited
+    message: Discount manipulation - unlimited discount percentage allowed
+    languages: [python]
+    severity: ERROR
+    pattern: |
+      final_price = original_price * (1 - discount_percentage / 100)
+
+  - id: discount-manipulation-unlimited-js
+    message: Discount manipulation - unlimited discount percentage allowed
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      const finalPrice = $ORIGINAL * (1 - $DISCOUNT / 100)
+
+  - id: price-manipulation-currency-conversion
+    message: Price manipulation - currency conversion without proper validation
+    languages: [python]
+    severity: WARNING
+    pattern: |
+      converted_price = original_price * exchange_rate
+
+  - id: price-manipulation-currency-conversion-js
+    message: Price manipulation - currency conversion without proper validation
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      const convertedPrice = $ORIGINAL * $RATE
+
+  - id: price-manipulation-bulk-discount-bypass
+    message: Bulk discount manipulation - minimum quantity check bypassed
+    languages: [python]
+    severity: WARNING
+    pattern: |
+      if quantity >= minimum_quantity:
+          ...
+
+  - id: price-manipulation-bulk-discount-bypass-js
+    message: Bulk discount manipulation - minimum quantity check bypassed
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      if (quantity >= minimumQuantity) {
+          ...
+      }
+
+  - id: price-manipulation-coupon-stacking
+    message: Coupon stacking manipulation - multiple coupons allowed without restriction
+    languages: [python]
+    severity: WARNING
+    pattern: |
+      for coupon in coupons:
+          ...
+
+  - id: price-manipulation-coupon-stacking-js
+    message: Coupon stacking manipulation - multiple coupons allowed without restriction
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      coupons.forEach(coupon => {
+          ...
+      })

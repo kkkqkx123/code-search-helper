@@ -1,0 +1,46 @@
+rules:
+  - id: eval-injection
+    languages:
+      - python
+      - javascript
+      - typescript
+    message: |
+      Code injection vulnerability: Using eval() with user input can lead to arbitrary code execution.
+      Use safer alternatives like JSON.parse() or ast.literal_eval() for safe evaluation.
+    severity: ERROR
+    pattern: |
+      eval($USER_INPUT)
+
+  - id: exec-injection
+    languages:
+      - python
+      - javascript
+      - typescript
+    message: |
+      Code injection vulnerability: Using exec() with user input can lead to arbitrary code execution.
+      Avoid using exec() with untrusted input or use safer alternatives.
+    severity: ERROR
+    pattern: |
+      exec($USER_INPUT)
+
+  - id: Function-constructor-injection
+    languages:
+      - javascript
+      - typescript
+    message: |
+      Code injection vulnerability: Function constructor with user input can lead to arbitrary code execution.
+      Avoid creating functions from user input or sanitize input thoroughly.
+    severity: ERROR
+    pattern: |
+      new Function($USER_INPUT)
+
+  - id: setTimeout-string-injection
+    languages:
+      - javascript
+      - typescript
+    message: |
+      Code injection vulnerability: setTimeout with string argument can lead to code injection.
+      Use function references instead of string arguments.
+    severity: ERROR
+    pattern: |
+      setTimeout($USER_INPUT, $DELAY)

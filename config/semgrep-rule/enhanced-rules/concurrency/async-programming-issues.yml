@@ -1,0 +1,82 @@
+rules:
+  - id: async-future-get-with-timeout
+    message: "Future.get() should use timeout to avoid indefinite blocking"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          Future<$TYPE> $FUTURE = ...;
+          ...
+          $TYPE $RESULT = $FUTURE.get();
+    metadata:
+      category: concurrency
+      technology: [java, futures]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Future.html
+
+  - id: async-completablefuture-exception-handling
+    message: "CompletableFuture should handle exceptions properly"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          CompletableFuture<$TYPE> $FUTURE = CompletableFuture.supplyAsync(() -> {
+            ...
+            return $RESULT;
+          });
+    metadata:
+      category: concurrency
+      technology: [java, completable-future]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html
+
+  - id: async-avoid-busy-waiting
+    message: "Avoid busy waiting - use proper synchronization mechanisms"
+    languages: [java, javascript, typescript]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          while (!$CONDITION) {
+            Thread.sleep(100);
+          }
+      - pattern: |
+          while (!$CONDITION) {
+            // busy waiting
+          }
+    metadata:
+      category: concurrency
+      technology: [busy-waiting, synchronization]
+      references:
+        - https://docs.oracle.com/javase/tutorial/essential/concurrency/guardmeth.html
+
+  - id: async-resource-cleanup
+    message: "Ensure proper cleanup of async resources"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          ExecutorService $EXECUTOR = Executors.newFixedThreadPool($SIZE);
+          ...
+          // Missing executor.shutdown()
+    metadata:
+      category: concurrency
+      technology: [java, executor-service]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ExecutorService.html
+
+  - id: async-avoid-blocking-in-callbacks
+    message: "Avoid blocking operations in async callbacks"
+    languages: [javascript, typescript]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          promise.then(result => {
+            ...
+            const data = blockingOperation();
+            ...
+          });
+    metadata:
+      category: concurrency
+      technology: [javascript, promises, async-await]
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise

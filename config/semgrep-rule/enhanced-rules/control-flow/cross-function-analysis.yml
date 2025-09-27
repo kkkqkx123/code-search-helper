@@ -1,0 +1,65 @@
+rules:
+  - id: cross-function-dataflow
+    pattern: |
+      function $SOURCE() {
+        return user_input();
+      }
+      
+      function $SINK($data) {
+        dangerous_operation($data);
+      }
+      
+      $X = $SOURCE();
+      $SINK($X);
+    message: "跨函数数据流：潜在安全风险，用户输入直接传递到危险操作"
+    languages: [javascript, typescript, python, java, go]
+    severity: WARNING
+    metadata:
+      category: security
+      technology: [dataflow, cross-function]
+      cwe: ["CWE-20", "CWE-89", "CWE-78"]
+
+  - id: function-call-graph
+    pattern: |
+      function $CALLER() {
+        ...
+        $CALLEE(...);
+        ...
+      }
+    message: "函数调用关系：$CALLER -> $CALLEE"
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: INFO
+    metadata:
+      category: control-flow
+      technology: [call-graph]
+      subcategory: [function-calls]
+
+  - id: recursive-function-detection
+    pattern: |
+      function $FUNC(...$PARAMS) {
+        ...
+        $FUNC(...);
+        ...
+      }
+    message: "递归函数检测：$FUNC 包含自身调用"
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: INFO
+    metadata:
+      category: control-flow
+      technology: [recursion]
+      subcategory: [recursive-calls]
+
+  - id: callback-analysis
+    pattern: |
+      function $FUNCTION($PARAM, callback) {
+        ...
+        callback($RESULT);
+        ...
+      }
+    message: "回调函数分析：异步控制流"
+    languages: [javascript, typescript, python]
+    severity: INFO
+    metadata:
+      category: control-flow
+      technology: [async, callback]
+      subcategory: [asynchronous]

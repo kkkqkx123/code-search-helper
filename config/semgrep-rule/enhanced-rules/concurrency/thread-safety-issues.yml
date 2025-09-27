@@ -1,0 +1,77 @@
+rules:
+  - id: thread-safety-simpledateformat
+    message: "SimpleDateFormat is not thread-safe - use DateTimeFormatter instead"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          static SimpleDateFormat $FORMAT = new SimpleDateFormat(...);
+    fix: |
+      static DateTimeFormatter $FORMAT = DateTimeFormatter.ofPattern(...);
+    metadata:
+      category: concurrency
+      technology: [java, threading]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html
+
+  - id: thread-safety-calendar-instance
+    message: "Calendar is not thread-safe - use thread-local or synchronization"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          static Calendar $CALENDAR = Calendar.getInstance();
+    metadata:
+      category: concurrency
+      technology: [java, calendar]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/Calendar.html
+
+  - id: thread-safety-mutable-static-fields
+    message: "Mutable static fields are not thread-safe"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          static $TYPE $VAR = new $TYPE(...);
+      - metavariable-pattern:
+          metavariable: $TYPE
+          pattern-either:
+            - pattern: HashMap
+            - pattern: ArrayList
+            - pattern: StringBuilder
+            - pattern: Date
+            - pattern: Calendar
+    metadata:
+      category: concurrency
+      technology: [java, threading]
+      references:
+        - https://wiki.sei.cmu.edu/confluence/display/java/LCK00-J.+Use+private+final+lock+objects+to+synchronize+classes+that+may+interact+with+untrusted+code
+
+  - id: thread-safety-unsafe-publication
+    message: "Unsafe publication of object - ensure proper synchronization"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          class $CLASS {
+            private $TYPE $FIELD;
+            
+            void $METHOD(...) {
+              $FIELD = new $TYPE(...);
+            }
+            
+            $TYPE $GETTER(...) {
+              return $FIELD;
+            }
+          }
+      - pattern-not: |
+          class $CLASS {
+            private volatile $TYPE $FIELD;
+            ...
+          }
+    metadata:
+      category: concurrency
+      technology: [java, memory-model]
+      references:
+        - https://docs.oracle.com/javase/specs/jls/se8/html/jls-17.html#jls-17.5

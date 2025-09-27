@@ -1,0 +1,94 @@
+rules:
+  - id: deadlock-potential-synchronized-blocks
+    message: "Potential deadlock: nested synchronized blocks with different lock orders"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              synchronized ($LOCK1) {
+                ...
+                synchronized ($LOCK2) {
+                  ...
+                }
+                ...
+              }
+          - pattern: |
+              synchronized ($A) {
+                ...
+                synchronized ($B) {
+                  ...
+                  synchronized ($A) {
+                    ...
+                  }
+                }
+              }
+    metadata:
+      category: concurrency
+      technology: [java]
+      references:
+        - https://docs.oracle.com/javase/tutorial/essential/concurrency/locksync.html
+        - https://wiki.sei.cmu.edu/confluence/display/java/LCK07-J.+Avoid+deadlock+by+requesting+and+acquiring+locks+in+a+fixed+global+order
+
+  - id: deadlock-potential-lock-acquisition-order
+    message: "Potential deadlock: inconsistent lock acquisition order across methods"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern-inside: |
+          class $CLASS {
+            ...
+            synchronized void $METHOD1(...) {
+              synchronized($LOCK1) {
+                synchronized($LOCK2) {
+                  ...
+                }
+              }
+            }
+            ...
+            synchronized void $METHOD2(...) {
+              synchronized($LOCK2) {
+                synchronized($LOCK1) {
+                  ...
+                }
+              }
+            }
+            ...
+          }
+    metadata:
+      category: concurrency
+      technology: [java]
+      references:
+        - https://wiki.sei.cmu.edu/confluence/display/java/LCK07-J.+Avoid+deadlock+by+requesting+and+acquiring+locks+in+a+fixed+global+order
+
+  - id: deadlock-potential-reentrant-lock
+    message: "Potential deadlock with ReentrantLock: ensure proper lock ordering"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          $LOCK1.lock();
+          try {
+            ...
+            $LOCK2.lock();
+            try {
+              ...
+            } finally {
+              $LOCK2.unlock();
+            }
+            ...
+          } finally {
+            $LOCK1.unlock();
+          }
+      - pattern-not: |
+          $LOCK.lock();
+          try {
+            ...
+          } finally {
+            $LOCK.unlock();
+          }
+    metadata:
+      category: concurrency
+      technology: [java, reentrantlock]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/locks/ReentrantLock.html

@@ -1,0 +1,96 @@
+rules:
+  - id: path-traversal-file-read
+    pattern: |
+      fs.readFileSync($PATH + $USER_INPUT);
+    message: "路径遍历漏洞：用户输入直接用于文件路径"
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [path-traversal]
+      cwe: ["CWE-22"]
+      owasp: ["A01:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: path-traversal-file-write
+    pattern: |
+      fs.writeFileSync("/var/www/uploads/" + $USER_INPUT, $DATA);
+    message: "路径遍历漏洞：用户输入用于文件写入路径"
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [path-traversal]
+      cwe: ["CWE-22"]
+      owasp: ["A01:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: path-traversal-directory-traversal
+    pattern: |
+      file_path = os.path.join(base_dir, $USER_INPUT)
+      with open(file_path, 'r') as f:
+        content = f.read()
+    message: "路径遍历漏洞：用户输入用于构建文件路径"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [path-traversal]
+      cwe: ["CWE-22"]
+      owasp: ["A01:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: path-traversal-safe-validation
+    pattern: |
+      if ($USER_INPUT.includes("..")) {
+        throw new Error("Invalid path");
+      }
+      fs.readFileSync($BASE_PATH + $USER_INPUT);
+    message: "路径遍历防护：包含路径验证逻辑"
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: INFO
+    metadata:
+      category: security
+      technology: [path-traversal]
+      subcategory: [safe-coding]
+      confidence: LOW
+      likelihood: LOW
+      impact: LOW
+
+  - id: path-traversal-whitelist-safe
+    pattern: |
+      allowed_files = ["file1.txt", "file2.txt", "file3.txt"]
+      if $USER_INPUT in allowed_files:
+        fs.readFileSync($BASE_PATH + $USER_INPUT)
+    message: "良好实践：使用白名单验证文件路径"
+    languages: [javascript, typescript, python]
+    severity: INFO
+    metadata:
+      category: security
+      technology: [path-traversal]
+      subcategory: [safe-coding]
+      confidence: LOW
+      likelihood: LOW
+      impact: LOW
+
+  - id: path-traversal-canonical-path-safe
+    pattern: |
+      canonical_path = os.path.realpath(os.path.join(base_dir, user_input))
+      if not canonical_path.startswith(base_dir):
+        raise ValueError("Invalid path")
+    message: "良好实践：使用规范化路径验证"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      technology: [path-traversal]
+      subcategory: [safe-coding]
+      confidence: LOW
+      likelihood: LOW
+      impact: LOW

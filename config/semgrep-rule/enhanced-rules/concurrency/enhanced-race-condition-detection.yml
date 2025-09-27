@@ -1,0 +1,147 @@
+rules:
+  - id: race-condition-shared-variable-access
+    message: "Potential race condition: unsynchronized access to shared variable"
+    languages: [java, javascript, typescript, python]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              class $CLASS {
+                private $TYPE $VAR;
+                void $METHOD1(...) {
+                  $VAR = $EXPR;
+                }
+                $TYPE $METHOD2(...) {
+                  return $VAR;
+                }
+              }
+          - pattern: |
+              class $CLASS {
+                private $TYPE $VAR;
+                synchronized void $METHOD1(...) {
+                  $VAR = $EXPR;
+                }
+                $TYPE $METHOD2(...) {
+                  return $VAR;
+                }
+              }
+    metadata:
+      category: concurrency
+      technology: [java, multithreading]
+
+  - id: race-condition-unsynchronized-map-access
+    message: "Potential race condition: unsynchronized access to HashMap or ArrayList"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          Map<$K, $V> $MAP = new HashMap<>();
+          $MAP.put($KEY, $VALUE);
+      - pattern: |
+          List<$T> $LIST = new ArrayList<>();
+          $LIST.add($ITEM);
+    metadata:
+      category: concurrency
+      technology: [java, collections]
+
+  - id: race-condition-static-variable
+    message: "Potential race condition: unsynchronized access to static variable"
+    languages: [java, typescript, javascript]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          class $CLASS {
+            static $TYPE $VAR;
+            void $METHOD(...) {
+              $VAR = $EXPR;
+            }
+            static $TYPE $GETTER(...) {
+              return $VAR;
+            }
+          }
+    metadata:
+      category: concurrency
+      technology: [static, multithreading]
+
+  - id: race-condition-shared-variable-assignment
+    message: "Shared variable race condition: Concurrent access to shared variable"
+    languages: [java, python, javascript, typescript]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          class $CLASS {
+            $TYPE $SHARED_VAR;
+            void $METHOD(...) {
+              $SHARED_VAR = $VALUE;
+            }
+          }
+    metadata:
+      category: concurrency
+      technology: [shared-variable, assignment]
+
+  - id: race-condition-concurrent-map-access
+    message: "Concurrent map access: Map accessed by multiple threads without synchronization"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          Map<$K, $V> $MAP = new HashMap<>();
+          $MAP.put($KEY, $VALUE);
+    metadata:
+      category: concurrency
+      technology: [map, concurrent-access]
+
+  - id: race-condition-counter-increment
+    message: "Counter increment race condition: Counter increment operation not thread-safe"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          class $CLASS {
+            int $COUNTER = 0;
+            void increment() {
+              $COUNTER = $COUNTER + 1;
+            }
+          }
+    metadata:
+      category: concurrency
+      technology: [counter, increment, atomic-operations]
+
+  - id: race-condition-file-access
+    message: "File access race condition: Concurrent file access without proper locking"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          new FileInputStream($FILE_PATH);
+    metadata:
+      category: concurrency
+      technology: [file-access, file-locking]
+
+  - id: race-condition-resource-pool
+    message: "Resource pool race condition: Race condition in resource pool management"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          class $POOL {
+            Resource acquire() {
+              return new Resource();
+            }
+          }
+    metadata:
+      category: concurrency
+      technology: [resource-pool, resource-management]
+
+  - id: race-condition-async-operation
+    message: "Async operation race condition: Race condition in asynchronous operations"
+    languages: [javascript, typescript]
+    severity: INFO
+    patterns:
+      - pattern: |
+          async function $FUNC() {
+            await $ASYNC_OP;
+          }
+    metadata:
+      category: concurrency
+      technology: [async, await, promises]

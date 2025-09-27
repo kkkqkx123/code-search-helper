@@ -1,0 +1,82 @@
+rules:
+  - id: sql-injection-taint
+    message: SQL injection vulnerability detected via taint analysis
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: req.params
+          - pattern: req.query
+          - pattern: req.body
+          - pattern: $_GET[...]
+          - pattern: $_POST[...]
+    pattern-sinks:
+      - pattern-either:
+          - pattern-regex: (?i)(select|insert|update|delete|drop|create|alter|exec|execute)
+          - pattern: $DB.query(...)
+          - pattern: db.query(...)
+    metadata:
+      category: security
+      cwe: CWE-89
+      confidence: HIGH
+
+  - id: xss-taint
+    message: XSS vulnerability detected via taint analysis
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: req.params
+          - pattern: req.query
+          - pattern: req.body
+    pattern-sinks:
+      - pattern-either:
+          - pattern: innerHTML = ...
+          - pattern: document.write(...)
+          - pattern: eval(...)
+    metadata:
+      category: security
+      cwe: CWE-79
+      confidence: HIGH
+
+  - id: command-injection-taint
+    message: Command injection vulnerability detected via taint analysis
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: req.params
+          - pattern: req.query
+          - pattern: req.body
+    pattern-sinks:
+      - pattern-either:
+          - pattern: exec(...)
+          - pattern: system(...)
+          - pattern: Runtime.getRuntime().exec(...)
+    metadata:
+      category: security
+      cwe: CWE-78
+      confidence: HIGH
+
+  - id: path-traversal-taint
+    message: Path traversal vulnerability detected via taint analysis
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: req.params
+          - pattern: req.query
+          - pattern: req.body
+    pattern-sinks:
+      - pattern-either:
+          - pattern: new File(...)
+          - pattern: fs.readFileSync(...)
+          - pattern: include(...)
+    metadata:
+      category: security
+      cwe: CWE-22
+      confidence: HIGH

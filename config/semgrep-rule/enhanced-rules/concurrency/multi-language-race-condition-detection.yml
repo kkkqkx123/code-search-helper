@@ -1,0 +1,199 @@
+rules:
+  - id: race-condition-shared-variable-java
+    message: "Potential race condition: unsynchronized access to shared variable"
+    languages: [java]
+    severity: ERROR
+    pattern: |
+      class $CLASS {
+        $TYPE $VAR;
+        void $METHOD1() {
+          $VAR = $VALUE;
+        }
+        $TYPE $METHOD2() {
+          return $VAR;
+        }
+      }
+
+  - id: race-condition-shared-variable-python
+    message: "Potential race condition: unsynchronized access to shared variable"
+    languages: [python]
+    severity: ERROR
+    pattern: |
+      class $CLASS:
+          def __init__(self):
+              self.$VAR = $INIT
+          def $METHOD1(self):
+              self.$VAR = $VALUE
+          def $METHOD2(self):
+              return self.$VAR
+
+  - id: race-condition-shared-variable-js
+    message: "Potential race condition: unsynchronized access to shared variable"
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      class $CLASS {
+        $VAR;
+        $METHOD1() {
+          this.$VAR = $VALUE;
+        }
+        $METHOD2() {
+          return this.$VAR;
+        }
+      }
+
+  - id: race-condition-collection-java
+    message: "Potential race condition: unsynchronized collection access"
+    languages: [java]
+    severity: WARNING
+    pattern: |
+      Map<$K, $V> $MAP = new HashMap<>();
+      $MAP.put($KEY, $VALUE);
+
+  - id: race-condition-collection-python
+    message: "Potential race condition: unsynchronized collection access"
+    languages: [python]
+    severity: WARNING
+    pattern: |
+      $DICT = {}
+      $DICT[$KEY] = $VALUE
+
+  - id: race-condition-collection-js
+    message: "Potential race condition: unsynchronized collection access"
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      const $MAP = new Map();
+      $MAP.set($KEY, $VALUE);
+
+  - id: race-condition-static-java
+    message: "Potential race condition: unsynchronized static variable access"
+    languages: [java]
+    severity: ERROR
+    pattern: |
+      class $CLASS {
+        static $TYPE $VAR;
+        void $METHOD() {
+          $VAR = $VALUE;
+        }
+      }
+
+  - id: race-condition-static-python
+    message: "Potential race condition: unsynchronized global variable access"
+    languages: [python]
+    severity: ERROR
+    pattern: |
+      $GLOBAL_VAR = $INIT
+      def $FUNC():
+          global $GLOBAL_VAR
+          $GLOBAL_VAR = $VALUE
+
+  - id: race-condition-static-js
+    message: "Potential race condition: unsynchronized global variable access"
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      let $GLOBAL_VAR;
+      function $FUNC() {
+        $GLOBAL_VAR = $VALUE;
+      }
+
+  - id: race-condition-counter-java
+    message: "Counter increment race condition: non-atomic counter increment"
+    languages: [java]
+    severity: ERROR
+    pattern: |
+      class $CLASS {
+        int $COUNTER = 0;
+        void increment() {
+          $COUNTER = $COUNTER + 1;
+        }
+      }
+
+  - id: race-condition-counter-python
+    message: "Counter increment race condition: non-atomic counter increment"
+    languages: [python]
+    severity: ERROR
+    pattern: |
+      class $CLASS:
+          def __init__(self):
+              self.counter = 0
+          def increment(self):
+              self.counter = self.counter + 1
+
+  - id: race-condition-counter-js
+    message: "Counter increment race condition: non-atomic counter increment"
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: |
+      class $CLASS {
+        counter = 0;
+        increment() {
+          this.counter = this.counter + 1;
+        }
+      }
+
+  - id: race-condition-file-java
+    message: "File access race condition: concurrent file access without locking"
+    languages: [java]
+    severity: WARNING
+    pattern: |
+      new FileInputStream($FILE_PATH);
+
+  - id: race-condition-file-python
+    message: "File access race condition: concurrent file access without locking"
+    languages: [python]
+    severity: WARNING
+    pattern: |
+      open($FILENAME, 'w')
+
+  - id: race-condition-file-js
+    message: "File access race condition: concurrent file access without locking"
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      fs.writeFileSync($PATH, $DATA)
+
+  - id: race-condition-async-python
+    message: "Async operation race condition: potential race in async operations"
+    languages: [python]
+    severity: INFO
+    pattern: |
+      async def $FUNC():
+          await $ASYNC_OP
+
+  - id: race-condition-async-js
+    message: "Async operation race condition: potential race in async operations"
+    languages: [javascript, typescript]
+    severity: INFO
+    pattern: |
+      async function $FUNC() {
+        await $ASYNC_OP;
+      }
+
+  - id: race-condition-thread-java
+    message: "Thread creation race condition: shared variable in thread"
+    languages: [java]
+    severity: WARNING
+    pattern: |
+      new Thread(() -> {
+        $SHARED_VAR = $VALUE;
+      }).start();
+
+  - id: race-condition-thread-python
+    message: "Thread creation race condition: shared variable in thread"
+    languages: [python]
+    severity: WARNING
+    pattern: |
+      import threading
+      threading.Thread(target=$FUNC)
+
+  - id: race-condition-thread-js
+    message: "Thread creation race condition: shared variable in thread"
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern: |
+      new Promise((resolve) => {
+        $SHARED_VAR = $VALUE;
+        resolve();
+      })

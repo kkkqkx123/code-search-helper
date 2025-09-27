@@ -1,0 +1,39 @@
+rules:
+  - id: sql-injection-string-concatenation
+    languages:
+      - python
+    message: |
+      SQL injection via string concatenation: User input directly concatenated into SQL query.
+      Use parameterized queries or prepared statements.
+    severity: ERROR
+    pattern: $QUERY = "SELECT * FROM users WHERE id = " + $USER_INPUT
+
+  - id: sql-injection-format-string
+    languages:
+      - python
+    message: |
+      SQL injection via format string: User input used in format string for SQL query.
+      Use parameterized queries instead of string formatting.
+    severity: ERROR
+    pattern: |
+      $QUERY = f"SELECT * FROM users WHERE id = {user_input}"
+
+  - id: sql-injection-unsanitized-input
+    languages:
+      - python
+    message: |
+      Unsanitized SQL input: User input used directly in SQL query without validation.
+      Validate and sanitize all user input before using in SQL queries.
+    severity: ERROR
+    pattern: |
+      $USER_INPUT = request.GET['id']
+
+  - id: sql-injection-like-wildcard
+    languages:
+      - python
+    message: |
+      SQL injection via LIKE wildcard: User input used in LIKE clause without escaping wildcards.
+      Escape SQL wildcards in user input for LIKE clauses.
+    severity: WARNING
+    pattern: |
+      $SEARCH = "%" + $USER_INPUT + "%"

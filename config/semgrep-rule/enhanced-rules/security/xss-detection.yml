@@ -1,0 +1,88 @@
+rules:
+  - id: xss-innerhtml
+    pattern: |
+      document.getElementById($ID).innerHTML = $USER_INPUT;
+    message: "XSS漏洞：用户输入直接设置到innerHTML"
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [xss]
+      cwe: ["CWE-79"]
+      owasp: ["A03:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: xss-html-insertion
+    pattern: |
+      $("#$ID").html($USER_INPUT);
+    message: "XSS漏洞：用户输入直接插入HTML内容"
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [xss]
+      cwe: ["CWE-79"]
+      owasp: ["A03:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: xss-document-write
+    pattern: |
+      document.write($USER_INPUT);
+    message: "XSS漏洞：用户输入直接写入文档"
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [xss]
+      cwe: ["CWE-79"]
+      owasp: ["A03:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: xss-attribute-manipulation
+    pattern: |
+      element.setAttribute($ATTR, $USER_INPUT);
+    message: "XSS风险：用户输入设置到HTML属性"
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      category: security
+      technology: [xss]
+      cwe: ["CWE-79"]
+      owasp: ["A03:2021"]
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: MEDIUM
+
+  - id: xss-safe-textcontent
+    pattern: |
+      document.getElementById($ID).textContent = $USER_INPUT;
+    message: "良好实践：使用textContent避免XSS"
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: security
+      technology: [xss]
+      subcategory: [safe-coding]
+      confidence: LOW
+      likelihood: LOW
+      impact: LOW
+
+  - id: xss-encoding-safe
+    pattern: |
+      element.innerHTML = encodeURIComponent($USER_INPUT);
+    message: "良好实践：用户输入编码后使用"
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: security
+      technology: [xss]
+      subcategory: [safe-coding]
+      confidence: LOW
+      likelihood: LOW
+      impact: LOW

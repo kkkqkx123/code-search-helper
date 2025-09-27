@@ -1,0 +1,80 @@
+rules:
+  - id: null-pointer-dereference
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+      - go
+    message: |
+      Null pointer dereference detected: Object may be null before method call or property access.
+      Consider adding null checks or using optional chaining.
+    severity: ERROR
+    pattern-either:
+      - pattern: $OBJ.$METHOD(...)
+      - pattern: $OBJ[$KEY]
+      - pattern: $OBJ.length
+      - pattern: $OBJ.size()
+
+  - id: null-return-value-unchecked
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Null return value used without null check: Function may return null but return value is used directly.
+      Consider adding null checks before using the return value.
+    severity: WARNING
+    patterns:
+      - pattern: |
+          $RESULT = $FUNC(...)
+          $RESULT.$METHOD(...)
+
+  - id: optional-chain-recommendation
+    languages:
+      - javascript
+      - typescript
+    message: |
+      Optional chaining recommended: Object access may benefit from optional chaining operator (?.) to handle null cases.
+    severity: INFO
+    pattern: $OBJ.$PROPERTY
+
+  - id: defensive-programming-missing
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Missing defensive programming: Function parameters should be validated for null before use.
+      Consider adding parameter validation.
+    severity: WARNING
+    patterns:
+      - pattern: |
+          def $FUNC($PARAM):
+            $PARAM.$METHOD(...)
+
+  - id: list-index-null-safety
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      List/array index access without null check: List or array may be null before indexing.
+      Consider adding null checks before accessing elements.
+    severity: WARNING
+    pattern: $LIST[$INDEX]
+
+  - id: map-key-access-null-safety
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Map/dictionary key access without null check: Map or dictionary may be null before key access.
+      Consider adding null checks or using safe access methods.
+    severity: WARNING
+    pattern: $MAP[$KEY]

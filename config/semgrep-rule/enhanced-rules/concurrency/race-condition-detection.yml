@@ -1,0 +1,95 @@
+rules:
+  - id: race-condition-shared-variable-access
+    message: "Potential race condition: unsynchronized access to shared variable"
+    languages: [java, javascript, typescript, python]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              class $CLASS {
+                private $TYPE $VAR;
+                
+                void $METHOD1(...) {
+                  ...
+                  $VAR = $EXPR;
+                  ...
+                }
+                
+                $TYPE $METHOD2(...) {
+                  ...
+                  return $VAR;
+                }
+              }
+          - pattern: |
+              class $CLASS {
+                private $TYPE $VAR;
+                
+                synchronized void $METHOD1(...) {
+                  ...
+                  $VAR = $EXPR;
+                  ...
+                }
+                
+                $TYPE $METHOD2(...) {
+                  ...
+                  return $VAR; // Not synchronized
+                }
+              }
+    metadata:
+      category: concurrency
+      technology: [java, multithreading]
+      references:
+        - https://docs.oracle.com/javase/tutorial/essential/concurrency/sync.html
+
+  - id: race-condition-unsynchronized-map-access
+    message: "Potential race condition: unsynchronized access to HashMap or ArrayList"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          Map<$K, $V> $MAP = new HashMap<>();
+          ...
+          $MAP.put(...);
+      - pattern: |
+          List<$T> $LIST = new ArrayList<>();
+          ...
+          $LIST.add(...);
+      - pattern: |
+          Map<$K, $V> $MAP = new HashMap<>();
+          ...
+          $MAP.get(...);
+      - pattern: |
+          List<$T> $LIST = new ArrayList<>();
+          ...
+          $LIST.get(...);
+    metadata:
+      category: concurrency
+      technology: [java, collections]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html
+
+  - id: race-condition-static-variable
+    message: "Potential race condition: unsynchronized access to static variable"
+    languages: [java, typescript, javascript]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          class $CLASS {
+            static $TYPE $VAR;
+            
+            void $METHOD(...) {
+              ...
+              $VAR = $EXPR;
+              ...
+            }
+            
+            static $TYPE $GETTER(...) {
+              ...
+              return $VAR;
+            }
+          }
+    metadata:
+      category: concurrency
+      technology: [static, multithreading]
+      references:
+        - https://wiki.sei.cmu.edu/confluence/display/java/LCK00-J.+Use+private+final+lock+objects+to+synchronize+classes+that+may+interact+with+untrusted+code

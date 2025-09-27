@@ -1,0 +1,288 @@
+rules:
+  - id: advanced-sql-injection-detection
+    message: "高级SQL注入检测：检测到复杂的SQL注入模式，包括盲注和时间注入"
+    languages: [javascript, typescript, python, java, go, csharp, php]
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.get(...)
+          - pattern: req.body
+          - pattern: req.params
+          - pattern: $_GET[...]
+          - pattern: $_POST[...]
+          - pattern: $REQUEST[...]
+    pattern-sinks:
+      - pattern-either:
+          - pattern-regex: (?i)(select|insert|update|delete|drop|create|alter|exec|execute)\s+
+          - pattern: $DB.query(...)
+          - pattern: mysqli_query(...)
+          - pattern: PDO::query(...)
+    pattern-sanitizers:
+      - pattern: mysqli_real_escape_string(...)
+      - pattern: PDO::prepare(...)
+      - pattern: $DB.prepareStatement(...)
+    metadata:
+      category: security
+      technology: [sql-injection, taint-analysis]
+      subcategory: [injection, database-security]
+      cwe: ["CWE-89: SQL Injection"]
+      owasp: ["A03:2021 - Injection"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: xss-comprehensive-detection
+    message: "全面XSS检测：检测到反射型、存储型和DOM型XSS漏洞"
+    languages: [javascript, typescript, python, java, go, csharp, php]
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: location.search
+          - pattern: document.URL
+          - pattern: document.cookie
+          - pattern: localStorage.getItem(...)
+          - pattern: $_GET[...]
+          - pattern: $_POST[...]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: innerHTML = ...
+          - pattern: document.write(...)
+          - pattern: eval(...)
+          - pattern: setTimeout(...)
+          - pattern: setInterval(...)
+          - pattern: Function(...)
+    pattern-sanitizers:
+      - pattern: DOMPurify.sanitize(...)
+      - pattern: encodeURIComponent(...)
+      - pattern: htmlspecialchars(...)
+      - pattern: escape(...)
+    metadata:
+      category: security
+      technology: [xss, taint-analysis]
+      subcategory: [injection, client-side]
+      cwe: ["CWE-79: Cross-Site Scripting"]
+      owasp: ["A03:2021 - Injection"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: command-injection-advanced
+    message: "高级命令注入检测：检测到系统命令注入，包括shell元字符注入"
+    languages: [javascript, typescript, python, java, go, csharp, php]
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.get(...)
+          - pattern: req.body
+          - pattern: req.params
+          - pattern: $_GET[...]
+          - pattern: $_POST[...]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: Runtime.getRuntime().exec(...)
+          - pattern: subprocess.call(...)
+          - pattern: exec(...)
+          - pattern: system(...)
+          - pattern: shell_exec(...)
+          - pattern: passthru(...)
+    pattern-sanitizers:
+      - pattern: escapeshellcmd(...)
+      - pattern: escapeshellarg(...)
+      - pattern: ProcessBuilder(...)
+    metadata:
+      category: security
+      technology: [command-injection, taint-analysis]
+      subcategory: [injection, system-security]
+      cwe: ["CWE-78: OS Command Injection"]
+      owasp: ["A03:2021 - Injection"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: path-traversal-comprehensive
+    message: "全面路径遍历检测：检测到目录遍历和文件包含漏洞"
+    languages: [javascript, typescript, python, java, go, csharp, php]
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.get(...)
+          - pattern: req.body
+          - pattern: req.params
+          - pattern: $_GET[...]
+          - pattern: $_POST[...]
+          - pattern: $_FILES[...]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: new FileInputStream(...)
+          - pattern: new File(...)
+          - pattern: include(...)
+          - pattern: require(...)
+          - pattern: file_get_contents(...)
+          - pattern: readfile(...)
+    pattern-sanitizers:
+      - pattern: basename(...)
+      - pattern: realpath(...)
+      - pattern: Path.normalize(...)
+    metadata:
+      category: security
+      technology: [path-traversal, taint-analysis]
+      subcategory: [injection, file-system]
+      cwe: ["CWE-22: Path Traversal"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: deserialization-vulnerability
+    message: "反序列化漏洞：检测到不安全的反序列化操作"
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              ObjectInputStream $OIS = new ObjectInputStream(...);
+              $OIS.readObject();
+          - pattern: |
+              pickle.loads(...)
+          - pattern: |
+              unserialize(...)
+          - pattern: |
+              JSON.parse(...)
+    metadata:
+      category: security
+      technology: [deserialization, serialization]
+      subcategory: [injection, object-security]
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 - Software and Data Integrity Failures"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: authentication-bypass-detection
+    message: "认证绕过检测：检测到可能绕过身份验证的逻辑缺陷"
+    languages: [javascript, typescript, python, java, go, csharp, php]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              if ($USER == null || $USER.isEmpty()) {
+                // 允许访问
+              }
+          - pattern: |
+              if (!isset($_SESSION['authenticated'])) {
+                // 继续执行
+              }
+          - pattern: |
+              if ($TOKEN == null) {
+                return true; // 错误地允许访问
+              }
+    metadata:
+      category: security
+      technology: [authentication, authorization]
+      subcategory: [bypass, access-control]
+      cwe: ["CWE-287: Improper Authentication"]
+      owasp: ["A07:2021 - Identification and Authentication Failures"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: session-fixation-vulnerability
+    message: "会话固定漏洞：检测到会话ID在认证后未重新生成"
+    languages: [javascript, typescript, python, java, go, csharp, php]
+    severity: WARNING
+    patterns:
+      - pattern-inside: |
+          session_start();
+          ...
+          $_SESSION['user_id'] = $USER_ID;
+          # 缺少session_regenerate_id()
+      - pattern-inside: |
+          request.getSession();
+          ...
+          session.setAttribute("user", $USER);
+          # 缺少session.invalidate()和request.getSession(true)
+    metadata:
+      category: security
+      technology: [session-management, authentication]
+      subcategory: [session-fixation, session-security]
+      cwe: ["CWE-384: Session Fixation"]
+      owasp: ["A07:2021 - Identification and Authentication Failures"]
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+
+  - id: sensitive-data-exposure
+    message: "敏感数据泄露：检测到可能的敏感信息泄露"
+    languages: [javascript, typescript, python, java, go, csharp, php]
+    severity: WARNING
+    patterns:
+      - pattern-either:
+          - pattern: |
+              console.log("Password: " + $PASSWORD)
+          - pattern: |
+              logger.error("Error: " + $ERROR.getMessage())
+          - pattern: |
+              response.send({ password: $PASSWORD })
+          - pattern: |
+              echo "DB connection: " . $DB_PASSWORD
+    metadata:
+      category: security
+      technology: [information-disclosure, logging]
+      subcategory: [sensitive-data, privacy]
+      cwe: ["CWE-200: Information Exposure"]
+      owasp: ["A09:2021 - Security Logging and Monitoring Failures"]
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: MEDIUM
+
+  - id: cors-misconfiguration
+    message: "CORS配置错误：检测到过于宽松的跨域资源共享配置"
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern-either:
+          - pattern: |
+              response.setHeader("Access-Control-Allow-Origin", "*")
+          - pattern: |
+              Access-Control-Allow-Origin: *
+          - pattern: |
+              @CrossOrigin(origins = "*")
+    metadata:
+      category: security
+      technology: [cors, http-headers]
+      subcategory: [misconfiguration, access-control]
+      cwe: ["CWE-942: Permissive Cross-domain Policy"]
+      owasp: ["A05:2021 - Security Misconfiguration"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: MEDIUM
+
+  - id: csrf-protection-missing
+    message: "CSRF保护缺失：检测到缺少跨站请求伪造保护"
+    languages: [javascript, typescript, python, java, go, csharp, php]
+    severity: ERROR
+    patterns:
+      - pattern-inside: |
+          @PostMapping(...)
+          public $RET $METHOD(...) {
+            ...
+          }
+          # 缺少@CrossOrigin或CSRF token验证
+      - pattern-inside: |
+          app.post(..., function(req, res) {
+            ...
+            # 缺少CSRF token检查
+          })
+    metadata:
+      category: security
+      technology: [csrf, session-management]
+      subcategory: [forgery, request-validation]
+      cwe: ["CWE-352: Cross-Site Request Forgery"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH

@@ -1,0 +1,56 @@
+rules:
+  - id: auth-bypass-missing-check
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Authentication bypass: Missing authentication check for protected resource.
+      Always verify user authentication before granting access.
+    severity: ERROR
+    pattern: |
+      def protected_function():
+        ...
+        return sensitive_data
+
+  - id: auth-bypass-weak-validation
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Authentication bypass: Weak authentication validation logic.
+      Use proper session validation and token verification.
+    severity: ERROR
+    pattern: |
+      if token:
+        return True
+
+  - id: auth-bypass-hardcoded-credentials
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Authentication bypass: Hardcoded credentials detected.
+      Remove hardcoded credentials and use secure authentication.
+    severity: ERROR
+    pattern: |
+      username = "admin"
+      password = "password123"
+
+  - id: auth-bypass-disabled-verification
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Authentication bypass: Token verification is disabled.
+      Enable proper token validation for authentication.
+    severity: ERROR
+    pattern: |
+      return True

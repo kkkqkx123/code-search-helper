@@ -1,0 +1,73 @@
+rules:
+  - id: array-index-out-of-bounds
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Array index out of bounds: Array access without proper bounds checking.
+      Ensure index is within array bounds before accessing.
+    severity: ERROR
+    pattern: $ARRAY[$INDEX]
+
+  - id: buffer-overflow-string-copy
+    languages:
+      - c
+      - cpp
+      - java
+      - python
+    message: |
+      Buffer overflow in string copy: String copy operation may overflow destination buffer.
+      Ensure destination buffer is large enough for the source string.
+    severity: ERROR
+    pattern-either:
+      - pattern: strcpy($DEST, $SRC)
+      - pattern: strcat($DEST, $SRC)
+
+  - id: unsafe-array-copy
+    languages:
+      - c
+      - cpp
+      - java
+      - python
+      - javascript
+    message: |
+      Unsafe array copy: Array copy operation may cause buffer overflow.
+      Ensure proper bounds checking before copying.
+    severity: WARNING
+    pattern: memcpy($DEST, $SRC, $SIZE)
+
+  - id: dynamic-buffer-size-check
+    languages:
+      - c
+      - cpp
+      - python
+      - java
+    message: |
+      Dynamic buffer allocation without size check: Buffer allocated without validating input size.
+      Ensure input size is validated before buffer allocation.
+    severity: WARNING
+    pattern: malloc($SIZE)
+
+  - id: string-truncation-risk
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      String truncation risk: String operation may truncate data without proper handling.
+      Consider checking string length before truncation.
+    severity: INFO
+    pattern: $STR.substring(0, $MAX_LEN)
+
+  - id: unsafe-memory-access
+    languages:
+      - c
+      - cpp
+    message: |
+      Unsafe memory access: Direct memory access without bounds checking.
+      Ensure memory access is within allocated bounds.
+    severity: ERROR
+    pattern: $PTR[$OFFSET]

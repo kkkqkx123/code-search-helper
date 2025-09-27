@@ -1,0 +1,82 @@
+rules:
+  - id: javascript-sql-injection
+    message: Potential SQL injection vulnerability detected
+    severity: ERROR
+    languages:
+      - javascript
+      - typescript
+    pattern-either:
+      - pattern: |
+          $QUERY = "..." + $USER_INPUT + "..."
+          $DB.query($QUERY)
+      - pattern: |
+          $QUERY = `SELECT * FROM users WHERE id = ${$USER_INPUT}`
+          $DB.query($QUERY)
+    metadata:
+      category: security
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+      references:
+        - https://owasp.org/www-community/attacks/SQL_Injection
+
+  - id: javascript-xss-reflected
+    message: Reflected XSS vulnerability detected
+    severity: ERROR
+    languages:
+      - javascript
+      - typescript
+    pattern-either:
+      - pattern: |
+          $ELEMENT.innerHTML = $USER_INPUT
+      - pattern: |
+          document.write($USER_INPUT)
+      - pattern: |
+          $("#output").html($USER_INPUT)
+    metadata:
+      category: security
+      cwe: "CWE-79"
+      owasp: "A03:2021"
+
+  - id: javascript-hardcoded-secret
+    message: Hardcoded secret detected in code
+    severity: ERROR
+    languages:
+      - javascript
+      - typescript
+    pattern-either:
+      - pattern: |
+          const $PASSWORD = "..."
+      - pattern: |
+          var $API_KEY = "..."
+      - pattern: |
+          let $SECRET = "..."
+    metadata:
+      category: security
+      cwe: "CWE-798"
+
+  - id: javascript-eval-usage
+    message: Use of eval() detected - potential code injection risk
+    severity: WARNING
+    languages:
+      - javascript
+      - typescript
+    pattern: |
+      eval($CODE)
+    metadata:
+      category: security
+      cwe: "CWE-95"
+
+  - id: javascript-prototype-pollution
+    message: Potential prototype pollution detected
+    severity: WARNING
+    languages:
+      - javascript
+      - typescript
+    pattern-either:
+      - pattern: |
+          $OBJ["__proto__"][$KEY] = $VALUE
+      - pattern: |
+          $OBJ.constructor.prototype[$KEY] = $VALUE
+    metadata:
+      category: security
+      cwe: "CWE-1321"

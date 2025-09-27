@@ -1,0 +1,52 @@
+rules:
+  - id: jwt-secret-exposure
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      JWT security flaw: Secret key exposed in source code.
+      Store JWT secrets in secure environment variables, not in code.
+    severity: ERROR
+    pattern: |
+      SECRET_KEY = "jwt-secret-123"
+
+  - id: jwt-algorithm-none
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      JWT security flaw: Algorithm set to 'none' which disables signature verification.
+      Always use strong algorithms like HS256 or RS256.
+    severity: ERROR
+    pattern: |
+      algorithm = "none"
+
+  - id: jwt-token-storage-insecure
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      JWT security flaw: Token stored in insecure location.
+      Store JWT tokens securely and avoid localStorage for sensitive tokens.
+    severity: WARNING
+    pattern: |
+      localStorage.setItem("token", $TOKEN)
+
+  - id: jwt-expiration-missing
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      JWT security flaw: Token expiration not set.
+      Set appropriate expiration time for JWT tokens.
+    severity: WARNING
+    pattern: |
+      jwt.encode($PAYLOAD, $SECRET)

@@ -1,0 +1,55 @@
+rules:
+  - id: path-traversal-vulnerable
+    languages:
+      - python
+      - javascript
+      - typescript
+      - php
+    message: |
+      Path traversal vulnerability: User input used in file path without proper validation.
+      Validate and sanitize file paths to prevent directory traversal attacks.
+    severity: ERROR
+    pattern-either:
+      - pattern: open($PATH + $USER_INPUT)
+      - pattern: fs.readFile($PATH + $USER_INPUT)
+      - pattern: include($USER_INPUT)
+      - pattern: require($USER_INPUT)
+
+  - id: path-traversal-unsanitized
+    languages:
+      - python
+      - javascript
+      - typescript
+    message: |
+      Unsanitized path traversal: File path constructed from user input without validation.
+      Use path normalization and whitelist allowed paths.
+    severity: ERROR
+    pattern: |
+      $FILE_PATH = $BASE_PATH + $USER_INPUT
+      ...
+      open($FILE_PATH)
+
+  - id: directory-traversal-dot-dot
+    languages:
+      - python
+      - javascript
+      - typescript
+      - php
+    message: |
+      Directory traversal with dot-dot: User input contains ".." path traversal sequences.
+      Block or sanitize path traversal sequences in user input.
+    severity: ERROR
+    pattern: |
+      ".." in $USER_INPUT
+
+  - id: file-extension-bypass
+    languages:
+      - python
+      - javascript
+      - typescript
+    message: |
+      File extension bypass: User input may bypass file extension restrictions.
+      Validate file extensions using whitelist approach.
+    severity: WARNING
+    pattern: |
+      $EXTENSION = $USER_INPUT.split('.')[-1]

@@ -1,0 +1,58 @@
+rules:
+  - id: resource-leak-file-handle
+    message: File handle may not be closed in all execution paths
+    languages: [python, java, go, csharp]
+    severity: ERROR
+    patterns:
+      - pattern-inside: |
+          $HANDLE = open($FILENAME)
+          ...
+      - pattern-not: |
+          $HANDLE.close()
+    metadata:
+      category: reliability
+      cwe: CWE-404
+      confidence: HIGH
+
+  - id: resource-leak-database-connection
+    message: Database connection may not be properly closed
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    patterns:
+      - pattern-inside: |
+          $CONN = $DB.connect(...)
+          ...
+      - pattern-not: |
+          $CONN.close()
+    metadata:
+      category: reliability
+      cwe: CWE-404
+      confidence: HIGH
+
+  - id: resource-leak-memory
+    message: Potential memory leak - large objects not properly released
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          $LARGE_ARRAY = new Array($SIZE)
+          ...
+          // No cleanup or release
+    metadata:
+      category: performance
+      cwe: CWE-401
+      confidence: MEDIUM
+
+  - id: resource-pool-misuse
+    message: Resource pool not properly utilized
+    languages: [java, csharp, go]
+    severity: INFO
+    patterns:
+      - pattern: |
+          new $THREAD_POOL(...)
+      - pattern-not: |
+          $POOL.shutdown()
+    metadata:
+      category: performance
+      cwe: CWE-405
+      confidence: LOW

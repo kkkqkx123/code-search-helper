@@ -1,0 +1,199 @@
+# Semgrep增强规则配置文件
+# 该配置文件整合了所有增强规则，支持多语言检测
+
+# 规则组配置
+rule-groups:
+  control-flow:
+    name: "控制流分析规则"
+    description: "检测复杂控制流、循环优化、不可达代码等问题"
+    rules:
+      - enhanced-rules/control-flow/enhanced-cfg-analysis.yml
+    severity-map:
+      ERROR: [recursion-depth-analysis]
+      WARNING: [complex-nested-conditions, unreachable-code-detection, switch-fallthrough-detection]
+      INFO: [loop-invariant-code-motion, early-return-complexity]
+
+  data-flow:
+    name: "数据流分析规则"
+    description: "检测污点传播、空指针、资源泄露、缓冲区溢出等问题"
+    rules:
+      - enhanced-rules/data-flow/advanced-taint-analysis.yml
+    severity-map:
+      ERROR: [cross-function-taint-propagation, null-pointer-dereference, use-after-free]
+      WARNING: [resource-leak-detection, buffer-overflow-detection, race-condition-detection]
+      INFO: [information-leakage]
+
+  security:
+    name: "安全漏洞检测规则"
+    description: "检测SQL注入、XSS、命令注入、路径遍历等安全漏洞"
+    rules:
+      - enhanced-rules/security/comprehensive-security-rules.yml
+      - config/semgrep-rules/java-security.yaml
+    severity-map:
+      ERROR: [advanced-sql-injection-detection, xss-comprehensive-detection, command-injection-advanced, path-traversal-comprehensive, deserialization-vulnerability, authentication-bypass-detection, csrf-protection-missing]
+      WARNING: [session-fixation-vulnerability, sensitive-data-exposure, cors-misconfiguration]
+      INFO: []
+
+# 语言特定配置
+language-config:
+  javascript:
+    extensions: [.js, .jsx, .ts, .tsx]
+    rules:
+      - enhanced-rules/control-flow/enhanced-cfg-analysis.yml
+      - enhanced-rules/data-flow/advanced-taint-analysis.yml
+      - enhanced-rules/security/comprehensive-security-rules.yml
+    
+  python:
+    extensions: [.py, .pyx, .pyi]
+    rules:
+      - enhanced-rules/control-flow/enhanced-cfg-analysis.yml
+      - enhanced-rules/data-flow/advanced-taint-analysis.yml
+      - enhanced-rules/security/comprehensive-security-rules.yml
+    
+  java:
+    extensions: [.java, .kt]
+    rules:
+      - enhanced-rules/control-flow/enhanced-cfg-analysis.yml
+      - enhanced-rules/data-flow/advanced-taint-analysis.yml
+      - enhanced-rules/security/comprehensive-security-rules.yml
+      - config/semgrep-rules/java-security.yaml
+    
+  go:
+    extensions: [.go]
+    rules:
+      - enhanced-rules/control-flow/enhanced-cfg-analysis.yml
+      - enhanced-rules/data-flow/advanced-taint-analysis.yml
+      - enhanced-rules/security/comprehensive-security-rules.yml
+    
+  csharp:
+    extensions: [.cs, .csx]
+    rules:
+      - enhanced-rules/control-flow/enhanced-cfg-analysis.yml
+      - enhanced-rules/data-flow/advanced-taint-analysis.yml
+      - enhanced-rules/security/comprehensive-security-rules.yml
+
+# 扫描配置
+scan-config:
+  # 性能优化
+  max-target-bytes: 10485760  # 10MB
+  timeout: 300  # 5分钟
+  max-memory: 2048  # 2GB
+  
+  # 并行处理
+  jobs: 4
+  
+  # 忽略配置
+  exclude:
+    - "**/node_modules/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/.git/**"
+    - "**/test/**"
+    - "**/tests/**"
+    - "**/vendor/**"
+    - "**/*.min.js"
+    - "**/*.min.css"
+  
+  # 包含配置
+  include:
+    - "**/*.js"
+    - "**/*.jsx"
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.py"
+    - "**/*.java"
+    - "**/*.go"
+    - "**/*.cs"
+
+# 报告配置
+report-config:
+  formats:
+    - json
+    - sarif
+    - html
+    - junit
+  
+  output:
+    json: reports/semgrep-enhanced-results.json
+    sarif: reports/semgrep-enhanced-results.sarif
+    html: reports/semgrep-enhanced-results.html
+    junit: reports/semgrep-enhanced-results.xml
+  
+  # 报告过滤
+  min-severity: INFO
+  max-results-per-rule: 100
+
+# 测试配置
+test-config:
+  test-directory: test/enhanced-semgrep
+  test-patterns:
+    vulnerable: "**/vulnerable/**"
+    secure: "**/secure/**"
+  
+  # 测试用例验证
+  validation:
+    require-positive: true
+    require-negative: true
+    min-coverage: 0.9
+
+# 集成配置
+integration-config:
+  ci-cd:
+    github-actions:
+      workflow-file: .github/workflows/semgrep-enhanced.yml
+    gitlab-ci:
+      config-file: .gitlab-ci.yml
+    jenkins:
+      config-file: Jenkinsfile
+  
+  # IDE集成
+  ide-support:
+    vscode:
+      extension: semgrep.semgrep
+    jetbrains:
+      plugin: semgrep
+  
+  # 通知配置
+  notifications:
+    slack:
+      webhook-url: ${SLACK_WEBHOOK_URL}
+    email:
+      smtp-server: ${SMTP_SERVER}
+      recipients: ["security@company.com"]
+
+# 性能监控
+performance-config:
+  enable-metrics: true
+  metrics-endpoint: http://localhost:9090/metrics
+  
+  # 性能阈值
+  thresholds:
+    scan-time: 300  # 秒
+    memory-usage: 2048  # MB
+    cpu-usage: 80  # %
+  
+  # 告警配置
+  alerts:
+    webhook: http://localhost:8080/alerts
+    email: security@company.com
+
+# 版本管理
+version-config:
+  rule-version: "1.0.0"
+  schema-version: "1.0"
+  
+  # 更新检查
+  auto-update: true
+  update-interval: "daily"
+  
+  # 兼容性
+  semgrep-version: ">=1.0.0"
+  supported-languages:
+    - javascript
+    - typescript
+    - python
+    - java
+    - go
+    - csharp
+    - php
+    - ruby

@@ -1,0 +1,87 @@
+rules:
+  - id: concurrency-use-concurrent-collections
+    message: "Use concurrent collections instead of synchronized wrappers"
+    languages: [java]
+    severity: INFO
+    patterns:
+      - pattern: |
+          Map<$K, $V> $MAP = Collections.synchronizedMap(new HashMap<>());
+      - pattern: |
+          List<$T> $LIST = Collections.synchronizedList(new ArrayList<>());
+      - pattern: |
+          Set<$T> $SET = Collections.synchronizedSet(new HashSet<>());
+    metadata:
+      category: concurrency
+      technology: [java, collections]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html
+
+  - id: concurrency-prefer-executorservice
+    message: "Use ExecutorService instead of manually creating threads"
+    languages: [java]
+    severity: INFO
+    patterns:
+      - pattern: |
+          Thread $THREAD = new Thread(() -> {
+            ...
+          });
+          $THREAD.start();
+    metadata:
+      category: concurrency
+      technology: [java, threading]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ExecutorService.html
+
+  - id: concurrency-avoid-wait-notify
+    message: "Avoid wait/notify - use higher-level concurrency utilities"
+    languages: [java]
+    severity: INFO
+    patterns:
+      - pattern: |
+          synchronized($LOCK) {
+            ...
+            $LOCK.wait();
+            ...
+          }
+      - pattern: |
+          synchronized($LOCK) {
+            ...
+            $LOCK.notify();
+            ...
+          }
+    metadata:
+      category: concurrency
+      technology: [java, synchronization]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html
+
+  - id: concurrency-use-atomic-variables
+    message: "Use atomic variables instead of synchronization for simple operations"
+    languages: [java]
+    severity: INFO
+    patterns:
+      - pattern: |
+          synchronized(this) {
+            $COUNTER++;
+          }
+    fix: |
+      AtomicInteger counter = new AtomicInteger();
+      counter.incrementAndGet();
+    metadata:
+      category: concurrency
+      technology: [java, atomic]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/package-summary.html
+
+  - id: concurrency-avoid-thread-local-improperly
+    message: "ThreadLocal variables should be properly initialized and cleaned up"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          private static final ThreadLocal<$TYPE> $VAR = new ThreadLocal<>();
+    metadata:
+      category: concurrency
+      technology: [java, thread-local]
+      references:
+        - https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html

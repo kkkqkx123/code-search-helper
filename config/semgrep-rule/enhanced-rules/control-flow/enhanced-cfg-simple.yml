@@ -1,0 +1,64 @@
+rules:
+  - id: complex-nested-conditions
+    message: Complex nested conditions detected - depth over 3 levels may reduce readability
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern-inside: |
+          if ($COND1) {
+            if ($COND2) {
+              if ($COND3) {
+                ...
+              }
+            }
+          }
+    metadata:
+      category: control-flow
+      cwe: CWE-570
+      confidence: MEDIUM
+
+  - id: unreachable-code
+    message: Unreachable code detected after return/break/continue
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern-inside: |
+          if ($COND) {
+            return $VAL;
+          }
+          $CODE
+    metadata:
+      category: control-flow
+      cwe: CWE-561
+      confidence: HIGH
+
+  - id: missing-break-in-switch
+    message: Missing break statement in switch case may cause fallthrough
+    languages: [javascript, typescript, java, go, csharp]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          switch ($EXPR) {
+            case $VAL1:
+              $BODY1
+            case $VAL2:
+              $BODY2
+          }
+    metadata:
+      category: control-flow
+      cwe: CWE-484
+      confidence: HIGH
+
+  - id: infinite-recursion
+    message: Potential infinite recursion without termination condition
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          function $F(...) {
+            $F(...);
+          }
+    metadata:
+      category: control-flow
+      cwe: CWE-674
+      confidence: HIGH

@@ -1,0 +1,52 @@
+rules:
+  - id: missing-security-headers
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: Security headers are not configured.
+      Implement security headers like X-Frame-Options, X-Content-Type-Options, etc.
+    severity: WARNING
+    pattern: |
+      response.headers['X-Frame-Options'] = None
+
+  - id: missing-x-frame-options
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: X-Frame-Options header is missing.
+      Set X-Frame-Options to prevent clickjacking attacks.
+    severity: WARNING
+    pattern: |
+      response.set_header("X-Frame-Options", "ALLOWALL")
+
+  - id: missing-x-content-type-options
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: X-Content-Type-Options header is missing.
+      Set X-Content-Type-Options: nosniff to prevent MIME type confusion.
+    severity: WARNING
+    pattern: |
+      response.set_header("Content-Type", "text/html")
+
+  - id: missing-strict-transport-security
+    languages:
+      - python
+      - javascript
+      - typescript
+      - java
+    message: |
+      Configuration security: Strict-Transport-Security header is missing.
+      Implement HSTS to enforce HTTPS connections.
+    severity: WARNING
+    pattern: |
+      response.set_header("Strict-Transport-Security", None)

@@ -1,0 +1,39 @@
+rules:
+  - id: weak-authentication-mechanism
+    message: Weak authentication mechanism - hardcoded credentials or weak password policy
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          username == "admin" and password == "password123"
+      - pattern: |
+          username == "admin" and password == "admin123"
+
+  - id: session-fixation-vulnerability
+    message: Session fixation vulnerability - session ID not regenerated after login
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          login_user(user)
+      - pattern: |
+          req.session.userId = user.id
+
+  - id: missing-brute-force-protection
+    message: Missing brute force protection - no rate limiting on login attempts
+    languages: [python, javascript, typescript, java]
+    severity: WARNING
+    pattern-either:
+      - pattern: |
+          def login(username, password):
+              user = authenticate(username, password)
+
+  - id: insecure-cookie-configuration
+    message: Insecure cookie configuration - missing secure and httpOnly flags
+    languages: [python, javascript, typescript, java]
+    severity: WARNING
+    pattern-either:
+      - pattern: |
+          response.set_cookie('session', session_id)
+      - pattern: |
+          res.cookie('session', token)

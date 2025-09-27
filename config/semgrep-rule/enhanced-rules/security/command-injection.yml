@@ -1,0 +1,106 @@
+rules:
+  - id: command-injection-exec
+    pattern: |
+      exec($USER_INPUT);
+    message: "命令注入漏洞：用户输入直接执行系统命令"
+    languages: [javascript, typescript, python, java, go, php]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [command-injection]
+      cwe: ["CWE-78"]
+      owasp: ["A03:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: command-injection-system
+    pattern: |
+      system($USER_INPUT);
+    message: "命令注入漏洞：用户输入通过system函数执行"
+    languages: [c, cpp, php]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [command-injection]
+      cwe: ["CWE-78"]
+      owasp: ["A03:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: command-injection-subprocess
+    pattern: |
+      subprocess.call($USER_INPUT, shell=True)
+    message: "命令注入漏洞：Python子进程shell=True执行用户输入"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [command-injection]
+      cwe: ["CWE-78"]
+      owasp: ["A03:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: command-injection-runtime
+    pattern: |
+      Runtime.getRuntime().exec($USER_INPUT);
+    message: "命令注入漏洞：Java运行时执行用户输入"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [command-injection]
+      cwe: ["CWE-78"]
+      owasp: ["A03:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: command-injection-concatenation
+    pattern: |
+      cmd = "ls -la " + $USER_INPUT
+      os.system(cmd)
+    message: "命令注入漏洞：用户输入拼接到命令字符串"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [command-injection]
+      cwe: ["CWE-78"]
+      owasp: ["A03:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: command-injection-safe-array
+    pattern: |
+      subprocess.call(["ls", "-la", $USER_INPUT])
+    message: "良好实践：使用数组参数避免命令注入"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      technology: [command-injection]
+      subcategory: [safe-coding]
+      confidence: LOW
+      likelihood: LOW
+      impact: LOW
+
+  - id: command-injection-whitelist-safe
+    pattern: |
+      allowed_commands = ["ls", "cat", "grep"]
+      if $USER_INPUT in allowed_commands:
+        subprocess.call([$USER_INPUT, $ARG])
+    message: "良好实践：使用白名单验证命令"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      technology: [command-injection]
+      subcategory: [safe-coding]
+      confidence: LOW
+      likelihood: LOW
+      impact: LOW

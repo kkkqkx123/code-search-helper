@@ -1,0 +1,47 @@
+rules:
+  - id: cryptographic-issues-weak-encryption
+    pattern: |
+      $ENCRYPTED = md5($PASSWORD);
+    message: "加密问题：使用弱加密算法MD5"
+    languages: [javascript, typescript, python, java]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [cryptographic-issues]
+      cwe: ["CWE-327"]
+      owasp: ["A02:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: cryptographic-issues-hardcoded-key
+    pattern: |
+      $SECRET_KEY = "my-secret-key-123";
+    message: "加密问题：硬编码密钥"
+    languages: [javascript, typescript, python, java]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [cryptographic-issues]
+      cwe: ["CWE-321"]
+      owasp: ["A02:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+
+  - id: cryptographic-issues-no-encryption
+    pattern: |
+      function savePassword($PASSWORD) {
+        fs.writeFileSync("passwords.txt", $PASSWORD); // 明文存储密码
+      }
+    message: "加密问题：明文存储敏感信息"
+    languages: [javascript, typescript, python]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [cryptographic-issues]
+      cwe: ["CWE-312"]
+      owasp: ["A02:2021"]
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH

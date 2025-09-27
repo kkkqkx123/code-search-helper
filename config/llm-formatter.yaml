@@ -1,0 +1,68 @@
+# LLM Formatter Configuration
+profiles:
+  openai:
+    format: json
+    includeMetadata: true
+    maxTokens: 4000
+    structuredOutput: true
+    
+  claude:
+    format: markdown
+    includeMetadata: false
+    maxTokens: 8000
+    structuredOutput: false
+    
+  anthropic:
+    format: json
+    includeMetadata: true
+    maxTokens: 2000
+    structuredOutput: true
+    
+  custom:
+    format: json
+    includeMetadata: true
+    maxTokens: 4000
+    structuredOutput: true
+
+# Default settings
+defaults:
+  provider: openai
+  format: json
+  includeMetadata: true
+  maxTokens: 4000
+  structuredOutput: true
+
+# Formatting options
+formatting:
+  # Entity extraction settings
+  entityExtraction:
+    confidenceThreshold: 0.7
+    maxEntities: 100
+    includeRelationships: true
+    
+  # Summary generation settings
+  summaryGeneration:
+    maxLength: 500
+    includeStatistics: true
+    includeRecommendations: true
+    
+  # Suggestion generation settings
+  suggestionGeneration:
+    maxSuggestions: 5
+    includeCodeSmells: true
+    includeRefactoringTips: true
+
+# Performance settings
+performance:
+  caching:
+    enabled: true
+    ttl: 300 # 5 minutes
+    maxCacheSize: 1000
+    
+  memory:
+    maxResultSize: 1000000 # 1MB
+    streamResults: true
+    
+  rateLimiting:
+    maxRequestsPerSecond: 10
+    burstLimit: 20

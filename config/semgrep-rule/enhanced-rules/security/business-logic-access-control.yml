@@ -1,0 +1,46 @@
+rules:
+  - id: broken-access-control
+    message: Broken access control - direct object reference without authorization check
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          $MODEL.objects.get(id=$USER_INPUT)
+      - pattern: |
+          findById($USER_INPUT)
+      - pattern: |
+          User.findById($USER_INPUT)
+
+  - id: horizontal-privilege-escalation
+    message: Horizontal privilege escalation - user can access other user's data
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          if current_user.id != $TARGET_USER_ID:
+              ...
+      - pattern: |
+          if user.id != targetUserId:
+              ...
+
+  - id: missing-authorization-check
+    message: Missing authorization check before sensitive operation
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          def delete_user($USER_ID):
+              ...
+      - pattern: |
+          def deleteUser(userId):
+              ...
+
+  - id: insecure-direct-object-reference
+    message: Insecure direct object reference (IDOR) - no validation of resource ownership
+    languages: [python, javascript, typescript, java]
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          Document.objects.get(id=$DOC_ID)
+      - pattern: |
+          db.documents.findOne({_id: docId})

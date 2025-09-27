@@ -1,0 +1,44 @@
+rules:
+  - id: empty-catch-block
+    message: Empty catch block - exceptions are being swallowed
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    pattern: |
+      try {
+        ...
+      } catch ($EX) {
+      }
+    metadata:
+      category: reliability
+      cwe: CWE-390
+      confidence: HIGH
+
+  - id: return-in-finally
+    message: Return in finally block may suppress exceptions
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    pattern: |
+      try {
+        ...
+      } finally {
+        return ...;
+      }
+    metadata:
+      category: correctness
+      cwe: CWE-703
+      confidence: HIGH
+
+  - id: throw-in-finally
+    message: Throw in finally block may mask original exception
+    languages: [javascript, typescript, python, java, go, csharp]
+    severity: WARNING
+    pattern: |
+      try {
+        ...
+      } finally {
+        throw ...;
+      }
+    metadata:
+      category: correctness
+      cwe: CWE-703
+      confidence: HIGH
