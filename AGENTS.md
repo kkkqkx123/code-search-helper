@@ -147,19 +147,15 @@ codebase-search-helper/
 - npm 8.0+
 - Docker (用于数据库服务)
 
+### 技术栈
+- **后端**: TypeScript, Express.js, 各种AI和数据库集成
+- **前端**: 原生HTML + CSS + TypeScript (仅用于测试)
+- **构建工具**: Vite
+- **数据库**: Qdrant (向量数据库), Nebula Graph (图数据库)
+- **AI集成**: OpenAI, Ollama, Gemini, Mistral, SiliconFlow等嵌入器
+
 ### 代码规范
 - 使用TypeScript
 - 遵循ESLint规则
 - 使用Prettier格式化代码
-
-## 🤝 贡献
-
-1. Fork 本项目
-2. 创建特性分支
-3. 提交更改
-4. 推送到分支
-5. 创建Pull Request
-
-## 📄 许可证
-
-MIT
+- 前端保持轻量级，无框架依赖

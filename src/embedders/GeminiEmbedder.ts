@@ -102,9 +102,6 @@ export class GeminiEmbedder extends BaseEmbedder {
         }
 
         const data = await response.json();
-        
-        // 添加调试日志
-        this.logger.debug('Gemini API response', { data });
 
         results.push({
           vector: (data.embedding && data.embedding.values) || [],
