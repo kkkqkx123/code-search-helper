@@ -26,16 +26,17 @@ class Application {
     const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
     this.qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
 
-    // 使用 LoggerService 创建 Logger 实例
-    this.logger = new Logger('code-search-helper');
+    // 创建一个 Logger 实例，用于整个应用，确保所有组件使用同一个日志文件
+    const loggerInstance = new Logger('code-search-helper');
+    this.logger = loggerInstance;
 
     // 初始化嵌入器服务
-    this.embeddingCacheService = new EmbeddingCacheService(this.logger, errorHandler);
-    this.embedderFactory = new EmbedderFactory(this.logger, errorHandler, this.embeddingCacheService);
+    this.embeddingCacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
+    this.embedderFactory = new EmbedderFactory(loggerInstance, errorHandler, this.embeddingCacheService);
 
     // 初始化服务器
-    this.mcpServer = new MCPServer(this.logger);
-    this.apiServer = new ApiServer(this.logger);
+    this.mcpServer = new MCPServer(loggerInstance);
+    this.apiServer = new ApiServer(loggerInstance);
   }
 
   async start(): Promise<void> {
