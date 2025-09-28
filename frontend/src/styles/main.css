@@ -1,0 +1,354 @@
+/* 全局样式变量 */
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #64748b;
+    --background-color: #f8fafc;
+    --card-color: #ffffff;
+    --border-color: #e2e8f0;
+    --text-color: #1e293b;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+}
+
+/* 基础样式重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+h1 {
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+h2 {
+    margin-bottom: 20px;
+    color: var(--text-color);
+}
+
+/* 导航样式 */
+.main-nav {
+    background-color: var(--card-color);
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.nav-button {
+    background-color: #e2e8f0;
+    color: var(--text-color);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 15px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.nav-button.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.nav-button:hover {
+    background-color: #cbd5e1;
+}
+
+/* 状态栏样式 */
+.status-bar {
+    background-color: var(--card-color);
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 表单样式 */
+.form-container {
+    background-color: var(--card-color);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* 搜索样式 */
+.search-container {
+    background-color: var(--card-color);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+}
+
+.search-form {
+    display: flex;
+    gap: 10px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 12px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.search-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.search-button:hover {
+    background-color: #1d4ed8;
+}
+
+/* 结果样式 */
+.results-container {
+    background-color: var(--card-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.results-header {
+    padding: 15px 20px;
+    background-color: #f1f5f9;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+}
+
+.result-item {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.result-item:last-child {
+    border-bottom: none;
+}
+
+.result-score {
+    display: inline-block;
+    background-color: var(--success-color);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.result-code {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 10px 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.result-filepath {
+    color: var(--secondary-color);
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+/* 项目列表样式 */
+.projects-container {
+    background-color: var(--card-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.projects-toolbar {
+    padding: 15px 20px;
+    background-color: #f1f5f9;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.projects-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.projects-table th,
+.projects-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.projects-table th {
+    background-color: #f8fafc;
+    font-weight: 600;
+}
+
+/* 操作按钮样式 */
+.action-button {
+    background-color: #e2e8f0;
+    color: var(--text-color);
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-right: 5px;
+}
+
+.action-button:hover {
+    background-color: #cbd5e1;
+}
+
+.action-button.delete {
+    background-color: #fee2e2;
+    color: var(--error-color);
+}
+
+.action-button.delete:hover {
+    background-color: #fecaca;
+}
+
+.action-button.reindex {
+    background-color: #dbeafe;
+    color: var(--primary-color);
+}
+
+.action-button.reindex:hover {
+    background-color: #bfdbfe;
+}
+
+/* 进度条样式 */
+.progress-container {
+    margin-top: 20px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--success-color);
+    width: 0%;
+    transition: width 0.3s;
+}
+
+/* 通用状态样式 */
+.no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--secondary-color);
+}
+
+.error {
+    background-color: #fee2e2;
+    color: var(--error-color);
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px;
+    border: 1px solid #fecaca;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--secondary-color);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+
+    .search-form {
+        flex-direction: column;
+    }
+
+    .search-button {
+        width: 100%;
+    }
+}

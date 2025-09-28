@@ -1,0 +1,242 @@
+import { ApiClient } from '../services/api.js';
+
+/**
+ * 已索引项目页面组件
+ */
+export class ProjectsPage {
+    private apiClient: ApiClient;
+    private container: HTMLElement;
+    private onProjectActionComplete?: (action: string, result: any) => void;
+
+    constructor(container: HTMLElement, apiClient: ApiClient) {
+        this.container = container;
+        this.apiClient = apiClient;
+        this.render();
+        this.setupEventListeners();
+        this.loadProjectsList();
+    }
+
+    /**
+     * 渲染已索引项目页面
+     */
+    private render() {
+        this.container.innerHTML = `
+            <div class="projects-container">
+                <div class="projects-toolbar">
+                    <h2>已索引项目</h2>
+                    <button id="refresh-projects" class="search-button" style="background-color: #64748b; padding: 6px 12px; font-size: 14px;">刷新</button>
+                </div>
+                
+                <table class="projects-table">
+                    <thead>
+                        <tr>
+                            <th>项目名称</th>
+                            <th>路径</th>
+                            <th>文件数</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-list">
+                        <!-- 动态填充 -->
+                    </tbody>
+                </table>
+                
+                <div id="projects-loading" class="loading" style="display: none; padding: 20px;">加载中...</div>
+                <div id="projects-error" class="error" style="display: none; margin: 20px;"></div>
+            </div>
+        `;
+    }
+
+    /**
+     * 设置事件监听器
+     */
+    private setupEventListeners() {
+        const refreshProjectsButton = this.container.querySelector('#refresh-projects') as HTMLButtonElement;
+        
+        refreshProjectsButton?.addEventListener('click', () => {
+            this.loadProjectsList();
+        });
+    }
+
+    /**
+     * 加载项目列表
+     */
+    async loadProjectsList() {
+        const projectsList = this.container.querySelector('#projects-list') as HTMLElement;
+        const loadingDiv = this.container.querySelector('#projects-loading') as HTMLElement;
+        const errorDiv = this.container.querySelector('#projects-error') as HTMLElement;
+
+        if (!projectsList || !loadingDiv || !errorDiv) return;
+
+        loadingDiv.style.display = 'block';
+        errorDiv.style.display = 'none';
+        projectsList.innerHTML = '';
+
+        try {
+            const result = await this.apiClient.getProjects();
+
+            if (result.success && result.projects) {
+                this.renderProjectsList(result.projects, projectsList);
+            } else {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = '加载项目列表失败: ' + (result.error || '未知错误');
+            }
+        } catch (error: any) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = '加载项目列表时发生错误: ' + error.message;
+        } finally {
+            loadingDiv.style.display = 'none';
+        }
+    }
+
+    /**
+     * 渲染项目列表
+     */
+    private renderProjectsList(projects: any[], container: HTMLElement) {
+        if (!container) return;
+
+        container.innerHTML = projects.map(project => `
+            <tr>
+                <td>${this.escapeHtml(project.name || project.id)}</td>
+                <td>${this.escapeHtml(project.path || 'N/A')}</td>
+                <td>${project.totalFiles || 0}</td>
+                <td>
+                    <span class="result-score" style="background-color: ${this.getStatusColor(project.status)}">
+                        ${project.status || 'unknown'}
+                    </span>
+                </td>
+                <td>
+                    <button class="action-button reindex" data-project-id="${project.id}" data-action="reindex">重新索引</button>
+                    <button class="action-button delete" data-project-id="${project.id}" data-action="delete">删除</button>
+                </td>
+            </tr>
+        `).join('');
+
+        // 为操作按钮添加事件监听器
+        container.querySelectorAll('.action-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const target = e.target as HTMLButtonElement;
+                const projectId = target.dataset.projectId;
+                const action = target.dataset.action;
+                
+                if (projectId && action) {
+                    if (action === 'reindex') {
+                        this.reindexProject(projectId);
+                    } else if (action === 'delete') {
+                        this.deleteProject(projectId, target);
+                    }
+                }
+            });
+        });
+    }
+
+    /**
+     * 获取状态颜色
+     */
+    private getStatusColor(status: string): string {
+        switch (status) {
+            case 'indexing':
+                return '#f59e0b'; // amber
+            case 'completed':
+                return '#10b981'; // green
+            case 'failed':
+                return '#ef4444'; // red
+            default:
+                return '#6b7280'; // gray
+        }
+    }
+
+    /**
+     * 重新索引项目
+     */
+    async reindexProject(projectId: string) {
+        if (!confirm('确定要重新索引该项目吗？')) return;
+
+        try {
+            const result = await this.apiClient.reindexProject(projectId);
+            
+            if (result.success) {
+                alert('重新索引已启动');
+                // 刷新项目列表
+                this.loadProjectsList();
+                
+                if (this.onProjectActionComplete) {
+                    this.onProjectActionComplete('reindex', result);
+                }
+            } else {
+                alert('重新索引失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error: any) {
+            alert('重新索引时发生错误: ' + error.message);
+        }
+    }
+
+    /**
+     * 删除项目
+     */
+    async deleteProject(projectId: string, element: HTMLElement) {
+        if (!confirm('确定要删除该项目的索引吗？此操作不可撤销。')) return;
+
+        try {
+            const result = await this.apiClient.deleteProject(projectId);
+            
+            if (result.success) {
+                // 从界面移除该项目
+                element.closest('tr')?.remove();
+                alert('项目已删除');
+                
+                if (this.onProjectActionComplete) {
+                    this.onProjectActionComplete('delete', result);
+                }
+            } else {
+                alert('删除项目失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error: any) {
+            alert('删除项目时发生错误: ' + error.message);
+        }
+    }
+
+    /**
+     * HTML转义
+     */
+    private escapeHtml(text: string): string {
+        const map: { [key: string]: string } = {
+            '&': '&',
+            '<': '<',
+            '>': '>',
+            '"': '"',
+            "'": '&#039;'
+        };
+        
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    /**
+     * 设置项目操作完成回调
+     */
+    setOnProjectActionComplete(callback: (action: string, result: any) => void) {
+        this.onProjectActionComplete = callback;
+    }
+
+    /**
+     * 刷新项目列表
+     */
+    refresh() {
+        this.loadProjectsList();
+    }
+
+    /**
+     * 显示页面
+     */
+    show() {
+        this.container.style.display = 'block';
+    }
+
+    /**
+     * 隐藏页面
+     */
+    hide() {
+        this.container.style.display = 'none';
+    }
+}
