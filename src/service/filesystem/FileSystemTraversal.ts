@@ -4,6 +4,8 @@ import fsSync from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
 import { GitignoreParser } from '../../utils/GitignoreParser';
+import { LoggerService } from '../../utils/LoggerService';
+import { TYPES } from '../../types';
 
 export interface FileInfo {
   path: string;
@@ -40,7 +42,10 @@ export interface TraversalResult {
 export class FileSystemTraversal {
   private defaultOptions: Required<TraversalOptions>;
 
-  constructor(@inject('TraversalOptions') @optional() options?: TraversalOptions) {
+  constructor(
+    @inject(TYPES.LoggerService) private logger: LoggerService,
+    @inject('TraversalOptions') @optional() options?: TraversalOptions
+  ) {
     this.defaultOptions = {
       includePatterns: options?.includePatterns ?? [],
       excludePatterns: options?.excludePatterns ?? [
@@ -63,6 +68,13 @@ export class FileSystemTraversal {
         '.c',
         '.h',
         '.hpp',
+        '.txt',
+        '.md',
+        '.json',
+        '.yaml',
+        '.yml',
+        '.xml',
+        '.csv',
       ],
       followSymlinks: options?.followSymlinks ?? false,
       ignoreHiddenFiles: options?.ignoreHiddenFiles ?? true,
@@ -82,6 +94,17 @@ export class FileSystemTraversal {
     const startTime = Date.now();
     let traversalOptions = { ...this.defaultOptions, ...options };
 
+    // Debug: Log the traversal options
+    this.logger.debug(`[DEBUG] Traversal options for ${rootPath}`, {
+      includePatterns: traversalOptions.includePatterns,
+      excludePatterns: traversalOptions.excludePatterns,
+      supportedExtensions: traversalOptions.supportedExtensions,
+      maxFileSize: traversalOptions.maxFileSize,
+      ignoreHiddenFiles: traversalOptions.ignoreHiddenFiles,
+      ignoreDirectories: traversalOptions.ignoreDirectories,
+      respectGitignore: traversalOptions.respectGitignore
+    });
+
     // If respectGitignore is enabled, parse .gitignore and add patterns to exclude
     if (traversalOptions.respectGitignore) {
       try {
@@ -92,6 +115,7 @@ export class FileSystemTraversal {
             ...traversalOptions,
             excludePatterns: [...(traversalOptions.excludePatterns || []), ...gitignorePatterns],
           };
+          this.logger.debug(`[DEBUG] Added gitignore patterns`, gitignorePatterns);
         }
       } catch (error) {
         // Log error but continue with traversal
@@ -110,11 +134,23 @@ export class FileSystemTraversal {
     try {
       await this.traverseRecursive(rootPath, rootPath, result, traversalOptions);
       result.processingTime = Date.now() - startTime;
+      
+      // Debug: Log the final results
+      this.logger.debug(`[DEBUG] Traversal completed for ${rootPath}`, {
+        filesFound: result.files.length,
+        directoriesFound: result.directories.length,
+        errors: result.errors,
+        processingTime: result.processingTime,
+        files: result.files.map(f => ({ path: f.path, extension: f.extension, language: f.language }))
+      });
     } catch (error) {
       result.errors.push(
         `Failed to traverse directory: ${error instanceof Error ? error.message : String(error)}`
       );
       result.processingTime = Date.now() - startTime;
+      
+      // Debug: Log the error
+      this.logger.error(`[DEBUG] Traversal failed for ${rootPath}`, error);
     }
 
     return result;
@@ -212,26 +248,36 @@ export class FileSystemTraversal {
     result: TraversalResult,
     options: Required<TraversalOptions>
   ): Promise<void> {
+    // Debug: Log file processing attempt
+    this.logger.debug(`[DEBUG] Processing file`, { filePath, relativePath });
+    
     if (this.shouldIgnoreFile(relativePath, options)) {
+      this.logger.debug(`[DEBUG] File ignored by pattern`, { relativePath });
       return;
     }
 
     if (stats.size > options.maxFileSize) {
       result.errors.push(`File too large: ${relativePath} (${stats.size} bytes)`);
+      this.logger.debug(`[DEBUG] File too large`, { relativePath, size: stats.size });
       return;
     }
 
     const extension = path.extname(filePath).toLowerCase();
     const language = this.detectLanguage(extension, options.supportedExtensions);
+    
+    this.logger.debug(`[DEBUG] File detected`, { extension, language, supported: options.supportedExtensions.includes(extension) });
 
     if (!language) {
+      this.logger.debug(`[DEBUG] File skipped - unsupported extension`, { extension });
       return;
     }
 
     try {
       const isBinary = await this.isBinaryFile(filePath);
+      this.logger.debug(`[DEBUG] File binary check`, { isBinary });
 
       if (isBinary) {
+        this.logger.debug(`[DEBUG] File skipped - binary file`, { relativePath });
         return;
       }
 
@@ -251,10 +297,12 @@ export class FileSystemTraversal {
 
       result.files.push(fileInfo);
       result.totalSize += stats.size;
+      this.logger.debug(`[DEBUG] File added to results`, { relativePath });
     } catch (error) {
       result.errors.push(
         `Error processing file ${relativePath}: ${error instanceof Error ? error.message : String(error)}`
       );
+      this.logger.error(`[DEBUG] Error processing file ${relativePath}`, error);
     }
   }
 
@@ -411,6 +459,13 @@ export class FileSystemTraversal {
       '.c': 'c',
       '.h': 'c',
       '.hpp': 'cpp',
+      '.txt': 'text',
+      '.md': 'markdown',
+      '.json': 'json',
+      '.yaml': 'yaml',
+      '.yml': 'yaml',
+      '.xml': 'xml',
+      '.csv': 'csv',
     };
 
     const language = languageMap[extension];
@@ -423,9 +478,14 @@ export class FileSystemTraversal {
       // Use file handle to ensure proper resource cleanup
       fileHandle = await fs.open(filePath, 'r');
       const buffer = Buffer.alloc(1024);
-      const { bytesRead } = await fileHandle.read(buffer, 0, 1024, 0);
+      const readResult = await fileHandle.read(buffer, 0, 1024, 0);
       
-      for (let i = 0; i < bytesRead; i++) {
+      // Check if bytesRead is valid
+      if (!readResult || typeof readResult.bytesRead !== 'number') {
+        return true;
+      }
+      
+      for (let i = 0; i < readResult.bytesRead; i++) {
         if (buffer[i] === 0) {
           return true;
         }

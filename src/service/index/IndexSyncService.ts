@@ -280,6 +280,8 @@ export class IndexSyncService {
     }
 
     try {
+      this.logger.debug(`[DEBUG] Starting file traversal for project: ${projectId}`, { projectPath });
+      
       // 获取项目中的所有文件
       const traversalResult = await this.performanceOptimizer.executeWithRetry(
         () => this.fileSystemTraversal.traverseDirectory(projectPath, {
@@ -292,6 +294,15 @@ export class IndexSyncService {
       const files = traversalResult.files;
       status.totalFiles = files.length;
       this.logger.info(`Found ${files.length} files to index in project: ${projectId}`);
+      
+      // Debug: Log traversal details
+      this.logger.debug(`[DEBUG] Traversal completed`, {
+        filesFound: files.length,
+        directoriesFound: traversalResult.directories.length,
+        errors: traversalResult.errors,
+        processingTime: traversalResult.processingTime,
+        firstFewFiles: files.slice(0, 5).map(f => ({ path: f.path, extension: f.extension, language: f.language }))
+      });
 
       // 处理每个文件
       const batchSize = options?.batchSize || this.performanceOptimizer.getCurrentBatchSize();
