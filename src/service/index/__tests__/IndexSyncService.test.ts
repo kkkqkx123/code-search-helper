@@ -11,6 +11,7 @@ import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService'
 import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
 import { PerformanceOptimizerService } from '../../resilience/ResilientBatchingService';
+import { ConfigService } from '../../../config/ConfigService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -22,12 +23,12 @@ jest.mock('../../../database/QdrantService');
 jest.mock('../../../database/ProjectIdManager');
 jest.mock('../../../embedders/EmbedderFactory');
 jest.mock('../../../embedders/EmbeddingCacheService');
-jest.mock('../../performance/PerformanceOptimizerService');
+jest.mock('../../resilience/ResilientBatchingService');
 
 describe('IndexSyncService', () => {
   let indexSyncService: IndexSyncService;
-  let loggerService: jest.Mocked<LoggerService>;
-  let errorHandlerService: jest.Mocked<ErrorHandlerService>;
+  let loggerService: LoggerService & jest.Mocked<LoggerService>;
+  let errorHandlerService: ErrorHandlerService & jest.Mocked<ErrorHandlerService>;
   let fileSystemTraversal: jest.Mocked<FileSystemTraversal>;
   let fileWatcherService: jest.Mocked<FileWatcherService>;
   let changeDetectionService: jest.Mocked<ChangeDetectionService>;
@@ -42,22 +43,47 @@ describe('IndexSyncService', () => {
     jest.clearAllMocks();
 
     // Get mock instances
-    loggerService = new LoggerService() as jest.Mocked<LoggerService>;
-    errorHandlerService = new ErrorHandlerService() as jest.Mocked<ErrorHandlerService>;
-    fileSystemTraversal = new FileSystemTraversal(
-      loggerService,
-      errorHandlerService,
-      diContainer
-    ) as jest.Mocked<FileSystemTraversal>;
+    // Create a mock ConfigService for testing
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'logging') {
+          return { level: 'info' };
+        }
+        if (key === 'performance') {
+          return {
+            retry: {
+              maxAttempts: 3,
+              baseDelay: 1000,
+              maxDelay: 30000,
+              backoffFactor: 2,
+              jitter: true
+            },
+            batch: {
+              initialSize: 10,
+              maxSize: 100,
+              minSize: 1,
+              adjustmentFactor: 0.1,
+              performanceThreshold: 5000
+            }
+          };
+        }
+        return undefined;
+      })
+    } as unknown as ConfigService;
+    
+    loggerService = new LoggerService(mockConfigService) as jest.Mocked<LoggerService>;
+    errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
+    fileSystemTraversal = new FileSystemTraversal() as jest.Mocked<FileSystemTraversal>;
     fileWatcherService = new FileWatcherService(
-      loggerService,
-      errorHandlerService,
-      changeDetectionService
+      loggerService as unknown as LoggerService,
+      errorHandlerService as unknown as ErrorHandlerService,
+      fileSystemTraversal
     ) as jest.Mocked<FileWatcherService>;
     changeDetectionService = new ChangeDetectionService(
-      loggerService,
-      errorHandlerService,
-      fileWatcherService
+      loggerService as unknown as LoggerService,
+      errorHandlerService as unknown as ErrorHandlerService,
+      fileWatcherService,
+      fileSystemTraversal
     ) as jest.Mocked<ChangeDetectionService>;
     qdrantService = new QdrantService(
       diContainer.get(TYPES.ConfigService),
@@ -82,7 +108,8 @@ describe('IndexSyncService', () => {
 
     performanceOptimizerService = new PerformanceOptimizerService(
       loggerService,
-      errorHandlerService
+      errorHandlerService,
+      diContainer.get(TYPES.ConfigService)
     ) as jest.Mocked<PerformanceOptimizerService>;
 
     // Create service instance
@@ -163,13 +190,13 @@ describe('IndexSyncService', () => {
 
       // Mock dependencies
       projectIdManager.getProjectId.mockReturnValue(projectId);
-      indexSyncService.indexFile = jest.fn().mockResolvedValue(undefined);
+      (indexSyncService as any).indexFile = jest.fn().mockResolvedValue(undefined);
 
       // Simulate file added event
       await (indexSyncService as any).handleFileChange(filePath, projectPath, 'added');
 
       // Verify results
-      expect(indexSyncService.indexFile).toHaveBeenCalledWith(projectPath, filePath);
+      expect((indexSyncService as any).indexFile).toHaveBeenCalledWith(projectPath, filePath);
       expect(projectIdManager.updateProjectTimestamp).toHaveBeenCalledWith(projectId);
     });
 
@@ -180,13 +207,13 @@ describe('IndexSyncService', () => {
 
       // Mock dependencies
       projectIdManager.getProjectId.mockReturnValue(projectId);
-      indexSyncService.removeFileFromIndex = jest.fn().mockResolvedValue(undefined);
+      (indexSyncService as any).removeFileFromIndex = jest.fn().mockResolvedValue(undefined);
 
       // Simulate file deleted event
       await (indexSyncService as any).handleFileChange(filePath, projectPath, 'deleted');
 
       // Verify results
-      expect(indexSyncService.removeFileFromIndex).toHaveBeenCalledWith(projectPath, filePath);
+      expect((indexSyncService as any).removeFileFromIndex).toHaveBeenCalledWith(projectPath, filePath);
       expect(projectIdManager.updateProjectTimestamp).toHaveBeenCalledWith(projectId);
     });
 
@@ -249,7 +276,7 @@ describe('IndexSyncService', () => {
       projectIdManager.getProjectId.mockReturnValue('test-project-id');
 
       // Call the method
-      await indexSyncService.indexFile(projectPath, filePath);
+      await (indexSyncService as any).indexFile(projectPath, filePath);
 
       // Verify results
       expect(qdrantService.upsertVectorsForProject).toHaveBeenCalledWith(projectPath, vectorPoints);
@@ -263,7 +290,7 @@ describe('IndexSyncService', () => {
       jest.spyOn(require('fs/promises'), 'readFile').mockRejectedValue(new Error('File not found'));
 
       // Call the method and expect error
-      await expect(indexSyncService.indexFile(projectPath, filePath)).rejects.toThrow(
+      await expect((indexSyncService as any).indexFile(projectPath, filePath)).rejects.toThrow(
         'File not found'
       );
     });
@@ -307,7 +334,7 @@ describe('IndexSyncService', () => {
       projectIdManager.getProjectId.mockReturnValue('test-project-id');
 
       // Call the method and expect error
-      await expect(indexSyncService.indexFile(projectPath, filePath)).rejects.toThrow(
+      await expect((indexSyncService as any).indexFile(projectPath, filePath)).rejects.toThrow(
         `Failed to upsert vectors for file: ${filePath}`
       );
     });
@@ -328,7 +355,7 @@ describe('IndexSyncService', () => {
       qdrantService.deletePoints.mockResolvedValue(true);
 
       // Call the method
-      await indexSyncService.removeFileFromIndex(projectPath, filePath);
+      await (indexSyncService as any).removeFileFromIndex(projectPath, filePath);
 
       // Verify results
       expect(qdrantService.getChunkIdsByFiles).toHaveBeenCalledWith(collectionName, [filePath]);
@@ -343,7 +370,7 @@ describe('IndexSyncService', () => {
       projectIdManager.getProjectId.mockReturnValue(undefined);
 
       // Call the method and expect error
-      await expect(indexSyncService.removeFileFromIndex(projectPath, filePath)).rejects.toThrow(
+      await expect((indexSyncService as any).removeFileFromIndex(projectPath, filePath)).rejects.toThrow(
         `Project ID not found for path: ${projectPath}`
       );
     });
@@ -358,7 +385,7 @@ describe('IndexSyncService', () => {
       projectIdManager.getCollectionName.mockReturnValue(undefined);
 
       // Call the method and expect error
-      await expect(indexSyncService.removeFileFromIndex(projectPath, filePath)).rejects.toThrow(
+      await expect((indexSyncService as any).removeFileFromIndex(projectPath, filePath)).rejects.toThrow(
         `Collection name not found for project: ${projectId}`
       );
     });
@@ -456,6 +483,11 @@ describe('IndexSyncService', () => {
       // Set index status
       (indexSyncService as any).indexingProjects.set(projectId, status);
       (indexSyncService as any).indexingQueue = [{ projectPath }];
+      
+      // Mock projectIdManager.getProjectId to return the projectId for the projectPath
+      projectIdManager.getProjectId.mockImplementation((path: string) => {
+        return path === projectPath ? projectId : undefined;
+      });
 
       // Call the method
       const result = await indexSyncService.stopIndexing(projectId);

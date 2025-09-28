@@ -1,4 +1,4 @@
-import { Logger } from '../utils/logger';
+import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from './EmbeddingCacheService';
 import { BaseEmbedder, EmbeddingInput, EmbeddingResult } from './BaseEmbedder';
@@ -15,7 +15,7 @@ export class GeminiEmbedder extends BaseEmbedder {
   private cacheService: EmbeddingCacheService;
 
   constructor(
-    logger: Logger,
+    logger: LoggerService,
     errorHandler: ErrorHandlerService,
     cacheService: EmbeddingCacheService
   ) {

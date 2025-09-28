@@ -7,6 +7,12 @@ import { QdrantService } from '../../../database/QdrantService';
 import { ConfigService } from '../../../config/ConfigService';
 import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
+import { FileSystemTraversal } from '../../filesystem/FileSystemTraversal';
+import { FileWatcherService } from '../../filesystem/FileWatcherService';
+import { ChangeDetectionService } from '../../filesystem/ChangeDetectionService';
+import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
+import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
+import { PerformanceOptimizerService } from '../../resilience/ResilientBatchingService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -32,24 +38,104 @@ describe('ProjectStateManager', () => {
     jest.clearAllMocks();
 
     // Get mock instances
-    loggerService = new LoggerService() as jest.Mocked<LoggerService>;
-    errorHandlerService = new ErrorHandlerService() as jest.Mocked<ErrorHandlerService>;
+    loggerService = new LoggerService(configService) as jest.Mocked<LoggerService>;
+    errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
     projectIdManager = new ProjectIdManager(
       loggerService,
       errorHandlerService,
       configService
     ) as jest.Mocked<ProjectIdManager>;
+    // Create mock file system traversal
+    const mockFileSystemTraversal = {
+      defaultOptions: {},
+      traverseDirectory: jest.fn(),
+      traverseRecursive: jest.fn(),
+      processDirectory: jest.fn(),
+    } as unknown as jest.Mocked<FileSystemTraversal>;
+    
+    // Create mock file watcher service
+    const mockFileWatcherService = {
+      setCallbacks: jest.fn(),
+      startWatching: jest.fn(),
+      stopWatching: jest.fn(),
+      isWatchingPath: jest.fn(),
+      getWatchedPaths: jest.fn(),
+    } as unknown as jest.Mocked<FileWatcherService>;
+    
+    // Create mock change detection service
+    const mockChangeDetectionService = {
+      setCallbacks: jest.fn(),
+      initialize: jest.fn(),
+      stop: jest.fn(),
+      getFileHash: jest.fn(),
+      getFileHistory: jest.fn(),
+      getAllFileHashes: jest.fn(),
+      isFileTracked: jest.fn(),
+      getTrackedFilesCount: jest.fn(),
+      isServiceRunning: jest.fn(),
+      getStats: jest.fn(),
+      resetStats: jest.fn(),
+      isTestMode: jest.fn(),
+      waitForFileProcessing: jest.fn(),
+      waitForAllProcessing: jest.fn(),
+      flushPendingChanges: jest.fn(),
+      on: jest.fn(),
+      eventNames: jest.fn(),
+      getMaxListeners: jest.fn(),
+      listenerCount: jest.fn(),
+      listeners: jest.fn(),
+      off: jest.fn(),
+      prependListener: jest.fn(),
+      prependOnceListener: jest.fn(),
+      rawListeners: jest.fn(),
+      removeAllListeners: jest.fn(),
+      removeListener: jest.fn(),
+      setMaxListeners: jest.fn(),
+      addListener: jest.fn(),
+      emit: jest.fn(),
+      once: jest.fn(),
+    } as unknown as jest.Mocked<ChangeDetectionService>;
+    
+    // Create mock embedder factory
+    const mockEmbedderFactory = {
+      embed: jest.fn(),
+    } as unknown as jest.Mocked<EmbedderFactory>;
+    
+    // Create mock embedding cache service
+    const mockEmbeddingCacheService = {
+      get: jest.fn(),
+      set: jest.fn(),
+      has: jest.fn(),
+      delete: jest.fn(),
+      clear: jest.fn(),
+      size: jest.fn(),
+    } as unknown as jest.Mocked<EmbeddingCacheService>;
+    
+    // Create mock performance optimizer service
+    const mockPerformanceOptimizerService = {
+      executeWithRetry: jest.fn(),
+      executeWithMonitoring: jest.fn(),
+      processBatches: jest.fn(),
+      getPerformanceStats: jest.fn(),
+      getMemoryStats: jest.fn(),
+      optimizeMemory: jest.fn(),
+      getCurrentBatchSize: jest.fn(),
+      resetBatchSize: jest.fn(),
+      updateRetryOptions: jest.fn(),
+      updateBatchOptions: jest.fn(),
+    } as unknown as jest.Mocked<PerformanceOptimizerService>;
+    
     indexSyncService = new IndexSyncService(
       loggerService,
       errorHandlerService,
-      null,
-      null,
-      null,
+      mockFileSystemTraversal,
+      mockFileWatcherService,
+      mockChangeDetectionService,
       qdrantService,
       projectIdManager,
-      null,
-      null,
-      null
+      mockEmbedderFactory,
+      mockEmbeddingCacheService,
+      mockPerformanceOptimizerService
     ) as jest.Mocked<IndexSyncService>;
     qdrantService = new QdrantService(
       configService,

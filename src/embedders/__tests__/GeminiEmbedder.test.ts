@@ -1,5 +1,4 @@
 import { GeminiEmbedder } from '../GeminiEmbedder';
-import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
@@ -13,8 +12,7 @@ process.env.GEMINI_DIMENSIONS = '768';
 
 describe('GeminiEmbedder', () => {
   let geminiEmbedder: GeminiEmbedder;
-  let logger: Logger;
- let loggerService: LoggerService;
+  let logger: LoggerService;
   let errorHandler: ErrorHandlerService;
   let cacheService: EmbeddingCacheService;
 
@@ -22,8 +20,6 @@ describe('GeminiEmbedder', () => {
     jest.clearAllMocks();
     
     // Setup services
-    logger = new Logger('test');
-    
     // Create a mock ConfigService for testing
     const mockConfigService = {
       get: jest.fn().mockImplementation((key: string) => {
@@ -34,8 +30,8 @@ describe('GeminiEmbedder', () => {
       })
     } as unknown as ConfigService;
     
-    loggerService = new LoggerService(mockConfigService);
-    errorHandler = new ErrorHandlerService(loggerService);
+    logger = new LoggerService(mockConfigService);
+    errorHandler = new ErrorHandlerService(logger);
     cacheService = new EmbeddingCacheService(logger, errorHandler);
     
     // Create GeminiEmbedder instance

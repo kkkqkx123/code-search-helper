@@ -1,5 +1,4 @@
 import { CustomEmbedder } from '../CustomEmbedder';
-import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
@@ -13,8 +12,7 @@ process.env.CUSTOM_CUSTOM1_DIMENSIONS = '768';
 
 describe('CustomEmbedder', () => {
   let customEmbedder: CustomEmbedder;
-  let logger: Logger;
-  let loggerService: LoggerService;
+  let logger: LoggerService;
   let errorHandler: ErrorHandlerService;
   let cacheService: EmbeddingCacheService;
 
@@ -25,8 +23,6 @@ describe('CustomEmbedder', () => {
     jest.clearAllMocks();
     
     // Setup services
-    logger = new Logger('test');
-    
     // Create a mock ConfigService for testing
     const mockConfigService = {
       get: jest.fn().mockImplementation((key: string) => {
@@ -37,8 +33,8 @@ describe('CustomEmbedder', () => {
       })
     } as unknown as ConfigService;
     
-    loggerService = new LoggerService(mockConfigService);
-    errorHandler = new ErrorHandlerService(loggerService);
+    logger = new LoggerService(mockConfigService);
+    errorHandler = new ErrorHandlerService(logger);
     cacheService = new EmbeddingCacheService(logger, errorHandler);
     
     // Create CustomEmbedder instance
@@ -49,11 +45,6 @@ describe('CustomEmbedder', () => {
     // Clean up logger to prevent async operations after test completion
     if (logger) {
       await logger.markAsNormalExit();
-    }
-    
-    // Clean up logger service
-    if (loggerService) {
-      await loggerService.markAsNormalExit();
     }
     
     // Reset fetch mock

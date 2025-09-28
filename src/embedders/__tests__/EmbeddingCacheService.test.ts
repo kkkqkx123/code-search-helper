@@ -1,13 +1,11 @@
 import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
-import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 
 describe('EmbeddingCacheService', () => {
   let cacheService: EmbeddingCacheService;
   let logger: LoggerService;
-  let loggerInstance: Logger;
   let errorHandler: ErrorHandlerService;
 
   beforeEach(() => {
@@ -25,11 +23,10 @@ describe('EmbeddingCacheService', () => {
     } as unknown as ConfigService;
     
     logger = new LoggerService(mockConfigService);
-    loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
     
     // Create EmbeddingCacheService instance
-    cacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler);
   });
 
   describe('嵌入器服务验收标准', () => {

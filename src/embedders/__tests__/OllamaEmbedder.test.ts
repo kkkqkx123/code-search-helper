@@ -1,7 +1,6 @@
 import { OllamaEmbedder } from '../OllamaEmbedder';
 import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
-import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 
@@ -11,7 +10,6 @@ global.fetch = jest.fn();
 describe('OllamaEmbedder', () => {
   let ollamaEmbedder: OllamaEmbedder;
   let logger: LoggerService;
-  let loggerInstance: Logger;
   let errorHandler: ErrorHandlerService;
   let cacheService: EmbeddingCacheService;
 
@@ -30,12 +28,11 @@ describe('OllamaEmbedder', () => {
     } as unknown as ConfigService;
     
     logger = new LoggerService(mockConfigService);
-    loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler);
     
     // Create OllamaEmbedder instance
-    ollamaEmbedder = new OllamaEmbedder(loggerInstance, errorHandler, cacheService);
+    ollamaEmbedder = new OllamaEmbedder(logger, errorHandler, cacheService);
   });
 
   describe('嵌入器服务验收标准', () => {

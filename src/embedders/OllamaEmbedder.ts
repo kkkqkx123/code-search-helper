@@ -1,4 +1,4 @@
-import { Logger } from '../utils/logger';
+import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from './EmbeddingCacheService';
 import { BaseEmbedder, EmbeddingInput, EmbeddingResult } from './BaseEmbedder';
@@ -13,7 +13,7 @@ export class OllamaEmbedder extends BaseEmbedder {
   private dimensions: number;
 
   constructor(
-    logger: Logger,
+    logger: LoggerService,
     errorHandler: ErrorHandlerService,
     cacheService: EmbeddingCacheService
   ) {

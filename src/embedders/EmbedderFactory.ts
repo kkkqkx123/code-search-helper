@@ -1,4 +1,4 @@
-import { Logger } from '../utils/logger';
+import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from './EmbeddingCacheService';
 import { Embedder, EmbeddingInput, EmbeddingResult } from './BaseEmbedder';
@@ -8,14 +8,14 @@ import { Embedder, EmbeddingInput, EmbeddingResult } from './BaseEmbedder';
  * 不使用依赖注入，直接创建和管理嵌入器实例
  */
 export class EmbedderFactory {
-  private logger: Logger;
+  private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private cacheService: EmbeddingCacheService;
   private embedders: Map<string, Embedder> = new Map();
   private defaultProvider: string;
 
   constructor(
-    logger: Logger,
+    logger: LoggerService,
     errorHandler: ErrorHandlerService,
     cacheService: EmbeddingCacheService
   ) {

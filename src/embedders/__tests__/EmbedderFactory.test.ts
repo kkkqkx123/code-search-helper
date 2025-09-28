@@ -1,7 +1,6 @@
 import { EmbedderFactory } from '../EmbedderFactory';
 import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
-import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 
@@ -113,7 +112,6 @@ jest.mock('../MistralEmbedder', () => {
 describe('EmbedderFactory', () => {
   let embedderFactory: EmbedderFactory;
   let logger: LoggerService;
-  let loggerInstance: Logger;
   let errorHandler: ErrorHandlerService;
   let cacheService: EmbeddingCacheService;
 
@@ -132,12 +130,11 @@ describe('EmbedderFactory', () => {
     } as unknown as ConfigService;
     
     logger = new LoggerService(mockConfigService);
-    loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler);
     
     // Create EmbedderFactory instance
-    embedderFactory = new EmbedderFactory(loggerInstance, errorHandler, cacheService);
+    embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);
   });
 
   describe('嵌入器服务验收标准', () => {

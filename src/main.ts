@@ -31,12 +31,12 @@ class Application {
     this.logger = loggerInstance;
 
     // 初始化嵌入器服务
-    this.embeddingCacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
-    this.embedderFactory = new EmbedderFactory(loggerInstance, errorHandler, this.embeddingCacheService);
+    this.embeddingCacheService = new EmbeddingCacheService(this.loggerService, errorHandler);
+    this.embedderFactory = new EmbedderFactory(this.loggerService, errorHandler, this.embeddingCacheService);
 
     // 初始化服务器
-    this.mcpServer = new MCPServer(loggerInstance);
-    this.apiServer = new ApiServer(loggerInstance);
+    this.mcpServer = new MCPServer(this.logger);
+    this.apiServer = new ApiServer(this.logger);
   }
 
   async start(): Promise<void> {

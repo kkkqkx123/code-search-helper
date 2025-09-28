@@ -1,4 +1,4 @@
-import { Logger } from '../utils/logger';
+import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 
 export interface EmbeddingInput {
@@ -21,7 +21,7 @@ export interface Embedder {
 }
 
 export abstract class BaseEmbedder implements Embedder {
-  protected logger: Logger;
+  protected logger: LoggerService;
   protected errorHandler: ErrorHandlerService;
   protected timeout: number;
   protected maxConcurrent: number;
@@ -29,7 +29,7 @@ export abstract class BaseEmbedder implements Embedder {
   private requestQueue: Array<() => void> = [];
 
   constructor(
-    logger: Logger,
+    logger: LoggerService,
     errorHandler: ErrorHandlerService
   ) {
     this.logger = logger;

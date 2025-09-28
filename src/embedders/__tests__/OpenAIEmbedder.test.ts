@@ -1,7 +1,6 @@
 import { OpenAIEmbedder } from '../OpenAIEmbedder';
 import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
-import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 
@@ -17,7 +16,6 @@ global.fetch = jest.fn();
 describe('OpenAIEmbedder', () => {
   let openAIEmbedder: OpenAIEmbedder;
   let logger: LoggerService;
-  let loggerInstance: Logger;
   let errorHandler: ErrorHandlerService;
   let cacheService: EmbeddingCacheService;
 
@@ -36,12 +34,11 @@ describe('OpenAIEmbedder', () => {
     } as unknown as ConfigService;
     
     logger = new LoggerService(mockConfigService);
-    loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler);
     
     // Create OpenAIEmbedder instance
-    openAIEmbedder = new OpenAIEmbedder(loggerInstance, errorHandler, cacheService);
+    openAIEmbedder = new OpenAIEmbedder(logger, errorHandler, cacheService);
   });
 
   describe('嵌入器服务验收标准', () => {
@@ -109,7 +106,7 @@ describe('OpenAIEmbedder', () => {
       try {
         // 创建一个新的OpenAIEmbedder实例，没有API密钥
         process.env.OPENAI_API_KEY = '';
-        const embedderWithoutApiKey = new OpenAIEmbedder(loggerInstance, errorHandler, cacheService);
+        const embedderWithoutApiKey = new OpenAIEmbedder(logger, errorHandler, cacheService);
         
         const isAvailable = await embedderWithoutApiKey.isAvailable();
         expect(isAvailable).toBe(false);

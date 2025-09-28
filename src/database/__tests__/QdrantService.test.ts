@@ -2,6 +2,7 @@ import { QdrantService } from '../QdrantService';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
+import { ProjectIdManager } from '../ProjectIdManager';
 
 // Mock QdrantClient
 const mockQdrantClient = {
@@ -54,7 +55,30 @@ describe('QdrantService', () => {
     errorHandler = new ErrorHandlerService(logger);
     
     // Create QdrantService instance
-    qdrantService = new QdrantService(mockConfigService, logger, errorHandler);
+    // Create a mock ProjectIdManager
+    const mockProjectIdManager = {
+      generateProjectId: jest.fn(),
+      getProjectId: jest.fn(),
+      getCollectionName: jest.fn(),
+      getProjectPath: jest.fn(),
+      updateProjectTimestamp: jest.fn(),
+      projectIdMap: new Map(),
+      collectionMap: new Map(),
+      spaceMap: new Map(),
+      pathToProjectMap: new Map(),
+      projectUpdateTimes: new Map(),
+      initialize: jest.fn(),
+      getSpaceName: jest.fn(),
+      getLatestUpdatedProject: jest.fn(),
+      getProjectsByUpdateTime: jest.fn(),
+      saveMapping: jest.fn(),
+      loadMapping: jest.fn(),
+      listAllProjects: jest.fn(),
+      hasProject: jest.fn(),
+      removeProject: jest.fn(),
+    } as unknown as jest.Mocked<ProjectIdManager>;
+    
+    qdrantService = new QdrantService(mockConfigService, logger, errorHandler, mockProjectIdManager);
   });
 
   afterEach(async () => {

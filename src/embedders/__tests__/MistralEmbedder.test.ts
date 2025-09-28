@@ -1,5 +1,4 @@
 import { MistralEmbedder } from '../MistralEmbedder';
-import { Logger } from '../../utils/logger';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from '../EmbeddingCacheService';
 import { LoggerService } from '../../utils/LoggerService';
@@ -13,17 +12,14 @@ process.env.MISTRAL_DIMENSIONS = '1024';
 
 describe('MistralEmbedder', () => {
   let mistralEmbedder: MistralEmbedder;
-  let logger: Logger;
-  let loggerService: LoggerService;
+  let logger: LoggerService;
   let errorHandler: ErrorHandlerService;
   let cacheService: EmbeddingCacheService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup services
-    logger = new Logger('test');
-    
     // Create a mock ConfigService for testing
     const mockConfigService = {
       get: jest.fn().mockImplementation((key: string) => {
@@ -33,11 +29,11 @@ describe('MistralEmbedder', () => {
         return undefined;
       })
     } as unknown as ConfigService;
-    
-    loggerService = new LoggerService(mockConfigService);
-    errorHandler = new ErrorHandlerService(loggerService);
+
+    logger = new LoggerService(mockConfigService);
+    errorHandler = new ErrorHandlerService(logger);
     cacheService = new EmbeddingCacheService(logger, errorHandler);
-    
+
     // Create MistralEmbedder instance
     mistralEmbedder = new MistralEmbedder(logger, errorHandler, cacheService);
   });
@@ -69,7 +65,7 @@ describe('MistralEmbedder', () => {
       } as any);
 
       const result = await mistralEmbedder.embed(input);
-      
+
       expect(result).toEqual(mockResult);
       expect(global.fetch).toHaveBeenCalledWith(
         'https://api.mistral.ai/v1/embeddings',
@@ -114,7 +110,7 @@ describe('MistralEmbedder', () => {
 
       // Create new instance without API key
       const embedder = new MistralEmbedder(logger, errorHandler, cacheService);
-      
+
       const input = { text: 'test text' };
       await expect(embedder.embed(input)).rejects.toThrow('Mistral API key is not configured');
 

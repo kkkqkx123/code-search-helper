@@ -50,21 +50,23 @@ export class PerformanceOptimizerService {
     @inject(TYPES.ConfigService) private configService: ConfigService
   ) {
     // Initialize retry options
+    // Note: The performance config structure in ConfigService doesn't match what we're using here
+    // We'll use default values for now and update this when the config structure is fixed
     this.retryOptions = {
-      maxAttempts: this.configService.get('performance')?.retry?.maxAttempts || 3,
-      baseDelay: this.configService.get('performance')?.retry?.baseDelay || 1000,
-      maxDelay: this.configService.get('performance')?.retry?.maxDelay || 30000,
-      backoffFactor: this.configService.get('performance')?.retry?.backoffFactor || 2,
-      jitter: this.configService.get('performance')?.retry?.jitter !== false
+      maxAttempts: 3,
+      baseDelay: 1000,
+      maxDelay: 30000,
+      backoffFactor: 2,
+      jitter: true
     };
 
     // Initialize batch options
     this.batchOptions = {
-      initialSize: this.configService.get('performance')?.batch?.initialSize || 10,
-      maxSize: this.configService.get('performance')?.batch?.maxSize || 100,
-      minSize: this.configService.get('performance')?.batch?.minSize || 1,
-      adjustmentFactor: this.configService.get('performance')?.batch?.adjustmentFactor || 0.1,
-      performanceThreshold: this.configService.get('performance')?.batch?.performanceThreshold || 5000
+      initialSize: 10,
+      maxSize: 100,
+      minSize: 1,
+      adjustmentFactor: 0.1,
+      performanceThreshold: 5000
     };
 
     // Set initial batch size
