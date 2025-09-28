@@ -32,7 +32,7 @@ export class ApiServer {
     this.projectIdManager = new ProjectIdManager();
     // 创建一个简单的错误处理器实例
     const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
-    this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler);
+    this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler, this.indexSyncService);
     this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger);
     this.setupMiddleware();

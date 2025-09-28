@@ -1,12 +1,20 @@
 import { HashUtils } from '../utils/HashUtils';
 import fs from 'fs/promises';
+import path from 'path';
 
 export class ProjectIdManager {
   private projectIdMap: Map<string, string> = new Map(); // projectPath -> projectId
   private collectionMap: Map<string, string> = new Map(); // projectId -> collectionName
-  private spaceMap: Map<string, string> = new Map(); // projectId -> spaceName
+ private spaceMap: Map<string, string> = new Map(); // projectId -> spaceName
   private pathToProjectMap: Map<string, string> = new Map(); // projectId -> projectPath (reverse mapping)
   private projectUpdateTimes: Map<string, Date> = new Map(); // projectId -> last update time
+
+  constructor() {
+    // 自动加载持久化映射
+    this.loadMapping().catch(error => {
+      console.warn('Failed to load project mapping at startup:', error);
+    });
+  }
 
   async generateProjectId(projectPath: string): Promise<string> {
     // Normalize path to ensure consistency across different platforms
@@ -103,7 +111,7 @@ export class ProjectIdManager {
     const storagePath = process.env.PROJECT_MAPPING_PATH || './data/project-mapping.json';
     
     // Ensure directory exists
-    const dir = storagePath.substring(0, storagePath.lastIndexOf('/'));
+    const dir = path.dirname(storagePath);
     try {
       await fs.mkdir(dir, { recursive: true });
     } catch (error) {
@@ -173,5 +181,11 @@ export class ProjectIdManager {
     this.projectUpdateTimes.delete(projectId);
 
     return true;
+  }
+  
+  // Refresh mapping from persistent storage
+  async refreshMapping(): Promise<void> {
+    // Load the latest mapping from storage
+    await this.loadMapping();
   }
 }

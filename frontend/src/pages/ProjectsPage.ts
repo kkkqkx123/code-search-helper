@@ -111,7 +111,7 @@ export class ProjectsPage {
             <tr>
                 <td>${this.escapeHtml(project.name || project.id)}</td>
                 <td>${this.escapeHtml(project.path || 'N/A')}</td>
-                <td>${project.totalFiles || 0}</td>
+                <td>${project.fileCount || 0}</td>
                 <td>
                     <span class="result-score" style="background-color: ${this.getStatusColor(project.status)}">
                         ${project.status || 'unknown'}

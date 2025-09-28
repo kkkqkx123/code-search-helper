@@ -79,6 +79,7 @@ export class IndexSyncService {
     }
   }
   private indexingProjects: Map<string, IndexSyncStatus> = new Map();
+  private completedProjects: Map<string, IndexSyncStatus> = new Map(); // 存储已完成的项目状态
   private indexingQueue: Array<{ projectPath: string; options?: IndexSyncOptions }> = [];
   private isProcessingQueue: boolean = false;
   private projectEmbedders: Map<string, string> = new Map(); // 存储项目对应的embedder
@@ -273,6 +274,9 @@ export class IndexSyncService {
       // 触发索引开始事件
       await this.emit('indexingStarted', projectId);
 
+      // 保存项目映射到持久化存储
+      await this.projectIdManager.saveMapping();
+
       this.logger.info(`Started indexing project: ${projectId}`, { projectPath, options });
       return projectId;
     } catch (error) {
@@ -383,7 +387,11 @@ export class IndexSyncService {
       // 完成索引
       status.isIndexing = false;
       status.lastIndexed = new Date();
-      this.indexingProjects.set(projectId, status);
+      this.indexingProjects.delete(projectId); // 从正在进行的索引中移除
+      this.completedProjects.set(projectId, status); // 添加到已完成的索引中
+
+      // 保存项目映射到持久化存储
+      await this.projectIdManager.saveMapping();
 
       // 触发索引完成事件
       await this.emit('indexingCompleted', projectId);
@@ -391,7 +399,8 @@ export class IndexSyncService {
       this.logger.info(`Completed indexing project: ${projectId}`);
     } catch (error) {
       status.isIndexing = false;
-      this.indexingProjects.set(projectId, status);
+      this.indexingProjects.delete(projectId); // 从正在进行的索引中移除
+      this.completedProjects.set(projectId, status); // 添加到已完成的索引中（即使失败）
 
       this.errorHandler.handleError(
         new Error(`Failed to index project: ${error instanceof Error ? error.message : String(error)}`),
@@ -648,7 +657,19 @@ export class IndexSyncService {
    * 获取索引状态
    */
   getIndexStatus(projectId: string): IndexSyncStatus | null {
-    return this.indexingProjects.get(projectId) || null;
+    // 首先检查正在进行索引的项目
+    const indexingStatus = this.indexingProjects.get(projectId);
+    if (indexingStatus) {
+      return indexingStatus;
+    }
+    
+    // 然后检查已完成索引的项目
+    const completedStatus = this.completedProjects.get(projectId);
+    if (completedStatus) {
+      return completedStatus;
+    }
+    
+    return null;
   }
 
   /**

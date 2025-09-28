@@ -1,13 +1,16 @@
 import { ProjectIdManager } from './ProjectIdManager';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
+import { IndexSyncService } from '../service/index/IndexSyncService';
 
 export class ProjectLookupService {
   private projectIdManager: ProjectIdManager;
   private errorHandler: ErrorHandlerService;
+  public indexSyncService: IndexSyncService; // Public for access from ProjectRoutes
 
-  constructor(projectIdManager: ProjectIdManager, errorHandler: ErrorHandlerService) {
+  constructor(projectIdManager: ProjectIdManager, errorHandler: ErrorHandlerService, indexSyncService: IndexSyncService) {
     this.projectIdManager = projectIdManager;
     this.errorHandler = errorHandler;
+    this.indexSyncService = indexSyncService;
   }
 
   async getProjectIdByCollection(collectionName: string): Promise<string | null> {

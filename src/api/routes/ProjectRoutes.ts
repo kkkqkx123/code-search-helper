@@ -99,6 +99,9 @@ export class ProjectRoutes {
 
   private async getProjects(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      // Refresh mapping from persistent storage to ensure we have the latest projects
+      await this.projectIdManager.refreshMapping();
+      
       // Get all project IDs from ProjectIdManager
       const projectIds = this.projectIdManager.listAllProjects();
       const projects: Project[] = [];
@@ -226,15 +229,25 @@ export class ProjectRoutes {
     // Extract project name from path
     const projectName = path.basename(projectPath);
 
+    // Get project status from IndexSyncService
+    const status = this.projectLookupService.indexSyncService.getIndexStatus(projectId);
+    
+    // If we have status from the service, use it; otherwise use defaults
+    const isIndexing = status ? status.isIndexing : false;
+    const totalFiles = status ? status.totalFiles : 0;
+    const indexedFiles = status ? status.indexedFiles : 0;
+    const progress = status ? status.progress : 0;
+    const lastIndexed = status && status.lastIndexed ? status.lastIndexed : null;
+
     return {
       id: projectId,
       name: projectName,
       path: projectPath,
-      status: 'completed', // Default to completed for now
-      progress: 100, // Default to 100% for now
-      lastIndexed: new Date(),
-      fileCount: 0, // Default to 0 for now
-      size: 0, // Default to 0 for now
+      status: isIndexing ? 'indexing' : (totalFiles > 0 ? 'completed' : 'pending'),
+      progress: progress,
+      lastIndexed: lastIndexed || new Date(),
+      fileCount: totalFiles,
+      size: 0, // Size calculation would require additional implementation
       createdAt: new Date(),
       updatedAt: new Date(),
       configuration: {
