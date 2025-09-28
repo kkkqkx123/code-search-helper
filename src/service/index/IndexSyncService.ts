@@ -333,12 +333,8 @@ export class IndexSyncService {
       this.logger.info(`Found ${files.length} files to index in project: ${projectId}`);
 
       // Debug: Log traversal details
-      this.logger.debug(`[DEBUG] Traversal completed`, {
-        filesFound: files.length,
-        directoriesFound: traversalResult.directories.length,
-        errors: traversalResult.errors,
-        processingTime: traversalResult.processingTime,
-        firstFewFiles: files.slice(0, 5).map(f => ({ path: f.path, extension: f.extension, language: f.language }))
+      this.logger.debug(`[DEBUG] Traversal completed for project: ${projectId}`, {
+        filesFound: files.length
       });
 
       // 处理每个文件
@@ -370,12 +366,7 @@ export class IndexSyncService {
           status.progress = Math.round((status.indexedFiles + status.failedFiles) / status.totalFiles * 100);
           // 触发索引进度更新事件
           await this.emit('indexingProgress', projectId, status.progress);
-          this.logger.debug(`Indexing progress: ${status.progress}%`, {
-            projectId,
-            indexedFiles: status.indexedFiles,
-            failedFiles: status.failedFiles,
-            totalFiles: status.totalFiles
-          });
+          this.logger.debug(`Indexing progress for project ${projectId}: ${status.progress}%`);
           // 返回空数组以满足processBatches的返回类型要求
           return [];
         },
@@ -390,11 +381,7 @@ export class IndexSyncService {
       // 触发索引完成事件
       await this.emit('indexingCompleted', projectId);
 
-      this.logger.info(`Completed indexing project: ${projectId}`, {
-        totalFiles: status.totalFiles,
-        indexedFiles: status.indexedFiles,
-        failedFiles: status.failedFiles
-      });
+      this.logger.info(`Completed indexing project: ${projectId}`);
     } catch (error) {
       status.isIndexing = false;
       this.indexingProjects.set(projectId, status);
@@ -430,7 +417,7 @@ export class IndexSyncService {
         throw new Error(`Failed to upsert vectors for file: ${filePath}`);
       }
 
-      this.logger.debug(`Indexed file: ${filePath}`, { chunks: chunks.length });
+      this.logger.debug(`Indexed file: ${filePath}`);
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Failed to index file: ${error instanceof Error ? error.message : String(error)}`),

@@ -69,7 +69,7 @@ describe('Database and Embedders Integration', () => {
       updateConfig: jest.fn(),
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
-    } as jest.Mocked<IQdrantConnectionManager>;
+    } as unknown as jest.Mocked<IQdrantConnectionManager>;
     
     const mockCollectionManager = {
       createCollection: jest.fn().mockResolvedValue(true),
@@ -77,15 +77,17 @@ describe('Database and Embedders Integration', () => {
       collectionExists: jest.fn().mockResolvedValue(false),
       deleteCollection: jest.fn().mockResolvedValue(true),
       getCollectionInfo: jest.fn().mockResolvedValue(null),
-      getCollectionStats: jest.fn().mockResolvedValue({}),
+      getCollectionStats: jest.fn().mockResolvedValue(null),
       createPayloadIndex: jest.fn().mockResolvedValue(true),
       createPayloadIndexes: jest.fn().mockResolvedValue(true),
-      listCollections: jest.fn().mockResolvedValue([])
-    } as jest.Mocked<IQdrantCollectionManager>;
+      listCollections: jest.fn().mockResolvedValue([]),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn()
+    } as unknown as jest.Mocked<IQdrantCollectionManager>;
     
     const mockVectorOperations = {
       upsertVectors: jest.fn().mockResolvedValue(true),
-      upsertVectorsWithOptions: jest.fn().mockResolvedValue({ processed: 0, failed: 0 }),
+      upsertVectorsWithOptions: jest.fn().mockResolvedValue({ success: true, processedCount: 0, failedCount: 0 }),
       searchVectors: jest.fn().mockResolvedValue([]),
       searchVectorsWithOptions: jest.fn().mockResolvedValue([]),
       deletePoints: jest.fn().mockResolvedValue(true),
@@ -93,7 +95,7 @@ describe('Database and Embedders Integration', () => {
       getPointCount: jest.fn().mockResolvedValue(0),
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
-    } as jest.Mocked<IQdrantVectorOperations>;
+    } as unknown as jest.Mocked<IQdrantVectorOperations>;
     
     const mockQueryUtils = {
       getChunkIdsByFiles: jest.fn().mockResolvedValue([]),
@@ -104,7 +106,7 @@ describe('Database and Embedders Integration', () => {
       buildAdvancedFilter: jest.fn().mockReturnValue({}),
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
-    } as jest.Mocked<IQdrantQueryUtils>;
+    } as unknown as jest.Mocked<IQdrantQueryUtils>;
     
     const mockProjectManager = {
       createCollectionForProject: jest.fn().mockResolvedValue(true),
@@ -118,7 +120,7 @@ describe('Database and Embedders Integration', () => {
       clearProject: jest.fn().mockResolvedValue(true),
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
-    } as jest.Mocked<IQdrantProjectManager>;
+    } as unknown as jest.Mocked<IQdrantProjectManager>;
     
     cacheService = new EmbeddingCacheService(logger, errorHandler);
     embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);

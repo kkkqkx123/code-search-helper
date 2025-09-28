@@ -5,7 +5,7 @@
     "name": "persistent-project",
     "status": "active",
     "createdAt": "2025-09-28T08:19:57.280Z",
-    "updatedAt": "2025-09-28T08:19:59.636Z",
+    "updatedAt": "2025-09-28T08:26:59.700Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true
@@ -13,9 +13,14 @@
     "metadata": {
       "customField": "customValue"
     },
-    "lastIndexedAt": "2025-09-28T08:19:59.636Z",
+    "lastIndexedAt": "2025-09-28T08:26:59.700Z",
     "totalFiles": 0,
     "indexedFiles": 0,
-    "failedFiles": 0
+    "failedFiles": 0,
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
   }
 ]
