@@ -112,6 +112,7 @@ export class IndexingRoutes {
 
       // 转换前端选项为IndexSyncService需要的格式
       const syncOptions = {
+        embedder: options?.embedder,
         batchSize: options?.batchSize,
         maxConcurrency: 3,
         includePatterns: options?.includePatterns,

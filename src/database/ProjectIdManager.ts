@@ -9,13 +9,16 @@ export class ProjectIdManager {
   private projectUpdateTimes: Map<string, Date> = new Map(); // projectId -> last update time
 
   async generateProjectId(projectPath: string): Promise<string> {
+    // Normalize path to ensure consistency across different platforms
+    const normalizedPath = HashUtils.normalizePath(projectPath);
+    
     // Use SHA256 hash to generate project ID
     const directoryHash = await HashUtils.calculateDirectoryHash(projectPath);
     const projectId = directoryHash.hash.substring(0, 16);
 
-    // Establish mapping relationships
-    this.projectIdMap.set(projectPath, projectId);
-    this.pathToProjectMap.set(projectId, projectPath);
+    // Establish mapping relationships using normalized path
+    this.projectIdMap.set(normalizedPath, projectId);
+    this.pathToProjectMap.set(projectId, normalizedPath);
 
     // Generate corresponding collection and space names
     const collectionName = `project-${projectId}`;
@@ -31,7 +34,8 @@ export class ProjectIdManager {
   }
 
   getProjectId(projectPath: string): string | undefined {
-    return this.projectIdMap.get(projectPath);
+    const normalizedPath = HashUtils.normalizePath(projectPath);
+    return this.projectIdMap.get(normalizedPath);
   }
 
   getProjectPath(projectId: string): string | undefined {
@@ -150,17 +154,19 @@ export class ProjectIdManager {
 
   // Check if a project exists
   hasProject(projectPath: string): boolean {
-    return this.projectIdMap.has(projectPath);
+    const normalizedPath = HashUtils.normalizePath(projectPath);
+    return this.projectIdMap.has(normalizedPath);
   }
 
   // Remove a project from mappings
   removeProject(projectPath: string): boolean {
-    const projectId = this.projectIdMap.get(projectPath);
+    const normalizedPath = HashUtils.normalizePath(projectPath);
+    const projectId = this.projectIdMap.get(normalizedPath);
     if (!projectId) {
       return false;
     }
 
-    this.projectIdMap.delete(projectPath);
+    this.projectIdMap.delete(normalizedPath);
     this.collectionMap.delete(projectId);
     this.spaceMap.delete(projectId);
     this.pathToProjectMap.delete(projectId);

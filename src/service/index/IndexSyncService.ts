@@ -16,6 +16,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 export interface IndexSyncOptions {
+  embedder?: string;
   batchSize?: number;
   maxConcurrency?: number;
   includePatterns?: string[];
@@ -80,6 +81,7 @@ export class IndexSyncService {
   private indexingProjects: Map<string, IndexSyncStatus> = new Map();
   private indexingQueue: Array<{ projectPath: string; options?: IndexSyncOptions }> = [];
   private isProcessingQueue: boolean = false;
+  private projectEmbedders: Map<string, string> = new Map(); // 存储项目对应的embedder
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
@@ -177,10 +179,19 @@ export class IndexSyncService {
         throw new Error(`Project ${projectId} is already being indexed`);
       }
 
+      // 获取嵌入器配置的向量维度
+      let vectorDimensions = 1536; // 默认回退到1536
+      try {
+        const providerInfo = await this.embedderFactory.getProviderInfo(options?.embedder);
+        vectorDimensions = providerInfo.dimensions;
+      } catch (error) {
+        this.logger.warn(`Failed to get embedder dimensions, using default: ${vectorDimensions}`, { error });
+      }
+
       // 创建集合
       const collectionCreated = await this.qdrantService.createCollectionForProject(
         projectPath,
-        1536, // 默认向量维度，可以根据嵌入器配置调整
+        vectorDimensions,
         'Cosine'
       );
 
@@ -201,6 +212,11 @@ export class IndexSyncService {
       };
 
       this.indexingProjects.set(projectId, status);
+
+      // 存储项目对应的embedder
+      if (options?.embedder) {
+        this.projectEmbedders.set(projectId, options.embedder);
+      }
 
       // 添加到索引队列
       this.indexingQueue.push({ projectPath, options });
@@ -515,7 +531,8 @@ export class IndexSyncService {
     }));
 
     // 生成嵌入
-    const embeddingResults = await this.embedderFactory.embed(embeddingInputs);
+    const projectEmbedder = this.projectEmbedders.get(projectId) || this.embedderFactory.getDefaultProvider();
+    const embeddingResults = await this.embedderFactory.embed(embeddingInputs, projectEmbedder);
     const results = Array.isArray(embeddingResults) ? embeddingResults : [embeddingResults];
 
     // 转换为向量点

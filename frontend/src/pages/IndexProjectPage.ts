@@ -36,7 +36,10 @@ export class IndexProjectPage {
                             <option value="ollama">Ollama</option>
                             <option value="gemini">Gemini</option>
                             <option value="mistral">Mistral</option>
-                            <option value="siliconflow">SiliconFlow</option>
+                            <option value="siliconflow" selected>SiliconFlow</option>
+                            <option value="custom1">Custom1</option>
+                            <option value="custom2">Custom2</option>
+                            <option value="custom3">Custom3</option>
                         </select>
                     </div>
                     
@@ -103,7 +106,7 @@ export class IndexProjectPage {
             // 显示进度条
             const progressContainer = this.container.querySelector('#indexing-progress') as HTMLElement;
             const progressText = this.container.querySelector('#progress-text') as HTMLElement;
-            
+
             progressContainer.style.display = 'block';
             progressText.textContent = '正在初始化...';
 
@@ -117,7 +120,7 @@ export class IndexProjectPage {
             if (result.success) {
                 this.showIndexResult(`项目索引创建成功，ID: ${result.projectId}`, 'success');
                 progressContainer.style.display = 'none';
-                
+
                 if (this.onIndexComplete) {
                     this.onIndexComplete(result);
                 }
