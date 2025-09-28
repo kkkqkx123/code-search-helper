@@ -86,9 +86,7 @@ describe('QdrantVectorOperations', () => {
         points: [
           {
             id: '1',
-            vector: {
-              vector: [0.1, 0.2, 0.3]
-            },
+            vector: [0.1, 0.2, 0.3],
             payload: expect.any(Object)
           }
         ]
@@ -508,9 +506,7 @@ describe('QdrantVectorOperations', () => {
       
       expect(result).toEqual({
         id: '1',
-        vector: {
-          vector: [0.1, 0.2, 0.3]
-        },
+        vector: [0.1, 0.2, 0.3],
         payload: expect.any(Object)
       });
     });

@@ -1,21 +1,26 @@
+// Mock QdrantClient module
+jest.mock('@qdrant/js-client-rest', () => {
+  const mockQdrantClient = jest.fn().mockImplementation(() => {
+    const client = {
+      getCollections: jest.fn().mockResolvedValue({ collections: [] }),
+      close: jest.fn(),
+    };
+    // Set the prototype to make instanceof work
+    Object.setPrototypeOf(client, mockQdrantClient.prototype);
+    return client;
+  });
+  
+  return {
+    QdrantClient: mockQdrantClient,
+  };
+});
+
 import { QdrantConnectionManager, IQdrantConnectionManager } from '../QdrantConnectionManager';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { ConnectionStatus, QdrantEventType, QdrantEvent } from '../QdrantTypes';
-
-// Mock QdrantClient
-jest.mock('@qdrant/js-client-rest', () => {
-  return {
-    QdrantClient: jest.fn().mockImplementation(() => {
-      return {
-        getCollections: jest.fn().mockResolvedValue({ collections: [] }),
-        close: jest.fn(),
-      };
-    }),
-  };
-});
 
 // Mock dependencies
 const mockLogger = {
@@ -64,7 +69,8 @@ describe('QdrantConnectionManager', () => {
     
     it('should handle initialization failure', async () => {
       // Mock QdrantClient to throw an error
-      (QdrantClient as jest.Mock).mockImplementation(() => {
+      const { QdrantClient } = jest.requireMock('@qdrant/js-client-rest');
+      QdrantClient.mockImplementationOnce(() => {
         return {
           getCollections: jest.fn().mockRejectedValue(new Error('Connection failed')),
         };

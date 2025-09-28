@@ -173,13 +173,20 @@ export class IndexSyncService {
       // 生成或获取项目ID
       const projectId = await this.projectIdManager.generateProjectId(projectPath);
 
-      // 检查是否正在索引
+      // 检查是否正在索引或已存在
       const currentStatus = this.indexingProjects.get(projectId);
-      if (currentStatus && currentStatus.isIndexing) {
-        throw new Error(`Project ${projectId} is already being indexed`);
+      if (currentStatus) {
+        if (currentStatus.isIndexing) {
+          throw new Error(`项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`);
+        } else {
+          // 如果项目已存在但未在索引中，提供重新索引选项
+          this.logger.info(`项目 ${projectPath} 已存在，将重新索引`);
+          await this.qdrantService.deleteCollectionForProject(projectPath);
+        }
       }
 
       // 获取嵌入器配置的向量维度
+      // 优先使用嵌入器的实际维度，因为这是生成向量时必须匹配的维度
       let vectorDimensions = 1024; // 默认回退到SiliconFlow的1024维度
 
       // 优先使用options中指定的embedder，如果没有指定则使用默认的embedder
@@ -689,18 +696,30 @@ export class IndexSyncService {
     try {
       const projectId = this.projectIdManager.getProjectId(projectPath);
       if (projectId) {
+        this.logger.info(`重新索引项目: ${projectPath}`);
         // 删除现有集合
         await this.qdrantService.deleteCollectionForProject(projectPath);
+      } else {
+        this.logger.info(`项目 ${projectPath} 不存在，将创建新索引`);
       }
 
       // 开始新的索引
       return await this.startIndexing(projectPath, options);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
-        new Error(`Failed to reindex project: ${error instanceof Error ? error.message : String(error)}`),
+        new Error(`重新索引项目失败: ${errorMessage}`),
         { component: 'IndexSyncService', operation: 'reindexProject', projectPath, options }
       );
-      throw error;
+      
+      // 提供更友好的错误信息
+      if (errorMessage.includes('already being indexed')) {
+        throw new Error(`项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`);
+      } else if (errorMessage.includes('Collection name not found')) {
+        throw new Error(`项目 ${projectPath} 的集合不存在，请先创建索引`);
+      } else {
+        throw new Error(`重新索引项目失败: ${errorMessage}`);
+      }
     }
   }
 }
