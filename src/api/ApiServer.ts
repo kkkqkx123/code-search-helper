@@ -3,17 +3,27 @@ import cors from 'cors';
 import fs from 'fs/promises';
 import path from 'path';
 import { Logger } from '../utils/logger.js';
+import { ProjectRoutes } from './routes/ProjectRoutes';
+import { ProjectIdManager } from '../database/ProjectIdManager';
+import { ProjectLookupService } from '../database/ProjectLookupService';
 
 export class ApiServer {
   private app: express.Application;
   private port: number;
   private logger: Logger;
+  private projectIdManager: ProjectIdManager;
+  private projectLookupService: ProjectLookupService;
+  private projectRoutes: ProjectRoutes;
 
   constructor(logger: Logger, port: number = 3010) {
     this.logger = logger;
     this.app = express();
     this.port = port;
 
+    // Initialize project management services
+    this.projectIdManager = new ProjectIdManager();
+    this.projectLookupService = new ProjectLookupService(this.projectIdManager);
+    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger);
     this.setupMiddleware();
     this.setupRoutes();
   }
@@ -31,12 +41,74 @@ export class ApiServer {
     
     // 添加请求日志中间件
     this.app.use((req, res, next) => {
-      this.logger.info(`API Request: ${req.method} ${req.path}`, {
-        method: req.method,
-        path: req.path,
-        origin: req.get('Origin'),
-        body: req.body
+      // 存储原始响应方法
+      const originalSend = res.send.bind(res);
+      const originalJson = res.json.bind(res);
+      const originalEnd = res.end.bind(res);
+
+      // 存储请求开始时间
+      const startTime = Date.now();
+
+      // 重写响应方法以捕获响应数据
+      res.send = (body: any): any => {
+        // 处理Buffer数据，转换为字符串
+        if (Buffer.isBuffer(body)) {
+          res.locals.responseBody = body.toString('utf8');
+        } else {
+          res.locals.responseBody = body;
+        }
+        return originalSend(body);
+      };
+
+      res.json = (body: any): any => {
+        res.locals.responseBody = body;
+        return originalJson(body);
+      };
+
+      res.end = (body?: any): any => {
+        if (body) {
+          // 处理Buffer数据，转换为字符串
+          if (Buffer.isBuffer(body)) {
+            res.locals.responseBody = body.toString('utf8');
+          } else {
+            res.locals.responseBody = body;
+          }
+        }
+        return originalEnd(body);
+      };
+
+      // 请求完成时记录响应
+      res.on('finish', () => {
+        try {
+          const responseTime = Date.now() - startTime;
+          const logData: any = {
+            method: req.method,
+            path: req.path,
+            statusCode: res.statusCode,
+            responseTime: `${responseTime}ms`,
+            origin: req.get('Origin'),
+            body: req.body
+          };
+
+          // 如果状态码表示错误，添加错误信息
+          if (res.statusCode >= 400) {
+            logData.error = res.statusMessage || 'Unknown error';
+            if (res.locals.responseBody && typeof res.locals.responseBody === 'object') {
+              logData.responseError = res.locals.responseBody.error || res.locals.responseBody.message;
+            }
+          }
+
+          // 为调试添加响应体（可选，生产环境可以移除）
+          if (process.env.NODE_ENV === 'development' && res.locals.responseBody) {
+            logData.responseBody = res.locals.responseBody;
+          }
+
+          this.logger.info(`API ${req.method} ${req.path} - ${res.statusCode}`, logData);
+        } catch (error) {
+          console.error('Error in response logging middleware:', error);
+        }
       });
+
       next();
     });
   }
@@ -83,6 +155,9 @@ export class ApiServer {
     this.app.get('/health', (req, res) => {
       res.json({ status: 'healthy' });
     });
+    // 项目路由
+    this.app.use('/api/v1/projects', this.projectRoutes.getRouter());
+
 
     // 404处理
     this.app.get('*', (req, res) => {

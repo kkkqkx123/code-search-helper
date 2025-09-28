@@ -53,8 +53,8 @@ describe('Database and Embedders Integration', () => {
     // Create a mock ProjectIdManager
     mockProjectIdManager = new ProjectIdManager(logger, errorHandler, mockConfigService);
     
-    cacheService = new EmbeddingCacheService(loggerInstance, errorHandler);
-    embedderFactory = new EmbedderFactory(loggerInstance, errorHandler, cacheService);
+    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);
     qdrantService = new QdrantService(mockConfigService, logger, errorHandler, mockProjectIdManager);
   });
 

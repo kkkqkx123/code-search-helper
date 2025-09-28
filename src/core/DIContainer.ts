@@ -4,7 +4,7 @@ import { QdrantService } from '../database/QdrantService';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../database/ProjectIdManager';
-import { ProjectLookupService } from '../database/ProjectLookupService';
+
 import { FileSystemTraversal } from '../service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../service/filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../service/filesystem/ChangeDetectionService';
@@ -24,7 +24,7 @@ diContainer.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSinglet
 diContainer.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
 diContainer.bind<QdrantService>(TYPES.QdrantService).to(QdrantService).inSingletonScope();
 diContainer.bind<ProjectIdManager>(TYPES.ProjectIdManager).to(ProjectIdManager).inSingletonScope();
-diContainer.bind<ProjectLookupService>(TYPES.ProjectLookupService).to(ProjectLookupService).inSingletonScope();
+
 
 // 注册文件系统服务
 diContainer.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).to(FileSystemTraversal).inSingletonScope();

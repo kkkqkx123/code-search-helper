@@ -1,14 +1,17 @@
+import { injectable, inject } from 'inversify';
 import { LoggerService } from '../utils/LoggerService';
 import { Logger } from '../utils/logger';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingResult } from './BaseEmbedder';
 import { ConfigService } from '../config/ConfigService';
 import { ConfigFactory } from '../config/ConfigFactory';
+import { TYPES } from '../types';
 
 /**
- * 简化的嵌入缓存服务
+ * 简化的嵌入极缓存服务
  * 使用内存缓存，避免复杂的缓存管理器依赖
  */
+@injectable()
 export class EmbeddingCacheService {
   private cache: Map<string, { data: EmbeddingResult; timestamp: number; ttl: number }> = new Map();
   private logger: LoggerService | Logger;
@@ -18,8 +21,8 @@ export class EmbeddingCacheService {
   private configFactory: ConfigFactory;
 
   constructor(
-    logger: LoggerService | Logger,
-    errorHandler: ErrorHandlerService
+    @inject(TYPES.LoggerService) logger: LoggerService | Logger,
+    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;

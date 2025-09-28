@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/src/main.js",
+    "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
     "dev:memory": "node --max-old-space-size=2048 --expose-gc node_modules/ts-node/dist/bin.js src/main.ts",
     "start:memory": "node --max-old-space-size=4096 dist/main.js",

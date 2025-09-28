@@ -1,12 +1,15 @@
+import { injectable, inject } from 'inversify';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from './EmbeddingCacheService';
 import { Embedder, EmbeddingInput, EmbeddingResult } from './BaseEmbedder';
+import { TYPES } from '../types';
 
 /**
  * 简化的嵌入器工厂
- * 不使用依赖注入，直接创建和管理嵌入器实例
+ * 使用依赖注入管理嵌入器实例
  */
+@injectable()
 export class EmbedderFactory {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
@@ -15,9 +18,9 @@ export class EmbedderFactory {
   private defaultProvider: string;
 
   constructor(
-    logger: LoggerService,
-    errorHandler: ErrorHandlerService,
-    cacheService: EmbeddingCacheService
+    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
+    @inject(TYPES.EmbeddingCacheService) cacheService: EmbeddingCacheService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;

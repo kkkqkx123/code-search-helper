@@ -113,17 +113,66 @@ export class HttpServer {
 
     // Request logging middleware
     this.app.use((req: Request, res: Response, next: NextFunction) => {
-      try {
-        this.logger.info(`Request ${req.method} ${req.path}`, {
-          method: req.method,
-          url: req.path,
-          query: req.query,
-          body: req.body,
-          ip: req.ip,
-        });
-      } catch (error) {
-        console.error('Error in request logging middleware:', error);
-      }
+      // Store the original response methods
+      const originalSend = res.send.bind(res);
+      const originalJson = res.json.bind(res);
+      const originalEnd = res.end.bind(res);
+
+      // Store request start time
+      const startTime = Date.now();
+
+      // Override response methods to capture response data
+      res.send = (body: any): Response => {
+        res.locals.responseBody = body;
+        return originalSend(body);
+      };
+
+      res.json = (body: any): Response => {
+        res.locals.responseBody = body;
+        return originalJson(body);
+      };
+
+      res.end = (body?: any): Response => {
+        if (body) {
+          res.locals.responseBody = body;
+        }
+        return originalEnd(body);
+      };
+
+      // Log response when the request finishes
+      res.on('finish', () => {
+        try {
+          const responseTime = Date.now() - startTime;
+          const logData: any = {
+            method: req.method,
+            url: req.path,
+            statusCode: res.statusCode,
+            responseTime: `${responseTime}ms`,
+            query: req.query,
+            body: req.body,
+            ip: req.ip,
+            origin: req.get('Origin'),
+          };
+
+          // Add error information if status code indicates an error
+          if (res.statusCode >= 400) {
+            logData.error = res.statusMessage || 'Unknown error';
+            if (res.locals.responseBody && typeof res.locals.responseBody === 'object') {
+              logData.responseError = res.locals.responseBody.error || res.locals.responseBody.message;
+            }
+          }
+
+          // Add response body for debugging (optional, can be removed in production)
+          if (process.env.NODE_ENV === 'development' && res.locals.responseBody) {
+            logData.responseBody = res.locals.responseBody;
+          }
+
+          this.logger.info(`API ${req.method} ${req.path} - ${res.statusCode}`, logData);
+        } catch (error) {
+          console.error('Error in response logging middleware:', error);
+        }
+      });
+
       return next();
     });
   }
