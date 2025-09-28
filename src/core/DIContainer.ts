@@ -4,6 +4,11 @@ import { QdrantService } from '../database/QdrantService';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../database/ProjectIdManager';
+import { QdrantConnectionManager } from '../database/QdrantConnectionManager';
+import { QdrantCollectionManager } from '../database/QdrantCollectionManager';
+import { QdrantVectorOperations } from '../database/QdrantVectorOperations';
+import { QdrantQueryUtils } from '../database/QdrantQueryUtils';
+import { QdrantProjectManager } from '../database/QdrantProjectManager';
 
 import { FileSystemTraversal } from '../service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../service/filesystem/FileWatcherService';
@@ -22,8 +27,15 @@ const diContainer = new Container();
 diContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(ConfigService.getInstance());
 diContainer.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
 diContainer.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
-diContainer.bind<QdrantService>(TYPES.QdrantService).to(QdrantService).inSingletonScope();
 diContainer.bind<ProjectIdManager>(TYPES.ProjectIdManager).to(ProjectIdManager).inSingletonScope();
+
+// 注册 Qdrant 服务模块
+diContainer.bind<QdrantConnectionManager>(TYPES.IQdrantConnectionManager).to(QdrantConnectionManager).inSingletonScope();
+diContainer.bind<QdrantCollectionManager>(TYPES.IQdrantCollectionManager).to(QdrantCollectionManager).inSingletonScope();
+diContainer.bind<QdrantVectorOperations>(TYPES.IQdrantVectorOperations).to(QdrantVectorOperations).inSingletonScope();
+diContainer.bind<QdrantQueryUtils>(TYPES.IQdrantQueryUtils).to(QdrantQueryUtils).inSingletonScope();
+diContainer.bind<QdrantProjectManager>(TYPES.IQdrantProjectManager).to(QdrantProjectManager).inSingletonScope();
+diContainer.bind<QdrantService>(TYPES.QdrantService).to(QdrantService).inSingletonScope();
 
 
 // 注册文件系统服务

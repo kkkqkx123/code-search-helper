@@ -1,61 +1,120 @@
 import { ProjectIdManager } from './ProjectIdManager';
+import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 
 export class ProjectLookupService {
   private projectIdManager: ProjectIdManager;
+  private errorHandler: ErrorHandlerService;
 
-  constructor(projectIdManager: ProjectIdManager) {
+  constructor(projectIdManager: ProjectIdManager, errorHandler: ErrorHandlerService) {
     this.projectIdManager = projectIdManager;
+    this.errorHandler = errorHandler;
   }
 
   async getProjectIdByCollection(collectionName: string): Promise<string | null> {
-    // Parse project ID from collection name
-    if (collectionName.startsWith('project-')) {
-      return collectionName.substring(8); // Remove 'project-' prefix
+    try {
+      // Parse project ID from collection name
+      if (collectionName.startsWith('project-')) {
+        return collectionName.substring(8); // Remove 'project-' prefix
+      }
+      return null;
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'ProjectLookupService',
+        operation: 'getProjectIdByCollection'
+      });
+      return null;
     }
-    return null;
   }
 
   async getProjectIdBySpace(spaceName: string): Promise<string | null> {
-    // Parse project ID from space name
-    if (spaceName.startsWith('project_')) {
-      return spaceName.substring(8); // Remove 'project_' prefix
+    try {
+      // Parse project ID from space name
+      if (spaceName.startsWith('project_')) {
+        return spaceName.substring(8); // Remove 'project_' prefix
+      }
+      return null;
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'ProjectLookupService',
+        operation: 'getProjectIdBySpace'
+      });
+      return null;
     }
-    return null;
   }
 
   async getProjectPathByProjectId(projectId: string): Promise<string | null> {
-    // Get project path from project ID using the project ID manager
-    const projectPath = this.projectIdManager.getProjectPath(projectId);
-    return projectPath || null;
+    try {
+      // Get project path from project ID using the project ID manager
+      const projectPath = this.projectIdManager.getProjectPath(projectId);
+      return projectPath || null;
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'ProjectLookupService',
+        operation: 'getProjectPathByProjectId'
+      });
+      return null;
+    }
   }
 
   async getProjectPathByCollection(collectionName: string): Promise<string | null> {
-    const projectId = await this.getProjectIdByCollection(collectionName);
-    if (!projectId) {
+    try {
+      const projectId = await this.getProjectIdByCollection(collectionName);
+      if (!projectId) {
+        return null;
+      }
+      return this.getProjectPathByProjectId(projectId);
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'ProjectLookupService',
+        operation: 'getProjectPathByCollection'
+      });
       return null;
     }
-    return this.getProjectPathByProjectId(projectId);
   }
 
   async getProjectPathBySpace(spaceName: string): Promise<string | null> {
-    const projectId = await this.getProjectIdBySpace(spaceName);
-    if (!projectId) {
+    try {
+      const projectId = await this.getProjectIdBySpace(spaceName);
+      if (!projectId) {
+        return null;
+      }
+      return this.getProjectPathByProjectId(projectId);
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'ProjectLookupService',
+        operation: 'getProjectPathBySpace'
+      });
       return null;
     }
-    return this.getProjectPathByProjectId(projectId);
   }
   
   // Get the project ID with the latest update time
   async getLatestUpdatedProjectId(): Promise<string | null> {
-    return this.projectIdManager.getLatestUpdatedProject();
+    try {
+      return this.projectIdManager.getLatestUpdatedProject();
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'ProjectLookupService',
+        operation: 'getLatestUpdatedProjectId'
+      });
+      return null;
+    }
   }
   
   // Get project path for the latest updated project
   async getProjectPathForLatestUpdatedProject(): Promise<string | null> {
-    const latestProjectId = await this.getLatestUpdatedProjectId();
-    if (!latestProjectId) {
+    try {
+      const latestProjectId = await this.getLatestUpdatedProjectId();
+      if (!latestProjectId) {
+        return null;
+      }
+      return this.getProjectPathByProjectId(latestProjectId);
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'ProjectLookupService',
+        operation: 'getProjectPathForLatestUpdatedProject'
+      });
       return null;
     }
-    return this.getProjectPathByProjectId(latestProjectId);
   }
 }

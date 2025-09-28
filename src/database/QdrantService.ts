@@ -1,1072 +1,353 @@
-import { QdrantClient } from '@qdrant/js-client-rest';
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from './IVectorStore';
 import { ConfigService } from '../config/ConfigService';
 import { TYPES } from '../types';
 import { ProjectIdManager } from './ProjectIdManager';
+import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from './IVectorStore';
+import { IQdrantConnectionManager } from './QdrantConnectionManager';
+import { IQdrantCollectionManager } from './QdrantCollectionManager';
+import { IQdrantVectorOperations } from './QdrantVectorOperations';
+import { IQdrantQueryUtils } from './QdrantQueryUtils';
+import { IQdrantProjectManager } from './QdrantProjectManager';
+import { 
+  QdrantConfig, 
+  VectorDistance,
+  CollectionCreateOptions,
+  VectorUpsertOptions,
+  VectorSearchOptions,
+  QueryFilter,
+  BatchResult,
+  ProjectInfo,
+  QdrantEventType,
+  QdrantEvent
+} from './QdrantTypes';
 
-export interface QdrantConfig {
-  host: string;
-  port: number;
-  apiKey?: string;
-  useHttps: boolean;
-  timeout: number;
-  collection: string;
-}
-
+/**
+ * Qdrant 服务类
+ * 
+ * 作为外观模式，协调各个模块，提供统一的API接口
+ * 保持向后兼容性，内部实现委托给各个专门的模块
+ */
 @injectable()
 export class QdrantService implements IVectorStore {
-  private client: QdrantClient | null = null;
-  private config: QdrantConfig;
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
-  private isConnectedFlag: boolean = false;
-  private isInitialized: boolean = false;
+  private connectionManager: IQdrantConnectionManager;
+  private collectionManager: IQdrantCollectionManager;
+  private vectorOperations: IQdrantVectorOperations;
+  private queryUtils: IQdrantQueryUtils;
+  private projectManager: IQdrantProjectManager;
 
   constructor(
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager
+    @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
+    @inject(TYPES.IQdrantConnectionManager) connectionManager: IQdrantConnectionManager,
+    @inject(TYPES.IQdrantCollectionManager) collectionManager: IQdrantCollectionManager,
+    @inject(TYPES.IQdrantVectorOperations) vectorOperations: IQdrantVectorOperations,
+    @inject(TYPES.IQdrantQueryUtils) queryUtils: IQdrantQueryUtils,
+    @inject(TYPES.IQdrantProjectManager) projectManager: IQdrantProjectManager
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
-
-    // 从配置服务获取配置
-    const qdrantConfig = configService.get('qdrant');
-    this.config = {
-      host: qdrantConfig.host,
-      port: qdrantConfig.port,
-      apiKey: qdrantConfig.apiKey,
-      useHttps: qdrantConfig.useHttps,
-      timeout: qdrantConfig.timeout,
-      collection: qdrantConfig.collection,
-    };
+    this.connectionManager = connectionManager;
+    this.collectionManager = collectionManager;
+    this.vectorOperations = vectorOperations;
+    this.queryUtils = queryUtils;
+    this.projectManager = projectManager;
   }
 
-  private async ensureClientInitialized(): Promise<boolean> {
-    if (!this.isInitialized) {
-      this.client = new QdrantClient({
-        url: `${this.config.useHttps ? 'https' : 'http'}://${this.config.host}:${this.config.port}`,
-        ...(this.config.apiKey ? { apiKey: this.config.apiKey } : {}),
-        timeout: this.config.timeout,
-      });
-      this.isInitialized = true;
-    }
-    return true;
-  }
-
+  /**
+   * 初始化 Qdrant 服务
+   */
   async initialize(): Promise<boolean> {
-    try {
-      await this.ensureClientInitialized();
-      // Use getCollections as a health check
-      await this.client!.getCollections();
-      this.isConnectedFlag = true;
-      this.logger.info('Connected to Qdrant successfully');
-      return true;
-    } catch (error) {
-      this.isConnectedFlag = false;
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to connect to Qdrant: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'initialize' }
-      );
-      return false;
-    }
+    return this.connectionManager.initialize();
   }
 
+  /**
+   * 创建集合
+   */
   async createCollection(
     name: string,
     vectorSize: number,
-    distance: 'Cosine' | 'Euclid' | 'Dot' | 'Manhattan' = 'Cosine',
+    distance: VectorDistance = 'Cosine',
     recreateIfExists: boolean = false
   ): Promise<boolean> {
-    try {
-      await this.ensureClientInitialized();
-      const exists = await this.collectionExists(name);
-
-      // 如果集合已存在，检查向量维度是否匹配
-      if (exists && !recreateIfExists) {
-        const collectionInfo = await this.getCollectionInfo(name);
-        if (collectionInfo && collectionInfo.vectors.size !== vectorSize) {
-          this.logger.warn(`Collection ${name} exists with different vector size`, {
-            existingSize: collectionInfo.vectors.size,
-            requestedSize: vectorSize
-          });
-          // 如果维度不匹配，删除并重新创建集合
-          await this.deleteCollection(name);
-        } else {
-          this.logger.info(`Collection ${name} already exists with correct vector size: ${vectorSize}`);
-          return true;
-        }
-      } else if (exists && recreateIfExists) {
-        await this.deleteCollection(name);
-      }
-
-      this.logger.info(`Creating collection ${name} with vector size: ${vectorSize}`);
-      await this.client!.createCollection(name, {
-        vectors: {
-          size: vectorSize,
-          distance: distance,
-        },
-        optimizers_config: {
-          default_segment_number: 2,
-          indexing_threshold: 20000,
-          flush_interval_sec: 5,
-          max_optimization_threads: 1,
-        },
-        replication_factor: 1,
-        write_consistency_factor: 1,
-      });
-
-      // 创建payload索引
-      const payloadIndexes = [
-        'language',
-        'chunkType',
-        'filePath',
-        'projectId',
-        'snippetMetadata.snippetType'
-      ];
-
-      for (const field of payloadIndexes) {
-        const indexCreated = await this.createPayloadIndex(name, field);
-        if (!indexCreated) {
-          throw new Error(`Failed to create payload index for field: ${field}`);
-        }
-      }
-
-      this.logger.info(`Created collection ${name} with all payload indexes`, {
-        vectorSize,
-        distance,
-      });
-
-      return true;
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to create collection ${name}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'createCollection' }
-      );
-      return false;
-    }
-  }
-
-   async collectionExists(name: string): Promise<boolean> {
-     try {
-       await this.ensureClientInitialized();
-       const collections = await this.client!.getCollections();
-       return collections.collections.some(col => col.name === name);
-     } catch (error) {
-       this.logger.warn('Failed to check collection existence', {
-         collectionName: name,
-         error: error instanceof Error ? error.message : String(error),
-       });
-       return false;
-     }
-   }
-
-  async deleteCollection(name: string): Promise<boolean> {
-    try {
-      await this.ensureClientInitialized();
-      await this.client!.deleteCollection(name);
-      this.logger.info(`Deleted collection ${name}`);
-      return true;
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to delete collection ${name}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'deleteCollection' }
-      );
-      return false;
-    }
-  }
-
-  async getCollectionInfo(collectionName: string): Promise<CollectionInfo | null> {
-    try {
-      await this.ensureClientInitialized();
-      const info = await this.client!.getCollection(collectionName);
-
-      // Handle the new structure of vectors configuration
-      const vectorsConfig = info.config.params.vectors;
-      const vectorSize =
-        typeof vectorsConfig === 'object' && vectorsConfig !== null && 'size' in vectorsConfig
-          ? vectorsConfig.size
-          : 0;
-      const vectorDistance =
-        typeof vectorsConfig === 'object' && vectorsConfig !== null && 'distance' in vectorsConfig
-          ? vectorsConfig.distance
-          : 'Cosine';
-
-      return {
-        name: collectionName,
-        vectors: {
-          size: typeof vectorSize === 'number' ? vectorSize : 0,
-          distance:
-            typeof vectorDistance === 'string'
-              ? (vectorDistance as 'Cosine' | 'Euclid' | 'Dot' | 'Manhattan')
-              : 'Cosine',
-        },
-        pointsCount: info.points_count || 0,
-        status: info.status,
-      };
-    } catch (error) {
-      this.logger.warn('Failed to get collection info', {
-        collectionName,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return null;
-    }
-  }
-
-   async upsertVectors(collectionName: string, vectors: VectorPoint[]): Promise<boolean> {
-     try {
-       await this.ensureClientInitialized();
-       if (vectors.length === 0) {
-         this.logger.debug(`No vectors to upsert for collection ${collectionName}`);
-         return true;
-       }
-
-       // 验证向量数据
-       if (vectors.length > 0) {
-         const firstVector = vectors[0];
-         const vectorSize = firstVector.vector.length;
-         this.logger.debug(`[DEBUG] Vector validation for collection ${collectionName}`, {
-           vectorCount: vectors.length,
-           vectorSize,
-           sampleIds: vectors.slice(0, 3).map(v => v.id)
-         });
-
-         // 检查所有向量的维度是否一致
-         const inconsistentVectors = vectors.filter(v => v.vector.length !== vectorSize);
-         if (inconsistentVectors.length > 0) {
-           this.logger.error(`Inconsistent vector dimensions detected`, {
-             expectedSize: vectorSize,
-             inconsistentCount: inconsistentVectors.length,
-             sampleInconsistent: inconsistentVectors.slice(0, 3).map(v => ({
-               id: v.id,
-               size: v.vector.length
-             }))
-           });
-           throw new Error(`Inconsistent vector dimensions: expected ${vectorSize}, found varying sizes`);
-         }
-
-         // 检查集合的向量维度是否匹配
-         try {
-           const collectionInfo = await this.getCollectionInfo(collectionName);
-           if (collectionInfo && collectionInfo.vectors.size !== vectorSize) {
-             this.logger.error(`Vector dimension mismatch with collection`, {
-               collectionSize: collectionInfo.vectors.size,
-               vectorSize,
-               collectionName
-             });
-             throw new Error(`Vector dimension mismatch: collection expects ${collectionInfo.vectors.size}, got ${vectorSize}`);
-           }
-         } catch (collectionError) {
-           this.logger.warn(`Failed to validate collection vector dimensions`, {
-             collectionName,
-             error: collectionError instanceof Error ? collectionError.message : String(collectionError)
-           });
-         }
-       }
-
-       // Add project ID to all vectors if not already present
-       const processedVectors = vectors.map(vector => {
-         // Extract project ID from collection name if not in payload
-         if (!vector.payload.projectId) {
-           const projectId = collectionName.startsWith('project-') ? collectionName.substring(8) : null;
-           if (projectId) {
-             return {
-               ...vector,
-               payload: {
-                 ...vector.payload,
-                 projectId
-               }
-             };
-           }
-         }
-         return vector;
-       });
-
-       const batchSize = 100;
-       let totalUpserted = 0;
-       
-       for (let i = 0; i < processedVectors.length; i += batchSize) {
-         const batch = processedVectors.slice(i, i + batchSize);
-         const batchNumber = Math.floor(i / batchSize) + 1;
-         const totalBatches = Math.ceil(processedVectors.length / batchSize);
-         
-         this.logger.debug(`[DEBUG] Processing batch ${batchNumber}/${totalBatches} for collection ${collectionName}`, {
-           batchSize: batch.length,
-           startIdx: i,
-           endIdx: i + batch.length
-         });
-
-         try {
-           // 处理payload数据类型，确保兼容Qdrant
-           const processedPoints = batch.map(point => {
-             // 验证向量维度
-             if (!Array.isArray(point.vector)) {
-               throw new Error(`Vector must be an array, got ${typeof point.vector}`);
-             }
-             
-             // 验证ID格式 - Qdrant接受UUID字符串或整数ID
-             let processedId = point.id;
-             if (typeof point.id === 'string') {
-               // 确保是有效的UUID格式或通用字符串ID
-               const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-               if (!uuidRegex.test(point.id)) {
-                 // 如果不是UUID格式，保持原样，Qdrant支持字符串ID
-                 processedId = point.id;
-               }
-             } else if (typeof point.id === 'number') {
-               processedId = point.id;
-             } else {
-               throw new Error(`ID must be a string or number, got ${typeof point.id}: ${point.id}`);
-             }
-             
-             // 创建payload副本并处理特殊字段，确保兼容Qdrant
-             const processedPayload: any = {};
-             for (const [key, value] of Object.entries(point.payload)) {
-               if (value instanceof Date) {
-                 // 将Date对象转换为ISO字符串
-                 processedPayload[key] = value.toISOString();
-               } else if (value === null) {
-                 // Qdrant支持null值
-                 processedPayload[key] = value;
-               } else if (value === undefined) {
-                 // 跳过undefined值
-                 continue;
-               } else if (typeof value === 'object' && value !== null) {
-                 // 递归处理嵌套对象，但要确保结果是Qdrant支持的格式
-                 if (Array.isArray(value)) {
-                   // 对于数组，处理每个元素
-                   processedPayload[key] = value.map(item => {
-                     if (item instanceof Date) {
-                       return item.toISOString();
-                     } else if (typeof item === 'object' && item !== null) {
-                       return this.processNestedObject(item);
-                     } else {
-                       return item;
-                     }
-                   });
-                 } else {
-                   // 对于普通对象，递归处理
-                   processedPayload[key] = this.processNestedObject(value);
-                 }
-               } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-                 // 基本类型直接使用
-                 processedPayload[key] = value;
-               } else {
-                 // 其他类型转换为字符串
-                 processedPayload[key] = String(value);
-               }
-             }
-             
-             return {
-               id: processedId,
-               vector: point.vector,
-               payload: processedPayload,
-             };
-           });
-           // 在发送到Qdrant之前添加调试日志
-           this.logger.debug(`[DEBUG] Preparing to upsert batch ${batchNumber}/${totalBatches}`, {
-             batchSize: processedPoints.length,
-             samplePoint: processedPoints[0] ? {
-               id: processedPoints[0].id,
-               vectorLength: processedPoints[0].vector.length,
-               payloadSample: processedPoints[0].payload
-             } : null
-           });
-           
-           // 在upsert之前再次验证数据
-           if (processedPoints.length > 0) {
-             const firstPointVectorSize = processedPoints[0].vector.length;
-             for (const point of processedPoints) {
-               if (!point.id) {
-                 throw new Error(`Invalid point ID: ${point.id}`);
-               }
-               if (!point.vector || !Array.isArray(point.vector)) {
-                 throw new Error(`Invalid vector: ${point.vector}`);
-               }
-               if (!point.payload) {
-                 throw new Error(`Invalid payload: ${point.payload}`);
-               }
-               
-               // 验证向量维度是否正确
-               if (point.vector.length !== firstPointVectorSize) {
-                 this.logger.error(`Vector dimension mismatch for point`, {
-                   expected: firstPointVectorSize,
-                   actual: point.vector.length,
-                   pointId: point.id
-                 });
-                 throw new Error(`Vector dimension mismatch for point ${point.id}: expected ${firstPointVectorSize}, got ${point.vector.length}`);
-               }
-             }
-             
-             this.logger.debug(`[DEBUG] About to upsert ${processedPoints.length} points to collection ${collectionName}`, {
-               collectionName,
-               vectorSize: firstPointVectorSize,
-               samplePoint: processedPoints[0] ? {
-                 id: processedPoints[0].id,
-                 vectorLength: processedPoints[0].vector.length,
-                 payloadKeys: Object.keys(processedPoints[0].payload)
-               } : null
-             });
-           }
-           
-           // 验证数据格式，确保符合Qdrant要求
-           for (const point of processedPoints) {
-             // 检查ID是否有效
-             if (!point.id) {
-               throw new Error(`Invalid point ID: ${point.id}`);
-             }
-
-             // Qdrant支持整数ID或字符串ID，验证ID格式
-             if (typeof point.id === 'string') {
-               // 字符串ID应符合Qdrant要求：只包含字母、数字、下划线、连字符，且长度合理
-               if (!/^[a-zA-Z0-9_-]+$/.test(point.id) || point.id.length > 255) {
-                 this.logger.error(`Invalid string ID format`, {
-                   id: point.id,
-                   validFormat: 'Only alphanumeric characters, underscores, and hyphens allowed, max length 255'
-                 });
-                 throw new Error(`Invalid string ID format for point: ${point.id}`);
-               }
-             } else if (typeof point.id !== 'number') {
-               // 也可以是数字ID
-               throw new Error(`Point ID must be a string or number: ${point.id}, type: ${typeof point.id}`);
-             }
-
-             // 检查向量是否有效
-             if (!Array.isArray(point.vector) || point.vector.length === 0) {
-               throw new Error(`Invalid vector for point ${point.id}: ${point.vector}`);
-             }
-
-             // 检查向量元素是否为数字
-             for (let i = 0; i < point.vector.length; i++) {
-               const value = point.vector[i];
-               if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
-                 this.logger.error(`Invalid vector value found`, {
-                   pointId: point.id,
-                   index: i,
-                   value: value,
-                   type: typeof value
-                 });
-                 throw new Error(`Invalid vector value at index ${i} for point ${point.id}: ${value}`);
-               }
-             }
-
-             // 检查payload是否有效
-             if (!point.payload) {
-               throw new Error(`Invalid payload for point ${point.id}: ${point.payload}`);
-             }
-
-             // 确保payload中不包含undefined值，这些值可能导致Qdrant错误
-             for (const [key, value] of Object.entries(point.payload)) {
-               if (value === undefined) {
-                 this.logger.warn(`Removing undefined value from payload`, {
-                   pointId: point.id,
-                   key: key
-                 });
-                 delete point.payload[key];
-               } else if (value instanceof Date) {
-                 // 确保Date对象被转换为字符串
-                 point.payload[key] = value.toISOString();
-               } else if (typeof value === 'object' && value !== null) {
-                 // 递归处理嵌套对象中的Date对象
-                 point.payload[key] = this.processNestedObject(value);
-               }
-             }
-           }
-
-           // 添加更详细的日志记录
-           this.logger.debug('Attempting to upsert points to Qdrant', {
-             collectionName,
-             pointsCount: processedPoints.length,
-             firstPointSample: {
-               id: processedPoints[0]?.id,
-               vectorLength: processedPoints[0]?.vector?.length,
-               payloadKeys: Object.keys(processedPoints[0]?.payload || {})
-             }
-           });
-
-           try {
-             await this.client!.upsert(collectionName, {
-               points: processedPoints,
-             });
-             
-             this.logger.info(`Successfully upserted ${processedPoints.length} vectors to collection ${collectionName}`, {
-               collectionName,
-               pointsCount: processedPoints.length
-             });
-           } catch (upsertError: any) {
-             // 添加更详细的payload验证日志
-             this.logger.error('Qdrant upsert failed with detailed info', {
-               collectionName,
-               pointsCount: processedPoints.length,
-               error: upsertError.message,
-               errorCode: upsertError.code,
-               errorStatus: upsertError.status,
-               errorDetails: upsertError.details || upsertError.body,
-               firstPointSample: {
-                 id: processedPoints[0]?.id,
-                 vectorLength: processedPoints[0]?.vector?.length,
-                 payload: processedPoints[0]?.payload,
-                 payloadKeys: processedPoints[0]?.payload ? Object.keys(processedPoints[0].payload) : [],
-                 payloadTypes: processedPoints[0]?.payload ?
-                   Object.fromEntries(
-                     Object.entries(processedPoints[0].payload).map(([k, v]) => [k, typeof v])
-                   ) : {}
-               }
-             });
-             
-             // 重新抛出错误，保持原有错误处理逻辑
-             throw new Error(`Failed to upsert vectors: ${upsertError.message}`);
-           }
-           totalUpserted += batch.length;
-           this.logger.debug(`[DEBUG] Successfully upserted batch ${batchNumber}/${totalBatches}`, {
-             upsertedCount: batch.length,
-             totalUpserted
-           });
-         } catch (batchError) {
-           // 添加更详细的错误日志
-           this.logger.error(`Failed to upsert batch ${batchNumber}/${totalBatches}`, {
-             batchSize: batch.length,
-             error: batchError instanceof Error ? batchError.message : String(batchError),
-             sampleIds: batch.slice(0, 3).map(p => p.id),
-             samplePoint: batch[0] ? {
-               id: batch[0].id,
-               vectorLength: batch[0].vector?.length,
-               payload: batch[0].payload
-             } : null,
-             collectionName,
-             vectorSize: batch[0]?.vector?.length
-           });
-           throw batchError; // 重新抛出错误以便外层捕获
-         }
-       }
-
-       this.logger.info(`Upserted ${totalUpserted} points to collection ${collectionName}`);
-       return true;
-     } catch (error) {
-       // 提供更详细的错误信息
-       const errorMessage = error instanceof Error ? error.message : String(error);
-       const errorDetails = {
-         collectionName,
-         vectorCount: vectors.length,
-         error: errorMessage,
-         stack: error instanceof Error ? error.stack : undefined
-       };
-       
-       this.logger.error(`[DEBUG] Detailed upsert error`, errorDetails);
-       
-       this.errorHandler.handleError(
-         new Error(
-           `Failed to upsert points to ${collectionName}: ${errorMessage}`
-         ),
-         { component: 'QdrantService', operation: 'upsertVectors', ...errorDetails }
-       );
-       return false;
-     }
-   }
-   
-   private processNestedObject(obj: any): any {
-     if (obj === null || obj === undefined) {
-       return obj;
-     }
-     
-     if (obj instanceof Date) {
-       return obj.toISOString();
-     }
-     
-     if (Array.isArray(obj)) {
-       return obj.map(item => this.processNestedObject(item));
-     }
-     
-     if (typeof obj === 'object') {
-       const processed: any = {};
-       for (const [key, value] of Object.entries(obj)) {
-         if (value instanceof Date) {
-           processed[key] = value.toISOString();
-         } else if (value === null || value === undefined) {
-           processed[key] = value;
-         } else if (typeof value === 'object' && value !== null) {
-           processed[key] = this.processNestedObject(value);
-         } else {
-           processed[key] = value;
-         }
-       }
-       return processed;
-     }
-     
-     return obj;
-   }
-
-   async searchVectors(
-     collectionName: string,
-     query: number[],
-     options: SearchOptions = {}
-   ): Promise<SearchResult[]> {
-     try {
-       await this.ensureClientInitialized();
-       const searchParams: any = {
-         limit: options.limit || 10,
-         with_payload: options.withPayload !== false,
-         with_vector: options.withVector || false,
-       };
- 
-       if (options.scoreThreshold !== undefined) {
-         searchParams.score_threshold = options.scoreThreshold;
-       }
- 
-       if (options.filter) {
-         searchParams.filter = this.buildFilter(options.filter);
-       }
- 
-       const results = await this.client!.search(collectionName, {
-         vector: query,
-         ...searchParams,
-       });
- 
-       return results.map(result => ({
-         id: result.id as string,
-         score: result.score,
-         payload: {
-           ...(result.payload as any),
-           timestamp:
-             result.payload?.timestamp && typeof result.payload.timestamp === 'string'
-               ? new Date(result.payload.timestamp)
-               : new Date(),
-         },
-       }));
-     } catch (error) {
-       this.errorHandler.handleError(
-         new Error(
-           `Failed to search vectors in ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
-         ),
-         { component: 'QdrantService', operation: 'searchVectors' }
-       );
-       return [];
-     }
-   }
-
-  async deletePoints(collectionName: string, pointIds: string[]): Promise<boolean> {
-    try {
-      await this.ensureClientInitialized();
-      await this.client!.delete(collectionName, {
-        filter: {
-          must: [
-            {
-              key: 'id',
-              match: {
-                any: pointIds,
-              },
-            },
-          ],
-        },
-      });
-
-      this.logger.info(`Deleted ${pointIds.length} points from collection ${collectionName}`);
-      return true;
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to delete points from ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'deletePoints' }
-      );
-      return false;
-    }
-  }
-
-  async clearCollection(collectionName: string): Promise<boolean> {
-    try {
-      await this.ensureClientInitialized();
-      await this.client!.delete(collectionName, {
-        filter: {
-          must: [
-            {
-              key: 'id',
-              match: {
-                any: true,
-              },
-            },
-          ],
-        },
-      });
-
-      this.logger.info(`Cleared collection ${collectionName}`);
-      return true;
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to clear collection ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'clearCollection' }
-      );
-      return false;
-    }
-  }
-
-  async getPointCount(collectionName: string): Promise<number> {
-    try {
-      await this.ensureClientInitialized();
-      const info = await this.client!.getCollection(collectionName);
-      return info.points_count || 0;
-    } catch (error) {
-      this.logger.warn('Failed to get point count', {
-        collectionName,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return 0;
-    }
-  }
-
-  async createPayloadIndex(collectionName: string, field: string): Promise<boolean> {
-    try {
-      await this.ensureClientInitialized();
-      await this.client!.createPayloadIndex(collectionName, {
-        field_name: field,
-        field_schema: 'keyword',
-      });
-
-      this.logger.info(`Created payload index for field ${field} in collection ${collectionName}`);
-      return true;
-    } catch (error) {
-      // 检查是否为"已存在"错误，如果是则返回true
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.toLowerCase().includes('already exists')) {
-        this.logger.info(`Payload index for field ${field} already exists in collection ${collectionName}`);
-        return true;
-      }
-
-      this.logger.error('Failed to create payload index', {
-        collectionName,
-        field,
-        error: errorMessage,
-      });
-      return false;
-    }
-  }
-
-  async getChunkIdsByFiles(collectionName: string, filePaths: string[]): Promise<string[]> {
-    try {
-      await this.ensureClientInitialized();
-      // Build filter to match any of the provided file paths
-      const filter = {
-        must: [
-          {
-            key: 'filePath',
-            match: {
-              any: filePaths,
-            },
-          },
-        ],
-      };
-
-      // Search for points matching the filter, only retrieving IDs
-      const results = await this.client!.scroll(collectionName, {
-        filter,
-        with_payload: false,
-        with_vector: false,
-        limit: 1000, // Adjust this limit as needed
-      });
-
-      // Extract IDs from the results
-      const chunkIds = results.points.map(point => point.id as string);
-
-      this.logger.debug(`Found ${chunkIds.length} chunk IDs for ${filePaths.length} files`, {
-        fileCount: filePaths.length,
-        chunkCount: chunkIds.length,
-      });
-
-      return chunkIds;
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to get chunk IDs by files from ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'getChunkIdsByFiles' }
-      );
-      return [];
-    }
-  }
-
-  async getExistingChunkIds(collectionName: string, chunkIds: string[]): Promise<string[]> {
-    try {
-      await this.ensureClientInitialized();
-      // Build filter to match any of the provided chunk IDs
-      const filter = {
-        must: [
-          {
-            key: 'id',
-            match: {
-              any: chunkIds,
-            },
-          },
-        ],
-      };
-
-      // Search for points matching the filter, only retrieving IDs
-      const results = await this.client!.scroll(collectionName, {
-        filter,
-        with_payload: false,
-        with_vector: false,
-        limit: 1000, // Adjust this limit as needed
-      });
-
-      // Extract IDs from the results
-      const existingChunkIds = results.points.map(point => point.id as string);
-
-      this.logger.debug(
-        `Found ${existingChunkIds.length} existing chunk IDs out of ${chunkIds.length} requested`,
-        {
-          requestedCount: chunkIds.length,
-          existingCount: existingChunkIds.length,
-        }
-      );
-
-      return existingChunkIds;
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to get existing chunk IDs from ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'getExistingChunkIds' }
-      );
-      return [];
-    }
-  }
-
-  isConnected(): boolean {
-    return this.isConnectedFlag;
-  }
-
-  async close(): Promise<void> {
-    // Close the Qdrant client connection if it has a close method
-    if (this.client && typeof (this.client as any).close === 'function') {
-      try {
-        await (this.client as any).close();
-      } catch (error) {
-        this.logger.warn('Error closing Qdrant client', { error });
-      }
-    }
-
-    this.client = null;
-    this.isConnectedFlag = false;
-    this.isInitialized = false;
-    this.logger.info('Qdrant client connection closed');
-  }
-
-  private buildFilter(filter: SearchOptions['filter']): any {
-    if (!filter) return undefined;
-
-    const must: any[] = [];
-
-    if (filter.language) {
-      must.push({
-        key: 'language',
-        match: {
-          any: filter.language,
-        },
-      });
-    }
-
-    if (filter.chunkType) {
-      must.push({
-        key: 'chunkType',
-        match: {
-          any: filter.chunkType,
-        },
-      });
-    }
-
-    if (filter.filePath) {
-      must.push({
-        key: 'filePath',
-        match: {
-          any: filter.filePath,
-        },
-      });
-    }
-
-    if (filter.projectId) {
-      must.push({
-        key: 'projectId',
-        match: {
-          value: filter.projectId,
-        },
-      });
-    }
-
-    if (filter.snippetType) {
-      must.push({
-        key: 'snippetMetadata.snippetType',
-        match: {
-          any: filter.snippetType,
-        },
-      });
-    }
-
-    return must.length > 0 ? { must } : undefined;
+    return this.collectionManager.createCollection(name, vectorSize, distance, recreateIfExists);
   }
 
   /**
-   * Create a collection for a specific project
+   * 使用选项创建集合
    */
-  async createCollectionForProject(projectPath: string, vectorSize: number, distance: 'Cosine' | 'Euclid' | 'Dot' | 'Manhattan' = 'Cosine'): Promise<boolean> {
-    try {
-      // Generate project ID and get collection name
-      const projectId = await this.projectIdManager.generateProjectId(projectPath);
-      const collectionName = this.projectIdManager.getCollectionName(projectId);
-      
-      if (!collectionName) {
-        throw new Error(`Failed to generate collection name for project: ${projectPath}`);
-      }
-
-      return await this.createCollection(collectionName, vectorSize, distance);
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to create collection for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'createCollectionForProject' }
-      );
-      return false;
-    }
+  async createCollectionWithOptions(name: string, options: CollectionCreateOptions): Promise<boolean> {
+    return this.collectionManager.createCollectionWithOptions(name, options);
   }
 
   /**
-   * Upsert vectors to a project-specific collection
+   * 检查集合是否存在
+   */
+  async collectionExists(name: string): Promise<boolean> {
+    return this.collectionManager.collectionExists(name);
+  }
+
+  /**
+   * 删除集合
+   */
+  async deleteCollection(name: string): Promise<boolean> {
+    return this.collectionManager.deleteCollection(name);
+  }
+
+  /**
+   * 获取集合信息
+   */
+  async getCollectionInfo(collectionName: string): Promise<CollectionInfo | null> {
+    return this.collectionManager.getCollectionInfo(collectionName);
+  }
+
+  /**
+   * 获取集合统计信息
+   */
+  async getCollectionStats(collectionName: string): Promise<any> {
+    return this.collectionManager.getCollectionStats(collectionName);
+  }
+
+  /**
+   * 创建有效载荷索引
+   */
+  async createPayloadIndex(collectionName: string, field: string, fieldType?: string): Promise<boolean> {
+    return this.collectionManager.createPayloadIndex(collectionName, field, fieldType);
+  }
+
+  /**
+   * 批量创建有效载荷索引
+   */
+  async createPayloadIndexes(collectionName: string, fields: string[]): Promise<boolean> {
+    return this.collectionManager.createPayloadIndexes(collectionName, fields);
+  }
+
+  /**
+   * 列出所有集合
+   */
+  async listCollections(): Promise<string[]> {
+    return this.collectionManager.listCollections();
+  }
+
+  /**
+   * 插入或更新向量
+   */
+  async upsertVectors(collectionName: string, vectors: VectorPoint[]): Promise<boolean> {
+    return this.vectorOperations.upsertVectors(collectionName, vectors);
+  }
+
+  /**
+   * 使用选项插入或更新向量
+   */
+  async upsertVectorsWithOptions(collectionName: string, vectors: VectorPoint[], options?: VectorUpsertOptions): Promise<BatchResult> {
+    return this.vectorOperations.upsertVectorsWithOptions(collectionName, vectors, options);
+  }
+
+  /**
+   * 搜索向量
+   */
+  async searchVectors(
+    collectionName: string,
+    query: number[],
+    options: SearchOptions = {}
+  ): Promise<SearchResult[]> {
+    return this.vectorOperations.searchVectors(collectionName, query, options);
+  }
+
+  /**
+   * 使用选项搜索向量
+   */
+  async searchVectorsWithOptions(collectionName: string, query: number[], options?: VectorSearchOptions): Promise<SearchResult[]> {
+    return this.vectorOperations.searchVectorsWithOptions(collectionName, query, options);
+  }
+
+  /**
+   * 删除点
+   */
+  async deletePoints(collectionName: string, pointIds: string[]): Promise<boolean> {
+    return this.vectorOperations.deletePoints(collectionName, pointIds);
+  }
+
+  /**
+   * 清空集合
+   */
+  async clearCollection(collectionName: string): Promise<boolean> {
+    return this.vectorOperations.clearCollection(collectionName);
+  }
+
+  /**
+   * 获取点数量
+   */
+  async getPointCount(collectionName: string): Promise<number> {
+    return this.vectorOperations.getPointCount(collectionName);
+  }
+
+  /**
+   * 根据文件路径获取块ID
+   */
+  async getChunkIdsByFiles(collectionName: string, filePaths: string[]): Promise<string[]> {
+    return this.queryUtils.getChunkIdsByFiles(collectionName, filePaths);
+  }
+
+  /**
+   * 获取已存在的块ID
+   */
+  async getExistingChunkIds(collectionName: string, chunkIds: string[]): Promise<string[]> {
+    return this.queryUtils.getExistingChunkIds(collectionName, chunkIds);
+  }
+
+  /**
+   * 滚动浏览点
+   */
+  async scrollPoints(collectionName: string, filter?: any, limit?: number, offset?: any): Promise<any[]> {
+    return this.queryUtils.scrollPoints(collectionName, filter, limit, offset);
+  }
+
+  /**
+   * 计算点数量
+   */
+  async countPoints(collectionName: string, filter?: any): Promise<number> {
+    return this.queryUtils.countPoints(collectionName, filter);
+  }
+
+  /**
+   * 构建查询过滤器
+   */
+  buildFilter(filter: SearchOptions['filter']): any {
+    return this.queryUtils.buildFilter(filter);
+  }
+
+  /**
+   * 构建高级查询过滤器
+   */
+  buildAdvancedFilter(filter: QueryFilter): any {
+    return this.queryUtils.buildAdvancedFilter(filter);
+  }
+
+  /**
+   * 为特定项目创建集合
+   */
+  async createCollectionForProject(projectPath: string, vectorSize: number, distance?: VectorDistance): Promise<boolean> {
+    return this.projectManager.createCollectionForProject(projectPath, vectorSize, distance);
+  }
+
+  /**
+   * 为特定项目插入或更新向量
    */
   async upsertVectorsForProject(projectPath: string, vectors: VectorPoint[]): Promise<boolean> {
-    try {
-      // Get project ID and collection name
-      const projectId = await this.projectIdManager.getProjectId(projectPath);
-      if (!projectId) {
-        throw new Error(`Project not found: ${projectPath}`);
-      }
-      
-      const collectionName = this.projectIdManager.getCollectionName(projectId);
-      if (!collectionName) {
-        throw new Error(`Collection name not found for project: ${projectPath}`);
-      }
-
-      // Add project ID to all vectors if not already present
-      const vectorsWithProjectId = vectors.map(vector => ({
-        ...vector,
-        payload: {
-          ...vector.payload,
-          projectId
-        }
-      }));
-
-      return await this.upsertVectors(collectionName, vectorsWithProjectId);
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to upsert vectors for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'upsertVectorsForProject' }
-      );
-      return false;
-    }
+    return this.projectManager.upsertVectorsForProject(projectPath, vectors);
   }
 
   /**
-   * Search vectors in a project-specific collection
+   * 在特定项目的集合中搜索向量
    */
-  async searchVectorsForProject(projectPath: string, query: number[], options: SearchOptions = {}): Promise<SearchResult[]> {
-    try {
-      // Get project ID and collection name
-      const projectId = await this.projectIdManager.getProjectId(projectPath);
-      if (!projectId) {
-        throw new Error(`Project not found: ${projectPath}`);
-      }
-      
-      const collectionName = this.projectIdManager.getCollectionName(projectId);
-      if (!collectionName) {
-        throw new Error(`Collection name not found for project: ${projectPath}`);
-      }
-
-      // Ensure projectId filter is applied
-      const searchOptions = {
-        ...options,
-        filter: {
-          ...options.filter,
-          projectId
-        }
-      };
-
-      return await this.searchVectors(collectionName, query, searchOptions);
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to search vectors for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'searchVectorsForProject' }
-      );
-      return [];
-    }
+  async searchVectorsForProject(projectPath: string, query: number[], options?: SearchOptions): Promise<SearchResult[]> {
+    return this.projectManager.searchVectorsForProject(projectPath, query, options);
   }
 
   /**
-   * Get collection info for a specific project
+   * 获取特定项目的集合信息
    */
   async getCollectionInfoForProject(projectPath: string): Promise<CollectionInfo | null> {
-    try {
-      // Get project ID and collection name
-      const projectId = await this.projectIdManager.getProjectId(projectPath);
-      if (!projectId) {
-        throw new Error(`Project not found: ${projectPath}`);
-      }
-      
-      const collectionName = this.projectIdManager.getCollectionName(projectId);
-      if (!collectionName) {
-        throw new Error(`Collection name not found for project: ${projectPath}`);
-      }
-
-      return await this.getCollectionInfo(collectionName);
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to get collection info for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'getCollectionInfoForProject' }
-      );
-      return null;
-    }
+    return this.projectManager.getCollectionInfoForProject(projectPath);
   }
 
   /**
-   * Delete collection for a specific project
+   * 删除特定项目的集合
    */
   async deleteCollectionForProject(projectPath: string): Promise<boolean> {
-    try {
-      // Get project ID and collection name
-      const projectId = await this.projectIdManager.getProjectId(projectPath);
-      if (!projectId) {
-        throw new Error(`Project not found: ${projectPath}`);
-      }
-      
-      const collectionName = this.projectIdManager.getCollectionName(projectId);
-      if (!collectionName) {
-        throw new Error(`Collection name not found for project: ${projectPath}`);
-      }
+    return this.projectManager.deleteCollectionForProject(projectPath);
+  }
 
-      return await this.deleteCollection(collectionName);
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Failed to delete collection for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'QdrantService', operation: 'deleteCollectionForProject' }
-      );
-      return false;
-    }
+  /**
+   * 获取项目信息
+   */
+  async getProjectInfo(projectPath: string): Promise<ProjectInfo | null> {
+    return this.projectManager.getProjectInfo(projectPath);
+  }
+
+  /**
+   * 列出所有项目
+   */
+  async listProjects(): Promise<ProjectInfo[]> {
+    return this.projectManager.listProjects();
+  }
+
+  /**
+   * 删除项目中的特定向量
+   */
+  async deleteVectorsForProject(projectPath: string, vectorIds: string[]): Promise<boolean> {
+    return this.projectManager.deleteVectorsForProject(projectPath, vectorIds);
+  }
+
+  /**
+   * 清空项目
+   */
+  async clearProject(projectPath: string): Promise<boolean> {
+    return this.projectManager.clearProject(projectPath);
+  }
+
+  /**
+   * 检查是否已连接
+   */
+  isConnected(): boolean {
+    return this.connectionManager.isConnected();
+  }
+
+  /**
+   * 获取连接状态
+   */
+  getConnectionStatus(): any {
+    return this.connectionManager.getConnectionStatus();
+  }
+
+  /**
+   * 获取配置信息
+   */
+  getConfig(): QdrantConfig {
+    return this.connectionManager.getConfig();
+  }
+
+  /**
+   * 更新配置信息
+   */
+  updateConfig(config: Partial<QdrantConfig>): void {
+    this.connectionManager.updateConfig(config);
+  }
+
+  /**
+   * 关闭连接
+   */
+  async close(): Promise<void> {
+    return this.connectionManager.close();
+  }
+
+  /**
+   * 添加事件监听器
+   */
+  addEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void {
+    // 将事件监听器添加到所有模块
+    this.connectionManager.addEventListener(type, listener);
+    this.collectionManager.addEventListener(type, listener);
+    this.vectorOperations.addEventListener(type, listener);
+    this.queryUtils.addEventListener(type, listener);
+    this.projectManager.addEventListener(type, listener);
+  }
+
+  /**
+   * 移除事件监听器
+   */
+  removeEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void {
+    // 从所有模块中移除事件监听器
+    this.connectionManager.removeEventListener(type, listener);
+    this.collectionManager.removeEventListener(type, listener);
+    this.vectorOperations.removeEventListener(type, listener);
+    this.queryUtils.removeEventListener(type, listener);
+    this.projectManager.removeEventListener(type, listener);
   }
 }

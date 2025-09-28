@@ -3,6 +3,11 @@ import { QdrantService } from './database/QdrantService';
 import { LoggerService } from './utils/LoggerService';
 import { ErrorHandlerService } from './utils/ErrorHandlerService';
 import { ProjectIdManager } from './database/ProjectIdManager';
+import { IQdrantConnectionManager } from './database/QdrantConnectionManager';
+import { IQdrantCollectionManager } from './database/QdrantCollectionManager';
+import { IQdrantVectorOperations } from './database/QdrantVectorOperations';
+import { IQdrantQueryUtils } from './database/QdrantQueryUtils';
+import { IQdrantProjectManager } from './database/QdrantProjectManager';
 
 import { FileSystemTraversal } from './service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from './service/filesystem/FileWatcherService';
@@ -19,6 +24,13 @@ export const TYPES = {
   LoggerService: Symbol.for('LoggerService'),
   ErrorHandlerService: Symbol.for('ErrorHandlerService'),
   ProjectIdManager: Symbol.for('ProjectIdManager'),
+  
+  // Qdrant 服务模块
+  IQdrantConnectionManager: Symbol.for('IQdrantConnectionManager'),
+  IQdrantCollectionManager: Symbol.for('IQdrantCollectionManager'),
+  IQdrantVectorOperations: Symbol.for('IQdrantVectorOperations'),
+  IQdrantQueryUtils: Symbol.for('IQdrantQueryUtils'),
+  IQdrantProjectManager: Symbol.for('IQdrantProjectManager'),
   
   // 文件系统服务
   FileSystemTraversal: Symbol.for('FileSystemTraversal'),

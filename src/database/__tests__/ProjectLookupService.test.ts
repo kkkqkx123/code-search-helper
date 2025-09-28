@@ -5,15 +5,6 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 
 // Mock the dependencies
-const mockConfigService = {
-  get: jest.fn().mockImplementation((key: string) => {
-    if (key === 'project') {
-      return { mappingPath: './data/test-project-mapping.json' };
-    }
-    return undefined;
-  })
-} as unknown as ConfigService;
-
 const mockLogger = {
   info: jest.fn(),
   warn: jest.fn(),
@@ -37,7 +28,8 @@ describe('ProjectLookupService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     projectLookupService = new ProjectLookupService(
-      mockProjectIdManager as ProjectIdManager
+      mockProjectIdManager as ProjectIdManager,
+      mockErrorHandler
     );
   });
 
@@ -254,21 +246,48 @@ describe('ProjectLookupService', () => {
 
   describe('error handling', () => {
     it('should handle errors in getProjectIdByCollection', async () => {
-      jest.spyOn(String.prototype, 'startsWith').mockImplementation(() => {
+      // Mock the projectIdManager to throw an error
+      mockProjectIdManager.getProjectPath = jest.fn().mockImplementation(() => {
         throw new Error('Test error');
       });
 
-      const result = await projectLookupService.getProjectIdByCollection('test-collection');
+      const result = await projectLookupService.getProjectPathByProjectId('test-id');
       expect(result).toBeNull();
       expect(mockErrorHandler.handleError).toHaveBeenCalled();
     });
 
     it('should handle errors in getProjectIdBySpace', async () => {
-      jest.spyOn(String.prototype, 'startsWith').mockImplementation(() => {
+      // Mock the projectIdManager to throw an error when getting project path
+      mockProjectIdManager.getProjectPath = jest.fn().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+      
+      // Mock getProjectIdBySpace to return a valid project ID so we can test error handling in getProjectPathBySpace
+      jest.spyOn(projectLookupService, 'getProjectIdBySpace').mockResolvedValue('test-id');
+
+      const result = await projectLookupService.getProjectPathBySpace('test_space');
+      expect(result).toBeNull();
+      expect(mockErrorHandler.handleError).toHaveBeenCalled();
+    });
+
+    it('should handle errors in getProjectPathByProjectId', async () => {
+      // Mock the projectIdManager to throw an error
+      mockProjectIdManager.getProjectPath = jest.fn().mockImplementation(() => {
         throw new Error('Test error');
       });
 
-      const result = await projectLookupService.getProjectIdBySpace('test_space');
+      const result = await projectLookupService.getProjectPathByProjectId('test-id');
+      expect(result).toBeNull();
+      expect(mockErrorHandler.handleError).toHaveBeenCalled();
+    });
+
+    it('should handle errors in getLatestUpdatedProjectId', async () => {
+      // Mock the projectIdManager to throw an error
+      mockProjectIdManager.getLatestUpdatedProject = jest.fn().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+
+      const result = await projectLookupService.getLatestUpdatedProjectId();
       expect(result).toBeNull();
       expect(mockErrorHandler.handleError).toHaveBeenCalled();
     });

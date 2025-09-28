@@ -1,0 +1,21 @@
+[
+  {
+    "projectId": "f1fa256205ae210f",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files\\persistent-project",
+    "name": "persistent-project",
+    "status": "active",
+    "createdAt": "2025-09-28T08:19:57.280Z",
+    "updatedAt": "2025-09-28T08:19:59.636Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {
+      "customField": "customValue"
+    },
+    "lastIndexedAt": "2025-09-28T08:19:59.636Z",
+    "totalFiles": 0,
+    "indexedFiles": 0,
+    "failedFiles": 0
+  }
+]

@@ -12,6 +12,11 @@ import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
 import { PerformanceOptimizerService } from '../../resilience/ResilientBatchingService';
 import { ConfigService } from '../../../config/ConfigService';
+import { IQdrantConnectionManager } from '../../../database/QdrantConnectionManager';
+import { IQdrantCollectionManager } from '../../../database/QdrantCollectionManager';
+import { IQdrantVectorOperations } from '../../../database/QdrantVectorOperations';
+import { IQdrantQueryUtils } from '../../../database/QdrantQueryUtils';
+import { IQdrantProjectManager } from '../../../database/QdrantProjectManager';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -73,7 +78,9 @@ describe('IndexSyncService', () => {
     
     loggerService = new LoggerService(mockConfigService) as jest.Mocked<LoggerService>;
     errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
-    fileSystemTraversal = new FileSystemTraversal() as jest.Mocked<FileSystemTraversal>;
+    fileSystemTraversal = new FileSystemTraversal(
+      loggerService as unknown as LoggerService
+    ) as jest.Mocked<FileSystemTraversal>;
     fileWatcherService = new FileWatcherService(
       loggerService as unknown as LoggerService,
       errorHandlerService as unknown as ErrorHandlerService,
@@ -85,11 +92,23 @@ describe('IndexSyncService', () => {
       fileWatcherService,
       fileSystemTraversal
     ) as jest.Mocked<ChangeDetectionService>;
+    // Create mock instances for the remaining QdrantService dependencies
+    const mockConnectionManager = {} as jest.Mocked<IQdrantConnectionManager>;
+    const mockCollectionManager = {} as jest.Mocked<IQdrantCollectionManager>;
+    const mockVectorOperations = {} as jest.Mocked<IQdrantVectorOperations>;
+    const mockQueryUtils = {} as jest.Mocked<IQdrantQueryUtils>;
+    const mockProjectManager = {} as jest.Mocked<IQdrantProjectManager>;
+    
     qdrantService = new QdrantService(
       diContainer.get(TYPES.ConfigService),
       loggerService,
       errorHandlerService,
-      projectIdManager
+      projectIdManager,
+      mockConnectionManager,
+      mockCollectionManager,
+      mockVectorOperations,
+      mockQueryUtils,
+      mockProjectManager
     ) as jest.Mocked<QdrantService>;
     projectIdManager = new ProjectIdManager() as jest.Mocked<ProjectIdManager>;
     embedderFactory = new EmbedderFactory(

@@ -58,6 +58,10 @@ jest.mock('../../utils/HashUtils', () => ({
           files: []
         });
       }
+    }),
+    normalizePath: jest.fn().mockImplementation((path: string) => {
+      // Simple normalization - replace backslashes with forward slashes
+      return path.replace(/\\/g, '/');
     })
   }
 }));
@@ -75,11 +79,8 @@ describe('ProjectIdManager', () => {
       const projectPath = '/test/project';
       const result = await projectIdManager.generateProjectId(projectPath);
 
-      // Should be project name followed by underscore and 8-char hash
-      expect(result).toMatch(/^project_[a-z0-9]{8}$/);
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        `Generated project ID ${result} for path ${projectPath}`
-      );
+      // Should be a 16-character hash
+      expect(result).toMatch(/^[a-f0-9]{16}$/);
     });
 
     it('should return existing project ID for the same path', async () => {

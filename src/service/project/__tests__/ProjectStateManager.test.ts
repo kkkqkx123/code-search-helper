@@ -13,6 +13,11 @@ import { ChangeDetectionService } from '../../filesystem/ChangeDetectionService'
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
 import { PerformanceOptimizerService } from '../../resilience/ResilientBatchingService';
+import { IQdrantConnectionManager } from '../../../database/QdrantConnectionManager';
+import { IQdrantCollectionManager } from '../../../database/QdrantCollectionManager';
+import { IQdrantVectorOperations } from '../../../database/QdrantVectorOperations';
+import { IQdrantQueryUtils } from '../../../database/QdrantQueryUtils';
+import { IQdrantProjectManager } from '../../../database/QdrantProjectManager';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -133,11 +138,23 @@ describe('ProjectStateManager', () => {
       mockEmbeddingCacheService,
       mockPerformanceOptimizerService
     ) as jest.Mocked<IndexSyncService>;
+    // Create mock instances for the remaining QdrantService dependencies
+    const mockConnectionManager = {} as jest.Mocked<IQdrantConnectionManager>;
+    const mockCollectionManager = {} as jest.Mocked<IQdrantCollectionManager>;
+    const mockVectorOperations = {} as jest.Mocked<IQdrantVectorOperations>;
+    const mockQueryUtils = {} as jest.Mocked<IQdrantQueryUtils>;
+    const mockProjectManager = {} as jest.Mocked<IQdrantProjectManager>;
+    
     qdrantService = new QdrantService(
       configService,
       loggerService,
       errorHandlerService,
-      projectIdManager
+      projectIdManager,
+      mockConnectionManager,
+      mockCollectionManager,
+      mockVectorOperations,
+      mockQueryUtils,
+      mockProjectManager
     ) as jest.Mocked<QdrantService>;
     configService = ConfigService.getInstance() as jest.Mocked<ConfigService>;
     mockFs = require('fs/promises') as jest.Mocked<typeof import('fs/promises')>;

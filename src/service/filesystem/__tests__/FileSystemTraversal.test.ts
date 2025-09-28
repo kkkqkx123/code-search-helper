@@ -47,7 +47,7 @@ describe('FileSystemTraversal', () => {
     mockedGitignoreParser.parseGitignore.mockResolvedValue([]);
 
     // Create a new instance for each test
-    fileSystemTraversal = new FileSystemTraversal(mockOptions);
+    fileSystemTraversal = new FileSystemTraversal(mockOptions as any);
   });
 
   afterEach(() => {
@@ -139,7 +139,7 @@ describe('FileSystemTraversal', () => {
       mockedGitignoreParser.parseGitignore.mockResolvedValue(['**/*.test.ts']);
 
       const optionsWithGitignore = { ...mockOptions, respectGitignore: true };
-      const traversalWithGitignore = new FileSystemTraversal(optionsWithGitignore);
+      const traversalWithGitignore = new FileSystemTraversal(optionsWithGitignore as any);
 
       await traversalWithGitignore.traverseDirectory(testPath);
 

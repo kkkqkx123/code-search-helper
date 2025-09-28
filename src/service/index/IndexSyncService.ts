@@ -181,10 +181,10 @@ export class IndexSyncService {
 
       // 获取嵌入器配置的向量维度
       let vectorDimensions = 1024; // 默认回退到SiliconFlow的1024维度
-      
+
       // 优先使用options中指定的embedder，如果没有指定则使用默认的embedder
       const embedderProvider = options?.embedder || this.embedderFactory.getDefaultProvider();
-      
+
       try {
         // 尝试从嵌入器实例获取实际维度，这会验证提供者是否可用
         const providerInfo = await this.embedderFactory.getProviderInfo(embedderProvider);
@@ -193,7 +193,7 @@ export class IndexSyncService {
       } catch (error) {
         // 如果无法获取提供者信息，根据提供者类型使用环境变量中的默认值
         this.logger.warn(`Failed to get embedder dimensions from provider, falling back to env config: ${embedderProvider}`, { error });
-        
+
         // 根据提供者设置默认维度
         switch (embedderProvider) {
           case 'openai':
@@ -318,7 +318,7 @@ export class IndexSyncService {
 
     try {
       this.logger.debug(`[DEBUG] Starting file traversal for project: ${projectId}`, { projectPath });
-      
+
       // 获取项目中的所有文件
       const traversalResult = await this.performanceOptimizer.executeWithRetry(
         () => this.fileSystemTraversal.traverseDirectory(projectPath, {
@@ -331,7 +331,7 @@ export class IndexSyncService {
       const files = traversalResult.files;
       status.totalFiles = files.length;
       this.logger.info(`Found ${files.length} files to index in project: ${projectId}`);
-      
+
       // Debug: Log traversal details
       this.logger.debug(`[DEBUG] Traversal completed`, {
         filesFound: files.length,
@@ -584,10 +584,9 @@ export class IndexSyncService {
     const results = Array.isArray(embeddingResults) ? embeddingResults : [embeddingResults];
 
     // 转换为向量点
-    // 转换为向量点
     const vectorPoints = results.map((result, index) => {
       const chunk = chunks[index];
-      
+
       // 确保ID是有效的格式，Qdrant支持整数ID或UUID格式的字符串ID
       // 将文件路径转换为更安全的ID格式，使用UUID格式的字符串ID
       const fileId = `${chunk.filePath}_${chunk.startLine}-${chunk.endLine}`;
@@ -597,7 +596,7 @@ export class IndexSyncService {
         .replace(/[:]/g, '_')           // 替换冒号
         .replace(/[^a-zA-Z0-9_-]/g, '_') // 只保留字母、数字、下划线和连字符
         .substring(0, 255);             // 限制长度以避免过长的ID
-      
+
       return {
         id: safeId,
         vector: result.vector,
@@ -618,12 +617,12 @@ export class IndexSyncService {
             dimensions: result.dimensions,
             processingTime: result.processingTime
           },
-          timestamp: new Date().toISOString(), // 使用ISO字符串格式
+          timestamp: new Date(), // 使用Date对象
           projectId
         }
       };
     });
-    
+
     return vectorPoints;
   }
 

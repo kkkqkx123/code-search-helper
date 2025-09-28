@@ -2,6 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { ApiServer } from '../ApiServer';
 import { Logger } from '../../utils/logger';
+import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 
 // Mock fs
 jest.mock('fs/promises');
@@ -46,7 +47,8 @@ describe('ApiServer', () => {
   beforeEach(() => {
     const logger = new Logger('ApiServerTest');
     mockIndexSyncService = createMockIndexSyncService();
-    server = new ApiServer(logger, mockIndexSyncService, 3001); // Use different port for testing
+    const mockEmbedderFactory = {} as EmbedderFactory; // Add a mock EmbedderFactory
+    server = new ApiServer(logger, mockIndexSyncService, mockEmbedderFactory, 3001); // Use different port for testing
     app = server['app']; // Access private app property for testing
   });
 

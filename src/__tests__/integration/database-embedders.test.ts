@@ -6,6 +6,11 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
+import { IQdrantConnectionManager } from '../../database/QdrantConnectionManager';
+import { IQdrantCollectionManager } from '../../database/QdrantCollectionManager';
+import { IQdrantVectorOperations } from '../../database/QdrantVectorOperations';
+import { IQdrantQueryUtils } from '../../database/QdrantQueryUtils';
+import { IQdrantProjectManager } from '../../database/QdrantProjectManager';
 
 // 确保在测试环境中运行
 process.env.NODE_ENV = 'test';
@@ -53,9 +58,81 @@ describe('Database and Embedders Integration', () => {
     // Create a mock ProjectIdManager
     mockProjectIdManager = new ProjectIdManager();
     
+    // Create mock instances for the remaining QdrantService dependencies
+    const mockConnectionManager = {
+      initialize: jest.fn().mockResolvedValue(true),
+      close: jest.fn().mockResolvedValue(undefined),
+      isConnected: jest.fn().mockReturnValue(false),
+      getClient: jest.fn().mockReturnValue(null),
+      getConnectionStatus: jest.fn().mockReturnValue({}),
+      getConfig: jest.fn().mockReturnValue({}),
+      updateConfig: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn()
+    } as jest.Mocked<IQdrantConnectionManager>;
+    
+    const mockCollectionManager = {
+      createCollection: jest.fn().mockResolvedValue(true),
+      createCollectionWithOptions: jest.fn().mockResolvedValue(true),
+      collectionExists: jest.fn().mockResolvedValue(false),
+      deleteCollection: jest.fn().mockResolvedValue(true),
+      getCollectionInfo: jest.fn().mockResolvedValue(null),
+      getCollectionStats: jest.fn().mockResolvedValue({}),
+      createPayloadIndex: jest.fn().mockResolvedValue(true),
+      createPayloadIndexes: jest.fn().mockResolvedValue(true),
+      listCollections: jest.fn().mockResolvedValue([])
+    } as jest.Mocked<IQdrantCollectionManager>;
+    
+    const mockVectorOperations = {
+      upsertVectors: jest.fn().mockResolvedValue(true),
+      upsertVectorsWithOptions: jest.fn().mockResolvedValue({ processed: 0, failed: 0 }),
+      searchVectors: jest.fn().mockResolvedValue([]),
+      searchVectorsWithOptions: jest.fn().mockResolvedValue([]),
+      deletePoints: jest.fn().mockResolvedValue(true),
+      clearCollection: jest.fn().mockResolvedValue(true),
+      getPointCount: jest.fn().mockResolvedValue(0),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn()
+    } as jest.Mocked<IQdrantVectorOperations>;
+    
+    const mockQueryUtils = {
+      getChunkIdsByFiles: jest.fn().mockResolvedValue([]),
+      getExistingChunkIds: jest.fn().mockResolvedValue([]),
+      scrollPoints: jest.fn().mockResolvedValue([]),
+      countPoints: jest.fn().mockResolvedValue(0),
+      buildFilter: jest.fn().mockReturnValue({}),
+      buildAdvancedFilter: jest.fn().mockReturnValue({}),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn()
+    } as jest.Mocked<IQdrantQueryUtils>;
+    
+    const mockProjectManager = {
+      createCollectionForProject: jest.fn().mockResolvedValue(true),
+      upsertVectorsForProject: jest.fn().mockResolvedValue(true),
+      searchVectorsForProject: jest.fn().mockResolvedValue([]),
+      getCollectionInfoForProject: jest.fn().mockResolvedValue(null),
+      deleteCollectionForProject: jest.fn().mockResolvedValue(true),
+      getProjectInfo: jest.fn().mockResolvedValue(null),
+      listProjects: jest.fn().mockResolvedValue([]),
+      deleteVectorsForProject: jest.fn().mockResolvedValue(true),
+      clearProject: jest.fn().mockResolvedValue(true),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn()
+    } as jest.Mocked<IQdrantProjectManager>;
+    
     cacheService = new EmbeddingCacheService(logger, errorHandler);
     embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);
-    qdrantService = new QdrantService(mockConfigService, logger, errorHandler, mockProjectIdManager);
+    qdrantService = new QdrantService(
+      mockConfigService,
+      logger,
+      errorHandler,
+      mockProjectIdManager,
+      mockConnectionManager,
+      mockCollectionManager,
+      mockVectorOperations,
+      mockQueryUtils,
+      mockProjectManager
+    );
   });
 
   afterAll(async () => {
