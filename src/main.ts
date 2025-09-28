@@ -39,7 +39,7 @@ class Application {
 
     // 初始化服务器
     this.mcpServer = new MCPServer(this.logger);
-    this.apiServer = new ApiServer(this.logger, this.indexSyncService);
+    this.apiServer = new ApiServer(this.logger, this.indexSyncService, this.embedderFactory);
   }
 
   async start(): Promise<void> {

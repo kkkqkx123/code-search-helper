@@ -8,6 +8,7 @@ import { IndexingRoutes } from './routes/IndexingRoutes';
 import { ProjectIdManager } from '../database/ProjectIdManager';
 import { ProjectLookupService } from '../database/ProjectLookupService';
 import { IndexSyncService } from '../service/index/IndexSyncService';
+import { EmbedderFactory } from '../embedders/EmbedderFactory';
 
 export class ApiServer {
   private app: express.Application;
@@ -18,10 +19,12 @@ export class ApiServer {
   private projectRoutes: ProjectRoutes;
   private indexingRoutes: IndexingRoutes;
   private indexSyncService: IndexSyncService;
+  private embedderFactory: EmbedderFactory;
 
-  constructor(logger: Logger, indexSyncService: IndexSyncService, port: number = 3010) {
+  constructor(logger: Logger, indexSyncService: IndexSyncService, embedderFactory: EmbedderFactory, port: number = 3010) {
     this.logger = logger;
     this.indexSyncService = indexSyncService;
+    this.embedderFactory = embedderFactory;
     this.app = express();
     this.port = port;
 
@@ -29,7 +32,7 @@ export class ApiServer {
     this.projectIdManager = new ProjectIdManager();
     this.projectLookupService = new ProjectLookupService(this.projectIdManager);
     this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger);
-    this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, logger);
+    this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger);
     this.setupMiddleware();
     this.setupRoutes();
   }
