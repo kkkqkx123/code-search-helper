@@ -12,6 +12,7 @@ export class IndexProjectPage {
         this.container = container;
         this.apiClient = apiClient;
         this.render();
+        this.loadAvailableEmbedders();  // 加载可用的嵌入器
         this.setupEventListeners();
     }
 
@@ -70,7 +71,6 @@ export class IndexProjectPage {
             </div>
         `;
     }
-
     /**
      * 设置事件监听器
      */
@@ -89,13 +89,71 @@ export class IndexProjectPage {
     }
 
     /**
+     * 加载可用的嵌入器列表
+     */
+    private async loadAvailableEmbedders() {
+        try {
+            const result = await this.apiClient.getAvailableEmbedders();
+            if (result.success && result.data) {
+                this.updateEmbedderSelect(result.data);
+            } else {
+                console.warn('无法获取可用的嵌入器列表，使用默认列表');
+            }
+        } catch (error) {
+            console.warn('获取可用嵌入器失败，使用默认列表:', error);
+        }
+    }
+
+    /**
+     * 更新嵌入器选择下拉框
+     */
+    private updateEmbedderSelect(embedders: any[]) {
+        const embedderSelect = this.container.querySelector('#embedder') as HTMLSelectElement;
+        if (!embedderSelect) return;
+
+        // 清空现有选项
+        embedderSelect.innerHTML = '';
+
+        // 添加新的选项
+        embedders.forEach(embedder => {
+            const option = document.createElement('option');
+            option.value = embedder.name;
+            option.textContent = `${embedder.displayName} ${embedder.available ? '' : '(不可用)'}`;
+
+            // 如果嵌入器不可用，添加禁用状态和样式
+            if (!embedder.available) {
+                option.disabled = true;
+                option.style.color = '#888';
+                option.title = '此嵌入器当前不可用';
+            }
+
+            // 如果是默认或首选的嵌入器，设置为选中状态
+            if (embedder.name === 'siliconflow' && embedder.available) {
+                option.selected = true;
+            }
+
+            embedderSelect.appendChild(option);
+        });
+    }
+
+    /**
      * 创建项目索引
      */
     async createProjectIndex() {
-        const projectPath = (this.container.querySelector('#project-path') as HTMLInputElement).value;
-        const embedder = (this.container.querySelector('#embedder') as HTMLSelectElement).value;
-        const batchSize = parseInt((this.container.querySelector('#batch-size') as HTMLInputElement).value);
-        const maxFiles = parseInt((this.container.querySelector('#max-files') as HTMLInputElement).value);
+        const projectPathInput = this.container.querySelector('#project-path') as HTMLInputElement;
+        const embedderSelect = this.container.querySelector('#embedder') as HTMLSelectElement;
+        const batchSizeInput = this.container.querySelector('#batch-size') as HTMLInputElement;
+        const maxFilesInput = this.container.querySelector('#max-files') as HTMLInputElement;
+
+        if (!projectPathInput || !embedderSelect || !batchSizeInput || !maxFilesInput) {
+            this.showIndexResult('表单元素未找到', 'error');
+            return;
+        }
+
+        const projectPath = projectPathInput.value;
+        const embedder = embedderSelect.value;
+        const batchSize = parseInt(batchSizeInput.value);
+        const maxFiles = parseInt(maxFilesInput.value);
 
         if (!projectPath.trim()) {
             this.showIndexResult('请提供项目路径', 'error');
@@ -107,8 +165,10 @@ export class IndexProjectPage {
             const progressContainer = this.container.querySelector('#indexing-progress') as HTMLElement;
             const progressText = this.container.querySelector('#progress-text') as HTMLElement;
 
-            progressContainer.style.display = 'block';
-            progressText.textContent = '正在初始化...';
+            if (progressContainer && progressText) {
+                progressContainer.style.display = 'block';
+                progressText.textContent = '正在初始化...';
+            }
 
             // 调用API创建项目索引
             const result = await this.apiClient.createProjectIndex(projectPath, {
@@ -118,20 +178,64 @@ export class IndexProjectPage {
             });
 
             if (result.success) {
-                this.showIndexResult(`项目索引创建成功，ID: ${result.projectId}`, 'success');
-                progressContainer.style.display = 'none';
+                if (progressContainer) {
+                    progressContainer.style.display = 'none';
+                }
+                this.showIndexResult(`项目索引创建成功，ID: ${result.data?.projectId || result.projectId}`, 'success');
 
                 if (this.onIndexComplete) {
                     this.onIndexComplete(result);
                 }
             } else {
-                this.showIndexResult(`创建项目索引失败: ${result.error || '未知错误'}`, 'error');
-                progressContainer.style.display = 'none';
+                if (progressContainer) {
+                    progressContainer.style.display = 'none';
+                }
+                
+                // 显示详细的错误信息
+                let errorMessage = `创建项目索引失败: ${result.error || '未知错误'}`;
+                
+                // 如果有错误类型和建议操作，显示它们
+                if (result.error && typeof result.error === 'object') {
+                    const errorObj = result.error;
+                    errorMessage = `创建项目索引失败: ${errorObj.message || '未知错误'}`;
+                    if (errorObj.type) {
+                        errorMessage += `\n错误类型: ${errorObj.type}`;
+                    }
+                    if (errorObj.suggestedActions && Array.isArray(errorObj.suggestedActions)) {
+                        errorMessage += `\n建议操作: ${errorObj.suggestedActions.join('; ')}`;
+                    }
+                } else if (result.error) {
+                    // 检查错误是否包含嵌入器验证错误信息
+                    errorMessage = `创建项目索引失败: ${result.error}`;
+                }
+                
+                // 如果有可用的嵌入器列表，提供额外信息
+                if (result.availableProviders) {
+                    const unavailableEmbedders = result.availableProviders.filter((p: any) => !p.available);
+                    if (unavailableEmbedders.length > 0) {
+                        errorMessage += `\n不可用的嵌入器: ${unavailableEmbedders.map((p: any) => p.displayName).join(', ')}`;
+                    }
+                    
+                    // 更新嵌入器选择列表以反映当前状态
+                    this.updateEmbedderSelect(result.availableProviders);
+                }
+                
+                this.showIndexResult(errorMessage, 'error');
             }
         } catch (error: any) {
-            this.showIndexResult(`创建项目索引时发生错误: ${error.message}`, 'error');
             const progressContainer = this.container.querySelector('#indexing-progress') as HTMLElement;
-            progressContainer.style.display = 'none';
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+            
+            let errorMessage = `创建项目索引时发生错误: ${error.message || '网络错误'}`;
+            
+            // 如果错误对象包含更详细的信息，使用它
+            if (error.error) {
+                errorMessage += `\n详细信息: ${error.error.message || error.error}`;
+            }
+            
+            this.showIndexResult(errorMessage, 'error');
         }
     }
 

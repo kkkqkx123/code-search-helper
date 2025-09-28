@@ -114,8 +114,12 @@ export class QdrantService implements IVectorStore {
         },
         optimizers_config: {
           default_segment_number: 2,
+          indexing_threshold: 20000,
+          flush_interval_sec: 5,
+          max_optimization_threads: 1,
         },
         replication_factor: 1,
+        write_consistency_factor: 1,
       });
 
       // 创建payload索引
@@ -305,32 +309,70 @@ export class QdrantService implements IVectorStore {
          try {
            // 处理payload数据类型，确保兼容Qdrant
            const processedPoints = batch.map(point => {
-             // 创建payload副本并处理特殊字段
+             // 验证向量维度
+             if (!Array.isArray(point.vector)) {
+               throw new Error(`Vector must be an array, got ${typeof point.vector}`);
+             }
+             
+             // 验证ID格式 - Qdrant接受UUID字符串或整数ID
+             let processedId = point.id;
+             if (typeof point.id === 'string') {
+               // 确保是有效的UUID格式或通用字符串ID
+               const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+               if (!uuidRegex.test(point.id)) {
+                 // 如果不是UUID格式，保持原样，Qdrant支持字符串ID
+                 processedId = point.id;
+               }
+             } else if (typeof point.id === 'number') {
+               processedId = point.id;
+             } else {
+               throw new Error(`ID must be a string or number, got ${typeof point.id}: ${point.id}`);
+             }
+             
+             // 创建payload副本并处理特殊字段，确保兼容Qdrant
              const processedPayload: any = {};
              for (const [key, value] of Object.entries(point.payload)) {
                if (value instanceof Date) {
+                 // 将Date对象转换为ISO字符串
                  processedPayload[key] = value.toISOString();
-               } else if (value === null || value === undefined) {
-                 processedPayload[key] = value ?? null; // 将undefined转换为null
-               } else if (typeof value === 'object') {
-                 // 确保对象可以被序列化，递归处理嵌套对象
-                 if (value && typeof value === 'object' && !Array.isArray(value)) {
-                   processedPayload[key] = this.processNestedObject(value);
-                 } else {
-                   processedPayload[key] = value;
-                 }
-               } else {
+               } else if (value === null) {
+                 // Qdrant支持null值
                  processedPayload[key] = value;
+               } else if (value === undefined) {
+                 // 跳过undefined值
+                 continue;
+               } else if (typeof value === 'object' && value !== null) {
+                 // 递归处理嵌套对象，但要确保结果是Qdrant支持的格式
+                 if (Array.isArray(value)) {
+                   // 对于数组，处理每个元素
+                   processedPayload[key] = value.map(item => {
+                     if (item instanceof Date) {
+                       return item.toISOString();
+                     } else if (typeof item === 'object' && item !== null) {
+                       return this.processNestedObject(item);
+                     } else {
+                       return item;
+                     }
+                   });
+                 } else {
+                   // 对于普通对象，递归处理
+                   processedPayload[key] = this.processNestedObject(value);
+                 }
+               } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                 // 基本类型直接使用
+                 processedPayload[key] = value;
+               } else {
+                 // 其他类型转换为字符串
+                 processedPayload[key] = String(value);
                }
              }
              
              return {
-               id: point.id,
+               id: processedId,
                vector: point.vector,
                payload: processedPayload,
              };
            });
-           
            // 在发送到Qdrant之前添加调试日志
            this.logger.debug(`[DEBUG] Preparing to upsert batch ${batchNumber}/${totalBatches}`, {
              batchSize: processedPoints.length,
@@ -341,9 +383,150 @@ export class QdrantService implements IVectorStore {
              } : null
            });
            
-           await this.client!.upsert(collectionName, {
-             points: processedPoints,
+           // 在upsert之前再次验证数据
+           if (processedPoints.length > 0) {
+             const firstPointVectorSize = processedPoints[0].vector.length;
+             for (const point of processedPoints) {
+               if (!point.id) {
+                 throw new Error(`Invalid point ID: ${point.id}`);
+               }
+               if (!point.vector || !Array.isArray(point.vector)) {
+                 throw new Error(`Invalid vector: ${point.vector}`);
+               }
+               if (!point.payload) {
+                 throw new Error(`Invalid payload: ${point.payload}`);
+               }
+               
+               // 验证向量维度是否正确
+               if (point.vector.length !== firstPointVectorSize) {
+                 this.logger.error(`Vector dimension mismatch for point`, {
+                   expected: firstPointVectorSize,
+                   actual: point.vector.length,
+                   pointId: point.id
+                 });
+                 throw new Error(`Vector dimension mismatch for point ${point.id}: expected ${firstPointVectorSize}, got ${point.vector.length}`);
+               }
+             }
+             
+             this.logger.debug(`[DEBUG] About to upsert ${processedPoints.length} points to collection ${collectionName}`, {
+               collectionName,
+               vectorSize: firstPointVectorSize,
+               samplePoint: processedPoints[0] ? {
+                 id: processedPoints[0].id,
+                 vectorLength: processedPoints[0].vector.length,
+                 payloadKeys: Object.keys(processedPoints[0].payload)
+               } : null
+             });
+           }
+           
+           // 验证数据格式，确保符合Qdrant要求
+           for (const point of processedPoints) {
+             // 检查ID是否有效
+             if (!point.id) {
+               throw new Error(`Invalid point ID: ${point.id}`);
+             }
+
+             // Qdrant支持整数ID或字符串ID，验证ID格式
+             if (typeof point.id === 'string') {
+               // 字符串ID应符合Qdrant要求：只包含字母、数字、下划线、连字符，且长度合理
+               if (!/^[a-zA-Z0-9_-]+$/.test(point.id) || point.id.length > 255) {
+                 this.logger.error(`Invalid string ID format`, {
+                   id: point.id,
+                   validFormat: 'Only alphanumeric characters, underscores, and hyphens allowed, max length 255'
+                 });
+                 throw new Error(`Invalid string ID format for point: ${point.id}`);
+               }
+             } else if (typeof point.id !== 'number') {
+               // 也可以是数字ID
+               throw new Error(`Point ID must be a string or number: ${point.id}, type: ${typeof point.id}`);
+             }
+
+             // 检查向量是否有效
+             if (!Array.isArray(point.vector) || point.vector.length === 0) {
+               throw new Error(`Invalid vector for point ${point.id}: ${point.vector}`);
+             }
+
+             // 检查向量元素是否为数字
+             for (let i = 0; i < point.vector.length; i++) {
+               const value = point.vector[i];
+               if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
+                 this.logger.error(`Invalid vector value found`, {
+                   pointId: point.id,
+                   index: i,
+                   value: value,
+                   type: typeof value
+                 });
+                 throw new Error(`Invalid vector value at index ${i} for point ${point.id}: ${value}`);
+               }
+             }
+
+             // 检查payload是否有效
+             if (!point.payload) {
+               throw new Error(`Invalid payload for point ${point.id}: ${point.payload}`);
+             }
+
+             // 确保payload中不包含undefined值，这些值可能导致Qdrant错误
+             for (const [key, value] of Object.entries(point.payload)) {
+               if (value === undefined) {
+                 this.logger.warn(`Removing undefined value from payload`, {
+                   pointId: point.id,
+                   key: key
+                 });
+                 delete point.payload[key];
+               } else if (value instanceof Date) {
+                 // 确保Date对象被转换为字符串
+                 point.payload[key] = value.toISOString();
+               } else if (typeof value === 'object' && value !== null) {
+                 // 递归处理嵌套对象中的Date对象
+                 point.payload[key] = this.processNestedObject(value);
+               }
+             }
+           }
+
+           // 添加更详细的日志记录
+           this.logger.debug('Attempting to upsert points to Qdrant', {
+             collectionName,
+             pointsCount: processedPoints.length,
+             firstPointSample: {
+               id: processedPoints[0]?.id,
+               vectorLength: processedPoints[0]?.vector?.length,
+               payloadKeys: Object.keys(processedPoints[0]?.payload || {})
+             }
            });
+
+           try {
+             await this.client!.upsert(collectionName, {
+               points: processedPoints,
+             });
+             
+             this.logger.info(`Successfully upserted ${processedPoints.length} vectors to collection ${collectionName}`, {
+               collectionName,
+               pointsCount: processedPoints.length
+             });
+           } catch (upsertError: any) {
+             // 添加更详细的payload验证日志
+             this.logger.error('Qdrant upsert failed with detailed info', {
+               collectionName,
+               pointsCount: processedPoints.length,
+               error: upsertError.message,
+               errorCode: upsertError.code,
+               errorStatus: upsertError.status,
+               errorDetails: upsertError.details || upsertError.body,
+               firstPointSample: {
+                 id: processedPoints[0]?.id,
+                 vectorLength: processedPoints[0]?.vector?.length,
+                 payload: processedPoints[0]?.payload,
+                 payloadKeys: processedPoints[0]?.payload ? Object.keys(processedPoints[0].payload) : [],
+                 payloadTypes: processedPoints[0]?.payload ?
+                   Object.fromEntries(
+                     Object.entries(processedPoints[0].payload).map(([k, v]) => [k, typeof v])
+                   ) : {}
+               }
+             });
+             
+             // 重新抛出错误，保持原有错误处理逻辑
+             throw new Error(`Failed to upsert vectors: ${upsertError.message}`);
+           }
            totalUpserted += batch.length;
            this.logger.debug(`[DEBUG] Successfully upserted batch ${batchNumber}/${totalBatches}`, {
              upsertedCount: batch.length,
@@ -359,7 +542,9 @@ export class QdrantService implements IVectorStore {
                id: batch[0].id,
                vectorLength: batch[0].vector?.length,
                payload: batch[0].payload
-             } : null
+             } : null,
+             collectionName,
+             vectorSize: batch[0]?.vector?.length
            });
            throw batchError; // 重新抛出错误以便外层捕获
          }
@@ -409,7 +594,7 @@ export class QdrantService implements IVectorStore {
            processed[key] = value.toISOString();
          } else if (value === null || value === undefined) {
            processed[key] = value;
-         } else if (typeof value === 'object') {
+         } else if (typeof value === 'object' && value !== null) {
            processed[key] = this.processNestedObject(value);
          } else {
            processed[key] = value;

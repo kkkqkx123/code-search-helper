@@ -584,10 +584,22 @@ export class IndexSyncService {
     const results = Array.isArray(embeddingResults) ? embeddingResults : [embeddingResults];
 
     // 转换为向量点
-    return results.map((result, index) => {
+    // 转换为向量点
+    const vectorPoints = results.map((result, index) => {
       const chunk = chunks[index];
+      
+      // 确保ID是有效的格式，Qdrant支持整数ID或UUID格式的字符串ID
+      // 将文件路径转换为更安全的ID格式，使用UUID格式的字符串ID
+      const fileId = `${chunk.filePath}_${chunk.startLine}-${chunk.endLine}`;
+      // 使用更安全的ID格式，避免特殊字符，并使用更标准的格式
+      const safeId = fileId
+        .replace(/[<>:"/\\|?*]/g, '_')  // 替换特殊字符
+        .replace(/[:]/g, '_')           // 替换冒号
+        .replace(/[^a-zA-Z0-9_-]/g, '_') // 只保留字母、数字、下划线和连字符
+        .substring(0, 255);             // 限制长度以避免过长的ID
+      
       return {
-        id: `${chunk.filePath}:${chunk.startLine}-${chunk.endLine}`,
+        id: safeId,
         vector: result.vector,
         payload: {
           content: chunk.content,
@@ -606,11 +618,13 @@ export class IndexSyncService {
             dimensions: result.dimensions,
             processingTime: result.processingTime
           },
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(), // 使用ISO字符串格式
           projectId
         }
       };
     });
+    
+    return vectorPoints;
   }
 
   /**
