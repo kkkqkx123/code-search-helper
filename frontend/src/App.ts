@@ -74,7 +74,7 @@ export class CodebaseSearchApp {
         document.querySelectorAll('.nav-button').forEach(button => {
             button.addEventListener('click', (e) => {
                 const target = e.target as HTMLElement;
-                const pageId = target.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] as PageId;
+                const pageId = target.getAttribute('data-page') as PageId;
                 
                 if (pageId) {
                     router.navigateTo(pageId);
@@ -111,7 +111,7 @@ export class CodebaseSearchApp {
         }
 
         // 高亮选中的导航按钮
-        const activeButton = document.querySelector(`[onclick="showPage('${pageId}')"]`) as HTMLElement;
+        const activeButton = document.querySelector(`[data-page="${pageId}"]`) as HTMLElement;
         if (activeButton) {
             activeButton.classList.add('active');
         }
@@ -137,13 +137,7 @@ export class CodebaseSearchApp {
     }
 }
 
-// 全局函数，用于HTML onclick属性
-function showPage(pageId: PageId) {
-    router.navigateTo(pageId);
-}
-
-// 导出全局函数供HTML使用
-(window as any).showPage = showPage;
+// 移除全局函数，现在使用事件监听器处理导航
 
 // 启动应用
 document.addEventListener('DOMContentLoaded', () => {

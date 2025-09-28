@@ -37,9 +37,7 @@ describe('ProjectLookupService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     projectLookupService = new ProjectLookupService(
-      mockProjectIdManager as ProjectIdManager,
-      mockLogger,
-      mockErrorHandler
+      mockProjectIdManager as ProjectIdManager
     );
   });
 

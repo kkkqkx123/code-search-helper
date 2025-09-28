@@ -91,11 +91,7 @@ describe('IndexSyncService', () => {
       errorHandlerService,
       projectIdManager
     ) as jest.Mocked<QdrantService>;
-    projectIdManager = new ProjectIdManager(
-      loggerService,
-      errorHandlerService,
-      diContainer.get(TYPES.ConfigService)
-    ) as jest.Mocked<ProjectIdManager>;
+    projectIdManager = new ProjectIdManager() as jest.Mocked<ProjectIdManager>;
     embedderFactory = new EmbedderFactory(
       loggerService,
       errorHandlerService,

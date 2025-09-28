@@ -40,11 +40,7 @@ describe('ProjectStateManager', () => {
     // Get mock instances
     loggerService = new LoggerService(configService) as jest.Mocked<LoggerService>;
     errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
-    projectIdManager = new ProjectIdManager(
-      loggerService,
-      errorHandlerService,
-      configService
-    ) as jest.Mocked<ProjectIdManager>;
+    projectIdManager = new ProjectIdManager() as jest.Mocked<ProjectIdManager>;
     // Create mock file system traversal
     const mockFileSystemTraversal = {
       defaultOptions: {},

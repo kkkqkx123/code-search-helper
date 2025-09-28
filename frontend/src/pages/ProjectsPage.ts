@@ -76,8 +76,19 @@ export class ProjectsPage {
         try {
             const result = await this.apiClient.getProjects();
 
-            if (result.success && result.projects) {
-                this.renderProjectsList(result.projects, projectsList);
+            if (result.success && result.data) {
+                if (result.data.length > 0) {
+                    this.renderProjectsList(result.data, projectsList);
+                } else {
+                    // 项目列表为空，显示友好提示
+                    projectsList.innerHTML = `
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 20px; color: #6b7280;">
+                                暂无已索引项目，请先创建项目索引
+                            </td>
+                        </tr>
+                    `;
+                }
             } else {
                 errorDiv.style.display = 'block';
                 errorDiv.textContent = '加载项目列表失败: ' + (result.error || '未知错误');

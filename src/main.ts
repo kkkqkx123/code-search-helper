@@ -6,6 +6,7 @@ import { ErrorHandlerService } from './utils/ErrorHandlerService';
 import { QdrantService } from './database/QdrantService';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
+import { IndexSyncService } from './service/index/IndexSyncService';
 import { ConfigService } from './config/ConfigService';
 import { diContainer } from './core/DIContainer';
 import { TYPES } from './types';
@@ -18,6 +19,7 @@ class Application {
   private embeddingCacheService: EmbeddingCacheService;
   private embedderFactory: EmbedderFactory;
   private loggerService: LoggerService;
+  private indexSyncService: IndexSyncService;
 
   constructor() {
     // 从依赖注入容器获取服务
@@ -25,6 +27,7 @@ class Application {
     this.loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
     const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
     this.qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
+    this.indexSyncService = diContainer.get<IndexSyncService>(TYPES.IndexSyncService);
 
     // 创建一个 Logger 实例，用于整个应用，确保所有组件使用同一个日志文件
     const loggerInstance = new Logger('code-search-helper');
@@ -36,7 +39,7 @@ class Application {
 
     // 初始化服务器
     this.mcpServer = new MCPServer(this.logger);
-    this.apiServer = new ApiServer(this.logger);
+    this.apiServer = new ApiServer(this.logger, this.indexSyncService);
   }
 
   async start(): Promise<void> {

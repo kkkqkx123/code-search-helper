@@ -2,17 +2,53 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { ProjectLookupService } from '../../database/ProjectLookupService';
 import { Logger } from '../../utils/logger.js';
-import { 
-  Project, 
-  ProjectCreateRequest, 
-  ProjectUpdateRequest, 
-  PathValidationRequest, 
+import {
+  Project,
+  ProjectCreateRequest,
+  ProjectUpdateRequest,
+  PathValidationRequest,
   PathValidationResult,
   IndexingProgress,
   IndexingStats
 } from '../../types/project';
 import fs from 'fs/promises';
 import path from 'path';
+
+export interface ProjectCreateBody {
+  projectPath: string;
+  options?: {
+    recursive?: boolean;
+    includePatterns?: string[];
+    excludePatterns?: string[];
+    maxFileSize?: number;
+    fileTypes?: string[];
+    encoding?: string;
+    followSymlinks?: boolean;
+    respectGitignore?: boolean;
+  };
+}
+
+export interface ProjectUpdateBody {
+  projectId: string;
+  updates: {
+    name?: string;
+    path?: string;
+    configuration?: {
+      recursive?: boolean;
+      includePatterns?: string[];
+      excludePatterns?: string[];
+      maxFileSize?: number;
+      fileTypes?: string[];
+      encoding?: string;
+      followSymlinks?: boolean;
+      respectGitignore?: boolean;
+    };
+  };
+}
+
+export interface PathValidationBody {
+  path: string;
+}
 
 export class ProjectRoutes {
   private router: Router;

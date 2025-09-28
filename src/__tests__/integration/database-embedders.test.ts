@@ -51,7 +51,7 @@ describe('Database and Embedders Integration', () => {
     errorHandler = new ErrorHandlerService(logger);
     
     // Create a mock ProjectIdManager
-    mockProjectIdManager = new ProjectIdManager(logger, errorHandler, mockConfigService);
+    mockProjectIdManager = new ProjectIdManager();
     
     cacheService = new EmbeddingCacheService(logger, errorHandler);
     embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);

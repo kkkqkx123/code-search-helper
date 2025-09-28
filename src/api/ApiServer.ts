@@ -4,8 +4,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Logger } from '../utils/logger.js';
 import { ProjectRoutes } from './routes/ProjectRoutes';
+import { IndexingRoutes } from './routes/IndexingRoutes';
 import { ProjectIdManager } from '../database/ProjectIdManager';
 import { ProjectLookupService } from '../database/ProjectLookupService';
+import { IndexSyncService } from '../service/index/IndexSyncService';
 
 export class ApiServer {
   private app: express.Application;
@@ -14,9 +16,12 @@ export class ApiServer {
   private projectIdManager: ProjectIdManager;
   private projectLookupService: ProjectLookupService;
   private projectRoutes: ProjectRoutes;
+  private indexingRoutes: IndexingRoutes;
+  private indexSyncService: IndexSyncService;
 
-  constructor(logger: Logger, port: number = 3010) {
+  constructor(logger: Logger, indexSyncService: IndexSyncService, port: number = 3010) {
     this.logger = logger;
+    this.indexSyncService = indexSyncService;
     this.app = express();
     this.port = port;
 
@@ -24,6 +29,7 @@ export class ApiServer {
     this.projectIdManager = new ProjectIdManager();
     this.projectLookupService = new ProjectLookupService(this.projectIdManager);
     this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger);
+    this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, logger);
     this.setupMiddleware();
     this.setupRoutes();
   }
@@ -157,7 +163,9 @@ export class ApiServer {
     });
     // 项目路由
     this.app.use('/api/v1/projects', this.projectRoutes.getRouter());
-
+    
+    // 索引路由
+    this.app.use('/api/v1/indexing', this.indexingRoutes.getRouter());
 
     // 404处理
     this.app.get('*', (req, res) => {

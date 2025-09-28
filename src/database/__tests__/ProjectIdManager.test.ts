@@ -67,7 +67,7 @@ describe('ProjectIdManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    projectIdManager = new ProjectIdManager(mockLogger, mockErrorHandler, mockConfigService);
+    projectIdManager = new ProjectIdManager();
   });
 
   describe('generateProjectId', () => {

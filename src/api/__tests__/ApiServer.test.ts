@@ -8,9 +8,20 @@ jest.mock('fs/promises');
 import fs from 'fs/promises';
 const mockFsDefault = fs as jest.Mocked<typeof fs>;
 
+// Create a mock IndexSyncService
+const createMockIndexSyncService = () => ({
+  startIndexing: jest.fn(),
+  stopIndexing: jest.fn(),
+  getIndexStatus: jest.fn(),
+  reindexProject: jest.fn(),
+  on: jest.fn(),
+  getAllIndexStatuses: jest.fn()
+});
+
 describe('ApiServer', () => {
   let server: ApiServer;
   let app: express.Application;
+  let mockIndexSyncService: any;
 
   beforeAll(() => {
     // Mock fs.readFile to return mock data
@@ -34,7 +45,8 @@ describe('ApiServer', () => {
 
   beforeEach(() => {
     const logger = new Logger('ApiServerTest');
-    server = new ApiServer(logger, 3001); // Use different port for testing
+    mockIndexSyncService = createMockIndexSyncService();
+    server = new ApiServer(logger, mockIndexSyncService, 3001); // Use different port for testing
     app = server['app']; // Access private app property for testing
   });
 
