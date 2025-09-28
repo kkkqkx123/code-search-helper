@@ -1,11 +1,259 @@
 [
   {
+    "projectId": "9fd0e39a668481ff",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "inactive",
+    "createdAt": "2025-09-28T09:22:52.761Z",
+    "updatedAt": "2025-09-28T09:22:52.761Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {}
+  },
+  {
+    "projectId": "a124cc030780c04a",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project for Resilience",
+    "description": "A test project for resilience testing",
+    "status": "active",
+    "createdAt": "2025-09-28T09:22:52.768Z",
+    "updatedAt": "2025-09-28T09:22:52.893Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:22:52.893Z",
+    "totalFiles": 6,
+    "indexedFiles": 6,
+    "failedFiles": 0
+  },
+  {
+    "projectId": "e3b0c44298fc1c14",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "inactive",
+    "createdAt": "2025-09-28T09:24:46.800Z",
+    "updatedAt": "2025-09-28T09:27:15.670Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {}
+  },
+  {
+    "projectId": "9660057dacc9aec9",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "active",
+    "createdAt": "2025-09-28T09:24:46.805Z",
+    "updatedAt": "2025-09-28T09:27:15.950Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:27:15.695Z",
+    "totalFiles": 2,
+    "indexedFiles": 2,
+    "failedFiles": 0,
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "fe329c04d85d197e",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project for File Changes",
+    "description": "A test project for file change handling",
+    "status": "active",
+    "createdAt": "2025-09-28T09:24:47.095Z",
+    "updatedAt": "2025-09-28T09:27:15.982Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:27:15.982Z",
+    "totalFiles": 3,
+    "indexedFiles": 3,
+    "failedFiles": 0,
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "a57021e6dd169638",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "inactive",
+    "createdAt": "2025-09-28T09:24:48.410Z",
+    "updatedAt": "2025-09-28T09:27:17.765Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "39ca27f2f3cdd378",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "active",
+    "createdAt": "2025-09-28T09:24:48.415Z",
+    "updatedAt": "2025-09-28T09:27:18.218Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:27:17.871Z",
+    "totalFiles": 3,
+    "indexedFiles": 3,
+    "failedFiles": 0,
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "d1c955aa26251b78",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files\\stats-project1",
+    "name": "Stats Project 1",
+    "description": "A test project for statistics",
+    "status": "active",
+    "createdAt": "2025-09-28T09:24:48.870Z",
+    "updatedAt": "2025-09-28T09:27:18.277Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:27:18.277Z",
+    "totalFiles": 3,
+    "indexedFiles": 3,
+    "failedFiles": 0,
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "53cdf94d1252b924",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files\\stats-project2",
+    "name": "Stats Project 2",
+    "description": "A test project for statistics",
+    "status": "active",
+    "createdAt": "2025-09-28T09:24:48.873Z",
+    "updatedAt": "2025-09-28T09:27:18.311Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:27:18.311Z",
+    "totalFiles": 3,
+    "indexedFiles": 3,
+    "failedFiles": 0,
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "670c12985303890f",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "inactive",
+    "createdAt": "2025-09-28T09:24:48.990Z",
+    "updatedAt": "2025-09-28T09:27:18.346Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "ec222036e6c0a606",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files\\activation-test-project",
+    "name": "Activation Test Project",
+    "description": "A test project for activation/deactivation",
+    "status": "active",
+    "createdAt": "2025-09-28T09:24:48.993Z",
+    "updatedAt": "2025-09-28T09:27:18.537Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:27:18.433Z",
+    "totalFiles": 3,
+    "indexedFiles": 3,
+    "failedFiles": 0,
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "b856a8e3ff93c405",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "inactive",
+    "createdAt": "2025-09-28T09:24:49.214Z",
+    "updatedAt": "2025-09-28T09:27:18.601Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
     "projectId": "f1fa256205ae210f",
     "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files\\persistent-project",
     "name": "persistent-project",
     "status": "active",
-    "createdAt": "2025-09-28T08:19:57.280Z",
-    "updatedAt": "2025-09-28T08:26:59.700Z",
+    "createdAt": "2025-09-28T09:24:49.277Z",
+    "updatedAt": "2025-09-28T09:27:18.693Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true
@@ -13,14 +261,148 @@
     "metadata": {
       "customField": "customValue"
     },
-    "lastIndexedAt": "2025-09-28T08:26:59.700Z",
-    "totalFiles": 0,
-    "indexedFiles": 0,
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:27:18.661Z",
+    "totalFiles": 4,
+    "indexedFiles": 4,
     "failedFiles": 0,
     "collectionInfo": {
       "name": "test-collection",
       "vectorsCount": 0,
       "status": "green"
     }
+  },
+  {
+    "projectId": "eef0598100e9aed1",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "inactive",
+    "createdAt": "2025-09-28T09:24:49.290Z",
+    "updatedAt": "2025-09-28T09:25:50.570Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "46841b67fa05e449",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "active",
+    "createdAt": "2025-09-28T09:24:49.356Z",
+    "updatedAt": "2025-09-28T09:27:18.801Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:27:18.801Z",
+    "totalFiles": 5,
+    "indexedFiles": 5,
+    "failedFiles": 0,
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    }
+  },
+  {
+    "projectId": "4dc052205c0ce927",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files\\concurrent-project-1-1759051489358-578429",
+    "name": "Test Project concurrent-project-3-1759051550673-3",
+    "description": "A test project for integration testing",
+    "status": "active",
+    "createdAt": "2025-09-28T09:24:49.359Z",
+    "updatedAt": "2025-09-28T09:25:50.741Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    },
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:25:50.741Z",
+    "totalFiles": 5,
+    "indexedFiles": 5,
+    "failedFiles": 0
+  },
+  {
+    "projectId": "e787c76bc8b228f2",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "inactive",
+    "createdAt": "2025-09-28T09:24:49.418Z",
+    "updatedAt": "2025-09-28T09:24:49.418Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {}
+  },
+  {
+    "projectId": "3746b88f6814ffb2",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project for Resilience",
+    "description": "A test project for resilience testing",
+    "status": "active",
+    "createdAt": "2025-09-28T09:24:49.425Z",
+    "updatedAt": "2025-09-28T09:24:49.568Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:24:49.568Z",
+    "totalFiles": 6,
+    "indexedFiles": 6,
+    "failedFiles": 0
+  },
+  {
+    "projectId": "ef6bc72f6b0fedb1",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project",
+    "description": "A test project for integration testing",
+    "status": "inactive",
+    "createdAt": "2025-09-28T09:25:50.739Z",
+    "updatedAt": "2025-09-28T09:25:50.739Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {}
+  },
+  {
+    "projectId": "984516d23362ff03",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project for Resilience",
+    "description": "A test project for resilience testing",
+    "status": "active",
+    "createdAt": "2025-09-28T09:25:50.749Z",
+    "updatedAt": "2025-09-28T09:25:50.896Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-09-28T09:25:50.896Z",
+    "totalFiles": 6,
+    "indexedFiles": 6,
+    "failedFiles": 0
   }
 ]

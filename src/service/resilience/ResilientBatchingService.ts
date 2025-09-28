@@ -7,8 +7,8 @@ import { ConfigService } from '../../config/ConfigService';
 export interface PerformanceMetrics {
   operation: string;
   duration: number;
-  success: boolean;
-  timestamp: Date;
+ success: boolean;
+ timestamp: Date;
   metadata?: Record<string, any>;
 }
 
@@ -43,6 +43,7 @@ export class PerformanceOptimizerService {
   private batchOptions: BatchOptions;
   private currentBatchSize: number;
   private isOptimizing: boolean = false;
+  private memoryMonitoringInterval: NodeJS.Timeout | null = null;
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
@@ -54,7 +55,7 @@ export class PerformanceOptimizerService {
     // We'll use default values for now and update this when the config structure is fixed
     this.retryOptions = {
       maxAttempts: 3,
-      baseDelay: 1000,
+      baseDelay: 100,
       maxDelay: 30000,
       backoffFactor: 2,
       jitter: true
@@ -84,7 +85,7 @@ export class PerformanceOptimizerService {
   /**
    * 执行带有重试逻辑的操作
    */
-  async executeWithRetry<T>(
+ async executeWithRetry<T>(
     operation: () => Promise<T>,
     operationName: string,
     options?: Partial<RetryOptions>
@@ -302,7 +303,7 @@ export class PerformanceOptimizerService {
     if (this.performanceMetrics.length > 1000) {
       this.performanceMetrics = this.performanceMetrics.slice(-1000);
     }
-  }
+ }
 
   /**
    * 获取性能统计信息
@@ -354,7 +355,10 @@ export class PerformanceOptimizerService {
    */
   private startMemoryMonitoring(): void {
     // Record memory usage every 30 seconds
-    setInterval(() => {
+    if (this.memoryMonitoringInterval) {
+      clearInterval(this.memoryMonitoringInterval);
+    }
+    this.memoryMonitoringInterval = setInterval(() => {
       this.recordMemoryUsage();
     }, 30000);
     
@@ -517,10 +521,20 @@ export class PerformanceOptimizerService {
     this.logger.info('Updated batch options', { batchOptions: this.batchOptions });
   }
 
-  /**
+ /**
    * 睡眠函数
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  /**
+   * 停止内存监控
+   */
+  stopMemoryMonitoring(): void {
+    if (this.memoryMonitoringInterval) {
+      clearInterval(this.memoryMonitoringInterval);
+      this.memoryMonitoringInterval = null;
+    }
   }
 }

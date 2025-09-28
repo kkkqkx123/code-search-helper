@@ -25,7 +25,7 @@ export class Router {
 
         // 初始加载时设置当前页面
         const initialPage = this.getPageFromUrl() || 'search';
-        this.navigateTo(initialPage, false);
+        this.navigateTo(initialPage, true);
     }
 
     /**
