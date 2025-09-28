@@ -180,12 +180,49 @@ export class IndexSyncService {
       }
 
       // 获取嵌入器配置的向量维度
-      let vectorDimensions = 1536; // 默认回退到1536
+      let vectorDimensions = 1024; // 默认回退到SiliconFlow的1024维度
+      
+      // 优先使用options中指定的embedder，如果没有指定则使用默认的embedder
+      const embedderProvider = options?.embedder || this.embedderFactory.getDefaultProvider();
+      
       try {
-        const providerInfo = await this.embedderFactory.getProviderInfo(options?.embedder);
+        // 尝试从嵌入器实例获取实际维度，这会验证提供者是否可用
+        const providerInfo = await this.embedderFactory.getProviderInfo(embedderProvider);
         vectorDimensions = providerInfo.dimensions;
+        this.logger.info(`Using embedder dimensions: ${vectorDimensions} for provider: ${providerInfo.name}`);
       } catch (error) {
-        this.logger.warn(`Failed to get embedder dimensions, using default: ${vectorDimensions}`, { error });
+        // 如果无法获取提供者信息，根据提供者类型使用环境变量中的默认值
+        this.logger.warn(`Failed to get embedder dimensions from provider, falling back to env config: ${embedderProvider}`, { error });
+        
+        // 根据提供者设置默认维度
+        switch (embedderProvider) {
+          case 'openai':
+            vectorDimensions = parseInt(process.env.OPENAI_DIMENSIONS || '1536');
+            break;
+          case 'ollama':
+            vectorDimensions = parseInt(process.env.OLLAMA_DIMENSIONS || '768');
+            break;
+          case 'gemini':
+            vectorDimensions = parseInt(process.env.GEMINI_DIMENSIONS || '768');
+            break;
+          case 'mistral':
+            vectorDimensions = parseInt(process.env.MISTRAL_DIMENSIONS || '1024');
+            break;
+          case 'siliconflow':
+            vectorDimensions = parseInt(process.env.SILICONFLOW_DIMENSIONS || '1024');
+            break;
+          case 'custom1':
+            vectorDimensions = parseInt(process.env.CUSTOM_CUSTOM1_DIMENSIONS || '768');
+            break;
+          case 'custom2':
+            vectorDimensions = parseInt(process.env.CUSTOM_CUSTOM2_DIMENSIONS || '768');
+            break;
+          case 'custom3':
+            vectorDimensions = parseInt(process.env.CUSTOM_CUSTOM3_DIMENSIONS || '768');
+            break;
+          default:
+            vectorDimensions = 1024; // 默认值
+        }
       }
 
       // 创建集合

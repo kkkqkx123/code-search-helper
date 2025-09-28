@@ -273,15 +273,18 @@ export class FileSystemTraversal {
     }
 
     try {
+      this.logger.debug(`[DEBUG] Starting isBinaryFile check for ${relativePath}`);
       const isBinary = await this.isBinaryFile(filePath);
-      this.logger.debug(`[DEBUG] File binary check`, { isBinary });
+      this.logger.debug(`[DEBUG] File binary check completed`, { isBinary });
 
       if (isBinary) {
         this.logger.debug(`[DEBUG] File skipped - binary file`, { relativePath });
         return;
       }
 
+      this.logger.debug(`[DEBUG] Starting hash calculation for ${relativePath}`);
       const hash = await this.calculateFileHash(filePath);
+      this.logger.debug(`[DEBUG] Hash calculation completed`, { hash });
 
       const fileInfo: FileInfo = {
         path: filePath,
@@ -299,10 +302,11 @@ export class FileSystemTraversal {
       result.totalSize += stats.size;
       this.logger.debug(`[DEBUG] File added to results`, { relativePath });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       result.errors.push(
-        `Error processing file ${relativePath}: ${error instanceof Error ? error.message : String(error)}`
+        `Error processing file ${relativePath}: ${errorMessage}`
       );
-      this.logger.error(`[DEBUG] Error processing file ${relativePath}`, error);
+      this.logger.error(`[DEBUG] Error processing file ${relativePath}`, { error: errorMessage, stack: error instanceof Error ? error.stack : undefined });
     }
   }
 
@@ -321,14 +325,17 @@ export class FileSystemTraversal {
 
     const fileName = path.basename(relativePath).toLowerCase();
 
-    for (const pattern of options.excludePatterns) {
-      if (this.matchesPattern(relativePath, pattern)) {
-        return true;
+    // Check if excludePatterns is an array before iterating
+    if (Array.isArray(options.excludePatterns)) {
+      for (const pattern of options.excludePatterns) {
+        if (this.matchesPattern(relativePath, pattern)) {
+          return true;
+        }
       }
     }
 
     // If no include patterns are specified, don't filter by include patterns
-    if (options.includePatterns.length === 0) {
+    if (!Array.isArray(options.includePatterns) || options.includePatterns.length === 0) {
       return false;
     }
 
@@ -473,19 +480,13 @@ export class FileSystemTraversal {
   }
 
   private async isBinaryFile(filePath: string): Promise<boolean> {
-    let fileHandle: fs.FileHandle | null = null;
     try {
-      // Use file handle to ensure proper resource cleanup
-      fileHandle = await fs.open(filePath, 'r');
-      const buffer = Buffer.alloc(1024);
-      const readResult = await fileHandle.read(buffer, 0, 1024, 0);
+      // Use simpler approach with readFile
+      const buffer = await fs.readFile(filePath, { encoding: null });
       
-      // Check if bytesRead is valid
-      if (!readResult || typeof readResult.bytesRead !== 'number') {
-        return true;
-      }
-      
-      for (let i = 0; i < readResult.bytesRead; i++) {
+      // Check first 1024 bytes for null bytes (indicating binary file)
+      const checkLength = Math.min(buffer.length, 1024);
+      for (let i = 0; i < checkLength; i++) {
         if (buffer[i] === 0) {
           return true;
         }
@@ -493,55 +494,22 @@ export class FileSystemTraversal {
       
       return false;
     } catch (error) {
+      this.logger.debug(`[DEBUG] Error checking if file is binary: ${filePath}`, { error: error instanceof Error ? error.message : String(error) });
       return true;
-    } finally {
-      if (fileHandle) {
-        try {
-          await fileHandle.close();
-        } catch (closeError) {
-          // Ignore close errors
-        }
-      }
     }
   }
 
   private async calculateFileHash(filePath: string): Promise<string> {
-    return new Promise((resolve, reject) => {
+    try {
+      // Use simpler approach with readFile
+      const data = await fs.readFile(filePath);
       const hash = createHash('sha256');
-      const stream = fsSync.createReadStream(filePath);
-      let isDestroyed = false;
-      
-      const cleanup = () => {
-        if (!isDestroyed) {
-          isDestroyed = true;
-          stream.destroy();
-        }
-      };
-      
-      stream.on('data', (chunk) => {
-        hash.update(chunk);
-      });
-      
-      stream.on('end', () => {
-        cleanup();
-        resolve(hash.digest('hex'));
-      });
-      
-      stream.on('error', (error) => {
-        cleanup();
-        reject(error);
-      });
-      
-      stream.on('close', cleanup);
-      
-      // Set a timeout to prevent hanging
-      setTimeout(() => {
-        if (!isDestroyed) {
-          cleanup();
-          reject(new Error(`File hash calculation timeout: ${filePath}`));
-        }
-      }, 30000); // 30 second timeout
-    });
+      hash.update(data);
+      return hash.digest('hex');
+    } catch (error) {
+      this.logger.debug(`[DEBUG] Error calculating file hash: ${filePath}`, { error: error instanceof Error ? error.message : String(error) });
+      throw new Error(`Failed to calculate hash for ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async findChangedFiles(

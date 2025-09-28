@@ -106,4 +106,20 @@ export class ApiClient {
             throw error;
         }
     }
+
+    /**
+     * 获取可用的嵌入器列表
+     */
+    async getAvailableEmbedders() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/indexing/embedders`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('获取可用嵌入器失败:', error);
+            throw error;
+        }
+    }
 }

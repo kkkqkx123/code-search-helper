@@ -88,13 +88,25 @@ export class QdrantService implements IVectorStore {
       await this.ensureClientInitialized();
       const exists = await this.collectionExists(name);
 
-      if (exists && recreateIfExists) {
+      // 如果集合已存在，检查向量维度是否匹配
+      if (exists && !recreateIfExists) {
+        const collectionInfo = await this.getCollectionInfo(name);
+        if (collectionInfo && collectionInfo.vectors.size !== vectorSize) {
+          this.logger.warn(`Collection ${name} exists with different vector size`, {
+            existingSize: collectionInfo.vectors.size,
+            requestedSize: vectorSize
+          });
+          // 如果维度不匹配，删除并重新创建集合
+          await this.deleteCollection(name);
+        } else {
+          this.logger.info(`Collection ${name} already exists with correct vector size: ${vectorSize}`);
+          return true;
+        }
+      } else if (exists && recreateIfExists) {
         await this.deleteCollection(name);
-      } else if (exists) {
-        this.logger.info(`Collection ${name} already exists`);
-        return true;
       }
 
+      this.logger.info(`Creating collection ${name} with vector size: ${vectorSize}`);
       await this.client!.createCollection(name, {
         vectors: {
           size: vectorSize,
@@ -211,9 +223,53 @@ export class QdrantService implements IVectorStore {
      try {
        await this.ensureClientInitialized();
        if (vectors.length === 0) {
+         this.logger.debug(`No vectors to upsert for collection ${collectionName}`);
          return true;
        }
- 
+
+       // 验证向量数据
+       if (vectors.length > 0) {
+         const firstVector = vectors[0];
+         const vectorSize = firstVector.vector.length;
+         this.logger.debug(`[DEBUG] Vector validation for collection ${collectionName}`, {
+           vectorCount: vectors.length,
+           vectorSize,
+           sampleIds: vectors.slice(0, 3).map(v => v.id)
+         });
+
+         // 检查所有向量的维度是否一致
+         const inconsistentVectors = vectors.filter(v => v.vector.length !== vectorSize);
+         if (inconsistentVectors.length > 0) {
+           this.logger.error(`Inconsistent vector dimensions detected`, {
+             expectedSize: vectorSize,
+             inconsistentCount: inconsistentVectors.length,
+             sampleInconsistent: inconsistentVectors.slice(0, 3).map(v => ({
+               id: v.id,
+               size: v.vector.length
+             }))
+           });
+           throw new Error(`Inconsistent vector dimensions: expected ${vectorSize}, found varying sizes`);
+         }
+
+         // 检查集合的向量维度是否匹配
+         try {
+           const collectionInfo = await this.getCollectionInfo(collectionName);
+           if (collectionInfo && collectionInfo.vectors.size !== vectorSize) {
+             this.logger.error(`Vector dimension mismatch with collection`, {
+               collectionSize: collectionInfo.vectors.size,
+               vectorSize,
+               collectionName
+             });
+             throw new Error(`Vector dimension mismatch: collection expects ${collectionInfo.vectors.size}, got ${vectorSize}`);
+           }
+         } catch (collectionError) {
+           this.logger.warn(`Failed to validate collection vector dimensions`, {
+             collectionName,
+             error: collectionError instanceof Error ? collectionError.message : String(collectionError)
+           });
+         }
+       }
+
        // Add project ID to all vectors if not already present
        const processedVectors = vectors.map(vector => {
          // Extract project ID from collection name if not in payload
@@ -231,34 +287,138 @@ export class QdrantService implements IVectorStore {
          }
          return vector;
        });
- 
+
        const batchSize = 100;
+       let totalUpserted = 0;
+       
        for (let i = 0; i < processedVectors.length; i += batchSize) {
          const batch = processedVectors.slice(i, i + batchSize);
- 
-         await this.client!.upsert(collectionName, {
-           points: batch.map(point => ({
-             id: point.id,
-             vector: point.vector,
-             payload: {
-               ...point.payload,
-               timestamp: point.payload.timestamp.toISOString(),
-             },
-           })),
+         const batchNumber = Math.floor(i / batchSize) + 1;
+         const totalBatches = Math.ceil(processedVectors.length / batchSize);
+         
+         this.logger.debug(`[DEBUG] Processing batch ${batchNumber}/${totalBatches} for collection ${collectionName}`, {
+           batchSize: batch.length,
+           startIdx: i,
+           endIdx: i + batch.length
          });
+
+         try {
+           // 处理payload数据类型，确保兼容Qdrant
+           const processedPoints = batch.map(point => {
+             // 创建payload副本并处理特殊字段
+             const processedPayload: any = {};
+             for (const [key, value] of Object.entries(point.payload)) {
+               if (value instanceof Date) {
+                 processedPayload[key] = value.toISOString();
+               } else if (value === null || value === undefined) {
+                 processedPayload[key] = value ?? null; // 将undefined转换为null
+               } else if (typeof value === 'object') {
+                 // 确保对象可以被序列化，递归处理嵌套对象
+                 if (value && typeof value === 'object' && !Array.isArray(value)) {
+                   processedPayload[key] = this.processNestedObject(value);
+                 } else {
+                   processedPayload[key] = value;
+                 }
+               } else {
+                 processedPayload[key] = value;
+               }
+             }
+             
+             return {
+               id: point.id,
+               vector: point.vector,
+               payload: processedPayload,
+             };
+           });
+           
+           // 在发送到Qdrant之前添加调试日志
+           this.logger.debug(`[DEBUG] Preparing to upsert batch ${batchNumber}/${totalBatches}`, {
+             batchSize: processedPoints.length,
+             samplePoint: processedPoints[0] ? {
+               id: processedPoints[0].id,
+               vectorLength: processedPoints[0].vector.length,
+               payloadSample: processedPoints[0].payload
+             } : null
+           });
+           
+           await this.client!.upsert(collectionName, {
+             points: processedPoints,
+           });
+           totalUpserted += batch.length;
+           this.logger.debug(`[DEBUG] Successfully upserted batch ${batchNumber}/${totalBatches}`, {
+             upsertedCount: batch.length,
+             totalUpserted
+           });
+         } catch (batchError) {
+           // 添加更详细的错误日志
+           this.logger.error(`Failed to upsert batch ${batchNumber}/${totalBatches}`, {
+             batchSize: batch.length,
+             error: batchError instanceof Error ? batchError.message : String(batchError),
+             sampleIds: batch.slice(0, 3).map(p => p.id),
+             samplePoint: batch[0] ? {
+               id: batch[0].id,
+               vectorLength: batch[0].vector?.length,
+               payload: batch[0].payload
+             } : null
+           });
+           throw batchError; // 重新抛出错误以便外层捕获
+         }
        }
- 
-       this.logger.info(`Upserted ${processedVectors.length} points to collection ${collectionName}`);
+
+       this.logger.info(`Upserted ${totalUpserted} points to collection ${collectionName}`);
        return true;
      } catch (error) {
+       // 提供更详细的错误信息
+       const errorMessage = error instanceof Error ? error.message : String(error);
+       const errorDetails = {
+         collectionName,
+         vectorCount: vectors.length,
+         error: errorMessage,
+         stack: error instanceof Error ? error.stack : undefined
+       };
+       
+       this.logger.error(`[DEBUG] Detailed upsert error`, errorDetails);
+       
        this.errorHandler.handleError(
          new Error(
-           `Failed to upsert points to ${collectionName}: ${error instanceof Error ? error.message : String(error)}`
+           `Failed to upsert points to ${collectionName}: ${errorMessage}`
          ),
-         { component: 'QdrantService', operation: 'upsertVectors' }
+         { component: 'QdrantService', operation: 'upsertVectors', ...errorDetails }
        );
        return false;
      }
+   }
+   
+   private processNestedObject(obj: any): any {
+     if (obj === null || obj === undefined) {
+       return obj;
+     }
+     
+     if (obj instanceof Date) {
+       return obj.toISOString();
+     }
+     
+     if (Array.isArray(obj)) {
+       return obj.map(item => this.processNestedObject(item));
+     }
+     
+     if (typeof obj === 'object') {
+       const processed: any = {};
+       for (const [key, value] of Object.entries(obj)) {
+         if (value instanceof Date) {
+           processed[key] = value.toISOString();
+         } else if (value === null || value === undefined) {
+           processed[key] = value;
+         } else if (typeof value === 'object') {
+           processed[key] = this.processNestedObject(value);
+         } else {
+           processed[key] = value;
+         }
+       }
+       return processed;
+     }
+     
+     return obj;
    }
 
    async searchVectors(
