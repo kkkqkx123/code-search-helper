@@ -16,7 +16,7 @@ import {
  */
 export interface IQdrantQueryUtils {
   buildFilter(filter: SearchOptions['filter']): any;
-  buildAdvancedFilter(filter: QueryFilter): any;
+  buildAdvancedFilter(filter: QueryFilter | undefined): any;
   getChunkIdsByFiles(collectionName: string, filePaths: string[]): Promise<string[]>;
   getExistingChunkIds(collectionName: string, chunkIds: string[]): Promise<string[]>;
   scrollPoints(collectionName: string, filter?: any, limit?: number, offset?: any): Promise<any[]>;
@@ -106,7 +106,7 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
   /**
    * 构建高级查询过滤器
    */
-  buildAdvancedFilter(filter: QueryFilter): any {
+  buildAdvancedFilter(filter: QueryFilter | undefined): any {
     if (!filter) return undefined;
 
     const conditions: any[] = [];

@@ -30,7 +30,9 @@ export class ApiServer {
 
     // Initialize project management services
     this.projectIdManager = new ProjectIdManager();
-    this.projectLookupService = new ProjectLookupService(this.projectIdManager);
+    // 创建一个简单的错误处理器实例
+    const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
+    this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler);
     this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger);
     this.setupMiddleware();

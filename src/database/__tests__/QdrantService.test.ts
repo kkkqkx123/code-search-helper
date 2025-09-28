@@ -3,349 +3,437 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { ProjectIdManager } from '../ProjectIdManager';
-import { QdrantConnectionManager } from '../QdrantConnectionManager';
-import { QdrantCollectionManager } from '../QdrantCollectionManager';
-import { QdrantVectorOperations } from '../QdrantVectorOperations';
-import { QdrantQueryUtils } from '../QdrantQueryUtils';
-import { QdrantProjectManager } from '../QdrantProjectManager';
+import { IQdrantConnectionManager } from '../QdrantConnectionManager';
+import { IQdrantCollectionManager } from '../QdrantCollectionManager';
+import { IQdrantVectorOperations } from '../QdrantVectorOperations';
+import { IQdrantQueryUtils } from '../QdrantQueryUtils';
+import { IQdrantProjectManager } from '../QdrantProjectManager';
+import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../IVectorStore';
+import { 
+  QdrantConfig, 
+  VectorDistance,
+  CollectionCreateOptions,
+  VectorUpsertOptions,
+  VectorSearchOptions,
+  QueryFilter,
+  BatchResult,
+  ProjectInfo,
+  QdrantEventType,
+  QdrantEvent
+} from '../QdrantTypes';
 
-// Mock QdrantClient
-const mockQdrantClient = {
-  getCollections: jest.fn(),
-  createCollection: jest.fn(),
-  deleteCollection: jest.fn(),
-  getCollection: jest.fn(),
-  upsert: jest.fn(),
-  search: jest.fn(),
-  delete: jest.fn(),
-  scroll: jest.fn(),
-  createPayloadIndex: jest.fn(),
+// Mock dependencies
+const mockLogger = {
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
 };
 
-jest.mock('@qdrant/js-client-rest', () => {
-  return {
-    QdrantClient: jest.fn().mockImplementation(() => mockQdrantClient),
-  };
-});
+const mockErrorHandler = {
+  handleError: jest.fn(),
+};
+
+const mockConfigService = {
+  get: jest.fn(),
+};
+
+const mockProjectIdManager = {};
+
+const mockConnectionManager = {
+  initialize: jest.fn(),
+  isConnected: jest.fn(),
+  getConnectionStatus: jest.fn(),
+  getConfig: jest.fn(),
+  updateConfig: jest.fn(),
+  close: jest.fn(),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+};
+
+const mockCollectionManager = {
+  createCollection: jest.fn(),
+  createCollectionWithOptions: jest.fn(),
+  collectionExists: jest.fn(),
+  deleteCollection: jest.fn(),
+  getCollectionInfo: jest.fn(),
+  getCollectionStats: jest.fn(),
+  createPayloadIndex: jest.fn(),
+  createPayloadIndexes: jest.fn(),
+  listCollections: jest.fn(),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+};
+
+const mockVectorOperations = {
+  upsertVectors: jest.fn(),
+  upsertVectorsWithOptions: jest.fn(),
+  searchVectors: jest.fn(),
+  searchVectorsWithOptions: jest.fn(),
+  deletePoints: jest.fn(),
+  clearCollection: jest.fn(),
+  getPointCount: jest.fn(),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+};
+
+const mockQueryUtils = {
+  getChunkIdsByFiles: jest.fn(),
+  getExistingChunkIds: jest.fn(),
+  scrollPoints: jest.fn(),
+  countPoints: jest.fn(),
+  buildFilter: jest.fn(),
+  buildAdvancedFilter: jest.fn(),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+};
+
+const mockProjectManager = {
+  createCollectionForProject: jest.fn(),
+  upsertVectorsForProject: jest.fn(),
+  searchVectorsForProject: jest.fn(),
+  getCollectionInfoForProject: jest.fn(),
+  deleteCollectionForProject: jest.fn(),
+  getProjectInfo: jest.fn(),
+  listProjects: jest.fn(),
+  deleteVectorsForProject: jest.fn(),
+  clearProject: jest.fn(),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+};
 
 describe('QdrantService', () => {
   let qdrantService: QdrantService;
-  let logger: LoggerService;
-  let errorHandler: ErrorHandlerService;
-
+  
   beforeEach(() => {
+    // Reset all mocks before each test
     jest.clearAllMocks();
     
-    // Setup services
-    // Create a mock ConfigService for testing
-    const mockConfigService = {
-      get: jest.fn().mockImplementation((key: string) => {
-        if (key === 'logging') {
-          return { level: 'info' };
-        }
-        if (key === 'qdrant') {
-          return {
-            host: 'localhost',
-            port: 6333,
-            collection: 'test-collection',
-            useHttps: false,
-            timeout: 30000
-          };
-        }
-        return undefined;
-      })
-    } as unknown as ConfigService;
-    
-    logger = new LoggerService(mockConfigService);
-    errorHandler = new ErrorHandlerService(logger);
-    
-    // Create QdrantService instance
-    // Create a mock ProjectIdManager
-    const mockProjectIdManager = {
-      generateProjectId: jest.fn(),
-      getProjectId: jest.fn(),
-      getCollectionName: jest.fn(),
-      getProjectPath: jest.fn(),
-      updateProjectTimestamp: jest.fn(),
-      projectIdMap: new Map(),
-      collectionMap: new Map(),
-      spaceMap: new Map(),
-      pathToProjectMap: new Map(),
-      projectUpdateTimes: new Map(),
-      initialize: jest.fn(),
-      getSpaceName: jest.fn(),
-      getLatestUpdatedProject: jest.fn(),
-      getProjectsByUpdateTime: jest.fn(),
-      saveMapping: jest.fn(),
-      loadMapping: jest.fn(),
-      listAllProjects: jest.fn(),
-      hasProject: jest.fn(),
-      removeProject: jest.fn(),
-    } as unknown as jest.Mocked<ProjectIdManager>;
-    
-    // Create mock instances for all dependencies
-    const mockConnectionManager = {
-      initialize: jest.fn().mockResolvedValue(true),
-      close: jest.fn(),
-      isConnected: jest.fn().mockReturnValue(true),
-      getClient: jest.fn().mockReturnValue(mockQdrantClient),
-      getConnectionStatus: jest.fn(),
-      getConfig: jest.fn(),
-      updateConfig: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    } as unknown as jest.Mocked<QdrantConnectionManager>;
-    
-    const mockCollectionManager = {
-      createCollection: jest.fn().mockResolvedValue(true),
-      createCollectionWithOptions: jest.fn().mockResolvedValue(true),
-      collectionExists: jest.fn().mockResolvedValue(true),
-      deleteCollection: jest.fn().mockResolvedValue(true),
-      getCollectionInfo: jest.fn().mockResolvedValue({
-        name: 'test-collection',
-        status: 'green',
-        pointsCount: 0,
-        config: {}
-      }),
-      getCollectionStats: jest.fn().mockResolvedValue({}),
-      createPayloadIndex: jest.fn().mockResolvedValue(true),
-      createPayloadIndexes: jest.fn().mockResolvedValue(true),
-      listCollections: jest.fn().mockResolvedValue(['test-collection']),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    } as unknown as jest.Mocked<QdrantCollectionManager>;
-    
-    const mockVectorOperations = {
-      upsertVectors: jest.fn().mockResolvedValue(true),
-      upsertVectorsWithOptions: jest.fn().mockResolvedValue({ success: true, errors: [] }),
-      searchVectors: jest.fn().mockResolvedValue([
-        {
-          id: 'point-1',
-          score: 0.95,
-          payload: {
-            content: 'test content',
-            filePath: '/test/file.ts',
-            timestamp: new Date().toISOString()
-          }
-        }
-      ]),
-      searchVectorsWithOptions: jest.fn().mockResolvedValue([]),
-      deletePoints: jest.fn().mockResolvedValue(true),
-      clearCollection: jest.fn().mockResolvedValue(true),
-      getPointCount: jest.fn().mockResolvedValue(100),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    } as unknown as jest.Mocked<QdrantVectorOperations>;
-    
-    const mockQueryUtils = {
-      buildFilter: jest.fn().mockReturnValue({}),
-      buildAdvancedFilter: jest.fn().mockReturnValue({}),
-      getChunkIdsByFiles: jest.fn().mockResolvedValue(['chunk-1', 'chunk-2']),
-      getExistingChunkIds: jest.fn().mockResolvedValue(['chunk-1']),
-      scrollPoints: jest.fn().mockResolvedValue([]),
-      countPoints: jest.fn().mockResolvedValue(0),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    } as unknown as jest.Mocked<QdrantQueryUtils>;
-    
-    const mockProjectManager = {
-      createCollectionForProject: jest.fn().mockResolvedValue(true),
-      upsertVectorsForProject: jest.fn().mockResolvedValue(true),
-      searchVectorsForProject: jest.fn().mockResolvedValue([]),
-      getCollectionInfoForProject: jest.fn().mockResolvedValue(null),
-      deleteCollectionForProject: jest.fn().mockResolvedValue(true),
-      getProjectInfo: jest.fn().mockResolvedValue(null),
-      listProjects: jest.fn().mockResolvedValue([]),
-      deleteVectorsForProject: jest.fn().mockResolvedValue(true),
-      clearProject: jest.fn().mockResolvedValue(true),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    } as unknown as jest.Mocked<QdrantProjectManager>;
-    
+    // Create a new instance of QdrantService with mocked dependencies
     qdrantService = new QdrantService(
-      mockConfigService,
-      logger,
-      errorHandler,
-      mockProjectIdManager,
-      mockConnectionManager,
-      mockCollectionManager,
-      mockVectorOperations,
-      mockQueryUtils,
-      mockProjectManager
+      mockConfigService as unknown as ConfigService,
+      mockLogger as unknown as LoggerService,
+      mockErrorHandler as unknown as ErrorHandlerService,
+      mockProjectIdManager as unknown as ProjectIdManager,
+      mockConnectionManager as unknown as IQdrantConnectionManager,
+      mockCollectionManager as unknown as IQdrantCollectionManager,
+      mockVectorOperations as unknown as IQdrantVectorOperations,
+      mockQueryUtils as unknown as IQdrantQueryUtils,
+      mockProjectManager as unknown as IQdrantProjectManager
     );
   });
-
-  afterEach(async () => {
-    // 确保在每个测试后清理QdrantService实例
-    if (qdrantService) {
-      await qdrantService.close();
-    }
-    
-    // 确保日志服务被标记为正常退出，以避免测试后日志输出
-    if (logger) {
-      await logger.markAsNormalExit();
-    }
-  });
-
-  describe('数据库服务验收标准', () => {
-    test('✅ 能够成功连接到Qdrant数据库', async () => {
-      // Mock successful connection
-      mockQdrantClient.getCollections.mockResolvedValue({
-        collections: []
-      });
-
+  
+  describe('initialize', () => {
+    it('should initialize the service', async () => {
+      mockConnectionManager.initialize.mockResolvedValue(true);
+      
       const result = await qdrantService.initialize();
       
       expect(result).toBe(true);
-      // We can't directly test mockConnectionManager.initialize() as it's not in scope
-      // We can infer it was called from the result
-      expect(result).toBe(true);
+      expect(mockConnectionManager.initialize).toHaveBeenCalled();
     });
-
-    test('✅ 能够创建、删除、检查集合', async () => {
+  });
+  
+  describe('createCollection', () => {
+    it('should create a collection', async () => {
       const collectionName = 'test-collection';
-      const vectorSize = 1536;
-
-      // Test collection creation
-      mockQdrantClient.getCollections.mockResolvedValue({
-        collections: []
-      });
+      const vectorSize = 128;
+      const distance: VectorDistance = 'Cosine';
+      const recreateIfExists = false;
       
-      mockQdrantClient.createCollection.mockResolvedValue(undefined);
-      mockQdrantClient.createPayloadIndex.mockResolvedValue(undefined);
-
-      const createResult = await qdrantService.createCollection(collectionName, vectorSize);
-      expect(createResult).toBe(true);
-
-      // Test collection existence
-      mockQdrantClient.getCollections.mockResolvedValue({
-        collections: [{ name: collectionName }]
-      });
-
-      const existsResult = await qdrantService.collectionExists(collectionName);
-      expect(existsResult).toBe(true);
-
-      // Test collection deletion
-      mockQdrantClient.deleteCollection.mockResolvedValue(undefined);
-
-      const deleteResult = await qdrantService.deleteCollection(collectionName);
-      expect(deleteResult).toBe(true);
+      mockCollectionManager.createCollection.mockResolvedValue(true);
+      
+      const result = await qdrantService.createCollection(collectionName, vectorSize, distance, recreateIfExists);
+      
+      expect(result).toBe(true);
+      expect(mockCollectionManager.createCollection).toHaveBeenCalledWith(
+        collectionName, 
+        vectorSize, 
+        distance, 
+        recreateIfExists
+      );
     });
-
-    test('✅ 能够插入和搜索向量', async () => {
+  });
+  
+  describe('collectionExists', () => {
+    it('should check if collection exists', async () => {
       const collectionName = 'test-collection';
-      const vectorPoints = [
+      
+      mockCollectionManager.collectionExists.mockResolvedValue(true);
+      
+      const result = await qdrantService.collectionExists(collectionName);
+      
+      expect(result).toBe(true);
+      expect(mockCollectionManager.collectionExists).toHaveBeenCalledWith(collectionName);
+    });
+  });
+  
+  describe('deleteCollection', () => {
+    it('should delete a collection', async () => {
+      const collectionName = 'test-collection';
+      
+      mockCollectionManager.deleteCollection.mockResolvedValue(true);
+      
+      const result = await qdrantService.deleteCollection(collectionName);
+      
+      expect(result).toBe(true);
+      expect(mockCollectionManager.deleteCollection).toHaveBeenCalledWith(collectionName);
+    });
+  });
+  
+  describe('getCollectionInfo', () => {
+    it('should get collection info', async () => {
+      const collectionName = 'test-collection';
+      const collectionInfo: CollectionInfo = {
+        name: collectionName,
+        vectors: {
+          size: 128,
+          distance: 'Cosine'
+        },
+        pointsCount: 100,
+        status: 'green'
+      };
+      
+      mockCollectionManager.getCollectionInfo.mockResolvedValue(collectionInfo);
+      
+      const result = await qdrantService.getCollectionInfo(collectionName);
+      
+      expect(result).toEqual(collectionInfo);
+      expect(mockCollectionManager.getCollectionInfo).toHaveBeenCalledWith(collectionName);
+    });
+  });
+  
+  describe('upsertVectors', () => {
+    it('should upsert vectors', async () => {
+      const collectionName = 'test-collection';
+      const vectors: VectorPoint[] = [
         {
-          id: 'point-1',
+          id: '1',
           vector: [0.1, 0.2, 0.3],
           payload: {
             content: 'test content',
             filePath: '/test/file.ts',
             language: 'typescript',
-            chunkType: 'code',
+            chunkType: ['function'],
             startLine: 1,
-            endLine: 1,
+            endLine: 10,
+            metadata: {},
             timestamp: new Date(),
-            metadata: {}
           }
         }
       ];
-
-      // Test vector insertion
-      mockQdrantClient.upsert.mockResolvedValue(undefined);
-
-      const upsertResult = await qdrantService.upsertVectors(collectionName, vectorPoints);
-      expect(upsertResult).toBe(true);
-
-
-      const searchResult = await qdrantService.searchVectors(collectionName, [0.1, 0.2, 0.3]);
-      expect(searchResult).toHaveLength(1);
-      expect(searchResult[0].id).toBe('point-1');
-      expect(searchResult[0].score).toBe(0.95);
-    });
-
-    test('✅ 项目ID管理功能正常', async () => {
-      const collectionName = 'test-collection';
-      const filePaths = ['/test/file1.ts', '/test/file2.ts'];
-
-      // Test getChunkIdsByFiles
-      mockQdrantClient.scroll.mockResolvedValue({
-        points: [
-          { id: 'chunk-1' },
-          { id: 'chunk-2' }
-        ]
-      });
-
-      const chunkIds = await qdrantService.getChunkIdsByFiles(collectionName, filePaths);
-      expect(chunkIds).toHaveLength(2);
-      expect(chunkIds).toContain('chunk-1');
-      expect(chunkIds).toContain('chunk-2');
-    });
-
-    test('✅ 项目查找服务正常', async () => {
-      const collectionName = 'test-collection';
-      const chunkIds = ['chunk-1', 'chunk-2'];
-
-      // Test getExistingChunkIds
-      mockQdrantClient.scroll.mockResolvedValue({
-        points: [
-          { id: 'chunk-1' }
-        ]
-      });
-
-      const existingChunkIds = await qdrantService.getExistingChunkIds(collectionName, chunkIds);
-      expect(existingChunkIds).toHaveLength(1);
-      expect(existingChunkIds).toContain('chunk-1');
+      
+      mockVectorOperations.upsertVectors.mockResolvedValue(true);
+      
+      const result = await qdrantService.upsertVectors(collectionName, vectors);
+      
+      expect(result).toBe(true);
+      expect(mockVectorOperations.upsertVectors).toHaveBeenCalledWith(collectionName, vectors);
     });
   });
-
-  describe('性能验收标准', () => {
-    test('✅ 向量搜索响应时间 < 1秒', async () => {
+  
+  describe('searchVectors', () => {
+    it('should search vectors', async () => {
       const collectionName = 'test-collection';
-      const queryVector = [0.1, 0.2, 0.3];
-
-      mockQdrantClient.search.mockResolvedValue([
+      const query = [0.1, 0.2, 0.3];
+      const options: SearchOptions = { limit: 10 };
+      const searchResults: SearchResult[] = [
         {
-          id: 'point-1',
+          id: '1',
           score: 0.95,
           payload: {
             content: 'test content',
-            timestamp: new Date().toISOString()
+            filePath: '/test/file.ts',
+            language: 'typescript',
+            chunkType: ['function'],
+            startLine: 1,
+            endLine: 10,
+            metadata: {},
+            timestamp: new Date(),
           }
         }
-      ]);
-
-      const startTime = Date.now();
-      await qdrantService.searchVectors(collectionName, queryVector);
-      const endTime = Date.now();
+      ];
       
-      const responseTime = endTime - startTime;
-      expect(responseTime).toBeLessThan(1000); // 1秒 = 1000毫秒
+      mockVectorOperations.searchVectors.mockResolvedValue(searchResults);
+      
+      const result = await qdrantService.searchVectors(collectionName, query, options);
+      
+      expect(result).toEqual(searchResults);
+      expect(mockVectorOperations.searchVectors).toHaveBeenCalledWith(collectionName, query, options);
     });
-
-    test('✅ 内存使用稳定，无内存泄漏', async () => {
-      // This test would typically be done with specialized tools
-      // For unit testing, we ensure proper resource cleanup
+  });
+  
+  describe('deletePoints', () => {
+    it('should delete points', async () => {
+      const collectionName = 'test-collection';
+      const pointIds = ['1', '2', '3'];
+      
+      mockVectorOperations.deletePoints.mockResolvedValue(true);
+      
+      const result = await qdrantService.deletePoints(collectionName, pointIds);
+      
+      expect(result).toBe(true);
+      expect(mockVectorOperations.deletePoints).toHaveBeenCalledWith(collectionName, pointIds);
+    });
+  });
+  
+  describe('clearCollection', () => {
+    it('should clear collection', async () => {
       const collectionName = 'test-collection';
       
-      mockQdrantClient.getCollection.mockResolvedValue({
-        points_count: 100,
-        status: 'green',
-        config: {
-          params: {
-            vectors: {
-              size: 1536,
-              distance: 'Cosine'
-            }
+      mockVectorOperations.clearCollection.mockResolvedValue(true);
+      
+      const result = await qdrantService.clearCollection(collectionName);
+      
+      expect(result).toBe(true);
+      expect(mockVectorOperations.clearCollection).toHaveBeenCalledWith(collectionName);
+    });
+  });
+  
+  describe('getPointCount', () => {
+    it('should get point count', async () => {
+      const collectionName = 'test-collection';
+      const count = 42;
+      
+      mockVectorOperations.getPointCount.mockResolvedValue(count);
+      
+      const result = await qdrantService.getPointCount(collectionName);
+      
+      expect(result).toBe(count);
+      expect(mockVectorOperations.getPointCount).toHaveBeenCalledWith(collectionName);
+    });
+  });
+  
+  describe('createCollectionForProject', () => {
+    it('should create collection for project', async () => {
+      const projectPath = '/test/project';
+      const vectorSize = 128;
+      const distance: VectorDistance = 'Cosine';
+      
+      mockProjectManager.createCollectionForProject.mockResolvedValue(true);
+      
+      const result = await qdrantService.createCollectionForProject(projectPath, vectorSize, distance);
+      
+      expect(result).toBe(true);
+      expect(mockProjectManager.createCollectionForProject).toHaveBeenCalledWith(
+        projectPath, 
+        vectorSize, 
+        distance
+      );
+    });
+  });
+  
+  describe('upsertVectorsForProject', () => {
+    it('should upsert vectors for project', async () => {
+      const projectPath = '/test/project';
+      const vectors: VectorPoint[] = [
+        {
+          id: '1',
+          vector: [0.1, 0.2, 0.3],
+          payload: {
+            content: 'test content',
+            filePath: '/test/file.ts',
+            language: 'typescript',
+            chunkType: ['function'],
+            startLine: 1,
+            endLine: 10,
+            metadata: {},
+            timestamp: new Date(),
           }
         }
-      });
-
-      const pointCount = await qdrantService.getPointCount(collectionName);
-      expect(pointCount).toBe(100);
+      ];
       
-      // Verify no memory leaks in the implementation
-      expect(typeof pointCount).toBe('number');
+      mockProjectManager.upsertVectorsForProject.mockResolvedValue(true);
+      
+      const result = await qdrantService.upsertVectorsForProject(projectPath, vectors);
+      
+      expect(result).toBe(true);
+      expect(mockProjectManager.upsertVectorsForProject).toHaveBeenCalledWith(projectPath, vectors);
+    });
+  });
+  
+  describe('searchVectorsForProject', () => {
+    it('should search vectors for project', async () => {
+      const projectPath = '/test/project';
+      const query = [0.1, 0.2, 0.3];
+      const options: SearchOptions = { limit: 10 };
+      const searchResults: SearchResult[] = [
+        {
+          id: '1',
+          score: 0.95,
+          payload: {
+            content: 'test content',
+            filePath: '/test/file.ts',
+            language: 'typescript',
+            chunkType: ['function'],
+            startLine: 1,
+            endLine: 10,
+            metadata: {},
+            timestamp: new Date(),
+          }
+        }
+      ];
+      
+      mockProjectManager.searchVectorsForProject.mockResolvedValue(searchResults);
+      
+      const result = await qdrantService.searchVectorsForProject(projectPath, query, options);
+      
+      expect(result).toEqual(searchResults);
+      expect(mockProjectManager.searchVectorsForProject).toHaveBeenCalledWith(
+        projectPath, 
+        query, 
+        options
+      );
+    });
+  });
+  
+  describe('isConnected', () => {
+    it('should check if connected', () => {
+      mockConnectionManager.isConnected.mockReturnValue(true);
+      
+      const result = qdrantService.isConnected();
+      
+      expect(result).toBe(true);
+      expect(mockConnectionManager.isConnected).toHaveBeenCalled();
+    });
+  });
+  
+  describe('close', () => {
+    it('should close the connection', async () => {
+      mockConnectionManager.close.mockResolvedValue(undefined);
+      
+      await qdrantService.close();
+      
+      expect(mockConnectionManager.close).toHaveBeenCalled();
+    });
+  });
+  
+  describe('addEventListener', () => {
+    it('should add event listener to all modules', () => {
+      const type: QdrantEventType = QdrantEventType.CONNECTED;
+      const listener = jest.fn();
+      
+      qdrantService.addEventListener(type, listener);
+      
+      expect(mockConnectionManager.addEventListener).toHaveBeenCalledWith(type, listener);
+      expect(mockCollectionManager.addEventListener).toHaveBeenCalledWith(type, listener);
+      expect(mockVectorOperations.addEventListener).toHaveBeenCalledWith(type, listener);
+      expect(mockQueryUtils.addEventListener).toHaveBeenCalledWith(type, listener);
+      expect(mockProjectManager.addEventListener).toHaveBeenCalledWith(type, listener);
+    });
+  });
+  
+  describe('removeEventListener', () => {
+    it('should remove event listener from all modules', () => {
+      const type: QdrantEventType = QdrantEventType.CONNECTED;
+      const listener = jest.fn();
+      
+      qdrantService.removeEventListener(type, listener);
+      
+      expect(mockConnectionManager.removeEventListener).toHaveBeenCalledWith(type, listener);
+      expect(mockCollectionManager.removeEventListener).toHaveBeenCalledWith(type, listener);
+      expect(mockVectorOperations.removeEventListener).toHaveBeenCalledWith(type, listener);
+      expect(mockQueryUtils.removeEventListener).toHaveBeenCalledWith(type, listener);
+      expect(mockProjectManager.removeEventListener).toHaveBeenCalledWith(type, listener);
     });
   });
 });

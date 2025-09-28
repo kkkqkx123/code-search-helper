@@ -92,13 +92,52 @@ export class SiliconFlowEmbedder extends BaseEmbedder {
       }
 
       const data = await response.json();
+      
+      // 调试：记录API响应数据结构
+      this.logger.debug('SiliconFlow API response structure', {
+        hasData: !!data.data,
+        dataLength: data.data?.length,
+        firstItemKeys: data.data?.[0] ? Object.keys(data.data[0]) : [],
+        sampleEmbeddingType: typeof data.data?.[0]?.embedding,
+        sampleEmbeddingLength: Array.isArray(data.data?.[0]?.embedding) ? data.data[0].embedding.length : 0,
+        sampleEmbeddingFirst5: Array.isArray(data.data?.[0]?.embedding) ? data.data[0].embedding.slice(0, 5) : []
+      });
 
-      return data.data.map((item: any) => ({
-        vector: item.embedding,
-        dimensions: item.embedding.length,
-        model: this.model,
-        processingTime: 0,
-      }));
+      return data.data.map((item: any) => {
+        // 确保向量数据是纯数字数组
+        const embeddingArray = Array.isArray(item.embedding)
+          ? item.embedding.map((val: any) => {
+              // 转换所有值为数字类型
+              const num = Number(val);
+              if (isNaN(num)) {
+                this.logger.warn('Invalid embedding value found, replacing with 0', {
+                  originalValue: val,
+                  type: typeof val
+                });
+                return 0;
+              }
+              return num;
+            })
+          : [];
+
+        // 验证向量维度和内容
+        if (embeddingArray.length !== this.dimensions) {
+          this.logger.warn(`Embedding dimension mismatch: expected ${this.dimensions}, got ${embeddingArray.length}`);
+        }
+
+        this.logger.debug('Processed embedding sample', {
+          length: embeddingArray.length,
+          first5Values: embeddingArray.slice(0, 5),
+          allNumeric: embeddingArray.every((val: any) => typeof val === 'number' && !isNaN(val))
+        });
+
+        return {
+          vector: embeddingArray,
+          dimensions: embeddingArray.length,
+          model: this.model,
+          processingTime: 0,
+        };
+      });
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`SiliconFlow embedding request failed: ${error instanceof Error ? error.message : String(error)}`),

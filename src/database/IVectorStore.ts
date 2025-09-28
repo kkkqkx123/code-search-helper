@@ -9,7 +9,7 @@ export interface VectorPoint {
     content: string;
     filePath: string;
     language: string;
-    chunkType: string;
+    chunkType: string[];
     startLine: number;
     endLine: number;
     functionName?: string;

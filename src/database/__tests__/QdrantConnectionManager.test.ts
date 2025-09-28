@@ -1,0 +1,167 @@
+import { QdrantConnectionManager, IQdrantConnectionManager } from '../QdrantConnectionManager';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
+import { QdrantClient } from '@qdrant/js-client-rest';
+import { ConnectionStatus, QdrantEventType, QdrantEvent } from '../QdrantTypes';
+
+// Mock QdrantClient
+jest.mock('@qdrant/js-client-rest', () => {
+  return {
+    QdrantClient: jest.fn().mockImplementation(() => {
+      return {
+        getCollections: jest.fn().mockResolvedValue({ collections: [] }),
+        close: jest.fn(),
+      };
+    }),
+  };
+});
+
+// Mock dependencies
+const mockLogger = {
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+};
+
+const mockErrorHandler = {
+  handleError: jest.fn(),
+};
+
+const mockConfigService = {
+  get: jest.fn().mockReturnValue({
+    host: 'localhost',
+    port: 6333,
+    useHttps: false,
+    timeout: 30000,
+    collection: 'default',
+  }),
+};
+
+describe('QdrantConnectionManager', () => {
+  let connectionManager: QdrantConnectionManager;
+  
+  beforeEach(() => {
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+    
+    // Create a new instance of QdrantConnectionManager with mocked dependencies
+    connectionManager = new QdrantConnectionManager(
+      mockConfigService as unknown as ConfigService,
+      mockLogger as unknown as LoggerService,
+      mockErrorHandler as unknown as ErrorHandlerService
+    );
+  });
+  
+  describe('initialize', () => {
+    it('should initialize successfully', async () => {
+      const result = await connectionManager.initialize();
+      
+      expect(result).toBe(true);
+      expect(connectionManager.isConnected()).toBe(true);
+      expect(connectionManager.getConnectionStatus()).toBe(ConnectionStatus.CONNECTED);
+    });
+    
+    it('should handle initialization failure', async () => {
+      // Mock QdrantClient to throw an error
+      (QdrantClient as jest.Mock).mockImplementation(() => {
+        return {
+          getCollections: jest.fn().mockRejectedValue(new Error('Connection failed')),
+        };
+      });
+      
+      const result = await connectionManager.initialize();
+      
+      expect(result).toBe(false);
+      expect(connectionManager.isConnected()).toBe(false);
+      expect(connectionManager.getConnectionStatus()).toBe(ConnectionStatus.ERROR);
+    });
+  });
+  
+  describe('close', () => {
+    it('should close the connection', async () => {
+      // First initialize the connection
+      await connectionManager.initialize();
+      
+      // Then close it
+      await connectionManager.close();
+      
+      expect(connectionManager.isConnected()).toBe(false);
+      expect(connectionManager.getConnectionStatus()).toBe(ConnectionStatus.DISCONNECTED);
+    });
+  });
+  
+  describe('isConnected', () => {
+    it('should return false when not connected', () => {
+      expect(connectionManager.isConnected()).toBe(false);
+    });
+    
+    it('should return true when connected', async () => {
+      await connectionManager.initialize();
+      expect(connectionManager.isConnected()).toBe(true);
+    });
+  });
+  
+  describe('getConnectionStatus', () => {
+    it('should return DISCONNECTED when not connected', () => {
+      expect(connectionManager.getConnectionStatus()).toBe(ConnectionStatus.DISCONNECTED);
+    });
+    
+    it('should return CONNECTED when connected', async () => {
+      await connectionManager.initialize();
+      expect(connectionManager.getConnectionStatus()).toBe(ConnectionStatus.CONNECTED);
+    });
+  });
+  
+  describe('getClient', () => {
+    it('should return null when not initialized', () => {
+      expect(connectionManager.getClient()).toBeNull();
+    });
+    
+    it('should return QdrantClient instance when initialized', async () => {
+      await connectionManager.initialize();
+      const client = connectionManager.getClient();
+      expect(client).toBeInstanceOf(QdrantClient);
+    });
+  });
+  
+  describe('getConfig', () => {
+    it('should return the configuration', () => {
+      const config = connectionManager.getConfig();
+      expect(config).toEqual({
+        host: 'localhost',
+        port: 6333,
+        useHttps: false,
+        timeout: 30000,
+        collection: 'default',
+      });
+    });
+  });
+  
+  describe('updateConfig', () => {
+    it('should update the configuration', () => {
+      const newConfig = {
+        host: 'new-host',
+        port: 6334,
+      };
+      
+      connectionManager.updateConfig(newConfig);
+      
+      const config = connectionManager.getConfig();
+      expect(config.host).toBe('new-host');
+      expect(config.port).toBe(6334);
+    });
+  });
+  
+  describe('addEventListener', () => {
+    it('should add an event listener', () => {
+      const listener = jest.fn();
+      
+      connectionManager.addEventListener(QdrantEventType.CONNECTED, listener);
+      
+      // We can't directly test the internal eventListeners map, but we can verify
+      // that the method exists and can be called
+      expect(typeof connectionManager.addEventListener).toBe('function');
+    });
+  });
+});

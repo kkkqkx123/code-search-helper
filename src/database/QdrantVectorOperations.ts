@@ -120,6 +120,31 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
           if (finalOptions.validateDimensions) {
             this.validatePoints(processedPoints);
           }
+          
+          // 添加调试信息查看实际传递给Qdrant的数据
+          // 处理命名向量格式
+          let vectorForDebug;
+          if (Array.isArray(processedPoints[0]?.vector)) {
+            vectorForDebug = processedPoints[0].vector;
+          } else if (typeof processedPoints[0]?.vector === 'object' && processedPoints[0].vector !== null) {
+            const vectorKeys = Object.keys(processedPoints[0].vector);
+            if (vectorKeys.length > 0) {
+              vectorForDebug = processedPoints[0].vector[vectorKeys[0]];
+            }
+          }
+          
+          this.logger.debug('Upserting points to Qdrant', {
+            collectionName,
+            pointCount: processedPoints.length,
+            samplePoint: {
+              id: processedPoints[0]?.id,
+              vectorLength: vectorForDebug?.length,
+              vectorSample: vectorForDebug ? vectorForDebug.slice(0, 3) : undefined,
+              payloadSample: Object.keys(processedPoints[0]?.payload || {}),
+              vectorFormat: typeof processedPoints[0]?.vector,
+              vectorKeys: typeof processedPoints[0]?.vector === 'object' ? Object.keys(processedPoints[0].vector) : undefined
+            }
+          });
 
           await client.upsert(collectionName, {
             points: processedPoints,
@@ -516,9 +541,14 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
       }
     }
 
+    // 使用命名向量格式，因为集合是用命名向量配置创建的
+    // 当使用 {vectors: {size: ..., distance: ...}} 格式创建集合时，Qdrant内部会创建名为"vector"的向量
     return {
       id: processedId,
-      vector: point.vector,
+      vector: {
+        // 根据Qdrant的默认行为，当使用简单vectors配置创建集合时，向量名称默认为"vector"
+        vector: point.vector
+      },
       payload: processedPayload,
     };
   }
@@ -531,26 +561,67 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
       return;
     }
 
-    const firstPointVectorSize = points[0].vector.length;
+    // 检查第一个点的向量格式
+    const firstPoint = points[0];
+    let firstPointVector;
+    let firstPointVectorSize;
+    
+    if (Array.isArray(firstPoint.vector)) {
+      // 非命名向量格式
+      firstPointVector = firstPoint.vector;
+      firstPointVectorSize = firstPoint.vector.length;
+    } else if (typeof firstPoint.vector === 'object' && firstPoint.vector !== null) {
+      // 命名向量格式，获取第一个向量的长度
+      const vectorKeys = Object.keys(firstPoint.vector);
+      if (vectorKeys.length > 0) {
+        const firstVectorName = vectorKeys[0];
+        firstPointVector = firstPoint.vector[firstVectorName];
+        firstPointVectorSize = firstPointVector.length;
+      } else {
+        throw new Error(`${ERROR_MESSAGES.INVALID_VECTOR_DATA}: vector object is empty`);
+      }
+    } else {
+      throw new Error(`${ERROR_MESSAGES.INVALID_VECTOR_DATA}: expected array or object, got ${typeof firstPoint.vector}`);
+    }
+
     for (const point of points) {
       if (!point.id) {
         throw new Error(`${ERROR_MESSAGES.INVALID_POINT_ID}: ${point.id}`);
-      }
-      if (!point.vector || !Array.isArray(point.vector)) {
-        throw new Error(`${ERROR_MESSAGES.INVALID_VECTOR_DATA}: ${point.vector}`);
       }
       if (!point.payload) {
         throw new Error(`${ERROR_MESSAGES.INVALID_PAYLOAD_DATA}: ${point.payload}`);
       }
 
+      // 处理向量数据，兼容命名向量和非命名向量
+      let vectorToValidate;
+      if (Array.isArray(point.vector)) {
+        // 非命名向量格式
+        vectorToValidate = point.vector;
+      } else if (typeof point.vector === 'object' && point.vector !== null) {
+        // 命名向量格式，取第一个向量
+        const vectorKeys = Object.keys(point.vector);
+        if (vectorKeys.length > 0) {
+          const firstVectorName = vectorKeys[0];
+          vectorToValidate = point.vector[firstVectorName];
+        } else {
+          throw new Error(`${ERROR_MESSAGES.INVALID_VECTOR_DATA}: vector object is empty for point ${point.id}`);
+        }
+      } else {
+        throw new Error(`${ERROR_MESSAGES.INVALID_VECTOR_DATA}: expected array or object, got ${typeof point.vector} for point ${point.id}`);
+      }
+
+      if (!vectorToValidate || !Array.isArray(vectorToValidate)) {
+        throw new Error(`${ERROR_MESSAGES.INVALID_VECTOR_DATA}: must be an array, got ${typeof vectorToValidate} for point ${point.id}`);
+      }
+
       // 验证向量维度是否正确
-      if (point.vector.length !== firstPointVectorSize) {
-        throw new Error(`${ERROR_MESSAGES.VECTOR_DIMENSION_MISMATCH} for point ${point.id}: expected ${firstPointVectorSize}, got ${point.vector.length}`);
+      if (vectorToValidate.length !== firstPointVectorSize) {
+        throw new Error(`${ERROR_MESSAGES.VECTOR_DIMENSION_MISMATCH} for point ${point.id}: expected ${firstPointVectorSize}, got ${vectorToValidate.length}`);
       }
 
       // 验证向量元素是否为数字
-      for (let i = 0; i < point.vector.length; i++) {
-        const value = point.vector[i];
+      for (let i = 0; i < vectorToValidate.length; i++) {
+        const value = vectorToValidate[i];
         if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
           throw new Error(`Invalid vector value at index ${i} for point ${point.id}: ${value}`);
         }

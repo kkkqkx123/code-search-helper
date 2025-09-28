@@ -591,7 +591,7 @@ export class IndexSyncService {
           content: chunk.content,
           filePath: chunk.filePath,
           language: chunk.language,
-          chunkType: chunk.chunkType,
+          chunkType: [chunk.chunkType],
           startLine: chunk.startLine,
           endLine: chunk.endLine,
           functionName: chunk.functionName,
