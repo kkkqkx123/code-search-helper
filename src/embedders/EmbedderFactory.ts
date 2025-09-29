@@ -23,9 +23,14 @@ export class EmbedderFactory {
     dimensions: number;
     available: boolean;
     lastChecked: number;
+    persistentlyUnavailable: boolean; // 标记持续不可用的提供商
   }> = new Map();
   // 缓存过期时间（30分钟）
   private readonly CACHE_TTL = 30 * 60 * 1000;
+  // 持续不可用的标记时间（如果提供商连续不可用超过这个时间，将跳过检查）
+  private readonly PERSISTENT_UNAVAILABLE_THRESHOLD = 60 * 60 * 1000; // 1小时
+  // 是否跳过已知不可用的提供商检查
+  private skipUnavailableProviderChecks: boolean;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -39,6 +44,9 @@ export class EmbedderFactory {
     // 从环境变量获取嵌入提供者配置
     const configProvider = process.env.EMBEDDING_PROVIDER || 'openai';
     this.defaultProvider = configProvider;
+
+    // 从环境变量获取是否跳过不可用提供商检查的配置
+    this.skipUnavailableProviderChecks = process.env.SKIP_UNAVAILABLE_PROVIDER_CHECKS === 'true';
 
     // 初始化嵌入器
     this.initializeEmbedders();
@@ -131,7 +139,8 @@ export class EmbedderFactory {
           model,
           dimensions,
           available: isAvailable,
-          lastChecked: Date.now()
+          lastChecked: Date.now(),
+          persistentlyUnavailable: false
         });
 
         if (isAvailable) {
@@ -151,7 +160,8 @@ export class EmbedderFactory {
           model: 'unknown',
           dimensions: 0,
           available: false,
-          lastChecked: Date.now()
+          lastChecked: Date.now(),
+          persistentlyUnavailable: false
         });
       }
     }
@@ -226,6 +236,17 @@ export class EmbedderFactory {
       const cachedInfo = this.providerInfoCache.get(selectedProvider);
       const now = Date.now();
       
+      // 如果配置为跳过不可用提供商检查，并且该提供商已被标记为持续不可用，则直接返回缓存数据
+      if (this.skipUnavailableProviderChecks && cachedInfo && cachedInfo.persistentlyUnavailable) {
+        this.logger.debug(`Skipping availability check for persistently unavailable provider: ${selectedProvider}`);
+        return {
+          name: selectedProvider,
+          model: cachedInfo.model,
+          dimensions: cachedInfo.dimensions,
+          available: false,
+        };
+      }
+      
       // 如果缓存存在且未过期，直接返回缓存数据
       if (cachedInfo && (now - cachedInfo.lastChecked < this.CACHE_TTL)) {
         // 对于当前使用的提供商，仍然进行实时检查以确保其可用性
@@ -237,7 +258,8 @@ export class EmbedderFactory {
             this.providerInfoCache.set(selectedProvider, {
               ...cachedInfo,
               available: isAvailable,
-              lastChecked: now
+              lastChecked: now,
+              persistentlyUnavailable: isAvailable ? false : cachedInfo.persistentlyUnavailable
             });
             
             return {
@@ -259,26 +281,67 @@ export class EmbedderFactory {
       }
       
       // 如果没有缓存或缓存已过期，获取实时信息并更新缓存
-      const embedder = await this.getEmbedder(selectedProvider);
-      const available = await embedder.isAvailable();
-      const model = embedder.getModelName();
-      const dimensions = embedder.getDimensions();
-      
-      // 更新缓存
-      this.providerInfoCache.set(selectedProvider, {
-        name: selectedProvider,
-        model,
-        dimensions,
-        available,
-        lastChecked: now
-      });
-      
-      return {
-        name: selectedProvider,
-        model,
-        dimensions,
-        available,
-      };
+      try {
+        const embedder = await this.getEmbedder(selectedProvider);
+        const available = await embedder.isAvailable();
+        const model = embedder.getModelName();
+        const dimensions = embedder.getDimensions();
+        
+        // 如果提供商不可用，检查是否应该将其标记为持续不可用
+        let persistentlyUnavailable = false;
+        if (!available && cachedInfo && !cachedInfo.available) {
+          // 如果提供商之前就不可用，并且已经超过了持续不可用的时间阈值，则标记为持续不可用
+          if (now - cachedInfo.lastChecked > this.PERSISTENT_UNAVAILABLE_THRESHOLD) {
+            persistentlyUnavailable = true;
+            this.logger.info(`Marking provider as persistently unavailable: ${selectedProvider}`);
+          }
+        }
+        
+        // 更新缓存
+        this.providerInfoCache.set(selectedProvider, {
+          name: selectedProvider,
+          model,
+          dimensions,
+          available,
+          lastChecked: now,
+          persistentlyUnavailable
+        });
+        
+        return {
+          name: selectedProvider,
+          model,
+          dimensions,
+          available,
+        };
+      } catch (error) {
+        // 如果获取提供商信息失败，并且之前缓存显示该提供商不可用，则可能标记为持续不可用
+        let persistentlyUnavailable = false;
+        if (cachedInfo && !cachedInfo.available) {
+          if (now - cachedInfo.lastChecked > this.PERSISTENT_UNAVAILABLE_THRESHOLD) {
+            persistentlyUnavailable = true;
+            this.logger.info(`Marking provider as persistently unavailable due to repeated failures: ${selectedProvider}`);
+          }
+        }
+        
+        // 使用缓存的失败信息（如果有）
+        if (cachedInfo) {
+          this.providerInfoCache.set(selectedProvider, {
+            ...cachedInfo,
+            lastChecked: now,
+            persistentlyUnavailable
+          });
+          
+          return {
+            name: selectedProvider,
+            model: cachedInfo.model,
+            dimensions: cachedInfo.dimensions,
+            available: false,
+          };
+        }
+        
+        // 如果没有缓存，则抛出错误
+        throw error;
+      }
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Failed to get provider info: ${error instanceof Error ? error.message : String(error)}`),

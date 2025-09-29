@@ -90,10 +90,11 @@ export class IndexProjectPage {
 
     /**
      * 加载可用的嵌入器列表
+     * 使用缓存机制减少对后端的请求频率
      */
-    private async loadAvailableEmbedders() {
+    private async loadAvailableEmbedders(forceRefresh: boolean = false) {
         try {
-            const result = await this.apiClient.getAvailableEmbedders();
+            const result = await this.apiClient.getAvailableEmbedders(forceRefresh);
             if (result.success && result.data) {
                 this.updateEmbedderSelect(result.data);
             } else {
@@ -101,6 +102,19 @@ export class IndexProjectPage {
             }
         } catch (error) {
             console.warn('获取可用嵌入器失败，使用默认列表:', error);
+        }
+    }
+
+    /**
+     * 刷新嵌入器列表
+     * 强制从后端获取最新数据
+     */
+    public async refreshEmbedders() {
+        try {
+            await this.loadAvailableEmbedders(true);
+            console.info('嵌入器列表已刷新');
+        } catch (error) {
+            console.error('刷新嵌入器列表失败:', error);
         }
     }
 
