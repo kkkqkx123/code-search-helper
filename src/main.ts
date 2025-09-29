@@ -43,6 +43,7 @@ class Application {
     this.qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
     this.indexSyncService = diContainer.get<IndexSyncService>(TYPES.IndexSyncService);
     this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
+    this.embedderFactory = diContainer.get<EmbedderFactory>(TYPES.EmbedderFactory);
 
     // 创建一个 Logger 实例，用于整个应用，确保所有组件使用同一个日志文件
     const loggerInstance = new Logger('code-search-helper');
@@ -50,7 +51,6 @@ class Application {
 
     // 初始化嵌入器服务
     this.embeddingCacheService = new EmbeddingCacheService(this.loggerService, errorHandler);
-    this.embedderFactory = new EmbedderFactory(this.loggerService, errorHandler, this.embeddingCacheService);
 
     // 初始化服务器
     this.mcpServer = new MCPServer(this.logger);

@@ -403,16 +403,21 @@ export class IndexSyncService {
 
       this.logger.info(`Completed indexing project: ${projectId}`);
     } catch (error) {
-      status.isIndexing = false;
-      this.indexingProjects.delete(projectId); // 从正在进行的索引中移除
-      this.completedProjects.set(projectId, status); // 添加到已完成的索引中（即使失败）
+      try {
+        status.isIndexing = false;
+        this.indexingProjects.delete(projectId); // 从正在进行的索引中移除
+        this.completedProjects.set(projectId, status); // 添加到已完成的索引中（即使失败）
 
-      this.errorHandler.handleError(
-        new Error(`Failed to index project: ${error instanceof Error ? error.message : String(error)}`),
-        { component: 'IndexSyncService', operation: 'indexProject', projectPath, projectId }
-      );
-      // 触发索引错误事件
-      await this.emit('indexingError', projectId, error instanceof Error ? error : new Error(String(error)));
+        this.errorHandler.handleError(
+          new Error(`Failed to index project: ${error instanceof Error ? error.message : String(error)}`),
+          { component: 'IndexSyncService', operation: 'indexProject', projectPath, projectId }
+        );
+        // 触发索引错误事件
+        await this.emit('indexingError', projectId, error instanceof Error ? error : new Error(String(error)));
+      } catch (emitError) {
+        // 即使触发错误事件失败，也要记录日志
+        this.logger.error('Failed to emit indexingError event', { projectId, error: emitError });
+      }
       throw error;
     }
   }

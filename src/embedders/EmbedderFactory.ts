@@ -211,6 +211,7 @@ export class EmbedderFactory {
 
   /**
    * 获取嵌入器信息
+   * 优先使用缓存数据，仅对当前使用的提供商进行实时检查
    */
   async getProviderInfo(provider?: string): Promise<{
     name: string;
@@ -220,13 +221,62 @@ export class EmbedderFactory {
   }> {
     try {
       const selectedProvider = provider || this.defaultProvider;
+      
+      // 检查缓存中是否有该提供商的信息
+      const cachedInfo = this.providerInfoCache.get(selectedProvider);
+      const now = Date.now();
+      
+      // 如果缓存存在且未过期，直接返回缓存数据
+      if (cachedInfo && (now - cachedInfo.lastChecked < this.CACHE_TTL)) {
+        // 对于当前使用的提供商，仍然进行实时检查以确保其可用性
+        if (selectedProvider === this.defaultProvider) {
+          const embedder = this.embedders.get(selectedProvider);
+          if (embedder) {
+            const isAvailable = await embedder.isAvailable();
+            // 更新缓存中的可用性状态
+            this.providerInfoCache.set(selectedProvider, {
+              ...cachedInfo,
+              available: isAvailable,
+              lastChecked: now
+            });
+            
+            return {
+              name: selectedProvider,
+              model: cachedInfo.model,
+              dimensions: cachedInfo.dimensions,
+              available: isAvailable,
+            };
+          }
+        }
+        
+        // 对于非当前使用的提供商，直接返回缓存数据
+        return {
+          name: selectedProvider,
+          model: cachedInfo.model,
+          dimensions: cachedInfo.dimensions,
+          available: cachedInfo.available,
+        };
+      }
+      
+      // 如果没有缓存或缓存已过期，获取实时信息并更新缓存
       const embedder = await this.getEmbedder(selectedProvider);
       const available = await embedder.isAvailable();
-
+      const model = embedder.getModelName();
+      const dimensions = embedder.getDimensions();
+      
+      // 更新缓存
+      this.providerInfoCache.set(selectedProvider, {
+        name: selectedProvider,
+        model,
+        dimensions,
+        available,
+        lastChecked: now
+      });
+      
       return {
         name: selectedProvider,
-        model: embedder.getModelName(),
-        dimensions: embedder.getDimensions(),
+        model,
+        dimensions,
         available,
       };
     } catch (error) {

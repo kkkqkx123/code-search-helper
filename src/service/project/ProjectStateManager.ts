@@ -93,24 +93,52 @@ export class ProjectStateManager {
   private setupIndexSyncListeners(): void {
     // 监听索引开始事件
     this.indexSyncService.on?.('indexingStarted', async (projectId: string) => {
-      await this.updateProjectStatus(projectId, 'indexing');
+      try {
+        await this.updateProjectStatus(projectId, 'indexing');
+      } catch (error) {
+        this.logger.error('Failed to update project status to indexing', { projectId, error });
+      }
     });
 
     // 监听索引进度更新事件
     this.indexSyncService.on?.('indexingProgress', async (projectId: string, progress: number) => {
-      await this.updateProjectIndexingProgress(projectId, progress);
+      try {
+        await this.updateProjectIndexingProgress(projectId, progress);
+      } catch (error) {
+        this.logger.error('Failed to update project indexing progress', { projectId, progress, error });
+      }
     });
 
     // 监听索引完成事件
     this.indexSyncService.on?.('indexingCompleted', async (projectId: string) => {
-      await this.updateProjectStatus(projectId, 'active');
-      await this.updateProjectLastIndexed(projectId);
+      try {
+        await this.updateProjectStatus(projectId, 'active');
+        await this.updateProjectLastIndexed(projectId);
+      } catch (error) {
+        this.logger.error('Failed to update project status to active', { projectId, error });
+        // 即使更新状态失败，也尝试更新最后索引时间
+        try {
+          await this.updateProjectLastIndexed(projectId);
+        } catch (lastIndexedError) {
+          this.logger.error('Failed to update project last indexed time', { projectId, error: lastIndexedError });
+        }
+      }
     });
 
     // 监听索引错误事件
     this.indexSyncService.on?.('indexingError', async (projectId: string, error: Error) => {
-      await this.updateProjectStatus(projectId, 'error');
-      await this.updateProjectMetadata(projectId, { lastError: error.message });
+      try {
+        await this.updateProjectStatus(projectId, 'error');
+        await this.updateProjectMetadata(projectId, { lastError: error.message });
+      } catch (updateError) {
+        this.logger.error('Failed to update project status to error', { projectId, error: updateError });
+        // 即使更新状态失败，也尝试更新元数据
+        try {
+          await this.updateProjectMetadata(projectId, { lastError: error.message });
+        } catch (metadataError) {
+          this.logger.error('Failed to update project metadata', { projectId, error: metadataError });
+        }
+      }
     });
   }
 
