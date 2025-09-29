@@ -23,9 +23,12 @@ export class Router {
             }
         });
 
-        // 初始加载时设置当前页面
-        const initialPage = this.getPageFromUrl() || 'search';
-        this.navigateTo(initialPage, true);
+        // 延迟初始化，确保DOM完全加载
+        setTimeout(() => {
+            // 初始加载时设置当前页面
+            const initialPage = this.getPageFromUrl() || 'search';
+            this.navigateTo(initialPage, true);
+        }, 0);
     }
 
     /**

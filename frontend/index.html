@@ -52,6 +52,34 @@
         }
     </style>
 
+    <!-- 导航状态初始化脚本 -->
+    <script>
+        // 在应用加载前初始化导航状态
+        (function() {
+            // 等待DOM加载完成
+            document.addEventListener('DOMContentLoaded', function() {
+                // 从URL哈希中获取当前页面
+                const hash = window.location.hash.substring(1);
+                const validPages = ['search', 'index-project', 'projects'];
+                const currentPage = validPages.includes(hash) ? hash : 'search';
+                
+                // 延迟执行，确保导航按钮已渲染
+                setTimeout(function() {
+                    // 移除所有导航按钮的active类
+                    document.querySelectorAll('.nav-button').forEach(button => {
+                        button.classList.remove('active');
+                    });
+                    
+                    // 添加当前页面的active类
+                    const activeButton = document.querySelector('[data-page="' + currentPage + '"]');
+                    if (activeButton) {
+                        activeButton.classList.add('active');
+                    }
+                }, 50);
+            });
+        })();
+    </script>
+
     <!-- 应用入口 -->
     <script type="module" src="./src/App.ts"></script>
 </body>

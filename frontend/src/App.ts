@@ -28,9 +28,16 @@ export class CodebaseSearchApp {
      * 初始化应用
      */
     private initialize() {
+        // 首先设置页面
         this.setupPages();
-        this.setupRouter();
+        
+        // 然后设置导航，确保DOM元素已存在
         this.setupNavigation();
+        
+        // 最后设置路由，确保导航和页面都已准备好
+        this.setupRouter();
+        
+        // 更新状态
         this.updateStatus();
     }
 
@@ -71,16 +78,33 @@ export class CodebaseSearchApp {
      */
     private setupNavigation() {
         // 为导航按钮添加事件监听器
-        document.querySelectorAll('.nav-button').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const target = e.target as HTMLElement;
-                const pageId = target.getAttribute('data-page') as PageId;
-                
-                if (pageId) {
-                    router.navigateTo(pageId);
-                }
-            });
+        const navButtons = document.querySelectorAll('.nav-button');
+        
+        if (navButtons.length === 0) {
+            console.warn('导航按钮未找到，延迟重试');
+            // 如果导航按钮未找到，延迟重试
+            setTimeout(() => this.setupNavigation(), 100);
+            return;
+        }
+        
+        navButtons.forEach(button => {
+            // 移除已存在的事件监听器，避免重复绑定
+            button.removeEventListener('click', this.handleNavigationClick as any);
+            // 添加新的事件监听器
+            button.addEventListener('click', this.handleNavigationClick as any);
         });
+    }
+    
+    /**
+     * 处理导航按钮点击事件
+     */
+    private handleNavigationClick = (e: Event) => {
+        const target = e.target as HTMLElement;
+        const pageId = target.getAttribute('data-page') as PageId;
+        
+        if (pageId) {
+            router.navigateTo(pageId);
+        }
     }
 
     /**
@@ -111,10 +135,15 @@ export class CodebaseSearchApp {
         }
 
         // 高亮选中的导航按钮
-        const activeButton = document.querySelector(`[data-page="${pageId}"]`) as HTMLElement;
-        if (activeButton) {
-            activeButton.classList.add('active');
-        }
+        // 使用延迟确保DOM元素已更新
+        setTimeout(() => {
+            const activeButton = document.querySelector(`[data-page="${pageId}"]`) as HTMLElement;
+            if (activeButton) {
+                activeButton.classList.add('active');
+            } else {
+                console.warn(`导航按钮未找到: [data-page="${pageId}"]`);
+            }
+        }, 0);
     }
 
     /**
