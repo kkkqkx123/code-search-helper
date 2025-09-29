@@ -485,6 +485,7 @@ export class IndexingRoutes {
 
   /**
    * 获取可用的嵌入器提供者列表
+   * 使用缓存机制，避免对所有提供商进行实时可用性检查
    */
   private async getAvailableProvidersInfo(): Promise<EmbedderInfo[]> {
     const providers = this.embedderFactory.getRegisteredProviders();
@@ -492,14 +493,13 @@ export class IndexingRoutes {
 
     for (const provider of providers) {
       try {
-        const embedder = await this.embedderFactory.getEmbedder(provider);
-        const isAvailable = await embedder.isAvailable();
+        // 使用缓存的提供商信息，避免频繁检查
         const providerInfo = await this.embedderFactory.getProviderInfo(provider);
 
         availableProviders.push({
           name: provider,
           displayName: this.getDisplayName(provider),
-          available: isAvailable,
+          available: providerInfo.available,
           model: providerInfo.model,
           dimensions: providerInfo.dimensions,
           requiresApiKey: this.requiresApiKey(provider)

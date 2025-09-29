@@ -16,6 +16,16 @@ export class EmbedderFactory {
   private cacheService: EmbeddingCacheService;
   private embedders: Map<string, Embedder> = new Map();
   private defaultProvider: string;
+  // 缓存提供商信息，仅在初始化时校验所有提供商
+  private providerInfoCache: Map<string, {
+    name: string;
+    model: string;
+    dimensions: number;
+    available: boolean;
+    lastChecked: number;
+  }> = new Map();
+  // 缓存过期时间（30分钟）
+  private readonly CACHE_TTL = 30 * 60 * 1000;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -71,6 +81,9 @@ export class EmbedderFactory {
         providers: Array.from(this.embedders.keys()),
         defaultProvider: this.defaultProvider
       });
+
+      // 初始化时校验所有提供商的可用性并缓存结果
+      this.initializeProviderInfoCache();
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Failed to initialize embedders: ${error instanceof Error ? error.message : String(error)}`),
@@ -100,6 +113,55 @@ export class EmbedderFactory {
   }
 
   /**
+   * 初始化提供商信息缓存
+   * 仅在项目初始化时校验所有提供商
+   */
+  private async initializeProviderInfoCache(): Promise<void> {
+    const providers = Array.from(this.embedders.keys());
+
+    for (const provider of providers) {
+      try {
+        const embedder = this.embedders.get(provider)!;
+        const isAvailable = await embedder.isAvailable();
+        const model = embedder.getModelName();
+        const dimensions = embedder.getDimensions();
+
+        this.providerInfoCache.set(provider, {
+          name: provider,
+          model,
+          dimensions,
+          available: isAvailable,
+          lastChecked: Date.now()
+        });
+
+        if (isAvailable) {
+          this.logger.info(`Embedder provider ${provider} is available`, {
+            model,
+            dimensions
+          });
+        } else {
+          this.logger.warn(`Embedder provider ${provider} is not available`);
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to initialize provider info for ${provider}:`, { error });
+
+        // 即使初始化失败，也缓存默认信息
+        this.providerInfoCache.set(provider, {
+          name: provider,
+          model: 'unknown',
+          dimensions: 0,
+          available: false,
+          lastChecked: Date.now()
+        });
+      }
+    }
+
+    this.logger.info('Provider info cache initialized', {
+      cachedProviders: Array.from(this.providerInfoCache.keys())
+    });
+  }
+
+  /**
    * 生成嵌入
    */
   async embed(
@@ -117,35 +179,35 @@ export class EmbedderFactory {
       throw error;
     }
   }
-/**
- * 获取可用的嵌入器提供者列表
- * 现在只检查配置中指定的提供者
- */
-async getAvailableProviders(): Promise<string[]> {
-  const available: string[] = [];
-  
-  // 只检查配置中指定的提供者
-  const configProvider = process.env.EMBEDDING_PROVIDER || 'openai';
-  
-  if (this.embedders.has(configProvider)) {
-    try {
-      const embedder = this.embedders.get(configProvider)!;
-      const isAvailable = await embedder.isAvailable();
-      if (isAvailable) {
-        available.push(configProvider);
-        this.logger.info(`Configured embedder provider is available: ${configProvider}`);
-      } else {
-        this.logger.warn(`Configured embedder provider is not available: ${configProvider}`);
-      }
-    } catch (error) {
-      this.logger.warn(`Failed to check availability for configured embedder ${configProvider}`, { error });
-    }
-  } else {
-    this.logger.warn(`Configured embedder provider not found: ${configProvider}`);
-  }
+  /**
+   * 获取可用的嵌入器提供者列表
+   * 现在只检查配置中指定的提供者
+   */
+  async getAvailableProviders(): Promise<string[]> {
+    const available: string[] = [];
 
-  return available;
-}
+    // 只检查配置中指定的提供者
+    const configProvider = process.env.EMBEDDING_PROVIDER || 'openai';
+
+    if (this.embedders.has(configProvider)) {
+      try {
+        const embedder = this.embedders.get(configProvider)!;
+        const isAvailable = await embedder.isAvailable();
+        if (isAvailable) {
+          available.push(configProvider);
+          this.logger.info(`Configured embedder provider is available: ${configProvider}`);
+        } else {
+          this.logger.warn(`Configured embedder provider is not available: ${configProvider}`);
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to check availability for configured embedder ${configProvider}`, { error });
+      }
+    } else {
+      this.logger.warn(`Configured embedder provider not found: ${configProvider}`);
+    }
+
+    return available;
+  }
 
   /**
    * 获取嵌入器信息
