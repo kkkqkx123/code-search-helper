@@ -1,5 +1,6 @@
 import { ProjectIdManager } from '../ProjectIdManager';
 import { HashUtils } from '../../utils/HashUtils';
+import { ConfigService } from '../../config/ConfigService';
 
 // Mock HashUtils
 jest.mock('../../utils/HashUtils', () => ({
@@ -16,11 +17,23 @@ jest.mock('fs/promises', () => ({
   readFile: jest.fn(),
 }));
 
+// Mock ConfigService
+jest.mock('../../config/ConfigService', () => ({
+  ConfigService: {
+    getInstance: jest.fn().mockReturnValue({
+      get: jest.fn().mockReturnValue({ mappingPath: './data/test-project-mapping.json' })
+    })
+  }
+}));
+
 describe('ProjectIdManager', () => {
   let projectIdManager: ProjectIdManager;
+  let mockConfigService: ConfigService;
   
   beforeEach(() => {
-    projectIdManager = new ProjectIdManager();
+    mockConfigService = new ConfigService() as jest.Mocked<ConfigService>;
+    (mockConfigService.get as jest.Mock).mockReturnValue({ mappingPath: './data/test-project-mapping.json' });
+    projectIdManager = new ProjectIdManager(mockConfigService);
     // Clear all mocks before each test
     jest.clearAllMocks();
   });

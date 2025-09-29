@@ -56,7 +56,7 @@ describe('Database and Embedders Integration', () => {
     errorHandler = new ErrorHandlerService(logger);
     
     // Create a mock ProjectIdManager
-    mockProjectIdManager = new ProjectIdManager();
+    mockProjectIdManager = new ProjectIdManager(mockConfigService);
     
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {

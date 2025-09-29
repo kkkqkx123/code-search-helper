@@ -105,7 +105,7 @@ export class SearchPage {
         if (!resultsContainer) return;
 
         if (result.success && result.data.results.length > 0) {
-            resultsContainer.innerHTML = result.data.results.map((item: any, index: number) => `
+            resultsContainer.innerHTML = result.data.results.map((item: any, _index: number) => `
                 <div class="result-item">
                     <div class="result-score">匹配度: ${(item.score * 100).toFixed(1)}%</div>
                     <pre class="result-code">${this.escapeHtml(item.snippet.content)}</pre>

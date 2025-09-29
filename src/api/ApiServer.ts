@@ -36,7 +36,7 @@ export class ApiServer {
     this.port = port;
 
     // Initialize project management services
-    this.projectIdManager = new ProjectIdManager();
+    this.projectIdManager = new ProjectIdManager(diContainer.get(TYPES.ConfigService));
     // 创建一个简单的错误处理器实例
     const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
     this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler, this.indexSyncService);

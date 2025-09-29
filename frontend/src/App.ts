@@ -58,7 +58,7 @@ export class CodebaseSearchApp {
         this.projectsPage = new ProjectsPage(projectsPageContainer, this.apiClient);
 
         // 设置页面回调
-        this.indexProjectPage.setOnIndexComplete((result) => {
+        this.indexProjectPage.setOnIndexComplete((_result) => {
             // 索引创建完成后刷新项目列表
             this.projectsPage.refresh();
         });
