@@ -19,43 +19,11 @@
 
 ### 2.1 主要类型不匹配问题
 
-#### 问题1: CodeChunk接口定义不一致
-- **src/service/parser/splitting/Splitter.ts**:
-  ```typescript
-  export interface CodeChunk {
-    content: string;
-    metadata: {
-      startLine: number;
-      endLine: number;
-      language: string;
-      filePath?: string;
-    }
-  }
- ```
-
-- **ref/src/service/parser/types.ts**:
- ```typescript
-  export interface CodeChunk {
-    id: string;
-    content: string;
-    startLine: number;
-    endLine: number;
-    startByte: number;
-    endByte: number;
-    type: string;
-    functionName?: string;
-    className?: string;
-    imports: string[];
-    exports: string[];
-    metadata: Record<string, any>;
-  }
-  ```
-
-#### 问题2: 当前项目使用FileChunk类型进行转换
+#### 问题1: 当前项目使用FileChunk类型进行转换
 - `IndexSyncService`定义了`FileChunk`接口，但与`CodeChunk`不兼容
 - 转换过程中需要手动映射字段，存在类型安全隐患
 
-#### 问题3: ASTCodeParser与ASTCodeSplitter并存
+#### 问题2: ASTCodeParser与ASTCodeSplitter并存
 - `ref`目录中存在`ASTCodeParser`实现，功能更丰富
 - 当前项目使用`ASTCodeSplitter`，功能相对简单
 - 两者接口不统一，缺乏协调
