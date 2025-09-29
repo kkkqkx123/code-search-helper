@@ -284,6 +284,23 @@ const configSchema = Joi.object({
       ]),
     severityLevels: Joi.array().items(Joi.string()).default(['ERROR', 'WARNING', 'INFO']),
   }),
+  treeSitter: Joi.object({
+    enabled: Joi.boolean().default(true),
+    cacheSize: Joi.number().positive().default(1000),
+    timeout: Joi.number().positive().default(30000),
+    supportedLanguages: Joi.array()
+      .items(Joi.string())
+      .default([
+        'typescript',
+        'javascript',
+        'python',
+        'java',
+        'go',
+        'rust',
+        'cpp',
+        'c'
+      ])
+  }).optional()
 });
 
 export interface Config {

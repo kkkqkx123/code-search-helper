@@ -18,6 +18,11 @@ import { PerformanceOptimizerService } from './service/resilience/ResilientBatch
 import { EmbedderFactory } from './embedders/EmbedderFactory';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
 
+// Tree-sitter 解析服务
+import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
+import { TreeSitterCoreService } from './service/parser/core/parse/TreeSitterCoreService';
+import { ASTCodeSplitter } from './service/parser/splitting/ASTCodeSplitter';
+
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
   QdrantService: Symbol.for('QdrantService'),
@@ -45,4 +50,9 @@ export const TYPES = {
   // 嵌入器服务
   EmbedderFactory: Symbol.for('EmbedderFactory'),
   EmbeddingCacheService: Symbol.for('EmbeddingCacheService'),
+  
+  // Tree-sitter 解析服务
+  TreeSitterService: Symbol.for('TreeSitterService'),
+  TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
+  ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
 };

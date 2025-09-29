@@ -17,6 +17,7 @@ import { IQdrantCollectionManager } from '../../../database/QdrantCollectionMana
 import { IQdrantVectorOperations } from '../../../database/QdrantVectorOperations';
 import { IQdrantQueryUtils } from '../../../database/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../../database/QdrantProjectManager';
+import { ASTCodeSplitter } from '../../parser/splitting/ASTCodeSplitter';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -42,6 +43,7 @@ describe('IndexSyncService', () => {
   let embedderFactory: jest.Mocked<EmbedderFactory>;
   let embeddingCacheService: jest.Mocked<EmbeddingCacheService>;
   let performanceOptimizerService: jest.Mocked<PerformanceOptimizerService>;
+  let astSplitter: jest.Mocked<ASTCodeSplitter>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -126,6 +128,8 @@ describe('IndexSyncService', () => {
       errorHandlerService,
       diContainer.get(TYPES.ConfigService)
     ) as jest.Mocked<PerformanceOptimizerService>;
+    
+    astSplitter = {} as jest.Mocked<ASTCodeSplitter>;
 
     // Create service instance
     indexSyncService = new IndexSyncService(
@@ -138,7 +142,8 @@ describe('IndexSyncService', () => {
       projectIdManager,
       embedderFactory,
       embeddingCacheService,
-      performanceOptimizerService
+      performanceOptimizerService,
+      astSplitter
     );
   });
 

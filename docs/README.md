@@ -154,10 +154,10 @@ codebase-index-mcp/
 - [ ] 基本搜索功能（模拟数据）
 
 ### 阶段二：核心模块集成
-- [ ] 向量数据库集成 (Qdrant)
-- [ ] 图数据库集成 (Nebula Graph)
-- [ ] 嵌入器服务集成
-- [ ] Tree-sitter解析器集成
+- [x] 向量数据库集成 (Qdrant)
+- [x] 图数据库集成 (Nebula Graph)
+- [x] 嵌入器服务集成
+- [x] Tree-sitter解析器集成
 
 ### 阶段三：高级功能开发
 - [ ] LSP语言服务器集成

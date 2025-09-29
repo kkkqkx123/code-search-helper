@@ -1,6 +1,7 @@
 import { ProjectLookupService } from '../ProjectLookupService';
 import { ProjectIdManager } from '../ProjectIdManager';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { IndexSyncService } from '../../service/index/IndexSyncService';
 
 // Mock ProjectIdManager
 const mockProjectIdManager = {
@@ -13,6 +14,11 @@ const mockErrorHandler = {
   handleError: jest.fn(),
 };
 
+// Mock IndexSyncService
+const mockIndexSyncService = {
+  // 可以根据需要添加方法的模拟实现
+};
+
 describe('ProjectLookupService', () => {
   let projectLookupService: ProjectLookupService;
   
@@ -23,7 +29,8 @@ describe('ProjectLookupService', () => {
     // Create a new instance of ProjectLookupService with mocked dependencies
     projectLookupService = new ProjectLookupService(
       mockProjectIdManager as unknown as ProjectIdManager,
-      mockErrorHandler as unknown as ErrorHandlerService
+      mockErrorHandler as unknown as ErrorHandlerService,
+      mockIndexSyncService as unknown as IndexSyncService
     );
   });
   
@@ -52,7 +59,8 @@ describe('ProjectLookupService', () => {
       // Mock implementation to throw an error
       const serviceWithError = new ProjectLookupService(
         mockProjectIdManager as unknown as ProjectIdManager,
-        mockErrorHandler as unknown as ErrorHandlerService
+        mockErrorHandler as unknown as ErrorHandlerService,
+        mockIndexSyncService as unknown as IndexSyncService
       );
       
       // Override the method to simulate an error

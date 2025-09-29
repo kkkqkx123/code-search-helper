@@ -12,6 +12,9 @@ import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
 import { PerformanceOptimizerService } from '../resilience/ResilientBatchingService';
 import { VectorPoint } from '../../database/IVectorStore';
 import { EmbeddingInput, EmbeddingResult } from '../../embedders/BaseEmbedder';
+// Tree-sitter AST分段支持
+import { ASTCodeSplitter } from '../parser/splitting/ASTCodeSplitter';
+import { CodeChunk } from '../parser/splitting/Splitter';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -94,7 +97,8 @@ export class IndexSyncService {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
-    @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService
+    @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
+    @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter
   ) {
     // 设置文件变化监听器
     this.setupFileChangeListeners();
@@ -421,7 +425,7 @@ export class IndexSyncService {
       const content = await fs.readFile(filePath, 'utf-8');
 
       // 分割文件为块
-      const chunks = this.chunkFile(content, filePath);
+      const chunks = await this.chunkFile(content, filePath);
 
       // 转换为向量点
       const vectorPoints = await this.convertChunksToVectorPoints(chunks, projectPath);
@@ -483,11 +487,34 @@ export class IndexSyncService {
   /**
    * 分割文件为块
    */
-  private chunkFile(content: string, filePath: string): FileChunk[] {
+  private async chunkFile(content: string, filePath: string): Promise<FileChunk[]> {
+    // 检测语言
+    const language = this.detectLanguage(filePath);
+    
+    // 优先使用AST感知分段
+    try {
+      const astChunks: CodeChunk[] = await this.astSplitter.split(content, language, filePath);
+      if (astChunks.length > 0) {
+        // 转换AST分段结果为FileChunk格式
+        return astChunks.map(chunk => ({
+          content: chunk.content,
+          filePath: filePath,
+          startLine: chunk.metadata.startLine,
+          endLine: chunk.metadata.endLine,
+          language: chunk.metadata.language,
+          chunkType: 'code'
+        }));
+      }
+    } catch (error) {
+      // 失败时回退到简单分段
+      this.logger.warn(`AST splitting failed, falling back to simple splitting: ${error}`);
+    }
+    
+    // 简单分段作为回退
     const lines = content.split('\n');
     const chunks: FileChunk[] = [];
 
-    // 简单的按行分割策略，可以根据需要实现更复杂的分割逻辑
+    // 简单的按行分割策略
     const chunkSize = 100; // 每个块的行数
     const chunkOverlap = 10; // 块之间的重叠行数
 
@@ -495,9 +522,6 @@ export class IndexSyncService {
       const startLine = i;
       const endLine = Math.min(i + chunkSize, lines.length);
       const chunkContent = lines.slice(startLine, endLine).join('\n');
-
-      // 检测语言
-      const language = this.detectLanguage(filePath);
 
       chunks.push({
         content: chunkContent,

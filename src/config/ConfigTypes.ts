@@ -244,4 +244,10 @@ export interface AppConfig {
   project?: {
     mappingPath?: string;
   };
+  treeSitter?: {
+    enabled?: boolean;
+    cacheSize?: number;
+    timeout?: number;
+    supportedLanguages?: string[];
+  };
 }

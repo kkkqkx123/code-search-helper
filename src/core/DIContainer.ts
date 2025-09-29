@@ -20,6 +20,11 @@ import { EmbedderFactory } from '../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../embedders/EmbeddingCacheService';
 import { TYPES } from '../types';
 
+// Tree-sitter 解析服务
+import { TreeSitterService } from '../service/parser/core/parse/TreeSitterService';
+import { TreeSitterCoreService } from '../service/parser/core/parse/TreeSitterCoreService';
+import { ASTCodeSplitter } from '../service/parser/splitting/ASTCodeSplitter';
+
 // 创建依赖注入容器
 const diContainer = new Container();
 
@@ -55,5 +60,10 @@ diContainer.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService)
 // 注册嵌入器服务
 diContainer.bind<EmbedderFactory>(TYPES.EmbedderFactory).to(EmbedderFactory).inSingletonScope();
 diContainer.bind<EmbeddingCacheService>(TYPES.EmbeddingCacheService).to(EmbeddingCacheService).inSingletonScope();
+
+// 注册 Tree-sitter 解析服务
+diContainer.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
+diContainer.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
+diContainer.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
 
 export { diContainer };
