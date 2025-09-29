@@ -18,6 +18,7 @@ import { IQdrantVectorOperations } from '../../../database/QdrantVectorOperation
 import { IQdrantQueryUtils } from '../../../database/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../../database/QdrantProjectManager';
 import { ASTCodeSplitter } from '../../parser/splitting/ASTCodeSplitter';
+import { ProjectStateManager } from '../../project/ProjectStateManager';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -30,6 +31,7 @@ jest.mock('../../../database/ProjectIdManager');
 jest.mock('../../../embedders/EmbedderFactory');
 jest.mock('../../../embedders/EmbeddingCacheService');
 jest.mock('../../resilience/ResilientBatchingService');
+jest.mock('../../project/ProjectStateManager');
 
 describe('IndexSyncService', () => {
   let indexSyncService: IndexSyncService;
@@ -44,6 +46,7 @@ describe('IndexSyncService', () => {
   let embeddingCacheService: jest.Mocked<EmbeddingCacheService>;
   let performanceOptimizerService: jest.Mocked<PerformanceOptimizerService>;
   let astSplitter: jest.Mocked<ASTCodeSplitter>;
+  let projectStateManager: jest.Mocked<ProjectStateManager>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -130,6 +133,8 @@ describe('IndexSyncService', () => {
     ) as jest.Mocked<PerformanceOptimizerService>;
 
     astSplitter = {} as jest.Mocked<ASTCodeSplitter>;
+    projectStateManager = {} as jest.Mocked<ProjectStateManager>;
+    projectStateManager.createOrUpdateProjectState = jest.fn().mockResolvedValue({});
 
     // Create service instance
     indexSyncService = new IndexSyncService(

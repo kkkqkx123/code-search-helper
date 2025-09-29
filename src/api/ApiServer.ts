@@ -9,6 +9,10 @@ import { ProjectIdManager } from '../database/ProjectIdManager';
 import { ProjectLookupService } from '../database/ProjectLookupService';
 import { IndexSyncService } from '../service/index/IndexSyncService';
 import { EmbedderFactory } from '../embedders/EmbedderFactory';
+import { QdrantService } from '../database/QdrantService';
+import { ProjectStateManager } from '../service/project/ProjectStateManager';
+import { diContainer } from '../core/DIContainer';
+import { TYPES } from '../types';
 
 export class ApiServer {
   private app: express.Application;
@@ -20,11 +24,14 @@ export class ApiServer {
   private indexingRoutes: IndexingRoutes;
   private indexSyncService: IndexSyncService;
   private embedderFactory: EmbedderFactory;
+  private qdrantService: QdrantService;
+  private projectStateManager: ProjectStateManager;
 
-  constructor(logger: Logger, indexSyncService: IndexSyncService, embedderFactory: EmbedderFactory, port: number = 3010) {
+  constructor(logger: Logger, indexSyncService: IndexSyncService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
     this.logger = logger;
     this.indexSyncService = indexSyncService;
     this.embedderFactory = embedderFactory;
+    this.qdrantService = qdrantService;
     this.app = express();
     this.port = port;
 
@@ -33,7 +40,9 @@ export class ApiServer {
     // 创建一个简单的错误处理器实例
     const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
     this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler, this.indexSyncService);
-    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger);
+    // 从依赖注入容器获取ProjectStateManager
+    this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
+    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger);
     this.setupMiddleware();
     this.setupRoutes();
@@ -158,7 +167,7 @@ export class ApiServer {
       res.json({
         status: 'ready',
         version: '1.0.0',
-        mockMode: true
+        mockMode: process.env.SEARCH_MOCK_MODE === 'true'
       });
     });
 
@@ -184,70 +193,120 @@ export class ApiServer {
 
   private async performSearch(query: string, options?: any): Promise<any> {
     try {
-      await this.logger.debug('Performing search for query:', query);
+      const useMockMode = process.env.SEARCH_MOCK_MODE === 'true';
       
-      // 读取搜索结果和代码片段数据
-      const searchResultsPath = path.join(process.cwd(), 'data', 'mock', 'search-results.json');
-      const codeSnippetsPath = path.join(process.cwd(), 'data', 'mock', 'code-snippets.json');
-      
-      await this.logger.debug('Loading search results from:', searchResultsPath);
-      const searchData = await fs.readFile(searchResultsPath, 'utf-8');
-      const mockResults = JSON.parse(searchData);
-      
-      await this.logger.debug('Loading code snippets from:', codeSnippetsPath);
-      const snippetsData = await fs.readFile(codeSnippetsPath, 'utf-8');
-      const codeSnippets = JSON.parse(snippetsData);
-      
-      // 创建snippetId到snippet的映射
-      const snippetMap = new Map();
-      codeSnippets.snippets.forEach((snippet: any) => {
-        snippetMap.set(snippet.id, snippet);
-      });
-      
-      // 过滤结果以匹配查询并转换为前端期望的格式
-      const filteredResults = mockResults.results
-        .filter((result: any) =>
-          result.highlightedContent.toLowerCase().includes(query.toLowerCase())
-        )
-        .map((result: any) => {
-          const snippet = snippetMap.get(result.snippetId);
+      if (useMockMode) {
+        // 使用mock数据模式
+        await this.logger.debug('Performing search in mock mode for query:', query);
+        
+        // 读取搜索结果和代码片段数据
+        const searchResultsPath = path.join(process.cwd(), 'data', 'mock', 'search-results.json');
+        const codeSnippetsPath = path.join(process.cwd(), 'data', 'mock', 'code-snippets.json');
+        
+        await this.logger.debug('Loading search results from:', searchResultsPath);
+        const searchData = await fs.readFile(searchResultsPath, 'utf-8');
+        const mockResults = JSON.parse(searchData);
+        
+        await this.logger.debug('Loading code snippets from:', codeSnippetsPath);
+        const snippetsData = await fs.readFile(codeSnippetsPath, 'utf-8');
+        const codeSnippets = JSON.parse(snippetsData);
+        
+        // 创建snippetId到snippet的映射
+        const snippetMap = new Map();
+        codeSnippets.snippets.forEach((snippet: any) => {
+          snippetMap.set(snippet.id, snippet);
+        });
+        
+        // 过滤结果以匹配查询并转换为前端期望的格式
+        const filteredResults = mockResults.results
+          .filter((result: any) =>
+            result.highlightedContent.toLowerCase().includes(query.toLowerCase())
+          )
+          .map((result: any) => {
+            const snippet = snippetMap.get(result.snippetId);
+            return {
+              id: result.id,
+              score: result.score,
+              snippet: {
+                content: snippet ? snippet.content : `// Content not found for snippet: ${result.snippetId}`,
+                filePath: snippet ? snippet.filePath : 'unknown/file.js',
+                language: snippet ? snippet.language : 'javascript'
+              },
+              matchType: result.matchType
+            };
+          });
+        
+        await this.logger.debug('Mock search completed, found', filteredResults.length, 'results');
+        return {
+          results: filteredResults,
+          total: filteredResults.length,
+          query
+        };
+      } else {
+        // 使用真实数据库查询模式
+        await this.logger.debug('Performing search in real mode for query:', query);
+        const projectId = options?.projectId || 'default-project'; // 使用选项中的项目ID，或默认项目ID
+        const limit = options?.limit || 10; // 默认限制10个结果
+
+        // 使用嵌入器将查询文本转换为向量
+        const embedder = await this.embedderFactory.getEmbedder();
+        const embeddingResult = await embedder.embed({ text: query });
+        const queryVector = Array.isArray(embeddingResult) ? embeddingResult[0].vector : embeddingResult.vector;
+        const searchResults = await this.qdrantService.searchVectorsForProject(projectId, queryVector, { limit });
+
+        // 将Qdrant结果转换为前端期望的格式
+        const formattedResults = searchResults.map((result: any) => {
           return {
             id: result.id,
             score: result.score,
             snippet: {
-              content: snippet ? snippet.content : `// Content not found for snippet: ${result.snippetId}`,
-              filePath: snippet ? snippet.filePath : 'unknown/file.js',
-              language: snippet ? snippet.language : 'javascript'
+              content: result.payload?.content || '',
+              filePath: result.payload?.filePath || '',
+              language: result.payload?.language || 'javascript'
             },
-            matchType: result.matchType
+            matchType: 'semantic' // 真实搜索使用语义匹配
           };
         });
-      
-      await this.logger.debug('Search completed, found', filteredResults.length, 'results');
-      return {
-        results: filteredResults,
-        total: filteredResults.length,
-        query
-      };
+
+        await this.logger.debug('Real search completed, found', formattedResults.length, 'results');
+        return {
+          results: formattedResults,
+          total: formattedResults.length,
+          query,
+          projectId
+        };
+      }
     } catch (error) {
-      await this.logger.warn('Failed to load search results, using defaults:', error);
-      // 如果无法读取文件，返回默认模拟结果
-      return {
-        results: [
-          {
-            id: 'mock_result_1',
-            score: 0.95,
-            snippet: {
-              content: `// Mock result for: ${query}`,
-              filePath: 'src/mock/file.js',
-              language: 'javascript'
-            },
-            matchType: 'keyword'
-          }
-        ],
-        total: 1,
-        query
-      };
+      await this.logger.error('Search request failed:', error);
+      const useMockMode = process.env.SEARCH_MOCK_MODE === 'true';
+      
+      if (useMockMode) {
+        // 如果是mock模式且出错，返回默认模拟结果
+        return {
+          results: [
+            {
+              id: 'mock_result_1',
+              score: 0.95,
+              snippet: {
+                content: `// Mock result for: ${query}`,
+                filePath: 'src/mock/file.js',
+                language: 'javascript'
+              },
+              matchType: 'keyword'
+            }
+          ],
+          total: 1,
+          query
+        };
+      } else {
+        // 如果是真实模式且出错，返回错误信息
+        return {
+          results: [],
+          total: 0,
+          query,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
     }
   }
 

@@ -13,6 +13,8 @@ import {
 } from '../../types/project';
 import fs from 'fs/promises';
 import path from 'path';
+import { ProjectStateManager } from '../../service/project/ProjectStateManager';
+import { ProjectState } from '../../service/project/ProjectStateManager';
 
 export interface ProjectCreateBody {
   projectPath: string;
@@ -55,11 +57,18 @@ export class ProjectRoutes {
   private projectIdManager: ProjectIdManager;
   private projectLookupService: ProjectLookupService;
   private logger: Logger;
+  private projectStateManager: ProjectStateManager;
 
-  constructor(projectIdManager: ProjectIdManager, projectLookupService: ProjectLookupService, logger: Logger) {
+  constructor(
+    projectIdManager: ProjectIdManager,
+    projectLookupService: ProjectLookupService,
+    logger: Logger,
+    projectStateManager: ProjectStateManager
+  ) {
     this.projectIdManager = projectIdManager;
     this.projectLookupService = projectLookupService;
     this.logger = logger;
+    this.projectStateManager = projectStateManager;
     this.router = Router();
     this.setupRoutes();
   }
@@ -225,35 +234,59 @@ export class ProjectRoutes {
     }
   }
   
+  /**
+   * Maps ProjectState status to Project status
+   * @param projectStateStatus The status from ProjectState
+   * @returns The corresponding status for Project
+   */
+  private mapProjectStateStatusToProjectStatus(
+    projectStateStatus: ProjectState['status']
+  ): Project['status'] {
+    switch (projectStateStatus) {
+      case 'active':
+        return 'completed';
+      case 'inactive':
+        return 'pending';
+      case 'indexing':
+        return 'indexing';
+      case 'error':
+        return 'error';
+      default:
+        // For any unexpected status, default to 'pending'
+        return 'pending';
+    }
+  }
+
   private async buildProjectResponse(projectId: string, projectPath: string): Promise<Project> {
     // Extract project name from path
     const projectName = path.basename(projectPath);
 
-    // Get project status from IndexSyncService
-    const status = this.projectLookupService.indexSyncService.getIndexStatus(projectId);
+    // Get project state from ProjectStateManager
+    const projectState: ProjectState | null = this.projectStateManager.getProjectState(projectId);
     
-    // If we have status from the service, use it; otherwise use defaults
-    const isIndexing = status ? status.isIndexing : false;
-    const totalFiles = status ? status.totalFiles : 0;
-    const indexedFiles = status ? status.indexedFiles : 0;
-    const progress = status ? status.progress : 0;
-    const lastIndexed = status && status.lastIndexed ? status.lastIndexed : null;
+    // If we have state from the manager, use it; otherwise use defaults
+    const status = projectState
+      ? this.mapProjectStateStatusToProjectStatus(projectState.status)
+      : 'pending';
+    const progress = projectState ? (projectState.indexingProgress || 0) : 0;
+    const totalFiles = projectState ? (projectState.totalFiles || 0) : 0;
+    const lastIndexed = projectState && projectState.lastIndexedAt ? projectState.lastIndexedAt : new Date();
 
     return {
       id: projectId,
       name: projectName,
       path: projectPath,
-      status: isIndexing ? 'indexing' : (totalFiles > 0 ? 'completed' : 'pending'),
+      status: status,
       progress: progress,
-      lastIndexed: lastIndexed || new Date(),
+      lastIndexed: lastIndexed,
       fileCount: totalFiles,
       size: 0, // Size calculation would require additional implementation
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: projectState ? projectState.createdAt : new Date(),
+      updatedAt: projectState ? projectState.updatedAt : new Date(),
       configuration: {
-        recursive: true,
-        includePatterns: [],
-        excludePatterns: [],
+        recursive: projectState ? projectState.settings.autoIndex : true,
+        includePatterns: projectState ? (projectState.settings.includePatterns || []) : [],
+        excludePatterns: projectState ? (projectState.settings.excludePatterns || []) : [],
         maxFileSize: 10485760, // 10MB
         fileTypes: [],
         encoding: 'utf-8',

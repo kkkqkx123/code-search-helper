@@ -29,6 +29,9 @@ export class SearchPage {
                         placeholder="输入搜索关键词，例如：函数定义、类实现等..."
                         autocomplete="off"
                     >
+                    <select id="project-select" class="project-select">
+                        <option value="">选择项目</option>
+                    </select>
                     <button type="submit" class="search-button">搜索</button>
                 </form>
                 <div style="margin-top: 15px; text-align: center;">
@@ -45,6 +48,7 @@ export class SearchPage {
                 </div>
             </div>
         `;
+        this.loadProjects();
     }
 
     /**
@@ -53,24 +57,27 @@ export class SearchPage {
     private setupEventListeners() {
         const searchForm = this.container.querySelector('#search-form') as HTMLFormElement;
         const searchInput = this.container.querySelector('#search-input') as HTMLInputElement;
+        const projectSelect = this.container.querySelector('#project-select') as HTMLSelectElement;
         const exampleSearchButton = this.container.querySelector('#example-search') as HTMLButtonElement;
 
         searchForm?.addEventListener('submit', (e) => {
             e.preventDefault();
-            this.performSearch(searchInput.value);
+            const selectedProject = projectSelect.value;
+            this.performSearch(searchInput.value, selectedProject);
         });
 
         exampleSearchButton?.addEventListener('click', (e) => {
             e.preventDefault();
             searchInput.value = 'function';
-            this.performSearch('function');
+            const selectedProject = projectSelect.value;
+            this.performSearch('function', selectedProject);
         });
     }
 
     /**
      * 执行搜索
      */
-    async performSearch(query: string) {
+    async performSearch(query: string, projectId?: string) {
         if (!query.trim()) {
             this.displayError('请输入搜索关键词');
             return;
@@ -79,7 +86,7 @@ export class SearchPage {
         this.showLoading();
 
         try {
-            const result = await this.apiClient.search(query);
+            const result = await this.apiClient.search(query, projectId);
             this.displayResults(result);
             
             if (this.onSearchComplete) {
@@ -131,6 +138,33 @@ export class SearchPage {
         const resultsContainer = this.container.querySelector('#results-container') as HTMLElement;
         if (resultsContainer) {
             resultsContainer.innerHTML = '<div class="loading">搜索中...</div>';
+        }
+    }
+
+    /**
+     * 加载项目列表
+     */
+    private async loadProjects() {
+        try {
+            const projects = await this.apiClient.getProjects();
+            const projectSelect = this.container.querySelector('#project-select') as HTMLSelectElement;
+            
+            if (projectSelect && projects && Array.isArray(projects)) {
+                // 清空现有选项（保留默认选项）
+                while (projectSelect.children.length > 1) {
+                    projectSelect.removeChild(projectSelect.lastChild!);
+                }
+                
+                projects.forEach((project: any) => {
+                    const option = document.createElement('option');
+                    option.value = project.id || project.path;
+                    option.textContent = project.name || project.path || project.id;
+                    projectSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('加载项目列表失败:', error);
+            // 即使加载失败也不显示错误，因为项目选择是可选的
         }
     }
 

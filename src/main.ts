@@ -7,9 +7,22 @@ import { QdrantService } from './database/QdrantService';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
 import { IndexSyncService } from './service/index/IndexSyncService';
+import { ProjectStateManager } from './service/project/ProjectStateManager';
 import { ConfigService } from './config/ConfigService';
 import { diContainer } from './core/DIContainer';
 import { TYPES } from './types';
+
+// 添加详细的错误处理
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  console.error('Error stack:', error.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
 
 class Application {
   private mcpServer: MCPServer;
@@ -20,6 +33,7 @@ class Application {
   private embedderFactory: EmbedderFactory;
   private loggerService: LoggerService;
   private indexSyncService: IndexSyncService;
+  private projectStateManager: ProjectStateManager;
 
   constructor() {
     // 从依赖注入容器获取服务
@@ -28,6 +42,7 @@ class Application {
     const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
     this.qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
     this.indexSyncService = diContainer.get<IndexSyncService>(TYPES.IndexSyncService);
+    this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
 
     // 创建一个 Logger 实例，用于整个应用，确保所有组件使用同一个日志文件
     const loggerInstance = new Logger('code-search-helper');
@@ -39,7 +54,8 @@ class Application {
 
     // 初始化服务器
     this.mcpServer = new MCPServer(this.logger);
-    this.apiServer = new ApiServer(this.logger, this.indexSyncService, this.embedderFactory);
+    const apiPort = parseInt(process.env.PORT || '3010', 10);
+    this.apiServer = new ApiServer(this.logger, this.indexSyncService, this.embedderFactory, this.qdrantService, apiPort);
   }
 
   async start(): Promise<void> {
@@ -49,6 +65,10 @@ class Application {
       // 检查环境变量配置
       await this.loggerService.info('Checking environment configuration...');
       this.validateEmbeddingProviderConfig();
+
+      // 初始化项目状态管理器
+      await this.loggerService.info('Initializing project state manager...');
+      await this.projectStateManager.initialize();
 
       // 初始化数据库服务
       await this.loggerService.info('Initializing database services...');
@@ -69,18 +89,21 @@ class Application {
       }
 
       // 启动MCP服务器
+      await this.loggerService.info('Starting MCP server...');
       await this.mcpServer.start();
       await this.logger.info('MCP Server started successfully');
 
       // 启动API服务器
+      await this.loggerService.info('Starting API server...');
       this.apiServer.start();
       await this.logger.info('API Server started successfully');
 
       await this.logger.info('Application started successfully');
       await this.logger.info('MCP Server: Ready for MCP connections');
-      await this.logger.info('API Server: http://localhost:3010');
+      await this.logger.info(`API Server: http://localhost:${process.env.PORT || '3010'}`);
 
     } catch (error) {
+      await this.loggerService.error('Failed to start application:', error);
       await this.logger.error('Failed to start application:', error);
       process.exit(1);
     }

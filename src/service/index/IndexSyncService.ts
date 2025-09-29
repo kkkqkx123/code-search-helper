@@ -248,6 +248,7 @@ export class IndexSyncService {
         throw new Error(`Failed to create collection for project: ${projectPath}`);
       }
 
+
       // 初始化索引状态
       const status: IndexSyncStatus = {
         projectId,

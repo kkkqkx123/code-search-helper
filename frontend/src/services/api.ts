@@ -25,12 +25,17 @@ export class ApiClient {
     /**
      * 执行代码搜索
      */
-    async search(query: string) {
+    async search(query: string, projectId?: string) {
         try {
             const response = await fetch(`${this.apiBaseUrl}/api/search`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query })
+                body: JSON.stringify({
+                    query,
+                    options: {
+                        projectId: projectId || undefined
+                    }
+                })
             });
             return await response.json();
         } catch (error) {

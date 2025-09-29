@@ -48,7 +48,10 @@ describe('ApiServer', () => {
     const logger = new Logger('ApiServerTest');
     mockIndexSyncService = createMockIndexSyncService();
     const mockEmbedderFactory = {} as EmbedderFactory; // Add a mock EmbedderFactory
-    server = new ApiServer(logger, mockIndexSyncService, mockEmbedderFactory, 3001); // Use different port for testing
+    const mockQdrantService = {
+      searchVectorsForProject: jest.fn().mockResolvedValue([]) // Mock the searchVectorsForProject method
+    } as any; // Add a mock QdrantService
+    server = new ApiServer(logger, mockIndexSyncService, mockEmbedderFactory, mockQdrantService, 3001); // Use different port for testing
     app = server['app']; // Access private app property for testing
   });
 
