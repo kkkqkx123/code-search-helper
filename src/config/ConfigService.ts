@@ -179,6 +179,7 @@ const configSchema = Joi.object({
   }),
 
   project: Joi.object({
+    statePath: Joi.string().default('./data/project-states.json'),
     mappingPath: Joi.string().default('./data/project-mapping.json'),
   }),
 
@@ -737,6 +738,7 @@ export class ConfigService {
           }
           : undefined,
       project: {
+        statePath: process.env.PROJECT_STATE_PATH || './data/project-states.json',
         mappingPath: process.env.PROJECT_MAPPING_PATH || './data/project-mapping.json',
       },
     };

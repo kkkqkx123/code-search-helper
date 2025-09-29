@@ -43,7 +43,7 @@ export class ApiServer {
     // 从依赖注入容器获取ProjectStateManager
     this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager);
-    this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger);
+    this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
     this.setupMiddleware();
     this.setupRoutes();
   }

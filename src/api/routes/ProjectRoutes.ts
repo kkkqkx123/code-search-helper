@@ -123,6 +123,13 @@ export class ProjectRoutes {
         }
       }
 
+      this.logger.debug('Retrieved projects list', {
+        projectCount: projects.length,
+        projectIds: projectIds.slice(0, 5), // 只记录前5个项目ID以避免日志过长
+        hasPendingProjects: projects.some(p => p.status === 'pending'),
+        hasCompletedProjects: projects.some(p => p.status === 'completed')
+      });
+
       res.status(200).json({
         success: true,
         data: projects,
@@ -264,10 +271,21 @@ export class ProjectRoutes {
     // Get project state from ProjectStateManager
     const projectState: ProjectState | null = this.projectStateManager.getProjectState(projectId);
     
+    // Check if the project has been indexed by looking at the collection info
+    let hasBeenIndexed = false;
+    if (projectState && projectState.collectionInfo) {
+      hasBeenIndexed = projectState.collectionInfo.vectorsCount > 0;
+    }
+    
     // If we have state from the manager, use it; otherwise use defaults
     const status = projectState
       ? this.mapProjectStateStatusToProjectStatus(projectState.status)
       : 'pending';
+      
+    // If there's no project state but the project exists in the mapping,
+    // check if it has been indexed by checking collection info
+    const effectiveStatus = projectState ? status : 'pending';
+    
     const progress = projectState ? (projectState.indexingProgress || 0) : 0;
     const totalFiles = projectState ? (projectState.totalFiles || 0) : 0;
     const lastIndexed = projectState && projectState.lastIndexedAt ? projectState.lastIndexedAt : new Date();
@@ -276,7 +294,7 @@ export class ProjectRoutes {
       id: projectId,
       name: projectName,
       path: projectPath,
-      status: status,
+      status: effectiveStatus,
       progress: progress,
       lastIndexed: lastIndexed,
       fileCount: totalFiles,

@@ -53,6 +53,20 @@ export class ProjectStateManager {
   private storagePath: string;
   private isInitialized: boolean = false;
 
+  /**
+   * 格式化日期为ISO字符串
+   */
+  private formatDate(date: Date): string {
+    return date.toISOString();
+  }
+
+  /**
+   * 解析ISO字符串为Date对象
+   */
+  private parseDate(dateString: string): Date {
+    return new Date(dateString);
+  }
+
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
@@ -77,7 +91,10 @@ export class ProjectStateManager {
       this.setupIndexSyncListeners();
       
       this.isInitialized = true;
-      this.logger.info('Project state manager initialized');
+      this.logger.info('Project state manager initialized', {
+        projectCount: this.projectStates.size,
+        projects: Array.from(this.projectStates.keys())
+      });
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Failed to initialize project state manager: ${error instanceof Error ? error.message : String(error)}`),
@@ -153,22 +170,25 @@ export class ProjectStateManager {
 
       // 读取状态文件
       const data = await fs.readFile(this.storagePath, 'utf-8');
-      const states = JSON.parse(data);
+      const rawStates = JSON.parse(data);
 
-      // 恢复项目状态
+      // 验证和恢复项目状态
       this.projectStates = new Map();
-      for (const state of states) {
-        // 转换日期字符串回Date对象
-        state.createdAt = new Date(state.createdAt);
-        state.updatedAt = new Date(state.updatedAt);
-        if (state.lastIndexedAt) {
-          state.lastIndexedAt = new Date(state.lastIndexedAt);
-        }
+      let validStateCount = 0;
+      let invalidStateCount = 0;
 
-        this.projectStates.set(state.projectId, state);
+      for (const rawState of rawStates) {
+        try {
+          const validatedState = this.validateAndNormalizeProjectState(rawState);
+          this.projectStates.set(validatedState.projectId, validatedState);
+          validStateCount++;
+        } catch (validationError) {
+          this.logger.warn(`Skipping invalid project state: ${validationError instanceof Error ? validationError.message : String(validationError)}`, { rawState });
+          invalidStateCount++;
+        }
       }
 
-      this.logger.info(`Loaded ${this.projectStates.size} project states`);
+      this.logger.info(`Loaded ${validStateCount} valid project states, skipped ${invalidStateCount} invalid states`);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         // 文件不存在，初始化空状态
@@ -191,7 +211,14 @@ export class ProjectStateManager {
 
       // 转换为数组并序列化
       const states = Array.from(this.projectStates.values());
-      await fs.writeFile(this.storagePath, JSON.stringify(states, null, 2));
+      const jsonData = JSON.stringify(states, null, 2);
+
+      // 使用临时文件+重命名的方式实现原子写入
+      const tempPath = `${this.storagePath}.tmp`;
+      await fs.writeFile(tempPath, jsonData);
+      
+      // 原子性重命名
+      await fs.rename(tempPath, this.storagePath);
 
       this.logger.debug(`Saved ${states.length} project states`);
     } catch (error) {
@@ -255,7 +282,13 @@ export class ProjectStateManager {
       this.projectStates.set(projectId, state);
       await this.saveProjectStates();
 
-      this.logger.info(`Project state ${state ? 'updated' : 'created'} for ${projectId}`);
+      this.logger.info(`Project state ${state ? 'updated' : 'created'} for ${projectId}`, {
+        projectId,
+        projectPath,
+        status: state.status,
+        hasIndexingProgress: !!state.indexingProgress,
+        hasLastIndexedAt: !!state.lastIndexedAt
+      });
       return state;
     } catch (error) {
       this.errorHandler.handleError(
@@ -367,20 +400,44 @@ export class ProjectStateManager {
     const state = this.projectStates.get(projectId);
     if (!state) return;
 
-    try {
-      const projectPath = this.projectIdManager.getProjectPath(projectId);
-      if (!projectPath) return;
+    await this.updateProjectCollectionInfoWithRetry(projectId);
+  }
 
-      const collectionInfo = await this.qdrantService.getCollectionInfoForProject(projectPath);
-      if (collectionInfo) {
-        state.collectionInfo = {
-          name: collectionInfo.name,
-          vectorsCount: collectionInfo.pointsCount,
-          status: collectionInfo.status
-        };
+  /**
+   * 带重试机制的集合信息更新
+   */
+  private async updateProjectCollectionInfoWithRetry(projectId: string, maxRetries: number = 3): Promise<void> {
+    const state = this.projectStates.get(projectId);
+    if (!state) return;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const projectPath = this.projectIdManager.getProjectPath(projectId);
+        if (!projectPath) return;
+
+        const collectionInfo = await this.qdrantService.getCollectionInfoForProject(projectPath);
+        if (collectionInfo) {
+          state.collectionInfo = {
+            name: collectionInfo.name,
+            vectorsCount: collectionInfo.pointsCount,
+            status: collectionInfo.status
+          };
+        }
+        
+        // 成功则退出重试循环
+        return;
+      } catch (error) {
+        if (attempt === maxRetries - 1) {
+          // 最后一次尝试仍然失败，记录警告
+          this.logger.warn(`Failed to update collection info for ${projectId} after ${maxRetries} attempts`, { error });
+          return;
+        }
+        
+        // 指数退避等待
+        const waitTime = Math.pow(2, attempt) * 1000;
+        this.logger.debug(`Retrying collection info update for ${projectId}, attempt ${attempt + 1}/${maxRetries}, waiting ${waitTime}ms`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
       }
-    } catch (error) {
-      this.logger.warn(`Failed to update collection info for ${projectId}`, { error });
     }
   }
 
@@ -527,5 +584,118 @@ export class ProjectStateManager {
       );
       throw error;
     }
+  }
+
+  /**
+   * 清理无效的项目状态
+   */
+  async cleanupInvalidStates(): Promise<number> {
+    try {
+      const initialCount = this.projectStates.size;
+      const validStates: ProjectState[] = [];
+
+      for (const state of this.projectStates.values()) {
+        const isValid = await this.isProjectStateValid(state);
+        if (isValid) {
+          validStates.push(state);
+        } else {
+          this.logger.info(`Removing invalid project state: ${state.projectId} at ${state.projectPath}`);
+        }
+      }
+
+      // 重建状态映射
+      this.projectStates = new Map(validStates.map(state => [state.projectId, state]));
+      
+      // 保存清理后的状态
+      await this.saveProjectStates();
+
+      const removedCount = initialCount - this.projectStates.size;
+      this.logger.info(`Cleaned up ${removedCount} invalid project states, ${this.projectStates.size} states remaining`);
+      
+      return removedCount;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to cleanup invalid project states: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'ProjectStateManager', operation: 'cleanupInvalidStates' }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 检查项目状态是否有效
+   */
+  private async isProjectStateValid(state: ProjectState): Promise<boolean> {
+    try {
+      // 检查项目路径是否存在
+      await fs.access(state.projectPath);
+      return true;
+    } catch (error) {
+      // 路径不存在，状态无效
+      return false;
+    }
+  }
+
+  /**
+   * 验证和规范化项目状态数据
+   */
+  private validateAndNormalizeProjectState(rawState: any): ProjectState {
+    // 验证必需字段
+    if (!rawState.projectId || typeof rawState.projectId !== 'string') {
+      throw new Error('Invalid or missing projectId');
+    }
+    
+    if (!rawState.projectPath || typeof rawState.projectPath !== 'string') {
+      throw new Error('Invalid or missing projectPath');
+    }
+    
+    if (!rawState.name || typeof rawState.name !== 'string') {
+      throw new Error('Invalid or missing name');
+    }
+    
+    if (!rawState.status || !['active', 'inactive', 'indexing', 'error'].includes(rawState.status)) {
+      throw new Error('Invalid or missing status');
+    }
+    
+    if (!rawState.createdAt || !rawState.updatedAt) {
+      throw new Error('Missing timestamp fields');
+    }
+
+    // 验证settings对象
+    if (!rawState.settings || typeof rawState.settings !== 'object') {
+      throw new Error('Invalid or missing settings');
+    }
+
+    // 构建规范化的项目状态
+    const normalizedState: ProjectState = {
+      projectId: rawState.projectId,
+      projectPath: rawState.projectPath,
+      name: rawState.name,
+      description: rawState.description || undefined,
+      status: rawState.status,
+      createdAt: this.parseDate(rawState.createdAt),
+      updatedAt: this.parseDate(rawState.updatedAt),
+      lastIndexedAt: rawState.lastIndexedAt ? this.parseDate(rawState.lastIndexedAt) : undefined,
+      indexingProgress: typeof rawState.indexingProgress === 'number' ? rawState.indexingProgress : undefined,
+      totalFiles: typeof rawState.totalFiles === 'number' ? rawState.totalFiles : undefined,
+      indexedFiles: typeof rawState.indexedFiles === 'number' ? rawState.indexedFiles : undefined,
+      failedFiles: typeof rawState.failedFiles === 'number' ? rawState.failedFiles : undefined,
+      collectionInfo: rawState.collectionInfo ? {
+        name: rawState.collectionInfo.name,
+        vectorsCount: typeof rawState.collectionInfo.vectorsCount === 'number' ? rawState.collectionInfo.vectorsCount : 0,
+        status: rawState.collectionInfo.status || 'unknown'
+      } : undefined,
+      settings: {
+        autoIndex: typeof rawState.settings.autoIndex === 'boolean' ? rawState.settings.autoIndex : true,
+        watchChanges: typeof rawState.settings.watchChanges === 'boolean' ? rawState.settings.watchChanges : true,
+        includePatterns: Array.isArray(rawState.settings.includePatterns) ? rawState.settings.includePatterns : undefined,
+        excludePatterns: Array.isArray(rawState.settings.excludePatterns) ? rawState.settings.excludePatterns : undefined,
+        chunkSize: typeof rawState.settings.chunkSize === 'number' ? rawState.settings.chunkSize : undefined,
+        chunkOverlap: typeof rawState.settings.chunkOverlap === 'number' ? rawState.settings.chunkOverlap : undefined,
+      },
+      metadata: rawState.metadata && typeof rawState.metadata === 'object' ? rawState.metadata : {}
+    };
+
+    return normalizedState;
   }
 }

@@ -1,7 +1,17 @@
 {
-  "projectIdMap": {},
-  "collectionMap": {},
-  "spaceMap": {},
-  "pathToProjectMap": {},
-  "projectUpdateTimes": {}
+  "projectIdMap": {
+    "D:/ide/tool/code-search-helper/test-files": "a2c7b9d32367187c"
+  },
+  "collectionMap": {
+    "a2c7b9d32367187c": "project-a2c7b9d32367187c"
+  },
+  "spaceMap": {
+    "a2c7b9d32367187c": "project_a2c7b9d32367187c"
+  },
+  "pathToProjectMap": {
+    "a2c7b9d32367187c": "D:/ide/tool/code-search-helper/test-files"
+  },
+  "projectUpdateTimes": {
+    "a2c7b9d32367187c": "2025-09-29T10:23:43.799Z"
+  }
 }

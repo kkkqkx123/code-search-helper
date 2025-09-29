@@ -3,6 +3,7 @@ import { Logger } from '../../utils/logger.js';
 import { IndexSyncService } from '../../service/index/IndexSyncService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
+import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 
 export interface IndexingRequestBody {
   projectPath: string;
@@ -56,17 +57,20 @@ export class IndexingRoutes {
   private projectIdManager: ProjectIdManager;
   private embedderFactory: EmbedderFactory;
   private logger: Logger;
+  private projectStateManager: ProjectStateManager;
 
   constructor(
     indexSyncService: IndexSyncService,
     projectIdManager: ProjectIdManager,
     embedderFactory: EmbedderFactory,
-    logger: Logger
+    logger: Logger,
+    projectStateManager: ProjectStateManager
   ) {
     this.indexSyncService = indexSyncService;
     this.projectIdManager = projectIdManager;
     this.embedderFactory = embedderFactory;
     this.logger = logger;
+    this.projectStateManager = projectStateManager;
     this.router = Router();
     this.setupRoutes();
   }
@@ -162,6 +166,11 @@ export class IndexingRoutes {
         chunkSize: options?.chunkSize,
         chunkOverlap: options?.overlapSize
       };
+
+      // 为项目创建初始状态
+      await this.projectStateManager.createOrUpdateProjectState(projectPath, {
+        name: projectPath.split('/').pop() || projectPath.split('\\').pop() || projectPath
+      });
 
       // 开始索引
       const projectId = await this.indexSyncService.startIndexing(projectPath, syncOptions);

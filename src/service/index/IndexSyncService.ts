@@ -401,7 +401,12 @@ export class IndexSyncService {
       // 触发索引完成事件
       await this.emit('indexingCompleted', projectId);
 
-      this.logger.info(`Completed indexing project: ${projectId}`);
+      this.logger.info(`Completed indexing project: ${projectId}`, {
+        totalFiles: status.totalFiles,
+        indexedFiles: status.indexedFiles,
+        failedFiles: status.failedFiles,
+        progress: status.progress
+      });
     } catch (error) {
       try {
         status.isIndexing = false;
