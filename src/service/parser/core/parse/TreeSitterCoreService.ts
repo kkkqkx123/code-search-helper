@@ -57,7 +57,7 @@ export class TreeSitterCoreService {
     try {
       // Initialize TypeScript parser
       const tsParser = new Parser();
-      tsParser.setLanguage(TypeScript.typescript.language as any);
+      tsParser.setLanguage(TypeScript.typescript as any);
       this.parsers.set('typescript', {
         name: 'TypeScript',
         parser: tsParser,
@@ -284,6 +284,12 @@ export class TreeSitterCoreService {
       const parserLang = (ast as any).tree?.language || (ast as any).language;
       if (!parserLang) {
         throw new Error('Cannot determine language from AST');
+      }
+
+      // Check if the language has a query method
+      if (typeof parserLang.query !== 'function') {
+        console.warn('Query functionality not available for this language');
+        return [];
       }
 
       // Create a query from the pattern

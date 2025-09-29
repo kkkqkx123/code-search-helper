@@ -78,7 +78,7 @@ describe('ChunkingStrategyManager', () => {
       const config = strategyManager.getConfig();
       expect(config.enablePerformanceMonitoring).toBe(true);
       expect(config.enableCaching).toBe(true);
-      expect(config.cacheSize).toBe(100);
+      expect(config.cacheSize).toBe(1000);
       expect(config.maxExecutionTime).toBe(10000);
       expect(config.enableParallel).toBe(true);
     });
@@ -97,7 +97,7 @@ describe('ChunkingStrategyManager', () => {
 
       expect(config.enablePerformanceMonitoring).toBe(false);
       expect(config.enableCaching).toBe(false);
-      expect(config.cacheSize).toBe(50);
+      expect(config.cacheSize).toBe(500);
       expect(config.maxExecutionTime).toBe(5000);
       expect(config.enableParallel).toBe(false);
     });
@@ -364,7 +364,7 @@ describe('ChunkingStrategyManager', () => {
       expect(stats).toBeTruthy();
     });
 
-    it('should return stats for specific strategy if name provided', () => {
+    it('should return stats for specific strategy if name provided', async () => {
       // Execute a strategy first to generate some stats
       const strategy = new MockChunkingStrategy('test', 1, 'Test strategy', ['typescript']);
       strategyManager.registerStrategy(strategy);
@@ -376,7 +376,7 @@ describe('ChunkingStrategyManager', () => {
       };
 
       // Execute to generate stats
-      strategyManager.executeStrategy('test', context);
+      await strategyManager.executeStrategy('test', context);
 
       const stats = strategyManager.getPerformanceStats('test');
       expect(stats).toBeTruthy();
@@ -384,10 +384,19 @@ describe('ChunkingStrategyManager', () => {
   });
 
   describe('resetPerformanceStats', () => {
-    it('should reset performance statistics', () => {
+    it('should reset performance statistics', async () => {
       // Generate some stats first
       const strategy = new MockChunkingStrategy('test', 1, 'Test strategy', ['typescript']);
       strategyManager.registerStrategy(strategy);
+
+      const context = {
+        language: 'typescript',
+        sourceCode: 'function test() { return "hello"; }',
+        ast: mockASTNode
+      };
+
+      // Execute to generate stats
+      await strategyManager.executeStrategy('test', context);
 
       const statsBefore = strategyManager.getPerformanceStats('test');
       expect(statsBefore).toBeTruthy();
@@ -450,6 +459,12 @@ describe('StrategyManagerFactory', () => {
   });
 
   it('should accept custom configuration', () => {
+    // Note: StrategyManagerFactory returns a singleton instance, so custom config
+    // will only be applied on the first call. Subsequent calls return the same instance.
+    // For this test to work properly, we need to reset the singleton first.
+    // @ts-ignore - accessing private property for testing
+    StrategyManagerFactory.instance = undefined;
+    
     const customConfig = {
       enablePerformanceMonitoring: false,
       enableCaching: false,

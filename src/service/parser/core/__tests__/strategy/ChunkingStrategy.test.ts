@@ -116,7 +116,7 @@ describe('BaseChunkingStrategy', () => {
 
     it('should return true for valid chunks', () => {
       const validChunk: CodeChunk = {
-        content: 'function test() { return "hello"; }', // Within size limits
+        content: 'function test() { return "hello"; }'.padEnd(150, ' '), // Within size limits (150 chars)
         metadata: {
           startLine: 1,
           endLine: 1,
@@ -130,7 +130,7 @@ describe('BaseChunkingStrategy', () => {
 
     it('should return true for multiple valid chunks', () => {
       const validChunk1: CodeChunk = {
-        content: 'function test1() { return "hello"; }',
+        content: 'function test1() { return "hello"; }'.padEnd(150, ' '),
         metadata: {
           startLine: 1,
           endLine: 1,
@@ -139,7 +139,7 @@ describe('BaseChunkingStrategy', () => {
       };
 
       const validChunk2: CodeChunk = {
-        content: 'function test2() { return "world"; }',
+        content: 'function test2() { return "world"; }'.padEnd(150, ' '),
         metadata: {
           startLine: 2,
           endLine: 2,

@@ -177,11 +177,10 @@ describe('TreeSitterCoreService', () => {
 
     it('should return error for unsupported file type', async () => {
       const code = `function hello() { return "Hello, World!"; }`;
-      const result = await treeSitterService.parseFile('test.unsupported', code);
       
-      expect(result).toHaveProperty('success', false);
-      expect(result).toHaveProperty('error');
-      expect(result.error).toContain('Unsupported file type');
+      await expect(treeSitterService.parseFile('test.unsupported', code))
+        .rejects
+        .toThrow('Unsupported file type: test.unsupported');
     });
   });
 
@@ -302,10 +301,10 @@ describe('TreeSitterCoreService', () => {
  });
 
   describe('clearCache', () => {
-    it('should clear the cache', () => {
+    it('should clear the cache', async () => {
       // First, populate the cache with a parse operation
       const code = `function hello(): string { return "Hello, World!"; }`;
-      const result = treeSitterService.parseCode(code, 'typescript');
+      const result = await treeSitterService.parseCode(code, 'typescript');
       
       // Check that cache has some entries
       const statsBefore = treeSitterService.getCacheStats();

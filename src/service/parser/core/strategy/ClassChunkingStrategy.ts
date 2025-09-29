@@ -164,6 +164,11 @@ export class ClassChunkingStrategy extends BaseChunkingStrategy {
   private extractClassName(node: Parser.SyntaxNode, content: string): string {
     const nameNode = node.childForFieldName('name');
     if (nameNode) {
+      // 优先使用节点的 text 属性
+      if (nameNode.text) {
+        return nameNode.text;
+      }
+      // 如果没有 text 属性，使用 extractNodeContent
       return this.extractNodeContent(nameNode, content);
     }
 
@@ -176,6 +181,11 @@ export class ClassChunkingStrategy extends BaseChunkingStrategy {
     if (node.type === 'interface_declaration' || node.type === 'type_alias_declaration') {
       const nameNode = node.childForFieldName('name');
       if (nameNode) {
+        // 优先使用节点的 text 属性
+        if (nameNode.text) {
+          return nameNode.text;
+        }
+        // 如果没有 text 属性，使用 extractNodeContent
         return this.extractNodeContent(nameNode, content);
       }
     }

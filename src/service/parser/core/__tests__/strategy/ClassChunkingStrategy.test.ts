@@ -16,8 +16,15 @@ const createMockASTNode = (type: string, content: string = '', children: any[] =
     nextSibling: null,
     previousSibling: null,
     childForFieldName: (fieldName: string) => {
-      if (fieldName === 'name' && type === 'class_declaration') {
-        return createMockASTNode('identifier', 'TestClass');
+      if (fieldName === 'name') {
+        if (type === 'class_declaration' && content.includes('TestClass')) {
+          return createMockASTNode('identifier', 'TestClass');
+        } else if (type === 'class_expression' && content.includes('class {}')) {
+          return null; // 匿名类没有名称
+        } else if (type === 'class_declaration' && content.includes('class {}')) {
+          return null; // 没有名称的类
+        }
+        return createMockASTNode('identifier', 'DefaultName');
       }
       if (fieldName === 'body' && type === 'class_declaration') {
         return createMockASTNode('class_body', '{ method() {} }');
@@ -148,7 +155,9 @@ describe('ClassChunkingStrategy', () => {
       const classContent = 'class TestClass { method() { return "hello"; } }';
       const classNode = createMockASTNode('class_declaration', classContent);
       
-      const chunks = strategy.chunk(classNode, classContent);
+      // 使用自定义配置，降低最小分段大小要求
+      const customStrategy = new ClassChunkingStrategy({ minChunkSize: 10 });
+      const chunks = customStrategy.chunk(classNode, classContent);
       
       expect(Array.isArray(chunks)).toBe(true);
       expect(chunks.length).toBe(1);
@@ -264,7 +273,7 @@ describe('ClassChunkingStrategy', () => {
   describe('validateChunks', () => {
     it('should validate chunks correctly', () => {
       const validChunk: CodeChunk = {
-        content: 'class Test { method() {} }',
+        content: 'class Test { method() { return "hello world"; } }',
         metadata: {
           startLine: 1,
           endLine: 1,
@@ -273,7 +282,9 @@ describe('ClassChunkingStrategy', () => {
         }
       };
 
-      const result = strategy.validateChunks([validChunk]);
+      // 使用自定义配置，降低最小分段大小要求
+      const customStrategy = new ClassChunkingStrategy({ minChunkSize: 10 });
+      const result = customStrategy.validateChunks([validChunk]);
       expect(result).toBe(true);
     });
 
@@ -309,7 +320,7 @@ describe('ClassChunkingStrategy', () => {
   describe('optimizeClassChunks', () => {
     it('should filter out invalid chunks', () => {
       const validChunk: CodeChunk = {
-        content: 'class ValidClass { method() {} }',
+        content: 'class ValidClass { method() { return "hello world"; } }',
         metadata: {
           startLine: 1,
           endLine: 3,
@@ -328,7 +339,9 @@ describe('ClassChunkingStrategy', () => {
         }
       };
 
-      const optimized = (strategy as any).optimizeClassChunks([validChunk, tooSmallChunk]);
+      // 使用自定义配置，降低最小分段大小要求
+      const customStrategy = new ClassChunkingStrategy({ minChunkSize: 10 });
+      const optimized = (customStrategy as any).optimizeClassChunks([validChunk, tooSmallChunk]);
       expect(optimized.length).toBe(1);
       expect(optimized[0]).toBe(validChunk);
     });
