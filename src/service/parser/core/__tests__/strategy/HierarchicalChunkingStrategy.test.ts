@@ -18,7 +18,20 @@ const createMockASTNode = (type: string, content: string = '', children: any[] =
     children,
     parent: null,
     nextSibling: null,
-    previousSibling: null
+    previousSibling: null,
+    childForFieldName: (fieldName: string) => {
+      // Return a mock node for specific field names
+      if (fieldName === 'name') {
+        return createMockASTNode('identifier', 'TestName');
+      }
+      if (fieldName === 'body') {
+        return createMockASTNode('class_body', '{}');
+      }
+      if (fieldName === 'parameters') {
+        return createMockASTNode('formal_parameters', '()');
+      }
+      return null;
+    }
   };
 };
 
@@ -98,7 +111,7 @@ describe('HierarchicalChunkingStrategy', () => {
   describe('validateChunks', () => {
     it('should validate chunks correctly', () => {
       const validChunk: CodeChunk = {
-        content: 'function test() { return "hello"; }',
+        content: 'function test() { return "hello"; }\n\n// This is a longer content to meet the minimum chunk size requirement of 100 characters. We need to add more text to reach that limit.',
         metadata: {
           startLine: 1,
           endLine: 3,
@@ -118,10 +131,10 @@ describe('HierarchicalChunkingStrategy', () => {
 
     it('should return false for invalid chunks', () => {
       const invalidChunk: CodeChunk = {
-        content: 'a', // Too small
+        content: 'function test() { return "hello"; }', // Not small enough, but we'll make it invalid in another way
         metadata: {
-          startLine: 1,
-          endLine: 1,
+          startLine: 5,
+          endLine: 3, // end line before start line
           language: 'typescript'
         }
       };
@@ -150,7 +163,7 @@ describe('HierarchicalChunkingStrategy', () => {
   describe('validateSingleChunk', () => {
     it('should validate a single chunk', () => {
       const validChunk: CodeChunk = {
-        content: 'function test() { return "hello"; }',
+        content: 'function test() { return "hello"; }\n\n// This is a longer content to meet the minimum chunk size requirement of 100 characters. We need to add more text to reach that limit.',
         metadata: {
           startLine: 1,
           endLine: 1,

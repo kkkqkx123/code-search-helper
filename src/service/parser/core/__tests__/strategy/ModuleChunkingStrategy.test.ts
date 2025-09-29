@@ -4,6 +4,17 @@ import { CodeChunk } from '../../types';
 
 // Mock AST node for testing
 const createMockASTNode = (type: string, content: string = '', children: any[] = []): any => {
+  // Create import statement nodes if content contains import statements
+  if (type === 'program' && content.includes('import')) {
+    const importMatches = content.match(/import\s+[^;]+;/g) || content.match(/import\s+[^;]+\n/g);
+    if (importMatches) {
+      for (const importStatement of importMatches) {
+        const importNode = createMockASTNode('import_statement', importStatement);
+        children.push(importNode);
+      }
+    }
+  }
+
   return {
     type,
     startIndex: 0,
@@ -323,7 +334,7 @@ describe('ModuleChunkingStrategy', () => {
   describe('validateChunks', () => {
     it('should validate chunks correctly', () => {
       const validChunk: CodeChunk = {
-        content: 'function test() { return "hello"; }',
+        content: 'function test() { return "hello"; }\n\n// This is a longer content to meet the minimum chunk size requirement of 100 characters. We need to add more text to reach that limit.',
         metadata: {
           startLine: 1,
           endLine: 1,

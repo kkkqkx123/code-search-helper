@@ -77,7 +77,7 @@ describe('IndexSyncService', () => {
         return undefined;
       })
     } as unknown as ConfigService;
-    
+
     loggerService = new LoggerService(mockConfigService) as jest.Mocked<LoggerService>;
     errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
     fileSystemTraversal = new FileSystemTraversal(
@@ -100,7 +100,7 @@ describe('IndexSyncService', () => {
     const mockVectorOperations = {} as jest.Mocked<IQdrantVectorOperations>;
     const mockQueryUtils = {} as jest.Mocked<IQdrantQueryUtils>;
     const mockProjectManager = {} as jest.Mocked<IQdrantProjectManager>;
-    
+
     qdrantService = new QdrantService(
       diContainer.get(TYPES.ConfigService),
       loggerService,
@@ -128,7 +128,7 @@ describe('IndexSyncService', () => {
       errorHandlerService,
       diContainer.get(TYPES.ConfigService)
     ) as jest.Mocked<PerformanceOptimizerService>;
-    
+
     astSplitter = {} as jest.Mocked<ASTCodeSplitter>;
 
     // Create service instance
@@ -165,7 +165,7 @@ describe('IndexSyncService', () => {
       expect(projectIdManager.generateProjectId).toHaveBeenCalledWith(projectPath);
       expect(qdrantService.createCollectionForProject).toHaveBeenCalledWith(
         projectPath,
-        1536,
+        1024,
         'Cosine'
       );
     });
@@ -503,7 +503,7 @@ describe('IndexSyncService', () => {
       // Set index status
       (indexSyncService as any).indexingProjects.set(projectId, status);
       (indexSyncService as any).indexingQueue = [{ projectPath }];
-      
+
       // Mock projectIdManager.getProjectId to return the projectId for the projectPath
       projectIdManager.getProjectId.mockImplementation((path: string) => {
         return path === projectPath ? projectId : undefined;

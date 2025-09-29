@@ -3,7 +3,15 @@ import { FunctionChunkingStrategy } from '../../strategy/FunctionChunkingStrateg
 import { CodeChunk } from '../../types';
 
 // Mock AST node for testing
-const createMockASTNode = (type: string, content: string = '', children: any[] = []): any => {
+const createMockASTNode = (type: string, content: string = '', children: any[] = [], options: any = {}): any => {
+  const {
+    hasName = true,
+    functionName = 'testFunction',
+    isArrowFunction = false,
+    isConstructor = false,
+    isUnnamedFunction = false
+  } = options;
+
   return {
     type,
     startIndex: 0,
@@ -16,8 +24,46 @@ const createMockASTNode = (type: string, content: string = '', children: any[] =
     nextSibling: null,
     previousSibling: null,
     childForFieldName: (fieldName: string) => {
-      if (fieldName === 'name' && type.includes('function')) {
-        return createMockASTNode('identifier', 'testFunction');
+      if (fieldName === 'name') {
+        if (isArrowFunction || isUnnamedFunction) {
+          return null; // 箭头函数和无名函数没有name节点
+        }
+        if (isConstructor) {
+          // 构造函数的name节点返回constructor
+          return {
+            type: 'identifier',
+            startIndex: 0,
+            endIndex: 11, // 'constructor' 的长度
+            startPosition: { row: 0, column: 0 },
+            endPosition: { row: 0, column: 11 },
+            text: 'constructor',
+            children: [],
+            parent: null,
+            nextSibling: null,
+            previousSibling: null,
+            childForFieldName: () => null
+          };
+        }
+        if (hasName) {
+          // 普通函数的name节点
+          const nameStartIndex = content.indexOf(functionName);
+          if (nameStartIndex !== -1) {
+            return {
+              type: 'identifier',
+              startIndex: nameStartIndex,
+              endIndex: nameStartIndex + functionName.length,
+              startPosition: { row: 0, column: nameStartIndex },
+              endPosition: { row: 0, column: nameStartIndex + functionName.length },
+              text: functionName,
+              children: [],
+              parent: null,
+              nextSibling: null,
+              previousSibling: null,
+              childForFieldName: () => null
+            };
+          }
+        }
+        return null;
       }
       if (fieldName === 'parameters' && type.includes('function')) {
         return createMockASTNode('formal_parameters', '(param1, param2)');
@@ -156,23 +202,27 @@ describe('FunctionChunkingStrategy', () => {
   });
 
  describe('chunk', () => {
-    it('should create a chunk for a function node', () => {
-      const functionContent = 'function test() { return "hello"; }';
-      const functionNode = createMockASTNode('function_declaration', functionContent);
-      
-      const chunks = strategy.chunk(functionNode, functionContent);
-      
-      expect(Array.isArray(chunks)).toBe(true);
-      expect(chunks.length).toBe(1);
-      
-      const chunk = chunks[0];
-      expect(chunk.content).toBe(functionContent);
-      expect(chunk.metadata).toHaveProperty('type', 'function');
-      expect(chunk.metadata).toHaveProperty('functionName', 'testFunction'); // From mock
-      expect(chunk.metadata).toHaveProperty('language');
-      expect(chunk.metadata).toHaveProperty('startLine');
-      expect(chunk.metadata).toHaveProperty('endLine');
-    });
+   it('should create a chunk for a function node', () => {
+     // 创建一个足够大的函数以满足最小大小要求
+     const functionContent = 'function testFunction() { \n' +
+       '  // This is a longer function comment to meet minimum size requirements\n' +
+       '  return "hello world this is a longer string"; \n' +
+       '}';
+     const functionNode = createMockASTNode('function_declaration', functionContent, [], { functionName: 'testFunction' });
+     
+     const chunks = strategy.chunk(functionNode, functionContent);
+     
+     expect(Array.isArray(chunks)).toBe(true);
+     expect(chunks.length).toBe(1);
+     
+     const chunk = chunks[0];
+     expect(chunk.content).toBe(functionContent);
+     expect(chunk.metadata).toHaveProperty('type', 'function');
+     expect(chunk.metadata).toHaveProperty('functionName', 'testFunction');
+     expect(chunk.metadata).toHaveProperty('language');
+     expect(chunk.metadata).toHaveProperty('startLine');
+     expect(chunk.metadata).toHaveProperty('endLine');
+   });
 
     it('should return empty array for non-function node', () => {
       const classNode = createMockASTNode('class_declaration', 'class Test {}');
@@ -202,8 +252,12 @@ describe('FunctionChunkingStrategy', () => {
 
   describe('createFunctionChunk', () => {
     it('should create a function chunk with correct metadata', () => {
-      const functionContent = 'function test(param: string): string { return param; }';
-      const functionNode = createMockASTNode('function_declaration', functionContent);
+      // 创建一个足够大的函数以满足最小大小要求
+      const functionContent = 'function testFunction(param: string): string { \n' +
+        '  // This is a longer function comment to meet minimum size requirements\n' +
+        '  return param + " with some additional text to make it longer"; \n' +
+        '}';
+      const functionNode = createMockASTNode('function_declaration', functionContent, [], { functionName: 'testFunction' });
       
       // Access private method using any type
       const createFunctionChunkMethod = (strategy as any).createFunctionChunk.bind(strategy);
@@ -212,7 +266,7 @@ describe('FunctionChunkingStrategy', () => {
       if (chunk) {
         expect(chunk.content).toBe(functionContent);
         expect(chunk.metadata.type).toBe('function');
-        expect(chunk.metadata.functionName).toBe('testFunction'); // From mock
+        expect(chunk.metadata.functionName).toBe('testFunction');
         expect(chunk.metadata.language).toBe('typescript'); // Default
         expect(typeof chunk.metadata.complexity).toBe('number');
         expect(chunk.metadata).toHaveProperty('parameters');
@@ -223,25 +277,25 @@ describe('FunctionChunkingStrategy', () => {
 
   describe('extractFunctionName', () => {
     it('should extract function name from node', () => {
-      const functionNode = createMockASTNode('function_declaration', 'function testFunction() {}');
+      const functionNode = createMockASTNode('function_declaration', 'function testFunction() {}', [], { functionName: 'testFunction' });
       const functionName = (strategy as any).extractFunctionName(functionNode, 'function testFunction() {}');
       expect(functionName).toBe('testFunction');
     });
 
     it('should return "anonymous" for anonymous function', () => {
-      const arrowFunctionNode = createMockASTNode('arrow_function', '() => {}');
+      const arrowFunctionNode = createMockASTNode('arrow_function', '() => {}', [], { isArrowFunction: true });
       const functionName = (strategy as any).extractFunctionName(arrowFunctionNode, '() => {}');
       expect(functionName).toBe('anonymous');
     });
 
     it('should return "constructor" for constructor', () => {
-      const constructorNode = createMockASTNode('constructor_declaration', 'constructor() {}');
+      const constructorNode = createMockASTNode('constructor_declaration', 'constructor() {}', [], { isConstructor: true });
       const functionName = (strategy as any).extractFunctionName(constructorNode, 'constructor() {}');
       expect(functionName).toBe('constructor');
     });
 
     it('should return "unknown" for node without name', () => {
-      const functionNode = createMockASTNode('function_declaration', 'function() {}');
+      const functionNode = createMockASTNode('function_declaration', 'function() {}', [], { isUnnamedFunction: true });
       const functionName = (strategy as any).extractFunctionName(functionNode, 'function() {}');
       expect(functionName).toBe('unknown');
     });
@@ -298,10 +352,13 @@ describe('FunctionChunkingStrategy', () => {
   describe('validateChunks', () => {
     it('should validate chunks correctly', () => {
       const validChunk: CodeChunk = {
-        content: 'function test() { return "hello"; }',
+        content: 'function test() { \n' +
+          '  // This is a longer function comment to meet minimum size requirements\n' +
+          '  return "hello world this is a longer string"; \n' +
+          '}',
         metadata: {
           startLine: 1,
-          endLine: 1,
+          endLine: 4,
           language: 'typescript',
           type: 'function'
         }
@@ -355,10 +412,13 @@ describe('FunctionChunkingStrategy', () => {
   describe('optimizeFunctionChunks', () => {
     it('should filter out invalid chunks', () => {
       const validChunk: CodeChunk = {
-        content: 'function validFunction() { return "hello"; }',
+        content: 'function validFunction() { \n' +
+          '  // This is a longer function comment to meet minimum size requirements\n' +
+          '  return "hello world this is a longer string"; \n' +
+          '}',
         metadata: {
           startLine: 1,
-          endLine: 1,
+          endLine: 4,
           language: 'typescript',
           type: 'function'
         }
@@ -375,7 +435,8 @@ describe('FunctionChunkingStrategy', () => {
       };
 
       const optimized = (strategy as any).optimizeFunctionChunks([validChunk, tooSmallChunk]);
-      expect(optimized.length).toBeLessThanOrEqual(1); // May be 0 or 1 depending on min size
+      expect(optimized.length).toBe(1); // Only the valid chunk should remain
+      expect(optimized[0]).toBe(validChunk);
     });
   });
 

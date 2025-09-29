@@ -82,6 +82,10 @@ export class HierarchicalChunkingStrategy implements ChunkingStrategy {
   }
 
   validateChunks(chunks: CodeChunk[]): boolean {
+    if (!chunks || chunks.length === 0) {
+      return false;
+    }
+
     // 验证所有分段
     for (const chunk of chunks) {
       if (!this.validateSingleChunk(chunk)) {
@@ -464,7 +468,11 @@ export class HierarchicalChunkingStrategy implements ChunkingStrategy {
     }
 
     // 检查内容长度
-    if (chunk.content.length > 10000) { // 过大的分段
+    if (chunk.content.length < 100) { // 过小的分段
+      return false;
+    }
+
+    if (chunk.content.length > 2000) { // 过大的分段
       return false;
     }
 
