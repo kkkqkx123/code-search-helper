@@ -205,7 +205,7 @@ export class ApiServer {
         
         await this.logger.debug('Loading search results from:', searchResultsPath);
         const searchData = await fs.readFile(searchResultsPath, 'utf-8');
-        const mockResults = JSON.parse(searchData);
+        const searchResults = JSON.parse(searchData);
         
         await this.logger.debug('Loading code snippets from:', codeSnippetsPath);
         const snippetsData = await fs.readFile(codeSnippetsPath, 'utf-8');
@@ -218,7 +218,7 @@ export class ApiServer {
         });
         
         // 过滤结果以匹配查询并转换为前端期望的格式
-        let filteredResults = mockResults.results
+        let filteredResults = searchResults.results
           .filter((result: any) =>
             result.highlightedContent.toLowerCase().includes(query.toLowerCase())
           )
