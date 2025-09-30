@@ -41,6 +41,14 @@ export class ProjectIdManager {
     // Normalize path to ensure consistency across different platforms
     const normalizedPath = HashUtils.normalizePath(projectPath);
     
+    // Check if project ID already exists for this path
+    const existingProjectId = this.projectIdMap.get(normalizedPath);
+    if (existingProjectId) {
+      // Update timestamp for existing project
+      this.projectUpdateTimes.set(existingProjectId, new Date());
+      return existingProjectId;
+    }
+    
     // Use SHA256 hash to generate project ID
     const directoryHash = await HashUtils.calculateDirectoryHash(projectPath);
     const projectId = directoryHash.hash.substring(0, 16);

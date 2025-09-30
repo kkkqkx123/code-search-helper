@@ -188,7 +188,7 @@ describe('IndexSyncService', () => {
 
       // Try to start indexing again
       await expect(indexSyncService.startIndexing(projectPath)).rejects.toThrow(
-        `Project ${projectId} is already being indexed`
+        `项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`
       );
     });
 
@@ -422,7 +422,7 @@ describe('IndexSyncService', () => {
       const filePath = '/test/project/file.js';
 
       // Call the method
-      const chunks = (indexSyncService as any).chunkFile(content, filePath);
+      const chunks = await (indexSyncService as any).chunkFile(content, filePath);
 
       // Verify results
       expect(chunks).toHaveLength(1);

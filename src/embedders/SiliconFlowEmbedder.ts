@@ -135,7 +135,7 @@ export class SiliconFlowEmbedder extends BaseEmbedder {
           vector: embeddingArray,
           dimensions: embeddingArray.length,
           model: this.model,
-          processingTime: 0,
+          processingTime: 0, // 将由基类的 measureTime 方法自动更新为实际处理时间
         };
       });
     } catch (error) {

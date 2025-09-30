@@ -2,6 +2,7 @@ import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterSer
 import { ASTCodeSplitter } from '../../service/parser/splitting/ASTCodeSplitter';
 import { Splitter } from '../../service/parser/splitting/Splitter';
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
+import { LoggerService } from '../../utils/LoggerService';
 import { TYPES } from '../../types';
 import { Container } from 'inversify';
 
@@ -13,6 +14,14 @@ describe('Parser and Splitting Module Integration Tests', () => {
   beforeEach(() => {
     // Create a new container for testing
     container = new Container();
+    
+    // Create a mock LoggerService
+    const mockLoggerService = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+    };
     
     // Create a mock TreeSitterCoreService
     const mockTreeSitterCoreService = {
@@ -80,11 +89,13 @@ describe('Parser and Splitting Module Integration Tests', () => {
         startColumn: 0,
         endColumn: 0,
       }),
+      getNodeName: jest.fn().mockReturnValue('testFunction'),
       findNodeByType: jest.fn().mockReturnValue([]),
       queryTree: jest.fn().mockReturnValue([]),
     };
 
-    // Bind the mock service
+    // Bind the mock services
+    container.bind(TYPES.LoggerService).toConstantValue(mockLoggerService);
     container.bind(TYPES.TreeSitterCoreService).toConstantValue(mockTreeSitterCoreService);
     container.bind(TYPES.TreeSitterService).to(TreeSitterService);
     container.bind(TYPES.ASTCodeSplitter).to(ASTCodeSplitter);

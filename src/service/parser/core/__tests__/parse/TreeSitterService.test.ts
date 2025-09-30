@@ -16,10 +16,12 @@ jest.mock('../../parse/TreeSitterCoreService', () => {
       extractFunctions: jest.fn(() => []),
       extractClasses: jest.fn(() => []),
       extractImports: jest.fn(() => []),
+      extractImportNodes: jest.fn(() => []),
       extractExports: jest.fn(() => []),
       isInitialized: jest.fn(() => true),
       getNodeText: jest.fn(() => ''),
       getNodeLocation: jest.fn(() => ({ startLine: 1, endLine: 1, startColumn: 1, endColumn: 1 })),
+      getNodeName: jest.fn(() => ''),
       findNodeByType: jest.fn(() => []),
       queryTree: jest.fn(() => [])
     }))
@@ -111,21 +113,21 @@ describe('TreeSitterService', () => {
 
   describe('extractImports', () => {
     it('should delegate to core service', () => {
-      const mockImports = ['import { test } from "test";'];
-      (mockCoreService.extractImports as jest.Mock).mockReturnValue(mockImports);
+      const mockImportNodes = [{} as Parser.SyntaxNode];
+      (mockCoreService.extractImportNodes as jest.Mock).mockReturnValue(mockImportNodes);
 
       const result = treeSitterService.extractImports({} as Parser.SyntaxNode, 'source code');
-      expect(mockCoreService.extractImports).toHaveBeenCalledWith({} as Parser.SyntaxNode, 'source code');
-      expect(result).toEqual(mockImports);
+      expect(mockCoreService.extractImportNodes).toHaveBeenCalledWith({} as Parser.SyntaxNode);
+      expect(result).toEqual(mockImportNodes);
     });
 
     it('should work without source code', () => {
-      const mockImports: any[] = [];
-      (mockCoreService.extractImports as jest.Mock).mockReturnValue(mockImports);
+      const mockImportNodes: any[] = [];
+      (mockCoreService.extractImportNodes as jest.Mock).mockReturnValue(mockImportNodes);
 
       const result = treeSitterService.extractImports({} as Parser.SyntaxNode);
-      expect(mockCoreService.extractImports).toHaveBeenCalledWith({} as Parser.SyntaxNode, undefined);
-      expect(result).toEqual(mockImports);
+      expect(mockCoreService.extractImportNodes).toHaveBeenCalledWith({} as Parser.SyntaxNode);
+      expect(result).toEqual(mockImportNodes);
     });
   });
 

@@ -9,6 +9,8 @@ describe('ConfigService', () => {
   beforeEach(() => {
     // 每个测试前重置环境变量
     process.env = { ...originalEnv };
+    // 清除日志级别环境变量以确保使用默认值
+    delete process.env.LOG_LEVEL;
     // 创建新的实例（因为ConfigService使用单例模式）
     (ConfigService as any).instance = undefined;
     configService = new ConfigService();

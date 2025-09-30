@@ -215,31 +215,36 @@ describe('ChangeDetectionService', () => {
       (changeDetectionService as any).fileHashes.set(mockFileInfo.relativePath, 'oldhash');
       mockFileSystemTraversal['calculateFileHash'] = jest.fn().mockResolvedValue('newhash');
 
-      await (changeDetectionService as any).handleFileChanged(mockFileInfo);
+      // Use real timers for this test since debounce uses real timing
+      jest.useRealTimers();
+      
+      try {
+        await (changeDetectionService as any).handleFileChanged(mockFileInfo);
 
-      // Should not trigger callback immediately due to debounce
-      expect(callbacks.onFileModified).not.toHaveBeenCalled();
+        // Should not trigger callback immediately due to debounce
+        expect(callbacks.onFileModified).not.toHaveBeenCalled();
 
-      // Fast-forward timers to trigger debounce
-      jest.advanceTimersByTime(500);
+        // Wait for debounce to complete (test mode uses 100ms debounce)
+        await new Promise(resolve => setTimeout(resolve, 150));
 
-      // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+        const expectedEvent: FileChangeEvent = {
+          type: 'modified',
+          path: mockFileInfo.path,
+          relativePath: mockFileInfo.relativePath,
+          previousHash: 'oldhash',
+          currentHash: 'newhash',
+          timestamp: expect.any(Date),
+          size: mockFileInfo.size,
+          language: mockFileInfo.language,
+        };
 
-      const expectedEvent: FileChangeEvent = {
-        type: 'modified',
-        path: mockFileInfo.path,
-        relativePath: mockFileInfo.relativePath,
-        previousHash: 'oldhash',
-        currentHash: 'newhash',
-        timestamp: expect.any(Date),
-        size: mockFileInfo.size,
-        language: mockFileInfo.language,
-      };
-
-      expect(callbacks.onFileModified).toHaveBeenCalledWith(expectedEvent);
-      expect((changeDetectionService as any).fileHashes.get(mockFileInfo.relativePath)).toBe('newhash');
-    }, 15000);
+        expect(callbacks.onFileModified).toHaveBeenCalledWith(expectedEvent);
+        expect((changeDetectionService as any).fileHashes.get(mockFileInfo.relativePath)).toBe('newhash');
+      } finally {
+        // Restore fake timers for other tests
+        jest.useFakeTimers();
+      }
+    });
 
     it('should handle file deleted event', () => {
       // Set up initial hash
@@ -343,55 +348,80 @@ describe('ChangeDetectionService', () => {
     });
 
     it('should wait for file processing', async () => {
-      // Set up a file with pending changes
-      const timeout = setTimeout(() => {}, 100);
-      (changeDetectionService as any).pendingChanges.set('file.ts', timeout);
+      // Use real timers for this test since waitForFileProcessing uses real timing
+      jest.useRealTimers();
+      
+      try {
+        // Test with no pending changes - should return true immediately
+        let result = await changeDetectionService.waitForFileProcessing('file.ts', 100);
+        expect(result).toBe(true);
 
-      // Should return false immediately
-      let result = await changeDetectionService.waitForFileProcessing('file.ts', 50);
-      expect(result).toBe(false);
+        // Add a pending change using a long timeout that won't expire during test
+        const timeout = setTimeout(() => {}, 10000);
+        (changeDetectionService as any).pendingChanges.set('file.ts', timeout);
 
-      // Clear pending changes
-      clearTimeout(timeout);
-      (changeDetectionService as any).pendingChanges.clear();
+        // Test with pending changes - should return false due to timeout
+        result = await changeDetectionService.waitForFileProcessing('file.ts', 50);
+        expect(result).toBe(false);
 
-      // Should return true now
-      result = await changeDetectionService.waitForFileProcessing('file.ts', 50);
-      expect(result).toBe(true);
+        // Clean up
+        clearTimeout(timeout);
+        (changeDetectionService as any).pendingChanges.clear();
+      } finally {
+        // Restore fake timers for other tests
+        jest.useFakeTimers();
+      }
     });
 
     it('should wait for all processing', async () => {
-      // Set up pending changes
-      const timeout1 = setTimeout(() => {}, 100);
-      const timeout2 = setTimeout(() => {}, 100);
-      (changeDetectionService as any).pendingChanges.set('file1.ts', timeout1);
-      (changeDetectionService as any).pendingChanges.set('file2.ts', timeout2);
+      // Use real timers for this test
+      jest.useRealTimers();
+      
+      try {
+        // Test with no pending changes - should return true immediately
+        let result = await changeDetectionService.waitForAllProcessing(100);
+        expect(result).toBe(true);
 
-      // Should return false immediately
-      let result = await changeDetectionService.waitForAllProcessing(50);
-      expect(result).toBe(false);
+        // Add pending changes
+        const timeout1 = setTimeout(() => {}, 10000);
+        const timeout2 = setTimeout(() => {}, 10000);
+        (changeDetectionService as any).pendingChanges.set('file1.ts', timeout1);
+        (changeDetectionService as any).pendingChanges.set('file2.ts', timeout2);
 
-      // Clear pending changes
-      clearTimeout(timeout1);
-      clearTimeout(timeout2);
-      (changeDetectionService as any).pendingChanges.clear();
+        // Test with pending changes - should return false due to timeout
+        result = await changeDetectionService.waitForAllProcessing(50);
+        expect(result).toBe(false);
 
-      // Should return true now
-      result = await changeDetectionService.waitForAllProcessing(50);
-      expect(result).toBe(true);
+        // Clean up
+        clearTimeout(timeout1);
+        clearTimeout(timeout2);
+        (changeDetectionService as any).pendingChanges.clear();
+      } finally {
+        // Restore fake timers
+        jest.useFakeTimers();
+      }
     });
 
     it('should flush pending changes', async () => {
-      // Mock waitForAllProcessing
-      const originalWaitForAllProcessing = changeDetectionService.waitForAllProcessing;
-      changeDetectionService.waitForAllProcessing = jest.fn().mockResolvedValue(true);
-
-      await changeDetectionService.flushPendingChanges();
-
-      expect(changeDetectionService.waitForAllProcessing).toHaveBeenCalled();
+      // Create a simple mock for waitForAllProcessing
+      const mockWaitForAllProcessing = jest.fn().mockResolvedValue(true);
       
-      // Restore original method
-      changeDetectionService.waitForAllProcessing = originalWaitForAllProcessing;
+      // Replace the method temporarily
+      const originalMethod = (changeDetectionService as any).waitForAllProcessing;
+      (changeDetectionService as any).waitForAllProcessing = mockWaitForAllProcessing;
+
+      // Use real timers for this test since flushPendingChanges uses setTimeout
+      jest.useRealTimers();
+      
+      try {
+        await changeDetectionService.flushPendingChanges();
+
+        expect(mockWaitForAllProcessing).toHaveBeenCalledWith(); // Called with default parameters
+      } finally {
+        // Restore original method and fake timers
+        (changeDetectionService as any).waitForAllProcessing = originalMethod;
+        jest.useFakeTimers();
+      }
     });
   });
 });

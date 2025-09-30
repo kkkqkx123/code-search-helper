@@ -59,7 +59,10 @@ describe('ConfigFactory', () => {
       expect(appConfig.lsp).toBe(mockFullConfig.lsp);
       expect(appConfig.semgrep).toBe(mockFullConfig.semgrep);
       expect(appConfig.mlReranking).toBe(mockFullConfig.mlReranking);
-      expect(appConfig.caching).toBe(mockFullConfig.caching);
+      expect(appConfig.caching).toEqual({
+        ...mockFullConfig.caching,
+        cleanupInterval: 600000
+      });
       expect(appConfig.indexing).toBe(mockFullConfig.indexing);
       expect(appConfig.nebula).toBe(mockFullConfig.nebula);
       expect(appConfig.performance).toBe(mockFullConfig.performance);
@@ -229,7 +232,10 @@ describe('ConfigFactory', () => {
       const cachingConfig = configFactory.getCachingConfig();
 
       expect(mockConfigService.get).toHaveBeenCalledWith('caching');
-      expect(cachingConfig).toBe(expectedCachingConfig);
+      expect(cachingConfig).toEqual({
+        ...expectedCachingConfig,
+        cleanupInterval: 600000
+      });
     });
 
     it('应该返回索引配置', () => {

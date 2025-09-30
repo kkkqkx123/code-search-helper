@@ -110,6 +110,8 @@ export class HashUtils {
     const defaultExtensions = [
       'ts',
       'js',
+      'jsx',
+      'tsx',
       'py',
       'java',
       'go',

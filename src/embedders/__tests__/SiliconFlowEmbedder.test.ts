@@ -51,7 +51,7 @@ describe('SiliconFlowEmbedder', () => {
         vector: [0.1, 0.2, 0.3],
         dimensions: 3,
         model: 'BAAI/bge-m3',
-        processingTime: 0
+        processingTime: expect.any(Number) // 动态处理时间
       };
 
       // Mock the fetch call
@@ -67,6 +67,8 @@ describe('SiliconFlowEmbedder', () => {
       const result = await siliconFlowEmbedder.embed(input);
       
       expect(result).toEqual(mockResult);
+      // 确保处理时间合理 - result 是单个 EmbeddingResult
+      expect((result as any).processingTime).toBeGreaterThanOrEqual(0);
       expect(global.fetch).toHaveBeenCalledWith(
         'https://api.siliconflow.cn/v1/embeddings',
         expect.objectContaining({

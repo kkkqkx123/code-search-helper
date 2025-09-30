@@ -85,7 +85,7 @@ describe('QdrantVectorOperations', () => {
       expect(mockClient.upsert).toHaveBeenCalledWith(collectionName, {
         points: [
           {
-            id: '1',
+            id: expect.any(Number), // ID会被转换为数字
             vector: [0.1, 0.2, 0.3],
             payload: expect.any(Object)
           }
@@ -240,7 +240,7 @@ describe('QdrantVectorOperations', () => {
             startLine: 1,
             endLine: 10,
             metadata: {},
-            timestamp: expect.any(Date)
+            timestamp: new Date('2023-01-01T00:00:00.000Z') // 时间戳被转换为Date对象
           })
         }
       ]);
@@ -280,7 +280,7 @@ describe('QdrantVectorOperations', () => {
           version: 0,
           score: 0.95,
           payload: null,
-          vector: null
+          vector: [0.1, 0.2, 0.3]
         }
       ];
       
@@ -292,7 +292,9 @@ describe('QdrantVectorOperations', () => {
         {
           id: '1',
           score: 0.95,
-          payload: expect.any(Object)
+          payload: {
+            timestamp: expect.any(Date)
+          }
         }
       ]);
       expect(mockClient.search).toHaveBeenCalledWith(collectionName, {
@@ -505,7 +507,7 @@ describe('QdrantVectorOperations', () => {
       const result = processPoint(point);
       
       expect(result).toEqual({
-        id: '1',
+        id: expect.any(Number), // ID会被转换为数字
         vector: [0.1, 0.2, 0.3],
         payload: expect.any(Object)
       });

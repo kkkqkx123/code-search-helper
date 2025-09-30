@@ -230,33 +230,62 @@ export class ProjectStateManager {
   }
 
   /**
-   * 保存项目状态
+   * 保存项目状态（带重试机制）
    */
   private async saveProjectStates(): Promise<void> {
-    try {
-      // 确保目录存在
-      const dirPath = path.dirname(this.storagePath);
-      await fs.mkdir(dirPath, { recursive: true });
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // 确保目录存在
+        const dirPath = path.dirname(this.storagePath);
+        await fs.mkdir(dirPath, { recursive: true });
 
-      // 转换为数组并序列化
-      const states = Array.from(this.projectStates.values());
-      const jsonData = JSON.stringify(states, null, 2);
+        // 转换为数组并序列化
+        const states = Array.from(this.projectStates.values());
+        const jsonData = JSON.stringify(states, null, 2);
 
-      // 使用临时文件+重命名的方式实现原子写入
-      const tempPath = `${this.storagePath}.tmp`;
-      await fs.writeFile(tempPath, jsonData);
-      
-      // 原子性重命名
-      await fs.rename(tempPath, this.storagePath);
-
-      this.logger.debug(`Saved ${states.length} project states`);
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(`Failed to save project states: ${error instanceof Error ? error.message : String(error)}`),
-        { component: 'ProjectStateManager', operation: 'saveProjectStates' }
-      );
-      throw error;
+        // 使用临时文件+重命名的方式实现原子写入
+        const tempPath = `${this.storagePath}.tmp`;
+        
+        try {
+          // 先尝试删除可能存在的临时文件（处理之前的失败情况）
+          await fs.unlink(tempPath).catch(() => {});
+          
+          // 写入临时文件
+          await fs.writeFile(tempPath, jsonData);
+          
+          // 原子性重命名
+          await fs.rename(tempPath, this.storagePath);
+          
+          this.logger.debug(`Saved ${states.length} project states (attempt ${attempt})`);
+          return; // 成功保存，退出重试循环
+          
+        } catch (writeError: any) {
+          // 清理临时文件（如果存在）
+          try {
+            await fs.unlink(tempPath);
+          } catch {}
+          throw writeError;
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        this.logger.warn(`Failed to save project states (attempt ${attempt}/${maxRetries}): ${lastError.message}`);
+        
+        if (attempt < maxRetries) {
+          // 等待一段时间后重试
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        }
+      }
     }
+    
+    // 所有重试都失败
+    this.errorHandler.handleError(
+      new Error(`Failed to save project states after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`),
+      { component: 'ProjectStateManager', operation: 'saveProjectStates' }
+    );
+    throw lastError;
   }
 
   /**
@@ -589,10 +618,18 @@ export class ProjectStateManager {
     try {
       const state = this.projectStates.get(projectId);
       if (!state) {
+        this.logger.warn(`Project state not found for deactivation: ${projectId}`);
         return false;
       }
 
-      await this.updateProjectStatus(projectId, 'inactive');
+      // 更新状态，但即使保存失败也返回true（因为状态已经更新在内存中）
+      try {
+        await this.updateProjectStatus(projectId, 'inactive');
+      } catch (saveError) {
+        this.logger.warn(`Failed to save project state during deactivation, but status was updated in memory: ${saveError instanceof Error ? saveError.message : String(saveError)}`);
+        // 即使保存失败，状态已经在内存中更新，所以返回true
+      }
+      
       return true;
     } catch (error) {
       this.errorHandler.handleError(

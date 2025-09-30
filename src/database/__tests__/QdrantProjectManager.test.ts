@@ -40,7 +40,9 @@ const mockVectorOperations = {
   clearCollection: jest.fn(),
 };
 
-const mockQueryUtils = {};
+const mockQueryUtils = {
+  buildFilter: jest.fn().mockImplementation((filter) => filter || {})
+};
 
 describe('QdrantProjectManager', () => {
   let projectManager: QdrantProjectManager;
