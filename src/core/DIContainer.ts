@@ -41,6 +41,13 @@ import { TreeSitterService } from '../service/parser/core/parse/TreeSitterServic
 import { TreeSitterCoreService } from '../service/parser/core/parse/TreeSitterCoreService';
 import { ASTCodeSplitter } from '../service/parser/splitting/ASTCodeSplitter';
 
+// 文件搜索服务
+import { FileSearchService } from '../service/filesearch/FileSearchService';
+import { FileVectorIndexer } from '../service/filesearch/FileVectorIndexer';
+import { FileQueryProcessor } from '../service/filesearch/FileQueryProcessor';
+import { FileQueryIntentClassifier } from '../service/filesearch/FileQueryIntentClassifier';
+import { FileSearchCache } from '../service/filesearch/FileSearchCache';
+
 // 创建依赖注入容器
 const diContainer = new Container();
 
@@ -103,5 +110,12 @@ diContainer.bind<EmbeddingCacheService>(TYPES.EmbeddingCacheService).to(Embeddin
 diContainer.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
 diContainer.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
 diContainer.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
+
+// 注册文件搜索服务
+diContainer.bind<FileSearchService>(TYPES.FileSearchService).to(FileSearchService).inSingletonScope();
+diContainer.bind<FileVectorIndexer>(TYPES.FileVectorIndexer).to(FileVectorIndexer).inSingletonScope();
+diContainer.bind<FileQueryProcessor>(TYPES.FileQueryProcessor).to(FileQueryProcessor).inSingletonScope();
+diContainer.bind<FileQueryIntentClassifier>(TYPES.FileQueryIntentClassifier).to(FileQueryIntentClassifier).inSingletonScope();
+diContainer.bind<FileSearchCache>(TYPES.FileSearchCache).to(FileSearchCache).inSingletonScope();
 
 export { diContainer };

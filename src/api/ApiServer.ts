@@ -5,6 +5,7 @@ import path from 'path';
 import { Logger } from '../utils/logger.js';
 import { ProjectRoutes } from './routes/ProjectRoutes';
 import { IndexingRoutes } from './routes/IndexingRoutes';
+import { FileSearchRoutes } from './routes/FileSearchRoutes';
 import { ProjectIdManager } from '../database/ProjectIdManager';
 import { ProjectLookupService } from '../database/ProjectLookupService';
 import { IndexSyncService } from '../service/index/IndexSyncService';
@@ -22,6 +23,7 @@ export class ApiServer {
   private projectLookupService: ProjectLookupService;
   private projectRoutes: ProjectRoutes;
   private indexingRoutes: IndexingRoutes;
+  private fileSearchRoutes: FileSearchRoutes;
   private indexSyncService: IndexSyncService;
   private embedderFactory: EmbedderFactory;
   private qdrantService: QdrantService;
@@ -44,6 +46,12 @@ export class ApiServer {
     this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
+    
+    // 从依赖注入容器获取文件搜索服务
+    const fileSearchService = diContainer.get<any>(TYPES.FileSearchService);
+    // 创建一个LoggerService实例包装现有的Logger
+    const loggerService = new (require('../utils/LoggerService').LoggerService)(diContainer.get(TYPES.ConfigService));
+    this.fileSearchRoutes = new FileSearchRoutes(fileSearchService, loggerService);
     this.setupMiddleware();
     this.setupRoutes();
   }
@@ -180,6 +188,9 @@ export class ApiServer {
     
     // 索引路由
     this.app.use('/api/v1/indexing', this.indexingRoutes.getRouter());
+    
+    // 文件搜索路由
+    this.app.use('/api/v1/filesearch', this.fileSearchRoutes.getRouter());
 
     // 404处理
     this.app.get('*', (req, res) => {
@@ -279,6 +290,9 @@ export class ApiServer {
           await this.logger.debug('No projectId provided, trying to get the latest project');
           try {
          // 获取项目列表
+    console.log('=== DEBUG: About to call qdrantService.initialize() ===');
+    await this.qdrantService.initialize();
+    
     console.log('=== DEBUG: About to call qdrantService.listProjects() ===');
     
     // 直接调用listProjects方法

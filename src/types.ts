@@ -24,6 +24,13 @@ import { TreeSitterService } from './service/parser/core/parse/TreeSitterService
 import { TreeSitterCoreService } from './service/parser/core/parse/TreeSitterCoreService';
 import { ASTCodeSplitter } from './service/parser/splitting/ASTCodeSplitter';
 
+// 文件搜索服务
+import { FileSearchService } from './service/filesearch/FileSearchService';
+import { FileVectorIndexer } from './service/filesearch/FileVectorIndexer';
+import { FileQueryProcessor } from './service/filesearch/FileQueryProcessor';
+import { FileQueryIntentClassifier } from './service/filesearch/FileQueryIntentClassifier';
+import { FileSearchCache } from './service/filesearch/FileSearchCache';
+
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
   ConfigFactory: Symbol.for('ConfigFactory'),
@@ -73,4 +80,11 @@ export const TYPES = {
   TreeSitterService: Symbol.for('TreeSitterService'),
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
   ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
+  
+  // 文件搜索服务
+  FileSearchService: Symbol.for('FileSearchService'),
+  FileVectorIndexer: Symbol.for('FileVectorIndexer'),
+  FileQueryProcessor: Symbol.for('FileQueryProcessor'),
+  FileQueryIntentClassifier: Symbol.for('FileQueryIntentClassifier'),
+  FileSearchCache: Symbol.for('FileSearchCache'),
 };
