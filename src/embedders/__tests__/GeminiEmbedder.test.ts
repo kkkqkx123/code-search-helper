@@ -32,7 +32,7 @@ describe('GeminiEmbedder', () => {
     
     logger = new LoggerService(mockConfigService);
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
     
     // Create GeminiEmbedder instance
     geminiEmbedder = new GeminiEmbedder(logger, errorHandler, cacheService);

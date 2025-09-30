@@ -14,5 +14,11 @@ export type {
   SemgrepConfig,
   MLRerankingConfig,
   CachingConfig,
-  IndexingConfig
+  IndexingConfig,
+  TreeSitterConfig,
+  ProjectConfig,
+  PerformanceConfig,
+  CacheConfig,
+  FusionConfig,
+  NebulaConfig
 } from './ConfigTypes';

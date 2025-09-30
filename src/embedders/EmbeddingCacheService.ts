@@ -4,7 +4,6 @@ import { Logger } from '../utils/logger';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingResult } from './BaseEmbedder';
 import { ConfigService } from '../config/ConfigService';
-import { ConfigFactory } from '../config/ConfigFactory';
 import { TYPES } from '../types';
 
 /**
@@ -18,15 +17,16 @@ export class EmbeddingCacheService {
   private errorHandler: ErrorHandlerService;
   private defaultTTL: number;
   private cleanupInterval: NodeJS.Timeout | null = null;
-  private configFactory: ConfigFactory;
+  private configService: ConfigService;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService | Logger,
-    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService
+    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
+    @inject(TYPES.ConfigService) configService: ConfigService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
-    this.configFactory = new ConfigFactory(ConfigService.getInstance());
+    this.configService = configService;
 
     // 简化配置获取
     this.defaultTTL = parseInt(process.env.EMBEDDING_CACHE_TTL || '86400'); // 默认24小时（秒）
@@ -79,7 +79,7 @@ export class EmbeddingCacheService {
    */
   private startCleanupInterval(): void {
     // 从配置中获取清理间隔，默认为10分钟
-    const cleanupInterval = this.configFactory.getCachingConfig().cleanupInterval || 600000;
+    const cleanupInterval = this.configService.get('caching')?.cleanupInterval || 600000;
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, cleanupInterval);

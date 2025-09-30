@@ -131,7 +131,7 @@ describe('EmbedderFactory', () => {
     
     logger = new LoggerService(mockConfigService);
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
     
     // Create EmbedderFactory instance
     embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);

@@ -123,7 +123,8 @@ describe('IndexSyncService', () => {
     ) as jest.Mocked<EmbedderFactory>;
     embeddingCacheService = new EmbeddingCacheService(
       loggerService,
-      errorHandlerService
+      errorHandlerService,
+      {} as any
     ) as jest.Mocked<EmbeddingCacheService>;
 
     performanceOptimizerService = new PerformanceOptimizerService(

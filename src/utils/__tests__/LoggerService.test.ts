@@ -10,7 +10,20 @@ describe('LoggerService', () => {
 
   beforeEach(() => {
     container = new Container();
-    configService = ConfigService.getInstance();
+    
+    // 创建模拟的ConfigService
+    configService = {
+      get: jest.fn().mockReturnValue({
+        logging: {
+          level: 'info',
+          format: 'json',
+          filePath: './logs/app.log'
+        }
+      }),
+      getAll: jest.fn().mockReturnValue({}),
+      initialize: jest.fn().mockResolvedValue(undefined)
+    } as any;
+    
     container.bind<ConfigService>(TYPES.ConfigService).toConstantValue(configService);
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     

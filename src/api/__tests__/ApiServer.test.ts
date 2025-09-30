@@ -66,6 +66,22 @@ jest.mock('../../embedders/EmbedderFactory', () => {
   };
 });
 
+// Mock ProjectStateManager to prevent dependency injection issues
+jest.mock('../../service/project/ProjectStateManager', () => {
+  return {
+    ProjectStateManager: jest.fn().mockImplementation(() => ({
+      getProjectState: jest.fn().mockResolvedValue({}),
+      updateProjectState: jest.fn().mockResolvedValue(undefined),
+      deleteProjectState: jest.fn().mockResolvedValue(undefined),
+      listProjects: jest.fn().mockResolvedValue([]),
+      getProjectStats: jest.fn().mockResolvedValue({}),
+      isProjectIndexed: jest.fn().mockReturnValue(false),
+      getProjectIndexingProgress: jest.fn().mockReturnValue(0),
+      resetProjectState: jest.fn().mockResolvedValue(undefined)
+    }))
+  };
+});
+
 // Create a mock IndexSyncService
 const createMockIndexSyncService = () => ({
   startIndexing: jest.fn(),
@@ -105,9 +121,29 @@ describe('ApiServer', () => {
   });
 
   beforeEach(() => {
+    // 创建模拟的ConfigService
+    const mockConfigService = {
+      get: jest.fn().mockReturnValue({
+        environment: {
+          nodeEnv: 'test',
+          port: 3001,
+          logLevel: 'info',
+          debug: false,
+        }
+      }),
+      getAll: jest.fn().mockReturnValue({}),
+      initialize: jest.fn().mockResolvedValue(undefined)
+    };
+    
     // Ensure ConfigService is properly bound in the dependency injection container
     if (!diContainer.isBound(TYPES.ConfigService)) {
-      diContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(ConfigService.getInstance());
+      diContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService as any);
+    }
+    
+    // Ensure ProjectStateManager is properly bound in the dependency injection container
+    if (!diContainer.isBound(TYPES.ProjectStateManager)) {
+      const { ProjectStateManager } = require('../../service/project/ProjectStateManager');
+      diContainer.bind(TYPES.ProjectStateManager).toConstantValue(new ProjectStateManager());
     }
     
     const logger = new Logger('ApiServerTest');

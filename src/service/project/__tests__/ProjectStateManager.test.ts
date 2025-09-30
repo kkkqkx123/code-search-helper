@@ -164,8 +164,25 @@ describe('ProjectStateManager', () => {
       mockQueryUtils,
       mockProjectManager
     ) as jest.Mocked<QdrantService>;
-    configService = new ConfigService() as jest.Mocked<ConfigService>;
+    // 创建模拟的ConfigService
+    configService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'project') {
+          return { statePath: './data/project-states.json' };
+        }
+        return {};
+      }),
+      getAll: jest.fn().mockReturnValue({}),
+      initialize: jest.fn().mockResolvedValue(undefined)
+    } as any;
     mockFs = require('fs/promises') as jest.Mocked<typeof import('fs/promises')>;
+
+    // 为fs模块的方法添加mock实现
+    mockFs.mkdir = jest.fn().mockResolvedValue(undefined);
+    mockFs.readFile = jest.fn().mockRejectedValue({ code: 'ENOENT' } as NodeJS.ErrnoException);
+    mockFs.writeFile = jest.fn().mockResolvedValue(undefined);
+    mockFs.unlink = jest.fn().mockResolvedValue(undefined);
+    mockFs.rename = jest.fn().mockResolvedValue(undefined);
 
     // Mock config service
     configService.get = jest.fn().mockImplementation((key: string) => {

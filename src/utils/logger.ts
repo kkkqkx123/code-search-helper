@@ -200,6 +200,13 @@ export class Logger {
     return this.logFilePath;
   }
 
+  /**
+   * 更新日志级别
+   */
+  updateLogLevel(level: string): void {
+    this.logLevel = level.toUpperCase();
+  }
+
   async markAsNormalExit(): Promise<void> {
     this.isNormalExit = true;
     await this.cleanup(true);

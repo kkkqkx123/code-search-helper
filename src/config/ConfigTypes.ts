@@ -204,6 +204,46 @@ export interface IndexingConfig {
   maxConcurrency: number;
 }
 
+export interface TreeSitterConfig {
+  enabled: boolean;
+  cacheSize: number;
+  timeout: number;
+  supportedLanguages: string[];
+}
+
+export interface ProjectConfig {
+  statePath: string;
+  mappingPath?: string;
+  allowReindex?: boolean;
+}
+
+export interface PerformanceConfig {
+  cleanupInterval?: number;
+  retentionPeriod?: number;
+}
+
+export interface CacheConfig {
+  ttl?: number;
+  maxEntries?: number;
+  cleanupInterval?: number;
+}
+
+export interface FusionConfig {
+  vectorWeight?: number;
+  graphWeight?: number;
+  contextualWeight?: number;
+  recencyWeight?: number;
+  popularityWeight?: number;
+}
+
+export interface NebulaConfig {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  space: string;
+}
+
 export interface AppConfig {
   environment: EnvironmentConfig;
   qdrant: QdrantConfig;
@@ -218,37 +258,10 @@ export interface AppConfig {
   mlReranking?: MLRerankingConfig;
   caching: CachingConfig;
  indexing: IndexingConfig;
-  nebula?: {
-    host: string;
-    port: number;
-    username: string;
-    password: string;
-    space: string;
-  };
-  performance?: {
-    cleanupInterval?: number;
-    retentionPeriod?: number;
-  };
- cache?: {
-    ttl?: number;
-    maxEntries?: number;
-    cleanupInterval?: number;
-  };
-  fusion?: {
-    vectorWeight?: number;
-    graphWeight?: number;
-    contextualWeight?: number;
-    recencyWeight?: number;
-    popularityWeight?: number;
-  };
-  project?: {
-    mappingPath?: string;
-    allowReindex?: boolean;
-  };
-  treeSitter?: {
-    enabled?: boolean;
-    cacheSize?: number;
-    timeout?: number;
-    supportedLanguages?: string[];
-  };
+  nebula?: NebulaConfig;
+  performance?: PerformanceConfig;
+  cache?: CacheConfig;
+  fusion?: FusionConfig;
+  project?: ProjectConfig;
+  treeSitter?: TreeSitterConfig;
 }

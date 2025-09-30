@@ -122,7 +122,7 @@ describe('Database and Embedders Integration', () => {
       removeEventListener: jest.fn()
     } as unknown as jest.Mocked<IQdrantProjectManager>;
     
-    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
     embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);
     qdrantService = new QdrantService(
       mockConfigService,

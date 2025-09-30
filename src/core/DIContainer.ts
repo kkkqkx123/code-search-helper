@@ -1,5 +1,21 @@
 import { Container, ContainerModule } from 'inversify';
 import { ConfigService } from '../config/ConfigService';
+import { ConfigFactory } from '../config/ConfigFactory';
+import {
+  EnvironmentConfigService,
+  QdrantConfigService,
+  EmbeddingConfigService,
+  LoggingConfigService,
+  MonitoringConfigService,
+  FileProcessingConfigService,
+  BatchProcessingConfigService,
+  RedisConfigService,
+  ProjectConfigService,
+  IndexingConfigService,
+  LSPConfigService,
+  SemgrepConfigService,
+  TreeSitterConfigService,
+} from '../config/service';
 import { QdrantService } from '../database/QdrantService';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
@@ -28,8 +44,27 @@ import { ASTCodeSplitter } from '../service/parser/splitting/ASTCodeSplitter';
 // 创建依赖注入容器
 const diContainer = new Container();
 
-// 注册服务
-diContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(ConfigService.getInstance());
+// 注册配置服务
+diContainer.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
+diContainer.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
+diContainer.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
+diContainer.bind<LoggingConfigService>(TYPES.LoggingConfigService).to(LoggingConfigService).inSingletonScope();
+diContainer.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
+diContainer.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
+diContainer.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
+diContainer.bind<RedisConfigService>(TYPES.RedisConfigService).to(RedisConfigService).inSingletonScope();
+diContainer.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
+diContainer.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
+diContainer.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
+diContainer.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
+diContainer.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
+
+// 注册主配置服务
+diContainer.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
+
+// 注意：ConfigFactory 不再通过 DI 容器注册，因为它需要手动创建以确保 ConfigService 已初始化
+
+// 注册其他服务
 diContainer.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
 diContainer.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
 diContainer.bind<ProjectIdManager>(TYPES.ProjectIdManager).to(ProjectIdManager).inSingletonScope();
@@ -59,6 +94,9 @@ diContainer.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService)
 
 // 注册嵌入器服务
 diContainer.bind<EmbedderFactory>(TYPES.EmbedderFactory).to(EmbedderFactory).inSingletonScope();
+
+// 注册 EmbeddingCacheService - 使用工厂类模式避免手动unbind/rebind
+// 注意：EmbeddingCacheService将在应用启动时通过工厂类创建实例
 diContainer.bind<EmbeddingCacheService>(TYPES.EmbeddingCacheService).to(EmbeddingCacheService).inSingletonScope();
 
 // 注册 Tree-sitter 解析服务

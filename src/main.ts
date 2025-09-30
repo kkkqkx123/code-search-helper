@@ -1,3 +1,4 @@
+import { inject, injectable } from 'inversify';
 import { MCPServer } from './mcp/MCPServer';
 import { ApiServer } from './api/ApiServer';
 import { Logger } from './utils/logger';
@@ -9,6 +10,7 @@ import { EmbedderFactory } from './embedders/EmbedderFactory';
 import { IndexSyncService } from './service/index/IndexSyncService';
 import { ProjectStateManager } from './service/project/ProjectStateManager';
 import { ConfigService } from './config/ConfigService';
+import { ConfigFactory } from './config/ConfigFactory';
 import { diContainer } from './core/DIContainer';
 import { TYPES } from './types';
 
@@ -24,47 +26,78 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 
+/**
+ * 应用生命周期阶段枚举
+ */
+enum ApplicationLifecyclePhase {
+  INITIALIZING = 'initializing',
+  CONFIG_LOADING = 'config_loading',
+  SERVICES_INITIALIZING = 'services_initializing',
+  SERVICES_STARTED = 'services_started',
+  RUNNING = 'running',
+  SHUTTING_DOWN = 'shutting_down',
+  STOPPED = 'stopped'
+}
+
+/**
+ * 应用主类 - 使用构造函数注入和生命周期管理
+ */
+@injectable()
 class Application {
   private mcpServer: MCPServer;
   private apiServer: ApiServer;
   private logger: Logger;
-  private qdrantService: QdrantService;
-  private embeddingCacheService: EmbeddingCacheService;
-  private embedderFactory: EmbedderFactory;
-  private loggerService: LoggerService;
-  private indexSyncService: IndexSyncService;
-  private projectStateManager: ProjectStateManager;
+  private currentPhase: ApplicationLifecyclePhase = ApplicationLifecyclePhase.INITIALIZING;
 
-  constructor() {
-    // 从依赖注入容器获取服务
-    const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
-    this.loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
-    const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
-    this.qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
-    this.indexSyncService = diContainer.get<IndexSyncService>(TYPES.IndexSyncService);
-    this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
-    this.embedderFactory = diContainer.get<EmbedderFactory>(TYPES.EmbedderFactory);
-
-    // 创建一个 Logger 实例，用于整个应用，确保所有组件使用同一个日志文件
-    const loggerInstance = new Logger('code-search-helper');
-    this.logger = loggerInstance;
-
-    // 初始化嵌入器服务
-    this.embeddingCacheService = new EmbeddingCacheService(this.loggerService, errorHandler);
-
-    // 初始化服务器
+  constructor(
+    @inject(TYPES.ConfigService) private configService: ConfigService,
+    @inject(TYPES.LoggerService) private loggerService: LoggerService,
+    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
+    @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+    @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
+    @inject(TYPES.IndexSyncService) private indexSyncService: IndexSyncService,
+    @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
+    @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService
+  ) {
+    // 创建一个 Logger 实例，用于整个应用
+    this.logger = new Logger('code-search-helper');
     this.mcpServer = new MCPServer(this.logger);
+    
+    // API端口配置
     const apiPort = parseInt(process.env.PORT || '3010', 10);
-    this.apiServer = new ApiServer(this.logger, this.indexSyncService, this.embedderFactory, this.qdrantService, apiPort);
+    this.apiServer = new ApiServer(
+      this.logger, 
+      this.indexSyncService, 
+      this.embedderFactory, 
+      this.qdrantService, 
+      apiPort
+    );
   }
 
+  /**
+   * 启动应用程序 - 使用生命周期阶段管理
+   */
   async start(): Promise<void> {
     try {
       await this.logger.info('Starting application...');
+      this.currentPhase = ApplicationLifecyclePhase.CONFIG_LOADING;
 
-      // 检查环境变量配置
-      await this.loggerService.info('Checking environment configuration...');
-      this.validateEmbeddingProviderConfig();
+      // 初始化配置服务
+      await this.loggerService.info('Initializing configuration service...');
+      await this.configService.initialize();
+      await this.loggerService.info('Configuration service initialized successfully');
+
+      // 更新日志级别为配置中的级别
+      const loggingConfig = this.configService.get('logging');
+      if (loggingConfig?.level) {
+        this.loggerService.updateLogLevel(loggingConfig.level);
+      }
+
+      // 验证嵌入提供者配置（通过配置服务）
+      await this.loggerService.info('Validating embedding provider configuration...');
+      await this.validateEmbeddingConfiguration();
+
+      this.currentPhase = ApplicationLifecyclePhase.SERVICES_INITIALIZING;
 
       // 初始化项目状态管理器
       await this.loggerService.info('Initializing project state manager...');
@@ -88,144 +121,177 @@ class Application {
         await this.loggerService.warn('No embedder providers available, will continue without embedding functionality');
       }
 
-      // 启动MCP服务器
+      this.currentPhase = ApplicationLifecyclePhase.SERVICES_STARTED;
+
+      // 启动服务器
       await this.loggerService.info('Starting MCP server...');
       await this.mcpServer.start();
       await this.logger.info('MCP Server started successfully');
 
-      // 启动API服务器
       await this.loggerService.info('Starting API server...');
       this.apiServer.start();
       await this.logger.info('API Server started successfully');
 
+      this.currentPhase = ApplicationLifecyclePhase.RUNNING;
+
       await this.logger.info('Application started successfully');
       await this.logger.info('MCP Server: Ready for MCP connections');
-      await this.logger.info(`API Server: http://localhost:${process.env.PORT || '3010'}`);
+      const apiPort = this.configService.get('environment')?.port || 3010;
+      await this.logger.info(`API Server: http://localhost:${apiPort}`);
 
     } catch (error) {
       await this.loggerService.error('Failed to start application:', error);
       await this.logger.error('Failed to start application:', error);
+      console.error('Detailed error:', error);
+      console.error('Error stack:', (error as Error).stack);
       process.exit(1);
     }
   }
 
   /**
-   * 验证嵌入提供者的环境变量配置
-   * 仅检查 EMBEDDING_PROVIDER 设置的提供者相关字段是否非空
+   * 验证嵌入配置 - 通过配置服务进行验证
    */
-  private validateEmbeddingProviderConfig(): void {
-    const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
-    const loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
-
-    const config = configService.get('embedding');
-    const selectedProvider = config.provider || 'openai';
-
-    let missingEnvVars: string[] = [];
-
-    switch (selectedProvider.toLowerCase()) {
-      case 'openai':
-        if (!config.openai.apiKey) {
-          missingEnvVars.push('OPENAI_API_KEY');
+  private async validateEmbeddingConfiguration(): Promise<void> {
+    try {
+      const embeddingConfig = this.configService.get('embedding');
+      const selectedProvider = embeddingConfig.provider || 'openai';
+      
+      // 使用配置服务的验证方法（如果存在）
+      if (this.configService.validateEmbeddingProviderConfig) {
+        const missingEnvVars = this.configService.validateEmbeddingProviderConfig(selectedProvider, embeddingConfig);
+        if (missingEnvVars.length > 0) {
+          await this.loggerService.warn(`Missing environment variables for provider '${selectedProvider}':`, { missingEnvVars });
+        } else {
+          await this.loggerService.info(`Environment configuration validated for provider: ${selectedProvider}`);
         }
-        break;
-      case 'ollama':
-        if (!config.ollama.baseUrl) {
-          missingEnvVars.push('OLLAMA_BASE_URL');
-        }
-        break;
-      case 'gemini':
-        if (!config.gemini.apiKey) {
-          missingEnvVars.push('GEMINI_API_KEY');
-        }
-        break;
-      case 'mistral':
-        if (!config.mistral.apiKey) {
-          missingEnvVars.push('MISTRAL_API_KEY');
-        }
-        break;
-      case 'siliconflow':
-        if (!config.siliconflow.apiKey) {
-          missingEnvVars.push('SILICONFLOW_API_KEY');
-        }
-        break;
-      case 'custom1':
-        if (!config.custom?.custom1?.apiKey) {
-          missingEnvVars.push('CUSTOM_CUSTOM1_API_KEY');
-        }
-        if (!config.custom?.custom1?.baseUrl) {
-          missingEnvVars.push('CUSTOM_CUSTOM1_BASE_URL');
-        }
-        break;
-      case 'custom2':
-        if (!config.custom?.custom2?.apiKey) {
-          missingEnvVars.push('CUSTOM_CUSTOM2_API_KEY');
-        }
-        if (!config.custom?.custom2?.baseUrl) {
-          missingEnvVars.push('CUSTOM_CUSTOM2_BASE_URL');
-        }
-        break;
-      case 'custom3':
-        if (!config.custom?.custom3?.apiKey) {
-          missingEnvVars.push('CUSTOM_CUSTOM3_API_KEY');
-        }
-        if (!config.custom?.custom3?.baseUrl) {
-          missingEnvVars.push('CUSTOM_CUSTOM3_BASE_URL');
-        }
-        break;
-      default:
-        // 如果提供者不支持，记录警告
-        loggerService.warn(`Unsupported embedding provider: ${selectedProvider}`);
-        break;
-    }
-
-    if (missingEnvVars.length > 0) {
-      loggerService.warn(`Missing environment variables for provider '${selectedProvider}':`, { missingEnvVars });
-    } else {
-      loggerService.info(`Environment configuration validated for provider: ${selectedProvider}`);
+      } else {
+        // 回退到简单的存在性检查
+        await this.loggerService.info(`Using embedding provider: ${selectedProvider}`);
+      }
+    } catch (error) {
+      await this.loggerService.error('Error validating embedding configuration:', error);
     }
   }
 
+  // 已移除旧的 validateEmbeddingProviderConfig 方法 - 现在使用配置服务进行验证
+
+  /**
+   * 优雅关闭应用程序
+   */
   async stop(): Promise<void> {
-    await this.logger.info('Stopping application...');
-
-    // 从依赖注入容器获取服务
-    const loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
-    const qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
-
-    // 关闭数据库服务
     try {
-      await qdrantService.close();
-      await loggerService.info('Database service closed');
+      this.currentPhase = ApplicationLifecyclePhase.SHUTTING_DOWN;
+      await this.logger.info('Stopping application...');
+
+      // 关闭数据库服务
+      try {
+        await this.qdrantService.close();
+        await this.loggerService.info('Database service closed');
+      } catch (error) {
+        await this.loggerService.error('Error closing database service:', error);
+      }
+
+      // 关闭MCP服务器
+      await this.mcpServer.stop();
+
+      this.currentPhase = ApplicationLifecyclePhase.STOPPED;
+      await this.logger.info('Application stopped');
+
+      // 通知Logger这是一个正常退出，应该删除日志文件
+      if ('markAsNormalExit' in this.logger) {
+        await (this.logger as any).markAsNormalExit();
+      }
+
+      // 通知LoggerService这是一个正常退出
+      await this.loggerService.markAsNormalExit();
     } catch (error) {
-      await loggerService.error('Error closing database service:', error);
+      await this.loggerService.error('Error during application shutdown:', error);
+      throw error;
     }
+  }
 
-    // 关闭MCP服务器
-    await this.mcpServer.stop();
+  /**
+   * 获取当前应用生命周期阶段
+   */
+  getCurrentPhase(): ApplicationLifecyclePhase {
+    return this.currentPhase;
+  }
+}
 
-    await this.logger.info('Application stopped');
+/**
+ * 应用程序工厂 - 负责创建和配置Application实例
+ */
+class ApplicationFactory {
+  static createApplication(): Application {
+    // 从DI容器获取所有必要的服务
+    const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
+    const loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
+    const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
+    const qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
+    const embedderFactory = diContainer.get<EmbedderFactory>(TYPES.EmbedderFactory);
+    const indexSyncService = diContainer.get<IndexSyncService>(TYPES.IndexSyncService);
+    const projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
+    const embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
 
-    // 通知Logger这是一个正常退出，应该删除日志文件
-    if ('markAsNormalExit' in this.logger) {
-      await (this.logger as any).markAsNormalExit();
-    }
-
-    // 通知LoggerService这是一个正常退出
-    await loggerService.markAsNormalExit();
+    return new Application(
+      configService,
+      loggerService,
+      errorHandler,
+      qdrantService,
+      embedderFactory,
+      indexSyncService,
+      projectStateManager,
+      embeddingCacheService
+    );
   }
 }
 
 // 启动应用
-const app = new Application();
-app.start().catch(console.error);
+async function bootstrap(): Promise<void> {
+  try {
+    const app = ApplicationFactory.createApplication();
+    await app.start();
+    
+    // 优雅关闭处理
+    process.on('SIGINT', async () => {
+      console.log('\nReceived SIGINT, shutting down gracefully...');
+      try {
+        await app.stop();
+        process.exit(0);
+      } catch (error) {
+        console.error('Error during shutdown:', error);
+        process.exit(1);
+      }
+    });
 
-// 优雅关闭
-process.on('SIGINT', async () => {
-  await app.stop();
-  process.exit(0);
-});
+    process.on('SIGTERM', async () => {
+      console.log('\nReceived SIGTERM, shutting down gracefully...');
+      try {
+        await app.stop();
+        process.exit(0);
+      } catch (error) {
+        console.error('Error during shutdown:', error);
+        process.exit(1);
+      }
+    });
 
-process.on('SIGTERM', async () => {
-  await app.stop();
-  process.exit(0);
-});
+    // 处理未捕获的异常
+    process.on('uncaughtException', (error) => {
+      console.error('Uncaught Exception:', error);
+      console.error('Error stack:', error.stack);
+      process.exit(1);
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      process.exit(1);
+    });
+
+  } catch (error) {
+    console.error('Failed to bootstrap application:', error);
+    process.exit(1);
+  }
+}
+
+// 启动应用
+bootstrap();

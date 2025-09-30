@@ -32,7 +32,7 @@ describe('MistralEmbedder', () => {
 
     logger = new LoggerService(mockConfigService);
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
 
     // Create MistralEmbedder instance
     mistralEmbedder = new MistralEmbedder(logger, errorHandler, cacheService);

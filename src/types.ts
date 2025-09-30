@@ -17,6 +17,7 @@ import { ProjectStateManager } from './service/project/ProjectStateManager';
 import { PerformanceOptimizerService } from './service/resilience/ResilientBatchingService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
+import { ConfigFactory } from './config/ConfigFactory';
 
 // Tree-sitter 解析服务
 import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
@@ -25,6 +26,23 @@ import { ASTCodeSplitter } from './service/parser/splitting/ASTCodeSplitter';
 
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
+  ConfigFactory: Symbol.for('ConfigFactory'),
+  
+  // 配置服务
+  EnvironmentConfigService: Symbol.for('EnvironmentConfigService'),
+  QdrantConfigService: Symbol.for('QdrantConfigService'),
+  EmbeddingConfigService: Symbol.for('EmbeddingConfigService'),
+  LoggingConfigService: Symbol.for('LoggingConfigService'),
+  MonitoringConfigService: Symbol.for('MonitoringConfigService'),
+  FileProcessingConfigService: Symbol.for('FileProcessingConfigService'),
+  BatchProcessingConfigService: Symbol.for('BatchProcessingConfigService'),
+  RedisConfigService: Symbol.for('RedisConfigService'),
+  ProjectConfigService: Symbol.for('ProjectConfigService'),
+  IndexingConfigService: Symbol.for('IndexingConfigService'),
+  LSPConfigService: Symbol.for('LSPConfigService'),
+  SemgrepConfigService: Symbol.for('SemgrepConfigService'),
+  TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
+  
   QdrantService: Symbol.for('QdrantService'),
   LoggerService: Symbol.for('LoggerService'),
   ErrorHandlerService: Symbol.for('ErrorHandlerService'),

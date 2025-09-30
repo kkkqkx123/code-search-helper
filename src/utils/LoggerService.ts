@@ -13,7 +13,14 @@ export class LoggerService {
 
   constructor(@inject(TYPES.ConfigService) private configService: ConfigService) {
     const serviceName = 'code-search-helper';
-    const logLevel = this.configService.get('logging')?.level;
+    // 延迟获取日志级别，避免在配置未初始化时访问
+    let logLevel: string | undefined;
+    try {
+      logLevel = this.configService.get('logging')?.level;
+    } catch (error) {
+      // 配置未初始化时使用默认级别
+      logLevel = 'info';
+    }
     this.logger = new Logger(serviceName, logLevel);
   }
 
@@ -50,6 +57,13 @@ export class LoggerService {
    */
   getLogFilePath(): string {
     return this.logger.getLogFilePath();
+  }
+
+  /**
+   * 更新日志级别
+   */
+  updateLogLevel(level: string): void {
+    this.logger.updateLogLevel(level);
   }
 
   /**

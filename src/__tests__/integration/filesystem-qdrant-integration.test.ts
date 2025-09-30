@@ -665,10 +665,9 @@ it('should persist project states across restarts', async () => {
   await new Promise(resolve => setTimeout(resolve, 200));
 
   // Create a new config service instance that will use the same storage path
-  const newConfigService = new ConfigService();
-  // Mock the config service to return the same storage path as the original
-  const originalGet = newConfigService.get;
-  newConfigService.get = jest.fn().mockImplementation((key) => {
+  // Use the existing configService from the test setup and override its get method
+  const originalGet = configService.get.bind(configService);
+  configService.get = jest.fn().mockImplementation((key) => {
     if (key === 'project') {
       return { statePath: storagePath };  // Use the same storage path as original
     }
@@ -682,7 +681,7 @@ it('should persist project states across restarts', async () => {
     projectIdManager,
     indexSyncService,
     qdrantService,
-    newConfigService  // Use the new config service with the same storage path
+    configService  // Use the config service with the same storage path
   );
 
   // Initialize the new manager to load persisted data

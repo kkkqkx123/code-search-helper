@@ -32,7 +32,7 @@ describe('SiliconFlowEmbedder', () => {
     
     logger = new LoggerService(mockConfigService);
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
     
     // Create SiliconFlowEmbedder instance
     siliconFlowEmbedder = new SiliconFlowEmbedder(logger, errorHandler, cacheService);

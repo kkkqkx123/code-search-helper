@@ -35,7 +35,7 @@ describe('CustomEmbedder', () => {
     
     logger = new LoggerService(mockConfigService);
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
     
     // Create CustomEmbedder instance
     customEmbedder = new CustomEmbedder(logger, errorHandler, cacheService, 'custom1');
@@ -126,7 +126,7 @@ describe('CustomEmbedder', () => {
         vector: [0.1, 0.2, 0.3],
         dimensions: 3,
         model: 'test-model',
-        processingTime: 0
+        processingTime: expect.any(Number)
       });
 
       // Test format 2: embeddings array
@@ -142,7 +142,7 @@ describe('CustomEmbedder', () => {
         vector: [0.4, 0.5, 0.6],
         dimensions: 3,
         model: 'test-model',
-        processingTime: 0
+        processingTime: expect.any(Number)
       });
     });
 

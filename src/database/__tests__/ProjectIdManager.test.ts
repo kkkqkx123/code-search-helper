@@ -33,8 +33,9 @@ describe('ProjectIdManager', () => {
     jest.clearAllMocks();
     
     // Create a new mock ConfigService instance for each test
-    mockConfigService = new ConfigService() as jest.Mocked<ConfigService>;
-    (mockConfigService.get as jest.Mock).mockReturnValue({ mappingPath: './data/test-project-mapping.json' });
+    mockConfigService = {
+      get: jest.fn().mockReturnValue({ mappingPath: './data/test-project-mapping.json' })
+    } as unknown as jest.Mocked<ConfigService>;
     
     // Create ProjectIdManager instance
     projectIdManager = new ProjectIdManager(mockConfigService);

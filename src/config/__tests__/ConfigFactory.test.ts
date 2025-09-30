@@ -18,11 +18,15 @@ describe('ConfigFactory', () => {
   describe('getAppConfig', () => {
     it('应该返回完整的应用配置', () => {
       const mockFullConfig = {
-        nodeEnv: 'development',
-        port: 3000,
+        environment: {
+          nodeEnv: 'development',
+          port: 3000,
+          logLevel: 'info',
+          debug: true,
+        },
+        logging: { level: 'info', format: 'json' },
         qdrant: { host: 'localhost', port: 6333, collection: 'test', useHttps: false, timeout: 30000 },
         embedding: { provider: 'openai', openai: { apiKey: 'test', model: 'test', dimensions: 1536 }, ollama: { baseUrl: 'http://localhost:11434', model: 'test', dimensions: 768 }, gemini: { apiKey: 'test', model: 'test', dimensions: 768 }, mistral: { apiKey: 'test', model: 'test', dimensions: 1024 }, siliconflow: { apiKey: 'test', model: 'test', dimensions: 1024 }, qualityWeight: 0.7, performanceWeight: 0.3 },
-        logging: { level: 'info', format: 'json' },
         monitoring: { enabled: true, port: 9090, prometheusTargetDir: './etc/prometheus' },
         fileProcessing: { maxFileSize: 10485760, supportedExtensions: '.ts,.js,.py', indexBatchSize: 100, chunkSize: 1000, overlapSize: 200 },
         batchProcessing: { enabled: true, maxConcurrentOperations: 5, defaultBatchSize: 50, maxBatchSize: 500, memoryThreshold: 80, processingTimeout: 300000, retryAttempts: 3, retryDelay: 1000, continueOnError: true, adaptiveBatching: { enabled: true, minBatchSize: 10, maxBatchSize: 200, performanceThreshold: 1000, adjustmentFactor: 1.2 }, monitoring: { enabled: true, metricsInterval: 6000, alertThresholds: { highLatency: 5000, lowThroughput: 10, highErrorRate: 0.1, highMemoryUsage: 80, criticalMemoryUsage: 90, highCpuUsage: 70, criticalCpuUsage: 85 } } },
@@ -43,12 +47,7 @@ describe('ConfigFactory', () => {
       const appConfig = configFactory.getAppConfig();
 
       expect(mockConfigService.getAll).toHaveBeenCalled();
-      expect(appConfig.environment).toEqual({
-        nodeEnv: 'development',
-        port: 3000,
-        logLevel: 'info',
-        debug: true,
-      });
+      expect(appConfig.environment).toEqual(mockFullConfig.environment);
       expect(appConfig.qdrant).toBe(mockFullConfig.qdrant);
       expect(appConfig.embedding).toBe(mockFullConfig.embedding);
       expect(appConfig.logging).toBe(mockFullConfig.logging);
@@ -59,10 +58,7 @@ describe('ConfigFactory', () => {
       expect(appConfig.lsp).toBe(mockFullConfig.lsp);
       expect(appConfig.semgrep).toBe(mockFullConfig.semgrep);
       expect(appConfig.mlReranking).toBe(mockFullConfig.mlReranking);
-      expect(appConfig.caching).toEqual({
-        ...mockFullConfig.caching,
-        cleanupInterval: 600000
-      });
+      expect(appConfig.caching).toBe(mockFullConfig.caching);
       expect(appConfig.indexing).toBe(mockFullConfig.indexing);
       expect(appConfig.nebula).toBe(mockFullConfig.nebula);
       expect(appConfig.performance).toBe(mockFullConfig.performance);
@@ -72,8 +68,12 @@ describe('ConfigFactory', () => {
 
     it('应该在生产环境中设置debug为false', () => {
       const mockConfig = {
-        nodeEnv: 'production',
-        port: 3000,
+        environment: {
+          nodeEnv: 'production',
+          port: 3000,
+          logLevel: 'info',
+          debug: false,
+        },
         logging: { level: 'info', format: 'json' },
         qdrant: {},
         embedding: {},
@@ -117,32 +117,18 @@ describe('ConfigFactory', () => {
     });
 
     it('应该返回环境配置', () => {
-      const mockConfig = {
-        nodeEnv: 'test',
-        port: 3000,
-        logging: { level: 'info', format: 'json' },
-        qdrant: {},
-        embedding: {},
-        monitoring: {},
-        fileProcessing: {},
-        batchProcessing: {},
-        redis: {},
-        lsp: {},
-        semgrep: {},
-        caching: {},
-        indexing: {},
-      };
-      mockConfigService.getAll.mockReturnValue(mockConfig);
-
-      const envConfig = configFactory.getEnvironmentConfig();
-
-      expect(mockConfigService.getAll).toHaveBeenCalled();
-      expect(envConfig).toEqual({
+      const expectedEnvConfig = {
         nodeEnv: 'test',
         port: 3000,
         logLevel: 'info',
-        debug: false, // 因为nodeEnv是test，不是development
-      });
+        debug: false
+      };
+      mockConfigService.get.mockReturnValue(expectedEnvConfig);
+
+      const envConfig = configFactory.getEnvironmentConfig();
+
+      expect(mockConfigService.get).toHaveBeenCalledWith('environment');
+      expect(envConfig).toEqual(expectedEnvConfig);
     });
 
     it('应该返回日志配置', () => {
@@ -232,10 +218,7 @@ describe('ConfigFactory', () => {
       const cachingConfig = configFactory.getCachingConfig();
 
       expect(mockConfigService.get).toHaveBeenCalledWith('caching');
-      expect(cachingConfig).toEqual({
-        ...expectedCachingConfig,
-        cleanupInterval: 600000
-      });
+      expect(cachingConfig).toEqual(expectedCachingConfig);
     });
 
     it('应该返回索引配置', () => {
@@ -251,47 +234,47 @@ describe('ConfigFactory', () => {
 
   describe('环境检查方法', () => {
     it('应该返回端口', () => {
-      mockConfigService.get.mockReturnValue(3000);
+      mockConfigService.get.mockReturnValue({ port: 3000 });
 
       const port = configFactory.getPort();
 
-      expect(mockConfigService.get).toHaveBeenCalledWith('port');
+      expect(mockConfigService.get).toHaveBeenCalledWith('environment');
       expect(port).toBe(3000);
     });
 
     it('应该返回节点环境', () => {
-      mockConfigService.get.mockReturnValue('development');
+      mockConfigService.get.mockReturnValue({ nodeEnv: 'development' });
 
       const nodeEnv = configFactory.getNodeEnv();
 
-      expect(mockConfigService.get).toHaveBeenCalledWith('nodeEnv');
+      expect(mockConfigService.get).toHaveBeenCalledWith('environment');
       expect(nodeEnv).toBe('development');
     });
 
     it('应该正确检查开发环境', () => {
-      mockConfigService.get.mockReturnValue('development');
+      mockConfigService.get.mockReturnValue({ nodeEnv: 'development' });
 
       const isDev = configFactory.isDevelopment();
 
-      expect(mockConfigService.get).toHaveBeenCalledWith('nodeEnv');
+      expect(mockConfigService.get).toHaveBeenCalledWith('environment');
       expect(isDev).toBe(true);
     });
 
     it('应该正确检查生产环境', () => {
-      mockConfigService.get.mockReturnValue('production');
+      mockConfigService.get.mockReturnValue({ nodeEnv: 'production' });
 
       const isProd = configFactory.isProduction();
 
-      expect(mockConfigService.get).toHaveBeenCalledWith('nodeEnv');
+      expect(mockConfigService.get).toHaveBeenCalledWith('environment');
       expect(isProd).toBe(true);
     });
 
     it('应该正确检查测试环境', () => {
-      mockConfigService.get.mockReturnValue('test');
+      mockConfigService.get.mockReturnValue({ nodeEnv: 'test' });
 
       const isTest = configFactory.isTest();
 
-      expect(mockConfigService.get).toHaveBeenCalledWith('nodeEnv');
+      expect(mockConfigService.get).toHaveBeenCalledWith('environment');
       expect(isTest).toBe(true);
     });
   });

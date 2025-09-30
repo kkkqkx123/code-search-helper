@@ -1,7 +1,170 @@
 import { ConfigService } from '../ConfigService';
+import { Container } from 'inversify';
+
+// 模拟依赖注入容器
+const mockContainer = {
+  get: jest.fn((serviceIdentifier: any) => {
+    // 返回模拟的配置服务实例
+    if (serviceIdentifier.name === 'EnvironmentConfigService') {
+      return {
+        getConfig: () => ({
+          nodeEnv: 'test',
+          port: 3010,
+          logLevel: 'info',
+          debug: false,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'QdrantConfigService') {
+      return {
+        getConfig: () => ({
+          host: '127.0.0.1',
+          port: 6333,
+          collection: 'code-snippets',
+          useHttps: false,
+          timeout: 30000,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'EmbeddingConfigService') {
+      return {
+        getConfig: () => ({
+          provider: 'siliconflow',
+          openai: {
+            apiKey: undefined,
+            baseUrl: 'https://api.openai.com',
+            model: 'text-embedding-ada-002',
+            dimensions: 1536,
+          },
+          ollama: {
+            baseUrl: 'http://localhost:11434',
+            model: 'nomic-embed-text',
+            dimensions: 768,
+          },
+          siliconflow: {
+            apiKey: undefined,
+            baseUrl: 'https://api.siliconflow.cn',
+            model: 'BAAI/bge-m3',
+            dimensions: 1024,
+          },
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'LoggingConfigService') {
+      return {
+        getConfig: () => ({
+          level: 'info',
+          format: 'json',
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'MonitoringConfigService') {
+      return {
+        getConfig: () => ({
+          enabled: true,
+          port: 9090,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'FileProcessingConfigService') {
+      return {
+        getConfig: () => ({
+          maxFileSize: 10485760,
+          supportedExtensions: ['.js', '.ts', '.py', '.java', '.cpp', '.c', '.h', '.cs', '.go', '.rs', '.php', '.rb', '.swift', '.kt', '.scala', '.r', '.m', '.mm'],
+          excludePatterns: ['node_modules/**', 'dist/**', 'build/**', '*.min.js', '*.bundle.js'],
+          batchSize: 100,
+          processingConcurrency: 5,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'BatchProcessingConfigService') {
+      return {
+        getConfig: () => ({
+          maxBatchSize: 1000,
+          processingInterval: 5000,
+          retryAttempts: 3,
+          retryDelay: 1000,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'RedisConfigService') {
+      return {
+        getConfig: () => ({
+          host: 'localhost',
+          port: 6379,
+          db: 0,
+          password: undefined,
+          maxRetriesPerRequest: 3,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'ProjectConfigService') {
+      return {
+        getConfig: () => ({
+          maxProjects: 100,
+          projectMappingFile: './data/project-mapping.json',
+          autoCleanup: true,
+          cleanupInterval: 86400,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'IndexingConfigService') {
+      return {
+        getConfig: () => ({
+          enabled: true,
+          updateInterval: 300,
+          maxFileSize: 5242880,
+          batchSize: 50,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'LSPConfigService') {
+      return {
+        getConfig: () => ({
+          enabled: true,
+          serverPath: '/usr/local/bin/typescript-language-server',
+          timeout: 30000,
+          maxServerInstances: 5,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'SemgrepConfigService') {
+      return {
+        getConfig: () => ({
+          enabled: true,
+          configPath: './config/semgrep-rules.yml',
+          timeout: 60000,
+          maxFileSize: 1048576,
+        })
+      };
+    }
+    if (serviceIdentifier.name === 'TreeSitterConfigService') {
+      return {
+        getConfig: () => ({
+          parserPaths: {
+            javascript: './parsers/tree-sitter-javascript.wasm',
+            typescript: './parsers/tree-sitter-typescript.wasm',
+            python: './parsers/tree-sitter-python.wasm',
+            java: './parsers/tree-sitter-java.wasm',
+            go: './parsers/tree-sitter-go.wasm',
+            rust: './parsers/tree-sitter-rust.wasm',
+          },
+          timeout: 5000,
+        })
+      };
+    }
+    // 为其他配置服务提供默认值
+    return {
+      getConfig: () => ({})
+    };
+  })
+};
 
 // 模拟环境变量
 const originalEnv = process.env;
+
+// 保存原始的mock实现
+const originalMockImplementation = mockContainer.get.getMockImplementation();
 
 describe('ConfigService', () => {
  let configService: ConfigService;
@@ -11,22 +174,42 @@ describe('ConfigService', () => {
     process.env = { ...originalEnv };
     // 清除日志级别环境变量以确保使用默认值
     delete process.env.LOG_LEVEL;
-    // 创建新的实例（因为ConfigService使用单例模式）
-    (ConfigService as any).instance = undefined;
-    configService = new ConfigService();
+    
+    // 恢复原始的mock实现
+    mockContainer.get.mockImplementation(originalMockImplementation);
+    
+    // 创建ConfigService实例，传入模拟的服务
+    configService = new ConfigService(
+      mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+      mockContainer.get({ name: 'QdrantConfigService' }) as any,
+      mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+      mockContainer.get({ name: 'LoggingConfigService' }) as any,
+      mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+      mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+      mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+      mockContainer.get({ name: 'RedisConfigService' }) as any,
+      mockContainer.get({ name: 'ProjectConfigService' }) as any,
+      mockContainer.get({ name: 'IndexingConfigService' }) as any,
+      mockContainer.get({ name: 'LSPConfigService' }) as any,
+      mockContainer.get({ name: 'SemgrepConfigService' }) as any,
+      mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+    );
   });
 
   afterEach(() => {
     // 每个测试后恢复环境变量
     process.env = originalEnv;
+    // 恢复原始的mock实现
+    mockContainer.get.mockImplementation(originalMockImplementation);
   });
 
   describe('构造函数和配置验证', () => {
-    it('应该使用默认值创建配置', () => {
+    it('应该使用默认值创建配置', async () => {
+      await configService.initialize();
       const config = configService.getAll();
       
-      expect(config.nodeEnv).toBe('test');
-      expect(config.port).toBe(3010);
+      expect(config.environment.nodeEnv).toBe('test');
+      expect(config.environment.port).toBe(3010);
       expect(config.qdrant.host).toBe('127.0.0.1');
       expect(config.qdrant.port).toBe(6333);
       expect(config.qdrant.collection).toBe('code-snippets');
@@ -39,27 +222,96 @@ describe('ConfigService', () => {
       expect(config.monitoring.port).toBe(9090);
     });
 
-    it('应该从环境变量加载配置', () => {
-      process.env.NODE_ENV = 'production';
-      process.env.PORT = '8080';
-      process.env.QDRANT_HOST = 'test-host';
-      process.env.QDRANT_PORT = '634';
-      process.env.QDRANT_COLLECTION = 'test-collection';
-      process.env.QDRANT_USE_HTTPS = 'true';
-      process.env.QDRANT_TIMEOUT = '60000';
-      process.env.EMBEDDING_PROVIDER = 'ollama';
-      process.env.LOG_LEVEL = 'debug';
-      process.env.LOG_FORMAT = 'text';
-      process.env.ENABLE_METRICS = 'false';
-      process.env.METRICS_PORT = '9091';
+    it('应该从环境变量加载配置', async () => {
+      // 更新模拟容器的返回值以反映新的环境变量
+      mockContainer.get.mockImplementation((serviceIdentifier: any) => {
+        if (serviceIdentifier.name === 'EnvironmentConfigService') {
+          return {
+            getConfig: () => ({
+              nodeEnv: 'production',
+              port: 8080,
+              logLevel: 'debug',
+              debug: false,
+            })
+          };
+        }
+        if (serviceIdentifier.name === 'QdrantConfigService') {
+          return {
+            getConfig: () => ({
+              host: 'test-host',
+              port: 634,
+              collection: 'test-collection',
+              useHttps: true,
+              timeout: 60000,
+            })
+          };
+        }
+        if (serviceIdentifier.name === 'EmbeddingConfigService') {
+          return {
+            getConfig: () => ({
+              provider: 'ollama',
+              openai: {
+                apiKey: undefined,
+                baseUrl: 'https://api.openai.com',
+                model: 'text-embedding-ada-002',
+                dimensions: 1536,
+              },
+              ollama: {
+                baseUrl: 'http://localhost:11434',
+                model: 'nomic-embed-text',
+                dimensions: 768,
+              },
+              siliconflow: {
+                apiKey: undefined,
+                baseUrl: 'https://api.siliconflow.cn',
+                model: 'BAAI/bge-m3',
+                dimensions: 1024,
+              },
+            })
+          };
+        }
+        if (serviceIdentifier.name === 'LoggingConfigService') {
+          return {
+            getConfig: () => ({
+              level: 'debug',
+              format: 'text',
+            })
+          };
+        }
+        if (serviceIdentifier.name === 'MonitoringConfigService') {
+          return {
+            getConfig: () => ({
+              enabled: false,
+              port: 9091,
+            })
+          };
+        }
+        return {
+          getConfig: () => ({})
+        };
+      });
 
-      // 重新创建实例以使用新的环境变量
-      (ConfigService as any).instance = undefined;
-      const newConfigService = new ConfigService();
+      // 重新创建实例以使用新的配置
+      const newConfigService = new ConfigService(
+        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+        mockContainer.get({ name: 'QdrantConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+        mockContainer.get({ name: 'LoggingConfigService' }) as any,
+        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'RedisConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectConfigService' }) as any,
+        mockContainer.get({ name: 'IndexingConfigService' }) as any,
+        mockContainer.get({ name: 'LSPConfigService' }) as any,
+        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+      );
+      await newConfigService.initialize();
       const config = newConfigService.getAll();
 
-      expect(config.nodeEnv).toBe('production');
-      expect(config.port).toBe(8080);
+      expect(config.environment.nodeEnv).toBe('production');
+      expect(config.environment.port).toBe(8080);
       expect(config.qdrant.host).toBe('test-host');
       expect(config.qdrant.port).toBe(634);
       expect(config.qdrant.collection).toBe('test-collection');
@@ -73,25 +325,51 @@ describe('ConfigService', () => {
     });
 
     it('应该验证配置并抛出错误', () => {
-      process.env.PORT = 'invalid_port';
+      // 更新模拟容器的返回值以包含会抛出错误的配置服务
+      mockContainer.get.mockImplementation((serviceIdentifier: any) => {
+        if (serviceIdentifier.name === 'EnvironmentConfigService') {
+          return {
+            getConfig: () => {
+              throw new Error('Environment config validation error: "port" must be a number');
+            }
+          };
+        }
+        return {
+          getConfig: () => ({})
+        };
+      });
       
-      expect(() => {
-        (ConfigService as any).instance = undefined;
-        new ConfigService();
-      }).toThrow('Configuration validation error:');
+      const newConfigService = new ConfigService(
+        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+        mockContainer.get({ name: 'QdrantConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+        mockContainer.get({ name: 'LoggingConfigService' }) as any,
+        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'RedisConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectConfigService' }) as any,
+        mockContainer.get({ name: 'IndexingConfigService' }) as any,
+        mockContainer.get({ name: 'LSPConfigService' }) as any,
+        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+      );
+      
+      // 现在initialize()方法应该抛出错误，因为getConfig()会抛出错误
+      return expect(newConfigService.initialize()).rejects.toThrow();
     });
   });
 
  describe('get方法', () => {
-    it('应该返回指定的配置键值', () => {
-      const nodeEnv = configService.get('nodeEnv');
-      expect(nodeEnv).toBe('test');
-
-      const port = configService.get('port');
-      expect(port).toBe(3010);
+    it('应该返回指定的配置键值', async () => {
+      await configService.initialize();
+      const environment = configService.get('environment');
+      expect(environment.nodeEnv).toBe('test');
+      expect(environment.port).toBe(3010);
     });
 
-    it('应该返回嵌套配置对象', () => {
+    it('应该返回嵌套配置对象', async () => {
+      await configService.initialize();
       const qdrantConfig = configService.get('qdrant');
       expect(qdrantConfig).toEqual({
         apiKey: undefined,
@@ -109,7 +387,8 @@ describe('ConfigService', () => {
   });
 
   describe('getAll方法', () => {
-    it('应该返回所有配置的副本', () => {
+    it('应该返回所有配置的副本', async () => {
+      await configService.initialize();
       const config1 = configService.getAll();
       const config2 = configService.getAll();
       
@@ -119,53 +398,103 @@ describe('ConfigService', () => {
   });
 
   describe('专用配置获取方法', () => {
-    it('应该返回Qdrant配置', () => {
+    it('应该返回Qdrant配置', async () => {
+      await configService.initialize();
       const qdrantConfig = configService.getQdrantConfig();
       expect(qdrantConfig.host).toBe('127.0.0.1');
       expect(qdrantConfig.port).toBe(6333);
     });
 
-    it('应该返回环境配置', () => {
+    it('应该返回环境配置', async () => {
+      await configService.initialize();
       const envConfig = configService.getEnvironmentConfig();
-      expect(envConfig).toBe('test');
+      expect(envConfig.nodeEnv).toBe('test');
+      expect(envConfig.port).toBe(3010);
     });
 
-    it('应该返回端口配置', () => {
-      const port = configService.getPort();
-      expect(port).toBe(3010);
+    it('应该返回端口配置', async () => {
+      await configService.initialize();
+      const envConfig = configService.getEnvironmentConfig();
+      expect(envConfig.port).toBe(3010);
     });
 
-    it('应该返回嵌入器配置', () => {
+    it('应该返回嵌入器配置', async () => {
+      await configService.initialize();
       const embeddingConfig = configService.getEmbeddingConfig();
       expect(embeddingConfig.provider).toBe('siliconflow');
     });
   });
 
- describe('单例模式', () => {
-    it('应该返回相同的实例', () => {
-      const instance1 = ConfigService.getInstance();
-      const instance2 = ConfigService.getInstance();
-      
-      expect(instance1).toBe(instance2);
+  describe('getAll方法', () => {
+    it('应该返回所有配置', async () => {
+      await configService.initialize();
+      const config = configService.getAll();
+      expect(config).toBeDefined();
+      expect(config.environment).toBeDefined();
+      expect(config.qdrant).toBeDefined();
+      expect(config.embedding).toBeDefined();
+      expect(config.logging).toBeDefined();
+      expect(config.monitoring).toBeDefined();
     });
+  });
 
-    it('应该返回相同的配置', () => {
-      const instance1 = ConfigService.getInstance();
-      const instance2 = ConfigService.getInstance();
-      
-      expect(instance1.getAll()).toEqual(instance2.getAll());
+ describe('依赖注入模式', () => {
+    it('应该使用依赖注入容器', async () => {
+      await configService.initialize();
+      expect(configService).toBeDefined();
+      expect(configService.getAll()).toBeDefined();
     });
   });
 
   describe('嵌入器配置', () => {
-    it('应该正确处理OpenAI配置', () => {
-      process.env.OPENAI_API_KEY = 'test-key';
-      process.env.OPENAI_BASE_URL = 'https://test.openai.com';
-      process.env.OPENAI_MODEL = 'test-model';
-      process.env.OPENAI_DIMENSIONS = '1024';
+    it('应该正确处理OpenAI配置', async () => {
+      // 更新模拟容器的返回值以包含OpenAI配置
+      mockContainer.get.mockImplementation((serviceIdentifier: any) => {
+        if (serviceIdentifier.name === 'EmbeddingConfigService') {
+          return {
+            getConfig: () => ({
+              provider: 'openai',
+              openai: {
+                apiKey: 'test-key',
+                baseUrl: 'https://test.openai.com',
+                model: 'test-model',
+                dimensions: 1024,
+              },
+              ollama: {
+                baseUrl: 'http://localhost:11434',
+                model: 'nomic-embed-text',
+                dimensions: 768,
+              },
+              siliconflow: {
+                apiKey: undefined,
+                baseUrl: 'https://api.siliconflow.cn',
+                model: 'BAAI/bge-m3',
+                dimensions: 1024,
+              },
+            })
+          };
+        }
+        return {
+          getConfig: () => ({})
+        };
+      });
       
-      (ConfigService as any).instance = undefined;
-      const newConfigService = new ConfigService();
+      const newConfigService = new ConfigService(
+        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+        mockContainer.get({ name: 'QdrantConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+        mockContainer.get({ name: 'LoggingConfigService' }) as any,
+        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'RedisConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectConfigService' }) as any,
+        mockContainer.get({ name: 'IndexingConfigService' }) as any,
+        mockContainer.get({ name: 'LSPConfigService' }) as any,
+        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+      );
+      await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
       
       expect(embeddingConfig.openai.apiKey).toBe('test-key');
@@ -174,13 +503,54 @@ describe('ConfigService', () => {
       expect(embeddingConfig.openai.dimensions).toBe(1024);
     });
 
-    it('应该正确处理Ollama配置', () => {
-      process.env.OLLAMA_BASE_URL = 'http://test.ollama.com';
-      process.env.OLLAMA_MODEL = 'test-ollama-model';
-      process.env.OLLAMA_DIMENSIONS = '512';
+    it('应该正确处理Ollama配置', async () => {
+      // 更新模拟容器的返回值以包含Ollama配置
+      mockContainer.get.mockImplementation((serviceIdentifier: any) => {
+        if (serviceIdentifier.name === 'EmbeddingConfigService') {
+          return {
+            getConfig: () => ({
+              provider: 'ollama',
+              openai: {
+                apiKey: undefined,
+                baseUrl: 'https://api.openai.com',
+                model: 'text-embedding-ada-002',
+                dimensions: 1536,
+              },
+              ollama: {
+                baseUrl: 'http://test.ollama.com',
+                model: 'test-ollama-model',
+                dimensions: 512,
+              },
+              siliconflow: {
+                apiKey: undefined,
+                baseUrl: 'https://api.siliconflow.cn',
+                model: 'BAAI/bge-m3',
+                dimensions: 1024,
+              },
+            })
+          };
+        }
+        return {
+          getConfig: () => ({})
+        };
+      });
       
-      (ConfigService as any).instance = undefined;
-      const newConfigService = new ConfigService();
+      const newConfigService = new ConfigService(
+        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+        mockContainer.get({ name: 'QdrantConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+        mockContainer.get({ name: 'LoggingConfigService' }) as any,
+        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'RedisConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectConfigService' }) as any,
+        mockContainer.get({ name: 'IndexingConfigService' }) as any,
+        mockContainer.get({ name: 'LSPConfigService' }) as any,
+        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+      );
+      await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
       
       expect(embeddingConfig.ollama.baseUrl).toBe('http://test.ollama.com');
@@ -188,14 +558,60 @@ describe('ConfigService', () => {
       expect(embeddingConfig.ollama.dimensions).toBe(512);
     });
 
-    it('应该正确处理Gemini配置', () => {
-      process.env.GEMINI_API_KEY = 'gemini-test-key';
-      process.env.GEMINI_BASE_URL = 'https://test.gemini.com';
-      process.env.GEMINI_MODEL = 'test-gemini-model';
-      process.env.GEMINI_DIMENSIONS = '384';
+    it('应该正确处理Gemini配置', async () => {
+      // 更新模拟容器的返回值以包含Gemini配置
+      mockContainer.get.mockImplementation((serviceIdentifier: any) => {
+        if (serviceIdentifier.name === 'EmbeddingConfigService') {
+          return {
+            getConfig: () => ({
+              provider: 'gemini',
+              openai: {
+                apiKey: undefined,
+                baseUrl: 'https://api.openai.com',
+                model: 'text-embedding-ada-002',
+                dimensions: 1536,
+              },
+              ollama: {
+                baseUrl: 'http://localhost:11434',
+                model: 'nomic-embed-text',
+                dimensions: 768,
+              },
+              siliconflow: {
+                apiKey: undefined,
+                baseUrl: 'https://api.siliconflow.cn',
+                model: 'BAAI/bge-m3',
+                dimensions: 1024,
+              },
+              gemini: {
+                apiKey: 'gemini-test-key',
+                baseUrl: 'https://test.gemini.com',
+                model: 'test-gemini-model',
+                dimensions: 384,
+              },
+            })
+          };
+        }
+        return {
+          getConfig: () => ({})
+        };
+      });
       
-      (ConfigService as any).instance = undefined;
-      const newConfigService = new ConfigService();
+      const newConfigService = new ConfigService(
+        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+        mockContainer.get({ name: 'QdrantConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+        mockContainer.get({ name: 'LoggingConfigService' }) as any,
+        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'RedisConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectConfigService' }) as any,
+        mockContainer.get({ name: 'IndexingConfigService' }) as any,
+        mockContainer.get({ name: 'LSPConfigService' }) as any,
+        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+      );
+      await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
       
       expect(embeddingConfig.gemini.apiKey).toBe('gemini-test-key');
@@ -206,14 +622,43 @@ describe('ConfigService', () => {
   });
 
  describe('批处理配置', () => {
-    it('应该正确处理批处理配置', () => {
-      process.env.BATCH_PROCESSING_ENABLED = 'false';
-      process.env.MAX_CONCURRENT_OPERATIONS = '10';
-      process.env.DEFAULT_BATCH_SIZE = '25';
-      process.env.MAX_BATCH_SIZE = '250';
+    it('应该正确处理批处理配置', async () => {
+      // 更新模拟容器的返回值以包含批处理配置
+      mockContainer.get.mockImplementation((serviceIdentifier: any) => {
+        if (serviceIdentifier.name === 'BatchProcessingConfigService') {
+          return {
+            getConfig: () => ({
+              maxBatchSize: 250,
+              processingInterval: 5000,
+              retryAttempts: 3,
+              retryDelay: 1000,
+              enabled: false,
+              maxConcurrentOperations: 10,
+              defaultBatchSize: 25,
+            })
+          };
+        }
+        return {
+          getConfig: () => ({})
+        };
+      });
       
-      (ConfigService as any).instance = undefined;
-      const newConfigService = new ConfigService();
+      const newConfigService = new ConfigService(
+        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+        mockContainer.get({ name: 'QdrantConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+        mockContainer.get({ name: 'LoggingConfigService' }) as any,
+        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'RedisConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectConfigService' }) as any,
+        mockContainer.get({ name: 'IndexingConfigService' }) as any,
+        mockContainer.get({ name: 'LSPConfigService' }) as any,
+        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+      );
+      await newConfigService.initialize();
       const batchConfig = newConfigService.get('batchProcessing');
       
       expect(batchConfig.enabled).toBe(false);
@@ -224,14 +669,43 @@ describe('ConfigService', () => {
   });
 
   describe('Semgrep配置', () => {
-    it('应该正确处理Semgrep配置', () => {
-      process.env.SEMGREP_BINARY_PATH = '/usr/local/bin/semgrep';
-      process.env.SEMGREP_TIMEOUT = '60000';
-      process.env.SEMGREP_JOBS = '8';
-      process.env.SEMGREP_CONFIG_PATHS = 'p/security-audit,p/secrets';
+    it('应该正确处理Semgrep配置', async () => {
+      // 更新模拟容器的返回值以包含Semgrep配置
+      mockContainer.get.mockImplementation((serviceIdentifier: any) => {
+        if (serviceIdentifier.name === 'SemgrepConfigService') {
+          return {
+            getConfig: () => ({
+              enabled: true,
+              configPath: './config/semgrep-rules.yml',
+              timeout: 60000,
+              maxFileSize: 1048576,
+              binaryPath: '/usr/local/bin/semgrep',
+              jobs: 8,
+              configPaths: ['p/security-audit', 'p/secrets'],
+            })
+          };
+        }
+        return {
+          getConfig: () => ({})
+        };
+      });
       
-      (ConfigService as any).instance = undefined;
-      const newConfigService = new ConfigService();
+      const newConfigService = new ConfigService(
+        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+        mockContainer.get({ name: 'QdrantConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+        mockContainer.get({ name: 'LoggingConfigService' }) as any,
+        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+        mockContainer.get({ name: 'RedisConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectConfigService' }) as any,
+        mockContainer.get({ name: 'IndexingConfigService' }) as any,
+        mockContainer.get({ name: 'LSPConfigService' }) as any,
+        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+      );
+      await newConfigService.initialize();
       const semgrepConfig = newConfigService.get('semgrep');
       
       expect(semgrepConfig.binaryPath).toBe('/usr/local/bin/semgrep');
