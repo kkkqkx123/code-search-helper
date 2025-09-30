@@ -354,6 +354,11 @@ export class PerformanceOptimizerService {
    * 开始内存监控
    */
   private startMemoryMonitoring(): void {
+    // 在测试环境中不启动内存监控
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+    
     // Record memory usage every 30 seconds
     if (this.memoryMonitoringInterval) {
       clearInterval(this.memoryMonitoringInterval);

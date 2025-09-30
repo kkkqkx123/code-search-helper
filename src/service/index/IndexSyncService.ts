@@ -50,6 +50,21 @@ export interface FileChunk {
   className?: string;
 }
 
+export interface MemoryUsage {
+  used: number;
+  total: number;
+  percentage: number;
+  timestamp: Date;
+}
+
+export interface IndexingMetrics {
+  fileSize: number;
+  chunkCount: number;
+  processingTime: number;
+  memoryUsage: MemoryUsage;
+  embeddingTime?: number;
+}
+
 @injectable()
 export class IndexSyncService {
   private eventListeners: Map<string, Array<(...args: any[]) => Promise<void>>> = new Map();
@@ -58,6 +73,8 @@ export class IndexSyncService {
   on(event: 'indexingProgress', listener: (projectId: string, progress: number) => Promise<void>): void;
   on(event: 'indexingCompleted', listener: (projectId: string) => Promise<void>): void;
   on(event: 'indexingError', listener: (projectId: string, error: Error) => Promise<void>): void;
+  on(event: 'indexingMetrics', listener: (projectId: string, filePath: string, metrics: IndexingMetrics) => Promise<void>): void;
+  on(event: 'memoryWarning', listener: (projectId: string, memoryUsage: MemoryUsage, threshold: number) => Promise<void>): void;
   on(event: string, listener: (...args: any[]) => Promise<void>): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
@@ -69,6 +86,8 @@ export class IndexSyncService {
   private async emit(event: 'indexingProgress', projectId: string, progress: number): Promise<void>;
   private async emit(event: 'indexingCompleted', projectId: string): Promise<void>;
   private async emit(event: 'indexingError', projectId: string, error: Error): Promise<void>;
+  private async emit(event: 'indexingMetrics', projectId: string, filePath: string, metrics: IndexingMetrics): Promise<void>;
+  private async emit(event: 'memoryWarning', projectId: string, memoryUsage: MemoryUsage, threshold: number): Promise<void>;
   private async emit(event: string, ...args: any[]): Promise<void> {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
@@ -432,13 +451,22 @@ export class IndexSyncService {
   }
 
   /**
-   * 索引单个文件
+   * 索引单个文件（增强版，带性能监控）
    */
   private async indexFile(projectPath: string, filePath: string): Promise<void> {
+    const startTime = Date.now();
+    const initialMemory = process.memoryUsage();
+    
     try {
       // 读取文件内容
       const content = await fs.readFile(filePath, 'utf-8');
-
+      const fileSize = content.length;
+      
+      // 大文件预警
+      if (fileSize > 1024 * 1024) { // 1MB
+        this.logger.warn(`Large file detected: ${filePath} (${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
+      }
+      
       // 分割文件为块
       const chunks = await this.chunkFile(content, filePath);
 
@@ -452,14 +480,55 @@ export class IndexSyncService {
         throw new Error(`Failed to upsert vectors for file: ${filePath}`);
       }
 
-      this.logger.debug(`Indexed file: ${filePath}`);
+      const processingTime = Date.now() - startTime;
+      const finalMemory = process.memoryUsage();
+      
+      // 记录性能指标
+      const metrics: IndexingMetrics = {
+        fileSize,
+        chunkCount: chunks.length,
+        processingTime,
+        memoryUsage: {
+          used: finalMemory.heapUsed - initialMemory.heapUsed,
+          total: finalMemory.heapTotal,
+          percentage: ((finalMemory.heapUsed - initialMemory.heapUsed) / initialMemory.heapTotal) * 100,
+          timestamp: new Date()
+        }
+      };
+      
+      this.recordMetrics(projectPath, filePath, metrics);
+      
+      // 内存警告检查
+      if (metrics.memoryUsage.percentage > 80) {
+        await this.emit('memoryWarning', projectPath, metrics.memoryUsage, 80);
+      }
+      
+      this.logger.debug(`Indexed file: ${filePath}`, { metrics });
     } catch (error) {
+      this.recordError(filePath, error);
       this.errorHandler.handleError(
         new Error(`Failed to index file: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'IndexSyncService', operation: 'indexFile', projectPath, filePath }
       );
       throw error;
     }
+  }
+
+  /**
+   * 记录性能指标
+   */
+  private async recordMetrics(projectPath: string, filePath: string, metrics: IndexingMetrics): Promise<void> {
+    const projectId = this.projectIdManager.getProjectId(projectPath);
+    if (projectId) {
+      await this.emit('indexingMetrics', projectId, filePath, metrics);
+    }
+  }
+
+  /**
+   * 记录错误信息
+   */
+  private recordError(filePath: string, error: any): void {
+    this.logger.error(`Indexing error for ${filePath}:`, { error });
   }
 
   /**
@@ -503,35 +572,39 @@ export class IndexSyncService {
    * 分割文件为块
    */
   private async chunkFile(content: string, filePath: string): Promise<FileChunk[]> {
-    // 检测语言
     const language = this.detectLanguage(filePath);
     
-    // 优先使用AST感知分段
     try {
-      const astChunks: CodeChunk[] = await this.astSplitter.split(content, language, filePath);
+      const astChunks = await this.astSplitter.split(content, language, filePath);
       if (astChunks.length > 0) {
-        // 转换AST分段结果为FileChunk格式
+        // 简化转换逻辑，直接映射字段
         return astChunks.map(chunk => ({
           content: chunk.content,
-          filePath: filePath,
+          filePath,
           startLine: chunk.metadata.startLine,
           endLine: chunk.metadata.endLine,
           language: chunk.metadata.language,
-          chunkType: 'code'
+          chunkType: chunk.metadata.type || 'code',
+          functionName: chunk.metadata.functionName,
+          className: chunk.metadata.className
         }));
       }
     } catch (error) {
-      // 失败时回退到简单分段
-      this.logger.warn(`AST splitting failed, falling back to simple splitting: ${error}`);
+      this.logger.warn(`AST splitting failed for ${filePath}, using fallback: ${error}`);
     }
     
-    // 简单分段作为回退
+    // 回退逻辑保持不变
+    return this.simpleChunk(content, filePath, language);
+  }
+
+  /**
+   * 简单分段回退方法
+   */
+  private simpleChunk(content: string, filePath: string, language: string): FileChunk[] {
     const lines = content.split('\n');
     const chunks: FileChunk[] = [];
-
-    // 简单的按行分割策略
-    const chunkSize = 100; // 每个块的行数
-    const chunkOverlap = 10; // 块之间的重叠行数
+    const chunkSize = 100;
+    const chunkOverlap = 10;
 
     for (let i = 0; i < lines.length; i += chunkSize - chunkOverlap) {
       const startLine = i;
@@ -542,7 +615,7 @@ export class IndexSyncService {
         content: chunkContent,
         filePath,
         startLine: startLine + 1,
-        endLine: endLine,
+        endLine,
         language,
         chunkType: 'code'
       });

@@ -3,11 +3,68 @@ import request from 'supertest';
 import { ApiServer } from '../ApiServer';
 import { Logger } from '../../utils/logger';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
+import { ProjectIdManager } from '../../database/ProjectIdManager';
+import { diContainer } from '../../core/DIContainer';
+import { TYPES } from '../../types';
+import { ConfigService } from '../../config/ConfigService';
 
 // Mock fs
 jest.mock('fs/promises');
 import fs from 'fs/promises';
 const mockFsDefault = fs as jest.Mocked<typeof fs>;
+
+// Mock ProjectIdManager to prevent file system operations during tests
+jest.mock('../../database/ProjectIdManager', () => {
+  return {
+    ProjectIdManager: jest.fn().mockImplementation(() => ({
+      loadMapping: jest.fn().mockResolvedValue(undefined),
+      generateProjectId: jest.fn().mockResolvedValue('mock-project-id'),
+      getProjectId: jest.fn().mockReturnValue('mock-project-id'),
+      getProjectPath: jest.fn().mockReturnValue('/mock/project/path'),
+      getCollectionName: jest.fn().mockReturnValue('mock-collection'),
+      getSpaceName: jest.fn().mockReturnValue('mock_space'),
+      updateProjectTimestamp: jest.fn(),
+      getLatestUpdatedProject: jest.fn().mockReturnValue('mock-project-id'),
+      getProjectsByUpdateTime: jest.fn().mockReturnValue([]),
+      saveMapping: jest.fn().mockResolvedValue(undefined),
+      listAllProjects: jest.fn().mockReturnValue([]),
+      listAllProjectPaths: jest.fn().mockReturnValue([]),
+      hasProject: jest.fn().mockReturnValue(false),
+      removeProject: jest.fn().mockReturnValue(true),
+      refreshMapping: jest.fn().mockResolvedValue(undefined),
+      cleanupInvalidMappings: jest.fn().mockResolvedValue(0)
+    }))
+  };
+});
+
+// Mock EmbedderFactory to prevent async initialization during tests
+jest.mock('../../embedders/EmbedderFactory', () => {
+  return {
+    EmbedderFactory: jest.fn().mockImplementation(() => ({
+      embed: jest.fn().mockResolvedValue({}),
+      getEmbedder: jest.fn().mockResolvedValue({
+        embed: jest.fn().mockResolvedValue({}),
+        isAvailable: jest.fn().mockResolvedValue(true),
+        getModelName: jest.fn().mockReturnValue('mock-model'),
+        getDimensions: jest.fn().mockReturnValue(768)
+      }),
+      getAvailableProviders: jest.fn().mockResolvedValue(['openai']),
+      getProviderInfo: jest.fn().mockResolvedValue({
+        name: 'openai',
+        model: 'mock-model',
+        dimensions: 768,
+        available: true
+      }),
+      autoSelectProvider: jest.fn().mockResolvedValue('openai'),
+      registerProvider: jest.fn(),
+      getRegisteredProviders: jest.fn().mockReturnValue(['openai']),
+      isProviderRegistered: jest.fn().mockReturnValue(true),
+      unregisterProvider: jest.fn().mockReturnValue(true),
+      getDefaultProvider: jest.fn().mockReturnValue('openai'),
+      setDefaultProvider: jest.fn()
+    }))
+  };
+});
 
 // Create a mock IndexSyncService
 const createMockIndexSyncService = () => ({
@@ -25,6 +82,9 @@ describe('ApiServer', () => {
   let mockIndexSyncService: any;
 
   beforeAll(() => {
+    // Set environment variable for mock mode
+    process.env.SEARCH_MOCK_MODE = 'true';
+    
     // Mock fs.readFile to return mock data
     mockFsDefault.readFile = jest.fn().mockImplementation((filePath: string) => {
       if (filePath.includes('search-results.json')) {
@@ -45,9 +105,17 @@ describe('ApiServer', () => {
   });
 
   beforeEach(() => {
+    // Ensure ConfigService is properly bound in the dependency injection container
+    if (!diContainer.isBound(TYPES.ConfigService)) {
+      diContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(ConfigService.getInstance());
+    }
+    
     const logger = new Logger('ApiServerTest');
     mockIndexSyncService = createMockIndexSyncService();
-    const mockEmbedderFactory = {} as EmbedderFactory; // Add a mock EmbedderFactory
+    
+    // Use the mocked EmbedderFactory (jest.mock will handle the constructor)
+    const mockEmbedderFactory = new (require('../../embedders/EmbedderFactory').EmbedderFactory)();
+    
     const mockQdrantService = {
       searchVectorsForProject: jest.fn().mockResolvedValue([]) // Mock the searchVectorsForProject method
     } as any; // Add a mock QdrantService

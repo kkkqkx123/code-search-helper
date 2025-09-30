@@ -48,8 +48,12 @@ export class TreeSitterService {
     return this.coreService.extractClasses(ast);
   }
 
-  extractImports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
-    return this.coreService.extractImports(ast, sourceCode);
+  extractImports(ast: Parser.SyntaxNode, sourceCode?: string): Parser.SyntaxNode[] {
+    return this.coreService.extractImportNodes(ast);
+  }
+
+  extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    return this.coreService.extractImportNodes(ast);
   }
 
   extractExports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
@@ -76,6 +80,10 @@ export class TreeSitterService {
     endColumn: number;
   } {
     return this.coreService.getNodeLocation(node);
+  }
+
+  getNodeName(node: Parser.SyntaxNode): string {
+    return this.coreService.getNodeName(node);
   }
 
   findNodeByType(ast: Parser.SyntaxNode, type: string): Parser.SyntaxNode[] {

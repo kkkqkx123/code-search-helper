@@ -1,5 +1,6 @@
 import { FileSystemTraversal, TraversalOptions, TraversalResult, FileInfo } from '../FileSystemTraversal';
 import { GitignoreParser } from '../../../utils/GitignoreParser';
+import { LoggerService } from '../../../utils/LoggerService';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
@@ -12,6 +13,10 @@ const mockedFs = fs as jest.Mocked<typeof fs>;
 jest.mock('../../../utils/GitignoreParser');
 const mockedGitignoreParser = GitignoreParser as jest.Mocked<typeof GitignoreParser>;
 
+// Mock LoggerService
+jest.mock('../../../utils/LoggerService');
+const MockedLoggerService = LoggerService as jest.Mocked<typeof LoggerService>;
+
 // Mock fsSync for realpathSync
 jest.mock('fs');
 const fsSync = require('fs') as jest.Mocked<typeof import('fs')>;
@@ -19,6 +24,7 @@ const fsSync = require('fs') as jest.Mocked<typeof import('fs')>;
 describe('FileSystemTraversal', () => {
   let fileSystemTraversal: FileSystemTraversal;
   let mockOptions: TraversalOptions;
+  let mockLogger: LoggerService;
   let originalCreateReadStream: any;
 
   beforeEach(() => {
@@ -34,6 +40,16 @@ describe('FileSystemTraversal', () => {
       respectGitignore: true,
     };
 
+    // Create mock logger
+    mockLogger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      getLogFilePath: jest.fn(),
+      markAsNormalExit: jest.fn(),
+    } as any;
+
     // Store original createReadStream
     originalCreateReadStream = require('fs').createReadStream;
 
@@ -47,7 +63,7 @@ describe('FileSystemTraversal', () => {
     mockedGitignoreParser.parseGitignore.mockResolvedValue([]);
 
     // Create a new instance for each test
-    fileSystemTraversal = new FileSystemTraversal(mockOptions as any);
+    fileSystemTraversal = new FileSystemTraversal(mockLogger, mockOptions as any);
   });
 
   afterEach(() => {
@@ -139,7 +155,7 @@ describe('FileSystemTraversal', () => {
       mockedGitignoreParser.parseGitignore.mockResolvedValue(['**/*.test.ts']);
 
       const optionsWithGitignore = { ...mockOptions, respectGitignore: true };
-      const traversalWithGitignore = new FileSystemTraversal(optionsWithGitignore as any);
+      const traversalWithGitignore = new FileSystemTraversal(mockLogger, optionsWithGitignore as any);
 
       await traversalWithGitignore.traverseDirectory(testPath);
 

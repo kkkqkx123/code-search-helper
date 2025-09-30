@@ -468,40 +468,15 @@ export class TreeSitterCoreService {
   }
 
   extractImports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
-    const imports: string[] = [];
+    return TreeSitterUtils.extractImports(ast, sourceCode);
+  }
 
-    if (!sourceCode) {
-      return imports;
-    }
+  getNodeName(node: Parser.SyntaxNode): string {
+    return TreeSitterUtils.getNodeName(node);
+  }
 
-    const importTypes = new Set([
-      'import_statement',
-      'import_clause',
-      'import_specifier',
-      'require',
-      'import_from_statement',
-      'import_alias',
-    ]);
-
-    const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
-      if (depth > 100) return;
-
-      if (importTypes.has(node.type)) {
-        const importText = this.getNodeText(node, sourceCode);
-        if (importText.trim().length > 0) {
-          imports.push(importText);
-        }
-      }
-
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) {
-          traverse(child, depth + 1);
-        }
-      }
-    };
-
-    traverse(ast);
-    return imports;
+  extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    return TreeSitterUtils.extractImportNodes(ast);
   }
 
   extractExports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
