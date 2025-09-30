@@ -231,4 +231,91 @@ export class EmbeddingConfigService extends BaseConfigService<EmbeddingConfig> {
       performanceWeight: 0.3,
     };
   }
+
+  /**
+   * 验证嵌入提供者配置
+   * 返回缺失的环境变量列表
+   */
+  validateProviderConfig(provider: string, config: any): string[] {
+    const providerValidators: Record<string, (config: any) => string[]> = {
+      openai: (config) => {
+        const errors: string[] = [];
+        if (!config.model || config.model.trim() === '') {
+          errors.push('OpenAI model is required');
+        }
+        if (!config.apiKey || config.apiKey.trim() === '') {
+          errors.push('OpenAI API key is required');
+        }
+        return errors;
+      },
+      ollama: (config) => {
+        const errors: string[] = [];
+        if (!config.model || config.model.trim() === '') {
+          errors.push('Ollama model is required');
+        }
+        if (!config.baseUrl || config.baseUrl.trim() === '') {
+          errors.push('Ollama base URL is required');
+        }
+        return errors;
+      },
+      gemini: (config) => {
+        const errors: string[] = [];
+        if (!config.model || config.model.trim() === '') {
+          errors.push('Gemini model is required');
+        }
+        if (!config.apiKey || config.apiKey.trim() === '') {
+          errors.push('Gemini API key is required');
+        }
+        return errors;
+      },
+      mistral: (config) => {
+        const errors: string[] = [];
+        if (!config.model || config.model.trim() === '') {
+          errors.push('Mistral model is required');
+        }
+        if (!config.apiKey || config.apiKey.trim() === '') {
+          errors.push('Mistral API key is required');
+        }
+        return errors;
+      },
+      siliconflow: (config) => {
+        const errors: string[] = [];
+        if (!config.model || config.model.trim() === '') {
+          errors.push('SiliconFlow model is required');
+        }
+        if (!config.apiKey || config.apiKey.trim() === '') {
+          errors.push('SiliconFlow API key is required');
+        }
+        return errors;
+      },
+      custom1: (config) => {
+        const errors: string[] = [];
+        if (!config.model || config.model.trim() === '') {
+          errors.push('Custom1 model is required');
+        }
+        return errors;
+      },
+      custom2: (config) => {
+        const errors: string[] = [];
+        if (!config.model || config.model.trim() === '') {
+          errors.push('Custom2 model is required');
+        }
+        return errors;
+      },
+      custom3: (config) => {
+        const errors: string[] = [];
+        if (!config.model || config.model.trim() === '') {
+          errors.push('Custom3 model is required');
+        }
+        return errors;
+      }
+    };
+
+    const validator = providerValidators[provider];
+    if (!validator) {
+      return [`Unknown embedding provider: ${provider}. Available providers: openai, ollama, gemini, mistral, siliconflow, custom1, custom2, custom3`];
+    }
+
+    return validator(config);
+  }
 }

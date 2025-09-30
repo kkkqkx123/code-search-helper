@@ -13,6 +13,7 @@ import { ConfigService } from './config/ConfigService';
 import { ConfigFactory } from './config/ConfigFactory';
 import { diContainer } from './core/DIContainer';
 import { TYPES } from './types';
+import { EmbeddingConfigService } from './config/service/EmbeddingConfigService';
 
 // 添加详细的错误处理
 process.on('uncaughtException', (error) => {
@@ -57,7 +58,8 @@ class Application {
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.IndexSyncService) private indexSyncService: IndexSyncService,
     @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
-    @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService
+    @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
+    @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService
   ) {
     // 创建一个 Logger 实例，用于整个应用
     this.logger = new Logger('code-search-helper');
@@ -149,24 +151,19 @@ class Application {
   }
 
   /**
-   * 验证嵌入配置 - 通过配置服务进行验证
+   * 验证嵌入配置 - 通过嵌入配置服务进行验证
    */
   private async validateEmbeddingConfiguration(): Promise<void> {
     try {
       const embeddingConfig = this.configService.get('embedding');
       const selectedProvider = embeddingConfig.provider || 'openai';
       
-      // 使用配置服务的验证方法（如果存在）
-      if (this.configService.validateEmbeddingProviderConfig) {
-        const missingEnvVars = this.configService.validateEmbeddingProviderConfig(selectedProvider, embeddingConfig);
-        if (missingEnvVars.length > 0) {
-          await this.loggerService.warn(`Missing environment variables for provider '${selectedProvider}':`, { missingEnvVars });
-        } else {
-          await this.loggerService.info(`Environment configuration validated for provider: ${selectedProvider}`);
-        }
+      // 使用嵌入配置服务的验证方法
+      const missingEnvVars = this.embeddingConfigService.validateProviderConfig(selectedProvider, embeddingConfig);
+      if (missingEnvVars.length > 0) {
+        await this.loggerService.warn(`Missing environment variables for provider '${selectedProvider}':`, { missingEnvVars });
       } else {
-        // 回退到简单的存在性检查
-        await this.loggerService.info(`Using embedding provider: ${selectedProvider}`);
+        await this.loggerService.info(`Environment configuration validated for provider: ${selectedProvider}`);
       }
     } catch (error) {
       await this.loggerService.error('Error validating embedding configuration:', error);
@@ -232,6 +229,7 @@ class ApplicationFactory {
     const indexSyncService = diContainer.get<IndexSyncService>(TYPES.IndexSyncService);
     const projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     const embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
+    const embeddingConfigService = diContainer.get<EmbeddingConfigService>(TYPES.EmbeddingConfigService);
 
     return new Application(
       configService,
@@ -241,7 +239,8 @@ class ApplicationFactory {
       embedderFactory,
       indexSyncService,
       projectStateManager,
-      embeddingCacheService
+      embeddingCacheService,
+      embeddingConfigService
     );
   }
 }
