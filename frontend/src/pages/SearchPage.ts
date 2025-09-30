@@ -101,7 +101,6 @@ export class SearchPage {
         const projectSelect = this.container.querySelector('#project-select') as HTMLSelectElement;
         const exampleSearchButton = this.container.querySelector('#example-search') as HTMLButtonElement;
         const minScoreSlider = this.container.querySelector('#min-score') as HTMLInputElement;
-        const minScoreValue = this.container.querySelector('#min-score-value') as HTMLSpanElement;
 
         searchForm?.addEventListener('submit', (e) => {
             e.preventDefault();
