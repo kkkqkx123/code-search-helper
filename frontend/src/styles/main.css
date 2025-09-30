@@ -354,6 +354,66 @@ h2 {
     color: var(--secondary-color);
 }
 
+/* 分页控件样式 */
+.pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+}
+
+.pagination-button {
+    background-color: #f8fafc;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 40px;
+    text-align: center;
+}
+
+.pagination-button:hover:not(:disabled) {
+    background-color: #e2e8f0;
+    border-color: var(--primary-color);
+}
+
+.pagination-button.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.pagination-button:disabled {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    color: var(--secondary-color);
+    padding: 0 5px;
+}
+
+/* 无限滚动样式 */
+.results-container {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.loading-more {
+    text-align: center;
+    padding: 20px;
+    color: var(--secondary-color);
+    background-color: #f8fafc;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .container {
@@ -366,5 +426,16 @@ h2 {
 
     .search-button {
         width: 100%;
+    }
+
+    .pagination-container {
+        flex-wrap: wrap;
+        gap: 3px;
+    }
+
+    .pagination-button {
+        padding: 5px 8px;
+        font-size: 12px;
+        min-width: 32px;
     }
 }

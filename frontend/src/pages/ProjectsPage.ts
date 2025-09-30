@@ -55,14 +55,15 @@ export class ProjectsPage {
         const refreshProjectsButton = this.container.querySelector('#refresh-projects') as HTMLButtonElement;
         
         refreshProjectsButton?.addEventListener('click', () => {
-            this.loadProjectsList();
+            // 强制刷新项目列表，清除缓存
+            this.loadProjectsList(true);
         });
     }
 
     /**
      * 加载项目列表
      */
-    async loadProjectsList() {
+    async loadProjectsList(forceRefresh: boolean = false) {
         const projectsList = this.container.querySelector('#projects-list') as HTMLElement;
         const loadingDiv = this.container.querySelector('#projects-loading') as HTMLElement;
         const errorDiv = this.container.querySelector('#projects-error') as HTMLElement;
@@ -74,7 +75,7 @@ export class ProjectsPage {
         projectsList.innerHTML = '';
 
         try {
-            const result = await this.apiClient.getProjects();
+            const result = await this.apiClient.getProjects(forceRefresh);
 
             if (result.success && result.data) {
                 if (result.data.length > 0) {
@@ -169,8 +170,11 @@ export class ProjectsPage {
             
             if (result.success) {
                 alert('重新索引已启动');
+                // 清除相关缓存
+                this.apiClient.clearProjectsCache();
+                this.apiClient.clearSearchCache();
                 // 刷新项目列表
-                this.loadProjectsList();
+                this.loadProjectsList(true);
                 
                 if (this.onProjectActionComplete) {
                     this.onProjectActionComplete('reindex', result);
@@ -193,6 +197,9 @@ export class ProjectsPage {
             const result = await this.apiClient.deleteProject(projectId);
             
             if (result.success) {
+                // 清除相关缓存
+                this.apiClient.clearProjectsCache();
+                this.apiClient.clearSearchCache();
                 // 从界面移除该项目
                 element.closest('tr')?.remove();
                 alert('项目已删除');

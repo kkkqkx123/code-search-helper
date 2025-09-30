@@ -197,6 +197,10 @@ export class IndexProjectPage {
                 }
                 this.showIndexResult(`项目索引创建成功，ID: ${result.data?.projectId || result.projectId}`, 'success');
 
+                // 清除相关缓存，确保数据是最新的
+                this.apiClient.clearProjectsCache();
+                this.apiClient.clearSearchCache();
+
                 if (this.onIndexComplete) {
                     this.onIndexComplete(result);
                 }

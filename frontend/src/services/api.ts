@@ -9,6 +9,17 @@ export class ApiClient {
         lastUpdated: number | null;
         cacheTTL: number; // 5分钟缓存
     };
+    private searchCache: {
+        [key: string]: {
+            data: any;
+            lastUpdated: number;
+        };
+    };
+    private projectsCache: {
+        data: any[] | null;
+        lastUpdated: number | null;
+        cacheTTL: number; // 10分钟缓存
+    };
 
     constructor(apiBaseUrl: string = 'http://localhost:3010') {
         this.apiBaseUrl = apiBaseUrl;
@@ -16,6 +27,12 @@ export class ApiClient {
             data: null,
             lastUpdated: null,
             cacheTTL: 5 * 60 * 1000 // 5分钟
+        };
+        this.searchCache = {};
+        this.projectsCache = {
+            data: null,
+            lastUpdated: null,
+            cacheTTL: 10 * 60 * 1000 // 10分钟
         };
     }
 
@@ -38,7 +55,25 @@ export class ApiClient {
     async search(query: string, projectId?: string, options?: {
         maxResults?: number;
         minScore?: number;
+        page?: number;
+        pageSize?: number;
+        useCache?: boolean;
     }) {
+        // 生成缓存键
+        const cacheKey = this.generateSearchCacheKey(query, projectId, options);
+        const now = Date.now();
+        const useCache = options?.useCache !== false; // 默认使用缓存
+        
+        // 检查缓存
+        if (useCache && this.searchCache[cacheKey]) {
+            const cached = this.searchCache[cacheKey];
+            // 缓存有效期为2小时
+            if (now - cached.lastUpdated < 2 * 60 * 60 * 1000) {
+                console.debug('使用缓存的搜索结果');
+                return cached.data;
+            }
+        }
+        
         try {
             const response = await fetch(`${this.apiBaseUrl}/api/search`, {
                 method: 'POST',
@@ -48,13 +83,33 @@ export class ApiClient {
                     options: {
                         projectId: projectId || undefined,
                         maxResults: options?.maxResults,
-                        minScore: options?.minScore
+                        minScore: options?.minScore,
+                        page: options?.page || 1,
+                        pageSize: options?.pageSize || 10
                     }
                 })
             });
-            return await response.json();
+            const result = await response.json();
+            
+            // 缓存结果
+            if (useCache && result.success) {
+                this.searchCache[cacheKey] = {
+                    data: result,
+                    lastUpdated: now
+                };
+                console.debug('搜索结果已缓存');
+            }
+            
+            return result;
         } catch (error) {
             console.error('搜索失败:', error);
+            
+            // 如果有缓存数据，即使请求失败也返回缓存数据
+            if (useCache && this.searchCache[cacheKey]) {
+                console.warn('搜索API请求失败，返回缓存数据');
+                return this.searchCache[cacheKey].data;
+            }
+            
             throw error;
         }
     }
@@ -84,14 +139,62 @@ export class ApiClient {
     }
 
     /**
+     * 生成搜索缓存键
+     */
+    private generateSearchCacheKey(query: string, projectId?: string, options?: {
+        maxResults?: number;
+        minScore?: number;
+        page?: number;
+        pageSize?: number;
+    }): string {
+        const keyParts = [
+            query,
+            projectId || '',
+            options?.maxResults?.toString() || '',
+            options?.minScore?.toString() || '',
+            options?.page?.toString() || '1',
+            options?.pageSize?.toString() || '10'
+        ];
+        return keyParts.join('|');
+    }
+
+    /**
      * 获取项目列表
      */
-    async getProjects() {
+    async getProjects(forceRefresh: boolean = false) {
+        const now = Date.now();
+        
+        // 如果缓存存在且未过期，并且不强制刷新，则返回缓存数据
+        if (!forceRefresh &&
+            this.projectsCache.data &&
+            this.projectsCache.lastUpdated &&
+            (now - this.projectsCache.lastUpdated < this.projectsCache.cacheTTL)) {
+            console.debug('使用缓存的项目数据');
+            return { success: true, data: this.projectsCache.data };
+        }
+        
         try {
+            console.debug('从后端获取项目数据');
             const response = await fetch(`${this.apiBaseUrl}/api/v1/projects`);
-            return await response.json();
+            const result = await response.json();
+            
+            // 更新缓存
+            if (result.success && result.data) {
+                this.projectsCache.data = result.data;
+                this.projectsCache.lastUpdated = now;
+                console.debug('项目数据已缓存');
+            }
+            
+            return result;
         } catch (error) {
             console.error('获取项目列表失败:', error);
+            
+            // 如果有缓存数据，即使请求失败也返回缓存数据
+            if (this.projectsCache.data) {
+                console.warn('项目API请求失败，返回缓存数据');
+                return { success: true, data: this.projectsCache.data };
+            }
+            
             throw error;
         }
     }
@@ -179,5 +282,32 @@ export class ApiClient {
         this.embeddersCache.data = null;
         this.embeddersCache.lastUpdated = null;
         console.debug('嵌入器缓存已清除');
+    }
+
+    /**
+     * 清除搜索缓存
+     */
+    clearSearchCache() {
+        this.searchCache = {};
+        console.debug('搜索缓存已清除');
+    }
+
+    /**
+     * 清除项目缓存
+     */
+    clearProjectsCache() {
+        this.projectsCache.data = null;
+        this.projectsCache.lastUpdated = null;
+        console.debug('项目缓存已清除');
+    }
+
+    /**
+     * 清除所有缓存
+     */
+    clearAllCache() {
+        this.clearEmbeddersCache();
+        this.clearSearchCache();
+        this.clearProjectsCache();
+        console.debug('所有缓存已清除');
     }
 }
