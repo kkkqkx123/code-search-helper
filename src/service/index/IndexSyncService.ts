@@ -764,14 +764,20 @@ export class IndexSyncService {
           throw new Error(`项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`);
         }
         
-        // 检查已完成的项目状态
-        const completedStatus = this.completedProjects.get(projectId);
-        if (completedStatus) {
-          // 如果项目已完成索引，删除现有集合
+        // 无论项目状态如何，总是尝试删除现有集合和清理状态
+        try {
+          // 尝试删除现有集合（如果存在）
           await this.qdrantService.deleteCollectionForProject(projectPath);
-          // 从已完成项目中移除
-          this.completedProjects.delete(projectId);
+          this.logger.info(`已删除项目集合: ${projectPath}`);
+        } catch (deleteError) {
+          // 如果集合不存在或删除失败，记录警告但继续执行
+          this.logger.warn(`删除项目集合时出现问题（这可能是正常的）: ${deleteError instanceof Error ? deleteError.message : String(deleteError)}`);
         }
+        
+        // 清理所有相关的状态缓存
+        this.indexingProjects.delete(projectId);
+        this.completedProjects.delete(projectId);
+        this.logger.info(`已清理项目状态缓存: ${projectId}`);
       } else {
         this.logger.info(`项目 ${projectPath} 不存在，将创建新索引`);
       }
