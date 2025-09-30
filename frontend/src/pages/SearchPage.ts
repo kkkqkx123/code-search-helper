@@ -34,6 +34,47 @@ export class SearchPage {
                     </select>
                     <button type="submit" class="search-button">搜索</button>
                 </form>
+                
+                <div class="search-filters" style="margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                        <div class="filter-group">
+                            <label for="max-results" style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">最大结果数量:</label>
+                            <input 
+                                type="number" 
+                                id="max-results" 
+                                min="1" 
+                                max="100" 
+                                value="10"
+                                style="width: 80px; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;"
+                            >
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="min-score" style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">最小匹配度:</label>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input 
+                                    type="range" 
+                                    id="min-score" 
+                                    min="0" 
+                                    max="1" 
+                                    step="0.05" 
+                                    value="0.3"
+                                    style="width: 150px;"
+                                >
+                                <input 
+                                    type="number" 
+                                    id="min-score-input" 
+                                    min="0" 
+                                    max="1" 
+                                    step="0.05" 
+                                    value="0.3"
+                                    style="width: 60px; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; margin-left: 10px;"
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div style="margin-top: 15px; text-align: center;">
                     <button id="example-search" class="search-button" style="background-color: #64748b; padding: 8px 15px; font-size: 14px;">示例搜索：function</button>
                 </div>
@@ -59,6 +100,8 @@ export class SearchPage {
         const searchInput = this.container.querySelector('#search-input') as HTMLInputElement;
         const projectSelect = this.container.querySelector('#project-select') as HTMLSelectElement;
         const exampleSearchButton = this.container.querySelector('#example-search') as HTMLButtonElement;
+        const minScoreSlider = this.container.querySelector('#min-score') as HTMLInputElement;
+        const minScoreValue = this.container.querySelector('#min-score-value') as HTMLSpanElement;
 
         searchForm?.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -71,6 +114,38 @@ export class SearchPage {
             searchInput.value = 'function';
             const selectedProject = projectSelect.value;
             this.performSearch('function', selectedProject);
+        });
+
+        // 最小匹配度滑块值实时更新
+        minScoreSlider?.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            const minScoreInput = this.container.querySelector('#min-score-input') as HTMLInputElement;
+            if (minScoreInput) {
+                minScoreInput.value = value;
+            }
+        });
+
+        // 输入框变化时同步更新滑块
+        const minScoreInput = this.container.querySelector('#min-score-input') as HTMLInputElement;
+        minScoreInput?.addEventListener('input', (e) => {
+            const target = e.target as HTMLInputElement;
+            const value = parseFloat(target.value);
+            if (!isNaN(value) && value >= 0 && value <= 1) {
+                minScoreSlider.value = target.value;
+            }
+        });
+
+        // 输入框失去焦点时验证范围
+        minScoreInput?.addEventListener('blur', (e) => {
+            const target = e.target as HTMLInputElement;
+            let value = parseFloat(target.value);
+            if (isNaN(value) || value < 0) {
+                value = 0;
+            } else if (value > 1) {
+                value = 1;
+            }
+            target.value = value.toFixed(2);
+            minScoreSlider.value = value.toFixed(2);
         });
     }
 
@@ -92,10 +167,20 @@ export class SearchPage {
             }
         }
 
+        // 获取搜索过滤参数
+        const maxResultsInput = this.container.querySelector('#max-results') as HTMLInputElement;
+        const minScoreInput = this.container.querySelector('#min-score-input') as HTMLInputElement;
+        
+        const maxResults = maxResultsInput ? parseInt(maxResultsInput.value) : undefined;
+        const minScore = minScoreInput ? parseFloat(minScoreInput.value) : undefined;
+
         this.showLoading();
 
         try {
-            const result = await this.apiClient.search(query, projectId);
+            const result = await this.apiClient.search(query, projectId, {
+                maxResults,
+                minScore
+            });
             this.displayResults(result);
             
             if (this.onSearchComplete) {
@@ -114,13 +199,35 @@ export class SearchPage {
         if (!resultsContainer) return;
 
         if (result.success && result.data.results.length > 0) {
-            resultsContainer.innerHTML = result.data.results.map((item: any, _index: number) => `
-                <div class="result-item">
-                    <div class="result-score">匹配度: ${(item.score * 100).toFixed(1)}%</div>
-                    <pre class="result-code">${this.escapeHtml(item.snippet.content)}</pre>
-                    <div class="result-filepath">${item.snippet.filePath || '未知文件'}</div>
+            // 构建过滤条件显示
+            const filters = result.data.filters;
+            let filterInfo = '';
+            if (filters) {
+                const filterParts = [];
+                if (filters.maxResults !== undefined) {
+                    filterParts.push(`最大结果: ${filters.maxResults}`);
+                }
+                if (filters.minScore !== undefined) {
+                    filterParts.push(`最小匹配度: ${(filters.minScore * 100).toFixed(0)}%`);
+                }
+                if (filterParts.length > 0) {
+                    filterInfo = `<div style="margin-bottom: 15px; padding: 10px; background: #e0f2fe; border-radius: 4px; font-size: 14px; color: #0277bd;">应用过滤: ${filterParts.join(', ')}</div>`;
+                }
+            }
+
+            resultsContainer.innerHTML = `
+                ${filterInfo}
+                <div style="margin-bottom: 15px; font-size: 14px; color: #6b7280;">
+                    找到 ${result.data.results.length} 条结果
                 </div>
-            `).join('');
+                ${result.data.results.map((item: any, _index: number) => `
+                    <div class="result-item">
+                        <div class="result-score">匹配度: ${(item.score * 100).toFixed(1)}%</div>
+                        <pre class="result-code">${this.escapeHtml(item.snippet.content)}</pre>
+                        <div class="result-filepath">${item.snippet.filePath || '未知文件'}</div>
+                    </div>
+                `).join('')}
+            `;
         } else {
             resultsContainer.innerHTML = '<div class="no-results">未找到相关结果</div>';
         }

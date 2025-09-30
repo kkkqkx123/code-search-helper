@@ -218,7 +218,7 @@ export class ApiServer {
         });
         
         // 过滤结果以匹配查询并转换为前端期望的格式
-        const filteredResults = mockResults.results
+        let filteredResults = mockResults.results
           .filter((result: any) =>
             result.highlightedContent.toLowerCase().includes(query.toLowerCase())
           )
@@ -235,12 +235,30 @@ export class ApiServer {
               matchType: result.matchType
             };
           });
+
+        // 应用匹配度阈值过滤
+        if (options?.minScore !== undefined && options.minScore >= 0 && options.minScore <= 1) {
+          filteredResults = filteredResults.filter((result: any) => 
+            result.score >= options.minScore
+          );
+          await this.logger.debug(`Applied minScore filter: ${options.minScore}, remaining results: ${filteredResults.length}`);
+        }
+
+        // 应用最大数量限制
+        if (options?.maxResults !== undefined && options.maxResults > 0) {
+          filteredResults = filteredResults.slice(0, options.maxResults);
+          await this.logger.debug(`Applied maxResults limit: ${options.maxResults}, final results: ${filteredResults.length}`);
+        }
         
         await this.logger.debug('Mock search completed, found', filteredResults.length, 'results');
         return {
           results: filteredResults,
           total: filteredResults.length,
-          query
+          query,
+          filters: {
+            maxResults: options?.maxResults,
+            minScore: options?.minScore
+          }
         };
       } else {
         // 使用真实数据库查询模式
@@ -307,13 +325,21 @@ export class ApiServer {
           }
         }
         
-        const limit = options?.limit || 10; // 默认限制10个结果
+        const limit = options?.maxResults || options?.limit || 10; // 优先使用maxResults，回退到limit，默认10个结果
 
         // 使用嵌入器将查询文本转换为向量
         const embedder = await this.embedderFactory.getEmbedder();
         const embeddingResult = await embedder.embed({ text: query });
         const queryVector = Array.isArray(embeddingResult) ? embeddingResult[0].vector : embeddingResult.vector;
-        const searchResults = await this.qdrantService.searchVectorsForProject(projectPath, queryVector, { limit });
+        
+        // 构建搜索参数，包含分数阈值
+        const searchParams: any = { limit };
+        if (options?.minScore !== undefined && options.minScore >= 0 && options.minScore <= 1) {
+          searchParams.scoreThreshold = options.minScore;
+          await this.logger.debug(`Applying minScore filter: ${options.minScore}`);
+        }
+        
+        const searchResults = await this.qdrantService.searchVectorsForProject(projectPath, queryVector, searchParams);
 
         // 将Qdrant结果转换为前端期望的格式
         const formattedResults = searchResults.map((result: any) => {
@@ -334,7 +360,11 @@ export class ApiServer {
           results: formattedResults,
           total: formattedResults.length,
           query,
-          projectId
+          projectId,
+          filters: {
+            maxResults: options?.maxResults,
+            minScore: options?.minScore
+          }
         };
       }
     } catch (error) {

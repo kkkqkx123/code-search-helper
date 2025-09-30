@@ -35,7 +35,10 @@ export class ApiClient {
     /**
      * 执行代码搜索
      */
-    async search(query: string, projectId?: string) {
+    async search(query: string, projectId?: string, options?: {
+        maxResults?: number;
+        minScore?: number;
+    }) {
         try {
             const response = await fetch(`${this.apiBaseUrl}/api/search`, {
                 method: 'POST',
@@ -43,7 +46,9 @@ export class ApiClient {
                 body: JSON.stringify({
                     query,
                     options: {
-                        projectId: projectId || undefined
+                        projectId: projectId || undefined,
+                        maxResults: options?.maxResults,
+                        minScore: options?.minScore
                     }
                 })
             });
