@@ -181,6 +181,7 @@ const configSchema = Joi.object({
   project: Joi.object({
     statePath: Joi.string().default('./data/project-states.json'),
     mappingPath: Joi.string().default('./data/project-mapping.json'),
+    allowReindex: Joi.boolean().default(true),
   }),
 
   indexing: Joi.object({
@@ -519,6 +520,7 @@ export interface Config {
   project: {
     statePath: string;
     mappingPath?: string;
+    allowReindex?: boolean;
   };
 }
 
@@ -740,6 +742,7 @@ export class ConfigService {
       project: {
         statePath: process.env.PROJECT_STATE_PATH || './data/project-states.json',
         mappingPath: process.env.PROJECT_MAPPING_PATH || './data/project-mapping.json',
+        allowReindex: process.env.PROJECT_ALLOW_REINDEX === 'true',
       },
     };
 

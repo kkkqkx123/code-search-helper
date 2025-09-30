@@ -8,6 +8,7 @@ import { QdrantService } from '../../database/QdrantService';
 import { ConfigService } from '../../config/ConfigService';
 import fs from 'fs/promises';
 import path from 'path';
+import { HashUtils } from '../../utils/HashUtils';
 
 export interface ProjectState {
   projectId: string;
@@ -176,10 +177,34 @@ export class ProjectStateManager {
       this.projectStates = new Map();
       let validStateCount = 0;
       let invalidStateCount = 0;
+      let duplicatePathCount = 0;
+      
+      // 用于跟踪已处理的 projectPath，防止重复
+      const processedPaths = new Set<string>();
 
       for (const rawState of rawStates) {
         try {
           const validatedState = this.validateAndNormalizeProjectState(rawState);
+          
+          // 检查 projectPath 是否已存在
+          const normalizedPath = HashUtils.normalizePath(validatedState.projectPath);
+          if (processedPaths.has(normalizedPath)) {
+            this.logger.warn(`Skipping duplicate project path: ${normalizedPath}`, { projectId: validatedState.projectId });
+            duplicatePathCount++;
+            continue;
+          }
+          
+          // 检查 projectId 是否已存在（防止数据不一致）
+          if (this.projectStates.has(validatedState.projectId)) {
+            this.logger.warn(`Skipping duplicate project ID: ${validatedState.projectId}`, { projectPath: normalizedPath });
+            invalidStateCount++;
+            continue;
+          }
+          
+          // 添加到处理过的路径集合
+          processedPaths.add(normalizedPath);
+          
+          // 添加到项目状态映射
           this.projectStates.set(validatedState.projectId, validatedState);
           validStateCount++;
         } catch (validationError) {
@@ -188,7 +213,11 @@ export class ProjectStateManager {
         }
       }
 
-      this.logger.info(`Loaded ${validStateCount} valid project states, skipped ${invalidStateCount} invalid states`);
+      if (duplicatePathCount > 0) {
+        this.logger.warn(`Detected and skipped ${duplicatePathCount} duplicate project paths`);
+      }
+
+      this.logger.info(`Loaded ${validStateCount} valid project states, skipped ${invalidStateCount + duplicatePathCount} invalid states`);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         // 文件不存在，初始化空状态
@@ -240,11 +269,21 @@ export class ProjectStateManager {
       description?: string;
       settings?: Partial<ProjectState['settings']>;
       metadata?: Record<string, any>;
+      allowReindex?: boolean;  // 允许重新索引的标志
     } = {}
   ): Promise<ProjectState> {
     try {
       // 生成或获取项目ID
       const projectId = await this.projectIdManager.generateProjectId(projectPath);
+      
+      // 检查是否已存在相同 projectPath 的项目状态
+      // 如果是重新索引操作，则跳过重复检查
+      const existingStateByPath = this.getProjectStateByDirectPath(projectPath);
+      const allowReindex = options.allowReindex ?? false;
+      if (existingStateByPath && !allowReindex && existingStateByPath.projectId !== projectId) {
+        // 如果已存在相同路径的项目，且不是重新索引操作，且projectId不同，则抛出错误
+        throw new Error(`项目路径 "${projectPath}" 已被项目 "${existingStateByPath.projectId}" 使用，不能重复添加`);
+      }
       
       // 检查是否已存在状态
       let state = this.projectStates.get(projectId);
@@ -277,6 +316,9 @@ export class ProjectStateManager {
 
       // 更新集合信息
       await this.updateProjectCollectionInfo(projectId);
+      
+      // 重新获取状态以确保collectionInfo已更新
+      state = this.projectStates.get(projectId) || state;
 
       // 保存状态
       this.projectStates.set(projectId, state);
@@ -319,6 +361,23 @@ export class ProjectStateManager {
   getProjectStateByPath(projectPath: string): ProjectState | null {
     const projectId = this.projectIdManager.getProjectId(projectPath);
     return projectId ? this.getProjectState(projectId) : null;
+  }
+
+  /**
+   * 直接通过 projectPath 查找项目状态（不通过 projectIdManager）
+   */
+  private getProjectStateByDirectPath(projectPath: string): ProjectState | null {
+    // 标准化路径以避免路径格式差异（如 / 和 \ 的区别）
+    const normalizedPath = HashUtils.normalizePath(projectPath);
+    
+    // 遍历所有项目状态，查找匹配的 projectPath
+    for (const state of this.projectStates.values()) {
+      if (HashUtils.normalizePath(state.projectPath) === normalizedPath) {
+        return state;
+      }
+    }
+    
+    return null;
   }
 
   /**
@@ -449,6 +508,15 @@ export class ProjectStateManager {
       const state = this.projectStates.get(projectId);
       if (!state) {
         return false;
+      }
+
+      // 删除对应的向量集合
+      try {
+        await this.qdrantService.deleteCollectionForProject(state.projectPath);
+        this.logger.info(`Deleted Qdrant collection for project ${projectId}`);
+      } catch (collectionError) {
+        this.logger.warn(`Failed to delete Qdrant collection for project ${projectId}`, { error: collectionError });
+        // 即使删除集合失败，也继续删除项目状态
       }
 
       // 从映射中删除
@@ -647,6 +715,11 @@ export class ProjectStateManager {
     
     if (!rawState.projectPath || typeof rawState.projectPath !== 'string') {
       throw new Error('Invalid or missing projectPath');
+    }
+    
+    // 验证 projectPath 是非空字符串且不是仅包含空格
+    if (rawState.projectPath.trim().length === 0) {
+      throw new Error('projectPath cannot be empty or contain only whitespace');
     }
     
     if (!rawState.name || typeof rawState.name !== 'string') {

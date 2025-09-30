@@ -5,6 +5,7 @@ import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { ProjectLookupService } from '../../../database/ProjectLookupService';
 import { Logger } from '../../../utils/logger';
 import { ProjectStateManager, ProjectState } from '../../../service/project/ProjectStateManager';
+import { IndexSyncService } from '../../../service/index/IndexSyncService';
 
 // Create mock implementations
 const createMockProjectIdManager = () => ({
@@ -66,7 +67,8 @@ describe('ProjectRoutes', () => {
       mockProjectIdManager as ProjectIdManager,
       mockProjectLookupService as ProjectLookupService,
       mockLogger as Logger,
-      mockProjectStateManager as ProjectStateManager
+      mockProjectStateManager as ProjectStateManager,
+      mockProjectLookupService.indexSyncService as IndexSyncService
     );
 
     // Create express app and use the router
@@ -259,6 +261,9 @@ describe('ProjectRoutes', () => {
       mockProjectIdManager.getProjectPath.mockImplementation((id: string) => {
         return id === projectId ? projectPath : undefined;
       });
+      
+      // Mock IndexSyncService reindexProject method to return the projectId
+      mockProjectLookupService.indexSyncService.reindexProject.mockResolvedValue(projectId);
 
       const response = await request(app).post(`/api/v1/projects/${projectId}/reindex`);
 

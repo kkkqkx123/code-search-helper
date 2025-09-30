@@ -15,6 +15,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { ProjectState } from '../../service/project/ProjectStateManager';
+import { IndexSyncService } from '../../service/index/IndexSyncService';
 
 export interface ProjectCreateBody {
   projectPath: string;
@@ -58,17 +59,20 @@ export class ProjectRoutes {
   private projectLookupService: ProjectLookupService;
   private logger: Logger;
   private projectStateManager: ProjectStateManager;
+  private indexSyncService: IndexSyncService;
 
   constructor(
     projectIdManager: ProjectIdManager,
     projectLookupService: ProjectLookupService,
     logger: Logger,
-    projectStateManager: ProjectStateManager
+    projectStateManager: ProjectStateManager,
+    indexSyncService: IndexSyncService
   ) {
     this.projectIdManager = projectIdManager;
     this.projectLookupService = projectLookupService;
     this.logger = logger;
     this.projectStateManager = projectStateManager;
+    this.indexSyncService = indexSyncService;
     this.router = Router();
     this.setupRoutes();
   }
@@ -226,17 +230,22 @@ export class ProjectRoutes {
         return;
       }
 
-      // For now, just return a success response
-      // In a real implementation, this would trigger re-indexing
+      // 更新项目状态以允许重新索引
+      await this.projectStateManager.createOrUpdateProjectState(projectPath);
+
+      // 调用 IndexSyncService 的 reindexProject 方法
+      const reindexProjectId = await this.indexSyncService.reindexProject(projectPath);
+
       res.status(200).json({
         success: true,
         data: {
-          projectId,
+          projectId: reindexProjectId,
           success: true,
           message: 'Re-indexing started',
         },
       });
     } catch (error) {
+      this.logger.error('Failed to reindex project', { error, projectId: req.params.projectId });
       next(error);
     }
   }

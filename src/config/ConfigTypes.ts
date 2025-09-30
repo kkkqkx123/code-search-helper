@@ -243,6 +243,7 @@ export interface AppConfig {
   };
   project?: {
     mappingPath?: string;
+    allowReindex?: boolean;
   };
   treeSitter?: {
     enabled?: boolean;

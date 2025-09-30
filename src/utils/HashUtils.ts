@@ -84,7 +84,20 @@ export class HashUtils {
   }
 
   static normalizePath(filePath: string): string {
-    return path.normalize(filePath).replace(/\\/g, '/');
+    // 标准化路径，转换反斜杠为正斜杠，并移除尾斜杠（除非是根路径）
+    let normalized = path.normalize(filePath).replace(/\\/g, '/');
+    
+    // 移除尾斜杠，但保留根路径的斜杠
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1);
+    }
+    
+    // 处理双斜杠问题（Windows UNC路径）
+    if (normalized.startsWith('//') && !normalized.startsWith('///')) {
+      normalized = '/' + normalized.substring(2);
+    }
+    
+    return normalized;
   }
 
   static getFileExtension(filePath: string): string {

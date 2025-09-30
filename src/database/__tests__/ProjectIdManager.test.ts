@@ -19,23 +19,25 @@ jest.mock('fs/promises', () => ({
 
 // Mock ConfigService
 jest.mock('../../config/ConfigService', () => ({
-  ConfigService: {
-    getInstance: jest.fn().mockReturnValue({
-      get: jest.fn().mockReturnValue({ mappingPath: './data/test-project-mapping.json' })
-    })
-  }
+  ConfigService: jest.fn().mockImplementation(() => ({
+    get: jest.fn().mockReturnValue({ mappingPath: './data/test-project-mapping.json' })
+  }))
 }));
 
 describe('ProjectIdManager', () => {
   let projectIdManager: ProjectIdManager;
-  let mockConfigService: ConfigService;
+  let mockConfigService: jest.Mocked<ConfigService>;
   
   beforeEach(() => {
-    mockConfigService = new ConfigService() as jest.Mocked<ConfigService>;
-    (mockConfigService.get as jest.Mock).mockReturnValue({ mappingPath: './data/test-project-mapping.json' });
-    projectIdManager = new ProjectIdManager(mockConfigService);
     // Clear all mocks before each test
     jest.clearAllMocks();
+    
+    // Create a new mock ConfigService instance for each test
+    mockConfigService = new ConfigService() as jest.Mocked<ConfigService>;
+    (mockConfigService.get as jest.Mock).mockReturnValue({ mappingPath: './data/test-project-mapping.json' });
+    
+    // Create ProjectIdManager instance
+    projectIdManager = new ProjectIdManager(mockConfigService);
   });
   
   describe('generateProjectId', () => {

@@ -178,16 +178,20 @@ export class IndexSyncService {
       // 生成或获取项目ID
       const projectId = await this.projectIdManager.generateProjectId(projectPath);
 
-      // 检查是否正在索引或已存在
+      // 检查是否正在索引
       const currentStatus = this.indexingProjects.get(projectId);
-      if (currentStatus) {
-        if (currentStatus.isIndexing) {
-          throw new Error(`项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`);
-        } else {
-          // 如果项目已存在但未在索引中，提供重新索引选项
-          this.logger.info(`项目 ${projectPath} 已存在，将重新索引`);
-          await this.qdrantService.deleteCollectionForProject(projectPath);
-        }
+      if (currentStatus && currentStatus.isIndexing) {
+        throw new Error(`项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`);
+      }
+      
+      // 检查已完成的项目状态
+      const completedStatus = this.completedProjects.get(projectId);
+      if (completedStatus) {
+        // 如果项目已完成索引，说明是重新索引，删除现有集合
+        this.logger.info(`项目 ${projectPath} 已存在，将重新索引`);
+        await this.qdrantService.deleteCollectionForProject(projectPath);
+        // 从已完成项目中移除
+        this.completedProjects.delete(projectId);
       }
 
       // 获取嵌入器配置的向量维度
@@ -753,8 +757,21 @@ export class IndexSyncService {
       const projectId = this.projectIdManager.getProjectId(projectPath);
       if (projectId) {
         this.logger.info(`重新索引项目: ${projectPath}`);
-        // 删除现有集合
-        await this.qdrantService.deleteCollectionForProject(projectPath);
+        
+        // 检查是否正在索引
+        const currentStatus = this.indexingProjects.get(projectId);
+        if (currentStatus && currentStatus.isIndexing) {
+          throw new Error(`项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`);
+        }
+        
+        // 检查已完成的项目状态
+        const completedStatus = this.completedProjects.get(projectId);
+        if (completedStatus) {
+          // 如果项目已完成索引，删除现有集合
+          await this.qdrantService.deleteCollectionForProject(projectPath);
+          // 从已完成项目中移除
+          this.completedProjects.delete(projectId);
+        }
       } else {
         this.logger.info(`项目 ${projectPath} 不存在，将创建新索引`);
       }
