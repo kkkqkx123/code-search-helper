@@ -45,22 +45,21 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
   private eventListeners: Map<QdrantEventType, ((event: QdrantEvent) => void)[]> = new Map();
 
   constructor(
-    @inject(TYPES.ConfigService) configService: ConfigService,
+    @inject(TYPES.ConfigService) private configService: ConfigService,
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
 
-    // 从配置服务获取配置
-    const qdrantConfig = configService.get('qdrant');
+    // 初始化默认配置，实际配置将在initialize()方法中获取
     this.config = {
-      host: qdrantConfig.host || DEFAULT_QDRANT_CONFIG.host || 'localhost',
-      port: qdrantConfig.port || DEFAULT_QDRANT_CONFIG.port || 6333,
-      apiKey: qdrantConfig.apiKey,
-      useHttps: qdrantConfig.useHttps ?? DEFAULT_QDRANT_CONFIG.useHttps ?? false,
-      timeout: qdrantConfig.timeout || DEFAULT_QDRANT_CONFIG.timeout || 30000,
-      collection: qdrantConfig.collection || 'default',
+      host: DEFAULT_QDRANT_CONFIG.host || 'localhost',
+      port: DEFAULT_QDRANT_CONFIG.port || 6333,
+      apiKey: undefined,
+      useHttps: DEFAULT_QDRANT_CONFIG.useHttps ?? false,
+      timeout: DEFAULT_QDRANT_CONFIG.timeout || 30000,
+      collection: 'default',
     };
   }
 
@@ -69,6 +68,17 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
    */
   async initialize(): Promise<boolean> {
     try {
+      // 从配置服务获取配置
+      const qdrantConfig = this.configService.get('qdrant');
+      this.config = {
+        host: qdrantConfig.host || DEFAULT_QDRANT_CONFIG.host || 'localhost',
+        port: qdrantConfig.port || DEFAULT_QDRANT_CONFIG.port || 6333,
+        apiKey: qdrantConfig.apiKey,
+        useHttps: qdrantConfig.useHttps ?? DEFAULT_QDRANT_CONFIG.useHttps ?? false,
+        timeout: qdrantConfig.timeout || DEFAULT_QDRANT_CONFIG.timeout || 30000,
+        collection: qdrantConfig.collection || 'default',
+      };
+
       this.connectionStatus = ConnectionStatus.CONNECTING;
       this.emitEvent(QdrantEventType.CONNECTING, { status: 'connecting' });
 

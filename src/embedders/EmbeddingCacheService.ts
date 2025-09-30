@@ -33,7 +33,10 @@ export class EmbeddingCacheService {
 
     // 定期清理过期缓存（测试环境中不启动）
     if (process.env.NODE_ENV !== 'test') {
-      this.startCleanupInterval();
+      // 延迟启动清理定时器，等到配置服务初始化完成后再启动
+      setTimeout(() => {
+        this.startCleanupInterval();
+      }, 1000);
     }
   }
 
@@ -78,11 +81,19 @@ export class EmbeddingCacheService {
    * 启动定期清理
    */
   private startCleanupInterval(): void {
-    // 从配置中获取清理间隔，默认为10分钟
-    const cleanupInterval = this.configService.get('caching')?.cleanupInterval || 600000;
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup();
-    }, cleanupInterval);
+    try {
+      // 从配置中获取清理间隔，默认为10分钟
+      const cleanupInterval = this.configService.get('caching')?.cleanupInterval || 600000;
+      this.cleanupInterval = setInterval(() => {
+        this.cleanup();
+      }, cleanupInterval);
+    } catch (error) {
+      // 如果配置服务未初始化，使用默认的清理间隔
+      this.logger.warn('Failed to get cache cleanup interval from config, using default value', { error });
+      this.cleanupInterval = setInterval(() => {
+        this.cleanup();
+      }, 600000); // 默认10分钟
+    }
   }
 
   /**

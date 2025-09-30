@@ -76,8 +76,8 @@ export class ProjectStateManager {
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.ConfigService) private configService: ConfigService
   ) {
-    // 设置存储路径
-    this.storagePath = this.configService.get('project')?.statePath || './data/project-states.json';
+    // 存储路径将在initialize方法中设置
+    this.storagePath = './data/project-states.json'; // 默认路径
   }
 
   /**
@@ -85,6 +85,19 @@ export class ProjectStateManager {
    */
   async initialize(): Promise<void> {
     try {
+      // 从配置中获取存储路径
+      try {
+        const projectConfig = this.configService.get('project');
+        if (projectConfig?.statePath) {
+          this.storagePath = projectConfig.statePath;
+        }
+      } catch (configError) {
+        this.logger.warn('Failed to get project config, using default storage path', { 
+          error: configError instanceof Error ? configError.message : String(configError),
+          defaultPath: this.storagePath 
+        });
+      }
+      
       // 加载项目状态
       await this.loadProjectStates();
       
@@ -94,7 +107,8 @@ export class ProjectStateManager {
       this.isInitialized = true;
       this.logger.info('Project state manager initialized', {
         projectCount: this.projectStates.size,
-        projects: Array.from(this.projectStates.keys())
+        projects: Array.from(this.projectStates.keys()),
+        storagePath: this.storagePath
       });
     } catch (error) {
       this.errorHandler.handleError(
