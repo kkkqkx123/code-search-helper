@@ -155,8 +155,11 @@ export class SearchPage {
      */
     private async loadProjects() {
         try {
-            const projects = await this.apiClient.getProjects();
+            const response = await this.apiClient.getProjects();
             const projectSelect = this.container.querySelector('#project-select') as HTMLSelectElement;
+            
+            // 处理API响应格式：{success: boolean, data: Project[]}
+            const projects = response.success && response.data ? response.data : [];
             
             if (projectSelect && projects && Array.isArray(projects)) {
                 // 清空现有选项（保留默认选项）

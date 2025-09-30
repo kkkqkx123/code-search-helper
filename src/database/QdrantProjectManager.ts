@@ -192,12 +192,14 @@ export class QdrantProjectManager implements IQdrantProjectManager {
       }
 
       // 确保应用projectId过滤器
+      const searchFilter = {
+        ...options.filter,
+        projectId
+      };
+      
       const searchOptions = {
         ...options,
-        filter: {
-          ...options.filter,
-          projectId
-        }
+        filter: this.queryUtils.buildFilter(searchFilter)
       };
 
       const results = await this.vectorOperations.searchVectors(collectionName, query, searchOptions);
