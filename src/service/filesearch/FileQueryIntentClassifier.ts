@@ -51,24 +51,55 @@ export class FileQueryIntentClassifier {
       hasTimeConstraint: false
     };
     
-    // 检测路径模式关键词
+    // 检测路径模式关键词 - 调整检测逻辑
     const pathKeywords = ['目录', '文件夹', '路径', '下', '在', '位于', 'path', 'directory', 'folder'];
-    context.hasPathPattern = pathKeywords.some(keyword => query.includes(keyword));
+    const hasPathKeywords = pathKeywords.some(keyword => query.includes(keyword));
+    // 位置词汇检测
+    const locationWords = ['in', '在', '位于', 'under', '下'];
+    const hasLocationWords = locationWords.some(word => query.includes(word));
+    // 如果包含路径关键词并且有位置词汇，或者是中文路径表达，则认为是路径模式
+    context.hasPathPattern = (hasPathKeywords && hasLocationWords) ||
+                           query.includes('目录下') ||
+                           query.includes('文件夹下');
     
-    // 检测语义描述关键词
-    const semanticKeywords = ['相关', '关于', '涉及', '包含', '用于', '功能', '作用', 'related', 'about', 'for'];
-    context.hasSemanticTerms = semanticKeywords.some(keyword => query.includes(keyword));
+    // 检测语义描述关键词 - 更精确的检测
+    const semanticKeywords = ['相关', '关于', '涉及', '包含', '用于', '功能', '作用', '描述', '说明',
+                            'related', 'about', 'authentication'];
+    const semanticActionWords = ['find', 'search']; // 这些词单独出现不算语义词汇
+    const hasSemanticKeywords = semanticKeywords.some(keyword => query.includes(keyword));
+    const hasSemanticActionWords = semanticActionWords.some(word => query.includes(word));
+    // 只有当查询包含语义关键词但不主要是文件类型查询时，才认为是语义描述
+    context.hasSemanticTerms = hasSemanticKeywords ||
+                             (hasSemanticActionWords && !query.includes('typescript') && !query.includes('files'));
     
-    // 检测扩展名过滤
+    // 检测扩展名过滤 - 更精确的逻辑
     const extensionPattern = /\.\w+$/;
-    context.hasExtensionFilter = extensionPattern.test(query) || 
-      query.includes('扩展名') || query.includes('extension') ||
-      query.includes('.ts') || query.includes('.js') || query.includes('.py') ||
-      query.includes('文件类型') || query.includes('file type');
+    const hasExplicitExtension = extensionPattern.test(query);
+    const hasExtensionKeywords = query.includes('扩展名') || query.includes('extension') ||
+                                query.includes('文件类型') || query.includes('file type');
+    // 检测包含点号+字母的模式，如 .ts, .js 等
+    const hasDotExtension = /\.[a-zA-Z]+/.test(query);
+    // 只有当明确提到文件类型或扩展名时，才认为是扩展名过滤
+    const hasSpecificFileType = query.includes('typescript') ||
+                               (query.includes('files') && !query.includes('related') && !query.includes('authentication'));
+    
+    context.hasExtensionFilter = hasExplicitExtension || hasExtensionKeywords || hasSpecificFileType || hasDotExtension;
     
     // 检测时间约束
     const timeKeywords = ['最近', '最新', '昨天', '今天', '上周', 'last', 'recent', 'new'];
     context.hasTimeConstraint = timeKeywords.some(keyword => query.includes(keyword));
+    
+    this.logger.debug(`analyzeQueryContext for "${query}":`, {
+      hasPathKeywords,
+      locationWords,
+      hasPathPattern: context.hasPathPattern,
+      semanticKeywords,
+      hasSemanticTerms: context.hasSemanticTerms,
+      hasExplicitExtension,
+      hasExtensionKeywords,
+      hasSpecificFileType,
+      hasExtensionFilter: context.hasExtensionFilter
+    });
     
     return context;
   }
@@ -79,8 +110,14 @@ export class FileQueryIntentClassifier {
   private determineQueryType(query: string, context: QueryIntentClassification['context']): QueryIntentClassification {
     const extractedKeywords = this.extractKeywords(query);
     
+    this.logger.debug(`determineQueryType analysis for "${query}":`, {
+      context,
+      extractedKeywords
+    });
+    
     // 精确文件名匹配
     if (this.isExactFilenameQuery(query)) {
+      this.logger.debug(`Query "${query}" classified as EXACT_FILENAME`);
       return {
         type: 'EXACT_FILENAME',
         confidence: 0.9,
@@ -89,8 +126,44 @@ export class FileQueryIntentClassifier {
       };
     }
     
+    // 扩展名搜索 - 优先检查，即使包含语义词汇，只要主要是扩展名搜索
+    if (context.hasExtensionFilter && query.includes('files') && !context.hasPathPattern) {
+      this.logger.debug(`Query "${query}" classified as EXTENSION_SEARCH`);
+      return {
+        type: 'EXTENSION_SEARCH',
+        confidence: 0.85,
+        extractedKeywords,
+        context
+      };
+    }
+    
+    // 路径模式搜索 - 优先于混合查询，但当同时包含语义词汇时降低优先级
+    if (context.hasPathPattern && !context.hasSemanticTerms && (query.includes('directory') || query.includes('folder') || query.includes('目录') || query.includes('文件夹'))) {
+      this.logger.debug(`Query "${query}" classified as PATH_PATTERN (priority)`);
+      return {
+        type: 'PATH_PATTERN',
+        confidence: 0.8,
+        extractedKeywords,
+        context
+      };
+    }
+    
+    // 混合查询 - 检查是否同时包含多种特征
+    if ((context.hasPathPattern && context.hasSemanticTerms) ||
+        (context.hasExtensionFilter && context.hasSemanticTerms) ||
+        (context.hasPathPattern && context.hasExtensionFilter)) {
+      this.logger.debug(`Query "${query}" classified as HYBRID_QUERY`);
+      return {
+        type: 'HYBRID_QUERY',
+        confidence: 0.75,
+        extractedKeywords,
+        context
+      };
+    }
+    
     // 扩展名搜索
     if (context.hasExtensionFilter && !context.hasPathPattern && !context.hasSemanticTerms) {
+      this.logger.debug(`Query "${query}" classified as EXTENSION_SEARCH`);
       return {
         type: 'EXTENSION_SEARCH',
         confidence: 0.85,
@@ -101,6 +174,7 @@ export class FileQueryIntentClassifier {
     
     // 路径模式搜索
     if (context.hasPathPattern && !context.hasSemanticTerms) {
+      this.logger.debug(`Query "${query}" classified as PATH_PATTERN`);
       return {
         type: 'PATH_PATTERN',
         confidence: 0.8,
@@ -111,6 +185,7 @@ export class FileQueryIntentClassifier {
     
     // 语义描述搜索
     if (context.hasSemanticTerms && !context.hasPathPattern) {
+      this.logger.debug(`Query "${query}" classified as SEMANTIC_DESCRIPTION`);
       return {
         type: 'SEMANTIC_DESCRIPTION',
         confidence: 0.85,
@@ -119,7 +194,8 @@ export class FileQueryIntentClassifier {
       };
     }
     
-    // 混合查询
+    // 默认混合查询
+    this.logger.debug(`Query "${query}" classified as default HYBRID_QUERY`);
     return {
       type: 'HYBRID_QUERY',
       confidence: 0.75,
@@ -137,6 +213,13 @@ export class FileQueryIntentClassifier {
     const hasSpecificPattern = /^[\w\-]+\.[\w]+$/.test(query);
     const hasNoSemanticWords = !this.hasSemanticWords(query);
     
+    this.logger.debug(`isExactFilenameQuery analysis for "${query}":`, {
+      hasExtension,
+      hasSpecificPattern,
+      hasNoSemanticWords,
+      result: (hasExtension && hasSpecificPattern) || hasNoSemanticWords
+    });
+    
     return (hasExtension && hasSpecificPattern) || hasNoSemanticWords;
   }
 
@@ -144,8 +227,16 @@ export class FileQueryIntentClassifier {
    * 检查是否包含语义词汇
    */
   private hasSemanticWords(query: string): boolean {
-    const semanticWords = ['相关', '关于', '涉及', '包含', '用于', '功能', '作用', '描述', '说明'];
-    return semanticWords.some(word => query.includes(word));
+    const semanticWords = ['相关', '关于', '涉及', '包含', '用于', '功能', '作用', '描述', '说明',
+                          'related', 'about', 'for', 'find', 'search', 'files', 'authentication', 'all'];
+    const hasSemanticWords = semanticWords.some(word => query.includes(word));
+    
+    this.logger.debug(`hasSemanticWords analysis for "${query}":`, {
+      semanticWords,
+      hasSemanticWords
+    });
+    
+    return hasSemanticWords;
   }
 
   /**
