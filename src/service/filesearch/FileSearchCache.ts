@@ -10,6 +10,7 @@ export class FileSearchCache {
   private accessTimes: Map<string, number>;
   private config: CacheConfig;
   private logger: LoggerService;
+  private cleanupIntervalId: NodeJS.Timeout | null = null;
 
   constructor(config: CacheConfig = {}, logger: LoggerService) {
     this.cache = new Map();
@@ -196,7 +197,7 @@ export class FileSearchCache {
    * 启动定期清理间隔
    */
   private startCleanupInterval(): void {
-    setInterval(() => {
+    this.cleanupIntervalId = setInterval(() => {
       this.cleanupExpired();
     }, this.config.cleanupInterval);
     
@@ -248,6 +249,10 @@ export class FileSearchCache {
    * 销毁缓存（清理资源）
    */
   destroy(): void {
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+    }
     this.clear();
     this.logger.info('文件搜索缓存已销毁');
   }
