@@ -24,14 +24,18 @@ class SimpleCodeSplitter {
       const chunkContent = code.substring(position, endPosition);
 
       // Calculate line numbers
-      const linesBefore = code.substring(0, position).split('\n').length;
+      // When splitting a string by \n, we get an array with one more element than the number of \n characters
+      // So if we have "line1\nline2\nline3", we get ["line1", "line2", "line3"] - 3 elements, meaning we're at line 3
+      // If we have "line1\nline2" (no trailing newline), we get ["line1", "line2"] - 2 elements, meaning we're at line 2
+      const linesBefore = position === 0 ? 0 : code.substring(0, position).split('\n').length - 1;
+      const startLine = linesBefore + 1; // Convert to 1-based line numbers
       const chunkLines = chunkContent.split('\n').length;
 
       chunks.push({
         content: chunkContent,
         metadata: {
-          startLine: linesBefore + 1,
-          endLine: linesBefore + chunkLines,
+          startLine: startLine,
+          endLine: startLine + chunkLines - 1,
           language: 'unknown'
         }
       });
@@ -278,13 +282,32 @@ export class ASTCodeSplitter implements Splitter {
   private extractOverlapContent(currentChunk: CodeChunk, nextChunk: CodeChunk, originalCode: string): string {
     try {
       const lines = originalCode.split('\n');
-      const overlapStartLine = Math.max(
-        nextChunk.metadata.startLine,
-        currentChunk.metadata.endLine - Math.floor(this.options.overlapSize / 50) + 1 // 估算重叠行数
-      );
+      // Calculate the actual character position for overlap
+      // Get the start position of the next chunk in the original code
+      const linesUntilNextChunk = lines.slice(0, nextChunk.metadata.startLine - 1);
+      // Calculate the character position where next chunk starts (subtract 1 for the newline that's not at the end)
+      const charsUntilNextChunk = linesUntilNextChunk.join('\n').length + (linesUntilNextChunk.length > 0 ? 1 : 0) - 1;
       
-      if (overlapStartLine <= nextChunk.metadata.startLine) {
-        const overlapLines = lines.slice(overlapStartLine - 1, nextChunk.metadata.startLine);
+      // Calculate the starting position for overlap in the original code
+      const overlapStartPosition = Math.max(0, charsUntilNextChunk - this.options.overlapSize);
+      
+      // Find which line this overlap position corresponds to
+      let currentPos = 0;
+      let overlapStartLine = 1;
+      for (let i = 0; i < lines.length; i++) {
+        const lineEndPos = currentPos + lines[i].length + 1; // +1 for newline
+        if (currentPos <= overlapStartPosition && overlapStartPosition < lineEndPos) {
+          overlapStartLine = i + 1;
+          break;
+        }
+        currentPos = lineEndPos;
+      }
+      
+      // Ensure overlapStartLine is within valid range
+      overlapStartLine = Math.max(1, Math.min(overlapStartLine, nextChunk.metadata.startLine));
+      
+      if (overlapStartLine < nextChunk.metadata.startLine) {
+        const overlapLines = lines.slice(overlapStartLine - 1, nextChunk.metadata.startLine - 1);
         return overlapLines.join('\n');
       }
     } catch (error) {
