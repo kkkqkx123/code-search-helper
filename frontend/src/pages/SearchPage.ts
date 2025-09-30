@@ -83,6 +83,15 @@ export class SearchPage {
             return;
         }
 
+        // 如果没有选择项目，尝试使用第一个可用项目
+        if (!projectId) {
+            const projectSelect = this.container.querySelector('#project-select') as HTMLSelectElement;
+            if (projectSelect && projectSelect.options.length > 1) {
+                // 选择第一个真实项目（跳过"选择项目"选项）
+                projectId = projectSelect.options[1].value;
+            }
+        }
+
         this.showLoading();
 
         try {

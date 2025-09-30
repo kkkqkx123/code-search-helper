@@ -244,15 +244,76 @@ export class ApiServer {
         };
       } else {
         // 使用真实数据库查询模式
+        console.log('=== DEBUG: Starting performSearch ===');
+        console.log('Query:', query);
+        console.log('Options:', options);
+        
         await this.logger.debug('Performing search in real mode for query:', query);
-        const projectId = options?.projectId || 'default-project'; // 使用选项中的项目ID，或默认项目ID
+        await this.logger.debug('Search options received:', options);
+        
+        let projectId = options?.projectId;
+        console.log('Initial projectId from options:', projectId);
+        await this.logger.debug('Initial projectId from options:', projectId);
+        
+        // 如果没有提供projectId，尝试获取最新的项目
+        if (!projectId) {
+          console.log('No projectId provided, trying to get the latest project');
+          await this.logger.debug('No projectId provided, trying to get the latest project');
+          try {
+         // 获取项目列表
+    console.log('=== DEBUG: About to call qdrantService.listProjects() ===');
+    
+    // 直接调用listProjects方法
+    const projects = await this.qdrantService.listProjects();
+    console.log('Available projects from qdrantService.listProjects():', projects);
+    console.log('Number of projects found:', projects?.length || 0);
+    if (projects && projects.length > 0) {
+      console.log('First project details:', projects[0]);
+      console.log('First project ID:', projects[0].id);
+      console.log('First project path:', projects[0].path);
+    }
+            await this.logger.debug('Available projects:', projects);
+            if (projects && projects.length > 0) {
+              // 使用最新的项目（按更新时间排序的第一个）
+              projectId = projects[0].id;
+              console.log('Using latest project:', projectId);
+              await this.logger.debug(`Using latest project: ${projectId}`);
+            } else {
+              // 如果没有已索引的项目，使用默认项目
+              projectId = 'default-project';
+              console.log('No indexed projects found, using default project');
+              await this.logger.debug('No indexed projects found, using default project');
+            }
+          } catch (listError) {
+            console.log('Failed to list projects, error:', listError);
+            await this.logger.error('Failed to list projects, using default:', listError);
+            projectId = 'default-project';
+          }
+        }
+        
+        console.log('Final projectId for search:', projectId);
+        await this.logger.debug('Final projectId for search:', projectId);
+        
+        // 获取项目路径
+        let projectPath = projectId;
+        if (projectId !== 'default-project') {
+          // 如果不是默认项目，尝试获取项目路径
+          const foundProjectPath = await this.qdrantService.getProjectPath(projectId);
+          if (foundProjectPath) {
+            projectPath = foundProjectPath;
+            console.log('Found project path for projectId:', projectId, '->', projectPath);
+          } else {
+            console.log('Could not find project path for projectId:', projectId, ', using projectId as path');
+          }
+        }
+        
         const limit = options?.limit || 10; // 默认限制10个结果
 
         // 使用嵌入器将查询文本转换为向量
         const embedder = await this.embedderFactory.getEmbedder();
         const embeddingResult = await embedder.embed({ text: query });
         const queryVector = Array.isArray(embeddingResult) ? embeddingResult[0].vector : embeddingResult.vector;
-        const searchResults = await this.qdrantService.searchVectorsForProject(projectId, queryVector, { limit });
+        const searchResults = await this.qdrantService.searchVectorsForProject(projectPath, queryVector, { limit });
 
         // 将Qdrant结果转换为前端期望的格式
         const formattedResults = searchResults.map((result: any) => {

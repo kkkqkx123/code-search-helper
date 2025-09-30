@@ -351,7 +351,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    */
   async listProjects(): Promise<ProjectInfo[]> {
     try {
-      const projectPaths = this.projectIdManager.listAllProjects();
+      const projectPaths = this.projectIdManager.listAllProjectPaths();
       const projects: ProjectInfo[] = [];
 
       for (const projectPath of projectPaths) {

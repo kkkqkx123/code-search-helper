@@ -33,6 +33,7 @@ import {
 export class QdrantService implements IVectorStore {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
+  private projectIdManager: ProjectIdManager;
   private connectionManager: IQdrantConnectionManager;
   private collectionManager: IQdrantCollectionManager;
   private vectorOperations: IQdrantVectorOperations;
@@ -52,6 +53,7 @@ export class QdrantService implements IVectorStore {
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
+    this.projectIdManager = projectIdManager;
     this.connectionManager = connectionManager;
     this.collectionManager = collectionManager;
     this.vectorOperations = vectorOperations;
@@ -276,6 +278,13 @@ export class QdrantService implements IVectorStore {
    */
   async listProjects(): Promise<ProjectInfo[]> {
     return this.projectManager.listProjects();
+  }
+
+  /**
+   * 根据项目ID获取项目路径
+   */
+  getProjectPath(projectId: string): string | undefined {
+    return this.projectIdManager.getProjectPath(projectId);
   }
 
   /**

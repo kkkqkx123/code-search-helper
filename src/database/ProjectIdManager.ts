@@ -327,6 +327,11 @@ export class ProjectIdManager {
     return Array.from(this.projectIdMap.values());
   }
 
+  // List all project paths
+  listAllProjectPaths(): string[] {
+    return Array.from(this.projectIdMap.keys());
+  }
+
   // Check if a project exists
   hasProject(projectPath: string): boolean {
     const normalizedPath = HashUtils.normalizePath(projectPath);
