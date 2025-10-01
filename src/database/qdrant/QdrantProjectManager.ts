@@ -11,7 +11,7 @@ import {
   CollectionInfo,
   SearchOptions,
   SearchResult
-} from '../IVectorStore';
+} from './IVectorStore';
 import {
   VectorDistance,
   ProjectInfo,

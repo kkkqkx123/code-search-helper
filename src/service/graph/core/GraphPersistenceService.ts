@@ -12,12 +12,13 @@ import { GraphBatchOptimizer } from '../performance/GraphBatchOptimizer';
 import { GraphQueryBuilder } from '../query/GraphQueryBuilder';
 import { GraphPersistenceUtils } from '../utils/GraphPersistenceUtils';
 import { GraphSearchService } from './GraphSearchService';
-import { 
-  GraphPersistenceOptions, 
-  GraphPersistenceResult, 
-  CodeGraphNode, 
-  CodeGraphRelationship, 
-  GraphQuery 
+import {
+  GraphPersistenceOptions,
+  GraphPersistenceResult,
+  CodeGraphNode,
+  CodeGraphRelationship,
+  GraphQuery,
+  GraphAnalysisResult
 } from './types';
 
 @injectable()
@@ -38,16 +39,16 @@ export class GraphPersistenceService {
   private currentSpace: string = '';
   private defaultCacheTTL: number = 3000; // 5 minutes default
   private processingTimeout: number = 300000; // 5 minutes default
- private retryAttempts: number = 3;
+  private retryAttempts: number = 3;
   private retryDelay: number = 1000; // 1 second default
 
   constructor(
     @inject(TYPES.NebulaService) nebulaService: NebulaService,
-    @inject(TYPES.NebulaSpaceManager) nebulaSpaceManager: NebulaSpaceManager,
+    @inject(TYPES.INebulaSpaceManager) nebulaSpaceManager: NebulaSpaceManager,
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
-    @inject(TYPES.NebulaQueryBuilder) queryBuilder: NebulaQueryBuilder,
+    @inject(TYPES.INebulaQueryBuilder) queryBuilder: NebulaQueryBuilder,
     @inject(TYPES.GraphCacheService) cacheService: GraphCacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
@@ -300,7 +301,7 @@ export class GraphPersistenceService {
           this.batchOptimizer.getConfig().processingTimeout
         );
 
-        results.push(batchResult);
+        results.push(batchResult as GraphPersistenceResult);
       }
 
       result.success = results.every(r => r.success);
@@ -330,7 +331,7 @@ export class GraphPersistenceService {
     }
 
     return result;
- }
+  }
 
   private async processWithTimeout<T>(operation: () => Promise<T>, timeoutMs: number): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -354,7 +355,7 @@ export class GraphPersistenceService {
     nodeId: string,
     relationshipTypes?: string[],
     maxDepth: number = 2
- ): Promise<CodeGraphNode[]> {
+  ): Promise<CodeGraphNode[]> {
     if (!this.isInitialized) {
       await this.initialize();
     }
@@ -440,15 +441,41 @@ export class GraphPersistenceService {
     const cachedStats = this.cacheService.getGraphStatsCache();
     if (cachedStats) {
       this.performanceMonitor.updateCacheHitRate(true);
-      return cachedStats;
+      // Convert GraphAnalysisResult to the expected return type
+      return {
+        nodeCount: cachedStats.metrics.totalNodes,
+        relationshipCount: cachedStats.metrics.totalEdges,
+        nodeTypes: {},
+        relationshipTypes: {},
+      };
     }
 
     try {
       // Get enhanced stats using NebulaQueryBuilder
       const stats = await this.getEnhancedGraphStats();
 
+      // Convert stats to GraphAnalysisResult for caching
+      const graphAnalysisResult: GraphAnalysisResult = {
+        nodes: [],
+        edges: [],
+        metrics: {
+          totalNodes: stats.nodeCount,
+          totalEdges: stats.relationshipCount,
+          averageDegree: 0,
+          maxDepth: 0,
+          componentCount: 0,
+        },
+        summary: {
+          projectFiles: 0,
+          functions: 0,
+          classes: 0,
+          imports: 0,
+          externalDependencies: 0,
+        },
+      };
+
       // Cache the result
-      this.cacheService.setGraphStatsCache(stats);
+      this.cacheService.setGraphStatsCache(graphAnalysisResult);
       this.performanceMonitor.updateCacheHitRate(false);
 
       return stats;
@@ -590,7 +617,7 @@ export class GraphPersistenceService {
     }
   }
 
- async clearGraph(): Promise<boolean> {
+  async clearGraph(): Promise<boolean> {
     if (!this.isInitialized) {
       await this.initialize();
     }
@@ -780,7 +807,7 @@ export class GraphPersistenceService {
       maxRetries,
       retryDelay
     );
- }
+  }
 
   private async executeBatch(queries: GraphQuery[]): Promise<GraphPersistenceResult> {
     const startTime = Date.now();
@@ -842,7 +869,7 @@ export class GraphPersistenceService {
         errors: [error instanceof Error ? error.message : String(error)],
       };
     }
- }
+  }
 
   private recordToGraphNode(record: any): CodeGraphNode {
     return this.persistenceUtils.recordToGraphNode(record);
@@ -1018,11 +1045,11 @@ export class GraphPersistenceService {
 
   private async getExistingNodeIds(nodeIds: string[]): Promise<string[]> {
     return this.persistenceUtils.getExistingNodeIdsByIds(nodeIds, 'Node');
- }
+  }
 
   private async getNodeIdsByFiles(filePaths: string[]): Promise<string[]> {
     const nodeIdsByFiles = await this.persistenceUtils.getNodeIdsByFiles(filePaths);
-    return Object.values(nodeIdsByFiles).flat();
+    return Object.values(nodeIdsByFiles).flat() as string[];
   }
 
   // Enhanced batch processing using NebulaQueryBuilder
@@ -1032,7 +1059,7 @@ export class GraphPersistenceService {
     batchSize: number,
     useCache: boolean,
     cacheTTL: number
- ): Promise<GraphPersistenceResult> {
+  ): Promise<GraphPersistenceResult> {
     const startTime = Date.now();
     const result: GraphPersistenceResult = {
       success: false,
@@ -1248,11 +1275,11 @@ export class GraphPersistenceService {
   // Performance monitoring methods
   getPerformanceMetrics() {
     return this.performanceMonitor.getMetrics();
- }
+  }
 
   async search(query: string, options: any = {}): Promise<any[]> {
-    const { results } = await this.searchService.search(query, options);
-    return results;
+    const searchResult = await this.searchService.search(query, options);
+    return searchResult.nodes;
   }
 
   getSearchService(): GraphSearchService {

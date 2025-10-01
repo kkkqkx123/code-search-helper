@@ -118,4 +118,5 @@ export const TYPES = {
   GraphQueryBuilder: Symbol.for('GraphQueryBuilder'),
   GraphPerformanceMonitor: Symbol.for('GraphPerformanceMonitor'),
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
+  GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),
 };

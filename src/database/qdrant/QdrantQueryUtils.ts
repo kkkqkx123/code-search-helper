@@ -3,7 +3,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { IQdrantConnectionManager } from './QdrantConnectionManager';
-import { SearchOptions } from '../IVectorStore';
+import { SearchOptions } from './IVectorStore';
 import {
   QueryFilter,
   ERROR_MESSAGES,

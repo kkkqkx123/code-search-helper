@@ -2,7 +2,7 @@ import { QdrantQueryUtils, IQdrantQueryUtils } from '../../qdrant/QdrantQueryUti
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
-import { SearchOptions } from '../../IVectorStore';
+import { SearchOptions } from '../../qdrant/IVectorStore';
 import { QueryFilter } from '../../qdrant/QdrantTypes';
 
 // Mock dependencies

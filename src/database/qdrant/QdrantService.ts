@@ -4,7 +4,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { TYPES } from '../../types';
 import { ProjectIdManager } from '../ProjectIdManager';
-import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../IVectorStore';
+import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from './IVectorStore';
 import { IQdrantConnectionManager } from './QdrantConnectionManager';
 import { IQdrantCollectionManager } from './QdrantCollectionManager';
 import { IQdrantVectorOperations } from './QdrantVectorOperations';

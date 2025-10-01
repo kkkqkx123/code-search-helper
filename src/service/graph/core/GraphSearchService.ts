@@ -244,7 +244,7 @@ export class GraphSearchService {
       };
 
       // Cache the result
-      const cacheTL = this.configService.get('caching').defaultTTL || 300;
+      const cacheTTL = this.configService.get('caching').defaultTTL || 300;
       this.cacheService.setCache(cacheKey, formattedResult, cacheTTL);
 
       this.performanceMonitor.updateCacheHitRate(false);

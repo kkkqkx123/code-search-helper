@@ -13,9 +13,9 @@ export interface INebulaGraphOperations {
   batchInsertVertices(vertices: BatchVertex[]): Promise<boolean>;
   batchInsertEdges(edges: BatchEdge[]): Promise<boolean>;
   findRelatedNodes(nodeId: string, relationshipTypes?: string[], maxDepth?: number): Promise<any[]>;
- findPath(sourceId: string, targetId: string, maxDepth?: number): Promise<any[]>;
- findShortestPath(sourceId: string, targetId: string, edgeTypes?: string[], maxDepth?: number): Promise<any[]>;
- updateVertex(vertexId: string, tag: string, properties: Record<string, any>): Promise<boolean>;
+  findPath(sourceId: string, targetId: string, maxDepth?: number): Promise<any[]>;
+  findShortestPath(sourceId: string, targetId: string, edgeTypes?: string[], maxDepth?: number): Promise<any[]>;
+  updateVertex(vertexId: string, tag: string, properties: Record<string, any>): Promise<boolean>;
   updateEdge(srcId: string, dstId: string, edgeType: string, properties: Record<string, any>): Promise<boolean>;
   deleteVertex(vertexId: string, tag?: string): Promise<boolean>;
   deleteEdge(srcId: string, dstId: string, edgeType?: string): Promise<boolean>;
@@ -36,7 +36,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
-    @inject(TYPES.NebulaQueryBuilder) queryBuilder: NebulaQueryBuilder
+    @inject(TYPES.INebulaQueryBuilder) queryBuilder: NebulaQueryBuilder
   ) {
     this.nebulaService = nebulaService;
     this.logger = logger;
@@ -45,7 +45,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     this.queryBuilder = queryBuilder;
   }
 
- async insertVertex(tag: string, vertexId: string, properties: Record<string, any>): Promise<boolean> {
+  async insertVertex(tag: string, vertexId: string, properties: Record<string, any>): Promise<boolean> {
     try {
       const { query, params } = this.queryBuilder.insertVertex(tag, vertexId, properties);
       await this.nebulaService.executeWriteQuery(query, params);
@@ -143,7 +143,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       this.logger.error(`Failed to find path from ${sourceId} to ${targetId}`, error);
       return [];
     }
- }
+  }
 
   async findShortestPath(
     sourceId: string,
@@ -221,8 +221,8 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
 
   async deleteEdge(srcId: string, dstId: string, edgeType?: string): Promise<boolean> {
     try {
-      const query = edgeType 
-        ? `DELETE EDGE \`${edgeType}\` "${srcId}" -> "${dstId}"` 
+      const query = edgeType
+        ? `DELETE EDGE \`${edgeType}\` "${srcId}" -> "${dstId}"`
         : `DELETE EDGE "${srcId}" -> "${dstId}"`;
       await this.nebulaService.executeWriteQuery(query);
       this.logger.debug(`Deleted edge: ${srcId} -> ${dstId}`);
@@ -249,7 +249,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       this.logger.error(`Failed to execute complex traversal from ${startId}`, error);
       return [];
     }
- }
+  }
 
   async getGraphStats(): Promise<{ nodeCount: number; relationshipCount: number }> {
     try {
@@ -257,10 +257,10 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       // 在实际应用中，这可能需要更复杂的查询来获取准确的统计信息
       const nodeQuery = 'MATCH (n) RETURN count(n) AS total';
       const relQuery = 'MATCH ()-[r]->() RETURN count(r) AS total';
-      
+
       // 模拟查询延迟
       await new Promise(resolve => setTimeout(resolve, 50));
-      
+
       return {
         nodeCount: 0,
         relationshipCount: 0

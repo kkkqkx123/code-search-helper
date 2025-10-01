@@ -10,7 +10,7 @@ import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
 import { PerformanceOptimizerService } from '../resilience/ResilientBatchingService';
-import { VectorPoint } from '../../database/IVectorStore';
+import { VectorPoint } from '../../database/qdrant/IVectorStore';
 import { EmbeddingInput, EmbeddingResult } from '../../embedders/BaseEmbedder';
 // Tree-sitter AST分段支持
 import { ASTCodeSplitter } from '../parser/splitting/ASTCodeSplitter';

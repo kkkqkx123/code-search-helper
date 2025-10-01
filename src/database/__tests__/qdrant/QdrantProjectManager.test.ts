@@ -5,7 +5,7 @@ import { ProjectIdManager } from '../../ProjectIdManager';
 import { IQdrantCollectionManager } from '../../qdrant/QdrantCollectionManager';
 import { IQdrantVectorOperations } from '../../qdrant/QdrantVectorOperations';
 import { IQdrantQueryUtils } from '../../qdrant/QdrantQueryUtils';
-import { VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../../IVectorStore';
+import { VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../../qdrant/IVectorStore';
 import { VectorDistance, ProjectInfo } from '../../qdrant/QdrantTypes';
 
 // Mock dependencies

@@ -3,7 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
 import { IQdrantCollectionManager } from '../../qdrant/QdrantCollectionManager';
-import { VectorPoint, SearchOptions, SearchResult } from '../../IVectorStore';
+import { VectorPoint, SearchOptions, SearchResult } from '../../qdrant/IVectorStore';
 import {
   VectorUpsertOptions,
   VectorSearchOptions,

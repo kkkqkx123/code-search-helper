@@ -23,7 +23,7 @@ import {
   QdrantEventType,
   QdrantEvent
 } from '../../qdrant/QdrantTypes';
-import { VectorPoint, SearchOptions, SearchResult } from '../../IVectorStore';
+import { VectorPoint, SearchOptions, SearchResult } from '../../qdrant/IVectorStore';
 
 describe('QdrantTypes', () => {
   describe('Interfaces', () => {

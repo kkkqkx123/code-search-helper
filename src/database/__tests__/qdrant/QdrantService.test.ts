@@ -8,7 +8,7 @@ import { IQdrantCollectionManager } from '../../qdrant/QdrantCollectionManager';
 import { IQdrantVectorOperations } from '../../qdrant/QdrantVectorOperations';
 import { IQdrantQueryUtils } from '../../qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../qdrant/QdrantProjectManager';
-import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../../IVectorStore';
+import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../../qdrant/IVectorStore';
 import {
   QdrantConfig,
   VectorDistance,

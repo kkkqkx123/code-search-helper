@@ -8,7 +8,7 @@ import {
   VectorPoint,
   SearchOptions,
   SearchResult
-} from '../IVectorStore';
+} from './IVectorStore';
 import {
   VectorUpsertOptions,
   VectorSearchOptions,
