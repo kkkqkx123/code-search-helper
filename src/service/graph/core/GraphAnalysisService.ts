@@ -14,10 +14,11 @@ import {
   GraphEdge,
   CodeGraphNode,
   CodeGraphRelationship
-} from '../core/types';
+} from './types';
+import { IGraphAnalysisService } from './IGraphAnalysisService';
 
 @injectable()
-export class GraphAnalysisService {
+export class GraphAnalysisService implements IGraphAnalysisService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;

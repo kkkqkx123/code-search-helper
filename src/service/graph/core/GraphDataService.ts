@@ -11,11 +11,12 @@ import {
   GraphPersistenceOptions,
   GraphPersistenceResult,
   CodeGraphNode,
-  CodeGraphRelationship
-} from '../core/types';
+ CodeGraphRelationship
+} from './types';
+import { IGraphDataService } from './IGraphDataService';
 
 @injectable()
-export class GraphDataService {
+export class GraphDataService implements IGraphDataService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
@@ -381,6 +382,26 @@ export class GraphDataService {
           `Failed to close graph data service: ${error instanceof Error ? error.message : String(error)}`
         ),
         { component: 'GraphDataService', operation: 'close' }
+      );
+      throw error;
+    }
+  }
+  
+  async executeRawQuery(query: string, parameters?: Record<string, any>): Promise<any> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      this.logger.debug('Executing raw query', { query: query.substring(0, 100) + '...' });
+      
+      return await this.graphDatabase.executeReadQuery(query, parameters || {});
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to execute raw query: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'GraphDataService', operation: 'executeRawQuery' }
       );
       throw error;
     }

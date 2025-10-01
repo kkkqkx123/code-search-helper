@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
-import { GraphService } from '../../service/graph/core/GraphService';
+import { IGraphService } from '../../service/graph/core/IGraphService';
 import { GraphCacheService } from '../../service/graph/cache/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../utils/LoggerService';
@@ -9,13 +9,13 @@ import { LoggerService } from '../../utils/LoggerService';
 @injectable()
 export class GraphStatsRoutes {
   private router: Router;
-  private graphService: GraphService;
+  private graphService: IGraphService;
   private graphCacheService: GraphCacheService;
   private performanceMonitor: GraphPerformanceMonitor;
   private logger: LoggerService;
 
   constructor(
-    @inject(TYPES.GraphService) graphService: GraphService,
+    @inject(TYPES.GraphServiceNewAdapter) graphService: IGraphService,
     @inject(TYPES.GraphCacheService) graphCacheService: GraphCacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.LoggerService) logger: LoggerService

@@ -1,6 +1,6 @@
-import { GraphDataService } from '../../service/graph/core-new/GraphDataService';
-import { GraphAnalysisService } from '../../service/graph/core-new/GraphAnalysisService';
-import { GraphTransactionService } from '../../service/graph/core-new/GraphTransactionService';
+import { GraphDataService } from '../../service/graph/core/GraphDataService';
+import { GraphAnalysisService } from '../../service/graph/core/GraphAnalysisService';
+import { GraphTransactionService } from '../../service/graph/core/GraphTransactionService';
 import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService';
 import { GraphPersistenceService } from '../../service/graph/core/GraphPersistenceService';
 

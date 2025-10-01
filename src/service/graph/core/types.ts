@@ -1,7 +1,7 @@
 // 图节点类型定义
 export interface GraphNode {
- id: string;
- label: string;
+  id: string;
+  label: string;
   properties: Record<string, any>;
   type: 'file' | 'function' | 'class' | 'variable' | 'import' | 'project' | string;
 }
@@ -55,7 +55,7 @@ export interface CodeGraphNode {
   id: string;
   type: 'File' | 'Function' | 'Class' | 'Interface' | 'Import' | 'Project' | string;
   name: string;
- properties: Record<string, any>;
+  properties: Record<string, any>;
 }
 
 // 代码图关系类型定义
@@ -87,6 +87,24 @@ export interface GraphPersistenceResult {
   nodesUpdated: number;
   processingTime: number;
   errors: string[];
+}
+
+// 图搜索选项类型定义
+export interface GraphSearchOptions {
+  limit?: number;
+  depth?: number;
+  includeProperties?: boolean;
+  relationshipTypes?: string[];
+  nodeTypes?: string[];
+  fuzzyMatch?: boolean;
+}
+
+// 图搜索结果类型定义
+export interface GraphSearchResult {
+  nodes: CodeGraphNode[];
+  relationships: CodeGraphRelationship[];
+  total: number;
+  executionTime: number;
 }
 
 // 缓存条目类型定义

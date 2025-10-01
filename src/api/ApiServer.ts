@@ -64,14 +64,14 @@ export class ApiServer {
     // 从依赖注入容器获取Graph服务
     const graphPersistenceService = diContainer.get<any>(TYPES.GraphPersistenceService);
     const graphSearchService = diContainer.get<any>(TYPES.GraphSearchService);
-    const graphService = diContainer.get<any>(TYPES.GraphService);
+    const graphService = diContainer.get<any>(TYPES.GraphServiceNewAdapter);
     const graphCacheService = diContainer.get<any>(TYPES.GraphCacheService);
     const graphPerformanceMonitor = diContainer.get<any>(TYPES.GraphPerformanceMonitor);
     const graphQueryValidator = diContainer.get<any>(TYPES.GraphQueryValidator);
     const graphLoggerService = new (require('../utils/LoggerService').LoggerService)(diContainer.get(TYPES.ConfigService));
     
-    this.graphRoutes = new GraphRoutes(graphPersistenceService, this.projectLookupService, graphQueryValidator, graphPerformanceMonitor, graphLoggerService);
-    this.graphQueryRoutes = new GraphQueryRoutes(graphSearchService, graphPersistenceService, graphQueryValidator, graphPerformanceMonitor, graphLoggerService);
+    this.graphRoutes = new GraphRoutes(graphService, this.projectLookupService, graphQueryValidator, graphPerformanceMonitor, graphLoggerService);
+    this.graphQueryRoutes = new GraphQueryRoutes(graphService, graphQueryValidator, graphPerformanceMonitor, graphLoggerService);
     this.graphAnalysisRoutes = new GraphAnalysisRoutes(graphService, graphSearchService, graphPerformanceMonitor, graphLoggerService);
     this.graphStatsRoutes = new GraphStatsRoutes(graphService, graphCacheService, graphPerformanceMonitor, graphLoggerService);
     

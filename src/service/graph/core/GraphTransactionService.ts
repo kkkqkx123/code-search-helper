@@ -9,6 +9,7 @@ import { IBatchOptimizer } from '../../../infrastructure/batching/types';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
 import { TransactionManager, TransactionOperation, TransactionResult } from '../../../database/core/TransactionManager';
+import { IGraphTransactionService } from './IGraphTransactionService';
 
 export interface GraphTransactionConfig {
   enableTransactions: boolean;
@@ -19,7 +20,7 @@ export interface GraphTransactionConfig {
 }
 
 @injectable()
-export class GraphTransactionService {
+export class GraphTransactionService implements IGraphTransactionService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;

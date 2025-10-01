@@ -52,6 +52,12 @@ import { GraphQueryValidator } from './service/graph/validation/GraphQueryValida
 // Graph Database Service
 import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
 
+// New Graph Services
+import { GraphAnalysisService } from './service/graph/core/GraphAnalysisService';
+import { GraphDataService } from './service/graph/core/GraphDataService';
+import { GraphTransactionService } from './service/graph/core/GraphTransactionService';
+import { GraphSearchServiceNew } from './service/graph/core/GraphSearchServiceNew';
+import { GraphServiceNewAdapter } from './service/graph/core/GraphServiceNewAdapter';
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
   ConfigFactory: Symbol.for('ConfigFactory'),
@@ -129,7 +135,12 @@ export const TYPES = {
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
   TransactionManager: Symbol.for('TransactionManager'),
   GraphDatabaseService: Symbol.for('GraphDatabaseService'),
-  
+  GraphAnalysisService: Symbol.for('GraphAnalysisService'),
+  GraphDataService: Symbol.for('GraphDataService'),
+  GraphTransactionService: Symbol.for('GraphTransactionService'),
+  GraphSearchServiceNew: Symbol.for('GraphSearchServiceNew'),
+  GraphServiceNewAdapter: Symbol.for('GraphServiceNewAdapter'),
+
   // Project lookup service
   ProjectLookupService: Symbol.for('ProjectLookupService'),
 };

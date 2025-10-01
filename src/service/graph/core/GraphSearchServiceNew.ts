@@ -3,61 +3,93 @@ import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
-import { NebulaService } from '../../../database/NebulaService';
-import { GraphCacheService } from '../cache/GraphCacheService';
-import { GraphPerformanceMonitor } from '../performance/GraphPerformanceMonitor';
-import { GraphQueryBuilder } from '../query/GraphQueryBuilder';
+import { GraphDatabaseService } from '../../../database/graph/GraphDatabaseService';
+import { GraphQueryBuilder } from '../../../database/query/GraphQueryBuilder';
+import { ICacheService } from '../../../infrastructure/caching/types';
+import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
+import {
+  GraphSearchOptions,
+  GraphSearchResult,
+  CodeGraphNode,
+  CodeGraphRelationship
+} from './types';
 
-export interface GraphSearchOptions {
-  limit?: number;
-  depth?: number;
-  includeProperties?: boolean;
-  relationshipTypes?: string[];
-  nodeTypes?: string[];
-  fuzzyMatch?: boolean;
-}
-
-export interface GraphSearchResult {
-  nodes: any[];
-  relationships: any[];
-  total: number;
-  executionTime: number;
+export interface IGraphSearchService {
+  search(query: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
+  searchByNodeType(nodeType: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
+  searchByRelationshipType(relationshipType: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
+  searchByPath(sourceId: string, targetId: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
+  getSearchSuggestions(query: string): Promise<string[]>;
+  getSearchStats(): Promise<{
+    totalSearches: number;
+    avgExecutionTime: number;
+    cacheHitRate: number;
+  }>;
 }
 
 @injectable()
-export class GraphSearchService {
-  private nebulaService: NebulaService;
+export class GraphSearchServiceNew implements IGraphSearchService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
-  private cacheService: GraphCacheService;
-  private performanceMonitor: GraphPerformanceMonitor;
+  private graphDatabase: GraphDatabaseService;
   private queryBuilder: GraphQueryBuilder;
+  private cacheService: ICacheService;
+  private performanceMonitor: IPerformanceMonitor;
+  private isInitialized: boolean = false;
 
   constructor(
-    @inject(TYPES.NebulaService) nebulaService: NebulaService,
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
-    @inject(TYPES.GraphCacheService) cacheService: GraphCacheService,
-    @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
-    @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder
+    @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
+    @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
+    @inject(TYPES.GraphCacheService) cacheService: ICacheService,
+    @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {
-    this.nebulaService = nebulaService;
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
+    this.graphDatabase = graphDatabase;
+    this.queryBuilder = queryBuilder;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
-    this.queryBuilder = queryBuilder;
+  }
+
+  async initialize(): Promise<boolean> {
+    try {
+      this.logger.info('Initializing graph search service');
+
+      // Ensure the graph database is initialized
+      if (!this.graphDatabase.isDatabaseConnected()) {
+        const initialized = await this.graphDatabase.initialize();
+        if (!initialized) {
+          throw new Error('Failed to initialize graph database');
+        }
+      }
+
+      this.isInitialized = true;
+      this.logger.info('Graph search service initialized successfully');
+      return true;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to initialize graph search service: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'GraphSearchServiceNew', operation: 'initialize' }
+      );
+      return false;
+    }
   }
 
   async search(query: string, options: GraphSearchOptions = {}): Promise<GraphSearchResult> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
     const startTime = Date.now();
-    
+
     // Generate cache key based on query and options
     const cacheKey = this.generateCacheKey(query, options);
-    
+
     // Try to get result from cache first
     const cachedResult = this.cacheService.getFromCache<GraphSearchResult>(cacheKey);
     if (cachedResult) {
@@ -65,13 +97,13 @@ export class GraphSearchService {
       this.logger.debug('Graph search result retrieved from cache', { cacheKey });
       return cachedResult;
     }
-    
+
     try {
       this.logger.info('Executing graph search', { query, options });
 
       // Build search query based on input
       const searchQuery = this.buildSearchQuery(query, options);
-      const result = await this.nebulaService.executeReadQuery(searchQuery.nGQL, searchQuery.params);
+      const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
 
       const formattedResult: GraphSearchResult = {
         nodes: this.formatNodes(result?.nodes || []),
@@ -96,7 +128,7 @@ export class GraphSearchService {
       return formattedResult;
     } catch (error) {
       const errorContext = {
-        component: 'GraphSearchService',
+        component: 'GraphSearchServiceNew',
         operation: 'search',
         query,
         options,
@@ -138,7 +170,7 @@ export class GraphSearchService {
       this.logger.info('Searching by node type', { nodeType, options });
 
       const searchQuery = this.buildNodeTypeQuery(nodeType, options);
-      const result = await this.nebulaService.executeReadQuery(searchQuery.nGQL, searchQuery.params);
+      const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
 
       const formattedResult: GraphSearchResult = {
         nodes: this.formatNodes(result || []),
@@ -184,7 +216,7 @@ export class GraphSearchService {
       this.logger.info('Searching by relationship type', { relationshipType, options });
 
       const searchQuery = this.buildRelationshipTypeQuery(relationshipType, options);
-      const result = await this.nebulaService.executeReadQuery(searchQuery.nGQL, searchQuery.params);
+      const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
 
       const formattedResult: GraphSearchResult = {
         nodes: [],
@@ -230,7 +262,7 @@ export class GraphSearchService {
       this.logger.info('Searching by path', { sourceId, targetId, options });
 
       const searchQuery = this.buildPathQuery(sourceId, targetId, options);
-      const result = await this.nebulaService.executeReadQuery(searchQuery.nGQL, searchQuery.params);
+      const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
 
       const formattedResult: GraphSearchResult = {
         nodes: this.formatNodes(result?.path?.nodes || []),
@@ -262,6 +294,53 @@ export class GraphSearchService {
     }
   }
 
+  async getSearchSuggestions(query: string): Promise<string[]> {
+    try {
+      this.logger.debug('Getting search suggestions', { query });
+
+      // In a real implementation, this would use more sophisticated suggestion algorithms
+      // For now, we'll return some mock suggestions based on the query
+      const suggestions: string[] = [];
+
+      if (query.toLowerCase().includes('function')) {
+        suggestions.push('function name', 'function call', 'function definition');
+      }
+
+      if (query.toLowerCase().includes('class')) {
+        suggestions.push('class inheritance', 'class methods', 'class properties');
+      }
+
+      if (query.toLowerCase().includes('import')) {
+        suggestions.push('import path', 'import module', 'import dependency');
+      }
+
+      if (query.toLowerCase().includes('file')) {
+        suggestions.push('file path', 'file content', 'file dependency');
+      }
+
+      return suggestions.slice(0, 5); // Return top 5 suggestions
+    } catch (error) {
+      this.logger.error('Failed to get search suggestions', {
+        query,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      return [];
+    }
+  }
+
+  async getSearchStats(): Promise<{
+    totalSearches: number;
+    avgExecutionTime: number;
+    cacheHitRate: number;
+  }> {
+    return {
+      totalSearches: this.performanceMonitor.getMetrics().totalQueries || 0,
+      avgExecutionTime: this.performanceMonitor.getMetrics().avgExecutionTime || 0,
+      cacheHitRate: this.performanceMonitor.getMetrics().cacheHitRate || 0,
+    };
+  }
+
   private generateCacheKey(query: string, options: GraphSearchOptions): string {
     return `graph_search_${query}_${JSON.stringify(options)}`;
   }
@@ -270,7 +349,7 @@ export class GraphSearchService {
     // Default search query - this would be more sophisticated in a real implementation
     // For now, we'll create a basic query that searches for nodes matching the query string
     const { limit = 10, depth = 2, relationshipTypes, nodeTypes } = options;
-    
+
     // Build a query based on the search term
     // This is a simplified implementation - a real implementation would use more sophisticated search
     let nGQL = `
@@ -305,7 +384,7 @@ export class GraphSearchService {
 
   private buildNodeTypeQuery(nodeType: string, options: GraphSearchOptions): { nGQL: string; params: Record<string, any> } {
     const { limit = 10 } = options;
-    
+
     const nGQL = `
       LOOKUP ON \`${nodeType}\` 
       YIELD vertex AS node
@@ -317,7 +396,7 @@ export class GraphSearchService {
 
   private buildRelationshipTypeQuery(relationshipType: string, options: GraphSearchOptions): { nGQL: string; params: Record<string, any> } {
     const { limit = 10 } = options;
-    
+
     const nGQL = `
       MATCH ()-[r:\`${relationshipType}\`]->()
       RETURN r
@@ -329,81 +408,33 @@ export class GraphSearchService {
 
   private buildPathQuery(sourceId: string, targetId: string, options: GraphSearchOptions): { nGQL: string; params: Record<string, any> } {
     const { depth = 5 } = options;
-    
+
     const nGQL = `
       FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${depth} STEPS
       YIELD path AS p
     `;
 
     return { nGQL, params: {} };
- }
+  }
 
-  private formatNodes(nodes: any[]): any[] {
+  private formatNodes(nodes: any[]): CodeGraphNode[] {
     // Format the nodes to a consistent structure
     return nodes.map(node => ({
       id: node.id || node._id || node.vertex?.id || 'unknown',
-      type: node.type || node.label || 'unknown',
+      type: node.type || node.label || node.tag || 'unknown',
+      name: node.name || node.label || 'unknown',
       properties: node.properties || node.props || node.vertex?.props || {},
-      ...node
     }));
   }
 
-  private formatRelationships(relationships: any[]): any[] {
+  private formatRelationships(relationships: any[]): CodeGraphRelationship[] {
     // Format the relationships to a consistent structure
     return relationships.map(rel => ({
       id: rel.id || rel._id || 'unknown',
       type: rel.type || rel.edge?.type || 'unknown',
-      source: rel.source || rel.src || rel.edge?.src || 'unknown',
-      target: rel.target || rel.dst || rel.edge?.dst || 'unknown',
+      sourceId: rel.source || rel.src || rel.edge?.src || 'unknown',
+      targetId: rel.target || rel.dst || rel.edge?.dst || 'unknown',
       properties: rel.properties || rel.props || rel.edge?.props || {},
-      ...rel
     }));
-  }
-
-  async getSearchSuggestions(query: string): Promise<string[]> {
-    try {
-      this.logger.debug('Getting search suggestions', { query });
-
-      // In a real implementation, this would use more sophisticated suggestion algorithms
-      // For now, we'll return some mock suggestions based on the query
-      const suggestions: string[] = [];
-      
-      if (query.toLowerCase().includes('function')) {
-        suggestions.push('function name', 'function call', 'function definition');
-      }
-      
-      if (query.toLowerCase().includes('class')) {
-        suggestions.push('class inheritance', 'class methods', 'class properties');
-      }
-      
-      if (query.toLowerCase().includes('import')) {
-        suggestions.push('import path', 'import module', 'import dependency');
-      }
-      
-      if (query.toLowerCase().includes('file')) {
-        suggestions.push('file path', 'file content', 'file dependency');
-      }
-
-      return suggestions.slice(0, 5); // Return top 5 suggestions
-    } catch (error) {
-      this.logger.error('Failed to get search suggestions', {
-        query,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      
-      return [];
-    }
-  }
-
-  async getSearchStats(): Promise<{
-    totalSearches: number;
-    avgExecutionTime: number;
-    cacheHitRate: number;
-  }> {
-    return {
-      totalSearches: this.performanceMonitor.getMetrics().totalQueries || 0,
-      avgExecutionTime: this.performanceMonitor.getMetrics().avgExecutionTime || 0,
-      cacheHitRate: this.performanceMonitor.getMetrics().cacheHitRate || 0,
-    };
   }
 }

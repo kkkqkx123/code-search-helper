@@ -1,8 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
-import { GraphSearchService } from '../../service/graph/core/GraphSearchService';
-import { GraphPersistenceService } from '../../service/graph/core/GraphPersistenceService';
+import { GraphServiceNewAdapter } from '../../service/graph/core/GraphServiceNewAdapter';
 import { GraphQueryValidator } from '../../service/graph/validation/GraphQueryValidator';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../utils/LoggerService';
@@ -10,21 +9,18 @@ import { LoggerService } from '../../utils/LoggerService';
 @injectable()
 export class GraphQueryRoutes {
   private router: Router;
-  private graphSearchService: GraphSearchService;
-  private graphPersistenceService: GraphPersistenceService;
+  private graphService: GraphServiceNewAdapter;
   private validator: GraphQueryValidator;
   private performanceMonitor: GraphPerformanceMonitor;
   private logger: LoggerService;
 
   constructor(
-    @inject(TYPES.GraphSearchService) graphSearchService: GraphSearchService,
-    @inject(TYPES.GraphPersistenceService) graphPersistenceService: GraphPersistenceService,
+    @inject(TYPES.GraphServiceNewAdapter) graphService: GraphServiceNewAdapter,
     @inject(TYPES.GraphQueryValidator) validator: GraphQueryValidator,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.LoggerService) logger: LoggerService
   ) {
-    this.graphSearchService = graphSearchService;
-    this.graphPersistenceService = graphPersistenceService;
+    this.graphService = graphService;
     this.validator = validator;
     this.performanceMonitor = performanceMonitor;
     this.logger = logger;
@@ -88,8 +84,8 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      // 使用 GraphPersistenceService 中的 nebulaService 来执行自定义查询
-      const result = await this.graphPersistenceService['nebulaService'].executeReadQuery(query, parameters);
+      // 使用 GraphService 的方法执行查询
+      const result = await this.graphService['graphDataService'].executeRawQuery(query, parameters);
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
@@ -132,7 +128,7 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      const result = await this.graphPersistenceService.findRelatedNodes(nodeId, relationshipTypes, maxDepth);
+      const result = await this.graphService.findRelatedNodes(nodeId, relationshipTypes, maxDepth);
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
@@ -175,7 +171,7 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      const result = await this.graphPersistenceService.findPath(sourceId, targetId, maxDepth);
+      const result = await this.graphService.findPath(sourceId, targetId, maxDepth);
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
@@ -222,7 +218,7 @@ export class GraphQueryRoutes {
         FIND ALL PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth || 5} STEPS
         YIELD path as p
       `;
-      const result = await this.graphPersistenceService['nebulaService'].executeReadQuery(query);
+      const result = await this.graphService['graphDataService'].executeRawQuery(query);
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
@@ -284,7 +280,7 @@ export class GraphQueryRoutes {
         `;
       }
 
-      const result = await this.graphPersistenceService['nebulaService'].executeReadQuery(query);
+      const result = await this.graphService['graphDataService'].executeRawQuery(query);
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
@@ -326,53 +322,16 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      // 使用 NebulaGraph 的 LOOKUP 进行图搜索
-      const searchLimit = limit || 50;
-      let result;
-      
-      // 构建搜索查询
-      if (filters?.nodeTypes && filters.nodeTypes.length > 0) {
-        // 在特定节点类型中搜索
-        const nodeTypeConditions = filters.nodeTypes.map((type: string) => `vertex._type == "${type}"`).join(' || ');
-        const nodeQuery = `
-          LOOKUP ON * WHERE ${nodeTypeConditions} &&
-          (vertex.name CONTAINS "${query}" || vertex.content CONTAINS "${query}")
-          YIELD vertex AS node
-          LIMIT ${searchLimit}
-        `;
-        const nodes = await this.graphPersistenceService['nebulaService'].executeReadQuery(nodeQuery);
-        
-        // 获取相关关系
-        const relationshipQuery = `
-          GO 1 STEP FROM $-.node OVER * REVERSELY YIELD vertex AS relatedNode, edge AS relationship
-        `;
-        const relationships = await this.graphPersistenceService['nebulaService'].executeReadQuery(relationshipQuery);
-        
-        result = {
-          nodes: nodes || [],
-          relationships: relationships || [],
-          total: (nodes?.length || 0) + (relationships?.length || 0),
-          executionTime: 0
-        };
-      } else {
-        // 全局搜索
-        const globalQuery = `
-          LOOKUP ON * WHERE vertex.name CONTAINS "${query}" || vertex.content CONTAINS "${query}"
-          YIELD vertex AS node
-          LIMIT ${searchLimit}
-        `;
-        const nodes = await this.graphPersistenceService['nebulaService'].executeReadQuery(globalQuery);
-        
-        result = {
-          nodes: nodes || [],
-          relationships: [],
-          total: nodes?.length || 0,
-          executionTime: 0
-        };
-      }
-      
+      // 使用新的 GraphService 进行搜索
+      const options = {
+        limit: limit || 50,
+        nodeTypes: filters?.nodeTypes,
+        relationshipTypes: filters?.relationshipTypes,
+        ...filters
+      };
+
+      const result = await this.graphService.search(query, options);
       const executionTime = Date.now() - startTime;
-      result.executionTime = executionTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Performed graph search for query: ${query}`, { executionTime, projectId });
@@ -404,8 +363,8 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      // GraphPersistenceService doesn't have getSearchSuggestions with 2 parameters, using projectId only
-      const result = await this.graphPersistenceService.getGraphStats();
+      const query = queryPrefix as string || '';
+      const result = await this.graphService.getSearchSuggestions(query);
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);

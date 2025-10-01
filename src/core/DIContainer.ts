@@ -5,7 +5,7 @@ import {
   EnvironmentConfigService,
   QdrantConfigService,
   EmbeddingConfigService,
- LoggingConfigService,
+  LoggingConfigService,
   MonitoringConfigService,
   FileProcessingConfigService,
   BatchProcessingConfigService,
@@ -67,6 +67,12 @@ import { GraphBatchOptimizer } from '../service/graph/performance/GraphBatchOpti
 import { GraphPersistenceUtils } from '../service/graph/utils/GraphPersistenceUtils';
 import { GraphQueryValidator } from '../service/graph/validation/GraphQueryValidator';
 
+// New Graph Services
+import { GraphAnalysisService } from '../service/graph/core/GraphAnalysisService';
+import { GraphDataService } from '../service/graph/core/GraphDataService';
+import { GraphTransactionService } from '../service/graph/core/GraphTransactionService';
+import { GraphSearchServiceNew } from '../service/graph/core/GraphSearchServiceNew';
+import { GraphServiceNewAdapter } from '../service/graph/core/GraphServiceNewAdapter';
 // 创建依赖注入容器
 const diContainer = new Container();
 
@@ -154,5 +160,11 @@ diContainer.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(Grap
 diContainer.bind<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer).to(GraphBatchOptimizer).inSingletonScope();
 diContainer.bind<GraphPersistenceUtils>(TYPES.GraphPersistenceUtils).to(GraphPersistenceUtils).inSingletonScope();
 diContainer.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
+// 注册新Graph服务
+diContainer.bind<GraphAnalysisService>(TYPES.GraphAnalysisService).to(GraphAnalysisService).inSingletonScope();
+diContainer.bind<GraphDataService>(TYPES.GraphDataService).to(GraphDataService).inSingletonScope();
+diContainer.bind<GraphTransactionService>(TYPES.GraphTransactionService).to(GraphTransactionService).inSingletonScope();
+diContainer.bind<GraphSearchServiceNew>(TYPES.GraphSearchServiceNew).to(GraphSearchServiceNew).inSingletonScope();
+diContainer.bind<GraphServiceNewAdapter>(TYPES.GraphServiceNewAdapter).to(GraphServiceNewAdapter).inSingletonScope();
 
 export { diContainer };
