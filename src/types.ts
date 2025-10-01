@@ -46,6 +46,7 @@ import { GraphCacheService } from './service/graph/cache/GraphCacheService';
 import { GraphQueryBuilder } from './service/graph/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
+import { GraphQueryValidator } from './service/graph/validation/GraphQueryValidator';
 
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
@@ -119,4 +120,5 @@ export const TYPES = {
   GraphPerformanceMonitor: Symbol.for('GraphPerformanceMonitor'),
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
   GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),
+  GraphQueryValidator: Symbol.for('GraphQueryValidator'),
 };

@@ -6,6 +6,10 @@ import { Logger } from '../utils/logger.js';
 import { ProjectRoutes } from './routes/ProjectRoutes';
 import { IndexingRoutes } from './routes/IndexingRoutes';
 import { FileSearchRoutes } from './routes/FileSearchRoutes';
+import { GraphRoutes } from './routes/GraphRoutes';
+import { GraphQueryRoutes } from './routes/GraphQueryRoutes';
+import { GraphAnalysisRoutes } from './routes/GraphAnalysisRoutes';
+import { GraphStatsRoutes } from './routes/GraphStatsRoutes';
 import { ProjectIdManager } from '../database/ProjectIdManager';
 import { ProjectLookupService } from '../database/ProjectLookupService';
 import { IndexSyncService } from '../service/index/IndexSyncService';
@@ -24,6 +28,10 @@ export class ApiServer {
   private projectRoutes: ProjectRoutes;
   private indexingRoutes: IndexingRoutes;
   private fileSearchRoutes: FileSearchRoutes;
+  private graphRoutes: GraphRoutes;
+  private graphQueryRoutes: GraphQueryRoutes;
+  private graphAnalysisRoutes: GraphAnalysisRoutes;
+  private graphStatsRoutes: GraphStatsRoutes;
   private indexSyncService: IndexSyncService;
   private embedderFactory: EmbedderFactory;
   private qdrantService: QdrantService;
@@ -52,6 +60,21 @@ export class ApiServer {
     // 创建一个LoggerService实例包装现有的Logger
     const loggerService = new (require('../utils/LoggerService').LoggerService)(diContainer.get(TYPES.ConfigService));
     this.fileSearchRoutes = new FileSearchRoutes(fileSearchService, loggerService);
+    
+    // 从依赖注入容器获取Graph服务
+    const graphPersistenceService = diContainer.get<any>(TYPES.GraphPersistenceService);
+    const graphSearchService = diContainer.get<any>(TYPES.GraphSearchService);
+    const graphService = diContainer.get<any>(TYPES.GraphService);
+    const graphCacheService = diContainer.get<any>(TYPES.GraphCacheService);
+    const graphPerformanceMonitor = diContainer.get<any>(TYPES.GraphPerformanceMonitor);
+    const graphQueryValidator = diContainer.get<any>(TYPES.GraphQueryValidator);
+    const graphLoggerService = new (require('../utils/LoggerService').LoggerService)(diContainer.get(TYPES.ConfigService));
+    
+    this.graphRoutes = new GraphRoutes(graphPersistenceService, this.projectLookupService, graphQueryValidator, graphPerformanceMonitor, graphLoggerService);
+    this.graphQueryRoutes = new GraphQueryRoutes(graphSearchService, graphPersistenceService, graphQueryValidator, graphPerformanceMonitor, graphLoggerService);
+    this.graphAnalysisRoutes = new GraphAnalysisRoutes(graphService, graphSearchService, graphPerformanceMonitor, graphLoggerService);
+    this.graphStatsRoutes = new GraphStatsRoutes(graphService, graphCacheService, graphPerformanceMonitor, graphLoggerService);
+    
     this.setupMiddleware();
     this.setupRoutes();
   }
@@ -191,6 +214,12 @@ export class ApiServer {
 
     // 文件搜索路由
     this.app.use('/api/v1/filesearch', this.fileSearchRoutes.getRouter());
+
+    // 图路由
+    this.app.use('/api/v1/graph', this.graphRoutes.getRouter());
+    this.app.use('/api/v1/graph', this.graphQueryRoutes.getRouter());
+    this.app.use('/api/v1/graph', this.graphAnalysisRoutes.getRouter());
+    this.app.use('/api/v1/graph', this.graphStatsRoutes.getRouter());
 
     // 404处理
     this.app.get('*', (req, res) => {

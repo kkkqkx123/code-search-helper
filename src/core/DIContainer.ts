@@ -5,7 +5,7 @@ import {
   EnvironmentConfigService,
   QdrantConfigService,
   EmbeddingConfigService,
-  LoggingConfigService,
+ LoggingConfigService,
   MonitoringConfigService,
   FileProcessingConfigService,
   BatchProcessingConfigService,
@@ -47,6 +47,16 @@ import { FileVectorIndexer } from '../service/filesearch/FileVectorIndexer';
 import { FileQueryProcessor } from '../service/filesearch/FileQueryProcessor';
 import { FileQueryIntentClassifier } from '../service/filesearch/FileQueryIntentClassifier';
 import { FileSearchCache } from '../service/filesearch/FileSearchCache';
+
+// Graph 服务
+import { GraphService } from '../service/graph/core/GraphService';
+import { GraphPersistenceService } from '../service/graph/core/GraphPersistenceService';
+import { GraphSearchService } from '../service/graph/core/GraphSearchService';
+import { GraphCacheService } from '../service/graph/cache/GraphCacheService';
+import { GraphQueryBuilder } from '../service/graph/query/GraphQueryBuilder';
+import { GraphPerformanceMonitor } from '../service/graph/performance/GraphPerformanceMonitor';
+import { GraphBatchOptimizer } from '../service/graph/performance/GraphBatchOptimizer';
+import { GraphPersistenceUtils } from '../service/graph/utils/GraphPersistenceUtils';
 
 // 创建依赖注入容器
 const diContainer = new Container();
@@ -117,5 +127,16 @@ diContainer.bind<FileVectorIndexer>(TYPES.FileVectorIndexer).to(FileVectorIndexe
 diContainer.bind<FileQueryProcessor>(TYPES.FileQueryProcessor).to(FileQueryProcessor).inSingletonScope();
 diContainer.bind<FileQueryIntentClassifier>(TYPES.FileQueryIntentClassifier).to(FileQueryIntentClassifier).inSingletonScope();
 diContainer.bind<FileSearchCache>(TYPES.FileSearchCache).to(FileSearchCache).inSingletonScope();
+
+// 注册Graph服务
+diContainer.bind<GraphService>(TYPES.GraphService).to(GraphService).inSingletonScope();
+diContainer.bind<GraphPersistenceService>(TYPES.GraphPersistenceService).to(GraphPersistenceService).inSingletonScope();
+diContainer.bind<GraphSearchService>(TYPES.GraphSearchService).to(GraphSearchService).inSingletonScope();
+diContainer.bind<GraphCacheService>(TYPES.GraphCacheService).to(GraphCacheService).inSingletonScope();
+diContainer.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
+diContainer.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
+diContainer.bind<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer).to(GraphBatchOptimizer).inSingletonScope();
+diContainer.bind<GraphPersistenceUtils>(TYPES.GraphPersistenceUtils).to(GraphPersistenceUtils).inSingletonScope();
+diContainer.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
 
 export { diContainer };
