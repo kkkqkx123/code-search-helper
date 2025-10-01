@@ -142,8 +142,8 @@ export class GraphService implements IGraphService {
     this.logger.info('Finding impact', { filePath, options });
 
     try {
-      // Simulate impact analysis
-      await this.simulateImpactAnalysisForFile(filePath, options);
+      // 模拟影响分析 - 返回硬编码的模拟数据
+      // 注意：在实际实现中，这里应该调用图数据库进行真正的分析
 
       return {
         affectedFiles: [

@@ -39,7 +39,7 @@ export class GraphTransactionService {
     @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
     @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
     @inject(TYPES.GraphBatchOptimizer) batchOptimizer: IBatchOptimizer,
-    @inject(TYPES.ICacheService) cacheService: ICacheService,
+    @inject(TYPES.GraphCacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor,
     @inject(TYPES.TransactionManager) transactionManager: TransactionManager
   ) {

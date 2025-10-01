@@ -811,8 +811,8 @@ export class GraphPersistenceService {
     try {
       // Execute the batch transaction
       const results = await this.nebulaService.executeTransaction(queries.map(q => ({
-        nGQL: q.nGQL,
-        parameters: q.parameters
+        query: q.nGQL,
+        params: q.parameters || {}
       })));
 
       let nodesCreated = 0;

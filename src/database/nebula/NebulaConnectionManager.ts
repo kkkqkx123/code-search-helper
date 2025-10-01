@@ -5,6 +5,9 @@ import { ConfigService } from '../../config/ConfigService';
 import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult } from '../NebulaTypes';
 import { TYPES } from '../../types';
 
+// 导入Nebula Graph客户端库
+const { NebulaGraph } = require('@nebula-contrib/nebula-nodejs');
+
 export interface INebulaConnectionManager {
   connect(): Promise<boolean>;
   disconnect(): Promise<void>;
@@ -20,7 +23,7 @@ export interface INebulaConnectionManager {
     properties?: Record<string, any>;
   }): Promise<void>;
   findNodesByLabel(label: string, properties?: Record<string, any>): Promise<any[]>;
- findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]>;
+  findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]>;
   getDatabaseStats(): Promise<any>;
   isConnectedToDatabase(): boolean;
 }
@@ -32,6 +35,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private configService: ConfigService;
   private connectionStatus: NebulaConnectionStatus;
   private config: NebulaConfig;
+  private client: any; // Nebula Graph客户端实例
+  private session: any; // Nebula Graph会话实例
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -54,6 +59,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       port: parseInt(process.env.NEBULA_PORT || '9669'),
       username: process.env.NEBULA_USERNAME || 'root',
       password: process.env.NEBULA_PASSWORD || 'nebula',
+      space: process.env.NEBULA_SPACE || 'codebase',
     };
     this.connectionStatus.host = this.config.host;
     this.connectionStatus.port = this.config.port;
@@ -66,7 +72,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       try {
         const nebulaConfig = this.configService.get('nebula');
         if (nebulaConfig) {
-          this.config = nebulaConfig;
+          this.config = { ...this.config, ...nebulaConfig };
           this.connectionStatus.host = nebulaConfig.host;
           this.connectionStatus.port = nebulaConfig.port;
           this.connectionStatus.username = nebulaConfig.username;
@@ -76,24 +82,52 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         this.logger.debug('Using default Nebula configuration');
       }
 
-      // 模拟连接到Nebula Graph
-      // 在实际实现中，这里会使用Nebula的客户端库来建立连接
       this.logger.info('Connecting to Nebula Graph', {
         host: this.config.host,
         port: this.config.port,
         username: this.config.username,
+        space: this.config.space,
       });
 
-      // 模拟连接延迟
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // 创建Nebula Graph客户端
+      this.client = new NebulaGraph.Client({
+        host: this.config.host,
+        port: this.config.port,
+      });
 
-      // 设置连接状态
-      this.connectionStatus.connected = true;
-      this.connectionStatus.lastConnected = new Date();
-      this.connectionStatus.space = this.config.space;
+      // 建立连接并创建会话
+      await this.client.connect();
+      this.session = await this.client.session(this.config.username, this.config.password);
 
-      this.logger.info('Successfully connected to Nebula Graph');
-      return true;
+      // 切换到指定的space（如果不存在则创建）
+      if (this.config.space) {
+        try {
+          await this.executeQuery(`USE ${this.config.space}`);
+          this.logger.info(`Using existing space: ${this.config.space}`);
+        } catch (error) {
+          // Space不存在，尝试创建
+          try {
+            await this.executeQuery(`CREATE SPACE IF NOT EXISTS ${this.config.space} (partition_num=10, replica_factor=1)`);
+            await this.executeQuery(`USE ${this.config.space}`);
+            // 等待space创建完成
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            this.logger.info(`Created new space: ${this.config.space}`);
+          } catch (createError) {
+            this.logger.error(`Failed to create space: ${this.config.space}`, createError);
+            throw createError;
+          }
+        }
+
+        // 设置连接状态
+        this.connectionStatus.connected = true;
+        this.connectionStatus.lastConnected = new Date();
+        this.connectionStatus.space = this.config.space;
+
+        this.logger.info('Successfully connected to Nebula Graph');
+        return true;
+      }
+      
+      return false;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.connectionStatus.connected = false;
@@ -108,14 +142,19 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
- async disconnect(): Promise<void> {
+  async disconnect(): Promise<void> {
     try {
-      // 模拟断开连接
-      // 在实际实现中，这里会关闭Nebula的客户端连接
       this.logger.info('Disconnecting from Nebula Graph');
       
-      // 模拟断开连接延迟
-      await new Promise(resolve => setTimeout(resolve, 50));
+      if (this.session) {
+        await this.session.release();
+        this.session = null;
+      }
+      
+      if (this.client) {
+        await this.client.close();
+        this.client = null;
+      }
       
       this.connectionStatus.connected = false;
       this.connectionStatus.space = undefined;
@@ -130,7 +169,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
- isConnected(): boolean {
+  isConnected(): boolean {
     return this.connectionStatus.connected;
   }
 
@@ -138,31 +177,34 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     return { ...this.connectionStatus };
   }
 
- async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
+  async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
     try {
-      if (!this.isConnected()) {
+      if (!this.isConnected() || !this.session) {
         throw new Error('Not connected to Nebula Graph');
       }
 
       this.logger.debug('Executing Nebula query', { nGQL, parameters });
 
-      // 模拟查询执行
-      // 在实际实现中，这里会使用Nebula客户端执行查询
       const startTime = Date.now();
       
-      // 模拟查询延迟
-      await new Promise(resolve => setTimeout(resolve, 20));
+      // 执行查询
+      const result = await this.session.execute(nGQL, parameters);
       
       const executionTime = Date.now() - startTime;
 
-      // 返回模拟结果
-      const result: NebulaQueryResult = {
-        data: [],
+      // 转换结果格式
+      const nebulaResult: NebulaQueryResult = {
+        table: result.data?.table || {},
+        results: result.data?.results || [],
+        rows: result.data?.rows || [],
+        data: result.data?.data || [],
         executionTime,
+        timeCost: result.timeCost,
+        space: this.config.space,
       };
 
       this.logger.debug('Query executed successfully', { executionTime });
-      return result;
+      return nebulaResult;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
@@ -176,6 +218,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       );
       
       return {
+        table: {},
+        results: [],
+        rows: [],
         error: errorMessage,
       };
     }
@@ -183,23 +228,38 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
   async executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<any[]> {
     try {
-      if (!this.isConnected()) {
+      if (!this.isConnected() || !this.session) {
         throw new Error('Not connected to Nebula Graph');
       }
 
       this.logger.debug('Executing Nebula transaction', { queryCount: queries.length });
 
-      // 模拟事务执行
-      // 在实际实现中，这里会使用Nebula客户端执行事务
       const startTime = Date.now();
       
-      // 模拟事务延迟
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // 开始事务
+      await this.session.execute('BEGIN');
       
-      const executionTime = Date.now() - startTime;
-
-      this.logger.debug('Transaction executed successfully', { executionTime });
-      return [];
+      const results: any[] = [];
+      
+      try {
+        // 执行事务中的所有查询
+        for (const { query, params } of queries) {
+          const result = await this.session.execute(query, params);
+          results.push(result);
+        }
+        
+        // 提交事务
+        await this.session.execute('COMMIT');
+        
+        const executionTime = Date.now() - startTime;
+        this.logger.debug('Transaction executed successfully', { executionTime });
+        
+        return results;
+      } catch (error) {
+        // 回滚事务
+        await this.session.execute('ROLLBACK');
+        throw error;
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
@@ -215,15 +275,44 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   async createNode(node: { label: string; properties: Record<string, any> }): Promise<string> {
-    // 模拟创建节点
-    // 在实际实现中，这里会使用Nebula客户端创建节点
-    this.logger.debug('Creating node', { label: node.label, properties: node.properties });
-    
-    // 模拟创建延迟
-    await new Promise(resolve => setTimeout(resolve, 10));
-    
-    // 返回模拟节点ID
-    return `node_${Date.now()}`;
+    try {
+      if (!this.isConnected() || !this.session) {
+        throw new Error('Not connected to Nebula Graph');
+      }
+
+      this.logger.debug('Creating node', { label: node.label, properties: node.properties });
+      
+      // 生成节点ID
+      const nodeId = `${node.label}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // 构建插入节点的nGQL
+      const propertyNames = Object.keys(node.properties).join(', ');
+      const propertyValues = Object.values(node.properties).map(v => `"${v}"`).join(', ');
+      
+      let nGQL = `INSERT VERTEX ${node.label}`;
+      if (propertyNames) {
+        nGQL += `(${propertyNames}) VALUES "${nodeId}":(${propertyValues})`;
+      } else {
+        nGQL += `() VALUES "${nodeId}":()`;
+      }
+      
+      await this.session.execute(nGQL);
+      
+      this.logger.debug('Node created successfully', { nodeId });
+      return nodeId;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to create node: ${errorMessage}`),
+        { 
+          component: 'NebulaConnectionManager', 
+          operation: 'createNode',
+          node
+        }
+      );
+      
+      throw error;
+    }
   }
 
   async createRelationship(relationship: {
@@ -232,59 +321,207 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     targetId: string;
     properties?: Record<string, any>;
   }): Promise<void> {
-    // 模拟创建关系
-    // 在实际实现中，这里会使用Nebula客户端创建关系
-    this.logger.debug('Creating relationship', { 
-      type: relationship.type, 
-      sourceId: relationship.sourceId,
-      targetId: relationship.targetId,
-      properties: relationship.properties
-    });
-    
-    // 模拟创建延迟
-    await new Promise(resolve => setTimeout(resolve, 10));
+    try {
+      if (!this.isConnected() || !this.session) {
+        throw new Error('Not connected to Nebula Graph');
+      }
+
+      this.logger.debug('Creating relationship', { 
+        type: relationship.type, 
+        sourceId: relationship.sourceId,
+        targetId: relationship.targetId,
+        properties: relationship.properties
+      });
+      
+      // 构建插入边的nGQL
+      let nGQL = `INSERT EDGE ${relationship.type}`;
+      
+      if (relationship.properties && Object.keys(relationship.properties).length > 0) {
+        const propertyNames = Object.keys(relationship.properties).join(', ');
+        const propertyValues = Object.values(relationship.properties).map(v => `"${v}"`).join(', ');
+        nGQL += `(${propertyNames}) VALUES "${relationship.sourceId}"->"${relationship.targetId}":(${propertyValues})`;
+      } else {
+        nGQL += `() VALUES "${relationship.sourceId}"->"${relationship.targetId}":()`;
+      }
+      
+      await this.session.execute(nGQL);
+      
+      this.logger.debug('Relationship created successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to create relationship: ${errorMessage}`),
+        { 
+          component: 'NebulaConnectionManager', 
+          operation: 'createRelationship',
+          relationship
+        }
+      );
+      
+      throw error;
+    }
   }
 
   async findNodesByLabel(label: string, properties?: Record<string, any>): Promise<any[]> {
-    // 模拟查找节点
-    // 在实际实现中，这里会使用Nebula客户端查找节点
-    this.logger.debug('Finding nodes by label', { label, properties });
-    
-    // 模拟查询延迟
-    await new Promise(resolve => setTimeout(resolve, 20));
-    
-    // 返回模拟结果
-    return [];
+    try {
+      if (!this.isConnected() || !this.session) {
+        throw new Error('Not connected to Nebula Graph');
+      }
+
+      this.logger.debug('Finding nodes by label', { label, properties });
+      
+      // 构建查询节点的nGQL
+      let nGQL = `MATCH (n:${label})`;
+      
+      if (properties && Object.keys(properties).length > 0) {
+        const conditions = Object.entries(properties)
+          .map(([key, value]) => `n.${key} == "${value}"`)
+          .join(' AND ');
+        nGQL += ` WHERE ${conditions}`;
+      }
+      
+      nGQL += ' RETURN n';
+      
+      const result = await this.session.execute(nGQL);
+      
+      // 提取节点数据
+      const nodes = result.data?.data || [];
+      
+      this.logger.debug('Found nodes', { count: nodes.length });
+      return nodes;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to find nodes: ${errorMessage}`),
+        { 
+          component: 'NebulaConnectionManager', 
+          operation: 'findNodesByLabel',
+          label,
+          properties
+        }
+      );
+      
+      throw error;
+    }
   }
 
- async findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]> {
-    // 模拟查找关系
-    // 在实际实现中，这里会使用Nebula客户端查找关系
-    this.logger.debug('Finding relationships', { type, properties });
-    
-    // 模拟查询延迟
-    await new Promise(resolve => setTimeout(resolve, 20));
-    
-    // 返回模拟结果
-    return [];
+  async findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]> {
+    try {
+      if (!this.isConnected() || !this.session) {
+        throw new Error('Not connected to Nebula Graph');
+      }
+
+      this.logger.debug('Finding relationships', { type, properties });
+      
+      // 构建查询边的nGQL
+      let nGQL = 'MATCH ()-[r';
+      
+      if (type) {
+        nGQL += `:${type}`;
+      }
+      
+      nGQL += ']->()';
+      
+      if (properties && Object.keys(properties).length > 0) {
+        const conditions = Object.entries(properties)
+          .map(([key, value]) => `r.${key} == "${value}"`)
+          .join(' AND ');
+        nGQL += ` WHERE ${conditions}`;
+      }
+      
+      nGQL += ' RETURN r';
+      
+      const result = await this.session.execute(nGQL);
+      
+      // 提取关系数据
+      const relationships = result.data?.data || [];
+      
+      this.logger.debug('Found relationships', { count: relationships.length });
+      return relationships;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to find relationships: ${errorMessage}`),
+        { 
+          component: 'NebulaConnectionManager', 
+          operation: 'findRelationships',
+          type,
+          properties
+        }
+      );
+      
+      throw error;
+    }
   }
 
   async getDatabaseStats(): Promise<any> {
-    // 模拟获取数据库统计信息
-    // 在实际实现中，这里会使用Nebula客户端获取统计信息
-    this.logger.debug('Getting database stats');
-    
-    // 模拟查询延迟
-    await new Promise(resolve => setTimeout(resolve, 30));
-    
-    // 返回模拟结果
-    return {
-      version: '3.0.0',
-      status: 'online',
-      spaces: 0,
-      nodes: 0,
-      relationships: 0,
-    };
+    try {
+      if (!this.isConnected() || !this.session) {
+        throw new Error('Not connected to Nebula Graph');
+      }
+
+      this.logger.debug('Getting database stats');
+      
+      // 获取spaces信息
+      const spacesResult = await this.session.execute('SHOW SPACES');
+      const spaces = spacesResult.data?.data || [];
+      
+      // 获取当前space的标签和边类型信息
+      const tagsResult = await this.session.execute('SHOW TAGS');
+      const tags = tagsResult.data?.data || [];
+      
+      const edgeTypesResult = await this.session.execute('SHOW EDGES');
+      const edgeTypes = edgeTypesResult.data?.data || [];
+      
+      // 获取节点和边的数量统计
+      let nodeCount = 0;
+      let edgeCount = 0;
+      
+      if (this.config.space) {
+        try {
+          // 统计节点数量
+          for (const tag of tags) {
+            const countResult = await this.session.execute(`MATCH (n:${tag.Name}) RETURN count(n) AS count`);
+            nodeCount += countResult.data?.data[0]?.count || 0;
+          }
+          
+          // 统计边数量
+          for (const edgeType of edgeTypes) {
+            const countResult = await this.session.execute(`MATCH ()-[r:${edgeType.Name}]->() RETURN count(r) AS count`);
+            edgeCount += countResult.data?.data[0]?.count || 0;
+          }
+        } catch (error) {
+          this.logger.warn('Failed to get detailed counts', error);
+        }
+      }
+      
+      return {
+        version: '3.0.0',
+        status: 'online',
+        spaces: spaces.length,
+        currentSpace: this.config.space,
+        tags: tags.length,
+        edgeTypes: edgeTypes.length,
+        nodes: nodeCount,
+        relationships: edgeCount,
+        connectionInfo: {
+          host: this.config.host,
+          port: this.config.port,
+          username: this.config.username,
+        },
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to get database stats: ${errorMessage}`),
+        { 
+          component: 'NebulaConnectionManager', 
+          operation: 'getDatabaseStats'
+        }
+      );
+      
+      throw error;
+    }
   }
 
   isConnectedToDatabase(): boolean {

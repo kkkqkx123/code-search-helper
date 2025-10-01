@@ -30,6 +30,8 @@ export interface NebulaQueryResult {
   data?: any[];
   error?: string;
   executionTime?: number;
+  timeCost?: number;
+  space?: string;
 }
 
 // Nebula 错误处理类型

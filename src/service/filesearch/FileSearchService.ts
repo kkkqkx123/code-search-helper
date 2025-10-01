@@ -162,8 +162,7 @@ export class FileSearchService {
     try {
       this.logger.debug(`索引文件: ${filePath}`);
 
-      const embedder = await this.embedderFactory.getEmbedder() as BaseEmbedder;
-      const indexer = new FileVectorIndexer(this.qdrantService, embedder, this.logger);
+      const indexer = new FileVectorIndexer(this.qdrantService, this.embedderFactory, this.logger);
       await indexer.indexFile(filePath, projectId);
 
       // 清除相关缓存
@@ -186,8 +185,7 @@ export class FileSearchService {
     try {
       this.logger.info(`批量索引文件: ${files.length} 个文件`);
 
-      const embedder = await this.embedderFactory.getEmbedder() as BaseEmbedder;
-      const indexer = new FileVectorIndexer(this.qdrantService, embedder, this.logger);
+      const indexer = new FileVectorIndexer(this.qdrantService, this.embedderFactory, this.logger);
       const filePaths = files.map(file => file.path);
       await indexer.indexFiles(filePaths, projectId);
 

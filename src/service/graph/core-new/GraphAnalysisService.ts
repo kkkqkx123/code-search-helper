@@ -33,7 +33,7 @@ export class GraphAnalysisService {
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
     @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
-    @inject(TYPES.ICacheService) cacheService: ICacheService,
+    @inject(TYPES.GraphCacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {
     this.logger = logger;

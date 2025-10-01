@@ -49,6 +49,9 @@ import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerfor
 import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
 import { GraphQueryValidator } from './service/graph/validation/GraphQueryValidator';
 
+// Graph Database Service
+import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
+
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
   ConfigFactory: Symbol.for('ConfigFactory'),
@@ -107,6 +110,8 @@ export const TYPES = {
   FileSearchCache: Symbol.for('FileSearchCache'),
   // Nebula 数据库服务
   NebulaService: Symbol.for('NebulaService'),
+  NebulaConnectionManager: Symbol.for('NebulaConnectionManager'),
+  NebulaQueryBuilder: Symbol.for('NebulaQueryBuilder'),
   INebulaConnectionManager: Symbol.for('INebulaConnectionManager'),
   INebulaSpaceManager: Symbol.for('INebulaSpaceManager'),
   INebulaGraphOperations: Symbol.for('INebulaGraphOperations'),
@@ -123,6 +128,7 @@ export const TYPES = {
   GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
   TransactionManager: Symbol.for('TransactionManager'),
+  GraphDatabaseService: Symbol.for('GraphDatabaseService'),
   
   // Project lookup service
   ProjectLookupService: Symbol.for('ProjectLookupService'),

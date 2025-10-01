@@ -1,2 +1,4 @@
 
 前端新增中断索引的功能
+
+@/src/database/__tests__/nebula/NebulaConnectionManager.test.ts  将该文件中的模拟实现改为实际连接nebula数据库
