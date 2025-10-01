@@ -10,7 +10,7 @@ import { LoggerService } from '../../utils/LoggerService';
 @injectable()
 export class GraphRoutes {
   private router: Router;
- private graphService: IGraphService;
+  private graphService: IGraphService;
   private projectLookupService: ProjectLookupService;
   private validator: GraphQueryValidator;
   private performanceMonitor: GraphPerformanceMonitor;
@@ -86,68 +86,68 @@ export class GraphRoutes {
   /**
    * 删除项目空间端点
    */
- private async deleteSpace(req: Request, res: Response, next: NextFunction): Promise<void> {
-   try {
-     const { projectId } = req.params;
+  private async deleteSpace(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
 
-     if (!projectId) {
-       res.status(400).json({
-         success: false,
-         error: 'Bad Request',
-         message: 'Project ID is required'
-       });
-       return;
-     }
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'Bad Request',
+          message: 'Project ID is required'
+        });
+        return;
+      }
 
-     const startTime = Date.now();
-     const result = await this.graphService.dropSpace(projectId);
-     const executionTime = Date.now() - startTime;
+      const startTime = Date.now();
+      const result = await this.graphService.dropSpace(projectId);
+      const executionTime = Date.now() - startTime;
 
-     this.performanceMonitor.recordQueryExecution(executionTime);
-     this.logger.info(`Deleted space for project: ${projectId}`, { executionTime });
+      this.performanceMonitor.recordQueryExecution(executionTime);
+      this.logger.info(`Deleted space for project: ${projectId}`, { executionTime });
 
-     res.status(200).json({
-       success: true,
-       data: result
-     });
-   } catch (error) {
-     this.logger.error('Error deleting space', { error: (error as Error).message });
-     next(error);
-   }
- }
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      this.logger.error('Error deleting space', { error: (error as Error).message });
+      next(error);
+    }
+  }
 
   /**
    * 清空项目空间端点
    */
- private async clearSpace(req: Request, res: Response, next: NextFunction): Promise<void> {
-   try {
-     const { projectId } = req.params;
+  private async clearSpace(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
 
-     if (!projectId) {
-       res.status(400).json({
-         success: false,
-         error: 'Bad Request',
-         message: 'Project ID is required'
-       });
-       return;
-     }
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'Bad Request',
+          message: 'Project ID is required'
+        });
+        return;
+      }
 
-     const startTime = Date.now();
-     const result = await this.graphService.clearSpace(projectId);
-     const executionTime = Date.now() - startTime;
+      const startTime = Date.now();
+      const result = await this.graphService.clearSpace(projectId);
+      const executionTime = Date.now() - startTime;
 
-     this.performanceMonitor.recordQueryExecution(executionTime);
-     this.logger.info(`Cleared space for project: ${projectId}`, { executionTime });
+      this.performanceMonitor.recordQueryExecution(executionTime);
+      this.logger.info(`Cleared space for project: ${projectId}`, { executionTime });
 
-     res.status(200).json({
-       success: true,
-       data: result
-     });
-   } catch (error) {
-     this.logger.error('Error clearing space', { error: (error as Error).message });
-     next(error);
-   }
- }
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      this.logger.error('Error clearing space', { error: (error as Error).message });
+      next(error);
+    }
+  }
 
   /**
    * 获取空间信息端点
@@ -185,44 +185,44 @@ export class GraphRoutes {
   /**
    * 批量插入节点端点
    */
- private async insertNodes(req: Request, res: Response, next: NextFunction): Promise<void> {
-   try {
-     const { nodes, projectId } = req.body;
+  private async insertNodes(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { nodes, projectId } = req.body;
 
-     if (!projectId) {
-       res.status(400).json({
-         success: false,
-         error: 'Bad Request',
-         message: 'Project ID is required'
-       });
-       return;
-     }
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'Bad Request',
+          message: 'Project ID is required'
+        });
+        return;
+      }
 
-     if (!Array.isArray(nodes) || nodes.length === 0) {
-       res.status(400).json({
-         success: false,
-         error: 'Bad Request',
-         message: 'Nodes array is required and cannot be empty'
-       });
-       return;
-     }
+      if (!Array.isArray(nodes) || nodes.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Bad Request',
+          message: 'Nodes array is required and cannot be empty'
+        });
+        return;
+      }
 
-     const startTime = Date.now();
-     const result = await this.graphService.batchInsertNodes(nodes, projectId);
-     const executionTime = Date.now() - startTime;
+      const startTime = Date.now();
+      const result = await this.graphService.batchInsertNodes(nodes, projectId);
+      const executionTime = Date.now() - startTime;
 
-     this.performanceMonitor.recordQueryExecution(executionTime);
-     this.logger.info(`Inserted ${nodes.length} nodes for project: ${projectId}`, { executionTime });
+      this.performanceMonitor.recordQueryExecution(executionTime);
+      this.logger.info(`Inserted ${nodes.length} nodes for project: ${projectId}`, { executionTime });
 
-     res.status(200).json({
-       success: true,
-       data: result
-     });
-   } catch (error) {
-     this.logger.error('Error inserting nodes', { error: (error as Error).message });
-     next(error);
-   }
- }
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      this.logger.error('Error inserting nodes', { error: (error as Error).message });
+      next(error);
+    }
+  }
 
   /**
    * 批量插入边端点
@@ -269,44 +269,44 @@ export class GraphRoutes {
   /**
    * 批量删除节点端点
    */
- private async deleteNodes(req: Request, res: Response, next: NextFunction): Promise<void> {
-   try {
-     const { nodeIds, projectId } = req.body;
+  private async deleteNodes(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { nodeIds, projectId } = req.body;
 
-     if (!projectId) {
-       res.status(400).json({
-         success: false,
-         error: 'Bad Request',
-         message: 'Project ID is required'
-       });
-       return;
-     }
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'Bad Request',
+          message: 'Project ID is required'
+        });
+        return;
+      }
 
-     if (!Array.isArray(nodeIds) || nodeIds.length === 0) {
-       res.status(400).json({
-         success: false,
-         error: 'Bad Request',
-         message: 'Node IDs array is required and cannot be empty'
-       });
-       return;
-     }
+      if (!Array.isArray(nodeIds) || nodeIds.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Bad Request',
+          message: 'Node IDs array is required and cannot be empty'
+        });
+        return;
+      }
 
-     const startTime = Date.now();
-     const result = await this.graphService.batchDeleteNodes(nodeIds, projectId);
-     const executionTime = Date.now() - startTime;
+      const startTime = Date.now();
+      const result = await this.graphService.batchDeleteNodes(nodeIds, projectId);
+      const executionTime = Date.now() - startTime;
 
-     this.performanceMonitor.recordQueryExecution(executionTime);
-     this.logger.info(`Deleted ${nodeIds.length} nodes for project: ${projectId}`, { executionTime });
+      this.performanceMonitor.recordQueryExecution(executionTime);
+      this.logger.info(`Deleted ${nodeIds.length} nodes for project: ${projectId}`, { executionTime });
 
-     res.status(200).json({
-       success: true,
-       data: result
-     });
-   } catch (error) {
-     this.logger.error('Error deleting nodes', { error: (error as Error).message });
-     next(error);
-   }
- }
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      this.logger.error('Error deleting nodes', { error: (error as Error).message });
+      next(error);
+    }
+  }
 
   public getRouter(): Router {
     return this.router;

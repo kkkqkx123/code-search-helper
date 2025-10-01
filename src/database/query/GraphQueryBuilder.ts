@@ -19,6 +19,16 @@ export interface IGraphQueryBuilder {
   buildCommunityDetectionQuery(options?: any): { nGQL: string; parameters: Record<string, any> };
   buildPageRankQuery(options?: any): { nGQL: string; parameters: Record<string, any> };
   buildCodeAnalysisQuery(projectId: string, options?: any): { nGQL: string; parameters: Record<string, any> };
+  
+  // Additional methods used in tests
+  buildInsertNodeQuery(nodeData: { tag: string; id: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> };
+  buildInsertRelationshipQuery(relationshipData: { type: string; sourceId: string; targetId: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> };
+  buildUpdateNodeQuery(updateData: { tag: string; id: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> };
+  buildDeleteNodeQuery(nodeId: string): { nGQL: string; parameters: Record<string, any> };
+  buildFindRelatedNodesQuery(nodeId: string, relationshipTypes?: string[], maxDepth?: number): { nGQL: string; parameters: Record<string, any> };
+  buildFindPathQuery(sourceId: string, targetId: string, maxDepth?: number): { nGQL: string; parameters: Record<string, any> };
+  batchInsertVertices(vertices: Array<{ tag: string; id: string; properties: Record<string, any> }>): { query: string; params: Record<string, any> };
+  batchInsertEdges(edges: Array<{ type: string; srcId: string; dstId: string; properties: Record<string, any> }>): { query: string; params: Record<string, any> };
 }
 
 @injectable()
@@ -243,5 +253,175 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
     `;
 
     return { nGQL: query, parameters: { projectId, depth } };
+  }
+  
+  buildInsertNodeQuery(nodeData: { tag: string; id: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> } {
+    const { tag, id, properties } = nodeData;
+    
+    // Build property assignments
+    const propertyAssignments = Object.entries(properties)
+      .map(([key, value]) => {
+        if (typeof value === 'string') {
+          return `${key}:"${value}"`;
+        } else {
+          return `${key}:${value}`;
+        }
+      })
+      .join(', ');
+    
+    const query = `INSERT VERTEX \`${tag}\` (${propertyAssignments}) VALUES "${id}":(\`${tag}\`{${propertyAssignments}})`;
+    
+    return { nGQL: query, parameters: {} };
+  }
+  
+  buildInsertRelationshipQuery(relationshipData: { type: string; sourceId: string; targetId: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> } {
+    const { type, sourceId, targetId, properties } = relationshipData;
+    
+    // Build property assignments
+    const propertyAssignments = Object.entries(properties)
+      .map(([key, value]) => {
+        if (typeof value === 'string') {
+          return `${key}:"${value}"`;
+        } else {
+          return `${key}:${value}`;
+        }
+      })
+      .join(', ');
+    
+    const query = `INSERT EDGE \`${type}\` (${propertyAssignments}) VALUES "${sourceId}" -> "${targetId}":(\`${type}\`{${propertyAssignments}})`;
+    
+    return { nGQL: query, parameters: {} };
+  }
+  
+  buildUpdateNodeQuery(updateData: { tag: string; id: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> } {
+    const { tag, id, properties } = updateData;
+    
+    // Build SET clause
+    const setClause = Object.entries(properties)
+      .map(([key, value]) => {
+        if (typeof value === 'string') {
+          return `${key}:"${value}"`;
+        } else {
+          return `${key}:${value}`;
+        }
+      })
+      .join(', ');
+    
+    const query = `UPDATE VERTEX ON \`${tag}\` "${id}" SET ${setClause}`;
+    
+    return { nGQL: query, parameters: {} };
+  }
+  
+  buildDeleteNodeQuery(nodeId: string): { nGQL: string; parameters: Record<string, any> } {
+    const query = `DELETE VERTEX "${nodeId}" WITH EDGE`;
+    
+    return { nGQL: query, parameters: {} };
+  }
+  
+  buildFindRelatedNodesQuery(nodeId: string, relationshipTypes?: string[], maxDepth: number = 2): { nGQL: string; parameters: Record<string, any> } {
+    let edgeTypesClause = '*';
+    if (relationshipTypes && relationshipTypes.length > 0) {
+      edgeTypesClause = relationshipTypes.join(',');
+    }
+    
+    const query = `
+      GO FROM "${nodeId}" OVER ${edgeTypesClause} UPTO ${maxDepth} STEPS
+      YIELD dst(edge) AS destination
+      | FETCH PROP ON * $-.destination YIELD vertex AS related
+    `;
+    
+    return { nGQL: query, parameters: {} };
+  }
+  
+  buildFindPathQuery(sourceId: string, targetId: string, maxDepth: number = 3): { nGQL: string; parameters: Record<string, any> } {
+    const query = `
+      FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth} STEPS
+      YIELD path as p
+    `;
+    
+    return { nGQL: query, parameters: {} };
+  }
+  
+  batchInsertVertices(vertices: Array<{ tag: string; id: string; properties: Record<string, any> }>): { query: string; params: Record<string, any> } {
+    // Group vertices by tag
+    const verticesByTag: Record<string, Array<{ id: string; properties: Record<string, any> }>> = {};
+    
+    for (const vertex of vertices) {
+      if (!verticesByTag[vertex.tag]) {
+        verticesByTag[vertex.tag] = [];
+      }
+      verticesByTag[vertex.tag].push({
+        id: vertex.id,
+        properties: vertex.properties
+      });
+    }
+    
+    // Build property assignments for each vertex
+    const tagEntries = Object.entries(verticesByTag);
+    const tagList = tagEntries.map(([tag]) => `\`${tag}\``).join(',');
+    
+    const valuesClauses = tagEntries.map(([tag, vertexList]) => {
+      const vertexValues = vertexList.map(vertex => {
+        const propertyAssignments = Object.entries(vertex.properties)
+          .map(([key, value]) => {
+            if (typeof value === 'string') {
+              return `${key}:"${value}"`;
+            } else {
+              return `${key}:${value}`;
+            }
+          })
+          .join(',');
+        
+        return `"${vertex.id}":(\`${tag}\`{${propertyAssignments}})`;
+      }).join(',');
+      
+      return vertexValues;
+    }).join(',');
+    
+    const query = `INSERT VERTEX ${tagList} VALUES ${valuesClauses}`;
+    
+    return { query, params: {} };
+  }
+  
+  batchInsertEdges(edges: Array<{ type: string; srcId: string; dstId: string; properties: Record<string, any> }>): { query: string; params: Record<string, any> } {
+    // Group edges by type
+    const edgesByType: Record<string, Array<{ srcId: string; dstId: string; properties: Record<string, any> }>> = {};
+    
+    for (const edge of edges) {
+      if (!edgesByType[edge.type]) {
+        edgesByType[edge.type] = [];
+      }
+      edgesByType[edge.type].push({
+        srcId: edge.srcId,
+        dstId: edge.dstId,
+        properties: edge.properties
+      });
+    }
+    
+    // Build values clauses for each edge type
+    const typeEntries = Object.entries(edgesByType);
+    const typeList = typeEntries.map(([type]) => `\`${type}\``).join(',');
+    
+    const valuesClauses = typeEntries.map(([type, edgeList]) => {
+      const edgeValues = edgeList.map(edge => {
+        const propertyAssignments = Object.entries(edge.properties)
+          .map(([key, value]) => {
+            if (typeof value === 'string') {
+              return `${key}:"${value}"`;
+            } else {
+              return `${key}:${value}`;
+            }
+          })
+          .join(',');
+        
+        return `"${edge.srcId}"->"${edge.dstId}":(\`${type}\`{${propertyAssignments}})`;
+      }).join(',');
+      
+      return edgeValues;
+    }).join(',');
+    
+    const query = `INSERT EDGE ${typeList} VALUES ${valuesClauses}`;
+    
+    return { query, params: {} };
   }
 }

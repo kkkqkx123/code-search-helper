@@ -40,24 +40,20 @@ import { INebulaSpaceManager } from './database/nebula/NebulaSpaceManager';
 import { NebulaGraphOperations } from './database/nebula/NebulaGraphOperations';
 
 // 图服务
-import { GraphService } from './service/graph/core/GraphService';
-import { GraphSearchService } from './service/graph/core/GraphSearchService';
-import { GraphPersistenceService } from './service/graph/core/GraphPersistenceService';
 import { GraphCacheService } from './service/graph/cache/GraphCacheService';
 import { GraphQueryBuilder } from './service/graph/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
 import { GraphQueryValidator } from './service/graph/validation/GraphQueryValidator';
-
-// Graph Database Service
-import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
-
-// New Graph Services
 import { GraphAnalysisService } from './service/graph/core/GraphAnalysisService';
 import { GraphDataService } from './service/graph/core/GraphDataService';
 import { GraphTransactionService } from './service/graph/core/GraphTransactionService';
 import { GraphSearchServiceNew } from './service/graph/core/GraphSearchServiceNew';
 import { GraphServiceNewAdapter } from './service/graph/core/GraphServiceNewAdapter';
+
+// 图数据库服务
+import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
+
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
   ConfigFactory: Symbol.for('ConfigFactory'),
@@ -141,6 +137,6 @@ export const TYPES = {
   GraphSearchServiceNew: Symbol.for('GraphSearchServiceNew'),
   GraphServiceNewAdapter: Symbol.for('GraphServiceNewAdapter'),
 
-  // Project lookup service
+  // 项目查询服务
   ProjectLookupService: Symbol.for('ProjectLookupService'),
 };

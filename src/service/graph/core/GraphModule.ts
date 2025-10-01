@@ -1,4 +1,4 @@
-import { ContainerModule, interfaces } from 'inversify';
+import { ContainerModule } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
@@ -11,53 +11,60 @@ import { TransactionManager } from '../../../database/core/TransactionManager';
 import { GraphAnalysisService } from './GraphAnalysisService';
 import { GraphDataService } from './GraphDataService';
 import { GraphTransactionService } from './GraphTransactionService';
+import { GraphSearchServiceNew } from './GraphSearchServiceNew';
 import { GraphServiceNewAdapter } from './GraphServiceNewAdapter';
 import { IGraphAnalysisService } from './IGraphAnalysisService';
 import { IGraphDataService } from './IGraphDataService';
 import { IGraphTransactionService } from './IGraphTransactionService';
-import { IGraphService } from '../core/IGraphService';
+import { IGraphSearchService } from './IGraphSearchService';
+import { IGraphService } from './IGraphService';
 
 // 创建图服务模块
-export const GraphModule = new ContainerModule((bind: interfaces.Bind) => {
+export const GraphModule = new ContainerModule((bind: any) => {
   // 绑定图分析服务
-  bind<IGraphAnalysisService>(TYPES.GraphAnalysisService)
+  bind(TYPES.GraphAnalysisService)
     .to(GraphAnalysisService)
     .inSingletonScope();
 
   // 绑定图数据服务
-  bind<IGraphDataService>(TYPES.GraphDataService)
+  bind(TYPES.GraphDataService)
     .to(GraphDataService)
     .inSingletonScope();
 
   // 绑定图事务服务
-  bind<IGraphTransactionService>(TYPES.GraphTransactionService)
+  bind(TYPES.GraphTransactionService)
     .to(GraphTransactionService)
     .inSingletonScope();
 
+  // 绑定图搜索服务
+  bind(TYPES.GraphSearchServiceNew)
+    .to(GraphSearchServiceNew)
+    .inSingletonScope();
+
   // 绑定图服务适配器（实现旧接口）
-  bind<IGraphService>(TYPES.GraphServiceNewAdapter)
+  bind(TYPES.GraphServiceNewAdapter)
     .to(GraphServiceNewAdapter)
     .inSingletonScope();
 
   // 绑定基础设施服务（如果尚未绑定）
-  bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
-  bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
-  bind<GraphDatabaseService>(TYPES.GraphDatabaseService).to(GraphDatabaseService).inSingletonScope();
-  bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
-  bind<IPerformanceMonitor>(TYPES.GraphPerformanceMonitor).toDynamicValue((context) => {
+  bind(TYPES.LoggerService).to(LoggerService).inSingletonScope();
+  bind(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
+  bind(TYPES.GraphDatabaseService).to(GraphDatabaseService).inSingletonScope();
+  bind(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
+  bind(TYPES.GraphPerformanceMonitor).toDynamicValue((context: any) => {
     // 这里应该根据实际的性能监控实现来绑定
     // 暂时使用占位符
-    return {} as IPerformanceMonitor;
+    return {};
   }).inSingletonScope();
-  bind<ICacheService>(TYPES.GraphCacheService).toDynamicValue((context) => {
+  bind(TYPES.GraphCacheService).toDynamicValue((context: any) => {
     // 这里应该根据实际的缓存服务实现来绑定
     // 暂时使用占位符
-    return {} as ICacheService;
+    return {};
   }).inSingletonScope();
-  bind<IBatchOptimizer>(TYPES.GraphBatchOptimizer).toDynamicValue((context) => {
+  bind(TYPES.GraphBatchOptimizer).toDynamicValue((context: any) => {
     // 这里应该根据实际的批处理优化器实现来绑定
     // 暂时使用占位符
-    return {} as IBatchOptimizer;
+    return {};
   }).inSingletonScope();
-  bind<TransactionManager>(TYPES.TransactionManager).to(TransactionManager).inSingletonScope();
+  bind(TYPES.TransactionManager).to(TransactionManager).inSingletonScope();
 });

@@ -3,12 +3,12 @@ import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { HashUtils } from '../../../utils/HashUtils';
-import { IGraphService } from '../core/IGraphService';
+import { IGraphService } from './IGraphService';
 import { GraphNode, GraphEdge, GraphAnalysisOptions, GraphAnalysisResult, CodeGraphNode, CodeGraphRelationship, GraphPersistenceOptions, GraphPersistenceResult, GraphSearchOptions, GraphSearchResult } from './types';
 import { IGraphAnalysisService } from './IGraphAnalysisService';
 import { IGraphDataService } from './IGraphDataService';
 import { IGraphTransactionService } from './IGraphTransactionService';
-import { IGraphSearchService } from './GraphSearchServiceNew';
+import { IGraphSearchService } from './IGraphSearchService';
 
 @injectable()
 export class GraphServiceAdapter implements IGraphService {
@@ -377,5 +377,36 @@ export class GraphServiceAdapter implements IGraphService {
     cacheHitRate: number;
   }> {
     return this.graphSearchService.getSearchStats();
+  }
+
+  // Space management methods
+  async createSpace(projectId: string, config?: any): Promise<boolean> {
+    return this.graphTransactionService.createProjectSpace(projectId, config);
+  }
+
+  async dropSpace(projectId: string): Promise<boolean> {
+    return this.graphTransactionService.deleteProjectSpace(projectId);
+  }
+
+  async clearSpace(projectId: string): Promise<boolean> {
+    // For now, we'll clear the graph in the current space
+    // A more complete implementation would clear the specific project space
+    return this.graphDataService.clearGraph();
+  }
+
+  async getSpaceInfo(projectId: string): Promise<any> {
+    return this.graphTransactionService.projectSpaceExists(projectId);
+  }
+
+  async batchInsertNodes(nodes: any[], projectId: string): Promise<GraphPersistenceResult> {
+    return this.graphDataService.storeParsedFiles(nodes, { projectId });
+  }
+
+  async batchInsertEdges(edges: any[], projectId: string): Promise<GraphPersistenceResult> {
+    return this.graphDataService.storeChunks(edges, { projectId });
+  }
+
+  async batchDeleteNodes(nodeIds: string[], projectId: string): Promise<boolean> {
+    return this.graphDataService.deleteNodes(nodeIds);
   }
 }

@@ -2,14 +2,13 @@ import { GraphDataService } from '../../service/graph/core/GraphDataService';
 import { GraphAnalysisService } from '../../service/graph/core/GraphAnalysisService';
 import { GraphTransactionService } from '../../service/graph/core/GraphTransactionService';
 import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService';
-import { GraphPersistenceService } from '../../service/graph/core/GraphPersistenceService';
 
 describe('Graph Service Migration Integration Tests', () => {
   let graphDataService: GraphDataService;
   let graphAnalysisService: GraphAnalysisService;
   let graphTransactionService: GraphTransactionService;
   let graphDatabaseService: GraphDatabaseService;
-  let originalGraphPersistenceService: GraphPersistenceService;
+  let originalGraphDataService: GraphDataService;
 
 
   const mockTransactionManager = {
@@ -115,18 +114,14 @@ describe('Graph Service Migration Integration Tests', () => {
     );
 
     // Create original service for comparison
-    originalGraphPersistenceService = new GraphPersistenceService(
-      {} as any, // NebulaService
-      {} as any, // NebulaSpaceManager
+    originalGraphDataService = new GraphDataService(
       mockLoggerService as any,
       mockErrorHandlerService as any,
       mockConfigService as any,
-      {} as any, // NebulaQueryBuilder
-      mockCacheService as any,
-      mockPerformanceMonitor as any,
-      mockBatchOptimizer as any,
+      graphDatabaseService,
       {} as any, // GraphQueryBuilder
-      {} as any  // GraphPersistenceUtils
+      mockCacheService as any,
+      mockPerformanceMonitor as any
     );
   });
 

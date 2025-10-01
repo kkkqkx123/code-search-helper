@@ -13,19 +13,7 @@ import {
   CodeGraphNode,
   CodeGraphRelationship
 } from './types';
-
-export interface IGraphSearchService {
-  search(query: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
-  searchByNodeType(nodeType: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
-  searchByRelationshipType(relationshipType: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
-  searchByPath(sourceId: string, targetId: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
-  getSearchSuggestions(query: string): Promise<string[]>;
-  getSearchStats(): Promise<{
-    totalSearches: number;
-    avgExecutionTime: number;
-    cacheHitRate: number;
-  }>;
-}
+import { IGraphSearchService } from './IGraphSearchService';
 
 @injectable()
 export class GraphSearchServiceNew implements IGraphSearchService {
@@ -334,11 +322,30 @@ export class GraphSearchServiceNew implements IGraphSearchService {
     avgExecutionTime: number;
     cacheHitRate: number;
   }> {
+    const metrics = this.performanceMonitor.getMetrics();
     return {
-      totalSearches: this.performanceMonitor.getMetrics().totalQueries || 0,
-      avgExecutionTime: this.performanceMonitor.getMetrics().avgExecutionTime || 0,
-      cacheHitRate: this.performanceMonitor.getMetrics().cacheHitRate || 0,
+      totalSearches: metrics.queryExecutionTimes?.length || 0,
+      avgExecutionTime: metrics.averageQueryTime || 0,
+      cacheHitRate: metrics.cacheHitRate || 0,
     };
+  }
+
+  async close(): Promise<void> {
+    try {
+      this.logger.info('Closing graph search service');
+      this.isInitialized = false;
+      // Close any resources if needed
+      this.logger.info('Graph search service closed successfully');
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to close graph search service: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'GraphSearchServiceNew', operation: 'close' }
+      );
+    }
+  }
+
+  isServiceInitialized(): boolean {
+    return this.isInitialized;
   }
 
   private generateCacheKey(query: string, options: GraphSearchOptions): string {

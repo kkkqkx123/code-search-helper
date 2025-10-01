@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
-import { IGraphService } from '../core/IGraphService';
+import { IGraphService } from './IGraphService';
 import { GraphServiceComposite } from './GraphServiceComposite';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';

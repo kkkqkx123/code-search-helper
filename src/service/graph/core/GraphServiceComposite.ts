@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { IGraphService } from '../core/IGraphService';
+import { IGraphService } from './IGraphService';
 import { GraphNode, GraphEdge, GraphAnalysisOptions, GraphAnalysisResult, CodeGraphNode, CodeGraphRelationship, GraphPersistenceOptions, GraphPersistenceResult, GraphSearchOptions, GraphSearchResult } from './types';
 import { IGraphAnalysisService } from './IGraphAnalysisService';
 import { IGraphDataService } from './IGraphDataService';

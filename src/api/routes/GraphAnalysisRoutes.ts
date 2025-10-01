@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
 import { IGraphService } from '../../service/graph/core/IGraphService';
-import { GraphSearchService } from '../../service/graph/core/GraphSearchService';
+import { GraphSearchServiceNew } from '../../service/graph/core/GraphSearchServiceNew';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../utils/LoggerService';
 
@@ -10,16 +10,16 @@ import { LoggerService } from '../../utils/LoggerService';
 export class GraphAnalysisRoutes {
   private router: Router;
   private graphService: IGraphService;
-  private graphSearchService: GraphSearchService;
+  private graphSearchService: GraphSearchServiceNew;
   private performanceMonitor: GraphPerformanceMonitor;
   private logger: LoggerService;
 
   constructor(
     @inject(TYPES.GraphServiceNewAdapter) graphService: IGraphService,
-    @inject(TYPES.GraphSearchService) graphSearchService: GraphSearchService,
+    @inject(TYPES.GraphSearchServiceNew) graphSearchService: GraphSearchServiceNew,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.LoggerService) logger: LoggerService
- ) {
+  ) {
     this.graphService = graphService;
     this.graphSearchService = graphSearchService;
     this.performanceMonitor = performanceMonitor;
@@ -40,7 +40,7 @@ export class GraphAnalysisRoutes {
     // 代码结构分析路由
     this.router.get('/analysis/overview/:projectId', this.getProjectOverview.bind(this));
     this.router.get('/analysis/metrics/:projectId', this.getStructureMetrics.bind(this));
- }
+  }
 
   /**
    * 文件依赖分析端点
@@ -163,7 +163,7 @@ export class GraphAnalysisRoutes {
       this.logger.error('Error analyzing call graph', { error: (error as Error).message });
       next(error);
     }
- }
+  }
 
   /**
    * 影响范围分析端点
@@ -271,7 +271,7 @@ export class GraphAnalysisRoutes {
       this.logger.error('Error getting structure metrics', { error: (error as Error).message });
       next(error);
     }
- }
+  }
 
   public getRouter(): Router {
     return this.router;

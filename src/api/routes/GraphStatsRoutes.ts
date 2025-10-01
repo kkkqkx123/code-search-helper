@@ -19,7 +19,7 @@ export class GraphStatsRoutes {
     @inject(TYPES.GraphCacheService) graphCacheService: GraphCacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.LoggerService) logger: LoggerService
- ) {
+  ) {
     this.graphService = graphService;
     this.graphCacheService = graphCacheService;
     this.performanceMonitor = performanceMonitor;
@@ -39,9 +39,9 @@ export class GraphStatsRoutes {
     this.router.get('/stats/status', this.getServiceStatus.bind(this));
   }
 
- /**
-   * 获取图统计信息端点
-   */
+  /**
+    * 获取图统计信息端点
+    */
   private async getGraphStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { projectId } = req.params;
@@ -70,7 +70,7 @@ export class GraphStatsRoutes {
       this.logger.error('Error getting graph stats', { error: (error as Error).message });
       next(error);
     }
- }
+  }
 
   /**
    * 获取缓存统计端点
@@ -92,7 +92,7 @@ export class GraphStatsRoutes {
       this.logger.error('Error getting cache stats', { error: (error as Error).message });
       next(error);
     }
- }
+  }
 
   /**
    * 获取性能指标端点
@@ -126,7 +126,7 @@ export class GraphStatsRoutes {
       const graphServiceHealthy = await this.graphService.isHealthy();
       const cacheHealthy = this.graphCacheService.isHealthy();
       const performanceMonitorHealthy = this.performanceMonitor.isHealthy();
-      
+
       const executionTime = Date.now() - startTime;
 
       const isHealthy = graphServiceHealthy && cacheHealthy && performanceMonitorHealthy;
@@ -160,7 +160,7 @@ export class GraphStatsRoutes {
       const graphServiceStatus = await this.graphService.getStatus();
       const cacheStatus = this.graphCacheService.getStatus();
       const performanceStatus = this.performanceMonitor.getStatus();
-      
+
       const executionTime = Date.now() - startTime;
 
       res.status(200).json({
