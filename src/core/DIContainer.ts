@@ -55,27 +55,25 @@ import { NebulaQueryBuilder } from '../database/nebula/NebulaQueryBuilder';
 import { NebulaSpaceManager } from '../database/nebula/NebulaSpaceManager';
 import { INebulaSpaceManager } from '../database/nebula/NebulaSpaceManager';
 import { NebulaGraphOperations } from '../database/nebula/NebulaGraphOperations';
+import { GraphDatabaseService } from '../database/graph/GraphDatabaseService';
 
 // Graph 服务
+import { GraphModule } from '../service/graph/core/GraphModule';
 import { GraphCacheService } from '../service/graph/cache/GraphCacheService';
 import { GraphQueryBuilder } from '../service/graph/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from '../service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from '../service/graph/performance/GraphBatchOptimizer';
 import { GraphPersistenceUtils } from '../service/graph/utils/GraphPersistenceUtils';
 import { GraphQueryValidator } from '../service/graph/validation/GraphQueryValidator';
-
-// Graph Module
-import { GraphModule } from '../service/graph/core/GraphModule';
-
-// Graph Database Service
-import { GraphDatabaseService } from '../database/graph/GraphDatabaseService';
-
-// New Graph Services
 import { GraphAnalysisService } from '../service/graph/core/GraphAnalysisService';
 import { GraphDataService } from '../service/graph/core/GraphDataService';
 import { GraphTransactionService } from '../service/graph/core/GraphTransactionService';
 import { GraphSearchServiceNew } from '../service/graph/core/GraphSearchServiceNew';
 import { GraphServiceNewAdapter } from '../service/graph/core/GraphServiceNewAdapter';
+
+// 数据库事务管理
+import { TransactionManager } from '../database/core/TransactionManager';
+
 // 创建依赖注入容器
 const diContainer = new Container();
 
@@ -168,10 +166,10 @@ diContainer.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryVa
 // 显式绑定GraphDatabaseService（确保在模块加载前可用）
 diContainer.bind<GraphDatabaseService>(TYPES.GraphDatabaseService).to(GraphDatabaseService).inSingletonScope();
 
-// 加载Graph模块（包含其他图服务）
-diContainer.load(GraphModule);
+// 绑定TransactionManager
+diContainer.bind<TransactionManager>(TYPES.TransactionManager).to(TransactionManager).inSingletonScope();
 
-// 注册新Graph服务
+// 直接绑定GraphModule中的所有服务（避免ContainerModule加载问题）
 diContainer.bind<GraphAnalysisService>(TYPES.GraphAnalysisService).to(GraphAnalysisService).inSingletonScope();
 diContainer.bind<GraphDataService>(TYPES.GraphDataService).to(GraphDataService).inSingletonScope();
 diContainer.bind<GraphTransactionService>(TYPES.GraphTransactionService).to(GraphTransactionService).inSingletonScope();
