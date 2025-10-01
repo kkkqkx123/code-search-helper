@@ -32,7 +32,7 @@ export class GraphAnalysisService {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
-    @inject(TYPES.IGraphQueryBuilder) queryBuilder: GraphQueryBuilder,
+    @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
     @inject(TYPES.ICacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {

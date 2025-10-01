@@ -19,25 +19,35 @@ describe('GraphTransactionService', () => {
   beforeEach(() => {
     // Import mocked modules
     const GraphDatabaseService = require('../../../database/graph/GraphDatabaseService').GraphDatabaseService;
-    const TransactionManager = require('../../../database/core/TransactionManager').TransactionManager;
     const BatchOptimizer = require('../../../infrastructure/batching/BatchOptimizer').BatchOptimizer;
     const LoggerService = require('../../../utils/LoggerService').LoggerService;
     const ErrorHandlerService = require('../../../utils/ErrorHandlerService').ErrorHandlerService;
-
+  
     // Create mock instances
     mockGraphDatabaseService = new GraphDatabaseService();
-    mockTransactionManager = new TransactionManager();
     mockBatchOptimizer = new BatchOptimizer();
     mockLoggerService = new LoggerService();
     mockErrorHandlerService = new ErrorHandlerService();
+    
+    // Create a mock transaction manager
+    mockTransactionManager = {
+      executeTransaction: jest.fn(),
+      beginTransaction: jest.fn(),
+      commitTransaction: jest.fn(),
+      rollbackTransaction: jest.fn()
+    };
 
     // Create service instance with mocks
     graphTransactionService = new GraphTransactionService(
-      mockGraphDatabaseService,
-      mockTransactionManager,
-      mockBatchOptimizer,
       mockLoggerService,
-      mockErrorHandlerService
+      mockErrorHandlerService,
+      {} as any, // ConfigService
+      mockGraphDatabaseService,
+      {} as any, // GraphQueryBuilder
+      mockBatchOptimizer,
+      {} as any, // CacheService
+      {} as any, // PerformanceMonitor
+      mockTransactionManager
     );
   });
 

@@ -41,13 +41,13 @@ describe('GraphDataService', () => {
 
     // Create service instance with mocks
     graphDataService = new GraphDataService(
+      mockLoggerService,
+      mockErrorHandlerService,
+      mockConfigService,
       mockGraphDatabaseService,
       mockCacheService,
       mockBatchOptimizer,
-      mockPerformanceMonitor,
-      mockLoggerService,
-      mockErrorHandlerService,
-      mockConfigService
+      mockPerformanceMonitor
     );
   });
 

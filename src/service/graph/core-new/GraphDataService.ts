@@ -7,8 +7,8 @@ import { GraphDatabaseService } from '../../../database/graph/GraphDatabaseServi
 import { GraphQueryBuilder } from '../../../database/query/GraphQueryBuilder';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
-import { 
-  GraphPersistenceOptions, 
+import {
+  GraphPersistenceOptions,
   GraphPersistenceResult,
   CodeGraphNode,
   CodeGraphRelationship
@@ -30,9 +30,9 @@ export class GraphDataService {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
-    @inject(TYPES.IGraphQueryBuilder) queryBuilder: GraphQueryBuilder,
-    @inject(TYPES.ICacheService) cacheService: ICacheService,
-    @inject(TYPES.IPerformanceMonitor) performanceMonitor: IPerformanceMonitor
+    @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
+    @inject(TYPES.GraphCacheService) cacheService: ICacheService,
+    @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -46,7 +46,7 @@ export class GraphDataService {
   async initialize(): Promise<boolean> {
     try {
       this.logger.info('Initializing graph data service');
-      
+
       // Ensure the graph database is initialized
       if (!this.graphDatabase.isDatabaseConnected()) {
         const initialized = await this.graphDatabase.initialize();
@@ -227,7 +227,7 @@ export class GraphDataService {
       `;
 
       const result = await this.graphDatabase.executeReadQuery(query);
-      
+
       if (result && result.data) {
         return result.data.map((record: any) => this.recordToGraphNode(record));
       }
@@ -263,7 +263,7 @@ export class GraphDataService {
       // Build the path query
       const query = this.queryBuilder.buildPathQuery(sourceId, targetId, maxDepth);
       const result = await this.graphDatabase.executeReadQuery(query.nGQL, query.parameters);
-      
+
       if (result && result.data) {
         return result.data.map((record: any) => this.recordToGraphRelationship(record, sourceId, targetId));
       }
@@ -369,10 +369,10 @@ export class GraphDataService {
   async close(): Promise<void> {
     try {
       this.logger.info('Closing graph data service');
-      
+
       // Close the graph database service
       await this.graphDatabase.close();
-      
+
       this.isInitialized = false;
       this.logger.info('Graph data service closed successfully');
     } catch (error) {
@@ -502,17 +502,17 @@ export class GraphDataService {
   }
 
   private countCreatedNodes(results: any[]): number {
-    return results.filter(result => 
-      result && result.success && 
-      result.data && 
+    return results.filter(result =>
+      result && result.success &&
+      result.data &&
       (result.data.inserted || result.data.inserted_vertex)
     ).length;
   }
 
   private countCreatedRelationships(results: any[]): number {
-    return results.filter(result => 
-      result && result.success && 
-      result.data && 
+    return results.filter(result =>
+      result && result.success &&
+      result.data &&
       (result.data.inserted || result.data.inserted_edge)
     ).length;
   }

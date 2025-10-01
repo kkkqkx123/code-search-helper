@@ -6,8 +6,8 @@ import { ConfigService } from '../../config/ConfigService';
 import { NebulaService } from '../NebulaService';
 import { NebulaSpaceManager } from '../nebula/NebulaSpaceManager';
 import { GraphQueryBuilder } from '../query/GraphQueryBuilder';
-import { DatabaseService } from '../core/DatabaseService';
-import { TransactionManager, TransactionOperation, TransactionResult } from '../core/TransactionManager';
+import { TransactionManager, TransactionOperation } from '../core/TransactionManager';
+import { TransactionResult } from '../core/TransactionManager';
 import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
@@ -52,7 +52,6 @@ export class GraphDatabaseService {
     @inject(TYPES.NebulaService) nebulaService: NebulaService,
     @inject(TYPES.INebulaSpaceManager) spaceManager: NebulaSpaceManager,
     @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
-    @inject(TYPES.TransactionManager) transactionManager: TransactionManager,
     @inject(TYPES.GraphBatchOptimizer) batchOptimizer: IBatchOptimizer,
     @inject(TYPES.GraphCacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
@@ -64,7 +63,7 @@ export class GraphDatabaseService {
     this.nebulaService = nebulaService;
     this.spaceManager = spaceManager;
     this.queryBuilder = queryBuilder;
-    this.transactionManager = transactionManager;
+    this.transactionManager = new TransactionManager(logger, errorHandler);
     this.batchOptimizer = batchOptimizer;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
@@ -314,7 +313,7 @@ export class GraphDatabaseService {
 
     try {
       // Use batch optimizer for efficient execution
-      const result = await this.batchOptimizer.executeWithOptimalBatching(
+      const batchResults = await this.batchOptimizer.executeWithOptimalBatching(
         queries,
         async (batch) => {
           if (this.config.enableTransactions && batch.length > 1) {
@@ -337,7 +336,35 @@ export class GraphDatabaseService {
         { concurrency: 3 }
       );
 
-      return result;
+      // Since batchResults is an array of results from each batch,
+      // we need to combine them into a single TransactionResult
+      const combinedResults: any[] = [];
+      let totalExecutionTime = 0;
+      let hasError = false;
+      let errorMessage = "";
+
+      for (const batchResult of batchResults) {
+        if (batchResult.success !== undefined) {
+          // It's a TransactionResult
+          if (batchResult.success) {
+            combinedResults.push(...batchResult.results);
+          } else {
+            hasError = true;
+            errorMessage = batchResult.error || "Batch execution failed";
+          }
+          totalExecutionTime += batchResult.executionTime || 0;
+        } else {
+          // It's a regular result from executeWriteQuery
+          combinedResults.push(batchResult);
+        }
+      }
+
+      return {
+        success: !hasError,
+        results: combinedResults,
+        error: hasError ? errorMessage : undefined,
+        executionTime: totalExecutionTime || Date.now() - startTime,
+      };
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Failed to execute batch queries: ${error instanceof Error ? error.message : String(error)}`),
