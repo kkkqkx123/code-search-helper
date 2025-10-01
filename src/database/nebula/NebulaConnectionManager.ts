@@ -20,7 +20,7 @@ export interface INebulaConnectionManager {
     properties?: Record<string, any>;
   }): Promise<void>;
   findNodesByLabel(label: string, properties?: Record<string, any>): Promise<any[]>;
-  findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]>;
+ findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]>;
   getDatabaseStats(): Promise<any>;
   isConnectedToDatabase(): boolean;
 }
@@ -103,7 +103,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
-  async disconnect(): Promise<void> {
+ async disconnect(): Promise<void> {
     try {
       // 模拟断开连接
       // 在实际实现中，这里会关闭Nebula的客户端连接
@@ -125,7 +125,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
-  isConnected(): boolean {
+ isConnected(): boolean {
     return this.connectionStatus.connected;
   }
 
@@ -133,7 +133,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     return { ...this.connectionStatus };
   }
 
-  async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
+ async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
     try {
       if (!this.isConnected()) {
         throw new Error('Not connected to Nebula Graph');
@@ -252,7 +252,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     return [];
   }
 
-  async findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]> {
+ async findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]> {
     // 模拟查找关系
     // 在实际实现中，这里会使用Nebula客户端查找关系
     this.logger.debug('Finding relationships', { type, properties });

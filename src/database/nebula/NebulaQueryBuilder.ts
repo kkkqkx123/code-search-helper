@@ -26,7 +26,7 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
    * @param properties 属性对象
    * @returns {query: string, params: Record<string, any>} 查询语句和参数
    */
-  insertVertex(
+ insertVertex(
     tag: string,
     vertexId: string,
     properties: Record<string, any>
@@ -165,7 +165,7 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
    */
   batchInsertEdges(
     edges: BatchEdge[]
-  ): { query: string; params: Record<string, any> } {
+ ): { query: string; params: Record<string, any> } {
     if (edges.length === 0) {
       return { query: '', params: {} };
     }
@@ -379,7 +379,7 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
   deleteVertices(
     vertexIds: string[],
     tag?: string
-  ): { query: string; params: Record<string, any> } {
+ ): { query: string; params: Record<string, any> } {
     if (vertexIds.length === 0) {
       return { query: '', params: {} };
     }
@@ -411,6 +411,8 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
       return { query: '', params: {} };
     }
 
+    const params: Record<string, any> = {};
+
     const deleteClauses = edges
       .map((edge, index) => {
         const srcParam = `src${index}`;
@@ -420,8 +422,6 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
         return `$${srcParam} -> $${dstParam}`;
       })
       .join(', ');
-
-    const params: Record<string, any> = {};
 
     const query = `DELETE EDGE ${deleteClauses}`;
     return { query, params };
@@ -438,7 +438,7 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
       RETURN count(n) AS total
     `;
     return { query, params: {} };
-  }
+ }
 
   /**
    * 构建关系计数查询

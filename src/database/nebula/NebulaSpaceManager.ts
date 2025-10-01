@@ -10,14 +10,14 @@ export interface INebulaSpaceManager {
   createSpace(projectId: string, config?: any): Promise<boolean>;
   deleteSpace(projectId: string): Promise<boolean>;
   listSpaces(): Promise<string[]>;
-  getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null>;
+ getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null>;
   checkSpaceExists(projectId: string): Promise<boolean>;
   clearSpace(projectId: string): Promise<boolean>;
 }
 
 export interface GraphConfig {
   partitionNum?: number;
-  replicaFactor?: number;
+ replicaFactor?: number;
   vidType?: string;
 }
 
@@ -40,9 +40,9 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     this.configService = configService;
   }
 
-  private generateSpaceName(projectId: string): string {
+ private generateSpaceName(projectId: string): string {
     return `project_${projectId}`;
-  }
+ }
 
   async createSpace(projectId: string, config: GraphConfig = {}): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
@@ -156,7 +156,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       // 返回空数组而不是抛出异常，让调用者能够继续处理
       return [];
     }
- }
+  }
 
   async getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null> {
     const spaceName = this.generateSpaceName(projectId);
@@ -228,7 +228,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     spaceName: string,
     maxRetries: number = 30,
     retryDelay: number = 1000
-  ): Promise<void> {
+ ): Promise<void> {
     this.logger.info(`Waiting for space ${spaceName} to be ready...`);
     
     for (let i = 0; i < maxRetries; i++) {
@@ -362,7 +362,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
     }
-  }
+ }
 
   async clearSpace(projectId: string): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
