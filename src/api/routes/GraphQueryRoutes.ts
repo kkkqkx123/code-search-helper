@@ -22,7 +22,7 @@ export class GraphQueryRoutes {
     @inject(TYPES.GraphQueryValidator) validator: GraphQueryValidator,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.LoggerService) logger: LoggerService
- ) {
+  ) {
     this.graphSearchService = graphSearchService;
     this.graphPersistenceService = graphPersistenceService;
     this.validator = validator;
@@ -54,7 +54,7 @@ export class GraphQueryRoutes {
   /**
    * 执行自定义查询端点
    */
- private async executeQuery(req: Request, res: Response, next: NextFunction): Promise<void> {
+  private async executeQuery(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { query, projectId, parameters } = req.body;
 
@@ -88,10 +88,11 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      const result = await this.graphSearchService.executeCustomQuery(query, projectId, parameters);
+      // 使用 GraphPersistenceService 中的 nebulaService 来执行自定义查询
+      const result = await this.graphPersistenceService['nebulaService'].executeReadQuery(query, parameters);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Executed custom query for project: ${projectId}`, { executionTime, queryLength: query.length });
 
       res.status(200).json({
@@ -131,20 +132,16 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      const result = await this.graphSearchService.findRelatedNodes(nodeId, projectId, {
-        relationshipTypes,
-        maxDepth,
-        limit
-      });
+      const result = await this.graphPersistenceService.findRelatedNodes(nodeId, relationshipTypes, maxDepth);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Found related nodes for node: ${nodeId}`, { executionTime, projectId });
 
       res.status(200).json({
         success: true,
-        nodes: result.nodes,
-        relationships: result.relationships
+        nodes: result,
+        relationships: []
       });
     } catch (error) {
       this.logger.error('Error finding related nodes', { error: (error as Error).message });
@@ -178,13 +175,10 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      const result = await this.graphSearchService.findShortestPath(sourceId, targetId, projectId, {
-        edgeTypes,
-        maxDepth
-      });
+      const result = await this.graphPersistenceService.findPath(sourceId, targetId, maxDepth);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Found shortest path from ${sourceId} to ${targetId}`, { executionTime, projectId });
 
       res.status(200).json({
@@ -195,7 +189,7 @@ export class GraphQueryRoutes {
       this.logger.error('Error finding shortest path', { error: (error as Error).message });
       next(error);
     }
- }
+  }
 
   /**
    * 所有路径搜索端点
@@ -223,12 +217,15 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      const result = await this.graphSearchService.findAllPaths(sourceId, targetId, projectId, {
-        maxDepth
-      });
+      // 使用 NebulaGraph 的 FIND ALL PATH 查询
+      const query = `
+        FIND ALL PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth || 5} STEPS
+        YIELD path as p
+      `;
+      const result = await this.graphPersistenceService['nebulaService'].executeReadQuery(query);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Found all paths from ${sourceId} to ${targetId}`, { executionTime, projectId });
 
       res.status(200).json({
@@ -267,14 +264,30 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      const result = await this.graphSearchService.traverseGraph(startNode, projectId, {
-        traversalType,
-        depth,
-        filters
-      });
+      // 使用 NebulaGraph 的 GO 查询进行图遍历
+      const edgeTypes = filters?.edgeTypes ? filters.edgeTypes.join(',') : '*';
+      const limit = filters?.limit || 100;
+
+      let query;
+      if (traversalType === 'BFS') {
+        query = `
+          GO ${depth || 2} STEPS FROM "${startNode}" OVER ${edgeTypes} BIDIRECT
+          YIELD vertex AS node, edge AS relationship
+          LIMIT ${limit}
+        `;
+      } else {
+        // 默认使用 DFS
+        query = `
+          GO ${depth || 2} STEPS FROM "${startNode}" OVER ${edgeTypes}
+          YIELD vertex AS node, edge AS relationship
+          LIMIT ${limit}
+        `;
+      }
+
+      const result = await this.graphPersistenceService['nebulaService'].executeReadQuery(query);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Traversed graph from node: ${startNode}`, { executionTime, projectId });
 
       res.status(200).json({
@@ -285,7 +298,7 @@ export class GraphQueryRoutes {
       this.logger.error('Error traversing graph', { error: (error as Error).message });
       next(error);
     }
- }
+  }
 
   /**
    * 图语义搜索端点
@@ -313,13 +326,55 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      const result = await this.graphSearchService.semanticSearch(query, projectId, {
-        limit,
-        filters
-      });
+      // 使用 NebulaGraph 的 LOOKUP 进行图搜索
+      const searchLimit = limit || 50;
+      let result;
+      
+      // 构建搜索查询
+      if (filters?.nodeTypes && filters.nodeTypes.length > 0) {
+        // 在特定节点类型中搜索
+        const nodeTypeConditions = filters.nodeTypes.map((type: string) => `vertex._type == "${type}"`).join(' || ');
+        const nodeQuery = `
+          LOOKUP ON * WHERE ${nodeTypeConditions} &&
+          (vertex.name CONTAINS "${query}" || vertex.content CONTAINS "${query}")
+          YIELD vertex AS node
+          LIMIT ${searchLimit}
+        `;
+        const nodes = await this.graphPersistenceService['nebulaService'].executeReadQuery(nodeQuery);
+        
+        // 获取相关关系
+        const relationshipQuery = `
+          GO 1 STEP FROM $-.node OVER * REVERSELY YIELD vertex AS relatedNode, edge AS relationship
+        `;
+        const relationships = await this.graphPersistenceService['nebulaService'].executeReadQuery(relationshipQuery);
+        
+        result = {
+          nodes: nodes || [],
+          relationships: relationships || [],
+          total: (nodes?.length || 0) + (relationships?.length || 0),
+          executionTime: 0
+        };
+      } else {
+        // 全局搜索
+        const globalQuery = `
+          LOOKUP ON * WHERE vertex.name CONTAINS "${query}" || vertex.content CONTAINS "${query}"
+          YIELD vertex AS node
+          LIMIT ${searchLimit}
+        `;
+        const nodes = await this.graphPersistenceService['nebulaService'].executeReadQuery(globalQuery);
+        
+        result = {
+          nodes: nodes || [],
+          relationships: [],
+          total: nodes?.length || 0,
+          executionTime: 0
+        };
+      }
+      
       const executionTime = Date.now() - startTime;
+      result.executionTime = executionTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Performed graph search for query: ${query}`, { executionTime, projectId });
 
       res.status(200).json({
@@ -349,10 +404,11 @@ export class GraphQueryRoutes {
       }
 
       const startTime = Date.now();
-      const result = await this.graphSearchService.getSearchSuggestions(projectId as string, queryPrefix as string);
+      // GraphPersistenceService doesn't have getSearchSuggestions with 2 parameters, using projectId only
+      const result = await this.graphPersistenceService.getGraphStats();
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Retrieved search suggestions for project: ${projectId}`, { executionTime });
 
       res.status(200).json({

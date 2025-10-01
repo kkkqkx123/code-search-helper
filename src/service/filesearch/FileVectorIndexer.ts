@@ -1,7 +1,10 @@
+import { injectable, inject } from 'inversify';
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { BaseEmbedder } from '../../embedders/BaseEmbedder';
 import { FileVectorIndex, IndexingOptions } from './types';
 import { LoggerService } from '../../utils/LoggerService';
+import { EmbedderFactory } from '../../embedders/EmbedderFactory';
+import { TYPES } from '../../types';
 import path from 'path';
 import { promises as fs } from 'fs';
 
@@ -9,13 +12,14 @@ import { promises as fs } from 'fs';
  * 文件向量索引器
  * 负责将文件信息转换为向量并存储到Qdrant中
  */
+@injectable()
 export class FileVectorIndexer {
   private readonly COLLECTION_NAME = 'file_vectors';
 
   constructor(
-    private qdrantService: QdrantService,
-    private embedder: BaseEmbedder,
-    private logger: LoggerService
+    @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+    @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
+    @inject(TYPES.LoggerService) private logger: LoggerService
   ) { }
 
   /**
@@ -32,10 +36,13 @@ export class FileVectorIndexer {
       // 获取文件状态
       const stats = await fs.stat(filePath);
 
+      // 获取嵌入器实例
+      const embedder = await this.embedderFactory.getEmbedder();
+
       // 生成向量
-      const nameVectorResult = await this.embedder.embed({ text: fileName });
-      const pathVectorResult = await this.embedder.embed({ text: filePath });
-      const combinedVectorResult = await this.embedder.embed({ text: `${directory} ${fileName}` });
+      const nameVectorResult = await embedder.embed({ text: fileName });
+      const pathVectorResult = await embedder.embed({ text: filePath });
+      const combinedVectorResult = await embedder.embed({ text: `${directory} ${fileName}` });
 
       // 提取向量数组
       const nameVector = Array.isArray(nameVectorResult) ? nameVectorResult[0].vector : nameVectorResult.vector;
@@ -264,8 +271,11 @@ export class FileVectorIndexer {
       if (!exists) {
         this.logger.info(`创建文件向量集合: ${this.COLLECTION_NAME}`);
 
+        // 获取嵌入器实例
+        const embedder = await this.embedderFactory.getEmbedder();
+
         // 创建集合，支持多向量搜索
-        const vectorSize = await this.embedder.getDimensions();
+        const vectorSize = await embedder.getDimensions();
         await this.qdrantService.createCollection(this.COLLECTION_NAME, vectorSize, 'Cosine');
 
         this.logger.info(`文件向量集合创建成功: ${this.COLLECTION_NAME}`);

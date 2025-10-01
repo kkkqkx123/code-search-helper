@@ -36,6 +36,7 @@ import { NebulaService } from './database/NebulaService';
 import { NebulaConnectionManager } from './database/nebula/NebulaConnectionManager';
 import { NebulaQueryBuilder } from './database/nebula/NebulaQueryBuilder';
 import { NebulaSpaceManager } from './database/nebula/NebulaSpaceManager';
+import { INebulaSpaceManager } from './database/nebula/NebulaSpaceManager';
 import { NebulaGraphOperations } from './database/nebula/NebulaGraphOperations';
 
 // 图服务

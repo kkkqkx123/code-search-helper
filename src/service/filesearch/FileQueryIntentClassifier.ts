@@ -1,12 +1,15 @@
+import { injectable, inject } from 'inversify';
 import { FileQueryType, QueryIntentClassification } from './types';
 import { LoggerService } from '../../utils/LoggerService';
+import { TYPES } from '../../types';
 
 /**
  * 文件查询意图分类器
  * 分析用户查询，确定搜索意图类型
  */
+@injectable()
 export class FileQueryIntentClassifier {
-  constructor(private logger: LoggerService) {}
+  constructor(@inject(TYPES.LoggerService) private logger: LoggerService) {}
 
   /**
    * 分类查询意图

@@ -48,29 +48,34 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       username: '',
     };
     
-    // 获取Nebula配置
-    const nebulaConfig = this.configService.get('nebula');
-    if (nebulaConfig) {
-      this.config = nebulaConfig;
-      this.connectionStatus.host = nebulaConfig.host;
-      this.connectionStatus.port = nebulaConfig.port;
-      this.connectionStatus.username = nebulaConfig.username;
-    } else {
-      // 默认配置
-      this.config = {
-        host: process.env.NEBULA_HOST || 'localhost',
-        port: parseInt(process.env.NEBULA_PORT || '9669'),
-        username: process.env.NEBULA_USERNAME || 'root',
-        password: process.env.NEBULA_PASSWORD || 'nebula',
-      };
-      this.connectionStatus.host = this.config.host;
-      this.connectionStatus.port = this.config.port;
-      this.connectionStatus.username = this.config.username;
-    }
+    // 初始化默认配置
+    this.config = {
+      host: process.env.NEBULA_HOST || 'localhost',
+      port: parseInt(process.env.NEBULA_PORT || '9669'),
+      username: process.env.NEBULA_USERNAME || 'root',
+      password: process.env.NEBULA_PASSWORD || 'nebula',
+    };
+    this.connectionStatus.host = this.config.host;
+    this.connectionStatus.port = this.config.port;
+    this.connectionStatus.username = this.config.username;
   }
 
   async connect(): Promise<boolean> {
     try {
+      // 获取Nebula配置（延迟获取）
+      try {
+        const nebulaConfig = this.configService.get('nebula');
+        if (nebulaConfig) {
+          this.config = nebulaConfig;
+          this.connectionStatus.host = nebulaConfig.host;
+          this.connectionStatus.port = nebulaConfig.port;
+          this.connectionStatus.username = nebulaConfig.username;
+        }
+      } catch (configError) {
+        // 如果配置未初始化，使用默认配置
+        this.logger.debug('Using default Nebula configuration');
+      }
+
       // 模拟连接到Nebula Graph
       // 在实际实现中，这里会使用Nebula的客户端库来建立连接
       this.logger.info('Connecting to Nebula Graph', {

@@ -130,7 +130,6 @@ export class GraphService implements IGraphService {
       throw error;
     }
   }
-
   async findImpact(
     filePath: string,
     options: { maxDepth?: number; includeTests?: boolean } = {}
@@ -144,7 +143,7 @@ export class GraphService implements IGraphService {
 
     try {
       // Simulate impact analysis
-      await this.simulateImpactAnalysis(filePath, options);
+      await this.simulateImpactAnalysisForFile(filePath, options);
 
       return {
         affectedFiles: [
@@ -177,6 +176,7 @@ export class GraphService implements IGraphService {
     maintainabilityIndex: number;
     cyclicDependencies: number;
   }> {
+
     const projectId = await HashUtils.calculateDirectoryHash(projectPath);
 
     this.logger.info('Getting graph statistics', { projectPath, projectId: projectId.hash });
@@ -280,6 +280,146 @@ export class GraphService implements IGraphService {
     await this.graphPersistenceService.close();
   }
 
+  async analyzeDependencies(
+    filePath: string,
+    projectId: string,
+    options?: { includeTransitive?: boolean; includeCircular?: boolean }
+  ): Promise<any> {
+    // 模拟依赖分析
+    await this.simulateDependencyAnalysis(filePath, options);
+
+    return {
+      directDependencies: [],
+      transitiveDependencies: [],
+      circularDependencies: [],
+      summary: {
+        directCount: 0,
+        transitiveCount: 0,
+        circularCount: 0
+      }
+    };
+  }
+
+  async detectCircularDependencies(projectId: string): Promise<any> {
+    // 模拟循环依赖检测
+    await this.simulateCircularDependencyDetection();
+
+    return {
+      circularDependencies: [],
+      summary: {
+        count: 0,
+        severity: 'low'
+      }
+    };
+  }
+
+  async analyzeCallGraph(
+    functionName: string,
+    projectId: string,
+    options?: { depth?: number; direction?: 'in' | 'out' | 'both' }
+  ): Promise<any> {
+    // 模拟调用图分析
+    await this.simulateCallGraphAnalysis(functionName, options);
+
+    return {
+      callers: [],
+      callees: [],
+      callGraph: [],
+      summary: {
+        callerCount: 0,
+        calleeCount: 0,
+        depth: options?.depth || 3
+      }
+    };
+  }
+
+  async analyzeImpact(
+    nodeIds: string[],
+    projectId: string,
+    options?: { depth?: number }
+  ): Promise<any> {
+    // 模拟影响分析
+    await this.simulateImpactAnalysisNodeIds(nodeIds, options);
+
+    return {
+      affectedNodes: [],
+      impactPaths: [],
+      summary: {
+        affectedCount: 0,
+        maxDepth: options?.depth || 3,
+        riskLevel: 'low'
+      }
+    };
+  }
+
+  async getProjectOverview(projectId: string): Promise<any> {
+    // 模拟项目概览
+    await this.simulateProjectOverview();
+
+    return {
+      projectInfo: {
+        id: projectId,
+        name: projectId,
+        fileCount: 0,
+        directoryCount: 0
+      },
+      graphStats: {
+        nodeCount: 0,
+        edgeCount: 0,
+        componentCount: 0
+      },
+      analysisSummary: {
+        lastAnalyzed: new Date().toISOString(),
+        issues: 0,
+        warnings: 0
+      }
+    };
+  }
+
+  async getStructureMetrics(projectId: string): Promise<any> {
+    // 模拟结构指标
+    await this.simulateStructureMetrics();
+
+    return {
+      fileMetrics: {
+        totalFiles: 0,
+        codeFiles: 0,
+        testFiles: 0,
+        configFiles: 0
+      },
+      codeMetrics: {
+        linesOfCode: 0,
+        functions: 0,
+        classes: 0,
+        modules: 0
+      },
+      dependencyMetrics: {
+        totalDependencies: 0,
+        externalDependencies: 0,
+        circularDependencies: 0
+      },
+      complexityMetrics: {
+        averageComplexity: 0,
+        maxComplexity: 0,
+        highlyComplexFiles: 0
+      }
+    };
+  }
+
+  async isHealthy(): Promise<boolean> {
+    // 检查服务健康状态
+    return true;
+  }
+
+  async getStatus(): Promise<any> {
+    // 获取服务状态
+    return {
+      status: 'running',
+      uptime: process.uptime(),
+      version: '1.0.0'
+    };
+  }
+
   private generateMockNodes(): GraphNode[] {
     return [
       {
@@ -329,21 +469,38 @@ export class GraphService implements IGraphService {
     await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 2500));
   }
 
-  private async simulateDependencyAnalysis(filePath: string, options: any): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+  private async simulateImpactAnalysisNodeIds(nodeIds: string[], options?: any): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 800));
   }
 
-  private async simulateImpactAnalysis(filePath: string, options: any): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 800));
-  }
 
   private async simulateStatsCalculation(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 300));
   }
-
   private async simulateExport(format: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 400 + Math.random() * 600));
   }
+  private async simulateDependencyAnalysis(filePath: string, options?: any): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+  }
+
+  private async simulateCircularDependencyDetection(): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 700));
+  }
+
+  private async simulateCallGraphAnalysis(functionName: string, options?: any): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 400 + Math.random() * 600));
+  }
+
+  private async simulateProjectOverview(): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
+  }
+
+  private async simulateStructureMetrics(): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 400));
+  }
+
+
 
   // Helper methods for real NebulaGraph integration
   private buildAnalysisQuery(
@@ -384,10 +541,10 @@ export class GraphService implements IGraphService {
   }
 
   private buildDependencyQuery(
-      fileId: string,
-      direction: 'incoming' | 'outgoing',
-      depth: number
-    ): { query: string; params: Record<string, any> } {
+    fileId: string,
+    direction: 'incoming' | 'outgoing',
+    depth: number
+  ): { query: string; params: Record<string, any> } {
     const edgeTypes =
       direction === 'outgoing' ? ['IMPORTS', 'CALLS'] : ['IMPORTS_REVERSE', 'CALLS_REVERSE'];
 

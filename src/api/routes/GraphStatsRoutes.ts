@@ -59,7 +59,7 @@ export class GraphStatsRoutes {
       const result = await this.graphService.getGraphStats(projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Retrieved graph stats for project: ${projectId}`, { executionTime });
 
       res.status(200).json({
@@ -81,7 +81,7 @@ export class GraphStatsRoutes {
       const result = this.graphCacheService.getCacheStats();
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info('Retrieved cache stats', { executionTime });
 
       res.status(200).json({

@@ -26,6 +26,22 @@ const mockConfigService = {
   get: jest.fn(),
 };
 
+const mockNebulaQueryBuilder = {
+  insertVertex: jest.fn(),
+  batchInsertVertices: jest.fn(),
+  insertEdge: jest.fn(),
+  batchInsertEdges: jest.fn(),
+  go: jest.fn(),
+  buildComplexTraversal: jest.fn(),
+  buildShortestPath: jest.fn(),
+  updateVertex: jest.fn(),
+  updateEdge: jest.fn(),
+  deleteVertices: jest.fn(),
+  deleteEdges: jest.fn(),
+  buildNodeCountQuery: jest.fn(),
+  buildRelationshipCountQuery: jest.fn(),
+};
+
 describe('NebulaSpaceManager', () => {
  let spaceManager: NebulaSpaceManager;
 
@@ -41,6 +57,7 @@ describe('NebulaSpaceManager', () => {
     
     spaceManager = new NebulaSpaceManager(
       mockNebulaService as any,
+      mockNebulaQueryBuilder as any,
       mockLoggerService as any,
       mockErrorHandlerService as any,
       mockConfigService as any

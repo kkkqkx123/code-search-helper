@@ -52,8 +52,38 @@ export interface IGraphService {
   deleteNodes(nodeIds: string[]): Promise<boolean>;
 
   clearGraph(): Promise<boolean>;
+isServiceInitialized(): boolean;
 
-  isServiceInitialized(): boolean;
+close(): Promise<void>;
 
-  close(): Promise<void>;
+// 新增的方法
+analyzeDependencies(
+  filePath: string,
+  projectId: string,
+  options?: { includeTransitive?: boolean; includeCircular?: boolean }
+): Promise<any>;
+
+detectCircularDependencies(projectId: string): Promise<any>;
+
+analyzeCallGraph(
+  functionName: string,
+  projectId: string,
+  options?: { depth?: number; direction?: 'in' | 'out' | 'both' }
+): Promise<any>;
+
+analyzeImpact(
+  nodeIds: string[],
+  projectId: string,
+  options?: { depth?: number }
+): Promise<any>;
+
+getProjectOverview(projectId: string): Promise<any>;
+
+getStructureMetrics(projectId: string): Promise<any>;
+
+getGraphStats(projectId: string): Promise<any>;
+
+isHealthy(): Promise<boolean>;
+
+getStatus(): Promise<any>;
 }

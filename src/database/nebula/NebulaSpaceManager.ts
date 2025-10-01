@@ -3,8 +3,9 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
-import { NebulaService } from '../NebulaService';
 import { NebulaSpaceInfo } from '../NebulaTypes';
+import { INebulaConnectionManager } from './NebulaConnectionManager';
+import { INebulaQueryBuilder } from './NebulaQueryBuilder';
 
 export interface INebulaSpaceManager {
   createSpace(projectId: string, config?: any): Promise<boolean>;
@@ -23,18 +24,21 @@ export interface GraphConfig {
 
 @injectable()
 export class NebulaSpaceManager implements INebulaSpaceManager {
-  private nebulaService: NebulaService;
+  private nebulaConnection: INebulaConnectionManager;
+  private nebulaQueryBuilder: INebulaQueryBuilder;
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
 
   constructor(
-    @inject(TYPES.NebulaService) nebulaService: NebulaService,
+    @inject(TYPES.INebulaConnectionManager) nebulaConnection: INebulaConnectionManager,
+    @inject(TYPES.INebulaQueryBuilder) nebulaQueryBuilder: INebulaQueryBuilder,
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService
   ) {
-    this.nebulaService = nebulaService;
+    this.nebulaConnection = nebulaConnection;
+    this.nebulaQueryBuilder = nebulaQueryBuilder;
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
@@ -56,13 +60,13 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         )
       `;
 
-      await this.nebulaService.executeWriteQuery(createQuery);
+      await this.nebulaConnection.executeQuery(createQuery);
 
       // 等待空间创建完成
       await this.waitForSpaceReady(spaceName);
 
       // 使用空间
-      await this.nebulaService.executeWriteQuery(`USE \`${spaceName}\``);
+      await this.nebulaConnection.executeQuery(`USE \`${spaceName}\``);
 
       // 创建图结构
       await this.createGraphSchema();
@@ -78,7 +82,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   async deleteSpace(projectId: string): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
     try {
-      await this.nebulaService.executeWriteQuery(`DROP SPACE IF EXISTS \`${spaceName}\``);
+      await this.nebulaConnection.executeQuery(`DROP SPACE IF EXISTS \`${spaceName}\``);
       this.logger.info(`Successfully deleted space ${spaceName} for project ${projectId}`);
       return true;
     } catch (error) {
@@ -89,7 +93,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
   async listSpaces(): Promise<string[]> {
     try {
-      const result = await this.nebulaService.executeReadQuery('SHOW SPACES');
+      const result = await this.nebulaConnection.executeQuery('SHOW SPACES');
       
       // 更健壮的结果格式检查
       if (!result) {
@@ -161,7 +165,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   async getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null> {
     const spaceName = this.generateSpaceName(projectId);
     try {
-      const result = await this.nebulaService.executeReadQuery(`DESCRIBE SPACE \`${spaceName}\``);
+      const result = await this.nebulaConnection.executeQuery(`DESCRIBE SPACE \`${spaceName}\``);
       
       // 更健壮的结果验证
       if (!result) {
@@ -233,7 +237,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     
     for (let i = 0; i < maxRetries; i++) {
       try {
-        const result = await this.nebulaService.executeReadQuery(`DESCRIBE SPACE \`${spaceName}\``);
+        const result = await this.nebulaConnection.executeQuery(`DESCRIBE SPACE \`${spaceName}\``);
         
         // 更健壮的结果检查
         if (result) {
@@ -274,7 +278,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       ];
 
       for (const query of tagQueries) {
-        await this.nebulaService.executeWriteQuery(query);
+        await this.nebulaConnection.executeQuery(query);
       }
 
       // 创建边类型（Edge Types）
@@ -288,7 +292,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       ];
 
       for (const query of edgeQueries) {
-        await this.nebulaService.executeWriteQuery(query);
+        await this.nebulaConnection.executeQuery(query);
       }
 
       // 创建标签索引（Tag Indexes）- 确保查询性能
@@ -340,7 +344,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   private async createIndexWithRetry(indexQuery: string, maxRetries: number = 3): Promise<void> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await this.nebulaService.executeWriteQuery(indexQuery);
+        await this.nebulaConnection.executeQuery(indexQuery);
         this.logger.debug(`Successfully created index: ${indexQuery}`);
         return;
       } catch (error) {
@@ -370,10 +374,10 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       this.logger.info(`Starting to clear space ${spaceName} for project ${projectId}`);
       
       // 首先，切换到空间
-      await this.nebulaService.executeWriteQuery(`USE \`${spaceName}\``);
+      await this.nebulaConnection.executeQuery(`USE \`${spaceName}\``);
       
       // 获取空间中的所有标签
-      const tagsResult = await this.nebulaService.executeReadQuery('SHOW TAGS');
+      const tagsResult = await this.nebulaConnection.executeQuery('SHOW TAGS');
       const tagsData = tagsResult?.data || tagsResult?.table || tagsResult?.results || [];
       const tags = Array.isArray(tagsData)
         ? tagsData.map((row: any) => row.Name || row.name || row.NAME || row.tag_name).filter(Boolean)
@@ -382,7 +386,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       this.logger.debug(`Found ${tags.length} tags in space ${spaceName}:`, tags);
 
       // 获取所有边类型
-      const edgesResult = await this.nebulaService.executeReadQuery('SHOW EDGES');
+      const edgesResult = await this.nebulaConnection.executeQuery('SHOW EDGES');
       const edgesData = edgesResult?.data || edgesResult?.table || edgesResult?.results || [];
       const edges = Array.isArray(edgesData)
         ? edgesData.map((row: any) => row.Name || row.name || row.NAME || row.edge_name).filter(Boolean)
@@ -393,7 +397,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       // 首先删除所有边
       for (const edge of edges) {
         try {
-          await this.nebulaService.executeWriteQuery(`DELETE EDGE \`${edge}\` * -> *`);
+          await this.nebulaConnection.executeQuery(`DELETE EDGE \`${edge}\` * -> *`);
           this.logger.debug(`Deleted edge: ${edge}`);
         } catch (edgeError) {
           this.logger.warn(`Failed to delete edge ${edge}:`, edgeError);
@@ -404,7 +408,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       // 删除所有顶点
       for (const tag of tags) {
         try {
-          await this.nebulaService.executeWriteQuery(`DELETE VERTEX * WITH EDGE`);
+          await this.nebulaConnection.executeQuery(`DELETE VERTEX * WITH EDGE`);
           this.logger.debug(`Deleted vertices for tag: ${tag}`);
         } catch (vertexError) {
           this.logger.warn(`Failed to delete vertices for tag ${tag}:`, vertexError);

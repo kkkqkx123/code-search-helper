@@ -24,6 +24,9 @@ export interface NebulaConnectionStatus {
 
 // Nebula 查询结果类型
 export interface NebulaQueryResult {
+  table: any;
+  results: any;
+  rows: any;
   data?: any[];
   error?: string;
   executionTime?: number;

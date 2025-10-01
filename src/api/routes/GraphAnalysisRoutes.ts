@@ -74,7 +74,7 @@ export class GraphAnalysisRoutes {
       });
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Analyzed dependencies for file: ${filePath}`, { executionTime, projectId });
 
       res.status(200).json({
@@ -107,7 +107,7 @@ export class GraphAnalysisRoutes {
       const result = await this.graphService.detectCircularDependencies(projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Detected circular dependencies for project: ${projectId}`, { executionTime });
 
       res.status(200).json({
@@ -152,7 +152,7 @@ export class GraphAnalysisRoutes {
       });
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Analyzed call graph for function: ${functionName}`, { executionTime, projectId });
 
       res.status(200).json({
@@ -194,7 +194,7 @@ export class GraphAnalysisRoutes {
       const result = await this.graphService.analyzeImpact(nodeIds, projectId, { depth });
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Analyzed impact for ${nodeIds.length} nodes`, { executionTime, projectId });
 
       res.status(200).json({
@@ -227,7 +227,7 @@ export class GraphAnalysisRoutes {
       const result = await this.graphService.getProjectOverview(projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Retrieved project overview for: ${projectId}`, { executionTime });
 
       res.status(200).json({
@@ -260,7 +260,7 @@ export class GraphAnalysisRoutes {
       const result = await this.graphService.getStructureMetrics(projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Retrieved structure metrics for: ${projectId}`, { executionTime });
 
       res.status(200).json({

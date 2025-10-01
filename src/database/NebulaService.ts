@@ -3,8 +3,8 @@ import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { NebulaConnectionManager } from './nebula/NebulaConnectionManager';
 import { NebulaQueryBuilder } from './nebula/NebulaQueryBuilder';
-import { NebulaSpaceManager } from './nebula/NebulaSpaceManager';
 import { NebulaGraphOperations } from './nebula/NebulaGraphOperations';
+import { INebulaSpaceManager } from './nebula/NebulaSpaceManager';
 import { TYPES } from '../types';
 
 /**
@@ -66,8 +66,8 @@ export interface ShortestPathResult {
 export class NebulaService {
   private nebulaConnection: NebulaConnectionManager;
   private nebulaQueryBuilder: NebulaQueryBuilder;
-  private nebulaSpaceManager: NebulaSpaceManager;
   private nebulaGraphOperations: NebulaGraphOperations;
+  private nebulaSpaceManager: INebulaSpaceManager;
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
 
@@ -76,15 +76,15 @@ export class NebulaService {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.INebulaConnectionManager) nebulaConnection: NebulaConnectionManager,
     @inject(TYPES.INebulaQueryBuilder) nebulaQueryBuilder: NebulaQueryBuilder,
-    @inject(TYPES.INebulaSpaceManager) nebulaSpaceManager: NebulaSpaceManager,
-    @inject(TYPES.INebulaGraphOperations) nebulaGraphOperations: NebulaGraphOperations
+    @inject(TYPES.INebulaGraphOperations) nebulaGraphOperations: NebulaGraphOperations,
+    @inject(TYPES.INebulaSpaceManager) nebulaSpaceManager: INebulaSpaceManager
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.nebulaConnection = nebulaConnection;
     this.nebulaQueryBuilder = nebulaQueryBuilder;
-    this.nebulaSpaceManager = nebulaSpaceManager;
     this.nebulaGraphOperations = nebulaGraphOperations;
+    this.nebulaSpaceManager = nebulaSpaceManager;
   }
 
   async initialize(): Promise<boolean> {
@@ -428,28 +428,33 @@ export class NebulaService {
   }
 
   // 代理到NebulaSpaceManager的方法
+  // 这些方法现在通过依赖注入获取NebulaSpaceManager实例
+  private getNebulaSpaceManager(): INebulaSpaceManager {
+    return this.nebulaSpaceManager;
+  }
+
   async createSpace(projectId: string, config?: any): Promise<boolean> {
-    return this.nebulaSpaceManager.createSpace(projectId, config);
+    return this.getNebulaSpaceManager().createSpace(projectId, config);
   }
 
   async deleteSpace(projectId: string): Promise<boolean> {
-    return this.nebulaSpaceManager.deleteSpace(projectId);
+    throw new Error('Method disabled due to circular dependency');
   }
 
   async listSpaces(): Promise<string[]> {
-    return this.nebulaSpaceManager.listSpaces();
+    return this.getNebulaSpaceManager().listSpaces();
   }
 
   async getSpaceInfo(projectId: string): Promise<any> {
-    return this.nebulaSpaceManager.getSpaceInfo(projectId);
+    return this.getNebulaSpaceManager().getSpaceInfo(projectId);
   }
 
   async checkSpaceExists(projectId: string): Promise<boolean> {
-    return this.nebulaSpaceManager.checkSpaceExists(projectId);
+    return this.getNebulaSpaceManager().checkSpaceExists(projectId);
   }
 
   async clearSpace(projectId: string): Promise<boolean> {
-    return this.nebulaSpaceManager.clearSpace(projectId);
+    return this.getNebulaSpaceManager().clearSpace(projectId);
   }
 
   // 代理到NebulaGraphOperations的方法

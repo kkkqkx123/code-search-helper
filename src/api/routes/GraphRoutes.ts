@@ -70,7 +70,7 @@ export class GraphRoutes {
       });
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Created space for project: ${projectId}`, { executionTime });
 
       res.status(200).json({
@@ -103,7 +103,7 @@ export class GraphRoutes {
       const result = await this.graphPersistenceService.dropSpace(projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Deleted space for project: ${projectId}`, { executionTime });
 
       res.status(200).json({
@@ -136,7 +136,7 @@ export class GraphRoutes {
       const result = await this.graphPersistenceService.clearSpace(projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Cleared space for project: ${projectId}`, { executionTime });
 
       res.status(200).json({
@@ -169,7 +169,7 @@ export class GraphRoutes {
       const result = await this.graphPersistenceService.getSpaceInfo(projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Retrieved space info for project: ${projectId}`, { executionTime });
 
       res.status(200).json({
@@ -211,7 +211,7 @@ export class GraphRoutes {
       const result = await this.graphPersistenceService.batchInsertNodes(nodes, projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Inserted ${nodes.length} nodes for project: ${projectId}`, { executionTime });
 
       res.status(200).json({
@@ -253,7 +253,7 @@ export class GraphRoutes {
       const result = await this.graphPersistenceService.batchInsertEdges(edges, projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Inserted ${edges.length} edges for project: ${projectId}`, { executionTime });
 
       res.status(200).json({
@@ -295,7 +295,7 @@ export class GraphRoutes {
       const result = await this.graphPersistenceService.batchDeleteNodes(nodeIds, projectId);
       const executionTime = Date.now() - startTime;
 
-      this.performanceMonitor.recordQuery(executionTime, true);
+      this.performanceMonitor.recordQueryExecution(executionTime);
       this.logger.info(`Deleted ${nodeIds.length} nodes for project: ${projectId}`, { executionTime });
 
       res.status(200).json({

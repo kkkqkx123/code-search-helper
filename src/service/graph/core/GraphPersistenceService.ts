@@ -11,7 +11,6 @@ import { GraphPerformanceMonitor } from '../performance/GraphPerformanceMonitor'
 import { GraphBatchOptimizer } from '../performance/GraphBatchOptimizer';
 import { GraphQueryBuilder } from '../query/GraphQueryBuilder';
 import { GraphPersistenceUtils } from '../utils/GraphPersistenceUtils';
-import { GraphSearchService } from './GraphSearchService';
 import {
   GraphPersistenceOptions,
   GraphPersistenceResult,
@@ -34,7 +33,6 @@ export class GraphPersistenceService {
   private batchOptimizer: GraphBatchOptimizer;
   private enhancedQueryBuilder: GraphQueryBuilder;
   private persistenceUtils: GraphPersistenceUtils;
-  private searchService: GraphSearchService;
   private isInitialized: boolean = false;
   private currentSpace: string = '';
   private defaultCacheTTL: number = 3000; // 5 minutes default
@@ -53,8 +51,7 @@ export class GraphPersistenceService {
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
     @inject(TYPES.GraphQueryBuilder) enhancedQueryBuilder: GraphQueryBuilder,
-    @inject(TYPES.GraphPersistenceUtils) persistenceUtils: GraphPersistenceUtils,
-    @inject(TYPES.GraphSearchService) searchService: GraphSearchService
+    @inject(TYPES.GraphPersistenceUtils) persistenceUtils: GraphPersistenceUtils
   ) {
     this.nebulaService = nebulaService;
     this.nebulaSpaceManager = nebulaSpaceManager;
@@ -67,7 +64,6 @@ export class GraphPersistenceService {
     this.batchOptimizer = batchOptimizer;
     this.enhancedQueryBuilder = enhancedQueryBuilder;
     this.persistenceUtils = persistenceUtils;
-    this.searchService = searchService;
 
     this.initializeServices();
   }
@@ -888,24 +884,34 @@ export class GraphPersistenceService {
   }
 
   private async initializeServices(): Promise<void> {
-    const batchConfig = this.configService.get('batchProcessing');
-    if (batchConfig) {
-      this.batchOptimizer.updateConfig({
-        maxConcurrentOperations: batchConfig.maxConcurrentOperations || 5,
-        defaultBatchSize: batchConfig.defaultBatchSize || 50,
-        maxBatchSize: batchConfig.maxBatchSize || 500,
-        memoryThreshold: batchConfig.memoryThreshold || 80,
-        processingTimeout: batchConfig.processingTimeout || 300000,
-        retryAttempts: batchConfig.retryAttempts || 3,
-        retryDelay: batchConfig.retryDelay || 1000,
-        adaptiveBatchingEnabled: batchConfig.adaptiveBatching?.enabled !== false,
-      });
+    try {
+      const batchConfig = this.configService.get('batchProcessing');
+      if (batchConfig) {
+        this.batchOptimizer.updateConfig({
+          maxConcurrentOperations: batchConfig.maxConcurrentOperations || 5,
+          defaultBatchSize: batchConfig.defaultBatchSize || 50,
+          maxBatchSize: batchConfig.maxBatchSize || 500,
+          memoryThreshold: batchConfig.memoryThreshold || 80,
+          processingTimeout: batchConfig.processingTimeout || 300000,
+          retryAttempts: batchConfig.retryAttempts || 3,
+          retryDelay: batchConfig.retryDelay || 1000,
+          adaptiveBatchingEnabled: batchConfig.adaptiveBatching?.enabled !== false,
+        });
+      }
+    } catch (error) {
+      // 如果配置未初始化，使用默认配置
+      this.logger.debug('Using default batch processing configuration');
     }
 
-    const cacheConfig = this.configService.get('caching');
-    if (cacheConfig && typeof cacheConfig === 'object') {
-      const config = cacheConfig as any;
-      // Configure cache service if needed
+    try {
+      const cacheConfig = this.configService.get('caching');
+      if (cacheConfig && typeof cacheConfig === 'object') {
+        const config = cacheConfig as any;
+        // Configure cache service if needed
+      }
+    } catch (error) {
+      // 如果配置未初始化，使用默认配置
+      this.logger.debug('Using default caching configuration');
     }
 
     // Start performance monitoring
@@ -1275,14 +1281,5 @@ export class GraphPersistenceService {
   // Performance monitoring methods
   getPerformanceMetrics() {
     return this.performanceMonitor.getMetrics();
-  }
-
-  async search(query: string, options: any = {}): Promise<any[]> {
-    const searchResult = await this.searchService.search(query, options);
-    return searchResult.nodes;
-  }
-
-  getSearchService(): GraphSearchService {
-    return this.searchService;
   }
 }

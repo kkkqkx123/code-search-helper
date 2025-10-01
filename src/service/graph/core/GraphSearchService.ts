@@ -4,7 +4,6 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { NebulaService } from '../../../database/NebulaService';
-import { GraphPersistenceService } from './GraphPersistenceService';
 import { GraphCacheService } from '../cache/GraphCacheService';
 import { GraphPerformanceMonitor } from '../performance/GraphPerformanceMonitor';
 import { GraphQueryBuilder } from '../query/GraphQueryBuilder';
@@ -28,7 +27,6 @@ export interface GraphSearchResult {
 @injectable()
 export class GraphSearchService {
   private nebulaService: NebulaService;
-  private graphPersistenceService: GraphPersistenceService;
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
@@ -38,7 +36,6 @@ export class GraphSearchService {
 
   constructor(
     @inject(TYPES.NebulaService) nebulaService: NebulaService,
-    @inject(TYPES.GraphPersistenceService) graphPersistenceService: GraphPersistenceService,
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
@@ -47,7 +44,6 @@ export class GraphSearchService {
     @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder
   ) {
     this.nebulaService = nebulaService;
-    this.graphPersistenceService = graphPersistenceService;
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;

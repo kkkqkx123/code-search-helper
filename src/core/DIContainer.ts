@@ -48,6 +48,14 @@ import { FileQueryProcessor } from '../service/filesearch/FileQueryProcessor';
 import { FileQueryIntentClassifier } from '../service/filesearch/FileQueryIntentClassifier';
 import { FileSearchCache } from '../service/filesearch/FileSearchCache';
 
+// Nebula Graph 服务
+import { NebulaService } from '../database/NebulaService';
+import { NebulaConnectionManager } from '../database/nebula/NebulaConnectionManager';
+import { NebulaQueryBuilder } from '../database/nebula/NebulaQueryBuilder';
+import { NebulaSpaceManager } from '../database/nebula/NebulaSpaceManager';
+import { INebulaSpaceManager } from '../database/nebula/NebulaSpaceManager';
+import { NebulaGraphOperations } from '../database/nebula/NebulaGraphOperations';
+
 // Graph 服务
 import { GraphService } from '../service/graph/core/GraphService';
 import { GraphPersistenceService } from '../service/graph/core/GraphPersistenceService';
@@ -57,6 +65,7 @@ import { GraphQueryBuilder } from '../service/graph/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from '../service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from '../service/graph/performance/GraphBatchOptimizer';
 import { GraphPersistenceUtils } from '../service/graph/utils/GraphPersistenceUtils';
+import { GraphQueryValidator } from '../service/graph/validation/GraphQueryValidator';
 
 // 创建依赖注入容器
 const diContainer = new Container();
@@ -115,6 +124,13 @@ diContainer.bind<EmbedderFactory>(TYPES.EmbedderFactory).to(EmbedderFactory).inS
 // 注册 EmbeddingCacheService - 使用工厂类模式避免手动unbind/rebind
 // 注意：EmbeddingCacheService将在应用启动时通过工厂类创建实例
 diContainer.bind<EmbeddingCacheService>(TYPES.EmbeddingCacheService).to(EmbeddingCacheService).inSingletonScope();
+
+// 注册 Nebula Graph 服务
+diContainer.bind<NebulaService>(TYPES.NebulaService).to(NebulaService).inSingletonScope();
+diContainer.bind<NebulaConnectionManager>(TYPES.INebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
+diContainer.bind<NebulaQueryBuilder>(TYPES.INebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
+diContainer.bind<INebulaSpaceManager>(TYPES.INebulaSpaceManager).to(NebulaSpaceManager).inSingletonScope();
+diContainer.bind<NebulaGraphOperations>(TYPES.INebulaGraphOperations).to(NebulaGraphOperations).inSingletonScope();
 
 // 注册 Tree-sitter 解析服务
 diContainer.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();

@@ -1,20 +1,23 @@
+import { injectable, inject } from 'inversify';
 import { FileSearchService } from './FileSearchService';
 import { FileQueryType, FileSearchOptions, FileSearchRequest, FileSearchResponse, QueryIntentClassification } from './types';
 import { FileQueryIntentClassifier } from './FileQueryIntentClassifier';
 import { LoggerService } from '../../utils/LoggerService';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
+import { TYPES } from '../../types';
 
 /**
  * 文件查询处理器
  * 处理不同类型的文件搜索查询
  */
+@injectable()
 export class FileQueryProcessor {
   private intentClassifier: FileQueryIntentClassifier;
 
   constructor(
-    private fileSearchService: FileSearchService,
-    private embedderFactory: EmbedderFactory,
-    private logger: LoggerService
+    @inject(TYPES.FileSearchService) private fileSearchService: FileSearchService,
+    @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
+    @inject(TYPES.LoggerService) private logger: LoggerService
   ) {
     this.intentClassifier = new FileQueryIntentClassifier(logger);
   }
