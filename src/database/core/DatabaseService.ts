@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../../types';
-import { LoggerService } from '../../../utils/LoggerService';
-import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { ConfigService } from '../../../config/ConfigService';
+import { TYPES } from '../../types';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
 
 export interface DatabaseServiceConfig {
   connectionTimeout: number;
@@ -28,7 +28,7 @@ export class DatabaseService {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
-    
+
     this.config = {
       connectionTimeout: 30000,
       maxRetries: 3,
@@ -52,7 +52,7 @@ export class DatabaseService {
   async initialize(): Promise<boolean> {
     try {
       this.logger.info('Initializing database service');
-      
+
       // Initialize connection
       const connected = await this.connect();
       if (!connected) {
@@ -96,7 +96,7 @@ export class DatabaseService {
     }
 
     this.logger.info('Starting database health checks', { interval: this.config.healthCheckInterval });
-    
+
     this.healthCheckInterval = setInterval(async () => {
       try {
         const isHealthy = await this.checkConnection();
@@ -128,14 +128,14 @@ export class DatabaseService {
 
   private async reconnect(): Promise<boolean> {
     this.logger.info('Attempting to reconnect to database');
-    
+
     try {
       // Disconnect first
       await this.disconnect();
-      
+
       // Wait before reconnecting
       await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
-      
+
       // Attempt to reconnect
       const connected = await this.connect();
       if (connected) {
@@ -143,7 +143,7 @@ export class DatabaseService {
         this.logger.info('Database reconnection successful');
         return true;
       }
-      
+
       this.logger.error('Database reconnection failed');
       return false;
     } catch (error) {
@@ -158,13 +158,13 @@ export class DatabaseService {
   async close(): Promise<void> {
     try {
       this.logger.info('Closing database service');
-      
+
       // Stop health checks
       this.stopHealthChecks();
-      
+
       // Disconnect
       await this.disconnect();
-      
+
       this.isConnected = false;
       this.logger.info('Database service closed successfully');
     } catch (error) {
@@ -183,7 +183,7 @@ export class DatabaseService {
   updateConfig(config: Partial<DatabaseServiceConfig>): void {
     this.config = { ...this.config, ...config };
     this.logger.info('Database service configuration updated', { config });
-    
+
     // Restart health checks with new interval
     if (this.healthCheckInterval) {
       this.stopHealthChecks();
@@ -215,14 +215,14 @@ export class DatabaseService {
         return await operation();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         if (attempt < maxRetries) {
           this.logger.warn('Database operation failed, retrying', {
             attempt,
             maxRetries,
             error: lastError.message,
           });
-          
+
           // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
         } else {

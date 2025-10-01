@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../../types';
-import { LoggerService } from '../../../utils/LoggerService';
-import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { TYPES } from '../../types';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 
 export interface TransactionOperation {
   nGQL: string;
@@ -31,7 +31,7 @@ export class TransactionManager {
 
   async beginTransaction(transactionId?: string): Promise<string> {
     const id = transactionId || this.generateTransactionId();
-    
+
     try {
       // Create a new transaction context
       const transactionContext = {
@@ -42,7 +42,7 @@ export class TransactionManager {
       };
 
       this.activeTransactions.set(id, transactionContext);
-      
+
       this.logger.debug('Transaction started', { transactionId: id });
       return id;
     } catch (error) {
@@ -59,7 +59,7 @@ export class TransactionManager {
     operation: TransactionOperation
   ): Promise<void> {
     const transaction = this.activeTransactions.get(transactionId);
-    
+
     if (!transaction) {
       throw new Error(`Transaction ${transactionId} not found`);
     }
@@ -80,7 +80,7 @@ export class TransactionManager {
     executeCallback: (operations: TransactionOperation[]) => Promise<TransactionResult>
   ): Promise<TransactionResult> {
     const transaction = this.activeTransactions.get(transactionId);
-    
+
     if (!transaction) {
       throw new Error(`Transaction ${transactionId} not found`);
     }
@@ -90,25 +90,25 @@ export class TransactionManager {
     }
 
     const startTime = Date.now();
-    
+
     try {
-      this.logger.debug('Committing transaction', { 
+      this.logger.debug('Committing transaction', {
         transactionId,
-        operationCount: transaction.operations.length 
+        operationCount: transaction.operations.length
       });
 
       // Execute the transaction
       const result = await executeCallback(transaction.operations);
-      
+
       // Update transaction status
       transaction.status = 'committed';
       transaction.endTime = Date.now();
-      
+
       // Remove from active transactions
       this.activeTransactions.delete(transactionId);
-      
+
       const executionTime = Date.now() - startTime;
-      
+
       this.logger.info('Transaction committed successfully', {
         transactionId,
         operationCount: transaction.operations.length,
@@ -125,16 +125,16 @@ export class TransactionManager {
       transaction.status = 'failed';
       transaction.endTime = Date.now();
       transaction.error = error instanceof Error ? error.message : String(error);
-      
+
       // Remove from active transactions
       this.activeTransactions.delete(transactionId);
-      
+
       const executionTime = Date.now() - startTime;
-      
+
       this.errorHandler.handleError(
         new Error(`Transaction commit failed: ${error instanceof Error ? error.message : String(error)}`),
-        { 
-          component: 'TransactionManager', 
+        {
+          component: 'TransactionManager',
           operation: 'commitTransaction',
           transactionId,
           operationCount: transaction.operations.length,
@@ -153,25 +153,25 @@ export class TransactionManager {
 
   async rollbackTransaction(transactionId: string): Promise<boolean> {
     const transaction = this.activeTransactions.get(transactionId);
-    
+
     if (!transaction) {
       this.logger.warn('Transaction not found for rollback', { transactionId });
       return false;
     }
 
     try {
-      this.logger.debug('Rolling back transaction', { 
+      this.logger.debug('Rolling back transaction', {
         transactionId,
-        operationCount: transaction.operations.length 
+        operationCount: transaction.operations.length
       });
 
       // Update transaction status
       transaction.status = 'rolledback';
       transaction.endTime = Date.now();
-      
+
       // Remove from active transactions
       this.activeTransactions.delete(transactionId);
-      
+
       this.logger.info('Transaction rolled back successfully', {
         transactionId,
         operationCount: transaction.operations.length,
@@ -194,13 +194,13 @@ export class TransactionManager {
     duration?: number;
   } {
     const transaction = this.activeTransactions.get(transactionId);
-    
+
     if (!transaction) {
       return { exists: false };
     }
 
-    const duration = transaction.endTime 
-      ? transaction.endTime - transaction.startTime 
+    const duration = transaction.endTime
+      ? transaction.endTime - transaction.startTime
       : Date.now() - transaction.startTime;
 
     return {
@@ -218,7 +218,7 @@ export class TransactionManager {
     duration: number;
   }> {
     const now = Date.now();
-    
+
     return Array.from(this.activeTransactions.entries()).map(([id, transaction]) => ({
       id,
       status: transaction.status,
@@ -232,7 +232,7 @@ export class TransactionManager {
     executeCallback: (operations: TransactionOperation[]) => Promise<TransactionResult>
   ): Promise<TransactionResult> {
     const transactionId = await this.beginTransaction();
-    
+
     try {
       // Add all operations to the transaction
       for (const operation of operations) {
@@ -244,7 +244,7 @@ export class TransactionManager {
     } catch (error) {
       // Rollback on error
       await this.rollbackTransaction(transactionId);
-      
+
       return {
         success: false,
         results: [],
@@ -265,11 +265,11 @@ export class TransactionManager {
 
     for (const [id, transaction] of this.activeTransactions.entries()) {
       const age = now - transaction.startTime;
-      
+
       if (age > maxAgeMs) {
         this.activeTransactions.delete(id);
         cleanedCount++;
-        
+
         this.logger.warn('Cleaned up old transaction', {
           transactionId: id,
           age,
@@ -288,7 +288,7 @@ export class TransactionManager {
     averageDuration: number;
   } {
     const activeTransactions = this.getActiveTransactions();
-    
+
     if (activeTransactions.length === 0) {
       return {
         activeCount: 0,
@@ -298,12 +298,12 @@ export class TransactionManager {
     }
 
     const totalOperations = activeTransactions.reduce(
-      (sum, tx) => sum + tx.operationCount, 
+      (sum, tx) => sum + tx.operationCount,
       0
     );
-    
+
     const totalDuration = activeTransactions.reduce(
-      (sum, tx) => sum + tx.duration, 
+      (sum, tx) => sum + tx.duration,
       0
     );
 
