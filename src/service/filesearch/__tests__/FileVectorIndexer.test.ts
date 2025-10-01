@@ -17,8 +17,20 @@ const mockQdrantService = {
 
 const mockEmbedder = {
   embed: jest.fn(),
-  getDimensions: jest.fn().mockResolvedValue(768),
-} as unknown as BaseEmbedder;
+  getDimensions: jest.fn().mockReturnValue(768),
+  getModelName: jest.fn().mockReturnValue('test-model'),
+  isAvailable: jest.fn().mockResolvedValue(true),
+};
+
+const mockEmbedderFactory = {
+  getEmbedder: jest.fn().mockResolvedValue(mockEmbedder),
+  embed: jest.fn(),
+  getAvailableProviders: jest.fn(),
+  getProviderInfo: jest.fn(),
+  autoSelectProvider: jest.fn(),
+  registerProvider: jest.fn(),
+  getRegisteredProviders: jest.fn(),
+} as any;
 
 const mockLogger = {
   debug: jest.fn(),
@@ -43,7 +55,7 @@ describe('FileVectorIndexer', () => {
     jest.clearAllMocks();
     indexer = new FileVectorIndexer(
       mockQdrantService as unknown as QdrantService,
-      mockEmbedder,
+      mockEmbedderFactory,
       mockLogger
     );
   });
@@ -306,7 +318,7 @@ describe('FileVectorIndexer', () => {
 
       const indexerForError = new FileVectorIndexer(
         mockQdrantServiceForError,
-        mockEmbedder,
+        mockEmbedderFactory,
         mockLogger as unknown as LoggerService
       );
 

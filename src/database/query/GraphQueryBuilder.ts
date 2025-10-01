@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../../types';
-import { LoggerService } from '../../../utils/LoggerService';
-import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { ConfigService } from '../../../config/ConfigService';
-import { NebulaQueryBuilder } from '../../nebula/NebulaQueryBuilder';
+import { TYPES } from '../../types';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
+import { NebulaQueryBuilder } from '../nebula/NebulaQueryBuilder';
 
 export interface IGraphQueryBuilder {
   buildNodeCountQuery(tag: string): { nGQL: string; parameters: Record<string, any> };

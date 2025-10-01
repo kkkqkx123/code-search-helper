@@ -15,6 +15,18 @@ export interface IGraphCacheService {
   setGraphStatsCache(stats: GraphAnalysisResult): void;
 }
 
+export interface IGraphCacheService {
+  getFromCache<T>(key: string): T | null;
+  setCache<T>(key: string, value: T, ttl?: number): void;
+  invalidateCache(key: string): void;
+  clearAllCache(): void;
+  getCacheStats(): { hits: number; misses: number; size: number };
+  getGraphStatsCache(): GraphAnalysisResult | null;
+  setGraphStatsCache(stats: GraphAnalysisResult): void;
+  isHealthy(): boolean;
+  getStatus(): string;
+}
+
 @injectable()
 export class GraphCacheService implements IGraphCacheService {
   private cache: Map<string, CacheEntry<any>> = new Map();
@@ -254,6 +266,55 @@ export class GraphCacheService implements IGraphCacheService {
         new Error(`Cache eviction failed: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'GraphCacheService', operation: 'evictOldestEntries' }
       );
+    }
+  }
+
+  /**
+   * 检查缓存服务是否健康
+   */
+  isHealthy(): boolean {
+    try {
+      // 检查缓存是否可用
+      const testKey = '__health_check__';
+      const testValue = { timestamp: Date.now() };
+      
+      // 设置测试值
+      this.setCache(testKey, testValue, 1000);
+      
+      // 获取测试值
+      const retrieved = this.getFromCache<{ timestamp: number }>(testKey);
+      
+      // 清除测试值
+      this.invalidateCache(testKey);
+      
+      // 检查获取的值是否正确
+      return retrieved !== null && retrieved.timestamp === testValue.timestamp;
+    } catch (error) {
+      this.logger.error('Health check failed', { error: (error as Error).message });
+      return false;
+    }
+  }
+
+  /**
+   * 获取缓存服务状态
+   */
+  getStatus(): string {
+    try {
+      const usage = this.getCacheUsage();
+      const stats = this.getCacheStats();
+      
+      if (usage.percentage > 90) {
+        return 'critical'; // 缓存使用率超过90%
+      } else if (usage.percentage > 70) {
+        return 'warning'; // 缓存使用率超过70%
+      } else if (stats.hits + stats.misses === 0) {
+        return 'idle'; // 尚未使用缓存
+      } else {
+        return 'normal'; // 正常状态
+      }
+    } catch (error) {
+      this.logger.error('Status check failed', { error: (error as Error).message });
+      return 'error'; // 检查过程中出错
     }
   }
 }

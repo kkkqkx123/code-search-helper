@@ -1271,6 +1271,87 @@ export class GraphPersistenceService {
     }
   }
 
+  // 添加缺失的方法包装 NebulaSpaceManager 的方法
+  async createSpace(projectId: string, config?: any): Promise<boolean> {
+    try {
+      return await this.nebulaSpaceManager.createSpace(projectId, config);
+    } catch (error) {
+      this.logger.error(`Failed to create space for project ${projectId}`, error);
+      return false;
+    }
+  }
+
+  async dropSpace(projectId: string): Promise<boolean> {
+    try {
+      return await this.nebulaSpaceManager.deleteSpace(projectId);
+    } catch (error) {
+      this.logger.error(`Failed to drop space for project ${projectId}`, error);
+      return false;
+    }
+  }
+
+  async clearSpace(projectId: string): Promise<boolean> {
+    try {
+      return await this.nebulaSpaceManager.clearSpace(projectId);
+    } catch (error) {
+      this.logger.error(`Failed to clear space for project ${projectId}`, error);
+      return false;
+    }
+  }
+
+  async getSpaceInfo(projectId: string): Promise<any> {
+    try {
+      return await this.nebulaSpaceManager.getSpaceInfo(projectId);
+    } catch (error) {
+      this.logger.error(`Failed to get space info for project ${projectId}`, error);
+      return null;
+    }
+  }
+
+  async batchInsertNodes(nodes: any[], projectId: string): Promise<GraphPersistenceResult> {
+    try {
+      // 使用现有的 storeParsedFiles 方法来处理节点插入
+      return await this.storeParsedFiles(nodes, { projectId });
+    } catch (error) {
+      this.logger.error(`Failed to batch insert nodes for project ${projectId}`, error);
+      return {
+        success: false,
+        nodesCreated: 0,
+        relationshipsCreated: 0,
+        nodesUpdated: 0,
+        processingTime: 0,
+        errors: [error instanceof Error ? error.message : String(error)]
+      };
+    }
+  }
+
+  async batchInsertEdges(edges: any[], projectId: string): Promise<GraphPersistenceResult> {
+    try {
+      // 使用现有的 storeChunks 方法来处理边插入
+      return await this.storeChunks(edges, { projectId });
+    } catch (error) {
+      this.logger.error(`Failed to batch insert edges for project ${projectId}`, error);
+      return {
+        success: false,
+        nodesCreated: 0,
+        relationshipsCreated: 0,
+        nodesUpdated: 0,
+        processingTime: 0,
+        errors: [error instanceof Error ? error.message : String(error)]
+      };
+    }
+  }
+
+  async batchDeleteNodes(nodeIds: string[], projectId: string): Promise<boolean> {
+    try {
+      // 使用现有的 deleteNodes 方法
+      return await this.deleteNodes(nodeIds);
+    } catch (error) {
+      this.logger.error(`Failed to batch delete nodes for project ${projectId}`, error);
+      return false;
+    }
+  }
+
   async close(): Promise<void> {
     // Close the nebula service
     if (this.nebulaService) {

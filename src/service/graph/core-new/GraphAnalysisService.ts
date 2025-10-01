@@ -7,8 +7,8 @@ import { GraphDatabaseService } from '../../../database/graph/GraphDatabaseServi
 import { GraphQueryBuilder } from '../../../database/query/GraphQueryBuilder';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
-import { 
-  GraphAnalysisOptions, 
+import {
+  GraphAnalysisOptions,
   GraphAnalysisResult,
   GraphNode,
   GraphEdge,
@@ -34,7 +34,7 @@ export class GraphAnalysisService {
     @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
     @inject(TYPES.IGraphQueryBuilder) queryBuilder: GraphQueryBuilder,
     @inject(TYPES.ICacheService) cacheService: ICacheService,
-    @inject(TYPES.IPerformanceMonitor) performanceMonitor: IPerformanceMonitor
+    @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -48,7 +48,7 @@ export class GraphAnalysisService {
   async initialize(): Promise<boolean> {
     try {
       this.logger.info('Initializing graph analysis service');
-      
+
       // Ensure the graph database is initialized
       if (!this.graphDatabase.isDatabaseConnected()) {
         const initialized = await this.graphDatabase.initialize();
@@ -128,7 +128,7 @@ export class GraphAnalysisService {
     } catch (error) {
       const executionTime = Date.now() - startTime;
       this.performanceMonitor.recordQueryExecution(executionTime);
-      
+
       this.errorHandler.handleError(
         new Error(
           `Codebase analysis failed: ${error instanceof Error ? error.message : String(error)}`
@@ -213,8 +213,8 @@ export class GraphAnalysisService {
           .map((record: any) => record.affectedNode.properties.path);
 
         const affectedComponents = result.data
-          .filter((record: any) => 
-            record.affectedNode?.tag === 'Function' || 
+          .filter((record: any) =>
+            record.affectedNode?.tag === 'Function' ||
             record.affectedNode?.tag === 'Class'
           )
           .map((record: any) => record.affectedNode.properties.name);
@@ -399,10 +399,10 @@ export class GraphAnalysisService {
   async close(): Promise<void> {
     try {
       this.logger.info('Closing graph analysis service');
-      
+
       // Close the graph database service
       await this.graphDatabase.close();
-      
+
       this.isInitialized = false;
       this.logger.info('Graph analysis service closed successfully');
     } catch (error) {
@@ -691,7 +691,7 @@ export class GraphAnalysisService {
         MATCH (f1:File)-[:IMPORTS]->(f2:File)-[:IMPORTS*]->(f1)
         RETURN count(*) AS cycles
       `;
-      
+
       const result = await this.graphDatabase.executeReadQuery(query);
       return this.extractCount(result);
     } catch (error) {

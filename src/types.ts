@@ -122,4 +122,7 @@ export const TYPES = {
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
   GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
+  
+  // Project lookup service
+  ProjectLookupService: Symbol.for('ProjectLookupService'),
 };

@@ -241,7 +241,7 @@ export class GraphRoutes {
       }
 
       if (!Array.isArray(edges) || edges.length === 0) {
-        res.status(40).json({
+        res.status(400).json({
           success: false,
           error: 'Bad Request',
           message: 'Edges array is required and cannot be empty'

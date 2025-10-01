@@ -37,10 +37,10 @@ export class GraphTransactionService {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
-    @inject(TYPES.IGraphQueryBuilder) queryBuilder: GraphQueryBuilder,
-    @inject(TYPES.IBatchOptimizer) batchOptimizer: IBatchOptimizer,
+    @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
+    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: IBatchOptimizer,
     @inject(TYPES.ICacheService) cacheService: ICacheService,
-    @inject(TYPES.IPerformanceMonitor) performanceMonitor: IPerformanceMonitor,
+    @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor,
     @inject(TYPES.TransactionManager) transactionManager: TransactionManager
   ) {
     this.logger = logger;
@@ -52,7 +52,7 @@ export class GraphTransactionService {
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
     this.transactionManager = transactionManager;
-    
+
     this.config = {
       enableTransactions: true,
       maxBatchSize: 100,
@@ -74,7 +74,7 @@ export class GraphTransactionService {
   async initialize(): Promise<boolean> {
     try {
       this.logger.info('Initializing graph transaction service');
-      
+
       // Ensure the graph database is initialized
       if (!this.graphDatabase.isDatabaseConnected()) {
         const initialized = await this.graphDatabase.initialize();
@@ -108,7 +108,7 @@ export class GraphTransactionService {
       const results = [];
       for (const operation of operations) {
         const result = await this.graphDatabase.executeWriteQuery(
-          operation.nGQL, 
+          operation.nGQL,
           operation.parameters || {}
         );
         results.push(result);
@@ -118,7 +118,7 @@ export class GraphTransactionService {
 
     const startTime = Date.now();
     const transactionId = await this.transactionManager.beginTransaction();
-    
+
     try {
       // Add all operations to the transaction
       for (const operation of operations) {
@@ -134,7 +134,7 @@ export class GraphTransactionService {
             const results = [];
             for (const operation of transactionOperations) {
               const result = await this.graphDatabase.executeWriteQuery(
-                operation.nGQL, 
+                operation.nGQL,
                 operation.parameters || {}
               );
               results.push(result);
@@ -154,7 +154,7 @@ export class GraphTransactionService {
           } catch (error) {
             const executionTime = Date.now() - startTime;
             this.performanceMonitor.recordQueryExecution(executionTime);
-            
+
             return {
               success: false,
               results: [],
@@ -174,7 +174,7 @@ export class GraphTransactionService {
     } catch (error) {
       // Rollback on error
       await this.transactionManager.rollbackTransaction(transactionId);
-      
+
       this.errorHandler.handleError(
         new Error(
           `Transaction execution failed: ${error instanceof Error ? error.message : String(error)}`
@@ -214,12 +214,12 @@ export class GraphTransactionService {
             const results = [];
             for (const operation of batch) {
               const result = await this.graphDatabase.executeWriteQuery(
-                operation.nGQL, 
+                operation.nGQL,
                 operation.parameters || {}
               );
               results.push(result);
             }
-            
+
             return {
               success: true,
               results,
@@ -227,9 +227,9 @@ export class GraphTransactionService {
             };
           }
         },
-        { 
+        {
           batchSize: options?.batchSize || this.config.maxBatchSize,
-          concurrency: options?.concurrency || 3 
+          concurrency: options?.concurrency || 3
         }
       );
 
@@ -239,8 +239,8 @@ export class GraphTransactionService {
         new Error(
           `Batch transaction execution failed: ${error instanceof Error ? error.message : String(error)}`
         ),
-        { 
-          component: 'GraphTransactionService', 
+        {
+          component: 'GraphTransactionService',
           operation: 'executeBatchInTransaction',
           operationCount: operations.length,
         }
@@ -313,9 +313,9 @@ export class GraphTransactionService {
       ];
 
       await this.executeInTransaction(operations, async (results) => {
-        this.logger.info('Project space created successfully', { 
-          projectId, 
-          operationCount: results.length 
+        this.logger.info('Project space created successfully', {
+          projectId,
+          operationCount: results.length
         });
         return true;
       });
@@ -347,7 +347,7 @@ export class GraphTransactionService {
       if (deleted) {
         // Clear cache for this project
         this.cacheService.deleteByPattern(new RegExp(`^${projectId}_`));
-        
+
         this.logger.info('Project space deleted successfully', { projectId });
       }
 
@@ -389,7 +389,7 @@ export class GraphTransactionService {
   }> {
     try {
       const transactionStats = this.transactionManager.getTransactionStats();
-      
+
       // Calculate success rate from performance monitor
       const performanceMetrics = this.performanceMonitor.getMetrics();
       const batchStats = performanceMetrics.batchProcessingStats;
@@ -433,10 +433,10 @@ export class GraphTransactionService {
   async close(): Promise<void> {
     try {
       this.logger.info('Closing graph transaction service');
-      
+
       // Close the graph database service
       await this.graphDatabase.close();
-      
+
       this.isInitialized = false;
       this.logger.info('Graph transaction service closed successfully');
     } catch (error) {
@@ -452,9 +452,9 @@ export class GraphTransactionService {
 
   private invalidateCacheForOperations(operations: TransactionOperation[]): void {
     for (const operation of operations) {
-      if (operation.nGQL.includes('INSERT') || 
-          operation.nGQL.includes('UPDATE') || 
-          operation.nGQL.includes('DELETE')) {
+      if (operation.nGQL.includes('INSERT') ||
+        operation.nGQL.includes('UPDATE') ||
+        operation.nGQL.includes('DELETE')) {
         // Clear all cache for the current space on write operations
         const currentSpace = this.graphDatabase.getCurrentSpace();
         if (currentSpace) {

@@ -26,6 +26,8 @@ export interface IGraphPerformanceMonitor {
   startPeriodicMonitoring(intervalMs: number): void;
   stopPeriodicMonitoring(): void;
   resetMetrics(): void;
+  isHealthy(): boolean;
+  getStatus(): string;
 }
 
 @injectable()
@@ -276,5 +278,55 @@ Graph Performance Summary:
     }
 
     return recommendations;
+  }
+
+  /**
+   * 检查性能监控服务是否健康
+   */
+  isHealthy(): boolean {
+    try {
+      // 检查基本功能是否正常工作
+      const initialMetrics = this.getMetrics();
+      
+      // 执行一个简单的操作
+      this.recordQueryExecution(10);
+      
+      const updatedMetrics = this.getMetrics();
+      
+      // 检查指标是否正确更新
+      return updatedMetrics.totalQueries === initialMetrics.totalQueries + 1 &&
+             updatedMetrics.totalExecutionTime === initialMetrics.totalExecutionTime + 10;
+    } catch (error) {
+      this.logger.error('Health check failed', { error: (error as Error).message });
+      return false;
+    }
+  }
+
+  /**
+   * 获取性能监控服务状态
+   */
+  getStatus(): string {
+    try {
+      const thresholds = this.configService.get('batchProcessing').monitoring.alertThresholds;
+      const metrics = this.getMetrics();
+      
+      // 检查各项指标是否超出阈值
+      const isHighLatency = metrics.avgExecutionTime > thresholds.highLatency;
+      const isHighMemoryUsage = metrics.memoryUsage > thresholds.highMemoryUsage;
+      const isLowThroughput = metrics.totalQueries < thresholds.lowThroughput;
+      
+      if (isHighLatency || isHighMemoryUsage) {
+        return 'critical'; // 性能严重下降
+      } else if (isLowThroughput) {
+        return 'warning'; // 吞吐量低
+      } else if (metrics.totalQueries === 0) {
+        return 'idle'; // 尚未处理任何查询
+      } else {
+        return 'normal'; // 正常状态
+      }
+    } catch (error) {
+      this.logger.error('Status check failed', { error: (error as Error).message });
+      return 'error'; // 检查过程中出错
+    }
   }
 }
