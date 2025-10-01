@@ -1,18 +1,18 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../utils/LoggerService';
-import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { TYPES } from '../types';
-import { ProjectIdManager } from './ProjectIdManager';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { TYPES } from '../../types';
+import { ProjectIdManager } from '../ProjectIdManager';
 import { IQdrantCollectionManager } from './QdrantCollectionManager';
 import { IQdrantVectorOperations } from './QdrantVectorOperations';
 import { IQdrantQueryUtils } from './QdrantQueryUtils';
-import { 
-  VectorPoint, 
-  CollectionInfo, 
-  SearchOptions, 
-  SearchResult 
-} from './IVectorStore';
-import { 
+import {
+  VectorPoint,
+  CollectionInfo,
+  SearchOptions,
+  SearchResult
+} from '../IVectorStore';
+import {
   VectorDistance,
   ProjectInfo,
   ERROR_MESSAGES,
@@ -72,21 +72,21 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    * 为特定项目创建集合
    */
   async createCollectionForProject(
-    projectPath: string, 
-    vectorSize: number, 
+    projectPath: string,
+    vectorSize: number,
     distance: VectorDistance = 'Cosine'
   ): Promise<boolean> {
     try {
       // 生成项目ID并获取集合名称
       const projectId = await this.projectIdManager.generateProjectId(projectPath);
       const collectionName = this.projectIdManager.getCollectionName(projectId);
-      
+
       if (!collectionName) {
         throw new Error(`Failed to generate collection name for project: ${projectPath}`);
       }
 
       const success = await this.collectionManager.createCollection(collectionName, vectorSize, distance);
-      
+
       if (success) {
         this.emitEvent(QdrantEventType.COLLECTION_CREATED, {
           projectPath,
@@ -96,7 +96,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
           distance
         });
       }
-      
+
       return success;
     } catch (error) {
       this.errorHandler.handleError(
@@ -105,13 +105,13 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         ),
         { component: 'QdrantProjectManager', operation: 'createCollectionForProject' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'createCollectionForProject',
         projectPath
       });
-      
+
       return false;
     }
   }
@@ -126,7 +126,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
       if (!projectId) {
         throw new Error(`Project not found: ${projectPath}`);
       }
-      
+
       const collectionName = this.projectIdManager.getCollectionName(projectId);
       if (!collectionName) {
         throw new Error(`Collection name not found for project: ${projectPath}`);
@@ -142,7 +142,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
       }));
 
       const success = await this.vectorOperations.upsertVectors(collectionName, vectorsWithProjectId);
-      
+
       if (success) {
         this.emitEvent(QdrantEventType.VECTORS_UPSERTED, {
           projectPath,
@@ -151,7 +151,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
           vectorCount: vectors.length
         });
       }
-      
+
       return success;
     } catch (error) {
       this.errorHandler.handleError(
@@ -160,13 +160,13 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         ),
         { component: 'QdrantProjectManager', operation: 'upsertVectorsForProject' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'upsertVectorsForProject',
         projectPath
       });
-      
+
       return false;
     }
   }
@@ -175,8 +175,8 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    * 在特定项目的集合中搜索向量
    */
   async searchVectorsForProject(
-    projectPath: string, 
-    query: number[], 
+    projectPath: string,
+    query: number[],
     options: SearchOptions = {}
   ): Promise<SearchResult[]> {
     try {
@@ -185,7 +185,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
       if (!projectId) {
         throw new Error(`Project not found: ${projectPath}`);
       }
-      
+
       const collectionName = this.projectIdManager.getCollectionName(projectId);
       if (!collectionName) {
         throw new Error(`Collection name not found for project: ${projectPath}`);
@@ -196,14 +196,14 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         ...options.filter,
         projectId
       };
-      
+
       const searchOptions = {
         ...options,
         filter: this.queryUtils.buildFilter(searchFilter)
       };
 
       const results = await this.vectorOperations.searchVectors(collectionName, query, searchOptions);
-      
+
       this.emitEvent(QdrantEventType.VECTORS_SEARCHED, {
         projectPath,
         projectId,
@@ -212,7 +212,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         resultsCount: results.length,
         searchOptions
       });
-      
+
       return results;
     } catch (error) {
       this.errorHandler.handleError(
@@ -221,13 +221,13 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         ),
         { component: 'QdrantProjectManager', operation: 'searchVectorsForProject' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'searchVectorsForProject',
         projectPath
       });
-      
+
       return [];
     }
   }
@@ -242,7 +242,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
       if (!projectId) {
         throw new Error(`Project not found: ${projectPath}`);
       }
-      
+
       const collectionName = this.projectIdManager.getCollectionName(projectId);
       if (!collectionName) {
         throw new Error(`Collection name not found for project: ${projectPath}`);
@@ -256,13 +256,13 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         ),
         { component: 'QdrantProjectManager', operation: 'getCollectionInfoForProject' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'getCollectionInfoForProject',
         projectPath
       });
-      
+
       return null;
     }
   }
@@ -277,25 +277,25 @@ export class QdrantProjectManager implements IQdrantProjectManager {
       if (!projectId) {
         throw new Error(`Project not found: ${projectPath}`);
       }
-      
+
       const collectionName = this.projectIdManager.getCollectionName(projectId);
       if (!collectionName) {
         throw new Error(`Collection name not found for project: ${projectPath}`);
       }
 
       const success = await this.collectionManager.deleteCollection(collectionName);
-      
+
       if (success) {
         // 删除项目ID映射
         this.projectIdManager.removeProject(projectPath);
-        
+
         this.emitEvent(QdrantEventType.COLLECTION_DELETED, {
           projectPath,
           projectId,
           collectionName
         });
       }
-      
+
       return success;
     } catch (error) {
       this.errorHandler.handleError(
@@ -304,13 +304,13 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         ),
         { component: 'QdrantProjectManager', operation: 'deleteCollectionForProject' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'deleteCollectionForProject',
         projectPath
       });
-      
+
       return false;
     }
   }
@@ -324,14 +324,14 @@ export class QdrantProjectManager implements IQdrantProjectManager {
       if (!projectId) {
         return null;
       }
-      
+
       const collectionName = this.projectIdManager.getCollectionName(projectId);
       if (!collectionName) {
         return null;
       }
 
       const collectionInfo = await this.collectionManager.getCollectionInfo(collectionName);
-      
+
       return {
         id: projectId,
         path: projectPath,
@@ -371,12 +371,12 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         ),
         { component: 'QdrantProjectManager', operation: 'listProjects' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'listProjects'
       });
-      
+
       return [];
     }
   }
@@ -391,14 +391,14 @@ export class QdrantProjectManager implements IQdrantProjectManager {
       if (!projectId) {
         throw new Error(`Project not found: ${projectPath}`);
       }
-      
+
       const collectionName = this.projectIdManager.getCollectionName(projectId);
       if (!collectionName) {
         throw new Error(`Collection name not found for project: ${projectPath}`);
       }
 
       const success = await this.vectorOperations.deletePoints(collectionName, vectorIds);
-      
+
       if (success) {
         this.emitEvent(QdrantEventType.POINTS_DELETED, {
           projectPath,
@@ -408,7 +408,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
           vectorIds
         });
       }
-      
+
       return success;
     } catch (error) {
       this.errorHandler.handleError(
@@ -417,13 +417,13 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         ),
         { component: 'QdrantProjectManager', operation: 'deleteVectorsForProject' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'deleteVectorsForProject',
         projectPath
       });
-      
+
       return false;
     }
   }
@@ -438,14 +438,14 @@ export class QdrantProjectManager implements IQdrantProjectManager {
       if (!projectId) {
         throw new Error(`Project not found: ${projectPath}`);
       }
-      
+
       const collectionName = this.projectIdManager.getCollectionName(projectId);
       if (!collectionName) {
         throw new Error(`Collection name not found for project: ${projectPath}`);
       }
 
       const success = await this.vectorOperations.clearCollection(collectionName);
-      
+
       if (success) {
         this.emitEvent(QdrantEventType.POINTS_DELETED, {
           projectPath,
@@ -454,7 +454,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
           cleared: true
         });
       }
-      
+
       return success;
     } catch (error) {
       this.errorHandler.handleError(
@@ -463,13 +463,13 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         ),
         { component: 'QdrantProjectManager', operation: 'clearProject' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'clearProject',
         projectPath
       });
-      
+
       return false;
     }
   }

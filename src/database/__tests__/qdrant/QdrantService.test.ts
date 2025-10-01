@@ -1,16 +1,16 @@
-import { QdrantService } from '../QdrantService';
-import { LoggerService } from '../../utils/LoggerService';
-import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { ConfigService } from '../../config/ConfigService';
-import { ProjectIdManager } from '../ProjectIdManager';
-import { IQdrantConnectionManager } from '../QdrantConnectionManager';
-import { IQdrantCollectionManager } from '../QdrantCollectionManager';
-import { IQdrantVectorOperations } from '../QdrantVectorOperations';
-import { IQdrantQueryUtils } from '../QdrantQueryUtils';
-import { IQdrantProjectManager } from '../QdrantProjectManager';
-import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../IVectorStore';
-import { 
-  QdrantConfig, 
+import { QdrantService } from '../../qdrant/QdrantService';
+import { LoggerService } from '../../../utils/LoggerService';
+import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { ConfigService } from '../../../config/ConfigService';
+import { ProjectIdManager } from '../../ProjectIdManager';
+import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
+import { IQdrantCollectionManager } from '../../qdrant/QdrantCollectionManager';
+import { IQdrantVectorOperations } from '../../qdrant/QdrantVectorOperations';
+import { IQdrantQueryUtils } from '../../qdrant/QdrantQueryUtils';
+import { IQdrantProjectManager } from '../../qdrant/QdrantProjectManager';
+import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../../IVectorStore';
+import {
+  QdrantConfig,
   VectorDistance,
   CollectionCreateOptions,
   VectorUpsertOptions,
@@ -20,7 +20,7 @@ import {
   ProjectInfo,
   QdrantEventType,
   QdrantEvent
-} from '../QdrantTypes';
+} from '../../qdrant/QdrantTypes';
 
 // Mock dependencies
 const mockLogger = {
@@ -103,11 +103,11 @@ const mockProjectManager = {
 
 describe('QdrantService', () => {
   let qdrantService: QdrantService;
-  
+
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks();
-    
+
     // Create a new instance of QdrantService with mocked dependencies
     qdrantService = new QdrantService(
       mockConfigService as unknown as ConfigService,
@@ -121,65 +121,65 @@ describe('QdrantService', () => {
       mockProjectManager as unknown as IQdrantProjectManager
     );
   });
-  
+
   describe('initialize', () => {
     it('should initialize the service', async () => {
       mockConnectionManager.initialize.mockResolvedValue(true);
-      
+
       const result = await qdrantService.initialize();
-      
+
       expect(result).toBe(true);
       expect(mockConnectionManager.initialize).toHaveBeenCalled();
     });
   });
-  
+
   describe('createCollection', () => {
     it('should create a collection', async () => {
       const collectionName = 'test-collection';
       const vectorSize = 128;
       const distance: VectorDistance = 'Cosine';
       const recreateIfExists = false;
-      
+
       mockCollectionManager.createCollection.mockResolvedValue(true);
-      
+
       const result = await qdrantService.createCollection(collectionName, vectorSize, distance, recreateIfExists);
-      
+
       expect(result).toBe(true);
       expect(mockCollectionManager.createCollection).toHaveBeenCalledWith(
-        collectionName, 
-        vectorSize, 
-        distance, 
+        collectionName,
+        vectorSize,
+        distance,
         recreateIfExists
       );
     });
   });
-  
+
   describe('collectionExists', () => {
     it('should check if collection exists', async () => {
       const collectionName = 'test-collection';
-      
+
       mockCollectionManager.collectionExists.mockResolvedValue(true);
-      
+
       const result = await qdrantService.collectionExists(collectionName);
-      
+
       expect(result).toBe(true);
       expect(mockCollectionManager.collectionExists).toHaveBeenCalledWith(collectionName);
     });
   });
-  
+
   describe('deleteCollection', () => {
     it('should delete a collection', async () => {
       const collectionName = 'test-collection';
-      
+
       mockCollectionManager.deleteCollection.mockResolvedValue(true);
-      
+
       const result = await qdrantService.deleteCollection(collectionName);
-      
+
       expect(result).toBe(true);
       expect(mockCollectionManager.deleteCollection).toHaveBeenCalledWith(collectionName);
     });
   });
-  
+
   describe('getCollectionInfo', () => {
     it('should get collection info', async () => {
       const collectionName = 'test-collection';
@@ -192,16 +192,16 @@ describe('QdrantService', () => {
         pointsCount: 100,
         status: 'green'
       };
-      
+
       mockCollectionManager.getCollectionInfo.mockResolvedValue(collectionInfo);
-      
+
       const result = await qdrantService.getCollectionInfo(collectionName);
-      
+
       expect(result).toEqual(collectionInfo);
       expect(mockCollectionManager.getCollectionInfo).toHaveBeenCalledWith(collectionName);
     });
   });
-  
+
   describe('upsertVectors', () => {
     it('should upsert vectors', async () => {
       const collectionName = 'test-collection';
@@ -221,16 +221,16 @@ describe('QdrantService', () => {
           }
         }
       ];
-      
+
       mockVectorOperations.upsertVectors.mockResolvedValue(true);
-      
+
       const result = await qdrantService.upsertVectors(collectionName, vectors);
-      
+
       expect(result).toBe(true);
       expect(mockVectorOperations.upsertVectors).toHaveBeenCalledWith(collectionName, vectors);
     });
   });
-  
+
   describe('searchVectors', () => {
     it('should search vectors', async () => {
       const collectionName = 'test-collection';
@@ -252,76 +252,76 @@ describe('QdrantService', () => {
           }
         }
       ];
-      
+
       mockVectorOperations.searchVectors.mockResolvedValue(searchResults);
-      
+
       const result = await qdrantService.searchVectors(collectionName, query, options);
-      
+
       expect(result).toEqual(searchResults);
       expect(mockVectorOperations.searchVectors).toHaveBeenCalledWith(collectionName, query, options);
     });
   });
-  
+
   describe('deletePoints', () => {
     it('should delete points', async () => {
       const collectionName = 'test-collection';
       const pointIds = ['1', '2', '3'];
-      
+
       mockVectorOperations.deletePoints.mockResolvedValue(true);
-      
+
       const result = await qdrantService.deletePoints(collectionName, pointIds);
-      
+
       expect(result).toBe(true);
       expect(mockVectorOperations.deletePoints).toHaveBeenCalledWith(collectionName, pointIds);
     });
   });
-  
+
   describe('clearCollection', () => {
     it('should clear collection', async () => {
       const collectionName = 'test-collection';
-      
+
       mockVectorOperations.clearCollection.mockResolvedValue(true);
-      
+
       const result = await qdrantService.clearCollection(collectionName);
-      
+
       expect(result).toBe(true);
       expect(mockVectorOperations.clearCollection).toHaveBeenCalledWith(collectionName);
     });
   });
-  
+
   describe('getPointCount', () => {
     it('should get point count', async () => {
       const collectionName = 'test-collection';
       const count = 42;
-      
+
       mockVectorOperations.getPointCount.mockResolvedValue(count);
-      
+
       const result = await qdrantService.getPointCount(collectionName);
-      
+
       expect(result).toBe(count);
       expect(mockVectorOperations.getPointCount).toHaveBeenCalledWith(collectionName);
     });
   });
-  
+
   describe('createCollectionForProject', () => {
     it('should create collection for project', async () => {
       const projectPath = '/test/project';
       const vectorSize = 128;
       const distance: VectorDistance = 'Cosine';
-      
+
       mockProjectManager.createCollectionForProject.mockResolvedValue(true);
-      
+
       const result = await qdrantService.createCollectionForProject(projectPath, vectorSize, distance);
-      
+
       expect(result).toBe(true);
       expect(mockProjectManager.createCollectionForProject).toHaveBeenCalledWith(
-        projectPath, 
-        vectorSize, 
+        projectPath,
+        vectorSize,
         distance
       );
     });
   });
-  
+
   describe('upsertVectorsForProject', () => {
     it('should upsert vectors for project', async () => {
       const projectPath = '/test/project';
@@ -341,16 +341,16 @@ describe('QdrantService', () => {
           }
         }
       ];
-      
+
       mockProjectManager.upsertVectorsForProject.mockResolvedValue(true);
-      
+
       const result = await qdrantService.upsertVectorsForProject(projectPath, vectors);
-      
+
       expect(result).toBe(true);
       expect(mockProjectManager.upsertVectorsForProject).toHaveBeenCalledWith(projectPath, vectors);
     });
   });
-  
+
   describe('searchVectorsForProject', () => {
     it('should search vectors for project', async () => {
       const projectPath = '/test/project';
@@ -372,48 +372,48 @@ describe('QdrantService', () => {
           }
         }
       ];
-      
+
       mockProjectManager.searchVectorsForProject.mockResolvedValue(searchResults);
-      
+
       const result = await qdrantService.searchVectorsForProject(projectPath, query, options);
-      
+
       expect(result).toEqual(searchResults);
       expect(mockProjectManager.searchVectorsForProject).toHaveBeenCalledWith(
-        projectPath, 
-        query, 
+        projectPath,
+        query,
         options
       );
     });
   });
-  
+
   describe('isConnected', () => {
     it('should check if connected', () => {
       mockConnectionManager.isConnected.mockReturnValue(true);
-      
+
       const result = qdrantService.isConnected();
-      
+
       expect(result).toBe(true);
       expect(mockConnectionManager.isConnected).toHaveBeenCalled();
     });
   });
-  
+
   describe('close', () => {
     it('should close the connection', async () => {
       mockConnectionManager.close.mockResolvedValue(undefined);
-      
+
       await qdrantService.close();
-      
+
       expect(mockConnectionManager.close).toHaveBeenCalled();
     });
   });
-  
+
   describe('addEventListener', () => {
     it('should add event listener to all modules', () => {
       const type: QdrantEventType = QdrantEventType.CONNECTED;
       const listener = jest.fn();
-      
+
       qdrantService.addEventListener(type, listener);
-      
+
       expect(mockConnectionManager.addEventListener).toHaveBeenCalledWith(type, listener);
       expect(mockCollectionManager.addEventListener).toHaveBeenCalledWith(type, listener);
       expect(mockVectorOperations.addEventListener).toHaveBeenCalledWith(type, listener);
@@ -421,14 +421,14 @@ describe('QdrantService', () => {
       expect(mockProjectManager.addEventListener).toHaveBeenCalledWith(type, listener);
     });
   });
-  
+
   describe('removeEventListener', () => {
     it('should remove event listener from all modules', () => {
       const type: QdrantEventType = QdrantEventType.CONNECTED;
       const listener = jest.fn();
-      
+
       qdrantService.removeEventListener(type, listener);
-      
+
       expect(mockConnectionManager.removeEventListener).toHaveBeenCalledWith(type, listener);
       expect(mockCollectionManager.removeEventListener).toHaveBeenCalledWith(type, listener);
       expect(mockVectorOperations.removeEventListener).toHaveBeenCalledWith(type, listener);

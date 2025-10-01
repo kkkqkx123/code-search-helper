@@ -1,4 +1,4 @@
-import { VectorPoint, SearchOptions, SearchResult } from './IVectorStore';
+import { VectorPoint, SearchOptions, SearchResult } from '../IVectorStore';
 
 /** 
  * Qdrant 配置接口

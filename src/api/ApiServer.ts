@@ -10,7 +10,7 @@ import { ProjectIdManager } from '../database/ProjectIdManager';
 import { ProjectLookupService } from '../database/ProjectLookupService';
 import { IndexSyncService } from '../service/index/IndexSyncService';
 import { EmbedderFactory } from '../embedders/EmbedderFactory';
-import { QdrantService } from '../database/QdrantService';
+import { QdrantService } from '../database/qdrant/QdrantService.js';
 import { ProjectStateManager } from '../service/project/ProjectStateManager';
 import { diContainer } from '../core/DIContainer';
 import { TYPES } from '../types';
@@ -46,7 +46,7 @@ export class ApiServer {
     this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
-    
+
     // 从依赖注入容器获取文件搜索服务
     const fileSearchService = diContainer.get<any>(TYPES.FileSearchService);
     // 创建一个LoggerService实例包装现有的Logger
@@ -64,9 +64,9 @@ export class ApiServer {
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization']
     }));
-    
+
     this.app.use(express.json());
-    
+
     // 添加请求日志中间件
     this.app.use((req, res, next) => {
       // 存储原始响应方法
@@ -146,7 +146,7 @@ export class ApiServer {
     this.app.post('/api/search', async (req, res) => {
       try {
         const { query, options } = req.body;
-        
+
         if (!query) {
           await this.logger.warn('Search request missing query parameter');
           return res.status(400).json({
@@ -158,7 +158,7 @@ export class ApiServer {
         await this.logger.debug('Received search request:', { query, options });
         // 模拟MCP工具调用
         const results = await this.performSearch(query, options);
-        
+
         await this.logger.debug('Search request completed successfully');
         res.json({ success: true, data: results });
       } catch (error) {
@@ -185,10 +185,10 @@ export class ApiServer {
     });
     // 项目路由
     this.app.use('/api/v1/projects', this.projectRoutes.getRouter());
-    
+
     // 索引路由
     this.app.use('/api/v1/indexing', this.indexingRoutes.getRouter());
-    
+
     // 文件搜索路由
     this.app.use('/api/v1/filesearch', this.fileSearchRoutes.getRouter());
 
@@ -205,29 +205,29 @@ export class ApiServer {
   private async performSearch(query: string, options?: any): Promise<any> {
     try {
       const useMockMode = process.env.SEARCH_MOCK_MODE === 'true';
-      
+
       if (useMockMode) {
         // 使用mock数据模式
         await this.logger.debug('Performing search in mock mode for query:', query);
-        
+
         // 读取搜索结果和代码片段数据
         const searchResultsPath = path.join(process.cwd(), 'data', 'mock', 'search-results.json');
         const codeSnippetsPath = path.join(process.cwd(), 'data', 'mock', 'code-snippets.json');
-        
+
         await this.logger.debug('Loading search results from:', searchResultsPath);
         const searchData = await fs.readFile(searchResultsPath, 'utf-8');
         const searchResults = JSON.parse(searchData);
-        
+
         await this.logger.debug('Loading code snippets from:', codeSnippetsPath);
         const snippetsData = await fs.readFile(codeSnippetsPath, 'utf-8');
         const codeSnippets = JSON.parse(snippetsData);
-        
+
         // 创建snippetId到snippet的映射
         const snippetMap = new Map();
         codeSnippets.snippets.forEach((snippet: any) => {
           snippetMap.set(snippet.id, snippet);
         });
-        
+
         // 过滤结果以匹配查询并转换为前端期望的格式
         let filteredResults = searchResults.results
           .filter((result: any) =>
@@ -249,7 +249,7 @@ export class ApiServer {
 
         // 应用匹配度阈值过滤
         if (options?.minScore !== undefined && options.minScore >= 0 && options.minScore <= 1) {
-          filteredResults = filteredResults.filter((result: any) => 
+          filteredResults = filteredResults.filter((result: any) =>
             result.score >= options.minScore
           );
           await this.logger.debug(`Applied minScore filter: ${options.minScore}, remaining results: ${filteredResults.length}`);
@@ -260,7 +260,7 @@ export class ApiServer {
           filteredResults = filteredResults.slice(0, options.maxResults);
           await this.logger.debug(`Applied maxResults limit: ${options.maxResults}, final results: ${filteredResults.length}`);
         }
-        
+
         await this.logger.debug('Mock search completed, found', filteredResults.length, 'results');
         return {
           results: filteredResults,
@@ -276,34 +276,34 @@ export class ApiServer {
         console.log('=== DEBUG: Starting performSearch ===');
         console.log('Query:', query);
         console.log('Options:', options);
-        
+
         await this.logger.debug('Performing search in real mode for query:', query);
         await this.logger.debug('Search options received:', options);
-        
+
         let projectId = options?.projectId;
         console.log('Initial projectId from options:', projectId);
         await this.logger.debug('Initial projectId from options:', projectId);
-        
+
         // 如果没有提供projectId，尝试获取最新的项目
         if (!projectId) {
           console.log('No projectId provided, trying to get the latest project');
           await this.logger.debug('No projectId provided, trying to get the latest project');
           try {
-         // 获取项目列表
-    console.log('=== DEBUG: About to call qdrantService.initialize() ===');
-    await this.qdrantService.initialize();
-    
-    console.log('=== DEBUG: About to call qdrantService.listProjects() ===');
-    
-    // 直接调用listProjects方法
-    const projects = await this.qdrantService.listProjects();
-    console.log('Available projects from qdrantService.listProjects():', projects);
-    console.log('Number of projects found:', projects?.length || 0);
-    if (projects && projects.length > 0) {
-      console.log('First project details:', projects[0]);
-      console.log('First project ID:', projects[0].id);
-      console.log('First project path:', projects[0].path);
-    }
+            // 获取项目列表
+            console.log('=== DEBUG: About to call qdrantService.initialize() ===');
+            await this.qdrantService.initialize();
+
+            console.log('=== DEBUG: About to call qdrantService.listProjects() ===');
+
+            // 直接调用listProjects方法
+            const projects = await this.qdrantService.listProjects();
+            console.log('Available projects from qdrantService.listProjects():', projects);
+            console.log('Number of projects found:', projects?.length || 0);
+            if (projects && projects.length > 0) {
+              console.log('First project details:', projects[0]);
+              console.log('First project ID:', projects[0].id);
+              console.log('First project path:', projects[0].path);
+            }
             await this.logger.debug('Available projects:', projects);
             if (projects && projects.length > 0) {
               // 使用最新的项目（按更新时间排序的第一个）
@@ -322,10 +322,10 @@ export class ApiServer {
             projectId = 'default-project';
           }
         }
-        
+
         console.log('Final projectId for search:', projectId);
         await this.logger.debug('Final projectId for search:', projectId);
-        
+
         // 获取项目路径
         let projectPath = projectId;
         if (projectId !== 'default-project') {
@@ -338,21 +338,21 @@ export class ApiServer {
             console.log('Could not find project path for projectId:', projectId, ', using projectId as path');
           }
         }
-        
+
         const limit = options?.maxResults || options?.limit || 10; // 优先使用maxResults，回退到limit，默认10个结果
 
         // 使用嵌入器将查询文本转换为向量
         const embedder = await this.embedderFactory.getEmbedder();
         const embeddingResult = await embedder.embed({ text: query });
         const queryVector = Array.isArray(embeddingResult) ? embeddingResult[0].vector : embeddingResult.vector;
-        
+
         // 构建搜索参数，包含分数阈值
         const searchParams: any = { limit };
         if (options?.minScore !== undefined && options.minScore >= 0 && options.minScore <= 1) {
           searchParams.scoreThreshold = options.minScore;
           await this.logger.debug(`Applying minScore filter: ${options.minScore}`);
         }
-        
+
         const searchResults = await this.qdrantService.searchVectorsForProject(projectPath, queryVector, searchParams);
 
         // 将Qdrant结果转换为前端期望的格式
@@ -384,7 +384,7 @@ export class ApiServer {
     } catch (error) {
       await this.logger.error('Search request failed:', error);
       const useMockMode = process.env.SEARCH_MOCK_MODE === 'true';
-      
+
       if (useMockMode) {
         // 如果是mock模式且出错，返回默认模拟结果
         return {

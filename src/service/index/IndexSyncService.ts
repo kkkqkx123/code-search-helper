@@ -5,7 +5,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { FileSystemTraversal } from '../filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../filesystem/ChangeDetectionService';
-import { QdrantService } from '../../database/QdrantService';
+import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
@@ -202,7 +202,7 @@ export class IndexSyncService {
       if (currentStatus && currentStatus.isIndexing) {
         throw new Error(`项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`);
       }
-      
+
       // 检查已完成的项目状态
       const completedStatus = this.completedProjects.get(projectId);
       if (completedStatus) {
@@ -456,17 +456,17 @@ export class IndexSyncService {
   private async indexFile(projectPath: string, filePath: string): Promise<void> {
     const startTime = Date.now();
     const initialMemory = process.memoryUsage();
-    
+
     try {
       // 读取文件内容
       const content = await fs.readFile(filePath, 'utf-8');
       const fileSize = content.length;
-      
+
       // 大文件预警
       if (fileSize > 1024 * 1024) { // 1MB
         this.logger.warn(`Large file detected: ${filePath} (${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
       }
-      
+
       // 分割文件为块
       const chunks = await this.chunkFile(content, filePath);
 
@@ -482,7 +482,7 @@ export class IndexSyncService {
 
       const processingTime = Date.now() - startTime;
       const finalMemory = process.memoryUsage();
-      
+
       // 记录性能指标
       const metrics: IndexingMetrics = {
         fileSize,
@@ -495,14 +495,14 @@ export class IndexSyncService {
           timestamp: new Date()
         }
       };
-      
+
       this.recordMetrics(projectPath, filePath, metrics);
-      
+
       // 内存警告检查
       if (metrics.memoryUsage.percentage > 80) {
         await this.emit('memoryWarning', projectPath, metrics.memoryUsage, 80);
       }
-      
+
       this.logger.debug(`Indexed file: ${filePath}`, { metrics });
     } catch (error) {
       this.recordError(filePath, error);
@@ -573,7 +573,7 @@ export class IndexSyncService {
    */
   private async chunkFile(content: string, filePath: string): Promise<FileChunk[]> {
     const language = this.detectLanguage(filePath);
-    
+
     try {
       const astChunks = await this.astSplitter.split(content, language, filePath);
       if (astChunks.length > 0) {
@@ -592,7 +592,7 @@ export class IndexSyncService {
     } catch (error) {
       this.logger.warn(`AST splitting failed for ${filePath}, using fallback: ${error}`);
     }
-    
+
     // 回退逻辑保持不变
     return this.simpleChunk(content, filePath, language);
   }
@@ -774,13 +774,13 @@ export class IndexSyncService {
     if (indexingStatus) {
       return indexingStatus;
     }
-    
+
     // 然后检查已完成索引的项目
     const completedStatus = this.completedProjects.get(projectId);
     if (completedStatus) {
       return completedStatus;
     }
-    
+
     return null;
   }
 
@@ -830,13 +830,13 @@ export class IndexSyncService {
       const projectId = this.projectIdManager.getProjectId(projectPath);
       if (projectId) {
         this.logger.info(`重新索引项目: ${projectPath}`);
-        
+
         // 检查是否正在索引
         const currentStatus = this.indexingProjects.get(projectId);
         if (currentStatus && currentStatus.isIndexing) {
           throw new Error(`项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`);
         }
-        
+
         // 无论项目状态如何，总是尝试删除现有集合和清理状态
         try {
           // 尝试删除现有集合（如果存在）
@@ -846,7 +846,7 @@ export class IndexSyncService {
           // 如果集合不存在或删除失败，记录警告但继续执行
           this.logger.warn(`删除项目集合时出现问题（这可能是正常的）: ${deleteError instanceof Error ? deleteError.message : String(deleteError)}`);
         }
-        
+
         // 清理所有相关的状态缓存
         this.indexingProjects.delete(projectId);
         this.completedProjects.delete(projectId);
@@ -863,7 +863,7 @@ export class IndexSyncService {
         new Error(`重新索引项目失败: ${errorMessage}`),
         { component: 'IndexSyncService', operation: 'reindexProject', projectPath, options }
       );
-      
+
       // 提供更友好的错误信息
       if (errorMessage.includes('already being indexed')) {
         throw new Error(`项目 ${projectPath} 正在索引中，请等待完成或停止当前索引`);

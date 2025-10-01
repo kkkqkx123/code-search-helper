@@ -1,15 +1,15 @@
-import { QdrantVectorOperations, IQdrantVectorOperations } from '../QdrantVectorOperations';
-import { LoggerService } from '../../utils/LoggerService';
-import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { IQdrantConnectionManager } from '../QdrantConnectionManager';
-import { IQdrantCollectionManager } from '../QdrantCollectionManager';
-import { VectorPoint, SearchOptions, SearchResult } from '../IVectorStore';
-import { 
+import { QdrantVectorOperations, IQdrantVectorOperations } from '../../qdrant/QdrantVectorOperations';
+import { LoggerService } from '../../../utils/LoggerService';
+import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
+import { IQdrantCollectionManager } from '../../qdrant/QdrantCollectionManager';
+import { VectorPoint, SearchOptions, SearchResult } from '../../IVectorStore';
+import {
   VectorUpsertOptions,
   VectorSearchOptions,
   BatchResult,
   CollectionInfo
-} from '../QdrantTypes';
+} from '../../qdrant/QdrantTypes';
 
 // Mock dependencies
 const mockLogger = {
@@ -40,14 +40,14 @@ const mockClient = {
 
 describe('QdrantVectorOperations', () => {
   let vectorOperations: QdrantVectorOperations;
-  
+
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks();
-    
+
     // Set up mock connection manager to return mock client
     mockConnectionManager.getClient.mockReturnValue(mockClient);
-    
+
     // Create a new instance of QdrantVectorOperations with mocked dependencies
     vectorOperations = new QdrantVectorOperations(
       mockLogger as unknown as LoggerService,
@@ -56,7 +56,7 @@ describe('QdrantVectorOperations', () => {
       mockCollectionManager as unknown as IQdrantCollectionManager
     );
   });
-  
+
   describe('upsertVectors', () => {
     it('should upsert vectors successfully', async () => {
       const collectionName = 'test-collection';
@@ -76,11 +76,11 @@ describe('QdrantVectorOperations', () => {
           }
         }
       ];
-      
+
       mockClient.upsert.mockResolvedValue(undefined);
-      
+
       const result = await vectorOperations.upsertVectors(collectionName, vectors);
-      
+
       expect(result).toBe(true);
       expect(mockClient.upsert).toHaveBeenCalledWith(collectionName, {
         points: [
@@ -92,7 +92,7 @@ describe('QdrantVectorOperations', () => {
         ]
       });
     });
-    
+
     it('should return false when upserting vectors fails', async () => {
       const collectionName = 'test-collection';
       const vectors: VectorPoint[] = [
@@ -111,15 +111,15 @@ describe('QdrantVectorOperations', () => {
           }
         }
       ];
-      
+
       mockClient.upsert.mockRejectedValue(new Error('Upsert failed'));
-      
+
       const result = await vectorOperations.upsertVectors(collectionName, vectors);
-      
+
       expect(result).toBe(false);
     });
   });
-  
+
   describe('upsertVectorsWithOptions', () => {
     it('should upsert vectors with options successfully', async () => {
       const collectionName = 'test-collection';
@@ -143,7 +143,7 @@ describe('QdrantVectorOperations', () => {
         batchSize: 100,
         validateDimensions: true
       };
-      
+
       mockClient.upsert.mockResolvedValue(undefined);
       mockCollectionManager.getCollectionInfo.mockResolvedValue({
         name: collectionName,
@@ -154,9 +154,9 @@ describe('QdrantVectorOperations', () => {
         pointsCount: 0,
         status: 'green'
       });
-      
+
       const result = await vectorOperations.upsertVectorsWithOptions(collectionName, vectors, options);
-      
+
       expect(result).toEqual({
         success: true,
         processedCount: 1,
@@ -164,7 +164,7 @@ describe('QdrantVectorOperations', () => {
         errors: []
       });
     });
-    
+
     it('should handle batch processing', async () => {
       const collectionName = 'test-collection';
       const vectors: VectorPoint[] = Array.from({ length: 150 }, (_, i) => ({
@@ -184,11 +184,11 @@ describe('QdrantVectorOperations', () => {
       const options: VectorUpsertOptions = {
         batchSize: 100
       };
-      
+
       mockClient.upsert.mockResolvedValue(undefined);
-      
+
       const result = await vectorOperations.upsertVectorsWithOptions(collectionName, vectors, options);
-      
+
       // Should process in 2 batches
       expect(mockClient.upsert).toHaveBeenCalledTimes(2);
       expect(result).toEqual({
@@ -199,7 +199,7 @@ describe('QdrantVectorOperations', () => {
       });
     });
   });
-  
+
   describe('searchVectors', () => {
     it('should search vectors successfully', async () => {
       const collectionName = 'test-collection';
@@ -223,11 +223,11 @@ describe('QdrantVectorOperations', () => {
           vector: null
         }
       ];
-      
+
       mockClient.search.mockResolvedValue(searchResults);
-      
+
       const result = await vectorOperations.searchVectors(collectionName, query, options);
-      
+
       expect(result).toEqual([
         {
           id: '1',
@@ -251,19 +251,19 @@ describe('QdrantVectorOperations', () => {
         with_vector: false
       });
     });
-    
+
     it('should return empty array when searching vectors fails', async () => {
       const collectionName = 'test-collection';
       const query = [0.1, 0.2, 0.3];
-      
+
       mockClient.search.mockRejectedValue(new Error('Search failed'));
-      
+
       const result = await vectorOperations.searchVectors(collectionName, query);
-      
+
       expect(result).toEqual([]);
     });
   });
-  
+
   describe('searchVectorsWithOptions', () => {
     it('should search vectors with options successfully', async () => {
       const collectionName = 'test-collection';
@@ -283,11 +283,11 @@ describe('QdrantVectorOperations', () => {
           vector: [0.1, 0.2, 0.3]
         }
       ];
-      
+
       mockClient.search.mockResolvedValue(searchResults);
-      
+
       const result = await vectorOperations.searchVectorsWithOptions(collectionName, query, options);
-      
+
       expect(result).toEqual([
         {
           id: '1',
@@ -306,16 +306,16 @@ describe('QdrantVectorOperations', () => {
       });
     });
   });
-  
+
   describe('deletePoints', () => {
     it('should delete points successfully', async () => {
       const collectionName = 'test-collection';
       const pointIds = ['1', '2', '3'];
-      
+
       mockClient.delete.mockResolvedValue(undefined);
-      
+
       const result = await vectorOperations.deletePoints(collectionName, pointIds);
-      
+
       expect(result).toBe(true);
       expect(mockClient.delete).toHaveBeenCalledWith(collectionName, {
         filter: {
@@ -330,27 +330,27 @@ describe('QdrantVectorOperations', () => {
         }
       });
     });
-    
+
     it('should return false when deleting points fails', async () => {
       const collectionName = 'test-collection';
       const pointIds = ['1', '2', '3'];
-      
+
       mockClient.delete.mockRejectedValue(new Error('Delete failed'));
-      
+
       const result = await vectorOperations.deletePoints(collectionName, pointIds);
-      
+
       expect(result).toBe(false);
     });
   });
-  
+
   describe('clearCollection', () => {
     it('should clear collection successfully', async () => {
       const collectionName = 'test-collection';
-      
+
       mockClient.delete.mockResolvedValue(undefined);
-      
+
       const result = await vectorOperations.clearCollection(collectionName);
-      
+
       expect(result).toBe(true);
       expect(mockClient.delete).toHaveBeenCalledWith(collectionName, {
         filter: {
@@ -365,18 +365,18 @@ describe('QdrantVectorOperations', () => {
         }
       });
     });
-    
+
     it('should return false when clearing collection fails', async () => {
       const collectionName = 'test-collection';
-      
+
       mockClient.delete.mockRejectedValue(new Error('Clear failed'));
-      
+
       const result = await vectorOperations.clearCollection(collectionName);
-      
+
       expect(result).toBe(false);
     });
   });
-  
+
   describe('getPointCount', () => {
     it('should get point count successfully', async () => {
       const collectionName = 'test-collection';
@@ -392,25 +392,25 @@ describe('QdrantVectorOperations', () => {
         },
         status: 'green'
       };
-      
+
       mockClient.getCollection.mockResolvedValue(collectionInfo);
-      
+
       const result = await vectorOperations.getPointCount(collectionName);
-      
+
       expect(result).toBe(42);
     });
-    
+
     it('should return 0 when getting point count fails', async () => {
       const collectionName = 'test-collection';
-      
+
       mockClient.getCollection.mockRejectedValue(new Error('Get collection failed'));
-      
+
       const result = await vectorOperations.getPointCount(collectionName);
-      
+
       expect(result).toBe(0);
     });
   });
-  
+
   describe('validateVectors', () => {
     it('should validate vectors successfully', async () => {
       const collectionName = 'test-collection';
@@ -430,7 +430,7 @@ describe('QdrantVectorOperations', () => {
           }
         }
       ];
-      
+
       mockCollectionManager.getCollectionInfo.mockResolvedValue({
         name: collectionName,
         vectors: {
@@ -440,12 +440,12 @@ describe('QdrantVectorOperations', () => {
         pointsCount: 0,
         status: 'green'
       });
-      
+
       // Call private method through reflection for testing
       const validateVectors = (vectorOperations as any).validateVectors.bind(vectorOperations);
       await expect(validateVectors(collectionName, vectors)).resolves.toBeUndefined();
     });
-    
+
     it('should throw error for inconsistent vector dimensions', async () => {
       const collectionName = 'test-collection';
       const vectors: VectorPoint[] = [
@@ -478,13 +478,13 @@ describe('QdrantVectorOperations', () => {
           }
         }
       ];
-      
+
       // Call private method through reflection for testing
       const validateVectors = (vectorOperations as any).validateVectors.bind(vectorOperations);
       await expect(validateVectors(collectionName, vectors)).rejects.toThrow('Invalid vector dimensions');
     });
   });
-  
+
   describe('processPoint', () => {
     it('should process point correctly', () => {
       const point: VectorPoint = {
@@ -501,18 +501,18 @@ describe('QdrantVectorOperations', () => {
           timestamp: new Date(),
         }
       };
-      
+
       // Call private method through reflection for testing
       const processPoint = (vectorOperations as any).processPoint.bind(vectorOperations);
       const result = processPoint(point);
-      
+
       expect(result).toEqual({
         id: expect.any(Number), // ID会被转换为数字
         vector: [0.1, 0.2, 0.3],
         payload: expect.any(Object)
       });
     });
-    
+
     it('should throw error for invalid vector data', () => {
       const point: any = {
         id: '1',
@@ -528,7 +528,7 @@ describe('QdrantVectorOperations', () => {
           timestamp: new Date(),
         }
       };
-      
+
       // Call private method through reflection for testing
       const processPoint = (vectorOperations as any).processPoint.bind(vectorOperations);
       expect(() => processPoint(point)).toThrow('Invalid vector data');

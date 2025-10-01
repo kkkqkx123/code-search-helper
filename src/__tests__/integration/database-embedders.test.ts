@@ -1,4 +1,4 @@
-import { QdrantService } from '../../database/QdrantService';
+import { QdrantService } from '../../database/qdrant/QdrantService';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
 import { Logger } from '../../utils/logger';
@@ -6,11 +6,11 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
-import { IQdrantConnectionManager } from '../../database/QdrantConnectionManager';
-import { IQdrantCollectionManager } from '../../database/QdrantCollectionManager';
-import { IQdrantVectorOperations } from '../../database/QdrantVectorOperations';
-import { IQdrantQueryUtils } from '../../database/QdrantQueryUtils';
-import { IQdrantProjectManager } from '../../database/QdrantProjectManager';
+import { IQdrantConnectionManager } from '../../database/qdrant/QdrantConnectionManager';
+import { IQdrantCollectionManager } from '../../database/qdrant/QdrantCollectionManager';
+import { IQdrantVectorOperations } from '../../database/qdrant/QdrantVectorOperations';
+import { IQdrantQueryUtils } from '../../database/qdrant/QdrantQueryUtils';
+import { IQdrantProjectManager } from '../../database/qdrant/QdrantProjectManager';
 
 // 确保在测试环境中运行
 process.env.NODE_ENV = 'test';
@@ -50,14 +50,14 @@ describe('Database and Embedders Integration', () => {
         return undefined;
       })
     } as unknown as ConfigService;
-    
+
     logger = new LoggerService(mockConfigService);
     loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
-    
+
     // Create a mock ProjectIdManager
     mockProjectIdManager = new ProjectIdManager(mockConfigService);
-    
+
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {
       initialize: jest.fn().mockResolvedValue(true),
@@ -70,7 +70,7 @@ describe('Database and Embedders Integration', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
     } as unknown as jest.Mocked<IQdrantConnectionManager>;
-    
+
     const mockCollectionManager = {
       createCollection: jest.fn().mockResolvedValue(true),
       createCollectionWithOptions: jest.fn().mockResolvedValue(true),
@@ -84,7 +84,7 @@ describe('Database and Embedders Integration', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
     } as unknown as jest.Mocked<IQdrantCollectionManager>;
-    
+
     const mockVectorOperations = {
       upsertVectors: jest.fn().mockResolvedValue(true),
       upsertVectorsWithOptions: jest.fn().mockResolvedValue({ success: true, processedCount: 0, failedCount: 0 }),
@@ -96,7 +96,7 @@ describe('Database and Embedders Integration', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
     } as unknown as jest.Mocked<IQdrantVectorOperations>;
-    
+
     const mockQueryUtils = {
       getChunkIdsByFiles: jest.fn().mockResolvedValue([]),
       getExistingChunkIds: jest.fn().mockResolvedValue([]),
@@ -107,7 +107,7 @@ describe('Database and Embedders Integration', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
     } as unknown as jest.Mocked<IQdrantQueryUtils>;
-    
+
     const mockProjectManager = {
       createCollectionForProject: jest.fn().mockResolvedValue(true),
       upsertVectorsForProject: jest.fn().mockResolvedValue(true),
@@ -121,7 +121,7 @@ describe('Database and Embedders Integration', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
     } as unknown as jest.Mocked<IQdrantProjectManager>;
-    
+
     cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
     embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);
     qdrantService = new QdrantService(
@@ -143,7 +143,7 @@ describe('Database and Embedders Integration', () => {
       cacheService.stopCleanupInterval();
       await cacheService.clear();
     }
-    
+
     if (qdrantService) {
       await qdrantService.close();
     }
@@ -154,7 +154,7 @@ describe('Database and Embedders Integration', () => {
       // 注意：这个测试需要Qdrant服务正在运行
       // 如果没有运行，测试会失败，这是正常的
       const connected = await qdrantService.initialize();
-      
+
       // 如果Qdrant服务可用，应该返回true
       // 如果不可用，会返回false，这也是可以接受的
       expect(typeof connected).toBe('boolean');
@@ -163,14 +163,14 @@ describe('Database and Embedders Integration', () => {
     test('✅ 能够创建、删除、检查集合', async () => {
       const collectionName = 'test-collection';
       const vectorSize = 1536;
-      
+
       try {
         const created = await qdrantService.createCollection(collectionName, vectorSize);
         expect(typeof created).toBe('boolean');
-        
+
         const exists = await qdrantService.collectionExists(collectionName);
         expect(typeof exists).toBe('boolean');
-        
+
         const deleted = await qdrantService.deleteCollection(collectionName);
         expect(typeof deleted).toBe('boolean');
       } catch (error) {
@@ -197,11 +197,11 @@ describe('Database and Embedders Integration', () => {
           }
         }
       ];
-      
+
       try {
         const upserted = await qdrantService.upsertVectors(collectionName, vectorPoints);
         expect(upserted).toBe(true);
-        
+
         const searchResults = await qdrantService.searchVectors(collectionName, Array(1536).fill(0.5));
         expect(Array.isArray(searchResults)).toBe(true);
       } catch (error) {
@@ -214,7 +214,7 @@ describe('Database and Embedders Integration', () => {
       try {
         const collectionName = 'test-collection';
         const filePaths = ['/test/file1.ts', '/test/file2.ts'];
-        
+
         const chunkIds = await qdrantService.getChunkIdsByFiles(collectionName, filePaths);
         expect(Array.isArray(chunkIds)).toBe(true);
       } catch (error) {
@@ -227,7 +227,7 @@ describe('Database and Embedders Integration', () => {
       try {
         const collectionName = 'test-collection';
         const chunkIds = ['chunk-1', 'chunk-2'];
-        
+
         const existingChunkIds = await qdrantService.getExistingChunkIds(collectionName, chunkIds);
         expect(Array.isArray(existingChunkIds)).toBe(true);
       } catch (error) {
@@ -240,7 +240,7 @@ describe('Database and Embedders Integration', () => {
   describe('嵌入器服务验收标准', () => {
     test('✅ 嵌入器工厂能够正常工作', () => {
       const providers = embedderFactory.getRegisteredProviders();
-      
+
       expect(Array.isArray(providers)).toBe(true);
       expect(providers.length).toBeGreaterThan(0);
       expect(providers).toContain('openai');
@@ -251,7 +251,7 @@ describe('Database and Embedders Integration', () => {
       try {
         const input = { text: 'This is a test text for OpenAI embedding generation' };
         const embeddingResult = await embedderFactory.embed(input, 'openai');
-        
+
         expect(embeddingResult).toBeDefined();
         if (Array.isArray(embeddingResult)) {
           expect(embeddingResult.length).toBe(1);
@@ -271,7 +271,7 @@ describe('Database and Embedders Integration', () => {
       try {
         const input = { text: 'This is a test text for Ollama embedding generation' };
         const embeddingResult = await embedderFactory.embed(input, 'ollama');
-        
+
         expect(embeddingResult).toBeDefined();
         if (Array.isArray(embeddingResult)) {
           expect(embeddingResult.length).toBe(1);
@@ -302,14 +302,14 @@ describe('Database and Embedders Integration', () => {
 
       // 获取缓存
       const cached = await cacheService.get(text, model);
-      
+
       expect(cached).toEqual(mockResult);
     });
 
     test('✅ 能够自动选择可用嵌入器', async () => {
       try {
         const selectedProvider = await embedderFactory.autoSelectProvider();
-        
+
         expect(typeof selectedProvider).toBe('string');
         expect(['openai', 'ollama']).toContain(selectedProvider);
       } catch (error) {
@@ -323,11 +323,11 @@ describe('Database and Embedders Integration', () => {
     test('✅ 嵌入生成响应时间 < 10秒', async () => {
       try {
         const input = { text: 'This is a test text for performance testing' };
-        
+
         const startTime = Date.now();
         await embedderFactory.embed(input);
         const endTime = Date.now();
-        
+
         const responseTime = endTime - startTime;
         expect(responseTime).toBeLessThan(10000); // 10秒 = 10000毫秒
       } catch (error) {
@@ -340,11 +340,11 @@ describe('Database and Embedders Integration', () => {
       try {
         const collectionName = 'test-collection';
         const queryVector = Array(1536).fill(0.5);
-        
+
         const startTime = Date.now();
         await qdrantService.searchVectors(collectionName, queryVector);
         const endTime = Date.now();
-        
+
         const responseTime = endTime - startTime;
         expect(responseTime).toBeLessThan(1000); // 1秒 = 1000毫秒
       } catch (error) {
@@ -358,11 +358,11 @@ describe('Database and Embedders Integration', () => {
         const inputs = Array.from({ length: 5 }, (_, i) => ({
           text: `test text ${i} for concurrent processing`
         }));
-        
+
         // Create multiple concurrent requests
         const promises = inputs.map(input => embedderFactory.embed(input));
         const results = await Promise.all(promises);
-        
+
         expect(results).toHaveLength(5);
         results.forEach((result: any) => {
           expect(result).toBeDefined();
@@ -379,12 +379,12 @@ describe('Database and Embedders Integration', () => {
         const largeDataSet = Array.from({ length: 100 }, (_, i) => ({
           text: `test text ${i} for memory testing`
         }));
-        
+
         // Perform embedding operations
         for (const data of largeDataSet) {
           await embedderFactory.embed(data);
         }
-        
+
         // If we reach this point without memory issues, the test passes
         expect(true).toBe(true);
       } catch (error) {
@@ -403,7 +403,7 @@ describe('Database and Embedders Integration', () => {
           'test text 5'
         ];
         const model = 'test-model';
-        
+
         // Set cache for all texts
         for (const text of texts) {
           await cacheService.set(text, model, {
@@ -413,11 +413,11 @@ describe('Database and Embedders Integration', () => {
             processingTime: 100
           });
         }
-        
+
         // Retrieve cache multiple times
         let hits = 0;
         let total = 0;
-        
+
         for (const text of texts) {
           for (let i = 0; i < 3; i++) { // 3 attempts per text
             total++;
@@ -427,7 +427,7 @@ describe('Database and Embedders Integration', () => {
             }
           }
         }
-        
+
         const hitRate = (hits / total) * 100;
         expect(hitRate).toBeGreaterThanOrEqual(70);
       } catch (error) {
@@ -442,7 +442,7 @@ describe('Database and Embedders Integration', () => {
         // 生成嵌入
         const input = { text: 'This is a test text for embedding generation and storage' };
         const embeddingResult = await embedderFactory.embed(input);
-        
+
         expect(embeddingResult).toBeDefined();
         if (Array.isArray(embeddingResult)) {
           expect(embeddingResult.length).toBe(1);
@@ -456,18 +456,18 @@ describe('Database and Embedders Integration', () => {
         // 如果Qdrant服务可用，尝试存储向量
         if (await qdrantService.isConnected()) {
           const collectionName = 'test-embeddings';
-          const vectorSize = Array.isArray(embeddingResult) 
-            ? embeddingResult[0].dimensions 
+          const vectorSize = Array.isArray(embeddingResult)
+            ? embeddingResult[0].dimensions
             : embeddingResult.dimensions;
-          
+
           // 确保集合存在
           await qdrantService.createCollection(collectionName, vectorSize);
-          
+
           // 创建向量点
           const vectorPoint = {
             id: 'test-1',
-            vector: Array.isArray(embeddingResult) 
-              ? embeddingResult[0].vector 
+            vector: Array.isArray(embeddingResult)
+              ? embeddingResult[0].vector
               : embeddingResult.vector,
             payload: {
               content: input.text,
@@ -480,10 +480,10 @@ describe('Database and Embedders Integration', () => {
               metadata: {}
             }
           };
-          
+
           // 存储向量
           const upserted = await qdrantService.upsertVectors(collectionName, [vectorPoint]);
-          
+
           expect(upserted).toBe(true);
         }
       } catch (error) {

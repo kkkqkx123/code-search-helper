@@ -4,7 +4,7 @@ import { ApiServer } from './api/ApiServer';
 import { Logger } from './utils/logger';
 import { LoggerService } from './utils/LoggerService';
 import { ErrorHandlerService } from './utils/ErrorHandlerService';
-import { QdrantService } from './database/QdrantService';
+import { QdrantService } from './database/qdrant/QdrantService';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
 import { IndexSyncService } from './service/index/IndexSyncService';
@@ -64,14 +64,14 @@ class Application {
     // 创建一个 Logger 实例，用于整个应用
     this.logger = new Logger('code-search-helper');
     this.mcpServer = new MCPServer(this.logger);
-    
+
     // API端口配置
     const apiPort = parseInt(process.env.PORT || '3010', 10);
     this.apiServer = new ApiServer(
-      this.logger, 
-      this.indexSyncService, 
-      this.embedderFactory, 
-      this.qdrantService, 
+      this.logger,
+      this.indexSyncService,
+      this.embedderFactory,
+      this.qdrantService,
       apiPort
     );
   }
@@ -157,7 +157,7 @@ class Application {
     try {
       const embeddingConfig = this.configService.get('embedding');
       const selectedProvider = embeddingConfig.provider || 'openai';
-      
+
       // 使用嵌入配置服务的验证方法
       const missingEnvVars = this.embeddingConfigService.validateProviderConfig(selectedProvider, embeddingConfig);
       if (missingEnvVars.length > 0) {
@@ -250,7 +250,7 @@ async function bootstrap(): Promise<void> {
   try {
     const app = ApplicationFactory.createApplication();
     await app.start();
-    
+
     // 优雅关闭处理
     process.on('SIGINT', async () => {
       console.log('\nReceived SIGINT, shutting down gracefully...');

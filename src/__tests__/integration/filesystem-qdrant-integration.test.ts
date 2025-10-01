@@ -3,7 +3,7 @@ import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { FileSystemTraversal } from '../../service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../../service/filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../../service/filesystem/ChangeDetectionService';
-import { QdrantService } from '../../database/QdrantService';
+import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
@@ -30,7 +30,7 @@ async function waitForIndexingComplete(indexSyncService: IndexSyncService, proje
     }
     await new Promise(resolve => setTimeout(resolve, 50));
   }
- throw new Error(`Indexing did not complete within ${timeout}ms for project ${projectId}`);
+  throw new Error(`Indexing did not complete within ${timeout}ms for project ${projectId}`);
 }
 
 // Mock external dependencies
@@ -70,7 +70,7 @@ describe('Filesystem-Qdrant Integration', () => {
           await indexSyncService.stopIndexing(state.projectId);
         }
       }
-      
+
       // Clear project states to prevent interference between tests
       // But be less aggressive to allow statistics tests to work properly
       const currentStates = (projectStateManager as any).projectStates;
@@ -89,13 +89,13 @@ describe('Filesystem-Qdrant Integration', () => {
     if (tempDir) {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
-    
+
     // Stop memory monitoring to prevent Jest from hanging
     const performanceOptimizer = diContainer.get<any>(TYPES.PerformanceOptimizerService);
     if (performanceOptimizer && typeof performanceOptimizer.stopMemoryMonitoring === 'function') {
       performanceOptimizer.stopMemoryMonitoring();
     }
- });
+  });
 
   beforeEach(async () => {
     // Reset all mocks
@@ -105,23 +105,23 @@ describe('Filesystem-Qdrant Integration', () => {
     loggerService = diContainer.get<LoggerService>(TYPES.LoggerService);
     errorHandlerService = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
     configService = diContainer.get<ConfigService>(TYPES.ConfigService);
-    
+
     // Create unique storage paths for this test run to avoid conflicts
     const testStoragePath = path.join(tempDir, `test-project-states-${Date.now()}.json`);
     const testMappingPath = path.join(tempDir, `test-project-mapping-${Date.now()}.json`);
-    
+
     // Mock the config service to return the unique storage paths
     const originalGet = configService.get;
     configService.get = jest.fn().mockImplementation((key) => {
       if (key === 'project') {
-        return { 
+        return {
           statePath: testStoragePath,
-          mappingPath: testMappingPath 
+          mappingPath: testMappingPath
         };
       }
       return originalGet(key);
     });
-    
+
     projectIdManager = diContainer.get<ProjectIdManager>(TYPES.ProjectIdManager);
     fileSystemTraversal = diContainer.get<FileSystemTraversal>(TYPES.FileSystemTraversal);
     fileWatcherService = diContainer.get<FileWatcherService>(TYPES.FileWatcherService);
@@ -134,24 +134,24 @@ describe('Filesystem-Qdrant Integration', () => {
 
     // Clear any existing project states to ensure clean test environment
     (projectStateManager as any).projectStates = new Map();
-    
+
     // Clear the persistent storage files to ensure clean state
     try {
       await fs.unlink(testStoragePath);
     } catch (error) {
       // File might not exist, which is fine
     }
-    
+
     // Also clear the project mapping file
     try {
       await fs.unlink(testMappingPath);
     } catch (error) {
       // File might not exist, which is fine
     }
-    
+
     // Initialize services
     await projectStateManager.initialize();
-    
+
     // Create initial project state for the temp directory
     await projectStateManager.createOrUpdateProjectState(tempDir, {
       name: 'Test Project',
@@ -187,7 +187,7 @@ describe('Filesystem-Qdrant Integration', () => {
     mockFileSystemTraversal.traverseDirectory.mockImplementation(async (rootPath, options) => {
       // Return mock files based on the test files created
       const files: any[] = [];
-      
+
       // Check if test files exist and add them to the result
       try {
         const testFile1 = path.join(tempDir, 'test1.js');
@@ -195,7 +195,7 @@ describe('Filesystem-Qdrant Integration', () => {
         const testFile = path.join(tempDir, 'test.js');
         const largeFile = path.join(tempDir, 'large-file.js');
         const resilientTestFile = path.join(tempDir, 'resilient-test.js');
-        
+
         // Check which files exist and add them
         const fileChecks = [
           { path: testFile1, relativePath: 'test1.js', name: 'test1.js', extension: '.js' },
@@ -204,7 +204,7 @@ describe('Filesystem-Qdrant Integration', () => {
           { path: largeFile, relativePath: 'large-file.js', name: 'large-file.js', extension: '.js' },
           { path: resilientTestFile, relativePath: 'resilient-test.js', name: 'resilient-test.js', extension: '.js' }
         ];
-        
+
         for (const fileCheck of fileChecks) {
           try {
             await fs.access(fileCheck.path);
@@ -223,17 +223,17 @@ describe('Filesystem-Qdrant Integration', () => {
             // File doesn't exist, skip it
           }
         }
-        
+
         // Also check for project subdirectories
         const projectDirs = ['project1', 'project2', 'test-project', 'persistent-project'];
         for (const projectDir of projectDirs) {
           const projectPath = path.join(tempDir, projectDir);
           const projectFile = path.join(projectPath, 'test.js');
           const projectPyFile = path.join(projectPath, 'test.py');
-          
+
           try {
             await fs.access(projectPath);
-            
+
             // Add JavaScript test file if it exists
             try {
               await fs.access(projectFile);
@@ -251,7 +251,7 @@ describe('Filesystem-Qdrant Integration', () => {
             } catch {
               // File doesn't exist, skip it
             }
-            
+
             // Add Python test file if it exists
             try {
               await fs.access(projectPyFile);
@@ -276,7 +276,7 @@ describe('Filesystem-Qdrant Integration', () => {
       } catch (error) {
         console.error('Error in mock traversal:', error);
       }
-      
+
       return {
         files,
         directories: [],
@@ -298,12 +298,12 @@ describe('Filesystem-Qdrant Integration', () => {
       // Create project state before indexing to ensure it exists
       // Use allowReindex option to allow updating existing project state
       // 在测试中创建项目状态（使用 allowReindex 选项）
-    await projectStateManager.createOrUpdateProjectState(tempDir, {
-      name: 'Test Project for Indexing',
-      description: 'A test project for indexing workflow',
-      settings: { autoIndex: true, watchChanges: true },
-      allowReindex: true
-    });
+      await projectStateManager.createOrUpdateProjectState(tempDir, {
+        name: 'Test Project for Indexing',
+        description: 'A test project for indexing workflow',
+        settings: { autoIndex: true, watchChanges: true },
+        allowReindex: true
+      });
 
       // Start indexing the project
       const projectId = await indexSyncService.startIndexing(tempDir);
@@ -317,23 +317,23 @@ describe('Filesystem-Qdrant Integration', () => {
       // Verify project was created in state manager
       // Wait a bit more for the state update to propagate
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       // Use projectId instead of path since path might not match exactly in test environment
       // Wait for state to be updated in the state manager
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       let projectState = projectStateManager.getProjectState(projectId);
       // If state is not immediately available, wait a bit more and retry
       if (!projectState) {
         await new Promise(resolve => setTimeout(resolve, 500));
         projectState = projectStateManager.getProjectState(projectId);
       }
-      
+
       // If still no state, check if it's available by path
       if (!projectState) {
         projectState = projectStateManager.getProjectStateByPath(tempDir);
       }
-      
+
       expect(projectState).toBeTruthy();
       if (projectState) {
         // The status might be 'active' or 'inactive' depending on the test flow
@@ -439,23 +439,23 @@ describe('Filesystem-Qdrant Integration', () => {
       // Verify project state reflects the error
       // Wait a bit more for the state update to propagate
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       // Use projectId instead of path since path might not match exactly in test environment
       // Wait for state to be updated in the state manager
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       let projectState = projectStateManager.getProjectState(projectId);
       // If state is not immediately available, wait a bit more and retry
       if (!projectState) {
         await new Promise(resolve => setTimeout(resolve, 500));
         projectState = projectStateManager.getProjectState(projectId);
       }
-      
+
       // If still no state, check if it's available by path
       if (!projectState) {
         projectState = projectStateManager.getProjectStateByPath(tempDir);
       }
-      
+
       // If still no state, try to get all project states to see what's available
       if (!projectState) {
         const allStates = (projectStateManager as any).projectStates;
@@ -468,7 +468,7 @@ describe('Filesystem-Qdrant Integration', () => {
           }
         }
       }
-      
+
       expect(projectState).toBeTruthy(); // Ensure project state exists
       // Note: The project might eventually become 'active' after recovery, so we'll just check that it exists
       if (projectState) {
@@ -499,7 +499,7 @@ describe('Filesystem-Qdrant Integration', () => {
           watchChanges: true
         }
       });
-      
+
       await projectStateManager.createOrUpdateProjectState(projectDir2, {
         name: 'Stats Project 2',
         description: 'A test project for statistics',
@@ -611,146 +611,146 @@ describe('Filesystem-Qdrant Integration', () => {
       }
       expect(activateCheck).toBe(true);
     });
-it('should persist project states across restarts', async () => {
-  // Create test project with a unique name to avoid conflicts with other tests
-  const uniqueId = Date.now();
-  const projectDir = path.join(tempDir, `persistent-project-${uniqueId}`);
-  await fs.mkdir(projectDir, { recursive: true });
-  await fs.writeFile(path.join(projectDir, 'test.js'), 'console.log("Persistent project");');
+    it('should persist project states across restarts', async () => {
+      // Create test project with a unique name to avoid conflicts with other tests
+      const uniqueId = Date.now();
+      const projectDir = path.join(tempDir, `persistent-project-${uniqueId}`);
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.writeFile(path.join(projectDir, 'test.js'), 'console.log("Persistent project");');
 
-  // Create project state for the project before indexing
-  await projectStateManager.createOrUpdateProjectState(projectDir, {
-    name: `Persistent Test Project ${uniqueId}`,
-    description: 'A test project for persistence testing',
-    settings: {
-      autoIndex: true,
-      watchChanges: true
-    },
-    metadata: { customField: 'customValue' }
-  });
-
-  // Index the project
-  const projectId = await indexSyncService.startIndexing(projectDir);
-
-  // Wait for indexing to complete
-  await waitForIndexingComplete(indexSyncService, projectId);
-
-  // Wait a bit more for state to be saved
-  await new Promise(resolve => setTimeout(resolve, 10));
-
-  // Get current state
-  const originalState = projectStateManager.getProjectState(projectId);
-  expect(originalState).toBeTruthy();
-  if (originalState) {
-    expect(originalState.metadata?.customField).toBe('customValue');
-  }
-
-  // Wait for the state to be persisted to file
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  // Get the storage path used by the original manager to confirm it exists
-  const storagePath = (projectStateManager as any).storagePath;
-  console.log('Storage path:', storagePath);
-  try {
-    await fs.access(storagePath);
-    console.log('State file confirmed to exist at path:', storagePath);
-  } catch (error) {
-    console.log('State file does not exist at path:', storagePath, 'Error:', error);
-    // List files in the temp directory to debug
-    const files = await fs.readdir(path.dirname(storagePath));
-    console.log('Files in temp directory:', files);
-  }
-  
-  // Create a small delay to ensure file system consistency
-  await new Promise(resolve => setTimeout(resolve, 200));
-
-  // Create a new config service instance that will use the same storage path
-  // Use the existing configService from the test setup and override its get method
-  const originalGet = configService.get.bind(configService);
-  configService.get = jest.fn().mockImplementation((key) => {
-    if (key === 'project') {
-      return { statePath: storagePath };  // Use the same storage path as original
-    }
-    return originalGet(key);
-  });
-
-  // Simulate service restart by creating a new project state manager
-  const newProjectStateManager = new ProjectStateManager(
-    loggerService,
-    errorHandlerService,
-    projectIdManager,
-    indexSyncService,
-    qdrantService,
-    configService  // Use the config service with the same storage path
-  );
-
-  // Initialize the new manager to load persisted data
-  await newProjectStateManager.initialize();
-
-  // Wait for the new manager to load all states from persistence
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  // Check if the project state exists in the new manager
-  let persistedState = newProjectStateManager.getProjectState(projectId);
-  
-  // If state is not immediately available by projectId, try by path
-  if (!persistedState) {
-    persistedState = newProjectStateManager.getProjectStateByPath(projectDir);
-  }
-  
-  // If still no state, wait a bit more and retry
-  if (!persistedState) {
-    await new Promise(resolve => setTimeout(resolve, 10));
-    persistedState = newProjectStateManager.getProjectState(projectId);
-  }
-  
-  // If still no state, try to get all project states to see what's available
-  if (!persistedState) {
-    const allStates = (newProjectStateManager as any).projectStates;
-    console.log('Available project states in new manager:', Array.from(allStates.keys()));
-    console.log('Looking for projectId:', projectId, 'and projectDir:', projectDir);
-    // Try to find a state that matches our expected project
-    for (const [key, state] of allStates) {
-      console.log('Checking state key:', key, 'with path:', (state as any).path, 'and projectId:', (state as any).projectId);
-      if ((state as any).projectId === projectId || (state as any).path === projectDir) {
-        persistedState = state as any;
-        break;
-      }
-    }
-  }
-  
-  // If still no state, let's check if the metadata field exists in any state
-  if (!persistedState) {
-    const allStates = (newProjectStateManager as any).projectStates;
-    for (const [key, state] of allStates) {
-      const stateAsAny = state as any;
-      if (stateAsAny.metadata && stateAsAny.metadata.customField === 'customValue') {
-        persistedState = state as any;
-        console.log('Found state with customField by metadata search, key:', key);
-        break;
-      }
-    }
-  }
-  
-  // If still no state found, output debug information
-  if (!persistedState) {
-    const allStates = (newProjectStateManager as any).projectStates;
-    const stateInfo = [];
-    for (const [key, state] of allStates) {
-      stateInfo.push({
-        key,
-        path: (state as any).path,
-        projectId: (state as any).projectId,
-        metadata: (state as any).metadata
+      // Create project state for the project before indexing
+      await projectStateManager.createOrUpdateProjectState(projectDir, {
+        name: `Persistent Test Project ${uniqueId}`,
+        description: 'A test project for persistence testing',
+        settings: {
+          autoIndex: true,
+          watchChanges: true
+        },
+        metadata: { customField: 'customValue' }
       });
-    }
-    console.log('All states in new manager:', stateInfo);
-  }
-  expect(persistedState).toBeTruthy();
-  if (persistedState) {
-    expect(persistedState.metadata?.customField).toBe('customValue');
-  }
-});
+
+      // Index the project
+      const projectId = await indexSyncService.startIndexing(projectDir);
+
+      // Wait for indexing to complete
+      await waitForIndexingComplete(indexSyncService, projectId);
+
+      // Wait a bit more for state to be saved
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Get current state
+      const originalState = projectStateManager.getProjectState(projectId);
+      expect(originalState).toBeTruthy();
+      if (originalState) {
+        expect(originalState.metadata?.customField).toBe('customValue');
+      }
+
+      // Wait for the state to be persisted to file
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Get the storage path used by the original manager to confirm it exists
+      const storagePath = (projectStateManager as any).storagePath;
+      console.log('Storage path:', storagePath);
+      try {
+        await fs.access(storagePath);
+        console.log('State file confirmed to exist at path:', storagePath);
+      } catch (error) {
+        console.log('State file does not exist at path:', storagePath, 'Error:', error);
+        // List files in the temp directory to debug
+        const files = await fs.readdir(path.dirname(storagePath));
+        console.log('Files in temp directory:', files);
+      }
+
+      // Create a small delay to ensure file system consistency
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Create a new config service instance that will use the same storage path
+      // Use the existing configService from the test setup and override its get method
+      const originalGet = configService.get.bind(configService);
+      configService.get = jest.fn().mockImplementation((key) => {
+        if (key === 'project') {
+          return { statePath: storagePath };  // Use the same storage path as original
+        }
+        return originalGet(key);
+      });
+
+      // Simulate service restart by creating a new project state manager
+      const newProjectStateManager = new ProjectStateManager(
+        loggerService,
+        errorHandlerService,
+        projectIdManager,
+        indexSyncService,
+        qdrantService,
+        configService  // Use the config service with the same storage path
+      );
+
+      // Initialize the new manager to load persisted data
+      await newProjectStateManager.initialize();
+
+      // Wait for the new manager to load all states from persistence
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Check if the project state exists in the new manager
+      let persistedState = newProjectStateManager.getProjectState(projectId);
+
+      // If state is not immediately available by projectId, try by path
+      if (!persistedState) {
+        persistedState = newProjectStateManager.getProjectStateByPath(projectDir);
+      }
+
+      // If still no state, wait a bit more and retry
+      if (!persistedState) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        persistedState = newProjectStateManager.getProjectState(projectId);
+      }
+
+      // If still no state, try to get all project states to see what's available
+      if (!persistedState) {
+        const allStates = (newProjectStateManager as any).projectStates;
+        console.log('Available project states in new manager:', Array.from(allStates.keys()));
+        console.log('Looking for projectId:', projectId, 'and projectDir:', projectDir);
+        // Try to find a state that matches our expected project
+        for (const [key, state] of allStates) {
+          console.log('Checking state key:', key, 'with path:', (state as any).path, 'and projectId:', (state as any).projectId);
+          if ((state as any).projectId === projectId || (state as any).path === projectDir) {
+            persistedState = state as any;
+            break;
+          }
+        }
+      }
+
+      // If still no state, let's check if the metadata field exists in any state
+      if (!persistedState) {
+        const allStates = (newProjectStateManager as any).projectStates;
+        for (const [key, state] of allStates) {
+          const stateAsAny = state as any;
+          if (stateAsAny.metadata && stateAsAny.metadata.customField === 'customValue') {
+            persistedState = state as any;
+            console.log('Found state with customField by metadata search, key:', key);
+            break;
+          }
+        }
+      }
+
+      // If still no state found, output debug information
+      if (!persistedState) {
+        const allStates = (newProjectStateManager as any).projectStates;
+        const stateInfo = [];
+        for (const [key, state] of allStates) {
+          stateInfo.push({
+            key,
+            path: (state as any).path,
+            projectId: (state as any).projectId,
+            metadata: (state as any).metadata
+          });
+        }
+        console.log('All states in new manager:', stateInfo);
+      }
+      expect(persistedState).toBeTruthy();
+      if (persistedState) {
+        expect(persistedState.metadata?.customField).toBe('customValue');
+      }
+    });
   });
 
   describe('Performance and Error Handling', () => {
@@ -802,7 +802,7 @@ it('should persist project states across restarts', async () => {
         await fs.mkdir(dir, { recursive: true });
         // Create a unique file in each directory to ensure projectId is unique
         await fs.writeFile(path.join(dir, 'test.js'), `console.log("Concurrent project in ${path.basename(dir)}");`);
-        
+
         // Create project state for each project
         await projectStateManager.createOrUpdateProjectState(dir, {
           name: `Test Project ${path.basename(dir)}`,
@@ -834,24 +834,24 @@ it('should persist project states across restarts', async () => {
       for (const [index, projectId] of projectIds.entries()) {
         // Wait for the state to be available before checking
         await new Promise(resolve => setTimeout(resolve, 200 * (index + 1))); // Stagger the checks
-        
+
         // Try multiple times to get the project state with longer delays
         let projectState = projectStateManager.getProjectState(projectId);
         let retryCount = 0;
         const maxRetries = 5;
-        
+
         while (!projectState && retryCount < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between retries
           projectState = projectStateManager.getProjectState(projectId);
           retryCount++;
         }
-        
+
         // If still no state, try to get by path
         if (!projectState) {
           const projectPath = projectDirs[index];
           projectState = projectStateManager.getProjectStateByPath(projectPath);
         }
-        
+
         expect(projectState).toBeTruthy();
         if (projectState) {
           // Allow for some time for the status to update from 'indexing' to 'active'
@@ -902,19 +902,19 @@ it('should persist project states across restarts', async () => {
       // Use projectId instead of path since path might not match exactly in test environment
       // Wait for state to be updated in the state manager
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       let projectState = projectStateManager.getProjectState(projectId);
       // If state is not immediately available, wait a bit more and retry
       if (!projectState) {
         await new Promise(resolve => setTimeout(resolve, 500));
         projectState = projectStateManager.getProjectState(projectId);
       }
-      
+
       // If still no state, check if it's available by path
       if (!projectState) {
         projectState = projectStateManager.getProjectStateByPath(tempDir);
       }
-      
+
       // If still no state, try to get all project states to see what's available
       if (!projectState) {
         const allStates = (projectStateManager as any).projectStates;
@@ -927,7 +927,7 @@ it('should persist project states across restarts', async () => {
           }
         }
       }
-      
+
       expect(projectState).toBeTruthy(); // Ensure project state exists
       if (projectState) {
         // After recovery, the status might be 'active' or 'inactive' depending on the test flow

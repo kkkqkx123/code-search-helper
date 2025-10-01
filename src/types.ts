@@ -1,13 +1,13 @@
 import { ConfigService } from './config/ConfigService';
-import { QdrantService } from './database/QdrantService';
+import { QdrantService } from './database/qdrant/QdrantService';
 import { LoggerService } from './utils/LoggerService';
 import { ErrorHandlerService } from './utils/ErrorHandlerService';
 import { ProjectIdManager } from './database/ProjectIdManager';
-import { IQdrantConnectionManager } from './database/QdrantConnectionManager';
-import { IQdrantCollectionManager } from './database/QdrantCollectionManager';
-import { IQdrantVectorOperations } from './database/QdrantVectorOperations';
-import { IQdrantQueryUtils } from './database/QdrantQueryUtils';
-import { IQdrantProjectManager } from './database/QdrantProjectManager';
+import { IQdrantConnectionManager } from './database/qdrant/QdrantConnectionManager';
+import { IQdrantCollectionManager } from './database/qdrant/QdrantCollectionManager';
+import { IQdrantVectorOperations } from './database/qdrant/QdrantVectorOperations';
+import { IQdrantQueryUtils } from './database/qdrant/QdrantQueryUtils';
+import { IQdrantProjectManager } from './database/qdrant/QdrantProjectManager';
 
 import { FileSystemTraversal } from './service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from './service/filesystem/FileWatcherService';
@@ -34,7 +34,7 @@ import { FileSearchCache } from './service/filesearch/FileSearchCache';
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
   ConfigFactory: Symbol.for('ConfigFactory'),
-  
+
   // 配置服务
   EnvironmentConfigService: Symbol.for('EnvironmentConfigService'),
   QdrantConfigService: Symbol.for('QdrantConfigService'),
@@ -49,19 +49,19 @@ export const TYPES = {
   LSPConfigService: Symbol.for('LSPConfigService'),
   SemgrepConfigService: Symbol.for('SemgrepConfigService'),
   TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
-  
+
   QdrantService: Symbol.for('QdrantService'),
   LoggerService: Symbol.for('LoggerService'),
   ErrorHandlerService: Symbol.for('ErrorHandlerService'),
   ProjectIdManager: Symbol.for('ProjectIdManager'),
-  
+
   // Qdrant 服务模块
   IQdrantConnectionManager: Symbol.for('IQdrantConnectionManager'),
   IQdrantCollectionManager: Symbol.for('IQdrantCollectionManager'),
   IQdrantVectorOperations: Symbol.for('IQdrantVectorOperations'),
   IQdrantQueryUtils: Symbol.for('IQdrantQueryUtils'),
   IQdrantProjectManager: Symbol.for('IQdrantProjectManager'),
-  
+
   // 文件系统服务
   FileSystemTraversal: Symbol.for('FileSystemTraversal'),
   FileWatcherService: Symbol.for('FileWatcherService'),
@@ -75,12 +75,12 @@ export const TYPES = {
   // 嵌入器服务
   EmbedderFactory: Symbol.for('EmbedderFactory'),
   EmbeddingCacheService: Symbol.for('EmbeddingCacheService'),
-  
+
   // Tree-sitter 解析服务
   TreeSitterService: Symbol.for('TreeSitterService'),
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
   ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
-  
+
   // 文件搜索服务
   FileSearchService: Symbol.for('FileSearchService'),
   FileVectorIndexer: Symbol.for('FileVectorIndexer'),

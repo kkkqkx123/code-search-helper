@@ -1,15 +1,15 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
-import { QdrantService } from '../../database/QdrantService';
+import { QdrantService } from '../../database/qdrant/QdrantService';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { LoggerService } from '../../utils/LoggerService';
 import { FileVectorIndexer } from './FileVectorIndexer';
 import { FileQueryProcessor } from './FileQueryProcessor';
 import { FileSearchCache } from './FileSearchCache';
-import { 
-  FileSearchRequest, 
-  FileSearchResponse, 
-  FileVectorIndex, 
+import {
+  FileSearchRequest,
+  FileSearchResponse,
+  FileVectorIndex,
   FileSearchResult,
   FileSearchOptions,
   IndexingOptions
@@ -36,7 +36,7 @@ export class FileSearchService {
       defaultTTL: 5 * 60 * 1000, // 5分钟
       cleanupInterval: 60 * 1000 // 1分钟
     }, logger);
-    
+
     this.queryProcessor = new FileQueryProcessor(this, this.embedderFactory, logger);
   }
 
@@ -50,13 +50,13 @@ export class FileSearchService {
 
     try {
       this.logger.info('初始化文件搜索服务...');
-      
+
       // 确保向量数据库连接
       await this.qdrantService.initialize();
-      
+
       // 创建必要的集合
       await this.createCollections();
-      
+
       this.isInitialized = true;
       this.logger.info('文件搜索服务初始化完成');
     } catch (error) {
@@ -75,10 +75,10 @@ export class FileSearchService {
 
     try {
       this.logger.info(`搜索文件: ${request.query}`);
-      
+
       // 生成缓存键
       const cacheKey = this.cache.generateKey(request.query, request.options);
-      
+
       // 检查缓存
       const cachedResults = await this.cache.get(cacheKey);
       if (cachedResults) {
@@ -91,15 +91,15 @@ export class FileSearchService {
           hasMore: false
         };
       }
-      
+
       // 处理查询
       const response = await this.queryProcessor.processQuery(request);
-      
+
       // 缓存结果
       if (response.results.length > 0) {
         await this.cache.set(cacheKey, response.results);
       }
-      
+
       return response;
     } catch (error) {
       this.logger.error(`文件搜索失败: ${request.query}`, error);
@@ -111,7 +111,7 @@ export class FileSearchService {
    * 向量搜索
    */
   async vectorSearch(
-    queryVector: number[], 
+    queryVector: number[],
     vectorField: string,
     options?: any
   ): Promise<FileSearchResult[]> {
@@ -121,7 +121,7 @@ export class FileSearchService {
 
     try {
       this.logger.debug(`执行向量搜索: ${vectorField}`);
-      
+
       const searchResults = await this.qdrantService.searchVectors(
         'file_vectors',
         queryVector,
@@ -133,7 +133,7 @@ export class FileSearchService {
           filter: options?.filter
         }
       );
-      
+
       // 转换结果为文件搜索结果格式
       return searchResults.map((result: any) => ({
         filePath: result.payload?.filePath || '',
@@ -161,14 +161,14 @@ export class FileSearchService {
 
     try {
       this.logger.debug(`索引文件: ${filePath}`);
-      
+
       const embedder = await this.embedderFactory.getEmbedder() as BaseEmbedder;
       const indexer = new FileVectorIndexer(this.qdrantService, embedder, this.logger);
       await indexer.indexFile(filePath, projectId);
-      
+
       // 清除相关缓存
       await this.clearRelatedCache(filePath);
-      
+
     } catch (error) {
       this.logger.error(`文件索引失败: ${filePath}`, error);
       throw error;
@@ -185,17 +185,17 @@ export class FileSearchService {
 
     try {
       this.logger.info(`批量索引文件: ${files.length} 个文件`);
-      
+
       const embedder = await this.embedderFactory.getEmbedder() as BaseEmbedder;
       const indexer = new FileVectorIndexer(this.qdrantService, embedder, this.logger);
       const filePaths = files.map(file => file.path);
       await indexer.indexFiles(filePaths, projectId);
-      
+
       // 清除相关缓存
       for (const file of files) {
         await this.clearRelatedCache(file.path);
       }
-      
+
     } catch (error) {
       this.logger.error(`批量文件索引失败`, error);
       throw error;
@@ -212,16 +212,16 @@ export class FileSearchService {
 
     try {
       this.logger.debug(`删除文件索引: ${filePath}`);
-      
+
       // 生成文件ID
       const fileId = projectId ? this.generateFileId(filePath, projectId) : filePath;
-      
+
       // 从向量数据库中删除
       await this.qdrantService.deletePoints('file_vectors', [fileId]);
-      
+
       // 清除相关缓存
       await this.clearRelatedCache(filePath);
-      
+
     } catch (error) {
       this.logger.error(`删除文件索引失败: ${filePath}`, error);
       throw error;
@@ -236,7 +236,7 @@ export class FileSearchService {
       // 先删除旧索引，再创建新索引
       await this.deleteFileIndex(filePath, projectId);
       await this.indexFile(filePath, projectId);
-      
+
       this.logger.debug(`更新文件索引: ${filePath}`);
     } catch (error) {
       this.logger.error(`更新文件索引失败: ${filePath}`, error);
@@ -265,10 +265,10 @@ export class FileSearchService {
   async destroy(): Promise<void> {
     try {
       this.logger.info('销毁文件搜索服务...');
-      
+
       this.cache.destroy();
       this.isInitialized = false;
-      
+
       this.logger.info('文件搜索服务已销毁');
     } catch (error) {
       this.logger.error('文件搜索服务销毁失败', error);
@@ -291,10 +291,10 @@ export class FileSearchService {
           distance: 'Cosine'
         }
       };
-      
+
       await this.qdrantService.createCollection('file_vectors', 768);
       this.logger.debug('文件向量集合已创建');
-      
+
     } catch (error) {
       // 如果集合已存在，忽略错误
       if (error instanceof Error && error.message?.includes('already exists')) {

@@ -1,16 +1,16 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../utils/LoggerService';
-import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { ConfigService } from '../config/ConfigService';
-import { TYPES } from '../types';
-import { 
-  QdrantConfig, 
-  ConnectionStatus, 
-  QdrantEventType, 
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
+import { TYPES } from '../../types';
+import {
+  QdrantConfig,
+  ConnectionStatus,
+  QdrantEventType,
   QdrantEvent,
   DEFAULT_QDRANT_CONFIG,
-  ERROR_MESSAGES 
+  ERROR_MESSAGES
 } from './QdrantTypes';
 
 /**
@@ -83,20 +83,20 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
       this.emitEvent(QdrantEventType.CONNECTING, { status: 'connecting' });
 
       await this.ensureClientInitialized();
-      
+
       // 使用 getCollections 作为健康检查
       await this.client!.getCollections();
-      
+
       this.isConnectedFlag = true;
       this.connectionStatus = ConnectionStatus.CONNECTED;
-      
+
       this.logger.info('Connected to Qdrant successfully', {
         host: this.config.host,
         port: this.config.port,
         useHttps: this.config.useHttps
       });
-      
-      this.emitEvent(QdrantEventType.CONNECTED, { 
+
+      this.emitEvent(QdrantEventType.CONNECTED, {
         status: 'connected',
         config: {
           host: this.config.host,
@@ -104,23 +104,23 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
           useHttps: this.config.useHttps
         }
       });
-      
+
       return true;
     } catch (error) {
       this.isConnectedFlag = false;
       this.connectionStatus = ConnectionStatus.ERROR;
-      
+
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
         new Error(`${ERROR_MESSAGES.CONNECTION_FAILED}: ${errorMessage}`),
         { component: 'QdrantConnectionManager', operation: 'initialize' }
       );
-      
-      this.emitEvent(QdrantEventType.ERROR, { 
+
+      this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(errorMessage),
         operation: 'initialize'
       });
-      
+
       return false;
     }
   }
@@ -139,15 +139,15 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
       this.isConnectedFlag = false;
       this.isInitialized = false;
       this.connectionStatus = ConnectionStatus.DISCONNECTED;
-      
+
       this.logger.info('Qdrant client connection closed');
       this.emitEvent(QdrantEventType.DISCONNECTED, { status: 'disconnected' });
     } catch (error) {
-      this.logger.warn('Error closing Qdrant client', { 
-        error: error instanceof Error ? error.message : String(error) 
+      this.logger.warn('Error closing Qdrant client', {
+        error: error instanceof Error ? error.message : String(error)
       });
-      
-      this.emitEvent(QdrantEventType.ERROR, { 
+
+      this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'close'
       });
@@ -251,7 +251,7 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
    */
   updateConfig(config: Partial<QdrantConfig>): void {
     this.config = { ...this.config, ...config };
-    
+
     // 如果客户端已经初始化，需要重新创建客户端
     if (this.isInitialized) {
       this.logger.info('Configuration updated, client will be reinitialized on next use');

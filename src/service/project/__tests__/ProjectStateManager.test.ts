@@ -3,7 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { IndexSyncService } from '../../index/IndexSyncService';
-import { QdrantService } from '../../../database/QdrantService';
+import { QdrantService } from '../../../database/qdrant/QdrantService';
 import { ConfigService } from '../../../config/ConfigService';
 import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
@@ -13,11 +13,11 @@ import { ChangeDetectionService } from '../../filesystem/ChangeDetectionService'
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
 import { PerformanceOptimizerService } from '../../resilience/ResilientBatchingService';
-import { IQdrantConnectionManager } from '../../../database/QdrantConnectionManager';
-import { IQdrantCollectionManager } from '../../../database/QdrantCollectionManager';
-import { IQdrantVectorOperations } from '../../../database/QdrantVectorOperations';
-import { IQdrantQueryUtils } from '../../../database/QdrantQueryUtils';
-import { IQdrantProjectManager } from '../../../database/QdrantProjectManager';
+import { IQdrantConnectionManager } from '../../../database/qdrant/QdrantConnectionManager';
+import { IQdrantCollectionManager } from '../../../database/qdrant/QdrantCollectionManager';
+import { IQdrantVectorOperations } from '../../../database/qdrant/QdrantVectorOperations';
+import { IQdrantQueryUtils } from '../../../database/qdrant/QdrantQueryUtils';
+import { IQdrantProjectManager } from '../../../database/qdrant/QdrantProjectManager';
 import { ASTCodeSplitter } from '../../parser/splitting/ASTCodeSplitter';
 
 // Mock dependencies
@@ -55,7 +55,7 @@ describe('ProjectStateManager', () => {
       traverseRecursive: jest.fn(),
       processDirectory: jest.fn(),
     } as unknown as jest.Mocked<FileSystemTraversal>;
-    
+
     // Create mock file watcher service
     const mockFileWatcherService = {
       setCallbacks: jest.fn(),
@@ -64,7 +64,7 @@ describe('ProjectStateManager', () => {
       isWatchingPath: jest.fn(),
       getWatchedPaths: jest.fn(),
     } as unknown as jest.Mocked<FileWatcherService>;
-    
+
     // Create mock change detection service
     const mockChangeDetectionService = {
       setCallbacks: jest.fn(),
@@ -98,12 +98,12 @@ describe('ProjectStateManager', () => {
       emit: jest.fn(),
       once: jest.fn(),
     } as unknown as jest.Mocked<ChangeDetectionService>;
-    
+
     // Create mock embedder factory
     const mockEmbedderFactory = {
       embed: jest.fn(),
     } as unknown as jest.Mocked<EmbedderFactory>;
-    
+
     // Create mock embedding cache service
     const mockEmbeddingCacheService = {
       get: jest.fn(),
@@ -113,12 +113,12 @@ describe('ProjectStateManager', () => {
       clear: jest.fn(),
       size: jest.fn(),
     } as unknown as jest.Mocked<EmbeddingCacheService>;
-    
+
     // Create mock ast splitter
     const mockAstSplitter = {
       split: jest.fn(),
     } as unknown as jest.Mocked<ASTCodeSplitter>;
-    
+
     // Create mock performance optimizer service
     const mockPerformanceOptimizerService = {
       executeWithRetry: jest.fn(),
@@ -132,7 +132,7 @@ describe('ProjectStateManager', () => {
       updateRetryOptions: jest.fn(),
       updateBatchOptions: jest.fn(),
     } as unknown as jest.Mocked<PerformanceOptimizerService>;
-    
+
     indexSyncService = new IndexSyncService(
       loggerService,
       errorHandlerService,
@@ -152,7 +152,7 @@ describe('ProjectStateManager', () => {
     const mockVectorOperations = {} as jest.Mocked<IQdrantVectorOperations>;
     const mockQueryUtils = {} as jest.Mocked<IQdrantQueryUtils>;
     const mockProjectManager = {} as jest.Mocked<IQdrantProjectManager>;
-    
+
     qdrantService = new QdrantService(
       configService,
       loggerService,
@@ -276,7 +276,7 @@ describe('ProjectStateManager', () => {
       expect(mockFs.readFile).toHaveBeenCalledWith('./data/project-states.json', 'utf-8');
       expect(loggerService.info).toHaveBeenCalledWith('Loaded 1 valid project states, skipped 1 invalid states');
       expect(loggerService.warn).toHaveBeenCalledWith('Skipping duplicate project path: /test/project', expect.any(Object));
-      
+
       // Verify only one project was loaded
       const allStates = projectStateManager.getAllProjectStates();
       expect(allStates.length).toBe(1);
@@ -325,7 +325,7 @@ describe('ProjectStateManager', () => {
       expect(mockFs.readFile).toHaveBeenCalledWith('./data/project-states.json', 'utf-8');
       expect(loggerService.info).toHaveBeenCalledWith('Loaded 1 valid project states, skipped 2 invalid states');
       expect(loggerService.warn).toHaveBeenCalledWith('Detected and skipped 2 duplicate project paths');
-      
+
       // Verify only one project was loaded
       const allStates = projectStateManager.getAllProjectStates();
       expect(allStates.length).toBe(1);
@@ -382,7 +382,7 @@ describe('ProjectStateManager', () => {
       // Verify results - should only load the valid project, skip the invalid ones
       expect(mockFs.readFile).toHaveBeenCalledWith('./data/project-states.json', 'utf-8');
       expect(loggerService.info).toHaveBeenCalledWith('Loaded 1 valid project states, skipped 2 invalid states');
-      
+
       // Verify only one project was loaded
       const allStates = projectStateManager.getAllProjectStates();
       expect(allStates.length).toBe(1);
@@ -421,7 +421,7 @@ describe('ProjectStateManager', () => {
       // Verify results - should only load the valid project, skip the invalid one
       expect(mockFs.readFile).toHaveBeenCalledWith('./data/project-states.json', 'utf-8');
       expect(loggerService.info).toHaveBeenCalledWith('Loaded 1 valid project states, skipped 1 invalid states');
-      
+
       // Verify only one project was loaded
       const allStates = projectStateManager.getAllProjectStates();
       expect(allStates.length).toBe(1);
@@ -481,65 +481,65 @@ describe('ProjectStateManager', () => {
       expect(mockFs.writeFile).toHaveBeenCalled();
     });
 
-    
-        it('should update an existing project state', async () => {
-          const projectPath = '/test/project';
-          const projectId = 'test-project-id';
-          const options = {
-            name: 'Updated Project',
-            settings: { autoIndex: false }
-          };
-    
-          // Mock dependencies for create
-          projectIdManager.generateProjectId.mockResolvedValue(projectId);
-          projectIdManager.getProjectId.mockImplementation((path) => {
-            if (path === projectPath) return projectId;
-            return undefined;
-          });
-          projectIdManager.getProjectPath.mockImplementation((id) => {
-            if (id === projectId) return projectPath;
-            return undefined;
-          });
-          qdrantService.getCollectionInfoForProject.mockResolvedValue({
-            name: 'project-test-project-id',
-            vectors: {
-              size: 1536,
-              distance: 'Cosine'
-            },
-            pointsCount: 100,
-            status: 'green'
-          });
-    
-          // Create initial state
-          await projectStateManager.createOrUpdateProjectState(projectPath, {
-            name: 'Test Project',
-            description: 'A test project'
-          });
-    
-          // Mock dependencies for update
-          projectIdManager.getProjectId.mockImplementation((path) => {
-            if (path === projectPath) return projectId;
-            return undefined;
-          });
-          projectIdManager.getProjectPath.mockImplementation((id) => {
-            if (id === projectId) return projectPath;
-            return undefined;
-          });
-          qdrantService.getCollectionInfoForProject.mockResolvedValue({
-            name: 'project-test-project-id',
-            vectors: {
-              size: 1536,
-              distance: 'Cosine'
-            },
-            pointsCount: 100,
-            status: 'green'
-          });
-    
-          // Call the method
-          const result = await projectStateManager.createOrUpdateProjectState(projectPath, {
-            ...options,
-            allowReindex: true
-          });
+
+    it('should update an existing project state', async () => {
+      const projectPath = '/test/project';
+      const projectId = 'test-project-id';
+      const options = {
+        name: 'Updated Project',
+        settings: { autoIndex: false }
+      };
+
+      // Mock dependencies for create
+      projectIdManager.generateProjectId.mockResolvedValue(projectId);
+      projectIdManager.getProjectId.mockImplementation((path) => {
+        if (path === projectPath) return projectId;
+        return undefined;
+      });
+      projectIdManager.getProjectPath.mockImplementation((id) => {
+        if (id === projectId) return projectPath;
+        return undefined;
+      });
+      qdrantService.getCollectionInfoForProject.mockResolvedValue({
+        name: 'project-test-project-id',
+        vectors: {
+          size: 1536,
+          distance: 'Cosine'
+        },
+        pointsCount: 100,
+        status: 'green'
+      });
+
+      // Create initial state
+      await projectStateManager.createOrUpdateProjectState(projectPath, {
+        name: 'Test Project',
+        description: 'A test project'
+      });
+
+      // Mock dependencies for update
+      projectIdManager.getProjectId.mockImplementation((path) => {
+        if (path === projectPath) return projectId;
+        return undefined;
+      });
+      projectIdManager.getProjectPath.mockImplementation((id) => {
+        if (id === projectId) return projectPath;
+        return undefined;
+      });
+      qdrantService.getCollectionInfoForProject.mockResolvedValue({
+        name: 'project-test-project-id',
+        vectors: {
+          size: 1536,
+          distance: 'Cosine'
+        },
+        pointsCount: 100,
+        status: 'green'
+      });
+
+      // Call the method
+      const result = await projectStateManager.createOrUpdateProjectState(projectPath, {
+        ...options,
+        allowReindex: true
+      });
       // Verify results
       expect(result.name).toBe('Updated Project');
       expect(result.description).toBe('A test project'); // Should remain unchanged
@@ -722,47 +722,47 @@ describe('ProjectStateManager', () => {
     });
   });
 
-  
-    describe('getProjectStateByPath', () => {
-      beforeEach(async () => {
-        // Initialize the service
-        mockFs.mkdir.mockResolvedValue(undefined);
-        mockFs.readFile.mockRejectedValue({ code: 'ENOENT' } as NodeJS.ErrnoException);
-        mockFs.writeFile.mockResolvedValue(undefined);
-        await projectStateManager.initialize();
-  
-        // Create a test project
-        projectIdManager.generateProjectId.mockResolvedValue('test-project-id');
-        projectIdManager.getProjectPath.mockImplementation((id) => {
-          if (id === 'test-project-id') return '/test/project';
-          return undefined;
-        });
-        qdrantService.getCollectionInfoForProject.mockResolvedValue({
-          name: 'project-test-project-id',
-          vectors: {
-            size: 1536,
-            distance: 'Cosine'
-          },
-          pointsCount: 100,
-          status: 'green'
-        });
-        await projectStateManager.createOrUpdateProjectState('/test/project', {
-          name: 'Test Project'
-        });
+
+  describe('getProjectStateByPath', () => {
+    beforeEach(async () => {
+      // Initialize the service
+      mockFs.mkdir.mockResolvedValue(undefined);
+      mockFs.readFile.mockRejectedValue({ code: 'ENOENT' } as NodeJS.ErrnoException);
+      mockFs.writeFile.mockResolvedValue(undefined);
+      await projectStateManager.initialize();
+
+      // Create a test project
+      projectIdManager.generateProjectId.mockResolvedValue('test-project-id');
+      projectIdManager.getProjectPath.mockImplementation((id) => {
+        if (id === 'test-project-id') return '/test/project';
+        return undefined;
       });
-  
-      it('should return project state for existing path', () => {
-        const projectPath = '/test/project';
-        const projectId = 'test-project-id';
-  
+      qdrantService.getCollectionInfoForProject.mockResolvedValue({
+        name: 'project-test-project-id',
+        vectors: {
+          size: 1536,
+          distance: 'Cosine'
+        },
+        pointsCount: 100,
+        status: 'green'
+      });
+      await projectStateManager.createOrUpdateProjectState('/test/project', {
+        name: 'Test Project'
+      });
+    });
+
+    it('should return project state for existing path', () => {
+      const projectPath = '/test/project';
+      const projectId = 'test-project-id';
+
       // Mock dependencies
       projectIdManager.getProjectId.mockImplementation((path) => {
         if (path === projectPath) return projectId;
         return undefined;
       });
-  
-        // Call the method
-        const result = projectStateManager.getProjectStateByPath(projectPath);
+
+      // Call the method
+      const result = projectStateManager.getProjectStateByPath(projectPath);
       // Verify results
       expect(result).toBeTruthy();
       expect(result!.projectPath).toBe(projectPath);
@@ -770,13 +770,13 @@ describe('ProjectStateManager', () => {
 
     it('should return null for non-existent path', () => {
       const projectPath = '/non-existent/project';
- 
+
       // Mock dependencies - for non-existent path, getProjectId should return undefined
       projectIdManager.getProjectId.mockReturnValue(undefined);
- 
+
       // Call the method
       const result = projectStateManager.getProjectStateByPath(projectPath);
- 
+
       // Verify results
       expect(result).toBeNull();
     });
@@ -893,37 +893,37 @@ describe('ProjectStateManager', () => {
     });
   });
 
-  
-    describe('activateProject', () => {
-      beforeEach(async () => {
-        // Initialize the service
-        mockFs.mkdir.mockResolvedValue(undefined);
-        mockFs.readFile.mockRejectedValue({ code: 'ENOENT' } as NodeJS.ErrnoException);
-        mockFs.writeFile.mockResolvedValue(undefined);
-        await projectStateManager.initialize();
-  
-        // Create a test project
-        projectIdManager.generateProjectId.mockResolvedValue('test-project-id');
-        await projectStateManager.createOrUpdateProjectState('/test/project', {
-          name: 'Test Project'
-        });
+
+  describe('activateProject', () => {
+    beforeEach(async () => {
+      // Initialize the service
+      mockFs.mkdir.mockResolvedValue(undefined);
+      mockFs.readFile.mockRejectedValue({ code: 'ENOENT' } as NodeJS.ErrnoException);
+      mockFs.writeFile.mockResolvedValue(undefined);
+      await projectStateManager.initialize();
+
+      // Create a test project
+      projectIdManager.generateProjectId.mockResolvedValue('test-project-id');
+      await projectStateManager.createOrUpdateProjectState('/test/project', {
+        name: 'Test Project'
       });
-  
-      it('should activate project successfully', async () => {
-        const projectId = 'test-project-id';
-  
-        // Mock dependencies
-        const projectPath = '/test/project';
-        projectIdManager.getProjectId.mockImplementation((path) => {
-          if (path === projectPath) return projectId;
-          return undefined;
-        });
-  
-        // Call the method
-        const result = await projectStateManager.activateProject(projectId);
+    });
+
+    it('should activate project successfully', async () => {
+      const projectId = 'test-project-id';
+
+      // Mock dependencies
+      const projectPath = '/test/project';
+      projectIdManager.getProjectId.mockImplementation((path) => {
+        if (path === projectPath) return projectId;
+        return undefined;
+      });
+
+      // Call the method
+      const result = await projectStateManager.activateProject(projectId);
       // Verify results
       expect(result).toBe(true);
-      
+
       const state = projectStateManager.getProjectState(projectId);
       expect(state!.status).toBe('active');
     });
@@ -942,41 +942,41 @@ describe('ProjectStateManager', () => {
     });
   });
 
-  
-    describe('deactivateProject', () => {
-      beforeEach(async () => {
-        // Initialize the service
-        mockFs.mkdir.mockResolvedValue(undefined);
-        mockFs.readFile.mockRejectedValue({ code: 'ENOENT' } as NodeJS.ErrnoException);
-        mockFs.writeFile.mockResolvedValue(undefined);
-        await projectStateManager.initialize();
-  
-        // Create and activate a test project
-        const projectPath = '/test/project';
-        projectIdManager.generateProjectId.mockResolvedValue('test-project-id');
-        await projectStateManager.createOrUpdateProjectState(projectPath, {
-          name: 'Test Project'
-        });
-        const projectId = 'test-project-id';
-        projectIdManager.getProjectId.mockReturnValue(projectId);
-        await projectStateManager.activateProject(projectId);
+
+  describe('deactivateProject', () => {
+    beforeEach(async () => {
+      // Initialize the service
+      mockFs.mkdir.mockResolvedValue(undefined);
+      mockFs.readFile.mockRejectedValue({ code: 'ENOENT' } as NodeJS.ErrnoException);
+      mockFs.writeFile.mockResolvedValue(undefined);
+      await projectStateManager.initialize();
+
+      // Create and activate a test project
+      const projectPath = '/test/project';
+      projectIdManager.generateProjectId.mockResolvedValue('test-project-id');
+      await projectStateManager.createOrUpdateProjectState(projectPath, {
+        name: 'Test Project'
       });
-  
-      it('should deactivate project successfully', async () => {
-        const projectId = 'test-project-id';
-  
-        // Mock dependencies
-        const projectPath = '/test/project';
-        projectIdManager.getProjectId.mockImplementation((path) => {
-          if (path === projectPath) return projectId;
-          return undefined;
-        });
-  
-        // Call the method
-        const result = await projectStateManager.deactivateProject(projectId);
+      const projectId = 'test-project-id';
+      projectIdManager.getProjectId.mockReturnValue(projectId);
+      await projectStateManager.activateProject(projectId);
+    });
+
+    it('should deactivate project successfully', async () => {
+      const projectId = 'test-project-id';
+
+      // Mock dependencies
+      const projectPath = '/test/project';
+      projectIdManager.getProjectId.mockImplementation((path) => {
+        if (path === projectPath) return projectId;
+        return undefined;
+      });
+
+      // Call the method
+      const result = await projectStateManager.deactivateProject(projectId);
       // Verify results
       expect(result).toBe(true);
-      
+
       const state = projectStateManager.getProjectState(projectId);
       expect(state!.status).toBe('inactive');
     });
@@ -995,47 +995,47 @@ describe('ProjectStateManager', () => {
     });
   });
 
-  
-    describe('refreshProjectState', () => {
-      beforeEach(async () => {
-        // Initialize the service
-        mockFs.mkdir.mockResolvedValue(undefined);
-        mockFs.readFile.mockRejectedValue({ code: 'ENOENT' } as NodeJS.ErrnoException);
-        mockFs.writeFile.mockResolvedValue(undefined);
-        await projectStateManager.initialize();
-  
-        // Create a test project
-        projectIdManager.generateProjectId.mockResolvedValue('test-project-id');
-        await projectStateManager.createOrUpdateProjectState('/test/project', {
-          name: 'Test Project'
-        });
+
+  describe('refreshProjectState', () => {
+    beforeEach(async () => {
+      // Initialize the service
+      mockFs.mkdir.mockResolvedValue(undefined);
+      mockFs.readFile.mockRejectedValue({ code: 'ENOENT' } as NodeJS.ErrnoException);
+      mockFs.writeFile.mockResolvedValue(undefined);
+      await projectStateManager.initialize();
+
+      // Create a test project
+      projectIdManager.generateProjectId.mockResolvedValue('test-project-id');
+      await projectStateManager.createOrUpdateProjectState('/test/project', {
+        name: 'Test Project'
       });
-  
-      it('should refresh project state successfully', async () => {
-        const projectId = 'test-project-id';
-        const projectPath = '/test/project';
-  
-        // Mock dependencies
-        projectIdManager.getProjectId.mockImplementation((path) => {
-          if (path === projectPath) return projectId;
-          return undefined;
-        });
-        projectIdManager.getProjectPath.mockImplementation((id) => {
-          if (id === projectId) return projectPath;
-          return undefined;
-        });
-        qdrantService.getCollectionInfoForProject.mockResolvedValue({
-          name: 'project-test-project-id',
-          vectors: {
-            size: 1536,
-            distance: 'Cosine'
-          },
-          pointsCount: 100,
-          status: 'green'
-        });
-  
-        // Call the method
-        const result = await projectStateManager.refreshProjectState(projectId);
+    });
+
+    it('should refresh project state successfully', async () => {
+      const projectId = 'test-project-id';
+      const projectPath = '/test/project';
+
+      // Mock dependencies
+      projectIdManager.getProjectId.mockImplementation((path) => {
+        if (path === projectPath) return projectId;
+        return undefined;
+      });
+      projectIdManager.getProjectPath.mockImplementation((id) => {
+        if (id === projectId) return projectPath;
+        return undefined;
+      });
+      qdrantService.getCollectionInfoForProject.mockResolvedValue({
+        name: 'project-test-project-id',
+        vectors: {
+          size: 1536,
+          distance: 'Cosine'
+        },
+        pointsCount: 100,
+        status: 'green'
+      });
+
+      // Call the method
+      const result = await projectStateManager.refreshProjectState(projectId);
       // Verify results
       expect(result).toBeTruthy();
       expect(result!.collectionInfo).toEqual({

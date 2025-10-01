@@ -16,15 +16,15 @@ import {
   SemgrepConfigService,
   TreeSitterConfigService,
 } from '../config/service';
-import { QdrantService } from '../database/QdrantService';
+import { QdrantService } from '../database/qdrant/QdrantService';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../database/ProjectIdManager';
-import { QdrantConnectionManager } from '../database/QdrantConnectionManager';
-import { QdrantCollectionManager } from '../database/QdrantCollectionManager';
-import { QdrantVectorOperations } from '../database/QdrantVectorOperations';
-import { QdrantQueryUtils } from '../database/QdrantQueryUtils';
-import { QdrantProjectManager } from '../database/QdrantProjectManager';
+import { QdrantConnectionManager } from '../database/qdrant/QdrantConnectionManager';
+import { QdrantCollectionManager } from '../database/qdrant/QdrantCollectionManager';
+import { QdrantVectorOperations } from '../database/qdrant/QdrantVectorOperations';
+import { QdrantQueryUtils } from '../database/qdrant/QdrantQueryUtils';
+import { QdrantProjectManager } from '../database/qdrant/QdrantProjectManager';
 
 import { FileSystemTraversal } from '../service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../service/filesystem/FileWatcherService';

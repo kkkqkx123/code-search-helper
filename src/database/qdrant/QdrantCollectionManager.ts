@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../utils/LoggerService';
-import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { TYPES } from '../types';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { TYPES } from '../../types';
 import { IQdrantConnectionManager } from './QdrantConnectionManager';
-import { 
+import {
   CollectionInfo,
   VectorDistance,
   CollectionCreateOptions,
@@ -325,16 +325,16 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
       const results = await Promise.all(
         fields.map(field => this.createPayloadIndex(collectionName, field))
       );
-      
+
       const successCount = results.filter(result => result).length;
       const totalCount = results.length;
-      
+
       this.logger.info(`Created payload indexes for collection ${collectionName}`, {
         successCount,
         totalCount,
         fields
       });
-      
+
       return successCount === totalCount;
     } catch (error) {
       this.errorHandler.handleError(

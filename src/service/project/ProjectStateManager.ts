@@ -4,7 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { IndexSyncService, IndexSyncStatus } from '../index/IndexSyncService';
-import { QdrantService } from '../../database/QdrantService';
+import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ConfigService } from '../../config/ConfigService';
 import fs from 'fs/promises';
 import path from 'path';
@@ -92,18 +92,18 @@ export class ProjectStateManager {
           this.storagePath = projectConfig.statePath;
         }
       } catch (configError) {
-        this.logger.warn('Failed to get project config, using default storage path', { 
+        this.logger.warn('Failed to get project config, using default storage path', {
           error: configError instanceof Error ? configError.message : String(configError),
-          defaultPath: this.storagePath 
+          defaultPath: this.storagePath
         });
       }
-      
+
       // 加载项目状态
       await this.loadProjectStates();
-      
+
       // 设置索引同步服务监听器
       this.setupIndexSyncListeners();
-      
+
       this.isInitialized = true;
       this.logger.info('Project state manager initialized', {
         projectCount: this.projectStates.size,
@@ -192,14 +192,14 @@ export class ProjectStateManager {
       let validStateCount = 0;
       let invalidStateCount = 0;
       let duplicatePathCount = 0;
-      
+
       // 用于跟踪已处理的 projectPath，防止重复
       const processedPaths = new Set<string>();
 
       for (const rawState of rawStates) {
         try {
           const validatedState = this.validateAndNormalizeProjectState(rawState);
-          
+
           // 检查 projectPath 是否已存在
           const normalizedPath = HashUtils.normalizePath(validatedState.projectPath);
           if (processedPaths.has(normalizedPath)) {
@@ -207,17 +207,17 @@ export class ProjectStateManager {
             duplicatePathCount++;
             continue;
           }
-          
+
           // 检查 projectId 是否已存在（防止数据不一致）
           if (this.projectStates.has(validatedState.projectId)) {
             this.logger.warn(`Skipping duplicate project ID: ${validatedState.projectId}`, { projectPath: normalizedPath });
             invalidStateCount++;
             continue;
           }
-          
+
           // 添加到处理过的路径集合
           processedPaths.add(normalizedPath);
-          
+
           // 添加到项目状态映射
           this.projectStates.set(validatedState.projectId, validatedState);
           validStateCount++;
@@ -249,7 +249,7 @@ export class ProjectStateManager {
   private async saveProjectStates(): Promise<void> {
     const maxRetries = 3;
     let lastError: Error | null = null;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         // 确保目录存在
@@ -262,38 +262,38 @@ export class ProjectStateManager {
 
         // 使用临时文件+重命名的方式实现原子写入
         const tempPath = `${this.storagePath}.tmp`;
-        
+
         try {
           // 先尝试删除可能存在的临时文件（处理之前的失败情况）
-          await fs.unlink(tempPath).catch(() => {});
-          
+          await fs.unlink(tempPath).catch(() => { });
+
           // 写入临时文件
           await fs.writeFile(tempPath, jsonData);
-          
+
           // 原子性重命名
           await fs.rename(tempPath, this.storagePath);
-          
+
           this.logger.debug(`Saved ${states.length} project states (attempt ${attempt})`);
           return; // 成功保存，退出重试循环
-          
+
         } catch (writeError: any) {
           // 清理临时文件（如果存在）
           try {
             await fs.unlink(tempPath);
-          } catch {}
+          } catch { }
           throw writeError;
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         this.logger.warn(`Failed to save project states (attempt ${attempt}/${maxRetries}): ${lastError.message}`);
-        
+
         if (attempt < maxRetries) {
           // 等待一段时间后重试
           await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         }
       }
     }
-    
+
     // 所有重试都失败
     this.errorHandler.handleError(
       new Error(`Failed to save project states after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`),
@@ -318,7 +318,7 @@ export class ProjectStateManager {
     try {
       // 生成或获取项目ID
       const projectId = await this.projectIdManager.generateProjectId(projectPath);
-      
+
       // 检查是否已存在相同 projectPath 的项目状态
       // 如果是重新索引操作，则跳过重复检查
       const existingStateByPath = this.getProjectStateByDirectPath(projectPath);
@@ -327,10 +327,10 @@ export class ProjectStateManager {
         // 如果已存在相同路径的项目，且不是重新索引操作，且projectId不同，则抛出错误
         throw new Error(`项目路径 "${projectPath}" 已被项目 "${existingStateByPath.projectId}" 使用，不能重复添加`);
       }
-      
+
       // 检查是否已存在状态
       let state = this.projectStates.get(projectId);
-      
+
       if (state) {
         // 更新现有状态
         state.updatedAt = new Date();
@@ -359,7 +359,7 @@ export class ProjectStateManager {
 
       // 更新集合信息
       await this.updateProjectCollectionInfo(projectId);
-      
+
       // 重新获取状态以确保collectionInfo已更新
       state = this.projectStates.get(projectId) || state;
 
@@ -412,14 +412,14 @@ export class ProjectStateManager {
   private getProjectStateByDirectPath(projectPath: string): ProjectState | null {
     // 标准化路径以避免路径格式差异（如 / 和 \ 的区别）
     const normalizedPath = HashUtils.normalizePath(projectPath);
-    
+
     // 遍历所有项目状态，查找匹配的 projectPath
     for (const state of this.projectStates.values()) {
       if (HashUtils.normalizePath(state.projectPath) === normalizedPath) {
         return state;
       }
     }
-    
+
     return null;
   }
 
@@ -432,7 +432,7 @@ export class ProjectStateManager {
 
     state.status = status;
     state.updatedAt = new Date();
-    
+
     this.projectStates.set(projectId, state);
     await this.saveProjectStates();
 
@@ -448,7 +448,7 @@ export class ProjectStateManager {
 
     state.indexingProgress = progress;
     state.updatedAt = new Date();
-    
+
     this.projectStates.set(projectId, state);
     await this.saveProjectStates();
 
@@ -464,7 +464,7 @@ export class ProjectStateManager {
 
     state.lastIndexedAt = new Date();
     state.updatedAt = new Date();
-    
+
     // 从索引同步服务获取索引统计信息
     const indexStatus = this.indexSyncService.getIndexStatus(projectId);
     if (indexStatus) {
@@ -488,7 +488,7 @@ export class ProjectStateManager {
 
     state.metadata = { ...state.metadata, ...metadata };
     state.updatedAt = new Date();
-    
+
     this.projectStates.set(projectId, state);
     await this.saveProjectStates();
 
@@ -525,7 +525,7 @@ export class ProjectStateManager {
             status: collectionInfo.status
           };
         }
-        
+
         // 成功则退出重试循环
         return;
       } catch (error) {
@@ -534,7 +534,7 @@ export class ProjectStateManager {
           this.logger.warn(`Failed to update collection info for ${projectId} after ${maxRetries} attempts`, { error });
           return;
         }
-        
+
         // 指数退避等待
         const waitTime = Math.pow(2, attempt) * 1000;
         this.logger.debug(`Retrying collection info update for ${projectId}, attempt ${attempt + 1}/${maxRetries}, waiting ${waitTime}ms`);
@@ -564,7 +564,7 @@ export class ProjectStateManager {
 
       // 从映射中删除
       this.projectStates.delete(projectId);
-      
+
       // 保存状态
       await this.saveProjectStates();
 
@@ -584,14 +584,14 @@ export class ProjectStateManager {
    */
   getProjectStats(): ProjectStats {
     const states = Array.from(this.projectStates.values());
-    
+
     const totalProjects = states.length;
     const activeProjects = states.filter(s => s.status === 'active').length;
     const indexingProjects = states.filter(s => s.status === 'indexing').length;
     const totalVectors = states.reduce((sum, s) => sum + (s.collectionInfo?.vectorsCount || 0), 0);
     const totalFiles = states.reduce((sum, s) => sum + (s.totalFiles || 0), 0);
-    const averageIndexingProgress = states.length > 0 
-      ? states.reduce((sum, s) => sum + (s.indexingProgress || 0), 0) / states.length 
+    const averageIndexingProgress = states.length > 0
+      ? states.reduce((sum, s) => sum + (s.indexingProgress || 0), 0) / states.length
       : 0;
 
     return {
@@ -643,7 +643,7 @@ export class ProjectStateManager {
         this.logger.warn(`Failed to save project state during deactivation, but status was updated in memory: ${saveError instanceof Error ? saveError.message : String(saveError)}`);
         // 即使保存失败，状态已经在内存中更新，所以返回true
       }
-      
+
       return true;
     } catch (error) {
       this.errorHandler.handleError(
@@ -666,10 +666,10 @@ export class ProjectStateManager {
 
       // 更新集合信息
       await this.updateProjectCollectionInfo(projectId);
-      
+
       // 更新时间戳
       state.updatedAt = new Date();
-      
+
       // 保存状态
       this.projectStates.set(projectId, state);
       await this.saveProjectStates();
@@ -690,7 +690,7 @@ export class ProjectStateManager {
   async refreshAllProjectStates(): Promise<void> {
     try {
       const projectIds = Array.from(this.projectStates.keys());
-      
+
       for (const projectId of projectIds) {
         await this.refreshProjectState(projectId);
       }
@@ -724,13 +724,13 @@ export class ProjectStateManager {
 
       // 重建状态映射
       this.projectStates = new Map(validStates.map(state => [state.projectId, state]));
-      
+
       // 保存清理后的状态
       await this.saveProjectStates();
 
       const removedCount = initialCount - this.projectStates.size;
       this.logger.info(`Cleaned up ${removedCount} invalid project states, ${this.projectStates.size} states remaining`);
-      
+
       return removedCount;
     } catch (error) {
       this.errorHandler.handleError(
@@ -763,24 +763,24 @@ export class ProjectStateManager {
     if (!rawState.projectId || typeof rawState.projectId !== 'string') {
       throw new Error('Invalid or missing projectId');
     }
-    
+
     if (!rawState.projectPath || typeof rawState.projectPath !== 'string') {
       throw new Error('Invalid or missing projectPath');
     }
-    
+
     // 验证 projectPath 是非空字符串且不是仅包含空格
     if (rawState.projectPath.trim().length === 0) {
       throw new Error('projectPath cannot be empty or contain only whitespace');
     }
-    
+
     if (!rawState.name || typeof rawState.name !== 'string') {
       throw new Error('Invalid or missing name');
     }
-    
+
     if (!rawState.status || !['active', 'inactive', 'indexing', 'error'].includes(rawState.status)) {
       throw new Error('Invalid or missing status');
     }
-    
+
     if (!rawState.createdAt || !rawState.updatedAt) {
       throw new Error('Missing timestamp fields');
     }

@@ -1,15 +1,15 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../utils/LoggerService';
-import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { TYPES } from '../types';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { TYPES } from '../../types';
 import { IQdrantConnectionManager } from './QdrantConnectionManager';
 import { IQdrantCollectionManager } from './QdrantCollectionManager';
-import { 
-  VectorPoint, 
-  SearchOptions, 
-  SearchResult 
-} from './IVectorStore';
-import { 
+import {
+  VectorPoint,
+  SearchOptions,
+  SearchResult
+} from '../IVectorStore';
+import {
   VectorUpsertOptions,
   VectorSearchOptions,
   BatchResult,
@@ -102,11 +102,11 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
       // 批量处理
       const batchSize = finalOptions.batchSize || 100;
       const totalBatches = Math.ceil(processedVectors.length / batchSize);
-      
+
       for (let i = 0; i < processedVectors.length; i += batchSize) {
         const batch = processedVectors.slice(i, i + batchSize);
         const batchNumber = Math.floor(i / batchSize) + 1;
-        
+
         this.logger.debug(`Processing batch ${batchNumber}/${totalBatches} for collection ${collectionName}`, {
           batchSize: batch.length,
           startIdx: i,
@@ -115,16 +115,16 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
 
         try {
           const processedPoints = batch.map(point => this.processPoint(point));
-          
+
           // 验证数据格式
           if (finalOptions.validateDimensions) {
             this.validatePoints(processedPoints);
           }
-          
+
           // 添加调试信息查看实际传递给Qdrant的数据
           // 现在只支持数组格式的向量
           const vectorForDebug = processedPoints[0]?.vector;
-          
+
           this.logger.debug('Upserting points to Qdrant', {
             collectionName,
             pointCount: processedPoints.length,
@@ -141,9 +141,9 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
           await client.upsert(collectionName, {
             points: processedPoints
           });
-          
+
           batchResult.processedCount += batch.length;
-          
+
           this.logger.debug(`Successfully upserted batch ${batchNumber}/${totalBatches}`, {
             upsertedCount: batch.length,
             totalProcessed: batchResult.processedCount
@@ -151,17 +151,17 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         } catch (batchError) {
           batchResult.failedCount += batch.length;
           batchResult.success = false;
-          
+
           const error = batchError instanceof Error ? batchError : new Error(String(batchError));
           batchResult.errors!.push(error);
-          
+
           this.logger.error(`Failed to upsert batch ${batchNumber}/${totalBatches}`, {
             batchSize: batch.length,
             error: error.message,
             sampleIds: batch.slice(0, 3).map(p => p.id),
             collectionName
           });
-          
+
           if (!finalOptions.skipInvalidPoints) {
             throw error;
           }
@@ -185,25 +185,25 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
     } catch (error) {
       batchResult.success = false;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       this.logger.error(`Failed to upsert points to ${collectionName}`, {
         collectionName,
         vectorCount: vectors.length,
         error: errorMessage,
         stack: error instanceof Error ? error.stack : undefined
       });
-      
+
       this.errorHandler.handleError(
         new Error(`${ERROR_MESSAGES.UPSERT_FAILED}: ${errorMessage}`),
         { component: 'QdrantVectorOperations', operation: 'upsertVectors' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(errorMessage),
         operation: 'upsertVectors',
         collectionName
       });
-      
+
       return batchResult;
     }
   }
@@ -229,7 +229,7 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
     options: VectorSearchOptions = {}
   ): Promise<SearchResult[]> {
     const finalOptions = { ...DEFAULT_VECTOR_SEARCH_OPTIONS, ...options };
-    
+
     try {
       const client = this.connectionManager.getClient();
       if (!client) {
@@ -296,13 +296,13 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         ),
         { component: 'QdrantVectorOperations', operation: 'searchVectors' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'searchVectors',
         collectionName
       });
-      
+
       return [];
     }
   }
@@ -331,7 +331,7 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
       });
 
       this.logger.info(`Deleted ${pointIds.length} points from collection ${collectionName}`);
-      
+
       this.emitEvent(QdrantEventType.POINTS_DELETED, {
         collectionName,
         deletedCount: pointIds.length,
@@ -346,13 +346,13 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         ),
         { component: 'QdrantVectorOperations', operation: 'deletePoints' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'deletePoints',
         collectionName
       });
-      
+
       return false;
     }
   }
@@ -389,13 +389,13 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         ),
         { component: 'QdrantVectorOperations', operation: 'clearCollection' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'clearCollection',
         collectionName
       });
-      
+
       return false;
     }
   }
@@ -563,11 +563,11 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
 
     // 检查第一个点的向量格式 - 现在只支持数组格式
     const firstPoint = points[0];
-    
+
     if (!Array.isArray(firstPoint.vector)) {
       throw new Error(`${ERROR_MESSAGES.INVALID_VECTOR_DATA}: expected array, got ${typeof firstPoint.vector}`);
     }
-    
+
     const firstPointVector = firstPoint.vector;
     const firstPointVectorSize = firstPoint.vector.length;
 

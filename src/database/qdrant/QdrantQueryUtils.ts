@@ -1,11 +1,11 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../utils/LoggerService';
-import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { TYPES } from '../types';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { TYPES } from '../../types';
 import { IQdrantConnectionManager } from './QdrantConnectionManager';
-import { SearchOptions } from './IVectorStore';
-import { 
-  QueryFilter, 
+import { SearchOptions } from '../IVectorStore';
+import {
+  QueryFilter,
   ERROR_MESSAGES,
   QdrantEventType,
   QdrantEvent
@@ -178,7 +178,7 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
               key,
               range: value,
             });
-          } 
+          }
           // 处理嵌套匹配
           else if ('match' in value) {
             conditions.push({
@@ -254,13 +254,13 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
         ),
         { component: 'QdrantQueryUtils', operation: 'getChunkIdsByFiles' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'getChunkIdsByFiles',
         collectionName
       });
-      
+
       return [];
     }
   }
@@ -314,13 +314,13 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
         ),
         { component: 'QdrantQueryUtils', operation: 'getExistingChunkIds' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'getExistingChunkIds',
         collectionName
       });
-      
+
       return [];
     }
   }
@@ -365,13 +365,13 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
         ),
         { component: 'QdrantQueryUtils', operation: 'scrollPoints' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'scrollPoints',
         collectionName
       });
-      
+
       return [];
     }
   }
@@ -406,13 +406,13 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
         ),
         { component: 'QdrantQueryUtils', operation: 'countPoints' }
       );
-      
+
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(String(error)),
         operation: 'countPoints',
         collectionName
       });
-      
+
       return 0;
     }
   }
