@@ -169,11 +169,7 @@ diContainer.bind<GraphDatabaseService>(TYPES.GraphDatabaseService).to(GraphDatab
 // 绑定TransactionManager
 diContainer.bind<TransactionManager>(TYPES.TransactionManager).to(TransactionManager).inSingletonScope();
 
-// 直接绑定GraphModule中的所有服务（避免ContainerModule加载问题）
-diContainer.bind<GraphAnalysisService>(TYPES.GraphAnalysisService).to(GraphAnalysisService).inSingletonScope();
-diContainer.bind<GraphDataService>(TYPES.GraphDataService).to(GraphDataService).inSingletonScope();
-diContainer.bind<GraphTransactionService>(TYPES.GraphTransactionService).to(GraphTransactionService).inSingletonScope();
-diContainer.bind<GraphSearchServiceNew>(TYPES.GraphSearchServiceNew).to(GraphSearchServiceNew).inSingletonScope();
-diContainer.bind<GraphServiceNewAdapter>(TYPES.GraphServiceNewAdapter).to(GraphServiceNewAdapter).inSingletonScope();
+// 加载GraphModule
+diContainer.load(GraphModule);
 
 export { diContainer };
