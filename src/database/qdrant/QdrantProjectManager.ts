@@ -35,6 +35,18 @@ export interface IQdrantProjectManager {
   clearProject(projectPath: string): Promise<boolean>;
   addEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void;
   removeEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void;
+  
+  // 兼容 IProjectManager 接口的方法
+  createProjectSpace(projectPath: string, config?: any): Promise<boolean>;
+  deleteProjectSpace(projectPath: string): Promise<boolean>;
+  getProjectSpaceInfo(projectPath: string): Promise<any>;
+  clearProjectSpace(projectPath: string): Promise<boolean>;
+  listProjectSpaces(): Promise<any[]>;
+  insertProjectData(projectPath: string, data: any): Promise<boolean>;
+  updateProjectData(projectPath: string, id: string, data: any): Promise<boolean>;
+  deleteProjectData(projectPath: string, id: string): Promise<boolean>;
+  searchProjectData(projectPath: string, query: any): Promise<any[]>;
+  getProjectDataById(projectPath: string, id: string): Promise<any>;
 }
 
 /**
@@ -520,6 +532,145 @@ export class QdrantProjectManager implements IQdrantProjectManager {
           });
         }
       });
+    }
+  }
+
+  /**
+   * 创建项目空间（兼容 IProjectManager 接口）
+   */
+  async createProjectSpace(projectPath: string, config?: any): Promise<boolean> {
+    const vectorSize = config?.vectorSize || 1536;
+    const distance = config?.distance || 'Cosine';
+    return this.createCollectionForProject(projectPath, vectorSize, distance);
+  }
+
+  /**
+   * 删除项目空间（兼容 IProjectManager 接口）
+   */
+  async deleteProjectSpace(projectPath: string): Promise<boolean> {
+    return this.deleteCollectionForProject(projectPath);
+  }
+
+  /**
+   * 获取项目空间信息（兼容 IProjectManager 接口）
+   */
+  async getProjectSpaceInfo(projectPath: string): Promise<any> {
+    return this.getCollectionInfoForProject(projectPath);
+  }
+
+  /**
+   * 清空项目空间（兼容 IProjectManager 接口）
+   */
+  async clearProjectSpace(projectPath: string): Promise<boolean> {
+    return this.clearProject(projectPath);
+  }
+
+  /**
+   * 列出所有项目空间（兼容 IProjectManager 接口）
+   */
+  async listProjectSpaces(): Promise<any[]> {
+    const projects = await this.listProjects();
+    return projects.map(project => ({
+      id: project.id,
+      path: project.path,
+      collectionName: project.collectionName,
+      vectorSize: project.vectorSize,
+      distance: project.distance
+    }));
+  }
+
+  /**
+   * 插入项目数据（兼容 IProjectManager 接口）
+   */
+  async insertProjectData(projectPath: string, data: any): Promise<boolean> {
+    if (!data.id || !data.vector) {
+      throw new Error('Data must contain id and vector fields');
+    }
+    const vectorPoint = {
+      id: data.id,
+      vector: data.vector,
+      payload: data.payload || {}
+    };
+    return this.upsertVectorsForProject(projectPath, [vectorPoint]);
+  }
+
+  /**
+   * 更新项目数据（兼容 IProjectManager 接口）
+   */
+  async updateProjectData(projectPath: string, id: string, data: any): Promise<boolean> {
+    if (!data.vector) {
+      throw new Error('Data must contain vector field');
+    }
+    const vectorPoint = {
+      id,
+      vector: data.vector,
+      payload: data.payload || {}
+    };
+    return this.upsertVectorsForProject(projectPath, [vectorPoint]);
+  }
+
+  /**
+   * 删除项目数据（兼容 IProjectManager 接口）
+   */
+  async deleteProjectData(projectPath: string, id: string): Promise<boolean> {
+    return this.deleteVectorsForProject(projectPath, [id]);
+  }
+
+  /**
+   * 搜索项目数据（兼容 IProjectManager 接口）
+   */
+  async searchProjectData(projectPath: string, query: any): Promise<any[]> {
+    if (!query.vector) {
+      throw new Error('Query must contain vector field');
+    }
+    const options: SearchOptions = {
+      limit: query.limit || 10,
+      filter: query.filter || {}
+    };
+    return this.searchVectorsForProject(projectPath, query.vector, options);
+  }
+
+  /**
+   * 根据ID获取项目数据（兼容 IProjectManager 接口）
+   */
+  async getProjectDataById(projectPath: string, id: string): Promise<any> {
+    try {
+      // 获取项目ID和集合名称
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+
+      const collectionName = this.projectIdManager.getCollectionName(projectId);
+      if (!collectionName) {
+        throw new Error(`Collection name not found for project: ${projectPath}`);
+      }
+
+      // 使用查询工具根据ID搜索
+      const results = await this.queryUtils.scrollPoints(
+        collectionName,
+        {
+          filter: {
+            must: [
+              {
+                key: 'id',
+                match: { value: id }
+              }
+            ]
+          }
+        },
+        1
+      );
+
+      return results.length > 0 ? results[0] : null;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to get project data by ID ${id} for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'QdrantProjectManager', operation: 'getProjectDataById' }
+      );
+      return null;
     }
   }
 }

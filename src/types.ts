@@ -9,6 +9,11 @@ import { IQdrantVectorOperations } from './database/qdrant/QdrantVectorOperation
 import { IQdrantQueryUtils } from './database/qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from './database/qdrant/QdrantProjectManager';
 
+/**
+ * 通用事件监听器类型
+ */
+export type EventListener = (data: any) => void;
+
 import { FileSystemTraversal } from './service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from './service/filesystem/FileWatcherService';
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';

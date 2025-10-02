@@ -4,14 +4,13 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult } from './NebulaTypes';
 import { TYPES } from '../../types';
+import { IConnectionManager } from '../common/IDatabaseService';
+import { DatabaseEventListener } from '../common/DatabaseEventTypes';
 
 // 导入Nebula Graph客户端库
 const { NebulaGraph } = require('@nebula-contrib/nebula-nodejs');
 
-export interface INebulaConnectionManager {
-  connect(): Promise<boolean>;
-  disconnect(): Promise<void>;
-  isConnected(): boolean;
+export interface INebulaConnectionManager extends IConnectionManager {
   getConnectionStatus(): NebulaConnectionStatus;
   executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
   executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<any[]>;
@@ -37,6 +36,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private config: NebulaConfig;
   private client: any; // Nebula Graph客户端实例
   private session: any; // Nebula Graph会话实例
+  private eventListeners: Map<string, DatabaseEventListener[]> = new Map();
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -526,5 +526,65 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
   isConnectedToDatabase(): boolean {
     return this.isConnected();
+  }
+
+  /**
+   * 获取当前配置
+   */
+  getConfig(): any {
+    return { ...this.config };
+  }
+
+  /**
+   * 更新配置
+   */
+  updateConfig(config: any): void {
+    this.config = { ...this.config, ...config };
+  }
+
+  /**
+   * 添加事件监听器
+   */
+  addEventListener(eventType: string, listener: DatabaseEventListener): void {
+    if (!this.eventListeners.has(eventType)) {
+      this.eventListeners.set(eventType, []);
+    }
+    this.eventListeners.get(eventType)!.push(listener);
+  }
+
+  /**
+   * 移除事件监听器
+   */
+  removeEventListener(eventType: string, listener: DatabaseEventListener): void {
+    const listeners = this.eventListeners.get(eventType);
+    if (listeners) {
+      const index = listeners.indexOf(listener);
+      if (index > -1) {
+        listeners.splice(index, 1);
+      }
+    }
+  }
+
+  /**
+   * 触发事件
+   */
+  protected emitEvent(eventType: string, data: any, error?: Error): void {
+    const listeners = this.eventListeners.get(eventType);
+    if (listeners) {
+      const event = {
+        type: eventType as any, // 我们将在运行时确保这是有效的事件类型
+        timestamp: new Date(),
+        source: 'nebula' as const,
+        data,
+        error
+      };
+      listeners.forEach(listener => {
+        try {
+          listener(event);
+        } catch (err) {
+          this.logger.error(`Error in event listener for ${eventType}:`, err);
+        }
+      });
+    }
   }
 }

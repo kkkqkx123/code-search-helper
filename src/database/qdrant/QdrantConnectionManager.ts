@@ -18,6 +18,8 @@ import {
  */
 export interface IQdrantConnectionManager {
   initialize(): Promise<boolean>;
+  connect(): Promise<boolean>;
+  disconnect(): Promise<void>;
   close(): Promise<void>;
   isConnected(): boolean;
   getClient(): QdrantClient | null;
@@ -123,6 +125,20 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
 
       return false;
     }
+  }
+
+  /**
+   * 连接到 Qdrant 数据库
+   */
+  async connect(): Promise<boolean> {
+    return this.initialize();
+  }
+
+  /**
+   * 断开 Qdrant 数据库连接
+   */
+  async disconnect(): Promise<void> {
+    await this.close();
   }
 
   /**

@@ -4,6 +4,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { NebulaConnectionManager } from './NebulaConnectionManager';
 import { NebulaQueryBuilder } from './NebulaQueryBuilder';
+import { NebulaProjectManager } from './NebulaProjectManager';
 import { TYPES } from '../../types';
 import {
   NebulaNode,
@@ -13,6 +14,9 @@ import {
   ProjectSpaceInfo,
   NebulaSpaceInfo
 } from './NebulaTypes';
+import { BaseDatabaseService } from '../common/BaseDatabaseService';
+import { IDatabaseService, IConnectionManager, IProjectManager } from '../common/IDatabaseService';
+import { DatabaseEventType, NebulaEventType as UnifiedNebulaEventType } from '../common/DatabaseEventTypes';
 
 export interface INebulaService {
   // 基础操作
@@ -48,42 +52,61 @@ export interface INebulaService {
   getDatabaseStats(): Promise<any>;
   
   // 事件处理
-  addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void;
-  removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void;
+  addEventListener(type: NebulaEventType | string, listener: (event: any) => void): void;
+  removeEventListener(type: NebulaEventType | string, listener: (event: any) => void): void;
 }
 
 @injectable()
-export class NebulaService implements INebulaService {
+export class NebulaService extends BaseDatabaseService implements INebulaService, IDatabaseService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
-  private connectionManager: NebulaConnectionManager;
+  protected connectionManager: NebulaConnectionManager;
   private queryBuilder: NebulaQueryBuilder;
-  private initialized = false;
+  protected projectManager: NebulaProjectManager;
+  protected initialized = false;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.NebulaConnectionManager) connectionManager: NebulaConnectionManager,
-    @inject(TYPES.NebulaQueryBuilder) queryBuilder: NebulaQueryBuilder
+    @inject(TYPES.NebulaQueryBuilder) queryBuilder: NebulaQueryBuilder,
+    @inject('INebulaProjectManager') projectManager: NebulaProjectManager
   ) {
+    // 调用父类构造函数，提供必要的依赖
+    super(
+      connectionManager as unknown as IConnectionManager,
+      projectManager as unknown as IProjectManager
+    );
+    
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
     this.connectionManager = connectionManager;
     this.queryBuilder = queryBuilder;
+    this.projectManager = projectManager;
   }
 
+  /**
+   * 初始化 Nebula 服务
+   */
   async initialize(): Promise<boolean> {
     try {
+      // 初始化基础服务
+      const baseInitialized = await super.initialize();
+      if (!baseInitialized) {
+        return false;
+      }
+
       this.logger.info('Initializing Nebula service');
 
       // 连接到Nebula数据库
       const connected = await this.connectionManager.connect();
 
       if (!connected) {
-        throw new Error('Failed to connect to Nebula database');
+        this.emitEvent('error', new Error('Failed to connect to Nebula database'));
+        return false;
       }
 
       // 初始化默认的标签和边类型（如果不存在）
@@ -91,15 +114,11 @@ export class NebulaService implements INebulaService {
 
       this.initialized = true;
       this.logger.info('Nebula service initialized successfully');
+      this.emitEvent('initialized', { timestamp: new Date() });
 
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to initialize Nebula service: ${errorMessage}`),
-        { component: 'NebulaService', operation: 'initialize' }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       return false;
     }
   }
@@ -157,12 +176,7 @@ export class NebulaService implements INebulaService {
 
       this.logger.debug('Nebula schema initialized');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to initialize Nebula schema: ${errorMessage}`),
-        { component: 'NebulaService', operation: 'initializeSchema' }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -185,17 +199,7 @@ export class NebulaService implements INebulaService {
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to execute read query: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'executeReadQuery',
-          query: nGQL,
-          parameters
-        }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -214,17 +218,7 @@ export class NebulaService implements INebulaService {
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to execute write query: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'executeWriteQuery',
-          query: nGQL,
-          parameters
-        }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -238,16 +232,7 @@ export class NebulaService implements INebulaService {
       const results = await this.connectionManager.executeTransaction(queries);
       return results;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to execute transaction: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'executeTransaction',
-          queries
-        }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -261,16 +246,7 @@ export class NebulaService implements INebulaService {
       await this.executeWriteQuery(`USE ${spaceName}`);
       this.logger.debug(`Switched to space: ${spaceName}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to switch to space ${spaceName}: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'useSpace',
-          spaceName
-        }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -282,19 +258,10 @@ export class NebulaService implements INebulaService {
 
     try {
       const nodeId = await this.connectionManager.createNode({ label, properties });
+      this.emitEvent('data_inserted', { label, nodeId, properties });
       return nodeId;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to create node: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'createNode',
-          label,
-          properties
-        }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -316,20 +283,9 @@ export class NebulaService implements INebulaService {
         targetId,
         properties
       });
+      this.emitEvent('data_inserted', { type, sourceId, targetId, properties });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to create relationship: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'createRelationship',
-          type,
-          sourceId,
-          targetId,
-          properties
-        }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -341,19 +297,10 @@ export class NebulaService implements INebulaService {
 
     try {
       const nodes = await this.connectionManager.findNodesByLabel(label, properties);
+      this.emitEvent('data_queried', { label, properties, resultCount: nodes.length });
       return nodes;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to find nodes: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'findNodes',
-          label,
-          properties
-        }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -365,19 +312,10 @@ export class NebulaService implements INebulaService {
 
     try {
       const relationships = await this.connectionManager.findRelationships(type, properties);
+      this.emitEvent('data_queried', { type, properties, resultCount: relationships.length });
       return relationships;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to find relationships: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'findRelationships',
-          type,
-          properties
-        }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -391,15 +329,7 @@ export class NebulaService implements INebulaService {
       const stats = await this.connectionManager.getDatabaseStats();
       return stats;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to get database stats: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'getDatabaseStats'
-        }
-      );
-
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -407,14 +337,13 @@ export class NebulaService implements INebulaService {
   async close(): Promise<void> {
     try {
       await this.connectionManager.disconnect();
+      await super.close();
       this.initialized = false;
       this.logger.info('Nebula service closed');
+      this.emitEvent('closed', { timestamp: new Date() });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to close Nebula service: ${errorMessage}`),
-        { component: 'NebulaService', operation: 'close' }
-      );
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
+      throw error;
     }
   }
 
@@ -427,38 +356,17 @@ export class NebulaService implements INebulaService {
     }
 
     try {
-      // 生成空间名称（基于项目路径）
-      const spaceName = this.generateSpaceNameFromPath(projectPath);
+      // 使用项目管理器创建空间
+      const result = await this.projectManager.createSpaceForProject(projectPath);
       
-      // 创建空间
-      const createSpaceQuery = `
-        CREATE SPACE IF NOT EXISTS ${spaceName} (
-          partition_num = 10,
-          replica_factor = 1,
-          vid_type = FIXED_STRING(128)
-        );
-      `;
+      if (result) {
+        this.emitEvent('project_space_created', { projectPath });
+        this.logger.info(`Created space for project: ${projectPath}`);
+      }
       
-      await this.executeWriteQuery(createSpaceQuery);
-      
-      // 使用新创建的空间
-      await this.useSpace(spaceName);
-      
-      // 初始化空间的标签和边类型
-      await this.initializeSpaceSchema();
-      
-      this.logger.info(`Created space for project: ${projectPath} -> ${spaceName}`);
-      return true;
+      return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to create space for project ${projectPath}: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'createSpaceForProject',
-          projectPath
-        }
-      );
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       return false;
     }
   }
@@ -472,24 +380,17 @@ export class NebulaService implements INebulaService {
     }
 
     try {
-      const spaceName = this.generateSpaceNameFromPath(projectPath);
+      // 使用项目管理器删除空间
+      const result = await this.projectManager.deleteSpaceForProject(projectPath);
       
-      // 删除空间
-      const dropSpaceQuery = `DROP SPACE IF EXISTS ${spaceName};`;
-      await this.executeWriteQuery(dropSpaceQuery);
+      if (result) {
+        this.emitEvent('project_space_deleted', { projectPath });
+        this.logger.info(`Deleted space for project: ${projectPath}`);
+      }
       
-      this.logger.info(`Deleted space for project: ${projectPath} -> ${spaceName}`);
-      return true;
+      return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to delete space for project ${projectPath}: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'deleteSpaceForProject',
-          projectPath
-        }
-      );
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       return false;
     }
   }
@@ -503,6 +404,8 @@ export class NebulaService implements INebulaService {
     }
 
     try {
+      const startTime = Date.now();
+      
       // 按标签分组节点
       const nodesByLabel = this.groupNodesByLabel(nodes);
       
@@ -525,18 +428,12 @@ export class NebulaService implements INebulaService {
       // 执行事务
       await this.executeTransaction(queries);
       
+      const duration = Date.now() - startTime;
+      this.emitEvent('data_inserted', { nodeCount: nodes.length, duration });
       this.logger.info(`Inserted ${nodes.length} nodes`);
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to insert nodes: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'insertNodes',
-          nodeCount: nodes.length
-        }
-      );
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       return false;
     }
   }
@@ -550,6 +447,8 @@ export class NebulaService implements INebulaService {
     }
 
     try {
+      const startTime = Date.now();
+      
       // 按类型分组关系
       const relationshipsByType = this.groupRelationshipsByType(relationships);
       
@@ -574,18 +473,12 @@ export class NebulaService implements INebulaService {
       // 执行事务
       await this.executeTransaction(queries);
       
+      const duration = Date.now() - startTime;
+      this.emitEvent('data_inserted', { relationshipCount: relationships.length, duration });
       this.logger.info(`Inserted ${relationships.length} relationships`);
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to insert relationships: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'insertRelationships',
-          relationshipCount: relationships.length
-        }
-      );
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       return false;
     }
   }
@@ -599,6 +492,8 @@ export class NebulaService implements INebulaService {
     }
 
     try {
+      const startTime = Date.now();
+      
       let query = `MATCH (v:${label}) RETURN v`;
       
       if (filter) {
@@ -609,18 +504,12 @@ export class NebulaService implements INebulaService {
       }
       
       const result = await this.executeReadQuery(query);
+      const duration = Date.now() - startTime;
+      
+      this.emitEvent('data_queried', { label, filter, duration, resultCount: result.data?.length || 0 });
       return result.data || [];
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to find nodes by label: ${errorMessage}`),
-        {
-          component: 'NebulaService',
-          operation: 'findNodesByLabel',
-          label,
-          filter
-        }
-      );
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -628,19 +517,58 @@ export class NebulaService implements INebulaService {
   /**
    * 添加事件监听器
    */
-  addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
-    // TODO: 实现事件监听器功能
-    // 这将在阶段二的统一事件系统中实现
+  addEventListener(type: NebulaEventType | string, listener: (event: any) => void): void {
+    // 添加到基础服务
+    super.addEventListener(type, listener);
+    
     this.logger.debug(`Event listener added for type: ${type}`);
   }
 
   /**
    * 移除事件监听器
    */
-  removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
-    // TODO: 实现事件监听器功能
-    // 这将在阶段二的统一事件系统中实现
+  removeEventListener(type: NebulaEventType | string, listener: (event: any) => void): void {
+    // 从基础服务移除
+    super.removeEventListener(type, listener);
+    
     this.logger.debug(`Event listener removed for type: ${type}`);
+  }
+
+  /**
+   * 健康检查
+   */
+  async healthCheck(): Promise<{
+    status: 'healthy' | 'unhealthy';
+    details?: any;
+    error?: string;
+  }> {
+    try {
+      const baseHealth = await super.healthCheck();
+      
+      if (baseHealth.status === 'unhealthy') {
+        return baseHealth;
+      }
+      
+      // 检查Nebula特定组件
+      const connectionStatus = this.isConnected();
+      const stats = await this.getDatabaseStats();
+      
+      return {
+        status: connectionStatus ? 'healthy' : 'unhealthy',
+        details: {
+          ...baseHealth.details,
+          spacesCount: stats.spaces?.length || 0,
+          nodesCount: stats.nodes || 0,
+          edgesCount: stats.edges || 0,
+          nebulaStatus: 'operational'
+        }
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
   }
 
   /**

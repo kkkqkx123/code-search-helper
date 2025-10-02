@@ -22,23 +22,27 @@ import {
   QdrantEventType,
   QdrantEvent
 } from './QdrantTypes';
+import { BaseDatabaseService } from '../common/BaseDatabaseService';
+import { IDatabaseService, IConnectionManager, IProjectManager } from '../common/IDatabaseService';
+import { DatabaseEventType, QdrantEventType as UnifiedQdrantEventType } from '../common/DatabaseEventTypes';
 
 /**
  * Qdrant 服务类
- * 
+ *
  * 作为外观模式，协调各个模块，提供统一的API接口
  * 保持向后兼容性，内部实现委托给各个专门的模块
+ * 实现统一的数据库服务接口
  */
 @injectable()
-export class QdrantService implements IVectorStore {
+export class QdrantService extends BaseDatabaseService implements IVectorStore, IDatabaseService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private projectIdManager: ProjectIdManager;
-  private connectionManager: IQdrantConnectionManager;
+  protected connectionManager: IQdrantConnectionManager;
   private collectionManager: IQdrantCollectionManager;
   private vectorOperations: IQdrantVectorOperations;
   private queryUtils: IQdrantQueryUtils;
-  private projectManager: IQdrantProjectManager;
+  protected projectManager: IQdrantProjectManager;
 
   constructor(
     @inject(TYPES.ConfigService) configService: ConfigService,
@@ -51,6 +55,12 @@ export class QdrantService implements IVectorStore {
     @inject(TYPES.IQdrantQueryUtils) queryUtils: IQdrantQueryUtils,
     @inject(TYPES.IQdrantProjectManager) projectManager: IQdrantProjectManager
   ) {
+    // 调用父类构造函数，提供必要的依赖
+    super(
+      connectionManager as unknown as IConnectionManager,
+      projectManager as unknown as IProjectManager
+    );
+    
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.projectIdManager = projectIdManager;
@@ -65,7 +75,27 @@ export class QdrantService implements IVectorStore {
    * 初始化 Qdrant 服务
    */
   async initialize(): Promise<boolean> {
-    return this.connectionManager.initialize();
+    try {
+      // 初始化基础服务
+      const baseInitialized = await super.initialize();
+      if (!baseInitialized) {
+        return false;
+      }
+      
+      // 初始化连接管理器
+      const connectionInitialized = await this.connectionManager.initialize();
+      if (!connectionInitialized) {
+        this.emitEvent('error', new Error('Failed to initialize Qdrant connection manager'));
+        return false;
+      }
+
+      this.emitEvent('initialized', { timestamp: new Date() });
+      
+      return true;
+    } catch (error) {
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
+      return false;
+    }
   }
 
   /**
@@ -235,21 +265,56 @@ export class QdrantService implements IVectorStore {
    * 为特定项目创建集合
    */
   async createCollectionForProject(projectPath: string, vectorSize: number, distance?: VectorDistance): Promise<boolean> {
-    return this.projectManager.createCollectionForProject(projectPath, vectorSize, distance);
+    try {
+      const result = await this.projectManager.createCollectionForProject(projectPath, vectorSize, distance);
+      
+      if (result) {
+        this.emitEvent('project_space_created', { projectPath, vectorSize, distance });
+      }
+      
+      return result;
+    } catch (error) {
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
   }
 
   /**
    * 为特定项目插入或更新向量
    */
   async upsertVectorsForProject(projectPath: string, vectors: VectorPoint[]): Promise<boolean> {
-    return this.projectManager.upsertVectorsForProject(projectPath, vectors);
+    try {
+      const startTime = Date.now();
+      const result = await this.projectManager.upsertVectorsForProject(projectPath, vectors);
+      const duration = Date.now() - startTime;
+      
+      if (result) {
+        this.emitEvent('data_inserted', { projectPath, vectorCount: vectors.length, duration });
+      }
+      
+      return result;
+    } catch (error) {
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
   }
 
   /**
    * 在特定项目的集合中搜索向量
    */
   async searchVectorsForProject(projectPath: string, query: number[], options?: SearchOptions): Promise<SearchResult[]> {
-    return this.projectManager.searchVectorsForProject(projectPath, query, options);
+    try {
+      const startTime = Date.now();
+      const results = await this.projectManager.searchVectorsForProject(projectPath, query, options);
+      const duration = Date.now() - startTime;
+      
+      this.emitEvent('data_queried', { projectPath, queryLength: query.length, options, duration, resultCount: results.length });
+      
+      return results;
+    } catch (error) {
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
   }
 
   /**
@@ -263,7 +328,18 @@ export class QdrantService implements IVectorStore {
    * 删除特定项目的集合
    */
   async deleteCollectionForProject(projectPath: string): Promise<boolean> {
-    return this.projectManager.deleteCollectionForProject(projectPath);
+    try {
+      const result = await this.projectManager.deleteCollectionForProject(projectPath);
+      
+      if (result) {
+        this.emitEvent('project_space_deleted', { projectPath });
+      }
+      
+      return result;
+    } catch (error) {
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
   }
 
   /**
@@ -333,30 +409,83 @@ export class QdrantService implements IVectorStore {
    * 关闭连接
    */
   async close(): Promise<void> {
-    return this.connectionManager.close();
+    try {
+      await this.connectionManager.close();
+      await super.close();
+      
+      this.emitEvent('closed', { timestamp: new Date() });
+    } catch (error) {
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
   }
 
   /**
    * 添加事件监听器
    */
-  addEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void {
-    // 将事件监听器添加到所有模块
-    this.connectionManager.addEventListener(type, listener);
-    this.collectionManager.addEventListener(type, listener);
-    this.vectorOperations.addEventListener(type, listener);
-    this.queryUtils.addEventListener(type, listener);
-    this.projectManager.addEventListener(type, listener);
+  addEventListener(type: QdrantEventType | string, listener: (event: any) => void): void {
+    // 添加到基础服务
+    super.addEventListener(type, listener);
+    
+    // 保持向后兼容性，同时添加到所有模块
+    if (Object.values(QdrantEventType).includes(type as QdrantEventType)) {
+      this.connectionManager.addEventListener(type as QdrantEventType, listener);
+      this.collectionManager.addEventListener(type as QdrantEventType, listener);
+      this.vectorOperations.addEventListener(type as QdrantEventType, listener);
+      this.queryUtils.addEventListener(type as QdrantEventType, listener);
+      this.projectManager.addEventListener(type as QdrantEventType, listener);
+    }
   }
 
   /**
    * 移除事件监听器
    */
-  removeEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void {
-    // 从所有模块中移除事件监听器
-    this.connectionManager.removeEventListener(type, listener);
-    this.collectionManager.removeEventListener(type, listener);
-    this.vectorOperations.removeEventListener(type, listener);
-    this.queryUtils.removeEventListener(type, listener);
-    this.projectManager.removeEventListener(type, listener);
+  removeEventListener(type: QdrantEventType | string, listener: (event: any) => void): void {
+    // 从基础服务移除
+    super.removeEventListener(type, listener);
+    
+    // 保持向后兼容性，同时从所有模块移除
+    if (Object.values(QdrantEventType).includes(type as QdrantEventType)) {
+      this.connectionManager.removeEventListener(type as QdrantEventType, listener);
+      this.collectionManager.removeEventListener(type as QdrantEventType, listener);
+      this.vectorOperations.removeEventListener(type as QdrantEventType, listener);
+      this.queryUtils.removeEventListener(type as QdrantEventType, listener);
+      this.projectManager.removeEventListener(type as QdrantEventType, listener);
+    }
+  }
+
+  /**
+   * 健康检查
+   */
+  async healthCheck(): Promise<{
+    status: 'healthy' | 'unhealthy';
+    details?: any;
+    error?: string;
+  }> {
+    try {
+      const baseHealth = await super.healthCheck();
+      
+      if (baseHealth.status === 'unhealthy') {
+        return baseHealth;
+      }
+      
+      // 检查Qdrant特定组件
+      const connectionStatus = this.isConnected();
+      const collections = await this.listCollections();
+      
+      return {
+        status: connectionStatus ? 'healthy' : 'unhealthy',
+        details: {
+          ...baseHealth.details,
+          collectionsCount: collections.length,
+          qdrantStatus: 'operational'
+        }
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
   }
 }
