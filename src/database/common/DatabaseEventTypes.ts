@@ -105,29 +105,96 @@ export interface DatabaseEvent {
 
 /**
  * 事件监听器接口
+ *
+ * 这是一个泛型接口，允许指定事件数据的具体类型以增强类型安全性。
+ * 如果未指定泛型参数，则默认使用 DatabaseEvent 类型以保持向后兼容性。
+ *
+ * @template T - 事件数据的类型，默认为 DatabaseEvent
+ * @param event - 事件数据
+ * @returns void
+ *
+ * @example
+ * // 使用默认的 DatabaseEvent 类型（向后兼容）
+ * const listener: DatabaseEventListener = (event) => {
+ *   console.log(event.type);
+ * };
+ *
+ * @example
+ * // 使用具体类型增强类型安全性
+ * interface QdrantConnectionEvent {
+ *   type: QdrantEventType.COLLECTION_CREATED;
+ *   timestamp: Date;
+ *   source: 'qdrant';
+ *   data: {
+ *     collectionName: string;
+ *     vectorSize: number;
+ *   };
+ * }
+ *
+ * const collectionListener: DatabaseEventListener<QdrantConnectionEvent> = (event) => {
+ *   // 此时 TypeScript 会知道 event 是 QdrantConnectionEvent 类型
+ *   console.log(`Collection ${event.data.collectionName} created`);
+ * };
  */
-export interface DatabaseEventListener {
-  (event: DatabaseEvent): void;
+export interface DatabaseEventListener<T = DatabaseEvent> {
+  (event: T): void;
 }
 
 /**
  * 事件管理器接口
+ *
+ * 提供类型安全的事件管理功能，支持泛型事件监听器。
+ *
+ * @template TEvents - 事件类型映射接口，将事件类型映射到对应的事件数据类型
+ *
+ * @example
+ * // 定义事件类型映射
+ * interface AppEvents {
+ *   'user.login': { userId: string; timestamp: Date };
+ *   'user.logout': { userId: string; timestamp: Date };
+ *   'data.updated': { count: number; source: string };
+ * }
+ *
+ * // 使用泛型事件管理器
+ * const eventManager: IEventManager<AppEvents> = ...;
+ *
+ * // 添加类型安全的监听器
+ * eventManager.addEventListener('user.login', (event) => {
+ *   // TypeScript 会知道 event 包含 userId 和 timestamp
+ *   console.log(`User ${event.userId} logged in at ${event.timestamp}`);
+ * });
  */
-export interface IEventManager {
-  addEventListener(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType, 
-    listener: DatabaseEventListener
+export interface IEventManager<TEvents = Record<string, any>> {
+  /**
+   * 添加事件监听器
+   */
+  addEventListener<K extends keyof TEvents>(
+    eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
+    listener: DatabaseEventListener<TEvents[K]>
   ): void;
   
-  removeEventListener(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType, 
-    listener: DatabaseEventListener
+  /**
+   * 移除事件监听器
+   */
+  removeEventListener<K extends keyof TEvents>(
+    eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
+    listener: DatabaseEventListener<TEvents[K]>
   ): void;
   
-  emitEvent(event: DatabaseEvent): void;
+  /**
+   * 发出事件
+   */
+  emitEvent<K extends keyof TEvents>(event: TEvents[K]): void;
   
+  /**
+   * 移除所有监听器
+   */
   removeAllListeners(): void;
-  getListenerCount(eventType?: DatabaseEventType | QdrantEventType | NebulaEventType): number;
+  
+  /**
+   * 获取监听器数量
+   */
+  getListenerCount(eventType?: DatabaseEventType | QdrantEventType | NebulaEventType | keyof TEvents): number;
 }
 
 /**

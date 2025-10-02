@@ -11,8 +11,33 @@ import { IQdrantProjectManager } from './database/qdrant/QdrantProjectManager';
 
 /**
  * 通用事件监听器类型
+ *
+ * 这是一个泛型类型，允许指定事件数据的具体类型以增强类型安全性。
+ * 如果未指定泛型参数，则默认使用 any 类型以保持向后兼容性。
+ *
+ * @template T - 事件数据的类型，默认为 any
+ * @param data - 事件数据
+ * @returns void
+ *
+ * @example
+ * // 使用默认的 any 类型（向后兼容）
+ * const listener: EventListener = (data) => {
+ *   console.log(data);
+ * };
+ *
+ * @example
+ * // 使用具体类型增强类型安全性
+ * interface UserEventData {
+ *   userId: string;
+ *   userName: string;
+ * }
+ *
+ * const userListener: EventListener<UserEventData> = (data) => {
+ *   // 此时 TypeScript 会知道 data 是 UserEventData 类型
+ *   console.log(`User ${data.userName} (${data.userId})`);
+ * };
  */
-export type EventListener = (data: any) => void;
+export type EventListener<T = any> = (data: T) => void;
 
 import { FileSystemTraversal } from './service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from './service/filesystem/FileWatcherService';

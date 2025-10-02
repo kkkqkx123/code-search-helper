@@ -1,7 +1,7 @@
 import { injectable } from 'inversify';
-import { 
-  DatabaseEvent, 
-  DatabaseEventListener, 
+import {
+  DatabaseEvent,
+  DatabaseEventListener,
   IEventManager,
   DatabaseEventType,
   QdrantEventType,
@@ -11,9 +11,22 @@ import {
 /**
  * 统一的数据库事件管理器实现
  * 为Qdrant和Nebula数据库服务提供事件管理功能
+ *
+ * @template TEvents - 事件类型映射接口，将事件类型映射到对应的事件数据类型
+ *
+ * @example
+ * // 定义数据库事件类型映射
+ * interface DatabaseEvents {
+ *   'qdrant.connected': { host: string; port: number };
+ *   'nebula.query.executed': { query: string; executionTime: number };
+ *   'project.indexed': { projectId: string; fileCount: number };
+ * }
+ *
+ * // 创建类型安全的事件管理器
+ * const eventManager = new DatabaseEventManager<DatabaseEvents>();
  */
 @injectable()
-export class DatabaseEventManager implements IEventManager {
+export class DatabaseEventManager<TEvents = Record<string, any>> implements IEventManager<TEvents> {
   private eventListeners: Map<string, DatabaseEventListener[]> = new Map();
   private eventHistory: DatabaseEvent[] = [];
   private maxEventHistory: number = 1000;
@@ -21,28 +34,28 @@ export class DatabaseEventManager implements IEventManager {
   /**
    * 添加事件监听器
    */
-  addEventListener(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType, 
-    listener: DatabaseEventListener
+  addEventListener<K extends keyof TEvents>(
+    eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
+    listener: DatabaseEventListener<TEvents[K]>
   ): void {
     const eventTypeStr = String(eventType);
     if (!this.eventListeners.has(eventTypeStr)) {
       this.eventListeners.set(eventTypeStr, []);
     }
-    this.eventListeners.get(eventTypeStr)!.push(listener);
+    this.eventListeners.get(eventTypeStr)!.push(listener as DatabaseEventListener);
   }
 
   /**
    * 移除事件监听器
    */
-  removeEventListener(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType, 
-    listener: DatabaseEventListener
+  removeEventListener<K extends keyof TEvents>(
+    eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
+    listener: DatabaseEventListener<TEvents[K]>
   ): void {
     const eventTypeStr = String(eventType);
     const listeners = this.eventListeners.get(eventTypeStr);
     if (listeners) {
-      const index = listeners.indexOf(listener);
+      const index = listeners.indexOf(listener as DatabaseEventListener);
       if (index > -1) {
         listeners.splice(index, 1);
       }
@@ -57,29 +70,82 @@ export class DatabaseEventManager implements IEventManager {
   /**
    * 发出事件
    */
-  emitEvent(event: DatabaseEvent): void {
-    // 记录事件历史
-    this.recordEvent(event);
+  emitEvent<K extends keyof TEvents>(event: TEvents[K] | DatabaseEvent): void {
+    // 处理泛型事件类型
+    const isDatabaseEvent = (e: any): e is DatabaseEvent => {
+      return e && typeof e.type !== 'undefined' && e.timestamp instanceof Date;
+    };
 
-    // 通知特定事件类型的监听器
-    const specificListeners = this.eventListeners.get(String(event.type));
-    if (specificListeners) {
-      this.notifyListeners(specificListeners, event);
+    if (isDatabaseEvent(event)) {
+      // 记录事件历史
+      this.recordEvent(event);
+
+      // 通知特定事件类型的监听器
+      const specificListeners = this.eventListeners.get(String(event.type));
+      if (specificListeners) {
+        this.notifyListeners(specificListeners, event);
+      }
+
+      // 通知通用监听器
+      const generalListeners = this.eventListeners.get('*');
+      if (generalListeners) {
+        this.notifyListeners(generalListeners, event);
+      }
+
+      // 通知错误事件的监听器
+      if (event.error) {
+        const errorListeners = this.eventListeners.get(String(DatabaseEventType.ERROR_OCCURRED));
+        if (errorListeners) {
+          this.notifyListeners(errorListeners, event);
+        }
+      }
+    } else {
+      // 处理泛型事件 - 需要重构以支持泛型事件
+      this.emitGenericEvent<K>(event as TEvents[K]);
     }
+  }
 
-    // 通知通用监听器
+  /**
+   * 发出泛型事件
+   */
+  private emitGenericEvent<K extends keyof TEvents>(event: TEvents[K]): void {
+    // 由于泛型事件没有统一的类型结构，我们需要使用运行时类型检查
+    // 这里我们简化处理，只通知具体的监听器
+    
+    // 将泛型事件转换为 DatabaseEvent 格式
+    // 我们使用 data 字段来存储原始的泛型事件数据
+    const adaptedEvent: DatabaseEvent = {
+      type: DatabaseEventType.SERVICE_INITIALIZED, // 使用默认类型
+      timestamp: new Date(),
+      source: 'common',
+      data: event
+    };
+    
+    // 通知所有通用监听器
     const generalListeners = this.eventListeners.get('*');
     if (generalListeners) {
-      this.notifyListeners(generalListeners, event);
+      this.notifyListeners(generalListeners, adaptedEvent);
     }
-
-    // 通知错误事件的监听器
-    if (event.error) {
-      const errorListeners = this.eventListeners.get(String(DatabaseEventType.ERROR_OCCURRED));
-      if (errorListeners) {
-        this.notifyListeners(errorListeners, event);
+    
+    // 尝试从泛型事件中获取类型信息，并通知特定监听器
+    const eventType = this.getEventTypeFromGenericEvent(event);
+    if (eventType) {
+      const specificListeners = this.eventListeners.get(eventType);
+      if (specificListeners) {
+        this.notifyListeners(specificListeners, adaptedEvent);
       }
     }
+  }
+
+  /**
+   * 从泛型事件中获取事件类型
+   */
+  private getEventTypeFromGenericEvent<K extends keyof TEvents>(event: TEvents[K]): string | null {
+    // 尝试从事件对象中获取类型信息
+    if (event && typeof event === 'object' && 'type' in event) {
+      return String((event as any).type);
+    }
+    return null;
   }
 
   /**
@@ -92,7 +158,7 @@ export class DatabaseEventManager implements IEventManager {
   /**
    * 获取监听器数量
    */
-  getListenerCount(eventType?: DatabaseEventType | QdrantEventType | NebulaEventType): number {
+  getListenerCount(eventType?: DatabaseEventType | QdrantEventType | NebulaEventType | keyof TEvents): number {
     if (eventType === undefined) {
       // 返回所有监听器的总数
       let totalCount = 0;

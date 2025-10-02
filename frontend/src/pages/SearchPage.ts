@@ -1,4 +1,5 @@
 import { ApiClient } from '../services/api.js';
+import { EventManager, FrontendEvents, globalEventManager } from '../utils/EventManager.js';
 
 /**
  * 搜索页面组件
@@ -6,6 +7,7 @@ import { ApiClient } from '../services/api.js';
 export class SearchPage {
     private apiClient: ApiClient;
     private container: HTMLElement;
+    private eventManager: EventManager<FrontendEvents>;
     private onSearchComplete?: (results: any) => void;
     private currentPage: number = 1;
     private pageSize: number = 10;
@@ -18,9 +20,10 @@ export class SearchPage {
     private isLoadingMore: boolean = false;
     private allResults: any[] = [];
 
-    constructor(container: HTMLElement, apiClient: ApiClient) {
+    constructor(container: HTMLElement, apiClient: ApiClient, eventManager?: EventManager<FrontendEvents>) {
         this.container = container;
         this.apiClient = apiClient;
+        this.eventManager = eventManager || globalEventManager;
         this.render();
         this.setupEventListeners();
     }
@@ -129,13 +132,14 @@ export class SearchPage {
         const exampleSearchButton = this.container.querySelector('#example-search') as HTMLButtonElement;
         const minScoreSlider = this.container.querySelector('#min-score') as HTMLInputElement;
 
-        searchForm?.addEventListener('submit', (e) => {
+        // 使用类型安全的 DOM 事件监听器
+        this.eventManager.addDomEventListener(searchForm, 'submit', (e) => {
             e.preventDefault();
             const selectedProject = projectSelect.value;
             this.performSearch(searchInput.value, selectedProject);
         });
 
-        exampleSearchButton?.addEventListener('click', (e) => {
+        this.eventManager.addDomEventListener(exampleSearchButton, 'click', (e) => {
             e.preventDefault();
             searchInput.value = 'function';
             const selectedProject = projectSelect.value;
@@ -143,7 +147,7 @@ export class SearchPage {
         });
 
         // 最小匹配度滑块值实时更新
-        minScoreSlider?.addEventListener('input', (e) => {
+        this.eventManager.addDomEventListener(minScoreSlider, 'input', (e) => {
             const value = (e.target as HTMLInputElement).value;
             const minScoreInput = this.container.querySelector('#min-score-input') as HTMLInputElement;
             if (minScoreInput) {
@@ -153,7 +157,7 @@ export class SearchPage {
 
         // 输入框变化时同步更新滑块
         const minScoreInput = this.container.querySelector('#min-score-input') as HTMLInputElement;
-        minScoreInput?.addEventListener('input', (e) => {
+        this.eventManager.addDomEventListener(minScoreInput, 'input', (e) => {
             const target = e.target as HTMLInputElement;
             const value = parseFloat(target.value);
             if (!isNaN(value) && value >= 0 && value <= 1) {
@@ -162,7 +166,7 @@ export class SearchPage {
         });
 
         // 输入框失去焦点时验证范围
-        minScoreInput?.addEventListener('blur', (e) => {
+        this.eventManager.addDomEventListener(minScoreInput, 'blur', (e) => {
             const target = e.target as HTMLInputElement;
             let value = parseFloat(target.value);
             if (isNaN(value) || value < 0) {
@@ -176,7 +180,7 @@ export class SearchPage {
 
         // 页面大小变化时重新搜索
         const pageSizeSelect = this.container.querySelector('#page-size') as HTMLSelectElement;
-        pageSizeSelect?.addEventListener('change', (e) => {
+        this.eventManager.addDomEventListener(pageSizeSelect, 'change', (e) => {
             const target = e.target as HTMLSelectElement;
             this.pageSize = parseInt(target.value);
             // 重置到第一页并重新搜索
@@ -187,7 +191,7 @@ export class SearchPage {
 
         // 无限滚动开关
         const infiniteScrollCheckbox = this.container.querySelector('#infinite-scroll') as HTMLInputElement;
-        infiniteScrollCheckbox?.addEventListener('change', (e) => {
+        this.eventManager.addDomEventListener(infiniteScrollCheckbox, 'change', (e) => {
             const target = e.target as HTMLInputElement;
             this.infiniteScrollEnabled = target.checked;
             // 如果启用了无限滚动，设置更大的页面大小
@@ -246,9 +250,17 @@ export class SearchPage {
             this.allResults = [];
         }
 
+        // 发出搜索开始事件
+        this.eventManager.emit('search.started', {
+            query,
+            projectId: projectId || '',
+            filters: this.currentFilters
+        });
+
         this.showLoading();
 
         try {
+            const startTime = Date.now();
             const result = await this.apiClient.search(query, projectId, {
                 maxResults,
                 minScore,
@@ -256,6 +268,7 @@ export class SearchPage {
                 pageSize: this.pageSize,
                 useCache: true
             });
+            const executionTime = Date.now() - startTime;
             
             if (this.infiniteScrollEnabled && result.success) {
                 // 保存第一页结果
@@ -269,8 +282,22 @@ export class SearchPage {
             if (this.onSearchComplete) {
                 this.onSearchComplete(result);
             }
+
+            // 发出搜索完成事件
+            this.eventManager.emit('search.completed', {
+                query,
+                results: result.success ? result.data.results : [],
+                totalCount: result.success ? this.totalResults : 0,
+                executionTime
+            });
         } catch (error) {
             this.displayError(error);
+            
+            // 发出搜索失败事件
+            this.eventManager.emit('search.failed', {
+                query,
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
     }
 
@@ -468,7 +495,7 @@ export class SearchPage {
         const resultsContainer = this.container.querySelector('#results-container') as HTMLElement;
         if (!resultsContainer) return;
 
-        resultsContainer.addEventListener('scroll', () => {
+        this.eventManager.addDomEventListener(resultsContainer, 'scroll', () => {
             if (!this.infiniteScrollEnabled || this.isLoadingMore || this.currentPage >= this.totalPages) {
                 return;
             }
@@ -622,12 +649,19 @@ export class SearchPage {
         const paginationButtons = this.container.querySelectorAll('.pagination-button');
         
         paginationButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
+            this.eventManager.addDomEventListener(button, 'click', (e) => {
                 e.preventDefault();
                 const target = e.target as HTMLButtonElement;
                 const page = parseInt(target.dataset.page || '1');
                 
                 if (!isNaN(page) && page !== this.currentPage && page > 0 && page <= this.totalPages) {
+                    // 发出分页变化事件
+                    this.eventManager.emit('search.pagination.changed', {
+                        page,
+                        pageSize: this.pageSize,
+                        query: this.currentQuery
+                    });
+                    
                     this.performSearch(this.currentQuery, this.currentProjectId, page);
                 }
             });
@@ -663,6 +697,12 @@ export class SearchPage {
         this.container.style.display = 'block';
         // 重新加载项目列表，确保是最新的
         this.loadProjects();
+        
+        // 发出页面变化事件
+        this.eventManager.emit('ui.page.changed', {
+            page: 'search',
+            from: 'unknown'
+        });
     }
 
     /**
@@ -670,5 +710,13 @@ export class SearchPage {
      */
     hide() {
         this.container.style.display = 'none';
+    }
+
+    /**
+     * 销毁页面，清理事件监听器
+     */
+    destroy() {
+        // 清理事件管理器中的所有监听器
+        this.eventManager.clearAllListeners();
     }
 }
