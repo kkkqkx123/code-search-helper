@@ -1,10 +1,10 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../utils/LoggerService';
-import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { ConfigService } from '../config/ConfigService';
-import { NebulaConnectionManager } from './nebula/NebulaConnectionManager';
-import { NebulaQueryBuilder } from './nebula/NebulaQueryBuilder';
-import { TYPES } from '../types';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
+import { NebulaConnectionManager } from './NebulaConnectionManager';
+import { NebulaQueryBuilder } from './NebulaQueryBuilder';
+import { TYPES } from '../../types';
 
 export interface INebulaService {
   initialize(): Promise<boolean>;
@@ -55,7 +55,7 @@ export class NebulaService implements INebulaService {
 
       // 连接到Nebula数据库
       const connected = await this.connectionManager.connect();
-      
+
       if (!connected) {
         throw new Error('Failed to connect to Nebula database');
       }
@@ -65,7 +65,7 @@ export class NebulaService implements INebulaService {
 
       this.initialized = true;
       this.logger.info('Nebula service initialized successfully');
-      
+
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -73,7 +73,7 @@ export class NebulaService implements INebulaService {
         new Error(`Failed to initialize Nebula service: ${errorMessage}`),
         { component: 'NebulaService', operation: 'initialize' }
       );
-      
+
       return false;
     }
   }
@@ -136,7 +136,7 @@ export class NebulaService implements INebulaService {
         new Error(`Failed to initialize Nebula schema: ${errorMessage}`),
         { component: 'NebulaService', operation: 'initializeSchema' }
       );
-      
+
       throw error;
     }
   }
@@ -152,24 +152,24 @@ export class NebulaService implements INebulaService {
 
     try {
       const result = await this.connectionManager.executeQuery(nGQL, parameters);
-      
+
       if (result.error) {
         throw new Error(result.error);
       }
-      
+
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
         new Error(`Failed to execute read query: ${errorMessage}`),
-        { 
-          component: 'NebulaService', 
+        {
+          component: 'NebulaService',
           operation: 'executeReadQuery',
           query: nGQL,
           parameters
         }
       );
-      
+
       throw error;
     }
   }
@@ -181,11 +181,11 @@ export class NebulaService implements INebulaService {
 
     try {
       const result = await this.connectionManager.executeQuery(nGQL, parameters);
-      
+
       if (result.error) {
         throw new Error(result.error);
       }
-      
+
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -198,7 +198,7 @@ export class NebulaService implements INebulaService {
           parameters
         }
       );
-      
+
       throw error;
     }
   }
@@ -221,7 +221,7 @@ export class NebulaService implements INebulaService {
           queries
         }
       );
-      
+
       throw error;
     }
   }
@@ -244,7 +244,7 @@ export class NebulaService implements INebulaService {
           spaceName
         }
       );
-      
+
       throw error;
     }
   }
@@ -261,14 +261,14 @@ export class NebulaService implements INebulaService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
         new Error(`Failed to create node: ${errorMessage}`),
-        { 
-          component: 'NebulaService', 
+        {
+          component: 'NebulaService',
           operation: 'createNode',
           label,
           properties
         }
       );
-      
+
       throw error;
     }
   }
@@ -294,8 +294,8 @@ export class NebulaService implements INebulaService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
         new Error(`Failed to create relationship: ${errorMessage}`),
-        { 
-          component: 'NebulaService', 
+        {
+          component: 'NebulaService',
           operation: 'createRelationship',
           type,
           sourceId,
@@ -303,7 +303,7 @@ export class NebulaService implements INebulaService {
           properties
         }
       );
-      
+
       throw error;
     }
   }
@@ -320,14 +320,14 @@ export class NebulaService implements INebulaService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
         new Error(`Failed to find nodes: ${errorMessage}`),
-        { 
-          component: 'NebulaService', 
+        {
+          component: 'NebulaService',
           operation: 'findNodes',
           label,
           properties
         }
       );
-      
+
       throw error;
     }
   }
@@ -344,14 +344,14 @@ export class NebulaService implements INebulaService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
         new Error(`Failed to find relationships: ${errorMessage}`),
-        { 
-          component: 'NebulaService', 
+        {
+          component: 'NebulaService',
           operation: 'findRelationships',
           type,
           properties
         }
       );
-      
+
       throw error;
     }
   }
@@ -368,12 +368,12 @@ export class NebulaService implements INebulaService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
         new Error(`Failed to get database stats: ${errorMessage}`),
-        { 
-          component: 'NebulaService', 
+        {
+          component: 'NebulaService',
           operation: 'getDatabaseStats'
         }
       );
-      
+
       throw error;
     }
   }

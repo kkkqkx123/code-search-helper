@@ -3,7 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
-import { NebulaSpaceInfo } from '../NebulaTypes';
+import { NebulaSpaceInfo } from './NebulaTypes';
 import { INebulaConnectionManager } from './NebulaConnectionManager';
 import { INebulaQueryBuilder } from './NebulaQueryBuilder';
 
@@ -11,14 +11,14 @@ export interface INebulaSpaceManager {
   createSpace(projectId: string, config?: any): Promise<boolean>;
   deleteSpace(projectId: string): Promise<boolean>;
   listSpaces(): Promise<string[]>;
- getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null>;
+  getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null>;
   checkSpaceExists(projectId: string): Promise<boolean>;
   clearSpace(projectId: string): Promise<boolean>;
 }
 
 export interface GraphConfig {
   partitionNum?: number;
- replicaFactor?: number;
+  replicaFactor?: number;
   vidType?: string;
 }
 
@@ -44,9 +44,9 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     this.configService = configService;
   }
 
- private generateSpaceName(projectId: string): string {
+  private generateSpaceName(projectId: string): string {
     return `project_${projectId}`;
- }
+  }
 
   async createSpace(projectId: string, config: GraphConfig = {}): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
@@ -94,20 +94,20 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   async listSpaces(): Promise<string[]> {
     try {
       const result = await this.nebulaConnection.executeQuery('SHOW SPACES');
-      
+
       // 更健壮的结果格式检查
       if (!result) {
         this.logger.warn('SHOW SPACES returned null result');
         return [];
       }
-      
+
       // 处理不同的返回格式
       let data = result.data;
       if (!data) {
         // 尝试其他可能的格式
         data = result.table || result.results || result.rows || [];
       }
-      
+
       if (!Array.isArray(data)) {
         this.logger.warn('SHOW SPACES returned non-array data:', {
           resultType: typeof data,
@@ -115,14 +115,14 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         });
         return [];
       }
-      
+
       // 提取空间名称
       const spaceNames = data.map((row: any, index: number) => {
         try {
           // 处理多种可能的列名格式
           const name = row.Name || row.name || row.NAME || row.space_name || row.SpaceName;
           if (name && typeof name === 'string') return name.trim();
-          
+
           // 如果没有找到标准列名，尝试获取第一个字符串属性
           const keys = Object.keys(row);
           for (const key of keys) {
@@ -132,7 +132,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
               return value.trim();
             }
           }
-          
+
           // 如果仍然没有找到合适的值，记录调试信息
           this.logger.debug(`No valid space name found in row ${index}:`, row);
           return '';
@@ -141,14 +141,14 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
           return '';
         }
       }).filter((name: string) => name && name.length > 0);
-      
+
       // 验证结果
       if (spaceNames.length === 0) {
         this.logger.warn('No valid space names found in SHOW SPACES result');
       } else {
         this.logger.debug(`Found ${spaceNames.length} spaces:`, spaceNames);
       }
-      
+
       return spaceNames;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -156,7 +156,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         error: errorMessage,
         stack: error instanceof Error ? error.stack : undefined
       });
-      
+
       // 返回空数组而不是抛出异常，让调用者能够继续处理
       return [];
     }
@@ -166,29 +166,29 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     const spaceName = this.generateSpaceName(projectId);
     try {
       const result = await this.nebulaConnection.executeQuery(`DESCRIBE SPACE \`${spaceName}\``);
-      
+
       // 更健壮的结果验证
       if (!result) {
         this.logger.warn(`DESCRIBE SPACE ${spaceName} returned null result`);
         return null;
       }
-      
+
       // 处理不同的返回格式
       let data = result.data || result.table || result.results || result.rows || [];
-      
+
       if (!Array.isArray(data) || data.length === 0) {
         this.logger.debug(`No space info found for ${spaceName}`);
         return null;
       }
-      
+
       const spaceInfo = data[0];
-      
+
       // 验证返回的数据结构
       if (!spaceInfo || typeof spaceInfo !== 'object') {
         this.logger.warn(`Invalid space info format for ${spaceName}:`, spaceInfo);
         return null;
       }
-      
+
       // 创建标准化的SpaceInfo对象
       const normalizedInfo: NebulaSpaceInfo = {
         name: spaceName,
@@ -198,7 +198,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         charset: spaceInfo.charset || spaceInfo.Charset || 'utf8',
         collate: spaceInfo.collate || spaceInfo.Collate || 'utf8_bin'
       };
-      
+
       this.logger.debug(`Retrieved space info for ${spaceName}:`, normalizedInfo);
       return normalizedInfo;
     } catch (error) {
@@ -232,13 +232,13 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     spaceName: string,
     maxRetries: number = 30,
     retryDelay: number = 1000
- ): Promise<void> {
+  ): Promise<void> {
     this.logger.info(`Waiting for space ${spaceName} to be ready...`);
-    
+
     for (let i = 0; i < maxRetries; i++) {
       try {
         const result = await this.nebulaConnection.executeQuery(`DESCRIBE SPACE \`${spaceName}\``);
-        
+
         // 更健壮的结果检查
         if (result) {
           const data = result.data || result.table || result.results || result.rows || [];
@@ -247,7 +247,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
             return;
           }
         }
-        
+
         // 如果还没有准备好，记录调试信息
         if (i % 5 === 0) { // 每5次尝试记录一次
           this.logger.debug(`Space ${spaceName} not ready yet, attempt ${i + 1}/${maxRetries}`);
@@ -349,40 +349,40 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         return;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        
+
         // 检查是否是"已存在"错误
         if (errorMessage.includes('already exists') || errorMessage.includes('existed')) {
           this.logger.debug(`Index already exists: ${indexQuery}`);
           return;
         }
-        
+
         if (attempt === maxRetries) {
           this.logger.error(`Failed to create index after ${maxRetries} attempts: ${indexQuery}`, error);
           throw new Error(`Failed to create index: ${indexQuery}. Error: ${errorMessage}`);
         }
-        
+
         this.logger.warn(`Attempt ${attempt} failed to create index: ${indexQuery}. Retrying...`, error);
         // 等待一段时间后重试
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
     }
- }
+  }
 
   async clearSpace(projectId: string): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
     try {
       this.logger.info(`Starting to clear space ${spaceName} for project ${projectId}`);
-      
+
       // 首先，切换到空间
       await this.nebulaConnection.executeQuery(`USE \`${spaceName}\``);
-      
+
       // 获取空间中的所有标签
       const tagsResult = await this.nebulaConnection.executeQuery('SHOW TAGS');
       const tagsData = tagsResult?.data || tagsResult?.table || tagsResult?.results || [];
       const tags = Array.isArray(tagsData)
         ? tagsData.map((row: any) => row.Name || row.name || row.NAME || row.tag_name).filter(Boolean)
         : [];
-      
+
       this.logger.debug(`Found ${tags.length} tags in space ${spaceName}:`, tags);
 
       // 获取所有边类型
@@ -391,7 +391,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       const edges = Array.isArray(edgesData)
         ? edgesData.map((row: any) => row.Name || row.name || row.NAME || row.edge_name).filter(Boolean)
         : [];
-      
+
       this.logger.debug(`Found ${edges.length} edges in space ${spaceName}:`, edges);
 
       // 首先删除所有边

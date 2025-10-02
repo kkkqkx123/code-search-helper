@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { BatchVertex, BatchEdge } from '../NebulaTypes';
+import { BatchVertex, BatchEdge } from './NebulaTypes';
 
 export interface INebulaQueryBuilder {
   insertVertex(tag: string, vertexId: string, properties: Record<string, any>): { query: string; params: Record<string, any> };
@@ -26,7 +26,7 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
    * @param properties 属性对象
    * @returns {query: string, params: Record<string, any>} 查询语句和参数
    */
- insertVertex(
+  insertVertex(
     tag: string,
     vertexId: string,
     properties: Record<string, any>
@@ -165,7 +165,7 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
    */
   batchInsertEdges(
     edges: BatchEdge[]
- ): { query: string; params: Record<string, any> } {
+  ): { query: string; params: Record<string, any> } {
     if (edges.length === 0) {
       return { query: '', params: {} };
     }
@@ -379,7 +379,7 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
   deleteVertices(
     vertexIds: string[],
     tag?: string
- ): { query: string; params: Record<string, any> } {
+  ): { query: string; params: Record<string, any> } {
     if (vertexIds.length === 0) {
       return { query: '', params: {} };
     }
@@ -438,7 +438,7 @@ export class NebulaQueryBuilder implements INebulaQueryBuilder {
       RETURN count(n) AS total
     `;
     return { query, params: {} };
- }
+  }
 
   /**
    * 构建关系计数查询

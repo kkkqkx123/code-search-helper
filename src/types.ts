@@ -32,7 +32,7 @@ import { FileQueryIntentClassifier } from './service/filesearch/FileQueryIntentC
 import { FileSearchCache } from './service/filesearch/FileSearchCache';
 
 // Nebula Graph 服务
-import { NebulaService, INebulaService } from './database/NebulaService';
+import { NebulaService, INebulaService } from './database/nebula/NebulaService';
 import { NebulaConnectionManager } from './database/nebula/NebulaConnectionManager';
 import { NebulaQueryBuilder } from './database/nebula/NebulaQueryBuilder';
 import { NebulaSpaceManager } from './database/nebula/NebulaSpaceManager';

@@ -4,7 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { NebulaQueryBuilder, INebulaQueryBuilder } from './NebulaQueryBuilder';
-import { BatchVertex, BatchEdge } from '../NebulaTypes';
+import { BatchVertex, BatchEdge } from './NebulaTypes';
 import { INebulaConnectionManager } from './NebulaConnectionManager';
 
 export interface INebulaGraphOperations {
@@ -13,9 +13,9 @@ export interface INebulaGraphOperations {
   batchInsertVertices(vertices: BatchVertex[]): Promise<boolean>;
   batchInsertEdges(edges: BatchEdge[]): Promise<boolean>;
   findRelatedNodes(nodeId: string, relationshipTypes?: string[], maxDepth?: number): Promise<any[]>;
- findPath(sourceId: string, targetId: string, maxDepth?: number): Promise<any[]>;
+  findPath(sourceId: string, targetId: string, maxDepth?: number): Promise<any[]>;
   findShortestPath(sourceId: string, targetId: string, edgeTypes?: string[], maxDepth?: number): Promise<any[]>;
- updateVertex(vertexId: string, tag: string, properties: Record<string, any>): Promise<boolean>;
+  updateVertex(vertexId: string, tag: string, properties: Record<string, any>): Promise<boolean>;
   updateEdge(srcId: string, dstId: string, edgeType: string, properties: Record<string, any>): Promise<boolean>;
   deleteVertex(vertexId: string, tag?: string): Promise<boolean>;
   deleteEdge(srcId: string, dstId: string, edgeType?: string): Promise<boolean>;
@@ -45,18 +45,18 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     this.connection = connection;
   }
 
- async insertVertex(tag: string, vertexId: string, properties: Record<string, any>): Promise<boolean> {
-   try {
-     // 构建INSERT VERTEX查询
-     const { query, params } = this.queryBuilder.insertVertex(tag, vertexId, properties);
-     await this.connection.executeQuery(query, params);
-     return true;
-   } catch (error) {
-     const errorMessage = error instanceof Error ? error.message : String(error);
-     this.logger.error(`Failed to insert vertex ${vertexId} in tag ${tag}`, { error: errorMessage });
-     return false;
-   }
- }
+  async insertVertex(tag: string, vertexId: string, properties: Record<string, any>): Promise<boolean> {
+    try {
+      // 构建INSERT VERTEX查询
+      const { query, params } = this.queryBuilder.insertVertex(tag, vertexId, properties);
+      await this.connection.executeQuery(query, params);
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to insert vertex ${vertexId} in tag ${tag}`, { error: errorMessage });
+      return false;
+    }
+  }
 
   async insertEdge(edgeType: string, srcId: string, dstId: string, properties: Record<string, any>): Promise<boolean> {
     try {
@@ -105,7 +105,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     nodeId: string,
     relationshipTypes?: string[],
     maxDepth: number = 2
- ): Promise<any[]> {
+  ): Promise<any[]> {
     throw new Error('Method disabled due to circular dependency');
   }
 
@@ -126,7 +126,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     throw new Error('Method disabled due to circular依赖');
   }
 
- async updateVertex(
+  async updateVertex(
     vertexId: string,
     tag: string,
     properties: Record<string, any>

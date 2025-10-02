@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
-import { NebulaService } from '../../../database/NebulaService';
+import { NebulaService } from '../../../database/nebula/NebulaService';
 import { NebulaQueryBuilder } from '../../../database/nebula/NebulaQueryBuilder';
 import { CodeGraphNode, CodeGraphRelationship } from '../core/types';
 
@@ -288,7 +288,7 @@ export class GraphPersistenceUtils {
       // Simplified query implementation as buildPagedQuery doesn't exist
       const limitClause = options.limit ? `LIMIT ${options.limit}` : '';
       const projectClause = options.projectId ? `AND n.projectId = \"${options.projectId}\"` : '';
-      
+
       const query = {
         nGQL: `MATCH (n:${nodeType}) WHERE true ${projectClause} RETURN n.id ${limitClause}`,
         parameters: {}
@@ -518,18 +518,18 @@ export class GraphPersistenceUtils {
         return;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        
+
         // 检查是否是"已存在"错误
         if (errorMessage.includes('already exists') || errorMessage.includes('existed')) {
           logger.debug(`Constraint index already exists: ${indexQuery}`);
           return;
         }
-        
+
         if (attempt === maxRetries) {
           logger.error(`Failed to create constraint index after ${maxRetries} attempts: ${indexQuery}`, error);
           throw new Error(`Failed to create constraint index: ${indexQuery}. Error: ${errorMessage}`);
         }
-        
+
         logger.warn(`Attempt ${attempt} failed to create constraint index: ${indexQuery}. Retrying...`, error);
         // 等待一段时间后重试
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
