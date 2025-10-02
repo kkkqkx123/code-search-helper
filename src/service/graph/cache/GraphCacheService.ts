@@ -75,9 +75,32 @@ export class GraphCacheService implements IGraphCacheService {
     this.errorHandler = errorHandler;
     this.configService = configService;
     
-    // 从配置中获取缓存最大大小
-    const maxSize = this.configService.get('caching').maxSize || 10000;
-    this.cache = new TTLCache<string, any>(maxSize);
+    // 延迟初始化缓存，避免在构造函数中访问未初始化的配置服务
+    // 缓存将在第一次使用时通过 getCacheConfig() 方法初始化
+    this.cache = new TTLCache<string, any>(10000); // 使用默认值
+  }
+
+  /**
+   * 获取缓存配置，确保在配置服务初始化后使用
+   */
+  private getCacheConfig() {
+    try {
+      // 确保配置服务已初始化
+      if (!this.configService) {
+        throw new Error('ConfigService not available');
+      }
+      
+      // 尝试获取配置，如果失败则使用默认值
+      try {
+        return this.configService.get('caching');
+      } catch (error) {
+        this.logger.warn('Failed to get cache configuration, using defaults', { error: (error as Error).message });
+        return { maxSize: 10000, defaultTTL: 30000 };
+      }
+    } catch (error) {
+      this.logger.error('Error getting cache configuration', { error: (error as Error).message });
+      return { maxSize: 10000, defaultTTL: 30000 };
+    }
   }
 
   getFromCache<T>(key: string): T | null {
@@ -113,7 +136,8 @@ export class GraphCacheService implements IGraphCacheService {
 
   setCache<T>(key: string, value: T, ttl?: number): void {
     try {
-      const defaultTTL = this.configService.get('caching').defaultTTL || 30000; // 5 minutes default
+      const cacheConfig = this.getCacheConfig();
+      const defaultTTL = cacheConfig.defaultTTL || 30000; // 5 minutes default
       const cacheTTL = ttl || defaultTTL;
       
       const entry: CacheEntry<T> = {
@@ -199,7 +223,8 @@ export class GraphCacheService implements IGraphCacheService {
 
   setGraphStatsCache(stats: GraphAnalysisResult): void {
     try {
-      const defaultTTL = this.configService.get('caching').defaultTTL || 300000; // 5 minutes default
+      const cacheConfig = this.getCacheConfig();
+      const defaultTTL = cacheConfig.defaultTTL || 300000; // 5 minutes default
       
       this.graphStatsCache = {
         data: stats,
@@ -250,7 +275,8 @@ export class GraphCacheService implements IGraphCacheService {
    * 获取缓存使用情况
    */
   getCacheUsage(): { total: number; used: number; percentage: number } {
-    const total = this.configService.get('caching').maxSize || 10000;
+    const cacheConfig = this.getCacheConfig();
+    const total = cacheConfig.maxSize || 10000;
     const used = this.cache.size();
     const percentage = total > 0 ? (used / total) * 100 : 0; // 修复百分比计算
 
