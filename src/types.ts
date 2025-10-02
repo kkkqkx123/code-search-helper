@@ -152,6 +152,7 @@ export const TYPES = {
   INebulaSpaceManager: Symbol.for('INebulaSpaceManager'),
   INebulaGraphOperations: Symbol.for('INebulaGraphOperations'),
   INebulaQueryBuilder: Symbol.for('INebulaQueryBuilder'),
+  INebulaProjectManager: Symbol.for('INebulaProjectManager'),
 
   // 图服务
   GraphService: Symbol.for('GraphService'),

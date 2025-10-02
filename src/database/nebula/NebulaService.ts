@@ -72,7 +72,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.NebulaConnectionManager) connectionManager: NebulaConnectionManager,
     @inject(TYPES.NebulaQueryBuilder) queryBuilder: NebulaQueryBuilder,
-    @inject('INebulaProjectManager') projectManager: NebulaProjectManager
+    @inject(TYPES.INebulaProjectManager) projectManager: NebulaProjectManager
   ) {
     // 调用父类构造函数，提供必要的依赖
     super(

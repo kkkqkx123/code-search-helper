@@ -2,7 +2,7 @@ import { Container } from 'inversify';
 import { TYPES } from '../../types';
 import { TransactionManager } from '../../database/core/TransactionManager';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
- 
+
 // Qdrant 向量数据库服务
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { QdrantConnectionManager } from '../../database/qdrant/QdrantConnectionManager';
@@ -15,10 +15,11 @@ import { QdrantProjectManager } from '../../database/qdrant/QdrantProjectManager
 import { DatabaseLoggerService } from '../../database/common/DatabaseLoggerService';
 import { EventToLogBridge } from '../../database/common/EventToLogBridge';
 import { PerformanceMonitor } from '../../database/common/PerformanceMonitor';
- 
+
 // 图数据库服务
 import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService';
 import { GraphQueryBuilder, IGraphQueryBuilder } from '../../database/query/GraphQueryBuilder';
+import { NebulaProjectManager } from '../../database/nebula/NebulaProjectManager';
 
 export class DatabaseServiceRegistrar {
   static register(container: Container): void {
@@ -43,5 +44,6 @@ export class DatabaseServiceRegistrar {
     container.bind<GraphDatabaseService>(TYPES.GraphDatabaseService).to(GraphDatabaseService).inSingletonScope();
     container.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
     container.bind<IGraphQueryBuilder>(TYPES.IGraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
+    container.bind<NebulaProjectManager>(TYPES.INebulaProjectManager).to(NebulaProjectManager).inSingletonScope();
   }
 }
