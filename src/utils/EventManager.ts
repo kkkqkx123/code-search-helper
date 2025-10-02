@@ -1,4 +1,4 @@
-import { EventListener } from '../types';
+// import { EventListener } from '../types';
 
 /**
  * 通用事件管理器
@@ -6,8 +6,8 @@ import { EventListener } from '../types';
  * 这是一个具体的事件系统实现示例，展示了如何使用增强的 EventListener 类型。
  * 它支持泛型事件数据类型，提供了类型安全的事件处理机制。
  */
-export class EventManager {
-  private eventListeners: Map<string, EventListener[]> = new Map();
+export class EventManager<T = any> {
+  private eventListeners: Map<string, ((data: T) => void)[]> = new Map();
 
   /**
    * 添加事件监听器
@@ -16,11 +16,12 @@ export class EventManager {
    * @param eventType - 事件类型
    * @param listener - 事件监听器
    */
-  addEventListener<T = any>(eventType: string, listener: EventListener<T>): void {
+  addEventListener<K extends string>(eventType: K, listener: (data: T) => void): void {
     if (!this.eventListeners.has(eventType)) {
       this.eventListeners.set(eventType, []);
     }
-    this.eventListeners.get(eventType)!.push(listener);
+    const listeners = this.eventListeners.get(eventType)!;
+    listeners.push(listener);
   }
 
   /**
@@ -30,12 +31,12 @@ export class EventManager {
    * @param eventType - 事件类型
    * @param listener - 要移除的事件监听器
    */
-  removeEventListener<T = any>(eventType: string, listener: EventListener<T>): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      const index = listeners.indexOf(listener as EventListener);
+  removeEventListener<K extends string>(eventType: K, listener: (data: T) => void): void {
+    const eventListeners = this.eventListeners.get(eventType);
+    if (eventListeners) {
+      const index = eventListeners.indexOf(listener);
       if (index > -1) {
-        listeners.splice(index, 1);
+        eventListeners.splice(index, 1);
       }
     }
   }
@@ -47,10 +48,10 @@ export class EventManager {
    * @param eventType - 事件类型
    * @param data - 事件数据
    */
-  emit<T = any>(eventType: string, data: T): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      listeners.forEach(listener => {
+  emit<K extends string>(eventType: K, data: T): void {
+    const eventListeners = this.eventListeners.get(eventType);
+    if (eventListeners) {
+      eventListeners.forEach(listener => {
         try {
           listener(data);
         } catch (error) {

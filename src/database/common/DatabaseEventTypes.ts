@@ -170,7 +170,7 @@ export interface IEventManager<TEvents = Record<string, any>> {
    */
   addEventListener<K extends keyof TEvents>(
     eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
-    listener: DatabaseEventListener<TEvents[K]>
+    listener: DatabaseEventListener<TEvents[K] | DatabaseEvent>
   ): void;
   
   /**
@@ -178,13 +178,13 @@ export interface IEventManager<TEvents = Record<string, any>> {
    */
   removeEventListener<K extends keyof TEvents>(
     eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
-    listener: DatabaseEventListener<TEvents[K]>
+    listener: DatabaseEventListener<TEvents[K] | DatabaseEvent>
   ): void;
   
   /**
    * 发出事件
    */
-  emitEvent<K extends keyof TEvents>(event: TEvents[K]): void;
+  emitEvent(event: DatabaseEvent): void;
   
   /**
    * 移除所有监听器
@@ -196,6 +196,11 @@ export interface IEventManager<TEvents = Record<string, any>> {
    */
   getListenerCount(eventType?: DatabaseEventType | QdrantEventType | NebulaEventType | keyof TEvents): number;
 }
+
+/**
+ * 数据库事件管理器类
+ */
+export { DatabaseEventManager } from './DatabaseEventManager';
 
 /**
  * 事件过滤器接口

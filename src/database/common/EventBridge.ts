@@ -1,13 +1,14 @@
 import { injectable } from 'inversify';
-import { EventManager, EventListener } from '../../utils/EventManager';
-import { 
-  DatabaseEventManager, 
-  DatabaseEvent, 
-  DatabaseEventListener,
+import { EventManager } from '../../utils/EventManager';
+import {
+  IEventManager,
+  DatabaseEvent,
   DatabaseEventType,
   QdrantEventType,
-  NebulaEventType
+  NebulaEventType,
+  DatabaseEventManager
 } from './DatabaseEventTypes';
+import { DatabaseEventListener } from './DatabaseEventInterfaces';
 
 /**
  * 事件桥接器
@@ -39,16 +40,18 @@ import {
  */
 @injectable()
 export class EventBridge<TEvents = Record<string, any>> {
-  private databaseEventManager: DatabaseEventManager<TEvents>;
-  private eventManager: EventManager;
+  private databaseEventManager: IEventManager<TEvents>;
+  private databaseEventCreator: typeof DatabaseEventManager;
+  private eventManager: EventManager<TEvents>;
   private eventMapping: Map<string, string> = new Map();
 
   constructor(
-    databaseEventManager?: DatabaseEventManager<TEvents>,
-    eventManager?: EventManager
+    databaseEventManager?: IEventManager<TEvents>,
+    eventManager?: EventManager<TEvents>
   ) {
     this.databaseEventManager = databaseEventManager || new DatabaseEventManager<TEvents>();
-    this.eventManager = eventManager || new EventManager();
+    this.databaseEventCreator = DatabaseEventManager;
+    this.eventManager = eventManager || new EventManager<TEvents>();
     this.initializeDefaultMappings();
   }
 
@@ -88,7 +91,7 @@ export class EventBridge<TEvents = Record<string, any>> {
     eventType: DatabaseEventType | QdrantEventType | NebulaEventType,
     listener: DatabaseEventListener<DatabaseEvent>
   ): void {
-    this.databaseEventManager.addEventListener(eventType, listener);
+    this.databaseEventManager.addEventListener(eventType, listener as any);
   }
 
   /**
@@ -101,7 +104,7 @@ export class EventBridge<TEvents = Record<string, any>> {
     eventType: DatabaseEventType | QdrantEventType | NebulaEventType,
     listener: DatabaseEventListener<DatabaseEvent>
   ): void {
-    this.databaseEventManager.removeEventListener(eventType, listener);
+    this.databaseEventManager.removeEventListener(eventType, listener as any);
   }
 
   /**
@@ -112,9 +115,9 @@ export class EventBridge<TEvents = Record<string, any>> {
    */
   addEventListener<K extends keyof TEvents>(
     eventType: K,
-    listener: EventListener<TEvents[K]>
+    listener: (data: TEvents[K]) => void
   ): void {
-    this.eventManager.addEventListener(String(eventType), listener);
+    this.eventManager.addEventListener(String(eventType), listener as unknown as (data: TEvents) => void);
   }
 
   /**
@@ -125,9 +128,9 @@ export class EventBridge<TEvents = Record<string, any>> {
    */
   removeEventListener<K extends keyof TEvents>(
     eventType: K,
-    listener: EventListener<TEvents[K]>
+    listener: (data: TEvents[K]) => void
   ): void {
-    this.eventManager.removeEventListener(String(eventType), listener);
+    this.eventManager.removeEventListener(String(eventType), listener as unknown as (data: TEvents) => void);
   }
 
   /**
@@ -159,9 +162,9 @@ export class EventBridge<TEvents = Record<string, any>> {
    */
   startBridging(): void {
     // 监听所有数据库事件
-    this.databaseEventManager.addEventListener('*', (event: DatabaseEvent) => {
-      this.bridgeEvent(event);
-    });
+    this.databaseEventManager.addEventListener('*' as any, ((event: any) => {
+      this.bridgeEvent(event as DatabaseEvent);
+    }) as any);
   }
 
   /**
@@ -169,7 +172,9 @@ export class EventBridge<TEvents = Record<string, any>> {
    */
   stopBridging(): void {
     // 移除桥接监听器
-    this.databaseEventManager.removeEventListener('*', this.bridgeEvent.bind(this));
+    this.databaseEventManager.removeEventListener('*' as any, ((event: any) => {
+      this.bridgeEvent(event as DatabaseEvent);
+    }) as any);
   }
 
   /**
@@ -245,7 +250,7 @@ export class EventBridge<TEvents = Record<string, any>> {
    * @param event - 数据库事件
    */
   emitDatabaseEvent(event: DatabaseEvent): void {
-    this.databaseEventManager.emitEvent(event);
+    this.databaseEventManager.emitEvent(event as any);
   }
 
   /**
@@ -255,20 +260,20 @@ export class EventBridge<TEvents = Record<string, any>> {
    * @param data - 事件数据
    */
   emitGenericEvent<K extends keyof TEvents>(eventType: K, data: TEvents[K]): void {
-    this.eventManager.emit(String(eventType), data);
+    this.eventManager.emit(String(eventType), data as unknown as TEvents);
   }
 
   /**
    * 获取数据库事件管理器
    */
-  getDatabaseEventManager(): DatabaseEventManager<TEvents> {
+  getDatabaseEventManager(): IEventManager<TEvents> {
     return this.databaseEventManager;
   }
 
   /**
    * 获取通用事件管理器
    */
-  getEventManager(): EventManager {
+  getEventManager(): EventManager<TEvents> {
     return this.eventManager;
   }
 

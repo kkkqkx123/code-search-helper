@@ -1,15 +1,16 @@
 import { injectable } from 'inversify';
 import { EventManager } from './EventManager';
 import { EventBridge } from '../database/common/EventBridge';
-import { 
-  DatabaseEventManager, 
-  DatabaseEvent, 
+import {
+  IEventManager,
+  DatabaseEvent,
   DatabaseEventListener,
   DatabaseEventType,
   QdrantEventType,
-  NebulaEventType
+  NebulaEventType,
+  DatabaseEventManager
 } from '../database/common/DatabaseEventTypes';
-import { DatabaseEventInterfaces } from '../database/common/DatabaseEventInterfaces';
+// import { DatabaseEventInterfaces } from '../database/common/DatabaseEventInterfaces';
 
 /**
  * 全局事件总线接口
@@ -239,13 +240,13 @@ export interface GlobalEvents {
 @injectable()
 export class GlobalEventBus<TEvents extends Record<string, any> = GlobalEvents> implements IGlobalEventBus<TEvents> {
   private eventManager: EventManager<TEvents>;
-  private databaseEventManager: DatabaseEventManager<TEvents>;
+  private databaseEventManager: IEventManager<TEvents>;
   private eventBridge: EventBridge<TEvents>;
   private static instance: GlobalEventBus<any> | null = null;
 
   constructor(
     eventManager?: EventManager<TEvents>,
-    databaseEventManager?: DatabaseEventManager<TEvents>,
+    databaseEventManager?: IEventManager<TEvents>,
     eventBridge?: EventBridge<TEvents>
   ) {
     this.eventManager = eventManager || new EventManager<TEvents>();
@@ -256,13 +257,13 @@ export class GlobalEventBus<TEvents extends Record<string, any> = GlobalEvents> 
     this.eventBridge.startBridging();
     
     // 监听数据库错误事件，转换为全局错误事件
-    this.databaseEventManager.addEventListener(DatabaseEventType.ERROR_OCCURRED, (event) => {
+    this.databaseEventManager.addEventListener(DatabaseEventType.ERROR_OCCURRED, (event: DatabaseEvent) => {
       this.emit('app.error' as keyof TEvents, {
-        error: event.error || new Error('Unknown database error'),
+        error: (event as any).error || new Error('Unknown database error'),
         context: {
           source: 'database',
-          operation: event.metadata?.operation || 'unknown',
-          originalEventType: event.metadata?.originalEventType
+          operation: (event as any).metadata?.operation || 'unknown',
+          originalEventType: (event as any).metadata?.originalEventType
         },
         timestamp: new Date()
       } as TEvents[keyof TEvents]);
@@ -283,21 +284,21 @@ export class GlobalEventBus<TEvents extends Record<string, any> = GlobalEvents> 
    * 添加事件监听器
    */
   on<K extends keyof TEvents>(eventType: K, listener: (data: TEvents[K]) => void): void {
-    this.eventManager.addEventListener(eventType, listener);
+    this.eventManager.addEventListener(String(eventType), listener as unknown as (data: TEvents) => void);
   }
 
   /**
    * 移除事件监听器
    */
   off<K extends keyof TEvents>(eventType: K, listener: (data: TEvents[K]) => void): void {
-    this.eventManager.removeEventListener(eventType, listener);
+    this.eventManager.removeEventListener(String(eventType), listener as unknown as (data: TEvents) => void);
   }
 
   /**
    * 触发事件
    */
   emit<K extends keyof TEvents>(eventType: K, data: TEvents[K]): void {
-    this.eventManager.emit(eventType, data);
+    this.eventManager.emit(String(eventType), data as unknown as TEvents);
     
     // 如果是重要事件，记录到数据库事件历史中
     if (this.isImportantEvent(eventType)) {
@@ -351,7 +352,7 @@ export class GlobalEventBus<TEvents extends Record<string, any> = GlobalEvents> 
    * 获取数据库事件管理器
    */
   getDatabaseEventManager(): DatabaseEventManager<TEvents> {
-    return this.databaseEventManager;
+    return this.databaseEventManager as DatabaseEventManager<TEvents>;
   }
 
   /**
@@ -389,7 +390,7 @@ export class GlobalEventBus<TEvents extends Record<string, any> = GlobalEvents> 
    * 获取事件历史
    */
   getEventHistory(limit?: number): DatabaseEvent[] {
-    return this.databaseEventManager.getEventHistory(limit);
+    return (this.databaseEventManager as DatabaseEventManager<TEvents>).getEventHistory(limit);
   }
 
   /**

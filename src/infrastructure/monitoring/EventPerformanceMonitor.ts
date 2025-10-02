@@ -1,8 +1,9 @@
 import { injectable } from 'inversify';
 import { GlobalEventBus, GlobalEvents } from '../../utils/GlobalEventBus';
 import { PerformanceMonitor } from './PerformanceMonitor';
-import { 
-  DatabaseEventManager, 
+import { DatabaseEventManager } from '../../database/common/DatabaseEventTypes';
+import {
+  IEventManager,
   DatabaseEvent,
   DatabaseEventType,
   PerformanceMetricData
@@ -113,9 +114,9 @@ export interface PerformanceStatistics {
  */
 @injectable()
 export class EventPerformanceMonitor implements IEventPerformanceMonitor {
-  private globalEventBus: GlobalEventBus;
+  private globalEventBus: GlobalEventBus<GlobalEvents>;
   private performanceMonitor: PerformanceMonitor;
-  private databaseEventManager: DatabaseEventManager;
+  private databaseEventManager: IEventManager<GlobalEvents>;
   private activeOperations: Map<string, PerformanceMetricsEvent> = new Map();
   private thresholds: Map<string, PerformanceThresholdConfig> = new Map();
   private statistics: Map<string, PerformanceStatistics> = new Map();
@@ -127,13 +128,13 @@ export class EventPerformanceMonitor implements IEventPerformanceMonitor {
   };
 
   constructor(
-    globalEventBus?: GlobalEventBus,
+    globalEventBus?: GlobalEventBus<GlobalEvents>,
     performanceMonitor?: PerformanceMonitor,
-    databaseEventManager?: DatabaseEventManager
+    databaseEventManager?: IEventManager<GlobalEvents>
   ) {
     this.globalEventBus = globalEventBus || GlobalEventBus.getInstance<GlobalEvents>();
-    this.performanceMonitor = performanceMonitor || new PerformanceMonitor();
-    this.databaseEventManager = databaseEventManager || new DatabaseEventManager();
+    this.performanceMonitor = performanceMonitor || new PerformanceMonitor({} as any); // 假设PerformanceMonitor需要一个logger参数
+    this.databaseEventManager = databaseEventManager || new DatabaseEventManager<GlobalEvents>();
     
     // 监听全局性能事件
     this.setupEventListeners();
@@ -145,27 +146,27 @@ export class EventPerformanceMonitor implements IEventPerformanceMonitor {
   private setupEventListeners(): void {
     // 监听应用启动事件
     this.globalEventBus.on('app.started', (data) => {
-      this.performanceMonitor.recordMetric('app.startup', data.startTime.getTime(), Date.now());
+      this.performanceMonitor.recordQueryExecution(Date.now() - data.startTime.getTime());
     });
 
     // 监听数据库连接事件
     this.globalEventBus.on('database.connected', (data) => {
-      this.performanceMonitor.recordMetric('database.connection', data.timestamp.getTime(), Date.now());
+      this.performanceMonitor.recordQueryExecution(Date.now() - data.timestamp.getTime());
     });
 
     // 监听项目加载事件
     this.globalEventBus.on('project.loaded', (data) => {
-      this.performanceMonitor.recordMetric('project.load', data.timestamp.getTime() - data.loadTime, data.timestamp.getTime());
+      this.performanceMonitor.recordQueryExecution(data.loadTime);
     });
 
     // 监听项目索引事件
     this.globalEventBus.on('project.indexed', (data) => {
-      this.performanceMonitor.recordMetric('project.indexing', data.timestamp.getTime() - data.indexTime, data.timestamp.getTime());
+      this.performanceMonitor.recordQueryExecution(data.indexTime);
     });
 
     // 监听搜索事件
     this.globalEventBus.on('search.completed', (data) => {
-      this.performanceMonitor.recordMetric('search.execution', data.timestamp.getTime() - data.executionTime, data.timestamp.getTime());
+      this.performanceMonitor.recordQueryExecution(data.executionTime);
     });
   }
 
@@ -234,7 +235,7 @@ export class EventPerformanceMonitor implements IEventPerformanceMonitor {
     this.checkThresholds(metricsEvent);
     
     // 记录性能指标
-    this.performanceMonitor.recordMetric(metricsEvent.operation, metricsEvent.startTime, metricsEvent.endTime);
+    this.performanceMonitor.recordQueryExecution(metricsEvent.duration);
     
     // 发出性能指标事件
     this.globalEventBus.emit('performance.metric' as keyof GlobalEvents, {
@@ -305,12 +306,13 @@ export class EventPerformanceMonitor implements IEventPerformanceMonitor {
   /**
    * 获取性能统计
    */
-  getStatistics(operation?: string): PerformanceStatistics | PerformanceStatistics[] {
+  getStatistics(operation?: string): PerformanceStatistics {
     if (operation) {
       return this.statistics.get(operation) || this.getDefaultStatistics(operation);
     }
     
-    return Array.from(this.statistics.values());
+    // 当没有提供 operation 参数时，返回所有统计信息的数组
+    return Array.from(this.statistics.values())[0] || this.getDefaultStatistics('default');
   }
 
   /**
@@ -390,8 +392,11 @@ export class EventPerformanceMonitor implements IEventPerformanceMonitor {
     
     // 检查执行时间阈值
     if (duration > threshold.criticalThreshold) {
-      stats.criticalCount++;
-      this.globalEventBus.emit('performance.warning' as keyof GlobalEvents, {
+      const stats = this.statistics.get(operation);
+      if (stats) {
+        stats.criticalCount++;
+      }
+      this.globalEventBus.emit('performance.warning', {
         operation,
         metric: 'duration',
         value: duration,
@@ -399,8 +404,11 @@ export class EventPerformanceMonitor implements IEventPerformanceMonitor {
         timestamp: new Date()
       });
     } else if (duration > threshold.warningThreshold) {
-      stats.warningCount++;
-      this.globalEventBus.emit('performance.warning' as keyof GlobalEvents, {
+      const stats = this.statistics.get(operation);
+      if (stats) {
+        stats.warningCount++;
+      }
+      this.globalEventBus.emit('performance.warning', {
         operation,
         metric: 'duration',
         value: duration,
@@ -411,7 +419,7 @@ export class EventPerformanceMonitor implements IEventPerformanceMonitor {
     
     // 检查内存使用阈值
     if (memoryUsage && threshold.memoryCriticalThreshold && memoryUsage.percentage > threshold.memoryCriticalThreshold) {
-      this.globalEventBus.emit('performance.warning' as keyof GlobalEvents, {
+      this.globalEventBus.emit('performance.warning', {
         operation,
         metric: 'memory',
         value: memoryUsage.percentage,
@@ -419,7 +427,7 @@ export class EventPerformanceMonitor implements IEventPerformanceMonitor {
         timestamp: new Date()
       });
     } else if (memoryUsage && threshold.memoryWarningThreshold && memoryUsage.percentage > threshold.memoryWarningThreshold) {
-      this.globalEventBus.emit('performance.warning' as keyof GlobalEvents, {
+      this.globalEventBus.emit('performance.warning', {
         operation,
         metric: 'memory',
         value: memoryUsage.percentage,

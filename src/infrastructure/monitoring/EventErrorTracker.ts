@@ -1,11 +1,11 @@
 import { injectable } from 'inversify';
 import { GlobalEventBus, GlobalEvents } from '../../utils/GlobalEventBus';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { 
-  DatabaseEventManager, 
+import { DatabaseEventManager } from '../../database/common/DatabaseEventTypes';
+import {
+  IEventManager,
   DatabaseEvent,
-  DatabaseEventType,
-  ErrorEvent
+  DatabaseEventType
 } from '../../database/common/DatabaseEventTypes';
 
 /**
@@ -185,20 +185,20 @@ export interface IEventErrorTracker {
  */
 @injectable()
 export class EventErrorTracker implements IEventErrorTracker {
-  private globalEventBus: GlobalEventBus;
+  private globalEventBus: GlobalEventBus<GlobalEvents>;
   private errorHandler: ErrorHandlerService;
-  private databaseEventManager: DatabaseEventManager;
+  private databaseEventManager: IEventManager<GlobalEvents>;
   private errors: Map<string, EnhancedErrorInfo> = new Map();
   private errorGroups: Map<string, string[]> = new Map();
 
   constructor(
-    globalEventBus?: GlobalEventBus,
+    globalEventBus?: GlobalEventBus<GlobalEvents>,
     errorHandler?: ErrorHandlerService,
-    databaseEventManager?: DatabaseEventManager
+    databaseEventManager?: IEventManager<GlobalEvents>
   ) {
     this.globalEventBus = globalEventBus || GlobalEventBus.getInstance<GlobalEvents>();
-    this.errorHandler = errorHandler || new ErrorHandlerService();
-    this.databaseEventManager = databaseEventManager || new DatabaseEventManager();
+    this.errorHandler = errorHandler || new ErrorHandlerService({} as any); // 假设需要一个logger参数
+    this.databaseEventManager = databaseEventManager || new DatabaseEventManager<GlobalEvents>();
     
     // 设置事件监听器
     this.setupEventListeners();
@@ -321,8 +321,8 @@ export class EventErrorTracker implements IEventErrorTracker {
     // 如果是严重错误，通知错误处理服务
     if (level === ErrorLevel.ERROR || level === ErrorLevel.FATAL) {
       this.errorHandler.handleError(error, {
-        level: level as any,
-        category: category as any,
+        component: category as any,
+        operation: level as any,
         context,
         tags
       });
