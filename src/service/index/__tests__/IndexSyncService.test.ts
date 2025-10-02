@@ -19,6 +19,8 @@ import { IQdrantQueryUtils } from '../../../database/qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../../database/qdrant/QdrantProjectManager';
 import { ASTCodeSplitter } from '../../parser/splitting/ASTCodeSplitter';
 import { ProjectStateManager } from '../../project/ProjectStateManager';
+import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -103,6 +105,19 @@ describe('IndexSyncService', () => {
     const mockVectorOperations = {} as jest.Mocked<IQdrantVectorOperations>;
     const mockQueryUtils = {} as jest.Mocked<IQdrantQueryUtils>;
     const mockProjectManager = {} as jest.Mocked<IQdrantProjectManager>;
+    const mockDatabaseLoggerService = {
+      logDatabaseEvent: jest.fn(),
+      logConnectionEvent: jest.fn(),
+      logBatchOperation: jest.fn(),
+      logCollectionOperation: jest.fn(),
+      logVectorOperation: jest.fn(),
+      logQueryOperation: jest.fn(),
+      logProjectOperation: jest.fn(),
+    } as unknown as jest.Mocked<DatabaseLoggerService>;
+    const mockPerformanceMonitor = {
+      recordOperation: jest.fn(),
+      getOperationStats: jest.fn(),
+    } as unknown as jest.Mocked<PerformanceMonitor>;
 
     qdrantService = new QdrantService(
       diContainer.get(TYPES.ConfigService),
@@ -113,7 +128,9 @@ describe('IndexSyncService', () => {
       mockCollectionManager,
       mockVectorOperations,
       mockQueryUtils,
-      mockProjectManager
+      mockProjectManager,
+      mockDatabaseLoggerService,
+      mockPerformanceMonitor
     ) as jest.Mocked<QdrantService>;
     projectIdManager = new ProjectIdManager(diContainer.get(TYPES.ConfigService)) as jest.Mocked<ProjectIdManager>;
     embedderFactory = new EmbedderFactory(

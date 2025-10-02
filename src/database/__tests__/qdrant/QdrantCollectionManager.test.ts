@@ -2,6 +2,8 @@ import { QdrantCollectionManager, IQdrantCollectionManager } from '../../qdrant/
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
+import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import { VectorDistance, CollectionCreateOptions, DEFAULT_COLLECTION_OPTIONS } from '../../qdrant/QdrantTypes';
 
 // Mock dependencies
@@ -17,6 +19,21 @@ const mockErrorHandler = {
 
 const mockConnectionManager = {
   getClient: jest.fn(),
+};
+
+const mockDatabaseLogger = {
+  logDatabaseEvent: jest.fn(),
+  logConnectionEvent: jest.fn(),
+  logBatchOperation: jest.fn(),
+  logCollectionOperation: jest.fn(),
+  logVectorOperation: jest.fn(),
+  logQueryOperation: jest.fn(),
+  logProjectOperation: jest.fn(),
+};
+
+const mockPerformanceMonitor = {
+  recordOperation: jest.fn(),
+  getOperationStats: jest.fn(),
 };
 
 const mockClient = {
@@ -41,7 +58,9 @@ describe('QdrantCollectionManager', () => {
     collectionManager = new QdrantCollectionManager(
       mockLogger as unknown as LoggerService,
       mockErrorHandler as unknown as ErrorHandlerService,
-      mockConnectionManager as unknown as IQdrantConnectionManager
+      mockConnectionManager as unknown as IQdrantConnectionManager,
+      mockDatabaseLogger as unknown as DatabaseLoggerService,
+      mockPerformanceMonitor as unknown as PerformanceMonitor
     );
   });
 

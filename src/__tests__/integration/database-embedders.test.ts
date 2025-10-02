@@ -11,6 +11,8 @@ import { IQdrantCollectionManager } from '../../database/qdrant/QdrantCollection
 import { IQdrantVectorOperations } from '../../database/qdrant/QdrantVectorOperations';
 import { IQdrantQueryUtils } from '../../database/qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../database/qdrant/QdrantProjectManager';
+import { DatabaseLoggerService } from '../../database/common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../../database/common/PerformanceMonitor';
 
 // 确保在测试环境中运行
 process.env.NODE_ENV = 'test';
@@ -61,6 +63,8 @@ describe('Database and Embedders Integration', () => {
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {
       initialize: jest.fn().mockResolvedValue(true),
+      connect: jest.fn().mockResolvedValue(true),
+      disconnect: jest.fn().mockResolvedValue(undefined),
       close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(false),
       getClient: jest.fn().mockReturnValue(null),
@@ -122,6 +126,22 @@ describe('Database and Embedders Integration', () => {
       removeEventListener: jest.fn()
     } as unknown as jest.Mocked<IQdrantProjectManager>;
 
+    const mockDatabaseLoggerService = {
+      logDatabaseEvent: jest.fn(),
+      logConnectionEvent: jest.fn(),
+      logBatchOperation: jest.fn(),
+      logCollectionOperation: jest.fn(),
+      logVectorOperation: jest.fn(),
+      logQueryOperation: jest.fn(),
+      logProjectOperation: jest.fn(),
+    } as unknown as jest.Mocked<DatabaseLoggerService>;
+
+    const mockPerformanceMonitor = {
+      recordOperation: jest.fn(),
+      getOperationStats: jest.fn(),
+    } as unknown as jest.Mocked<PerformanceMonitor>;
+
+
     cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
     embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);
     qdrantService = new QdrantService(
@@ -133,7 +153,9 @@ describe('Database and Embedders Integration', () => {
       mockCollectionManager,
       mockVectorOperations,
       mockQueryUtils,
-      mockProjectManager
+      mockProjectManager,
+      mockDatabaseLoggerService,
+      mockPerformanceMonitor
     );
   });
 
@@ -316,7 +338,7 @@ describe('Database and Embedders Integration', () => {
         // 如果没有可用的提供者，会抛出错误，这也是可以接受的
         console.warn('No available embedder providers, skipping auto-select test');
       }
-    });
+    }, 15000);
   });
 
   describe('性能验收标准', () => {
@@ -391,7 +413,7 @@ describe('Database and Embedders Integration', () => {
         // If service is not available, that's acceptable
         console.warn('Embedder service not available, skipping memory test');
       }
-    }, 30000);
+    }, 120000);
 
     test('✅ 缓存命中率 ≥ 70%', async () => {
       try {

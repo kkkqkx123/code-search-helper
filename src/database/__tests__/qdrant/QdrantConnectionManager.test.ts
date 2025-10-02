@@ -19,6 +19,8 @@ import { QdrantConnectionManager, IQdrantConnectionManager } from '../../qdrant/
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
+import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { ConnectionStatus, QdrantEventType, QdrantEvent } from '../../qdrant/QdrantTypes';
 
@@ -43,6 +45,21 @@ const mockConfigService = {
   }),
 };
 
+const mockDatabaseLogger = {
+  logDatabaseEvent: jest.fn(),
+  logConnectionEvent: jest.fn(),
+  logBatchOperation: jest.fn(),
+  logCollectionOperation: jest.fn(),
+  logVectorOperation: jest.fn(),
+  logQueryOperation: jest.fn(),
+  logProjectOperation: jest.fn(),
+};
+
+const mockPerformanceMonitor = {
+  recordOperation: jest.fn(),
+  getOperationStats: jest.fn(),
+};
+
 describe('QdrantConnectionManager', () => {
   let connectionManager: QdrantConnectionManager;
 
@@ -54,7 +71,9 @@ describe('QdrantConnectionManager', () => {
     connectionManager = new QdrantConnectionManager(
       mockConfigService as unknown as ConfigService,
       mockLogger as unknown as LoggerService,
-      mockErrorHandler as unknown as ErrorHandlerService
+      mockErrorHandler as unknown as ErrorHandlerService,
+      mockDatabaseLogger as unknown as DatabaseLoggerService,
+      mockPerformanceMonitor as unknown as PerformanceMonitor
     );
   });
 

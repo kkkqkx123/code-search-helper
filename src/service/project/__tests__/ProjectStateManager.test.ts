@@ -19,6 +19,8 @@ import { IQdrantVectorOperations } from '../../../database/qdrant/QdrantVectorOp
 import { IQdrantQueryUtils } from '../../../database/qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../../database/qdrant/QdrantProjectManager';
 import { ASTCodeSplitter } from '../../parser/splitting/ASTCodeSplitter';
+import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -152,6 +154,19 @@ describe('ProjectStateManager', () => {
     const mockVectorOperations = {} as jest.Mocked<IQdrantVectorOperations>;
     const mockQueryUtils = {} as jest.Mocked<IQdrantQueryUtils>;
     const mockProjectManager = {} as jest.Mocked<IQdrantProjectManager>;
+    const mockDatabaseLoggerService = {
+      logDatabaseEvent: jest.fn(),
+      logConnectionEvent: jest.fn(),
+      logBatchOperation: jest.fn(),
+      logCollectionOperation: jest.fn(),
+      logVectorOperation: jest.fn(),
+      logQueryOperation: jest.fn(),
+      logProjectOperation: jest.fn(),
+    } as unknown as jest.Mocked<DatabaseLoggerService>;
+    const mockPerformanceMonitor = {
+      recordOperation: jest.fn(),
+      getOperationStats: jest.fn(),
+    } as unknown as jest.Mocked<PerformanceMonitor>;
 
     qdrantService = new QdrantService(
       configService,
@@ -162,7 +177,9 @@ describe('ProjectStateManager', () => {
       mockCollectionManager,
       mockVectorOperations,
       mockQueryUtils,
-      mockProjectManager
+      mockProjectManager,
+      mockDatabaseLoggerService,
+      mockPerformanceMonitor
     ) as jest.Mocked<QdrantService>;
     // 创建模拟的ConfigService
     configService = {

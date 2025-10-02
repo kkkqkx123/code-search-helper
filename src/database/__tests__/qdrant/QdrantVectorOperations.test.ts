@@ -4,6 +4,8 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
 import { IQdrantCollectionManager } from '../../qdrant/QdrantCollectionManager';
 import { VectorPoint, SearchOptions, SearchResult } from '../../qdrant/IVectorStore';
+import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import {
   VectorUpsertOptions,
   VectorSearchOptions,
@@ -38,6 +40,21 @@ const mockClient = {
   getCollection: jest.fn(),
 };
 
+const mockDatabaseLogger = {
+  logDatabaseEvent: jest.fn(),
+  logConnectionEvent: jest.fn(),
+  logBatchOperation: jest.fn(),
+  logCollectionOperation: jest.fn(),
+  logVectorOperation: jest.fn(),
+  logQueryOperation: jest.fn(),
+  logProjectOperation: jest.fn(),
+};
+
+const mockPerformanceMonitor = {
+  recordOperation: jest.fn(),
+  getOperationStats: jest.fn(),
+};
+
 describe('QdrantVectorOperations', () => {
   let vectorOperations: QdrantVectorOperations;
 
@@ -53,7 +70,9 @@ describe('QdrantVectorOperations', () => {
       mockLogger as unknown as LoggerService,
       mockErrorHandler as unknown as ErrorHandlerService,
       mockConnectionManager as unknown as IQdrantConnectionManager,
-      mockCollectionManager as unknown as IQdrantCollectionManager
+      mockCollectionManager as unknown as IQdrantCollectionManager,
+      mockDatabaseLogger as unknown as DatabaseLoggerService,
+      mockPerformanceMonitor as unknown as PerformanceMonitor
     );
   });
 

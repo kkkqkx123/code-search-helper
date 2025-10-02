@@ -4,6 +4,8 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
 import { SearchOptions } from '../../qdrant/IVectorStore';
 import { QueryFilter } from '../../qdrant/QdrantTypes';
+import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 
 // Mock dependencies
 const mockLogger = {
@@ -26,6 +28,21 @@ const mockClient = {
   count: jest.fn(),
 };
 
+const mockDatabaseLogger = {
+  logDatabaseEvent: jest.fn(),
+  logConnectionEvent: jest.fn(),
+  logBatchOperation: jest.fn(),
+  logCollectionOperation: jest.fn(),
+  logVectorOperation: jest.fn(),
+  logQueryOperation: jest.fn(),
+  logProjectOperation: jest.fn(),
+};
+
+const mockPerformanceMonitor = {
+  recordOperation: jest.fn(),
+  getOperationStats: jest.fn(),
+};
+
 describe('QdrantQueryUtils', () => {
   let queryUtils: QdrantQueryUtils;
 
@@ -40,7 +57,9 @@ describe('QdrantQueryUtils', () => {
     queryUtils = new QdrantQueryUtils(
       mockLogger as unknown as LoggerService,
       mockErrorHandler as unknown as ErrorHandlerService,
-      mockConnectionManager as unknown as IQdrantConnectionManager
+      mockConnectionManager as unknown as IQdrantConnectionManager,
+      mockDatabaseLogger as unknown as DatabaseLoggerService,
+      mockPerformanceMonitor as unknown as PerformanceMonitor
     );
   });
 

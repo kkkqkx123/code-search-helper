@@ -5,6 +5,8 @@ import { ProjectIdManager } from '../../ProjectIdManager';
 import { IQdrantCollectionManager } from '../../qdrant/QdrantCollectionManager';
 import { IQdrantVectorOperations } from '../../qdrant/QdrantVectorOperations';
 import { IQdrantQueryUtils } from '../../qdrant/QdrantQueryUtils';
+import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import { VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../../qdrant/IVectorStore';
 import { VectorDistance, ProjectInfo } from '../../qdrant/QdrantTypes';
 
@@ -17,6 +19,21 @@ const mockLogger = {
 
 const mockErrorHandler = {
   handleError: jest.fn(),
+};
+
+const mockDatabaseLogger = {
+  logDatabaseEvent: jest.fn(),
+  logConnectionEvent: jest.fn(),
+  logBatchOperation: jest.fn(),
+  logCollectionOperation: jest.fn(),
+  logVectorOperation: jest.fn(),
+  logQueryOperation: jest.fn(),
+  logProjectOperation: jest.fn(),
+};
+
+const mockPerformanceMonitor = {
+  recordOperation: jest.fn(),
+  getOperationStats: jest.fn(),
 };
 
 const mockProjectIdManager = {
@@ -55,6 +72,8 @@ describe('QdrantProjectManager', () => {
     projectManager = new QdrantProjectManager(
       mockLogger as unknown as LoggerService,
       mockErrorHandler as unknown as ErrorHandlerService,
+      mockDatabaseLogger as unknown as DatabaseLoggerService,
+      mockPerformanceMonitor as unknown as PerformanceMonitor,
       mockProjectIdManager as unknown as ProjectIdManager,
       mockCollectionManager as unknown as IQdrantCollectionManager,
       mockVectorOperations as unknown as IQdrantVectorOperations,
