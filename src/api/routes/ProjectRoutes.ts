@@ -11,8 +11,8 @@ import {
   IndexingProgress,
   IndexingStats
 } from '../../types/project';
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { ProjectState } from '../../service/project/ProjectStateManager';
 import { IndexSyncService } from '../../service/index/IndexSyncService';

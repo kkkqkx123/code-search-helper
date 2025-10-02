@@ -15,8 +15,8 @@ import { EmbeddingInput, EmbeddingResult } from '../../embedders/BaseEmbedder';
 // Tree-sitter AST分段支持
 import { ASTCodeSplitter } from '../parser/splitting/ASTCodeSplitter';
 import { CodeChunk } from '../parser/splitting/Splitter';
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 export interface IndexSyncOptions {
   embedder?: string;

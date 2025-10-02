@@ -1,6 +1,6 @@
 import { PathUtils } from '../PathUtils';
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 // Mock fs
 jest.mock('fs/promises');

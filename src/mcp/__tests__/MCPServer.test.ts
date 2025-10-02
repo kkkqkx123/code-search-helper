@@ -1,5 +1,5 @@
 import { MCPServer } from '../MCPServer';
-import fs from 'fs/promises';
+import * as fs from 'fs/promises';
 import { Logger } from '../../utils/logger';
 
 // Mock MCP SDK

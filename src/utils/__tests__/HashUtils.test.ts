@@ -1,7 +1,7 @@
 import { HashUtils } from '../HashUtils';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 
 // Mock fs
 jest.mock('fs/promises');

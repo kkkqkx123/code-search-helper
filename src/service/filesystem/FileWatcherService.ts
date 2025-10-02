@@ -1,7 +1,7 @@
 import { injectable, inject, optional } from 'inversify';
 import chokidar, { FSWatcher, ChokidarOptions } from 'chokidar';
-import path from 'path';
-import fs from 'fs/promises';
+import * as path from 'path';
+import * as fs from 'fs/promises';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 

@@ -10,7 +10,7 @@ import { ConfigService } from '../../config/ConfigService';
 
 // Mock fs
 jest.mock('fs/promises');
-import fs from 'fs/promises';
+import * as fs from 'fs/promises';
 const mockFsDefault = fs as jest.Mocked<typeof fs>;
 
 // Mock ProjectIdManager to prevent file system operations during tests

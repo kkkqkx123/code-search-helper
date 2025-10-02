@@ -12,7 +12,7 @@ interface ErrorContext {
 import { FileWatcherService, FileWatcherOptions, FileWatcherCallbacks } from './FileWatcherService';
 import { FileSystemTraversal, FileInfo } from './FileSystemTraversal';
 import { TYPES } from '../../types';
-import path from 'path';
+import * as path from 'path';
 
 export interface ChangeDetectionOptions {
   debounceInterval?: number;

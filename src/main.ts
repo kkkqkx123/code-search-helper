@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { inject, injectable } from 'inversify';
 import { MCPServer } from './mcp/MCPServer';
 import { ApiServer } from './api/ApiServer';

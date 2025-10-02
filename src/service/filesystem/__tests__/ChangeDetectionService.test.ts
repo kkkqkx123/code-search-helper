@@ -5,7 +5,7 @@ import { FileWatcherService, FileWatcherOptions, FileWatcherCallbacks } from '..
 import { FileSystemTraversal, FileInfo, TraversalResult } from '../FileSystemTraversal';
 import { TYPES } from '../../../types';
 import { Container } from 'inversify';
-import path from 'path';
+import * as path from 'path';
 
 // Mock modules
 jest.mock('../../../utils/LoggerService');

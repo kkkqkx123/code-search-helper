@@ -3,8 +3,8 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { FileSystemTraversal, FileInfo } from '../FileSystemTraversal';
 import { TYPES } from '../../../types';
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { Container } from 'inversify';
 import chokidar from 'chokidar';
 

@@ -6,8 +6,8 @@ import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { IndexSyncService, IndexSyncStatus } from '../index/IndexSyncService';
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ConfigService } from '../../config/ConfigService';
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { HashUtils } from '../../utils/HashUtils';
 
 export interface ProjectState {

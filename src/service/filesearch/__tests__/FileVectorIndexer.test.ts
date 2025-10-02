@@ -3,7 +3,7 @@ import { QdrantService } from '../../../database/qdrant/QdrantService';
 import { BaseEmbedder } from '../../../embedders/BaseEmbedder';
 import { LoggerService } from '../../../utils/LoggerService';
 import { FileVectorIndex, IndexingOptions } from '../types';
-import path from 'path';
+import * as path from 'path';
 import { promises as fs } from 'fs';
 
 // Mock dependencies

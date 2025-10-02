@@ -12,8 +12,8 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { diContainer } from '../../core/DIContainer';
 import { TYPES } from '../../types';
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 // Helper function to wait for indexing to complete
 async function waitForIndexingComplete(indexSyncService: IndexSyncService, projectId: string, timeout = 5000): Promise<void> {

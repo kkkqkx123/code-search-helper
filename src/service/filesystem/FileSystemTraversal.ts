@@ -1,7 +1,7 @@
 import { injectable, inject, optional } from 'inversify';
-import fs from 'fs/promises';
-import fsSync from 'fs';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
+import * as path from 'path';
 import { createHash } from 'crypto';
 import { GitignoreParser } from '../../utils/GitignoreParser';
 import { LoggerService } from '../../utils/LoggerService';

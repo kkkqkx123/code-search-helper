@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { Logger } from '../utils/logger.js';
 import { ProjectRoutes } from './routes/ProjectRoutes';
 import { IndexingRoutes } from './routes/IndexingRoutes';

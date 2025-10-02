@@ -5,7 +5,7 @@ import { FileVectorIndex, IndexingOptions } from './types';
 import { LoggerService } from '../../utils/LoggerService';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { TYPES } from '../../types';
-import path from 'path';
+import * as path from 'path';
 import { promises as fs } from 'fs';
 
 /**

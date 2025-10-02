@@ -1,8 +1,8 @@
 import { HashUtils } from './HashUtils.js';
 import { PathUtils } from './PathUtils.js';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 
 async function testUtils() {
   console.log('Testing HashUtils and PathUtils...');

@@ -1,6 +1,6 @@
 import { HashUtils } from '../utils/HashUtils';
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../types';
 import { ConfigService } from '../config/ConfigService';
