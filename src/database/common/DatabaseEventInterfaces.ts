@@ -280,81 +280,132 @@ export type DatabaseEventListener<T = DatabaseEventUnion> = (event: T) => void;
  * 用于在运行时确定事件的具体类型
  */
 export const isQdrantConnectionEvent = (event: any): event is QdrantConnectionEvent => {
-  return event && 
-    event.type in [QdrantEventType.COLLECTION_CREATED, DatabaseEventType.CONNECTION_OPENED, DatabaseEventType.CONNECTION_CLOSED, DatabaseEventType.CONNECTION_FAILED] &&
-    event.source === 'qdrant' &&
-    event.data &&
-    typeof event.data.host === 'string' &&
-    typeof event.data.port === 'number';
+  try {
+    if (!event) return false;
+    if (![QdrantEventType.COLLECTION_CREATED, DatabaseEventType.CONNECTION_OPENED, DatabaseEventType.CONNECTION_CLOSED, DatabaseEventType.CONNECTION_FAILED].includes(event.type)) return false;
+    if (event.source !== 'qdrant') return false;
+    if (!event.data) return false;
+    if (typeof event.data.host !== 'string') return false;
+    if (typeof event.data.port !== 'number') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const isQdrantCollectionEvent = (event: any): event is QdrantCollectionEvent => {
-  return event && 
-    event.type in [QdrantEventType.COLLECTION_CREATED, QdrantEventType.COLLECTION_DELETED, QdrantEventType.COLLECTION_UPDATED, QdrantEventType.COLLECTION_ERROR] &&
-    event.source === 'qdrant' &&
-    event.data &&
-    typeof event.data.collectionName === 'string';
+  try {
+    if (!event) return false;
+    if (![QdrantEventType.COLLECTION_CREATED, QdrantEventType.COLLECTION_DELETED, QdrantEventType.COLLECTION_UPDATED, QdrantEventType.COLLECTION_ERROR].includes(event.type)) return false;
+    if (event.source !== 'qdrant') return false;
+    if (!event.data) return false;
+    if (typeof event.data.collectionName !== 'string') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const isQdrantVectorEvent = (event: any): event is QdrantVectorEvent => {
-  return event && 
-    event.type in [QdrantEventType.VECTOR_INSERTED, QdrantEventType.VECTOR_UPDATED, QdrantEventType.VECTOR_DELETED, QdrantEventType.VECTOR_SEARCHED] &&
-    event.source === 'qdrant' &&
-    event.data &&
-    typeof event.data.collectionName === 'string';
+  try {
+    if (!event) return false;
+    if (![QdrantEventType.VECTOR_INSERTED, QdrantEventType.VECTOR_UPDATED, QdrantEventType.VECTOR_DELETED, QdrantEventType.VECTOR_SEARCHED].includes(event.type)) return false;
+    if (event.source !== 'qdrant') return false;
+    if (!event.data) return false;
+    if (typeof event.data.collectionName !== 'string') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const isNebulaSpaceEvent = (event: any): event is NebulaSpaceEvent => {
-  return event && 
-    event.type in [NebulaEventType.SPACE_CREATED, NebulaEventType.SPACE_DELETED, NebulaEventType.SPACE_UPDATED, NebulaEventType.SPACE_ERROR] &&
-    event.source === 'nebula' &&
-    event.data &&
-    typeof event.data.spaceName === 'string';
+  try {
+    if (!event) return false;
+    if (![NebulaEventType.SPACE_CREATED, NebulaEventType.SPACE_DELETED, NebulaEventType.SPACE_UPDATED, NebulaEventType.SPACE_ERROR].includes(event.type)) return false;
+    if (event.source !== 'nebula') return false;
+    if (!event.data) return false;
+    if (typeof event.data.spaceName !== 'string') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const isNebulaQueryEvent = (event: any): event is NebulaQueryEvent => {
-  return event && 
-    event.type in [NebulaEventType.QUERY_EXECUTED, NebulaEventType.QUERY_ERROR] &&
-    event.source === 'nebula' &&
-    event.data &&
-    typeof event.data.query === 'string';
+  try {
+    if (!event) return false;
+    if (![NebulaEventType.QUERY_EXECUTED, NebulaEventType.QUERY_ERROR].includes(event.type)) return false;
+    if (event.source !== 'nebula') return false;
+    if (!event.data) return false;
+    if (typeof event.data.query !== 'string') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const isPerformanceMetricEvent = (event: any): event is PerformanceMetricEvent => {
-  return event && 
-    event.type === DatabaseEventType.PERFORMANCE_METRIC &&
-    event.data &&
-    typeof event.data.operation === 'string' &&
-    typeof event.data.duration === 'number';
+  try {
+    if (!event) return false;
+    if (event.type !== DatabaseEventType.PERFORMANCE_METRIC) return false;
+    if (!event.data) return false;
+    if (typeof event.data.operation !== 'string') return false;
+    if (typeof event.data.duration !== 'number') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const isQueryExecutionEvent = (event: any): event is QueryExecutionEvent => {
-  return event && 
-    event.type === DatabaseEventType.QUERY_EXECUTED &&
-    event.data &&
-    typeof event.data.query === 'string';
+  try {
+    if (!event) return false;
+    if (event.type !== DatabaseEventType.QUERY_EXECUTED) return false;
+    if (!event.data) return false;
+    if (typeof event.data.query !== 'string') return false;
+    if (typeof event.data.cached !== 'boolean') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const isBatchOperationEvent = (event: any): event is BatchOperationEvent => {
-  return event && 
-    event.type === DatabaseEventType.BATCH_OPERATION_COMPLETED &&
-    event.data &&
-    typeof event.data.operationType === 'string' &&
-    typeof event.data.batchSize === 'number';
+  try {
+    if (!event) return false;
+    if (event.type !== DatabaseEventType.BATCH_OPERATION_COMPLETED) return false;
+    if (!event.data) return false;
+    if (typeof event.data.operationType !== 'string') return false;
+    if (typeof event.data.batchSize !== 'number') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const isProjectIndexEvent = (event: any): event is ProjectIndexEvent => {
-  return event && 
-    event.type === DatabaseEventType.SERVICE_INITIALIZED &&
-    event.source === 'common' &&
-    event.data &&
-    typeof event.data.projectId === 'string';
+  try {
+    if (!event) return false;
+    if (event.type !== DatabaseEventType.SERVICE_INITIALIZED) return false;
+    if (event.source !== 'common') return false;
+    if (!event.data) return false;
+    if (typeof event.data.projectId !== 'string') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const isErrorEvent = (event: any): event is ErrorEvent => {
-  return event && 
-    event.type === DatabaseEventType.ERROR_OCCURRED &&
-    event.data &&
-    typeof event.data.operation === 'string' &&
-    typeof event.data.errorMessage === 'string';
+  try {
+    if (!event) return false;
+    if (event.type !== DatabaseEventType.ERROR_OCCURRED) return false;
+    if (!event.data) return false;
+    if (typeof event.data.operation !== 'string') return false;
+    if (typeof event.data.errorMessage !== 'string') return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };

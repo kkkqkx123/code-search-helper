@@ -11,6 +11,19 @@ class TestConnectionManager extends BaseConnectionManager {
   async disconnect(): Promise<void> {
     this.setConnected(false);
   }
+
+  // 添加公共方法来暴露 protected 的方法用于测试
+  public updateConnectionStatusForTest(status: any): void {
+    this.updateConnectionStatus(status);
+  }
+
+  public handleConnectionErrorForTest(error: Error): void {
+    this.handleConnectionError(error);
+  }
+
+  public recordConnectionMetricForTest(metric: string, value: any): void {
+    this.recordConnectionMetric(metric, value);
+  }
 }
 
 describe('BaseConnectionManager', () => {
@@ -102,7 +115,7 @@ describe('BaseConnectionManager', () => {
     });
 
     it('should include connection status updates', () => {
-      connectionManager.updateConnectionStatus({ lastPing: new Date() });
+      connectionManager.updateConnectionStatusForTest({ lastPing: new Date() });
       const status = connectionManager.getConnectionStatus();
       expect(status.lastPing).toBeDefined();
     });
@@ -168,7 +181,7 @@ describe('BaseConnectionManager', () => {
       connectionManager.addEventListener('status_updated', statusListener);
       
       const error = new Error('Connection failed');
-      connectionManager.handleConnectionError(error);
+      connectionManager.handleConnectionErrorForTest(error);
       
       // 检查连接状态
       expect(connectionManager.isConnected()).toBe(false);
@@ -189,7 +202,7 @@ describe('BaseConnectionManager', () => {
       const metricListener: EventListener = jest.fn();
       connectionManager.addEventListener('metric', metricListener);
       
-      connectionManager.recordConnectionMetric('latency', 150);
+      connectionManager.recordConnectionMetricForTest('latency', 150);
       
       expect(metricListener).toHaveBeenCalledWith({
         metric: 'latency',
