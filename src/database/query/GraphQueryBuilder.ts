@@ -51,12 +51,12 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
   }
 
   buildNodeCountQuery(tag: string): { nGQL: string; parameters: Record<string, any> } {
-    const query = `LOOKUP ON \`${tag}\` YIELD vertex AS node | YIELD count($-.node) AS total`;
+    const query = `LOOKUP ON \`${tag}\` YIELD count(*) AS total`;
     return { nGQL: query, parameters: {} };
   }
 
   buildRelationshipCountQuery(edgeType: string): { nGQL: string; parameters: Record<string, any> } {
-    const query = `LOOKUP ON \`${edgeType}\` YIELD edge AS rel | YIELD count($-.rel) AS total`;
+    const query = `MATCH () -[r:\`${edgeType}\`]-> () RETURN count(r) AS total`;
     return { nGQL: query, parameters: {} };
   }
 
@@ -269,7 +269,7 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
       })
       .join(', ');
     
-    const query = `INSERT VERTEX \`${tag}\` (${propertyAssignments}) VALUES "${id}":(\`${tag}\`{${propertyAssignments}})`;
+    const query = `INSERT VERTEX \`${tag}\` (${Object.keys(properties).join(', ')}) VALUES "${id}":(${propertyAssignments})`;
     
     return { nGQL: query, parameters: {} };
   }
@@ -288,7 +288,7 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
       })
       .join(', ');
     
-    const query = `INSERT EDGE \`${type}\` (${propertyAssignments}) VALUES "${sourceId}" -> "${targetId}":(\`${type}\`{${propertyAssignments}})`;
+    const query = `INSERT EDGE \`${type}\` (${Object.keys(properties).join(', ')}) VALUES "${sourceId}" -> "${targetId}":(${propertyAssignments})`;
     
     return { nGQL: query, parameters: {} };
   }
@@ -324,20 +324,13 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
       edgeTypesClause = relationshipTypes.join(',');
     }
     
-    const query = `
-      GO FROM "${nodeId}" OVER ${edgeTypesClause} UPTO ${maxDepth} STEPS
-      YIELD dst(edge) AS destination
-      | FETCH PROP ON * $-.destination YIELD vertex AS related
-    `;
+    const query = `GO FROM "${nodeId}" OVER ${edgeTypesClause} UPTO ${maxDepth} STEPS YIELD dst(edge) AS destination | FETCH PROP ON * $-.destination YIELD vertex AS related`;
     
     return { nGQL: query, parameters: {} };
   }
   
   buildFindPathQuery(sourceId: string, targetId: string, maxDepth: number = 3): { nGQL: string; parameters: Record<string, any> } {
-    const query = `
-      FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth} STEPS
-      YIELD path as p
-    `;
+    const query = `FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth} STEPS YIELD path as p`;
     
     return { nGQL: query, parameters: {} };
   }

@@ -25,7 +25,7 @@ jest.mock('../../../utils/LoggerService');
 jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../../../database/ProjectIdManager');
 jest.mock('../../index/IndexSyncService');
-jest.mock('../../../database/QdrantService');
+jest.mock('../../../database/qdrant/QdrantService');
 jest.mock('../../../config/ConfigService');
 jest.mock('fs/promises');
 

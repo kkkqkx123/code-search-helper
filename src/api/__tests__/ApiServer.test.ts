@@ -11,7 +11,7 @@ import { ConfigService } from '../../config/ConfigService';
 // Mock fs
 jest.mock('fs/promises');
 import * as fs from 'fs/promises';
-const mockFsDefault = fs as jest.Mocked<typeof fs>;
+let mockReadFile: jest.SpyInstance;
 
 // Mock ProjectIdManager to prevent file system operations during tests
 jest.mock('../../database/ProjectIdManager', () => {
@@ -102,8 +102,8 @@ describe('ApiServer', () => {
     process.env.SEARCH_MOCK_MODE = 'true';
     
     // Mock fs.readFile to return mock data
-    mockFsDefault.readFile = jest.fn().mockImplementation((filePath: string) => {
-      if (filePath.includes('search-results.json')) {
+    mockReadFile = jest.spyOn(fs, 'readFile').mockImplementation((filePath: any) => {
+      if (typeof filePath === 'string' && filePath.includes('search-results.json')) {
         return Promise.resolve(JSON.stringify({
           results: [
             {
@@ -216,19 +216,19 @@ describe('ApiServer', () => {
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe('Query parameter is required');
     });
+it('should handle search errors gracefully', async () => {
+  // Mock fs.readFile to throw an error
+  mockReadFile.mockRejectedValueOnce(new Error('File read error'));
 
-    it('should handle search errors gracefully', async () => {
-      // Mock fs.readFile to throw an error
-      mockFsDefault.readFile = jest.fn().mockRejectedValue(new Error('File read error'));
+  const response = await request(app)
+    .post('/api/search')
+    .send({ query: 'test' });
 
-      const response = await request(app)
-        .post('/api/search')
-        .send({ query: 'test' });
+  expect(response.status).toBe(200); // Should still return 200 with mock results
+  expect(response.body.success).toBe(true);
+  expect(response.body.data.results).toHaveLength(1);
+});
 
-      expect(response.status).toBe(200); // Should still return 200 with mock results
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.results).toHaveLength(1);
-    });
   });
 
   describe('GET / (SPA support)', () => {

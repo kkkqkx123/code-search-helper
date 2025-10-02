@@ -113,8 +113,13 @@ export class GitignoreParser {
    */
   static async getGitignorePatternsForFile(projectRoot: string, filePath: string): Promise<string[]> {
     const patterns: string[] = [];
-    const fileDir = path.dirname(filePath);
-    const dirs = fileDir.split(path.sep);
+    
+    // Normalize the file path to ensure consistent path separators
+    const normalizedFilePath = path.normalize(filePath);
+    const fileDir = path.dirname(normalizedFilePath);
+    
+    // Split the directory path into individual directories
+    const dirs = fileDir.split(path.sep).filter(dir => dir !== '');
     
     // Start with root .gitignore
     const rootGitignorePath = path.join(projectRoot, '.gitignore');
@@ -132,6 +137,8 @@ export class GitignoreParser {
       patterns.push(...dirPatterns);
     }
     
-    return patterns.filter(pattern => pattern !== '');
+    // Filter out empty patterns and return
+    const filteredPatterns = patterns.filter(pattern => pattern !== '');
+    return filteredPatterns;
   }
 }

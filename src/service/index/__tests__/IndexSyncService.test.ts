@@ -26,7 +26,7 @@ jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../../filesystem/FileSystemTraversal');
 jest.mock('../../filesystem/FileWatcherService');
 jest.mock('../../filesystem/ChangeDetectionService');
-jest.mock('../../../database/QdrantService');
+jest.mock('../../../database/qdrant/QdrantService');
 jest.mock('../../../database/ProjectIdManager');
 jest.mock('../../../embedders/EmbedderFactory');
 jest.mock('../../../embedders/EmbeddingCacheService');

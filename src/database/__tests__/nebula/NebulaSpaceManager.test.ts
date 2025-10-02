@@ -9,6 +9,7 @@ import { NebulaSpaceInfo } from '../../nebula/NebulaTypes';
 const mockNebulaService = {
   executeWriteQuery: jest.fn(),
   executeReadQuery: jest.fn(),
+  executeQuery: jest.fn(),
 };
 
 const mockLoggerService = {

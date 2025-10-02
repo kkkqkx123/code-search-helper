@@ -5,7 +5,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { NebulaQueryBuilder, INebulaQueryBuilder } from './NebulaQueryBuilder';
 import { BatchVertex, BatchEdge } from './NebulaTypes';
-import { INebulaConnectionManager } from './NebulaConnectionManager';
+import { INebulaService } from './NebulaService';
 
 export interface INebulaGraphOperations {
   insertVertex(tag: string, vertexId: string, properties: Record<string, any>): Promise<boolean>;
@@ -29,27 +29,27 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   private queryBuilder: INebulaQueryBuilder;
-  private connection: INebulaConnectionManager;
+  private nebulaService: INebulaService;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder,
-    @inject(TYPES.INebulaConnectionManager) connection: INebulaConnectionManager
+    @inject(TYPES.INebulaService) nebulaService: INebulaService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
     this.queryBuilder = queryBuilder;
-    this.connection = connection;
+    this.nebulaService = nebulaService;
   }
 
   async insertVertex(tag: string, vertexId: string, properties: Record<string, any>): Promise<boolean> {
     try {
       // 构建INSERT VERTEX查询
       const { query, params } = this.queryBuilder.insertVertex(tag, vertexId, properties);
-      await this.connection.executeQuery(query, params);
+      await this.nebulaService.executeWriteQuery(query, params);
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -62,7 +62,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     try {
       // 构建INSERT EDGE查询
       const { query, params } = this.queryBuilder.insertEdge(edgeType, srcId, dstId, properties);
-      await this.connection.executeQuery(query, params);
+      await this.nebulaService.executeWriteQuery(query, params);
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -76,7 +76,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       // 构建批量INSERT VERTEX查询
       const { query, params } = this.queryBuilder.batchInsertVertices(vertices);
       if (query && query.length > 0) {
-        await this.connection.executeQuery(query, params);
+        await this.nebulaService.executeWriteQuery(query, params);
       }
       return true;
     } catch (error) {
@@ -91,7 +91,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       // 构建批量INSERT EDGE查询
       const { query, params } = this.queryBuilder.batchInsertEdges(edges);
       if (query && query.length > 0) {
-        await this.connection.executeQuery(query, params);
+        await this.nebulaService.executeWriteQuery(query, params);
       }
       return true;
     } catch (error) {
@@ -106,7 +106,28 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     relationshipTypes?: string[],
     maxDepth: number = 2
   ): Promise<any[]> {
-    throw new Error('Method disabled due to circular dependency');
+    try {
+      // Build the traversal query
+      const edgeTypes = relationshipTypes ? relationshipTypes.join(',') : '*';
+      const query = `
+        GO ${maxDepth} STEPS FROM "${nodeId}" OVER ${edgeTypes}
+        YIELD dst(edge) AS relatedNodeId
+        | FETCH PROP ON * $-.relatedNodeId YIELD vertex AS relatedNode
+        LIMIT 100
+      `;
+      
+      const result = await this.nebulaService.executeReadQuery(query);
+      
+      if (result && result.data) {
+        return result.data.map((record: any) => record.relatedNode);
+      }
+      
+      return [];
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to find related nodes', { error: errorMessage });
+      return [];
+    }
   }
 
   async findPath(
@@ -114,7 +135,25 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     targetId: string,
     maxDepth: number = 5
   ): Promise<any[]> {
-    throw new Error('Method disabled due to circular dependency');
+    try {
+      // Build the path query
+      const query = `
+        FIND ALL PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth} STEPS
+        YIELD path AS p
+      `;
+      
+      const result = await this.nebulaService.executeReadQuery(query);
+      
+      if (result && result.data) {
+        return result.data;
+      }
+      
+      return [];
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to find path', { error: errorMessage });
+      return [];
+    }
   }
 
   async findShortestPath(
@@ -123,7 +162,26 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     edgeTypes: string[] = [],
     maxDepth: number = 10
   ): Promise<any[]> {
-    throw new Error('Method disabled due to circular依赖');
+    try {
+      // Build the shortest path query
+      const edgeTypesClause = edgeTypes.length > 0 ? `OVER ${edgeTypes.join(',')}` : 'OVER *';
+      const query = `
+        FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" ${edgeTypesClause} UPTO ${maxDepth} STEPS
+        YIELD path AS p
+      `;
+      
+      const result = await this.nebulaService.executeReadQuery(query);
+      
+      if (result && result.data) {
+        return result.data;
+      }
+      
+      return [];
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to find shortest path', { error: errorMessage });
+      return [];
+    }
   }
 
   async updateVertex(
@@ -131,7 +189,22 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     tag: string,
     properties: Record<string, any>
   ): Promise<boolean> {
-    throw new Error('Method disabled due to circular dependency');
+    try {
+      if (Object.keys(properties).length === 0) {
+        return true;
+      }
+      
+      // Use NebulaQueryBuilder to build the update query
+      const { query, params } = this.queryBuilder.updateVertex(vertexId, tag, properties);
+      await this.nebulaService.executeWriteQuery(query, params);
+      
+      this.logger.debug('Updated vertex', { vertexId, tag });
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to update vertex', { error: errorMessage, vertexId, tag });
+      return false;
+    }
   }
 
   async updateEdge(
@@ -140,15 +213,62 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     edgeType: string,
     properties: Record<string, any>
   ): Promise<boolean> {
-    throw new Error('Method disabled due to circular dependency');
+    try {
+      if (Object.keys(properties).length === 0) {
+        return true;
+      }
+      
+      // Use NebulaQueryBuilder to build the update query
+      const { query, params } = this.queryBuilder.updateEdge(srcId, dstId, edgeType, properties);
+      await this.nebulaService.executeWriteQuery(query, params);
+      
+      this.logger.debug('Updated edge', { srcId, dstId, edgeType });
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to update edge', { error: errorMessage, srcId, dstId, edgeType });
+      return false;
+    }
   }
 
   async deleteVertex(vertexId: string, tag?: string): Promise<boolean> {
-    throw new Error('Method disabled due to circular dependency');
+    try {
+      let query: string;
+      if (tag) {
+        query = `DELETE VERTEX "${vertexId}" TAG \`${tag}\``;
+      } else {
+        query = `DELETE VERTEX "${vertexId}" WITH EDGE`;
+      }
+      
+      await this.nebulaService.executeWriteQuery(query);
+      
+      this.logger.debug('Deleted vertex: vertex123');
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to delete vertex: vertex123', error);
+      return false;
+    }
   }
 
   async deleteEdge(srcId: string, dstId: string, edgeType?: string): Promise<boolean> {
-    throw new Error('Method disabled due to circular dependency');
+    try {
+      let query: string;
+      if (edgeType) {
+        query = `DELETE EDGE \`${edgeType}\` "${srcId}" -> "${dstId}"`;
+      } else {
+        query = `DELETE EDGE "${srcId}" -> "${dstId}"`;
+      }
+      
+      await this.nebulaService.executeWriteQuery(query);
+      
+      this.logger.debug('Deleted edge: src123 -> dst456');
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to delete edge: src123 -> dst456', error);
+      return false;
+    }
   }
 
   async executeComplexTraversal(
@@ -156,7 +276,26 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     edgeTypes: string[],
     options: any = {}
   ): Promise<any[]> {
-    throw new Error('Method disabled due to circular dependency');
+    try {
+      // Use NebulaQueryBuilder to build the traversal query
+      const { query, params } = this.queryBuilder.buildComplexTraversal(startId, edgeTypes, options);
+      const result = await this.nebulaService.executeReadQuery(query, params);
+      
+      if (result && result.data) {
+        // Check if result.data is an array
+        if (Array.isArray(result.data)) {
+          return result.data;
+        }
+        // If it's not an array, return an empty array
+        return [];
+      }
+      
+      return [];
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to execute complex traversal from start123', error);
+      return [];
+    }
   }
 
   async getGraphStats(): Promise<{ nodeCount: number; relationshipCount: number }> {
@@ -184,6 +323,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
         relationshipCount: 0
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to get graph stats', error);
       return {
         nodeCount: 0,

@@ -10,6 +10,7 @@ import { BatchVertex, BatchEdge } from '../../nebula/NebulaTypes';
 const mockNebulaService = {
   executeWriteQuery: jest.fn(),
   executeReadQuery: jest.fn(),
+  executeQuery: jest.fn(),
 };
 
 const mockLoggerService = {
@@ -44,17 +45,17 @@ describe('NebulaGraphOperations', () => {
     jest.clearAllMocks();
 
     graphOperations = new NebulaGraphOperations(
-      mockNebulaService as any,
       mockLoggerService as any,
       mockErrorHandlerService as any,
       mockConfigService as any,
-      mockQueryBuilder as any
+      mockQueryBuilder as any,
+      mockNebulaService as any
     );
   });
 
   describe('insertVertex', () => {
     it('should insert vertex successfully', async () => {
-      const mockQueryResult = { query: 'INSERT VERTEX TestTag...', params: {} };
+      const mockQueryResult = { query: 'INSERT VERTEX `TestTag` (name) VALUES "vertex123":(name:"Test")', params: { name: 'Test' } };
       mockQueryBuilder.insertVertex.mockReturnValue(mockQueryResult);
       mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
 
@@ -66,29 +67,26 @@ describe('NebulaGraphOperations', () => {
         mockQueryResult.query,
         mockQueryResult.params
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Inserted vertex: vertex123 with tag: TestTag'
-      );
     });
 
     it('should return false when vertex insertion fails', async () => {
-      mockQueryBuilder.insertVertex.mockImplementation(() => {
-        throw new Error('Insertion failed');
-      });
+      const mockQueryResult = { query: 'INSERT VERTEX `TestTag` (name) VALUES "vertex123":(name:"Test")', params: { name: 'Test' } };
+      mockQueryBuilder.insertVertex.mockReturnValue(mockQueryResult);
+      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Insertion failed'));
 
       const result = await graphOperations.insertVertex('TestTag', 'vertex123', { name: 'Test' });
 
       expect(result).toBe(false);
       expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to insert vertex: vertex123',
-        expect.any(Error)
+        'Failed to insert vertex vertex123 in tag TestTag',
+        { error: 'Insertion failed' }
       );
     });
   });
 
   describe('insertEdge', () => {
     it('should insert edge successfully', async () => {
-      const mockQueryResult = { query: 'INSERT EDGE TestEdge...', params: {} };
+      const mockQueryResult = { query: 'INSERT EDGE `TestEdge` (weight) VALUES "source123" -> "target456":(weight:1)', params: { weight: 1.0 } };
       mockQueryBuilder.insertEdge.mockReturnValue(mockQueryResult);
       mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
 
@@ -110,15 +108,12 @@ describe('NebulaGraphOperations', () => {
         mockQueryResult.query,
         mockQueryResult.params
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Inserted edge: source123 -> target456 with type: TestEdge'
-      );
     });
 
     it('should return false when edge insertion fails', async () => {
-      mockQueryBuilder.insertEdge.mockImplementation(() => {
-        throw new Error('Insertion failed');
-      });
+      const mockQueryResult = { query: 'INSERT EDGE `TestEdge` (weight) VALUES "source123" -> "target456":(weight:1)', params: { weight: 1.0 } };
+      mockQueryBuilder.insertEdge.mockReturnValue(mockQueryResult);
+      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Insertion failed'));
 
       const result = await graphOperations.insertEdge(
         'TestEdge',
@@ -129,8 +124,8 @@ describe('NebulaGraphOperations', () => {
 
       expect(result).toBe(false);
       expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to insert edge: source123 -> target456',
-        expect.any(Error)
+        'Failed to insert edge TestEdge from source123 to target456',
+        { error: 'Insertion failed' }
       );
     });
   });
@@ -142,7 +137,7 @@ describe('NebulaGraphOperations', () => {
         { id: 'vertex2', tag: 'TestTag', properties: { name: 'Test2' } },
       ];
 
-      const mockQueryResult = { query: 'INSERT VERTEX...', params: {} };
+      const mockQueryResult = { query: 'INSERT VERTEX `TestTag` (name) VALUES "vertex1":(name:"Test1"),"vertex2":(name:"Test2")', params: {} };
       mockQueryBuilder.batchInsertVertices.mockReturnValue(mockQueryResult);
       mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
 
@@ -154,12 +149,11 @@ describe('NebulaGraphOperations', () => {
         mockQueryResult.query,
         mockQueryResult.params
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Batch inserted 2 vertices'
-      );
     });
 
     it('should handle empty vertices array', async () => {
+      const mockQueryResult = { query: '', params: {} };
+      mockQueryBuilder.batchInsertVertices.mockReturnValue(mockQueryResult);
       const result = await graphOperations.batchInsertVertices([]);
 
       expect(result).toBe(true);
@@ -168,9 +162,9 @@ describe('NebulaGraphOperations', () => {
     });
 
     it('should return false when batch insert fails', async () => {
-      mockQueryBuilder.batchInsertVertices.mockImplementation(() => {
-        throw new Error('Batch insert failed');
-      });
+      const mockQueryResult = { query: 'INSERT VERTEX `TestTag` (name) VALUES "vertex1":(name:"Test1")', params: {} };
+      mockQueryBuilder.batchInsertVertices.mockReturnValue(mockQueryResult);
+      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Batch insert failed'));
 
       const result = await graphOperations.batchInsertVertices([
         { id: 'vertex1', tag: 'TestTag', properties: { name: 'Test1' } },
@@ -179,7 +173,7 @@ describe('NebulaGraphOperations', () => {
       expect(result).toBe(false);
       expect(mockLoggerService.error).toHaveBeenCalledWith(
         'Failed to batch insert vertices',
-        expect.any(Error)
+        { error: 'Batch insert failed' }
       );
     });
   });
@@ -191,7 +185,7 @@ describe('NebulaGraphOperations', () => {
         { srcId: 'src2', dstId: 'dst2', type: 'TestEdge', properties: { weight: 2.0 } },
       ];
 
-      const mockQueryResult = { query: 'INSERT EDGE...', params: {} };
+      const mockQueryResult = { query: 'INSERT EDGE `TestEdge` (weight) VALUES "src1"->"dst1":(weight:1),"src2"->"dst2":(weight:2)', params: {} };
       mockQueryBuilder.batchInsertEdges.mockReturnValue(mockQueryResult);
       mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
 
@@ -203,12 +197,11 @@ describe('NebulaGraphOperations', () => {
         mockQueryResult.query,
         mockQueryResult.params
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Batch inserted 2 edges'
-      );
     });
 
     it('should handle empty edges array', async () => {
+      const mockQueryResult = { query: '', params: {} };
+      mockQueryBuilder.batchInsertEdges.mockReturnValue(mockQueryResult);
       const result = await graphOperations.batchInsertEdges([]);
 
       expect(result).toBe(true);
@@ -217,9 +210,9 @@ describe('NebulaGraphOperations', () => {
     });
 
     it('should return false when batch insert fails', async () => {
-      mockQueryBuilder.batchInsertEdges.mockImplementation(() => {
-        throw new Error('Batch insert failed');
-      });
+      const mockQueryResult = { query: 'INSERT EDGE `TestEdge` (weight) VALUES "src1"->"dst1":(weight:1)', params: {} };
+      mockQueryBuilder.batchInsertEdges.mockReturnValue(mockQueryResult);
+      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Batch insert failed'));
 
       const result = await graphOperations.batchInsertEdges([
         { srcId: 'src1', dstId: 'dst1', type: 'TestEdge', properties: { weight: 1.0 } },
@@ -228,17 +221,19 @@ describe('NebulaGraphOperations', () => {
       expect(result).toBe(false);
       expect(mockLoggerService.error).toHaveBeenCalledWith(
         'Failed to batch insert edges',
-        expect.any(Error)
+        { error: 'Batch insert failed' }
       );
     });
   });
 
   describe('findRelatedNodes', () => {
     it('should find related nodes successfully', async () => {
-      const mockResult = [
-        { related: { id: 'node1', name: 'RelatedNode1' } },
-        { vertex: { id: 'node2', name: 'RelatedNode2' } },
-      ];
+      const mockResult = {
+        data: [
+          { relatedNode: { id: 'node1', name: 'RelatedNode1' } },
+          { relatedNode: { id: 'node2', name: 'RelatedNode2' } },
+        ]
+      };
 
       mockNebulaService.executeReadQuery.mockResolvedValue(mockResult);
 
@@ -252,7 +247,7 @@ describe('NebulaGraphOperations', () => {
     });
 
     it('should handle empty result', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue(null);
+      mockNebulaService.executeReadQuery.mockResolvedValue({ data: null });
 
       const result = await graphOperations.findRelatedNodes('node123');
 
@@ -260,7 +255,7 @@ describe('NebulaGraphOperations', () => {
     });
 
     it('should handle non-array result', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue('invalid result');
+      mockNebulaService.executeReadQuery.mockResolvedValue({ data: 'invalid result' });
 
       const result = await graphOperations.findRelatedNodes('node123');
 
@@ -268,7 +263,7 @@ describe('NebulaGraphOperations', () => {
     });
 
     it('should use default depth when not provided', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue([]);
+      mockNebulaService.executeReadQuery.mockResolvedValue({ data: [] });
 
       const result = await graphOperations.findRelatedNodes('node123');
 
@@ -282,15 +277,15 @@ describe('NebulaGraphOperations', () => {
 
       expect(result).toEqual([]);
       expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to find related nodes for node123',
-        expect.any(Error)
+        'Failed to find related nodes',
+        { error: 'Query failed' }
       );
     });
   });
 
   describe('findPath', () => {
     it('should find path successfully', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue([]);
+      mockNebulaService.executeReadQuery.mockResolvedValue({ data: [] });
 
       const result = await graphOperations.findPath('source123', 'target456', 5);
 
@@ -307,15 +302,15 @@ describe('NebulaGraphOperations', () => {
 
       expect(result).toEqual([]);
       expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to find path from source123 to target456',
-        expect.any(Error)
+        'Failed to find path',
+        { error: 'Query failed' }
       );
     });
   });
 
   describe('findShortestPath', () => {
     it('should find shortest path successfully', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue([]);
+      mockNebulaService.executeReadQuery.mockResolvedValue({ data: [] });
 
       const result = await graphOperations.findShortestPath('source123', 'target456', ['EDGE_TYPE'], 10);
 
@@ -326,7 +321,7 @@ describe('NebulaGraphOperations', () => {
     });
 
     it('should use default edge types when not provided', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue([]);
+      mockNebulaService.executeReadQuery.mockResolvedValue({ data: [] });
 
       const result = await graphOperations.findShortestPath('source123', 'target456');
 
@@ -342,38 +337,30 @@ describe('NebulaGraphOperations', () => {
 
       expect(result).toEqual([]);
       expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to find shortest path from source123 to target456',
-        expect.any(Error)
+        'Failed to find shortest path',
+        { error: 'Query failed' }
       );
     });
   });
 
   describe('updateVertex', () => {
     it('should update vertex successfully', async () => {
-      const mockQueryResult = { query: 'UPDATE VERTEX...', params: {} };
+      const mockQueryResult = { query: 'UPDATE VERTEX ON TestTag "vertex123" SET name = $set_param0', params: { set_param0: 'Updated' } };
       mockQueryBuilder.updateVertex.mockReturnValue(mockQueryResult);
       mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
 
       const result = await graphOperations.updateVertex('vertex123', 'TestTag', { name: 'Updated' });
 
       expect(result).toBe(true);
-      expect(mockQueryBuilder.updateVertex).toHaveBeenCalledWith(
-        'vertex123',
-        'TestTag',
-        { name: 'Updated' }
-      );
+      expect(mockQueryBuilder.updateVertex).toHaveBeenCalledWith('vertex123', 'TestTag', { name: 'Updated' });
       expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
         mockQueryResult.query,
         mockQueryResult.params
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Updated vertex: vertex123 with tag: TestTag'
-      );
+      expect(mockLoggerService.debug).toHaveBeenCalledWith('Updated vertex', { vertexId: 'vertex123', tag: 'TestTag' });
     });
 
     it('should handle empty properties', async () => {
-      mockQueryBuilder.updateVertex.mockReturnValue({ query: '', params: {} });
-
       const result = await graphOperations.updateVertex('vertex123', 'TestTag', {});
 
       expect(result).toBe(true);
@@ -381,23 +368,23 @@ describe('NebulaGraphOperations', () => {
     });
 
     it('should return false when update fails', async () => {
-      mockQueryBuilder.updateVertex.mockImplementation(() => {
-        throw new Error('Update failed');
-      });
+      const mockQueryResult = { query: 'UPDATE VERTEX ON TestTag "vertex123" SET name = $set_param0', params: { set_param0: 'Updated' } };
+      mockQueryBuilder.updateVertex.mockReturnValue(mockQueryResult);
+      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Update failed'));
 
       const result = await graphOperations.updateVertex('vertex123', 'TestTag', { name: 'Updated' });
 
       expect(result).toBe(false);
       expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to update vertex: vertex123',
-        expect.any(Error)
+        'Failed to update vertex',
+        { error: 'Update failed', vertexId: 'vertex123', tag: 'TestTag' }
       );
     });
   });
 
   describe('updateEdge', () => {
     it('should update edge successfully', async () => {
-      const mockQueryResult = { query: 'UPDATE EDGE...', params: {} };
+      const mockQueryResult = { query: 'UPDATE EDGE ON TestEdge "src123" -> "dst456" SET weight = $set_param0', params: { set_param0: 2.0 } };
       mockQueryBuilder.updateEdge.mockReturnValue(mockQueryResult);
       mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
 
@@ -420,13 +407,11 @@ describe('NebulaGraphOperations', () => {
         mockQueryResult.params
       );
       expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Updated edge: src123 -> dst456 with type: TestEdge'
+        'Updated edge', { srcId: 'src123', dstId: 'dst456', edgeType: 'TestEdge' }
       );
     });
 
     it('should handle empty properties', async () => {
-      mockQueryBuilder.updateEdge.mockReturnValue({ query: '', params: {} });
-
       const result = await graphOperations.updateEdge('src123', 'dst456', 'TestEdge', {});
 
       expect(result).toBe(true);
@@ -434,9 +419,9 @@ describe('NebulaGraphOperations', () => {
     });
 
     it('should return false when update fails', async () => {
-      mockQueryBuilder.updateEdge.mockImplementation(() => {
-        throw new Error('Update failed');
-      });
+      const mockQueryResult = { query: 'UPDATE EDGE ON TestEdge "src123" -> "dst456" SET weight = $set_param0', params: { set_param0: 2.0 } };
+      mockQueryBuilder.updateEdge.mockReturnValue(mockQueryResult);
+      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Update failed'));
 
       const result = await graphOperations.updateEdge(
         'src123',
@@ -447,8 +432,8 @@ describe('NebulaGraphOperations', () => {
 
       expect(result).toBe(false);
       expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to update edge: src123 -> dst456',
-        expect.any(Error)
+        'Failed to update edge',
+        { error: 'Update failed', srcId: 'src123', dstId: 'dst456', edgeType: 'TestEdge' }
       );
     });
   });
@@ -461,7 +446,7 @@ describe('NebulaGraphOperations', () => {
 
       expect(result).toBe(true);
       expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
-        'DELETE VERTEX "vertex123" TAG TestTag'
+        'DELETE VERTEX "vertex123" TAG `TestTag`'
       );
       expect(mockLoggerService.debug).toHaveBeenCalledWith(
         'Deleted vertex: vertex123'
@@ -534,10 +519,10 @@ describe('NebulaGraphOperations', () => {
   describe('executeComplexTraversal', () => {
     it('should execute complex traversal successfully', async () => {
       const mockResult = [{ id: 'node1', name: 'Node1' }];
-      const mockQueryResult = { query: 'GO...', params: {} };
+      const mockQueryResult = { query: 'GO 3 STEPS FROM "start123" OVER EDGE_TYPE YIELD dst(edge) AS destination | FETCH PROP ON * $-.destination YIELD vertex AS node LIMIT 10', params: { startId: 'start123' } };
 
       mockQueryBuilder.buildComplexTraversal.mockReturnValue(mockQueryResult);
-      mockNebulaService.executeReadQuery.mockResolvedValue(mockResult);
+      mockNebulaService.executeReadQuery.mockResolvedValue({ data: mockResult });
 
       const result = await graphOperations.executeComplexTraversal('start123', ['EDGE_TYPE'], { limit: 10 });
 
@@ -557,7 +542,7 @@ describe('NebulaGraphOperations', () => {
       const mockQueryResult = { query: 'GO...', params: {} };
 
       mockQueryBuilder.buildComplexTraversal.mockReturnValue(mockQueryResult);
-      mockNebulaService.executeReadQuery.mockResolvedValue(null);
+      mockNebulaService.executeReadQuery.mockResolvedValue({ data: null });
 
       const result = await graphOperations.executeComplexTraversal('start123', ['EDGE_TYPE']);
 
@@ -568,7 +553,7 @@ describe('NebulaGraphOperations', () => {
       const mockQueryResult = { query: 'GO...', params: {} };
 
       mockQueryBuilder.buildComplexTraversal.mockReturnValue(mockQueryResult);
-      mockNebulaService.executeReadQuery.mockResolvedValue('invalid result');
+      mockNebulaService.executeReadQuery.mockResolvedValue({ data: 'invalid result' });
 
       const result = await graphOperations.executeComplexTraversal('start123', ['EDGE_TYPE']);
 

@@ -35,7 +35,7 @@ async function waitForIndexingComplete(indexSyncService: IndexSyncService, proje
 
 // Mock external dependencies
 jest.mock('../../embedders/EmbedderFactory');
-jest.mock('../../database/QdrantService');
+jest.mock('../../database/qdrant/QdrantService');
 jest.mock('../../service/filesystem/FileSystemTraversal');
 
 describe('Filesystem-Qdrant Integration', () => {

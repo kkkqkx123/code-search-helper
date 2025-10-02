@@ -1,98 +1,27 @@
 import { GraphQueryBuilder, IGraphQueryBuilder } from '../GraphQueryBuilder';
 
-// Simple mock implementation for testing
-class MockGraphQueryBuilder implements IGraphQueryBuilder {
-  buildNodeCountQuery(tag: string): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildRelationshipCountQuery(edgeType: string): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildNodeSearchQuery(searchTerm: string, nodeType?: string): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildRelationshipSearchQuery(relationshipType: string): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildPathQuery(sourceId: string, targetId: string, maxDepth?: number): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildDependencyQuery(fileId: string, direction?: 'incoming' | 'outgoing', depth?: number): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildCodeStructureQuery(fileId: string): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildImportQuery(fileId: string): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildCallQuery(functionId: string): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildComplexTraversal(startId: string, edgeTypes: string[], options?: any): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildCommunityDetectionQuery(options?: any): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildPageRankQuery(options?: any): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildCodeAnalysisQuery(projectId: string, options?: any): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  // Additional methods used in tests
-  buildInsertNodeQuery(nodeData: { tag: string; id: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildInsertRelationshipQuery(relationshipData: { type: string; sourceId: string; targetId: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildUpdateNodeQuery(updateData: { tag: string; id: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildDeleteNodeQuery(nodeId: string): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildFindRelatedNodesQuery(nodeId: string, relationshipTypes?: string[], maxDepth?: number): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  buildFindPathQuery(sourceId: string, targetId: string, maxDepth?: number): { nGQL: string; parameters: Record<string, any> } {
-    return { nGQL: '', parameters: {} };
-  }
-  
-  batchInsertVertices(vertices: Array<{ tag: string; id: string; properties: Record<string, any> }>): { query: string; params: Record<string, any> } {
-    return { query: '', params: {} };
-  }
-  
-  batchInsertEdges(edges: Array<{ type: string; srcId: string; dstId: string; properties: Record<string, any> }>): { query: string; params: Record<string, any> } {
-    return { query: '', params: {} };
-  }
-}
-
 describe('GraphQueryBuilder', () => {
   let queryBuilder: IGraphQueryBuilder;
 
   beforeEach(() => {
-    queryBuilder = new MockGraphQueryBuilder();
+    // 使用真实的 GraphQueryBuilder 实现
+    queryBuilder = new GraphQueryBuilder(
+      // Mock dependencies
+      { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any, // LoggerService
+      { handleError: jest.fn() } as any, // ErrorHandlerService
+      { getConfig: jest.fn().mockReturnValue({}) } as any, // ConfigService
+      {
+        // Mock NebulaQueryBuilder methods that might be used
+        buildInsertNodeQuery: jest.fn(),
+        buildInsertRelationshipQuery: jest.fn(),
+        buildUpdateNodeQuery: jest.fn(),
+        buildDeleteNodeQuery: jest.fn(),
+        buildFindRelatedNodesQuery: jest.fn(),
+        buildFindPathQuery: jest.fn(),
+        batchInsertVertices: jest.fn(),
+        batchInsertEdges: jest.fn()
+      } as any // NebulaQueryBuilder
+    );
   });
 
   describe('buildNodeCountQuery', () => {
