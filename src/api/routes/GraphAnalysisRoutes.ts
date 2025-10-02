@@ -128,7 +128,7 @@ export class GraphAnalysisRoutes {
       const { functionName, projectId, depth, direction } = req.body;
 
       if (!functionName) {
-        res.status(40).json({
+        res.status(400).json({
           success: false,
           error: 'Bad Request',
           message: 'Function name is required'

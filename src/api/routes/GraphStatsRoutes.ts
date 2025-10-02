@@ -8,11 +8,11 @@ import { LoggerService } from '../../utils/LoggerService';
 
 @injectable()
 export class GraphStatsRoutes {
-  private router: Router;
-  private graphService: IGraphService;
-  private graphCacheService: GraphCacheService;
-  private performanceMonitor: GraphPerformanceMonitor;
-  private logger: LoggerService;
+  protected router: Router;
+  protected graphService: IGraphService;
+  protected graphCacheService: GraphCacheService;
+  protected performanceMonitor: GraphPerformanceMonitor;
+  protected logger: LoggerService;
 
   constructor(
     @inject(TYPES.GraphServiceNewAdapter) graphService: IGraphService,

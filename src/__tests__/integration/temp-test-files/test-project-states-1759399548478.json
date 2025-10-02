@@ -1,0 +1,26 @@
+[
+  {
+    "projectId": "e3b0c44298fc1c14",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\src\\__tests__\\integration\\temp-test-files",
+    "name": "Test Project for File Changes",
+    "description": "A test project for file change handling",
+    "status": "active",
+    "createdAt": "2025-10-02T10:05:48.487Z",
+    "updatedAt": "2025-10-02T10:05:48.675Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "collectionInfo": {
+      "name": "test-collection",
+      "vectorsCount": 0,
+      "status": "green"
+    },
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-10-02T10:05:48.675Z",
+    "totalFiles": 3,
+    "indexedFiles": 3,
+    "failedFiles": 0
+  }
+]

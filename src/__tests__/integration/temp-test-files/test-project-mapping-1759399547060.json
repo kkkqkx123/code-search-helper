@@ -1,0 +1,17 @@
+{
+  "projectIdMap": {
+    "D:/ide/tool/code-search-helper/src/__tests__/integration/temp-test-files": "e3b0c44298fc1c14"
+  },
+  "collectionMap": {
+    "e3b0c44298fc1c14": "project-e3b0c44298fc1c14"
+  },
+  "spaceMap": {
+    "e3b0c44298fc1c14": "project_e3b0c44298fc1c14"
+  },
+  "pathToProjectMap": {
+    "e3b0c44298fc1c14": "D:/ide/tool/code-search-helper/src/__tests__/integration/temp-test-files"
+  },
+  "projectUpdateTimes": {
+    "e3b0c44298fc1c14": "2025-10-02T10:05:47.371Z"
+  }
+}

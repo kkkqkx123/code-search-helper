@@ -240,4 +240,39 @@ it('should handle search errors gracefully', async () => {
       expect([200, 404]).toContain(response.status);
     });
   });
+
+  afterAll(async () => {
+    // 重置环境变量
+    delete process.env.SEARCH_MOCK_MODE;
+    
+    // 获取并销毁 FileSearchService 实例以清理定时器
+    try {
+      if (diContainer.isBound(TYPES.FileSearchService)) {
+        const fileSearchService = diContainer.get<any>(TYPES.FileSearchService);
+        if (fileSearchService && typeof fileSearchService.destroy === 'function') {
+          await fileSearchService.destroy();
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to destroy FileSearchService:', error);
+    }
+    
+    // 清理 DI 容器中的绑定
+    if (diContainer.isBound(TYPES.ConfigService)) {
+      diContainer.unbind(TYPES.ConfigService);
+    }
+    if (diContainer.isBound(TYPES.ProjectStateManager)) {
+      diContainer.unbind(TYPES.ProjectStateManager);
+    }
+    if (diContainer.isBound(TYPES.FileSearchService)) {
+      diContainer.unbind(TYPES.FileSearchService);
+    }
+    
+    // 清理所有定时器
+    jest.useRealTimers();
+    jest.clearAllTimers();
+    
+    // 等待微任务队列清空
+    await new Promise(resolve => setImmediate(resolve));
+  });
 });
