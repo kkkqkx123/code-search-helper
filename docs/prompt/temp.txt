@@ -2,3 +2,7 @@
 前端新增中断索引的功能
 
 @/src/database/__tests__/nebula/NebulaConnectionManager.test.ts  将该文件中的模拟实现改为实际连接nebula数据库
+
+当前创建nebula的space时设置vid_type=fixed_string(30)，分析这是否足够
+
+将src\database\nebula\NebulaConnectionManager.ts中的问题已修复。将测试nebula连接改为实际为其他模块提供服务。

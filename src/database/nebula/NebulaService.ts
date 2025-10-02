@@ -131,9 +131,16 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     try {
       this.logger.debug('Initializing Nebula schema');
 
-      // 创建代码库分析所需的标签
+      // 确保切换到正确的space
+      const config = this.connectionManager.getConfig();
+      if (config.space) {
+        await this.useSpace(config.space);
+        this.logger.debug(`Switched to space: ${config.space}`);
+      }
+
+      // 创建代码库分析所需的标签（使用反引号转义保留关键字）
       const tags = [
-        { name: 'File', fields: 'name string, path string, type string, size int, language string, hash string' },
+        { name: 'File', fields: 'name string, `path` string, type string, size int, language string, hash string' },
         { name: 'Function', fields: 'name string, signature string, parameters string, returnType string, visibility string, isStatic bool, isAsync bool' },
         { name: 'Class', fields: 'name string, type string, extends string, implements string, isAbstract bool, isFinal bool' },
         { name: 'Variable', fields: 'name string, type string, value string, isConstant bool, isGlobal bool, scope string' },

@@ -1,3 +1,6 @@
+// 条件性配置：只有在运行测试时才使用mock
+const isTest = process.env.NODE_ENV === 'test';
+
 module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
@@ -19,7 +22,9 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   moduleNameMapper: {
-    '^@nebula-contrib/nebula-nodejs$': '<rootDir>/__mocks__/@nebula-contrib/nebula-nodejs.js',
+    ...(isTest ? {
+      '^@nebula-contrib/nebula-nodejs$': '<rootDir>/__mocks__/@nebula-contrib/nebula-nodejs.js'
+    } : {}),
     '^@test/(.*)$': '<rootDir>/test/$1',
     '^src/(.*)$': '<rootDir>/src/$1'
   },

@@ -101,6 +101,14 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         pingInterval: 30000   // 减少ping间隔
       });
 
+      // 调试：检查client对象的结构
+      this.logger.debug('Nebula client created', {
+        clientType: typeof this.client,
+        clientKeys: Object.keys(this.client || {}),
+        clientMethods: Object.getOwnPropertyNames(this.client || {}),
+        clientHasExecute: this.client && typeof this.client.execute === 'function'
+      });
+
       // 测试连接 - 尝试执行一个简单查询
       try {
         const testResult = await this.client.execute('SHOW HOSTS');
@@ -126,28 +134,28 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           // Space不存在，尝试创建
           try {
             this.logger.debug(`Attempting to create space: ${this.config.space}`);
-
+            
             // 先检查space是否已经存在
             const spacesResult = await this.client.execute('SHOW SPACES');
             const spaces = spacesResult?.data || [];
             const spaceExists = spaces.some((space: any) => space.Name === this.config.space);
-
+            
             if (!spaceExists) {
               this.logger.debug(`Creating new space: ${this.config.space}`);
               await this.client.execute(`CREATE SPACE IF NOT EXISTS ${this.config.space}(partition_num=10, replica_factor=1, vid_type=fixed_string(30));`);
-
+              
               // 等待space创建完成（Nebula Graph需要时间创建）
               await new Promise(resolve => setTimeout(resolve, 5000)); // 等待5秒
-
+              
               this.logger.info(`Created new space: ${this.config.space}`);
             } else {
               this.logger.info(`Space already exists: ${this.config.space}`);
             }
-
+            
             // 切换到指定的space
             await this.client.execute(`USE ${this.config.space}`);
             this.logger.info(`Using space: ${this.config.space}`);
-
+            
           } catch (createError) {
             const errorMessage = createError instanceof Error ? createError.message : String(createError);
             this.logger.error(`Failed to create/use space: ${this.config.space}`, {
@@ -155,7 +163,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
               errorCode: (createError as any)?.errno,
               space: this.config.space
             });
-
+            
             // 即使space创建失败，我们也已经连接上了
             this.logger.info('Nebula Graph connection established but space operations failed');
             return true;
@@ -508,7 +516,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         try {
           // 切换到当前space
           await this.client.execute(`USE ${this.config.space}`);
-
+          
           // 获取当前space的标签和边类型信息
           const tagsResult = await this.client.execute('SHOW TAGS');
           tags = tagsResult?.data || [];

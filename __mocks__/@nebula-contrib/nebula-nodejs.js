@@ -13,13 +13,12 @@ const mockSession = {
 };
 
 const mockClient = {
-  connect: jest.fn().mockResolvedValue(true),
   session: jest.fn().mockResolvedValue(mockSession),
   close: jest.fn().mockResolvedValue(true),
 };
 
+const createClient = jest.fn().mockImplementation(() => mockClient);
+
 module.exports = {
-  NebulaGraph: {
-    Client: jest.fn().mockImplementation(() => mockClient)
-  }
+  createClient
 };
