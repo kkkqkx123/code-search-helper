@@ -1,20 +1,18 @@
 import { FileSearchResult, CachedSearchResult, CacheConfig } from './types';
 import { LoggerService } from '../../utils/LoggerService';
+import { LRUCache } from '../parser/utils/LRUCache';
 
 /**
  * 文件搜索缓存服务
  * 缓存搜索结果以提高性能
  */
 export class FileSearchCache {
-  private cache: Map<string, CachedSearchResult>;
-  private accessTimes: Map<string, number>;
+  private cache: LRUCache<string, CachedSearchResult>;
   private config: CacheConfig;
   private logger: LoggerService;
   private cleanupIntervalId: NodeJS.Timeout | null = null;
 
   constructor(config: CacheConfig = {}, logger: LoggerService) {
-    this.cache = new Map();
-    this.accessTimes = new Map();
     this.config = {
       maxSize: config.maxSize || 1000,
       defaultTTL: config.defaultTTL || 5 * 60 * 1000, // 5分钟
@@ -22,6 +20,7 @@ export class FileSearchCache {
       ...config
     };
     this.logger = logger;
+    this.cache = new LRUCache(this.config.maxSize);
     
     // 启动定期清理
     this.startCleanupInterval();
@@ -43,9 +42,6 @@ export class FileSearchCache {
       return null;
     }
     
-    // 更新访问时间
-    this.accessTimes.set(key, Date.now());
-    
     this.logger.debug(`缓存命中: ${key}`);
     return cached.results;
   }
@@ -54,11 +50,6 @@ export class FileSearchCache {
    * 设置缓存的搜索结果
    */
   async set(key: string, results: FileSearchResult[], ttl?: number): Promise<void> {
-    // 检查缓存大小限制
-    if (this.cache.size >= (this.config.maxSize || 1000)) {
-      this.evictLeastRecentlyUsed();
-    }
-    
     const expiresAt = Date.now() + (ttl || this.config.defaultTTL || 5 * 60 * 1000);
     
     const cachedResult: CachedSearchResult = {
@@ -68,7 +59,6 @@ export class FileSearchCache {
     };
     
     this.cache.set(key, cachedResult);
-    this.accessTimes.set(key, Date.now());
     
     this.logger.debug(`缓存设置: ${key}, 结果数量: ${results.length}`);
   }
@@ -78,7 +68,6 @@ export class FileSearchCache {
    */
   async delete(key: string): Promise<void> {
     this.cache.delete(key);
-    this.accessTimes.delete(key);
     this.logger.debug(`缓存删除: ${key}`);
   }
 
@@ -87,7 +76,6 @@ export class FileSearchCache {
    */
   async clear(): Promise<void> {
     this.cache.clear();
-    this.accessTimes.clear();
     this.logger.info('缓存已清空');
   }
 
@@ -104,7 +92,7 @@ export class FileSearchCache {
     totalMisses: number;
   } {
     return {
-      size: this.cache.size,
+      size: this.cache.size(),
       maxSize: this.config.maxSize || 1000,
       hitRate: this.getHitRate(),
       missRate: this.getMissRate(),
@@ -173,25 +161,6 @@ export class FileSearchCache {
     return this.totalRequests > 0 ? this.totalMisses / this.totalRequests : 0;
   }
 
-  /**
-   * 淘汰最近最少使用的缓存项
-   */
-  private evictLeastRecentlyUsed(): void {
-    let oldestKey: string | null = null;
-    let oldestTime = Infinity;
-    
-    for (const [key, accessTime] of this.accessTimes.entries()) {
-      if (accessTime < oldestTime) {
-        oldestTime = accessTime;
-        oldestKey = key;
-      }
-    }
-    
-    if (oldestKey) {
-      this.delete(oldestKey);
-      this.logger.debug(`LRU淘汰: ${oldestKey}`);
-    }
-  }
 
   /**
    * 启动定期清理间隔
@@ -211,9 +180,12 @@ export class FileSearchCache {
     const now = Date.now();
     let cleanedCount = 0;
     
-    for (const [key, cached] of this.cache.entries()) {
-      if (now > cached.expiresAt) {
-        this.delete(key);
+    // 获取所有键并检查过期
+    const keys = this.cache.keys();
+    for (const key of keys) {
+      const cached = this.cache.get(key);
+      if (cached && now > cached.expiresAt) {
+        this.cache.delete(key);
         cleanedCount++;
       }
     }

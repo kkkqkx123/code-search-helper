@@ -85,6 +85,7 @@ export interface IndexingOptions {
   reindexExisting?: boolean; // 是否重新索引已存在的文件，默认false
   includePatterns?: string[]; // 包含的文件模式，如['*.ts', '*.js']
   excludePatterns?: string[]; // 排除的文件模式，如['node_modules/**', '*.log']
+  continueOnError?: boolean; // 遇到错误时是否继续处理，默认false
 }
 
 // 查询意图分类结果

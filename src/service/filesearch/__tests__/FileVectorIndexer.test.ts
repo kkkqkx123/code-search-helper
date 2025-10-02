@@ -214,6 +214,7 @@ describe('FileVectorIndexer', () => {
     it('应该处理索引失败的文件并继续', async () => {
       const filePaths = ['/src/service1.ts', '/src/service2.ts'];
       const projectId = 'test-project';
+      const options: IndexingOptions = { continueOnError: true };
 
       // Mock fs.stat - first succeeds, second fails
       (fs.stat as jest.Mock)
@@ -228,7 +229,7 @@ describe('FileVectorIndexer', () => {
       (mockEmbedder.embed as jest.Mock).mockResolvedValue({ vector: [0.1, 0.2, 0.3] });
 
       // This should not throw, but should log a warning
-      await indexer.indexFiles(filePaths, projectId);
+      await indexer.indexFiles(filePaths, projectId, options);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         '索引文件失败，跳过: /src/service2.ts',

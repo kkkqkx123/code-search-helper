@@ -13,24 +13,10 @@ import { NebulaGraphOperations } from './NebulaGraphOperations';
 export const NebulaModule = new ContainerModule((bindObj: any) => {
   const { bind } = bindObj;
 
-  // 绑定 Nebula 服务接口和实现
-  bind(TYPES.INebulaService).to(NebulaService).inSingletonScope();
-  bind(TYPES.NebulaService).to(NebulaService).inSingletonScope();
+  // 注意：所有 Nebula 相关的服务已经在 DatabaseServiceRegistrar 中注册
+  // 此模块保留用于未来可能需要的特殊绑定配置
+  // 当前为空模块，避免重复绑定问题
 
-  // 绑定 Nebula 连接管理器
-  bind(TYPES.NebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
-  bind(TYPES.INebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
-
-  // 绑定 Nebula 查询构建器
-  bind(TYPES.NebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
-  bind(TYPES.INebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
-
-  // 绑定 Nebula 空间管理器
-  bind(TYPES.INebulaSpaceManager).to(NebulaSpaceManager).inSingletonScope();
-
-  // 绑定 Nebula 图操作服务
-  bind(TYPES.INebulaGraphOperations).to(NebulaGraphOperations).inSingletonScope();
-
-  // 不再在此模块中绑定基础设施服务，避免重复绑定
-  // 这些服务已经在DIContainer.ts中绑定
+  // 不再在此模块中绑定任何服务，避免重复绑定
+  // 这些服务已经在 DatabaseServiceRegistrar.ts 中绑定
 });

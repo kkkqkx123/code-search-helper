@@ -44,11 +44,13 @@ const mockProjectIdManager = {};
 
 const mockConnectionManager = {
   initialize: jest.fn(),
+  connect: jest.fn(),
+  disconnect: jest.fn(),
+  close: jest.fn(),
   isConnected: jest.fn(),
   getConnectionStatus: jest.fn(),
   getConfig: jest.fn(),
   updateConfig: jest.fn(),
-  close: jest.fn(),
   addEventListener: jest.fn(),
   removeEventListener: jest.fn(),
 };
@@ -145,6 +147,7 @@ describe('QdrantService', () => {
   describe('initialize', () => {
     it('should initialize the service', async () => {
       mockConnectionManager.initialize.mockResolvedValue(true);
+      mockConnectionManager.connect.mockResolvedValue(true);
 
       const result = await qdrantService.initialize();
 
@@ -419,11 +422,12 @@ describe('QdrantService', () => {
 
   describe('close', () => {
     it('should close the connection', async () => {
+      mockConnectionManager.disconnect.mockResolvedValue(undefined);
       mockConnectionManager.close.mockResolvedValue(undefined);
 
       await qdrantService.close();
 
-      expect(mockConnectionManager.close).toHaveBeenCalled();
+      expect(mockConnectionManager.disconnect).toHaveBeenCalled();
     });
   });
 

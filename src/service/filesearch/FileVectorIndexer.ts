@@ -86,7 +86,8 @@ export class FileVectorIndexer {
             directory: fileIndex.directory,
             extension: fileIndex.extension,
             lastModified: fileIndex.lastModified.toISOString(),
-            fileSize: fileIndex.fileSize
+            fileSize: fileIndex.fileSize,
+            fileType: fileIndex.fileType
           },
           timestamp: fileIndex.lastModified
         }
@@ -103,7 +104,7 @@ export class FileVectorIndexer {
    * 批量索引文件
    */
   async indexFiles(filePaths: string[], projectId: string, options: IndexingOptions = {}): Promise<void> {
-    const { batchSize = 100 } = options;
+    const { batchSize = 100, continueOnError = false } = options;
 
     this.logger.info(`开始批量索引 ${filePaths.length} 个文件`);
 
@@ -115,12 +116,24 @@ export class FileVectorIndexer {
       // 并行处理每个批次
       const promises = batch.map(filePath =>
         this.indexFile(filePath, projectId).catch(error => {
-          this.logger.warn(`索引文件失败，跳过: ${filePath}`, error);
-          return null;
+          if (continueOnError) {
+            this.logger.warn(`索引文件失败，跳过: ${filePath}`, error);
+            return null;
+          } else {
+            // 如果不继续处理错误，重新抛出错误
+            throw error;
+          }
         })
       );
 
-      await Promise.all(promises);
+      try {
+        await Promise.all(promises);
+      } catch (error) {
+        if (!continueOnError) {
+          this.logger.error(`批量索引失败`, error);
+          throw error;
+        }
+      }
     }
 
     this.logger.info(`批量索引完成，共处理 ${filePaths.length} 个文件`);

@@ -25,6 +25,8 @@ export class LRUCache<K, V> {
 
     // If key already exists, update its value and timestamp
     if (this.cache.has(key)) {
+      // Remove and re-add to update the order (make it most recently used)
+      this.cache.delete(key);
       this.cache.set(key, { value, timestamp: Date.now() });
       return;
     }

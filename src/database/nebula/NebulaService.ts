@@ -23,6 +23,7 @@ export interface INebulaService {
   initialize(): Promise<boolean>;
   isConnected(): boolean;
   close(): Promise<void>;
+  reconnect(): Promise<boolean>;
   
   // 项目相关操作
   createSpaceForProject(projectPath: string): Promise<boolean>;
