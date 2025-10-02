@@ -25,6 +25,8 @@ import {
 import { BaseDatabaseService } from '../common/BaseDatabaseService';
 import { IDatabaseService, IConnectionManager, IProjectManager } from '../common/IDatabaseService';
 import { DatabaseEventType, QdrantEventType as UnifiedQdrantEventType } from '../common/DatabaseEventTypes';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../common/PerformanceMonitor';
 
 /**
  * Qdrant 服务类
@@ -53,7 +55,9 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
     @inject(TYPES.IQdrantCollectionManager) collectionManager: IQdrantCollectionManager,
     @inject(TYPES.IQdrantVectorOperations) vectorOperations: IQdrantVectorOperations,
     @inject(TYPES.IQdrantQueryUtils) queryUtils: IQdrantQueryUtils,
-    @inject(TYPES.IQdrantProjectManager) projectManager: IQdrantProjectManager
+    @inject(TYPES.IQdrantProjectManager) projectManager: IQdrantProjectManager,
+    @inject(TYPES.DatabaseLoggerService) private databaseLogger: DatabaseLoggerService,
+    @inject(TYPES.PerformanceMonitor) private performanceMonitor: PerformanceMonitor
   ) {
     // 调用父类构造函数，提供必要的依赖
     super(
@@ -177,7 +181,34 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
    * 使用选项插入或更新向量
    */
   async upsertVectorsWithOptions(collectionName: string, vectors: VectorPoint[], options?: VectorUpsertOptions): Promise<BatchResult> {
-    return this.vectorOperations.upsertVectorsWithOptions(collectionName, vectors, options);
+    const startTime = Date.now();
+    try {
+      const result = await this.vectorOperations.upsertVectorsWithOptions(collectionName, vectors, options);
+      const duration = Date.now() - startTime;
+      
+      this.performanceMonitor.recordOperation('upsert_vectors', duration, {
+        collectionName,
+        vectorCount: vectors.length,
+        batchSize: vectors.length
+      });
+      
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.DATA_ERROR,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'upsert_vectors',
+          collectionName,
+          vectorCount: vectors.length,
+          duration,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+      throw error;
+    }
   }
 
   /**
@@ -195,7 +226,36 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
    * 使用选项搜索向量
    */
   async searchVectorsWithOptions(collectionName: string, query: number[], options?: VectorSearchOptions): Promise<SearchResult[]> {
-    return this.vectorOperations.searchVectorsWithOptions(collectionName, query, options);
+    const startTime = Date.now();
+    try {
+      const results = await this.vectorOperations.searchVectorsWithOptions(collectionName, query, options);
+      const duration = Date.now() - startTime;
+      
+      this.performanceMonitor.recordOperation('search_vectors', duration, {
+        collectionName,
+        queryLength: query.length,
+        resultCount: results.length
+      });
+      
+      await this.databaseLogger.logQueryPerformance(`search in ${collectionName}`, duration, results.length);
+      
+      return results;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.DATA_ERROR,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'search_vectors',
+          collectionName,
+          queryLength: query.length,
+          duration,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+      throw error;
+    }
   }
 
   /**

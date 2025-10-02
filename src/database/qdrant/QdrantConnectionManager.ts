@@ -4,6 +4,8 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { TYPES } from '../../types';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../common/PerformanceMonitor';
 import {
   QdrantConfig,
   ConnectionStatus,
@@ -84,18 +86,27 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
       this.connectionStatus = ConnectionStatus.CONNECTING;
       this.emitEvent(QdrantEventType.CONNECTING, { status: 'connecting' });
 
+      const startTime = Date.now();
       await this.ensureClientInitialized();
 
       // 使用 getCollections 作为健康检查
       await this.client!.getCollections();
 
-      this.isConnectedFlag = true;
-      this.connectionStatus = ConnectionStatus.CONNECTED;
-
-      this.logger.info('Connected to Qdrant successfully', {
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('qdrant_connection', duration, {
         host: this.config.host,
         port: this.config.port,
         useHttps: this.config.useHttps
+      });
+
+      this.isConnectedFlag = true;
+      this.connectionStatus = ConnectionStatus.CONNECTED;
+
+      await this.databaseLogger.logConnectionEvent('connection', 'success', {
+        host: this.config.host,
+        port: this.config.port,
+        useHttps: this.config.useHttps,
+        duration
       });
 
       this.emitEvent(QdrantEventType.CONNECTED, {
@@ -104,7 +115,8 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
           host: this.config.host,
           port: this.config.port,
           useHttps: this.config.useHttps
-        }
+        },
+        duration
       });
 
       return true;
@@ -117,6 +129,13 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
         new Error(`${ERROR_MESSAGES.CONNECTION_FAILED}: ${errorMessage}`),
         { component: 'QdrantConnectionManager', operation: 'initialize' }
       );
+
+      await this.databaseLogger.logConnectionEvent('connection', 'failed', {
+        host: this.config.host,
+        port: this.config.port,
+        useHttps: this.config.useHttps,
+        error: errorMessage
+      });
 
       this.emitEvent(QdrantEventType.ERROR, {
         error: error instanceof Error ? error : new Error(errorMessage),

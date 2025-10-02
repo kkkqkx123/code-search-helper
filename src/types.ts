@@ -8,6 +8,8 @@ import { IQdrantCollectionManager } from './database/qdrant/QdrantCollectionMana
 import { IQdrantVectorOperations } from './database/qdrant/QdrantVectorOperations';
 import { IQdrantQueryUtils } from './database/qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from './database/qdrant/QdrantProjectManager';
+import { DatabaseLoggerService } from './database/common/DatabaseLoggerService';
+import { EventToLogBridge } from './database/common/EventToLogBridge';
 
 /**
  * 通用事件监听器类型
@@ -173,4 +175,9 @@ export const TYPES = {
 
   // 项目查询服务
   ProjectLookupService: Symbol.for('ProjectLookupService'),
+
+  // 数据库日志服务
+  DatabaseLoggerService: Symbol.for('DatabaseLoggerService'),
+  EventToLogBridge: Symbol.for('EventToLogBridge'),
+  PerformanceMonitor: Symbol.for('PerformanceMonitor'),
 };

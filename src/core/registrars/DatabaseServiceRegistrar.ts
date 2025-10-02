@@ -2,7 +2,7 @@ import { Container } from 'inversify';
 import { TYPES } from '../../types';
 import { TransactionManager } from '../../database/core/TransactionManager';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
-
+ 
 // Qdrant 向量数据库服务
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { QdrantConnectionManager } from '../../database/qdrant/QdrantConnectionManager';
@@ -11,6 +11,11 @@ import { QdrantVectorOperations } from '../../database/qdrant/QdrantVectorOperat
 import { QdrantQueryUtils } from '../../database/qdrant/QdrantQueryUtils';
 import { QdrantProjectManager } from '../../database/qdrant/QdrantProjectManager';
 
+// 数据库日志和监控服务
+import { DatabaseLoggerService } from '../../database/common/DatabaseLoggerService';
+import { EventToLogBridge } from '../../database/common/EventToLogBridge';
+import { PerformanceMonitor } from '../../database/common/PerformanceMonitor';
+ 
 // 图数据库服务
 import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService';
 import { GraphQueryBuilder, IGraphQueryBuilder } from '../../database/query/GraphQueryBuilder';
@@ -20,6 +25,11 @@ export class DatabaseServiceRegistrar {
     // 通用数据库服务
     container.bind<ProjectIdManager>(TYPES.ProjectIdManager).to(ProjectIdManager).inSingletonScope();
     container.bind<TransactionManager>(TYPES.TransactionManager).to(TransactionManager).inSingletonScope();
+
+    // 数据库日志和监控服务
+    container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
+    container.bind<EventToLogBridge>(TYPES.EventToLogBridge).to(EventToLogBridge).inSingletonScope();
+    container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
 
     // Qdrant 向量数据库服务
     container.bind<QdrantConnectionManager>(TYPES.IQdrantConnectionManager).to(QdrantConnectionManager).inSingletonScope();
