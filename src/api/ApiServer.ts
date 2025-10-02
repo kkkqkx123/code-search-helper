@@ -18,6 +18,7 @@ import { QdrantService } from '../database/qdrant/QdrantService.js';
 import { ProjectStateManager } from '../service/project/ProjectStateManager';
 import { diContainer } from '../core/DIContainer';
 import { TYPES } from '../types';
+import { NebulaService } from '../database/nebula/NebulaService';
 
 export class ApiServer {
   private app: express.Application;
@@ -35,6 +36,7 @@ export class ApiServer {
   private indexSyncService: IndexSyncService;
   private embedderFactory: EmbedderFactory;
   private qdrantService: QdrantService;
+  private nebulaService: NebulaService;
   private projectStateManager: ProjectStateManager;
 
   constructor(logger: Logger, indexSyncService: IndexSyncService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
@@ -42,6 +44,8 @@ export class ApiServer {
     this.indexSyncService = indexSyncService;
     this.embedderFactory = embedderFactory;
     this.qdrantService = qdrantService;
+    // 从依赖注入容器获取Nebula服务
+    this.nebulaService = diContainer.get<NebulaService>(TYPES.INebulaService);
     this.app = express();
     this.port = port;
 
@@ -205,6 +209,95 @@ export class ApiServer {
     this.app.get('/health', (req, res) => {
       res.json({ status: 'healthy' });
     });
+    
+    // Nebula数据库状态检查端点
+    this.app.get('/api/v1/nebula/status', async (req, res) => {
+      try {
+        const isConnected = this.nebulaService.isConnected();
+        const stats = isConnected ? await this.nebulaService.getDatabaseStats() : null;
+        
+        res.json({
+          connected: isConnected,
+          stats: stats,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          connected: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+    
+    // Nebula数据库连接测试端点
+    this.app.post('/api/v1/nebula/test-connection', async (req, res) => {
+      try {
+        // 尝试连接到Nebula数据库
+        const connected = await this.nebulaService.initialize();
+        
+        if (connected) {
+          const stats = await this.nebulaService.getDatabaseStats();
+          res.json({
+            success: true,
+            message: 'Successfully connected to Nebula database',
+            connected: true,
+            stats: stats,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            message: 'Failed to connect to Nebula database',
+            connected: false,
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: 'Error connecting to Nebula database',
+          connected: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+    
+    // Nebula数据库重连测试端点
+    this.app.post('/api/v1/nebula/test-reconnect', async (req, res) => {
+      try {
+        // 尝试重新连接到Nebula数据库
+        const reconnected = await this.nebulaService.reconnect();
+        
+        if (reconnected) {
+          const stats = await this.nebulaService.getDatabaseStats();
+          res.json({
+            success: true,
+            message: 'Successfully reconnected to Nebula database',
+            connected: true,
+            stats: stats,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            message: 'Failed to reconnect to Nebula database',
+            connected: false,
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: 'Error reconnecting to Nebula database',
+          connected: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+    
     // 项目路由
     this.app.use('/api/v1/projects', this.projectRoutes.getRouter());
 

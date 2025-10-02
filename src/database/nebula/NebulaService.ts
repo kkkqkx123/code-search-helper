@@ -65,6 +65,9 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   private queryBuilder: NebulaQueryBuilder;
   protected projectManager: NebulaProjectManager;
   protected initialized = false;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 3;
+  private reconnectDelay = 1000;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -187,13 +190,30 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
 
   async executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
     if (!this.initialized) {
-      throw new Error('Nebula service is not initialized');
+      // 尝试重新连接
+      const reconnected = await this.reconnect();
+      if (!reconnected) {
+        throw new Error('Nebula service is not initialized and reconnection failed');
+      }
     }
 
     try {
       const result = await this.connectionManager.executeQuery(nGQL, parameters);
 
       if (result.error) {
+        // 检查是否是连接错误，如果是则尝试重连
+        if (result.error.includes('connect') || result.error.includes('connection')) {
+          this.logger.warn('Connection error detected, attempting to reconnect...');
+          const reconnected = await this.reconnect();
+          if (reconnected) {
+            // 重连成功后重新执行查询
+            const retryResult = await this.connectionManager.executeQuery(nGQL, parameters);
+            if (retryResult.error) {
+              throw new Error(retryResult.error);
+            }
+            return retryResult;
+          }
+        }
         throw new Error(result.error);
       }
 
@@ -206,13 +226,30 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
 
   async executeWriteQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
     if (!this.initialized) {
-      throw new Error('Nebula service is not initialized');
+      // 尝试重新连接
+      const reconnected = await this.reconnect();
+      if (!reconnected) {
+        throw new Error('Nebula service is not initialized and reconnection failed');
+      }
     }
 
     try {
       const result = await this.connectionManager.executeQuery(nGQL, parameters);
 
       if (result.error) {
+        // 检查是否是连接错误，如果是则尝试重连
+        if (result.error.includes('connect') || result.error.includes('connection')) {
+          this.logger.warn('Connection error detected, attempting to reconnect...');
+          const reconnected = await this.reconnect();
+          if (reconnected) {
+            // 重连成功后重新执行查询
+            const retryResult = await this.connectionManager.executeQuery(nGQL, parameters);
+            if (retryResult.error) {
+              throw new Error(retryResult.error);
+            }
+            return retryResult;
+          }
+        }
         throw new Error(result.error);
       }
 
@@ -225,13 +262,33 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
 
   async executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<any[]> {
     if (!this.initialized) {
-      throw new Error('Nebula service is not initialized');
+      // 尝试重新连接
+      const reconnected = await this.reconnect();
+      if (!reconnected) {
+        throw new Error('Nebula service is not initialized and reconnection failed');
+      }
     }
 
     try {
       const results = await this.connectionManager.executeTransaction(queries);
       return results;
     } catch (error) {
+      // 检查是否是连接错误，如果是则尝试重连
+      if (error instanceof Error && (error.message.includes('connect') || error.message.includes('connection'))) {
+        this.logger.warn('Connection error detected in transaction, attempting to reconnect...');
+        const reconnected = await this.reconnect();
+        if (reconnected) {
+          // 重连成功后重新执行事务
+          try {
+            const retryResults = await this.connectionManager.executeTransaction(queries);
+            return retryResults;
+          } catch (retryError) {
+            this.emitEvent('error', retryError instanceof Error ? retryError : new Error(String(retryError)));
+            throw retryError;
+          }
+        }
+      }
+      
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
@@ -344,6 +401,45 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
+    }
+  }
+
+  /**
+   * 尝试重新连接到Nebula数据库
+   */
+  async reconnect(): Promise<boolean> {
+    try {
+      this.logger.info('Attempting to reconnect to Nebula database');
+      
+      // 增加重连尝试次数
+      this.reconnectAttempts++;
+      
+      // 如果超过最大重连次数，返回失败
+      if (this.reconnectAttempts > this.maxReconnectAttempts) {
+        this.logger.error(`Max reconnect attempts (${this.maxReconnectAttempts}) exceeded`);
+        return false;
+      }
+      
+      // 关闭现有连接
+      await this.close();
+      
+      // 等待一段时间再重连
+      await new Promise(resolve => setTimeout(resolve, this.reconnectDelay * this.reconnectAttempts));
+      
+      // 重新初始化
+      const connected = await this.initialize();
+      
+      if (connected) {
+        this.logger.info('Successfully reconnected to Nebula database');
+        this.reconnectAttempts = 0; // 重置重连次数
+        return true;
+      } else {
+        this.logger.warn(`Reconnect attempt ${this.reconnectAttempts} failed`);
+        return false;
+      }
+    } catch (error) {
+      this.logger.error('Error during reconnection attempt:', error);
+      return false;
     }
   }
 

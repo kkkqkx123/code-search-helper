@@ -26,7 +26,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       maxConnections: parseInt(process.env.NEBULA_MAX_CONNECTIONS || '10'),
       retryAttempts: parseInt(process.env.NEBULA_RETRY_ATTEMPTS || '3'),
       retryDelay: parseInt(process.env.NEBULA_RETRY_DELAY || '1000'),
-      space: process.env.NEBULA_SPACE,
+      space: process.env.NEBULA_SPACE || 'codebase',
     };
 
     return this.validateConfig(rawConfig);
@@ -59,10 +59,11 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       port: 9669,
       username: 'root',
       password: 'nebula',
-      timeout: 300,
+      timeout: 30000,
       maxConnections: 10,
       retryAttempts: 3,
       retryDelay: 1000,
+      space: 'codebase',
     };
   }
 }

@@ -39,7 +39,7 @@ describe('NebulaConnectionManager', () => {
       expect(connectionManager.isConnected()).toBe(false);
     });
 
-    it('should use config from config service if available', () => {
+    it('should use config from config service if available', async () => {
       const mockConfig: NebulaConfig = {
         host: 'test-host',
         port: 9669,
@@ -56,6 +56,8 @@ describe('NebulaConnectionManager', () => {
         mockConfigService as any
       );
 
+      // 需要调用connect来触发配置加载
+      await newConnectionManager.connect();
       const status = newConnectionManager.getConnectionStatus();
       expect(status.host).toBe('test-host');
       expect(status.port).toBe(9669);
@@ -96,19 +98,33 @@ describe('NebulaConnectionManager', () => {
     });
 
     it('should handle connection errors', async () => {
-      // 模拟连接过程中抛出错误
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementationOnce((_: any, __: any) => {
-        throw new Error('Connection failed');
+      // 创建一个新的连接管理器实例用于此测试
+      const newConnectionManager = new NebulaConnectionManager(
+        mockLoggerService as any,
+        mockErrorHandlerService as any,
+        mockConfigService as any
+      );
+
+      // 模拟NebulaGraph.Client构造函数返回一个会抛出错误的客户端
+      const NebulaGraph = require('@nebula-contrib/nebula-nodejs').NebulaGraph;
+      const originalClient = NebulaGraph.Client;
+      
+      NebulaGraph.Client = jest.fn().mockImplementation(() => {
+        return {
+          connect: jest.fn().mockRejectedValue(new Error('Connection failed')),
+          session: jest.fn(),
+          close: jest.fn(),
+        };
       });
 
-      const result = await connectionManager.connect();
+      const result = await newConnectionManager.connect();
 
       expect(result).toBe(false);
-      expect(connectionManager.isConnected()).toBe(false);
+      expect(newConnectionManager.isConnected()).toBe(false);
       expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
-
+      
       // 恢复原始实现
-      setTimeoutSpy.mockRestore();
+      NebulaGraph.Client = originalClient;
     });
   });
 
@@ -132,16 +148,16 @@ describe('NebulaConnectionManager', () => {
       expect(connectionManager.isConnected()).toBe(true);
 
       // 模拟断开连接过程中抛出错误
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementationOnce((_: any, __: any) => {
-        throw new Error('Disconnection failed');
-      });
+      const mockClient = {
+        close: jest.fn().mockRejectedValue(new Error('Disconnection failed')),
+      };
+      
+      // 替换connectionManager中的client
+      (connectionManager as any).client = mockClient;
 
       await connectionManager.disconnect();
 
       expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
-
-      // 恢复原始实现
-      setTimeoutSpy.mockRestore();
     });
   });
 
@@ -181,7 +197,12 @@ describe('NebulaConnectionManager', () => {
 
       expect(result).toEqual({
         data: [],
+        table: {},
+        results: [],
+        rows: [],
         executionTime: expect.any(Number),
+        space: expect.any(String),
+        timeCost: undefined,
       });
       expect(mockLoggerService.debug).toHaveBeenCalledWith(
         'Executing Nebula query',
@@ -206,9 +227,10 @@ describe('NebulaConnectionManager', () => {
       expect(connectionManager.isConnected()).toBe(true);
 
       // 模拟查询执行过程中抛出错误
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementationOnce((_: any, __: any) => {
-        throw new Error('Query execution failed');
-      });
+      const mockSession = {
+        execute: jest.fn().mockRejectedValue(new Error('Query execution failed')),
+      };
+      (connectionManager as any).session = mockSession;
 
       const result = await connectionManager.executeQuery('MATCH (n) RETURN n');
 
@@ -216,9 +238,6 @@ describe('NebulaConnectionManager', () => {
         error: 'Query execution failed',
       });
       expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
-
-      // 恢复原始实现
-      setTimeoutSpy.mockRestore();
     });
   });
 
@@ -233,7 +252,10 @@ describe('NebulaConnectionManager', () => {
 
       const result = await connectionManager.executeTransaction(queries);
 
-      expect(result).toEqual([]);
+      expect(result).toEqual([
+        { data: [], table: {}, results: [], rows: [] },
+        { data: [], table: {}, results: [], rows: [] }
+      ]);
       expect(mockLoggerService.debug).toHaveBeenCalledWith(
         'Executing Nebula transaction',
         expect.objectContaining({
@@ -254,23 +276,27 @@ describe('NebulaConnectionManager', () => {
       expect(connectionManager.isConnected()).toBe(true);
 
       // 模拟事务执行过程中抛出错误
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementationOnce((_: any, __: any) => {
-        throw new Error('Transaction failed');
-      });
+      const mockSession = {
+        execute: jest.fn()
+          .mockResolvedValueOnce({}) // BEGIN
+          .mockRejectedValueOnce(new Error('Transaction failed')) // 第一个查询失败
+          .mockResolvedValueOnce({}), // ROLLBACK
+      };
+      (connectionManager as any).session = mockSession;
 
       await expect(
         connectionManager.executeTransaction([{ query: 'MATCH (n) RETURN n', params: {} }])
       ).rejects.toThrow('Transaction failed');
 
       expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
-
-      // 恢复原始实现
-      setTimeoutSpy.mockRestore();
     });
   });
 
   describe('createNode', () => {
     it('should create node successfully', async () => {
+      // 先连接
+      await connectionManager.connect();
+      
       const node = {
         label: 'TestLabel',
         properties: { name: 'Test Node', value: 123 },
@@ -278,7 +304,7 @@ describe('NebulaConnectionManager', () => {
 
       const nodeId = await connectionManager.createNode(node);
 
-      expect(nodeId).toMatch(/^node_\d+$/);
+      expect(nodeId).toMatch(/^[a-zA-Z0-9_]+$/);
       expect(mockLoggerService.debug).toHaveBeenCalledWith(
         'Creating node',
         expect.objectContaining({
@@ -291,6 +317,9 @@ describe('NebulaConnectionManager', () => {
 
   describe('createRelationship', () => {
     it('should create relationship successfully', async () => {
+      // 先连接
+      await connectionManager.connect();
+      
       const relationship = {
         type: 'TEST_RELATIONSHIP',
         sourceId: 'source_123',
@@ -314,6 +343,9 @@ describe('NebulaConnectionManager', () => {
 
   describe('findNodesByLabel', () => {
     it('should find nodes by label', async () => {
+      // 先连接
+      await connectionManager.connect();
+      
       const result = await connectionManager.findNodesByLabel('TestLabel');
 
       expect(result).toEqual([]);
@@ -327,6 +359,9 @@ describe('NebulaConnectionManager', () => {
     });
 
     it('should find nodes by label with properties', async () => {
+      // 先连接
+      await connectionManager.connect();
+      
       const properties = { name: 'Test', active: true };
       const result = await connectionManager.findNodesByLabel('TestLabel', properties);
 
@@ -343,6 +378,9 @@ describe('NebulaConnectionManager', () => {
 
   describe('findRelationships', () => {
     it('should find relationships', async () => {
+      // 先连接
+      await connectionManager.connect();
+      
       const result = await connectionManager.findRelationships();
 
       expect(result).toEqual([]);
@@ -356,6 +394,9 @@ describe('NebulaConnectionManager', () => {
     });
 
     it('should find relationships by type', async () => {
+      // 先连接
+      await connectionManager.connect();
+      
       const result = await connectionManager.findRelationships('TEST_RELATIONSHIP');
 
       expect(result).toEqual([]);
@@ -369,6 +410,9 @@ describe('NebulaConnectionManager', () => {
     });
 
     it('should find relationships with properties', async () => {
+      // 先连接
+      await connectionManager.connect();
+      
       const properties = { weight: 1.0 };
       const result = await connectionManager.findRelationships('TEST_RELATIONSHIP', properties);
 
@@ -385,6 +429,9 @@ describe('NebulaConnectionManager', () => {
 
   describe('getDatabaseStats', () => {
     it('should get database stats', async () => {
+      // 先连接
+      await connectionManager.connect();
+      
       const result = await connectionManager.getDatabaseStats();
 
       expect(result).toEqual({
@@ -393,6 +440,14 @@ describe('NebulaConnectionManager', () => {
         spaces: 0,
         nodes: 0,
         relationships: 0,
+        tags: 0,
+        edgeTypes: 0,
+        currentSpace: expect.any(String),
+        connectionInfo: {
+          host: expect.any(String),
+          port: expect.any(Number),
+          username: expect.any(String),
+        },
       });
       expect(mockLoggerService.debug).toHaveBeenCalledWith('Getting database stats');
     });

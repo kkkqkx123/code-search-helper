@@ -71,6 +71,9 @@ import { NebulaSpaceManager } from './database/nebula/NebulaSpaceManager';
 import { INebulaSpaceManager } from './database/nebula/NebulaSpaceManager';
 import { NebulaGraphOperations } from './database/nebula/NebulaGraphOperations';
 
+// Nebula 监控服务
+import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
+
 // 图服务
 import { GraphCacheService } from './service/graph/cache/GraphCacheService';
 import { GraphQueryBuilder, IGraphQueryBuilder } from './database/query/GraphQueryBuilder';
@@ -153,6 +156,9 @@ export const TYPES = {
   INebulaGraphOperations: Symbol.for('INebulaGraphOperations'),
   INebulaQueryBuilder: Symbol.for('INebulaQueryBuilder'),
   INebulaProjectManager: Symbol.for('INebulaProjectManager'),
+  
+  // Nebula 监控服务
+  NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
 
   // 图服务
   GraphService: Symbol.for('GraphService'),

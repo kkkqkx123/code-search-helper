@@ -25,6 +25,9 @@ import { FileQueryProcessor } from '../../service/filesearch/FileQueryProcessor'
 import { FileQueryIntentClassifier } from '../../service/filesearch/FileQueryIntentClassifier';
 import { FileSearchCache } from '../../service/filesearch/FileSearchCache';
 
+// Nebula监控服务
+import { NebulaConnectionMonitor } from '../../service/graph/monitoring/NebulaConnectionMonitor';
+
 export class BusinessServiceRegistrar {
   static register(container: Container): void {
     // 文件系统服务
@@ -50,5 +53,8 @@ export class BusinessServiceRegistrar {
     container.bind<FileQueryProcessor>(TYPES.FileQueryProcessor).to(FileQueryProcessor).inSingletonScope();
     container.bind<FileQueryIntentClassifier>(TYPES.FileQueryIntentClassifier).to(FileQueryIntentClassifier).inSingletonScope();
     container.bind<FileSearchCache>(TYPES.FileSearchCache).to(FileSearchCache).inSingletonScope();
+    
+    // Nebula监控服务
+    container.bind<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor).to(NebulaConnectionMonitor).inSingletonScope();
   }
 }

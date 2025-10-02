@@ -7,8 +7,6 @@ import { NebulaSpaceInfo } from '../../nebula/NebulaTypes';
 
 // Mock 依赖项
 const mockNebulaService = {
-  executeWriteQuery: jest.fn(),
-  executeReadQuery: jest.fn(),
   executeQuery: jest.fn(),
 };
 
@@ -92,11 +90,41 @@ describe('NebulaSpaceManager', () => {
 
   describe('createSpace', () => {
     it('should create space successfully with default config', async () => {
-      mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
-      mockNebulaService.executeReadQuery
-        .mockResolvedValueOnce(undefined) // First call for CREATE SPACE
-        .mockResolvedValueOnce({ data: [{ name: 'test_space' }] }) // For waitForSpaceReady
-        .mockResolvedValueOnce(undefined); // For USE SPACE and schema creation
+      mockNebulaService.executeQuery
+        .mockResolvedValueOnce(undefined) // CREATE SPACE
+        .mockResolvedValueOnce({ data: [{ name: 'test_space' }] }) // DESCRIBE SPACE for waitForSpaceReady
+        .mockResolvedValueOnce(undefined) // USE SPACE
+        .mockResolvedValueOnce(undefined) // CREATE TAG Project
+        .mockResolvedValueOnce(undefined) // CREATE TAG File
+        .mockResolvedValueOnce(undefined) // CREATE TAG Function
+        .mockResolvedValueOnce(undefined) // CREATE TAG Class
+        .mockResolvedValueOnce(undefined) // CREATE TAG Import
+        .mockResolvedValueOnce(undefined) // CREATE EDGE BELONGS_TO
+        .mockResolvedValueOnce(undefined) // CREATE EDGE CONTAINS
+        .mockResolvedValueOnce(undefined) // CREATE EDGE IMPORTS
+        .mockResolvedValueOnce(undefined) // CREATE EDGE CALLS
+        .mockResolvedValueOnce(undefined) // CREATE EDGE EXTENDS
+        .mockResolvedValueOnce(undefined) // CREATE EDGE IMPLEMENTS
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX project_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX project_name_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX file_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX file_path_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX file_name_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX file_language_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX function_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX function_name_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX function_language_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX class_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX class_name_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX class_language_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX import_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX import_module_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX belongs_to_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX contains_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX imports_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX calls_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX extends_index
+        .mockResolvedValueOnce(undefined); // CREATE EDGE INDEX implements_index
 
       const result = spaceManager.createSpace('test-project');
 
@@ -104,7 +132,7 @@ describe('NebulaSpaceManager', () => {
       jest.runAllTimers();
 
       await expect(result).resolves.toBe(true);
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         expect.stringContaining('CREATE SPACE IF NOT EXISTS `project_test-project`')
       );
       expect(mockLoggerService.info).toHaveBeenCalledWith(
@@ -113,11 +141,41 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should create space with custom config', async () => {
-      mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
-      mockNebulaService.executeReadQuery
-        .mockResolvedValueOnce(undefined) // First call for CREATE SPACE
-        .mockResolvedValueOnce({ data: [{ name: 'test_space' }] }) // For waitForSpaceReady
-        .mockResolvedValueOnce(undefined); // For USE SPACE and schema creation
+      mockNebulaService.executeQuery
+        .mockResolvedValueOnce(undefined) // CREATE SPACE
+        .mockResolvedValueOnce({ data: [{ name: 'test_space' }] }) // DESCRIBE SPACE for waitForSpaceReady
+        .mockResolvedValueOnce(undefined) // USE SPACE
+        .mockResolvedValueOnce(undefined) // CREATE TAG Project
+        .mockResolvedValueOnce(undefined) // CREATE TAG File
+        .mockResolvedValueOnce(undefined) // CREATE TAG Function
+        .mockResolvedValueOnce(undefined) // CREATE TAG Class
+        .mockResolvedValueOnce(undefined) // CREATE TAG Import
+        .mockResolvedValueOnce(undefined) // CREATE EDGE BELONGS_TO
+        .mockResolvedValueOnce(undefined) // CREATE EDGE CONTAINS
+        .mockResolvedValueOnce(undefined) // CREATE EDGE IMPORTS
+        .mockResolvedValueOnce(undefined) // CREATE EDGE CALLS
+        .mockResolvedValueOnce(undefined) // CREATE EDGE EXTENDS
+        .mockResolvedValueOnce(undefined) // CREATE EDGE IMPLEMENTS
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX project_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX project_name_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX file_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX file_path_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX file_name_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX file_language_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX function_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX function_name_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX function_language_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX class_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX class_name_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX class_language_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX import_id_index
+        .mockResolvedValueOnce(undefined) // CREATE TAG INDEX import_module_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX belongs_to_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX contains_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX imports_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX calls_index
+        .mockResolvedValueOnce(undefined) // CREATE EDGE INDEX extends_index
+        .mockResolvedValueOnce(undefined); // CREATE EDGE INDEX implements_index
 
       const config = {
         partitionNum: 20,
@@ -131,16 +189,16 @@ describe('NebulaSpaceManager', () => {
       jest.runAllTimers();
 
       await expect(result).resolves.toBe(true);
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         expect.stringContaining('partition_num = 20')
       );
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         expect.stringContaining('replica_factor = 3')
       );
     });
 
     it('should handle space creation error', async () => {
-      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Creation failed'));
+      mockNebulaService.executeQuery.mockRejectedValue(new Error('Creation failed'));
 
       const result = await spaceManager.createSpace('test-project');
 
@@ -154,12 +212,12 @@ describe('NebulaSpaceManager', () => {
 
   describe('deleteSpace', () => {
     it('should delete space successfully', async () => {
-      mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
+      mockNebulaService.executeQuery.mockResolvedValue(undefined);
 
       const result = await spaceManager.deleteSpace('test-project');
 
       expect(result).toBe(true);
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         'DROP SPACE IF EXISTS `project_test-project`'
       );
       expect(mockLoggerService.info).toHaveBeenCalledWith(
@@ -168,7 +226,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should handle space deletion error', async () => {
-      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Deletion failed'));
+      mockNebulaService.executeQuery.mockRejectedValue(new Error('Deletion failed'));
 
       const result = await spaceManager.deleteSpace('test-project');
 
@@ -183,7 +241,7 @@ describe('NebulaSpaceManager', () => {
   describe('listSpaces', () => {
     it('should list spaces successfully with standard format', async () => {
       // 重置模拟函数以确保干净的测试环境
-      mockNebulaService.executeReadQuery.mockReset();
+      mockNebulaService.executeQuery.mockReset();
 
       const mockResult = {
         data: [
@@ -191,12 +249,12 @@ describe('NebulaSpaceManager', () => {
           { Name: 'space2' },
         ]
       };
-      mockNebulaService.executeReadQuery.mockResolvedValue(mockResult);
+      mockNebulaService.executeQuery.mockResolvedValue(mockResult);
 
       const result = await spaceManager.listSpaces();
 
       expect(result).toEqual(['space1', 'space2']);
-      expect(mockNebulaService.executeReadQuery).toHaveBeenCalledWith('SHOW SPACES');
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith('SHOW SPACES');
     });
 
     it('should handle different column name formats', async () => {
@@ -207,7 +265,7 @@ describe('NebulaSpaceManager', () => {
           { space_name: 'space3' },
         ]
       };
-      mockNebulaService.executeReadQuery.mockResolvedValue(mockResult);
+      mockNebulaService.executeQuery.mockResolvedValue(mockResult);
 
       const result = await spaceManager.listSpaces();
 
@@ -220,7 +278,7 @@ describe('NebulaSpaceManager', () => {
           { Name: 'space1' },
         ]
       };
-      mockNebulaService.executeReadQuery.mockResolvedValue(mockResult);
+      mockNebulaService.executeQuery.mockResolvedValue(mockResult);
 
       const result = await spaceManager.listSpaces();
 
@@ -228,7 +286,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should handle null result', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue(null);
+      mockNebulaService.executeQuery.mockResolvedValue(null);
 
       const result = await spaceManager.listSpaces();
 
@@ -237,7 +295,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should handle non-array data', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue({ data: 'invalid' });
+      mockNebulaService.executeQuery.mockResolvedValue({ data: 'invalid' });
 
       const result = await spaceManager.listSpaces();
 
@@ -249,7 +307,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should handle empty data array', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue({ data: [] });
+      mockNebulaService.executeQuery.mockResolvedValue({ data: [] });
 
       const result = await spaceManager.listSpaces();
 
@@ -257,7 +315,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should handle read query error', async () => {
-      mockNebulaService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+      mockNebulaService.executeQuery.mockRejectedValue(new Error('Query failed'));
 
       const result = await spaceManager.listSpaces();
 
@@ -282,7 +340,7 @@ describe('NebulaSpaceManager', () => {
           collate: 'utf8_bin'
         }]
       };
-      mockNebulaService.executeReadQuery.mockResolvedValue(mockResult);
+      mockNebulaService.executeQuery.mockResolvedValue(mockResult);
 
       const result = await spaceManager.getSpaceInfo('test-project');
 
@@ -304,7 +362,7 @@ describe('NebulaSpaceManager', () => {
           VidType: 'FIXED_STRING(64)',
         }]
       };
-      mockNebulaService.executeReadQuery.mockResolvedValue(mockResult);
+      mockNebulaService.executeQuery.mockResolvedValue(mockResult);
 
       const result = await spaceManager.getSpaceInfo('test-project');
 
@@ -324,7 +382,7 @@ describe('NebulaSpaceManager', () => {
           partitionNum: '15',
         }]
       };
-      mockNebulaService.executeReadQuery.mockResolvedValue(mockResult);
+      mockNebulaService.executeQuery.mockResolvedValue(mockResult);
 
       const result = await spaceManager.getSpaceInfo('test-project');
 
@@ -339,7 +397,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should return null for null result', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue(null);
+      mockNebulaService.executeQuery.mockResolvedValue(null);
 
       const result = await spaceManager.getSpaceInfo('test-project');
 
@@ -350,7 +408,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should return null for empty data', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue({ data: [] });
+      mockNebulaService.executeQuery.mockResolvedValue({ data: [] });
 
       const result = await spaceManager.getSpaceInfo('test-project');
 
@@ -358,7 +416,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should return null for invalid data format', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue({ data: 'invalid' });
+      mockNebulaService.executeQuery.mockResolvedValue({ data: 'invalid' });
 
       const result = await spaceManager.getSpaceInfo('test-project');
 
@@ -366,7 +424,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should handle read query error', async () => {
-      mockNebulaService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+      mockNebulaService.executeQuery.mockRejectedValue(new Error('Query failed'));
 
       const result = await spaceManager.getSpaceInfo('test-project');
 
@@ -417,7 +475,7 @@ describe('NebulaSpaceManager', () => {
       const mockResult = {
         data: [{ name: 'test-space' }]
       };
-      mockNebulaService.executeReadQuery
+      mockNebulaService.executeQuery
         .mockResolvedValueOnce(null) // First call returns null
         .mockResolvedValueOnce(mockResult); // Second call returns result
 
@@ -429,13 +487,13 @@ describe('NebulaSpaceManager', () => {
 
       await promise;
 
-      expect(mockNebulaService.executeReadQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         'DESCRIBE SPACE `test-space`'
       );
     });
 
     it('should throw error if space does not become ready', async () => {
-      mockNebulaService.executeReadQuery.mockRejectedValue(new Error('Space not ready'));
+      mockNebulaService.executeQuery.mockRejectedValue(new Error('Space not ready'));
 
       // @ts-ignore - accessing private method for testing
       const promise = spaceManager['waitForSpaceReady']('test-space', 2, 10);
@@ -451,34 +509,34 @@ describe('NebulaSpaceManager', () => {
 
   describe('createGraphSchema', () => {
     it('should create graph schema successfully', async () => {
-      mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
+      mockNebulaService.executeQuery.mockResolvedValue(undefined);
 
       // @ts-ignore - accessing private method for testing
       await spaceManager['createGraphSchema']();
 
       // 检查是否调用了创建标签的查询
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TAG IF NOT EXISTS Project')
       );
 
       // 检查是否调用了创建边类型的查询
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         expect.stringContaining('CREATE EDGE IF NOT EXISTS BELONGS_TO')
       );
 
       // 检查是否调用了创建标签索引的查询
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TAG INDEX IF NOT EXISTS project_id_index')
       );
 
       // 检查是否调用了创建边索引的查询
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         expect.stringContaining('CREATE EDGE INDEX IF NOT EXISTS belongs_to_index')
       );
     });
 
     it('should handle schema creation error', async () => {
-      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Schema creation failed'));
+      mockNebulaService.executeQuery.mockRejectedValue(new Error('Schema creation failed'));
 
       // @ts-ignore - accessing private method for testing
       await expect(spaceManager['createGraphSchema']()).rejects.toThrow('Schema creation failed');
@@ -487,12 +545,12 @@ describe('NebulaSpaceManager', () => {
 
   describe('createIndexWithRetry', () => {
     it('should create index successfully on first try', async () => {
-      mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
+      mockNebulaService.executeQuery.mockResolvedValue(undefined);
 
       // @ts-ignore - accessing private method for testing
       await spaceManager['createIndexWithRetry']('CREATE TAG INDEX test_index ON TestTag(name)');
 
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         'CREATE TAG INDEX test_index ON TestTag(name)'
       );
       expect(mockLoggerService.debug).toHaveBeenCalledWith(
@@ -501,7 +559,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should handle already exists error', async () => {
-      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('already exists'));
+      mockNebulaService.executeQuery.mockRejectedValue(new Error('already exists'));
 
       // @ts-ignore - accessing private method for testing
       await spaceManager['createIndexWithRetry']('CREATE TAG INDEX test_index ON TestTag(name)');
@@ -512,7 +570,7 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should retry on failure and eventually succeed', async () => {
-      mockNebulaService.executeWriteQuery
+      mockNebulaService.executeQuery
         .mockRejectedValueOnce(new Error('Temporary failure'))
         .mockResolvedValueOnce(undefined);
 
@@ -524,11 +582,11 @@ describe('NebulaSpaceManager', () => {
 
       await promise;
 
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledTimes(2);
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledTimes(2);
     });
 
     it('should fail after max retries', async () => {
-      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Persistent failure'));
+      mockNebulaService.executeQuery.mockRejectedValue(new Error('Persistent failure'));
 
       // @ts-ignore - accessing private method for testing
       const promise = spaceManager['createIndexWithRetry']('CREATE TAG INDEX test_index ON TestTag(name)', 2);
@@ -543,36 +601,39 @@ describe('NebulaSpaceManager', () => {
   describe('clearSpace', () => {
     it('should clear space successfully', async () => {
       // Mock the queries that are called during space clearing
-      mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
-      mockNebulaService.executeReadQuery
+      mockNebulaService.executeQuery
+        .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [{ Name: 'TestTag' }] }) // SHOW TAGS
-        .mockResolvedValueOnce({ data: [{ Name: 'TestEdge' }] }); // SHOW EDGES
+        .mockResolvedValueOnce({ data: [{ Name: 'TestEdge' }] }) // SHOW EDGES
+        .mockResolvedValueOnce(undefined) // DELETE VERTEX
+        .mockResolvedValueOnce(undefined); // DELETE EDGE
 
       const result = await spaceManager.clearSpace('test-project');
 
       expect(result).toBe(true);
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith('USE `project_test-project`');
-      expect(mockNebulaService.executeReadQuery).toHaveBeenCalledWith('SHOW TAGS');
-      expect(mockNebulaService.executeReadQuery).toHaveBeenCalledWith('SHOW EDGES');
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith('USE `project_test-project`');
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith('SHOW TAGS');
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith('SHOW EDGES');
       expect(mockLoggerService.info).toHaveBeenCalledWith(
         'Starting to clear space project_test-project for project test-project'
       );
     });
 
     it('should handle empty space', async () => {
-      mockNebulaService.executeWriteQuery.mockResolvedValue(undefined);
-      mockNebulaService.executeReadQuery
+      mockNebulaService.executeQuery
+        .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [] }) // SHOW TAGS - no tags
         .mockResolvedValueOnce({ data: [] }); // SHOW EDGES - no edges
 
       const result = await spaceManager.clearSpace('test-project');
 
       expect(result).toBe(true);
-      expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith('USE `project_test-project`');
+      expect(mockNebulaService.executeQuery).toHaveBeenCalledWith('USE `project_test-project`');
     });
 
     it('should handle errors during space clearing', async () => {
-      mockNebulaService.executeWriteQuery.mockRejectedValue(new Error('Clear failed'));
+      mockNebulaService.executeQuery
+        .mockRejectedValueOnce(new Error('Clear failed')); // USE command fails
 
       const result = await spaceManager.clearSpace('test-project');
 
@@ -586,15 +647,12 @@ describe('NebulaSpaceManager', () => {
     });
 
     it('should continue processing even if some deletions fail', async () => {
-      mockNebulaService.executeWriteQuery
+      mockNebulaService.executeQuery
         .mockResolvedValueOnce(undefined) // USE command
-        .mockRejectedValueOnce(new Error('Delete edge failed')) // First DELETE EDGE
-        .mockResolvedValueOnce(undefined) // Second DELETE VERTEX
-        .mockResolvedValueOnce(undefined); // Final success
-
-      mockNebulaService.executeReadQuery
         .mockResolvedValueOnce({ data: [{ Name: 'TestTag' }] }) // SHOW TAGS
-        .mockResolvedValueOnce({ data: [{ Name: 'TestEdge' }] }); // SHOW EDGES
+        .mockResolvedValueOnce({ data: [{ Name: 'TestEdge' }] }) // SHOW EDGES
+        .mockRejectedValueOnce(new Error('Delete edge failed')) // DELETE EDGE
+        .mockResolvedValueOnce(undefined); // DELETE VERTEX
 
       const result = await spaceManager.clearSpace('test-project');
 

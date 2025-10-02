@@ -15,6 +15,8 @@ import { ConfigFactory } from './config/ConfigFactory';
 import { diContainer } from './core/DIContainer';
 import { TYPES } from './types';
 import { EmbeddingConfigService } from './config/service/EmbeddingConfigService';
+import { NebulaService } from './database/nebula/NebulaService';
+import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
 
 // 添加详细的错误处理
 process.on('uncaughtException', (error) => {
@@ -60,7 +62,9 @@ class Application {
     @inject(TYPES.IndexSyncService) private indexSyncService: IndexSyncService,
     @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
-    @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService
+    @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
+    @inject(TYPES.INebulaService) private nebulaService: NebulaService,
+    @inject(TYPES.NebulaConnectionMonitor) private nebulaConnectionMonitor: NebulaConnectionMonitor
   ) {
     // 创建一个 Logger 实例，用于整个应用
     this.logger = new Logger('code-search-helper');
@@ -115,13 +119,27 @@ class Application {
         await this.loggerService.warn('Qdrant database service initialization failed, will continue without database');
       }
 
-      // 初始化嵌入器服务
+      // 初始化嵌入入器服务
       await this.loggerService.info('Initializing embedder services...');
       const availableProviders = await this.embedderFactory.getAvailableProviders();
       if (availableProviders.length > 0) {
         await this.loggerService.info('Embedder services initialized successfully', { availableProviders });
       } else {
         await this.loggerService.warn('No embedder providers available, will continue without embedding functionality');
+      }
+
+      // 初始化Nebula图数据库服务
+      await this.loggerService.info('Initializing Nebula graph database service...');
+      const nebulaConnected = await this.nebulaService.initialize();
+      if (nebulaConnected) {
+        await this.loggerService.info('Nebula graph database service initialized successfully');
+        
+        // 启动Nebula连接监控
+        await this.loggerService.info('Starting Nebula connection monitoring...');
+        this.nebulaConnectionMonitor.startMonitoring(30000); // 每30秒检查一次
+        await this.loggerService.info('Nebula connection monitoring started');
+      } else {
+        await this.loggerService.warn('Nebula graph database service initialization failed, will continue without graph database');
       }
 
       this.currentPhase = ApplicationLifecyclePhase.SERVICES_STARTED;
@@ -184,9 +202,21 @@ class Application {
       // 关闭数据库服务
       try {
         await this.qdrantService.close();
-        await this.loggerService.info('Database service closed');
+        await this.loggerService.info('Qdrant database service closed');
       } catch (error) {
-        await this.loggerService.error('Error closing database service:', error);
+        await this.loggerService.error('Error closing Qdrant database service:', error);
+      }
+
+      // 关闭Nebula图数据库服务
+      try {
+        // 停止Nebula连接监控
+        this.nebulaConnectionMonitor.stopMonitoring();
+        await this.loggerService.info('Nebula connection monitoring stopped');
+        
+        await this.nebulaService.close();
+        await this.loggerService.info('Nebula graph database service closed');
+      } catch (error) {
+        await this.loggerService.error('Error closing Nebula graph database service:', error);
       }
 
       // 关闭MCP服务器
@@ -231,6 +261,8 @@ class ApplicationFactory {
     const projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     const embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
     const embeddingConfigService = diContainer.get<EmbeddingConfigService>(TYPES.EmbeddingConfigService);
+    const nebulaService = diContainer.get<NebulaService>(TYPES.INebulaService);
+    const nebulaConnectionMonitor = diContainer.get<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor);
 
     return new Application(
       configService,
@@ -241,7 +273,9 @@ class ApplicationFactory {
       indexSyncService,
       projectStateManager,
       embeddingCacheService,
-      embeddingConfigService
+      embeddingConfigService,
+      nebulaService,
+      nebulaConnectionMonitor
     );
   }
 }

@@ -21,6 +21,18 @@ import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService'
 import { GraphQueryBuilder, IGraphQueryBuilder } from '../../database/query/GraphQueryBuilder';
 import { NebulaProjectManager } from '../../database/nebula/NebulaProjectManager';
 
+// Nebula图数据库服务
+import { NebulaService } from '../../database/nebula/NebulaService';
+import { INebulaService } from '../../database/nebula/NebulaService';
+import { NebulaConnectionManager } from '../../database/nebula/NebulaConnectionManager';
+import { INebulaConnectionManager } from '../../database/nebula/NebulaConnectionManager';
+import { NebulaSpaceManager } from '../../database/nebula/NebulaSpaceManager';
+import { INebulaSpaceManager } from '../../database/nebula/NebulaSpaceManager';
+import { NebulaQueryBuilder } from '../../database/nebula/NebulaQueryBuilder';
+import { INebulaQueryBuilder } from '../../database/nebula/NebulaQueryBuilder';
+import { NebulaGraphOperations } from '../../database/nebula/NebulaGraphOperations';
+import { INebulaGraphOperations } from '../../database/nebula/NebulaGraphOperations';
+
 export class DatabaseServiceRegistrar {
   static register(container: Container): void {
     // 通用数据库服务
@@ -45,5 +57,15 @@ export class DatabaseServiceRegistrar {
     container.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
     container.bind<IGraphQueryBuilder>(TYPES.IGraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
     container.bind<NebulaProjectManager>(TYPES.INebulaProjectManager).to(NebulaProjectManager).inSingletonScope();
+    
+    // Nebula图数据库服务
+    container.bind<NebulaService>(TYPES.NebulaService).to(NebulaService).inSingletonScope();
+    container.bind<INebulaService>(TYPES.INebulaService).to(NebulaService).inSingletonScope();
+    container.bind<NebulaConnectionManager>(TYPES.NebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
+    container.bind<INebulaConnectionManager>(TYPES.INebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
+    container.bind<NebulaSpaceManager>(TYPES.INebulaSpaceManager).to(NebulaSpaceManager).inSingletonScope();
+    container.bind<NebulaQueryBuilder>(TYPES.NebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
+    container.bind<INebulaQueryBuilder>(TYPES.INebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
+    container.bind<NebulaGraphOperations>(TYPES.INebulaGraphOperations).to(NebulaGraphOperations).inSingletonScope();
   }
 }
