@@ -92,3 +92,48 @@ export interface NebulaEdgeInfo {
     comment: string;
   }>;
 }
+
+// Nebula 节点类型
+export interface NebulaNode {
+  id: string;
+  label: string;
+  properties: Record<string, any>;
+}
+
+// Nebula 关系类型
+export interface NebulaRelationship {
+  id?: string;
+  type: string;
+  sourceId: string;
+  targetId: string;
+  properties?: Record<string, any>;
+}
+
+// 项目空间信息类型
+export interface ProjectSpaceInfo {
+  projectPath: string;
+  spaceName: string;
+  spaceInfo: NebulaSpaceInfo;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Nebula 事件类型
+export enum NebulaEventType {
+  CONNECTION_OPENED = 'connection_opened',
+  CONNECTION_CLOSED = 'connection_closed',
+  SPACE_CREATED = 'space_created',
+  SPACE_DELETED = 'space_deleted',
+  NODE_INSERTED = 'node_inserted',
+  RELATIONSHIP_INSERTED = 'relationship_inserted',
+  QUERY_EXECUTED = 'query_executed',
+  ERROR_OCCURRED = 'error_occurred'
+}
+
+// Nebula 事件接口
+export interface NebulaEvent {
+  type: NebulaEventType;
+  timestamp: Date;
+  data?: any;
+  error?: Error;
+}

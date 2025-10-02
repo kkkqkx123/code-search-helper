@@ -5,10 +5,34 @@ import { ConfigService } from '../../config/ConfigService';
 import { NebulaConnectionManager } from './NebulaConnectionManager';
 import { NebulaQueryBuilder } from './NebulaQueryBuilder';
 import { TYPES } from '../../types';
+import {
+  NebulaNode,
+  NebulaRelationship,
+  NebulaEventType,
+  NebulaEvent,
+  ProjectSpaceInfo,
+  NebulaSpaceInfo
+} from './NebulaTypes';
 
 export interface INebulaService {
+  // 基础操作
   initialize(): Promise<boolean>;
   isConnected(): boolean;
+  close(): Promise<void>;
+  
+  // 项目相关操作
+  createSpaceForProject(projectPath: string): Promise<boolean>;
+  deleteSpaceForProject(projectPath: string): Promise<boolean>;
+  
+  // 数据操作
+  insertNodes(nodes: NebulaNode[]): Promise<boolean>;
+  insertRelationships(relationships: NebulaRelationship[]): Promise<boolean>;
+  
+  // 查询操作
+  findNodesByLabel(label: string, filter?: any): Promise<any[]>;
+  findRelationships(type?: string, filter?: any): Promise<any[]>;
+  
+  // 兼容性方法（保持向后兼容）
   executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any>;
   executeWriteQuery(nGQL: string, parameters?: Record<string, any>): Promise<any>;
   executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<any[]>;
@@ -21,9 +45,11 @@ export interface INebulaService {
     properties?: Record<string, any>
   ): Promise<void>;
   findNodes(label: string, properties?: Record<string, any>): Promise<any[]>;
-  findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]>;
   getDatabaseStats(): Promise<any>;
-  close(): Promise<void>;
+  
+  // 事件处理
+  addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void;
+  removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void;
 }
 
 @injectable()
@@ -390,5 +416,279 @@ export class NebulaService implements INebulaService {
         { component: 'NebulaService', operation: 'close' }
       );
     }
+  }
+
+  /**
+   * 为项目创建空间
+   */
+  async createSpaceForProject(projectPath: string): Promise<boolean> {
+    if (!this.initialized) {
+      throw new Error('Nebula service is not initialized');
+    }
+
+    try {
+      // 生成空间名称（基于项目路径）
+      const spaceName = this.generateSpaceNameFromPath(projectPath);
+      
+      // 创建空间
+      const createSpaceQuery = `
+        CREATE SPACE IF NOT EXISTS ${spaceName} (
+          partition_num = 10,
+          replica_factor = 1,
+          vid_type = FIXED_STRING(128)
+        );
+      `;
+      
+      await this.executeWriteQuery(createSpaceQuery);
+      
+      // 使用新创建的空间
+      await this.useSpace(spaceName);
+      
+      // 初始化空间的标签和边类型
+      await this.initializeSpaceSchema();
+      
+      this.logger.info(`Created space for project: ${projectPath} -> ${spaceName}`);
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to create space for project ${projectPath}: ${errorMessage}`),
+        {
+          component: 'NebulaService',
+          operation: 'createSpaceForProject',
+          projectPath
+        }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 删除项目的空间
+   */
+  async deleteSpaceForProject(projectPath: string): Promise<boolean> {
+    if (!this.initialized) {
+      throw new Error('Nebula service is not initialized');
+    }
+
+    try {
+      const spaceName = this.generateSpaceNameFromPath(projectPath);
+      
+      // 删除空间
+      const dropSpaceQuery = `DROP SPACE IF EXISTS ${spaceName};`;
+      await this.executeWriteQuery(dropSpaceQuery);
+      
+      this.logger.info(`Deleted space for project: ${projectPath} -> ${spaceName}`);
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to delete space for project ${projectPath}: ${errorMessage}`),
+        {
+          component: 'NebulaService',
+          operation: 'deleteSpaceForProject',
+          projectPath
+        }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 批量插入节点
+   */
+  async insertNodes(nodes: NebulaNode[]): Promise<boolean> {
+    if (!this.initialized) {
+      throw new Error('Nebula service is not initialized');
+    }
+
+    try {
+      // 按标签分组节点
+      const nodesByLabel = this.groupNodesByLabel(nodes);
+      
+      // 为每个标签创建批量插入语句
+      const queries: Array<{ query: string; params: Record<string, any> }> = [];
+      
+      for (const [label, labelNodes] of Object.entries(nodesByLabel)) {
+        const query = `
+          INSERT VERTEX ${label}(${Object.keys(labelNodes[0].properties).join(', ')})
+          VALUES ${labelNodes.map(node =>
+            `"${node.id}": (${Object.values(node.properties).map(val =>
+              typeof val === 'string' ? `"${val}"` : val
+            ).join(', ')})`
+          ).join(', ')}
+        `;
+        
+        queries.push({ query, params: {} });
+      }
+      
+      // 执行事务
+      await this.executeTransaction(queries);
+      
+      this.logger.info(`Inserted ${nodes.length} nodes`);
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to insert nodes: ${errorMessage}`),
+        {
+          component: 'NebulaService',
+          operation: 'insertNodes',
+          nodeCount: nodes.length
+        }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 批量插入关系
+   */
+  async insertRelationships(relationships: NebulaRelationship[]): Promise<boolean> {
+    if (!this.initialized) {
+      throw new Error('Nebula service is not initialized');
+    }
+
+    try {
+      // 按类型分组关系
+      const relationshipsByType = this.groupRelationshipsByType(relationships);
+      
+      // 为每个类型创建批量插入语句
+      const queries: Array<{ query: string; params: Record<string, any> }> = [];
+      
+      for (const [type, typeRelationships] of Object.entries(relationshipsByType)) {
+        const query = `
+          INSERT EDGE ${type}(${typeRelationships[0].properties ? Object.keys(typeRelationships[0].properties).join(', ') : ''})
+          VALUES ${typeRelationships.map(rel =>
+            `"${rel.sourceId}" -> "${rel.targetId}": ${rel.properties ?
+              `(${Object.values(rel.properties).map(val =>
+                typeof val === 'string' ? `"${val}"` : val
+              ).join(', ')})` : '()'
+            }`
+          ).join(', ')}
+        `;
+        
+        queries.push({ query, params: {} });
+      }
+      
+      // 执行事务
+      await this.executeTransaction(queries);
+      
+      this.logger.info(`Inserted ${relationships.length} relationships`);
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to insert relationships: ${errorMessage}`),
+        {
+          component: 'NebulaService',
+          operation: 'insertRelationships',
+          relationshipCount: relationships.length
+        }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 根据标签查找节点
+   */
+  async findNodesByLabel(label: string, filter?: any): Promise<any[]> {
+    if (!this.initialized) {
+      throw new Error('Nebula service is not initialized');
+    }
+
+    try {
+      let query = `MATCH (v:${label}) RETURN v`;
+      
+      if (filter) {
+        const conditions = Object.entries(filter).map(([key, value]) =>
+          `v.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
+        ).join(' AND ');
+        query += ` WHERE ${conditions}`;
+      }
+      
+      const result = await this.executeReadQuery(query);
+      return result.data || [];
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Failed to find nodes by label: ${errorMessage}`),
+        {
+          component: 'NebulaService',
+          operation: 'findNodesByLabel',
+          label,
+          filter
+        }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 添加事件监听器
+   */
+  addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
+    // TODO: 实现事件监听器功能
+    // 这将在阶段二的统一事件系统中实现
+    this.logger.debug(`Event listener added for type: ${type}`);
+  }
+
+  /**
+   * 移除事件监听器
+   */
+  removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
+    // TODO: 实现事件监听器功能
+    // 这将在阶段二的统一事件系统中实现
+    this.logger.debug(`Event listener removed for type: ${type}`);
+  }
+
+  /**
+   * 从项目路径生成空间名称
+   */
+  private generateSpaceNameFromPath(projectPath: string): string {
+    // 将路径转换为有效的空间名称
+    return projectPath
+      .replace(/[^a-zA-Z0-9_]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '')
+      .toLowerCase();
+  }
+
+  /**
+   * 初始化空间模式
+   */
+  private async initializeSpaceSchema(): Promise<void> {
+    // 等待空间创建完成
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 创建标签和边类型
+    await this.initializeSchema();
+  }
+
+  /**
+   * 按标签分组节点
+   */
+  private groupNodesByLabel(nodes: NebulaNode[]): Record<string, NebulaNode[]> {
+    return nodes.reduce((acc, node) => {
+      if (!acc[node.label]) {
+        acc[node.label] = [];
+      }
+      acc[node.label].push(node);
+      return acc;
+    }, {} as Record<string, NebulaNode[]>);
+  }
+
+  /**
+   * 按类型分组关系
+   */
+  private groupRelationshipsByType(relationships: NebulaRelationship[]): Record<string, NebulaRelationship[]> {
+    return relationships.reduce((acc, relationship) => {
+      if (!acc[relationship.type]) {
+        acc[relationship.type] = [];
+      }
+      acc[relationship.type].push(relationship);
+      return acc;
+    }, {} as Record<string, NebulaRelationship[]>);
   }
 }

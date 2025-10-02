@@ -1,0 +1,620 @@
+import { injectable, inject } from 'inversify';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { TYPES } from '../../types';
+import { ProjectIdManager } from '../ProjectIdManager';
+import { INebulaSpaceManager } from './NebulaSpaceManager';
+import { INebulaConnectionManager } from './NebulaConnectionManager';
+import { INebulaQueryBuilder } from './NebulaQueryBuilder';
+import {
+  NebulaNode,
+  NebulaRelationship,
+  NebulaSpaceInfo,
+  ProjectSpaceInfo,
+  NebulaEventType,
+  NebulaEvent
+} from './NebulaTypes';
+
+/**
+ * Nebula 项目管理器接口
+ */
+export interface INebulaProjectManager {
+  createSpaceForProject(projectPath: string, config?: any): Promise<boolean>;
+  deleteSpaceForProject(projectPath: string): Promise<boolean>;
+  getSpaceInfoForProject(projectPath: string): Promise<NebulaSpaceInfo | null>;
+  clearSpaceForProject(projectPath: string): Promise<boolean>;
+  listProjectSpaces(): Promise<ProjectSpaceInfo[]>;
+  insertNodesForProject(projectPath: string, nodes: NebulaNode[]): Promise<boolean>;
+  insertRelationshipsForProject(projectPath: string, relationships: NebulaRelationship[]): Promise<boolean>;
+  findNodesForProject(projectPath: string, label: string, filter?: any): Promise<any[]>;
+  findRelationshipsForProject(projectPath: string, type?: string, filter?: any): Promise<any[]>;
+  addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void;
+  removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void;
+}
+
+/**
+ * Nebula 项目管理器实现
+ * 
+ * 负责项目相关的空间操作、项目ID管理、项目特定的图数据操作
+ */
+@injectable()
+export class NebulaProjectManager implements INebulaProjectManager {
+  private logger: LoggerService;
+  private errorHandler: ErrorHandlerService;
+  private projectIdManager: ProjectIdManager;
+  private spaceManager: INebulaSpaceManager;
+  private connectionManager: INebulaConnectionManager;
+  private queryBuilder: INebulaQueryBuilder;
+  private eventListeners: Map<NebulaEventType, ((event: NebulaEvent) => void)[]> = new Map();
+
+  constructor(
+    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
+    @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
+    @inject(TYPES.INebulaSpaceManager) spaceManager: INebulaSpaceManager,
+    @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager,
+    @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder
+  ) {
+    this.logger = logger;
+    this.errorHandler = errorHandler;
+    this.projectIdManager = projectIdManager;
+    this.spaceManager = spaceManager;
+    this.connectionManager = connectionManager;
+    this.queryBuilder = queryBuilder;
+  }
+
+  /**
+   * 为特定项目创建空间
+   */
+  async createSpaceForProject(projectPath: string, config?: any): Promise<boolean> {
+    try {
+      // 生成项目ID并获取空间名称
+      const projectId = await this.projectIdManager.generateProjectId(projectPath);
+      const spaceName = this.projectIdManager.getSpaceName(projectId);
+
+      if (!spaceName) {
+        throw new Error(`Failed to generate space name for project: ${projectPath}`);
+      }
+
+      const success = await this.spaceManager.createSpace(projectId, config);
+
+      if (success) {
+        this.emitEvent(NebulaEventType.SPACE_CREATED, {
+          projectPath,
+          projectId,
+          spaceName,
+          config
+        });
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to create space for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'NebulaProjectManager', operation: 'createSpaceForProject' }
+      );
+
+      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operation: 'createSpaceForProject',
+        projectPath
+      });
+
+      return false;
+    }
+  }
+
+  /**
+   * 删除项目的空间
+   */
+  async deleteSpaceForProject(projectPath: string): Promise<boolean> {
+    try {
+      // 获取项目ID和空间名称
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+
+      const spaceName = this.projectIdManager.getSpaceName(projectId);
+      if (!spaceName) {
+        throw new Error(`Space name not found for project: ${projectPath}`);
+      }
+
+      const success = await this.spaceManager.deleteSpace(projectId);
+
+      if (success) {
+        // 删除项目ID映射
+        this.projectIdManager.removeProject(projectPath);
+
+        this.emitEvent(NebulaEventType.SPACE_DELETED, {
+          projectPath,
+          projectId,
+          spaceName
+        });
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to delete space for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'NebulaProjectManager', operation: 'deleteSpaceForProject' }
+      );
+
+      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operation: 'deleteSpaceForProject',
+        projectPath
+      });
+
+      return false;
+    }
+  }
+
+  /**
+   * 获取项目的空间信息
+   */
+  async getSpaceInfoForProject(projectPath: string): Promise<NebulaSpaceInfo | null> {
+    try {
+      // 获取项目ID
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        return null;
+      }
+
+      return await this.spaceManager.getSpaceInfo(projectId);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to get space info for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'NebulaProjectManager', operation: 'getSpaceInfoForProject' }
+      );
+
+      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operation: 'getSpaceInfoForProject',
+        projectPath
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * 清空项目的空间
+   */
+  async clearSpaceForProject(projectPath: string): Promise<boolean> {
+    try {
+      // 获取项目ID
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+
+      const spaceName = this.projectIdManager.getSpaceName(projectId);
+      if (!spaceName) {
+        throw new Error(`Space name not found for project: ${projectPath}`);
+      }
+
+      const success = await this.spaceManager.clearSpace(projectId);
+
+      if (success) {
+        this.emitEvent(NebulaEventType.SPACE_DELETED, {
+          projectPath,
+          projectId,
+          spaceName,
+          cleared: true
+        });
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to clear space for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'NebulaProjectManager', operation: 'clearSpaceForProject' }
+      );
+
+      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operation: 'clearSpaceForProject',
+        projectPath
+      });
+
+      return false;
+    }
+  }
+
+  /**
+   * 列出所有项目空间
+   */
+  async listProjectSpaces(): Promise<ProjectSpaceInfo[]> {
+    try {
+      const projectPaths = this.projectIdManager.listAllProjectPaths();
+      const projectSpaces: ProjectSpaceInfo[] = [];
+
+      for (const projectPath of projectPaths) {
+        const projectId = this.projectIdManager.getProjectId(projectPath);
+        if (!projectId) {
+          continue;
+        }
+
+        const spaceName = this.projectIdManager.getSpaceName(projectId);
+        if (!spaceName) {
+          continue;
+        }
+
+        const spaceInfo = await this.spaceManager.getSpaceInfo(projectId);
+        if (spaceInfo) {
+          projectSpaces.push({
+            projectPath,
+            spaceName,
+            spaceInfo,
+            createdAt: this.projectIdManager.getProjectsByUpdateTime().find(
+              p => p.projectId === projectId
+            )?.updateTime || new Date(),
+            updatedAt: new Date()
+          });
+        }
+      }
+
+      return projectSpaces;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to list project spaces: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'NebulaProjectManager', operation: 'listProjectSpaces' }
+      );
+
+      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operation: 'listProjectSpaces'
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * 为项目插入节点
+   */
+  async insertNodesForProject(projectPath: string, nodes: NebulaNode[]): Promise<boolean> {
+    try {
+      // 获取项目ID和空间名称
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+
+      const spaceName = this.projectIdManager.getSpaceName(projectId);
+      if (!spaceName) {
+        throw new Error(`Space name not found for project: ${projectPath}`);
+      }
+
+      // 切换到项目空间
+      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
+
+      // 为所有节点添加项目ID（如果尚未存在）
+      const nodesWithProjectId = nodes.map(node => ({
+        ...node,
+        properties: {
+          ...node.properties,
+          projectId
+        }
+      }));
+
+      // 按标签分组节点
+      const nodesByLabel = nodesWithProjectId.reduce((acc, node) => {
+        if (!acc[node.label]) {
+          acc[node.label] = [];
+        }
+        acc[node.label].push(node);
+        return acc;
+      }, {} as Record<string, NebulaNode[]>);
+
+      // 为每个标签创建批量插入语句
+      const queries: Array<{ query: string; params: Record<string, any> }> = [];
+      
+      for (const [label, labelNodes] of Object.entries(nodesByLabel)) {
+        const query = `
+          INSERT VERTEX ${label}(${Object.keys(labelNodes[0].properties).join(', ')}) 
+          VALUES ${labelNodes.map(node => 
+            `"${node.id}": (${Object.values(node.properties).map(val => 
+              typeof val === 'string' ? `"${val}"` : val
+            ).join(', ')})`
+          ).join(', ')}
+        `;
+        
+        queries.push({ query, params: {} });
+      }
+
+      // 执行事务
+      const results = await this.connectionManager.executeTransaction(queries);
+      const success = results.every(result => !result.error);
+
+      if (success) {
+        this.emitEvent(NebulaEventType.NODE_INSERTED, {
+          projectPath,
+          projectId,
+          spaceName,
+          nodeCount: nodes.length
+        });
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to insert nodes for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'NebulaProjectManager', operation: 'insertNodesForProject' }
+      );
+
+      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operation: 'insertNodesForProject',
+        projectPath
+      });
+
+      return false;
+    }
+  }
+
+  /**
+   * 为项目插入关系
+   */
+  async insertRelationshipsForProject(projectPath: string, relationships: NebulaRelationship[]): Promise<boolean> {
+    try {
+      // 获取项目ID和空间名称
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+
+      const spaceName = this.projectIdManager.getSpaceName(projectId);
+      if (!spaceName) {
+        throw new Error(`Space name not found for project: ${projectPath}`);
+      }
+
+      // 切换到项目空间
+      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
+
+      // 为所有关系添加项目ID（如果尚未存在）
+      const relationshipsWithProjectId = relationships.map(rel => ({
+        ...rel,
+        properties: {
+          ...rel.properties,
+          projectId
+        }
+      }));
+
+      // 按类型分组关系
+      const relationshipsByType = relationshipsWithProjectId.reduce((acc, relationship) => {
+        if (!acc[relationship.type]) {
+          acc[relationship.type] = [];
+        }
+        acc[relationship.type].push(relationship);
+        return acc;
+      }, {} as Record<string, NebulaRelationship[]>);
+
+      // 为每个类型创建批量插入语句
+      const queries: Array<{ query: string; params: Record<string, any> }> = [];
+      
+      for (const [type, typeRelationships] of Object.entries(relationshipsByType)) {
+        const query = `
+          INSERT EDGE ${type}(${typeRelationships[0].properties ? Object.keys(typeRelationships[0].properties).join(', ') : ''}) 
+          VALUES ${typeRelationships.map(rel => 
+            `"${rel.sourceId}" -> "${rel.targetId}": ${rel.properties ? 
+              `(${Object.values(rel.properties).map(val => 
+                typeof val === 'string' ? `"${val}"` : val
+              ).join(', ')})` : '()'
+            }`
+          ).join(', ')}
+        `;
+        
+        queries.push({ query, params: {} });
+      }
+
+      // 执行事务
+      const results = await this.connectionManager.executeTransaction(queries);
+      const success = results.every(result => !result.error);
+
+      if (success) {
+        this.emitEvent(NebulaEventType.RELATIONSHIP_INSERTED, {
+          projectPath,
+          projectId,
+          spaceName,
+          relationshipCount: relationships.length
+        });
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to insert relationships for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'NebulaProjectManager', operation: 'insertRelationshipsForProject' }
+      );
+
+      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operation: 'insertRelationshipsForProject',
+        projectPath
+      });
+
+      return false;
+    }
+  }
+
+  /**
+   * 在项目中查找节点
+   */
+  async findNodesForProject(projectPath: string, label: string, filter?: any): Promise<any[]> {
+    try {
+      // 获取项目ID和空间名称
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+
+      const spaceName = this.projectIdManager.getSpaceName(projectId);
+      if (!spaceName) {
+        throw new Error(`Space name not found for project: ${projectPath}`);
+      }
+
+      // 切换到项目空间
+      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
+
+      // 构建查询
+      let query = `MATCH (v:${label}) WHERE v.projectId == "${projectId}" RETURN v`;
+      
+      if (filter) {
+        const conditions = Object.entries(filter).map(([key, value]) => 
+          `v.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
+        ).join(' AND ');
+        query += ` AND ${conditions}`;
+      }
+      
+      const result = await this.connectionManager.executeQuery(query);
+
+      this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
+        projectPath,
+        projectId,
+        spaceName,
+        query,
+        resultsCount: result.data?.length || 0
+      });
+
+      return result.data || [];
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to find nodes for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'NebulaProjectManager', operation: 'findNodesForProject' }
+      );
+
+      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operation: 'findNodesForProject',
+        projectPath
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * 在项目中查找关系
+   */
+  async findRelationshipsForProject(projectPath: string, type?: string, filter?: any): Promise<any[]> {
+    try {
+      // 获取项目ID和空间名称
+      const projectId = await this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project not found: ${projectPath}`);
+      }
+
+      const spaceName = this.projectIdManager.getSpaceName(projectId);
+      if (!spaceName) {
+        throw new Error(`Space name not found for project: ${projectPath}`);
+      }
+
+      // 切换到项目空间
+      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
+
+      // 构建查询
+      let query = `MATCH () -[e${type ? `:${type}` : ''}]-> () WHERE e.projectId == "${projectId}" RETURN e`;
+      
+      if (filter) {
+        const conditions = Object.entries(filter).map(([key, value]) => 
+          `e.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
+        ).join(' AND ');
+        query += ` AND ${conditions}`;
+      }
+      
+      const result = await this.connectionManager.executeQuery(query);
+
+      this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
+        projectPath,
+        projectId,
+        spaceName,
+        query,
+        resultsCount: result.data?.length || 0
+      });
+
+      return result.data || [];
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Failed to find relationships for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'NebulaProjectManager', operation: 'findRelationshipsForProject' }
+      );
+
+      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operation: 'findRelationshipsForProject',
+        projectPath
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * 添加事件监听器
+   */
+  addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
+    if (!this.eventListeners.has(type)) {
+      this.eventListeners.set(type, []);
+    }
+    this.eventListeners.get(type)!.push(listener);
+  }
+
+  /**
+   * 移除事件监听器
+   */
+  removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
+    const listeners = this.eventListeners.get(type);
+    if (listeners) {
+      const index = listeners.indexOf(listener);
+      if (index > -1) {
+        listeners.splice(index, 1);
+      }
+    }
+  }
+
+  /**
+   * 发射事件
+   */
+  private emitEvent(type: NebulaEventType, data?: any, error?: Error): void {
+    const event: NebulaEvent = {
+      type,
+      timestamp: new Date(),
+      data,
+      error
+    };
+
+    const listeners = this.eventListeners.get(type);
+    if (listeners) {
+      listeners.forEach(listener => {
+        try {
+          listener(event);
+        } catch (err) {
+          this.logger.error('Error in event listener', {
+            eventType: type,
+            error: err instanceof Error ? err.message : String(err)
+          });
+        }
+      });
+    }
+  }
+}
