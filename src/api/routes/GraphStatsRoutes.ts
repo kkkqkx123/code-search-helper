@@ -29,14 +29,14 @@ export class GraphStatsRoutes {
   }
 
   private setupRoutes(): void {
-    // 图统计信息路由
-    this.router.get('/stats/:projectId', this.getGraphStats.bind(this));
+    // 特定路径路由（需要在参数化路由之前定义）
     this.router.get('/stats/cache', this.getCacheStats.bind(this));
     this.router.get('/stats/performance', this.getPerformanceStats.bind(this));
-
-    // 监控端点路由
     this.router.get('/stats/health', this.healthCheck.bind(this));
     this.router.get('/stats/status', this.getServiceStatus.bind(this));
+
+    // 参数化路由（放在最后）
+    this.router.get('/stats/:projectId', this.getGraphStats.bind(this));
   }
 
   /**
