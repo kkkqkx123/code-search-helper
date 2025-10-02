@@ -123,22 +123,59 @@ describe('ApiServer', () => {
   beforeEach(() => {
     // 创建模拟的ConfigService
     const mockConfigService = {
-      get: jest.fn().mockReturnValue({
+      get: jest.fn().mockImplementation((key: string) => {
+        // 返回模拟的配置数据
+        if (key === 'environment') {
+          return {
+            nodeEnv: 'test',
+            port: 3001,
+            logLevel: 'info',
+            debug: false,
+          };
+        }
+        if (key === 'caching') {
+          return {
+            defaultTTL: 3600,
+            maxSize: 10000,
+            cleanupInterval: 300,
+          };
+        }
+        if (key === 'cache') {
+          return {
+            ttl: 3600,
+            maxEntries: 10000,
+            cleanupInterval: 300,
+          };
+        }
+        // 返回其他默认配置
+        return {};
+      }),
+      getAll: jest.fn().mockReturnValue({
         environment: {
           nodeEnv: 'test',
           port: 3001,
           logLevel: 'info',
           debug: false,
-        }
+        },
+        caching: {
+          defaultTTL: 3600,
+          maxSize: 10000,
+          cleanupInterval: 300,
+        },
+        cache: {
+          ttl: 3600,
+          maxEntries: 10000,
+          cleanupInterval: 300,
+        },
       }),
-      getAll: jest.fn().mockReturnValue({}),
       initialize: jest.fn().mockResolvedValue(undefined)
     };
     
     // Ensure ConfigService is properly bound in the dependency injection container
-    if (!diContainer.isBound(TYPES.ConfigService)) {
-      diContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService as any);
+    if (diContainer.isBound(TYPES.ConfigService)) {
+      diContainer.unbind(TYPES.ConfigService);
     }
+    diContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService as any);
     
     // Ensure ProjectStateManager is properly bound in the dependency injection container
     if (!diContainer.isBound(TYPES.ProjectStateManager)) {

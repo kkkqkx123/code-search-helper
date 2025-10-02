@@ -1,5 +1,4 @@
 import { MCPServer } from '../MCPServer';
-import * as fs from 'fs/promises';
 import { Logger } from '../../utils/logger';
 
 // Mock MCP SDK
@@ -7,8 +6,13 @@ jest.mock('@modelcontextprotocol/sdk/server/mcp.js');
 jest.mock('@modelcontextprotocol/sdk/server/stdio.js');
 
 // Mock fs
-jest.mock('fs/promises');
-const mockFs = fs as jest.Mocked<typeof fs>;
+jest.mock('fs/promises', () => ({
+  __esModule: true,
+  readFile: jest.fn()
+}));
+
+// Get the mocked function
+const { readFile } = require('fs/promises');
 
 describe('MCPServer', () => {
   let server: MCPServer;
@@ -29,7 +33,7 @@ describe('MCPServer', () => {
   describe('handleSearch', () => {
     it('should return search results when mock data is loaded', async () => {
       // Mock fs.readFile to return mock data
-      mockFs.readFile = jest.fn().mockResolvedValue(JSON.stringify({
+      readFile.mockResolvedValue(JSON.stringify({
         snippets: [
           {
             id: "snippet_001",
@@ -48,11 +52,11 @@ describe('MCPServer', () => {
       expect(result).toBeDefined();
       expect(result.results).toHaveLength(1);
       expect(result.query).toBe('calculate');
-      expect(mockFs.readFile).toHaveBeenCalledWith(expect.stringContaining('code-snippets.json'), 'utf-8');
+      expect(readFile).toHaveBeenCalledWith(expect.stringContaining('code-snippets.json'), 'utf-8');
     });
 
     it('should return default mock data when file reading fails', async () => {
-      mockFs.readFile = jest.fn().mockRejectedValue(new Error('File not found'));
+      readFile.mockRejectedValue(new Error('File not found'));
 
       const args = { query: 'calculate', options: { limit: 5 } };
       const result = await (server as any).handleSearch(args);
@@ -63,7 +67,7 @@ describe('MCPServer', () => {
     });
 
     it('should filter results based on query', async () => {
-      mockFs.readFile = jest.fn().mockResolvedValue(JSON.stringify({
+      readFile.mockResolvedValue(JSON.stringify({
         snippets: [
           {
             id: "snippet_001",
@@ -108,16 +112,16 @@ describe('MCPServer', () => {
   describe('loadMockData', () => {
     it('should load mock data from file', async () => {
       const mockData = { snippets: [] };
-      mockFs.readFile = jest.fn().mockResolvedValue(JSON.stringify(mockData));
+      readFile.mockResolvedValue(JSON.stringify(mockData));
 
       const data = await (server as any).loadMockData();
 
       expect(data).toEqual(mockData);
-      expect(mockFs.readFile).toHaveBeenCalledWith(expect.stringContaining('code-snippets.json'), 'utf-8');
+      expect(readFile).toHaveBeenCalledWith(expect.stringContaining('code-snippets.json'), 'utf-8');
     });
 
     it('should return default mock data when file reading fails', async () => {
-      mockFs.readFile = jest.fn().mockRejectedValue(new Error('File not found'));
+      readFile.mockRejectedValue(new Error('File not found'));
 
       const data = await (server as any).loadMockData();
 

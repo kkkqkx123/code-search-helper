@@ -219,7 +219,7 @@ describe('FileSystemTraversal', () => {
         read: jest.fn().mockResolvedValue({ bytesRead: 12, buffer: Buffer.from('test content') }),
         close: jest.fn().mockResolvedValue(undefined),
       };
-      mockedFs.open = jest.fn().mockResolvedValue(mockFileHandle as any);
+      jest.spyOn(mockedFs, 'open').mockResolvedValue(mockFileHandle as any);
 
       mockedGitignoreParser.parseGitignore.mockResolvedValue([]);
 

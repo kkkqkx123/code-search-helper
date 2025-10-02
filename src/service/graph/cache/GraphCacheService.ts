@@ -4,16 +4,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { CacheEntry, GraphAnalysisResult } from '../core/types';
-
-export interface IGraphCacheService {
-  getFromCache<T>(key: string): T | null;
-  setCache<T>(key: string, value: T, ttl?: number): void;
-  invalidateCache(key: string): void;
-  clearAllCache(): void;
-  getCacheStats(): { hits: number; misses: number; size: number };
-  getGraphStatsCache(): GraphAnalysisResult | null;
-  setGraphStatsCache(stats: GraphAnalysisResult): void;
-}
+import { LRUCache } from '../../parser/utils/LRUCache';
 
 export interface IGraphCacheService {
   getFromCache<T>(key: string): T | null;
@@ -25,11 +16,49 @@ export interface IGraphCacheService {
   setGraphStatsCache(stats: GraphAnalysisResult): void;
   isHealthy(): boolean;
   getStatus(): string;
+  cleanupExpired(): void;
+  getCacheUsage(): { total: number; used: number; percentage: number };
+  isNearCapacity(): boolean;
+  evictOldestEntries(ratio?: number): void;
+}
+
+// 扩展 LRUCache 以支持 TTL
+class TTLCache<K, V> extends LRUCache<K, CacheEntry<V>> {
+  get(key: K): CacheEntry<V> | undefined {
+    const item = super.get(key);
+    return item;
+  }
+
+  set(key: K, value: CacheEntry<V>): void {
+    super.set(key, value);
+  }
+
+  size(): number {
+    return super.size();
+  }
+
+  entries(): IterableIterator<[K, CacheEntry<V>]> {
+    // 创建一个 Map 来存储键值对
+    const entriesMap = new Map<K, CacheEntry<V>>();
+    
+    // 获取所有键
+    const keys = super.keys();
+    
+    // 为每个键获取值
+    for (const key of keys) {
+      const value = super.get(key);
+      if (value !== undefined) {
+        entriesMap.set(key, value);
+      }
+    }
+    
+    return entriesMap.entries();
+  }
 }
 
 @injectable()
 export class GraphCacheService implements IGraphCacheService {
-  private cache: Map<string, CacheEntry<any>> = new Map();
+  private cache: TTLCache<string, any>;
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
@@ -45,6 +74,10 @@ export class GraphCacheService implements IGraphCacheService {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
+    
+    // 从配置中获取缓存最大大小
+    const maxSize = this.configService.get('caching').maxSize || 10000;
+    this.cache = new TTLCache<string, any>(maxSize);
   }
 
   getFromCache<T>(key: string): T | null {
@@ -133,7 +166,7 @@ export class GraphCacheService implements IGraphCacheService {
     return {
       hits: this.hits,
       misses: this.misses,
-      size: this.cache.size,
+      size: this.cache.size(),
     };
   }
 
@@ -192,7 +225,9 @@ export class GraphCacheService implements IGraphCacheService {
       const now = Date.now();
       let cleanedCount = 0;
 
-      for (const [key, entry] of this.cache.entries()) {
+      // 使用 entries() 方法获取所有缓存项
+      const entries = Array.from(this.cache.entries());
+      for (const [key, entry] of entries) {
         if (now - entry.timestamp > entry.ttl) {
           this.cache.delete(key);
           cleanedCount++;
@@ -216,8 +251,8 @@ export class GraphCacheService implements IGraphCacheService {
    */
   getCacheUsage(): { total: number; used: number; percentage: number } {
     const total = this.configService.get('caching').maxSize || 10000;
-    const used = this.cache.size;
-    const percentage = total > 0 ? (used / total) * 10 : 0;
+    const used = this.cache.size();
+    const percentage = total > 0 ? (used / total) * 100 : 0; // 修复百分比计算
 
     return {
       total,
@@ -244,6 +279,7 @@ export class GraphCacheService implements IGraphCacheService {
         return;
       }
 
+      // 使用 entries() 方法获取所有缓存项
       const entries = Array.from(this.cache.entries());
       // 按时间戳排序（最旧的在前）
       entries.sort((a, b) => a[1].timestamp - b[1].timestamp);

@@ -35,17 +35,15 @@ class MockBatchOptimizer implements IBatchOptimizer {
       return this.config.defaultBatchSize;
     }
 
-    // Start with default batch size
-    let batchSize = this.config.defaultBatchSize;
+    // For very small item counts, use default batch size
+    if (itemsCount <= this.config.minBatchSize) {
+      return this.config.defaultBatchSize;
+    }
 
-    // Adjust based on items count
-    if (itemsCount < this.config.minBatchSize) {
-      batchSize = Math.max(itemsCount, this.config.minBatchSize);
-    } else if (itemsCount > this.config.maxBatchSize) {
-      batchSize = this.config.maxBatchSize;
-    } else {
+    // For item counts between min and max, scale appropriately
+    if (itemsCount < this.config.maxBatchSize) {
       // Scale batch size based on items count but keep within bounds
-      batchSize = Math.min(
+      return Math.min(
         Math.max(
           Math.floor(itemsCount * 0.1), // Use 10% of items as a base
           this.config.minBatchSize
@@ -54,7 +52,8 @@ class MockBatchOptimizer implements IBatchOptimizer {
       );
     }
 
-    return batchSize;
+    // For large item counts, use max batch size
+    return this.config.maxBatchSize;
   }
 
   async shouldRetry<T>(operation: () => Promise<T>, maxRetries: number = this.config.retryAttempts): Promise<T> {
