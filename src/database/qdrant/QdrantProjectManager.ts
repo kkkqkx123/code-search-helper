@@ -6,9 +6,11 @@ import { ProjectIdManager } from '../ProjectIdManager';
 import { IQdrantCollectionManager } from './QdrantCollectionManager';
 import { IQdrantVectorOperations } from './QdrantVectorOperations';
 import { IQdrantQueryUtils } from './QdrantQueryUtils';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../common/PerformanceMonitor';
 import {
   VectorPoint,
-  CollectionInfo,
+ CollectionInfo,
   SearchOptions,
   SearchResult
 } from './IVectorStore';
@@ -58,6 +60,8 @@ export interface IQdrantProjectManager {
 export class QdrantProjectManager implements IQdrantProjectManager {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
+  private databaseLogger: DatabaseLoggerService;
+  private performanceMonitor: PerformanceMonitor;
   private projectIdManager: ProjectIdManager;
   private collectionManager: IQdrantCollectionManager;
   private vectorOperations: IQdrantVectorOperations;
@@ -67,6 +71,8 @@ export class QdrantProjectManager implements IQdrantProjectManager {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
+    @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
     @inject(TYPES.IQdrantCollectionManager) collectionManager: IQdrantCollectionManager,
     @inject(TYPES.IQdrantVectorOperations) vectorOperations: IQdrantVectorOperations,
@@ -74,6 +80,8 @@ export class QdrantProjectManager implements IQdrantProjectManager {
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
+    this.databaseLogger = databaseLogger;
+    this.performanceMonitor = performanceMonitor;
     this.projectIdManager = projectIdManager;
     this.collectionManager = collectionManager;
     this.vectorOperations = vectorOperations;
@@ -89,6 +97,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
     distance: VectorDistance = 'Cosine'
   ): Promise<boolean> {
     try {
+      const startTime = Date.now();
       // 生成项目ID并获取集合名称
       const projectId = await this.projectIdManager.generateProjectId(projectPath);
       const collectionName = this.projectIdManager.getCollectionName(projectId);
@@ -99,7 +108,19 @@ export class QdrantProjectManager implements IQdrantProjectManager {
 
       const success = await this.collectionManager.createCollection(collectionName, vectorSize, distance);
 
+      const duration = Date.now() - startTime;
       if (success) {
+        this.performanceMonitor.recordOperation('createCollectionForProject', duration, {
+          projectPath,
+          vectorSize,
+          distance
+        });
+        await this.databaseLogger.logCollectionOperation('create', projectPath, 'success', {
+          collectionName,
+          vectorSize,
+          distance,
+          duration
+        });
         this.emitEvent(QdrantEventType.COLLECTION_CREATED, {
           projectPath,
           projectId,
@@ -107,10 +128,37 @@ export class QdrantProjectManager implements IQdrantProjectManager {
           vectorSize,
           distance
         });
+      } else {
+        this.performanceMonitor.recordOperation('createCollectionForProject', duration, {
+          projectPath,
+          vectorSize,
+          distance,
+          error: 'Failed to create collection'
+        });
+        await this.databaseLogger.logCollectionOperation('create', projectPath, 'failed', {
+          collectionName,
+          vectorSize,
+          distance,
+          duration,
+          error: 'Failed to create collection'
+        });
       }
 
       return success;
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('createCollectionForProject', duration, {
+        projectPath,
+        vectorSize,
+        distance,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logCollectionOperation('create', projectPath, 'failed', {
+        vectorSize,
+        distance,
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(
         new Error(
           `Failed to create collection for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
@@ -133,6 +181,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    */
   async upsertVectorsForProject(projectPath: string, vectors: VectorPoint[]): Promise<boolean> {
     try {
+      const startTime = Date.now();
       // 获取项目ID和集合名称
       const projectId = await this.projectIdManager.getProjectId(projectPath);
       if (!projectId) {
@@ -155,17 +204,48 @@ export class QdrantProjectManager implements IQdrantProjectManager {
 
       const success = await this.vectorOperations.upsertVectors(collectionName, vectorsWithProjectId);
 
+      const duration = Date.now() - startTime;
       if (success) {
+        this.performanceMonitor.recordOperation('upsertVectorsForProject', duration, {
+          projectPath,
+          vectorCount: vectors.length
+        });
+        await this.databaseLogger.logVectorOperation('upsert', projectPath, 'success', {
+          vectorCount: vectors.length,
+          duration
+        });
         this.emitEvent(QdrantEventType.VECTORS_UPSERTED, {
           projectPath,
           projectId,
           collectionName,
           vectorCount: vectors.length
         });
+      } else {
+        this.performanceMonitor.recordOperation('upsertVectorsForProject', duration, {
+          projectPath,
+          vectorCount: vectors.length,
+          error: 'Failed to upsert vectors'
+        });
+        await this.databaseLogger.logVectorOperation('upsert', projectPath, 'failed', {
+          vectorCount: vectors.length,
+          duration,
+          error: 'Failed to upsert vectors'
+        });
       }
 
       return success;
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('upsertVectorsForProject', duration, {
+        projectPath,
+        vectorCount: vectors.length,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logVectorOperation('upsert', projectPath, 'failed', {
+        vectorCount: vectors.length,
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(
         new Error(
           `Failed to upsert vectors for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
@@ -192,6 +272,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
     options: SearchOptions = {}
   ): Promise<SearchResult[]> {
     try {
+      const startTime = Date.now();
       // 获取项目ID和集合名称
       const projectId = await this.projectIdManager.getProjectId(projectPath);
       if (!projectId) {
@@ -216,6 +297,17 @@ export class QdrantProjectManager implements IQdrantProjectManager {
 
       const results = await this.vectorOperations.searchVectors(collectionName, query, searchOptions);
 
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('searchVectorsForProject', duration, {
+        projectPath,
+        queryLength: query.length,
+        resultsCount: results.length
+      });
+      await this.databaseLogger.logQueryOperation('search', projectPath, 'success', {
+        queryLength: query.length,
+        resultsCount: results.length,
+        duration
+      });
       this.emitEvent(QdrantEventType.VECTORS_SEARCHED, {
         projectPath,
         projectId,
@@ -227,6 +319,17 @@ export class QdrantProjectManager implements IQdrantProjectManager {
 
       return results;
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('searchVectorsForProject', duration, {
+        projectPath,
+        queryLength: query.length,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logQueryOperation('search', projectPath, 'failed', {
+        queryLength: query.length,
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(
         new Error(
           `Failed to search vectors for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
@@ -249,6 +352,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    */
   async getCollectionInfoForProject(projectPath: string): Promise<CollectionInfo | null> {
     try {
+      const startTime = Date.now();
       // 获取项目ID和集合名称
       const projectId = await this.projectIdManager.getProjectId(projectPath);
       if (!projectId) {
@@ -260,8 +364,27 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         throw new Error(`Collection name not found for project: ${projectPath}`);
       }
 
-      return await this.collectionManager.getCollectionInfo(collectionName);
+      const result = await this.collectionManager.getCollectionInfo(collectionName);
+      
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('getCollectionInfoForProject', duration, {
+        projectPath
+      });
+      await this.databaseLogger.logCollectionOperation('info', projectPath, 'success', {
+        duration
+      });
+
+      return result;
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('getCollectionInfoForProject', duration, {
+        projectPath,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logCollectionOperation('info', projectPath, 'failed', {
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(
         new Error(
           `Failed to get collection info for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
@@ -284,6 +407,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    */
   async deleteCollectionForProject(projectPath: string): Promise<boolean> {
     try {
+      const startTime = Date.now();
       // 获取项目ID和集合名称
       const projectId = await this.projectIdManager.getProjectId(projectPath);
       if (!projectId) {
@@ -297,7 +421,15 @@ export class QdrantProjectManager implements IQdrantProjectManager {
 
       const success = await this.collectionManager.deleteCollection(collectionName);
 
+      const duration = Date.now() - startTime;
       if (success) {
+        this.performanceMonitor.recordOperation('deleteCollectionForProject', duration, {
+          projectPath
+        });
+        await this.databaseLogger.logCollectionOperation('delete', projectPath, 'success', {
+          collectionName,
+          duration
+        });
         // 删除项目ID映射
         this.projectIdManager.removeProject(projectPath);
 
@@ -306,10 +438,29 @@ export class QdrantProjectManager implements IQdrantProjectManager {
           projectId,
           collectionName
         });
+      } else {
+        this.performanceMonitor.recordOperation('deleteCollectionForProject', duration, {
+          projectPath,
+          error: 'Failed to delete collection'
+        });
+        await this.databaseLogger.logCollectionOperation('delete', projectPath, 'failed', {
+          collectionName,
+          duration,
+          error: 'Failed to delete collection'
+        });
       }
 
       return success;
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('deleteCollectionForProject', duration, {
+        projectPath,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logCollectionOperation('delete', projectPath, 'failed', {
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(
         new Error(
           `Failed to delete collection for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
@@ -332,6 +483,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    */
   async getProjectInfo(projectPath: string): Promise<ProjectInfo | null> {
     try {
+      const startTime = Date.now();
       const projectId = await this.projectIdManager.getProjectId(projectPath);
       if (!projectId) {
         return null;
@@ -344,6 +496,14 @@ export class QdrantProjectManager implements IQdrantProjectManager {
 
       const collectionInfo = await this.collectionManager.getCollectionInfo(collectionName);
 
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('getProjectInfo', duration, {
+        projectPath
+      });
+      await this.databaseLogger.logProjectOperation('info', projectPath, 'success', {
+        duration
+      });
+
       return {
         id: projectId,
         path: projectPath,
@@ -352,6 +512,15 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         distance: collectionInfo?.vectors.distance
       };
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('getProjectInfo', duration, {
+        projectPath,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logProjectOperation('info', projectPath, 'failed', {
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.logger.warn('Failed to get project info', {
         projectPath,
         error: error instanceof Error ? error.message : String(error),
@@ -365,6 +534,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    */
   async listProjects(): Promise<ProjectInfo[]> {
     try {
+      const startTime = Date.now();
       const projectPaths = this.projectIdManager.listAllProjectPaths();
       const projects: ProjectInfo[] = [];
 
@@ -375,8 +545,25 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         }
       }
 
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('listProjects', duration, {
+        projectCount: projects.length
+      });
+      await this.databaseLogger.logProjectOperation('list', 'all', 'success', {
+        projectCount: projects.length,
+        duration
+      });
+
       return projects;
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('listProjects', duration, {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logProjectOperation('list', 'all', 'failed', {
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(
         new Error(
           `Failed to list projects: ${error instanceof Error ? error.message : String(error)}`
@@ -398,6 +585,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    */
   async deleteVectorsForProject(projectPath: string, vectorIds: string[]): Promise<boolean> {
     try {
+      const startTime = Date.now();
       // 获取项目ID和集合名称
       const projectId = await this.projectIdManager.getProjectId(projectPath);
       if (!projectId) {
@@ -411,7 +599,16 @@ export class QdrantProjectManager implements IQdrantProjectManager {
 
       const success = await this.vectorOperations.deletePoints(collectionName, vectorIds);
 
+      const duration = Date.now() - startTime;
       if (success) {
+        this.performanceMonitor.recordOperation('deleteVectorsForProject', duration, {
+          projectPath,
+          vectorCount: vectorIds.length
+        });
+        await this.databaseLogger.logVectorOperation('delete', projectPath, 'success', {
+          vectorCount: vectorIds.length,
+          duration
+        });
         this.emitEvent(QdrantEventType.POINTS_DELETED, {
           projectPath,
           projectId,
@@ -419,10 +616,32 @@ export class QdrantProjectManager implements IQdrantProjectManager {
           deletedCount: vectorIds.length,
           vectorIds
         });
+      } else {
+        this.performanceMonitor.recordOperation('deleteVectorsForProject', duration, {
+          projectPath,
+          vectorCount: vectorIds.length,
+          error: 'Failed to delete vectors'
+        });
+        await this.databaseLogger.logVectorOperation('delete', projectPath, 'failed', {
+          vectorCount: vectorIds.length,
+          duration,
+          error: 'Failed to delete vectors'
+        });
       }
 
       return success;
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('deleteVectorsForProject', duration, {
+        projectPath,
+        vectorCount: vectorIds.length,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logVectorOperation('delete', projectPath, 'failed', {
+        vectorCount: vectorIds.length,
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(
         new Error(
           `Failed to delete vectors for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
@@ -445,6 +664,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    */
   async clearProject(projectPath: string): Promise<boolean> {
     try {
+      const startTime = Date.now();
       // 获取项目ID和集合名称
       const projectId = await this.projectIdManager.getProjectId(projectPath);
       if (!projectId) {
@@ -458,17 +678,42 @@ export class QdrantProjectManager implements IQdrantProjectManager {
 
       const success = await this.vectorOperations.clearCollection(collectionName);
 
+      const duration = Date.now() - startTime;
       if (success) {
+        this.performanceMonitor.recordOperation('clearProject', duration, {
+          projectPath
+        });
+        await this.databaseLogger.logProjectOperation('clear', projectPath, 'success', {
+          duration
+        });
         this.emitEvent(QdrantEventType.POINTS_DELETED, {
           projectPath,
           projectId,
           collectionName,
           cleared: true
         });
+      } else {
+        this.performanceMonitor.recordOperation('clearProject', duration, {
+          projectPath,
+          error: 'Failed to clear project'
+        });
+        await this.databaseLogger.logProjectOperation('clear', projectPath, 'failed', {
+          duration,
+          error: 'Failed to clear project'
+        });
       }
 
       return success;
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('clearProject', duration, {
+        projectPath,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logProjectOperation('clear', projectPath, 'failed', {
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(
         new Error(
           `Failed to clear project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`
@@ -635,6 +880,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
    */
   async getProjectDataById(projectPath: string, id: string): Promise<any> {
     try {
+      const startTime = Date.now();
       // 获取项目ID和集合名称
       const projectId = await this.projectIdManager.getProjectId(projectPath);
       if (!projectId) {
@@ -662,8 +908,30 @@ export class QdrantProjectManager implements IQdrantProjectManager {
         1
       );
 
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('getProjectDataById', duration, {
+        projectPath,
+        id
+      });
+      await this.databaseLogger.logQueryOperation('getById', projectPath, 'success', {
+        id,
+        duration,
+        found: results.length > 0
+      });
+
       return results.length > 0 ? results[0] : null;
     } catch (error) {
+      const duration = Date.now() - Date.now(); // This is approximate since we don't have exact startTime
+      this.performanceMonitor.recordOperation('getProjectDataById', duration, {
+        projectPath,
+        id,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      await this.databaseLogger.logQueryOperation('getById', projectPath, 'failed', {
+        id,
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(
         new Error(
           `Failed to get project data by ID ${id} for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`

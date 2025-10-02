@@ -6,6 +6,7 @@ import { ConfigService } from '../../config/ConfigService';
 import { TYPES } from '../../types';
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
 import { PerformanceMonitor } from '../common/PerformanceMonitor';
+import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import {
   QdrantConfig,
   ConnectionStatus,
@@ -43,6 +44,8 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
   private config: QdrantConfig;
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
+  private databaseLogger: DatabaseLoggerService;
+  private performanceMonitor: PerformanceMonitor;
   private isConnectedFlag: boolean = false;
   private isInitialized: boolean = false;
   private connectionStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED;
@@ -51,10 +54,14 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
   constructor(
     @inject(TYPES.ConfigService) private configService: ConfigService,
     @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService
+    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
+    @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
+    this.databaseLogger = databaseLogger;
+    this.performanceMonitor = performanceMonitor;
 
     // 初始化默认配置，实际配置将在initialize()方法中获取
     this.config = {
@@ -175,11 +182,12 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
       this.isInitialized = false;
       this.connectionStatus = ConnectionStatus.DISCONNECTED;
 
-      this.logger.info('Qdrant client connection closed');
+      await this.databaseLogger.logConnectionEvent('disconnect', 'success', { message: 'Qdrant client connection closed' });
       this.emitEvent(QdrantEventType.DISCONNECTED, { status: 'disconnected' });
     } catch (error) {
-      this.logger.warn('Error closing Qdrant client', {
-        error: error instanceof Error ? error.message : String(error)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await this.databaseLogger.logConnectionEvent('disconnect', 'failed', {
+        error: errorMessage
       });
 
       this.emitEvent(QdrantEventType.ERROR, {
@@ -265,9 +273,17 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
         try {
           listener(event);
         } catch (err) {
-          this.logger.error('Error in event listener', {
-            eventType: type,
-            error: err instanceof Error ? err.message : String(err)
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.ERROR_OCCURRED,
+            timestamp: new Date(),
+            source: 'qdrant',
+            data: {
+              operation: 'event_listener',
+              eventType: type,
+              error: errorMessage
+            },
+            error: err instanceof Error ? err : new Error(errorMessage)
           });
         }
       });
@@ -289,7 +305,7 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
 
     // 如果客户端已经初始化，需要重新创建客户端
     if (this.isInitialized) {
-      this.logger.info('Configuration updated, client will be reinitialized on next use');
+      this.databaseLogger.logConnectionEvent('config_update', 'success', { message: 'Configuration updated, client will be reinitialized on next use' });
       this.isInitialized = false;
     }
   }

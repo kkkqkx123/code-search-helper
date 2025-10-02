@@ -151,6 +151,70 @@ export class DatabaseLoggerService {
   }
 
   /**
+   * 记录集合操作日志
+   * @param operation 操作类型
+   * @param projectPath 项目路径
+   * @param status 操作状态
+   * @param details 详细信息
+   */
+  async logCollectionOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
+    const message = `Collection ${operation} for project ${projectPath} ${status}`;
+    if (status === 'success') {
+      await this.loggerService.info(message, details);
+    } else {
+      await this.loggerService.error(message, details);
+    }
+  }
+
+  /**
+   * 记录向量操作日志
+   * @param operation 操作类型
+   * @param projectPath 项目路径
+   * @param status 操作状态
+   * @param details 详细信息
+   */
+  async logVectorOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
+    const message = `Vector ${operation} for project ${projectPath} ${status}`;
+    if (status === 'success') {
+      await this.loggerService.info(message, details);
+    } else {
+      await this.loggerService.error(message, details);
+    }
+  }
+
+  /**
+   * 记录查询操作日志
+   * @param operation 操作类型
+   * @param projectPath 项目路径
+   * @param status 操作状态
+   * @param details 详细信息
+   */
+  async logQueryOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
+    const message = `Query ${operation} for project ${projectPath} ${status}`;
+    if (status === 'success') {
+      await this.loggerService.info(message, details);
+    } else {
+      await this.loggerService.error(message, details);
+    }
+  }
+
+  /**
+   * 记录项目操作日志
+   * @param operation 操作类型
+   * @param projectPath 项目路径
+   * @param status 操作状态
+   * @param details 详细信息
+   */
+  async logProjectOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
+    const message = `Project ${operation} for project ${projectPath} ${status}`;
+    if (status === 'success') {
+      await this.loggerService.info(message, details);
+    } else {
+      await this.loggerService.error(message, details);
+    }
+  }
+
+  /**
    * 更新日志级别
    * @param level 新的日志级别
    */

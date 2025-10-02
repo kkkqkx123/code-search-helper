@@ -4,6 +4,9 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { IQdrantConnectionManager } from './QdrantConnectionManager';
 import { IQdrantCollectionManager } from './QdrantCollectionManager';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../common/PerformanceMonitor';
+import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import {
   VectorPoint,
   SearchOptions,
@@ -44,6 +47,8 @@ export interface IQdrantVectorOperations {
 export class QdrantVectorOperations implements IQdrantVectorOperations {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
+  private databaseLogger: DatabaseLoggerService;
+  private performanceMonitor: PerformanceMonitor;
   private connectionManager: IQdrantConnectionManager;
   private collectionManager: IQdrantCollectionManager;
   private eventListeners: Map<QdrantEventType, ((event: QdrantEvent) => void)[]> = new Map();
@@ -52,12 +57,16 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.IQdrantConnectionManager) connectionManager: IQdrantConnectionManager,
-    @inject(TYPES.IQdrantCollectionManager) collectionManager: IQdrantCollectionManager
+    @inject(TYPES.IQdrantCollectionManager) collectionManager: IQdrantCollectionManager,
+    @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.connectionManager = connectionManager;
     this.collectionManager = collectionManager;
+    this.databaseLogger = databaseLogger;
+    this.performanceMonitor = performanceMonitor;
   }
 
   /**
@@ -87,7 +96,12 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
       }
 
       if (vectors.length === 0) {
-        this.logger.debug(`No vectors to upsert for collection ${collectionName}`);
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.SERVICE_INITIALIZED,
+          timestamp: new Date(),
+          source: 'qdrant',
+          data: { operation: 'upsert', collectionName, message: `No vectors to upsert for collection ${collectionName}` }
+        });
         return batchResult;
       }
 
@@ -107,10 +121,19 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         const batch = processedVectors.slice(i, i + batchSize);
         const batchNumber = Math.floor(i / batchSize) + 1;
 
-        this.logger.debug(`Processing batch ${batchNumber}/${totalBatches} for collection ${collectionName}`, {
-          batchSize: batch.length,
-          startIdx: i,
-          endIdx: i + batch.length
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.SERVICE_INITIALIZED,
+          timestamp: new Date(),
+          source: 'qdrant',
+          data: {
+            operation: 'upsert_batch',
+            collectionName,
+            batchNumber,
+            totalBatches,
+            batchSize: batch.length,
+            startIdx: i,
+            endIdx: i + batch.length
+          }
         });
 
         try {
@@ -125,15 +148,21 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
           // 现在只支持数组格式的向量
           const vectorForDebug = processedPoints[0]?.vector;
 
-          this.logger.debug('Upserting points to Qdrant', {
-            collectionName,
-            pointCount: processedPoints.length,
-            samplePoint: {
-              id: processedPoints[0]?.id,
-              vectorLength: vectorForDebug?.length,
-              vectorSample: vectorForDebug ? vectorForDebug.slice(0, 3) : undefined,
-              payloadSample: Object.keys(processedPoints[0]?.payload || {}),
-              vectorFormat: typeof processedPoints[0]?.vector
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.SERVICE_INITIALIZED,
+            timestamp: new Date(),
+            source: 'qdrant',
+            data: {
+              operation: 'upsert_points',
+              collectionName,
+              pointCount: processedPoints.length,
+              samplePoint: {
+                id: processedPoints[0]?.id,
+                vectorLength: vectorForDebug?.length,
+                vectorSample: vectorForDebug ? vectorForDebug.slice(0, 3) : undefined,
+                payloadSample: Object.keys(processedPoints[0]?.payload || {}),
+                vectorFormat: typeof processedPoints[0]?.vector
+              }
             }
           });
 
@@ -144,9 +173,18 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
 
           batchResult.processedCount += batch.length;
 
-          this.logger.debug(`Successfully upserted batch ${batchNumber}/${totalBatches}`, {
-            upsertedCount: batch.length,
-            totalProcessed: batchResult.processedCount
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.SERVICE_INITIALIZED,
+            timestamp: new Date(),
+            source: 'qdrant',
+            data: {
+              operation: 'upsert_batch_success',
+              collectionName,
+              batchNumber,
+              totalBatches,
+              upsertedCount: batch.length,
+              totalProcessed: batchResult.processedCount
+            }
           });
         } catch (batchError) {
           batchResult.failedCount += batch.length;
@@ -155,11 +193,20 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
           const error = batchError instanceof Error ? batchError : new Error(String(batchError));
           batchResult.errors!.push(error);
 
-          this.logger.error(`Failed to upsert batch ${batchNumber}/${totalBatches}`, {
-            batchSize: batch.length,
-            error: error.message,
-            sampleIds: batch.slice(0, 3).map(p => p.id),
-            collectionName
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.ERROR_OCCURRED,
+            timestamp: new Date(),
+            source: 'qdrant',
+            data: {
+              operation: 'upsert_batch_failed',
+              collectionName,
+              batchNumber,
+              totalBatches,
+              batchSize: batch.length,
+              error: error.message,
+              sampleIds: batch.slice(0, 3).map(p => p.id)
+            },
+            error: error
           });
 
           if (!finalOptions.skipInvalidPoints) {
@@ -168,10 +215,12 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         }
       }
 
-      this.logger.info(`Upserted ${batchResult.processedCount} points to collection ${collectionName}`, {
+      await this.databaseLogger.logBatchOperation('upsert', batchResult.processedCount, {
+        collectionName,
         totalVectors: vectors.length,
         processedCount: batchResult.processedCount,
-        failedCount: batchResult.failedCount
+        failedCount: batchResult.failedCount,
+        duration: this.performanceMonitor.getOperationStats('upsert_vectors')?.averageDuration
       });
 
       this.emitEvent(QdrantEventType.VECTORS_UPSERTED, {
@@ -186,11 +235,18 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
       batchResult.success = false;
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      this.logger.error(`Failed to upsert points to ${collectionName}`, {
-        collectionName,
-        vectorCount: vectors.length,
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.ERROR_OCCURRED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'upsert_failed',
+          collectionName,
+          vectorCount: vectors.length,
+          error: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined
+        },
+        error: error instanceof Error ? error : new Error(errorMessage)
       });
 
       this.errorHandler.handleError(
@@ -275,10 +331,17 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         },
       }));
 
-      this.logger.debug(`Search completed for collection ${collectionName}`, {
-        queryLength: query.length,
-        resultsCount: processedResults.length,
-        searchOptions: finalOptions
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'search_completed',
+          collectionName,
+          queryLength: query.length,
+          resultsCount: processedResults.length,
+          searchOptions: finalOptions
+        }
       });
 
       this.emitEvent(QdrantEventType.VECTORS_SEARCHED, {
@@ -330,7 +393,10 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         },
       });
 
-      this.logger.info(`Deleted ${pointIds.length} points from collection ${collectionName}`);
+      await this.databaseLogger.logBatchOperation('delete', pointIds.length, {
+        collectionName,
+        operation: 'delete_points'
+      });
 
       this.emitEvent(QdrantEventType.POINTS_DELETED, {
         collectionName,
@@ -380,7 +446,16 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         },
       });
 
-      this.logger.info(`Cleared collection ${collectionName}`);
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'clear_collection',
+          collectionName,
+          message: `Cleared collection ${collectionName}`
+        }
+      });
       return true;
     } catch (error) {
       this.errorHandler.handleError(
@@ -413,9 +488,15 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
       const info = await client.getCollection(collectionName);
       return info.points_count || 0;
     } catch (error) {
-      this.logger.warn('Failed to get point count', {
-        collectionName,
-        error: error instanceof Error ? error.message : String(error),
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_ERROR,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'get_point_count_failed',
+          collectionName,
+          error: error instanceof Error ? error.message : String(error)
+        }
       });
       return 0;
     }
@@ -432,22 +513,37 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
     const firstVector = vectors[0];
     const vectorSize = firstVector.vector.length;
 
-    this.logger.debug(`Validating vectors for collection ${collectionName}`, {
-      vectorCount: vectors.length,
-      vectorSize,
-      sampleIds: vectors.slice(0, 3).map(v => v.id)
+    await this.databaseLogger.logDatabaseEvent({
+      type: DatabaseEventType.SERVICE_INITIALIZED,
+      timestamp: new Date(),
+      source: 'qdrant',
+      data: {
+        operation: 'validate_vectors',
+        collectionName,
+        vectorCount: vectors.length,
+        vectorSize,
+        sampleIds: vectors.slice(0, 3).map(v => v.id)
+      }
     });
 
     // 检查所有向量的维度是否一致
     const inconsistentVectors = vectors.filter(v => v.vector.length !== vectorSize);
     if (inconsistentVectors.length > 0) {
-      this.logger.error(`Inconsistent vector dimensions detected`, {
-        expectedSize: vectorSize,
-        inconsistentCount: inconsistentVectors.length,
-        sampleInconsistent: inconsistentVectors.slice(0, 3).map(v => ({
-          id: v.id,
-          size: v.vector.length
-        }))
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.ERROR_OCCURRED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'vector_validation_failed',
+          collectionName,
+          expectedSize: vectorSize,
+          inconsistentCount: inconsistentVectors.length,
+          sampleInconsistent: inconsistentVectors.slice(0, 3).map(v => ({
+            id: v.id,
+            size: v.vector.length
+          }))
+        },
+        error: new Error(`${ERROR_MESSAGES.INVALID_VECTOR_DIMENSIONS}: expected ${vectorSize}, found varying sizes`)
       });
       throw new Error(`${ERROR_MESSAGES.INVALID_VECTOR_DIMENSIONS}: expected ${vectorSize}, found varying sizes`);
     }
@@ -456,17 +552,30 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
     try {
       const collectionInfo = await this.collectionManager.getCollectionInfo(collectionName);
       if (collectionInfo && collectionInfo.vectors.size !== vectorSize) {
-        this.logger.error(`Vector dimension mismatch with collection`, {
-          collectionSize: collectionInfo.vectors.size,
-          vectorSize,
-          collectionName
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.ERROR_OCCURRED,
+          timestamp: new Date(),
+          source: 'qdrant',
+          data: {
+            operation: 'vector_dimension_mismatch',
+            collectionName,
+            collectionSize: collectionInfo.vectors.size,
+            vectorSize
+          },
+          error: new Error(`${ERROR_MESSAGES.VECTOR_DIMENSION_MISMATCH}: collection expects ${collectionInfo.vectors.size}, got ${vectorSize}`)
         });
         throw new Error(`${ERROR_MESSAGES.VECTOR_DIMENSION_MISMATCH}: collection expects ${collectionInfo.vectors.size}, got ${vectorSize}`);
       }
     } catch (collectionError) {
-      this.logger.warn(`Failed to validate collection vector dimensions`, {
-        collectionName,
-        error: collectionError instanceof Error ? collectionError.message : String(collectionError)
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_ERROR,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'collection_validation_failed',
+          collectionName,
+          error: collectionError instanceof Error ? collectionError.message : String(collectionError)
+        }
       });
     }
   }
@@ -683,13 +792,20 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
 
     const listeners = this.eventListeners.get(type);
     if (listeners) {
-      listeners.forEach(listener => {
+      listeners.forEach(async listener => {
         try {
           listener(event);
         } catch (err) {
-          this.logger.error('Error in event listener', {
-            eventType: type,
-            error: err instanceof Error ? err.message : String(err)
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.ERROR_OCCURRED,
+            timestamp: new Date(),
+            source: 'qdrant',
+            data: {
+              operation: 'event_listener_error',
+              eventType: type,
+              error: err instanceof Error ? err.message : String(err)
+            },
+            error: err instanceof Error ? err : new Error(String(err))
           });
         }
       });

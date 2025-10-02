@@ -3,6 +3,9 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { IQdrantConnectionManager } from './QdrantConnectionManager';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../common/PerformanceMonitor';
+import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import {
   CollectionInfo,
   VectorDistance,
@@ -41,17 +44,23 @@ export interface IQdrantCollectionManager {
 export class QdrantCollectionManager implements IQdrantCollectionManager {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
+  private databaseLogger: DatabaseLoggerService;
+  private performanceMonitor: PerformanceMonitor;
   private connectionManager: IQdrantConnectionManager;
   private eventListeners: Map<QdrantEventType, ((event: QdrantEvent) => void)[]> = new Map();
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.IQdrantConnectionManager) connectionManager: IQdrantConnectionManager
+    @inject(TYPES.IQdrantConnectionManager) connectionManager: IQdrantConnectionManager,
+    @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.connectionManager = connectionManager;
+    this.databaseLogger = databaseLogger;
+    this.performanceMonitor = performanceMonitor;
   }
 
   /**
@@ -87,14 +96,30 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
       if (exists && !options.recreateIfExists) {
         const collectionInfo = await this.getCollectionInfo(name);
         if (collectionInfo && collectionInfo.vectors.size !== options.vectorSize) {
-          this.logger.warn(`Collection ${name} exists with different vector size`, {
-            existingSize: collectionInfo.vectors.size,
-            requestedSize: options.vectorSize
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.SERVICE_ERROR,
+            timestamp: new Date(),
+            source: 'qdrant',
+            data: {
+              operation: 'collection_exists_with_different_size',
+              collectionName: name,
+              existingSize: collectionInfo.vectors.size,
+              requestedSize: options.vectorSize
+            }
           });
           // 如果维度不匹配，删除并重新创建集合
           await this.deleteCollection(name);
         } else {
-          this.logger.info(`Collection ${name} already exists with correct vector size: ${options.vectorSize}`);
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.SERVICE_INITIALIZED,
+            timestamp: new Date(),
+            source: 'qdrant',
+            data: {
+              operation: 'collection_exists_with_correct_size',
+              collectionName: name,
+              vectorSize: options.vectorSize
+            }
+          });
           return true;
         }
       } else if (exists && options.recreateIfExists) {
@@ -111,9 +136,17 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
         }
       };
 
-      this.logger.info(`Creating collection ${name} with vector size: ${finalOptions.vectorSize}`, {
-        distance: finalOptions.distance,
-        optimizersConfig: finalOptions.optimizersConfig
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'creating_collection',
+          collectionName: name,
+          vectorSize: finalOptions.vectorSize,
+          distance: finalOptions.distance,
+          optimizersConfig: finalOptions.optimizersConfig
+        }
       });
 
       await client.createCollection(name, {
@@ -137,10 +170,17 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
         }
       }
 
-      this.logger.info(`Created collection ${name} with all payload indexes`, {
-        vectorSize: finalOptions.vectorSize,
-        distance: finalOptions.distance,
-        indexesCount: payloadIndexes?.length || 0
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'collection_created',
+          collectionName: name,
+          vectorSize: finalOptions.vectorSize,
+          distance: finalOptions.distance,
+          indexesCount: payloadIndexes?.length || 0
+        }
       });
 
       this.emitEvent(QdrantEventType.COLLECTION_CREATED, {
@@ -174,9 +214,15 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
       const collections = await client.getCollections();
       return collections.collections.some(col => col.name === name);
     } catch (error) {
-      this.logger.warn('Failed to check collection existence', {
-        collectionName: name,
-        error: error instanceof Error ? error.message : String(error),
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_ERROR,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'collection_existence_check_failed',
+          collectionName: name,
+          error: error instanceof Error ? error.message : String(error)
+        }
       });
       return false;
     }
@@ -193,7 +239,15 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
       }
 
       await client.deleteCollection(name);
-      this.logger.info(`Deleted collection ${name}`);
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'collection_deleted',
+          collectionName: name
+        }
+      });
       return true;
     } catch (error) {
       this.errorHandler.handleError(
@@ -242,9 +296,15 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
         status: info.status,
       };
     } catch (error) {
-      this.logger.warn('Failed to get collection info', {
-        collectionName,
-        error: error instanceof Error ? error.message : String(error),
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_ERROR,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'get_collection_info_failed',
+          collectionName,
+          error: error instanceof Error ? error.message : String(error)
+        }
       });
       return null;
     }
@@ -274,9 +334,15 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
         memoryUsage: 0 // 需要从 Qdrant API 获取
       };
     } catch (error) {
-      this.logger.warn('Failed to get collection stats', {
-        collectionName,
-        error: error instanceof Error ? error.message : String(error),
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_ERROR,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'get_collection_stats_failed',
+          collectionName,
+          error: error instanceof Error ? error.message : String(error)
+        }
       });
       return null;
     }
@@ -297,21 +363,46 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
         field_schema: fieldType as any,
       });
 
-      this.logger.info(`Created payload index for field ${field} in collection ${collectionName}`);
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'payload_index_created',
+          collectionName,
+          field
+        }
+      });
       return true;
     } catch (error) {
       // 检查是否为"已存在"错误，如果是则返回true
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.toLowerCase().includes('already exists')) {
-        this.logger.info(`Payload index for field ${field} already exists in collection ${collectionName}`);
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.SERVICE_INITIALIZED,
+          timestamp: new Date(),
+          source: 'qdrant',
+          data: {
+            operation: 'payload_index_already_exists',
+            collectionName,
+            field
+          }
+        });
         return true;
       }
 
-      this.logger.error('Failed to create payload index', {
-        collectionName,
-        field,
-        fieldType,
-        error: errorMessage,
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.ERROR_OCCURRED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'create_payload_index_failed',
+          collectionName,
+          field,
+          fieldType,
+          error: errorMessage
+        },
+        error: new Error(errorMessage)
       });
       return false;
     }
@@ -329,10 +420,17 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
       const successCount = results.filter(result => result).length;
       const totalCount = results.length;
 
-      this.logger.info(`Created payload indexes for collection ${collectionName}`, {
-        successCount,
-        totalCount,
-        fields
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'payload_indexes_created',
+          collectionName,
+          successCount,
+          totalCount,
+          fields
+        }
       });
 
       return successCount === totalCount;
@@ -360,8 +458,14 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
       const collections = await client.getCollections();
       return collections.collections.map(col => col.name);
     } catch (error) {
-      this.logger.warn('Failed to list collections', {
-        error: error instanceof Error ? error.message : String(error),
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_ERROR,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'list_collections_failed',
+          error: error instanceof Error ? error.message : String(error)
+        }
       });
       return [];
     }
@@ -403,13 +507,20 @@ export class QdrantCollectionManager implements IQdrantCollectionManager {
 
     const listeners = this.eventListeners.get(type);
     if (listeners) {
-      listeners.forEach(listener => {
+      listeners.forEach(async listener => {
         try {
           listener(event);
         } catch (err) {
-          this.logger.error('Error in event listener', {
-            eventType: type,
-            error: err instanceof Error ? err.message : String(err)
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.ERROR_OCCURRED,
+            timestamp: new Date(),
+            source: 'qdrant',
+            data: {
+              operation: 'event_listener_error',
+              eventType: type,
+              error: err instanceof Error ? err.message : String(err)
+            },
+            error: err instanceof Error ? err : new Error(String(err))
           });
         }
       });

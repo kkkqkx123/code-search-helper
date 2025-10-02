@@ -4,6 +4,9 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { IQdrantConnectionManager } from './QdrantConnectionManager';
 import { SearchOptions } from './IVectorStore';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
+import { PerformanceMonitor } from '../common/PerformanceMonitor';
+import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import {
   QueryFilter,
   ERROR_MESSAGES,
@@ -34,17 +37,23 @@ export interface IQdrantQueryUtils {
 export class QdrantQueryUtils implements IQdrantQueryUtils {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
+  private databaseLogger: DatabaseLoggerService;
+  private performanceMonitor: PerformanceMonitor;
   private connectionManager: IQdrantConnectionManager;
   private eventListeners: Map<QdrantEventType, ((event: QdrantEvent) => void)[]> = new Map();
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.IQdrantConnectionManager) connectionManager: IQdrantConnectionManager
+    @inject(TYPES.IQdrantConnectionManager) connectionManager: IQdrantConnectionManager,
+    @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.connectionManager = connectionManager;
+    this.databaseLogger = databaseLogger;
+    this.performanceMonitor = performanceMonitor;
   }
 
   /**
@@ -241,9 +250,16 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
       // 从结果中提取ID
       const chunkIds = results.points.map(point => point.id as string);
 
-      this.logger.debug(`Found ${chunkIds.length} chunk IDs for ${filePaths.length} files`, {
-        fileCount: filePaths.length,
-        chunkCount: chunkIds.length,
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'get_chunk_ids_by_files_completed',
+          collectionName,
+          fileCount: filePaths.length,
+          chunkCount: chunkIds.length
+        }
       });
 
       return chunkIds;
@@ -298,13 +314,17 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
       // 从结果中提取ID
       const existingChunkIds = results.points.map(point => point.id as string);
 
-      this.logger.debug(
-        `Found ${existingChunkIds.length} existing chunk IDs out of ${chunkIds.length} requested`,
-        {
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'get_existing_chunk_ids_completed',
+          collectionName,
           requestedCount: chunkIds.length,
-          existingCount: existingChunkIds.length,
+          existingCount: existingChunkIds.length
         }
-      );
+      });
 
       return existingChunkIds;
     } catch (error) {
@@ -351,10 +371,18 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
 
       const results = await client.scroll(collectionName, scrollParams);
 
-      this.logger.debug(`Scrolled ${results.points.length} points from collection ${collectionName}`, {
-        limit,
-        hasFilter: !!filter,
-        hasOffset: !!offset
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'scroll_points_completed',
+          collectionName,
+          pointCount: results.points.length,
+          limit,
+          hasFilter: !!filter,
+          hasOffset: !!offset
+        }
       });
 
       return results.points;
@@ -394,8 +422,16 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
 
       const result = await client.count(collectionName, countParams);
 
-      this.logger.debug(`Counted ${result.count} points in collection ${collectionName}`, {
-        hasFilter: !!filter
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        timestamp: new Date(),
+        source: 'qdrant',
+        data: {
+          operation: 'count_points_completed',
+          collectionName,
+          count: result.count,
+          hasFilter: !!filter
+        }
       });
 
       return result.count;
@@ -512,13 +548,20 @@ export class QdrantQueryUtils implements IQdrantQueryUtils {
 
     const listeners = this.eventListeners.get(type);
     if (listeners) {
-      listeners.forEach(listener => {
+      listeners.forEach(async listener => {
         try {
           listener(event);
         } catch (err) {
-          this.logger.error('Error in event listener', {
-            eventType: type,
-            error: err instanceof Error ? err.message : String(err)
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.ERROR_OCCURRED,
+            timestamp: new Date(),
+            source: 'qdrant',
+            data: {
+              operation: 'event_listener_error',
+              eventType: type,
+              error: err instanceof Error ? err.message : String(err)
+            },
+            error: err instanceof Error ? err : new Error(String(err))
           });
         }
       });
