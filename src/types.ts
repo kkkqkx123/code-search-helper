@@ -32,7 +32,7 @@ import { FileQueryIntentClassifier } from './service/filesearch/FileQueryIntentC
 import { FileSearchCache } from './service/filesearch/FileSearchCache';
 
 // Nebula Graph 服务
-import { NebulaService } from './database/NebulaService';
+import { NebulaService, INebulaService } from './database/NebulaService';
 import { NebulaConnectionManager } from './database/nebula/NebulaConnectionManager';
 import { NebulaQueryBuilder } from './database/nebula/NebulaQueryBuilder';
 import { NebulaSpaceManager } from './database/nebula/NebulaSpaceManager';
@@ -41,10 +41,11 @@ import { NebulaGraphOperations } from './database/nebula/NebulaGraphOperations';
 
 // 图服务
 import { GraphCacheService } from './service/graph/cache/GraphCacheService';
-import { GraphQueryBuilder } from './service/graph/query/GraphQueryBuilder';
+import { GraphQueryBuilder, IGraphQueryBuilder } from './database/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
 import { GraphQueryValidator } from './service/graph/validation/GraphQueryValidator';
+import { IGraphSearchService } from './service/graph/core/IGraphSearchService';
 import { GraphAnalysisService } from './service/graph/core/GraphAnalysisService';
 import { GraphDataService } from './service/graph/core/GraphDataService';
 import { GraphTransactionService } from './service/graph/core/GraphTransactionService';
@@ -112,6 +113,7 @@ export const TYPES = {
   FileSearchCache: Symbol.for('FileSearchCache'),
   // Nebula 数据库服务
   NebulaService: Symbol.for('NebulaService'),
+  INebulaService: Symbol.for('INebulaService'),
   NebulaConnectionManager: Symbol.for('NebulaConnectionManager'),
   NebulaQueryBuilder: Symbol.for('NebulaQueryBuilder'),
   INebulaConnectionManager: Symbol.for('INebulaConnectionManager'),
@@ -122,9 +124,11 @@ export const TYPES = {
   // 图服务
   GraphService: Symbol.for('GraphService'),
   GraphSearchService: Symbol.for('GraphSearchService'),
+  IGraphSearchService: Symbol.for('IGraphSearchService'),
   GraphPersistenceService: Symbol.for('GraphPersistenceService'),
   GraphCacheService: Symbol.for('GraphCacheService'),
   GraphQueryBuilder: Symbol.for('GraphQueryBuilder'),
+  IGraphQueryBuilder: Symbol.for('IGraphQueryBuilder'),
   GraphPerformanceMonitor: Symbol.for('GraphPerformanceMonitor'),
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
   GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),

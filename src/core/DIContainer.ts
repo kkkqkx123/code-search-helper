@@ -50,26 +50,12 @@ import { FileSearchCache } from '../service/filesearch/FileSearchCache';
 
 // Nebula Graph 服务
 import { NebulaService } from '../database/NebulaService';
-import { NebulaConnectionManager } from '../database/nebula/NebulaConnectionManager';
-import { NebulaQueryBuilder } from '../database/nebula/NebulaQueryBuilder';
-import { NebulaSpaceManager } from '../database/nebula/NebulaSpaceManager';
-import { INebulaSpaceManager } from '../database/nebula/NebulaSpaceManager';
-import { NebulaGraphOperations } from '../database/nebula/NebulaGraphOperations';
+import { NebulaModule } from '../database/nebula/NebulaModule';
 import { GraphDatabaseService } from '../database/graph/GraphDatabaseService';
+import { GraphQueryBuilder, IGraphQueryBuilder } from '../database/query/GraphQueryBuilder';
 
 // Graph 服务
 import { GraphModule } from '../service/graph/core/GraphModule';
-import { GraphCacheService } from '../service/graph/cache/GraphCacheService';
-import { GraphQueryBuilder } from '../service/graph/query/GraphQueryBuilder';
-import { GraphPerformanceMonitor } from '../service/graph/performance/GraphPerformanceMonitor';
-import { GraphBatchOptimizer } from '../service/graph/performance/GraphBatchOptimizer';
-import { GraphPersistenceUtils } from '../service/graph/utils/GraphPersistenceUtils';
-import { GraphQueryValidator } from '../service/graph/validation/GraphQueryValidator';
-import { GraphAnalysisService } from '../service/graph/core/GraphAnalysisService';
-import { GraphDataService } from '../service/graph/core/GraphDataService';
-import { GraphTransactionService } from '../service/graph/core/GraphTransactionService';
-import { GraphSearchServiceNew } from '../service/graph/core/GraphSearchServiceNew';
-import { GraphServiceNewAdapter } from '../service/graph/core/GraphServiceNewAdapter';
 
 // 数据库事务管理
 import { TransactionManager } from '../database/core/TransactionManager';
@@ -133,13 +119,7 @@ diContainer.bind<EmbedderFactory>(TYPES.EmbedderFactory).to(EmbedderFactory).inS
 diContainer.bind<EmbeddingCacheService>(TYPES.EmbeddingCacheService).to(EmbeddingCacheService).inSingletonScope();
 
 // 注册 Nebula Graph 服务
-diContainer.bind<NebulaService>(TYPES.NebulaService).to(NebulaService).inSingletonScope();
-diContainer.bind<NebulaConnectionManager>(TYPES.NebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
-diContainer.bind<NebulaConnectionManager>(TYPES.INebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
-diContainer.bind<NebulaQueryBuilder>(TYPES.NebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
-diContainer.bind<NebulaQueryBuilder>(TYPES.INebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
-diContainer.bind<INebulaSpaceManager>(TYPES.INebulaSpaceManager).to(NebulaSpaceManager).inSingletonScope();
-diContainer.bind<NebulaGraphOperations>(TYPES.INebulaGraphOperations).to(NebulaGraphOperations).inSingletonScope();
+diContainer.load(NebulaModule);
 
 // 注册 Tree-sitter 解析服务
 diContainer.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
@@ -153,18 +133,12 @@ diContainer.bind<FileQueryProcessor>(TYPES.FileQueryProcessor).to(FileQueryProce
 diContainer.bind<FileQueryIntentClassifier>(TYPES.FileQueryIntentClassifier).to(FileQueryIntentClassifier).inSingletonScope();
 diContainer.bind<FileSearchCache>(TYPES.FileSearchCache).to(FileSearchCache).inSingletonScope();
 
-// 注册Graph服务
-diContainer.bind<GraphDataService>(TYPES.GraphService).to(GraphDataService).inSingletonScope();
-diContainer.bind<GraphSearchServiceNew>(TYPES.GraphSearchService).to(GraphSearchServiceNew).inSingletonScope();
-diContainer.bind<GraphCacheService>(TYPES.GraphCacheService).to(GraphCacheService).inSingletonScope();
-diContainer.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
-diContainer.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
-diContainer.bind<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer).to(GraphBatchOptimizer).inSingletonScope();
-diContainer.bind<GraphPersistenceUtils>(TYPES.GraphPersistenceUtils).to(GraphPersistenceUtils).inSingletonScope();
-diContainer.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
-
 // 显式绑定GraphDatabaseService（确保在模块加载前可用）
 diContainer.bind<GraphDatabaseService>(TYPES.GraphDatabaseService).to(GraphDatabaseService).inSingletonScope();
+
+// 绑定GraphQueryBuilder
+diContainer.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
+diContainer.bind<IGraphQueryBuilder>(TYPES.IGraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
 
 // 绑定TransactionManager
 diContainer.bind<TransactionManager>(TYPES.TransactionManager).to(TransactionManager).inSingletonScope();
