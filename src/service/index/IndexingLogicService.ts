@@ -7,7 +7,7 @@ import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
-import { PerformanceOptimizerService } from '../resilience/ResilientBatchingService';
+import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
 import { VectorPoint } from '../../database/qdrant/IVectorStore';
 import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 // Tree-sitter AST分段支持
@@ -46,7 +46,7 @@ export class IndexingLogicService {
     @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
     @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
     @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService
-  ) {}
+  ) { }
 
   /**
    * 索引项目
@@ -175,7 +175,7 @@ export class IndexingLogicService {
   /**
    * 索引单个文件（增强版，带性能监控）
    */
- async indexFile(projectPath: string, filePath: string): Promise<void> {
+  async indexFile(projectPath: string, filePath: string): Promise<void> {
     const startTime = Date.now();
     const initialMemory = process.memoryUsage();
 
@@ -210,9 +210,9 @@ export class IndexingLogicService {
 
       // 内存警告检查
       if (metrics.memoryUsage.percentage > 80) {
-        this.logger.warn(`High memory usage detected for file: ${filePath}`, { 
-          memoryUsage: metrics.memoryUsage, 
-          threshold: 80 
+        this.logger.warn(`High memory usage detected for file: ${filePath}`, {
+          memoryUsage: metrics.memoryUsage,
+          threshold: 80
         });
       }
 

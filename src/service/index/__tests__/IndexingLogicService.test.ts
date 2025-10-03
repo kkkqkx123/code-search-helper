@@ -6,7 +6,7 @@ import { QdrantService } from '../../../database/qdrant/QdrantService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
-import { PerformanceOptimizerService } from '../../resilience/ResilientBatchingService';
+import { PerformanceOptimizerService } from '../../../infrastructure/batching/PerformanceOptimizerService';
 import { ASTCodeSplitter } from '../../parser/splitting/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
 import { VectorPoint } from '../../../database/qdrant/IVectorStore';
@@ -107,8 +107,8 @@ describe('IndexingLogicService', () => {
     it('should index a project successfully', async () => {
       const projectPath = '/test/project';
       const files: FileInfo[] = [
-        { 
-          path: '/test/project/file1.js', 
+        {
+          path: '/test/project/file1.js',
           relativePath: 'file1.js',
           name: 'file1.js',
           extension: '.js',
@@ -118,8 +118,8 @@ describe('IndexingLogicService', () => {
           language: 'javascript',
           isBinary: false
         },
-        { 
-          path: '/test/project/file2.js', 
+        {
+          path: '/test/project/file2.js',
           relativePath: 'file2.js',
           name: 'file2.js',
           extension: '.js',
@@ -143,10 +143,10 @@ describe('IndexingLogicService', () => {
         return [];
       });
       coordinationService.processFileForEmbedding.mockResolvedValue([
-        { 
-          id: 'chunk1', 
-          vector: [0.1, 0.2], 
-          payload: { 
+        {
+          id: 'chunk1',
+          vector: [0.1, 0.2],
+          payload: {
             content: 'test content',
             filePath: 'file1.js',
             language: 'javascript',
@@ -155,7 +155,7 @@ describe('IndexingLogicService', () => {
             endLine: 10,
             metadata: {},
             timestamp: new Date()
-          } 
+          }
         }
       ]);
       qdrantService.upsertVectorsForProject.mockResolvedValue(true);
@@ -260,10 +260,10 @@ describe('IndexingLogicService', () => {
       const projectPath = '/test/project';
       const filePath = '/test/project/file.js';
       const vectorPoints: VectorPoint[] = [
-        { 
-          id: 'chunk1', 
-          vector: [0.1, 0.2], 
-          payload: { 
+        {
+          id: 'chunk1',
+          vector: [0.1, 0.2],
+          payload: {
             content: 'test content',
             filePath: 'file.js',
             language: 'javascript',
@@ -272,7 +272,7 @@ describe('IndexingLogicService', () => {
             endLine: 10,
             metadata: {},
             timestamp: new Date()
-          } 
+          }
         }
       ];
 

@@ -9,7 +9,7 @@ import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
-import { PerformanceOptimizerService } from '../resilience/ResilientBatchingService';
+import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
 import { VectorPoint } from '../../database/qdrant/IVectorStore';
 import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 // Tree-sitter AST分段支持

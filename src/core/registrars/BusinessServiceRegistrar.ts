@@ -12,7 +12,7 @@ import { IndexingLogicService } from '../../service/index/IndexingLogicService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 
 // 性能优化服务
-import { PerformanceOptimizerService } from '../../service/resilience/ResilientBatchingService';
+import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
 
 // 解析服务
 import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';

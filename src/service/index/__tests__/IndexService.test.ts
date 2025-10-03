@@ -12,7 +12,7 @@ import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
 import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
-import { PerformanceOptimizerService } from '../../resilience/ResilientBatchingService';
+import { PerformanceOptimizerService } from '../../../infrastructure/batching/PerformanceOptimizerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { IQdrantConnectionManager } from '../../../database/qdrant/QdrantConnectionManager';
 import { IQdrantCollectionManager } from '../../../database/qdrant/QdrantCollectionManager';

@@ -13,7 +13,7 @@ import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { QdrantConfigService } from '../../../config/service/QdrantConfigService';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
-import { PerformanceOptimizerService } from '../../resilience/ResilientBatchingService';
+import { PerformanceOptimizerService } from '../../../infrastructure/batching/PerformanceOptimizerService';
 import { IQdrantConnectionManager } from '../../../database/qdrant/QdrantConnectionManager';
 import { IQdrantCollectionManager } from '../../../database/qdrant/QdrantCollectionManager';
 import { IQdrantVectorOperations } from '../../../database/qdrant/QdrantVectorOperations';

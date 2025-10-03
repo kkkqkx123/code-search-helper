@@ -7,8 +7,8 @@ import { ConfigService } from '../../config/ConfigService';
 export interface PerformanceMetrics {
   operation: string;
   duration: number;
- success: boolean;
- timestamp: Date;
+  success: boolean;
+  timestamp: Date;
   metadata?: Record<string, any>;
 }
 
@@ -85,7 +85,7 @@ export class PerformanceOptimizerService {
   /**
    * 执行带有重试逻辑的操作
    */
- async executeWithRetry<T>(
+  async executeWithRetry<T>(
     operation: () => Promise<T>,
     operationName: string,
     options?: Partial<RetryOptions>
@@ -97,7 +97,7 @@ export class PerformanceOptimizerService {
     for (let attempt = 1; attempt <= retryConfig.maxAttempts; attempt++) {
       try {
         const result = await operation();
-        
+
         // Record successful operation
         this.recordPerformanceMetric({
           operation: operationName,
@@ -110,7 +110,7 @@ export class PerformanceOptimizerService {
         return result;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         // Record failed operation
         this.recordPerformanceMetric({
           operation: operationName,
@@ -127,7 +127,7 @@ export class PerformanceOptimizerService {
 
         // Calculate delay with exponential backoff
         const delay = this.calculateDelay(attempt, retryConfig);
-        
+
         this.logger.warn(`Operation failed, retrying in ${delay}ms`, {
           operation: operationName,
           attempt,
@@ -191,7 +191,7 @@ export class PerformanceOptimizerService {
     while (batchIndex < items.length) {
       const batchSize = Math.min(this.currentBatchSize, items.length - batchIndex);
       const batch = items.slice(batchIndex, batchIndex + batchSize);
-      
+
       const batchStartTime = Date.now();
       let batchSuccess = false;
       let batchError: Error | null = null;
@@ -201,7 +201,7 @@ export class PerformanceOptimizerService {
           () => processBatch(batch),
           `${operationName}-batch-${batchIndex / this.currentBatchSize}`
         );
-        
+
         results.push(...batchResults);
         batchSuccess = true;
       } catch (error) {
@@ -231,15 +231,15 @@ export class PerformanceOptimizerService {
   private calculateDelay(attempt: number, options: RetryOptions): number {
     // Calculate exponential backoff delay
     let delay = options.baseDelay * Math.pow(options.backoffFactor, attempt - 1);
-    
+
     // Cap at maximum delay
     delay = Math.min(delay, options.maxDelay);
-    
+
     // Add jitter if enabled
     if (options.jitter) {
       delay = delay * (0.5 + Math.random() * 0.5);
     }
-    
+
     return Math.floor(delay);
   }
 
@@ -253,13 +253,13 @@ export class PerformanceOptimizerService {
         this.batchOptions.minSize,
         Math.floor(this.currentBatchSize * (1 - this.batchOptions.adjustmentFactor))
       );
-      
+
       this.logger.debug('Reduced batch size due to failure', {
         oldSize: this.currentBatchSize + Math.floor(this.currentBatchSize * this.batchOptions.adjustmentFactor / (1 - this.batchOptions.adjustmentFactor)),
         newSize: this.currentBatchSize,
         batchDuration
       });
-      
+
       return;
     }
 
@@ -270,7 +270,7 @@ export class PerformanceOptimizerService {
         this.batchOptions.minSize,
         Math.floor(this.currentBatchSize * (1 - this.batchOptions.adjustmentFactor))
       );
-      
+
       this.logger.debug('Reduced batch size due to slow performance', {
         oldSize: this.currentBatchSize + Math.floor(this.currentBatchSize * this.batchOptions.adjustmentFactor / (1 - this.batchOptions.adjustmentFactor)),
         newSize: this.currentBatchSize,
@@ -283,7 +283,7 @@ export class PerformanceOptimizerService {
         this.batchOptions.maxSize,
         Math.floor(this.currentBatchSize * (1 + this.batchOptions.adjustmentFactor))
       );
-      
+
       this.logger.debug('Increased batch size due to good performance', {
         oldSize: this.currentBatchSize - Math.floor(this.currentBatchSize * this.batchOptions.adjustmentFactor / (1 + this.batchOptions.adjustmentFactor)),
         newSize: this.currentBatchSize,
@@ -298,12 +298,12 @@ export class PerformanceOptimizerService {
    */
   private recordPerformanceMetric(metric: PerformanceMetrics): void {
     this.performanceMetrics.push(metric);
-    
+
     // Keep only the last 1000 metrics to prevent memory issues
     if (this.performanceMetrics.length > 1000) {
       this.performanceMetrics = this.performanceMetrics.slice(-1000);
     }
- }
+  }
 
   /**
    * 获取性能统计信息
@@ -318,12 +318,12 @@ export class PerformanceOptimizerService {
     p99Duration: number;
   } {
     let metrics = this.performanceMetrics;
-    
+
     // Filter by operation name if provided
     if (operationName) {
       metrics = metrics.filter(m => m.operation === operationName);
     }
-    
+
     if (metrics.length === 0) {
       return {
         count: 0,
@@ -335,10 +335,10 @@ export class PerformanceOptimizerService {
         p99Duration: 0
       };
     }
-    
+
     const durations = metrics.map(m => m.duration).sort((a, b) => a - b);
     const successCount = metrics.filter(m => m.success).length;
-    
+
     return {
       count: metrics.length,
       successRate: successCount / metrics.length,
@@ -358,7 +358,7 @@ export class PerformanceOptimizerService {
     if (process.env.NODE_ENV === 'test') {
       return;
     }
-    
+
     // Record memory usage every 30 seconds
     if (this.memoryMonitoringInterval) {
       clearInterval(this.memoryMonitoringInterval);
@@ -366,7 +366,7 @@ export class PerformanceOptimizerService {
     this.memoryMonitoringInterval = setInterval(() => {
       this.recordMemoryUsage();
     }, 30000);
-    
+
     // Record initial memory usage
     this.recordMemoryUsage();
   }
@@ -379,21 +379,21 @@ export class PerformanceOptimizerService {
     const total = memoryUsage.heapTotal;
     const used = memoryUsage.heapUsed;
     const percentage = (used / total) * 100;
-    
+
     const memoryRecord: MemoryUsage = {
       used,
       total,
       percentage,
       timestamp: new Date()
     };
-    
+
     this.memoryUsageHistory.push(memoryRecord);
-    
+
     // Keep only the last 100 records to prevent memory issues
     if (this.memoryUsageHistory.length > 100) {
       this.memoryUsageHistory = this.memoryUsageHistory.slice(-100);
     }
-    
+
     // Log warning if memory usage is high
     if (percentage > 90) {
       this.logger.warn('High memory usage detected', {
@@ -419,21 +419,21 @@ export class PerformanceOptimizerService {
         peak: { used: 0, total: 0, percentage: 0, timestamp: new Date() }
       };
     }
-    
+
     const current = this.memoryUsageHistory[this.memoryUsageHistory.length - 1];
-    
+
     const average = {
       used: this.memoryUsageHistory.reduce((sum, record) => sum + record.used, 0) / this.memoryUsageHistory.length,
       total: this.memoryUsageHistory.reduce((sum, record) => sum + record.total, 0) / this.memoryUsageHistory.length,
       percentage: this.memoryUsageHistory.reduce((sum, record) => sum + record.percentage, 0) / this.memoryUsageHistory.length,
       timestamp: new Date()
     };
-    
-    const peak = this.memoryUsageHistory.reduce((max, record) => 
-      record.percentage > max.percentage ? record : max, 
+
+    const peak = this.memoryUsageHistory.reduce((max, record) =>
+      record.percentage > max.percentage ? record : max,
       this.memoryUsageHistory[0]
     );
-    
+
     return { current, average, peak };
   }
 
@@ -444,28 +444,28 @@ export class PerformanceOptimizerService {
     if (this.isOptimizing) {
       return;
     }
-    
+
     this.isOptimizing = true;
-    
+
     try {
       // Force garbage collection if available
       if (global.gc) {
         global.gc();
         this.logger.debug('Performed manual garbage collection');
       }
-      
+
       // Clear old performance metrics
       if (this.performanceMetrics.length > 500) {
         this.performanceMetrics = this.performanceMetrics.slice(-500);
         this.logger.debug('Cleared old performance metrics');
       }
-      
+
       // Clear old memory usage records
       if (this.memoryUsageHistory.length > 50) {
         this.memoryUsageHistory = this.memoryUsageHistory.slice(-50);
         this.logger.debug('Cleared old memory usage records');
       }
-      
+
       // Reduce batch size if memory usage is high
       const memoryStats = this.getMemoryStats();
       if (memoryStats.current.percentage > 80) {
@@ -474,7 +474,7 @@ export class PerformanceOptimizerService {
           this.batchOptions.minSize,
           Math.floor(this.currentBatchSize * 0.8)
         );
-        
+
         if (oldBatchSize !== this.currentBatchSize) {
           this.logger.info('Reduced batch size due to high memory usage', {
             oldSize: oldBatchSize,
@@ -526,13 +526,13 @@ export class PerformanceOptimizerService {
     this.logger.info('Updated batch options', { batchOptions: this.batchOptions });
   }
 
- /**
-   * 睡眠函数
-   */
+  /**
+    * 睡眠函数
+    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
-  
+
   /**
    * 停止内存监控
    */

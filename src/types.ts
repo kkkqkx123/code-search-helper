@@ -47,7 +47,7 @@ import { ChangeDetectionService } from './service/filesystem/ChangeDetectionServ
 import { IndexService } from './service/index/IndexService';
 import { IndexingLogicService } from './service/index/IndexingLogicService';
 import { ProjectStateManager } from './service/project/ProjectStateManager';
-import { PerformanceOptimizerService } from './service/resilience/ResilientBatchingService';
+import { PerformanceOptimizerService } from './infrastructure/batching/PerformanceOptimizerService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
 import { ConfigFactory } from './config/ConfigFactory';
