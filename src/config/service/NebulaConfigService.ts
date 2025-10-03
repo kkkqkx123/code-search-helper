@@ -25,13 +25,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       port: parseInt(process.env.NEBULA_PORT || '9669'),
       username: process.env.NEBULA_USERNAME || 'root',
       password: process.env.NEBULA_PASSWORD || 'nebula',
-      timeout: parseInt(process.env.NEBULA_TIMEOUT || '30000'),
-      maxConnections: parseInt(process.env.NEBULA_MAX_CONNECTIONS || '10'),
-      retryAttempts: parseInt(process.env.NEBULA_RETRY_ATTEMPTS || '3'),
-      retryDelay: parseInt(process.env.NEBULA_RETRY_DELAY || '1000'),
-      space: process.env.NEBULA_SPACE || 'codebase',
-      bufferSize: parseInt(process.env.NEBULA_BUFFER_SIZE || '10'),
-      pingInterval: parseInt(process.env.NEBULA_PING_INTERVAL || '3000'),
+      space: process.env.NEBULA_SPACE || 'code_graphs',
       vidTypeLength: parseInt(process.env.NEBULA_VID_TYPE_LENGTH || '128'),
     };
 

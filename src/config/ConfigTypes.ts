@@ -1,8 +1,8 @@
 // 配置类型定义，专注于当前项目需求
 export interface QdrantConfig {
- host: string;
- port: number;
- apiKey?: string;
+  host: string;
+  port: number;
+  apiKey?: string;
   useHttps: boolean;
   timeout: number;
   collection: string;
@@ -32,7 +32,7 @@ export interface EmbeddingConfig {
     baseUrl?: string;
     model: string;
     dimensions: number;
- };
+  };
   siliconflow: {
     apiKey?: string;
     baseUrl?: string;
@@ -106,7 +106,7 @@ export interface BatchProcessingConfig {
     performanceThreshold: number;
     adjustmentFactor: number;
   };
- monitoring: {
+  monitoring: {
     enabled: boolean;
     metricsInterval: number;
     alertThresholds: {
@@ -241,13 +241,7 @@ export interface NebulaConfig {
   port: number;
   username: string;
   password: string;
-  timeout?: number;
-  maxConnections?: number;
-  retryAttempts?: number;
-  retryDelay?: number;
   space?: string;
-  bufferSize?: number;
-  pingInterval?: number;
   vidTypeLength?: number;
 }
 
@@ -264,7 +258,7 @@ export interface AppConfig {
   semgrep: SemgrepConfig;
   mlReranking?: MLRerankingConfig;
   caching: CachingConfig;
- indexing: IndexingConfig;
+  indexing: IndexingConfig;
   nebula?: NebulaConfig;
   performance?: PerformanceConfig;
   cache?: CacheConfig;
