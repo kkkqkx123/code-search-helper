@@ -45,6 +45,7 @@ import { FileSystemTraversal } from './service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from './service/filesystem/FileWatcherService';
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
 import { IndexService } from './service/index/IndexService';
+import { IndexingLogicService } from './service/index/IndexingLogicService';
 import { ProjectStateManager } from './service/project/ProjectStateManager';
 import { PerformanceOptimizerService } from './service/resilience/ResilientBatchingService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
@@ -129,6 +130,7 @@ export const TYPES = {
   ChangeDetectionService: Symbol.for('ChangeDetectionService'),
   // 索引同步服务
   IndexSyncService: Symbol.for('IndexSyncService'),
+  IndexingLogicService: Symbol.for('IndexingLogicService'),
   // 项目状态管理服务
   ProjectStateManager: Symbol.for('ProjectStateManager'),
   // 性能优化器服务

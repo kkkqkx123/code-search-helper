@@ -16,6 +16,7 @@ import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 import { ASTCodeSplitter } from '../parser/splitting/ASTCodeSplitter';
 import { CodeChunk } from '../parser/splitting/Splitter';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
+import { IndexingLogicService } from './IndexingLogicService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -119,7 +120,8 @@ export class IndexService {
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
     @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
     @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
-    @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService
+    @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService,
+    @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService
   ) {
     // 设置文件变化监听器
     this.setupFileChangeListeners();
@@ -215,52 +217,10 @@ export class IndexService {
         this.completedProjects.delete(projectId);
       }
 
-      // 获取嵌入器配置的向量维度
-      // 优先使用嵌入器的实际维度，因为这是生成向量时必须匹配的维度
-      let vectorDimensions = 1024; // 默认回退到SiliconFlow的1024维度
-
+      // 使用IndexingLogicService获取嵌入器维度
       // 优先使用options中指定的embedder，如果没有指定则使用默认的embedder
       const embedderProvider = options?.embedder || this.embedderFactory.getDefaultProvider();
-
-      try {
-        // 尝试从嵌入器实例获取实际维度，这会验证提供者是否可用
-        const providerInfo = await this.embedderFactory.getProviderInfo(embedderProvider);
-        vectorDimensions = providerInfo.dimensions;
-        this.logger.info(`Using embedder dimensions: ${vectorDimensions} for provider: ${providerInfo.name}`);
-      } catch (error) {
-        // 如果无法获取提供者信息，根据提供者类型使用环境变量中的默认值
-        this.logger.warn(`Failed to get embedder dimensions from provider, falling back to env config: ${embedderProvider}`, { error });
-
-        // 根据提供者设置默认维度
-        switch (embedderProvider) {
-          case 'openai':
-            vectorDimensions = parseInt(process.env.OPENAI_DIMENSIONS || '1536');
-            break;
-          case 'ollama':
-            vectorDimensions = parseInt(process.env.OLLAMA_DIMENSIONS || '768');
-            break;
-          case 'gemini':
-            vectorDimensions = parseInt(process.env.GEMINI_DIMENSIONS || '768');
-            break;
-          case 'mistral':
-            vectorDimensions = parseInt(process.env.MISTRAL_DIMENSIONS || '1024');
-            break;
-          case 'siliconflow':
-            vectorDimensions = parseInt(process.env.SILICONFLOW_DIMENSIONS || '1024');
-            break;
-          case 'custom1':
-            vectorDimensions = parseInt(process.env.CUSTOM_CUSTOM1_DIMENSIONS || '768');
-            break;
-          case 'custom2':
-            vectorDimensions = parseInt(process.env.CUSTOM_CUSTOM2_DIMENSIONS || '768');
-            break;
-          case 'custom3':
-            vectorDimensions = parseInt(process.env.CUSTOM_CUSTOM3_DIMENSIONS || '768');
-            break;
-          default:
-            vectorDimensions = 1024; // 默认值
-        }
-      }
+      const vectorDimensions = await this.indexingLogicService.getEmbedderDimensions(embedderProvider);
 
       // 创建集合
       const collectionCreated = await this.qdrantService.createCollectionForProject(
@@ -458,44 +418,8 @@ export class IndexService {
    * 索引单个文件（增强版，带性能监控）
    */
   private async indexFile(projectPath: string, filePath: string): Promise<void> {
-    const startTime = Date.now();
-    const initialMemory = process.memoryUsage();
-
     try {
-      // 使用协调服务处理文件
-      const vectorPoints = await this.coordinationService.processFileForEmbedding(filePath, projectPath);
-
-      // 存储到Qdrant
-      const success = await this.qdrantService.upsertVectorsForProject(projectPath, vectorPoints);
-
-      if (!success) {
-        throw new Error(`Failed to upsert vectors for file: ${filePath}`);
-      }
-
-      const processingTime = Date.now() - startTime;
-      const finalMemory = process.memoryUsage();
-
-      // 记录性能指标
-      const metrics: IndexingMetrics = {
-        fileSize: (await fs.stat(filePath)).size,
-        chunkCount: vectorPoints.length,
-        processingTime,
-        memoryUsage: {
-          used: finalMemory.heapUsed - initialMemory.heapUsed,
-          total: finalMemory.heapTotal,
-          percentage: ((finalMemory.heapUsed - initialMemory.heapUsed) / initialMemory.heapTotal) * 100,
-          timestamp: new Date()
-        }
-      };
-
-      this.recordMetrics(projectPath, filePath, metrics);
-
-      // 内存警告检查
-      if (metrics.memoryUsage.percentage > 80) {
-        await this.emit('memoryWarning', projectPath, metrics.memoryUsage, 80);
-      }
-
-      this.logger.debug(`Indexed file: ${filePath}`, { metrics });
+      await this.indexingLogicService.indexFile(projectPath, filePath);
     } catch (error) {
       this.recordError(filePath, error);
       this.errorHandler.handleError(
@@ -503,16 +427,6 @@ export class IndexService {
         { component: 'IndexSyncService', operation: 'indexFile', projectPath, filePath }
       );
       throw error;
-    }
-  }
-
-  /**
-   * 记录性能指标
-   */
-  private async recordMetrics(projectPath: string, filePath: string, metrics: IndexingMetrics): Promise<void> {
-    const projectId = this.projectIdManager.getProjectId(projectPath);
-    if (projectId) {
-      await this.emit('indexingMetrics', projectId, filePath, metrics);
     }
   }
 
@@ -528,35 +442,23 @@ export class IndexService {
    */
   private async removeFileFromIndex(projectPath: string, filePath: string): Promise<void> {
     try {
-      const projectId = this.projectIdManager.getProjectId(projectPath);
-      if (!projectId) {
-        throw new Error(`Project ID not found for path: ${projectPath}`);
-      }
-
-      const collectionName = this.projectIdManager.getCollectionName(projectId);
-      if (!collectionName) {
-        throw new Error(`Collection name not found for project: ${projectId}`);
-      }
-
-      // 获取文件的所有块ID
-      const chunkIds = await this.qdrantService.getChunkIdsByFiles(collectionName, [filePath]);
-
-      if (chunkIds.length > 0) {
-        // 删除这些块
-        const success = await this.qdrantService.deletePoints(collectionName, chunkIds);
-
-        if (!success) {
-          throw new Error(`Failed to delete chunks for file: ${filePath}`);
-        }
-
-        this.logger.debug(`Removed file from index: ${filePath}`, { chunks: chunkIds.length });
-      }
+      await this.indexingLogicService.removeFileFromIndex(projectPath, filePath);
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Failed to remove file from index: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'IndexSyncService', operation: 'removeFileFromIndex', projectPath, filePath }
       );
       throw error;
+    }
+  }
+
+  /**
+   * 记录性能指标并触发事件
+   */
+  private async recordMetrics(projectPath: string, filePath: string, metrics: IndexingMetrics): Promise<void> {
+    const projectId = this.projectIdManager.getProjectId(projectPath);
+    if (projectId) {
+      await this.emit('indexingMetrics', projectId, filePath, metrics);
     }
   }
 

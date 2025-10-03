@@ -24,6 +24,7 @@ import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerSe
 import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';
 import { IndexService } from '../../index/IndexService';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
+import { IndexingLogicService } from '../../index/IndexingLogicService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -45,6 +46,7 @@ describe('ProjectStateManager', () => {
   let mockFs: jest.Mocked<typeof import('fs/promises')>;
   let astSplitter: jest.Mocked<ASTCodeSplitter>;
   let coordinationService: jest.Mocked<ChunkToVectorCoordinationService>;
+  let indexingLogicService: jest.Mocked<IndexingLogicService>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -165,6 +167,17 @@ describe('ProjectStateManager', () => {
       updateBatchOptions: jest.fn(),
     } as unknown as jest.Mocked<PerformanceOptimizerService>;
 
+    // Create mock indexing logic service
+    const mockIndexingLogicService = {
+      indexProject: jest.fn(),
+      getEmbedderDimensions: jest.fn(),
+      indexFile: jest.fn(),
+      removeFileFromIndex: jest.fn(),
+      recordMetrics: jest.fn(),
+      recordError: jest.fn(),
+      processWithConcurrency: jest.fn(),
+    } as unknown as jest.Mocked<IndexingLogicService>;
+
     indexSyncService = new IndexService(
       loggerService,
       errorHandlerService,
@@ -177,7 +190,8 @@ describe('ProjectStateManager', () => {
       mockEmbeddingCacheService,
       mockPerformanceOptimizerService,
       mockAstSplitter,
-      mockCoordinationService
+      mockCoordinationService,
+      mockIndexingLogicService
     ) as jest.Mocked<IndexService>;
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {} as jest.Mocked<IQdrantConnectionManager>;

@@ -24,6 +24,7 @@ import { ProjectStateManager } from '../../project/ProjectStateManager';
 import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
 import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
+import { IndexingLogicService } from '../IndexingLogicService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -53,6 +54,7 @@ describe('IndexService', () => {
   let astSplitter: jest.Mocked<ASTCodeSplitter>;
   let projectStateManager: jest.Mocked<ProjectStateManager>;
   let coordinationService: jest.Mocked<ChunkToVectorCoordinationService>;
+  let indexingLogicService: jest.Mocked<IndexingLogicService>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -183,6 +185,14 @@ describe('IndexService', () => {
       setProjectEmbedder: jest.fn(),
     } as unknown as jest.Mocked<ChunkToVectorCoordinationService>;
 
+    // Create mock indexing logic service
+    indexingLogicService = {
+      indexFile: jest.fn(),
+      removeFileFromIndex: jest.fn(),
+      indexProject: jest.fn(),
+      getEmbedderDimensions: jest.fn().mockResolvedValue(1024), // 添加缺失的mock
+    } as unknown as jest.Mocked<IndexingLogicService>;
+
     // Create service instance
     indexService = new IndexService(
       loggerService,
@@ -197,6 +207,7 @@ describe('IndexService', () => {
       performanceOptimizerService,
       astSplitter,
       coordinationService,
+      indexingLogicService,
     );
   });
 
@@ -311,104 +322,28 @@ describe('IndexService', () => {
     it('should index a file successfully', async () => {
       const projectPath = '/test/project';
       const filePath = '/test/project/file.js';
-      const fileContent = 'console.log("Hello, world!");';
-      const chunks = [
-        {
-          content: fileContent,
-          filePath,
-          startLine: 1,
-          endLine: 1,
-          language: 'javascript',
-          chunkType: 'code'
-        }
-      ];
-      const vectorPoints = [
-        {
-          id: `${filePath}:1-1`,
-          vector: [0.1, 0.2, 0.3],
-          payload: {
-            content: fileContent,
-            filePath,
-            language: 'javascript',
-            chunkType: 'code',
-            startLine: 1,
-            endLine: 1,
-            timestamp: new Date(),
-            projectId: 'test-project-id'
-          }
-        }
-      ];
 
-      // Mock dependencies
-      jest.spyOn(require('fs/promises'), 'readFile').mockResolvedValue(fileContent);
-      qdrantService.upsertVectorsForProject.mockResolvedValue(true);
-
-      // Mock chunking and conversion methods
-      jest.spyOn(indexService as any, 'chunkFile').mockReturnValue(chunks);
-      jest.spyOn(indexService as any, 'convertChunksToVectorPoints').mockResolvedValue(vectorPoints);
-      projectIdManager.getProjectId.mockReturnValue('test-project-id');
+      // Mock indexing logic service
+      indexingLogicService.indexFile.mockResolvedValue(undefined);
 
       // Call the method
       await (indexService as any).indexFile(projectPath, filePath);
 
       // Verify results
-      expect(qdrantService.upsertVectorsForProject).toHaveBeenCalledWith(projectPath, vectorPoints);
+      expect(indexingLogicService.indexFile).toHaveBeenCalledWith(projectPath, filePath);
     });
 
-    it('should throw error if file reading fails', async () => {
+    it('should throw error if indexing fails', async () => {
       const projectPath = '/test/project';
       const filePath = '/test/project/file.js';
+      const error = new Error('Indexing failed');
 
-      // Mock dependencies
-      jest.spyOn(require('fs/promises'), 'readFile').mockRejectedValue(new Error('File not found'));
+      // Mock indexing logic service to throw error
+      indexingLogicService.indexFile.mockRejectedValue(error);
 
       // Call the method and expect error
       await expect((indexService as any).indexFile(projectPath, filePath)).rejects.toThrow(
-        'File not found'
-      );
-    });
-
-    it('should throw error if vector upsert fails', async () => {
-      const projectPath = '/test/project';
-      const filePath = '/test/project/file.js';
-      const fileContent = 'console.log("Hello, world!");';
-
-      // Mock dependencies
-      jest.spyOn(require('fs/promises'), 'readFile').mockResolvedValue(fileContent);
-      qdrantService.upsertVectorsForProject.mockResolvedValue(false);
-
-      // Mock chunking and conversion methods
-      jest.spyOn(indexService as any, 'chunkFile').mockReturnValue([
-        {
-          content: fileContent,
-          filePath,
-          startLine: 1,
-          endLine: 1,
-          language: 'javascript',
-          chunkType: 'code'
-        }
-      ]);
-      jest.spyOn(indexService as any, 'convertChunksToVectorPoints').mockResolvedValue([
-        {
-          id: `${filePath}:1-1`,
-          vector: [0.1, 0.2, 0.3],
-          payload: {
-            content: fileContent,
-            filePath,
-            language: 'javascript',
-            chunkType: 'code',
-            startLine: 1,
-            endLine: 1,
-            timestamp: new Date(),
-            projectId: 'test-project-id'
-          }
-        }
-      ]);
-      projectIdManager.getProjectId.mockReturnValue('test-project-id');
-
-      // Call the method and expect error
-      await expect((indexService as any).indexFile(projectPath, filePath)).rejects.toThrow(
-        `Failed to upsert vectors for file: ${filePath}`
+        error // 应该抛出原始错误，而不是包装后的错误
       );
     });
   });
@@ -417,89 +352,29 @@ describe('IndexService', () => {
     it('should remove file from index successfully', async () => {
       const projectPath = '/test/project';
       const filePath = '/test/project/file.js';
-      const projectId = 'test-project-id';
-      const collectionName = 'project-test-project-id';
-      const chunkIds = [`${filePath}:1-1`];
 
-      // Mock dependencies
-      projectIdManager.getProjectId.mockReturnValue(projectId);
-      projectIdManager.getCollectionName.mockReturnValue(collectionName);
-      qdrantService.getChunkIdsByFiles.mockResolvedValue(chunkIds);
-      qdrantService.deletePoints.mockResolvedValue(true);
+      // Mock indexing logic service
+      indexingLogicService.removeFileFromIndex.mockResolvedValue(undefined);
 
       // Call the method
       await (indexService as any).removeFileFromIndex(projectPath, filePath);
 
       // Verify results
-      expect(qdrantService.getChunkIdsByFiles).toHaveBeenCalledWith(collectionName, [filePath]);
-      expect(qdrantService.deletePoints).toHaveBeenCalledWith(collectionName, chunkIds);
+      expect(indexingLogicService.removeFileFromIndex).toHaveBeenCalledWith(projectPath, filePath);
     });
 
-    it('should throw error if project ID not found', async () => {
+    it('should throw error if remove file fails', async () => {
       const projectPath = '/test/project';
       const filePath = '/test/project/file.js';
+      const error = new Error('Remove failed');
 
-      // Mock dependencies
-      projectIdManager.getProjectId.mockReturnValue(undefined);
+      // Mock indexing logic service to throw error
+      indexingLogicService.removeFileFromIndex.mockRejectedValue(error);
 
       // Call the method and expect error
       await expect((indexService as any).removeFileFromIndex(projectPath, filePath)).rejects.toThrow(
-        `Project ID not found for path: ${projectPath}`
+        error // 应该抛出原始错误，而不是包装后的错误
       );
-    });
-
-    it('should throw error if collection name not found', async () => {
-      const projectPath = '/test/project';
-      const filePath = '/test/project/file.js';
-      const projectId = 'test-project-id';
-
-      // Mock dependencies
-      projectIdManager.getProjectId.mockReturnValue(projectId);
-      projectIdManager.getCollectionName.mockReturnValue(undefined);
-
-      // Call the method and expect error
-      await expect((indexService as any).removeFileFromIndex(projectPath, filePath)).rejects.toThrow(
-        `Collection name not found for project: ${projectId}`
-      );
-    });
-  });
-
-  describe('chunkFile', () => {
-    it('should chunk file content correctly', async () => {
-      const content = 'line1\nline2\nline3\nline4\nline5';
-      const filePath = '/test/project/file.js';
-
-      // Call the method
-      const chunks = await (indexService as any).chunkFile(content, filePath);
-
-      // Verify results
-      expect(chunks).toHaveLength(1);
-      expect(chunks[0].content).toBe(content);
-      expect(chunks[0].filePath).toBe(filePath);
-      expect(chunks[0].startLine).toBe(1);
-      expect(chunks[0].endLine).toBe(5);
-      expect(chunks[0].language).toBe('javascript');
-      expect(chunks[0].chunkType).toBe('code');
-    });
-
-    it('should detect language correctly', () => {
-      const filePath = '/test/project/file.py';
-
-      // Call the method
-      const language = (indexService as any).detectLanguage(filePath);
-
-      // Verify results
-      expect(language).toBe('python');
-    });
-
-    it('should return unknown for unsupported file types', () => {
-      const filePath = '/test/project/file.xyz';
-
-      // Call the method
-      const language = (indexService as any).detectLanguage(filePath);
-
-      // Verify results
-      expect(language).toBe('unknown');
     });
   });
 

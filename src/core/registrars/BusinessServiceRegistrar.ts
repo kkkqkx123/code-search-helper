@@ -8,6 +8,7 @@ import { ChangeDetectionService } from '../../service/filesystem/ChangeDetection
 
 // 项目管理服务
 import { IndexService } from '../../service/index/IndexService';
+import { IndexingLogicService } from '../../service/index/IndexingLogicService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 
 // 性能优化服务
@@ -49,6 +50,7 @@ export class BusinessServiceRegistrar {
 
     // 项目管理服务
     container.bind<IndexService>(TYPES.IndexSyncService).to(IndexService).inSingletonScope();
+    container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
     container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
 
     // 性能优化服务
