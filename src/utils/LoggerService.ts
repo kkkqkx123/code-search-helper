@@ -1,7 +1,5 @@
-import { injectable, inject } from 'inversify';
+import { injectable } from 'inversify';
 import { Logger } from './logger';
-import { TYPES } from '../types';
-import { ConfigService } from '../config/ConfigService';
 
 /**
  * 日志服务类
@@ -11,16 +9,10 @@ import { ConfigService } from '../config/ConfigService';
 export class LoggerService {
   private logger: Logger;
 
-  constructor(@inject(TYPES.ConfigService) private configService: ConfigService) {
+  constructor() {
     const serviceName = 'code-search-helper';
-    // 延迟获取日志级别，避免在配置未初始化时访问
-    let logLevel: string | undefined;
-    try {
-      logLevel = this.configService.get('logging')?.level;
-    } catch (error) {
-      // 配置未初始化时使用默认级别
-      logLevel = 'info';
-    }
+    // 从环境变量获取日志级别，如果没有设置则使用默认级别
+    const logLevel = process.env.LOG_LEVEL || 'info';
     this.logger = new Logger(serviceName, logLevel);
   }
 

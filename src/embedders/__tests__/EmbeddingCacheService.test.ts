@@ -22,7 +22,7 @@ describe('EmbeddingCacheService', () => {
       })
     } as unknown as ConfigService;
     
-    logger = new LoggerService(mockConfigService);
+    logger = new LoggerService();
     errorHandler = new ErrorHandlerService(logger);
     
     // Create EmbeddingCacheService instance

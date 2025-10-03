@@ -85,7 +85,7 @@ describe('IndexSyncService', () => {
       })
     } as unknown as ConfigService;
 
-    loggerService = new LoggerService(mockConfigService) as jest.Mocked<LoggerService>;
+    loggerService = new LoggerService() as jest.Mocked<LoggerService>;
     errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
     fileSystemTraversal = new FileSystemTraversal(
       loggerService as unknown as LoggerService
@@ -150,7 +150,9 @@ describe('IndexSyncService', () => {
     projectIdManager = new ProjectIdManager(
       diContainer.get(TYPES.ConfigService),
       mockQdrantConfigService,
-      mockNebulaConfigService
+      mockNebulaConfigService,
+      loggerService,
+      errorHandlerService
     ) as jest.Mocked<ProjectIdManager>;
     embedderFactory = new EmbedderFactory(
       loggerService,

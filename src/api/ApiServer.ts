@@ -55,7 +55,9 @@ export class ApiServer {
     this.projectIdManager = new ProjectIdManager(
       diContainer.get(TYPES.ConfigService),
       diContainer.get(TYPES.QdrantConfigService),
-      diContainer.get(TYPES.NebulaConfigService)
+      diContainer.get(TYPES.NebulaConfigService),
+      diContainer.get(TYPES.LoggerService),
+      diContainer.get(TYPES.ErrorHandlerService)
     );
     // 创建一个简单的错误处理器实例
     const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
@@ -72,7 +74,7 @@ export class ApiServer {
     this.fileSearchRoutes = new FileSearchRoutes(fileSearchService, loggerService);
 
     // 从依赖注入容器获取Graph服务
-    const graphSearchService = diContainer.get<any>(TYPES.GraphSearchService);
+    const graphSearchService = diContainer.get<any>(TYPES.GraphSearchServiceNew);
     const graphService = diContainer.get<any>(TYPES.GraphServiceNewAdapter);
     const graphCacheService = diContainer.get<any>(TYPES.GraphCacheService);
     const graphPerformanceMonitor = diContainer.get<any>(TYPES.GraphPerformanceMonitor);
@@ -215,13 +217,13 @@ export class ApiServer {
     this.app.get('/health', (req, res) => {
       res.json({ status: 'healthy' });
     });
-    
+
     // Nebula数据库状态检查端点
     this.app.get('/api/v1/nebula/status', async (req, res) => {
       try {
         const isConnected = this.nebulaService.isConnected();
         const stats = isConnected ? await this.nebulaService.getDatabaseStats() : null;
-        
+
         res.json({
           connected: isConnected,
           stats: stats,
@@ -235,13 +237,13 @@ export class ApiServer {
         });
       }
     });
-    
+
     // Nebula数据库连接测试端点
     this.app.post('/api/v1/nebula/test-connection', async (req, res) => {
       try {
         // 尝试连接到Nebula数据库
         const connected = await this.nebulaService.initialize();
-        
+
         if (connected) {
           const stats = await this.nebulaService.getDatabaseStats();
           res.json({
@@ -269,13 +271,13 @@ export class ApiServer {
         });
       }
     });
-    
+
     // Nebula数据库重连测试端点
     this.app.post('/api/v1/nebula/test-reconnect', async (req, res) => {
       try {
         // 尝试重新连接到Nebula数据库
         const reconnected = await this.nebulaService.reconnect();
-        
+
         if (reconnected) {
           const stats = await this.nebulaService.getDatabaseStats();
           res.json({
@@ -303,7 +305,7 @@ export class ApiServer {
         });
       }
     });
-    
+
     // 项目路由
     this.app.use('/api/v1/projects', this.projectRoutes.getRouter());
 

@@ -49,7 +49,7 @@ describe('ProjectStateManager', () => {
     jest.clearAllMocks();
 
     // Get mock instances
-    loggerService = new LoggerService(configService) as jest.Mocked<LoggerService>;
+    loggerService = new LoggerService() as jest.Mocked<LoggerService>;
     errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
     
     // Create mock config services
@@ -68,7 +68,9 @@ describe('ProjectStateManager', () => {
     projectIdManager = new ProjectIdManager(
       configService,
       mockQdrantConfigService,
-      mockNebulaConfigService
+      mockNebulaConfigService,
+      loggerService,
+      errorHandlerService
     ) as jest.Mocked<ProjectIdManager>;
     // Create mock file system traversal
     const mockFileSystemTraversal = {

@@ -33,7 +33,7 @@ describe('CustomEmbedder', () => {
       })
     } as unknown as ConfigService;
     
-    logger = new LoggerService(mockConfigService);
+    logger = new LoggerService();
     errorHandler = new ErrorHandlerService(logger);
     cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
     

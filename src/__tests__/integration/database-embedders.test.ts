@@ -55,10 +55,10 @@ describe('Database and Embedders Integration', () => {
       })
     } as unknown as ConfigService;
 
-    logger = new LoggerService(mockConfigService);
+    logger = new LoggerService();
     loggerInstance = new Logger('test');
     errorHandler = new ErrorHandlerService(logger);
-
+    
     // Create mock config services
     const mockQdrantConfigService = {
       getCollectionNameForProject: jest.fn().mockImplementation((projectId: string) => `project-${projectId}`),
@@ -73,7 +73,10 @@ describe('Database and Embedders Integration', () => {
     } as unknown as jest.Mocked<NebulaConfigService>;
 
     // Create a mock ProjectIdManager
-    mockProjectIdManager = new ProjectIdManager(mockConfigService, mockQdrantConfigService, mockNebulaConfigService);
+    mockProjectIdManager = new ProjectIdManager(mockConfigService, mockQdrantConfigService, mockNebulaConfigService, logger, errorHandler);
+
+    // Create a mock ProjectIdManager
+    mockProjectIdManager = new ProjectIdManager(mockConfigService, mockQdrantConfigService, mockNebulaConfigService, logger, errorHandler);
 
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {
