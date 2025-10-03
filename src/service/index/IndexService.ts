@@ -11,10 +11,11 @@ import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
 import { PerformanceOptimizerService } from '../resilience/ResilientBatchingService';
 import { VectorPoint } from '../../database/qdrant/IVectorStore';
-import { EmbeddingInput, EmbeddingResult } from '../../embedders/BaseEmbedder';
+import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 // Tree-sitter AST分段支持
 import { ASTCodeSplitter } from '../parser/splitting/ASTCodeSplitter';
 import { CodeChunk } from '../parser/splitting/Splitter';
+import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -66,7 +67,7 @@ export interface IndexingMetrics {
 }
 
 @injectable()
-export class IndexSyncService {
+export class IndexService {
   private eventListeners: Map<string, Array<(...args: any[]) => Promise<void>>> = new Map();
 
   on(event: 'indexingStarted', listener: (projectId: string) => Promise<void>): void;
@@ -117,7 +118,8 @@ export class IndexSyncService {
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
     @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
-    @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter
+    @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
+    @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService
   ) {
     // 设置文件变化监听器
     this.setupFileChangeListeners();
@@ -289,6 +291,8 @@ export class IndexSyncService {
       // 存储项目对应的embedder
       if (options?.embedder) {
         this.projectEmbedders.set(projectId, options.embedder);
+        // 同时设置协调服务的项目嵌入器
+        this.coordinationService.setProjectEmbedder(projectId, options.embedder);
       }
 
       // 添加到索引队列
@@ -458,20 +462,8 @@ export class IndexSyncService {
     const initialMemory = process.memoryUsage();
 
     try {
-      // 读取文件内容
-      const content = await fs.readFile(filePath, 'utf-8');
-      const fileSize = content.length;
-
-      // 大文件预警
-      if (fileSize > 1024 * 1024) { // 1MB
-        this.logger.warn(`Large file detected: ${filePath} (${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
-      }
-
-      // 分割文件为块
-      const chunks = await this.chunkFile(content, filePath);
-
-      // 转换为向量点
-      const vectorPoints = await this.convertChunksToVectorPoints(chunks, projectPath);
+      // 使用协调服务处理文件
+      const vectorPoints = await this.coordinationService.processFileForEmbedding(filePath, projectPath);
 
       // 存储到Qdrant
       const success = await this.qdrantService.upsertVectorsForProject(projectPath, vectorPoints);
@@ -485,8 +477,8 @@ export class IndexSyncService {
 
       // 记录性能指标
       const metrics: IndexingMetrics = {
-        fileSize,
-        chunkCount: chunks.length,
+        fileSize: (await fs.stat(filePath)).size,
+        chunkCount: vectorPoints.length,
         processingTime,
         memoryUsage: {
           used: finalMemory.heapUsed - initialMemory.heapUsed,
@@ -568,178 +560,6 @@ export class IndexSyncService {
     }
   }
 
-  /**
-   * 分割文件为块
-   */
-  private async chunkFile(content: string, filePath: string): Promise<FileChunk[]> {
-    const language = this.detectLanguage(filePath);
-
-    try {
-      const astChunks = await this.astSplitter.split(content, language, filePath);
-      if (astChunks.length > 0) {
-        // 简化转换逻辑，直接映射字段
-        return astChunks.map(chunk => ({
-          content: chunk.content,
-          filePath,
-          startLine: chunk.metadata.startLine,
-          endLine: chunk.metadata.endLine,
-          language: chunk.metadata.language,
-          chunkType: chunk.metadata.type || 'code',
-          functionName: chunk.metadata.functionName,
-          className: chunk.metadata.className
-        }));
-      }
-    } catch (error) {
-      this.logger.warn(`AST splitting failed for ${filePath}, using fallback: ${error}`);
-    }
-
-    // 回退逻辑保持不变
-    return this.simpleChunk(content, filePath, language);
-  }
-
-  /**
-   * 简单分段回退方法
-   */
-  private simpleChunk(content: string, filePath: string, language: string): FileChunk[] {
-    const lines = content.split('\n');
-    const chunks: FileChunk[] = [];
-    const chunkSize = 100;
-    const chunkOverlap = 10;
-
-    for (let i = 0; i < lines.length; i += chunkSize - chunkOverlap) {
-      const startLine = i;
-      const endLine = Math.min(i + chunkSize, lines.length);
-      const chunkContent = lines.slice(startLine, endLine).join('\n');
-
-      chunks.push({
-        content: chunkContent,
-        filePath,
-        startLine: startLine + 1,
-        endLine,
-        language,
-        chunkType: 'code'
-      });
-    }
-
-    return chunks;
-  }
-
-  /**
-   * 检测文件语言
-   */
-  private detectLanguage(filePath: string): string {
-    const ext = path.extname(filePath).toLowerCase();
-
-    const languageMap: Record<string, string> = {
-      '.js': 'javascript',
-      '.ts': 'typescript',
-      '.jsx': 'javascript',
-      '.tsx': 'typescript',
-      '.py': 'python',
-      '.java': 'java',
-      '.cpp': 'cpp',
-      '.c': 'c',
-      '.h': 'cpp',
-      '.cs': 'csharp',
-      '.go': 'go',
-      '.rs': 'rust',
-      '.php': 'php',
-      '.rb': 'ruby',
-      '.swift': 'swift',
-      '.kt': 'kotlin',
-      '.scala': 'scala',
-      '.md': 'markdown',
-      '.json': 'json',
-      '.xml': 'xml',
-      '.yaml': 'yaml',
-      '.yml': 'yaml',
-      '.sql': 'sql',
-      '.sh': 'shell',
-      '.bash': 'shell',
-      '.zsh': 'shell',
-      '.fish': 'shell',
-      '.html': 'html',
-      '.css': 'css',
-      '.scss': 'scss',
-      '.sass': 'sass',
-      '.less': 'less',
-      '.vue': 'vue',
-      '.svelte': 'svelte'
-    };
-
-    return languageMap[ext] || 'unknown';
-  }
-
-  /**
-   * 将文件块转换为向量点
-   */
-  private async convertChunksToVectorPoints(chunks: FileChunk[], projectPath: string): Promise<VectorPoint[]> {
-    const projectId = this.projectIdManager.getProjectId(projectPath);
-    if (!projectId) {
-      throw new Error(`Project ID not found for path: ${projectPath}`);
-    }
-
-    // 准备嵌入输入
-    const embeddingInputs: EmbeddingInput[] = chunks.map(chunk => ({
-      text: chunk.content,
-      metadata: {
-        filePath: chunk.filePath,
-        language: chunk.language,
-        chunkType: chunk.chunkType,
-        startLine: chunk.startLine,
-        endLine: chunk.endLine,
-        functionName: chunk.functionName,
-        className: chunk.className
-      }
-    }));
-
-    // 生成嵌入
-    const projectEmbedder = this.projectEmbedders.get(projectId) || this.embedderFactory.getDefaultProvider();
-    const embeddingResults = await this.embedderFactory.embed(embeddingInputs, projectEmbedder);
-    const results = Array.isArray(embeddingResults) ? embeddingResults : [embeddingResults];
-
-    // 转换为向量点
-    const vectorPoints = results.map((result, index) => {
-      const chunk = chunks[index];
-
-      // 确保ID是有效的格式，Qdrant支持整数ID或UUID格式的字符串ID
-      // 将文件路径转换为更安全的ID格式，使用UUID格式的字符串ID
-      const fileId = `${chunk.filePath}_${chunk.startLine}-${chunk.endLine}`;
-      // 使用更安全的ID格式，避免特殊字符，并使用更标准的格式
-      const safeId = fileId
-        .replace(/[<>:"/\\|?*]/g, '_')  // 替换特殊字符
-        .replace(/[:]/g, '_')           // 替换冒号
-        .replace(/[^a-zA-Z0-9_-]/g, '_') // 只保留字母、数字、下划线和连字符
-        .substring(0, 255);             // 限制长度以避免过长的ID
-
-      return {
-        id: safeId,
-        vector: result.vector,
-        payload: {
-          content: chunk.content,
-          filePath: chunk.filePath,
-          language: chunk.language,
-          chunkType: [chunk.chunkType],
-          startLine: chunk.startLine,
-          endLine: chunk.endLine,
-          functionName: chunk.functionName,
-          className: chunk.className,
-          snippetMetadata: {
-            snippetType: chunk.chunkType
-          },
-          metadata: {
-            model: result.model,
-            dimensions: result.dimensions,
-            processingTime: result.processingTime
-          },
-          timestamp: new Date(), // 使用Date对象
-          projectId
-        }
-      };
-    });
-
-    return vectorPoints;
-  }
 
   /**
    * 并发处理任务

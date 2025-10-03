@@ -16,6 +16,13 @@ export interface CodeChunkMetadata {
   snippetType?: string;
   functionName?: string;
   className?: string;
+  startByte?: number;
+  endByte?: number;
+  imports?: string[];
+  exports?: string[];
+  complexity?: number;
+  nestingLevel?: number;
+  [key: string]: any;
 }
 
 // 解析选项

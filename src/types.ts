@@ -44,7 +44,7 @@ export type EventListener<T = any> = (data: T) => void;
 import { FileSystemTraversal } from './service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from './service/filesystem/FileWatcherService';
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
-import { IndexSyncService } from './service/index/IndexSyncService';
+import { IndexService } from './service/index/IndexService';
 import { ProjectStateManager } from './service/project/ProjectStateManager';
 import { PerformanceOptimizerService } from './service/resilience/ResilientBatchingService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
@@ -55,6 +55,7 @@ import { ConfigFactory } from './config/ConfigFactory';
 import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from './service/parser/core/parse/TreeSitterCoreService';
 import { ASTCodeSplitter } from './service/parser/splitting/ASTCodeSplitter';
+import { ChunkToVectorCoordinationService } from './service/parser/ChunkToVectorCoordinationService';
 
 // 文件搜索服务
 import { FileSearchService } from './service/filesearch/FileSearchService';
@@ -140,6 +141,7 @@ export const TYPES = {
   TreeSitterService: Symbol.for('TreeSitterService'),
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
   ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
+  ChunkToVectorCoordinationService: Symbol.for('ChunkToVectorCoordinationService'),
 
   // 文件搜索服务
   FileSearchService: Symbol.for('FileSearchService'),
@@ -157,7 +159,7 @@ export const TYPES = {
   INebulaGraphOperations: Symbol.for('INebulaGraphOperations'),
   INebulaQueryBuilder: Symbol.for('INebulaQueryBuilder'),
   INebulaProjectManager: Symbol.for('INebulaProjectManager'),
-  
+
   // Nebula 监控服务
   NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
 

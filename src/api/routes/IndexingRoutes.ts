@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { Logger } from '../../utils/logger.js';
-import { IndexSyncService } from '../../service/index/IndexSyncService';
+import { IndexService } from '../../service/index/IndexService.js';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
@@ -53,14 +53,14 @@ export interface SearchQuery {
 
 export class IndexingRoutes {
   private router: Router;
-  private indexSyncService: IndexSyncService;
+  private indexSyncService: IndexService;
   private projectIdManager: ProjectIdManager;
   private embedderFactory: EmbedderFactory;
   private logger: Logger;
   private projectStateManager: ProjectStateManager;
 
   constructor(
-    indexSyncService: IndexSyncService,
+    indexSyncService: IndexService,
     projectIdManager: ProjectIdManager,
     embedderFactory: EmbedderFactory,
     logger: Logger,
@@ -417,7 +417,7 @@ export class IndexingRoutes {
       // 检查嵌入器是否可用
       const embedder = await this.embedderFactory.getEmbedder(embedderName);
       const isAvailable = await embedder.isAvailable();
-      
+
       if (!isAvailable) {
         return {
           isValid: false,
@@ -432,7 +432,7 @@ export class IndexingRoutes {
 
       // 获取提供者信息
       const providerInfo = await this.embedderFactory.getProviderInfo(embedderName);
-      
+
       return {
         isValid: true,
         providerInfo
@@ -553,7 +553,7 @@ export class IndexingRoutes {
   private async getAvailableEmbedders(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const availableProviders = await this.getAvailableProvidersInfo();
-      
+
       res.status(200).json({
         success: true,
         data: availableProviders

@@ -7,15 +7,22 @@ export interface CodeChunkMetadata {
   functionName?: string;
   className?: string;
   complexity?: number; // 新增：代码复杂度
+  startByte?: number;
+  endByte?: number;
+  imports?: string[];
+  exports?: string[];
+  nestingLevel?: number;
+  [key: string]: any;
 }
 
 export interface CodeChunk {
+  id?: string;
   content: string;
   metadata: CodeChunkMetadata;
 }
 
 export interface Splitter {
   split(code: string, language: string, filePath?: string): Promise<CodeChunk[]>;
-  setChunkSize(chunkSize: number): void;
+ setChunkSize(chunkSize: number): void;
   setChunkOverlap(chunkOverlap: number): void;
 }

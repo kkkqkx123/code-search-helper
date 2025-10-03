@@ -1,13 +1,13 @@
 import { ProjectIdManager } from './ProjectIdManager';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { IndexSyncService } from '../service/index/IndexSyncService';
+import { IndexService } from '../service/index/IndexService';
 
 export class ProjectLookupService {
   private projectIdManager: ProjectIdManager;
   private errorHandler: ErrorHandlerService;
-  public indexSyncService: IndexSyncService; // Public for access from ProjectRoutes
+  public indexSyncService: IndexService; // Public for access from ProjectRoutes
 
-  constructor(projectIdManager: ProjectIdManager, errorHandler: ErrorHandlerService, indexSyncService: IndexSyncService) {
+  constructor(projectIdManager: ProjectIdManager, errorHandler: ErrorHandlerService, indexSyncService: IndexService) {
     this.projectIdManager = projectIdManager;
     this.errorHandler = errorHandler;
     this.indexSyncService = indexSyncService;
@@ -90,7 +90,7 @@ export class ProjectLookupService {
       return null;
     }
   }
-  
+
   // Get the project ID with the latest update time
   async getLatestUpdatedProjectId(): Promise<string | null> {
     try {
@@ -103,7 +103,7 @@ export class ProjectLookupService {
       return null;
     }
   }
-  
+
   // Get project path for the latest updated project
   async getProjectPathForLatestUpdatedProject(): Promise<string | null> {
     try {

@@ -1,7 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { IndexingRoutes } from '../IndexingRoutes';
-import { IndexSyncService } from '../../../service/index/IndexSyncService';
+import { IndexService } from '../../../service/index/IndexService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { ProjectStateManager } from '../../../service/project/ProjectStateManager';
@@ -64,7 +64,7 @@ describe('IndexingRoutes', () => {
 
     // Create IndexingRoutes instance
     indexingRoutes = new IndexingRoutes(
-      mockIndexSyncService as IndexSyncService,
+      mockIndexSyncService as IndexService,
       mockProjectIdManager as ProjectIdManager,
       mockEmbedderFactory as EmbedderFactory,
       mockLogger as any, // Using any to simplify mock
@@ -75,7 +75,7 @@ describe('IndexingRoutes', () => {
     app = express();
     app.use(express.json());
     app.use('/api/v1/indexing', indexingRoutes.getRouter());
-    
+
     // Add error handling middleware - must be after routes
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
       console.error('Error middleware caught:', err);
@@ -105,7 +105,7 @@ describe('IndexingRoutes', () => {
       };
 
       const mockProjectId = 'project-123';
-      
+
       // Mock embedder validation
       mockEmbedderFactory.isProviderRegistered.mockReturnValue(true);
       mockEmbedderFactory.getEmbedder.mockReturnValue({

@@ -7,7 +7,7 @@ import { FileWatcherService } from '../../service/filesystem/FileWatcherService'
 import { ChangeDetectionService } from '../../service/filesystem/ChangeDetectionService';
 
 // 项目管理服务
-import { IndexSyncService } from '../../service/index/IndexSyncService';
+import { IndexService } from '../../service/index/IndexService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 
 // 性能优化服务
@@ -17,6 +17,7 @@ import { PerformanceOptimizerService } from '../../service/resilience/ResilientB
 import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
 import { ASTCodeSplitter } from '../../service/parser/splitting/ASTCodeSplitter';
+import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
 
 // 搜索服务
 import { FileSearchService } from '../../service/filesearch/FileSearchService';
@@ -47,7 +48,7 @@ export class BusinessServiceRegistrar {
     container.bind<ChangeDetectionService>(TYPES.ChangeDetectionService).to(ChangeDetectionService).inSingletonScope();
 
     // 项目管理服务
-    container.bind<IndexSyncService>(TYPES.IndexSyncService).to(IndexSyncService).inSingletonScope();
+    container.bind<IndexService>(TYPES.IndexSyncService).to(IndexService).inSingletonScope();
     container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
 
     // 性能优化服务
@@ -57,6 +58,7 @@ export class BusinessServiceRegistrar {
     container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
     container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
     container.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
+    container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
 
     // 搜索服务
     container.bind<FileSearchService>(TYPES.FileSearchService).to(FileSearchService).inSingletonScope();
@@ -64,10 +66,10 @@ export class BusinessServiceRegistrar {
     container.bind<FileQueryProcessor>(TYPES.FileQueryProcessor).to(FileQueryProcessor).inSingletonScope();
     container.bind<FileQueryIntentClassifier>(TYPES.FileQueryIntentClassifier).to(FileQueryIntentClassifier).inSingletonScope();
     container.bind<FileSearchCache>(TYPES.FileSearchCache).to(FileSearchCache).inSingletonScope();
-    
+
     // Nebula监控服务
     container.bind<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor).to(NebulaConnectionMonitor).inSingletonScope();
-    
+
     // 图服务
     container.bind<GraphCacheService>(TYPES.GraphCacheService).to(GraphCacheService).inSingletonScope();
     container.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();

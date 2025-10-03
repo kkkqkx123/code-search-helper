@@ -1,4 +1,4 @@
-import { IndexSyncService } from '../../service/index/IndexSyncService';
+import { IndexService } from '../../service/index/IndexService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { FileSystemTraversal } from '../../service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../../service/filesystem/FileWatcherService';
@@ -16,7 +16,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 // Helper function to wait for indexing to complete
-async function waitForIndexingComplete(indexSyncService: IndexSyncService, projectId: string, timeout = 5000): Promise<void> {
+async function waitForIndexingComplete(indexSyncService: IndexService, projectId: string, timeout = 5000): Promise<void> {
   const startTime = Date.now();
   while (Date.now() - startTime < timeout) {
     const status = indexSyncService.getIndexStatus(projectId);
@@ -40,7 +40,7 @@ jest.mock('../../service/filesystem/FileSystemTraversal');
 
 describe('Filesystem-Qdrant Integration', () => {
   let tempDir: string;
-  let indexSyncService: IndexSyncService;
+  let indexSyncService: IndexService;
   let projectStateManager: ProjectStateManager;
   let fileSystemTraversal: FileSystemTraversal;
   let fileWatcherService: FileWatcherService;
@@ -129,7 +129,7 @@ describe('Filesystem-Qdrant Integration', () => {
     qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService) as jest.Mocked<QdrantService>;
     embedderFactory = diContainer.get<EmbedderFactory>(TYPES.EmbedderFactory) as jest.Mocked<EmbedderFactory>;
     embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
-    indexSyncService = diContainer.get<IndexSyncService>(TYPES.IndexSyncService);
+    indexSyncService = diContainer.get<IndexService>(TYPES.IndexSyncService);
     projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
 
     // Clear any existing project states to ensure clean test environment

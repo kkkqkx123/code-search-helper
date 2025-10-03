@@ -8,7 +8,7 @@ import { ErrorHandlerService } from './utils/ErrorHandlerService';
 import { QdrantService } from './database/qdrant/QdrantService';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
-import { IndexSyncService } from './service/index/IndexSyncService';
+import { IndexService } from './service/index/IndexService';
 import { ProjectStateManager } from './service/project/ProjectStateManager';
 import { ConfigService } from './config/ConfigService';
 import { ConfigFactory } from './config/ConfigFactory';
@@ -59,7 +59,7 @@ class Application {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-    @inject(TYPES.IndexSyncService) private indexSyncService: IndexSyncService,
+    @inject(TYPES.IndexSyncService) private indexSyncService: IndexService,
     @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
     @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
@@ -133,7 +133,7 @@ class Application {
       const nebulaConnected = await this.nebulaService.initialize();
       if (nebulaConnected) {
         await this.loggerService.info('Nebula graph database service initialized successfully');
-        
+
         // 启动Nebula连接监控
         await this.loggerService.info('Starting Nebula connection monitoring...');
         this.nebulaConnectionMonitor.startMonitoring(30000); // 每30秒检查一次
@@ -212,7 +212,7 @@ class Application {
         // 停止Nebula连接监控
         this.nebulaConnectionMonitor.stopMonitoring();
         await this.loggerService.info('Nebula connection monitoring stopped');
-        
+
         await this.nebulaService.close();
         await this.loggerService.info('Nebula graph database service closed');
       } catch (error) {
@@ -257,7 +257,7 @@ class ApplicationFactory {
     const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
     const qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
     const embedderFactory = diContainer.get<EmbedderFactory>(TYPES.EmbedderFactory);
-    const indexSyncService = diContainer.get<IndexSyncService>(TYPES.IndexSyncService);
+    const indexSyncService = diContainer.get<IndexService>(TYPES.IndexSyncService);
     const projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     const embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
     const embeddingConfigService = diContainer.get<EmbeddingConfigService>(TYPES.EmbeddingConfigService);

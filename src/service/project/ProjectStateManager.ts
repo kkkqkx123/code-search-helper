@@ -3,7 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
-import { IndexSyncService, IndexSyncStatus } from '../index/IndexSyncService';
+import { IndexService, IndexSyncStatus } from '../index/IndexService';
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ConfigService } from '../../config/ConfigService';
 import * as fs from 'fs/promises';
@@ -72,7 +72,7 @@ export class ProjectStateManager {
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.IndexSyncService) private indexSyncService: IndexSyncService,
+    @inject(TYPES.IndexSyncService) private indexSyncService: IndexService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.ConfigService) private configService: ConfigService
   ) {
@@ -278,7 +278,7 @@ export class ProjectStateManager {
           try {
             await fs.unlink(tempPath);
           } catch { }
-          
+
           // 如果是权限错误，尝试直接写入目标文件作为后备方案
           if (writeError.code === 'EPERM' || writeError.code === 'EACCES') {
             this.logger.warn(`Permission error during atomic write, trying direct write as fallback`);
@@ -290,7 +290,7 @@ export class ProjectStateManager {
               this.logger.warn(`Direct write also failed: ${directWriteError.message || directWriteError}`);
             }
           }
-          
+
           throw writeError;
         }
       } catch (error) {

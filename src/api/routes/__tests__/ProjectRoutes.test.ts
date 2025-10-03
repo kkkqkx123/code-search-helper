@@ -5,7 +5,7 @@ import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { ProjectLookupService } from '../../../database/ProjectLookupService';
 import { Logger } from '../../../utils/logger';
 import { ProjectStateManager, ProjectState } from '../../../service/project/ProjectStateManager';
-import { IndexSyncService } from '../../../service/index/IndexSyncService';
+import { IndexService } from '../../../service/index/IndexService';
 
 // Create mock implementations
 const createMockProjectIdManager = () => ({
@@ -54,11 +54,11 @@ describe('ProjectRoutes', () => {
     // Create mock instances
     mockProjectIdManager = createMockProjectIdManager();
     mockProjectLookupService = createMockProjectLookupService();
-    mockLogger = { 
-      info: jest.fn(), 
-      error: jest.fn(), 
-      warn: jest.fn(), 
-      debug: jest.fn() 
+    mockLogger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn()
     };
     mockProjectStateManager = createMockProjectStateManager();
 
@@ -68,7 +68,7 @@ describe('ProjectRoutes', () => {
       mockProjectLookupService as ProjectLookupService,
       mockLogger as Logger,
       mockProjectStateManager as ProjectStateManager,
-      mockProjectLookupService.indexSyncService as IndexSyncService
+      mockProjectLookupService.indexSyncService as IndexService
     );
 
     // Create express app and use the router
@@ -83,7 +83,7 @@ describe('ProjectRoutes', () => {
       const mockProjectIds = ['project1', 'project2'];
       const mockProjectPath1 = '/path/to/project1';
       const mockProjectPath2 = '/path/to/project2';
-      
+
       // Mock ProjectIdManager methods
       mockProjectIdManager.refreshMapping.mockResolvedValue(undefined);
       mockProjectIdManager.listAllProjects.mockReturnValue(mockProjectIds);
@@ -92,7 +92,7 @@ describe('ProjectRoutes', () => {
         if (projectId === 'project2') return mockProjectPath2;
         return undefined;
       });
-      
+
       // Mock ProjectStateManager methods
       mockProjectStateManager.getProjectState.mockImplementation((projectId: string) => {
         if (projectId === 'project1') {
@@ -149,12 +149,12 @@ describe('ProjectRoutes', () => {
     it('should return project details when project exists', async () => {
       const projectId = 'test-project-id';
       const projectPath = '/path/to/project';
-      
+
       // Mock ProjectIdManager methods
       mockProjectIdManager.getProjectPath.mockImplementation((id: string) => {
         return id === projectId ? projectPath : undefined;
       });
-      
+
       // Mock ProjectStateManager methods
       mockProjectStateManager.getProjectState.mockReturnValue({
         projectId,
@@ -179,7 +179,7 @@ describe('ProjectRoutes', () => {
 
     it('should return 404 when project is not found', async () => {
       const projectId = 'non-existent-project';
-      
+
       // Mock ProjectIdManager to return undefined for project path
       mockProjectIdManager.getProjectPath.mockReturnValue(undefined);
 
@@ -192,7 +192,7 @@ describe('ProjectRoutes', () => {
 
     it('should handle error when getting project details fails', async () => {
       const projectId = 'test-project-id';
-      
+
       // Mock ProjectIdManager to throw an error
       mockProjectIdManager.getProjectPath.mockImplementation(() => {
         throw new Error('Database error');
@@ -208,7 +208,7 @@ describe('ProjectRoutes', () => {
     it('should delete project when it exists', async () => {
       const projectId = 'test-project-id';
       const projectPath = '/path/to/project';
-      
+
       // Mock ProjectIdManager methods
       mockProjectIdManager.getProjectPath.mockReturnValue(projectPath);
       mockProjectIdManager.removeProject.mockReturnValue(true);
@@ -225,7 +225,7 @@ describe('ProjectRoutes', () => {
 
     it('should return 404 when project is not found', async () => {
       const projectId = 'non-existent-project';
-      
+
       // Mock ProjectIdManager to return undefined for project path
       mockProjectIdManager.getProjectPath.mockReturnValue(undefined);
 
@@ -239,7 +239,7 @@ describe('ProjectRoutes', () => {
     it('should handle error when deleting project fails', async () => {
       const projectId = 'test-project-id';
       const projectPath = '/path/to/project';
-      
+
       // Mock ProjectIdManager methods
       mockProjectIdManager.getProjectPath.mockReturnValue(projectPath);
       mockProjectIdManager.removeProject.mockImplementation(() => {
@@ -256,12 +256,12 @@ describe('ProjectRoutes', () => {
     it('should start reindexing when project exists', async () => {
       const projectId = 'test-project-id';
       const projectPath = '/path/to/project';
-      
+
       // Mock ProjectIdManager methods
       mockProjectIdManager.getProjectPath.mockImplementation((id: string) => {
         return id === projectId ? projectPath : undefined;
       });
-      
+
       // Mock IndexSyncService reindexProject method to return the projectId
       mockProjectLookupService.indexSyncService.reindexProject.mockResolvedValue(projectId);
 
@@ -275,7 +275,7 @@ describe('ProjectRoutes', () => {
 
     it('should return 404 when project is not found', async () => {
       const projectId = 'non-existent-project';
-      
+
       // Mock ProjectIdManager to return undefined for project path
       mockProjectIdManager.getProjectPath.mockReturnValue(undefined);
 
@@ -288,7 +288,7 @@ describe('ProjectRoutes', () => {
 
     it('should handle error when reindexing fails', async () => {
       const projectId = 'test-project-id';
-      
+
       // Mock ProjectIdManager to throw an error
       mockProjectIdManager.getProjectPath.mockImplementation(() => {
         throw new Error('Database error');

@@ -15,7 +15,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { ProjectState } from '../../service/project/ProjectStateManager';
-import { IndexSyncService } from '../../service/index/IndexSyncService';
+import { IndexService } from '../../service/index/IndexService';
 
 export interface ProjectCreateBody {
   projectPath: string;
@@ -59,14 +59,14 @@ export class ProjectRoutes {
   private projectLookupService: ProjectLookupService;
   private logger: Logger;
   private projectStateManager: ProjectStateManager;
-  private indexSyncService: IndexSyncService;
+  private indexSyncService: IndexService;
 
   constructor(
     projectIdManager: ProjectIdManager,
     projectLookupService: ProjectLookupService,
     logger: Logger,
     projectStateManager: ProjectStateManager,
-    indexSyncService: IndexSyncService
+    indexSyncService: IndexService
   ) {
     this.projectIdManager = projectIdManager;
     this.projectLookupService = projectLookupService;
@@ -114,7 +114,7 @@ export class ProjectRoutes {
     try {
       // Refresh mapping from persistent storage to ensure we have the latest projects
       await this.projectIdManager.refreshMapping();
-      
+
       // Get all project IDs from ProjectIdManager
       const projectIds = this.projectIdManager.listAllProjects();
       const projects: Project[] = [];
@@ -249,7 +249,7 @@ export class ProjectRoutes {
       next(error);
     }
   }
-  
+
   /**
    * Maps ProjectState status to Project status
    * @param projectStateStatus The status from ProjectState
@@ -279,22 +279,22 @@ export class ProjectRoutes {
 
     // Get project state from ProjectStateManager
     const projectState: ProjectState | null = this.projectStateManager.getProjectState(projectId);
-    
+
     // Check if the project has been indexed by looking at the collection info
     let hasBeenIndexed = false;
     if (projectState && projectState.collectionInfo) {
       hasBeenIndexed = projectState.collectionInfo.vectorsCount > 0;
     }
-    
+
     // If we have state from the manager, use it; otherwise use defaults
     const status = projectState
       ? this.mapProjectStateStatusToProjectStatus(projectState.status)
       : 'pending';
-      
+
     // If there's no project state but the project exists in the mapping,
     // check if it has been indexed by checking collection info
     const effectiveStatus = projectState ? status : 'pending';
-    
+
     const progress = projectState ? (projectState.indexingProgress || 0) : 0;
     const totalFiles = projectState ? (projectState.totalFiles || 0) : 0;
     const lastIndexed = projectState && projectState.lastIndexedAt ? projectState.lastIndexedAt : new Date();

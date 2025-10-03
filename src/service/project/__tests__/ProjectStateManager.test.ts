@@ -2,7 +2,6 @@ import { ProjectStateManager } from '../ProjectStateManager';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
-import { IndexSyncService } from '../../index/IndexSyncService';
 import { QdrantService } from '../../../database/qdrant/QdrantService';
 import { ConfigService } from '../../../config/ConfigService';
 import { diContainer } from '../../../core/DIContainer';
@@ -23,6 +22,8 @@ import { IQdrantProjectManager } from '../../../database/qdrant/QdrantProjectMan
 import { ASTCodeSplitter } from '../../parser/splitting/ASTCodeSplitter';
 import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
 import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';
+import { IndexService } from '../../index/IndexService';
+import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -38,11 +39,12 @@ describe('ProjectStateManager', () => {
   let loggerService: jest.Mocked<LoggerService>;
   let errorHandlerService: jest.Mocked<ErrorHandlerService>;
   let projectIdManager: jest.Mocked<ProjectIdManager>;
-  let indexSyncService: jest.Mocked<IndexSyncService>;
+  let indexSyncService: jest.Mocked<IndexService>;
   let qdrantService: jest.Mocked<QdrantService>;
   let configService: jest.Mocked<ConfigService>;
   let mockFs: jest.Mocked<typeof import('fs/promises')>;
   let astSplitter: jest.Mocked<ASTCodeSplitter>;
+  let coordinationService: jest.Mocked<ChunkToVectorCoordinationService>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -51,14 +53,14 @@ describe('ProjectStateManager', () => {
     // Get mock instances
     loggerService = new LoggerService() as jest.Mocked<LoggerService>;
     errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
-    
+
     // Create mock config services
     const mockQdrantConfigService = {
       getCollectionNameForProject: jest.fn().mockImplementation((projectId: string) => `project-${projectId}`),
       validateNamingConvention: jest.fn().mockReturnValue(true),
       checkConfigurationConflict: jest.fn().mockReturnValue(false)
     } as unknown as jest.Mocked<QdrantConfigService>;
-    
+
     const mockNebulaConfigService = {
       getSpaceNameForProject: jest.fn().mockImplementation((projectId: string) => `project_${projectId}`),
       validateNamingConvention: jest.fn().mockReturnValue(true),
@@ -143,6 +145,12 @@ describe('ProjectStateManager', () => {
       split: jest.fn(),
     } as unknown as jest.Mocked<ASTCodeSplitter>;
 
+    // Create mock coordination service
+    const mockCoordinationService = {
+      processFileForEmbedding: jest.fn(),
+      setProjectEmbedder: jest.fn(),
+    } as unknown as jest.Mocked<ChunkToVectorCoordinationService>;
+
     // Create mock performance optimizer service
     const mockPerformanceOptimizerService = {
       executeWithRetry: jest.fn(),
@@ -157,7 +165,7 @@ describe('ProjectStateManager', () => {
       updateBatchOptions: jest.fn(),
     } as unknown as jest.Mocked<PerformanceOptimizerService>;
 
-    indexSyncService = new IndexSyncService(
+    indexSyncService = new IndexService(
       loggerService,
       errorHandlerService,
       mockFileSystemTraversal,
@@ -168,8 +176,9 @@ describe('ProjectStateManager', () => {
       mockEmbedderFactory,
       mockEmbeddingCacheService,
       mockPerformanceOptimizerService,
-      mockAstSplitter
-    ) as jest.Mocked<IndexSyncService>;
+      mockAstSplitter,
+      mockCoordinationService
+    ) as jest.Mocked<IndexService>;
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {} as jest.Mocked<IQdrantConnectionManager>;
     const mockCollectionManager = {} as jest.Mocked<IQdrantCollectionManager>;

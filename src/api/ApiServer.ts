@@ -14,7 +14,7 @@ import { ProjectIdManager } from '../database/ProjectIdManager';
 import { QdrantConfigService } from '../config/service/QdrantConfigService';
 import { NebulaConfigService } from '../config/service/NebulaConfigService';
 import { ProjectLookupService } from '../database/ProjectLookupService';
-import { IndexSyncService } from '../service/index/IndexSyncService';
+import { IndexService } from '../service/index/IndexService.js';
 import { EmbedderFactory } from '../embedders/EmbedderFactory';
 import { QdrantService } from '../database/qdrant/QdrantService.js';
 import { ProjectStateManager } from '../service/project/ProjectStateManager';
@@ -35,13 +35,13 @@ export class ApiServer {
   private graphQueryRoutes: GraphQueryRoutes;
   private graphAnalysisRoutes: GraphAnalysisRoutes;
   private graphStatsRoutes: GraphStatsRoutes;
-  private indexSyncService: IndexSyncService;
+  private indexSyncService: IndexService;
   private embedderFactory: EmbedderFactory;
   private qdrantService: QdrantService;
   private nebulaService: NebulaService;
   private projectStateManager: ProjectStateManager;
 
-  constructor(logger: Logger, indexSyncService: IndexSyncService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
+  constructor(logger: Logger, indexSyncService: IndexService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
     this.logger = logger;
     this.indexSyncService = indexSyncService;
     this.embedderFactory = embedderFactory;
