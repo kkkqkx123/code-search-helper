@@ -105,7 +105,23 @@ describe('Graph Service Migration Integration Tests', () => {
       } as any, // GraphQueryBuilder
       mockBatchOptimizer as any,
       mockCacheService as any,
-      mockPerformanceMonitor as any
+      mockPerformanceMonitor as any,
+      {
+        executeWithRetry: jest.fn(async (operation, operationName, options) => {
+          return await operation();
+        }),
+        executeWithMonitoring: jest.fn(async (operation, operationName) => {
+          return await operation();
+        }),
+        processBatches: jest.fn(),
+        getCurrentBatchSize: jest.fn().mockReturnValue(50),
+        resetBatchSize: jest.fn(),
+        updateRetryOptions: jest.fn(),
+        updateBatchOptions: jest.fn(),
+        getPerformanceStats: jest.fn(),
+        getMemoryStats: jest.fn(),
+        optimizeMemory: jest.fn()
+      } as any // PerformanceOptimizerService
     );
 
     graphDataService = new GraphDataService(

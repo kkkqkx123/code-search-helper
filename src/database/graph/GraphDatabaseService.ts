@@ -11,6 +11,7 @@ import { TransactionResult } from '../core/TransactionManager';
 import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
+import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
 
 export interface GraphDatabaseConfig {
   defaultSpace: string;
@@ -28,6 +29,7 @@ export interface GraphQuery {
   parameters?: Record<string, any>;
 }
 
+
 @injectable()
 export class GraphDatabaseService {
   private nebulaService: NebulaService;
@@ -40,11 +42,11 @@ export class GraphDatabaseService {
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   private performanceMonitor: IPerformanceMonitor;
+  private performanceOptimizer: PerformanceOptimizerService;
   private config: GraphDatabaseConfig;
   private currentSpace: string | null = null;
   private isConnected: boolean = false;
   private healthCheckInterval: NodeJS.Timeout | null = null;
-
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
@@ -54,7 +56,8 @@ export class GraphDatabaseService {
     @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
     @inject(TYPES.GraphBatchOptimizer) batchOptimizer: IBatchOptimizer,
     @inject(TYPES.GraphCacheService) cacheService: ICacheService,
-    @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
+    @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor,
+    @inject(TYPES.PerformanceOptimizerService) performanceOptimizer: PerformanceOptimizerService
   ) {
     // Initialize services directly
     this.logger = logger;
@@ -67,6 +70,7 @@ export class GraphDatabaseService {
     this.batchOptimizer = batchOptimizer;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
+    this.performanceOptimizer = performanceOptimizer;
 
     this.config = {
       defaultSpace: 'default',
@@ -160,8 +164,9 @@ export class GraphDatabaseService {
     }
 
     try {
-      const result = await this.executeWithRetry(() =>
-        this.nebulaService.executeReadQuery(query, parameters)
+      const result = await this.performanceOptimizer.executeWithRetry(
+        () => this.nebulaService.executeReadQuery(query, parameters),
+        'executeReadQuery'
       );
 
       // Cache the result
@@ -200,8 +205,9 @@ export class GraphDatabaseService {
     const startTime = Date.now();
 
     try {
-      const result = await this.executeWithRetry(() =>
-        this.nebulaService.executeWriteQuery(query, parameters)
+      const result = await this.performanceOptimizer.executeWithRetry(
+        () => this.nebulaService.executeWriteQuery(query, parameters),
+        'executeWriteQuery'
       );
 
       const executionTime = Date.now() - startTime;
@@ -582,40 +588,6 @@ export class GraphDatabaseService {
 
   isDatabaseConnected(): boolean {
     return this.isConnected;
-  }
-
-  private async executeWithRetry<T>(
-    operation: () => Promise<T>,
-    maxRetries: number = this.config.maxRetries,
-    retryDelay: number = this.config.retryDelay
-  ): Promise<T> {
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-
-        if (attempt < maxRetries) {
-          this.logger.warn('Database operation failed, retrying', {
-            attempt,
-            maxRetries,
-            error: lastError.message,
-          });
-
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
-        } else {
-          this.logger.error('Database operation failed after all retries', {
-            attempts: maxRetries,
-            error: lastError.message,
-          });
-        }
-      }
-    }
-
-    throw lastError!;
   }
 
   private async executeWithTimeout<T>(

@@ -15,9 +15,9 @@ export interface PerformanceMetrics {
 export interface RetryOptions {
   maxAttempts: number;
   baseDelay: number;
-  maxDelay: number;
-  backoffFactor: number;
-  jitter: boolean;
+  maxDelay?: number;
+  backoffFactor?: number;
+  jitter?: boolean;
 }
 
 export interface BatchOptions {
@@ -50,24 +50,24 @@ export class PerformanceOptimizerService {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) private configService: ConfigService
   ) {
-    // Initialize retry options
-    // Note: The performance config structure in ConfigService doesn't match what we're using here
-    // We'll use default values for now and update this when the config structure is fixed
+    // Initialize retry options from config service
+    const batchConfig = this.configService.get('batchProcessing');
+    
     this.retryOptions = {
-      maxAttempts: 3,
-      baseDelay: 100,
-      maxDelay: 30000,
-      backoffFactor: 2,
-      jitter: true
+      maxAttempts: batchConfig.retryAttempts,
+      baseDelay: batchConfig.retryDelay,
+      maxDelay: 30000, // Default value, could be added to config if needed
+      backoffFactor: 2, // Default value, could be added to config if needed
+      jitter: true // Default value, could be added to config if needed
     };
 
-    // Initialize batch options
+    // Initialize batch options from config service
     this.batchOptions = {
-      initialSize: 10,
-      maxSize: 100,
-      minSize: 1,
-      adjustmentFactor: 0.1,
-      performanceThreshold: 5000
+      initialSize: batchConfig.defaultBatchSize,
+      maxSize: batchConfig.maxBatchSize,
+      minSize: batchConfig.adaptiveBatching.minBatchSize,
+      adjustmentFactor: batchConfig.adaptiveBatching.adjustmentFactor,
+      performanceThreshold: batchConfig.adaptiveBatching.performanceThreshold
     };
 
     // Set initial batch size
@@ -230,10 +230,10 @@ export class PerformanceOptimizerService {
    */
   private calculateDelay(attempt: number, options: RetryOptions): number {
     // Calculate exponential backoff delay
-    let delay = options.baseDelay * Math.pow(options.backoffFactor, attempt - 1);
+    let delay = options.baseDelay * Math.pow(options.backoffFactor || 2, attempt - 1);
 
     // Cap at maximum delay
-    delay = Math.min(delay, options.maxDelay);
+    delay = Math.min(delay, options.maxDelay || 30000);
 
     // Add jitter if enabled
     if (options.jitter) {
