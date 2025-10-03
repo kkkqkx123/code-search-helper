@@ -34,6 +34,19 @@ describe('MistralEmbedder', () => {
     errorHandler = new ErrorHandlerService(logger);
     cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
 
+    // Spy on error handler to prevent actual error logging during tests
+    jest.spyOn(errorHandler, 'handleError').mockImplementation((error, context) => {
+      return {
+        id: 'test-error-id',
+        timestamp: new Date(),
+        component: context.component,
+        operation: context.operation,
+        message: error.message,
+        stack: error.stack,
+        context: context
+      };
+    });
+
     // Create MistralEmbedder instance
     mistralEmbedder = new MistralEmbedder(logger, errorHandler, cacheService);
   });

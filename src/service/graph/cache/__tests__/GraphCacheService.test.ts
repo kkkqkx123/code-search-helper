@@ -44,7 +44,8 @@ describe('GraphCacheService', () => {
   describe('constructor', () => {
     it('应该使用默认配置初始化', () => {
       expect(cacheService).toBeInstanceOf(GraphCacheService);
-      expect(mockConfigService.get).toHaveBeenCalledWith('caching');
+      // 构造函数不会直接调用get方法，而是在需要时通过getCacheConfig调用
+      expect(mockConfigService.get).not.toHaveBeenCalled();
     });
   });
 

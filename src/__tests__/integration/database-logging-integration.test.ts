@@ -21,6 +21,7 @@ import { IndexingConfigService } from '../../config/service/IndexingConfigServic
 import { LSPConfigService } from '../../config/service/LSPConfigService';
 import { SemgrepConfigService } from '../../config/service/SemgrepConfigService';
 import { TreeSitterConfigService } from '../../config/service/TreeSitterConfigService';
+import { NebulaConfigService } from '../../config/service/NebulaConfigService';
 import { DatabaseEventType } from '../../database/common/DatabaseEventTypes';
 
 describe('Database Logging Integration Tests', () => {
@@ -46,6 +47,7 @@ describe('Database Logging Integration Tests', () => {
     container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
+    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();

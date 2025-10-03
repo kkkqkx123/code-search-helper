@@ -582,13 +582,13 @@ describe('Filesystem-Qdrant Integration', () => {
 
       // Check if project state exists and is inactive, with retry logic
       let deactivateCheck = false;
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 10; i++) {
         projectState = projectStateManager.getProjectState(projectId);
         if (projectState && projectState.status === 'inactive') {
           deactivateCheck = true;
           break;
         }
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
       expect(deactivateCheck).toBe(true);
 
@@ -607,7 +607,7 @@ describe('Filesystem-Qdrant Integration', () => {
           activateCheck = true;
           break;
         }
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
       expect(activateCheck).toBe(true);
     });

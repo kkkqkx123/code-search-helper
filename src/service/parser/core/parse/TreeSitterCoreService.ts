@@ -281,22 +281,29 @@ export class TreeSitterCoreService {
     pattern: string
   ): Array<{ captures: Array<{ name: string; node: Parser.SyntaxNode }> }> {
     try {
-      const parserLang = (ast as any).tree?.language || (ast as any).language;
-      if (!parserLang) {
-        throw new Error('Cannot determine language from AST');
+      // Get the tree from the AST node
+      const tree = (ast as any).tree;
+      if (!tree) {
+        throw new Error('Cannot determine tree from AST node');
       }
 
-      // Check if the language has a query method
-      if (typeof parserLang.query !== 'function') {
-        console.warn('Query functionality not available for this language');
-        return [];
+      // Get the language from the tree
+      const language = tree.language;
+      if (!language) {
+        throw new Error('Cannot determine language from tree');
       }
 
-      // Create a query from the pattern
-      const query = parserLang.query(pattern);
+      // Create a query from the pattern and language
+      const query = new Parser.Query(language, pattern);
       const matches = query.matches(ast);
 
-      return matches;
+      // Transform matches to the expected format
+      return matches.map(match => ({
+        captures: match.captures.map(capture => ({
+          name: capture.name,
+          node: capture.node
+        }))
+      }));
     } catch (error) {
       console.error('Failed to query tree:', error);
       return [];
