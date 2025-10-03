@@ -5,13 +5,16 @@ import { BaseConfigService } from './BaseConfigService';
 export interface NebulaConfig {
   host: string;
   port: number;
- username: string;
+  username: string;
   password: string;
   timeout?: number;
   maxConnections?: number;
   retryAttempts?: number;
   retryDelay?: number;
   space?: string;
+  bufferSize?: number;
+  pingInterval?: number;
+  vidTypeLength?: number;
 }
 
 @injectable()
@@ -27,6 +30,9 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       retryAttempts: parseInt(process.env.NEBULA_RETRY_ATTEMPTS || '3'),
       retryDelay: parseInt(process.env.NEBULA_RETRY_DELAY || '1000'),
       space: process.env.NEBULA_SPACE || 'codebase',
+      bufferSize: parseInt(process.env.NEBULA_BUFFER_SIZE || '10'),
+      pingInterval: parseInt(process.env.NEBULA_PING_INTERVAL || '3000'),
+      vidTypeLength: parseInt(process.env.NEBULA_VID_TYPE_LENGTH || '128'),
     };
 
     return this.validateConfig(rawConfig);
@@ -43,6 +49,9 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       retryAttempts: Joi.number().default(3),
       retryDelay: Joi.number().default(1000),
       space: Joi.string().optional(),
+      bufferSize: Joi.number().default(10),
+      pingInterval: Joi.number().default(3000),
+      vidTypeLength: Joi.number().min(8).max(256).default(128),
     });
 
     const { error, value } = schema.validate(config);
@@ -64,6 +73,9 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       retryAttempts: 3,
       retryDelay: 1000,
       space: 'codebase',
+      bufferSize: 10,
+      pingInterval: 3000,
+      vidTypeLength: 128,
     };
   }
 }

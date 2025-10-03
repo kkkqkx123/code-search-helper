@@ -5,4 +5,3 @@
 
 当前创建nebula的space时设置vid_type=fixed_string(30)，分析这是否足够
 
-src\database\nebula\NebulaConnectionManager.ts中的问题已修复。将该文件中测试nebula连接改为实际为其他模块提供服务。

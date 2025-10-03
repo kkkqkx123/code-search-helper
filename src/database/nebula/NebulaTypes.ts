@@ -9,6 +9,9 @@ export interface NebulaConfig {
   retryAttempts?: number;
   retryDelay?: number;
   space?: string;
+  bufferSize?: number;
+  pingInterval?: number;
+  vidTypeLength?: number;
 }
 
 // Nebula 连接状态类型

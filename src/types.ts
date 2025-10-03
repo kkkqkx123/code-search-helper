@@ -108,6 +108,7 @@ export const TYPES = {
   LSPConfigService: Symbol.for('LSPConfigService'),
   SemgrepConfigService: Symbol.for('SemgrepConfigService'),
   TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
+  NebulaConfigService: Symbol.for('NebulaConfigService'),
 
   QdrantService: Symbol.for('QdrantService'),
   LoggerService: Symbol.for('LoggerService'),
