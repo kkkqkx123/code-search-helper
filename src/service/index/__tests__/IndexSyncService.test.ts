@@ -6,6 +6,8 @@ import { FileWatcherService } from '../../filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../../filesystem/ChangeDetectionService';
 import { QdrantService } from '../../../database/qdrant/QdrantService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
+import { QdrantConfigService } from '../../../config/service/QdrantConfigService';
+import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
 import { diContainer } from '../../../core/DIContainer';
@@ -132,7 +134,24 @@ describe('IndexSyncService', () => {
       mockDatabaseLoggerService,
       mockPerformanceMonitor
     ) as jest.Mocked<QdrantService>;
-    projectIdManager = new ProjectIdManager(diContainer.get(TYPES.ConfigService)) as jest.Mocked<ProjectIdManager>;
+    // Create mock config services
+    const mockQdrantConfigService = {
+      getCollectionNameForProject: jest.fn().mockImplementation((projectId: string) => `project-${projectId}`),
+      validateNamingConvention: jest.fn().mockReturnValue(true),
+      checkConfigurationConflict: jest.fn().mockReturnValue(false)
+    } as unknown as jest.Mocked<QdrantConfigService>;
+    
+    const mockNebulaConfigService = {
+      getSpaceNameForProject: jest.fn().mockImplementation((projectId: string) => `project_${projectId}`),
+      validateNamingConvention: jest.fn().mockReturnValue(true),
+      checkConfigurationConflict: jest.fn().mockReturnValue(false)
+    } as unknown as jest.Mocked<NebulaConfigService>;
+
+    projectIdManager = new ProjectIdManager(
+      diContainer.get(TYPES.ConfigService),
+      mockQdrantConfigService,
+      mockNebulaConfigService
+    ) as jest.Mocked<ProjectIdManager>;
     embedderFactory = new EmbedderFactory(
       loggerService,
       errorHandlerService,

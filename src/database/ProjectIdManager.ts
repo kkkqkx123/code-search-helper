@@ -4,6 +4,10 @@ import * as path from 'path';
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../types';
 import { ConfigService } from '../config/ConfigService';
+import { QdrantConfigService } from '../config/service/QdrantConfigService';
+import { NebulaConfigService } from '../config/service/NebulaConfigService';
+import { LoggerService } from '../utils/LoggerService';
+import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 
 @injectable()
 export class ProjectIdManager {
@@ -14,7 +18,11 @@ export class ProjectIdManager {
   private projectUpdateTimes: Map<string, Date> = new Map(); // projectId -> last update time
 
   constructor(
-    @inject(TYPES.ConfigService) private configService: ConfigService
+    @inject(TYPES.ConfigService) private configService: ConfigService,
+    @inject(TYPES.QdrantConfigService) private qdrantConfigService: QdrantConfigService,
+    @inject(TYPES.NebulaConfigService) private nebulaConfigService: NebulaConfigService,
+    @inject(TYPES.LoggerService) private logger: LoggerService,
+    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService
   ) {
     // 检查是否在测试环境中
     const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
@@ -23,13 +31,15 @@ export class ProjectIdManager {
       // 在测试环境中，延迟加载映射以避免配置服务未初始化的问题
       setTimeout(() => {
         this.loadMapping().catch(error => {
-          console.warn('Failed to load project mapping in test environment:', error);
+          this.logger.warn('Failed to load project mapping in test environment:', error);
+          this.errorHandler.handleError(error, { component: 'ProjectIdManager', operation: 'loadMapping' });
         });
-      }, 100);
+      }, 10);
     } else {
       // 在生产环境中立即加载映射
       this.loadMapping().catch(error => {
-        console.warn('Failed to load project mapping at startup:', error);
+        this.logger.warn('Failed to load project mapping at startup:', error);
+        this.errorHandler.handleError(error, { component: 'ProjectIdManager', operation: 'loadMapping' });
       });
     }
   }
@@ -50,36 +60,47 @@ export class ProjectIdManager {
 
 
   async generateProjectId(projectPath: string): Promise<string> {
-    // Normalize path to ensure consistency across different platforms
-    const normalizedPath = HashUtils.normalizePath(projectPath);
-    
-    // Check if project ID already exists for this path
-    const existingProjectId = this.projectIdMap.get(normalizedPath);
-    if (existingProjectId) {
-      // Update timestamp for existing project
-      this.projectUpdateTimes.set(existingProjectId, new Date());
-      return existingProjectId;
+    try {
+      // Normalize path to ensure consistency across different platforms
+      const normalizedPath = HashUtils.normalizePath(projectPath);
+      
+      // Check if project ID already exists for this path
+      const existingProjectId = this.projectIdMap.get(normalizedPath);
+      if (existingProjectId) {
+        // Update timestamp for existing project
+        this.projectUpdateTimes.set(existingProjectId, new Date());
+        return existingProjectId;
+      }
+      
+      // Use SHA256 hash to generate project ID
+      const directoryHash = await HashUtils.calculateDirectoryHash(projectPath);
+      const projectId = directoryHash.hash.substring(0, 16);
+
+      // Generate corresponding collection and space names using configuration services
+      const collectionName = this.qdrantConfigService.getCollectionNameForProject(projectId);
+      const spaceName = this.nebulaConfigService.getSpaceNameForProject(projectId);
+
+      // Establish mapping relationships using normalized path
+      this.projectIdMap.set(normalizedPath, projectId);
+      this.pathToProjectMap.set(projectId, normalizedPath);
+      this.collectionMap.set(projectId, collectionName);
+      this.spaceMap.set(projectId, spaceName);
+
+      // Set current time as the update time for this project
+      this.projectUpdateTimes.set(projectId, new Date());
+
+      this.logger.info(`Generated project ID: ${projectId} for path: ${projectPath}`);
+      this.logger.info(`Collection name: ${collectionName}, Space name: ${spaceName}`);
+
+      return projectId;
+    } catch (error) {
+      this.logger.error(`Failed to generate project ID for path: ${projectPath}`, error);
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error('Unknown error in generateProjectId'),
+        { component: 'ProjectIdManager', operation: 'generateProjectId', projectPath }
+      );
+      throw error;
     }
-    
-    // Use SHA256 hash to generate project ID
-    const directoryHash = await HashUtils.calculateDirectoryHash(projectPath);
-    const projectId = directoryHash.hash.substring(0, 16);
-
-    // Establish mapping relationships using normalized path
-    this.projectIdMap.set(normalizedPath, projectId);
-    this.pathToProjectMap.set(projectId, normalizedPath);
-
-    // Generate corresponding collection and space names
-    const collectionName = `project-${projectId}`;
-    const spaceName = `project_${projectId}`;
-
-    this.collectionMap.set(projectId, collectionName);
-    this.spaceMap.set(projectId, spaceName);
-
-    // Set current time as the update time for this project
-    this.projectUpdateTimes.set(projectId, new Date());
-
-    return projectId;
   }
 
   getProjectId(projectPath: string): string | undefined {
@@ -321,42 +342,54 @@ export class ProjectIdManager {
     pathToProjectMap: Map<string, string>,
     projectUpdateTimes: Map<string, Date>
   ): void {
-    // 验证项目ID映射的一致性
-    for (const [projectPath, projectId] of projectIdMap.entries()) {
-      // 确保反向映射存在
-      if (!pathToProjectMap.has(projectId)) {
-        console.warn(`Missing reverse mapping for project ${projectId}, adding...`);
-        pathToProjectMap.set(projectId, projectPath);
+    try {
+      // 验证项目ID映射的一致性
+      for (const [projectPath, projectId] of projectIdMap.entries()) {
+        // 确保反向映射存在
+        if (!pathToProjectMap.has(projectId)) {
+          this.logger.warn(`Missing reverse mapping for project ${projectId}, adding...`);
+          pathToProjectMap.set(projectId, projectPath);
+        }
+        
+        // 确保集合映射存在
+        if (!collectionMap.has(projectId)) {
+          this.logger.warn(`Missing collection mapping for project ${projectId}, adding...`);
+          // 使用配置服务来生成默认集合名
+          const collectionName = this.qdrantConfigService.getCollectionNameForProject(projectId);
+          collectionMap.set(projectId, collectionName);
+        }
+        
+        // 确保空间映射存在（使用配置服务来生成默认空间名）
+        if (!spaceMap.has(projectId)) {
+          this.logger.warn(`Missing space mapping for project ${projectId}, adding...`);
+          // 使用配置服务来生成默认空间名
+          const spaceName = this.nebulaConfigService.getSpaceNameForProject(projectId);
+          spaceMap.set(projectId, spaceName);  // 统一使用配置服务生成的名称
+        }
+        
+        // 确保更新时间存在
+        if (!projectUpdateTimes.has(projectId)) {
+          this.logger.warn(`Missing update time for project ${projectId}, adding...`);
+          projectUpdateTimes.set(projectId, new Date());
+        }
       }
-      
-      // 确保集合映射存在
-      if (!collectionMap.has(projectId)) {
-        console.warn(`Missing collection mapping for project ${projectId}, adding...`);
-        collectionMap.set(projectId, `project-${projectId}`);
-      }
-      
-      // 确保空间映射存在
-      if (!spaceMap.has(projectId)) {
-        console.warn(`Missing space mapping for project ${projectId}, adding...`);
-        spaceMap.set(projectId, `project_${projectId}`);
-      }
-      
-      // 确保更新时间存在
-      if (!projectUpdateTimes.has(projectId)) {
-        console.warn(`Missing update time for project ${projectId}, adding...`);
-        projectUpdateTimes.set(projectId, new Date());
-      }
-    }
 
-    // 清理无效的反向映射
-    for (const [projectId, projectPath] of pathToProjectMap.entries()) {
-      if (!projectIdMap.has(projectPath)) {
-        console.warn(`Orphaned reverse mapping for project ${projectId}, removing...`);
-        pathToProjectMap.delete(projectId);
-        collectionMap.delete(projectId);
-        spaceMap.delete(projectId);
-        projectUpdateTimes.delete(projectId);
+      // 清理无效的反向映射
+      for (const [projectId, projectPath] of pathToProjectMap.entries()) {
+        if (!projectIdMap.has(projectPath)) {
+          this.logger.warn(`Orphaned reverse mapping for project ${projectId}, removing...`);
+          pathToProjectMap.delete(projectId);
+          collectionMap.delete(projectId);
+          spaceMap.delete(projectId);
+          projectUpdateTimes.delete(projectId);
+        }
       }
+    } catch (error) {
+      this.logger.error('Failed to validate mapping consistency', error);
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error('Unknown error in validateMappingConsistency'),
+        { component: 'ProjectIdManager', operation: 'validateMappingConsistency' }
+      );
     }
   }
 
@@ -405,6 +438,8 @@ export class ProjectIdManager {
   async cleanupInvalidMappings(): Promise<number> {
     try {
       const initialCount = this.projectIdMap.size;
+      this.logger.info(`Starting cleanup of invalid project mappings. Initial count: ${initialCount}`);
+      
       const validProjectPaths = new Map<string, string>();
       const validCollectionMap = new Map<string, string>();
       const validSpaceMap = new Map<string, string>();
@@ -416,12 +451,15 @@ export class ProjectIdManager {
         const isValid = await this.isProjectPathValid(projectPath);
         if (isValid) {
           validProjectPaths.set(projectPath, projectId);
-          validCollectionMap.set(projectId, this.collectionMap.get(projectId) || `project-${projectId}`);
-          validSpaceMap.set(projectId, this.spaceMap.get(projectId) || `project_${projectId}`);
+          // 使用配置服务来获取正确的集合名和空间名
+          const collectionName = this.collectionMap.get(projectId) || this.qdrantConfigService.getCollectionNameForProject(projectId);
+          const spaceName = this.spaceMap.get(projectId) || this.nebulaConfigService.getSpaceNameForProject(projectId);
+          validCollectionMap.set(projectId, collectionName);
+          validSpaceMap.set(projectId, spaceName);
           validPathToProjectMap.set(projectId, projectPath);
           validProjectUpdateTimes.set(projectId, this.projectUpdateTimes.get(projectId) || new Date());
         } else {
-          console.warn(`Removing invalid project mapping: ${projectId} at ${projectPath}`);
+          this.logger.warn(`Removing invalid project mapping: ${projectId} at ${projectPath}`);
         }
       }
 
@@ -436,11 +474,15 @@ export class ProjectIdManager {
       await this.saveMapping();
 
       const removedCount = initialCount - this.projectIdMap.size;
-      console.log(`Cleaned up ${removedCount} invalid project mappings, ${this.projectIdMap.size} mappings remaining`);
+      this.logger.info(`Cleaned up ${removedCount} invalid project mappings, ${this.projectIdMap.size} mappings remaining`);
       
       return removedCount;
     } catch (error) {
-      console.error('Failed to cleanup invalid project mappings:', error);
+      this.logger.error('Failed to cleanup invalid project mappings:', error);
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error('Unknown error in cleanupInvalidMappings'),
+        { component: 'ProjectIdManager', operation: 'cleanupInvalidMappings' }
+      );
       throw error;
     }
   }
@@ -456,5 +498,33 @@ export class ProjectIdManager {
       // 路径不存在，项目无效
       return false;
     }
+  }
+
+  /**
+   * 验证命名约定是否符合数据库约束
+   * @param name 集合名或空间名
+   * @returns 是否符合约束
+   */
+  public static validateNamingConvention(name: string): boolean {
+    // 验证命名符合数据库约束
+    const pattern = /^[a-zA-Z0-9_-]{1,63}$/;
+    return pattern.test(name) && !name.startsWith('_');
+  }
+
+  /**
+   * 验证配置是否冲突
+   * @param explicitName 显式配置的名称
+   * @param projectId 项目ID
+   * @returns 是否存在冲突
+   */
+  public static checkConfigurationConflict(explicitName: string | undefined, projectId: string): boolean {
+    // 如果没有显式配置，则无冲突
+    if (!explicitName) {
+      return false;
+    }
+    
+    // 检查显式配置是否与项目隔离命名冲突
+    const projectSpecificName = `project-${projectId}`;
+    return explicitName !== projectSpecificName;
   }
 }

@@ -11,6 +11,8 @@ import { FileSystemTraversal } from '../../filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../../filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../../filesystem/ChangeDetectionService';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
+import { QdrantConfigService } from '../../../config/service/QdrantConfigService';
+import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
 import { PerformanceOptimizerService } from '../../resilience/ResilientBatchingService';
 import { IQdrantConnectionManager } from '../../../database/qdrant/QdrantConnectionManager';
@@ -49,7 +51,25 @@ describe('ProjectStateManager', () => {
     // Get mock instances
     loggerService = new LoggerService(configService) as jest.Mocked<LoggerService>;
     errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
-    projectIdManager = new ProjectIdManager(configService) as jest.Mocked<ProjectIdManager>;
+    
+    // Create mock config services
+    const mockQdrantConfigService = {
+      getCollectionNameForProject: jest.fn().mockImplementation((projectId: string) => `project-${projectId}`),
+      validateNamingConvention: jest.fn().mockReturnValue(true),
+      checkConfigurationConflict: jest.fn().mockReturnValue(false)
+    } as unknown as jest.Mocked<QdrantConfigService>;
+    
+    const mockNebulaConfigService = {
+      getSpaceNameForProject: jest.fn().mockImplementation((projectId: string) => `project_${projectId}`),
+      validateNamingConvention: jest.fn().mockReturnValue(true),
+      checkConfigurationConflict: jest.fn().mockReturnValue(false)
+    } as unknown as jest.Mocked<NebulaConfigService>;
+
+    projectIdManager = new ProjectIdManager(
+      configService,
+      mockQdrantConfigService,
+      mockNebulaConfigService
+    ) as jest.Mocked<ProjectIdManager>;
     // Create mock file system traversal
     const mockFileSystemTraversal = {
       defaultOptions: {},

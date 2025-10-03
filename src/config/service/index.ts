@@ -13,3 +13,4 @@ export { LSPConfigService, LSPConfig } from './LSPConfigService';
 export { SemgrepConfigService, SemgrepConfig } from './SemgrepConfigService';
 export { TreeSitterConfigService, TreeSitterConfig } from './TreeSitterConfigService';
 export { NebulaConfigService, NebulaConfig } from './NebulaConfigService';
+export { ProjectNamingConfigService } from './ProjectNamingConfigService';

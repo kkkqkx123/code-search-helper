@@ -1,6 +1,10 @@
 import { ProjectIdManager } from '../ProjectIdManager';
 import { HashUtils } from '../../utils/HashUtils';
 import { ConfigService } from '../../config/ConfigService';
+import { QdrantConfigService } from '../../config/service/QdrantConfigService';
+import { NebulaConfigService } from '../../config/service/NebulaConfigService';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 
 // Mock HashUtils
 jest.mock('../../utils/HashUtils', () => ({
@@ -24,9 +28,41 @@ jest.mock('../../config/ConfigService', () => ({
   }))
 }));
 
+// Mock QdrantConfigService
+jest.mock('../../config/service/QdrantConfigService', () => ({
+  QdrantConfigService: jest.fn().mockImplementation(() => ({
+    getCollectionNameForProject: jest.fn().mockImplementation((projectId: string) => `project-${projectId}`)
+  }))
+}));
+
+// Mock NebulaConfigService
+jest.mock('../../config/service/NebulaConfigService', () => ({
+  NebulaConfigService: jest.fn().mockImplementation(() => ({
+    getSpaceNameForProject: jest.fn().mockImplementation((projectId: string) => `project-${projectId}`)
+  }))
+}));
+
+// Mock LoggerService
+jest.mock('../../utils/LoggerService', () => ({
+  LoggerService: jest.fn().mockImplementation(() => ({
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  }))
+}));
+
+// Mock ErrorHandlerService
+jest.mock('../../utils/ErrorHandlerService', () => ({
+  ErrorHandlerService: jest.fn().mockImplementation(() => ({
+    handleError: jest.fn(),
+  }))
+}));
+
 describe('ProjectIdManager', () => {
   let projectIdManager: ProjectIdManager;
   let mockConfigService: jest.Mocked<ConfigService>;
+  let mockQdrantConfigService: jest.Mocked<QdrantConfigService>;
+  let mockNebulaConfigService: jest.Mocked<NebulaConfigService>;
   
   beforeEach(() => {
     // Clear all mocks before each test
@@ -37,8 +73,34 @@ describe('ProjectIdManager', () => {
       get: jest.fn().mockReturnValue({ mappingPath: './data/test-project-mapping.json' })
     } as unknown as jest.Mocked<ConfigService>;
     
-    // Create ProjectIdManager instance
-    projectIdManager = new ProjectIdManager(mockConfigService);
+    // Create a new mock QdrantConfigService instance for each test
+    mockQdrantConfigService = {
+      getCollectionNameForProject: jest.fn().mockImplementation((projectId: string) => `project-${projectId}`)
+    } as unknown as jest.Mocked<QdrantConfigService>;
+    
+    // Create a new mock NebulaConfigService instance for each test
+    mockNebulaConfigService = {
+      getSpaceNameForProject: jest.fn().mockImplementation((projectId: string) => `project-${projectId}`)
+    } as unknown as jest.Mocked<NebulaConfigService>;
+    
+    const mockLoggerService = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
+    
+    const mockErrorHandlerService = {
+      handleError: jest.fn(),
+    } as unknown as jest.Mocked<ErrorHandlerService>;
+    
+    // Create ProjectIdManager instance with all required dependencies
+    projectIdManager = new ProjectIdManager(
+      mockConfigService,
+      mockQdrantConfigService,
+      mockNebulaConfigService,
+      mockLoggerService,
+      mockErrorHandlerService
+    );
   });
   
   describe('generateProjectId', () => {

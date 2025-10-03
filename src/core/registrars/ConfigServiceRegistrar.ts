@@ -15,6 +15,7 @@ import {
   LSPConfigService,
   SemgrepConfigService,
   TreeSitterConfigService,
+  ProjectNamingConfigService,
 } from '../../config/service';
 
 export class ConfigServiceRegistrar {

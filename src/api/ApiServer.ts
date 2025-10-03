@@ -11,6 +11,8 @@ import { GraphQueryRoutes } from './routes/GraphQueryRoutes';
 import { GraphAnalysisRoutes } from './routes/GraphAnalysisRoutes';
 import { GraphStatsRoutes } from './routes/GraphStatsRoutes';
 import { ProjectIdManager } from '../database/ProjectIdManager';
+import { QdrantConfigService } from '../config/service/QdrantConfigService';
+import { NebulaConfigService } from '../config/service/NebulaConfigService';
 import { ProjectLookupService } from '../database/ProjectLookupService';
 import { IndexSyncService } from '../service/index/IndexSyncService';
 import { EmbedderFactory } from '../embedders/EmbedderFactory';
@@ -50,7 +52,11 @@ export class ApiServer {
     this.port = port;
 
     // Initialize project management services
-    this.projectIdManager = new ProjectIdManager(diContainer.get(TYPES.ConfigService));
+    this.projectIdManager = new ProjectIdManager(
+      diContainer.get(TYPES.ConfigService),
+      diContainer.get(TYPES.QdrantConfigService),
+      diContainer.get(TYPES.NebulaConfigService)
+    );
     // 创建一个简单的错误处理器实例
     const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
     this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler, this.indexSyncService);

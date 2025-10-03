@@ -15,6 +15,7 @@ import {
   LSPConfigService,
   SemgrepConfigService,
   TreeSitterConfigService,
+  ProjectNamingConfigService,
 } from './service';
 import { TYPES } from '../types';
 
