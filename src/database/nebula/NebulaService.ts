@@ -353,9 +353,12 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
             const retryResults = await this.connectionManager.executeTransaction(queries);
             return retryResults;
           } catch (retryError) {
-            this.emitEvent('error', retryError instanceof Error ? retryError : new Error(String(retryError)));
-            throw retryError;
+            // 如果重试事务也失败，抛出错误而不继续重试
+            throw new Error('Reconnection successful but transaction execution failed: ' + (retryError instanceof Error ? retryError.message : String(retryError)));
           }
+        } else {
+          // 如果重连失败，抛出错误而不继续重连
+          throw new Error('Connection error and reconnection failed: ' + error.message);
         }
       }
       

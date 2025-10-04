@@ -106,25 +106,33 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
       this.client = createClient(clientConfig);
 
-      // 等待客户端连接准备就绪
-      await new Promise((resolve, reject) => {
-        this.client.on('ready', () => {
-          this.logger.info('Nebula client connected successfully');
-          resolve(true);
-        });
+      // 客户端连接成功后，使用正确的API创建会话
+      this.logger.debug('Creating initial session with client...');
+      
+      // 针对@nebula-contrib/nebula-nodejs库，先检查可用的方法
+      let session;
+      if (typeof this.client.getSession === 'function') {
+        // 使用标准的getSession方法
+        session = await this.client.getSession(this.config.username, this.config.password, {});
+      } else if (typeof this.client.session === 'function') {
+        // 使用session方法，传入用户名和密码
+        session = await this.client.session(this.config.username, this.config.password);
+      } else {
+        // 如果没有找到预期的方法，抛出错误
+        throw new Error('No valid session creation method found on nebula client');
+      }
 
-        this.client.on('error', (error: any) => {
-          this.logger.error('Nebula client connection error', { error: error.message });
-          reject(error);
-        });
-
-        // 设置连接超时
-        setTimeout(() => reject(new Error('Nebula client connection timeout')), this.config.timeout || 30000);
-      });
-
-
-      // 初始化会话池
-      await this.initializeSessionPool();
+      // 验证连接是否成功
+      await this.validateConnection(session);
+      
+      // 设置主会话属性
+      this.session = session;
+      
+      // 将主会话添加到池中
+      this.sessionPool.push(session);
+      
+      // 初始化会话池（创建额外的会话）
+      await this.initializeSessionPool(session);
 
       // 设置连接状态 - 不设置特定space，因为我们没有在客户端配置中设置space
       this.connectionStatus.connected = true;
@@ -151,15 +159,31 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   /**
    * 初始化会话池
    */
-  private async initializeSessionPool(): Promise<void> {
+  private async initializeSessionPool(mainSession: any): Promise<void> {
     this.logger.debug('Initializing session pool', { size: this.maxPoolSize });
 
-    let successfulSessions = 0;
+    let successfulSessions = 1; // 由于已有一个主会话，所以从1开始计数
     
-    for (let i = 0; i < this.maxPoolSize; i++) {
+    // 如果只需要一个会话，直接返回
+    if (this.maxPoolSize <= 1) {
+      this.logger.info(`Session pool initialized with ${successfulSessions}/${this.maxPoolSize} sessions`);
+      return;
+    }
+
+    for (let i = 1; i < this.maxPoolSize; i++) {
       try {
         // 使用正确的API创建会话 - 不指定初始space，只验证基本连接
-        const session = await this.client.session(this.config.username, this.config.password); // 修正为正确的API调用
+        let session;
+        if (typeof this.client.getSession === 'function') {
+          // 使用标准的getSession方法
+          session = await this.client.getSession(this.config.username, this.config.password, {});
+        } else if (typeof this.client.session === 'function') {
+          // 使用session方法，传入用户名和密码
+          session = await this.client.session(this.config.username, this.config.password);
+        } else {
+          // 如果没有找到预期的方法，抛出错误
+          throw new Error('No valid session creation method found on nebula client');
+        }
         
         // 验证连接是否成功
         await this.validateConnection(session);
@@ -172,17 +196,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         this.logger.error(`Failed to create session ${i + 1}`, {
           error: error instanceof Error ? error.message : String(error)
         });
-        
-        // 如果是第一个会话就失败，抛出异常
-        if (i === 0) {
-          throw new Error(`Failed to create initial session: ${error instanceof Error ? error.message : String(error)}`);
-        }
       }
-    }
-
-    // 检查是否至少有一个会话创建成功
-    if (successfulSessions === 0) {
-      throw new Error('Failed to create any sessions in the pool');
     }
 
     this.logger.info(`Session pool initialized with ${successfulSessions}/${this.maxPoolSize} sessions`);
@@ -196,16 +210,18 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       // 执行简单查询验证连接
       const result = await session.execute('SHOW SPACES');
       
-      if (!result || result.code !== 0) {
+      if (!result || (typeof result.code !== 'undefined' && result.code !== 0)) {
         throw new Error(`Connection validation failed: ${result?.error || 'Unknown error'}`);
       }
     } catch (error) {
-      throw new Error(`Connection validation failed: ${error instanceof Error ? error.message : String(error)}`);
+      // 捕获并重新抛出错误，提供更明确的信息
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Connection validation failed: ${errorMessage}`);
     }
   }
 
   /**
-   * 初始化space
+   * 初始化space - 这个方法可能不会被直接调用，因为space初始化现在在连接建立后的适当时候才执行
    */
   private async initializeSpace(session: any, sessionIndex: number): Promise<void> {
     // 检查是否有配置的space，如果有则尝试创建并使用它
@@ -480,6 +496,11 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     try {
       // 从池中获取会话
       session = this.getSessionFromPool();
+      
+      // 在执行USE命令时，检查是否试图使用无效的space
+      if (nGQL.trim().toUpperCase().startsWith('USE ') && nGQL.includes('undefined')) {
+        throw new Error(`Cannot execute query: invalid space name "${nGQL}" contains "undefined"`);
+      }
       
       this.logger.debug('Executing Nebula query', {
         query: nGQL.substring(0, 100) + (nGQL.length > 100 ? '...' : ''),
@@ -846,7 +867,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       // 获取spaces信息（不需要切换space）
       const spacesResult = await session.execute('SHOW SPACES');
       const spaces = spacesResult?.data || [];
-
+      
       // 获取当前space的标签和边类型信息
       let tags = [];
       let edgeTypes = [];
@@ -857,7 +878,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       
       if (effectiveSpace) {  // 只对有效space执行详细统计
         try {
-          // 切换到当前space
+          // 首先确保连接到有效的space，而不是"undefined"或空字符串
           await session.execute(`USE \`${effectiveSpace}\``);
 
           // 获取当前space的标签和边类型信息
@@ -895,15 +916,20 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
             }
           }
         } catch (error) {
-          this.logger.warn('Failed to get detailed counts for current space', error);
+          this.logger.warn('Failed to get detailed counts for current space', {
+            error: error instanceof Error ? error.message : String(error),
+            space: effectiveSpace
+          });
         }
+      } else {
+        this.logger.debug('No effective space configured, skipping space-specific stats');
       }
 
       return {
         version: '3.0.0',
         status: 'online',
         spaces: spaces.length,
-        currentSpace: effectiveSpace,
+        currentSpace: effectiveSpace || null, // 使用null而不是undefined以明确表示无space的状态
         tags: tags.length,
         edgeTypes: edgeTypes.length,
         nodes: nodeCount,
