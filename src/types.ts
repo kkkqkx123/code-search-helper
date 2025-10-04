@@ -72,6 +72,7 @@ import { NebulaQueryBuilder } from './database/nebula/NebulaQueryBuilder';
 import { NebulaSpaceManager } from './database/nebula/NebulaSpaceManager';
 import { INebulaSpaceManager } from './database/nebula/NebulaSpaceManager';
 import { NebulaGraphOperations } from './database/nebula/NebulaGraphOperations';
+import { ConnectionStateManager } from './database/nebula/ConnectionStateManager';
 
 // Nebula 监控服务
 import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
@@ -164,6 +165,7 @@ export const TYPES = {
 
   // Nebula 监控服务
   NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
+  ConnectionStateManager: Symbol.for('ConnectionStateManager'),
 
   // 图服务
   GraphService: Symbol.for('GraphService'),

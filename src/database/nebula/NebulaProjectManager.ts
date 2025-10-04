@@ -299,21 +299,6 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 验证spaceName是否有效，再切换到项目空间
-      if (!spaceName || spaceName === 'undefined' || spaceName === '') {
-        throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
-      }
-      this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.DEBUG,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: `Switching to space for project: ${projectPath}`, spaceName }
-      }).catch(error => {
-        // 如果日志记录失败，我们不希望影响主流程
-        console.error('Failed to log switching to space debug:', error);
-      });
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
-
       // 为所有节点添加项目ID（如果尚未存在）
       const nodesWithProjectId = nodes.map(node => ({
         ...node,
@@ -337,9 +322,9 @@ export class NebulaProjectManager implements INebulaProjectManager {
       
       for (const [label, labelNodes] of Object.entries(nodesByLabel)) {
         const query = `
-          INSERT VERTEX ${label}(${Object.keys(labelNodes[0].properties).join(', ')}) 
-          VALUES ${labelNodes.map(node => 
-            `"${node.id}": (${Object.values(node.properties).map(val => 
+          INSERT VERTEX ${label}(${Object.keys(labelNodes[0].properties).join(', ')})
+          VALUES ${labelNodes.map(node =>
+            `"${node.id}": (${Object.values(node.properties).map(val =>
               typeof val === 'string' ? `"${val}"` : val
             ).join(', ')})`
           ).join(', ')}
@@ -348,8 +333,10 @@ export class NebulaProjectManager implements INebulaProjectManager {
         queries.push({ query, params: {} });
       }
 
-      // 执行事务
-      const results = await this.connectionManager.executeTransaction(queries);
+      // 在项目空间中执行事务，使用优化的查询方法
+      const results = await Promise.all(queries.map(q =>
+        this.connectionManager.executeQueryInSpace(spaceName, q.query, q.params)
+      ));
       const success = results.every(result => !result.error);
 
       if (success) {
@@ -396,22 +383,6 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 验证spaceName是否有效，再切换到项目空间
-      if (!spaceName || spaceName === 'undefined' || spaceName === '') {
-        throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
-      }
-      // 使用 DatabaseLoggerService 记录切换到项目空间的调试信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.SERVICE_INITIALIZED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: `Switching to space for project: ${projectPath}`, spaceName }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log switching to space debug:', error);
-     });
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
-
       // 为所有关系添加项目ID（如果尚未存在）
       const relationshipsWithProjectId = relationships.map(rel => ({
         ...rel,
@@ -435,10 +406,10 @@ export class NebulaProjectManager implements INebulaProjectManager {
       
       for (const [type, typeRelationships] of Object.entries(relationshipsByType)) {
         const query = `
-          INSERT EDGE ${type}(${typeRelationships[0].properties ? Object.keys(typeRelationships[0].properties).join(', ') : ''}) 
-          VALUES ${typeRelationships.map(rel => 
-            `"${rel.sourceId}" -> "${rel.targetId}": ${rel.properties ? 
-              `(${Object.values(rel.properties).map(val => 
+          INSERT EDGE ${type}(${typeRelationships[0].properties ? Object.keys(typeRelationships[0].properties).join(', ') : ''})
+          VALUES ${typeRelationships.map(rel =>
+            `"${rel.sourceId}" -> "${rel.targetId}": ${rel.properties ?
+              `(${Object.values(rel.properties).map(val =>
                 typeof val === 'string' ? `"${val}"` : val
               ).join(', ')})` : '()'
             }`
@@ -448,8 +419,10 @@ export class NebulaProjectManager implements INebulaProjectManager {
         queries.push({ query, params: {} });
       }
 
-      // 执行事务
-      const results = await this.connectionManager.executeTransaction(queries);
+      // 在项目空间中执行事务，使用优化的查询方法
+      const results = await Promise.all(queries.map(q =>
+        this.connectionManager.executeQueryInSpace(spaceName, q.query, q.params)
+      ));
       const success = results.every(result => !result.error);
 
       if (success) {
@@ -496,32 +469,17 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 验证spaceName是否有效，再切换到项目空间
-      if (!spaceName || spaceName === 'undefined' || spaceName === '') {
-        throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
-      }
-      this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.DEBUG,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: `Switching to space for project: ${projectPath}`, spaceName }
-      }).catch(error => {
-        // 如果日志记录失败，我们不希望影响主流程
-        console.error('Failed to log switching to space debug:', error);
-      });
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
-
       // 构建查询
       let query = `MATCH (v:${label}) WHERE v.projectId == "${projectId}" RETURN v`;
       
       if (filter) {
-        const conditions = Object.entries(filter).map(([key, value]) => 
+        const conditions = Object.entries(filter).map(([key, value]) =>
           `v.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
         ).join(' AND ');
         query += ` AND ${conditions}`;
       }
       
-      const result = await this.connectionManager.executeQuery(query);
+      const result = await this.connectionManager.executeQueryInSpace(spaceName, query);
 
       this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
         projectPath,
@@ -566,32 +524,17 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 验证spaceName是否有效，再切换到项目空间
-      if (!spaceName || spaceName === 'undefined' || spaceName === '') {
-        throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
-      }
-      this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.DEBUG,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: `Switching to space for project: ${projectPath}`, spaceName }
-      }).catch(error => {
-        // 如果日志记录失败，我们不希望影响主流程
-        console.error('Failed to log switching to space debug:', error);
-      });
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
-
       // 构建查询
       let query = `MATCH () -[e${type ? `:${type}` : ''}]-> () WHERE e.projectId == "${projectId}" RETURN e`;
       
       if (filter) {
-        const conditions = Object.entries(filter).map(([key, value]) => 
+        const conditions = Object.entries(filter).map(([key, value]) =>
           `e.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
         ).join(' AND ');
         query += ` AND ${conditions}`;
       }
       
-      const result = await this.connectionManager.executeQuery(query);
+      const result = await this.connectionManager.executeQueryInSpace(spaceName, query);
 
       this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
         projectPath,

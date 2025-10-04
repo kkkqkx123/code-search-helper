@@ -8,6 +8,7 @@ import { TYPES } from '../../types';
 import { IConnectionManager } from '../common/IDatabaseService';
 import { DatabaseEventListener } from '../common/DatabaseEventTypes';
 import { NebulaConfigService } from '../../config/service/NebulaConfigService';
+import { ConnectionStateManager } from './ConnectionStateManager';
 
 // 导入Nebula Graph客户端库
 const { createClient } = require('@nebula-contrib/nebula-nodejs');
@@ -27,6 +28,7 @@ export interface INebulaConnectionManager extends IConnectionManager {
   findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]>;
   getDatabaseStats(): Promise<any>;
   isConnectedToDatabase(): boolean;
+  executeQueryInSpace(space: string, query: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
 }
 
 @injectable()
@@ -35,6 +37,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   private nebulaConfigService: NebulaConfigService;
+  private connectionStateManager: ConnectionStateManager;
   private connectionStatus: NebulaConnectionStatus;
   private config: NebulaConfig;
   private client: any; // Nebula Graph客户端实例
@@ -44,12 +47,14 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
-    @inject(TYPES.NebulaConfigService) nebulaConfigService: NebulaConfigService
+    @inject(TYPES.NebulaConfigService) nebulaConfigService: NebulaConfigService,
+    @inject(TYPES.ConnectionStateManager) connectionStateManager: ConnectionStateManager
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.configService = configService;
     this.nebulaConfigService = nebulaConfigService;
+    this.connectionStateManager = connectionStateManager;
     this.connectionStatus = {
       connected: false,
       host: '',
@@ -529,6 +534,28 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     return { ...this.connectionStatus };
   }
 
+  /**
+   * 在指定空间中执行查询
+   * 优化执行查询的性能，首先检查连接当前是否已在目标空间中
+   */
+  async executeQueryInSpace(space: string, query: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
+    // 获取当前连接的空间状态
+    const currentSpace = this.connectionStateManager.getConnectionSpace('nebula-client-main');
+
+    // 如果当前连接已经在目标空间，则直接执行查询
+    if (currentSpace === space) {
+      return await this.executeQuery(query, parameters);
+    }
+
+    // 否则，首先切换到目标空间
+    await this.executeQuery(`USE \`${space}\``);
+    // 更新连接状态管理器中的连接空间状态
+    this.connectionStateManager.updateConnectionSpace('nebula-client-main', space);
+
+    // 然后执行原始查询
+    return await this.executeQuery(query, parameters);
+  }
+
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
     // 验证连接状态
     if (!this.isConnected()) {
@@ -563,6 +590,20 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     try {
       // 获取客户端实例（不使用会话池，因为客户端内部管理连接）
       const client = this.client;
+      
+      // 检查是否是USE命令来更新空间状态
+      const trimmedQuery = nGQL.trim();
+      if (trimmedQuery.toUpperCase().startsWith('USE ')) {
+        const match = trimmedQuery.match(/USE\s+`?([^\s`]+)/i);
+        if (match && match[1]) {
+          const spaceName = match[1];
+          if (spaceName && spaceName !== 'undefined' && spaceName !== '') {
+            // 更新连接状态管理器中的连接空间状态
+            // 使用一个虚拟的连接ID，因为我们只有一个客户端连接
+            this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
+          }
+        }
+      }
       
       // 在执行USE命令时，检查是否试图使用无效的space
       if (nGQL.trim().toUpperCase().startsWith('USE ') && nGQL.includes('undefined')) {
