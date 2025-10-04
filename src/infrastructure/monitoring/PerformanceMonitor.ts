@@ -32,7 +32,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
         heapTotal: 0,
         percentage: 0,
       },
-      connectionPoolStatus: 'healthy',
+      systemHealthStatus: 'healthy',
       batchProcessingStats: {
         totalBatches: 0,
         averageBatchSize: 0,
@@ -113,9 +113,9 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     this.logger.debug('Updated batch size', { batchSize });
   }
 
-  updateConnectionPoolStatus(status: 'healthy' | 'degraded' | 'error'): void {
-    this.metrics.connectionPoolStatus = status;
-    this.logger.debug('Updated connection pool status', { status });
+  updateSystemHealthStatus(status: 'healthy' | 'degraded' | 'error'): void {
+    this.metrics.systemHealthStatus = status;
+    this.logger.debug('Updated system health status', { status });
   }
 
   getMetrics(): PerformanceMetrics {
@@ -191,7 +191,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
       averageQueryTime: `${metrics.averageQueryTime.toFixed(2)}ms`,
       cacheHitRate: `${(metrics.cacheHitRate * 100).toFixed(2)}%`,
       memoryUsage: `${metrics.memoryUsage.percentage.toFixed(2)}%`,
-      connectionPoolStatus: metrics.connectionPoolStatus,
+      systemHealthStatus: metrics.systemHealthStatus,
       batchProcessing: {
         totalBatches: metrics.batchProcessingStats.totalBatches,
         averageBatchSize: Math.round(metrics.batchProcessingStats.averageBatchSize),
@@ -212,8 +212,8 @@ export class PerformanceMonitor implements IPerformanceMonitor {
       });
     }
 
-    if (metrics.connectionPoolStatus === 'error') {
-      this.logger.error('Connection pool status is error');
+    if (metrics.systemHealthStatus === 'error') {
+      this.logger.error('System health status is error');
     }
   }
 

@@ -38,9 +38,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private connectionStatus: NebulaConnectionStatus;
   private config: NebulaConfig;
   private client: any; // Nebula Graph客户端实例
-  private session: any; // Nebula Graph会话实例
-  private sessionPool: any[] = []; // 会话池
-  private maxPoolSize: number; // 最大会话池大小
   private eventListeners: Map<string, DatabaseEventListener[]> = new Map();
 
   constructor(
@@ -65,9 +62,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     this.connectionStatus.host = this.config.host;
     this.connectionStatus.port = this.config.port;
     this.connectionStatus.username = this.config.username;
-    
-    // 使用配置中的maxConnections作为maxPoolSize，如果没有配置则使用默认值10
-    this.maxPoolSize = this.config.maxConnections || 10;
   }
 
   async connect(): Promise<boolean> {
@@ -78,10 +72,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       this.connectionStatus.port = this.config.port;
       this.connectionStatus.username = this.config.username;
       
-      // 如果配置中有maxConnections，则使用它作为maxPoolSize
-      if (this.config.maxConnections) {
-        this.maxPoolSize = this.config.maxConnections;
-      }
+      // nebula客户端内部管理连接池，不需要手动配置
 
       // 使用 DatabaseLoggerService 记录连接信息
       this.databaseLogger.logDatabaseEvent({
@@ -109,7 +100,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         servers: [`${this.config.host}:${this.config.port}`],
         userName: this.config.username,
         password: this.config.password,
-        poolSize: this.maxPoolSize, // 使用配置中的最大连接数
+        poolSize: this.config.maxConnections || 10, // nebula客户端内部管理连接池
         bufferSize: this.config.bufferSize || 10, // 使用配置中的缓冲区大小
         executeTimeout: this.config.timeout || 30000, // 使用配置中的超时时间
         pingInterval: this.config.pingInterval || 3000   // 使用配置中的ping间隔
@@ -161,23 +152,16 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       // 验证连接是否成功
       await this.validateConnection(this.client);
       
-      // 设置主会话为客户端本身（因为客户端管理所有连接）
-      this.session = this.client;
-      
-      // 将主会话添加到池中
-      this.sessionPool.push(this.client);
-      
-      // 对于这个客户端库，我们不需要初始化额外的会话池
-      // 因为客户端内部已经管理了连接池
-      // 使用 DatabaseLoggerService 记录会话池初始化信息
+      // nebula客户端内部管理连接池，不需要手动管理会话
+      // 使用 DatabaseLoggerService 记录客户端连接成功信息
      this.databaseLogger.logDatabaseEvent({
        type: DatabaseEventType.SERVICE_INITIALIZED,
        source: 'nebula',
        timestamp: new Date(),
-       data: { message: 'Session pool initialized with 1 session (client manages internal pool)' }
+       data: { message: 'Client connected successfully (nebula manages internal pool)' }
      }).catch(error => {
        // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log session pool initialization info:', error);
+       console.error('Failed to log client connection info:', error);
      });
 
       // 设置连接状态 - 不设置特定space，因为我们没有在客户端配置中设置space
@@ -211,39 +195,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
-  /**
-   * 初始化会话池
-   * 对于@nebula-contrib/nebula-nodejs库，客户端内部管理连接池
-   * 不需要手动创建额外的会话
-   */
-  private async initializeSessionPool(mainClient: any): Promise<void> {
-    // 使用 DatabaseLoggerService 记录会话池初始化信息
-   this.databaseLogger.logDatabaseEvent({
-     type: DatabaseEventType.SERVICE_INITIALIZED,
-     source: 'nebula',
-     timestamp: new Date(),
-     data: {
-       message: 'Initializing session pool - client manages internal pool',
-       externalPoolSize: this.maxPoolSize
-     }
-   }).catch(error => {
-     // 如果日志记录失败，我们不希望影响主流程
-     console.error('Failed to log session pool initialization info:', error);
-   });
-    
-    // 对于这个客户端库，我们使用单个客户端实例
-    // 客户端内部已经管理了连接池，所以不需要创建额外的会话
-    // 使用 DatabaseLoggerService 记录会话池初始化信息
-   this.databaseLogger.logDatabaseEvent({
-     type: DatabaseEventType.SERVICE_INITIALIZED,
-     source: 'nebula',
-     timestamp: new Date(),
-     data: { message: `Session pool initialized with 1 session (client manages internal connection pool)` }
-   }).catch(error => {
-     // 如果日志记录失败，我们不希望影响主流程
-     console.error('Failed to log session pool initialization info:', error);
-   });
-  }
 
   /**
    * 验证连接是否成功
@@ -459,57 +410,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
-  /**
-   * 从池中获取会话
-   * 对于这个客户端库，我们总是返回同一个客户端实例
-   */
-  private getSessionFromPool(): any {
-    if (this.sessionPool.length === 0) {
-      throw new Error('No available sessions in pool');
-    }
-    // 返回第一个会话（唯一的客户端实例）
-    return this.sessionPool[0];
-  }
-
-  /**
-   * 将会话返回到池中
-   * 对于这个客户端库，不需要实际返回会话到池中
-   * 因为客户端内部管理连接，我们总是使用同一个客户端实例
-   */
-  private returnSessionToPool(session: any): void {
-    // 对于这个客户端库，我们不需要管理会话池
-    // 客户端内部已经处理了连接复用
-    // 所以这个方法什么都不做
-  }
-
-  /**
-   * 安全释放会话资源
-   */
-  private releaseSession(session: any): void {
-    if (!session) {
-      return;
-    }
-    
-    try {
-      if (typeof session.release === 'function') {
-        session.release();
-      }
-    } catch (error) {
-      // 使用 DatabaseLoggerService 记录会话释放错误信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.ERROR_OCCURRED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Error releasing session',
-         error: error instanceof Error ? error.message : String(error)
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log session release error:', error);
-     });
-    }
-  }
 
   async disconnect(): Promise<void> {
     if (!this.connectionStatus.connected) {
@@ -538,9 +438,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
        console.error('Failed to log disconnection info:', error);
      });
 
-      // 释放所有池中的会话
-      await this.releaseAllSessions();
-
       // 关闭客户端连接
       await this.closeClient();
 
@@ -566,45 +463,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
-  /**
-   * 释放所有会话
-   */
-  private async releaseAllSessions(): Promise<void> {
-    const releasePromises = this.sessionPool.map(async (session, index) => {
-      try {
-        if (session && typeof session.release === 'function') {
-          await session.release();
-          // 使用 DatabaseLoggerService 记录会话释放成功信息
-         this.databaseLogger.logDatabaseEvent({
-           type: DatabaseEventType.SERVICE_INITIALIZED,
-           source: 'nebula',
-           timestamp: new Date(),
-           data: { message: `Session ${index + 1} released successfully` }
-         }).catch(error => {
-           // 如果日志记录失败，我们不希望影响主流程
-           console.error('Failed to log session release success:', error);
-         });
-        }
-      } catch (error) {
-        // 使用 DatabaseLoggerService 记录会话释放错误信息
-       this.databaseLogger.logDatabaseEvent({
-         type: DatabaseEventType.ERROR_OCCURRED,
-         source: 'nebula',
-         timestamp: new Date(),
-         data: {
-           message: `Error releasing session ${index + 1} during disconnect`,
-           error: error instanceof Error ? error.message : String(error)
-         }
-       }).catch(error => {
-         // 如果日志记录失败，我们不希望影响主流程
-         console.error('Failed to log session release error:', error);
-       });
-      }
-    });
-
-    await Promise.all(releasePromises);
-    this.sessionPool = [];
-  }
 
   /**
    * 关闭客户端连接
@@ -654,8 +512,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   isConnected(): boolean {
-    // 检查连接状态和会话池
-    if (!this.connectionStatus.connected || this.sessionPool.length === 0) {
+    // 检查连接状态
+    if (!this.connectionStatus.connected) {
       return false;
     }
     

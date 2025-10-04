@@ -303,7 +303,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName || spaceName === 'undefined' || spaceName === '') {
         throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
       }
-      this.logger.debug(`Switching to space for project: ${projectPath}`, { spaceName });
+      this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.DEBUG,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Switching to space for project: ${projectPath}`, spaceName }
+      }).catch(error => {
+        // 如果日志记录失败，我们不希望影响主流程
+        console.error('Failed to log switching to space debug:', error);
+      });
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 为所有节点添加项目ID（如果尚未存在）
@@ -492,7 +500,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName || spaceName === 'undefined' || spaceName === '') {
         throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
       }
-      this.logger.debug(`Switching to space for project: ${projectPath}`, { spaceName });
+      this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.DEBUG,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Switching to space for project: ${projectPath}`, spaceName }
+      }).catch(error => {
+        // 如果日志记录失败，我们不希望影响主流程
+        console.error('Failed to log switching to space debug:', error);
+      });
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 构建查询
@@ -554,7 +570,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName || spaceName === 'undefined' || spaceName === '') {
         throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
       }
-      this.logger.debug(`Switching to space for project: ${projectPath}`, { spaceName });
+      this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.DEBUG,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Switching to space for project: ${projectPath}`, spaceName }
+      }).catch(error => {
+        // 如果日志记录失败，我们不希望影响主流程
+        console.error('Failed to log switching to space debug:', error);
+      });
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 构建查询

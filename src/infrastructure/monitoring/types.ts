@@ -7,7 +7,7 @@ export interface PerformanceMetrics {
     heapTotal: number;
     percentage: number;
   };
-  connectionPoolStatus: 'healthy' | 'degraded' | 'error';
+  systemHealthStatus: 'healthy' | 'degraded' | 'error';
   batchProcessingStats: {
     totalBatches: number;
     averageBatchSize: number;
@@ -22,7 +22,7 @@ export interface IPerformanceMonitor {
   recordQueryExecution(executionTimeMs: number): void;
   updateCacheHitRate(isHit: boolean): void;
   updateBatchSize(batchSize: number): void;
-  updateConnectionPoolStatus(status: 'healthy' | 'degraded' | 'error'): void;
+  updateSystemHealthStatus(status: 'healthy' | 'degraded' | 'error'): void;
   getMetrics(): PerformanceMetrics;
   resetMetrics(): void;
 }

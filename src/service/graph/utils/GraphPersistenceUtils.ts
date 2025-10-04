@@ -565,19 +565,19 @@ export class GraphPersistenceUtils {
     performanceMonitor: any
   ): Promise<void> {
     try {
-      // Monitor connection pool status
+      // Monitor system health status
       const stats = await nebulaService.getDatabaseStats();
-      performanceMonitor.updateConnectionPoolStatus('healthy');
+      performanceMonitor.updateSystemHealthStatus('healthy');
 
       // Set up periodic monitoring
       const interval = setInterval(async () => {
         try {
           const currentStats = await nebulaService.getDatabaseStats();
-          performanceMonitor.updateConnectionPoolStatus(
+          performanceMonitor.updateSystemHealthStatus(
             currentStats.hosts && currentStats.hosts.length > 0 ? 'healthy' : 'degraded'
           );
         } catch (error) {
-          performanceMonitor.updateConnectionPoolStatus('error');
+          performanceMonitor.updateSystemHealthStatus('error');
         }
       }, 30000); // Check every 30 seconds
 
@@ -586,7 +586,7 @@ export class GraphPersistenceUtils {
         interval.unref();
       }
     } catch (error) {
-      performanceMonitor.updateConnectionPoolStatus('error');
+      performanceMonitor.updateSystemHealthStatus('error');
     }
   }
 

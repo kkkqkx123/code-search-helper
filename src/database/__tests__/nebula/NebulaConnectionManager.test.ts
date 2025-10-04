@@ -22,14 +22,15 @@ const mockConfigService = {
 
 // Mock createClient function
 jest.mock('@nebula-contrib/nebula-nodejs', () => {
-  const mockSession = {
-    execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
-    release: jest.fn(),
-  };
-
   const mockClient = {
-    getSession: jest.fn().mockReturnValue(mockSession),
+    execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
     close: jest.fn().mockResolvedValue(undefined),
+    once: jest.fn((event, callback) => {
+      if (event === 'authorized') {
+        // 模拟授权成功
+        setTimeout(callback, 10);
+      }
+    }),
   };
 
   return {
@@ -43,15 +44,16 @@ describe('NebulaConnectionManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // 创建模拟会话和客户端
-    const mockSession = {
-      execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
-      release: jest.fn(),
-    };
-
+    // 创建模拟客户端
     const mockClient = {
-      getSession: jest.fn().mockReturnValue(mockSession),
+      execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
       close: jest.fn().mockResolvedValue(undefined),
+      once: jest.fn((event, callback) => {
+        if (event === 'authorized') {
+          // 模拟授权成功
+          setTimeout(callback, 10);
+        }
+      }),
     };
 
     connectionManager = new NebulaConnectionManager(
@@ -76,7 +78,6 @@ describe('NebulaConnectionManager', () => {
 
     // 设置私有属性
     (connectionManager as any).client = mockClient;
-    (connectionManager as any).sessionPool = [mockSession];
     (connectionManager as any).connectionStatus = {
       connected: true,
       host: 'localhost',
@@ -104,15 +105,16 @@ describe('NebulaConnectionManager', () => {
 
       mockConfigService.get = jest.fn().mockReturnValue(mockConfig);
 
-      // 创建新的模拟会话和客户端
-      const mockSession = {
-        execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
-        release: jest.fn(),
-      };
-
+      // 创建新的模拟客户端
       const mockClient = {
-        getSession: jest.fn().mockReturnValue(mockSession),
+        execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
         close: jest.fn().mockResolvedValue(undefined),
+        once: jest.fn((event, callback) => {
+          if (event === 'authorized') {
+            // 模拟授权成功
+            setTimeout(callback, 10);
+          }
+        }),
       };
 
       const newConnectionManager = new NebulaConnectionManager(
@@ -137,7 +139,6 @@ describe('NebulaConnectionManager', () => {
 
       // 设置私有属性
       (newConnectionManager as any).client = mockClient;
-      (newConnectionManager as any).sessionPool = [mockSession];
       (newConnectionManager as any).connectionStatus = {
         connected: true,
         host: 'localhost',
@@ -156,15 +157,16 @@ describe('NebulaConnectionManager', () => {
     it('should use default config if config service returns null', () => {
       mockConfigService.get = jest.fn().mockReturnValue(null);
 
-      // 创建新的模拟会话和客户端
-      const mockSession = {
-        execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
-        release: jest.fn(),
-      };
-
+      // 创建新的模拟客户端
       const mockClient = {
-        getSession: jest.fn().mockReturnValue(mockSession),
+        execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
         close: jest.fn().mockResolvedValue(undefined),
+        once: jest.fn((event, callback) => {
+          if (event === 'authorized') {
+            // 模拟授权成功
+            setTimeout(callback, 10);
+          }
+        }),
       };
 
       const newConnectionManager = new NebulaConnectionManager(
@@ -185,7 +187,6 @@ describe('NebulaConnectionManager', () => {
 
       // 设置私有属性
       (newConnectionManager as any).client = mockClient;
-      (newConnectionManager as any).sessionPool = [mockSession];
       (newConnectionManager as any).connectionStatus = {
         connected: true,
         host: 'localhost',
@@ -255,13 +256,15 @@ describe('NebulaConnectionManager', () => {
 
     it('should handle disconnection errors', async () => {
       // 创建一个新的连接管理器实例用于此测试
-      const mockSession = {
-        execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
-        release: jest.fn().mockRejectedValue(new Error('Session release failed')),
-      };
-
       const mockClient = {
+        execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
         close: jest.fn().mockRejectedValue(new Error('Client close failed')),
+        once: jest.fn((event, callback) => {
+          if (event === 'authorized') {
+            // 模拟授权成功
+            setTimeout(callback, 10);
+          }
+        }),
       };
 
       const newConnectionManager = new NebulaConnectionManager(
@@ -282,7 +285,6 @@ describe('NebulaConnectionManager', () => {
 
       // 设置私有属性
       (newConnectionManager as any).client = mockClient;
-      (newConnectionManager as any).sessionPool = [mockSession];
       (newConnectionManager as any).connectionStatus = {
         connected: true,
         host: 'localhost',
@@ -291,9 +293,6 @@ describe('NebulaConnectionManager', () => {
         lastConnected: new Date(),
         space: 'test-space',
       };
-
-      // 直接模拟 releaseAllSessions 方法抛出异常
-      newConnectionManager['releaseAllSessions'] = jest.fn().mockRejectedValue(new Error('Release all sessions failed'));
 
       await newConnectionManager.disconnect();
 
@@ -312,16 +311,15 @@ describe('NebulaConnectionManager', () => {
       // 重新设置连接状态
       (connectionManager as any).connectionStatus.connected = true;
       (connectionManager as any).client = {
-        getSession: jest.fn().mockReturnValue({
-          execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
-          release: jest.fn(),
-        }),
-        close: jest.fn().mockResolvedValue(undefined),
-      };
-      (connectionManager as any).sessionPool = [{
         execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
-        release: jest.fn(),
-      }];
+        close: jest.fn().mockResolvedValue(undefined),
+        once: jest.fn((event, callback) => {
+          if (event === 'authorized') {
+            // 模拟授权成功
+            setTimeout(callback, 10);
+          }
+        }),
+      };
       expect(connectionManager.isConnected()).toBe(true);
     });
   });
@@ -376,11 +374,7 @@ describe('NebulaConnectionManager', () => {
 
     it('should handle query execution errors', async () => {
       // 模拟查询执行过程中抛出错误
-      const mockSessionWithError = {
-        execute: jest.fn().mockRejectedValue(new Error('Query execution failed')),
-        release: jest.fn(),
-      };
-      (connectionManager as any).sessionPool = [mockSessionWithError];
+      (connectionManager as any).client.execute.mockRejectedValueOnce(new Error('Query execution failed'));
 
       const result = await connectionManager.executeQuery('MATCH (n) RETURN n');
 
@@ -425,13 +419,9 @@ describe('NebulaConnectionManager', () => {
 
     it('should handle transaction execution errors', async () => {
       // 模拟事务执行过程中抛出错误
-      const mockSession = {
-        execute: jest.fn()
-          .mockResolvedValueOnce({}) // First query
-          .mockRejectedValueOnce(new Error('Transaction failed')) // Second query fails
-          .mockResolvedValueOnce({}), // Subsequent queries
-      };
-      (connectionManager as any).sessionPool = [mockSession];
+      (connectionManager as any).client.execute
+        .mockResolvedValueOnce({}) // First query
+        .mockRejectedValueOnce(new Error('Transaction failed')); // Second query fails
 
       await expect(
         connectionManager.executeTransaction([
@@ -557,16 +547,15 @@ describe('NebulaConnectionManager', () => {
       // 重新设置连接状态
       (connectionManager as any).connectionStatus.connected = true;
       (connectionManager as any).client = {
-        getSession: jest.fn().mockReturnValue({
-          execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
-          release: jest.fn(),
-        }),
-        close: jest.fn().mockResolvedValue(undefined),
-      };
-      (connectionManager as any).sessionPool = [{
         execute: jest.fn().mockResolvedValue({ code: 0, data: [], error: null }),
-        release: jest.fn(),
-      }];
+        close: jest.fn().mockResolvedValue(undefined),
+        once: jest.fn((event, callback) => {
+          if (event === 'authorized') {
+            // 模拟授权成功
+            setTimeout(callback, 10);
+          }
+        }),
+      };
       expect(connectionManager.isConnectedToDatabase()).toBe(true);
     });
   });

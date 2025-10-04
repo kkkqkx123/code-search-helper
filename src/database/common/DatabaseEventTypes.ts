@@ -32,6 +32,11 @@ export enum DatabaseEventType {
   SERVICE_STOPPED = 'service_stopped',
   SERVICE_ERROR = 'service_error',
   
+  // 日志级别事件
+  DEBUG = 'debug',
+  INFO = 'info',
+  WARNING = 'warning',
+  
   // 性能和监控事件
   PERFORMANCE_METRIC = 'performance_metric',
   QUERY_EXECUTED = 'query_executed',
