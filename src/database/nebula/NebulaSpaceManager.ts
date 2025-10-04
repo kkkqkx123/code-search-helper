@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
-import { LoggerService } from '../../utils/LoggerService';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
+import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { NebulaSpaceInfo } from './NebulaTypes';
@@ -26,20 +27,20 @@ export interface GraphConfig {
 export class NebulaSpaceManager implements INebulaSpaceManager {
   private nebulaConnection: INebulaConnectionManager;
   private nebulaQueryBuilder: INebulaQueryBuilder;
-  private logger: LoggerService;
+  private databaseLogger: DatabaseLoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
 
   constructor(
     @inject(TYPES.INebulaConnectionManager) nebulaConnection: INebulaConnectionManager,
     @inject(TYPES.INebulaQueryBuilder) nebulaQueryBuilder: INebulaQueryBuilder,
-    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService
   ) {
     this.nebulaConnection = nebulaConnection;
     this.nebulaQueryBuilder = nebulaQueryBuilder;
-    this.logger = logger;
+    this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.configService = configService;
   }
@@ -71,10 +72,32 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       // 创建图结构
       await this.createGraphSchema();
 
-      this.logger.info(`Successfully created space ${spaceName} for project ${projectId}`);
+      // 使用 DatabaseLoggerService 记录空间创建成功信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SPACE_CREATED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: `Successfully created space ${spaceName} for project ${projectId}` }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log space creation success:', error);
+     });
       return true;
     } catch (error) {
-      this.logger.error(`Failed to create space ${spaceName}:`, error);
+      // 使用 DatabaseLoggerService 记录空间创建失败信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: `Failed to create space ${spaceName}:`,
+         error: error instanceof Error ? error.message : String(error),
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log space creation failure:', error);
+     });
       return false;
     }
   }
@@ -83,10 +106,32 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     const spaceName = this.generateSpaceName(projectId);
     try {
       await this.nebulaConnection.executeQuery(`DROP SPACE IF EXISTS \`${spaceName}\``);
-      this.logger.info(`Successfully deleted space ${spaceName} for project ${projectId}`);
+      // 使用 DatabaseLoggerService 记录空间删除成功信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SPACE_DELETED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: `Successfully deleted space ${spaceName} for project ${projectId}` }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log space deletion success:', error);
+     });
       return true;
     } catch (error) {
-      this.logger.error(`Failed to delete space ${spaceName}:`, error);
+      // 使用 DatabaseLoggerService 记录空间删除失败信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: `Failed to delete space ${spaceName}:`,
+         error: error instanceof Error ? error.message : String(error),
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log space deletion failure:', error);
+     });
       return false;
     }
   }
@@ -97,7 +142,16 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
       // 更健壮的结果格式检查
       if (!result) {
-        this.logger.warn('SHOW SPACES returned null result');
+        // 使用 DatabaseLoggerService 记录 SHOW SPACES 返回空结果的警告
+       this.databaseLogger.logDatabaseEvent({
+         type: DatabaseEventType.WARNING,
+         source: 'nebula',
+         timestamp: new Date(),
+         data: { message: 'SHOW SPACES returned null result' }
+       }).catch(error => {
+         // 如果日志记录失败，我们不希望影响主流程
+         console.error('Failed to log SHOW SPACES null result warning:', error);
+       });
         return [];
       }
 
@@ -109,10 +163,20 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       }
 
       if (!Array.isArray(data)) {
-        this.logger.warn('SHOW SPACES returned non-array data:', {
-          resultType: typeof data,
-          result: JSON.stringify(data).substring(0, 200)
-        });
+        // 使用 DatabaseLoggerService 记录 SHOW SPACES 返回非数组数据的警告
+       this.databaseLogger.logDatabaseEvent({
+         type: DatabaseEventType.WARNING,
+         source: 'nebula',
+         timestamp: new Date(),
+         data: {
+           message: 'SHOW SPACES returned non-array data:',
+           resultType: typeof data,
+           result: JSON.stringify(data).substring(0, 200)
+         }
+       }).catch(error => {
+         // 如果日志记录失败，我们不希望影响主流程
+         console.error('Failed to log SHOW SPACES non-array data warning:', error);
+       });
         return [];
       }
 
@@ -134,28 +198,74 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
           }
 
           // 如果仍然没有找到合适的值，记录调试信息
-          this.logger.debug(`No valid space name found in row ${index}:`, row);
+          // 使用 DatabaseLoggerService 记录未找到有效空间名称的调试信息
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.DEBUG,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: { message: `No valid space name found in row ${index}:`, row }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log no valid space name debug:', error);
+         });
           return '';
         } catch (rowError) {
-          this.logger.warn(`Error processing row ${index} in SHOW SPACES result:`, rowError);
+          // 使用 DatabaseLoggerService 记录处理 SHOW SPACES 结果行时出现错误的警告
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.WARNING,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: { message: `Error processing row ${index} in SHOW SPACES result:`, rowError }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log row processing error warning:', error);
+         });
           return '';
         }
       }).filter((name: string) => name && name.length > 0);
 
       // 验证结果
       if (spaceNames.length === 0) {
-        this.logger.warn('No valid space names found in SHOW SPACES result');
+        // 使用 DatabaseLoggerService 记录未找到有效空间名称的警告
+       this.databaseLogger.logDatabaseEvent({
+         type: DatabaseEventType.WARNING,
+         source: 'nebula',
+         timestamp: new Date(),
+         data: { message: 'No valid space names found in SHOW SPACES result' }
+       }).catch(error => {
+         // 如果日志记录失败，我们不希望影响主流程
+         console.error('Failed to log no valid space names warning:', error);
+       });
       } else {
-        this.logger.debug(`Found ${spaceNames.length} spaces:`, spaceNames);
+        // 使用 DatabaseLoggerService 记录找到的空间数量的调试信息
+       this.databaseLogger.logDatabaseEvent({
+         type: DatabaseEventType.DEBUG,
+         source: 'nebula',
+         timestamp: new Date(),
+         data: { message: `Found ${spaceNames.length} spaces:`, spaceNames }
+       }).catch(error => {
+         // 如果日志记录失败，我们不希望影响主流程
+         console.error('Failed to log found spaces debug:', error);
+       });
       }
 
       return spaceNames;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to list spaces:', {
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      // 使用 DatabaseLoggerService 记录列出空间失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to list spaces:',
+         error: errorMessage,
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log list spaces failure:', error);
+     });
 
       // 返回空数组而不是抛出异常，让调用者能够继续处理
       return [];
@@ -169,7 +279,16 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
       // 更健壮的结果验证
       if (!result) {
-        this.logger.warn(`DESCRIBE SPACE ${spaceName} returned null result`);
+        // 使用 DatabaseLoggerService 记录 DESCRIBE SPACE 返回空结果的警告
+       this.databaseLogger.logDatabaseEvent({
+         type: DatabaseEventType.WARNING,
+         source: 'nebula',
+         timestamp: new Date(),
+         data: { message: `DESCRIBE SPACE ${spaceName} returned null result` }
+       }).catch(error => {
+         // 如果日志记录失败，我们不希望影响主流程
+         console.error('Failed to log DESCRIBE SPACE null result warning:', error);
+       });
         return null;
       }
 
@@ -177,7 +296,16 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       let data = result.data || result.table || result.results || result.rows || [];
 
       if (!Array.isArray(data) || data.length === 0) {
-        this.logger.debug(`No space info found for ${spaceName}`);
+        // 使用 DatabaseLoggerService 记录未找到空间信息的调试信息
+       this.databaseLogger.logDatabaseEvent({
+         type: DatabaseEventType.DEBUG,
+         source: 'nebula',
+         timestamp: new Date(),
+         data: { message: `No space info found for ${spaceName}` }
+       }).catch(error => {
+         // 如果日志记录失败，我们不希望影响主流程
+         console.error('Failed to log no space info debug:', error);
+       });
         return null;
       }
 
@@ -185,7 +313,16 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
       // 验证返回的数据结构
       if (!spaceInfo || typeof spaceInfo !== 'object') {
-        this.logger.warn(`Invalid space info format for ${spaceName}:`, spaceInfo);
+        // 使用 DatabaseLoggerService 记录无效空间信息格式的警告
+       this.databaseLogger.logDatabaseEvent({
+         type: DatabaseEventType.SPACE_ERROR,
+         source: 'nebula',
+         timestamp: new Date(),
+         data: { message: `Invalid space info format for ${spaceName}:`, spaceInfo }
+       }).catch(error => {
+         // 如果日志记录失败，我们不希望影响主流程
+         console.error('Failed to log invalid space info format warning:', error);
+       });
         return null;
       }
 
@@ -199,14 +336,33 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         collate: spaceInfo.collate || spaceInfo.Collate || 'utf8_bin'
       };
 
-      this.logger.debug(`Retrieved space info for ${spaceName}:`, normalizedInfo);
+      // 使用 DatabaseLoggerService 记录检索到的空间信息的调试信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SERVICE_INITIALIZED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: `Retrieved space info for ${spaceName}:`, normalizedInfo }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log retrieved space info debug:', error);
+     });
       return normalizedInfo;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to get space info for ${spaceName}:`, {
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      // 使用 DatabaseLoggerService 记录获取空间信息失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: `Failed to get space info for ${spaceName}:`,
+         error: errorMessage,
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log get space info failure:', error);
+     });
       return null;
     }
   }
@@ -216,14 +372,33 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     try {
       const spaces = await this.listSpaces();
       const exists = spaces.includes(spaceName);
-      this.logger.debug(`Space ${spaceName} exists: ${exists}`);
+      // 使用 DatabaseLoggerService 记录空间存在性检查的调试信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SERVICE_INITIALIZED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: `Space ${spaceName} exists: ${exists}` }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log space exists debug:', error);
+     });
       return exists;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to check if space ${spaceName} exists:`, {
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      // 使用 DatabaseLoggerService 记录检查空间存在性失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: `Failed to check if space ${spaceName} exists:`,
+         error: errorMessage,
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log check space exists failure:', error);
+     });
       return false;
     }
   }
@@ -233,7 +408,16 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     maxRetries: number = 30,
     retryDelay: number = 1000
   ): Promise<void> {
-    this.logger.info(`Waiting for space ${spaceName} to be ready...`);
+    // 使用 DatabaseLoggerService 记录等待空间准备就绪的信息
+   this.databaseLogger.logDatabaseEvent({
+     type: DatabaseEventType.SERVICE_STARTED,
+     source: 'nebula',
+     timestamp: new Date(),
+     data: { message: `Waiting for space ${spaceName} to be ready...` }
+   }).catch(error => {
+     // 如果日志记录失败，我们不希望影响主流程
+     console.error('Failed to log waiting for space ready info:', error);
+   });
 
     for (let i = 0; i < maxRetries; i++) {
       try {
@@ -243,20 +427,47 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         if (result) {
           const data = result.data || result.table || result.results || result.rows || [];
           if (Array.isArray(data) && data.length > 0) {
-            this.logger.info(`Space ${spaceName} is ready after ${i + 1} attempts`);
+            // 使用 DatabaseLoggerService 记录空间准备就绪的信息
+           this.databaseLogger.logDatabaseEvent({
+             type: DatabaseEventType.INFO,
+             source: 'nebula',
+             timestamp: new Date(),
+             data: { message: `Space ${spaceName} is ready after ${i + 1} attempts` }
+           }).catch(error => {
+             // 如果日志记录失败，我们不希望影响主流程
+             console.error('Failed to log space ready info:', error);
+           });
             return;
           }
         }
 
         // 如果还没有准备好，记录调试信息
         if (i % 5 === 0) { // 每5次尝试记录一次
-          this.logger.debug(`Space ${spaceName} not ready yet, attempt ${i + 1}/${maxRetries}`);
+          // 使用 DatabaseLoggerService 记录空间尚未准备就绪的调试信息
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.DEBUG,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: { message: `Space ${spaceName} not ready yet, attempt ${i + 1}/${maxRetries}` }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log space not ready debug:', error);
+         });
         }
       } catch (error) {
         // Space not ready yet, continue waiting
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (i % 5 === 0) { // 每5次尝试记录一次
-          this.logger.debug(`Space ${spaceName} not ready yet (error: ${errorMessage}), attempt ${i + 1}/${maxRetries}`);
+          // 使用 DatabaseLoggerService 记录空间尚未准备就绪（带错误信息）的调试信息
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.DEBUG,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: { message: `Space ${spaceName} not ready yet (error: ${errorMessage}), attempt ${i + 1}/${maxRetries}` }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log space not ready with error debug:', error);
+         });
         }
       }
 
@@ -331,9 +542,31 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         await this.createIndexWithRetry(query);
       }
 
-      this.logger.info('Graph schema and indexes created successfully');
+      // 使用 DatabaseLoggerService 记录图结构和索引创建成功的消息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.INFO,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: 'Graph schema and indexes created successfully' }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log graph schema creation success:', error);
+     });
     } catch (error) {
-      this.logger.error('Failed to create graph schema:', error);
+      // 使用 DatabaseLoggerService 记录图结构创建失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to create graph schema:',
+         error: error instanceof Error ? error.message : String(error),
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log graph schema creation failure:', error);
+     });
       throw error;
     }
   }
@@ -345,23 +578,67 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         await this.nebulaConnection.executeQuery(indexQuery);
-        this.logger.debug(`Successfully created index: ${indexQuery}`);
-        return;
+        // 使用 DatabaseLoggerService 记录索引创建成功的调试信息
+       this.databaseLogger.logDatabaseEvent({
+         type: DatabaseEventType.DEBUG,
+         source: 'nebula',
+         timestamp: new Date(),
+         data: { message: `Successfully created index: ${indexQuery}` }
+       }).catch(error => {
+         // 如果日志记录失败，我们不希望影响主流程
+         console.error('Failed to log index creation success:', error);
+       });
+       return;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
 
         // 检查是否是"已存在"错误
         if (errorMessage.includes('already exists') || errorMessage.includes('existed')) {
-          this.logger.debug(`Index already exists: ${indexQuery}`);
+          // 使用 DatabaseLoggerService 记录索引已存在的调试信息
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.DEBUG,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: { message: `Index already exists: ${indexQuery}` }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log index already exists debug:', error);
+         });
           return;
         }
 
         if (attempt === maxRetries) {
-          this.logger.error(`Failed to create index after ${maxRetries} attempts: ${indexQuery}`, error);
+          // 使用 DatabaseLoggerService 记录索引创建失败的错误信息
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.ERROR_OCCURRED,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: {
+             message: `Failed to create index after ${maxRetries} attempts: ${indexQuery}`,
+             error: error instanceof Error ? error.message : String(error),
+             stack: error instanceof Error ? error.stack : undefined
+           }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log index creation failure:', error);
+         });
           throw new Error(`Failed to create index: ${indexQuery}. Error: ${errorMessage}`);
         }
 
-        this.logger.warn(`Attempt ${attempt} failed to create index: ${indexQuery}. Retrying...`, error);
+        // 使用 DatabaseLoggerService 记录索引创建重试的警告信息
+       this.databaseLogger.logDatabaseEvent({
+         type: DatabaseEventType.WARNING,
+         source: 'nebula',
+         timestamp: new Date(),
+         data: {
+           message: `Attempt ${attempt} failed to create index: ${indexQuery}. Retrying...`,
+           error: error instanceof Error ? error.message : String(error),
+           stack: error instanceof Error ? error.stack : undefined
+         }
+       }).catch(error => {
+         // 如果日志记录失败，我们不希望影响主流程
+         console.error('Failed to log index creation retry warning:', error);
+       });
         // 等待一段时间后重试
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
@@ -371,7 +648,16 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   async clearSpace(projectId: string): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
     try {
-      this.logger.info(`Starting to clear space ${spaceName} for project ${projectId}`);
+      // 使用 DatabaseLoggerService 记录开始清理空间的信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.INFO,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: `Starting to clear space ${spaceName} for project ${projectId}` }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log starting to clear space info:', error);
+     });
 
       // 首先，切换到空间
       await this.nebulaConnection.executeQuery(`USE \`${spaceName}\``);
@@ -383,7 +669,16 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         ? tagsData.map((row: any) => row.Name || row.name || row.NAME || row.tag_name).filter(Boolean)
         : [];
 
-      this.logger.debug(`Found ${tags.length} tags in space ${spaceName}:`, tags);
+      // 使用 DatabaseLoggerService 记录在空间中找到的标签数量的调试信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SERVICE_INITIALIZED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: `Found ${tags.length} tags in space ${spaceName}:`, tags }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log found tags debug:', error);
+     });
 
       // 获取所有边类型
       const edgesResult = await this.nebulaConnection.executeQuery('SHOW EDGES');
@@ -392,15 +687,46 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         ? edgesData.map((row: any) => row.Name || row.name || row.NAME || row.edge_name).filter(Boolean)
         : [];
 
-      this.logger.debug(`Found ${edges.length} edges in space ${spaceName}:`, edges);
+      // 使用 DatabaseLoggerService 记录在空间中找到的边数量的调试信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SERVICE_INITIALIZED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: `Found ${edges.length} edges in space ${spaceName}:`, edges }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log found edges debug:', error);
+     });
 
       // 首先删除所有边
       for (const edge of edges) {
         try {
           await this.nebulaConnection.executeQuery(`DELETE EDGE \`${edge}\` * -> *`);
-          this.logger.debug(`Deleted edge: ${edge}`);
+          // 使用 DatabaseLoggerService 记录删除边的调试信息
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.SERVICE_INITIALIZED,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: { message: `Deleted edge: ${edge}` }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log deleted edge debug:', error);
+         });
         } catch (edgeError) {
-          this.logger.warn(`Failed to delete edge ${edge}:`, edgeError);
+          // 使用 DatabaseLoggerService 记录删除边失败的警告信息
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.SPACE_ERROR,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: {
+             message: `Failed to delete edge ${edge}:`,
+             edgeError: edgeError instanceof Error ? edgeError.message : String(edgeError),
+             stack: edgeError instanceof Error ? edgeError.stack : undefined
+           }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log delete edge failure:', error);
+         });
           // 继续处理其他边
         }
       }
@@ -409,21 +735,62 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       for (const tag of tags) {
         try {
           await this.nebulaConnection.executeQuery(`DELETE VERTEX * WITH EDGE`);
-          this.logger.debug(`Deleted vertices for tag: ${tag}`);
+          // 使用 DatabaseLoggerService 记录删除顶点的调试信息
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.SERVICE_INITIALIZED,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: { message: `Deleted vertices for tag: ${tag}` }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log deleted vertices debug:', error);
+         });
         } catch (vertexError) {
-          this.logger.warn(`Failed to delete vertices for tag ${tag}:`, vertexError);
+          // 使用 DatabaseLoggerService 记录删除顶点失败的警告信息
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.SPACE_ERROR,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: {
+             message: `Failed to delete vertices for tag ${tag}:`,
+             vertexError: vertexError instanceof Error ? vertexError.message : String(vertexError),
+             stack: vertexError instanceof Error ? vertexError.stack : undefined
+           }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log delete vertices failure:', error);
+         });
           // 继续处理其他标签
         }
       }
 
-      this.logger.info(`Successfully cleared space ${spaceName} for project ${projectId}`);
+      // 使用 DatabaseLoggerService 记录成功清理空间的信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SPACE_CLEARED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: `Successfully cleared space ${spaceName} for project ${projectId}` }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log successfully cleared space:', error);
+     });
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to clear space ${spaceName}:`, {
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      // 使用 DatabaseLoggerService 记录清理空间失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SPACE_ERROR,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: `Failed to clear space ${spaceName}:`,
+         error: errorMessage,
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log clear space failure:', error);
+     });
       return false;
     }
   }

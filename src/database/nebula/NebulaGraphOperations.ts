@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
-import { LoggerService } from '../../utils/LoggerService';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
+import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { NebulaQueryBuilder, INebulaQueryBuilder } from './NebulaQueryBuilder';
@@ -25,20 +26,20 @@ export interface INebulaGraphOperations {
 
 @injectable()
 export class NebulaGraphOperations implements INebulaGraphOperations {
-  private logger: LoggerService;
+  private databaseLogger: DatabaseLoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   private queryBuilder: INebulaQueryBuilder;
   private nebulaService: INebulaService;
 
   constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder,
     @inject(TYPES.INebulaService) nebulaService: INebulaService
   ) {
-    this.logger = logger;
+    this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.configService = configService;
     this.queryBuilder = queryBuilder;
@@ -53,7 +54,19 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to insert vertex ${vertexId} in tag ${tag}`, { error: errorMessage });
+      // 使用 DatabaseLoggerService 记录插入顶点失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: `Failed to insert vertex ${vertexId} in tag ${tag}`,
+         error: errorMessage
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log insert vertex failure:', error);
+     });
       return false;
     }
   }
@@ -66,7 +79,19 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to insert edge ${edgeType} from ${srcId} to ${dstId}`, { error: errorMessage });
+      // 使用 DatabaseLoggerService 记录插入边失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: `Failed to insert edge ${edgeType} from ${srcId} to ${dstId}`,
+         error: errorMessage
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log insert edge failure:', error);
+     });
       return false;
     }
   }
@@ -81,7 +106,19 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to batch insert vertices', { error: errorMessage });
+      // 使用 DatabaseLoggerService 记录批量插入顶点失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to batch insert vertices',
+         error: errorMessage
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log batch insert vertices failure:', error);
+     });
       return false;
     }
   }
@@ -96,7 +133,19 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to batch insert edges', { error: errorMessage });
+      // 使用 DatabaseLoggerService 记录批量插入边失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to batch insert edges',
+         error: errorMessage
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log batch insert edges failure:', error);
+     });
       return false;
     }
   }
@@ -125,7 +174,19 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       return [];
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to find related nodes', { error: errorMessage });
+      // 使用 DatabaseLoggerService 记录查找相关节点失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to find related nodes',
+         error: errorMessage
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log find related nodes failure:', error);
+     });
       return [];
     }
   }
@@ -151,7 +212,19 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       return [];
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to find path', { error: errorMessage });
+      // 使用 DatabaseLoggerService 记录查找路径失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to find path',
+         error: errorMessage
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log find path failure:', error);
+     });
       return [];
     }
   }
@@ -179,7 +252,19 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       return [];
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to find shortest path', { error: errorMessage });
+      // 使用 DatabaseLoggerService 记录查找最短路径失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to find shortest path',
+         error: errorMessage
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log find shortest path failure:', error);
+     });
       return [];
     }
   }
@@ -198,11 +283,34 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       const { query, params } = this.queryBuilder.updateVertex(vertexId, tag, properties);
       await this.nebulaService.executeWriteQuery(query, params);
       
-      this.logger.debug('Updated vertex', { vertexId, tag });
+      // 使用 DatabaseLoggerService 记录更新顶点的调试信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SERVICE_INITIALIZED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: 'Updated vertex', vertexId, tag }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log updated vertex debug:', error);
+     });
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to update vertex', { error: errorMessage, vertexId, tag });
+      // 使用 DatabaseLoggerService 记录更新顶点失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to update vertex',
+         error: errorMessage,
+         vertexId,
+         tag
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log update vertex failure:', error);
+     });
       return false;
     }
   }
@@ -222,11 +330,35 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       const { query, params } = this.queryBuilder.updateEdge(srcId, dstId, edgeType, properties);
       await this.nebulaService.executeWriteQuery(query, params);
       
-      this.logger.debug('Updated edge', { srcId, dstId, edgeType });
+      // 使用 DatabaseLoggerService 记录更新边的调试信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SERVICE_INITIALIZED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: 'Updated edge', srcId, dstId, edgeType }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log updated edge debug:', error);
+     });
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to update edge', { error: errorMessage, srcId, dstId, edgeType });
+      // 使用 DatabaseLoggerService 记录更新边失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to update edge',
+         error: errorMessage,
+         srcId,
+         dstId,
+         edgeType
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log update edge failure:', error);
+     });
       return false;
     }
   }
@@ -242,11 +374,33 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       
       await this.nebulaService.executeWriteQuery(query);
       
-      this.logger.debug('Deleted vertex: vertex123');
+      // 使用 DatabaseLoggerService 记录删除顶点的调试信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SERVICE_INITIALIZED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: 'Deleted vertex: vertex123' }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log deleted vertex debug:', error);
+     });
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to delete vertex: vertex123', error);
+      // 使用 DatabaseLoggerService 记录删除顶点失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to delete vertex: vertex123',
+         error: error instanceof Error ? error.message : String(error),
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log delete vertex failure:', error);
+     });
       return false;
     }
   }
@@ -262,11 +416,33 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       
       await this.nebulaService.executeWriteQuery(query);
       
-      this.logger.debug('Deleted edge: src123 -> dst456');
+      // 使用 DatabaseLoggerService 记录删除边的调试信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SERVICE_INITIALIZED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: 'Deleted edge: src123 -> dst456' }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log deleted edge debug:', error);
+     });
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to delete edge: src123 -> dst456', error);
+      // 使用 DatabaseLoggerService 记录删除边失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to delete edge: src123 -> dst456',
+         error: error instanceof Error ? error.message : String(error),
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log delete edge failure:', error);
+     });
       return false;
     }
   }
@@ -293,7 +469,20 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       return [];
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to execute complex traversal from start123', error);
+      // 使用 DatabaseLoggerService 记录执行复杂遍历失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to execute complex traversal from start123',
+         error: error instanceof Error ? error.message : String(error),
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log execute complex traversal failure:', error);
+     });
       return [];
     }
   }
@@ -324,7 +513,20 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to get graph stats', error);
+      // 使用 DatabaseLoggerService 记录获取图统计信息失败的错误信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.ERROR_OCCURRED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: {
+         message: 'Failed to get graph stats',
+         error: error instanceof Error ? error.message : String(error),
+         stack: error instanceof Error ? error.stack : undefined
+       }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log get graph stats failure:', error);
+     });
       return {
         nodeCount: 0,
         relationshipCount: 0

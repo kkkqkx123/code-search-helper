@@ -1,5 +1,6 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../utils/LoggerService';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
+import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { ProjectIdManager } from '../ProjectIdManager';
@@ -40,7 +41,7 @@ export interface INebulaProjectManager extends IProjectManager {
  */
 @injectable()
 export class NebulaProjectManager implements INebulaProjectManager {
-  private logger: LoggerService;
+  private databaseLogger: DatabaseLoggerService;
   private errorHandler: ErrorHandlerService;
   private projectIdManager: ProjectIdManager;
   private spaceManager: INebulaSpaceManager;
@@ -49,14 +50,14 @@ export class NebulaProjectManager implements INebulaProjectManager {
   private eventListeners: Map<NebulaEventType, ((event: NebulaEvent) => void)[]> = new Map();
 
   constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
     @inject(TYPES.INebulaSpaceManager) spaceManager: INebulaSpaceManager,
     @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager,
     @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder
   ) {
-    this.logger = logger;
+    this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.projectIdManager = projectIdManager;
     this.spaceManager = spaceManager;
@@ -391,7 +392,16 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName || spaceName === 'undefined' || spaceName === '') {
         throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
       }
-      this.logger.debug(`Switching to space for project: ${projectPath}`, { spaceName });
+      // 使用 DatabaseLoggerService 记录切换到项目空间的调试信息
+     this.databaseLogger.logDatabaseEvent({
+       type: DatabaseEventType.SERVICE_INITIALIZED,
+       source: 'nebula',
+       timestamp: new Date(),
+       data: { message: `Switching to space for project: ${projectPath}`, spaceName }
+     }).catch(error => {
+       // 如果日志记录失败，我们不希望影响主流程
+       console.error('Failed to log switching to space debug:', error);
+     });
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 为所有关系添加项目ID（如果尚未存在）
@@ -626,10 +636,20 @@ export class NebulaProjectManager implements INebulaProjectManager {
         try {
           listener(event);
         } catch (err) {
-          this.logger.error('Error in event listener', {
-            eventType: type,
-            error: err instanceof Error ? err.message : String(err)
-          });
+          // 使用 DatabaseLoggerService 记录事件监听器中的错误
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.ERROR_OCCURRED,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: {
+             message: 'Error in event listener',
+             eventType: type,
+             error: err instanceof Error ? err.message : String(err)
+           }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log event listener error:', error);
+         });
         }
       });
     }

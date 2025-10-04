@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
+import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
 import { NebulaConnectionManager } from './NebulaConnectionManager';
 import { NebulaQueryBuilder } from './NebulaQueryBuilder';
 import { NebulaProjectManager } from './NebulaProjectManager';
@@ -60,7 +60,7 @@ export interface INebulaService {
 
 @injectable()
 export class NebulaService extends BaseDatabaseService implements INebulaService, IDatabaseService {
-  private logger: LoggerService;
+  private databaseLogger: DatabaseLoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   protected connectionManager: NebulaConnectionManager;
@@ -72,7 +72,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   private reconnectDelay = 1000;
 
   constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.NebulaConnectionManager) connectionManager: NebulaConnectionManager,
@@ -85,7 +85,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       projectManager as unknown as IProjectManager
     );
     
-    this.logger = logger;
+    this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.configService = configService;
     this.connectionManager = connectionManager;
@@ -104,13 +104,26 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         return false;
       }
 
-      this.logger.info('Initializing Nebula service');
+      // 使用 DatabaseLoggerService 记录初始化事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Initializing Nebula service' }
+      });
 
       // 连接到Nebula数据库
       const connected = await this.connectionManager.connect();
 
       if (!connected) {
-        this.logger.warn('Failed to connect to Nebula database, will continue without graph database');
+        // 使用 DatabaseLoggerService 记录连接失败事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.CONNECTION_FAILED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: 'Failed to connect to Nebula database, will continue without graph database' },
+          error: new Error('Failed to connect to Nebula database, will continue without graph database')
+        });
         this.emitEvent('error', new Error('Failed to connect to Nebula database, will continue without graph database'));
         // 重置重连尝试计数，避免无限重连
         this.reconnectAttempts = 0;
@@ -121,13 +134,24 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
 
       this.initialized = true;
       this.reconnectAttempts = 0; // 成功连接后重置重连尝试计数
-      this.logger.info('Nebula service initialized successfully');
+      // 使用 DatabaseLoggerService 记录初始化成功事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Nebula service initialized successfully' }
+      });
       this.emitEvent('initialized', { timestamp: new Date() });
 
       return true;
     } catch (error) {
-      this.logger.warn('Failed to initialize Nebula service, will continue without graph database', {
-        error: error instanceof Error ? error.message : String(error)
+      // 使用 DatabaseLoggerService 记录初始化失败事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_ERROR,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Failed to initialize Nebula service, will continue without graph database' },
+        error: error instanceof Error ? error : new Error(String(error))
       });
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       // 重置重连尝试计数，避免无限重连
@@ -138,7 +162,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
 
   private async initializeSchema(): Promise<void> {
     try {
-      this.logger.debug('Initializing Nebula schema');
+      // 使用 DatabaseLoggerService 记录schema初始化事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Initializing Nebula schema' }
+      });
 
       // 创建代码库分析所需的标签（使用反引号转义保留关键字）
       const tags = [
@@ -170,9 +200,22 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         try {
           const createTagQuery = `CREATE TAG IF NOT EXISTS ${tag.name} (${tag.fields})`;
           await this.executeWriteQuery(createTagQuery);
-          this.logger.debug(`Created tag: ${tag.name}`);
+          // 使用 DatabaseLoggerService 记录标签创建事件
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.DATA_INSERTED,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: { message: `Created tag: ${tag.name}` }
+          });
         } catch (error) {
-          this.logger.warn(`Failed to create tag ${tag.name}`, error);
+          // 使用 DatabaseLoggerService 记录标签创建失败事件
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.DATA_ERROR,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: { message: `Failed to create tag ${tag.name}` },
+            error: error instanceof Error ? error : new Error(String(error))
+          });
         }
       }
 
@@ -181,13 +224,32 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         try {
           const createEdgeQuery = `CREATE EDGE IF NOT EXISTS ${edgeType.name} (${edgeType.fields})`;
           await this.executeWriteQuery(createEdgeQuery);
-          this.logger.debug(`Created edge type: ${edgeType.name}`);
+          // 使用 DatabaseLoggerService 记录边类型创建事件
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.DATA_INSERTED,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: { message: `Created edge type: ${edgeType.name}` }
+          });
         } catch (error) {
-          this.logger.warn(`Failed to create edge type ${edgeType.name}`, error);
+          // 使用 DatabaseLoggerService 记录边类型创建失败事件
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.DATA_ERROR,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: { message: `Failed to create edge type ${edgeType.name}` },
+            error: error instanceof Error ? error : new Error(String(error))
+          });
         }
       }
 
-      this.logger.debug('Nebula schema initialized');
+      // 使用 DatabaseLoggerService 记录schema初始化完成事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Nebula schema initialized' }
+      });
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
@@ -218,7 +280,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       if (result.error) {
         // 检查是否是连接错误，如果是则尝试重连
         if (result.error.includes('connect') || result.error.includes('connection')) {
-          this.logger.warn('Connection error detected, attempting to reconnect...');
+          // 使用 DatabaseLoggerService 记录连接错误事件
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.CONNECTION_ERROR,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: { message: 'Connection error detected, attempting to reconnect...' }
+          });
           const reconnected = await this.reconnect();
           if (reconnected) {
             // 重连成功后重新执行查询
@@ -239,7 +307,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     } catch (error) {
       // 检查是否是连接错误，如果是则尝试重连
       if (error instanceof Error && (error.message.includes('connect') || error.message.includes('connection'))) {
-        this.logger.warn('Connection error in executeReadQuery, attempting to reconnect...');
+        // 使用 DatabaseLoggerService 记录连接错误事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.CONNECTION_ERROR,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: 'Connection error in executeReadQuery, attempting to reconnect...' }
+        });
         const reconnected = await this.reconnect();
         if (reconnected) {
           // 重连成功后重新执行查询
@@ -284,7 +358,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       if (result.error) {
         // 检查是否是连接错误，如果是则尝试重连
         if (result.error.includes('connect') || result.error.includes('connection')) {
-          this.logger.warn('Connection error detected, attempting to reconnect...');
+          // 使用 DatabaseLoggerService 记录连接错误事件
+          await this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.CONNECTION_ERROR,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: { message: 'Connection error detected, attempting to reconnect...' }
+          });
           const reconnected = await this.reconnect();
           if (reconnected) {
             // 重连成功后重新执行查询
@@ -305,7 +385,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     } catch (error) {
       // 检查是否是连接错误，如果是则尝试重连
       if (error instanceof Error && (error.message.includes('connect') || error.message.includes('connection'))) {
-        this.logger.warn('Connection error in executeWriteQuery, attempting to reconnect...');
+        // 使用 DatabaseLoggerService 记录连接错误事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.CONNECTION_ERROR,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: 'Connection error in executeWriteQuery, attempting to reconnect...' }
+        });
         const reconnected = await this.reconnect();
         if (reconnected) {
           // 重连成功后重新执行查询
@@ -350,7 +436,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     } catch (error) {
       // 检查是否是连接错误，如果是则尝试重连
       if (error instanceof Error && (error.message.includes('connect') || error.message.includes('connection'))) {
-        this.logger.warn('Connection error detected in transaction, attempting to reconnect...');
+        // 使用 DatabaseLoggerService 记录连接错误事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.CONNECTION_ERROR,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: 'Connection error detected in transaction, attempting to reconnect...' }
+        });
         const reconnected = await this.reconnect();
         if (reconnected) {
           // 重连成功后重新执行事务
@@ -389,7 +481,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
 
     try {
       await this.executeWriteQuery(`USE \`${spaceName}\``);
-      this.logger.debug(`Switched to space: ${spaceName}`);
+      // 使用 DatabaseLoggerService 记录空间切换事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SPACE_CREATED,  // 使用SPACE_CREATED类型，因为这是关于空间的操作
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Switched to space: ${spaceName}`, spaceName }
+      });
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
@@ -509,7 +607,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       await this.connectionManager.disconnect();
       await super.close();
       this.initialized = false;
-      this.logger.info('Nebula service closed');
+      // 使用 DatabaseLoggerService 记录服务关闭事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.CONNECTION_CLOSED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Nebula service closed' }
+      });
       this.emitEvent('closed', { timestamp: new Date() });
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
@@ -522,14 +626,26 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
    */
   async reconnect(): Promise<boolean> {
     try {
-      this.logger.info('Attempting to reconnect to Nebula database');
+      // 使用 DatabaseLoggerService 记录重连尝试事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.CONNECTION_ERROR,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Attempting to reconnect to Nebula database' }
+      });
       
       // 增加重连尝试次数
       this.reconnectAttempts++;
       
       // 如果超过最大重连次数，返回失败
       if (this.reconnectAttempts > this.maxReconnectAttempts) {
-        this.logger.error(`Max reconnect attempts (${this.maxReconnectAttempts}) exceeded, giving up on Nebula service`);
+        // 使用 DatabaseLoggerService 记录重连失败事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.CONNECTION_ERROR,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: `Max reconnect attempts (${this.maxReconnectAttempts}) exceeded, giving up on Nebula service` }
+        });
         // 重置重连尝试次数，避免永久锁定
         this.reconnectAttempts = 0;
         return false;
@@ -545,16 +661,35 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       const connected = await this.initialize();
       
       if (connected) {
-        this.logger.info('Successfully reconnected to Nebula database');
+        // 使用 DatabaseLoggerService 记录重连成功事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.CONNECTION_OPENED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: 'Successfully reconnected to Nebula database' }
+        });
         this.reconnectAttempts = 0; // 重置重连次数
         return true;
       } else {
-        this.logger.warn(`Reconnect attempt ${this.reconnectAttempts} failed`);
+        // 使用 DatabaseLoggerService 记录重连失败事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.CONNECTION_ERROR,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: `Reconnect attempt ${this.reconnectAttempts} failed` }
+        });
         // 即使重连失败，也不要重置重连次数，以便达到最大尝试次数后停止
         return false;
       }
     } catch (error) {
-      this.logger.error('Error during reconnection attempt:', error);
+      // 使用 DatabaseLoggerService 记录重连错误事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.CONNECTION_ERROR,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Error during reconnection attempt' },
+        error: error instanceof Error ? error : new Error(String(error))
+      });
       return false;
     }
   }
@@ -585,7 +720,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       
       if (result) {
         this.emitEvent('project_space_created', { projectPath });
-        this.logger.info(`Created space for project: ${projectPath}`);
+        // 使用 DatabaseLoggerService 记录空间创建事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.SPACE_CREATED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: `Created space for project: ${projectPath}`, projectPath }
+        });
       }
       
       return result;
@@ -614,7 +755,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       
       if (result) {
         this.emitEvent('project_space_deleted', { projectPath });
-        this.logger.info(`Deleted space for project: ${projectPath}`);
+        // 使用 DatabaseLoggerService 记录空间删除事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.SPACE_DELETED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: `Deleted space for project: ${projectPath}`, projectPath }
+        });
       }
       
       return result;
@@ -664,7 +811,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       
       const duration = Date.now() - startTime;
       this.emitEvent('data_inserted', { nodeCount: nodes.length, duration });
-      this.logger.info(`Inserted ${nodes.length} nodes`);
+      // 使用 DatabaseLoggerService 记录节点插入事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.DATA_INSERTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Inserted ${nodes.length} nodes`, nodeCount: nodes.length }
+      });
       return true;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
@@ -714,7 +867,13 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       
       const duration = Date.now() - startTime;
       this.emitEvent('data_inserted', { relationshipCount: relationships.length, duration });
-      this.logger.info(`Inserted ${relationships.length} relationships`);
+      // 使用 DatabaseLoggerService 记录关系插入事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.DATA_INSERTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Inserted ${relationships.length} relationships`, relationshipCount: relationships.length }
+      });
       return true;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
@@ -765,7 +924,16 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     // 添加到基础服务
     super.addEventListener(type, listener);
     
-    this.logger.debug(`Event listener added for type: ${type}`);
+    // 使用 DatabaseLoggerService 记录事件监听器添加事件
+    this.databaseLogger.logDatabaseEvent({
+      type: DatabaseEventType.SERVICE_INITIALIZED,
+      source: 'nebula',
+      timestamp: new Date(),
+      data: { message: `Event listener added for type: ${type}`, eventType: type }
+    }).catch(error => {
+      // 如果日志记录失败，我们不希望影响主流程
+      console.error('Failed to log event listener addition:', error);
+    });
   }
 
   /**
@@ -775,7 +943,16 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     // 从基础服务移除
     super.removeEventListener(type, listener);
     
-    this.logger.debug(`Event listener removed for type: ${type}`);
+    // 使用 DatabaseLoggerService 记录事件监听器移除事件
+    this.databaseLogger.logDatabaseEvent({
+      type: DatabaseEventType.SERVICE_INITIALIZED,
+      source: 'nebula',
+      timestamp: new Date(),
+      data: { message: `Event listener removed for type: ${type}`, eventType: type }
+    }).catch(error => {
+      // 如果日志记录失败，我们不希望影响主流程
+      console.error('Failed to log event listener removal:', error);
+    });
   }
 
   /**
