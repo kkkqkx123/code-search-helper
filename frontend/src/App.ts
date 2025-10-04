@@ -3,6 +3,9 @@ import { router, PageId } from './router/router.js';
 import { SearchPage } from './pages/SearchPage.js';
 import { IndexProjectPage } from './pages/IndexProjectPage.js';
 import { ProjectsPage } from './pages/ProjectsPage.js';
+import { GraphExplorerPage } from './pages/GraphExplorerPage.js';
+import { GraphAnalysisPage } from './pages/GraphAnalysisPage.js';
+import { GraphManagementPage } from './pages/GraphManagementPage.js';
 
 /**
  * 主应用类
@@ -13,6 +16,9 @@ export class CodebaseSearchApp {
     private searchPage!: SearchPage;
     private indexProjectPage!: IndexProjectPage;
     private projectsPage!: ProjectsPage;
+    private graphExplorerPage!: GraphExplorerPage;
+    private graphAnalysisPage!: GraphAnalysisPage;
+    private graphManagementPage!: GraphManagementPage;
     private statusElement: HTMLElement | null;
     private versionElement: HTMLElement | null;
 
@@ -48,14 +54,21 @@ export class CodebaseSearchApp {
         const searchPageContainer = document.getElementById('search-page') as HTMLElement;
         const indexProjectPageContainer = document.getElementById('index-project-page') as HTMLElement;
         const projectsPageContainer = document.getElementById('projects-page') as HTMLElement;
+        const graphExplorerPageContainer = document.getElementById('graph-explorer-page') as HTMLElement;
+        const graphAnalysisPageContainer = document.getElementById('graph-analysis-page') as HTMLElement;
+        const graphManagementPageContainer = document.getElementById('graph-management-page') as HTMLElement;
 
-        if (!searchPageContainer || !indexProjectPageContainer || !projectsPageContainer) {
+        if (!searchPageContainer || !indexProjectPageContainer || !projectsPageContainer ||
+            !graphExplorerPageContainer || !graphAnalysisPageContainer || !graphManagementPageContainer) {
             throw new Error('页面容器元素未找到');
         }
 
         this.searchPage = new SearchPage(searchPageContainer, this.apiClient);
         this.indexProjectPage = new IndexProjectPage(indexProjectPageContainer, this.apiClient);
         this.projectsPage = new ProjectsPage(projectsPageContainer, this.apiClient);
+        this.graphExplorerPage = new GraphExplorerPage(graphExplorerPageContainer);
+        this.graphAnalysisPage = new GraphAnalysisPage(graphAnalysisPageContainer);
+        this.graphManagementPage = new GraphManagementPage(graphManagementPageContainer);
 
         // 设置页面回调
         this.indexProjectPage.setOnIndexComplete((_result) => {
@@ -115,6 +128,9 @@ export class CodebaseSearchApp {
         this.searchPage.hide();
         this.indexProjectPage.hide();
         this.projectsPage.hide();
+        this.graphExplorerPage.hide();
+        this.graphAnalysisPage.hide();
+        this.graphManagementPage.hide();
 
         // 移除所有导航按钮的active类
         document.querySelectorAll('.nav-button').forEach(button => {
@@ -131,6 +147,15 @@ export class CodebaseSearchApp {
                 break;
             case 'projects':
                 this.projectsPage.show();
+                break;
+            case 'graph-explorer':
+                this.graphExplorerPage.show();
+                break;
+            case 'graph-analysis':
+                this.graphAnalysisPage.show();
+                break;
+            case 'graph-management':
+                this.graphManagementPage.show();
                 break;
         }
 

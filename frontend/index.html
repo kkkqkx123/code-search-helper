@@ -18,6 +18,9 @@
             <button class="nav-button active" data-page="search">代码搜索</button>
             <button class="nav-button" data-page="index-project">构建索引</button>
             <button class="nav-button" data-page="projects">已索引项目</button>
+            <button class="nav-button" data-page="graph-explorer">图探索</button>
+            <button class="nav-button" data-page="graph-analysis">图分析</button>
+            <button class="nav-button" data-page="graph-management">图管理</button>
         </nav>
 
         <div class="status-bar">
@@ -38,6 +41,21 @@
         <!-- 已索引项目页面 -->
         <div id="projects-page" class="page">
             <!-- 页面内容将由ProjectsPage组件动态渲染 -->
+        </div>
+        
+        <!-- 图探索页面 -->
+        <div id="graph-explorer-page" class="page">
+            <!-- 页面内容将由GraphExplorerPage组件动态渲染 -->
+        </div>
+        
+        <!-- 图分析页面 -->
+        <div id="graph-analysis-page" class="page">
+            <!-- 页面内容将由GraphAnalysisPage组件动态渲染 -->
+        </div>
+        
+        <!-- 图管理页面 -->
+        <div id="graph-management-page" class="page">
+            <!-- 页面内容将由GraphManagementPage组件动态渲染 -->
         </div>
     </div>
 
@@ -60,7 +78,7 @@
             document.addEventListener('DOMContentLoaded', function() {
                 // 从URL哈希中获取当前页面
                 const hash = window.location.hash.substring(1);
-                const validPages = ['search', 'index-project', 'projects'];
+                const validPages = ['search', 'index-project', 'projects', 'graph-explorer', 'graph-analysis', 'graph-management'];
                 const currentPage = validPages.includes(hash) ? hash : 'search';
                 
                 // 延迟执行，确保导航按钮已渲染
