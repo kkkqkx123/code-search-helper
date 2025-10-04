@@ -32,6 +32,7 @@ import { NebulaQueryBuilder } from '../../database/nebula/NebulaQueryBuilder';
 import { INebulaQueryBuilder } from '../../database/nebula/NebulaQueryBuilder';
 import { NebulaGraphOperations } from '../../database/nebula/NebulaGraphOperations';
 import { INebulaGraphOperations } from '../../database/nebula/NebulaGraphOperations';
+import { ConnectionStateManager } from '../../database/nebula/ConnectionStateManager';
 
 export class DatabaseServiceRegistrar {
   static register(container: Container): void {
@@ -57,7 +58,7 @@ export class DatabaseServiceRegistrar {
     container.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
     container.bind<IGraphQueryBuilder>(TYPES.IGraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
     container.bind<NebulaProjectManager>(TYPES.INebulaProjectManager).to(NebulaProjectManager).inSingletonScope();
-    
+
     // Nebula图数据库服务
     container.bind<NebulaService>(TYPES.NebulaService).to(NebulaService).inSingletonScope();
     container.bind<INebulaService>(TYPES.INebulaService).to(NebulaService).inSingletonScope();
@@ -67,5 +68,6 @@ export class DatabaseServiceRegistrar {
     container.bind<NebulaQueryBuilder>(TYPES.NebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
     container.bind<INebulaQueryBuilder>(TYPES.INebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
     container.bind<NebulaGraphOperations>(TYPES.INebulaGraphOperations).to(NebulaGraphOperations).inSingletonScope();
+    container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
   }
 }

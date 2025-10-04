@@ -59,6 +59,7 @@ const mockConnectionManager: INebulaConnectionManager = {
   updateConfig: jest.fn(),
   addEventListener: jest.fn(),
   removeEventListener: jest.fn(),
+  getConnectionForSpace: jest.fn().mockResolvedValue({}),
 };
 
 const mockQueryBuilder: INebulaQueryBuilder = {

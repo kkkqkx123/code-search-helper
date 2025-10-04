@@ -29,6 +29,7 @@ export interface INebulaConnectionManager extends IConnectionManager {
   getDatabaseStats(): Promise<any>;
   isConnectedToDatabase(): boolean;
   executeQueryInSpace(space: string, query: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
+  getConnectionForSpace(space: string): Promise<any>;
 }
 
 @injectable()
@@ -67,6 +68,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     this.connectionStatus.host = this.config.host;
     this.connectionStatus.port = this.config.port;
     this.connectionStatus.username = this.config.username;
+    
+    // 启动连接状态清理任务
+    this.connectionStateManager.startPeriodicCleanup();
   }
 
   async connect(): Promise<boolean> {
@@ -446,8 +450,14 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       // 关闭客户端连接
       await this.closeClient();
 
+      // 停止连接状态管理器的定期清理任务
+      this.connectionStateManager.stopPeriodicCleanup();
+
       // 更新连接状态
       this.updateConnectionStatusAfterDisconnect();
+
+      // 重置连接状态管理器中的主连接状态
+      this.connectionStateManager.removeConnection('nebula-client-main');
 
       // 使用 DatabaseLoggerService 记录成功断开连接信息
      this.databaseLogger.logDatabaseEvent({
@@ -535,10 +545,58 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   /**
+   * 获取指定空间的连接
+   * 优先获取已经处于目标空间的连接，如果没有，则获取任意连接并切换空间
+   */
+  async getConnectionForSpace(space: string) {
+    // 验证空间名称的有效性
+    if (!space || space === 'undefined' || space === '') {
+      throw new Error(`Cannot get connection for invalid space: ${space}`);
+    }
+    
+    // 检查连接状态
+    if (!this.isConnected()) {
+      throw new Error('Not connected to Nebula Graph');
+    }
+
+    // 获取已经处于目标空间的连接ID列表
+    const availableConnections = this.connectionStateManager.getConnectionsForSpace(space);
+    
+    // 由于我们只使用一个客户端连接，检查主连接是否已经在目标空间
+    const mainConnectionSpace = this.connectionStateManager.getConnectionSpace('nebula-client-main');
+    if (mainConnectionSpace === space) {
+      return this.client; // 返回当前客户端，因为它已经处于目标空间
+    }
+    
+    // 如果主连接不在目标空间，我们需要切换它
+    // 为简单起见，使用当前客户端连接并切换到目标空间
+    const useQueryResult = await this.executeQuery(`USE \`${space}\``);
+    
+    // 检查USE命令是否成功执行
+    if (useQueryResult.error) {
+      throw new Error(`Failed to switch to space ${space}: ${useQueryResult.error}`);
+    }
+    
+    this.connectionStateManager.updateConnectionSpace('nebula-client-main', space);
+    
+    return this.client;
+  }
+
+  /**
    * 在指定空间中执行查询
    * 优化执行查询的性能，首先检查连接当前是否已在目标空间中
    */
   async executeQueryInSpace(space: string, query: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
+    // 验证空间名称的有效性
+    if (!space || space === 'undefined' || space === '') {
+      throw new Error(`Cannot execute query in invalid space: ${space}`);
+    }
+    
+    // 检查连接状态
+    if (!this.isConnected()) {
+      throw new Error('Not connected to Nebula Graph');
+    }
+
     // 获取当前连接的空间状态
     const currentSpace = this.connectionStateManager.getConnectionSpace('nebula-client-main');
 
@@ -548,7 +606,13 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
 
     // 否则，首先切换到目标空间
-    await this.executeQuery(`USE \`${space}\``);
+    const useQueryResult = await this.executeQuery(`USE \`${space}\``);
+    
+    // 检查USE命令是否成功执行
+    if (useQueryResult.error) {
+      throw new Error(`Failed to switch to space ${space}: ${useQueryResult.error}`);
+    }
+    
     // 更新连接状态管理器中的连接空间状态
     this.connectionStateManager.updateConnectionSpace('nebula-client-main', space);
 

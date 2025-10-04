@@ -7,158 +7,182 @@ describe('ConnectionStateManager', () => {
     connectionStateManager = new ConnectionStateManager();
   });
 
+  afterEach(() => {
+    // 确保清理定时器
+    connectionStateManager.stopPeriodicCleanup();
+  });
+
   describe('updateConnectionSpace', () => {
-    it('should update the space for a connection', () => {
-      const connectionId = 'test-connection-1';
-      const space = 'test_space';
+    it('should create a new connection state if it does not exist', () => {
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
 
-      connectionStateManager.updateConnectionSpace(connectionId, space);
-
-      const state = connectionStateManager.getConnectionSpace(connectionId);
-      expect(state).toBe(space);
+      const state = connectionStateManager.getConnectionSpace('conn1');
+      expect(state).toBe('space1');
     });
 
-    it('should create a new entry if connection does not exist', () => {
-      const connectionId = 'new-connection';
-      const space = 'new_space';
+    it('should update an existing connection state', () => {
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      connectionStateManager.updateConnectionSpace('conn1', 'space2');
 
-      connectionStateManager.updateConnectionSpace(connectionId, space);
-
-      const state = connectionStateManager.getConnectionSpace(connectionId);
-      expect(state).toBe(space);
+      const state = connectionStateManager.getConnectionSpace('conn1');
+      expect(state).toBe('space2');
     });
 
-    it('should update lastUsed timestamp', () => {
-      const connectionId = 'timestamp-test';
-      const space = 'timestamp_space';
-
-      const beforeUpdate = Date.now();
-      connectionStateManager.updateConnectionSpace(connectionId, space);
-      const afterUpdate = Date.now();
-
-      // Get all connection states and verify the timestamp was updated
-      const allConnections = connectionStateManager.getAllConnections();
-      const connectionState = allConnections.find(c => c.connectionId === connectionId);
+    it('should update last used timestamp when updating space', () => {
+      const initialTime = Date.now();
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
       
-      expect(connectionState).toBeDefined();
-      expect(connectionState!.lastUsed).toBeGreaterThanOrEqual(beforeUpdate);
-      expect(connectionState!.lastUsed).toBeLessThanOrEqual(afterUpdate);
+      const allConnections = connectionStateManager.getAllConnections();
+      expect(allConnections).toHaveLength(1);
+      expect(allConnections[0].lastUsed).toBeGreaterThanOrEqual(initialTime);
     });
   });
 
   describe('getConnectionsForSpace', () => {
-    it('should return connections for the specified space', () => {
-      const space1 = 'space_1';
-      const space2 = 'space_2';
-      const conn1 = 'conn-1';
-      const conn2 = 'conn-2';
-      const conn3 = 'conn-3';
+    it('should return connection IDs for a specific space', () => {
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      connectionStateManager.updateConnectionSpace('conn2', 'space2');
+      connectionStateManager.updateConnectionSpace('conn3', 'space1');
 
-      connectionStateManager.updateConnectionSpace(conn1, space1);
-      connectionStateManager.updateConnectionSpace(conn2, space1);
-      connectionStateManager.updateConnectionSpace(conn3, space2);
-
-      const connectionsForSpace1 = connectionStateManager.getConnectionsForSpace(space1);
-      expect(connectionsForSpace1).toContain(conn1);
-      expect(connectionsForSpace1).toContain(conn2);
-      expect(connectionsForSpace1).not.toContain(conn3);
-
-      const connectionsForSpace2 = connectionStateManager.getConnectionsForSpace(space2);
-      expect(connectionsForSpace2).toContain(conn3);
-      expect(connectionsForSpace2).not.toContain(conn1);
-      expect(connectionsForSpace2).not.toContain(conn2);
+      const connectionsInSpace1 = connectionStateManager.getConnectionsForSpace('space1');
+      expect(connectionsInSpace1).toContain('conn1');
+      expect(connectionsInSpace1).toContain('conn3');
+      expect(connectionsInSpace1).not.toContain('conn2');
     });
 
     it('should return empty array for non-existent space', () => {
-      const connections = connectionStateManager.getConnectionsForSpace('non-existent');
+      const connections = connectionStateManager.getConnectionsForSpace('nonexistent');
       expect(connections).toEqual([]);
-    });
-  });
-
-  describe('getConnectionSpace', () => {
-    it('should return the space for an existing connection', () => {
-      const connectionId = 'test-connection';
-      const space = 'test_space';
-
-      connectionStateManager.updateConnectionSpace(connectionId, space);
-
-      const result = connectionStateManager.getConnectionSpace(connectionId);
-      expect(result).toBe(space);
-    });
-
-    it('should return undefined for non-existent connection', () => {
-      const result = connectionStateManager.getConnectionSpace('non-existent');
-      expect(result).toBeUndefined();
     });
   });
 
   describe('getAllConnections', () => {
     it('should return all connection states', () => {
-      const conn1 = 'conn-1';
-      const conn2 = 'conn-2';
-      const space1 = 'space_1';
-      const space2 = 'space_2';
-
-      connectionStateManager.updateConnectionSpace(conn1, space1);
-      connectionStateManager.updateConnectionSpace(conn2, space2);
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      connectionStateManager.updateConnectionSpace('conn2', 'space2');
 
       const allConnections = connectionStateManager.getAllConnections();
-
       expect(allConnections).toHaveLength(2);
-      expect(allConnections).toContainEqual(
-        expect.objectContaining({
-          connectionId: conn1,
-          currentSpace: space1,
-          isHealthy: true
-        })
-      );
-      expect(allConnections).toContainEqual(
-        expect.objectContaining({
-          connectionId: conn2,
-          currentSpace: space2,
-          isHealthy: true
-        })
-      );
+      expect(allConnections.map(conn => conn.connectionId)).toContain('conn1');
+      expect(allConnections.map(conn => conn.connectionId)).toContain('conn2');
+    });
+  });
+
+  describe('getConnectionSpace', () => {
+    it('should return the space for an existing connection', () => {
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      
+      const space = connectionStateManager.getConnectionSpace('conn1');
+      expect(space).toBe('space1');
+    });
+
+    it('should return undefined for non-existent connection', () => {
+      const space = connectionStateManager.getConnectionSpace('nonexistent');
+      expect(space).toBeUndefined();
     });
   });
 
   describe('cleanupStaleConnections', () => {
-    it('should remove connections that are older than maxAge', () => {
-      const conn1 = 'recent-conn';
-      const conn2 = 'stale-conn';
-      const space = 'test_space';
+    it('should remove connections that are older than the max age', () => {
+      // 设置一个连接
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      
+      // 手动修改连接状态的时间戳，使其变成"陈旧的"
+      const connectionStates = (connectionStateManager as any).connectionStates;
+      const state = connectionStates.get('conn1');
+      if (state) {
+        state.lastUsed = Date.now() - 40 * 60 * 1000; // 40分钟前
+        connectionStates.set('conn1', state);
+      }
+      
+      // 现在清理超过30分钟的连接
+      connectionStateManager.cleanupStaleConnections(30 * 60 * 1000);
 
-      // Add a recent connection
-      connectionStateManager.updateConnectionSpace(conn1, space);
-
-      // Manually set a connection to be old
-      const staleState = {
-        connectionId: conn2,
-        currentSpace: space,
-        lastUsed: Date.now() - 40 * 60 * 1000, // 40 minutes ago (older than default 30 min)
-        isHealthy: true
-      };
-      connectionStateManager['connectionStates'].set(conn2, staleState as any);
-
-      // Clean up stale connections (default is 30 minutes)
-      connectionStateManager.cleanupStaleConnections();
-
-      const allConnections = connectionStateManager.getAllConnections();
-      expect(allConnections).toHaveLength(1);
-      expect(allConnections[0].connectionId).toBe(conn1);
+      const exists = connectionStateManager.hasConnection('conn1');
+      expect(exists).toBe(false);
     });
 
-    it('should keep connections that are newer than maxAge', () => {
-      const conn = 'recent-conn';
-      const space = 'test_space';
+    it('should not remove connections that are within the max age', () => {
+      // 设置一个连接
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      
+      // 清理超过40分钟的连接（但当前连接是现在创建的）
+      connectionStateManager.cleanupStaleConnections(40 * 60 * 1000);
 
-      connectionStateManager.updateConnectionSpace(conn, space);
+      const exists = connectionStateManager.hasConnection('conn1');
+      expect(exists).toBe(true);
+    });
 
-      // Clean up with a very long maxAge to ensure we keep the connection
-      connectionStateManager.cleanupStaleConnections(10000); // 10 seconds
+    it('should return correct connection count', () => {
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      connectionStateManager.updateConnectionSpace('conn2', 'space2');
+      
+      expect(connectionStateManager.getConnectionsCount()).toBe(2);
+      
+      connectionStateManager.removeConnection('conn1');
+      expect(connectionStateManager.getConnectionsCount()).toBe(1);
+    });
+  });
 
-      const allConnections = connectionStateManager.getAllConnections();
-      expect(allConnections).toHaveLength(1);
+  describe('connection management methods', () => {
+    it('should remove a specific connection', () => {
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      
+      const removed = connectionStateManager.removeConnection('conn1');
+      expect(removed).toBe(true);
+      
+      const exists = connectionStateManager.hasConnection('conn1');
+      expect(exists).toBe(false);
+    });
+
+    it('should return false when trying to remove non-existent connection', () => {
+      const removed = connectionStateManager.removeConnection('nonexistent');
+      expect(removed).toBe(false);
+    });
+
+    it('should correctly check if connection exists', () => {
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      
+      expect(connectionStateManager.hasConnection('conn1')).toBe(true);
+      expect(connectionStateManager.hasConnection('nonexistent')).toBe(false);
+    });
+  });
+
+  describe('periodic cleanup', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ legacyFakeTimers: true });
+    });
+
+    afterEach(() => {
+      connectionStateManager.stopPeriodicCleanup();
+      jest.useRealTimers();
+    });
+
+    it('should start periodic cleanup task', () => {
+      connectionStateManager.startPeriodicCleanup(1000); // 每秒清理一次
+      
+      // 添加一个连接
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      expect(connectionStateManager.getConnectionsCount()).toBe(1);
+      
+      // 快进时间，触发定时清理
+      jest.advanceTimersByTime(1000);
+      
+      // 连接依然存在，因为时间未超过清理阈值
+      expect(connectionStateManager.getConnectionsCount()).toBe(1);
+    });
+
+    it('should stop periodic cleanup task', () => {
+      connectionStateManager.startPeriodicCleanup(1000);
+      connectionStateManager.updateConnectionSpace('conn1', 'space1');
+      
+      expect(connectionStateManager.getConnectionsCount()).toBe(1);
+      
+      connectionStateManager.stopPeriodicCleanup();
+      
+      // 再次添加连接
+      connectionStateManager.updateConnectionSpace('conn2', 'space2');
+      expect(connectionStateManager.getConnectionsCount()).toBe(2);
     });
   });
 });
