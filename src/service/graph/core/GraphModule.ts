@@ -49,9 +49,4 @@ export const GraphModule = new ContainerModule((bindObj: any) => {
     .to(GraphServiceNewAdapter)
     .inSingletonScope();
 
-  // 绑定图特定的基础设施服务
-  bind(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
-  bind(TYPES.GraphCacheService).to(GraphCacheService).inSingletonScope();
-  bind(TYPES.GraphBatchOptimizer).to(GraphBatchOptimizer).inSingletonScope();
-  bind(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
 });

@@ -164,22 +164,18 @@ export class BusinessServiceRegistrar {
 }
 ```
 
-##### ModuleServiceRegistrar.ts
-负责加载复杂的模块。
+##### 模块加载
+复杂的功能模块通过InversifyJS的`ContainerModule`机制进行加载。
 
 ```typescript
-import { Container } from 'inversify';
-import { NebulaModule } from '../../database/nebula/NebulaModule';
-import { GraphModule } from '../../service/graph/core/GraphModule';
+// 在DIContainer.ts中
+import { GraphModule } from '../service/graph/core/GraphModule';
 
-export class ModuleServiceRegistrar {
-  static register(container: Container): void {
-    // 集中加载所有模块，确保依赖关系正确
-    container.load(NebulaModule);  // 图数据库模块
-    container.load(GraphModule);   // 图服务模块
-  }
-}
+// 加载服务模块
+diContainer.load(GraphModule);   // 图服务模块
 ```
+
+更多关于注册器职责划分的详细信息，请参阅[依赖注入注册器结构与职责划分](../binding-guide/dependency-injection-registrar-structure.md)文档。
 
 ##### EmbedderServiceRegistrar.ts
 负责注册AI嵌入服务。
@@ -244,3 +240,7 @@ export class EmbedderServiceRegistrar {
 - 减少错误：清晰的组织减少绑定错误
 - 便于调试：问题定位更加容易
 - 团队协作：明确的分工和边界
+
+## 更新记录
+
+- 2025-10-04: 更新了模块加载部分的说明，移除了对不存在的`ModuleServiceRegistrar.ts`的引用，并添加了对新文档[依赖注入注册器结构与职责划分](../binding-guide/dependency-injection-registrar-structure.md)的引用。
