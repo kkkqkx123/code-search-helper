@@ -112,12 +112,15 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       if (!connected) {
         this.logger.warn('Failed to connect to Nebula database, will continue without graph database');
         this.emitEvent('error', new Error('Failed to connect to Nebula database, will continue without graph database'));
+        // 重置重连尝试计数，避免无限重连
+        this.reconnectAttempts = 0;
         return false;  // 返回false表示初始化失败，但不会导致无限重连
       }
 
       // 不再在服务初始化时初始化schema，而是依赖于项目空间创建时初始化
 
       this.initialized = true;
+      this.reconnectAttempts = 0; // 成功连接后重置重连尝试计数
       this.logger.info('Nebula service initialized successfully');
       this.emitEvent('initialized', { timestamp: new Date() });
 
@@ -127,6 +130,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         error: error instanceof Error ? error.message : String(error)
       });
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
+      // 重置重连尝试计数，避免无限重连
+      this.reconnectAttempts = 0;
       return false;  // 返回false表示初始化失败，但不会导致无限重连
     }
   }
@@ -525,6 +530,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       // 如果超过最大重连次数，返回失败
       if (this.reconnectAttempts > this.maxReconnectAttempts) {
         this.logger.error(`Max reconnect attempts (${this.maxReconnectAttempts}) exceeded, giving up on Nebula service`);
+        // 重置重连尝试次数，避免永久锁定
+        this.reconnectAttempts = 0;
         return false;
       }
       
@@ -543,6 +550,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         return true;
       } else {
         this.logger.warn(`Reconnect attempt ${this.reconnectAttempts} failed`);
+        // 即使重连失败，也不要重置重连次数，以便达到最大尝试次数后停止
         return false;
       }
     } catch (error) {

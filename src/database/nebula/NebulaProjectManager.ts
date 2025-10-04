@@ -302,6 +302,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName || spaceName === 'undefined' || spaceName === '') {
         throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
       }
+      this.logger.debug(`Switching to space for project: ${projectPath}`, { spaceName });
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 为所有节点添加项目ID（如果尚未存在）
@@ -390,6 +391,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName || spaceName === 'undefined' || spaceName === '') {
         throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
       }
+      this.logger.debug(`Switching to space for project: ${projectPath}`, { spaceName });
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 为所有关系添加项目ID（如果尚未存在）
@@ -480,6 +482,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName || spaceName === 'undefined' || spaceName === '') {
         throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
       }
+      this.logger.debug(`Switching to space for project: ${projectPath}`, { spaceName });
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 构建查询
@@ -541,6 +544,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName || spaceName === 'undefined' || spaceName === '') {
         throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
       }
+      this.logger.debug(`Switching to space for project: ${projectPath}`, { spaceName });
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 构建查询
