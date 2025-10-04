@@ -28,6 +28,8 @@ export class NebulaConnectionMonitor extends EventEmitter {
   private lastError: string | null = null;
   private connectionStats: any = null;
   private checkInterval: number = 30000; // 30秒检查一次
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 3;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -81,6 +83,15 @@ export class NebulaConnectionMonitor extends EventEmitter {
    */
   private async checkConnectionStatus(): Promise<void> {
     try {
+      // 首先检查服务是否已经初始化
+      if (typeof this.nebulaService.isInitialized === 'function') {
+        if (!this.nebulaService.isInitialized()) {
+          // 如果Nebula服务未初始化，不进行连接检查
+          this.logger.debug('Nebula service not initialized, skipping connection check');
+          return;
+        }
+      }
+      
       const connected = this.nebulaService.isConnected();
       
       if (connected !== this.isConnected) {
@@ -166,6 +177,15 @@ export class NebulaConnectionMonitor extends EventEmitter {
     try {
       this.logger.info('Attempting to reconnect to Nebula database');
       
+      // 增加重连尝试次数
+      this.reconnectAttempts++;
+      
+      // 如果超过最大重连次数，返回失败
+      if (this.reconnectAttempts > this.maxReconnectAttempts) {
+        this.logger.error(`Max reconnect attempts (${this.maxReconnectAttempts}) exceeded, giving up on Nebula service`);
+        return false;
+      }
+      
       // 关闭现有连接
       await this.nebulaService.close();
       
@@ -179,6 +199,7 @@ export class NebulaConnectionMonitor extends EventEmitter {
         this.logger.info('Successfully reconnected to Nebula database');
         this.isConnected = true;
         this.lastError = null;
+        this.reconnectAttempts = 0; // 重置重连次数
         
         // 触发连接事件
         this.emit('connected', {
@@ -188,7 +209,7 @@ export class NebulaConnectionMonitor extends EventEmitter {
         
         return true;
       } else {
-        this.logger.warn('Failed to reconnect to Nebula database');
+        this.logger.warn('Failed to reconnect to Nebula database, giving up on reconnect');
         this.isConnected = false;
         return false;
       }

@@ -36,6 +36,12 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         port: parseInt(process.env.NEBULA_PORT || '9669'),
         username: process.env.NEBULA_USERNAME || 'root',
         password: process.env.NEBULA_PASSWORD || 'nebula',
+        timeout: parseInt(process.env.NEBULA_TIMEOUT || '30000'),
+        maxConnections: parseInt(process.env.NEBULA_MAX_CONNECTIONS || '10'),
+        retryAttempts: parseInt(process.env.NEBULA_RETRY_ATTEMPTS || '3'),
+        retryDelay: parseInt(process.env.NEBULA_RETRY_DELAY || '1000'),
+        bufferSize: parseInt(process.env.NEBULA_BUFFER_SIZE || '10'),
+        pingInterval: parseInt(process.env.NEBULA_PING_INTERVAL || '3000'),
         space: this.getSpaceName(), // 使用增强的配置逻辑
         vidTypeLength: parseInt(process.env.NEBULA_VID_TYPE_LENGTH || '128'),
       };
@@ -128,7 +134,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       }
       
       // 2. 使用项目隔离的动态命名
-      const dynamicName = `project-${projectId}`;
+      const dynamicName = `project_${projectId}`;
       
       // 验证动态生成的命名是否符合规范
       if (!this.validateNamingConvention(dynamicName)) {
@@ -159,7 +165,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
     }
     
     // 检查显式配置是否与项目隔离命名冲突
-    const projectSpecificName = `project-${projectId}`;
+    const projectSpecificName = `project_${projectId}`;
     return explicitName !== projectSpecificName;
   }
 

@@ -86,33 +86,51 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         host: this.config.host,
         port: this.config.port,
         username: this.config.username,
-        space: this.config.space,
+        space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
         timeout: this.config.timeout,
         maxConnections: this.config.maxConnections,
         retryAttempts: this.config.retryAttempts,
         retryDelay: this.config.retryDelay
       });
 
-      // 创建Nebula Graph客户端
-      this.client = createClient({
+      // 创建Nebula Graph客户端，但不设置默认空间，只验证连接
+      const clientConfig: any = {
         servers: [`${this.config.host}:${this.config.port}`],
         userName: this.config.username,
         password: this.config.password,
-        space: this.config.space,
         poolSize: this.maxPoolSize, // 使用配置中的最大连接数
         bufferSize: this.config.bufferSize || 10, // 使用配置中的缓冲区大小
         executeTimeout: this.config.timeout || 30000, // 使用配置中的超时时间
         pingInterval: this.config.pingInterval || 3000   // 使用配置中的ping间隔
+      };
+
+      this.client = createClient(clientConfig);
+
+      // 等待客户端连接准备就绪
+      await new Promise((resolve, reject) => {
+        this.client.on('ready', () => {
+          this.logger.info('Nebula client connected successfully');
+          resolve(true);
+        });
+
+        this.client.on('error', (error: any) => {
+          this.logger.error('Nebula client connection error', { error: error.message });
+          reject(error);
+        });
+
+        // 设置连接超时
+        setTimeout(() => reject(new Error('Nebula client connection timeout')), this.config.timeout || 30000);
       });
 
 
       // 初始化会话池
       await this.initializeSessionPool();
 
-      // 设置连接状态
+      // 设置连接状态 - 不设置特定space，因为我们没有在客户端配置中设置space
       this.connectionStatus.connected = true;
       this.connectionStatus.lastConnected = new Date();
-      this.connectionStatus.space = this.config.space;
+      // 确保space字段只有在有效时才设置，否则设置为undefined
+      this.connectionStatus.space = (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined;
 
       this.logger.info('Successfully connected to Nebula Graph');
       return true;
@@ -140,14 +158,11 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     
     for (let i = 0; i < this.maxPoolSize; i++) {
       try {
-        // 创建会话
-        const session = this.client.getSession(this.config.username, this.config.password, false);
+        // 使用正确的API创建会话 - 不指定初始space，只验证基本连接
+        const session = await this.client.session(this.config.username, this.config.password); // 修正为正确的API调用
         
         // 验证连接是否成功
         await this.validateConnection(session);
-        
-        // 初始化space
-        await this.initializeSpace(session, i + 1);
         
         // 会话创建成功，添加到池中
         this.sessionPool.push(session);
@@ -179,7 +194,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private async validateConnection(session: any): Promise<void> {
     try {
       // 执行简单查询验证连接
-      const result = await session.execute('SHOW HOSTS');
+      const result = await session.execute('SHOW SPACES');
       
       if (!result || result.code !== 0) {
         throw new Error(`Connection validation failed: ${result?.error || 'Unknown error'}`);
@@ -193,59 +208,63 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
    * 初始化space
    */
   private async initializeSpace(session: any, sessionIndex: number): Promise<void> {
-    if (!this.config.space) {
-      return; // 如果没有配置space，则跳过
-    }
-
-    try {
-      // 尝试切换到指定的space
-      await session.execute(`USE ${this.config.space}`);
-      this.logger.debug(`Session ${sessionIndex} using existing space: ${this.config.space}`);
-    } catch (error) {
-      // Space不存在，尝试创建
+    // 检查是否有配置的space，如果有则尝试创建并使用它
+    if (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') {
+      const effectiveSpaceName = this.config.space;
+      
       try {
-        this.logger.debug(`Attempting to create space for session ${sessionIndex}: ${this.config.space}`);
-        
         // 检查space是否已经存在
-        const spaceExists = await this.checkSpaceExists(session);
+        const spaceExists = await this.checkSpaceExists(session, effectiveSpaceName);
         
         if (!spaceExists) {
-          await this.createSpace(session, this.config.space);
-          this.logger.info(`Created new space for session ${sessionIndex}: ${this.config.space}`);
+          await this.createSpace(session, effectiveSpaceName);
+          this.logger.info(`Created new space for session ${sessionIndex}: ${effectiveSpaceName}`);
+          
+          // 等待space创建完成
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } else {
-          this.logger.info(`Space already exists for session ${sessionIndex}: ${this.config.space}`);
+          this.logger.info(`Space already exists for session ${sessionIndex}: ${effectiveSpaceName}`);
         }
         
         // 切换到指定的space
-        await session.execute(`USE ${this.config.space}`);
-        this.logger.debug(`Session ${sessionIndex} using space: ${this.config.space}`);
+        await session.execute(`USE \`${effectiveSpaceName}\``);
+        this.logger.debug(`Session ${sessionIndex} using space: ${effectiveSpaceName}`);
         
       } catch (createError) {
         const errorMessage = createError instanceof Error ? createError.message : String(createError);
-        this.logger.error(`Failed to create/use space for session ${sessionIndex}: ${this.config.space}`, {
+        this.logger.error(`Failed to create/use space for session ${sessionIndex}: ${effectiveSpaceName}`, {
           error: errorMessage,
           errorCode: (createError as any)?.errno,
-          space: this.config.space
+          space: effectiveSpaceName
         });
         
         // 即使space创建失败，也保留会话，但记录问题
         this.logger.warn(`Session ${sessionIndex} initialized but space operations failed`);
       }
+    } else {
+      // 如果没有配置space，则不进行任何space操作，只保持连接
+      this.logger.debug(`Session ${sessionIndex} initialized without specific space`);
     }
   }
 
   /**
    * 检查space是否存在
    */
-  private async checkSpaceExists(session: any): Promise<boolean> {
+  private async checkSpaceExists(session: any, spaceName?: string): Promise<boolean> {
+    // 如果没有提供spaceName，或者spaceName是undefined、空字符串或'undefined'，则返回false
+    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+      return false;
+    }
+    
     try {
       const spacesResult = await session.execute('SHOW SPACES');
       const spaces = spacesResult?.data || [];
-      return spaces.some((space: any) => space.Name === this.config.space);
+      // 在Nebula中，space名称可能以不同字段返回，检查多个可能的字段名
+      return spaces.some((space: any) => space.Name === spaceName || space.name === spaceName || Object.values(space)[0] === spaceName);
     } catch (error) {
       this.logger.error('Failed to check if space exists', {
         error: error instanceof Error ? error.message : String(error),
-        space: this.config.space
+        space: spaceName
       });
       return false;
     }
@@ -255,8 +274,13 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
    * 创建space
    */
   private async createSpace(session: any, spaceName: string): Promise<void> {
+    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+      throw new Error(`Cannot create space with invalid name: ${spaceName}`);
+    }
+    
     try {
-      await session.execute(`CREATE SPACE IF NOT EXISTS ${spaceName}(partition_num=10, replica_factor=1, vid_type=fixed_string(${this.config.vidTypeLength || 128}));`);
+      // 使用反引号包围space名称以处理特殊字符
+      await session.execute(`CREATE SPACE IF NOT EXISTS \`${spaceName}\`(partition_num=10, replica_factor=1, vid_type=fixed_string(${this.config.vidTypeLength || 128}));`);
       
       // 等待space创建完成（Nebula Graph需要时间创建）
       await new Promise(resolve => setTimeout(resolve, 5000)); // 等待5秒
@@ -432,7 +456,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         error: 'Not connected to Nebula Graph',
         executionTime: 0,
         timeCost: 0,
-        space: this.config.space,
+        space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
       };
       return errorResult;
     }
@@ -447,7 +471,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         error: 'Invalid query: Query string is empty or invalid',
         executionTime: 0,
         timeCost: 0,
-        space: this.config.space,
+        space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
       };
       return errorResult;
     }
@@ -500,7 +524,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         error: errorMessage,
         executionTime: 0,
         timeCost: 0,
-        space: this.config.space,
+        space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
       };
       
       return errorResult;
@@ -534,7 +558,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       data: result?.data || [],
       executionTime,
       timeCost: result?.timeCost || 0,
-      space: this.config.space,
+      space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
       error: result?.error || undefined
     };
   }
@@ -568,7 +592,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           data: result?.data || [],
           executionTime: 0, // 批量查询时单独计算每个查询的执行时间不太实际
           timeCost: result?.timeCost || 0,
-          space: this.config.space,
+          space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
         };
         results.push(nebulaResult);
       }
@@ -829,10 +853,12 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       let nodeCount = 0;
       let edgeCount = 0;
 
-      if (this.config.space) {
+      const effectiveSpace = (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined;
+      
+      if (effectiveSpace) {  // 只对有效space执行详细统计
         try {
           // 切换到当前space
-          await session.execute(`USE ${this.config.space}`);
+          await session.execute(`USE \`${effectiveSpace}\``);
 
           // 获取当前space的标签和边类型信息
           const tagsResult = await session.execute('SHOW TAGS');
@@ -877,7 +903,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         version: '3.0.0',
         status: 'online',
         spaces: spaces.length,
-        currentSpace: this.config.space,
+        currentSpace: effectiveSpace,
         tags: tags.length,
         edgeTypes: edgeTypes.length,
         nodes: nodeCount,

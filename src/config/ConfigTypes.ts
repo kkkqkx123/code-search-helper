@@ -241,7 +241,13 @@ export interface NebulaConfig {
   port: number;
   username: string;
   password: string;
+  timeout?: number;
+  maxConnections?: number;
+  retryAttempts?: number;
+  retryDelay?: number;
   space?: string;
+  bufferSize?: number;
+  pingInterval?: number;
   vidTypeLength?: number;
 }
 

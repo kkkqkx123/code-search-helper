@@ -283,6 +283,10 @@ class ApplicationFactory {
 // 启动应用
 async function bootstrap(): Promise<void> {
   try {
+    // 在创建应用实例之前，先初始化配置服务
+    const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
+    await configService.initialize();
+    
     const app = ApplicationFactory.createApplication();
     await app.start();
 

@@ -298,7 +298,10 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 切换到项目空间
+      // 验证spaceName是否有效，再切换到项目空间
+      if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+        throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
+      }
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 为所有节点添加项目ID（如果尚未存在）
@@ -383,7 +386,10 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 切换到项目空间
+      // 验证spaceName是否有效，再切换到项目空间
+      if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+        throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
+      }
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 为所有关系添加项目ID（如果尚未存在）
@@ -470,7 +476,10 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 切换到项目空间
+      // 验证spaceName是否有效，再切换到项目空间
+      if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+        throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
+      }
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 构建查询
@@ -528,7 +537,10 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 切换到项目空间
+      // 验证spaceName是否有效，再切换到项目空间
+      if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+        throw new Error(`Invalid space name for project: ${projectPath}, spaceName: ${spaceName}`);
+      }
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 构建查询
