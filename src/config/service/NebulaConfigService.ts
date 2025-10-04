@@ -39,8 +39,8 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         timeout: parseInt(process.env.NEBULA_TIMEOUT || '30000'),
         maxConnections: parseInt(process.env.NEBULA_MAX_CONNECTIONS || '10'),
         retryAttempts: parseInt(process.env.NEBULA_RETRY_ATTEMPTS || '3'),
-        retryDelay: parseInt(process.env.NEBULA_RETRY_DELAY || '1000'),
-        bufferSize: parseInt(process.env.NEBULA_BUFFER_SIZE || '10'),
+        retryDelay: parseInt(process.env.NEBULA_RETRY_DELAY || '30000'),
+        bufferSize: parseInt(process.env.NEBULA_BUFFER_SIZE || '2000'),
         pingInterval: parseInt(process.env.NEBULA_PING_INTERVAL || '3000'),
         space: this.getSpaceName(), // 使用增强的配置逻辑
         vidTypeLength: parseInt(process.env.NEBULA_VID_TYPE_LENGTH || '128'),
@@ -74,7 +74,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         }
         return explicitName;
       }
-      
+
       // 默认使用项目隔离的动态命名（在实际使用时确定）
       return undefined; // 不设置默认space，实际使用时会被替换
     } catch (error) {
@@ -85,8 +85,8 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       // 返回默认值以确保服务可用
       return undefined;
     }
- }
-  
+  }
+
   /**
    * 验证命名约定是否符合数据库要求
    *
@@ -98,11 +98,11 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       // 验证命名符合数据库约束
       const pattern = /^[a-zA-Z0-9_-]{1,63}$/;
       const isValid = pattern.test(name) && !name.startsWith('_');
-      
+
       if (!isValid) {
         this.logger.warn(`Invalid naming convention detected: "${name}" does not match pattern ${pattern}`);
       }
-      
+
       return isValid;
     } catch (error) {
       this.errorHandler.handleError(
@@ -112,7 +112,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       return false;
     }
   }
-  
+
   /**
    * 获取空间名称，支持显式配置或动态生成（供外部使用）
    *
@@ -120,7 +120,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
    * @returns 对应的空间名称，优先使用显式环境配置，否则使用项目隔离的动态命名
    * @throws 如果生成的名称不符合命名约定，则抛出错误
    */
- getSpaceNameForProject(projectId: string): string {
+  getSpaceNameForProject(projectId: string): string {
     try {
       // 1. 检查显式环境配置
       const explicitName = process.env.NEBULA_SPACE;
@@ -132,16 +132,16 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         }
         return explicitName;
       }
-      
+
       // 2. 使用项目隔离的动态命名
       const dynamicName = `project_${projectId}`;
-      
+
       // 验证动态生成的命名是否符合规范
       if (!this.validateNamingConvention(dynamicName)) {
         this.logger.error(`Generated space name "${dynamicName}" does not follow naming conventions.`);
         throw new Error(`Generated space name "${dynamicName}" is invalid`);
       }
-      
+
       return dynamicName;
     } catch (error) {
       this.errorHandler.handleError(
@@ -163,7 +163,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
     if (!explicitName) {
       return false;
     }
-    
+
     // 检查显式配置是否与项目隔离命名冲突
     const projectSpecificName = `project_${projectId}`;
     return explicitName !== projectSpecificName;
