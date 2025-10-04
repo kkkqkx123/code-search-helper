@@ -20,7 +20,7 @@ jest.mock('../../../database/qdrant/QdrantService');
 jest.mock('../../../database/ProjectIdManager');
 jest.mock('../../../embedders/EmbedderFactory');
 jest.mock('../../../embedders/EmbeddingCacheService');
-jest.mock('../../resilience/ResilientBatchingService');
+jest.mock('../../../infrastructure/batching/PerformanceOptimizerService');
 jest.mock('../../parser/splitting/ASTCodeSplitter');
 jest.mock('../../parser/ChunkToVectorCoordinationService');
 

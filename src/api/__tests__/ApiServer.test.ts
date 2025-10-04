@@ -4,13 +4,18 @@ import { ApiServer } from '../ApiServer';
 import { Logger } from '../../utils/logger';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
-import { diContainer } from '../../core/DIContainer';
+import { Container } from 'inversify';
 import { TYPES } from '../../types';
 import { ConfigService } from '../../config/ConfigService';
+import { QdrantConfigService } from '../../config/service/QdrantConfigService';
+import { NebulaConfigService } from '../../config/service/NebulaConfigService';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 
 // Mock fs
 jest.mock('fs/promises');
 import * as fs from 'fs/promises';
+import { diContainer } from '../../core/DIContainer';
 let mockReadFile: jest.SpyInstance;
 
 // Mock ProjectIdManager to prevent file system operations during tests
@@ -96,6 +101,7 @@ describe('ApiServer', () => {
   let server: ApiServer;
   let app: express.Application;
   let mockIndexSyncService: any;
+  let testContainer: Container;
 
   beforeAll(() => {
     // Set environment variable for mock mode
@@ -121,6 +127,9 @@ describe('ApiServer', () => {
   });
 
   beforeEach(() => {
+    // 创建新的测试容器
+    testContainer = new Container();
+    
     // 创建模拟的ConfigService
     const mockConfigService = {
       get: jest.fn().mockImplementation((key: string) => {
@@ -171,17 +180,102 @@ describe('ApiServer', () => {
       initialize: jest.fn().mockResolvedValue(undefined)
     };
     
-    // Ensure ConfigService is properly bound in the dependency injection container
-    if (diContainer.isBound(TYPES.ConfigService)) {
-      diContainer.unbind(TYPES.ConfigService);
-    }
-    diContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService as any);
+    // 创建其他必需的模拟服务
+    const mockQdrantConfigService = {
+      getQdrantConfig: jest.fn().mockReturnValue({
+        host: 'localhost',
+        port: 6333,
+        apiKey: null,
+        https: false,
+      }),
+      validateConfig: jest.fn().mockReturnValue(true),
+    };
     
-    // Ensure ProjectStateManager is properly bound in the dependency injection container
-    if (!diContainer.isBound(TYPES.ProjectStateManager)) {
-      const { ProjectStateManager } = require('../../service/project/ProjectStateManager');
-      diContainer.bind(TYPES.ProjectStateManager).toConstantValue(new ProjectStateManager());
-    }
+    const mockNebulaConfigService = {
+      getNebulaConfig: jest.fn().mockReturnValue({
+        host: 'localhost',
+        port: 9669,
+        username: 'root',
+        password: 'nebula',
+        space: 'test_space',
+      }),
+      validateConfig: jest.fn().mockReturnValue(true),
+    };
+    
+    const mockLoggerService = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+    };
+    
+    const mockErrorHandlerService = {
+      handleError: jest.fn(),
+      createError: jest.fn(),
+      wrapAsync: jest.fn(),
+    };
+    
+    // 绑定所有必需的服务到测试容器
+    testContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService as any);
+    testContainer.bind<QdrantConfigService>(TYPES.QdrantConfigService).toConstantValue(mockQdrantConfigService as any);
+    testContainer.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockNebulaConfigService as any);
+    testContainer.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService as any);
+    testContainer.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService as any);
+    
+    // 绑定ProjectIdManager（使用模拟版本）
+    const { ProjectIdManager } = require('../../database/ProjectIdManager');
+    testContainer.bind<ProjectIdManager>(TYPES.ProjectIdManager).toConstantValue(new ProjectIdManager(
+      mockConfigService as any,
+      mockQdrantConfigService as any,
+      mockNebulaConfigService as any,
+      mockLoggerService as any,
+      mockErrorHandlerService as any
+    ));
+    
+    // 绑定ProjectStateManager（使用模拟版本）
+    const { ProjectStateManager } = require('../../service/project/ProjectStateManager');
+    testContainer.bind(TYPES.ProjectStateManager).toConstantValue(new ProjectStateManager());
+    
+    // 绑定NebulaService（使用模拟版本）
+    const mockNebulaService = {
+      isConnected: jest.fn().mockReturnValue(false),
+      getDatabaseStats: jest.fn().mockResolvedValue({}),
+      initialize: jest.fn().mockResolvedValue(false),
+      reconnect: jest.fn().mockResolvedValue(false),
+    };
+    testContainer.bind(TYPES.INebulaService).toConstantValue(mockNebulaService);
+    testContainer.bind(TYPES.NebulaService).toConstantValue(mockNebulaService);
+    
+    // 绑定文件搜索服务
+    const mockFileSearchService = {
+      search: jest.fn().mockResolvedValue([]),
+      destroy: jest.fn(),
+    };
+    testContainer.bind(TYPES.FileSearchService).toConstantValue(mockFileSearchService);
+    
+    // 绑定图服务
+    const mockGraphSearchService = {
+      search: jest.fn().mockResolvedValue([]),
+    };
+    const mockGraphService = {
+      query: jest.fn().mockResolvedValue([]),
+    };
+    const mockGraphCacheService = {
+      get: jest.fn(),
+      set: jest.fn(),
+    };
+    const mockGraphPerformanceMonitor = {
+      record: jest.fn(),
+    };
+    const mockGraphQueryValidator = {
+      validate: jest.fn().mockReturnValue(true),
+    };
+    
+    testContainer.bind(TYPES.GraphSearchServiceNew).toConstantValue(mockGraphSearchService);
+    testContainer.bind(TYPES.GraphServiceNewAdapter).toConstantValue(mockGraphService);
+    testContainer.bind(TYPES.GraphCacheService).toConstantValue(mockGraphCacheService);
+    testContainer.bind(TYPES.GraphPerformanceMonitor).toConstantValue(mockGraphPerformanceMonitor);
+    testContainer.bind(TYPES.GraphQueryValidator).toConstantValue(mockGraphQueryValidator);
     
     const logger = new Logger('ApiServerTest');
     mockIndexSyncService = createMockIndexSyncService();
@@ -190,7 +284,10 @@ describe('ApiServer', () => {
     const mockEmbedderFactory = new (require('../../embedders/EmbedderFactory').EmbedderFactory)();
     
     const mockQdrantService = {
-      searchVectorsForProject: jest.fn().mockResolvedValue([]) // Mock the searchVectorsForProject method
+      searchVectorsForProject: jest.fn().mockResolvedValue([]), // Mock the searchVectorsForProject method
+      initialize: jest.fn().mockResolvedValue(undefined),
+      listProjects: jest.fn().mockResolvedValue([]),
+      getProjectPath: jest.fn().mockResolvedValue(null),
     } as any; // Add a mock QdrantService
     server = new ApiServer(logger, mockIndexSyncService, mockEmbedderFactory, mockQdrantService, 3001); // Use different port for testing
     app = server['app']; // Access private app property for testing

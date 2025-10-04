@@ -5,6 +5,7 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { NebulaQueryBuilder } from '../../nebula/NebulaQueryBuilder';
 import { BatchVertex, BatchEdge } from '../../nebula/NebulaTypes';
+import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
 
 // Mock 依赖项
 const mockNebulaService = {
@@ -18,6 +19,18 @@ const mockLoggerService = {
   debug: jest.fn(),
   error: jest.fn(),
   warn: jest.fn(),
+};
+
+const mockDatabaseLoggerService = {
+  logDatabaseEvent: jest.fn().mockResolvedValue(undefined),
+  logConnectionEvent: jest.fn(),
+  logQueryPerformance: jest.fn(),
+  logBatchOperation: jest.fn(),
+  logCollectionOperation: jest.fn(),
+  logVectorOperation: jest.fn(),
+  logQueryOperation: jest.fn(),
+  logProjectOperation: jest.fn(),
+  updateLogLevel: jest.fn(),
 };
 
 const mockErrorHandlerService = {
@@ -45,7 +58,7 @@ describe('NebulaGraphOperations', () => {
     jest.clearAllMocks();
 
     graphOperations = new NebulaGraphOperations(
-      mockLoggerService as any,
+      mockDatabaseLoggerService as any,
       mockErrorHandlerService as any,
       mockConfigService as any,
       mockQueryBuilder as any,
@@ -77,9 +90,15 @@ describe('NebulaGraphOperations', () => {
       const result = await graphOperations.insertVertex('TestTag', 'vertex123', { name: 'Test' });
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to insert vertex vertex123 in tag TestTag',
-        { error: 'Insertion failed' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to insert vertex vertex123 in tag TestTag',
+            error: 'Insertion failed'
+          })
+        })
       );
     });
   });
@@ -123,9 +142,15 @@ describe('NebulaGraphOperations', () => {
       );
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to insert edge TestEdge from source123 to target456',
-        { error: 'Insertion failed' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to insert edge TestEdge from source123 to target456',
+            error: 'Insertion failed'
+          })
+        })
       );
     });
   });
@@ -171,9 +196,15 @@ describe('NebulaGraphOperations', () => {
       ]);
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to batch insert vertices',
-        { error: 'Batch insert failed' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to batch insert vertices',
+            error: 'Batch insert failed'
+          })
+        })
       );
     });
   });
@@ -219,9 +250,15 @@ describe('NebulaGraphOperations', () => {
       ]);
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to batch insert edges',
-        { error: 'Batch insert failed' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to batch insert edges',
+            error: 'Batch insert failed'
+          })
+        })
       );
     });
   });
@@ -276,9 +313,15 @@ describe('NebulaGraphOperations', () => {
       const result = await graphOperations.findRelatedNodes('node123');
 
       expect(result).toEqual([]);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to find related nodes',
-        { error: 'Query failed' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to find related nodes',
+            error: 'Query failed'
+          })
+        })
       );
     });
   });
@@ -301,9 +344,15 @@ describe('NebulaGraphOperations', () => {
       const result = await graphOperations.findPath('source123', 'target456');
 
       expect(result).toEqual([]);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to find path',
-        { error: 'Query failed' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to find path',
+            error: 'Query failed'
+          })
+        })
       );
     });
   });
@@ -336,9 +385,15 @@ describe('NebulaGraphOperations', () => {
       const result = await graphOperations.findShortestPath('source123', 'target456');
 
       expect(result).toEqual([]);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to find shortest path',
-        { error: 'Query failed' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to find shortest path',
+            error: 'Query failed'
+          })
+        })
       );
     });
   });
@@ -357,7 +412,17 @@ describe('NebulaGraphOperations', () => {
         mockQueryResult.query,
         mockQueryResult.params
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith('Updated vertex', { vertexId: 'vertex123', tag: 'TestTag' });
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'service_initialized',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Updated vertex',
+            vertexId: 'vertex123',
+            tag: 'TestTag'
+          })
+        })
+      );
     });
 
     it('should handle empty properties', async () => {
@@ -375,9 +440,17 @@ describe('NebulaGraphOperations', () => {
       const result = await graphOperations.updateVertex('vertex123', 'TestTag', { name: 'Updated' });
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to update vertex',
-        { error: 'Update failed', vertexId: 'vertex123', tag: 'TestTag' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to update vertex',
+            error: 'Update failed',
+            vertexId: 'vertex123',
+            tag: 'TestTag'
+          })
+        })
       );
     });
   });
@@ -406,8 +479,17 @@ describe('NebulaGraphOperations', () => {
         mockQueryResult.query,
         mockQueryResult.params
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Updated edge', { srcId: 'src123', dstId: 'dst456', edgeType: 'TestEdge' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'service_initialized',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Updated edge',
+            srcId: 'src123',
+            dstId: 'dst456',
+            edgeType: 'TestEdge'
+          })
+        })
       );
     });
 
@@ -431,9 +513,18 @@ describe('NebulaGraphOperations', () => {
       );
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to update edge',
-        { error: 'Update failed', srcId: 'src123', dstId: 'dst456', edgeType: 'TestEdge' }
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to update edge',
+            error: 'Update failed',
+            srcId: 'src123',
+            dstId: 'dst456',
+            edgeType: 'TestEdge'
+          })
+        })
       );
     });
   });
@@ -448,8 +539,14 @@ describe('NebulaGraphOperations', () => {
       expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
         'DELETE VERTEX "vertex123" TAG `TestTag`'
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Deleted vertex: vertex123'
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'service_initialized',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Deleted vertex: vertex123'
+          })
+        })
       );
     });
 
@@ -470,9 +567,15 @@ describe('NebulaGraphOperations', () => {
       const result = await graphOperations.deleteVertex('vertex123');
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to delete vertex: vertex123',
-        expect.any(Error)
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to delete vertex: vertex123',
+            error: expect.any(String)
+          })
+        })
       );
     });
   });
@@ -487,8 +590,14 @@ describe('NebulaGraphOperations', () => {
       expect(mockNebulaService.executeWriteQuery).toHaveBeenCalledWith(
         'DELETE EDGE `TestEdge` "src123" -> "dst456"'
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Deleted edge: src123 -> dst456'
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'service_initialized',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Deleted edge: src123 -> dst456'
+          })
+        })
       );
     });
 
@@ -509,9 +618,15 @@ describe('NebulaGraphOperations', () => {
       const result = await graphOperations.deleteEdge('src123', 'dst456');
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to delete edge: src123 -> dst456',
-        expect.any(Error)
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to delete edge: src123 -> dst456',
+            error: expect.any(String)
+          })
+        })
       );
     });
   });
@@ -569,9 +684,15 @@ describe('NebulaGraphOperations', () => {
       const result = await graphOperations.executeComplexTraversal('start123', ['EDGE_TYPE']);
 
       expect(result).toEqual([]);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to execute complex traversal from start123',
-        expect.any(Error)
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to execute complex traversal from start123',
+            error: expect.any(String)
+          })
+        })
       );
     });
   });
@@ -611,9 +732,15 @@ describe('NebulaGraphOperations', () => {
         nodeCount: 0,
         relationshipCount: 0
       });
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to get graph stats',
-        expect.any(Error)
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to get graph stats',
+            error: expect.any(String)
+          })
+        })
       );
 
       // 恢复

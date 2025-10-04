@@ -36,7 +36,7 @@ jest.mock('../../../database/qdrant/QdrantService');
 jest.mock('../../../database/ProjectIdManager');
 jest.mock('../../../embedders/EmbedderFactory');
 jest.mock('../../../embedders/EmbeddingCacheService');
-jest.mock('../../resilience/ResilientBatchingService');
+jest.mock('../../../infrastructure/batching/PerformanceOptimizerService');
 jest.mock('../../project/ProjectStateManager');
 
 describe('IndexService', () => {

@@ -1,5 +1,6 @@
 import { NebulaSpaceManager } from '../../nebula/NebulaSpaceManager';
 import { NebulaService } from '../../nebula/NebulaService';
+import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
@@ -15,6 +16,18 @@ const mockLoggerService = {
   debug: jest.fn(),
   error: jest.fn(),
   warn: jest.fn(),
+};
+
+const mockDatabaseLoggerService = {
+  logDatabaseEvent: jest.fn().mockResolvedValue(undefined),
+  logConnectionEvent: jest.fn(),
+  logQueryPerformance: jest.fn(),
+  logBatchOperation: jest.fn(),
+  logCollectionOperation: jest.fn(),
+  logVectorOperation: jest.fn(),
+  logQueryOperation: jest.fn(),
+ logProjectOperation: jest.fn(),
+  updateLogLevel: jest.fn(),
 };
 
 const mockErrorHandlerService = {
@@ -57,7 +70,7 @@ describe('NebulaSpaceManager', () => {
     spaceManager = new NebulaSpaceManager(
       mockNebulaService as any,
       mockNebulaQueryBuilder as any,
-      mockLoggerService as any,
+      mockDatabaseLoggerService as any,
       mockErrorHandlerService as any,
       mockConfigService as any
     );
@@ -135,8 +148,14 @@ describe('NebulaSpaceManager', () => {
       expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         expect.stringContaining('CREATE SPACE IF NOT EXISTS `project_test-project`')
       );
-      expect(mockLoggerService.info).toHaveBeenCalledWith(
-        'Successfully created space project_test-project for project test-project'
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'space_created',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Successfully created space project_test-project for project test-project'
+          })
+        })
       );
     });
 
@@ -203,9 +222,14 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.createSpace('test-project');
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to create space project_test-project:',
-        expect.any(Error)
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to create space project_test-project:'
+          })
+        })
       );
     });
   });
@@ -220,8 +244,14 @@ describe('NebulaSpaceManager', () => {
       expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         'DROP SPACE IF EXISTS `project_test-project`'
       );
-      expect(mockLoggerService.info).toHaveBeenCalledWith(
-        'Successfully deleted space project_test-project for project test-project'
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'space_deleted',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Successfully deleted space project_test-project for project test-project'
+          })
+        })
       );
     });
 
@@ -231,9 +261,14 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.deleteSpace('test-project');
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to delete space project_test-project:',
-        expect.any(Error)
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to delete space project_test-project:'
+          })
+        })
       );
     });
   });
@@ -291,7 +326,15 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.listSpaces();
 
       expect(result).toEqual([]);
-      expect(mockLoggerService.warn).toHaveBeenCalledWith('SHOW SPACES returned null result');
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'warning',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'SHOW SPACES returned null result'
+          })
+        })
+      );
     });
 
     it('should handle non-array data', async () => {
@@ -300,9 +343,14 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.listSpaces();
 
       expect(result).toEqual([]);
-      expect(mockLoggerService.warn).toHaveBeenCalledWith(
-        'SHOW SPACES returned non-array data:',
-        expect.any(Object)
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'warning',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'SHOW SPACES returned non-array data:'
+          })
+        })
       );
     });
 
@@ -320,10 +368,13 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.listSpaces();
 
       expect(result).toEqual([]);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to list spaces:',
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Query failed'
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to list spaces:'
+          })
         })
       );
     });
@@ -402,8 +453,14 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.getSpaceInfo('test-project');
 
       expect(result).toBeNull();
-      expect(mockLoggerService.warn).toHaveBeenCalledWith(
-        'DESCRIBE SPACE project_test-project returned null result'
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'warning',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'DESCRIBE SPACE project_test-project returned null result'
+          })
+        })
       );
     });
 
@@ -429,10 +486,13 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.getSpaceInfo('test-project');
 
       expect(result).toBeNull();
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to get space info for project_test-project:',
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Query failed'
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to get space info for project_test-project:'
+          })
         })
       );
     });
@@ -461,10 +521,13 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.checkSpaceExists('test-project');
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to check if space project_test-project exists:',
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'List failed'
+          type: 'error_occurred',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to check if space project_test-project exists:'
+          })
         })
       );
     });
@@ -553,8 +616,14 @@ describe('NebulaSpaceManager', () => {
       expect(mockNebulaService.executeQuery).toHaveBeenCalledWith(
         'CREATE TAG INDEX test_index ON TestTag(name)'
       );
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Successfully created index: CREATE TAG INDEX test_index ON TestTag(name)'
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'debug',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Successfully created index: CREATE TAG INDEX test_index ON TestTag(name)'
+          })
+        })
       );
     });
 
@@ -564,8 +633,14 @@ describe('NebulaSpaceManager', () => {
       // @ts-ignore - accessing private method for testing
       await spaceManager['createIndexWithRetry']('CREATE TAG INDEX test_index ON TestTag(name)');
 
-      expect(mockLoggerService.debug).toHaveBeenCalledWith(
-        'Index already exists: CREATE TAG INDEX test_index ON TestTag(name)'
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'debug',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Index already exists: CREATE TAG INDEX test_index ON TestTag(name)'
+          })
+        })
       );
     });
 
@@ -614,8 +689,14 @@ describe('NebulaSpaceManager', () => {
       expect(mockNebulaService.executeQuery).toHaveBeenCalledWith('USE `project_test-project`');
       expect(mockNebulaService.executeQuery).toHaveBeenCalledWith('SHOW TAGS');
       expect(mockNebulaService.executeQuery).toHaveBeenCalledWith('SHOW EDGES');
-      expect(mockLoggerService.info).toHaveBeenCalledWith(
-        'Starting to clear space project_test-project for project test-project'
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'info',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Starting to clear space project_test-project for project test-project'
+          })
+        })
       );
     });
 
@@ -638,10 +719,13 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.clearSpace('test-project');
 
       expect(result).toBe(false);
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to clear space project_test-project:',
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Clear failed'
+          type: 'space_error',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to clear space project_test-project:'
+          })
         })
       );
     });
@@ -657,9 +741,14 @@ describe('NebulaSpaceManager', () => {
       const result = await spaceManager.clearSpace('test-project');
 
       expect(result).toBe(true);
-      expect(mockLoggerService.warn).toHaveBeenCalledWith(
-        'Failed to delete edge TestEdge:',
-        expect.any(Error)
+      expect(mockDatabaseLoggerService.logDatabaseEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'space_error',
+          source: 'nebula',
+          data: expect.objectContaining({
+            message: 'Failed to delete edge TestEdge:'
+          })
+        })
       );
     });
   });

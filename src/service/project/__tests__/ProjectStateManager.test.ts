@@ -30,7 +30,7 @@ import { IndexingLogicService } from '../../index/IndexingLogicService';
 jest.mock('../../../utils/LoggerService');
 jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../../../database/ProjectIdManager');
-jest.mock('../../index/IndexSyncService');
+jest.mock('../../index/IndexingLogicService');
 jest.mock('../../../database/qdrant/QdrantService');
 jest.mock('../../../config/ConfigService');
 jest.mock('fs/promises');
