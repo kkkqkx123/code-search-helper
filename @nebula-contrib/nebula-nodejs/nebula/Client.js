@@ -196,18 +196,159 @@ class Client extends _events.EventEmitter {
     });
   }
   startSessionMonitor() {
+    // 监控配置
+    const monitorConfig = {
+      checkInterval: 30000,     // 检查间隔（毫秒）
+      zombieThreshold: 60000,   // 僵尸会话阈值（毫秒）
+      enableDetailedLogs: true, // 启用详细日志
+      enableStats: true          // 启用统计信息
+    };
+    
+    // 初始化统计信息
+    this.sessionStats = {
+      totalConnections: 0,
+      activeSessions: 0,
+      zombieSessions: 0,
+      cleanedSessions: 0,
+      lastCleanupTime: new Date().toISOString()
+    };
+    
     // 每30秒检查一次会话状态
     this.sessionMonitor = setInterval(() => {
+      const stats = {
+        total: this.connections.length,
+        active: 0,
+        zombie: 0,
+        cleaned: 0
+      };
+      
       this.connections.forEach(conn => {
-        // 发现僵尸会话：有sessionId但连接未就绪
-        if (conn.sessionId && !conn.isReady) {
-          console.warn(`发现僵尸会话 ${conn.sessionId}，正在清理...`);
-          conn.forceCleanup().then(() => {
-            console.log(`僵尸会话 ${conn.sessionId} 清理完成`);
+        // 更新统计信息
+        if (conn.sessionId && conn.isReady) {
+          stats.active++;
+        }
+        
+        // 增强的僵尸会话识别逻辑
+        const isZombie = this.identifyZombieSession(conn);
+        if (isZombie) {
+          stats.zombie++;
+          
+          if (monitorConfig.enableDetailedLogs) {
+            console.warn(`[SessionMonitor] 发现僵尸会话 ${conn.sessionId} (连接: ${conn.connectionId})`);
+            console.log(`[SessionMonitor] 会话状态: sessionId=${conn.sessionId}, isReady=${conn.isReady}`);
+            console.log(`[SessionMonitor] 僵尸标记: isZombieSession=${conn.isZombieSession}`);
+            console.log(`[SessionMonitor] 最后活跃: ${new Date(conn.lastActivityTime).toLocaleString()}`);
+          }
+          
+          // 执行分层清理策略
+          const cleanupLevel = this.determineCleanupLevel(conn);
+          this.performCleanup(conn, cleanupLevel).then(result => {
+            if (result.success) {
+              stats.cleaned++;
+              if (monitorConfig.enableDetailedLogs) {
+                console.log(`[SessionMonitor] 清理完成: ${conn.sessionId} (级别: ${cleanupLevel})`);
+              }
+            } else {
+              if (monitorConfig.enableDetailedLogs) {
+                console.error(`[SessionMonitor] 清理失败: ${conn.sessionId}, 原因: ${result.error}`);
+              }
+            }
           });
         }
       });
-    }, 30000);
+      
+      // 更新统计信息
+      if (monitorConfig.enableStats) {
+        this.sessionStats = {
+          totalConnections: stats.total,
+          activeSessions: stats.active,
+          zombieSessions: stats.zombie,
+          cleanedSessions: this.sessionStats.cleanedSessions + stats.cleaned,
+          lastCleanupTime: new Date().toISOString()
+        };
+        
+        if (monitorConfig.enableDetailedLogs && stats.zombie > 0) {
+          console.log(`[SessionMonitor] 统计信息 - 总计: ${stats.total}, 活跃: ${stats.active}, 僵尸: ${stats.zombie}, 已清理: ${stats.cleaned}`);
+        }
+      }
+      
+    }, monitorConfig.checkInterval);
+  }
+  
+  // 僵尸会话识别方法
+  identifyZombieSession(conn) {
+    // 基础检查：有sessionId但连接未就绪
+    if (!conn.sessionId || conn.isReady) {
+      return false;
+    }
+    
+    // 增强检查：使用Connection的僵尸会话检测方法
+    if (conn.checkZombieSession && conn.checkZombieSession()) {
+      return true;
+    }
+    
+    // 时间阈值检查：最后活动时间超过阈值
+    const zombieThreshold = 60000; // 60秒
+    const timeSinceLastActivity = Date.now() - conn.lastActivityTime;
+    if (timeSinceLastActivity > zombieThreshold) {
+      // 标记为僵尸会话
+      if (conn.markAsZombie) {
+        conn.markAsZombie();
+      }
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // 确定清理级别
+  determineCleanupLevel(conn) {
+    const timeSinceLastActivity = Date.now() - conn.lastActivityTime;
+    const zombieThreshold = 60000; // 60秒
+    const deepCleanupThreshold = 120000; // 120秒
+    
+    if (timeSinceLastActivity > deepCleanupThreshold) {
+      return 'DEEP'; // 深度清理：重建连接
+    } else if (timeSinceLastActivity > zombieThreshold * 1.5) {
+      return 'MEDIUM'; // 中度清理：强制清理
+    } else {
+      return 'LIGHT'; // 轻度清理：常规清理
+    }
+  }
+  
+  // 执行分层清理
+  async performCleanup(conn, level) {
+    try {
+      switch (level) {
+        case 'LIGHT':
+          // 轻度清理：重置状态
+          conn.isReady = false;
+          conn.isBusy = true;
+          if (conn.updateActivityTime) {
+            conn.updateActivityTime();
+          }
+          return { success: true, level: 'LIGHT' };
+          
+        case 'MEDIUM':
+          // 中度清理：调用forceCleanup
+          await conn.forceCleanup();
+          return { success: true, level: 'MEDIUM' };
+          
+        case 'DEEP':
+          // 深度清理：完全重建连接
+          await conn.forceCleanup();
+          // 尝试重新准备连接
+          setTimeout(() => {
+            conn.prepare();
+          }, 1000);
+          return { success: true, level: 'DEEP' };
+          
+        default:
+          return { success: false, error: '未知的清理级别' };
+      }
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   }
   
   stopSessionMonitor() {

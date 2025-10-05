@@ -1,4 +1,4 @@
-const { Client, Connection } = require('./index.js');
+const { Client, Connection } = require('../index.js');
 
 /**
  * 第一阶段实施验证测试

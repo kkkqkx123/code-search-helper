@@ -138,7 +138,7 @@ forceCleanup() {
 ```
 
 ### 2. 改进关闭流程
-[ ]
+[x]
 
 **建议修改 Connection.close() 方法：**
 ```javascript
@@ -161,7 +161,7 @@ close() {
 ```
 
 ### 3. 添加会话生命周期监控
-[ ]
+[x]
 
 **建议实现会话监控：**
 ```javascript

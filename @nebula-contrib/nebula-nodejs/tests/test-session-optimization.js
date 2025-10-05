@@ -1,4 +1,4 @@
-const { Client, Connection } = require('./index.js');
+const { Client, Connection } = require('../index.js');
 
 // 确保进程在测试完成后退出
 process.on('SIGINT', () => {

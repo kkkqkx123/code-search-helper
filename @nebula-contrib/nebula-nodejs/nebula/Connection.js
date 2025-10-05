@@ -16,6 +16,12 @@ class Connection extends _events.EventEmitter {
     super();
     this.isReady = false;
     this.isBusy = true;
+    
+    // 会话生命周期监控相关属性
+    this.isZombieSession = false;
+    this.zombieDetectedAt = null;
+    this.lastActivityTime = Date.now();
+    
     connectionOption = _lodash.default.defaults(connectionOption, {
       bufferSize: 2000,
       poolSize: 5
@@ -243,13 +249,34 @@ class Connection extends _events.EventEmitter {
       });
     });
   }
+  // 会话生命周期监控辅助方法
+  markAsZombie() {
+    this.isZombieSession = true;
+    this.zombieDetectedAt = Date.now();
+  }
+  
+  checkZombieSession() {
+    const zombieThreshold = 60000; // 60秒阈值
+    return this.isZombieSession || 
+           (this.sessionId && !this.isReady && 
+            this.zombieDetectedAt && 
+            Date.now() - this.zombieDetectedAt > zombieThreshold);
+  }
+  
+  updateActivityTime() {
+    this.lastActivityTime = Date.now();
+  }
+  
   getConnectionInfo() {
     return {
       connectionId: this.connectionId,
       host: this.connectionOption.host,
       port: this.connectionOption.port,
       space: this.connectionOption.space,
-      isReady: this.isReady
+      isReady: this.isReady,
+      sessionId: this.sessionId,
+      isZombieSession: this.isZombieSession,
+      lastActivityTime: this.lastActivityTime
     };
   }
 }
