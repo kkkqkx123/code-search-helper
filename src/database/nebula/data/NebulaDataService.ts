@@ -665,72 +665,75 @@ export class NebulaDataService implements INebulaDataService {
       let nodeCount = 0;
       let edgeCount = 0;
 
-      // 这里需要连接到特定空间以获取详细信息
-      // 由于我们不能从连接管理器中直接获取当前空间，我们可能需要一个方法来获取它
-      // 或者用户需要先使用正确的空间
-      const tagsResult = await this.connectionManager.executeQuery('SHOW TAGS');
-      if (!tagsResult.error) {
-        tags = tagsResult?.data || [];
-      }
-
-      const edgeTypesResult = await this.connectionManager.executeQuery('SHOW EDGES');
-      if (!edgeTypesResult.error) {
-        edgeTypes = edgeTypesResult?.data || [];
-      }
-
-      // 统计节点数量
-      for (const tag of tags) {
-        try {
-          // 获取标签名，可能是第一个字段的值
-          const tagName = Object.values(tag)[0] || '';
-          if (tagName) {
-            const countResult = await this.connectionManager.executeQuery(`MATCH (n:${tagName}) RETURN count(n) AS count`);
-            if (!countResult.error) {
-              nodeCount += countResult?.data?.[0]?.count || 0;
-            }
-          }
-        } catch (countError) {
-          // 使用 DatabaseLoggerService 记录节点计数失败警告
-          this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.CONNECTION_ERROR,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: {
-              message: `Failed to count nodes for tag`,
-              tag,
-              error: countError
-            }
-          }).catch(error => {
-            console.error('Failed to log node count failure:', error);
-          });
+      // 获取当前空间名称
+      const currentSpace = this.connectionManager.getConnectionStatus().space;
+      
+      // 只有在当前空间存在的情况下才执行需要空间上下文的查询
+      if (currentSpace) {
+        const tagsResult = await this.connectionManager.executeQuery('SHOW TAGS');
+        if (!tagsResult.error) {
+          tags = tagsResult?.data || [];
         }
-      }
 
-      // 统计边数量
-      for (const edgeType of edgeTypes) {
-        try {
-          // 获取边类型名，可能是第一个字段的值
-          const edgeTypeName = Object.values(edgeType)[0] || '';
-          if (edgeTypeName) {
-            const countResult = await this.connectionManager.executeQuery(`MATCH ()-[r:${edgeTypeName}]->() RETURN count(r) AS count`);
-            if (!countResult.error) {
-              edgeCount += countResult?.data?.[0]?.count || 0;
+        const edgeTypesResult = await this.connectionManager.executeQuery('SHOW EDGES');
+        if (!edgeTypesResult.error) {
+          edgeTypes = edgeTypesResult?.data || [];
+        }
+
+        // 统计节点数量
+        for (const tag of tags) {
+          try {
+            // 获取标签名，可能是第一个字段的值
+            const tagName = Object.values(tag)[0] || '';
+            if (tagName) {
+              const countResult = await this.connectionManager.executeQuery(`MATCH (n:${tagName}) RETURN count(n) AS count`);
+              if (!countResult.error) {
+                nodeCount += countResult?.data?.[0]?.count || 0;
+              }
             }
+          } catch (countError) {
+            // 使用 DatabaseLoggerService 记录节点计数失败警告
+            this.databaseLogger.logDatabaseEvent({
+              type: DatabaseEventType.CONNECTION_ERROR,
+              source: 'nebula',
+              timestamp: new Date(),
+              data: {
+                message: `Failed to count nodes for tag`,
+                tag,
+                error: countError
+              }
+            }).catch(error => {
+              console.error('Failed to log node count failure:', error);
+            });
           }
-        } catch (countError) {
-          // 使用 DatabaseLoggerService 记录边计数失败警告
-          this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.CONNECTION_ERROR,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: {
-              message: `Failed to count edges for type`,
-              edgeType,
-              error: countError
+        }
+
+        // 统计边数量
+        for (const edgeType of edgeTypes) {
+          try {
+            // 获取边类型名，可能是第一个字段的值
+            const edgeTypeName = Object.values(edgeType)[0] || '';
+            if (edgeTypeName) {
+              const countResult = await this.connectionManager.executeQuery(`MATCH ()-[r:${edgeTypeName}]->() RETURN count(r) AS count`);
+              if (!countResult.error) {
+                edgeCount += countResult?.data?.[0]?.count || 0;
+              }
             }
-          }).catch(error => {
-            console.error('Failed to log edge count failure:', error);
-          });
+          } catch (countError) {
+            // 使用 DatabaseLoggerService 记录边计数失败警告
+            this.databaseLogger.logDatabaseEvent({
+              type: DatabaseEventType.CONNECTION_ERROR,
+              source: 'nebula',
+              timestamp: new Date(),
+              data: {
+                message: `Failed to count edges for type`,
+                edgeType,
+                error: countError
+              }
+            }).catch(error => {
+              console.error('Failed to log edge count failure:', error);
+            });
+          }
         }
       }
 
@@ -738,7 +741,7 @@ export class NebulaDataService implements INebulaDataService {
         version: '3.0.0',
         status: 'online',
         spaces: spaces.length,
-        currentSpace: this.connectionManager.getConnectionStatus().space || null, // 使用公共方法获取当前空间
+        currentSpace: currentSpace || null,
         tags: tags.length,
         edgeTypes: edgeTypes.length,
         nodes: nodeCount,

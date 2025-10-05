@@ -457,6 +457,11 @@ export class NebulaSpaceService implements INebulaSpaceService {
       throw new Error('Not connected to Nebula Graph');
     }
 
+    // 验证空间名称的有效性
+    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+      return false;
+    }
+
     try {
       // 使用 DatabaseLoggerService 记录空间验证信息
       this.databaseLogger.logDatabaseEvent({
