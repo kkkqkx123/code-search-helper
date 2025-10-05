@@ -46,77 +46,148 @@
 
 **目标**：评估当前架构状态，识别功能差距
 
-**主要任务**：
-1. 审查NebulaService和QdrantService的当前实现
-2. 分析IDatabaseService和IProjectManager接口的覆盖情况
-3. 识别Nebula模块中需要完善的功能点
+**实际完成情况分析**：
 
-**交付物**：功能差距分析报告
+#### 1.1 NebulaService实现审查
+**文件位置**：<mcfile name="NebulaService.ts" path="src/database/nebula/NebulaService.ts"></mcfile>
+**当前状态**：
+- ✅ 已实现<mcfile name="INebulaService" path="src/database/nebula/NebulaService.ts"></mcfile>接口
+- ✅ 已实现<mcfile name="IDatabaseService" path="src/database/common/IDatabaseService.ts"></mcfile>接口
+- ✅ 采用模块化架构（连接管理、空间管理、数据服务、查询构建器）
+- ⚠️ 部分IProjectManager接口方法需要实际实现
+
+#### 1.2 QdrantService实现审查
+**文件位置**：<mcfile name="QdrantService.ts" path="src/database/qdrant/QdrantService.ts"></mcfile>
+**当前状态**：
+- ✅ 已实现<mcfile name="IVectorStore" path="src/database/qdrant/IVectorStore.ts"></mcfile>接口
+- ✅ 已实现<mcfile name="IDatabaseService" path="src/database/common/IDatabaseService.ts"></mcfile>接口
+- ✅ 采用完整模块化架构（连接管理、集合管理、向量操作、查询工具、项目管理）
+- ✅ 功能相对完整，可作为统一架构参考模板
+
+#### 1.3 接口覆盖情况分析
+**统一接口文件**：<mcfile name="IDatabaseService.ts" path="src/database/common/IDatabaseService.ts"></mcfile>
+**覆盖情况**：
+- Nebula模块：核心功能已实现，但<mcfile name="IProjectManager" path="src/database/common/IDatabaseService.ts"></mcfile>接口方法需要完善
+- Qdrant模块：接口覆盖完整，实现质量较高
+
+#### 1.4 功能差距识别
+**主要差距集中在Nebula模块**：
+- <mcfile name="NebulaProjectManager.ts" path="src/database/nebula/NebulaProjectManager.ts"></mcfile>中部分IProjectManager接口方法仅返回默认值
+- 缺少实际的图数据更新、搜索、删除等业务逻辑实现
+- 需要完善错误处理和事件系统一致性
 
 ### 阶段2：接口统一与实现完善
 
-**目标**：完善Nebula模块功能，确保接口一致性
+**目标**：完善Nebula模块功能，统一异常处理和接口验证
 
-**主要任务**：
+**具体操作**：
 
-#### 2.1 Nebula模块功能完善
-- 实现NebulaProjectManager中缺失的IProjectManager接口方法：
-  - `updateProjectData`：实现实际的图数据更新逻辑
-  - `searchProjectData`：实现基于图查询的搜索功能
-  - `getProjectDataById`：实现基于ID的数据检索
-  - `deleteProjectData`：实现图数据删除功能
+#### 2.1 完善NebulaProjectManager接口实现
+**修改文件**：<mcfile name="NebulaProjectManager.ts" path="src/database/nebula/NebulaProjectManager.ts"></mcfile>
+**具体任务**：
+- 实现<mcfile name="updateProjectData" path="src/database/nebula/NebulaProjectManager.ts"></mcfile>方法，添加实际的图数据更新逻辑
+- 实现<mcfile name="searchProjectData" path="src/database/nebula/NebulaProjectManager.ts"></mcfile>方法，支持图数据搜索查询
+- 实现<mcfile name="getProjectDataById" path="src/database/nebula/NebulaProjectManager.ts"></mcfile>方法，支持按ID获取图数据
+- 完善<mcfile name="clearProjectSpace" path="src/database/nebula/NebulaProjectManager.ts"></mcfile>和<mcfile name="listProjectSpaces" path="src/database/nebula/NebulaProjectManager.ts"></mcfile>方法
 
 #### 2.2 统一异常处理机制
-- 为两种数据库服务建立一致的错误处理模式
-- 统一日志记录和性能监控接口
-- 标准化事件系统实现
+**创建文件**：<mcfile name="DatabaseError.ts" path="src/database/common/DatabaseError.ts"></mcfile>
+**修改文件**：
+- <mcfile name="NebulaService.ts" path="src/database/nebula/NebulaService.ts"></mcfile>
+- <mcfile name="QdrantService.ts" path="src/database/qdrant/QdrantService.ts"></mcfile>
+**具体任务**：
+- 定义统一的数据库错误类型（连接错误、查询错误、数据操作错误等）
+- 在两个服务中应用统一的错误处理模式
+- 确保错误信息格式和日志记录的一致性
 
-#### 2.3 接口一致性验证
-- 创建统一的接口测试套件
-- 验证两种数据库服务在相同输入下的输出一致性
-- 确保行为一致性（如错误处理、事务处理等）
+#### 2.3 建立接口验证框架
+**创建文件**：<mcfile name="DatabaseServiceValidator.ts" path="src/database/common/DatabaseServiceValidator.ts"></mcfile>
+**具体任务**：
+- 实现接口方法参数验证逻辑
+- 添加输入数据格式验证
+- 确保两个服务遵循相同的验证规则
+
+#### 2.4 完善测试覆盖
+**修改文件**：
+- <mcfile name="NebulaService.test.ts" path="src/database/nebula/NebulaService.test.ts"></mcfile>
+- <mcfile name="QdrantService.test.ts" path="src/database/qdrant/QdrantService.test.ts"></mcfile>
+**具体任务**：
+- 为新增的接口方法添加单元测试
+- 确保两个服务的测试覆盖率和测试模式一致
 
 ### 阶段3：架构重构与优化
 
-**目标**：建立统一的数据库服务抽象层
+**目标**：建立统一的数据库服务抽象层，优化性能
 
-**主要任务**：
+**具体操作**：
 
-#### 3.1 统一服务工厂
-- 创建DatabaseServiceFactory，根据配置返回适当的数据库服务实例
-- 实现服务发现和动态加载机制
-- 提供统一的配置管理接口
+#### 3.1 创建统一服务工厂
+**创建文件**：<mcfile name="DatabaseServiceFactory.ts" path="src/database/common/DatabaseServiceFactory.ts"></mcfile>
+**具体任务**：
+- 实现统一的数据库服务创建工厂
+- 支持根据配置动态选择Nebula或Qdrant服务
+- 提供统一的初始化接口和生命周期管理
 
-#### 3.2 抽象层设计
-- 定义统一的数据库操作抽象
-- 实现适配器模式，支持多种数据库后端
-- 建立插件化架构，便于扩展新数据库类型
+#### 3.2 实现数据库抽象层
+**创建文件**：<mcfile name="AbstractDatabaseService.ts" path="src/database/common/AbstractDatabaseService.ts"></mcfile>
+**修改文件**：
+- <mcfile name="NebulaService.ts" path="src/database/nebula/NebulaService.ts"></mcfile>
+- <mcfile name="QdrantService.ts" path="src/database/qdrant/QdrantService.ts"></mcfile>
+**具体任务**：
+- 提取公共逻辑到抽象基类
+- 统一事件发射、错误处理、日志记录等通用功能
+- 确保两个服务继承相同的抽象基类
 
-#### 3.3 性能优化
-- 优化数据库连接池管理
+#### 3.3 优化查询性能
+**修改文件**：
+- <mcfile name="NebulaQueryBuilder.ts" path="src/database/nebula/NebulaQueryBuilder.ts"></mcfile>
+- <mcfile name="QdrantQueryBuilder.ts" path="src/database/qdrant/QdrantQueryBuilder.ts"></mcfile>
+**具体任务**：
 - 实现查询缓存机制
-- 建立性能监控和调优框架
+- 优化图查询和向量查询的性能
+- 添加查询性能监控和统计
+
+#### 3.4 统一配置管理
+**创建文件**：<mcfile name="DatabaseConfigManager.ts" path="src/database/common/DatabaseConfigManager.ts"></mcfile>
+**具体任务**：
+- 实现统一的数据库配置管理
+- 支持环境特定的配置（开发、测试、生产）
+- 提供配置验证和热重载功能
+
+#### 3.5 建立连接池管理
+**创建文件**：<mcfile name="DatabaseConnectionPool.ts" path="src/database/common/DatabaseConnectionPool.ts"></mcfile>
+**具体任务**：
+- 实现统一的数据库连接池管理
+- 支持连接复用和负载均衡
+- 添加连接健康检查和自动重连机制
 
 ## 详细任务设计
 
 ### NebulaService接口完善
 
+**修改文件**：<mcfile name="NebulaProjectManager.ts" path="src/database/nebula/NebulaProjectManager.ts"></mcfile>
+
 ```typescript
-// 需要完善的方法实现
+// 在NebulaProjectManager.ts中完善的方法实现
 async updateProjectData(projectPath: string, id: string, data: any): Promise<boolean> {
     // 实现基于Nebula Graph的节点/关系更新逻辑
     // 支持部分更新和全量更新
+    // 使用NebulaGraphOperations进行实际的图数据更新
 }
 
 async searchProjectData(projectPath: string, query: any): Promise<any[]> {
     // 实现基于图遍历的搜索功能
     // 支持条件过滤、路径查询等
+    // 使用NebulaQueryBuilder构建查询语句
 }
 ```
 
 ### 统一配置管理
 
+**创建文件**：<mcfile name="DatabaseConfigManager.ts" path="src/database/common/DatabaseConfigManager.ts"></mcfile>
+
 ```typescript
+// 在DatabaseConfigManager.ts中定义的配置接口
 interface DatabaseConfig {
     type: 'qdrant' | 'nebula';
     connection: ConnectionConfig;
@@ -124,15 +195,16 @@ interface DatabaseConfig {
     features: FeatureConfig;
 }
 
-class UnifiedDatabaseService {
-    constructor(private config: DatabaseConfig) {}
+// 在DatabaseServiceFactory.ts中实现的服务工厂
+class DatabaseServiceFactory {
+    constructor(private configManager: DatabaseConfigManager) {}
     
     // 根据配置返回适当的服务实例
-    getService(): IDatabaseService {
-        switch (this.config.type) {
-            case 'qdrant': return new QdrantService(this.config);
-            case 'nebula': return new NebulaService(this.config);
-            default: throw new Error(`Unsupported database type: ${this.config.type}`);
+    createService(config: DatabaseConfig): IDatabaseService {
+        switch (config.type) {
+            case 'qdrant': return new QdrantService(config);
+            case 'nebula': return new NebulaService(config);
+            default: throw new Error(`Unsupported database type: ${config.type}`);
         }
     }
 }
@@ -140,7 +212,10 @@ class UnifiedDatabaseService {
 
 ### 统一查询构建器
 
+**创建文件**：<mcfile name="UnifiedQueryBuilder.ts" path="src/database/common/UnifiedQueryBuilder.ts"></mcfile>
+
 ```typescript
+// 在UnifiedQueryBuilder.ts中定义的统一查询接口
 interface UnifiedQuery {
     // 通用查询接口
     filter?: FilterCondition[];
@@ -150,10 +225,17 @@ interface UnifiedQuery {
     offset?: number;
 }
 
+// 查询适配器类，负责转换统一查询到特定数据库查询
 class QueryAdapter {
-    // 将统一查询转换为特定数据库的查询
-    toQdrantQuery(unifiedQuery: UnifiedQuery): QdrantSearchOptions {}
-    toNebulaQuery(unifiedQuery: UnifiedQuery): string {}
+    // 将统一查询转换为Qdrant查询
+    toQdrantQuery(unifiedQuery: UnifiedQuery): QdrantSearchOptions {
+        // 转换逻辑实现
+    }
+    
+    // 将统一查询转换为Nebula查询
+    toNebulaQuery(unifiedQuery: UnifiedQuery): string {
+        // 转换逻辑实现
+    }
 }
 ```
 
