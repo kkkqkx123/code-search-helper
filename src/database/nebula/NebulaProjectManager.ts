@@ -239,6 +239,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
     try {
       const projectPaths = this.projectIdManager.listAllProjectPaths();
       const projectSpaces: ProjectSpaceInfo[] = [];
+      const seenSpaceNames = new Set<string>(); // 防止重复的空间
 
       for (const projectPath of projectPaths) {
         const projectId = this.projectIdManager.getProjectId(projectPath);
@@ -247,12 +248,13 @@ export class NebulaProjectManager implements INebulaProjectManager {
         }
 
         const spaceName = this.projectIdManager.getSpaceName(projectId);
-        if (!spaceName) {
-          continue;
+        if (!spaceName || seenSpaceNames.has(spaceName)) {
+          continue; // 跳过无效或已处理的空间名称
         }
 
         const spaceInfo = await this.spaceManager.getSpaceInfo(projectId);
         if (spaceInfo) {
+          seenSpaceNames.add(spaceName); // 标记空间名称为已处理
           projectSpaces.push({
             projectPath,
             spaceName,

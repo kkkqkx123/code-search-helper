@@ -2,7 +2,7 @@ import { injectable } from 'inversify';
 
 export interface ConnectionState {
   connectionId: string;
-  currentSpace: string;
+  currentSpace: string | undefined;
   lastUsed: number;
   isHealthy: boolean;
 }
@@ -34,7 +34,7 @@ export class ConnectionStateManager {
   /**
    * 获取指定空间的连接ID列表
    */
-  getConnectionsForSpace(space: string): string[] {
+  getConnectionsForSpace(space: string | undefined): string[] {
     return Array.from(this.connectionStates.entries())
       .filter(([_, state]) => state.currentSpace === space)
       .map(([id, _]) => id);

@@ -385,18 +385,49 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
     // 验证查询参数
     if (!nGQL || typeof nGQL !== 'string' || nGQL.trim() === '') {
-      return this.createErrorResult('Invalid query: Query string is empty or invalid');
+      throw new Error('Invalid query: Query string is empty or invalid');
+    }
+
+    // 检查非USE查询是否是无效的字符串，如 'undefined'
+    const trimmedQuery = nGQL.trim();
+    if (!trimmedQuery.toUpperCase().startsWith('USE ') && trimmedQuery.toLowerCase() === 'undefined') {
+      throw new Error('Invalid query: Query string is invalid');
     }
 
     try {
       const client = this.client;
       
       // 检查是否是USE命令来更新空间状态
-      this.handleUseSpaceCommand(nGQL);
-      
-      // 检查是否试图使用无效的space
-      if (this.isInvalidUseQuery(nGQL)) {
-        throw new Error(`Cannot execute query: invalid space name "${nGQL}" contains "undefined"`);
+      if (trimmedQuery.toUpperCase().startsWith('USE ')) {
+        const match = trimmedQuery.match(/USE\s+`?([^\s`]+)?`?/i);
+        if (match) {
+          const spaceName = match[1]; // 可能是 undefined（当匹配 `` 时）
+          
+          // 检查是否试图使用无效的space
+          if (spaceName === undefined || spaceName === 'undefined' || spaceName === '') {
+            throw new Error('Space does not exist');
+          }
+          
+          // 获取当前连接的空间
+          const currentSpace = this.connectionStateManager.getConnectionSpace('nebula-client-main');
+          
+          // 如果已经在目标空间，则不执行USE命令
+          if (currentSpace === spaceName) {
+            return this.createSuccessResult(`Already in space ${spaceName}`);
+          }
+          
+          // 执行USE命令切换空间
+          const result = await client.execute(nGQL);
+          
+          // 检查切换是否成功
+          if (result && result.code === 0) {
+            // 更新连接状态管理器中的空间状态
+            this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
+            return this.formatQueryResult(result, 0);
+          } else {
+            throw new Error(result?.error || 'Space does not exist');
+          }
+        }
       }
       
       await this.logDatabaseEvent({
@@ -477,15 +508,28 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      this.errorHandler.handleError(
-        new Error(`Failed to execute Nebula query: ${errorMessage}`),
-        {
-          component: 'NebulaConnectionManager',
-          operation: 'executeQuery',
-          query: nGQL,
-          parameters
-        }
-      );
+      // 如果错误是"Space does not exist"，我们不应该记录为错误，因为这是预期的行为
+      if (!errorMessage.includes('Space does not exist')) {
+        this.errorHandler.handleError(
+          new Error(`Failed to execute Nebula query: ${errorMessage}`),
+          {
+            component: 'NebulaConnectionManager',
+            operation: 'executeQuery',
+            query: nGQL,
+            parameters
+          }
+        );
+      }
+
+      // 如果错误是由于无效空间名称引起的，应该抛出错误而不是返回错误结果
+      if (errorMessage.includes('Space does not exist')) {
+        throw error;
+      }
+
+      // 对于空查询验证，我们应抛出错误而不是返回错误结果
+      if (errorMessage.includes('Invalid query:')) {
+        throw error;
+      }
 
       return this.createErrorResult(errorMessage);
     }
@@ -533,6 +577,22 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       executionTime: 0,
       timeCost: 0,
       space: this.connectionStatus.space,
+    };
+  }
+  
+  /**
+   * 创建成功结果
+   */
+  private createSuccessResult(message: string): NebulaQueryResult {
+    return {
+      table: {},
+      results: [],
+      rows: [],
+      data: [{ message }],
+      executionTime: 0,
+      timeCost: 0,
+      space: this.connectionStatus.space,
+      error: undefined
     };
   }
 
@@ -665,6 +725,11 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     if (!spaceName || typeof spaceName !== 'string' || spaceName.trim() === '') {
       throw new Error(`Cannot get connection for invalid space: "${spaceName}"`);
     }
+    
+    // 检查是否是无效的空间名称
+    if (spaceName === 'undefined' || spaceName === '') {
+      throw new Error(`Cannot get connection for invalid space: "${spaceName}"`);
+    }
 
     // 检查连接状态
     if (!this.isConnected()) {
@@ -690,10 +755,13 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
         return this.client;
       } else {
-        throw new Error(`Failed to switch to space ${spaceName}: ${result?.error || 'Unknown error'}`);
+        const errorMsg = result?.error || 'Unknown error';
+        // 保持原有的错误格式
+        throw new Error(`Failed to switch to space ${spaceName}: ${errorMsg}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      // 保持原有的错误格式
       throw new Error(`Failed to switch to space ${spaceName}: ${errorMessage}`);
     }
   }

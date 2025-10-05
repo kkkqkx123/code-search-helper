@@ -635,9 +635,28 @@ export class GraphPersistenceUtils {
         };
       }
       
-      // 获取当前空间
-      const connectionStatus = nebulaService.connectionManager.getConnectionStatus();
-      const currentSpace = connectionStatus?.space;
+      // 获取当前空间 - 使用公共方法替代直接访问受保护的属性
+      let currentSpace: string | undefined;
+      try {
+        // 由于NebulaService没有直接暴露获取当前空间的方法，我们需要通过其他方式来实现
+        // 我们可以尝试执行一个查询来确定当前空间是否有效
+        if (nebulaService.isConnected()) {
+          // 执行一个简单的查询来验证当前空间是否有效
+          const result = await nebulaService.executeReadQuery('SHOW TAGS');
+          if (result && !result.error) {
+            // 如果查询成功执行（即使没有结果），说明当前空间是有效的
+            // 在实际的NebulaGraph中，我们无法直接获取当前空间名称，所以设置一个占位符
+            currentSpace = 'active_space'; // 使用占位符，因为我们无法直接获取空间名
+          } else {
+            currentSpace = undefined;
+          }
+        } else {
+          currentSpace = undefined;
+        }
+      } catch (error) {
+        // 如果无法获取当前空间，将其设置为undefined
+        currentSpace = undefined;
+      }
       
       // 只有在当前空间存在的情况下才执行需要空间上下文的查询
       if (!currentSpace || currentSpace === 'undefined' || currentSpace === '') {
