@@ -137,8 +137,16 @@ class Connection extends _events.EventEmitter {
         : Promise.resolve();
       
       cleanupPromise.finally(() => {
+        // 清理本地会话ID
+        this.sessionId = null;
+        
         if (this.connection.connected) {
-          this.connection.end().then(resolve).catch(reject);
+          try {
+            this.connection.end();
+            resolve({});
+          } catch (error) {
+            reject(error);
+          }
         } else {
           resolve({});
         }

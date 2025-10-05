@@ -1,5 +1,21 @@
 const { Client, Connection } = require('./index.js');
 
+// 确保进程在测试完成后退出
+process.on('SIGINT', () => {
+  console.log('收到SIGINT信号，正在退出...');
+  process.exit(0);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('未捕获的异常:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('未处理的Promise拒绝:', reason);
+  process.exit(1);
+});
+
 // 测试会话管理优化
 async function testSessionManagement() {
   console.log('开始测试会话管理优化...');
@@ -56,7 +72,16 @@ async function testSessionManagement() {
   // 清理
   await client.close();
   console.log('\n=== 测试完成 ===');
+  
+  // 强制退出进程，避免卡住
+  setTimeout(() => {
+    console.log('强制退出进程...');
+    process.exit(0);
+  }, 1000);
 }
 
 // 运行测试
-testSessionManagement().catch(console.error);
+testSessionManagement().catch((error) => {
+  console.error('测试失败:', error);
+  process.exit(1);
+});
