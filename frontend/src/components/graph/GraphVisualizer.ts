@@ -6,6 +6,7 @@ import cytoscape from 'cytoscape';
  */
 export class GraphVisualizer {
   private cy: cytoscape.Core;
+  private container: HTMLElement;
   
   constructor(container: HTMLElement) {
     this.container = container;
@@ -119,16 +120,15 @@ export class GraphVisualizer {
         coolingFactor: 0.95,
         minTemp: 1.0
       },
-      interaction: {
-        zoom: true,
-        pan: true,
-        selectionType: 'single',
-        touchTapThreshold: 8,
-        desktopTapThreshold: 4,
-        autolock: false,
-        autoungrabify: false,
-        autounselectify: false
-      }
+      zoomingEnabled: true,
+      panningEnabled: true,
+      boxSelectionEnabled: false,
+      selectionType: 'single',
+      touchTapThreshold: 8,
+      desktopTapThreshold: 4,
+      autolock: false,
+      autoungrabify: false,
+      autounselectify: false
     });
   }
   
@@ -163,7 +163,7 @@ export class GraphVisualizer {
     this.cy.add(elements);
     
     // 应用布局
-    await this.cy.layout(this.cy.options().layout).run();
+    await this.cy.layout(this.cy.scratch('layoutOptions') || { name: 'cose' }).run();
   }
   
   /**
@@ -319,7 +319,7 @@ export class GraphVisualizer {
    */
   resetView() {
     this.cy.animate({
-      fit: { eles: this.cy.elements() },
+      fit: { eles: this.cy.elements(), padding: 30 },
       zoom: this.cy.zoom(),
       pan: { x: 0, y: 0 }
     }, {

@@ -65,13 +65,17 @@ describe('NebulaProjectManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Mock PerformanceMonitor for testing
+    const mockPerformanceMonitor = {} as any;
+    
     nebulaProjectManager = new NebulaProjectManager(
       mockDatabaseLoggerService as unknown as DatabaseLoggerService,
       mockErrorHandlerService as unknown as ErrorHandlerService,
       mockProjectIdManager as unknown as ProjectIdManager,
       mockNebulaSpaceManager as unknown as INebulaSpaceManager,
       mockNebulaConnectionManager as unknown as INebulaConnectionManager,
-      mockNebulaQueryBuilder as unknown as INebulaQueryBuilder
+      mockNebulaQueryBuilder as unknown as INebulaQueryBuilder,
+      mockPerformanceMonitor
     );
   });
 

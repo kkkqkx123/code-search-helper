@@ -68,13 +68,17 @@ describe('NebulaProjectManager', () => {
     mockConnectionManager = new MockNebulaConnectionManager();
     mockQueryBuilder = new MockNebulaQueryBuilder();
 
+    // Mock PerformanceMonitor for testing
+    const mockPerformanceMonitor = {} as any;
+    
     nebulaProjectManager = new NebulaProjectManager(
       mockDatabaseLogger as any,
       mockErrorHandler as any,
       mockProjectIdManager as any,
       mockSpaceManager as any,
       mockConnectionManager as any,
-      mockQueryBuilder as any
+      mockQueryBuilder as any,
+      mockPerformanceMonitor
     );
   });
 

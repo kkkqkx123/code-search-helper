@@ -10,10 +10,11 @@ import { INebulaQueryBuilder } from './NebulaQueryBuilder';
 import { IProjectManager } from '../common/IDatabaseService';
 import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
 import { DatabaseServiceValidator } from '../common/DatabaseServiceValidator';
+import { PerformanceMonitor } from '../common/PerformanceMonitor';
 import {
   NebulaNode,
   NebulaRelationship,
- NebulaSpaceInfo,
+  NebulaSpaceInfo,
   ProjectSpaceInfo,
   NebulaEventType,
   NebulaEvent
@@ -47,8 +48,9 @@ export class NebulaProjectManager implements INebulaProjectManager {
   private errorHandler: ErrorHandlerService;
   private projectIdManager: ProjectIdManager;
   private spaceManager: INebulaSpaceManager;
-  private connectionManager: INebulaConnectionManager;
+ private connectionManager: INebulaConnectionManager;
   private queryBuilder: INebulaQueryBuilder;
+  private performanceMonitor: PerformanceMonitor;
   private eventListeners: Map<NebulaEventType, ((event: NebulaEvent) => void)[]> = new Map();
 
   constructor(
@@ -57,7 +59,8 @@ export class NebulaProjectManager implements INebulaProjectManager {
     @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
     @inject(TYPES.INebulaSpaceManager) spaceManager: INebulaSpaceManager,
     @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager,
-    @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder
+    @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder,
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
@@ -65,12 +68,14 @@ export class NebulaProjectManager implements INebulaProjectManager {
     this.spaceManager = spaceManager;
     this.connectionManager = connectionManager;
     this.queryBuilder = queryBuilder;
-  }
+    this.performanceMonitor = performanceMonitor;
+ }
 
   /**
    * 为特定项目创建空间
    */
   async createSpaceForProject(projectPath: string, config?: any): Promise<boolean> {
+    const startTime = Date.now();
     try {
       // 验证输入参数
       DatabaseServiceValidator.validateProjectPath(projectPath);
@@ -95,14 +100,22 @@ export class NebulaProjectManager implements INebulaProjectManager {
         });
       }
 
+      // 记录性能指标
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('createSpaceForProject', duration, {
+        projectPath,
+        config: !!config
+      });
+
       return success;
     } catch (error) {
+      const duration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         {
           component: 'NebulaProjectManager',
           operation: 'createSpaceForProject',
-          details: { projectPath }
+          details: { projectPath, config }
         }
       );
 
@@ -116,12 +129,13 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       return false;
     }
-  }
+ }
 
   /**
    * 删除项目的空间
    */
   async deleteSpaceForProject(projectPath: string): Promise<boolean> {
+    const startTime = Date.now();
     try {
       // 验证输入参数
       DatabaseServiceValidator.validateProjectPath(projectPath);
@@ -150,8 +164,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
         });
       }
 
+      // 记录性能指标
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('deleteSpaceForProject', duration, {
+        projectPath
+      });
+
       return success;
     } catch (error) {
+      const duration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         {
@@ -324,6 +345,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
    * 为项目插入节点
    */
   async insertNodesForProject(projectPath: string, nodes: NebulaNode[]): Promise<boolean> {
+    const startTime = Date.now();
     try {
       // 验证输入参数
       DatabaseServiceValidator.validateProjectPath(projectPath);
@@ -395,8 +417,17 @@ export class NebulaProjectManager implements INebulaProjectManager {
         });
       }
 
+      // 记录性能指标
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('insertNodesForProject', duration, {
+        projectPath,
+        nodeCount: nodes.length,
+        queryCount: queries.length
+      });
+
       return success;
     } catch (error) {
+      const duration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         {
@@ -956,6 +987,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
    * 搜索项目数据（实现 IProjectManager 接口）
    */
   async searchProjectData(projectPath: string, query: any): Promise<any[]> {
+    const startTime = Date.now();
     try {
       // 验证输入参数
       DatabaseServiceValidator.validateProjectPath(projectPath);
@@ -1043,17 +1075,27 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       const result = await this.connectionManager.executeQuery(searchQuery, params);
       
+      // 记录性能指标
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('searchProjectData', duration, {
+        projectPath,
+        queryType: typeof query === 'object' ? query.type : 'string',
+        resultsCount: result.data?.length || 0
+      });
+      
       this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
         projectPath,
         projectId,
         spaceName,
         query,
         resultsCount: result.data?.length || 0,
-        operation: 'search'
+        operation: 'search',
+        duration
       });
 
       return result.data || [];
     } catch (error) {
+      const duration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         {

@@ -12,37 +12,57 @@ export enum DatabaseEventType {
   CONNECTION_CLOSED = 'connection_closed',
   CONNECTION_FAILED = 'connection_failed',
   CONNECTION_ERROR = 'connection_error',
-  
+
   // 项目空间事件
   SPACE_CREATED = 'space_created',
   SPACE_DELETED = 'space_deleted',
   SPACE_SELECTED = 'space_selected',
   SPACE_CLEARED = 'space_cleared',
   SPACE_ERROR = 'space_error',
-  
+
   // 数据操作事件
   DATA_INSERTED = 'data_inserted',
   DATA_UPDATED = 'data_updated',
   DATA_DELETED = 'data_deleted',
   DATA_QUERIED = 'data_queried',
+  DATA_RETRIEVED = 'data_retrieved',
   DATA_ERROR = 'data_error',
-  
+
   // 服务生命周期事件
   SERVICE_INITIALIZED = 'service_initialized',
   SERVICE_STARTED = 'service_started',
   SERVICE_STOPPED = 'service_stopped',
   SERVICE_ERROR = 'service_error',
-  
+
   // 日志级别事件
   DEBUG = 'debug',
   INFO = 'info',
   WARNING = 'warning',
-  
+
   // 性能和监控事件
   PERFORMANCE_METRIC = 'performance_metric',
   QUERY_EXECUTED = 'query_executed',
   BATCH_OPERATION_COMPLETED = 'batch_operation_completed',
-  ERROR_OCCURRED = 'error_occurred'
+  HEALTH_CHECK = 'health_check',
+  ERROR_OCCURRED = 'error_occurred',
+
+  // 信息检索事件
+  INFO_RETRIEVED = 'info_retrieved',
+
+  // 配置管理事件
+  CONFIG_ACCESSED = 'config_accessed',
+  CONFIG_SET = 'config_set',
+  CONFIG_REMOVED = 'config_removed',
+  CONFIG_RELOADED = 'config_reloaded',
+  ENVIRONMENT_CHANGED = 'environment_changed',
+
+  // 连接池事件
+  POOL_INITIALIZED = 'pool_initialized',
+  POOL_CLOSED = 'pool_closed',
+  CONNECTION_ACQUIRED = 'connection_acquired',
+  CONNECTION_RELEASED = 'connection_released',
+  CONNECTION_CREATED = 'connection_created',
+  CONNECTION_REMOVED = 'connection_removed'
 }
 
 /**
@@ -54,13 +74,13 @@ export enum QdrantEventType {
   COLLECTION_DELETED = 'collection_deleted',
   COLLECTION_UPDATED = 'collection_updated',
   COLLECTION_ERROR = 'collection_error',
-  
+
   // 向量操作事件
   VECTOR_INSERTED = 'vector_inserted',
   VECTOR_UPDATED = 'vector_updated',
   VECTOR_DELETED = 'vector_deleted',
   VECTOR_SEARCHED = 'vector_searched',
-  
+
   // 索引事件
   INDEX_CREATED = 'index_created',
   INDEX_DELETED = 'index_deleted',
@@ -76,7 +96,7 @@ export enum NebulaEventType {
   SPACE_DELETED = 'space_deleted',
   SPACE_UPDATED = 'space_updated',
   SPACE_ERROR = 'space_error',
-  
+
   // 节点和边事件
   NODE_INSERTED = 'node_inserted',
   NODE_UPDATED = 'node_updated',
@@ -84,7 +104,7 @@ export enum NebulaEventType {
   RELATIONSHIP_INSERTED = 'relationship_inserted',
   RELATIONSHIP_UPDATED = 'relationship_updated',
   RELATIONSHIP_DELETED = 'relationship_deleted',
-  
+
   // 查询事件
   QUERY_EXECUTED = 'query_executed',
   QUERY_ERROR = 'query_error'
@@ -178,7 +198,7 @@ export interface IEventManager<TEvents = Record<string, any>> {
     eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
     listener: DatabaseEventListener<TEvents[K] | DatabaseEvent>
   ): void;
-  
+
   /**
    * 移除事件监听器
    */
@@ -186,17 +206,17 @@ export interface IEventManager<TEvents = Record<string, any>> {
     eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
     listener: DatabaseEventListener<TEvents[K] | DatabaseEvent>
   ): void;
-  
+
   /**
    * 发出事件
    */
   emitEvent(event: DatabaseEvent): void;
-  
+
   /**
    * 移除所有监听器
    */
   removeAllListeners(): void;
-  
+
   /**
    * 获取监听器数量
    */
