@@ -19,6 +19,7 @@ import {
 import { BaseDatabaseService } from '../common/BaseDatabaseService';
 import { IDatabaseService, IConnectionManager, IProjectManager } from '../common/IDatabaseService';
 import { DatabaseEventType, NebulaEventType as UnifiedNebulaEventType } from '../common/DatabaseEventTypes';
+import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
 
 export interface INebulaService {
   // 基础操作

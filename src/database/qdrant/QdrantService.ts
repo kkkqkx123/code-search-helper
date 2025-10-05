@@ -27,6 +27,7 @@ import { IDatabaseService, IConnectionManager, IProjectManager } from '../common
 import { DatabaseEventType, QdrantEventType as UnifiedQdrantEventType } from '../common/DatabaseEventTypes';
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
 import { PerformanceMonitor } from '../common/PerformanceMonitor';
+import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
 
 /**
  * Qdrant 服务类

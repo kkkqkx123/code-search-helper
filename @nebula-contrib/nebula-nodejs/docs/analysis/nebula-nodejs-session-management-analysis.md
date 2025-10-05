@@ -121,6 +121,7 @@ this.connectionGuarders.push(setInterval(() => {
 ## 🔧 改进建议
 
 ### 1. 增强会话清理机制
+[ ]
 
 **建议实现：**
 ```javascript
@@ -137,6 +138,7 @@ forceCleanup() {
 ```
 
 ### 2. 改进关闭流程
+[ ]
 
 **建议修改 Connection.close() 方法：**
 ```javascript
@@ -159,6 +161,7 @@ close() {
 ```
 
 ### 3. 添加会话生命周期监控
+[ ]
 
 **建议实现会话监控：**
 ```javascript
