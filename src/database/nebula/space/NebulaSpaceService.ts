@@ -487,7 +487,7 @@ export class NebulaSpaceService implements INebulaSpaceService {
       });
 
       // 从连接管理器获取当前空间信息
-      const connectionStatus = this.connectionManager['connectionStatus'];
+      const connectionStatus = this.connectionManager.getConnectionStatus();
       return connectionStatus?.space;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

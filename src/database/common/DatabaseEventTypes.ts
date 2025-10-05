@@ -16,6 +16,7 @@ export enum DatabaseEventType {
   // 项目空间事件
   SPACE_CREATED = 'space_created',
   SPACE_DELETED = 'space_deleted',
+  SPACE_SELECTED = 'space_selected',
   SPACE_CLEARED = 'space_cleared',
   SPACE_ERROR = 'space_error',
   
