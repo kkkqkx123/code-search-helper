@@ -11,6 +11,7 @@ export class DatabaseHealthChecker implements IHealthChecker {
   private databaseConnectionPool: DatabaseConnectionPool;
   private currentHealthStatus: DatabaseHealthStatus;
   private healthUpdateCallbacks: Array<(status: DatabaseHealthStatus) => void>;
+  private allDatabasesHealthStatus: Map<DatabaseType, DatabaseHealthStatus>;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -19,10 +20,11 @@ export class DatabaseHealthChecker implements IHealthChecker {
     this.logger = logger;
     this.databaseConnectionPool = databaseConnectionPool;
     this.healthUpdateCallbacks = [];
+    this.allDatabasesHealthStatus = new Map<DatabaseType, DatabaseHealthStatus>();
 
-    // 初始化为未知状态
+    // 初始化为未知状态，默认为QDRANT
     this.currentHealthStatus = {
-      databaseType: DatabaseType.QDRANT, // 默认类型，实际中可能需要多个健康检查器
+      databaseType: DatabaseType.QDRANT,
       status: 'healthy',
       responseTime: 0,
       connectionPoolStatus: {
@@ -36,58 +38,104 @@ export class DatabaseHealthChecker implements IHealthChecker {
   }
 
   async checkHealth(): Promise<DatabaseHealthStatus> {
-    // 检查所有数据库类型的健康状况
-    // 为简化，这里检查QDRANT，实际应用中可能需要检查所有数据库类型
-    const dbType = DatabaseType.QDRANT;
+    // 检查所有数据库类型的健康状况（QDRANT和NEBULA）
+    const dbTypes = [DatabaseType.QDRANT, DatabaseType.NEBULA];
+    let overallStatus: 'healthy' | 'degraded' | 'error' = 'healthy';
+    let totalResponseTime = 0;
+    let healthyCount = 0;
+    let degradedCount = 0;
+    let errorCount = 0;
 
-    const startTime = Date.now();
-    let status: 'healthy' | 'degraded' | 'error' = 'healthy';
-    let responseTime = 0;
+    // 检查每个数据库类型的健康状况
+    for (const dbType of dbTypes) {
+      const startTime = Date.now();
+      let status: 'healthy' | 'degraded' | 'error' = 'healthy';
+      let responseTime = 0;
 
-    try {
-      // 尝试获取连接以测试健康状况
-      const connection = await this.databaseConnectionPool.getConnection(dbType);
+      try {
+        // 尝试获取连接以测试健康状况
+        const connection = await this.databaseConnectionPool.getConnection(dbType);
 
-      // 简单的响应时间测试
-      responseTime = Date.now() - startTime;
+        // 简单的响应时间测试
+        responseTime = Date.now() - startTime;
+        totalResponseTime += responseTime;
 
-      // 检查响应时间阈值
-      if (responseTime > 1000) { // 超过1秒认为是降级状态
-        status = 'degraded';
+        // 检查响应时间阈值
+        if (responseTime > 1000) { // 超过1秒认为是降级状态
+          status = 'degraded';
+          degradedCount++;
+        } else {
+          healthyCount++;
+        }
+
+        // 释放连接
+        await this.databaseConnectionPool.releaseConnection(connection);
+      } catch (error) {
+        status = 'error';
+        responseTime = Date.now() - startTime;
+        totalResponseTime += responseTime;
+        errorCount++;
+        this.logger.error('Database health check failed', {
+          databaseType: dbType,
+          error: (error as Error).message,
+          responseTime
+        });
       }
 
-      // 释放连接
-      await this.databaseConnectionPool.releaseConnection(connection);
-    } catch (error) {
-      status = 'error';
-      responseTime = Date.now() - startTime;
-      this.logger.error('Database health check failed', {
+      // 获取连接池状态
+      const connectionPoolStatus = this.databaseConnectionPool.getPoolStatus(dbType);
+
+      // 组装单个数据库的健康状况
+      const healthStatus: DatabaseHealthStatus = {
         databaseType: dbType,
-        error: (error as Error).message,
-        responseTime
+        status,
+        responseTime,
+        connectionPoolStatus,
+        timestamp: Date.now()
+      };
+
+      // 保存到所有数据库状态映射中
+      this.allDatabasesHealthStatus.set(dbType, healthStatus);
+
+      this.logger.debug('Database health check completed', {
+        databaseType: dbType,
+        status,
+        responseTime,
+        connectionPoolStatus
       });
     }
 
-    // 获取连接池状态
-    const connectionPoolStatus = this.databaseConnectionPool.getPoolStatus(dbType);
+    // 确定整体状态
+    if (errorCount > 0) {
+      overallStatus = 'error';
+    } else if (degradedCount > 0) {
+      overallStatus = 'degraded';
+    }
 
-    // 组装健康状况
+    // 计算平均响应时间
+    const averageResponseTime = totalResponseTime / dbTypes.length;
+
+    // 获取QDRANT的连接池状态作为默认状态（为了保持向后兼容）
+    const qdrantPoolStatus = this.databaseConnectionPool.getPoolStatus(DatabaseType.QDRANT);
+
+    // 更新当前健康状况（使用QDRANT作为主要状态）
     this.currentHealthStatus = {
-      databaseType: dbType,
-      status,
-      responseTime,
-      connectionPoolStatus,
+      databaseType: DatabaseType.QDRANT, // 保持向后兼容
+      status: overallStatus,
+      responseTime: averageResponseTime,
+      connectionPoolStatus: qdrantPoolStatus,
       timestamp: Date.now()
     };
 
     // 通知订阅者
     this.healthUpdateCallbacks.forEach(callback => callback(this.currentHealthStatus));
 
-    this.logger.debug('Database health check completed', {
-      databaseType: dbType,
-      status,
-      responseTime,
-      connectionPoolStatus
+    this.logger.info('All databases health check completed', {
+      overallStatus,
+      averageResponseTime,
+      healthyCount,
+      degradedCount,
+      errorCount
     });
 
     return this.currentHealthStatus;
@@ -177,5 +225,10 @@ export class DatabaseHealthChecker implements IHealthChecker {
     }
 
     return healthStatusMap;
+  }
+
+  // 获取所有数据库的当前健康状态
+  getAllDatabasesHealthStatus(): Map<DatabaseType, DatabaseHealthStatus> {
+    return new Map(this.allDatabasesHealthStatus);
   }
 }
