@@ -6,9 +6,11 @@ import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult } from './NebulaTypes';
 import { TYPES } from '../../types';
 import { IConnectionManager } from '../common/IDatabaseService';
-import { DatabaseEventListener } from '../common/DatabaseEventTypes';
 import { NebulaConfigService } from '../../config/service/NebulaConfigService';
 import { ConnectionStateManager } from './ConnectionStateManager';
+import { NebulaQueryUtils } from './NebulaQueryUtils';
+import { NebulaResultFormatter } from './NebulaResultFormatter';
+import { EventListener } from '../../types';
 
 // 导入Nebula Graph客户端库
 import { createClient } from '@nebula-contrib/nebula-nodejs';
@@ -18,8 +20,8 @@ export interface INebulaConnectionManager extends IConnectionManager {
   executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
   executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<NebulaQueryResult[]>;
   // 配置管理
-  getConfig(): any;
-  updateConfig(config: any): void;
+  getConfig(): NebulaConfig;
+  updateConfig(config: Partial<NebulaConfig>): void;
 }
 
 @injectable()
@@ -32,7 +34,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private connectionStatus: NebulaConnectionStatus;
   private config: NebulaConfig;
   private client: any; // Nebula Graph客户端实例
-  private eventListeners: Map<string, DatabaseEventListener[]> = new Map();
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
@@ -55,26 +56,39 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
     // 使用NebulaConfigService加载配置
     this.config = this.nebulaConfigService.loadConfig();
-    this.connectionStatus.host = this.config.host;
-    this.connectionStatus.port = this.config.port;
-    this.connectionStatus.username = this.config.username;
+    this.updateConnectionStatusFromConfig();
     
     // 启动连接状态清理任务
     this.connectionStateManager.startPeriodicCleanup();
+  }
+
+  /**
+   * 从配置更新连接状态
+   */
+  private updateConnectionStatusFromConfig(): void {
+    this.connectionStatus.host = this.config.host;
+    this.connectionStatus.port = this.config.port;
+    this.connectionStatus.username = this.config.username;
+    this.connectionStatus.space = this.getValidSpace(this.config.space);
+  }
+
+  /**
+   * 获取有效的space名称
+   */
+  private getValidSpace(space?: string): string | undefined {
+    return (space && space !== 'undefined' && space !== '') ? space : undefined;
   }
 
   async connect(): Promise<boolean> {
     try {
       // 重新加载配置以确保获取最新配置
       this.config = this.nebulaConfigService.loadConfig();
-      this.connectionStatus.host = this.config.host;
-      this.connectionStatus.port = this.config.port;
-      this.connectionStatus.username = this.config.username;
+      this.updateConnectionStatusFromConfig();
       
       // nebula客户端内部管理连接池，不需要手动配置
 
       // 使用 DatabaseLoggerService 记录连接信息
-      this.databaseLogger.logDatabaseEvent({
+      await this.logDatabaseEvent({
         type: DatabaseEventType.CONNECTION_OPENED,
         source: 'nebula',
         timestamp: new Date(),
@@ -83,15 +97,12 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           host: this.config.host,
           port: this.config.port,
           username: this.config.username,
-          space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
+          space: this.connectionStatus.space,
           timeout: this.config.timeout,
           maxConnections: this.config.maxConnections,
           retryAttempts: this.config.retryAttempts,
           retryDelay: this.config.retryDelay
         }
-      }).catch(error => {
-        // 如果日志记录失败，我们不希望影响主流程
-        console.error('Failed to log connection info:', error);
       });
 
       // 创建Nebula Graph客户端，但不设置默认空间，只验证连接
@@ -109,76 +120,38 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
       // 针对@nebula-contrib/nebula-nodejs库，客户端自动管理连接
       // 不需要手动创建会话，直接使用客户端执行查询
-      // 使用 DatabaseLoggerService 记录客户端创建信息
-      this.databaseLogger.logDatabaseEvent({
+      await this.logDatabaseEvent({
         type: DatabaseEventType.SERVICE_INITIALIZED,
         source: 'nebula',
         timestamp: new Date(),
         data: { message: 'Client created successfully, waiting for connection...' }
-      }).catch(error => {
-        // 如果日志记录失败，我们不希望影响主流程
-        console.error('Failed to log client creation info:', error);
       });
       
       // 等待客户端连接就绪
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Connection timeout: Client failed to connect within reasonable time'));
-        }, this.config.timeout || 30000);
-        
-        this.client.once('authorized', () => {
-          clearTimeout(timeout);
-          resolve();
-        });
-        
-        this.client.once('error', (error: any) => {
-          clearTimeout(timeout);
-          reject(error);
-        });
-      });
-
-      // 使用 DatabaseLoggerService 记录客户端授权成功信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.CONNECTION_OPENED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: 'Client connection authorized successfully' }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log client authorization info:', error);
-     });
+      await this.waitForClientConnection();
       
       // 验证连接是否成功
       await this.validateConnection(this.client);
       
       // nebula客户端内部管理连接池，不需要手动管理会话
-      // 使用 DatabaseLoggerService 记录客户端连接成功信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.SERVICE_INITIALIZED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: 'Client connected successfully (nebula manages internal pool)' }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log client connection info:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_INITIALIZED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Client connected successfully (nebula manages internal pool)' }
+      });
 
-      // 设置连接状态 - 不设置特定space，因为我们没有在客户端配置中设置space
+      // 设置连接状态
       this.connectionStatus.connected = true;
       this.connectionStatus.lastConnected = new Date();
-      // 确保space字段只有在有效时才设置，否则设置为undefined
-      this.connectionStatus.space = (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined;
 
-      // 使用 DatabaseLoggerService 记录连接成功信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.CONNECTION_OPENED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: 'Successfully connected to Nebula Graph' }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log connection success info:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.CONNECTION_OPENED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Successfully connected to Nebula Graph' }
+      });
+      
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -194,6 +167,38 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
+  /**
+   * 等待客户端连接就绪
+   */
+  private async waitForClientConnection(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Connection timeout: Client failed to connect within reasonable time'));
+      }, this.config.timeout || 30000);
+      
+      this.client.once('authorized', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+      
+      this.client.once('error', (error: any) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * 记录数据库事件（错误处理版本）
+   */
+  private async logDatabaseEvent(event: any): Promise<void> {
+    try {
+      await this.databaseLogger.logDatabaseEvent(event);
+    } catch (error) {
+      // 如果日志记录失败，我们不希望影响主流程
+      console.error('Failed to log database event:', error);
+    }
+  }
 
   /**
    * 验证连接是否成功
@@ -201,38 +206,31 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private async validateConnection(client: any): Promise<void> {
     try {
       // 执行简单查询验证连接
-      // 使用 DatabaseLoggerService 记录连接验证信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.QUERY_EXECUTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: 'Validating connection with SHOW SPACES query' }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log connection validation info:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Validating connection with SHOW SPACES query' }
+      });
+      
       const result = await client.execute('SHOW SPACES');
       
-      // 使用 DatabaseLoggerService 记录连接验证结果
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.QUERY_EXECUTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Connection validation query result',
-         hasResult: !!result,
-         resultType: typeof result,
-         hasCode: typeof result?.code !== 'undefined',
-         code: result?.code,
-         hasError: !!result?.error,
-         error: result?.error,
-         hasData: !!result?.data,
-         dataLength: result?.data?.length
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log connection validation result:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'Connection validation query result',
+          hasResult: !!result,
+          resultType: typeof result,
+          hasCode: typeof result?.code !== 'undefined',
+          code: result?.code,
+          hasError: !!result?.error,
+          error: result?.error,
+          hasData: !!result?.data,
+          dataLength: result?.data?.length
+        }
+      });
       
       if (!result || (typeof result.code !== 'undefined' && result.code !== 0)) {
         throw new Error(`Connection validation failed: ${result?.error || 'Unknown error'}`);
@@ -240,51 +238,40 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     } catch (error) {
       // 捕获并重新抛出错误，提供更明确的信息
       const errorMessage = error instanceof Error ? error.message : String(error);
-      // 使用 DatabaseLoggerService 记录连接验证失败信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.ERROR_OCCURRED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Connection validation failed',
-         error: errorMessage,
-         stack: error instanceof Error ? error.stack : undefined
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log connection validation failure:', error);
-     });
+      
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.ERROR_OCCURRED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'Connection validation failed',
+          error: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined
+        }
+      });
+      
       throw new Error(`Connection validation failed: ${errorMessage}`);
     }
   }
 
-
   async disconnect(): Promise<void> {
     if (!this.connectionStatus.connected) {
-      // 使用 DatabaseLoggerService 记录已断开连接信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.CONNECTION_CLOSED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: 'Already disconnected from Nebula Graph' }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log already disconnected info:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.CONNECTION_CLOSED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Already disconnected from Nebula Graph' }
+      });
       return;
     }
 
     try {
-      // 使用 DatabaseLoggerService 记录断开连接信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.CONNECTION_CLOSED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: 'Disconnecting from Nebula Graph' }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log disconnection info:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.CONNECTION_CLOSED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Disconnecting from Nebula Graph' }
+      });
 
       // 关闭客户端连接
       await this.closeClient();
@@ -298,16 +285,12 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       // 重置连接状态管理器中的主连接状态
       this.connectionStateManager.removeConnection('nebula-client-main');
 
-      // 使用 DatabaseLoggerService 记录成功断开连接信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.CONNECTION_CLOSED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: 'Successfully disconnected from Nebula Graph' }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log successful disconnection info:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.CONNECTION_CLOSED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: 'Successfully disconnected from Nebula Graph' }
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
@@ -317,7 +300,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
-
   /**
    * 关闭客户端连接
    */
@@ -326,31 +308,23 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       try {
         if (typeof this.client.close === 'function') {
           await this.client.close();
-          // 使用 DatabaseLoggerService 记录客户端关闭成功信息
-         this.databaseLogger.logDatabaseEvent({
-           type: DatabaseEventType.SERVICE_INITIALIZED,
-           source: 'nebula',
-           timestamp: new Date(),
-           data: { message: 'Client closed successfully' }
-         }).catch(error => {
-           // 如果日志记录失败，我们不希望影响主流程
-           console.error('Failed to log client closure success:', error);
-         });
+          await this.logDatabaseEvent({
+            type: DatabaseEventType.SERVICE_INITIALIZED,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: { message: 'Client closed successfully' }
+          });
         }
       } catch (error) {
-        // 使用 DatabaseLoggerService 记录客户端关闭错误信息
-       this.databaseLogger.logDatabaseEvent({
-         type: DatabaseEventType.ERROR_OCCURRED,
-         source: 'nebula',
-         timestamp: new Date(),
-         data: {
-           message: 'Error closing client',
-           error: error instanceof Error ? error.message : String(error)
-         }
-       }).catch(error => {
-         // 如果日志记录失败，我们不希望影响主流程
-         console.error('Failed to log client closure error:', error);
-       });
+        await this.logDatabaseEvent({
+          type: DatabaseEventType.ERROR_OCCURRED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: {
+            message: 'Error closing client',
+            error: error instanceof Error ? error.message : String(error)
+          }
+        });
       } finally {
         this.client = null;
       }
@@ -383,150 +357,101 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     return { ...this.connectionStatus };
   }
 
-
-
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
     // 验证连接状态
     if (!this.isConnected()) {
-      const errorResult: NebulaQueryResult = {
-        table: {},
-        results: [],
-        rows: [],
-        data: [],
-        error: 'Not connected to Nebula Graph',
-        executionTime: 0,
-        timeCost: 0,
-        space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
-      };
-      return errorResult;
+      return this.createErrorResult('Not connected to Nebula Graph');
     }
 
     // 验证查询参数
     if (!nGQL || typeof nGQL !== 'string' || nGQL.trim() === '') {
-      const errorResult: NebulaQueryResult = {
-        table: {},
-        results: [],
-        rows: [],
-        data: [],
-        error: 'Invalid query: Query string is empty or invalid',
-        executionTime: 0,
-        timeCost: 0,
-        space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
-      };
-      return errorResult;
+      return this.createErrorResult('Invalid query: Query string is empty or invalid');
     }
 
     try {
-      // 获取客户端实例（不使用会话池，因为客户端内部管理连接）
       const client = this.client;
       
       // 检查是否是USE命令来更新空间状态
-      const trimmedQuery = nGQL.trim();
-      if (trimmedQuery.toUpperCase().startsWith('USE ')) {
-        const match = trimmedQuery.match(/USE\s+`?([^\s`]+)/i);
-        if (match && match[1]) {
-          const spaceName = match[1];
-          if (spaceName && spaceName !== 'undefined' && spaceName !== '') {
-            // 更新连接状态管理器中的连接空间状态
-            // 使用一个虚拟的连接ID，因为我们只有一个客户端连接
-            this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
-          }
-        }
-      }
+      this.handleUseSpaceCommand(nGQL);
       
-      // 在执行USE命令时，检查是否试图使用无效的space
-      if (nGQL.trim().toUpperCase().startsWith('USE ') && nGQL.includes('undefined')) {
+      // 检查是否试图使用无效的space
+      if (this.isInvalidUseQuery(nGQL)) {
         throw new Error(`Cannot execute query: invalid space name "${nGQL}" contains "undefined"`);
       }
       
-      // 使用 DatabaseLoggerService 记录查询执行信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.QUERY_EXECUTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Executing Nebula query',
-         query: nGQL.substring(0, 100) + (nGQL.length > 100 ? '...' : ''),
-         hasParameters: !!parameters && Object.keys(parameters).length > 0,
-         clientAvailable: !!client,
-         clientType: typeof client,
-         clientMethods: client ? Object.getOwnPropertyNames(Object.getPrototypeOf(client)).filter(name => typeof client[name] === 'function') : []
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log query execution info:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'Executing Nebula query',
+          query: nGQL.substring(0, 100) + (nGQL.length > 100 ? '...' : ''),
+          hasParameters: !!parameters && Object.keys(parameters).length > 0,
+          clientAvailable: !!client,
+          clientType: typeof client,
+          clientMethods: client ? Object.getOwnPropertyNames(Object.getPrototypeOf(client)).filter(name => typeof client[name] === 'function') : []
+        }
+      });
 
       const startTime = Date.now();
 
       // 执行查询 - Nebula Graph客户端库不支持参数化查询，需要手动处理参数
       const finalQuery = this.prepareQuery(nGQL, parameters);
-      // 使用 DatabaseLoggerService 记录准备查询信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.QUERY_EXECUTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Prepared query for execution',
-         originalQuery: nGQL,
-         preparedQuery: finalQuery,
-         parameters
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log prepared query info:', error);
-     });
-     
+      
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'Prepared query for execution',
+          originalQuery: nGQL,
+          preparedQuery: finalQuery,
+          parameters
+        }
+      });
+      
       const result = await client.execute(finalQuery);
       
-      // 使用 DatabaseLoggerService 记录原始查询结果
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.QUERY_EXECUTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Raw query result from Nebula',
-         hasResult: !!result,
-         resultType: typeof result,
-         hasTable: !!result?.table,
-         hasResults: !!result?.results,
-         hasRows: !!result?.rows,
-         hasData: !!result?.data,
-         dataSize: result?.data?.length,
-         hasError: !!result?.error,
-         error: result?.error,
-         hasCode: typeof result?.code !== 'undefined',
-         code: result?.code,
-         hasTimeCost: typeof result?.timeCost !== 'undefined',
-         timeCost: result?.timeCost
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log raw query result:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'Raw query result from Nebula',
+          hasResult: !!result,
+          resultType: typeof result,
+          hasTable: !!result?.table,
+          hasResults: !!result?.results,
+          hasRows: !!result?.rows,
+          hasData: !!result?.data,
+          dataSize: result?.data?.length,
+          hasError: !!result?.error,
+          error: result?.error,
+          hasCode: typeof result?.code !== 'undefined',
+          code: result?.code,
+          hasTimeCost: typeof result?.timeCost !== 'undefined',
+          timeCost: result?.timeCost
+        }
+      });
 
       const executionTime = Date.now() - startTime;
 
       // 转换结果格式
       const nebulaResult = this.formatQueryResult(result, executionTime);
 
-      // 使用 DatabaseLoggerService 记录格式化查询结果
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.QUERY_EXECUTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Formatted query result',
-         executionTime,
-         hasData: !!(nebulaResult.data && nebulaResult.data.length > 0),
-         dataSize: nebulaResult.data?.length,
-         hasError: !!nebulaResult.error,
-         error: nebulaResult.error
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log formatted query result:', error);
-     });
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'Formatted query result',
+          executionTime,
+          hasData: !!(nebulaResult.data && nebulaResult.data.length > 0),
+          dataSize: nebulaResult.data?.length,
+          hasError: !!nebulaResult.error,
+          error: nebulaResult.error
+        }
+      });
       
       return nebulaResult;
     } catch (error) {
@@ -542,19 +467,49 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         }
       );
 
-      const errorResult: NebulaQueryResult = {
-        table: {},
-        results: [],
-        rows: [],
-        data: [],
-        error: errorMessage,
-        executionTime: 0,
-        timeCost: 0,
-        space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
-      };
-      
-      return errorResult;
+      return this.createErrorResult(errorMessage);
     }
+  }
+
+  /**
+   * 处理USE空间命令
+   */
+  private handleUseSpaceCommand(nGQL: string): void {
+    const trimmedQuery = nGQL.trim();
+    if (trimmedQuery.toUpperCase().startsWith('USE ')) {
+      const match = trimmedQuery.match(/USE\s+`?([^\s`]+)/i);
+      if (match && match[1]) {
+        const spaceName = match[1];
+        if (spaceName && spaceName !== 'undefined' && spaceName !== '') {
+          // 更新连接状态管理器中的连接空间状态
+          // 使用一个虚拟的连接ID，因为我们只有一个客户端连接
+          this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
+        }
+      }
+    }
+  }
+
+  /**
+   * 检查是否是无效的USE查询
+   */
+  private isInvalidUseQuery(nGQL: string): boolean {
+    return nGQL.trim().toUpperCase().startsWith('USE ') && nGQL.includes('undefined');
+  }
+
+  /**
+   * 创建错误结果
+   */
+  private createErrorResult(errorMessage: string): NebulaQueryResult {
+    return {
+      table: {},
+      results: [],
+      rows: [],
+      data: [],
+      error: errorMessage,
+      executionTime: 0,
+      timeCost: 0,
+      space: this.connectionStatus.space,
+    };
   }
 
   /**
@@ -565,7 +520,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       return nGQL;
     }
     
-    return this.interpolateParameters(nGQL, parameters);
+    return NebulaQueryUtils.interpolateParameters(nGQL, parameters);
   }
 
   /**
@@ -579,7 +534,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       data: result?.data || [],
       executionTime,
       timeCost: result?.timeCost || 0,
-      space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
+      space: this.connectionStatus.space,
       error: result?.error || undefined
     };
   }
@@ -591,19 +546,16 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
     try {
       const client = this.client;
-      // 使用 DatabaseLoggerService 记录批处理查询执行信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.QUERY_EXECUTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Executing Nebula batch queries (no true transaction support)',
-         queryCount: queries.length
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log batch query execution info:', error);
-     });
+      
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'Executing Nebula batch queries (no true transaction support)',
+          queryCount: queries.length
+        }
+      });
 
       const startTime = Date.now();
       const results: NebulaQueryResult[] = [];
@@ -612,7 +564,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       for (const { query, params } of queries) {
         let finalQuery = query;
         if (params && Object.keys(params).length > 0) {
-          finalQuery = this.interpolateParameters(query, params);
+          finalQuery = NebulaQueryUtils.interpolateParameters(query, params);
         }
         
         const result = await client.execute(finalQuery);
@@ -624,25 +576,22 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           data: result?.data || [],
           executionTime: 0, // 批量查询时单独计算每个查询的执行时间不太实际
           timeCost: result?.timeCost || 0,
-          space: (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined,
+          space: this.connectionStatus.space,
         };
         results.push(nebulaResult);
       }
 
       const executionTime = Date.now() - startTime;
-      // 使用 DatabaseLoggerService 记录批处理查询成功执行信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.QUERY_EXECUTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Batch queries executed successfully',
-         executionTime
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log batch query success info:', error);
-     });
+      
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'Batch queries executed successfully',
+          executionTime
+        }
+      });
 
       return results;
     } catch (error) {
@@ -663,103 +612,33 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   /**
    * 获取当前配置
    */
-  getConfig(): any {
+  getConfig(): NebulaConfig {
     return { ...this.config };
   }
 
   /**
    * 更新配置
    */
-  updateConfig(config: any): void {
+  updateConfig(config: Partial<NebulaConfig>): void {
     this.config = { ...this.config, ...config };
+    this.updateConnectionStatusFromConfig();
   }
 
   /**
-   * 添加事件监听器
+   * 添加事件监听器 - 委托给全局事件管理器
    */
-  addEventListener(eventType: string, listener: DatabaseEventListener): void {
-    if (!this.eventListeners.has(eventType)) {
-      this.eventListeners.set(eventType, []);
-    }
-    this.eventListeners.get(eventType)!.push(listener);
+  addEventListener(eventType: string, listener: EventListener): void {
+    // 在实际应用中，这里应该委托给 NebulaEventManager
+    // 为了满足接口要求，暂时保持空实现或输出日志
+    console.warn('addEventListener is deprecated, use NebulaEventManager instead');
   }
 
   /**
-   * 移除事件监听器
+   * 移除事件监听器 - 委托给全局事件管理器
    */
-  removeEventListener(eventType: string, listener: DatabaseEventListener): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      const index = listeners.indexOf(listener);
-      if (index > -1) {
-        listeners.splice(index, 1);
-      }
-    }
-  }
-
-  protected emitEvent(eventType: string, data: any, error?: Error): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      const event = {
-        type: eventType as any, // 我们将在运行时确保这是有效的事件类型
-        timestamp: new Date(),
-        source: 'nebula' as const,
-        data,
-        error
-      };
-      listeners.forEach(listener => {
-        try {
-          listener(event);
-        } catch (err) {
-          // 使用 DatabaseLoggerService 记录事件监听器错误
-         this.databaseLogger.logDatabaseEvent({
-           type: DatabaseEventType.ERROR_OCCURRED,
-           source: 'nebula',
-           timestamp: new Date(),
-           data: {
-             message: `Error in event listener for ${eventType}:`,
-             error: err
-           }
-         }).catch(error => {
-           // 如果日志记录失败，我们不希望影响主流程
-           console.error('Failed to log event listener error:', error);
-         });
-        }
-      });
-    }
-  }
-
-  /**
-   * 转义属性值中的特殊字符，防止nGQL注入
-   */
-  private escapeProperties(properties: Record<string, any>): Record<string, any> {
-    const escaped: Record<string, any> = {};
-    for (const [key, value] of Object.entries(properties)) {
-      if (typeof value === 'string') {
-        // 转义字符串中的引号和反斜杠
-        escaped[key] = value.replace(/"/g, '\\"').replace(/\\/g, '\\\\');
-      } else {
-        escaped[key] = value;
-      }
-    }
-    return escaped;
-  }
-
-  /**
-   * 插值参数到nGQL查询中
-   */
-  private interpolateParameters(nGQL: string, parameters: Record<string, any>): string {
-    let interpolatedQuery = nGQL;
-    
-    for (const [key, value] of Object.entries(parameters)) {
-      const placeholder = `:${key}`;
-      const escapedValue = typeof value === 'string'
-        ? `"${value.replace(/"/g, '\\"').replace(/\\/g, '\\\\')}"`
-        : String(value);
-      
-      interpolatedQuery = interpolatedQuery.replace(new RegExp(placeholder, 'g'), escapedValue);
-    }
-    
-    return interpolatedQuery;
+  removeEventListener(eventType: string, listener: EventListener): void {
+    // 在实际应用中，这里应该委托给 NebulaEventManager
+    // 为了满足接口要求，暂时保持空实现或输出日志
+    console.warn('removeEventListener is deprecated, use NebulaEventManager instead');
   }
 }

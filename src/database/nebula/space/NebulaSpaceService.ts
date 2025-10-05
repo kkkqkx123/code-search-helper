@@ -16,7 +16,6 @@ export interface INebulaSpaceService {
   checkSpaceExists(spaceName: string): Promise<boolean>;
   
   // 空间切换管理
-  getConnectionForSpace(space: string): Promise<any>;
   executeQueryInSpace(space: string, query: string, parameters?: Record<string, any>): Promise<any>;
   
   // 空间状态跟踪
@@ -351,67 +350,6 @@ export class NebulaSpaceService implements INebulaSpaceService {
       });
 
       return false;
-    }
-  }
-
-  async getConnectionForSpace(space: string) {
-    if (!this.connectionManager.isConnected()) {
-      throw new Error('Not connected to Nebula Graph');
-    }
-
-    try {
-      // 验证空间名称的有效性
-      if (!space || space === 'undefined' || space === '') {
-        throw new Error(`Cannot get connection for invalid space: ${space}`);
-      }
-
-      // 使用 DatabaseLoggerService 记录获取空间连接信息
-      this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.CONNECTION_OPENED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Getting connection for space',
-          space
-        }
-      }).catch(error => {
-        console.error('Failed to log space connection info:', error);
-      });
-
-      // 切换到指定空间
-      const result = await this.connectionManager.executeQuery(`USE \`${space}\``);
-      if (result.error) {
-        throw new Error(`Failed to switch to space ${space}: ${result.error}`);
-      }
-      // 返回连接管理器的实例
-      return this.connectionManager;
-
-      // 使用 DatabaseLoggerService 记录获取空间连接成功信息
-      this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.CONNECTION_OPENED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Connection for space obtained successfully',
-          space
-        }
-      }).catch(error => {
-        console.error('Failed to log space connection success:', error);
-      });
-
-      return this.connectionManager;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to get connection for space: ${errorMessage}`),
-        {
-          component: 'NebulaSpaceService',
-          operation: 'getConnectionForSpace',
-          space
-        }
-      );
-
-      throw error;
     }
   }
 

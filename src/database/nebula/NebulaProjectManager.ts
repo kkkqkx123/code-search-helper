@@ -333,9 +333,10 @@ export class NebulaProjectManager implements INebulaProjectManager {
         queries.push({ query, params: {} });
       }
 
-      // 在项目空间中执行事务，使用优化的查询方法
+      // 在项目空间中执行事务，先USE空间，然后执行查询
+      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const results = await Promise.all(queries.map(q =>
-        this.connectionManager.executeQueryInSpace(spaceName, q.query, q.params)
+        this.connectionManager.executeQuery(q.query, q.params)
       ));
       const success = results.every(result => !result.error);
 
@@ -419,9 +420,10 @@ export class NebulaProjectManager implements INebulaProjectManager {
         queries.push({ query, params: {} });
       }
 
-      // 在项目空间中执行事务，使用优化的查询方法
+      // 在项目空间中执行事务，先USE空间，然后执行查询
+      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const results = await Promise.all(queries.map(q =>
-        this.connectionManager.executeQueryInSpace(spaceName, q.query, q.params)
+        this.connectionManager.executeQuery(q.query, q.params)
       ));
       const success = results.every(result => !result.error);
 
@@ -479,7 +481,8 @@ export class NebulaProjectManager implements INebulaProjectManager {
         query += ` AND ${conditions}`;
       }
       
-      const result = await this.connectionManager.executeQueryInSpace(spaceName, query);
+      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
+      const result = await this.connectionManager.executeQuery(query);
 
       this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
         projectPath,
@@ -534,7 +537,8 @@ export class NebulaProjectManager implements INebulaProjectManager {
         query += ` AND ${conditions}`;
       }
       
-      const result = await this.connectionManager.executeQueryInSpace(spaceName, query);
+      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
+      const result = await this.connectionManager.executeQuery(query);
 
       this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
         projectPath,

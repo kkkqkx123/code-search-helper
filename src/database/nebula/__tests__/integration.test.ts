@@ -330,7 +330,8 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       error: null 
     }); // for actual query
     
-    const result = await spaceService.executeQueryInSpace('test_space', 'MATCH (n) RETURN n');
+    await spaceService.useSpace('test_space');
+    const result = await spaceService['connectionManager'].executeQuery('MATCH (n) RETURN n');
     
     expect(result).toBeDefined();
     expect(mockExecute).toHaveBeenCalledWith('USE `test_space`');

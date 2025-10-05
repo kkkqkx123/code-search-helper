@@ -122,10 +122,10 @@ describe('NebulaConnectionManager', () => {
     });
   });
 
-  describe('executeQueryInSpace', () => {
+  describe('executeQuery (space operations)', () => {
     it('should throw error for invalid space name', async () => {
-      await expect(connectionManager.executeQueryInSpace('', 'MATCH (n) RETURN n')).rejects.toThrow('Cannot execute query in invalid space:');
-      await expect(connectionManager.executeQueryInSpace('undefined', 'MATCH (n) RETURN n')).rejects.toThrow('Cannot execute query in invalid space:');
+      await expect(connectionManager.executeQuery('', 'MATCH (n) RETURN n')).rejects.toThrow('Invalid query:');
+      await expect(connectionManager.executeQuery('undefined', 'MATCH (n) RETURN n')).rejects.toThrow('Invalid query:');
     });
 
     it('should execute query directly if already in target space', async () => {
@@ -133,7 +133,8 @@ describe('NebulaConnectionManager', () => {
       
       mockNebulaClient.execute.mockResolvedValue({ code: 0, data: [] });
 
-      const result = await connectionManager.executeQueryInSpace('test_space', 'MATCH (n) RETURN n');
+      const result = await connectionManager.executeQuery('USE `test_space`');
+      const queryResult = await connectionManager.executeQuery('MATCH (n) RETURN n');
       
       expect(mockNebulaClient.execute).toHaveBeenCalledTimes(1);
       expect(mockNebulaClient.execute).toHaveBeenCalledWith('MATCH (n) RETURN n');
@@ -147,7 +148,8 @@ describe('NebulaConnectionManager', () => {
         .mockResolvedValueOnce({ code: 0 }) // For USE command
         .mockResolvedValueOnce({ code: 0, data: [] }); // For actual query
 
-      const result = await connectionManager.executeQueryInSpace('test_space', 'MATCH (n) RETURN n');
+      const result = await connectionManager.executeQuery('USE `test_space`');
+      const queryResult = await connectionManager.executeQuery('MATCH (n) RETURN n');
       
       expect(mockNebulaClient.execute).toHaveBeenCalledTimes(2);
       expect(mockNebulaClient.execute).toHaveBeenNthCalledWith(1, 'USE `test_space`');
@@ -160,7 +162,7 @@ describe('NebulaConnectionManager', () => {
       
       mockNebulaClient.execute.mockResolvedValueOnce({ error: 'Space does not exist' });
 
-      await expect(connectionManager.executeQueryInSpace('test_space', 'MATCH (n) RETURN n')).rejects.toThrow('Failed to switch to space test_space: Space does not exist');
+      await expect(connectionManager.executeQuery('USE `test_space`')).rejects.toThrow('Space does not exist');
     });
   });
 

@@ -36,6 +36,9 @@ import { ConnectionStateManager } from '../../database/nebula/ConnectionStateMan
 // 新增的Nebula服务
 import { NebulaDataService, INebulaDataService } from '../../database/nebula/data/NebulaDataService';
 import { NebulaSpaceService, INebulaSpaceService } from '../../database/nebula/space/NebulaSpaceService';
+import { NebulaQueryUtils } from '../../database/nebula/NebulaQueryUtils';
+import { NebulaResultFormatter } from '../../database/nebula/NebulaResultFormatter';
+import { NebulaEventManager } from '../../database/nebula/NebulaEventManager';
 
 export class DatabaseServiceRegistrar {
   static register(container: Container): void {
@@ -78,5 +81,10 @@ export class DatabaseServiceRegistrar {
     container.bind<INebulaDataService>(TYPES.INebulaDataService).to(NebulaDataService).inSingletonScope();
     container.bind<NebulaSpaceService>(TYPES.NebulaSpaceService).to(NebulaSpaceService).inSingletonScope();
     container.bind<INebulaSpaceService>(TYPES.INebulaSpaceService).to(NebulaSpaceService).inSingletonScope();
+    
+    // 工具类服务
+    container.bind<NebulaQueryUtils>(TYPES.NebulaQueryUtils).to(NebulaQueryUtils).inSingletonScope();
+    container.bind<NebulaResultFormatter>(TYPES.NebulaResultFormatter).to(NebulaResultFormatter).inSingletonScope();
+    container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
   }
 }

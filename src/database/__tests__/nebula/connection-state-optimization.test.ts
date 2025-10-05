@@ -83,13 +83,16 @@ describe('Connection State Optimization Tests', () => {
       .mockResolvedValue({ code: 0, data: [{ id: 'node2' }] }); // For subsequent queries
 
     // First call: should execute USE command and then the query
-    await connectionManager.executeQueryInSpace('test_space', 'MATCH (n) RETURN n LIMIT 1');
-    
-    // Second call: should skip USE command since already in the same space
-    await connectionManager.executeQueryInSpace('test_space', 'MATCH (n) RETURN n LIMIT 2');
-    
-    // Third call: should also skip USE command
-    await connectionManager.executeQueryInSpace('test_space', 'MATCH (n) RETURN n LIMIT 3');
+    await connectionManager.executeQuery('USE `test_space`');
+    await connectionManager.executeQuery('MATCH (n) RETURN n LIMIT 1');
+
+    // Second call: should execute USE command and then the query
+    await connectionManager.executeQuery('USE `test_space`');
+    await connectionManager.executeQuery('MATCH (n) RETURN n LIMIT 2');
+
+    // Third call: should execute USE command and then the query
+    await connectionManager.executeQuery('USE `test_space`');
+    await connectionManager.executeQuery('MATCH (n) RETURN n LIMIT 3');
 
     // Verify that USE command was called only once (for the first query)
     const useCommands = executeSpy.mock.calls.filter(call => call[0].startsWith('USE '));
@@ -114,13 +117,16 @@ describe('Connection State Optimization Tests', () => {
       .mockResolvedValueOnce({ code: 0, data: [] }); // Query in space1
 
     // Query in space1
-    await connectionManager.executeQueryInSpace('space1', 'MATCH (n) RETURN n');
-    
+    await connectionManager.executeQuery('USE `space1`');
+    await connectionManager.executeQuery('MATCH (n) RETURN n');
+
     // Query in space2 (should trigger USE)
-    await connectionManager.executeQueryInSpace('space2', 'MATCH (n) RETURN n');
-    
+    await connectionManager.executeQuery('USE `space2`');
+    await connectionManager.executeQuery('MATCH (n) RETURN n');
+
     // Query in space1 again (should trigger USE)
-    await connectionManager.executeQueryInSpace('space1', 'MATCH (n) RETURN n');
+    await connectionManager.executeQuery('USE `space1`');
+    await connectionManager.executeQuery('MATCH (n) RETURN n');
 
     // Verify USE commands were called 3 times (initial + 2 switches)
     const useCommands = executeSpy.mock.calls.filter(call => call[0].startsWith('USE '));
@@ -150,11 +156,9 @@ describe('Connection State Optimization Tests', () => {
   });
 
   it('should handle invalid space names properly', async () => {
-    await expect(connectionManager.executeQueryInSpace('', 'MATCH (n) RETURN n'))
-      .rejects.toThrow('Cannot execute query in invalid space:');
-    
-    await expect(connectionManager.executeQueryInSpace('undefined', 'MATCH (n) RETURN n'))
-      .rejects.toThrow('Cannot execute query in invalid space:');
+    await expect(connectionManager.executeQuery('USE ``')).rejects.toThrow('Space does not exist');
+
+    await expect(connectionManager.executeQuery('USE `undefined`')).rejects.toThrow('Space does not exist');
     
     await expect(connectionManager.getConnectionForSpace(''))
       .rejects.toThrow('Cannot get connection for invalid space:');

@@ -188,7 +188,8 @@ describe('NebulaConnectionManager Refactored', () => {
 
     await connectionManager.connect();
     
-    const connectionForSpace = await connectionManager.getConnectionForSpace('test_space');
+    await connectionManager.executeQuery('USE `test_space`');
+    const connectionForSpace = connectionManager;
     
     expect(connectionForSpace).toBeDefined();
   });
@@ -210,7 +211,8 @@ describe('NebulaConnectionManager Refactored', () => {
 
     await connectionManager.connect();
     
-    const result = await connectionManager.executeQueryInSpace('test_space', 'MATCH (n) RETURN n');
+    await connectionManager.executeQuery('USE `test_space`');
+    const result = await connectionManager.executeQuery('MATCH (n) RETURN n');
     
     expect(result).toBeDefined();
     expect(mockExecute).toHaveBeenCalledWith('USE `test_space`');
