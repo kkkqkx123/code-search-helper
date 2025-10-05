@@ -4,7 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { NebulaService } from '../nebula/NebulaService';
-import { NebulaSpaceManager } from '../nebula/NebulaSpaceManager';
+import { NebulaSpaceManager } from '../nebula/space/NebulaSpaceManager';
 import { GraphQueryBuilder } from '../query/GraphQueryBuilder';
 import { TransactionManager, TransactionOperation } from '../core/TransactionManager';
 import { TransactionResult } from '../core/TransactionManager';

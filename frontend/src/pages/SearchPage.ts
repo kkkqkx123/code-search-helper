@@ -502,7 +502,7 @@ export class SearchPage {
 
             // 检查是否滚动到底部附近
             const { scrollTop, scrollHeight, clientHeight } = resultsContainer;
-            const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+            // const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
             
             // 当滚动到距离底部100px时加载更多
             if (scrollHeight - (scrollTop + clientHeight) < 100) {

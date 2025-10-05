@@ -6,7 +6,6 @@ import cytoscape from 'cytoscape';
  */
 export class GraphVisualizer {
   private cy: cytoscape.Core;
-  private container: HTMLElement;
   
   constructor(container: HTMLElement) {
     this.container = container;
@@ -98,7 +97,7 @@ export class GraphVisualizer {
             'line-color': '#ef4444',
             'target-arrow-color': '#ef4444',
             'transition-property': 'background-color, line-color, target-arrow-color',
-            'transition-duration': '0.5s'
+            'transition-duration': 500
           }
         }
       ],
@@ -164,7 +163,7 @@ export class GraphVisualizer {
     this.cy.add(elements);
     
     // 应用布局
-    await this.cy.layout(this.cy._private.options.layout).run();
+    await this.cy.layout(this.cy.options().layout).run();
   }
   
   /**
@@ -297,7 +296,7 @@ export class GraphVisualizer {
   zoomIn() {
     this.cy.animate({
       zoom: this.cy.zoom() * 1.2,
-      center: this.cy.pan()
+      center: { eles: this.cy.elements() }
     }, {
       duration: 500
     });
@@ -309,7 +308,7 @@ export class GraphVisualizer {
   zoomOut() {
     this.cy.animate({
       zoom: this.cy.zoom() * 0.8,
-      center: this.cy.pan()
+      center: { eles: this.cy.elements() }
     }, {
       duration: 500
     });
@@ -320,7 +319,7 @@ export class GraphVisualizer {
    */
   resetView() {
     this.cy.animate({
-      fit: this.cy.elements(),
+      fit: { eles: this.cy.elements() },
       zoom: this.cy.zoom(),
       pan: { x: 0, y: 0 }
     }, {

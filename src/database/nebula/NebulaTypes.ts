@@ -35,6 +35,15 @@ export interface NebulaQueryResult {
   executionTime?: number;
   timeCost?: number;
   space?: string;
+  errorCode?: any;
+  errorDetails?: any;
+  query?: string;
+  stats?: {
+    rowCount?: number;
+    columnCount?: number;
+    dataSize?: number;
+    processedTime?: number;
+  };
 }
 
 // Nebula 错误处理类型

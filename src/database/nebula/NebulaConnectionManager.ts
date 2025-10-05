@@ -19,6 +19,8 @@ export interface INebulaConnectionManager extends IConnectionManager {
   getConnectionStatus(): NebulaConnectionStatus;
   executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
   executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<NebulaQueryResult[]>;
+  // 空间连接管理
+  getConnectionForSpace(spaceName: string): Promise<any>;
   // 配置管理
   getConfig(): NebulaConfig;
   updateConfig(config: Partial<NebulaConfig>): void;
@@ -631,6 +633,47 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     // 在实际应用中，这里应该委托给 NebulaEventManager
     // 为了满足接口要求，暂时保持空实现或输出日志
     console.warn('addEventListener is deprecated, use NebulaEventManager instead');
+  }
+
+  /**
+   * 获取指定空间的连接
+   */
+  async getConnectionForSpace(spaceName: string): Promise<any> {
+    // 验证空间名称
+    if (!spaceName || typeof spaceName !== 'string' || spaceName.trim() === '') {
+      throw new Error(`Cannot get connection for invalid space: "${spaceName}"`);
+    }
+
+    // 检查连接状态
+    if (!this.isConnected()) {
+      throw new Error('Not connected to Nebula Graph');
+    }
+
+    // 获取当前连接的空间
+    const currentSpace = this.connectionStateManager.getConnectionSpace('nebula-client-main');
+    
+    // 如果已经在目标空间，直接返回客户端
+    if (currentSpace === spaceName) {
+      return this.client;
+    }
+
+    try {
+      // 切换到目标空间
+      const useQuery = `USE \`${spaceName}\``;
+      const result = await this.client.execute(useQuery);
+      
+      // 检查切换是否成功
+      if (result && result.code === 0) {
+        // 更新连接状态管理器中的空间状态
+        this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
+        return this.client;
+      } else {
+        throw new Error(`Failed to switch to space ${spaceName}: ${result?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to switch to space ${spaceName}: ${errorMessage}`);
+    }
   }
 
   /**

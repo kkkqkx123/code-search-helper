@@ -80,8 +80,9 @@ export class NebulaResultFormatter implements INebulaResultFormatter {
       // 应用格式选项
       return this.applyFormatOptions(result, mergedOptions);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return this.formatError(
-        new Error(`Failed to format result: ${error.message}`),
+        new Error(`Failed to format result: ${errorMessage}`),
         undefined,
         mergedOptions
       );
@@ -122,9 +123,11 @@ export class NebulaResultFormatter implements INebulaResultFormatter {
     let formattedResult = { ...result };
 
     // 根据选项调整结果
-    if (options.maxRows && result.data.length > options.maxRows) {
+    if (options.maxRows && result.data && result.data.length > options.maxRows) {
       formattedResult.data = result.data.slice(0, options.maxRows);
-      formattedResult.stats.rowCount = options.maxRows;
+      if (formattedResult.stats) {
+        formattedResult.stats.rowCount = options.maxRows;
+      }
     }
 
     return formattedResult;
@@ -230,7 +233,7 @@ export class NebulaResultFormatter implements INebulaResultFormatter {
     const mergedOptions = { ...this.defaultOptions, ...options };
     const formattedResult = this.applyFormatOptions(result, mergedOptions);
 
-    if (formattedResult.data.length === 0) {
+    if (!formattedResult.data || formattedResult.data.length === 0) {
       return '';
     }
 
@@ -266,7 +269,7 @@ export class NebulaResultFormatter implements INebulaResultFormatter {
 
   toTable(result: NebulaQueryResult, options?: FormatOptions): string {
     // 简单的表格格式化实现
-    if (result.data.length === 0) {
+    if (!result.data || result.data.length === 0) {
       return 'No data';
     }
 

@@ -1,6 +1,14 @@
 import { injectable, inject } from 'inversify';
-import { v4 as uuidv4 } from 'uuid';
-import { DatabaseEventType, DatabaseEventListener, NebulaEventType, NebulaEvent } from '../common/DatabaseEventTypes';
+import { randomUUID } from 'crypto';
+import { DatabaseEventType, DatabaseEventListener, NebulaEventType } from '../common/DatabaseEventTypes';
+
+// 定义NebulaEvent接口
+export interface NebulaEvent {
+  type: NebulaEventType;
+  timestamp: Date;
+  data?: any;
+  error?: Error;
+}
 import { TYPES } from '../../types';
 import { ConfigService } from '../../config/ConfigService';
 
@@ -134,7 +142,7 @@ export class NebulaEventManager implements INebulaEventManager {
 
     this.stats.activeSubscriptions++;
 
-    const subscriptionId = uuidv4();
+    const subscriptionId = randomUUID();
     const subscription: Subscription = {
       id: subscriptionId,
       eventType,
@@ -146,12 +154,15 @@ export class NebulaEventManager implements INebulaEventManager {
   }
 
   once(eventType: string, handler: EventHandler): Subscription {
+    let subscription: Subscription;
+    
     const onceHandler: EventHandler = (...args) => {
       handler(...args);
-      this.off({ id: '', eventType, handler: onceHandler });
+      subscription.unsubscribe();
     };
 
-    return this.on(eventType, onceHandler);
+    subscription = this.on(eventType, onceHandler);
+    return subscription;
   }
 
   off(subscription: Subscription): void {
@@ -182,7 +193,7 @@ export class NebulaEventManager implements INebulaEventManager {
     this.handlers.forEach((handlers, eventType) => {
       handlers.forEach(handler => {
         subscriptions.push({
-          id: uuidv4(),
+          id: randomUUID(),
           eventType,
           handler
         });

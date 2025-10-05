@@ -2,7 +2,7 @@ import { NebulaProjectManager } from '../../nebula/NebulaProjectManager';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../ProjectIdManager';
-import { INebulaSpaceManager } from '../../nebula/NebulaSpaceManager';
+import { INebulaSpaceManager } from '../../nebula/space/NebulaSpaceManager';
 import { INebulaConnectionManager } from '../../nebula/NebulaConnectionManager';
 import { INebulaQueryBuilder } from '../../nebula/NebulaQueryBuilder';
 import {

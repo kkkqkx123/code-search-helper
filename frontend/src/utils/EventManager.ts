@@ -29,12 +29,12 @@
  * });
  */
 export class EventManager<TEvents extends Record<string, any> = Record<string, any>> {
-  private eventListeners: Map<keyof TEvents, Array<(data: TEvents[keyof TEvents]) => void>> = new Map();
+  private eventListeners: Map<keyof TEvents, Array<(data: any) => void>> = new Map();
   private domEventListeners: Map<Element, Map<string, EventListener>> = new Map();
 
   /**
    * 添加自定义事件监听器
-   * 
+   *
    * @param eventType - 事件类型
    * @param listener - 事件监听器
    */
@@ -45,12 +45,12 @@ export class EventManager<TEvents extends Record<string, any> = Record<string, a
     if (!this.eventListeners.has(eventType)) {
       this.eventListeners.set(eventType, []);
     }
-    this.eventListeners.get(eventType)!.push(listener);
+    this.eventListeners.get(eventType)!.push(listener as (data: any) => void);
   }
 
   /**
    * 移除自定义事件监听器
-   * 
+   *
    * @param eventType - 事件类型
    * @param listener - 要移除的事件监听器
    */
@@ -60,7 +60,7 @@ export class EventManager<TEvents extends Record<string, any> = Record<string, a
   ): void {
     const listeners = this.eventListeners.get(eventType);
     if (listeners) {
-      const index = listeners.indexOf(listener);
+      const index = listeners.indexOf(listener as (data: any) => void);
       if (index > -1) {
         listeners.splice(index, 1);
       }
@@ -248,12 +248,13 @@ export class EventManager<TEvents extends Record<string, any> = Record<string, a
 
   /**
    * 获取特定事件类型的所有监听器
-   * 
+   *
    * @param eventType - 事件类型
    * @returns 监听器数组
    */
   getListeners<K extends keyof TEvents>(eventType: K): Array<(data: TEvents[K]) => void> {
-    return this.eventListeners.get(eventType) || [];
+    const listeners = this.eventListeners.get(eventType) || [];
+    return listeners as Array<(data: TEvents[K]) => void>;
   }
 }
 

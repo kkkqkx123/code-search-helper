@@ -1,4 +1,4 @@
-import { NebulaSpaceManager } from '../../nebula/NebulaSpaceManager';
+import { NebulaSpaceManager } from '../../nebula/space/NebulaSpaceManager';
 import { NebulaService } from '../../nebula/NebulaService';
 import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
 import { LoggerService } from '../../../utils/LoggerService';
@@ -26,7 +26,7 @@ const mockDatabaseLoggerService = {
   logCollectionOperation: jest.fn(),
   logVectorOperation: jest.fn(),
   logQueryOperation: jest.fn(),
- logProjectOperation: jest.fn(),
+  logProjectOperation: jest.fn(),
   updateLogLevel: jest.fn(),
 };
 

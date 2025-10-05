@@ -4,7 +4,7 @@ import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { ProjectIdManager } from '../ProjectIdManager';
-import { INebulaSpaceManager } from './NebulaSpaceManager';
+import { INebulaSpaceManager } from './space/NebulaSpaceManager';
 import { INebulaConnectionManager } from './NebulaConnectionManager';
 import { INebulaQueryBuilder } from './NebulaQueryBuilder';
 import { IProjectManager } from '../common/IDatabaseService';
@@ -319,17 +319,17 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       // 为每个标签创建批量插入语句
       const queries: Array<{ query: string; params: Record<string, any> }> = [];
-      
+
       for (const [label, labelNodes] of Object.entries(nodesByLabel)) {
         const query = `
           INSERT VERTEX ${label}(${Object.keys(labelNodes[0].properties).join(', ')})
           VALUES ${labelNodes.map(node =>
-            `"${node.id}": (${Object.values(node.properties).map(val =>
-              typeof val === 'string' ? `"${val}"` : val
-            ).join(', ')})`
-          ).join(', ')}
+          `"${node.id}": (${Object.values(node.properties).map(val =>
+            typeof val === 'string' ? `"${val}"` : val
+          ).join(', ')})`
+        ).join(', ')}
         `;
-        
+
         queries.push({ query, params: {} });
       }
 
@@ -404,19 +404,19 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       // 为每个类型创建批量插入语句
       const queries: Array<{ query: string; params: Record<string, any> }> = [];
-      
+
       for (const [type, typeRelationships] of Object.entries(relationshipsByType)) {
         const query = `
           INSERT EDGE ${type}(${typeRelationships[0].properties ? Object.keys(typeRelationships[0].properties).join(', ') : ''})
           VALUES ${typeRelationships.map(rel =>
-            `"${rel.sourceId}" -> "${rel.targetId}": ${rel.properties ?
-              `(${Object.values(rel.properties).map(val =>
-                typeof val === 'string' ? `"${val}"` : val
-              ).join(', ')})` : '()'
-            }`
-          ).join(', ')}
+          `"${rel.sourceId}" -> "${rel.targetId}": ${rel.properties ?
+            `(${Object.values(rel.properties).map(val =>
+              typeof val === 'string' ? `"${val}"` : val
+            ).join(', ')})` : '()'
+          }`
+        ).join(', ')}
         `;
-        
+
         queries.push({ query, params: {} });
       }
 
@@ -473,14 +473,14 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       // 构建查询
       let query = `MATCH (v:${label}) WHERE v.projectId == "${projectId}" RETURN v`;
-      
+
       if (filter) {
         const conditions = Object.entries(filter).map(([key, value]) =>
           `v.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
         ).join(' AND ');
         query += ` AND ${conditions}`;
       }
-      
+
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const result = await this.connectionManager.executeQuery(query);
 
@@ -529,14 +529,14 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       // 构建查询
       let query = `MATCH () -[e${type ? `:${type}` : ''}]-> () WHERE e.projectId == "${projectId}" RETURN e`;
-      
+
       if (filter) {
         const conditions = Object.entries(filter).map(([key, value]) =>
           `e.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
         ).join(' AND ');
         query += ` AND ${conditions}`;
       }
-      
+
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const result = await this.connectionManager.executeQuery(query);
 
@@ -608,19 +608,19 @@ export class NebulaProjectManager implements INebulaProjectManager {
           listener(event);
         } catch (err) {
           // 使用 DatabaseLoggerService 记录事件监听器中的错误
-         this.databaseLogger.logDatabaseEvent({
-           type: DatabaseEventType.ERROR_OCCURRED,
-           source: 'nebula',
-           timestamp: new Date(),
-           data: {
-             message: 'Error in event listener',
-             eventType: type,
-             error: err instanceof Error ? err.message : String(err)
-           }
-         }).catch(error => {
-           // 如果日志记录失败，我们不希望影响主流程
-           console.error('Failed to log event listener error:', error);
-         });
+          this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.ERROR_OCCURRED,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: {
+              message: 'Error in event listener',
+              eventType: type,
+              error: err instanceof Error ? err.message : String(err)
+            }
+          }).catch(error => {
+            // 如果日志记录失败，我们不希望影响主流程
+            console.error('Failed to log event listener error:', error);
+          });
         }
       });
     }
@@ -663,11 +663,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
       const success = await this.insertNodesForProject(projectPath, data.nodes);
       if (!success) return false;
     }
-    
+
     if (data.relationships && Array.isArray(data.relationships)) {
       return this.insertRelationshipsForProject(projectPath, data.relationships);
     }
-    
+
     return true;
   }
 

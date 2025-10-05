@@ -228,11 +228,30 @@ export class GraphExplorerPage {
           return;
       }
       
-      if (result.success && result.data.nodes && result.data.edges) {
-        await this.visualizer?.loadGraphData(result.data.nodes, result.data.edges);
-        this.updateNodeCount(result.data.nodes.length);
-        this.updateEdgeCount(result.data.edges.length);
-        this.updateStatus(`查询成功，找到 ${result.data.nodes.length} 个节点和 ${result.data.edges.length} 条边`);
+      if (result.success) {
+        // 检查是否是GraphResult类型（有nodes和edges）
+        if ('nodes' in result.data && 'edges' in result.data) {
+          await this.visualizer?.loadGraphData(result.data.nodes, result.data.edges);
+          this.updateNodeCount(result.data.nodes.length);
+          this.updateEdgeCount(result.data.edges.length);
+          this.updateStatus(`查询成功，找到 ${result.data.nodes.length} 个节点和 ${result.data.edges.length} 条边`);
+        }
+        // 检查是否是PathResult类型（有paths）
+        else if ('paths' in result.data) {
+          // 从路径中提取所有节点和边
+          const allNodes: any[] = [];
+          const allEdges: any[] = [];
+          
+          result.data.paths.forEach(path => {
+            allNodes.push(...path.nodes);
+            allEdges.push(...path.edges);
+          });
+          
+          await this.visualizer?.loadGraphData(allNodes, allEdges);
+          this.updateNodeCount(allNodes.length);
+          this.updateEdgeCount(allEdges.length);
+          this.updateStatus(`路径查询成功，找到 ${result.data.paths.length} 条路径，包含 ${allNodes.length} 个节点和 ${allEdges.length} 条边`);
+        }
       } else {
         this.updateStatus(`查询失败: ${result.message || '未知错误'}`);
       }
@@ -253,15 +272,38 @@ export class GraphExplorerPage {
       const customQuery = `MATCH (n) WHERE n.label CONTAINS "${searchTerm}" RETURN n LIMIT ${options.maxResults}`;
       const result = await this.graphApi.customQuery(customQuery, '');
       
-      if (result.success && result.data.nodes && result.data.edges) {
-        await this.visualizer?.loadGraphData(result.data.nodes, result.data.edges);
-        this.updateNodeCount(result.data.nodes.length);
-        this.updateEdgeCount(result.data.edges.length);
-        this.updateStatus(`搜索完成，找到 ${result.data.nodes.length} 个匹配节点`);
-        
-        // 高亮搜索结果
-        const nodeIds = result.data.nodes.map((node: any) => node.id);
-        this.visualizer?.highlightSearchResults(nodeIds);
+      if (result.success) {
+        // 检查是否是GraphResult类型（有nodes和edges）
+        if ('nodes' in result.data && 'edges' in result.data) {
+          await this.visualizer?.loadGraphData(result.data.nodes, result.data.edges);
+          this.updateNodeCount(result.data.nodes.length);
+          this.updateEdgeCount(result.data.edges.length);
+          this.updateStatus(`搜索完成，找到 ${result.data.nodes.length} 个匹配节点`);
+          
+          // 高亮搜索结果
+          const nodeIds = result.data.nodes.map((node: any) => node.id);
+          this.visualizer?.highlightSearchResults(nodeIds);
+        }
+        // 检查是否是PathResult类型（有paths）
+        else if ('paths' in result.data) {
+          // 从路径中提取所有节点和边
+          const allNodes: any[] = [];
+          const allEdges: any[] = [];
+          
+          result.data.paths.forEach(path => {
+            allNodes.push(...path.nodes);
+            allEdges.push(...path.edges);
+          });
+          
+          await this.visualizer?.loadGraphData(allNodes, allEdges);
+          this.updateNodeCount(allNodes.length);
+          this.updateEdgeCount(allEdges.length);
+          this.updateStatus(`搜索完成，找到 ${result.data.paths.length} 条路径，包含 ${allNodes.length} 个节点`);
+          
+          // 高亮搜索结果
+          const nodeIds = allNodes.map((node: any) => node.id);
+          this.visualizer?.highlightSearchResults(nodeIds);
+        }
       } else {
         this.updateStatus(`搜索失败: ${result.message || '未知错误'}`);
       }

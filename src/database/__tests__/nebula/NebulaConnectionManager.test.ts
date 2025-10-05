@@ -124,8 +124,8 @@ describe('NebulaConnectionManager', () => {
 
   describe('executeQuery (space operations)', () => {
     it('should throw error for invalid space name', async () => {
-      await expect(connectionManager.executeQuery('', 'MATCH (n) RETURN n')).rejects.toThrow('Invalid query:');
-      await expect(connectionManager.executeQuery('undefined', 'MATCH (n) RETURN n')).rejects.toThrow('Invalid query:');
+      await expect(connectionManager.executeQuery('')).rejects.toThrow('Invalid query:');
+      await expect(connectionManager.executeQuery('undefined')).rejects.toThrow('Invalid query:');
     });
 
     it('should execute query directly if already in target space', async () => {
