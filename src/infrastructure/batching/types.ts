@@ -1,3 +1,5 @@
+import { DatabaseType } from '../types';
+
 export interface BatchOptimizerConfig {
   maxConcurrentOperations: number;
   defaultBatchSize: number;
@@ -10,6 +12,14 @@ export interface BatchOptimizerConfig {
   minBatchSize: number;
   performanceThreshold: number;
   adjustmentFactor: number;
+  // 添加数据库特定配置
+  databaseSpecific: {
+    [key in DatabaseType]?: {
+      defaultBatchSize: number;
+      maxBatchSize: number;
+      minBatchSize: number;
+    };
+  };
 }
 
 export interface IBatchOptimizer {
@@ -27,6 +37,12 @@ export interface IBatchOptimizer {
   waitForResources(): Promise<void>;
   estimateProcessingTime(itemCount: number, avgTimePerItem: number): number;
   isBatchSizeAppropriate(batchSize: number): boolean;
+
+  // 扩展接口以支持多数据库类型
+  calculateOptimalGraphBatchSize(
+    operationCount: number,
+    databaseType: DatabaseType
+  ): number;
 }
 
 export interface BatchProcessingOptions {
@@ -35,4 +51,27 @@ export interface BatchProcessingOptions {
   maxRetries?: number;
   retryDelayMs?: number;
   concurrency?: number;
+}
+
+export interface GraphOperation {
+  type: string;
+  query: string;
+  parameters: any;
+}
+
+export interface BatchResult {
+  totalOperations: number;
+  successfulOperations: number;
+  failedOperations: number;
+  totalDuration: number;
+  results: BatchOperationResult[];
+}
+
+export interface BatchOperationResult {
+  batchId: string;
+  success: boolean;
+  duration: number;
+  processedCount: number;
+  result?: any;
+  error?: Error;
 }

@@ -1,3 +1,5 @@
+import { DatabaseType } from '../types';
+
 export interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -16,6 +18,11 @@ export interface ICacheService {
     hitRate: number;
   };
   cleanupExpiredEntries(): void;
+
+  // 扩展接口以支持多数据库类型
+  getDatabaseSpecificCache<T>(key: string, databaseType: DatabaseType): Promise<T | null>;
+  setDatabaseSpecificCache<T>(key: string, value: T, databaseType: DatabaseType, ttl?: number): Promise<void>;
+  invalidateDatabaseCache(databaseType: DatabaseType): Promise<void>;
 }
 
 export interface CacheProvider {
@@ -32,6 +39,13 @@ export interface CacheConfig {
   maxEntries: number;
   cleanupInterval: number;
   enableStats: boolean;
+  // 添加数据库特定配置
+  databaseSpecific: {
+    [key in DatabaseType]?: {
+      defaultTTL: number;
+      maxEntries: number;
+    };
+  };
 }
 
 export interface GraphAnalysisResult {

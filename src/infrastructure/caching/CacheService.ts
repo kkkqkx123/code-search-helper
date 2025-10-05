@@ -1,12 +1,14 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
+import { DatabaseType } from '../types';
 import { ICacheService, CacheEntry, CacheConfig, GraphAnalysisResult } from './types';
 
 @injectable()
 export class CacheService implements ICacheService {
   private logger: LoggerService;
   private cache: Map<string, CacheEntry<any>>;
+  private databaseSpecificCache: Map<DatabaseType, Map<string, CacheEntry<any>>>;
   private config: CacheConfig;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private stats: {
@@ -19,6 +21,11 @@ export class CacheService implements ICacheService {
   ) {
     this.logger = logger;
     this.cache = new Map();
+    this.databaseSpecificCache = new Map();
+    // 初始化数据库特定缓存映射
+    Object.values(DatabaseType).forEach(dbType => {
+      this.databaseSpecificCache.set(dbType, new Map<string, CacheEntry<any>>());
+    });
     this.stats = {
       hitCount: 0,
       missCount: 0,
@@ -29,6 +36,7 @@ export class CacheService implements ICacheService {
       maxEntries: 10000,
       cleanupInterval: 60000, // 1 minute
       enableStats: true,
+      databaseSpecific: {}
     };
 
     this.startCleanupInterval();
@@ -255,5 +263,118 @@ export class CacheService implements ICacheService {
     });
 
     return deletedCount;
+  }
+
+  // 扩展方法：支持多数据库类型的缓存
+  async getDatabaseSpecificCache<T>(key: string, databaseType: DatabaseType): Promise<T | null> {
+    const dbCache = this.databaseSpecificCache.get(databaseType);
+    if (!dbCache) {
+      this.logger.warn('Database-specific cache not found', { databaseType });
+      return null;
+    }
+
+    const entry = dbCache.get(key);
+    if (!entry) {
+      this.logger.debug('Database-specific cache miss', { key, databaseType });
+      return null;
+    }
+
+    // Check if entry is expired
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      dbCache.delete(key);
+      this.logger.debug('Database-specific cache entry expired', { key, databaseType });
+      return null;
+    }
+
+    this.logger.debug('Database-specific cache hit', { key, databaseType });
+    return entry.data as T;
+  }
+
+  async setDatabaseSpecificCache<T>(key: string, value: T, databaseType: DatabaseType, ttl?: number): Promise<void> {
+    const dbCache = this.databaseSpecificCache.get(databaseType);
+    if (!dbCache) {
+      this.logger.warn('Database-specific cache not found', { databaseType });
+      return;
+    }
+
+    // 获取特定数据库类型的配置
+    const dbConfig = this.config.databaseSpecific[databaseType] || {
+      defaultTTL: this.config.defaultTTL,
+      maxEntries: this.config.maxEntries
+    };
+
+    // 检查是否需要驱逐条目
+    if (dbCache.size >= dbConfig.maxEntries) {
+      this.evictDatabaseSpecificEntries(databaseType);
+    }
+
+    const effectiveTTL = ttl !== undefined ? ttl : dbConfig.defaultTTL;
+
+    const entry: CacheEntry<T> = {
+      data: value,
+      timestamp: Date.now(),
+      ttl: effectiveTTL,
+    };
+
+    dbCache.set(key, entry);
+    this.logger.debug('Database-specific cache entry set', { key, databaseType, ttl: effectiveTTL });
+  }
+
+  async invalidateDatabaseCache(databaseType: DatabaseType): Promise<void> {
+    const dbCache = this.databaseSpecificCache.get(databaseType);
+    if (dbCache) {
+      const size = dbCache.size;
+      dbCache.clear();
+      this.logger.info('Database-specific cache invalidated', { databaseType, entriesRemoved: size });
+    } else {
+      this.logger.warn('Database-specific cache not found for invalidation', { databaseType });
+    }
+  }
+
+  private evictDatabaseSpecificEntries(databaseType: DatabaseType): void {
+    const dbCache = this.databaseSpecificCache.get(databaseType);
+    if (!dbCache) return;
+
+    // 获取特定数据库类型的配置
+    const dbConfig = this.config.databaseSpecific[databaseType] || {
+      defaultTTL: this.config.defaultTTL,
+      maxEntries: this.config.maxEntries
+    };
+
+    // 简单的LRU驱逐：删除最老的10%条目
+    const entriesToRemove = Math.ceil(dbCache.size * 0.1);
+    const keys = Array.from(dbCache.keys());
+
+    for (let i = 0; i < entriesToRemove && i < keys.length; i++) {
+      dbCache.delete(keys[i]);
+    }
+
+    this.logger.info('Evicted database-specific cache entries due to size limit', {
+      databaseType,
+      entriesRemoved: entriesToRemove,
+      remainingEntries: dbCache.size
+    });
+  }
+
+  // 专门用于Nebula图数据的缓存方法
+  async cacheNebulaGraphData(spaceName: string, data: any): Promise<void> {
+    const key = `nebula:graph:${spaceName}`;
+    await this.setDatabaseSpecificCache(key, data, DatabaseType.NEBULA);
+  }
+
+  async getNebulaGraphData(spaceName: string): Promise<any | null> {
+    const key = `nebula:graph:${spaceName}`;
+    return await this.getDatabaseSpecificCache(key, DatabaseType.NEBULA);
+  }
+
+  // 专门用于Qdrant向量数据的缓存方法
+  async cacheVectorData(collectionName: string, data: any): Promise<void> {
+    const key = `qdrant:vector:${collectionName}`;
+    await this.setDatabaseSpecificCache(key, data, DatabaseType.QDRANT);
+  }
+
+  async getVectorData(collectionName: string): Promise<any | null> {
+    const key = `qdrant:vector:${collectionName}`;
+    return await this.getDatabaseSpecificCache(key, DatabaseType.QDRANT);
   }
 }

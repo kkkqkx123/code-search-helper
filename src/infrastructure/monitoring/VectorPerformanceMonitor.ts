@@ -1,11 +1,21 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { DatabaseType } from '../types';
-import { IPerformanceMonitor, PerformanceMetrics, GraphDatabaseMetric, VectorOperationMetric } from './types';
+import { PerformanceMetrics, VectorOperationMetric } from './types';
+import { IPerformanceMonitor } from './types';
+
+export interface VectorCollectionMetrics {
+  totalVectors: number;
+  averageDimension: number;
+  storageSize: number;
+  insertionRate: number;
+  queryRate: number;
+  averageQueryTime: number;
+  timestamp: number;
+}
 
 @injectable()
-export class PerformanceMonitor implements IPerformanceMonitor {
+export class VectorPerformanceMonitor implements IPerformanceMonitor {
   private logger: LoggerService;
   private metrics: PerformanceMetrics;
   private monitoringInterval: NodeJS.Timeout | null = null;
@@ -15,15 +25,18 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   private batchSizes: number[] = [];
   private batchSuccesses: number = 0;
   private batchFailures: number = 0;
-  // 添加数据库特定的指标
-  private nebulaOperationMetrics: GraphDatabaseMetric[] = [];
+  // 特定于向量操作的指标
   private vectorOperationMetrics: VectorOperationMetric[] = [];
+  private collectionMetrics: Map<string, VectorCollectionMetrics> = new Map();
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService
   ) {
     this.logger = logger;
     this.metrics = this.initializeMetrics();
+  }
+  recordNebulaOperation(operation: string, spaceName: string, duration: number, success: boolean): Promise<void> {
+    throw new Error('Method not implemented.');
   }
 
   private initializeMetrics(): PerformanceMetrics {
@@ -48,11 +61,11 @@ export class PerformanceMonitor implements IPerformanceMonitor {
 
   startPeriodicMonitoring(intervalMs: number = 30000): void {
     if (this.monitoringInterval) {
-      this.logger.warn('Performance monitoring is already running');
+      this.logger.warn('Vector performance monitoring is already running');
       return;
     }
 
-    this.logger.info('Starting periodic performance monitoring', { intervalMs });
+    this.logger.info('Starting periodic vector performance monitoring', { intervalMs });
 
     this.monitoringInterval = setInterval(() => {
       this.collectSystemMetrics();
@@ -69,9 +82,9 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
-      this.logger.info('Stopped periodic performance monitoring');
+      this.logger.info('Stopped periodic vector performance monitoring');
     } else {
-      this.logger.warn('Performance monitoring is not running');
+      this.logger.warn('Vector performance monitoring is not running');
     }
   }
 
@@ -138,13 +151,15 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   }
 
   resetMetrics(): void {
-    this.logger.info('Resetting performance metrics');
+    this.logger.info('Resetting vector performance metrics');
     this.queryExecutionTimes = [];
     this.cacheHits = 0;
     this.cacheMisses = 0;
     this.batchSizes = [];
     this.batchSuccesses = 0;
     this.batchFailures = 0;
+    this.vectorOperationMetrics = [];
+    this.collectionMetrics.clear();
     this.metrics = this.initializeMetrics();
   }
 
@@ -191,7 +206,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   private logMetricsSummary(): void {
     const metrics = this.getMetrics();
 
-    this.logger.info('Performance metrics summary', {
+    this.logger.info('Vector performance metrics summary', {
       averageQueryTime: `${metrics.averageQueryTime.toFixed(2)}ms`,
       cacheHitRate: `${(metrics.cacheHitRate * 100).toFixed(2)}%`,
       memoryUsage: `${metrics.memoryUsage.percentage.toFixed(2)}%`,
@@ -250,45 +265,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     };
   }
 
-  // 扩展方法：记录Nebula操作指标
-  async recordNebulaOperation(
-    operation: string,
-    spaceName: string,
-    duration: number,
-    success: boolean
-  ): Promise<void> {
-    const metric: GraphDatabaseMetric = {
-      databaseType: DatabaseType.NEBULA,
-      operation,
-      spaceName,
-      duration,
-      success,
-      timestamp: Date.now(),
-      metadata: {
-        vertexCount: 0, // 从操作结果中获取
-        edgeCount: 0    // 从操作结果中获取
-      }
-    };
-
-    // 保留最近的1000个指标
-    if (this.nebulaOperationMetrics.length >= 1000) {
-      this.nebulaOperationMetrics = this.nebulaOperationMetrics.slice(-500); // 保留一半
-    }
-
-    this.nebulaOperationMetrics.push(metric);
-
-    this.logger.debug('Recorded Nebula operation metric', {
-      operation,
-      spaceName,
-      duration,
-      success
-    });
-
-    // 检查健康状态
-    await this.checkNebulaHealth(spaceName, success, duration);
-  }
-
-  // 扩展方法：记录向量操作指标
+  // 向量操作性能监控方法
   async recordVectorOperation(
     operation: 'insert' | 'search' | 'update' | 'delete',
     collectionName: string,
@@ -305,7 +282,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
       duration,
       success,
       timestamp: Date.now(),
-      throughput: vectorCount / (duration / 1000) // 向量/秒
+      throughput: vectorCount / (duration / 1000) // vectors per second
     };
 
     // 保留最近的1000个指标
@@ -325,28 +302,13 @@ export class PerformanceMonitor implements IPerformanceMonitor {
       throughput: metric.throughput
     });
 
+    // 更新集合级别的指标
+    await this.updateCollectionMetrics(collectionName, operation, vectorCount, duration, success);
+
     // 检查性能阈值
     if (success && this.shouldAlertOnPerformance(operation, duration, vectorCount)) {
       await this.sendPerformanceAlert(operation, collectionName, duration, vectorCount);
     }
-  }
-
-  private async checkNebulaHealth(spaceName: string, success: boolean, duration: number): Promise<void> {
-    const healthStatus = this.calculateHealthStatus(success, duration);
-
-    if (healthStatus !== 'healthy') {
-      this.logger.warn(`Nebula graph space ${spaceName} is ${healthStatus}`, {
-        duration,
-        success
-      });
-    }
-  }
-
-  private calculateHealthStatus(success: boolean, duration: number): 'healthy' | 'degraded' | 'critical' {
-    if (!success) return 'critical';
-    // 假设超过1秒的查询为降级状态
-    if (duration > 1000) return 'degraded';
-    return 'healthy';
   }
 
   private shouldAlertOnPerformance(
@@ -354,9 +316,17 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     duration: number,
     vectorCount: number
   ): boolean {
-    // 假设平均每个向量操作超过100ms需要警报
+    const thresholds: { [key: string]: number } = {
+      'insert': 100, // 每个向量插入操作超过100ms需要警报
+      'search': 200, // 每个向量搜索操作超过200ms需要警报
+      'update': 150, // 每个向量更新操作超过150ms需要警报
+      'delete': 100  // 每个向量删除操作超过100ms需要警报
+    };
+
     const avgDurationPerVector = duration / vectorCount;
-    return avgDurationPerVector > 100;
+    const threshold = thresholds[operation as 'insert' | 'search' | 'update' | 'delete'] || 100;
+
+    return avgDurationPerVector > threshold;
   }
 
   private async sendPerformanceAlert(
@@ -369,7 +339,100 @@ export class PerformanceMonitor implements IPerformanceMonitor {
       operation,
       collectionName,
       duration,
-      vectorCount
+      vectorCount,
+      avgDurationPerVector: duration / vectorCount
     });
+  }
+
+  private async updateCollectionMetrics(
+    collectionName: string,
+    operation: string,
+    vectorCount: number,
+    duration: number,
+    success: boolean
+  ): Promise<void> {
+    if (!this.collectionMetrics.has(collectionName)) {
+      this.collectionMetrics.set(collectionName, {
+        totalVectors: 0,
+        averageDimension: 0,
+        storageSize: 0,
+        insertionRate: 0,
+        queryRate: 0,
+        averageQueryTime: 0,
+        timestamp: Date.now()
+      });
+    }
+
+    const metrics = this.collectionMetrics.get(collectionName)!;
+
+    // 更新集合指标
+    switch (operation) {
+      case 'insert':
+        metrics.totalVectors += vectorCount;
+        metrics.averageDimension = (metrics.averageDimension + vectorCount) / 2; // 简单平均
+        metrics.insertionRate = metrics.insertionRate || 0;
+        metrics.insertionRate += vectorCount / (duration / 1000); // 向量/秒
+        break;
+      case 'search':
+        metrics.queryRate = metrics.queryRate || 0;
+        metrics.queryRate += 1 / (duration / 1000); // 查询/秒
+        metrics.averageQueryTime = (metrics.averageQueryTime + duration) / 2; // 简单平均
+        break;
+    }
+
+    metrics.timestamp = Date.now();
+  }
+
+  async getVectorCollectionMetrics(collectionName: string): Promise<VectorCollectionMetrics | null> {
+    return this.collectionMetrics.get(collectionName) || null;
+  }
+
+  // 生成向量操作报告
+  generateVectorOperationReport(): {
+    totalOperations: number;
+    operationBreakdown: { [key: string]: number };
+    successRate: number;
+    avgDuration: number;
+    avgThroughput: number;
+    byCollection: { [key: string]: number };
+  } {
+    if (this.vectorOperationMetrics.length === 0) {
+      return {
+        totalOperations: 0,
+        operationBreakdown: {},
+        successRate: 0,
+        avgDuration: 0,
+        avgThroughput: 0,
+        byCollection: {}
+      };
+    }
+
+    const totalOperations = this.vectorOperationMetrics.length;
+    const successfulOperations = this.vectorOperationMetrics.filter(m => m.success).length;
+    const successRate = successfulOperations / totalOperations;
+
+    const totalDuration = this.vectorOperationMetrics.reduce((sum, m) => sum + m.duration, 0);
+    const avgDuration = totalDuration / totalOperations;
+
+    const totalThroughput = this.vectorOperationMetrics.reduce((sum, m) => sum + m.throughput, 0);
+    const avgThroughput = totalThroughput / totalOperations;
+
+    // 按操作类型统计
+    const operationBreakdown: { [key: string]: number } = {};
+    const byCollection: { [key: string]: number } = {};
+
+    this.vectorOperationMetrics.forEach(metric => {
+      operationBreakdown[metric.operation] = (operationBreakdown[metric.operation] || 0) + 1;
+      byCollection[metric.collectionName] = (byCollection[metric.collectionName] || 0) + 1;
+    });
+
+    return {
+      totalOperations,
+      operationBreakdown,
+      successRate,
+      avgDuration,
+      avgThroughput,
+      byCollection
+    };
   }
 }
