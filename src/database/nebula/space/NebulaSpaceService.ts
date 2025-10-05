@@ -378,8 +378,13 @@ export class NebulaSpaceService implements INebulaSpaceService {
         console.error('Failed to log space connection info:', error);
       });
 
-      // 使用连接管理器的 getConnectionForSpace 方法
-      const connection = await (this.connectionManager as any).getConnectionForSpace(space);
+      // 切换到指定空间
+      const result = await this.connectionManager.executeQuery(`USE \`${space}\``);
+      if (result.error) {
+        throw new Error(`Failed to switch to space ${space}: ${result.error}`);
+      }
+      // 返回连接管理器的实例
+      return this.connectionManager;
 
       // 使用 DatabaseLoggerService 记录获取空间连接成功信息
       this.databaseLogger.logDatabaseEvent({
@@ -394,7 +399,7 @@ export class NebulaSpaceService implements INebulaSpaceService {
         console.error('Failed to log space connection success:', error);
       });
 
-      return connection;
+      return this.connectionManager;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(
@@ -436,8 +441,14 @@ export class NebulaSpaceService implements INebulaSpaceService {
         console.error('Failed to log space query execution info:', error);
       });
 
-      // 使用连接管理器的 executeQueryInSpace 方法
-      const result = await (this.connectionManager as any).executeQueryInSpace(space, query, parameters);
+      // 切换到指定空间
+      const switchResult = await this.connectionManager.executeQuery(`USE \`${space}\``);
+      if (switchResult.error) {
+        throw new Error(`Failed to switch to space ${space}: ${switchResult.error}`);
+      }
+      
+      // 执行查询
+      const queryResult = await this.connectionManager.executeQuery(query, parameters);
 
       // 使用 DatabaseLoggerService 记录在空间中执行查询成功信息
       this.databaseLogger.logDatabaseEvent({
@@ -447,14 +458,14 @@ export class NebulaSpaceService implements INebulaSpaceService {
         data: {
           message: 'Query executed in space successfully',
           space,
-          hasResult: !!result,
-          hasError: !!result?.error
+          hasResult: !!queryResult,
+          hasError: !!queryResult?.error
         }
       }).catch(error => {
         console.error('Failed to log space query execution success:', error);
       });
 
-      return result;
+      return queryResult;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(

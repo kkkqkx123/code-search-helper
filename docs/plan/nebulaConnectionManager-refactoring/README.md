@@ -1,0 +1,17 @@
+该方案是对nebulaConnectionManager.ts文件的重构，将其中的功能拆分出来，以便更好地维护和扩展。
+
+立即行动：
+从 NebulaConnectionManager 移除 executeQueryInSpace 和 getConnectionForSpace 方法
+让 NebulaSpaceService 直接使用基础的 executeQuery 方法实现空间相关功能
+创建 NebulaQueryUtils 工具类集中处理参数插值和转义逻辑
+
+中期优化：
+提取事件系统到单独的 NebulaEventManager
+创建 NebulaResultFormatter 专门处理结果格式化
+优化连接池管理实现
+
+架构改进：
+建立清晰的接口契约，避免类型断言
+实现真正的依赖倒置，高层模块不应依赖低层模块的具体实现
+
+具体的实现方案参考docs\plan\nebulaConnectionManager-refactoring目录的内容及nebulaConnectionManager.ts文件，将该文件中的功能拆分出来
