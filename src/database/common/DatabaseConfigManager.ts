@@ -22,7 +22,7 @@ export interface IConfigManager {
   removeDatabaseConfig(type: DatabaseType): void;
   getAllConfigs(): Map<DatabaseType, DatabaseConfig>;
   validateConfig(config: DatabaseConfig): boolean;
- getCurrentEnvironment(): EnvironmentType;
+  getCurrentEnvironment(): EnvironmentType;
   setCurrentEnvironment(env: EnvironmentType): void;
 }
 
@@ -40,104 +40,82 @@ export class DatabaseConfigManager implements IConfigManager {
     if (databaseLogger) {
       this.databaseLogger = databaseLogger;
     } else {
-      // 创建一个基本的logger实现，继承DatabaseLoggerService类
-      this.databaseLogger = new (class extends DatabaseLoggerService {
-        constructor() {
-          // 传入必要参数，传入null或mock对象
-          super(null as any, null as any);
-        }
-
-        // 重写方法以避免依赖
-        async logDatabaseEvent(event: DatabaseEvent): Promise<void> {
-          console.log('Database event:', event);
-        }
-
-        async logQueryPerformance(query: string, duration: number, resultCount?: number): Promise<void> {
-          console.log(`Query performance: ${query} took ${duration}ms, returned ${resultCount} results`);
-        }
-
-        async logConnectionEvent(operation: string, status: 'success' | 'failed', details: any): Promise<void> {
-          console.log(`Connection event: ${operation} ${status}`, details);
-        }
-
-        async logBatchOperation(operation: string, batchSize: number, performance: any): Promise<void> {
-          console.log(`Batch operation: ${operation} with ${batchSize} items`, performance);
-        }
-
-        async logCollectionOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
-          console.log(`Collection operation: ${operation} for ${projectPath} ${status}`, details);
-        }
-
-        async logVectorOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
-          console.log(`Vector operation: ${operation} for ${projectPath} ${status}`, details);
-        }
-
-        async logQueryOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
-          console.log(`Query operation: ${operation} for ${projectPath} ${status}`, details);
-        }
-
-        async logProjectOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
-          console.log(`Project operation: ${operation} for ${projectPath} ${status}`, details);
-        }
-
-        updateLogLevel(level: string): void {
-          // 空实现
-          console.log(`Log level updated to: ${level}`);
-        }
-      })();
-    }
-
-    this.loadDefaultConfigs();
-  }
-
-  constructor(databaseLogger?: DatabaseLoggerService) {
-    if (databaseLogger) {
-      this.databaseLogger = databaseLogger;
-    } else {
       // 创建一个基本的logger实现
+      let databaseLogLevel = 'info';
       this.databaseLogger = {
         loggerService: null as any,
         configService: null as any,
-        databaseLogLevel: 'info',
-        
+        databaseLogLevel: databaseLogLevel,
+
         async logDatabaseEvent(event: any): Promise<void> {
           console.log('Database event:', event);
         },
-        
+
         async logQueryPerformance(query: string, duration: number, resultCount?: number): Promise<void> {
           console.log(`Query performance: ${query} took ${duration}ms, returned ${resultCount} results`);
         },
-        
+
         async logConnectionEvent(operation: string, status: 'success' | 'failed', details: any): Promise<void> {
           console.log(`Connection event: ${operation} ${status}`, details);
         },
-        
+
         async logBatchOperation(operation: string, batchSize: number, performance: any): Promise<void> {
           console.log(`Batch operation: ${operation} with ${batchSize} items`, performance);
         },
-        
+
         async logCollectionOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
           console.log(`Collection operation: ${operation} for ${projectPath} ${status}`, details);
         },
-        
+
         async logVectorOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
           console.log(`Vector operation: ${operation} for ${projectPath} ${status}`, details);
         },
-        
+
         async logQueryOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
           console.log(`Query operation: ${operation} for ${projectPath} ${status}`, details);
         },
-        
+
         async logProjectOperation(operation: string, projectPath: string, status: 'success' | 'failed', details: any): Promise<void> {
           console.log(`Project operation: ${operation} for ${projectPath} ${status}`, details);
         },
-        
+
         updateLogLevel(level: string): void {
-          this.databaseLogLevel = level;
+          databaseLogLevel = level;
+          // 更新属性值以反映当前状态
+          (this as any).databaseLogLevel = level;
+        },
+
+        getLogLevelForEvent(eventType: string): string {
+          const defaultMapping: Record<string, string> = {
+            'connection_opened': 'info',
+            'connection_closed': 'info',
+            'connection_failed': 'error',
+            'connection_error': 'error',
+            'space_created': 'info',
+            'space_deleted': 'info',
+            'space_error': 'error',
+            'data_inserted': 'debug',
+            'data_updated': 'debug',
+            'data_deleted': 'debug',
+            'data_queried': 'debug',
+            'data_error': 'error',
+            'service_initialized': 'info',
+            'service_error': 'error',
+            'performance_metric': 'info',
+            'query_executed': 'debug',
+            'batch_operation_completed': 'info',
+            'error_occurred': 'error'
+          };
+
+          return defaultMapping[eventType] || databaseLogLevel;
+        },
+
+        getPerformanceThreshold(): number {
+          return 1000;
         }
-      };
+      } as unknown as DatabaseLoggerService;
     }
-    
+
     this.loadDefaultConfigs();
   }
 
@@ -187,9 +165,9 @@ export class DatabaseConfigManager implements IConfigManager {
     }
   }
 
- /**
-   * 从环境变量加载配置
-   */
+  /**
+    * 从环境变量加载配置
+    */
   private loadConfigsFromEnv(): void {
     // 从环境变量加载Qdrant配置
     const qdrantHost = process.env.QDRANT_HOST;
@@ -243,7 +221,7 @@ export class DatabaseConfigManager implements IConfigManager {
    */
   getDatabaseConfig(type: DatabaseType): DatabaseConfig | null {
     const config = this.configs.get(type);
-    
+
     // 记录配置访问事件
     this.databaseLogger.logDatabaseEvent({
       type: DatabaseEventType.CONFIG_ACCESSED,
@@ -269,8 +247,8 @@ export class DatabaseConfigManager implements IConfigManager {
     if (!this.validateConfig(config)) {
       throw DatabaseError.validationError(
         `Invalid configuration for database type: ${type}`,
-        { 
-          component: 'DatabaseConfigManager', 
+        {
+          component: 'DatabaseConfigManager',
           operation: 'setDatabaseConfig',
           details: { type, config }
         }
@@ -281,8 +259,8 @@ export class DatabaseConfigManager implements IConfigManager {
     if (config.type !== type) {
       throw DatabaseError.validationError(
         `Configuration type mismatch: expected ${type}, got ${config.type}`,
-        { 
-          component: 'DatabaseConfigManager', 
+        {
+          component: 'DatabaseConfigManager',
           operation: 'setDatabaseConfig',
           details: { type, configType: config.type }
         }
@@ -324,7 +302,7 @@ export class DatabaseConfigManager implements IConfigManager {
     }).catch(error => {
       console.error('Failed to log config removal event:', error);
     });
- }
+  }
 
   /**
    * 获取所有配置
@@ -417,7 +395,7 @@ export class DatabaseConfigManager implements IConfigManager {
   reloadConfigs(): void {
     // 清除现有配置
     this.configs.clear();
-    
+
     // 重新加载配置
     this.loadDefaultConfigs();
 

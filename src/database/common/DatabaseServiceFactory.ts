@@ -7,6 +7,8 @@ import { DatabaseConfigManager } from './DatabaseConfigManager';
 import { DatabaseLoggerService } from './DatabaseLoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { DatabaseError, DatabaseErrorType } from './DatabaseError';
+import { diContainer } from '../../core/DIContainer';  // 导入DI容器
+import { DatabaseEventType } from './DatabaseEventTypes';  // 导入事件类型
 
 /**
  * 数据库类型枚举
@@ -20,7 +22,7 @@ export enum DatabaseType {
  * 数据库配置接口
  */
 export interface DatabaseConfig {
- type: DatabaseType;
+  type: DatabaseType;
   connection: ConnectionConfig;
   pool?: PoolConfig;
   features: FeatureConfig;
@@ -32,8 +34,8 @@ export interface DatabaseConfig {
 export interface ConnectionConfig {
   host: string;
   port: number;
- username?: string;
- password?: string;
+  username?: string;
+  password?: string;
   apiKey?: string;
   timeout?: number;
   retryAttempts?: number;
@@ -65,11 +67,15 @@ export interface FeatureConfig {
  */
 @injectable()
 export class DatabaseServiceFactory {
+  private configManager: DatabaseConfigManager;
+  
   constructor(
-    @inject(TYPES.DatabaseConfigManager) private configManager: DatabaseConfigManager,
     @inject(TYPES.DatabaseLoggerService) private logger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService
-  ) {}
+  ) {
+    // 创建DatabaseConfigManager实例
+    this.configManager = new DatabaseConfigManager(this.logger);
+  }
 
   /**
    * 根据配置创建数据库服务实例
@@ -91,8 +97,8 @@ export class DatabaseServiceFactory {
         default:
           throw DatabaseError.configurationError(
             `Unsupported database type: ${config.type}`,
-            { 
-              component: 'DatabaseServiceFactory', 
+            {
+              component: 'DatabaseServiceFactory',
               operation: 'createService',
               details: { config }
             }
@@ -101,10 +107,10 @@ export class DatabaseServiceFactory {
 
       // 记录服务创建事件
       await this.logger.logDatabaseEvent({
-        type: 'SERVICE_CREATED',
+        type: DatabaseEventType.SERVICE_INITIALIZED,
         source: config.type,
         timestamp: new Date(),
-        data: { 
+        data: {
           config,
           serviceType: config.type
         }
@@ -114,8 +120,8 @@ export class DatabaseServiceFactory {
     } catch (error) {
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
-        { 
-          component: 'DatabaseServiceFactory', 
+        {
+          component: 'DatabaseServiceFactory',
           operation: 'createService',
           details: { config }
         }
@@ -130,26 +136,11 @@ export class DatabaseServiceFactory {
    * 创建Qdrant服务实例
    */
   private async createQdrantService(config: DatabaseConfig): Promise<QdrantService> {
-    // 这里需要从容器中获取Qdrant服务的依赖项
-    // 由于依赖注入的复杂性，这里我们简单地返回一个实例
-    // 在实际实现中，您可能需要使用InversifyJS的Container来获取依赖
+    // 从DI容器获取QdrantService实例
     try {
-      // 模拟从容器获取依赖
-      const qdrantService = new QdrantService(
-        // @ts-ignore - 在实际实现中，这些依赖将从容器中注入
-        null, // configService
-        null, // loggerService
-        null, // errorHandlerService
-        null, // projectIdManager
-        null, // connectionManager
-        null, // collectionManager
-        null, // vectorOperations
-        null, // queryUtils
-        null, // projectManager
-        this.logger,
-        null // performanceMonitor
-      );
-
+      // 从DI容器获取QdrantService实例
+      const qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
+      
       // 配置Qdrant服务
       await this.configureService(qdrantService, config);
 
@@ -157,8 +148,8 @@ export class DatabaseServiceFactory {
     } catch (error) {
       throw DatabaseError.internalError(
         `Failed to create Qdrant service: ${error instanceof Error ? error.message : String(error)}`,
-        { 
-          component: 'DatabaseServiceFactory', 
+        {
+          component: 'DatabaseServiceFactory',
           operation: 'createQdrantService',
           details: { config }
         },
@@ -172,19 +163,9 @@ export class DatabaseServiceFactory {
    */
   private async createNebulaService(config: DatabaseConfig): Promise<NebulaService> {
     try {
-      // 模拟从容器获取依赖
-      const nebulaService = new NebulaService(
-        // @ts-ignore - 在实际实现中，这些依赖将从容器中注入
-        this.logger,
-        null, // errorHandler
-        null, // configService
-        null, // connectionManager
-        null, // dataService
-        null, // spaceService
-        null, // queryBuilder
-        null // projectManager
-      );
-
+      // 从DI容器获取NebulaService实例
+      const nebulaService = diContainer.get<NebulaService>(TYPES.INebulaService);
+      
       // 配置Nebula服务
       await this.configureService(nebulaService, config);
 
@@ -192,15 +173,15 @@ export class DatabaseServiceFactory {
     } catch (error) {
       throw DatabaseError.internalError(
         `Failed to create Nebula service: ${error instanceof Error ? error.message : String(error)}`,
-        { 
-          component: 'DatabaseServiceFactory', 
+        {
+          component: 'DatabaseServiceFactory',
           operation: 'createNebulaService',
           details: { config }
         },
         error instanceof Error ? error : new Error(String(error))
       );
     }
- }
+  }
 
   /**
    * 配置服务
@@ -218,8 +199,8 @@ export class DatabaseServiceFactory {
     if (!config || typeof config !== 'object') {
       throw DatabaseError.validationError(
         'Config must be a valid object',
-        { 
-          component: 'DatabaseServiceFactory', 
+        {
+          component: 'DatabaseServiceFactory',
           operation: 'validateConfig',
           details: { config }
         }
@@ -229,8 +210,8 @@ export class DatabaseServiceFactory {
     if (!config.type || !Object.values(DatabaseType).includes(config.type)) {
       throw DatabaseError.validationError(
         `Invalid database type: ${config.type}. Must be one of: ${Object.values(DatabaseType).join(', ')}`,
-        { 
-          component: 'DatabaseServiceFactory', 
+        {
+          component: 'DatabaseServiceFactory',
           operation: 'validateConfig',
           details: { config }
         }
@@ -240,8 +221,8 @@ export class DatabaseServiceFactory {
     if (!config.connection || typeof config.connection !== 'object') {
       throw DatabaseError.validationError(
         'Connection config must be a valid object',
-        { 
-          component: 'DatabaseServiceFactory', 
+        {
+          component: 'DatabaseServiceFactory',
           operation: 'validateConfig',
           details: { config }
         }
@@ -251,8 +232,8 @@ export class DatabaseServiceFactory {
     if (!config.connection.host || typeof config.connection.host !== 'string') {
       throw DatabaseError.validationError(
         'Connection host must be a non-empty string',
-        { 
-          component: 'DatabaseServiceFactory', 
+        {
+          component: 'DatabaseServiceFactory',
           operation: 'validateConfig',
           details: { config }
         }
@@ -262,8 +243,8 @@ export class DatabaseServiceFactory {
     if (typeof config.connection.port !== 'number' || config.connection.port <= 0) {
       throw DatabaseError.validationError(
         'Connection port must be a positive number',
-        { 
-          component: 'DatabaseServiceFactory', 
+        {
+          component: 'DatabaseServiceFactory',
           operation: 'validateConfig',
           details: { config }
         }

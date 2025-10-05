@@ -5,7 +5,7 @@ import { DatabaseError, DatabaseErrorType } from './DatabaseError';
  * 提供统一的输入验证和参数检查功能
  */
 export class DatabaseServiceValidator {
-  
+
   /**
    * 验证项目路径
    */
@@ -13,8 +13,8 @@ export class DatabaseServiceValidator {
     if (!projectPath || typeof projectPath !== 'string') {
       throw DatabaseError.validationError(
         'Project path must be a non-empty string',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateProjectPath',
           details: { projectPath }
         }
@@ -25,8 +25,8 @@ export class DatabaseServiceValidator {
     if (/[<>:"/\\|?*]/.test(projectPath)) {
       throw DatabaseError.validationError(
         'Project path contains invalid characters',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateProjectPath',
           details: { projectPath }
         }
@@ -41,8 +41,8 @@ export class DatabaseServiceValidator {
     if (!id || typeof id !== 'string') {
       throw DatabaseError.validationError(
         'ID must be a non-empty string',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateId',
           details: { id }
         }
@@ -52,8 +52,8 @@ export class DatabaseServiceValidator {
     if (id.length > 100) {
       throw DatabaseError.validationError(
         'ID is too long (max 100 characters)',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateId',
           details: { id }
         }
@@ -68,8 +68,8 @@ export class DatabaseServiceValidator {
     if (data === null || data === undefined) {
       throw DatabaseError.validationError(
         'Data cannot be null or undefined',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateData',
           details: { data }
         }
@@ -79,8 +79,8 @@ export class DatabaseServiceValidator {
     if (typeof data !== 'object') {
       throw DatabaseError.validationError(
         'Data must be an object',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateData',
           details: { data }
         }
@@ -95,8 +95,8 @@ export class DatabaseServiceValidator {
     if (query === null || query === undefined) {
       throw DatabaseError.validationError(
         'Query cannot be null or undefined',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateQuery',
           details: { query }
         }
@@ -106,8 +106,8 @@ export class DatabaseServiceValidator {
     if (typeof query !== 'object' && typeof query !== 'string') {
       throw DatabaseError.validationError(
         'Query must be an object or string',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateQuery',
           details: { query }
         }
@@ -115,15 +115,15 @@ export class DatabaseServiceValidator {
     }
   }
 
- /**
-   * 验证配置对象
-   */
+  /**
+    * 验证配置对象
+    */
   static validateConfig(config: any): void {
     if (config !== null && config !== undefined && typeof config !== 'object') {
       throw DatabaseError.validationError(
         'Config must be an object, null, or undefined',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateConfig',
           details: { config }
         }
@@ -138,8 +138,8 @@ export class DatabaseServiceValidator {
     if (!spaceName || typeof spaceName !== 'string') {
       throw DatabaseError.validationError(
         'Space name must be a non-empty string',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateSpaceName',
           details: { spaceName }
         }
@@ -150,8 +150,8 @@ export class DatabaseServiceValidator {
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(spaceName)) {
       throw DatabaseError.validationError(
         'Space name must start with a letter or underscore and contain only letters, numbers, and underscores',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateSpaceName',
           details: { spaceName }
         }
@@ -161,8 +161,8 @@ export class DatabaseServiceValidator {
     if (spaceName.length > 64) {
       throw DatabaseError.validationError(
         'Space name is too long (max 64 characters)',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateSpaceName',
           details: { spaceName }
         }
@@ -177,8 +177,8 @@ export class DatabaseServiceValidator {
     if (!collectionName || typeof collectionName !== 'string') {
       throw DatabaseError.validationError(
         'Collection name must be a non-empty string',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateCollectionName',
           details: { collectionName }
         }
@@ -189,8 +189,8 @@ export class DatabaseServiceValidator {
     if (!/^[a-zA-Z0-9_-][a-zA-Z0-9_.-]*$/.test(collectionName)) {
       throw DatabaseError.validationError(
         'Collection name contains invalid characters',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateCollectionName',
           details: { collectionName }
         }
@@ -200,8 +200,8 @@ export class DatabaseServiceValidator {
     if (collectionName.length > 255) {
       throw DatabaseError.validationError(
         'Collection name is too long (max 255 characters)',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateCollectionName',
           details: { collectionName }
         }
@@ -216,8 +216,8 @@ export class DatabaseServiceValidator {
     if (typeof vectorSize !== 'number' || vectorSize <= 0 || vectorSize > 65536) {
       throw DatabaseError.validationError(
         'Vector size must be a positive number between 1 and 65536',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateVectorSize',
           details: { vectorSize }
         }
@@ -228,12 +228,12 @@ export class DatabaseServiceValidator {
   /**
    * 验证点ID列表
    */
- static validatePointIds(pointIds: string[]): void {
+  static validatePointIds(pointIds: string[]): void {
     if (!Array.isArray(pointIds)) {
       throw DatabaseError.validationError(
         'Point IDs must be an array',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validatePointIds',
           details: { pointIds }
         }
@@ -244,8 +244,8 @@ export class DatabaseServiceValidator {
       if (typeof id !== 'string' || !id) {
         throw DatabaseError.validationError(
           'Each point ID must be a non-empty string',
-          { 
-            component: 'DatabaseServiceValidator', 
+          {
+            component: 'DatabaseServiceValidator',
             operation: 'validatePointIds',
             details: { pointIds }
           }
@@ -261,8 +261,8 @@ export class DatabaseServiceValidator {
     if (!node || typeof node !== 'object') {
       throw DatabaseError.validationError(
         'Node must be a valid object',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateNode',
           details: { node }
         }
@@ -272,8 +272,8 @@ export class DatabaseServiceValidator {
     if (!node.id || typeof node.id !== 'string') {
       throw DatabaseError.validationError(
         'Node must have a valid string ID',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateNode',
           details: { node }
         }
@@ -283,8 +283,8 @@ export class DatabaseServiceValidator {
     if (!node.label || typeof node.label !== 'string') {
       throw DatabaseError.validationError(
         'Node must have a valid string label',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateNode',
           details: { node }
         }
@@ -294,8 +294,8 @@ export class DatabaseServiceValidator {
     if (node.properties && typeof node.properties !== 'object') {
       throw DatabaseError.validationError(
         'Node properties must be an object',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateNode',
           details: { node }
         }
@@ -303,15 +303,15 @@ export class DatabaseServiceValidator {
     }
   }
 
- /**
-   * 验证关系数据
-   */
+  /**
+    * 验证关系数据
+    */
   static validateRelationship(relationship: any): void {
     if (!relationship || typeof relationship !== 'object') {
       throw DatabaseError.validationError(
         'Relationship must be a valid object',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateRelationship',
           details: { relationship }
         }
@@ -321,8 +321,8 @@ export class DatabaseServiceValidator {
     if (!relationship.type || typeof relationship.type !== 'string') {
       throw DatabaseError.validationError(
         'Relationship must have a valid string type',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateRelationship',
           details: { relationship }
         }
@@ -332,8 +332,8 @@ export class DatabaseServiceValidator {
     if (!relationship.sourceId || typeof relationship.sourceId !== 'string') {
       throw DatabaseError.validationError(
         'Relationship must have a valid string sourceId',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateRelationship',
           details: { relationship }
         }
@@ -343,8 +343,8 @@ export class DatabaseServiceValidator {
     if (!relationship.targetId || typeof relationship.targetId !== 'string') {
       throw DatabaseError.validationError(
         'Relationship must have a valid string targetId',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateRelationship',
           details: { relationship }
         }
@@ -354,8 +354,8 @@ export class DatabaseServiceValidator {
     if (relationship.properties && typeof relationship.properties !== 'object') {
       throw DatabaseError.validationError(
         'Relationship properties must be an object',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateRelationship',
           details: { relationship }
         }
@@ -363,15 +363,15 @@ export class DatabaseServiceValidator {
     }
   }
 
- /**
-   * 验证节点数组
-   */
+  /**
+    * 验证节点数组
+    */
   static validateNodes(nodes: any[]): void {
     if (!Array.isArray(nodes)) {
       throw DatabaseError.validationError(
         'Nodes must be an array',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateNodes',
           details: { nodes }
         }
@@ -390,8 +390,8 @@ export class DatabaseServiceValidator {
     if (!Array.isArray(relationships)) {
       throw DatabaseError.validationError(
         'Relationships must be an array',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateRelationships',
           details: { relationships }
         }
@@ -410,8 +410,8 @@ export class DatabaseServiceValidator {
     if (options && typeof options !== 'object') {
       throw DatabaseError.validationError(
         'Search options must be an object or null/undefined',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateSearchOptions',
           details: { options }
         }
@@ -421,8 +421,8 @@ export class DatabaseServiceValidator {
     if (options && options.limit && (typeof options.limit !== 'number' || options.limit <= 0)) {
       throw DatabaseError.validationError(
         'Search limit must be a positive number',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateSearchOptions',
           details: { options }
         }
@@ -432,8 +432,8 @@ export class DatabaseServiceValidator {
     if (options && options.offset && (typeof options.offset !== 'number' || options.offset < 0)) {
       throw DatabaseError.validationError(
         'Search offset must be a non-negative number',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateSearchOptions',
           details: { options }
         }
@@ -448,8 +448,8 @@ export class DatabaseServiceValidator {
     if (!point || typeof point !== 'object') {
       throw DatabaseError.validationError(
         'Vector point must be a valid object',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateVectorPoint',
           details: { point }
         }
@@ -459,8 +459,8 @@ export class DatabaseServiceValidator {
     if (!point.id || typeof point.id !== 'string') {
       throw DatabaseError.validationError(
         'Vector point must have a valid string ID',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateVectorPoint',
           details: { point }
         }
@@ -470,19 +470,19 @@ export class DatabaseServiceValidator {
     if (!point.vector || !Array.isArray(point.vector)) {
       throw DatabaseError.validationError(
         'Vector point must have a valid vector array',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateVectorPoint',
           details: { point }
         }
       );
     }
 
-    if (point.vector.some(v => typeof v !== 'number')) {
+    if (point.vector.some((v: any) => typeof v !== 'number')) {
       throw DatabaseError.validationError(
         'Vector values must be numbers',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateVectorPoint',
           details: { point }
         }
@@ -497,8 +497,8 @@ export class DatabaseServiceValidator {
     if (!Array.isArray(points)) {
       throw DatabaseError.validationError(
         'Vector points must be an array',
-        { 
-          component: 'DatabaseServiceValidator', 
+        {
+          component: 'DatabaseServiceValidator',
           operation: 'validateVectorPoints',
           details: { points }
         }
@@ -508,5 +508,5 @@ export class DatabaseServiceValidator {
     for (const point of points) {
       this.validateVectorPoint(point);
     }
- }
+  }
 }
