@@ -121,7 +121,7 @@ this.connectionGuarders.push(setInterval(() => {
 ## 🔧 改进建议
 
 ### 1. 增强会话清理机制
-[ ]
+[x]
 
 **建议实现：**
 ```javascript

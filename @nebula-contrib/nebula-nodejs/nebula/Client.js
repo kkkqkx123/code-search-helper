@@ -43,6 +43,10 @@ class Client extends _events.EventEmitter {
     option.pingInterval = getNumberValue(option.pingInterval, 60000);
     this.clientOption = option;
     this.connections = [];
+    
+    // 启动会话监控
+    this.startSessionMonitor();
+    
     _lodash.default.forEach(this.clientOption.servers, conf => {
       for (let i = 0; i < this.clientOption.poolSize; ++i) {
         let host = null;
@@ -191,7 +195,32 @@ class Client extends _events.EventEmitter {
       }
     });
   }
+  startSessionMonitor() {
+    // 每30秒检查一次会话状态
+    this.sessionMonitor = setInterval(() => {
+      this.connections.forEach(conn => {
+        // 发现僵尸会话：有sessionId但连接未就绪
+        if (conn.sessionId && !conn.isReady) {
+          console.warn(`发现僵尸会话 ${conn.sessionId}，正在清理...`);
+          conn.forceCleanup().then(() => {
+            console.log(`僵尸会话 ${conn.sessionId} 清理完成`);
+          });
+        }
+      });
+    }, 30000);
+  }
+  
+  stopSessionMonitor() {
+    if (this.sessionMonitor) {
+      clearInterval(this.sessionMonitor);
+      this.sessionMonitor = null;
+    }
+  }
+  
   close() {
+    // 停止会话监控
+    this.stopSessionMonitor();
+    
     _lodash.default.forEach(this.connectionGuarders, timer => {
       clearInterval(timer);
     });

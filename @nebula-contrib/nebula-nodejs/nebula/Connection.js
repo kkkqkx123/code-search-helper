@@ -69,6 +69,15 @@ class Connection extends _events.EventEmitter {
       if (response.error_code !== 0) {
         throw new _NebulaError.default(response.error_code, response.error_msg);
       }
+      
+      // 认证成功，先清理可能存在的旧会话
+      if (this.sessionId && this.sessionId !== response.session_id) {
+        console.warn(`发现旧会话 ${this.sessionId}，正在清理...`);
+        return this.forceCleanup().then(() => response);
+      }
+      
+      return response;
+    }).then(response => {
       this.sessionId = response.session_id;
       this.emit('authorized', {
         sender: this
@@ -103,38 +112,76 @@ class Connection extends _events.EventEmitter {
           error: err
         });
       }
-      const self = this;
-      setTimeout(() => {
-        this.prepare.bind(self)();
-      }, 1000);
+      
+      // 重连前先清理当前会话
+      if (this.sessionId) {
+        this.forceCleanup().finally(() => {
+          const self = this;
+          setTimeout(() => {
+            this.prepare.bind(self)();
+          }, 1000);
+        });
+      } else {
+        const self = this;
+        setTimeout(() => {
+          this.prepare.bind(self)();
+        }, 1000);
+      }
     });
   }
   close() {
     return new Promise((resolve, reject) => {
-      if (this.connection.connected) {
-        Promise.resolve().then(() => {
-          return this.isReady ? this.client.signout(this.sessionId) : Promise.resolve();
-        }).then(() => {
-          return this.connection.end();
-        }).then(() => {
+      // 优先尝试会话注销，无论连接状态如何
+      const cleanupPromise = this.sessionId 
+        ? this.client.signout(this.sessionId).catch(() => {}) 
+        : Promise.resolve();
+      
+      cleanupPromise.finally(() => {
+        if (this.connection.connected) {
+          this.connection.end().then(resolve).catch(reject);
+        } else {
           resolve({});
-        }).catch(reject);
+        }
+      });
+    });
+  }
+  forceCleanup() {
+    return new Promise((resolve) => {
+      if (this.sessionId) {
+        // 无论连接状态如何，都尝试注销会话
+        this.client.signout(this.sessionId)
+          .catch(() => {
+            // 忽略注销失败，但确保尝试过
+          })
+          .finally(() => {
+            // 清理本地会话ID
+            this.sessionId = null;
+            resolve();
+          });
       } else {
-        resolve({});
+        resolve();
       }
     });
   }
   ping(timeout) {
-    if (this.connection.connected) {
+    if (this.connection.connected && this.sessionId) {
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
           resolve(false);
         }, timeout);
         this.client.execute(this.sessionId, 'YIELD 1').then(response => {
           clearTimeout(timer);
-          resolve(response.error_code === 0);
-        }).catch(() => {
+          // 验证会话是否仍然有效
+          const isValid = response.error_code === 0 || 
+                         (response.error_code === -1005); // 会话无效错误码
+          resolve(isValid);
+        }).catch((error) => {
           clearTimeout(timer);
+          // 如果是会话相关错误，标记为需要重新认证
+          if (error.code === -1005) {
+            this.isReady = false;
+            this.forceCleanup();
+          }
           resolve(false);
         });
       });
@@ -142,6 +189,15 @@ class Connection extends _events.EventEmitter {
     return Promise.resolve(false);
   }
   run(task) {
+    // 执行前验证会话状态
+    if (!this.sessionId || !this.isReady) {
+      const error = new _NebulaError.default(9995, '会话无效或连接未就绪');
+      task.reject(error);
+      this.isBusy = false;
+      this.emit('free', { sender: this });
+      return;
+    }
+    
     this.isBusy = true;
     const start = Date.now();
     let end = Date.now();
