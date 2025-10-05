@@ -36,6 +36,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private connectionStatus: NebulaConnectionStatus;
   private config: NebulaConfig;
   private client: any; // Nebula Graph客户端实例
+  private sessionCleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
@@ -62,6 +63,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     
     // 启动连接状态清理任务
     this.connectionStateManager.startPeriodicCleanup();
+    
+    // 启动会话清理任务
+    this.startSessionCleanupTask();
   }
 
   /**
@@ -280,6 +284,12 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
       // 停止连接状态管理器的定期清理任务
       this.connectionStateManager.stopPeriodicCleanup();
+      
+      // 停止会话清理任务
+      if (this.sessionCleanupInterval) {
+        clearInterval(this.sessionCleanupInterval);
+        this.sessionCleanupInterval = null;
+      }
 
       // 更新连接状态
       this.updateConnectionStatusAfterDisconnect();
@@ -356,7 +366,15 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   getConnectionStatus(): NebulaConnectionStatus {
-    return { ...this.connectionStatus };
+    // 创建连接状态的副本
+    const status = { ...this.connectionStatus };
+    
+    // 确保空间名称有效，如果无效则设置为undefined
+    if (!status.space || status.space === 'undefined' || status.space === '') {
+      status.space = undefined;
+    }
+    
+    return status;
   }
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
@@ -482,10 +500,14 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       const match = trimmedQuery.match(/USE\s+`?([^\s`]+)/i);
       if (match && match[1]) {
         const spaceName = match[1];
+        // 确保空间名称有效，如果无效则不更新连接状态
         if (spaceName && spaceName !== 'undefined' && spaceName !== '') {
           // 更新连接状态管理器中的连接空间状态
           // 使用一个虚拟的连接ID，因为我们只有一个客户端连接
           this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
+        } else {
+          // 如果空间名称无效，确保连接状态中的空间也被清除
+          this.connectionStateManager.updateConnectionSpace('nebula-client-main', undefined);
         }
       }
     }
@@ -683,5 +705,78 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     // 在实际应用中，这里应该委托给 NebulaEventManager
     // 为了满足接口要求，暂时保持空实现或输出日志
     console.warn('removeEventListener is deprecated, use NebulaEventManager instead');
+  }
+  
+  /**
+   * 启动会话清理任务
+   * 定期清理可能存在的未正确关闭的会话
+   */
+  private startSessionCleanupTask(): void {
+    if (this.sessionCleanupInterval) {
+      clearInterval(this.sessionCleanupInterval);
+    }
+    
+    // 在测试环境中不启动定时器，以避免Jest无法退出
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+    
+    this.sessionCleanupInterval = setInterval(async () => {
+      try {
+        await this.performSessionCleanup();
+      } catch (error) {
+        this.errorHandler.handleError(
+          new Error(`Session cleanup task failed: ${error instanceof Error ? error.message : String(error)}`),
+          { component: 'NebulaConnectionManager', operation: 'sessionCleanupTask' }
+        );
+      }
+    }, 30 * 60 * 1000); // 每30分钟执行一次清理
+  }
+  
+  /**
+   * 执行会话清理
+   * 检查并清理可能的过期或未正确关闭的会话
+   */
+  private async performSessionCleanup(): Promise<void> {
+    if (!this.client || !this.isConnected()) {
+      return;
+    }
+    
+    try {
+      // 记录当前会话数量用于调试
+      await this.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'Session cleanup task executed',
+          connected: this.isConnected(),
+          hasClient: !!this.client
+        }
+      });
+      
+      // 检查Nebula客户端是否健康
+      if (typeof this.client.execute === 'function') {
+        // 执行一个简单的查询来测试连接
+        await this.client.execute('SHOW SPACES');
+      }
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Session cleanup check failed: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'NebulaConnectionManager', operation: 'performSessionCleanup' }
+      );
+      
+      // 如果连接有问题，尝试重新建立连接
+      try {
+        await this.disconnect();
+        this.client = null;
+        await this.connect();
+      } catch (reconnectError) {
+        this.errorHandler.handleError(
+          new Error(`Failed to reconnect after session cleanup: ${reconnectError instanceof Error ? reconnectError.message : String(reconnectError)}`),
+          { component: 'NebulaConnectionManager', operation: 'reconnectAfterCleanup' }
+        );
+      }
+    }
   }
 }

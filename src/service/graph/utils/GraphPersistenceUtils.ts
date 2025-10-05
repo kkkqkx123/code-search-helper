@@ -572,10 +572,15 @@ export class GraphPersistenceUtils {
       // Set up periodic monitoring
       const interval = setInterval(async () => {
         try {
-          const currentStats = await nebulaService.getDatabaseStats();
-          performanceMonitor.updateSystemHealthStatus(
-            currentStats.hosts && currentStats.hosts.length > 0 ? 'healthy' : 'degraded'
-          );
+          // 检查服务是否已初始化和连接
+          if (nebulaService.isInitialized() && nebulaService.isConnected()) {
+            const currentStats = await nebulaService.getDatabaseStats();
+            performanceMonitor.updateSystemHealthStatus(
+              currentStats.hosts && currentStats.hosts.length > 0 ? 'healthy' : 'degraded'
+            );
+          } else {
+            performanceMonitor.updateSystemHealthStatus('degraded');
+          }
         } catch (error) {
           performanceMonitor.updateSystemHealthStatus('error');
         }
@@ -620,6 +625,30 @@ export class GraphPersistenceUtils {
   }> {
     try {
       // Use NebulaQueryBuilder to build count queries
+      // 先检查连接状态
+      if (!nebulaService.isConnected()) {
+        return {
+          nodeCount: 0,
+          relationshipCount: 0,
+          nodeTypes: {},
+          relationshipTypes: {},
+        };
+      }
+      
+      // 获取当前空间
+      const connectionStatus = nebulaService.connectionManager.getConnectionStatus();
+      const currentSpace = connectionStatus?.space;
+      
+      // 只有在当前空间存在的情况下才执行需要空间上下文的查询
+      if (!currentSpace || currentSpace === 'undefined' || currentSpace === '') {
+        return {
+          nodeCount: 0,
+          relationshipCount: 0,
+          nodeTypes: {},
+          relationshipTypes: {},
+        };
+      }
+      
       const tagResult = await nebulaService.executeReadQuery('SHOW TAGS');
       const edgeResult = await nebulaService.executeReadQuery('SHOW EDGES');
 

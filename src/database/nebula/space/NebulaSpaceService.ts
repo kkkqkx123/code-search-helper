@@ -437,7 +437,14 @@ export class NebulaSpaceService implements INebulaSpaceService {
 
       // 从连接管理器获取当前空间信息
       const connectionStatus = this.connectionManager.getConnectionStatus();
-      return connectionStatus?.space;
+      const space = connectionStatus?.space;
+      
+      // 确保空间名称有效，如果无效则返回undefined
+      if (!space || space === 'undefined' || space === '') {
+        return undefined;
+      }
+      
+      return space;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.errorHandler.handleError(

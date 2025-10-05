@@ -14,7 +14,7 @@ export class ConnectionStateManager {
   /**
    * 更新连接的空间状态
    */
-  updateConnectionSpace(connectionId: string, space: string): void {
+  updateConnectionSpace(connectionId: string, space: string | undefined): void {
     const existing = this.connectionStates.get(connectionId);
     if (existing) {
       existing.currentSpace = space;
@@ -51,7 +51,14 @@ export class ConnectionStateManager {
    * 获取连接的当前空间
    */
   getConnectionSpace(connectionId: string): string | undefined {
-    return this.connectionStates.get(connectionId)?.currentSpace;
+    const space = this.connectionStates.get(connectionId)?.currentSpace;
+    
+    // 确保空间名称有效，如果无效则返回undefined
+    if (!space || space === 'undefined' || space === '') {
+      return undefined;
+    }
+    
+    return space;
   }
 
   /**

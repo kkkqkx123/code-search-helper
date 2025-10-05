@@ -606,6 +606,11 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
+      // 检查连接状态
+      if (!this.connectionManager.isConnected()) {
+        throw new Error('Nebula service is not connected');
+      }
+      
       const stats = await this.dataService.getDatabaseStats();
       return stats;
     } catch (error) {

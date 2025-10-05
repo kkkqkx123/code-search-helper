@@ -298,6 +298,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName) {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
+      
+      // 验证空间名称的有效性
+      if (spaceName === 'undefined' || spaceName === '') {
+        throw new Error(`Invalid space name for project: ${projectPath}`);
+      }
 
       // 为所有节点添加项目ID（如果尚未存在）
       const nodesWithProjectId = nodes.map(node => ({
@@ -382,6 +387,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
       const spaceName = this.projectIdManager.getSpaceName(projectId);
       if (!spaceName) {
         throw new Error(`Space name not found for project: ${projectPath}`);
+      }
+      
+      // 验证空间名称的有效性
+      if (spaceName === 'undefined' || spaceName === '') {
+        throw new Error(`Invalid space name for project: ${projectPath}`);
       }
 
       // 为所有关系添加项目ID（如果尚未存在）
@@ -470,6 +480,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
       if (!spaceName) {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
+      
+      // 验证空间名称的有效性
+      if (spaceName === 'undefined' || spaceName === '') {
+        throw new Error(`Invalid space name for project: ${projectPath}`);
+      }
 
       // 构建查询
       let query = `MATCH (v:${label}) WHERE v.projectId == "${projectId}" RETURN v`;
@@ -525,6 +540,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
       const spaceName = this.projectIdManager.getSpaceName(projectId);
       if (!spaceName) {
         throw new Error(`Space name not found for project: ${projectPath}`);
+      }
+      
+      // 验证空间名称的有效性
+      if (spaceName === 'undefined' || spaceName === '') {
+        throw new Error(`Invalid space name for project: ${projectPath}`);
       }
 
       // 构建查询

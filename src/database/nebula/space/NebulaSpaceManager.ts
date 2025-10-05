@@ -51,6 +51,12 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
   async createSpace(projectId: string, config: GraphConfig = {}): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
+    
+    // 验证空间名称的有效性
+    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+      return false;
+    }
+    
     try {
       // 创建空间
       const createQuery = `
@@ -104,6 +110,12 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
   async deleteSpace(projectId: string): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
+    
+    // 验证空间名称的有效性
+    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+      return false;
+    }
+    
     try {
       await this.nebulaConnection.executeQuery(`DROP SPACE IF EXISTS \`${spaceName}\``);
       // 使用 DatabaseLoggerService 记录空间删除成功信息
@@ -274,6 +286,12 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
   async getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null> {
     const spaceName = this.generateSpaceName(projectId);
+    
+    // 验证空间名称的有效性
+    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+      return null;
+    }
+    
     try {
       const result = await this.nebulaConnection.executeQuery(`DESCRIBE SPACE \`${spaceName}\``);
 
@@ -369,6 +387,12 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
   async checkSpaceExists(projectId: string): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
+    
+    // 验证空间名称的有效性
+    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+      return false;
+    }
+    
     try {
       const spaces = await this.listSpaces();
       const exists = spaces.includes(spaceName);
@@ -408,6 +432,11 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     maxRetries: number = 30,
     retryDelay: number = 1000
   ): Promise<void> {
+    // 验证空间名称的有效性
+    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+      throw new Error(`Cannot wait for invalid space: ${spaceName}`);
+    }
+    
     // 使用 DatabaseLoggerService 记录等待空间准备就绪的信息
     this.databaseLogger.logDatabaseEvent({
       type: DatabaseEventType.SERVICE_STARTED,
@@ -647,6 +676,12 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
   async clearSpace(projectId: string): Promise<boolean> {
     const spaceName = this.generateSpaceName(projectId);
+    
+    // 验证空间名称的有效性
+    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+      return false;
+    }
+    
     try {
       // 使用 DatabaseLoggerService 记录开始清理空间的信息
       this.databaseLogger.logDatabaseEvent({
