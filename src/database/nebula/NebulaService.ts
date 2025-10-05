@@ -6,6 +6,8 @@ import { NebulaConnectionManager } from './NebulaConnectionManager';
 import { NebulaQueryBuilder } from './NebulaQueryBuilder';
 import { NebulaProjectManager } from './NebulaProjectManager';
 import { TYPES } from '../../types';
+import { NebulaDataService } from './data/NebulaDataService';
+import { NebulaSpaceService } from './space/NebulaSpaceService';
 import {
   NebulaNode,
   NebulaRelationship,
@@ -64,6 +66,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   protected connectionManager: NebulaConnectionManager;
+  private dataService: NebulaDataService;
+  private spaceService: NebulaSpaceService;
   private queryBuilder: NebulaQueryBuilder;
   protected projectManager: NebulaProjectManager;
   protected initialized = false;
@@ -76,6 +80,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.NebulaConnectionManager) connectionManager: NebulaConnectionManager,
+    @inject(TYPES.NebulaDataService) dataService: NebulaDataService,
+    @inject(TYPES.NebulaSpaceService) spaceService: NebulaSpaceService,
     @inject(TYPES.NebulaQueryBuilder) queryBuilder: NebulaQueryBuilder,
     @inject(TYPES.INebulaProjectManager) projectManager: NebulaProjectManager
   ) {
@@ -89,6 +95,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     this.errorHandler = errorHandler;
     this.configService = configService;
     this.connectionManager = connectionManager;
+    this.dataService = dataService;
+    this.spaceService = spaceService;
     this.queryBuilder = queryBuilder;
     this.projectManager = projectManager;
   }
@@ -480,14 +488,18 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      await this.executeWriteQuery(`USE \`${spaceName}\``);
-      // 使用 DatabaseLoggerService 记录空间切换事件
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.SPACE_CREATED,  // 使用SPACE_CREATED类型，因为这是关于空间的操作
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: `Switched to space: ${spaceName}`, spaceName }
-      });
+      const success = await this.spaceService.useSpace(spaceName);
+      if (success) {
+        // 使用 DatabaseLoggerService 记录空间切换事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.SPACE_CREATED,  // 使用SPACE_CREATED类型，因为这是关于空间的操作
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: `Switched to space: ${spaceName}`, spaceName }
+        });
+      } else {
+        throw new Error(`Failed to switch to space: ${spaceName}`);
+      }
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
@@ -505,7 +517,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      const nodeId = await this.connectionManager.createNode({ label, properties });
+      const nodeId = await this.dataService.createNode({ label, properties });
       this.emitEvent('data_inserted', { label, nodeId, properties });
       return nodeId;
     } catch (error) {
@@ -530,7 +542,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      await this.connectionManager.createRelationship({
+      await this.dataService.createRelationship({
         type,
         sourceId,
         targetId,
@@ -554,7 +566,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      const nodes = await this.connectionManager.findNodesByLabel(label, properties);
+      const nodes = await this.dataService.findNodesByLabel(label, properties);
       this.emitEvent('data_queried', { label, properties, resultCount: nodes.length });
       return nodes;
     } catch (error) {
@@ -574,7 +586,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      const relationships = await this.connectionManager.findRelationships(type, properties);
+      const relationships = await this.dataService.findRelationships(type, properties);
       this.emitEvent('data_queried', { type, properties, resultCount: relationships.length });
       return relationships;
     } catch (error) {
@@ -594,7 +606,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      const stats = await this.connectionManager.getDatabaseStats();
+      const stats = await this.dataService.getDatabaseStats();
       return stats;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));

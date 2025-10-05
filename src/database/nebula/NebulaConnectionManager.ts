@@ -11,25 +11,18 @@ import { NebulaConfigService } from '../../config/service/NebulaConfigService';
 import { ConnectionStateManager } from './ConnectionStateManager';
 
 // 导入Nebula Graph客户端库
-const { createClient } = require('@nebula-contrib/nebula-nodejs');
+import { createClient } from '@nebula-contrib/nebula-nodejs';
 
 export interface INebulaConnectionManager extends IConnectionManager {
   getConnectionStatus(): NebulaConnectionStatus;
   executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
   executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<NebulaQueryResult[]>;
-  createNode(node: { label: string; properties: Record<string, any> }): Promise<string>;
-  createRelationship(relationship: {
-    type: string;
-    sourceId: string;
-    targetId: string;
-    properties?: Record<string, any>;
-  }): Promise<void>;
-  findNodesByLabel(label: string, properties?: Record<string, any>): Promise<any[]>;
-  findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]>;
-  getDatabaseStats(): Promise<any>;
-  isConnectedToDatabase(): boolean;
+  // 空间管理相关方法，但实现简化
   executeQueryInSpace(space: string, query: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
   getConnectionForSpace(space: string): Promise<any>;
+  // 配置管理
+  getConfig(): any;
+  updateConfig(config: any): void;
 }
 
 @injectable()
@@ -265,157 +258,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
        console.error('Failed to log connection validation failure:', error);
      });
       throw new Error(`Connection validation failed: ${errorMessage}`);
-    }
-  }
-
-  /**
-   * 初始化space - 这个方法可能不会被直接调用，因为space初始化现在在连接建立后的适当时候才执行
-   */
-  private async initializeSpace(session: any, sessionIndex: number): Promise<void> {
-    // 检查是否有配置的space，如果有则尝试创建并使用它
-    if (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') {
-      const effectiveSpaceName = this.config.space;
-      
-      try {
-        // 检查space是否已经存在
-        const spaceExists = await this.checkSpaceExists(session, effectiveSpaceName);
-        
-        if (!spaceExists) {
-          await this.createSpace(session, effectiveSpaceName);
-          // 使用 DatabaseLoggerService 记录空间创建信息
-         this.databaseLogger.logDatabaseEvent({
-           type: DatabaseEventType.SPACE_CREATED,
-           source: 'nebula',
-           timestamp: new Date(),
-           data: { message: `Created new space for session ${sessionIndex}: ${effectiveSpaceName}` }
-         }).catch(error => {
-           // 如果日志记录失败，我们不希望影响主流程
-           console.error('Failed to log space creation info:', error);
-         });
-          
-          // 等待space创建完成
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } else {
-          // 使用 DatabaseLoggerService 记录空间已存在信息
-         this.databaseLogger.logDatabaseEvent({
-           type: DatabaseEventType.SPACE_CREATED,
-           source: 'nebula',
-           timestamp: new Date(),
-           data: { message: `Space already exists for session ${sessionIndex}: ${effectiveSpaceName}` }
-         }).catch(error => {
-           // 如果日志记录失败，我们不希望影响主流程
-           console.error('Failed to log space existence info:', error);
-         });
-        }
-        
-        // 切换到指定的space
-        await session.execute(`USE \`${effectiveSpaceName}\``);
-        // 使用 DatabaseLoggerService 记录会话使用空间信息
-       this.databaseLogger.logDatabaseEvent({
-         type: DatabaseEventType.SPACE_CREATED,
-         source: 'nebula',
-         timestamp: new Date(),
-         data: { message: `Session ${sessionIndex} using space: ${effectiveSpaceName}` }
-       }).catch(error => {
-         // 如果日志记录失败，我们不希望影响主流程
-         console.error('Failed to log session space usage info:', error);
-       });
-        
-      } catch (createError) {
-        const errorMessage = createError instanceof Error ? createError.message : String(createError);
-        // 使用 DatabaseLoggerService 记录空间创建/使用失败信息
-       this.databaseLogger.logDatabaseEvent({
-         type: DatabaseEventType.ERROR_OCCURRED,
-         source: 'nebula',
-         timestamp: new Date(),
-         data: {
-           message: `Failed to create/use space for session ${sessionIndex}: ${effectiveSpaceName}`,
-           error: errorMessage,
-           errorCode: (createError as any)?.errno,
-           space: effectiveSpaceName
-         }
-       }).catch(error => {
-         // 如果日志记录失败，我们不希望影响主流程
-         console.error('Failed to log space creation/usage failure:', error);
-       });
-        
-        // 即使space创建失败，也保留会话，但记录问题
-        // 使用 DatabaseLoggerService 记录会话初始化警告信息
-       this.databaseLogger.logDatabaseEvent({
-         type: DatabaseEventType.CONNECTION_ERROR,
-         source: 'nebula',
-         timestamp: new Date(),
-         data: { message: `Session ${sessionIndex} initialized but space operations failed` }
-       }).catch(error => {
-         // 如果日志记录失败，我们不希望影响主流程
-         console.error('Failed to log session initialization warning:', error);
-       });
-      }
-    } else {
-      // 如果没有配置space，则不进行任何space操作，只保持连接
-      // 使用 DatabaseLoggerService 记录会话初始化信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.SERVICE_INITIALIZED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: `Session ${sessionIndex} initialized without specific space` }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log session initialization info:', error);
-     });
-    }
-  }
-
-  /**
-   * 检查space是否存在
-   */
-  private async checkSpaceExists(session: any, spaceName?: string): Promise<boolean> {
-    // 如果没有提供spaceName，或者spaceName是undefined、空字符串或'undefined'，则返回false
-    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
-      return false;
-    }
-    
-    try {
-      const spacesResult = await session.execute('SHOW SPACES');
-      const spaces = spacesResult?.data || [];
-      // 在Nebula中，space名称可能以不同字段返回，检查多个可能的字段名
-      return spaces.some((space: any) => space.Name === spaceName || space.name === spaceName || Object.values(space)[0] === spaceName);
-    } catch (error) {
-      // 使用 DatabaseLoggerService 记录空间检查失败信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.ERROR_OCCURRED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Failed to check if space exists',
-         error: error instanceof Error ? error.message : String(error),
-         space: spaceName
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log space check failure:', error);
-     });
-      return false;
-    }
-  }
-
-  /**
-   * 创建space
-   */
-  private async createSpace(session: any, spaceName: string): Promise<void> {
-    if (!spaceName || spaceName === 'undefined' || spaceName === '') {
-      throw new Error(`Cannot create space with invalid name: ${spaceName}`);
-    }
-    
-    try {
-      // 使用反引号包围space名称以处理特殊字符
-      await session.execute(`CREATE SPACE IF NOT EXISTS \`${spaceName}\`(partition_num=10, replica_factor=1, vid_type=fixed_string(${this.config.vidTypeLength || 128}));`);
-      
-      // 等待space创建完成（Nebula Graph需要时间创建）
-      await new Promise(resolve => setTimeout(resolve, 5000)); // 等待5秒
-      
-    } catch (error) {
-      throw new Error(`Failed to create space ${spaceName}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -711,7 +553,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
        // 如果日志记录失败，我们不希望影响主流程
        console.error('Failed to log prepared query info:', error);
      });
-      
+     
       const result = await client.execute(finalQuery);
       
       // 使用 DatabaseLoggerService 记录原始查询结果
@@ -895,445 +737,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
-  async createNode(node: { label: string; properties: Record<string, any> }): Promise<string> {
-    if (!this.isConnected()) {
-      throw new Error('Not connected to Nebula Graph');
-    }
-
-    try {
-      const client = this.client;
-      // 使用 DatabaseLoggerService 记录节点创建信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.DATA_INSERTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Creating node',
-         label: node.label,
-         properties: node.properties
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log node creation info:', error);
-     });
-
-      // 生成节点ID
-      const nodeId = `${node.label}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // 构建插入节点的nGQL，使用安全的参数处理
-      const propertyNames = Object.keys(node.properties).join(', ');
-      
-      let nGQL = `INSERT VERTEX ${node.label}`;
-      if (propertyNames) {
-        const escapedProperties = this.escapeProperties(node.properties);
-        const propertyValues = Object.values(escapedProperties).map(v => `"${v}"`).join(', ');
-        nGQL += `(${propertyNames}) VALUES "${nodeId}":(${propertyValues})`;
-      } else {
-        nGQL += `() VALUES "${nodeId}":()`;
-      }
-
-      await client.execute(nGQL);
-
-      // 使用 DatabaseLoggerService 记录节点创建成功信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.DATA_INSERTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Node created successfully',
-         nodeId
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log node creation success:', error);
-     });
-      return nodeId;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to create node: ${errorMessage}`),
-        {
-          component: 'NebulaConnectionManager',
-          operation: 'createNode',
-          node
-        }
-      );
-
-      throw error;
-    }
-  }
-
-  async createRelationship(relationship: {
-    type: string;
-    sourceId: string;
-    targetId: string;
-    properties?: Record<string, any>;
-  }): Promise<void> {
-    if (!this.isConnected()) {
-      throw new Error('Not connected to Nebula Graph');
-    }
-
-    try {
-      const client = this.client;
-      // 使用 DatabaseLoggerService 记录关系创建信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.DATA_INSERTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Creating relationship',
-         type: relationship.type,
-         sourceId: relationship.sourceId,
-         targetId: relationship.targetId,
-         properties: relationship.properties
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log relationship creation info:', error);
-     });
-
-      // 构建插入边的nGQL，使用安全的参数处理
-      let nGQL = `INSERT EDGE ${relationship.type}`;
-
-      if (relationship.properties && Object.keys(relationship.properties).length > 0) {
-        const propertyNames = Object.keys(relationship.properties).join(', ');
-        const escapedProperties = this.escapeProperties(relationship.properties);
-        const propertyValues = Object.values(escapedProperties).map(v => `"${v}"`).join(', ');
-        nGQL += `(${propertyNames}) VALUES "${relationship.sourceId}"->"${relationship.targetId}":(${propertyValues})`;
-      } else {
-        nGQL += `() VALUES "${relationship.sourceId}"->"${relationship.targetId}":()`;
-      }
-
-      await client.execute(nGQL);
-
-      // 使用 DatabaseLoggerService 记录关系创建成功信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.DATA_INSERTED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: 'Relationship created successfully' }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log relationship creation success:', error);
-     });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to create relationship: ${errorMessage}`),
-        {
-          component: 'NebulaConnectionManager',
-          operation: 'createRelationship',
-          relationship
-        }
-      );
-
-      throw error;
-    }
-  }
-
-  async findNodesByLabel(label: string, properties?: Record<string, any>): Promise<any[]> {
-    if (!this.isConnected()) {
-      throw new Error('Not connected to Nebula Graph');
-    }
-
-    try {
-      const client = this.client;
-      // 使用 DatabaseLoggerService 记录按标签查找节点信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.DATA_QUERIED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Finding nodes by label',
-         label,
-         properties
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log node search info:', error);
-     });
-
-      // 构建查询节点的nGQL，使用安全的参数处理
-      let nGQL = `MATCH (n:${label})`;
-
-      if (properties && Object.keys(properties).length > 0) {
-        const escapedProperties = this.escapeProperties(properties);
-        const conditions = Object.entries(escapedProperties)
-          .map(([key, value]) => `n.${key} == "${value}"`)
-          .join(' AND ');
-        nGQL += ` WHERE ${conditions}`;
-      }
-
-      nGQL += ' RETURN n';
-
-      const result = await client.execute(nGQL);
-
-      // 提取节点数据
-      const nodes = result?.data || [];
-
-      // 使用 DatabaseLoggerService 记录找到的节点信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.DATA_QUERIED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Found nodes',
-         count: nodes.length
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log found nodes info:', error);
-     });
-      return nodes;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to find nodes: ${errorMessage}`),
-        {
-          component: 'NebulaConnectionManager',
-          operation: 'findNodesByLabel',
-          label,
-          properties
-        }
-      );
-
-      throw error;
-    }
-  }
-
-  async findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]> {
-    if (!this.isConnected()) {
-      throw new Error('Not connected to Nebula Graph');
-    }
-
-    try {
-      const client = this.client;
-      // 使用 DatabaseLoggerService 记录查找关系信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.DATA_QUERIED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Finding relationships',
-         type,
-         properties
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log relationship search info:', error);
-     });
-
-      // 构建查询边的nGQL，使用安全的参数处理
-      let nGQL = 'MATCH ()-[r';
-
-      if (type) {
-        nGQL += `:${type}`;
-      }
-
-      nGQL += ']->()';
-
-      if (properties && Object.keys(properties).length > 0) {
-        const escapedProperties = this.escapeProperties(properties);
-        const conditions = Object.entries(escapedProperties)
-          .map(([key, value]) => `r.${key} == "${value}"`)
-          .join(' AND ');
-        nGQL += ` WHERE ${conditions}`;
-      }
-
-      nGQL += ' RETURN r';
-
-      const result = await client.execute(nGQL);
-
-      // 提取关系数据
-      const relationships = result?.data || [];
-
-      // 使用 DatabaseLoggerService 记录找到的关系信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.DATA_QUERIED,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: {
-         message: 'Found relationships',
-         count: relationships.length
-       }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log found relationships info:', error);
-     });
-      return relationships;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to find relationships: ${errorMessage}`),
-        {
-          component: 'NebulaConnectionManager',
-          operation: 'findRelationships',
-          type,
-          properties
-        }
-      );
-
-      throw error;
-    }
-  }
-
-  async getDatabaseStats(): Promise<any> {
-    if (!this.isConnected()) {
-      throw new Error('Not connected to Nebula Graph');
-    }
-
-    try {
-      const client = this.client;
-      // 使用 DatabaseLoggerService 记录获取数据库统计信息
-     this.databaseLogger.logDatabaseEvent({
-       type: DatabaseEventType.PERFORMANCE_METRIC,
-       source: 'nebula',
-       timestamp: new Date(),
-       data: { message: 'Getting database stats' }
-     }).catch(error => {
-       // 如果日志记录失败，我们不希望影响主流程
-       console.error('Failed to log database stats info:', error);
-     });
-
-      // 获取spaces信息（不需要切换space）
-      const spacesResult = await client.execute('SHOW SPACES');
-      const spaces = spacesResult?.data || [];
-      
-      // 获取当前space的标签和边类型信息
-      let tags = [];
-      let edgeTypes = [];
-      let nodeCount = 0;
-      let edgeCount = 0;
-
-      const effectiveSpace = (this.config.space && this.config.space !== 'undefined' && this.config.space !== '') ? this.config.space : undefined;
-      
-      if (effectiveSpace) {  // 只对有效space执行详细统计
-        try {
-          // 首先确保连接到有效的space，而不是"undefined"或空字符串
-          await client.execute(`USE \`${effectiveSpace}\``);
-
-          // 获取当前space的标签和边类型信息
-          const tagsResult = await client.execute('SHOW TAGS');
-          tags = tagsResult?.data || [];
-
-          const edgeTypesResult = await client.execute('SHOW EDGES');
-          edgeTypes = edgeTypesResult?.data || [];
-
-          // 统计节点数量 - 使用第一个字段作为标签名（Nebula返回的结构可能不同）
-          for (const tag of tags) {
-            try {
-              // 获取标签名，可能是第一个字段的值
-              const tagName = Object.values(tag)[0] || '';
-              if (tagName) {
-                const countResult = await client.execute(`MATCH (n:${tagName}) RETURN count(n) AS count`);
-                nodeCount += countResult?.data?.[0]?.count || 0;
-              }
-            } catch (countError) {
-              // 使用 DatabaseLoggerService 记录节点计数失败警告
-             this.databaseLogger.logDatabaseEvent({
-               type: DatabaseEventType.CONNECTION_ERROR,
-               source: 'nebula',
-               timestamp: new Date(),
-               data: {
-                 message: `Failed to count nodes for tag`,
-                 tag,
-                 error: countError
-               }
-             }).catch(error => {
-               // 如果日志记录失败，我们不希望影响主流程
-               console.error('Failed to log node count failure:', error);
-             });
-            }
-          }
-
-          // 统计边数量 - 使用第一个字段作为边类型名
-          for (const edgeType of edgeTypes) {
-            try {
-              // 获取边类型名，可能是第一个字段的值
-              const edgeTypeName = Object.values(edgeType)[0] || '';
-              if (edgeTypeName) {
-                const countResult = await client.execute(`MATCH ()-[r:${edgeTypeName}]->() RETURN count(r) AS count`);
-                edgeCount += countResult?.data?.[0]?.count || 0;
-              }
-            } catch (countError) {
-              // 使用 DatabaseLoggerService 记录边计数失败警告
-             this.databaseLogger.logDatabaseEvent({
-               type: DatabaseEventType.CONNECTION_ERROR,
-               source: 'nebula',
-               timestamp: new Date(),
-               data: {
-                 message: `Failed to count edges for type`,
-                 edgeType,
-                 error: countError
-               }
-             }).catch(error => {
-               // 如果日志记录失败，我们不希望影响主流程
-               console.error('Failed to log edge count failure:', error);
-             });
-            }
-          }
-        } catch (error) {
-          // 使用 DatabaseLoggerService 记录获取详细计数失败警告
-         this.databaseLogger.logDatabaseEvent({
-           type: DatabaseEventType.CONNECTION_ERROR,
-           source: 'nebula',
-           timestamp: new Date(),
-           data: {
-             message: 'Failed to get detailed counts for current space',
-             error: error instanceof Error ? error.message : String(error),
-             space: effectiveSpace
-           }
-         }).catch(error => {
-           // 如果日志记录失败，我们不希望影响主流程
-           console.error('Failed to log detailed count failure:', error);
-         });
-        }
-      } else {
-        // 使用 DatabaseLoggerService 记录无有效空间配置信息
-       this.databaseLogger.logDatabaseEvent({
-         type: DatabaseEventType.SERVICE_INITIALIZED,
-         source: 'nebula',
-         timestamp: new Date(),
-         data: { message: 'No effective space configured, skipping space-specific stats' }
-       }).catch(error => {
-         // 如果日志记录失败，我们不希望影响主流程
-         console.error('Failed to log no space config info:', error);
-       });
-      }
-
-      return {
-        version: '3.0.0',
-        status: 'online',
-        spaces: spaces.length,
-        currentSpace: effectiveSpace || null, // 使用null而不是undefined以明确表示无space的状态
-        tags: tags.length,
-        edgeTypes: edgeTypes.length,
-        nodes: nodeCount,
-        relationships: edgeCount,
-        connectionInfo: {
-          host: this.config.host,
-          port: this.config.port,
-          username: this.config.username,
-        },
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to get database stats: ${errorMessage}`),
-        {
-          component: 'NebulaConnectionManager',
-          operation: 'getDatabaseStats'
-        }
-      );
-
-      throw error;
-    }
-  }
-
-  isConnectedToDatabase(): boolean {
-    return this.isConnected();
-  }
-
   /**
    * 获取当前配置
    */
@@ -1371,9 +774,38 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
   }
 
-  /**
-   * 触发事件
-   */
+  protected emitEvent(eventType: string, data: any, error?: Error): void {
+    const listeners = this.eventListeners.get(eventType);
+    if (listeners) {
+      const event = {
+        type: eventType as any, // 我们将在运行时确保这是有效的事件类型
+        timestamp: new Date(),
+        source: 'nebula' as const,
+        data,
+        error
+      };
+      listeners.forEach(listener => {
+        try {
+          listener(event);
+        } catch (err) {
+          // 使用 DatabaseLoggerService 记录事件监听器错误
+         this.databaseLogger.logDatabaseEvent({
+           type: DatabaseEventType.ERROR_OCCURRED,
+           source: 'nebula',
+           timestamp: new Date(),
+           data: {
+             message: `Error in event listener for ${eventType}:`,
+             error: err
+           }
+         }).catch(error => {
+           // 如果日志记录失败，我们不希望影响主流程
+           console.error('Failed to log event listener error:', error);
+         });
+        }
+      });
+    }
+  }
+
   /**
    * 转义属性值中的特殊字符，防止nGQL注入
    */
@@ -1406,37 +838,5 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
     
     return interpolatedQuery;
-  }
-
-  protected emitEvent(eventType: string, data: any, error?: Error): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      const event = {
-        type: eventType as any, // 我们将在运行时确保这是有效的事件类型
-        timestamp: new Date(),
-        source: 'nebula' as const,
-        data,
-        error
-      };
-      listeners.forEach(listener => {
-        try {
-          listener(event);
-        } catch (err) {
-          // 使用 DatabaseLoggerService 记录事件监听器错误
-         this.databaseLogger.logDatabaseEvent({
-           type: DatabaseEventType.ERROR_OCCURRED,
-           source: 'nebula',
-           timestamp: new Date(),
-           data: {
-             message: `Error in event listener for ${eventType}:`,
-             error: err
-           }
-         }).catch(error => {
-           // 如果日志记录失败，我们不希望影响主流程
-           console.error('Failed to log event listener error:', error);
-         });
-        }
-      });
-    }
   }
 }

@@ -162,6 +162,11 @@ export const TYPES = {
   INebulaGraphOperations: Symbol.for('INebulaGraphOperations'),
   INebulaQueryBuilder: Symbol.for('INebulaQueryBuilder'),
   INebulaProjectManager: Symbol.for('INebulaProjectManager'),
+  // Nebula 数据和空间服务
+  NebulaDataService: Symbol.for('NebulaDataService'),
+  INebulaDataService: Symbol.for('INebulaDataService'),
+  NebulaSpaceService: Symbol.for('NebulaSpaceService'),
+  INebulaSpaceService: Symbol.for('INebulaSpaceService'),
 
   // Nebula 监控服务
   NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),

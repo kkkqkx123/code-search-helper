@@ -33,6 +33,9 @@ import { INebulaQueryBuilder } from '../../database/nebula/NebulaQueryBuilder';
 import { NebulaGraphOperations } from '../../database/nebula/NebulaGraphOperations';
 import { INebulaGraphOperations } from '../../database/nebula/NebulaGraphOperations';
 import { ConnectionStateManager } from '../../database/nebula/ConnectionStateManager';
+// 新增的Nebula服务
+import { NebulaDataService, INebulaDataService } from '../../database/nebula/data/NebulaDataService';
+import { NebulaSpaceService, INebulaSpaceService } from '../../database/nebula/space/NebulaSpaceService';
 
 export class DatabaseServiceRegistrar {
   static register(container: Container): void {
@@ -69,5 +72,11 @@ export class DatabaseServiceRegistrar {
     container.bind<INebulaQueryBuilder>(TYPES.INebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
     container.bind<NebulaGraphOperations>(TYPES.INebulaGraphOperations).to(NebulaGraphOperations).inSingletonScope();
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
+    
+    // 新增的Nebula服务
+    container.bind<NebulaDataService>(TYPES.NebulaDataService).to(NebulaDataService).inSingletonScope();
+    container.bind<INebulaDataService>(TYPES.INebulaDataService).to(NebulaDataService).inSingletonScope();
+    container.bind<NebulaSpaceService>(TYPES.NebulaSpaceService).to(NebulaSpaceService).inSingletonScope();
+    container.bind<INebulaSpaceService>(TYPES.INebulaSpaceService).to(NebulaSpaceService).inSingletonScope();
   }
 }
