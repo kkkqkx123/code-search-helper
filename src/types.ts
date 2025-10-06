@@ -205,4 +205,11 @@ export const TYPES = {
   DatabaseLoggerService: Symbol.for('DatabaseLoggerService'),
   EventToLogBridge: Symbol.for('EventToLogBridge'),
   PerformanceMonitor: Symbol.for('PerformanceMonitor'),
+
+  // 基础设施服务
+  CacheService: Symbol.for('CacheService'),
+  BatchOptimizer: Symbol.for('BatchOptimizer'),
+  HealthChecker: Symbol.for('HealthChecker'),
+  DatabaseConnectionPool: Symbol.for('DatabaseConnectionPool'),
+  TransactionCoordinator: Symbol.for('TransactionCoordinator'),
 };
