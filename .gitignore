@@ -2,6 +2,7 @@ node_modules
 dist
 coverage
 .env
+.env.bak
 logs
 .env.test
 frontend/node_modules

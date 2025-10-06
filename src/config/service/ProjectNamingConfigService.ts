@@ -16,7 +16,6 @@ export interface ProjectNamingConfig {
 
 @injectable()
 export class ProjectNamingConfigService extends BaseConfigService<ProjectNamingConfig> {
-  private config: ProjectNamingConfig;
 
   constructor() {
     super();
@@ -138,17 +137,4 @@ export class ProjectNamingConfigService extends BaseConfigService<ProjectNamingC
     return ProjectIdManager.validateNamingConvention(name);
   }
 
-  /**
-   * 获取配置（用于测试和调试）
-   */
-  getConfig(): ProjectNamingConfig {
-    return { ...this.config };
-  }
-
-  /**
-   * 更新配置（用于运行时配置更新）
-   */
-  updateConfig(newConfig: Partial<ProjectNamingConfig>): void {
-    this.config = { ...this.config, ...newConfig };
-  }
 }
