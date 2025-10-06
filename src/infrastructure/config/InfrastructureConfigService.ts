@@ -4,98 +4,47 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ConfigService } from '../../config/ConfigService';
 import { DatabaseType } from '../types';
 
+import { CommonConfig, CacheConfig, PerformanceConfig, BatchConfig, ConnectionConfig, GraphSpecificConfig, TransactionConfig } from './types';
+
 export interface InfrastructureConfig {
   // 通用配置
-  common: {
-    enableCache: boolean;
-    enableMonitoring: boolean;
-    enableBatching: boolean;
-    logLevel: string; // 例如 'info', 'debug', 'warn', 'error'
-  };
+ common: CommonConfig;
   
   // Qdrant特定配置
   qdrant: {
-    cache: {
-      defaultTTL: number;
-      maxEntries: number;
-      cleanupInterval: number;
-      enableStats: boolean;
+    cache: CacheConfig;
+    performance: PerformanceConfig;
+    batch: BatchConfig;
+    connection: ConnectionConfig;
+    vector?: {
+      defaultCollection?: string;
+      collectionOptions?: {
+        vectorSize?: number;
+        distance?: 'Cosine' | 'Euclidean' | 'DotProduct';
+        indexing?: {
+          type?: string;
+          options?: Record<string, any>;
+        };
+      };
+      searchOptions?: {
+        limit?: number;
+        threshold?: number;
+        exactSearch?: boolean;
+      };
     };
-    performance: {
-      monitoringInterval: number;
-      queryTimeThreshold: number;
-      memoryThreshold: number;
-    };
-    batch: {
-      maxConcurrentOperations: number;
-      defaultBatchSize: number;
-      maxBatchSize: number;
-      memoryThreshold: number;
-      processingTimeout: number;
-      retryAttempts: number;
-      retryDelay: number;
-      adaptiveBatchingEnabled: boolean;
-      minBatchSize: number;
-      performanceThreshold: number;
-      adjustmentFactor: number;
-    };
-    connection: {
-      host: string;
-      port: number;
-      ssl: boolean;
-      timeout: number;
-      maxRetries: number;
-    };
-  };
+ };
   
   // Nebula特定配置
-  nebula: {
-    cache: {
-      defaultTTL: number;
-      maxEntries: number;
-      cleanupInterval: number;
-      enableStats: boolean;
-    };
-    performance: {
-      monitoringInterval: number;
-      queryTimeThreshold: number;
-      memoryThreshold: number;
-    };
-    batch: {
-      maxConcurrentOperations: number;
-      defaultBatchSize: number;
-      maxBatchSize: number;
-      memoryThreshold: number;
-      processingTimeout: number;
-      retryAttempts: number;
-      retryDelay: number;
-      adaptiveBatchingEnabled: boolean;
-      minBatchSize: number;
-      performanceThreshold: number;
-      adjustmentFactor: number;
-    };
-    connection: {
-      host: string;
-      port: number;
-      username: string;
-      password: string;
-      timeout: number;
-      maxRetries: number;
-    };
-    graph: {
-      maxDepth: number;
-      maxVertices: number;
-      enableCompression: boolean;
-    };
+ nebula: {
+    cache: CacheConfig;
+    performance: PerformanceConfig;
+    batch: BatchConfig;
+    connection: ConnectionConfig;
+    graph: GraphSpecificConfig;
   };
   
   // 事务配置
-  transaction: {
-    timeout: number;
-    retryAttempts: number;
-    retryDelay: number;
-    enableTwoPhaseCommit: boolean;
-  };
+ transaction: TransactionConfig;
 }
 
 @injectable()
@@ -124,85 +73,122 @@ export class InfrastructureConfigService {
         enableCache: true,
         enableMonitoring: true,
         enableBatching: true,
-        logLevel: 'info'
+        logLevel: 'info' as const,
+        enableHealthChecks: true,
+        healthCheckInterval: 30000,
+        gracefulShutdownTimeout: 100
       },
       qdrant: {
         cache: {
           defaultTTL: 300000, // 5 minutes
           maxEntries: 10000,
           cleanupInterval: 60000, // 1 minute
-          enableStats: true
+          enableStats: true,
+          databaseSpecific: {}
         },
         performance: {
           monitoringInterval: 30000, // 30 seconds
-          queryTimeThreshold: 1000, // 1 second
-          memoryThreshold: 80 // 80%
+          metricsRetentionPeriod: 86400000, // 24 hours
+          enableDetailedLogging: true,
+          performanceThresholds: {
+            queryExecutionTime: 1000, // 1 second
+            memoryUsage: 80, // 80%
+            responseTime: 500 // 500ms
+          },
+          databaseSpecific: {}
         },
         batch: {
           maxConcurrentOperations: 5,
           defaultBatchSize: 50,
           maxBatchSize: 500,
+          minBatchSize: 10,
           memoryThreshold: 80,
-          processingTimeout: 300000, // 5 minutes
+          processingTimeout: 30000, // 5 minutes
           retryAttempts: 3,
           retryDelay: 1000,
           adaptiveBatchingEnabled: true,
-          minBatchSize: 10,
           performanceThreshold: 1000, // 1 second
-          adjustmentFactor: 0.1 // 10% adjustment
+          adjustmentFactor: 0.1, // 10% adjustment
+          databaseSpecific: {}
         },
         connection: {
-          host: 'localhost',
-          port: 6333,
-          ssl: false,
-          timeout: 30000, // 30 seconds
-          maxRetries: 3
+          maxConnections: 10,
+          minConnections: 2,
+          connectionTimeout: 30000, // 30 seconds
+          idleTimeout: 300000, // 5 minutes
+          acquireTimeout: 10000, // 10 seconds
+          validationInterval: 6000, // 1 minute
+          enableConnectionPooling: true,
+          databaseSpecific: {}
         }
       },
       nebula: {
         cache: {
           defaultTTL: 300000, // 5 minutes
           maxEntries: 10000,
-          cleanupInterval: 60000, // 1 minute
-          enableStats: true
+          cleanupInterval: 600, // 1 minute
+          enableStats: true,
+          databaseSpecific: {}
         },
         performance: {
           monitoringInterval: 30000, // 30 seconds
-          queryTimeThreshold: 1000, // 1 second
-          memoryThreshold: 80 // 80%
+          metricsRetentionPeriod: 86400000, // 24 hours
+          enableDetailedLogging: true,
+          performanceThresholds: {
+            queryExecutionTime: 1000, // 1 second
+            memoryUsage: 80, // 80%
+            responseTime: 500 // 500ms
+          },
+          databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: 3,
-          defaultBatchSize: 25,
-          maxBatchSize: 100,
+          maxConcurrentOperations: 5,
+          defaultBatchSize: 50,
+          maxBatchSize: 500,
+          minBatchSize: 10,
           memoryThreshold: 80,
           processingTimeout: 300000, // 5 minutes
           retryAttempts: 3,
           retryDelay: 1000,
           adaptiveBatchingEnabled: true,
-          minBatchSize: 5,
-          performanceThreshold: 2000, // 2 seconds
-          adjustmentFactor: 0.1 // 10% adjustment
+          performanceThreshold: 1000, // 1 second
+          adjustmentFactor: 0.1, // 10% adjustment
+          databaseSpecific: {}
         },
         connection: {
-          host: 'localhost',
-          port: 9669,
-          username: 'root',
-          password: 'nebula',
-          timeout: 30000, // 30 seconds
-          maxRetries: 3
+          maxConnections: 10,
+          minConnections: 2,
+          connectionTimeout: 30000, // 30 seconds
+          idleTimeout: 300000, // 5 minutes
+          acquireTimeout: 1000, // 10 seconds
+          validationInterval: 6000, // 1 minute
+          enableConnectionPooling: true,
+          databaseSpecific: {}
         },
         graph: {
-          maxDepth: 10,
-          maxVertices: 10000,
-          enableCompression: true
+          defaultSpace: 'default',
+          spaceOptions: {
+            partitionNum: 10,
+            replicaFactor: 1,
+            vidType: 'FIXED_STRING' as const
+          },
+          queryOptions: {
+            timeout: 30000, // 30 seconds
+            retryAttempts: 3
+          },
+          schemaManagement: {
+            autoCreateTags: false,
+            autoCreateEdges: false
+          }
         }
       },
       transaction: {
         timeout: 30000, // 30 seconds
         retryAttempts: 3,
         retryDelay: 1000,
-        enableTwoPhaseCommit: true
+        enableTwoPhaseCommit: true,
+        maxConcurrentTransactions: 100,
+        deadlockDetectionTimeout: 5000
       }
     };
   }
@@ -256,7 +242,14 @@ export class InfrastructureConfigService {
       
       if (loggingConfig && loggingConfig.level !== undefined) {
         // 更新日志相关的基础设施配置
-        this.config.common.logLevel = loggingConfig.level;
+        // 验证日志级别是否有效
+        const validLogLevels = ['debug', 'info', 'warn', 'error'] as const;
+        type LogLevel = typeof validLogLevels[number];
+        if ((validLogLevels as readonly string[]).includes(loggingConfig.level)) {
+          this.config.common.logLevel = loggingConfig.level as LogLevel;
+        } else {
+          this.logger.warn(`Invalid log level: ${loggingConfig.level}, using default 'info'`);
+        }
       }
       
       this.logger.info('Infrastructure configuration updated with values from main config service');
@@ -291,7 +284,7 @@ export class InfrastructureConfigService {
     }
   }
 
-  updateDatabaseConfig(databaseType: DatabaseType, newConfig: any): void {
+  updateDatabaseConfig(databaseType: DatabaseType, newConfig: Partial<any>): void {
     switch (databaseType) {
       case DatabaseType.QDRANT:
         this.config.qdrant = { ...this.config.qdrant, ...newConfig };
@@ -335,13 +328,21 @@ export class InfrastructureConfigService {
     const errors: string[] = [];
 
     // 验证Qdrant配置
-    if (this.config.qdrant.connection.port <= 0 || this.config.qdrant.connection.port > 65535) {
-      errors.push('Qdrant connection port must be between 1 and 65535');
+    if (this.config.qdrant.connection.maxConnections <= 0) {
+      errors.push('Qdrant maxConnections must be greater than 0');
+    }
+
+    if (this.config.qdrant.connection.minConnections < 0 || this.config.qdrant.connection.minConnections > this.config.qdrant.connection.maxConnections) {
+      errors.push('Qdrant minConnections must be between 0 and maxConnections');
     }
 
     // 验证Nebula配置
-    if (this.config.nebula.connection.port <= 0 || this.config.nebula.connection.port > 65535) {
-      errors.push('Nebula connection port must be between 1 and 65535');
+    if (this.config.nebula.connection.maxConnections <= 0) {
+      errors.push('Nebula maxConnections must be greater than 0');
+    }
+
+    if (this.config.nebula.connection.minConnections < 0 || this.config.nebula.connection.minConnections > this.config.nebula.connection.maxConnections) {
+      errors.push('Nebula minConnections must be between 0 and maxConnections');
     }
 
     // 验证批处理配置
