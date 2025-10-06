@@ -50,8 +50,8 @@ export class InfrastructureManager {
     @inject(TYPES.PerformanceMonitor) performanceMonitor: any,
     @inject(TYPES.BatchOptimizer) batchOptimizer: any,
     @inject(TYPES.HealthChecker) healthChecker: any,
-    transactionCoordinator: TransactionCoordinator,
-    databaseConnectionPool: DatabaseConnectionPool,
+    @inject(TYPES.TransactionCoordinator) transactionCoordinator: TransactionCoordinator,
+    @inject(TYPES.DatabaseConnectionPool) databaseConnectionPool: DatabaseConnectionPool,
     @inject(TYPES.InfrastructureConfigService) private infrastructureConfigService: InfrastructureConfigService
   ) {
     this.logger = logger;
@@ -91,7 +91,7 @@ export class InfrastructureManager {
             databaseSpecific: {}
           },
           performance: {
-            monitoringInterval: 300,
+            monitoringInterval: 1000,  // 增加到最小值1000
             metricsRetentionPeriod: 86400000,
             enableDetailedLogging: true,
             performanceThresholds: {
@@ -328,7 +328,7 @@ export class InfrastructureManager {
           retryDelay: 1000,
           enableTwoPhaseCommit: true,
           maxConcurrentTransactions: 100,
-          deadlockDetectionTimeout: 500
+          deadlockDetectionTimeout: 1000  // 增加到最小值1000
         }
       };
     }
@@ -767,24 +767,11 @@ export class InfrastructureManager {
     return status;
   }
 
-  updateConfig(config: Partial<InfrastructureConfig>): void {
-    // 创建新配置对象
-    const newConfig = { ...this.config, ...config };
-
-    // 验证新配置
-    this.validateConfiguration(newConfig, 'configuration update');
-
-    // 如果验证通过，更新配置
-    this.config = newConfig;
-    this.logger.info('Infrastructure configuration updated', {
-      updatedKeys: Object.keys(config)
-    });
-  }
-
   getConfig(): InfrastructureConfig {
     return { ...this.config };
   }
 
+  
   private validateConfiguration(config: InfrastructureConfig, context: string): void {
     this.logger.debug(`Validating configuration: ${context}`);
 
@@ -849,20 +836,47 @@ export class InfrastructureManager {
     errors: string[];
     warnings: string[];
   } {
-    let dbConfig: any;
-
+    // 创建一个完整的配置对象用于验证，只更新特定数据库的配置
+    const configToValidate: InfrastructureConfig = { ...this.config };
+    
     switch (databaseType) {
       case DatabaseType.QDRANT:
-        dbConfig = this.config.qdrant;
+        if (!this.config.qdrant) {
+          return {
+            isValid: false,
+            errors: [`Configuration for ${databaseType} not found`],
+            warnings: []
+          };
+        }
+        // 在这里不需要修改，因为configToValidate已经包含了正确的qdrant配置
         break;
       case DatabaseType.NEBULA:
-        dbConfig = this.config.nebula;
+        if (!this.config.nebula) {
+          return {
+            isValid: false,
+            errors: [`Configuration for ${databaseType} not found`],
+            warnings: []
+          };
+        }
+        // 在这里不需要修改，因为configToValidate已经包含了正确的nebula配置
         break;
       case DatabaseType.VECTOR:
-        dbConfig = this.config.qdrant; // VECTOR uses Qdrant config
+        if (!this.config.qdrant) {
+          return {
+            isValid: false,
+            errors: [`Configuration for ${databaseType} (using Qdrant) not found`],
+            warnings: []
+          };
+        }
         break;
       case DatabaseType.GRAPH:
-        dbConfig = this.config.nebula; // GRAPH uses Nebula config
+        if (!this.config.nebula) {
+          return {
+            isValid: false,
+            errors: [`Configuration for ${databaseType} (using Nebula) not found`],
+            warnings: []
+          };
+        }
         break;
       default:
         return {
@@ -872,22 +886,7 @@ export class InfrastructureManager {
         };
     }
 
-    if (!dbConfig) {
-      return {
-        isValid: false,
-        errors: [`Configuration for ${databaseType} not found`],
-        warnings: []
-      };
-    }
-
-    // 创建部分配置进行验证
-    const partialConfig = {
-      [databaseType.toLowerCase()]: dbConfig,
-      common: this.config.common,
-      transaction: this.config.transaction
-    } as any;
-
-    const validationResult = this.configValidator.validateConfig(partialConfig);
+    const validationResult = this.configValidator.validateConfig(configToValidate);
 
     return {
       isValid: validationResult.isValid,
