@@ -242,3 +242,33 @@ private validateEnvironmentConfig(config: InfrastructureConfig): void {
 3. **更新文档**：更新配置文档，说明所有可用的环境变量
 
 这个改进将显著提升基础设施配置的灵活性和可维护性，使其与其他配置服务保持一致。
+
+## 更新
+
+**状态**：✅ **已完成**
+
+根据上述分析报告，`InfrastructureConfigService` 已成功修改以支持环境变量。具体更新包括：
+
+### 1. 实现了完整的环境变量加载功能
+- 创建了 `loadInfrastructureConfigFromEnv()` 方法，从 `process.env` 读取所有 `INFRA_` 前缀的环境变量
+- 支持所有基础设施配置项的环境变量配置，包括：
+  - 通用配置（common）
+  - Qdrant配置（cache, performance, batch, connection, vector）
+  - Nebula配置（cache, performance, batch, connection, graph）
+  - 事务配置（transaction）
+
+### 2. 添加了配置验证机制
+- 实现了 `validateEnvironmentConfig()` 方法，验证关键配置项的有效性
+- 检查最小健康检查间隔、连接数、超时值等关键参数
+
+### 3. 保持了向后兼容性
+- 保留了从主配置服务加载配置的逻辑
+- 为每个环境变量提供了合理的默认值
+- 保持了原有的配置结构和接口
+
+### 4. 测试验证
+- 创建了测试脚本验证环境变量正确加载
+- 验证了配置合并逻辑正常工作
+- 确认了配置验证功能有效
+
+修改后的 `InfrastructureConfigService` 现在能够正确地从 `.env` 文件中加载 `INFRA_` 前缀的环境变量，并与主配置服务提供的配置进行合并，实现了与项目中其他配置服务一致的行为模式。

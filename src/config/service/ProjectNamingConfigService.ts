@@ -1,41 +1,131 @@
 import { injectable } from 'inversify';
+import * as Joi from 'joi';
+import { BaseConfigService } from './BaseConfigService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 
+export interface ProjectNamingConfig {
+  qdrant: {
+    defaultCollection: string;
+    namingPattern: string;
+  };
+  nebula: {
+    defaultSpace: string;
+    namingPattern: string;
+  };
+}
+
 @injectable()
-export class ProjectNamingConfigService {
+export class ProjectNamingConfigService extends BaseConfigService<ProjectNamingConfig> {
+  private config: ProjectNamingConfig;
+
+  constructor() {
+    super();
+    this.config = this.loadConfig();
+  }
+
+  loadConfig(): ProjectNamingConfig {
+    const rawConfig = {
+      qdrant: {
+        defaultCollection: process.env.PROJECT_QDRANT_DEFAULT_COLLECTION || 'default',
+        namingPattern: process.env.PROJECT_QDRANT_NAMING_PATTERN || '{projectId}',
+      },
+      nebula: {
+        defaultSpace: process.env.PROJECT_NEBULA_DEFAULT_SPACE || 'default',
+        namingPattern: process.env.PROJECT_NEBULA_NAMING_PATTERN || '{projectId}',
+      },
+    };
+
+    return this.validateConfig(rawConfig);
+  }
+
+  validateConfig(config: any): ProjectNamingConfig {
+    const schema = Joi.object({
+      qdrant: Joi.object({
+        defaultCollection: Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).default('default'),
+        namingPattern: Joi.string().default('{projectId}'),
+      }),
+      nebula: Joi.object({
+        defaultSpace: Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).default('default'),
+        namingPattern: Joi.string().default('{projectId}'),
+      }),
+    });
+
+    const { error, value } = schema.validate(config);
+    if (error) {
+      throw new Error(`Project naming config validation error: ${error.message}`);
+    }
+
+    return value;
+  }
+
+  getDefaultConfig(): ProjectNamingConfig {
+    return {
+      qdrant: {
+        defaultCollection: 'default',
+        namingPattern: '{projectId}',
+      },
+      nebula: {
+        defaultSpace: 'default',
+        namingPattern: '{projectId}',
+      },
+    };
+  }
+
   /**
    * 获取Qdrant集合名称，实现配置优先级逻辑
-   * 1. 检查显式环境配置
-   * 2. 项目隔离的动态命名
-   * 3. 默认回退
+   * 1. 检查显式环境配置（保持向后兼容）
+   * 2. 使用配置服务的默认集合
+   * 3. 项目隔离的动态命名
+   * 4. 默认回退
    */
-  static getQdrantCollectionName(projectId: string): string {
-    // 1. 检查显式环境配置
+  getQdrantCollectionName(projectId: string): string {
+    // 1. 检查显式环境配置（向后兼容）
     const explicitName = process.env.QDRANT_COLLECTION;
     if (explicitName && explicitName !== 'code-snippets') {
-      // 显式设置的配置
       return explicitName;
     }
-    
-    // 2. 使用项目隔离的动态命名
+
+    // 2. 使用配置服务的默认集合（如果不是默认值）
+    if (this.config.qdrant.defaultCollection !== 'default') {
+      return this.config.qdrant.defaultCollection;
+    }
+
+    // 3. 使用配置服务中的命名模式
+    const namingPattern = this.config.qdrant.namingPattern;
+    if (namingPattern && namingPattern !== '{projectId}') {
+      return namingPattern.replace('{projectId}', projectId);
+    }
+
+    // 4. 使用项目隔离的动态命名
     return `project-${projectId}`;
   }
 
   /**
    * 获取Nebula空间名称，实现配置优先级逻辑
-   * 1. 检查显式环境配置
-   * 2. 项目隔离的动态命名
-   * 3. 默认回退
+   * 1. 检查显式环境配置（保持向后兼容）
+   * 2. 使用配置服务的默认空间
+   * 3. 项目隔离的动态命名
+   * 4. 默认回退
    */
-  static getNebulaSpaceName(projectId: string): string {
-    // 1. 检查显式环境配置
+  getNebulaSpaceName(projectId: string): string {
+    // 1. 检查显式环境配置（向后兼容）
     const explicitName = process.env.NEBULA_SPACE;
     if (explicitName && explicitName !== 'code_graphs') {
-      // 显式设置的配置
       return explicitName;
     }
-    
-    // 2. 使用项目隔离的动态命名
+
+    // 2. 使用配置服务的默认空间（如果不是默认值）
+    if (this.config.nebula.defaultSpace !== 'default') {
+      return this.config.nebula.defaultSpace;
+    }
+
+    // 3. 使用配置服务中的命名模式
+    const namingPattern = this.config.nebula.namingPattern;
+    if (namingPattern && namingPattern !== '{projectId}') {
+      return namingPattern.replace('{projectId}', projectId);
+    }
+
+    // 4. 使用项目隔离的动态命名
     return `project-${projectId}`;
   }
 
@@ -44,7 +134,21 @@ export class ProjectNamingConfigService {
    * @param name 集合名或空间名
    * @returns 是否符合约束
    */
-  static validateNamingConvention(name: string): boolean {
+  validateNamingConvention(name: string): boolean {
     return ProjectIdManager.validateNamingConvention(name);
+  }
+
+  /**
+   * 获取配置（用于测试和调试）
+   */
+  getConfig(): ProjectNamingConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * 更新配置（用于运行时配置更新）
+   */
+  updateConfig(newConfig: Partial<ProjectNamingConfig>): void {
+    this.config = { ...this.config, ...newConfig };
   }
 }

@@ -60,137 +60,161 @@ export class InfrastructureConfigService {
     this.logger = logger;
     this.configService = configService;
     
-    // 初始化默认配置
-    this.config = this.getDefaultConfig();
+    // 从环境变量加载基础设施配置
+    this.config = this.loadInfrastructureConfigFromEnv();
+    
+    // 验证配置
+    this.validateEnvironmentConfig(this.config);
     
     // 尝试从主配置服务加载基础设施特定配置
     this.loadConfigFromMainConfig();
   }
 
-  private getDefaultConfig(): InfrastructureConfig {
+  private loadInfrastructureConfigFromEnv(): InfrastructureConfig {
     return {
       common: {
-        enableCache: true,
-        enableMonitoring: true,
-        enableBatching: true,
-        logLevel: 'info' as const,
-        enableHealthChecks: true,
-        healthCheckInterval: 30000,
-        gracefulShutdownTimeout: 100
+        enableCache: process.env.INFRA_COMMON_ENABLE_CACHE !== 'false',
+        enableMonitoring: process.env.INFRA_COMMON_ENABLE_MONITORING !== 'false',
+        enableBatching: process.env.INFRA_COMMON_ENABLE_BATCHING !== 'false',
+        logLevel: (process.env.INFRA_COMMON_LOG_LEVEL as any) || 'info',
+        enableHealthChecks: process.env.INFRA_COMMON_ENABLE_HEALTH_CHECKS !== 'false',
+        healthCheckInterval: parseInt(process.env.INFRA_COMMON_HEALTH_CHECK_INTERVAL || '3000'),
+        gracefulShutdownTimeout: parseInt(process.env.INFRA_COMMON_GRACEFUL_SHUTDOWN_TIMEOUT || '10000')
       },
       qdrant: {
         cache: {
-          defaultTTL: 300000, // 5 minutes
-          maxEntries: 10000,
-          cleanupInterval: 60000, // 1 minute
-          enableStats: true,
+          defaultTTL: parseInt(process.env.INFRA_QDRANT_CACHE_DEFAULT_TTL || '30000'),
+          maxEntries: parseInt(process.env.INFRA_QDRANT_CACHE_MAX_ENTRIES || '10000'),
+          cleanupInterval: parseInt(process.env.INFRA_QDRANT_CACHE_CLEANUP_INTERVAL || '60000'),
+          enableStats: process.env.INFRA_QDRANT_CACHE_ENABLE_STATS !== 'false',
           databaseSpecific: {}
         },
         performance: {
-          monitoringInterval: 30000, // 30 seconds
-          metricsRetentionPeriod: 86400000, // 24 hours
-          enableDetailedLogging: true,
+          monitoringInterval: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_MONITORING_INTERVAL || '30000'),
+          metricsRetentionPeriod: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_METRICS_RETENTION_PERIOD || '8640000'),
+          enableDetailedLogging: process.env.INFRA_QDRANT_PERFORMANCE_ENABLE_DETAILED_LOGGING !== 'false',
           performanceThresholds: {
-            queryExecutionTime: 1000, // 1 second
-            memoryUsage: 80, // 80%
-            responseTime: 500 // 500ms
+            queryExecutionTime: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_QUERY_EXECUTION_TIME || '1000'),
+            memoryUsage: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_MEMORY_USAGE || '80'),
+            responseTime: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_RESPONSE_TIME || '50')
           },
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: 5,
-          defaultBatchSize: 50,
-          maxBatchSize: 500,
-          minBatchSize: 10,
-          memoryThreshold: 80,
-          processingTimeout: 30000, // 5 minutes
-          retryAttempts: 3,
-          retryDelay: 1000,
-          adaptiveBatchingEnabled: true,
-          performanceThreshold: 1000, // 1 second
-          adjustmentFactor: 0.1, // 10% adjustment
+          maxConcurrentOperations: parseInt(process.env.INFRA_QDRANT_BATCH_MAX_CONCURRENT_OPERATIONS || '5'),
+          defaultBatchSize: parseInt(process.env.INFRA_QDRANT_BATCH_DEFAULT_BATCH_SIZE || '50'),
+          maxBatchSize: parseInt(process.env.INFRA_QDRANT_BATCH_MAX_BATCH_SIZE || '500'),
+          minBatchSize: parseInt(process.env.INFRA_QDRANT_BATCH_MIN_BATCH_SIZE || '10'),
+          memoryThreshold: parseInt(process.env.INFRA_QDRANT_BATCH_MEMORY_THRESHOLD || '80'),
+          processingTimeout: parseInt(process.env.INFRA_QDRANT_BATCH_PROCESSING_TIMEOUT || '3000'),
+          retryAttempts: parseInt(process.env.INFRA_QDRANT_BATCH_RETRY_ATTEMPTS || '3'),
+          retryDelay: parseInt(process.env.INFRA_QDRANT_BATCH_RETRY_DELAY || '1000'),
+          adaptiveBatchingEnabled: process.env.INFRA_QDRANT_BATCH_ADAPTIVE_BATCHING_ENABLED !== 'false',
+          performanceThreshold: parseInt(process.env.INFRA_QDRANT_BATCH_PERFORMANCE_THRESHOLD || '1000'),
+          adjustmentFactor: parseFloat(process.env.INFRA_QDRANT_BATCH_ADJUSTMENT_FACTOR || '0.1'),
           databaseSpecific: {}
         },
         connection: {
-          maxConnections: 10,
-          minConnections: 2,
-          connectionTimeout: 30000, // 30 seconds
-          idleTimeout: 300000, // 5 minutes
-          acquireTimeout: 10000, // 10 seconds
-          validationInterval: 6000, // 1 minute
-          enableConnectionPooling: true,
+          maxConnections: parseInt(process.env.INFRA_QDRANT_CONNECTION_MAX_CONNECTIONS || '10'),
+          minConnections: parseInt(process.env.INFRA_QDRANT_CONNECTION_MIN_CONNECTIONS || '2'),
+          connectionTimeout: parseInt(process.env.INFRA_QDRANT_CONNECTION_CONNECTION_TIMEOUT || '3000'),
+          idleTimeout: parseInt(process.env.INFRA_QDRANT_CONNECTION_IDLE_TIMEOUT || '300000'),
+          acquireTimeout: parseInt(process.env.INFRA_QDRANT_CONNECTION_ACQUIRE_TIMEOUT || '10000'),
+          validationInterval: parseInt(process.env.INFRA_QDRANT_CONNECTION_VALIDATION_INTERVAL || '6000'),
+          enableConnectionPooling: process.env.INFRA_QDRANT_CONNECTION_ENABLE_CONNECTION_POOLING !== 'false',
           databaseSpecific: {}
+        },
+        vector: {
+          defaultCollection: process.env.INFRA_QDRANT_VECTOR_DEFAULT_COLLECTION || 'default',
+          collectionOptions: {
+            vectorSize: parseInt(process.env.INFRA_QDRANT_VECTOR_COLLECTION_VECTOR_SIZE || '1536'),
+            distance: (process.env.INFRA_QDRANT_VECTOR_COLLECTION_DISTANCE as any) || 'Cosine',
+            indexing: {
+              type: process.env.INFRA_QDRANT_VECTOR_COLLECTION_INDEXING_TYPE || 'hnsw',
+              options: {}
+            }
+          },
+          searchOptions: {
+            limit: parseInt(process.env.INFRA_QDRANT_VECTOR_SEARCH_LIMIT || '10'),
+            threshold: parseFloat(process.env.INFRA_QDRANT_VECTOR_SEARCH_THRESHOLD || '0.5'),
+            exactSearch: process.env.INFRA_QDRANT_VECTOR_SEARCH_EXACT_SEARCH === 'true'
+          }
         }
       },
       nebula: {
         cache: {
-          defaultTTL: 300000, // 5 minutes
-          maxEntries: 10000,
-          cleanupInterval: 600, // 1 minute
-          enableStats: true,
+          defaultTTL: parseInt(process.env.INFRA_NEBULA_CACHE_DEFAULT_TTL || '30000'),
+          maxEntries: parseInt(process.env.INFRA_NEBULA_CACHE_MAX_ENTRIES || '10000'),
+          cleanupInterval: parseInt(process.env.INFRA_NEBULA_CACHE_CLEANUP_INTERVAL || '60000'),
+          enableStats: process.env.INFRA_NEBULA_CACHE_ENABLE_STATS !== 'false',
           databaseSpecific: {}
         },
         performance: {
-          monitoringInterval: 30000, // 30 seconds
-          metricsRetentionPeriod: 86400000, // 24 hours
-          enableDetailedLogging: true,
+          monitoringInterval: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_MONITORING_INTERVAL || '30000'),
+          metricsRetentionPeriod: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_METRICS_RETENTION_PERIOD || '8640000'),
+          enableDetailedLogging: process.env.INFRA_NEBULA_PERFORMANCE_ENABLE_DETAILED_LOGGING !== 'false',
           performanceThresholds: {
-            queryExecutionTime: 1000, // 1 second
-            memoryUsage: 80, // 80%
-            responseTime: 500 // 500ms
+            queryExecutionTime: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_QUERY_EXECUTION_TIME || '1000'),
+            memoryUsage: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_MEMORY_USAGE || '80'),
+            responseTime: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_RESPONSE_TIME || '500')
           },
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: 5,
-          defaultBatchSize: 50,
-          maxBatchSize: 500,
-          minBatchSize: 10,
-          memoryThreshold: 80,
-          processingTimeout: 300000, // 5 minutes
-          retryAttempts: 3,
-          retryDelay: 1000,
-          adaptiveBatchingEnabled: true,
-          performanceThreshold: 1000, // 1 second
-          adjustmentFactor: 0.1, // 10% adjustment
+          maxConcurrentOperations: parseInt(process.env.INFRA_NEBULA_BATCH_MAX_CONCURRENT_OPERATIONS || '5'),
+          defaultBatchSize: parseInt(process.env.INFRA_NEBULA_BATCH_DEFAULT_BATCH_SIZE || '50'),
+          maxBatchSize: parseInt(process.env.INFRA_NEBULA_BATCH_MAX_BATCH_SIZE || '500'),
+          minBatchSize: parseInt(process.env.INFRA_NEBULA_BATCH_MIN_BATCH_SIZE || '10'),
+          memoryThreshold: parseInt(process.env.INFRA_NEBULA_BATCH_MEMORY_THRESHOLD || '80'),
+          processingTimeout: parseInt(process.env.INFRA_NEBULA_BATCH_PROCESSING_TIMEOUT || '300000'),
+          retryAttempts: parseInt(process.env.INFRA_NEBULA_BATCH_RETRY_ATTEMPTS || '3'),
+          retryDelay: parseInt(process.env.INFRA_NEBULA_BATCH_RETRY_DELAY || '100'),
+          adaptiveBatchingEnabled: process.env.INFRA_NEBULA_BATCH_ADAPTIVE_BATCHING_ENABLED !== 'false',
+          performanceThreshold: parseInt(process.env.INFRA_NEBULA_BATCH_PERFORMANCE_THRESHOLD || '1000'),
+          adjustmentFactor: parseFloat(process.env.INFRA_NEBULA_BATCH_ADJUSTMENT_FACTOR || '0.1'),
           databaseSpecific: {}
         },
         connection: {
-          maxConnections: 10,
-          minConnections: 2,
-          connectionTimeout: 30000, // 30 seconds
-          idleTimeout: 300000, // 5 minutes
-          acquireTimeout: 1000, // 10 seconds
-          validationInterval: 6000, // 1 minute
-          enableConnectionPooling: true,
+          maxConnections: parseInt(process.env.INFRA_NEBULA_CONNECTION_MAX_CONNECTIONS || '10'),
+          minConnections: parseInt(process.env.INFRA_NEBULA_CONNECTION_MIN_CONNECTIONS || '2'),
+          connectionTimeout: parseInt(process.env.INFRA_NEBULA_CONNECTION_CONNECTION_TIMEOUT || '30000'),
+          idleTimeout: parseInt(process.env.INFRA_NEBULA_CONNECTION_IDLE_TIMEOUT || '30000'),
+          acquireTimeout: parseInt(process.env.INFRA_NEBULA_CONNECTION_ACQUIRE_TIMEOUT || '10000'),
+          validationInterval: parseInt(process.env.INFRA_NEBULA_CONNECTION_VALIDATION_INTERVAL || '60000'),
+          enableConnectionPooling: process.env.INFRA_NEBULA_CONNECTION_ENABLE_CONNECTION_POOLING !== 'false',
           databaseSpecific: {}
         },
         graph: {
-          defaultSpace: 'default',
+          defaultSpace: process.env.INFRA_NEBULA_GRAPH_DEFAULT_SPACE || 'default',
           spaceOptions: {
-            partitionNum: 10,
-            replicaFactor: 1,
-            vidType: 'FIXED_STRING' as const
+            partitionNum: parseInt(process.env.INFRA_NEBULA_GRAPH_SPACE_PARTITION_NUM || '10'),
+            replicaFactor: parseInt(process.env.INFRA_NEBULA_GRAPH_SPACE_REPLICA_FACTOR || '1'),
+            vidType: (process.env.INFRA_NEBULA_GRAPH_SPACE_VID_TYPE as any) || 'FIXED_STRING'
           },
           queryOptions: {
-            timeout: 30000, // 30 seconds
-            retryAttempts: 3
+            timeout: parseInt(process.env.INFRA_NEBULA_GRAPH_QUERY_TIMEOUT || '30000'),
+            retryAttempts: parseInt(process.env.INFRA_NEBULA_GRAPH_QUERY_RETRY_ATTEMPTS || '3')
           },
           schemaManagement: {
-            autoCreateTags: false,
-            autoCreateEdges: false
+            autoCreateTags: process.env.INFRA_NEBULA_GRAPH_SCHEMA_AUTO_CREATE_TAGS === 'true',
+            autoCreateEdges: process.env.INFRA_NEBULA_GRAPH_SCHEMA_AUTO_CREATE_EDGES === 'true'
           }
         }
       },
       transaction: {
-        timeout: 30000, // 30 seconds
-        retryAttempts: 3,
-        retryDelay: 1000,
-        enableTwoPhaseCommit: true,
-        maxConcurrentTransactions: 100,
-        deadlockDetectionTimeout: 5000
+        timeout: parseInt(process.env.INFRA_TRANSACTION_TIMEOUT || '30000'),
+        retryAttempts: parseInt(process.env.INFRA_TRANSACTION_RETRY_ATTEMPTS || '3'),
+        retryDelay: parseInt(process.env.INFRA_TRANSACTION_RETRY_DELAY || '100'),
+        enableTwoPhaseCommit: process.env.INFRA_TRANSACTION_ENABLE_TWO_PHASE_COMMIT !== 'false',
+        maxConcurrentTransactions: parseInt(process.env.INFRA_TRANSACTION_MAX_CONCURRENT_TRANSACTIONS || '100'),
+        deadlockDetectionTimeout: parseInt(process.env.INFRA_TRANSACTION_DEADLOCK_DETECTION_TIMEOUT || '5000'),
+        isolationLevel: (process.env.INFRA_TRANSACTION_ISOLATION_LEVEL as any) || undefined
       }
     };
+  }
+
+  private getDefaultConfig(): InfrastructureConfig {
+    return this.loadInfrastructureConfigFromEnv();
   }
 
   private loadConfigFromMainConfig(): void {
@@ -257,6 +281,31 @@ export class InfrastructureConfigService {
       this.logger.warn('Failed to load config from main config service, using defaults', {
         error: (error as Error).message
       });
+    }
+  }
+
+  private validateEnvironmentConfig(config: InfrastructureConfig): void {
+    const errors: string[] = [];
+
+    // 验证环境变量配置的有效性
+    if (config.common.healthCheckInterval < 1000) {
+      errors.push('Common health check interval must be at least 1000ms');
+    }
+
+    if (config.qdrant.connection.maxConnections <= 0) {
+      errors.push('Qdrant max connections must be greater than 0');
+    }
+
+    if (config.nebula.connection.maxConnections <= 0) {
+      errors.push('Nebula max connections must be greater than 0');
+    }
+
+    if (config.transaction.timeout <= 0) {
+      errors.push('Transaction timeout must be greater than 0');
+    }
+
+    if (errors.length > 0) {
+      throw new Error(`Infrastructure configuration validation failed: ${errors.join(', ')}`);
     }
   }
 
