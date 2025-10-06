@@ -223,7 +223,15 @@ export class GraphPerformanceMonitor implements IGraphPerformanceMonitor {
     isHighMemoryUsage: boolean;
     isHighErrorRate: boolean;
   } {
-    const monitoringConfig = this.configService.get('batchProcessing').monitoring;
+    const batchConfig = this.configService.get('batchProcessing');
+    const monitoringConfig = batchConfig.monitoring;
+    if (!monitoringConfig) {
+      return {
+        isHighLatency: false,
+        isHighMemoryUsage: false,
+        isHighErrorRate: false,
+      };
+    }
     const thresholds = monitoringConfig.alertThresholds;
 
     const isHighLatency = this.metrics.avgExecutionTime > thresholds.highLatency;
@@ -259,7 +267,12 @@ Graph Performance Summary:
   getPerformanceRecommendations(): string[] {
     const recommendations: string[] = [];
     const metrics = this.getMetrics();
-    const thresholds = this.configService.get('batchProcessing').monitoring.alertThresholds;
+    const batchConfig = this.configService.get('batchProcessing');
+    const monitoringConfig = batchConfig.monitoring;
+    if (!monitoringConfig) {
+      return recommendations; // Return empty array if monitoring config is not available
+    }
+    const thresholds = monitoringConfig.alertThresholds;
 
     if (metrics.avgExecutionTime > thresholds.highLatency) {
       recommendations.push('Average execution time is high. Consider optimizing queries or increasing resources.');
@@ -307,13 +320,18 @@ Graph Performance Summary:
    */
   getStatus(): string {
     try {
-      const thresholds = this.configService.get('batchProcessing').monitoring.alertThresholds;
+      const batchConfig = this.configService.get('batchProcessing');
+      const monitoringConfig = batchConfig.monitoring;
+      if (!monitoringConfig) {
+        return 'normal'; // Default to normal if monitoring config is not available
+      }
+      const thresholds = monitoringConfig.alertThresholds;
       const metrics = this.getMetrics();
       
       // 检查各项指标是否超出阈值
       const isHighLatency = metrics.avgExecutionTime > thresholds.highLatency;
       const isHighMemoryUsage = metrics.memoryUsage > thresholds.highMemoryUsage;
-      const isLowThroughput = metrics.totalQueries < thresholds.lowThroughput;
+      const isLowThroughput = metrics.totalQueries < (thresholds.lowThroughput || 10); // Use a default value if lowThroughput is not defined
       
       if (isHighLatency || isHighMemoryUsage) {
         return 'critical'; // 性能严重下降

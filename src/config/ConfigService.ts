@@ -17,6 +17,8 @@ import {
   TreeSitterConfigService,
   ProjectNamingConfigService,
 } from './service';
+import { LegacyBatchProcessingConfigService } from './service/LegacyBatchProcessingConfigService';
+import { LegacyEmbeddingConfigService } from './service/LegacyEmbeddingConfigService';
 import { TYPES } from '../types';
 
 dotenv.config();
@@ -30,11 +32,12 @@ export class ConfigService {
   constructor(
     @inject(TYPES.EnvironmentConfigService) private environmentConfigService: EnvironmentConfigService,
     @inject(TYPES.QdrantConfigService) private qdrantConfigService: QdrantConfigService,
-    @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
+    // Note: Using legacy services for backward compatibility during migration
+    @inject(TYPES.EmbeddingConfigService) private legacyEmbeddingConfigService: LegacyEmbeddingConfigService,
     @inject(TYPES.LoggingConfigService) private loggingConfigService: LoggingConfigService,
     @inject(TYPES.MonitoringConfigService) private monitoringConfigService: MonitoringConfigService,
     @inject(TYPES.FileProcessingConfigService) private fileProcessingConfigService: FileProcessingConfigService,
-    @inject(TYPES.BatchProcessingConfigService) private batchProcessingConfigService: BatchProcessingConfigService,
+    @inject(TYPES.BatchProcessingConfigService) private legacyBatchProcessingConfigService: LegacyBatchProcessingConfigService,
     @inject(TYPES.RedisConfigService) private redisConfigService: RedisConfigService,
     @inject(TYPES.ProjectConfigService) private projectConfigService: ProjectConfigService,
     @inject(TYPES.IndexingConfigService) private indexingConfigService: IndexingConfigService,
@@ -45,20 +48,34 @@ export class ConfigService {
 
   async initialize(): Promise<void> {
     try {
-      // 获取各子配置
+      // 获取各子配置 (using legacy services for backward compatibility)
       const environment = this.environmentConfigService.getConfig();
       const qdrant = this.qdrantConfigService.getConfig();
-      const embedding = this.embeddingConfigService.getConfig();
+      const embedding = this.legacyEmbeddingConfigService.getConfig();
       const logging = this.loggingConfigService.getConfig();
       const monitoring = this.monitoringConfigService.getConfig();
       const fileProcessing = this.fileProcessingConfigService.getConfig();
-      const batchProcessing = this.batchProcessingConfigService.getConfig();
+      const batchProcessing = this.legacyBatchProcessingConfigService.getConfig();
       const redis = this.redisConfigService.getConfig();
       const project = this.projectConfigService.getConfig();
       const indexing = this.indexingConfigService.getConfig();
       const lsp = this.lspConfigService.getConfig();
       const semgrep = this.semgrepConfigService.getConfig();
       const treeSitter = this.treeSitterConfigService.getConfig();
+
+      // Log migration warnings in development
+      if (process.env.NODE_ENV === 'development') {
+        const batchWarnings = this.legacyBatchProcessingConfigService.getMigrationWarnings();
+        const embeddingWarnings = this.legacyEmbeddingConfigService.getMigrationWarnings();
+
+        if (batchWarnings.length > 0) {
+          console.warn('[CONFIG MIGRATION] BatchProcessingConfig warnings:', batchWarnings);
+        }
+
+        if (embeddingWarnings.length > 0) {
+          console.warn('[CONFIG MIGRATION] EmbeddingConfig warnings:', embeddingWarnings);
+        }
+      }
 
       // 构建完整的应用配置
       this.config = {
@@ -106,57 +123,6 @@ export class ConfigService {
   }
 
   get<K extends keyof AppConfig>(key: K): AppConfig[K] {
-    // 在测试环境中，允许返回模拟的配置值
-    if (!this.config && process.env.NODE_ENV === 'test') {
-      if (key === 'batchProcessing') {
-        return {
-          enabled: true,
-          maxConcurrentOperations: 5,
-          defaultBatchSize: 10,
-          maxBatchSize: 100,
-          memoryThreshold: 80,
-          processingTimeout: 30000,
-          retryAttempts: 3,
-          retryDelay: 1000,
-          continueOnError: true,
-          adaptiveBatching: {
-            enabled: true,
-            minBatchSize: 1,
-            maxBatchSize: 100,
-            performanceThreshold: 5000,
-            adjustmentFactor: 0.1
-          },
-          monitoring: {
-            enabled: true,
-            metricsInterval: 30000,
-            alertThresholds: {
-              highLatency: 5000,
-              lowThroughput: 10,
-              highErrorRate: 0.1,
-              highMemoryUsage: 80,
-              criticalMemoryUsage: 95,
-              highCpuUsage: 85,
-              criticalCpuUsage: 95
-            }
-          }
-        } as any;
-      }
-      if (key === 'project') {
-        return {
-          statePath: './data/project-states.json',
-          mappingPath: './data/project-mapping.json',
-          allowReindex: true
-        } as any;
-      }
-      if (key === 'indexing') {
-        return {
-          batchSize: 10,
-          maxConcurrency: 3
-        } as any;
-      }
-      // 对于其他配置，返回空对象或默认值
-      return {} as any;
-    }
     if (!this.config) {
       throw new Error('Configuration not initialized. Call initialize() first.');
     }

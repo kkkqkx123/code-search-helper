@@ -10,6 +10,15 @@ export interface QdrantConfig {
 
 export interface EmbeddingConfig {
   provider: string;
+  weights?: {
+    quality?: number;
+    performance?: number;
+  };
+  providerConfig?: any; // Simplified to use provider factory pattern
+}
+
+export interface LegacyEmbeddingConfig {
+  provider: string;
   openai: {
     apiKey?: string;
     baseUrl?: string;
@@ -94,29 +103,22 @@ export interface BatchProcessingConfig {
   maxConcurrentOperations: number;
   defaultBatchSize: number;
   maxBatchSize: number;
+  minSize?: number;
+  adjustmentFactor?: number;
+  performanceThreshold?: number;
   memoryThreshold: number;
   processingTimeout: number;
   retryAttempts: number;
   retryDelay: number;
   continueOnError: boolean;
-  adaptiveBatching: {
-    enabled: boolean;
-    minBatchSize: number;
-    maxBatchSize: number;
-    performanceThreshold: number;
-    adjustmentFactor: number;
-  };
-  monitoring: {
+  monitoring?: {
     enabled: boolean;
     metricsInterval: number;
     alertThresholds: {
       highLatency: number;
-      lowThroughput: number;
-      highErrorRate: number;
       highMemoryUsage: number;
-      criticalMemoryUsage: number;
-      highCpuUsage: number;
-      criticalCpuUsage: number;
+      highErrorRate: number;
+      lowThroughput?: number;
     };
   };
 }

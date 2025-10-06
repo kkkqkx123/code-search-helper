@@ -2,6 +2,11 @@ import { injectable } from 'inversify';
 import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
 
+/**
+ * Simplified batch processing configuration
+ * Removed complex adaptive batching and excessive monitoring thresholds
+ * Following KISS and YAGNI principles
+ */
 export interface BatchProcessingConfig {
   enabled: boolean;
   maxConcurrentOperations: number;
@@ -12,24 +17,17 @@ export interface BatchProcessingConfig {
   retryAttempts: number;
   retryDelay: number;
   continueOnError: boolean;
-  adaptiveBatching: {
-    enabled: boolean;
-    minBatchSize: number;
-    maxBatchSize: number;
-    performanceThreshold: number;
-    adjustmentFactor: number;
-  };
-  monitoring: {
+
+  // Simplified monitoring - only essential metrics
+  monitoring?: {
     enabled: boolean;
     metricsInterval: number;
+
+    // Essential alert thresholds only
     alertThresholds: {
       highLatency: number;
-      lowThroughput: number;
-      highErrorRate: number;
       highMemoryUsage: number;
-      criticalMemoryUsage: number;
-      highCpuUsage: number;
-      criticalCpuUsage: number;
+      highErrorRate: number;
     };
   };
 }
@@ -38,6 +36,7 @@ export interface BatchProcessingConfig {
 export class BatchProcessingConfigService extends BaseConfigService<BatchProcessingConfig> {
   loadConfig(): BatchProcessingConfig {
     const rawConfig = {
+      // Core batch processing settings (8 environment variables instead of 18)
       enabled: process.env.BATCH_PROCESSING_ENABLED !== 'false',
       maxConcurrentOperations: parseInt(process.env.MAX_CONCURRENT_OPERATIONS || '5'),
       defaultBatchSize: parseInt(process.env.DEFAULT_BATCH_SIZE || '50'),
@@ -47,24 +46,15 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
       retryAttempts: parseInt(process.env.RETRY_ATTEMPTS || '3'),
       retryDelay: parseInt(process.env.RETRY_DELAY || '1000'),
       continueOnError: process.env.CONTINUE_ON_ERROR !== 'false',
-      adaptiveBatching: {
-        enabled: process.env.ADAPTIVE_BATCHING_ENABLED !== 'false',
-        minBatchSize: parseInt(process.env.MIN_BATCH_SIZE || '10'),
-        maxBatchSize: parseInt(process.env.ADAPTIVE_MAX_BATCH_SIZE || '200'),
-        performanceThreshold: parseInt(process.env.PERFORMANCE_THRESHOLD || '1000'),
-        adjustmentFactor: parseFloat(process.env.ADJUSTMENT_FACTOR || '1.2'),
-      },
+
+      // Simplified monitoring (4 environment variables instead of 9)
       monitoring: {
         enabled: process.env.BATCH_MONITORING_ENABLED !== 'false',
         metricsInterval: parseInt(process.env.METRICS_INTERVAL || '60000'),
         alertThresholds: {
           highLatency: parseInt(process.env.HIGH_LATENCY_THRESHOLD || '5000'),
-          lowThroughput: parseInt(process.env.LOW_THROUGHPUT_THRESHOLD || '10'),
-          highErrorRate: parseFloat(process.env.HIGH_ERROR_RATE_THRESHOLD || '0.1'),
           highMemoryUsage: parseInt(process.env.HIGH_MEMORY_USAGE_THRESHOLD || '80'),
-          criticalMemoryUsage: parseInt(process.env.CRITICAL_MEMORY_USAGE_THRESHOLD || '90'),
-          highCpuUsage: parseInt(process.env.HIGH_CPU_USAGE_THRESHOLD || '70'),
-          criticalCpuUsage: parseInt(process.env.CRITICAL_CPU_USAGE_THRESHOLD || '85'),
+          highErrorRate: parseFloat(process.env.HIGH_ERROR_RATE_THRESHOLD || '0.1'),
         },
       },
     };
@@ -75,34 +65,25 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
   validateConfig(config: any): BatchProcessingConfig {
     const schema = Joi.object({
       enabled: Joi.boolean().default(true),
-      maxConcurrentOperations: Joi.number().positive().default(5),
-      defaultBatchSize: Joi.number().positive().default(50),
-      maxBatchSize: Joi.number().positive().default(500),
-      memoryThreshold: Joi.number().positive().default(80),
-      processingTimeout: Joi.number().positive().default(300000),
-      retryAttempts: Joi.number().positive().default(3),
-      retryDelay: Joi.number().positive().default(1000),
+      maxConcurrentOperations: Joi.number().positive().max(100).default(5),
+      defaultBatchSize: Joi.number().positive().max(10000).default(50),
+      maxBatchSize: Joi.number().positive().max(10000).default(500),
+      memoryThreshold: Joi.number().positive().min(10).max(95).default(80),
+      processingTimeout: Joi.number().positive().min(1000).default(300000),
+      retryAttempts: Joi.number().positive().max(10).default(3),
+      retryDelay: Joi.number().positive().min(100).default(1000),
       continueOnError: Joi.boolean().default(true),
-      adaptiveBatching: Joi.object({
-        enabled: Joi.boolean().default(true),
-        minBatchSize: Joi.number().positive().default(10),
-        maxBatchSize: Joi.number().positive().default(200),
-        performanceThreshold: Joi.number().positive().default(1000),
-        adjustmentFactor: Joi.number().positive().default(1.2),
-      }),
+
+      // Optional monitoring - if not needed, can be undefined
       monitoring: Joi.object({
         enabled: Joi.boolean().default(true),
-        metricsInterval: Joi.number().positive().default(60000),
+        metricsInterval: Joi.number().positive().min(1000).default(60000),
         alertThresholds: Joi.object({
-          highLatency: Joi.number().positive().default(5000),
-          lowThroughput: Joi.number().positive().default(10),
-          highErrorRate: Joi.number().positive().default(0.1),
-          highMemoryUsage: Joi.number().positive().default(80),
-          criticalMemoryUsage: Joi.number().positive().default(90),
-          highCpuUsage: Joi.number().positive().default(70),
-          criticalCpuUsage: Joi.number().positive().default(85),
+          highLatency: Joi.number().positive().min(100).default(5000),
+          highMemoryUsage: Joi.number().positive().min(10).max(95).default(80),
+          highErrorRate: Joi.number().positive().min(0).max(1).default(0.1),
         }),
-      }),
+      }).optional(),
     });
 
     const { error, value } = schema.validate(config);
@@ -124,26 +105,36 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
       retryAttempts: 3,
       retryDelay: 1000,
       continueOnError: true,
-      adaptiveBatching: {
-        enabled: true,
-        minBatchSize: 10,
-        maxBatchSize: 200,
-        performanceThreshold: 1000,
-        adjustmentFactor: 1.2,
-      },
+
+      // Essential monitoring only
       monitoring: {
         enabled: true,
         metricsInterval: 60000,
         alertThresholds: {
           highLatency: 5000,
-          lowThroughput: 10,
-          highErrorRate: 0.1,
           highMemoryUsage: 80,
-          criticalMemoryUsage: 90,
-          highCpuUsage: 70,
-          criticalCpuUsage: 85,
+          highErrorRate: 0.1,
         },
       },
+    };
+  }
+
+  /**
+   * Get a minimal configuration for environments where monitoring is not needed
+   * This follows YAGNI principle - only include what you actually need
+   */
+  getMinimalConfig(): BatchProcessingConfig {
+    return {
+      enabled: true,
+      maxConcurrentOperations: 3,
+      defaultBatchSize: 25,
+      maxBatchSize: 100,
+      memoryThreshold: 70,
+      processingTimeout: 30000,
+      retryAttempts: 2,
+      retryDelay: 1000,
+      continueOnError: true,
+      // No monitoring - not needed for basic use cases
     };
   }
 }

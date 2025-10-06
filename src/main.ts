@@ -178,7 +178,7 @@ class Application {
       const selectedProvider = embeddingConfig.provider || 'openai';
 
       // 使用嵌入配置服务的验证方法
-      const missingEnvVars = this.embeddingConfigService.validateProviderConfig(selectedProvider, embeddingConfig);
+      const missingEnvVars = this.embeddingConfigService.validateCurrentProvider();
       if (missingEnvVars.length > 0) {
         await this.loggerService.warn(`Missing environment variables for provider '${selectedProvider}':`, { missingEnvVars });
       } else {

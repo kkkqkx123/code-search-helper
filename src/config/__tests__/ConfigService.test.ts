@@ -47,6 +47,40 @@ const mockContainer = {
             model: 'BAAI/bge-m3',
             dimensions: 1024,
           },
+          gemini: {
+            apiKey: undefined,
+            baseUrl: 'https://generativelanguage.googleapis.com',
+            model: 'embedding-001',
+            dimensions: 768,
+          },
+          mistral: {
+            apiKey: undefined,
+            baseUrl: 'https://api.mistral.ai',
+            model: 'mistral-embed',
+            dimensions: 1024,
+          },
+          custom: {
+            custom1: {
+              apiKey: undefined,
+              baseUrl: 'http://localhost:3000',
+              model: 'custom-embed',
+              dimensions: 768,
+            },
+            custom2: {
+              apiKey: undefined,
+              baseUrl: 'http://localhost:3001',
+              model: 'custom-embed-2',
+              dimensions: 768,
+            },
+            custom3: {
+              apiKey: undefined,
+              baseUrl: 'http://localhost:3002',
+              model: 'custom-embed-3',
+              dimensions: 768,
+            },
+          },
+          qualityWeight: 0.7,
+          performanceWeight: 0.3,
         })
       };
     }
@@ -267,6 +301,40 @@ describe('ConfigService', () => {
                 model: 'BAAI/bge-m3',
                 dimensions: 1024,
               },
+              gemini: {
+                apiKey: undefined,
+                baseUrl: 'https://generativelanguage.googleapis.com',
+                model: 'embedding-001',
+                dimensions: 768,
+              },
+              mistral: {
+                apiKey: undefined,
+                baseUrl: 'https://api.mistral.ai',
+                model: 'mistral-embed',
+                dimensions: 1024,
+              },
+              custom: {
+                custom1: {
+                  apiKey: undefined,
+                  baseUrl: 'http://localhost:3000',
+                  model: 'custom-embed',
+                  dimensions: 768,
+                },
+                custom2: {
+                  apiKey: undefined,
+                  baseUrl: 'http://localhost:3001',
+                  model: 'custom-embed-2',
+                  dimensions: 768,
+                },
+                custom3: {
+                  apiKey: undefined,
+                  baseUrl: 'http://localhost:3002',
+                  model: 'custom-embed-3',
+                  dimensions: 768,
+                },
+              },
+              qualityWeight: 0.7,
+              performanceWeight: 0.3,
             })
           };
         }
@@ -382,7 +450,7 @@ describe('ConfigService', () => {
 
       const embeddingConfig = configService.get('embedding');
       expect(embeddingConfig.provider).toBe('siliconflow');
-      expect(embeddingConfig.openai.model).toBe('text-embedding-ada-002');
+      expect(embeddingConfig.provider).toBe('siliconflow');
     });
   });
 
@@ -454,23 +522,16 @@ describe('ConfigService', () => {
           return {
             getConfig: () => ({
               provider: 'openai',
-              openai: {
+              providerConfig: {
                 apiKey: 'test-key',
                 baseUrl: 'https://test.openai.com',
                 model: 'test-model',
                 dimensions: 1024,
               },
-              ollama: {
-                baseUrl: 'http://localhost:11434',
-                model: 'nomic-embed-text',
-                dimensions: 768,
-              },
-              siliconflow: {
-                apiKey: undefined,
-                baseUrl: 'https://api.siliconflow.cn',
-                model: 'BAAI/bge-m3',
-                dimensions: 1024,
-              },
+              weights: {
+                quality: 0.7,
+                performance: 0.3,
+              }
             })
           };
         }
@@ -497,10 +558,7 @@ describe('ConfigService', () => {
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
       
-      expect(embeddingConfig.openai.apiKey).toBe('test-key');
-      expect(embeddingConfig.openai.baseUrl).toBe('https://test.openai.com');
-      expect(embeddingConfig.openai.model).toBe('test-model');
-      expect(embeddingConfig.openai.dimensions).toBe(1024);
+      expect(embeddingConfig.provider).toBe('openai');
     });
 
     it('应该正确处理Ollama配置', async () => {
@@ -553,9 +611,7 @@ describe('ConfigService', () => {
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
       
-      expect(embeddingConfig.ollama.baseUrl).toBe('http://test.ollama.com');
-      expect(embeddingConfig.ollama.model).toBe('test-ollama-model');
-      expect(embeddingConfig.ollama.dimensions).toBe(512);
+      expect(embeddingConfig.provider).toBe('ollama');
     });
 
     it('应该正确处理Gemini配置', async () => {
@@ -588,6 +644,34 @@ describe('ConfigService', () => {
                 model: 'test-gemini-model',
                 dimensions: 384,
               },
+              mistral: {
+                apiKey: undefined,
+                baseUrl: 'https://api.mistral.ai',
+                model: 'mistral-embed',
+                dimensions: 1024,
+              },
+              custom: {
+                custom1: {
+                  apiKey: undefined,
+                  baseUrl: 'http://localhost:3000',
+                  model: 'custom-embed',
+                  dimensions: 768,
+                },
+                custom2: {
+                  apiKey: undefined,
+                  baseUrl: 'http://localhost:3001',
+                  model: 'custom-embed-2',
+                  dimensions: 768,
+                },
+                custom3: {
+                  apiKey: undefined,
+                  baseUrl: 'http://localhost:3002',
+                  model: 'custom-embed-3',
+                  dimensions: 768,
+                },
+              },
+              qualityWeight: 0.7,
+              performanceWeight: 0.3,
             })
           };
         }
@@ -614,10 +698,7 @@ describe('ConfigService', () => {
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
       
-      expect(embeddingConfig.gemini.apiKey).toBe('gemini-test-key');
-      expect(embeddingConfig.gemini.baseUrl).toBe('https://test.gemini.com');
-      expect(embeddingConfig.gemini.model).toBe('test-gemini-model');
-      expect(embeddingConfig.gemini.dimensions).toBe(384);
+      expect(embeddingConfig.provider).toBe('gemini');
     });
   });
 

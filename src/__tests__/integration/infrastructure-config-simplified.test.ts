@@ -287,7 +287,7 @@ describe('简化配置管理测试', () => {
             spaceOptions: {
               partitionNum: 5,
               replicaFactor: 1,
-              vidType: 'FIXED_STRING'
+              vidType: 'FIXED_STRING' as const
             },
             queryOptions: {
               timeout: 10000,
@@ -432,34 +432,34 @@ describe('简化配置管理测试', () => {
   describe('已移除功能的验证测试', () => {
     test('不应该有热更新功能', () => {
       // 验证热更新方法不存在
-      expect(infrastructureConfigService['updateConfigWithValidation']).toBeUndefined();
-      expect(infrastructureConfigService['onConfigUpdate']).toBeUndefined();
-      expect(infrastructureConfigService['removeConfigUpdateCallback']).toBeUndefined();
-      expect(infrastructureConfigService['reloadConfig']).toBeUndefined();
-      expect(infrastructureConfigService['getConfigUpdateStatus']).toBeUndefined();
+      expect(infrastructureConfigService).not.toHaveProperty('updateConfigWithValidation');
+      expect(infrastructureConfigService).not.toHaveProperty('onConfigUpdate');
+      expect(infrastructureConfigService).not.toHaveProperty('removeConfigUpdateCallback');
+      expect(infrastructureConfigService).not.toHaveProperty('reloadConfig');
+      expect(infrastructureConfigService).not.toHaveProperty('getConfigUpdateStatus');
     });
 
     test('不应该有环境变量监听功能', () => {
       // 验证环境变量监听方法不存在
-      expect(infrastructureConfigService['startEnvironmentWatching']).toBeUndefined();
-      expect(infrastructureConfigService['stopEnvironmentWatching']).toBeUndefined();
-      expect(infrastructureConfigService['checkEnvironmentChanges']).toBeUndefined();
+      expect(infrastructureConfigService).not.toHaveProperty('startEnvironmentWatching');
+      expect(infrastructureConfigService).not.toHaveProperty('stopEnvironmentWatching');
+      expect(infrastructureConfigService).not.toHaveProperty('checkEnvironmentChanges');
     });
 
     test('不应该有配置缓存功能', () => {
       // 验证配置缓存方法不存在
-      expect(infrastructureManager['refreshConfigCache']).toBeUndefined();
-      expect(infrastructureManager['clearConfigCache']).toBeUndefined();
-      expect(infrastructureManager['getConfigCacheStatus']).toBeUndefined();
-      expect(infrastructureManager['configCache']).toBeUndefined();
+      expect(infrastructureManager).not.toHaveProperty('refreshConfigCache');
+      expect(infrastructureManager).not.toHaveProperty('clearConfigCache');
+      expect(infrastructureManager).not.toHaveProperty('getConfigCacheStatus');
+      expect(infrastructureManager).not.toHaveProperty('configCache');
     });
 
     test('不应该有配置更新监听功能', () => {
       // 验证配置更新监听方法不存在
-      expect(infrastructureManager['onConfigUpdate']).toBeUndefined();
-      expect(infrastructureManager['removeConfigUpdateCallback']).toBeUndefined();
-      expect(infrastructureManager['notifyConfigUpdateCallbacks']).toBeUndefined();
-      expect(infrastructureManager['configUpdateCallbacks']).toBeUndefined();
+      expect(infrastructureManager).not.toHaveProperty('onConfigUpdate');
+      expect(infrastructureManager).not.toHaveProperty('removeConfigUpdateCallback');
+      expect(infrastructureManager).not.toHaveProperty('notifyConfigUpdateCallbacks');
+      expect(infrastructureManager).not.toHaveProperty('configUpdateCallbacks');
     });
   });
 });

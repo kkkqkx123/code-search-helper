@@ -83,11 +83,11 @@ export class PerformanceOptimizerService {
 
     // Initialize batch options from config service
     this.batchOptions = {
-      initialSize: batchConfig.defaultBatchSize,
-      maxSize: batchConfig.maxBatchSize,
-      minSize: batchConfig.adaptiveBatching.minBatchSize,
-      adjustmentFactor: batchConfig.adaptiveBatching.adjustmentFactor,
-      performanceThreshold: batchConfig.adaptiveBatching.performanceThreshold
+      initialSize: batchConfig.defaultBatchSize || 10,
+      maxSize: batchConfig.maxBatchSize || 100,
+      minSize: batchConfig.minSize || 1,
+      adjustmentFactor: batchConfig.adjustmentFactor || 0.1,
+      performanceThreshold: batchConfig.performanceThreshold || 5000
     };
 
     // Set initial batch size
