@@ -12,6 +12,7 @@ import { QdrantInfrastructure } from './implementations/QdrantInfrastructure';
 import { NebulaInfrastructure } from './implementations/NebulaInfrastructure';
 import { InfrastructureConfig as TypedInfrastructureConfig } from './config/types';
 import { ConfigValidator } from './config/ConfigValidator';
+import { InfrastructureConfigService } from './config/InfrastructureConfigService';
 
 export interface IDatabaseInfrastructure {
   readonly databaseType: DatabaseType;
@@ -50,7 +51,8 @@ export class InfrastructureManager {
     @inject(TYPES.BatchOptimizer) batchOptimizer: any,
     @inject(TYPES.HealthChecker) healthChecker: any,
     transactionCoordinator: TransactionCoordinator,
-    databaseConnectionPool: DatabaseConnectionPool
+    databaseConnectionPool: DatabaseConnectionPool,
+    @inject(TYPES.InfrastructureConfigService) private infrastructureConfigService: InfrastructureConfigService
   ) {
     this.logger = logger;
     this.databaseInfrastructures = new Map();

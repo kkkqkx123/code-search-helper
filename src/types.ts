@@ -115,6 +115,7 @@ export const TYPES = {
   SemgrepConfigService: Symbol.for('SemgrepConfigService'),
   TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
   NebulaConfigService: Symbol.for('NebulaConfigService'),
+  InfrastructureConfigService: Symbol.for('InfrastructureConfigService'),
 
   QdrantService: Symbol.for('QdrantService'),
   LoggerService: Symbol.for('LoggerService'),
