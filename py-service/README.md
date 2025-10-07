@@ -1,13 +1,13 @@
-# GraphSearchService Python算法服务
+# Python算法微服务
 
-基于Python实现的图搜索算法微服务，为TypeScript主服务提供高性能算法支持。
+基于Python实现的统一算法微服务，为TypeScript主服务提供高性能算法支持，整合了图搜索和向量批处理优化功能。
 
 ## 🚀 快速开始
 
 ### 环境要求
 
 - Python 3.11+
-- Redis 7.0+
+- Redis 7.0+（可选，用于缓存）
 - Docker & Docker Compose（可选）
 
 ### 安装依赖
@@ -22,9 +22,6 @@ pip install -r requirements.txt
 ```bash
 # 启动Python算法服务
 uvicorn src.main:app --reload --port 8000
-
-# 启动Redis
-redis-server
 ```
 
 #### 生产模式
@@ -83,9 +80,26 @@ Content-Type: application/json
 }
 ```
 
+#### 4. 向量批处理优化
+```http
+POST /api/v1/batch-optimization/calculate-size
+Content-Type: application/json
+
+{
+    "item_count": 1000,
+    "vector_dimension": 1536,
+    "database_type": "qdrant",
+    "system_resources": {
+        "available_memory": 8192,
+        "cpu_cores": 8,
+        "io_bandwidth": 1000
+    }
+}
+```
+
 ## 🔧 TypeScript集成
 
-### 安装客户端
+### 安装客户端依赖
 
 ```bash
 npm install axios @nestjs/axios
@@ -101,7 +115,7 @@ PYTHON_SERVICE_TIMEOUT=30000
 ### 使用示例
 
 ```typescript
-import { GraphSearchPythonClient } from './graph-search/src/typescript-client/GraphSearchPythonClient';
+import { GraphSearchPythonClient } from './src/typescript-client/GraphSearchPythonClient';
 
 // 在服务中注入
 @Injectable()
@@ -119,22 +133,38 @@ export class SearchService {
     
     return result.matches;
   }
+  
+  async optimizeBatch(vectorData: any) {
+    // 调用向量批处理优化
+    const result = await this.pythonClient.batchOptimization({
+      item_count: vectorData.length,
+      vector_dimension: vectorData[0].length,
+      database_type: 'qdrant'
+    });
+    
+    return result.optimal_batch_size;
+  }
 }
 ```
 
 ## 🏗️ 项目结构
 
 ```
-graph-search/
+py-service/
 ├── src/
 │   ├── api/              # API接口层
+│   │   ├── routes/       # 路由定义
+│   │   └── middleware/   # 中间件
 │   ├── core/             # 核心算法
 │   │   ├── fuzzy_match/  # 模糊匹配算法
 │   │   ├── graph_index/  # 图索引算法
-│   │   └── query_optimizer/ # 查询优化
+│   │   ├── query_optimizer/ # 查询优化
+│   │   └── batch_optimization/ # 向量批处理优化
 │   ├── models/           # 数据模型
 │   ├── services/         # 业务服务
-│   └── utils/            # 工具函数
+│   ├── utils/            # 工具函数
+│   └── typescript-client/ # TypeScript客户端
+│       └── GraphSearchPythonClient.ts
 ├── tests/               # 测试代码
 ├── docs/                # 文档
 ├── requirements.txt     # Python依赖
@@ -172,6 +202,7 @@ python -m tests.performance.benchmark
 - 内存和CPU使用率
 - 错误率和异常监控
 - 查询命中率统计
+- 批处理优化效果
 
 访问 http://localhost:8000/metrics 查看Prometheus指标。
 
@@ -199,10 +230,10 @@ RATE_LIMIT_WINDOW=60  # 秒
 
 ```bash
 # 构建镜像
-docker build -t graph-search-algorithm .
+docker build -t python-algorithm-service .
 
 # 运行容器
-docker run -p 8000:8000 graph-search-algorithm
+docker run -p 8000:8000 python-algorithm-service
 ```
 
 ### Kubernetes部署
@@ -225,6 +256,7 @@ kubectl apply -f k8s/service.yaml
 |------|--------|----------|
 | 查询延迟 | <100ms | 待测试 |
 | 索引构建速度 | >1000节点/秒 | 待测试 |
+| 批处理优化效果 | 提升30-50% | 待测试 |
 | 内存使用 | <2GB | 待测试 |
 | 准确率 | >90% | 待测试 |
 
