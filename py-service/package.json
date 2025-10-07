@@ -1,0 +1,62 @@
+{
+  "name": "graph-search-service",
+  "version": "1.0.0",
+  "description": "Graph search algorithm service with TypeScript client",
+  "main": "dist/src/typescript-client/GraphSearchPythonClient.js",
+  "types": "dist/src/typescript-client/GraphSearchPythonClient.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "dev": "tsx src/typescript-client/GraphSearchPythonClient.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,js}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js}\"",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "graph-search",
+    "fuzzy-matching",
+    "algorithm-service",
+    "typescript-client",
+    "python-integration"
+  ],
+  "author": "Graph Search Team",
+  "license": "MIT",
+  "dependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/axios": "^4.0.0",
+    "@nestjs/config": "^4.0.2",
+    "rxjs": "^7.8.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "@types/jest": "^30.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "eslint": "^9.37.0",
+    "jest": "^30.2.0",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/graph-search-service.git"
+  },
+  "files": [
+    "dist/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ]
+}

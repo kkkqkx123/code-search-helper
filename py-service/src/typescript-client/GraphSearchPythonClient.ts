@@ -77,7 +77,7 @@ export class GraphSearchPythonClient {
         )
       );
       
-      return response.data;
+      return response.data as FuzzyMatchResponse;
     } catch (error) {
       throw this.handleError(error, '模糊匹配搜索');
     }
@@ -96,7 +96,7 @@ export class GraphSearchPythonClient {
         )
       );
       
-      return response.data;
+      return response.data as GraphSearchResponse;
     } catch (error) {
       throw this.handleError(error, '图搜索查询');
     }
@@ -115,7 +115,7 @@ export class GraphSearchPythonClient {
         )
       );
       
-      return response.data;
+      return response.data as IndexBuildResponse;
     } catch (error) {
       throw this.handleError(error, '索引构建');
     }
@@ -133,7 +133,7 @@ export class GraphSearchPythonClient {
         )
       );
       
-      return response.data;
+      return response.data as { status: string; services: any };
     } catch (error) {
       throw this.handleError(error, '健康检查');
     }
@@ -199,10 +199,11 @@ export class GraphSearchPythonClient {
           version: string;
           status: string;
         }>(`${this.baseUrl}/`, { timeout: 5000 })
-      );
+      ) as { data: { service: string; version: string; status: string } };
       
+      const responseData = response.data as { service: string; version: string; status: string };
       return {
-        ...response.data,
+        ...responseData,
         baseUrl: this.baseUrl
       };
     } catch (error) {
