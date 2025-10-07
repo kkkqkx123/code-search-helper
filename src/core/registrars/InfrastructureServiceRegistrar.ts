@@ -9,6 +9,9 @@ import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPe
 import { GraphBatchOptimizer } from '../../service/graph/performance/GraphBatchOptimizer';
 import { GraphQueryValidator } from '../../service/graph/validation/GraphQueryValidator';
 
+// 高级映射服务
+import { AdvancedMappingService as SemanticRelationshipExtractor } from '../../service/mapping/SemanticRelationshipExtractor';
+
 // 基础设施配置服务
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
 
@@ -23,6 +26,9 @@ export class InfrastructureServiceRegistrar {
     container.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
     container.bind<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer).to(GraphBatchOptimizer).inSingletonScope();
     container.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
+    
+    // 高级映射服务
+    container.bind<SemanticRelationshipExtractor>(TYPES.AdvancedMappingService).to(SemanticRelationshipExtractor).inSingletonScope();
     
     // 基础设施配置服务
     container.bind<InfrastructureConfigService>(TYPES.InfrastructureConfigService)

@@ -40,6 +40,12 @@ import { NebulaQueryUtils } from '../../database/nebula/NebulaQueryUtils';
 import { NebulaResultFormatter } from '../../database/nebula/NebulaResultFormatter';
 import { NebulaEventManager } from '../../database/nebula/NebulaEventManager';
 
+// 图数据映射和验证服务
+import { GraphDataMappingService } from '../../service/mapping/GraphDataMappingService';
+import { AsyncTaskQueue } from '../../service/async/AsyncTaskQueue';
+import { DataMappingValidator } from '../../service/validation/DataMappingValidator';
+import { GraphMappingCache } from '../../service/caching/GraphMappingCache';
+
 export class DatabaseServiceRegistrar {
   static register(container: Container): void {
     // 通用数据库服务
@@ -75,8 +81,6 @@ export class DatabaseServiceRegistrar {
     container.bind<INebulaQueryBuilder>(TYPES.INebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
     container.bind<NebulaGraphOperations>(TYPES.INebulaGraphOperations).to(NebulaGraphOperations).inSingletonScope();
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
-
-    // 新增的Nebula服务
     container.bind<NebulaDataService>(TYPES.NebulaDataService).to(NebulaDataService).inSingletonScope();
     container.bind<INebulaDataService>(TYPES.INebulaDataService).to(NebulaDataService).inSingletonScope();
     container.bind<NebulaSpaceService>(TYPES.NebulaSpaceService).to(NebulaSpaceService).inSingletonScope();
@@ -86,5 +90,11 @@ export class DatabaseServiceRegistrar {
     container.bind<NebulaQueryUtils>(TYPES.NebulaQueryUtils).to(NebulaQueryUtils).inSingletonScope();
     container.bind<NebulaResultFormatter>(TYPES.NebulaResultFormatter).to(NebulaResultFormatter).inSingletonScope();
     container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
+
+    // 图数据映射和验证服务
+    container.bind<GraphDataMappingService>(TYPES.GraphDataMappingService).to(GraphDataMappingService).inSingletonScope();
+    container.bind<AsyncTaskQueue>(TYPES.AsyncTaskQueue).to(AsyncTaskQueue).inSingletonScope();
+    container.bind<DataMappingValidator>(TYPES.DataMappingValidator).to(DataMappingValidator).inSingletonScope();
+    container.bind<GraphMappingCache>(TYPES.GraphMappingCache).to(GraphMappingCache).inSingletonScope();
   }
 }
