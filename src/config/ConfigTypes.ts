@@ -1,4 +1,15 @@
 // 配置类型定义，专注于当前项目需求
+export interface ProjectNamingConfig {
+  qdrant: {
+    defaultCollection: string;
+    namingPattern: string;
+  };
+  nebula: {
+    defaultSpace: string;
+    namingPattern: string;
+  };
+}
+
 export interface QdrantConfig {
   host: string;
   port: number;
@@ -218,6 +229,7 @@ export interface AppConfig {
   cache?: CacheConfig;
   fusion?: FusionConfig;
   project?: ProjectConfig;
+  projectNaming?: ProjectNamingConfig;
   treeSitter?: TreeSitterConfig;
 }
 

@@ -6,7 +6,6 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 // 图服务基础设施
 import { GraphCacheService } from '../../service/graph/cache/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
-import { GraphBatchOptimizer } from '../../service/graph/performance/GraphBatchOptimizer';
 import { GraphQueryValidator } from '../../service/graph/validation/GraphQueryValidator';
 
 // 高级映射服务
@@ -18,6 +17,8 @@ import { PerformanceMetricsCollector } from '../../service/metrics/PerformanceMe
 import { TransactionLogger } from '../../service/transaction/TransactionLogger';
 import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
+import { GraphBatchOptimizer } from '../../service/batching/GraphBatchOptimizer';
+import { GraphMappingCache } from '../../service/caching/GraphMappingCache';
 
 // 基础设施配置服务
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
@@ -34,17 +35,72 @@ export class InfrastructureServiceRegistrar {
     // 图服务基础设施
     container.bind<GraphCacheService>(TYPES.GraphCacheService).to(GraphCacheService).inSingletonScope();
     container.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
-    container.bind<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer).to(GraphBatchOptimizer).inSingletonScope();
     container.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
     
     // 高级映射服务
     container.bind<SemanticRelationshipExtractor>(TYPES.AdvancedMappingService).to(SemanticRelationshipExtractor).inSingletonScope();
+    container.bind<GraphMappingCache>(TYPES.GraphMappingCache).to(GraphMappingCache).inSingletonScope();
     
     // 性能监控和优化服务
+    console.log('Binding PerformanceDashboard...');
     container.bind<PerformanceDashboard>(TYPES.PerformanceDashboard).to(PerformanceDashboard).inSingletonScope();
+    console.log('PerformanceDashboard bound');
+    
+    console.log('Binding TransactionLogger...');
     container.bind<TransactionLogger>(TYPES.TransactionLogger).to(TransactionLogger).inSingletonScope();
-    // container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).to(PerformanceMetricsCollector).inSingletonScope();
-    // container.bind<AutoOptimizationAdvisor>(TYPES.AutoOptimizationAdvisor).to(AutoOptimizationAdvisor).inSingletonScope();
+    console.log('TransactionLogger bound');
+    
+    console.log('Attempting to bind PerformanceMetricsCollector...');
+    try {
+      container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).toConstantValue(
+        new PerformanceMetricsCollector(
+          container.get<LoggerService>(TYPES.LoggerService),
+          container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
+          container.get<TransactionLogger>(TYPES.TransactionLogger),
+          container.get<GraphMappingCache>(TYPES.GraphMappingCache),
+          {} // 默认选项
+        )
+      );
+      console.log('PerformanceMetricsCollector bound');
+    } catch (error: any) {
+      console.error('Error binding PerformanceMetricsCollector:', error);
+      console.error('Error stack:', error?.stack);
+      throw error;
+    }
+
+    console.log('Attempting to bind GraphBatchOptimizer...');
+    try {
+      container.bind<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer).toConstantValue(
+        new GraphBatchOptimizer(
+          container.get<LoggerService>(TYPES.LoggerService),
+          {} // 默认选项
+        )
+      );
+      console.log('GraphBatchOptimizer bound');
+    } catch (error: any) {
+      console.error('Error binding GraphBatchOptimizer:', error);
+      console.error('Error stack:', error?.stack);
+      throw error;
+    }
+
+    console.log('Attempting to bind AutoOptimizationAdvisor...');
+    try {
+      container.bind<AutoOptimizationAdvisor>(TYPES.AutoOptimizationAdvisor).toConstantValue(
+        new AutoOptimizationAdvisor(
+          container.get<LoggerService>(TYPES.LoggerService),
+          container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
+          container.get<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector),
+          container.get<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer),
+          container.get<GraphMappingCache>(TYPES.GraphMappingCache),
+          {} // 默认选项
+        )
+      );
+      console.log('AutoOptimizationAdvisor bound');
+    } catch (error: any) {
+      console.error('Error binding AutoOptimizationAdvisor:', error);
+      console.error('Error stack:', error?.stack);
+      throw error;
+    }
     // container.bind<BatchProcessingOptimizer>(TYPES.BatchProcessingOptimizer).to(BatchProcessingOptimizer).inSingletonScope();
     
     // 基础设施配置服务

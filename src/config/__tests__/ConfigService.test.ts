@@ -160,6 +160,20 @@ const mockContainer = {
         })
       };
     }
+    if (serviceIdentifier.name === 'ProjectNamingConfigService') {
+      return {
+        getConfig: () => ({
+          qdrant: {
+            defaultCollection: 'default',
+            namingPattern: '{projectId}',
+          },
+          nebula: {
+            defaultSpace: 'default',
+            namingPattern: '{projectId}',
+          },
+        })
+      };
+    }
     // 为其他配置服务提供默认值
     return {
       getConfig: () => ({})
@@ -199,7 +213,8 @@ describe('ConfigService', () => {
       mockContainer.get({ name: 'IndexingConfigService' }) as any,
       mockContainer.get({ name: 'LSPConfigService' }) as any,
       mockContainer.get({ name: 'SemgrepConfigService' }) as any,
-      mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+      mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+      mockContainer.get({ name: 'ProjectNamingConfigService' }) as any
     );
   });
 
@@ -304,7 +319,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any
       );
       await newConfigService.initialize();
       const config = newConfigService.getAll();
@@ -351,7 +367,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any
       );
       
       // 现在initialize()方法应该抛出错误，因为getConfig()会抛出错误
@@ -484,7 +501,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -529,7 +547,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -575,7 +594,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -630,7 +650,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any
       );
       await newConfigService.initialize();
       const batchConfig = newConfigService.get('batchProcessing');
@@ -677,7 +698,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any
+        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any
       );
       await newConfigService.initialize();
       const semgrepConfig = newConfigService.get('semgrep');

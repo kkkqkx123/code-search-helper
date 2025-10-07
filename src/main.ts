@@ -21,12 +21,22 @@ import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnec
 // 添加详细的错误处理
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
+  console.error('Error name:', error.name);
+  console.error('Error message:', error.message);
   console.error('Error stack:', error.stack);
+  console.error('Error type:', typeof error);
+  if (error && typeof error === 'object' && 'kind' in error) {
+    console.error('Error kind:', (error as any).kind);
+  }
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
+  if (reason && typeof reason === 'object' && 'kind' in reason) {
+    console.error('Reason kind:', (reason as any).kind);
+  }
   process.exit(1);
 });
 
@@ -282,13 +292,20 @@ class ApplicationFactory {
 
 // 启动应用
 async function bootstrap(): Promise<void> {
+  console.log('Starting bootstrap process...');
   try {
+    console.log('Getting ConfigService from DI container...');
     // 在创建应用实例之前，先初始化配置服务
     const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
+    console.log('ConfigService retrieved, initializing...');
     await configService.initialize();
+    console.log('ConfigService initialized successfully');
 
+    console.log('Creating application instance...');
     const app = ApplicationFactory.createApplication();
+    console.log('Application instance created, starting...');
     await app.start();
+    console.log('Application started successfully');
 
     // 优雅关闭处理
     process.on('SIGINT', async () => {
@@ -313,20 +330,12 @@ async function bootstrap(): Promise<void> {
       }
     });
 
-    // 处理未捕获的异常
-    process.on('uncaughtException', (error) => {
-      console.error('Uncaught Exception:', error);
-      console.error('Error stack:', error.stack);
-      process.exit(1);
-    });
-
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-      process.exit(1);
-    });
-
   } catch (error) {
     console.error('Failed to bootstrap application:', error);
+    if (error && typeof error === 'object' && 'kind' in error) {
+      console.error('Error kind:', (error as any).kind);
+    }
+    console.error('Error stack:', (error as Error).stack);
     process.exit(1);
   }
 }

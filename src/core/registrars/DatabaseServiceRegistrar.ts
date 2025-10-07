@@ -99,6 +99,6 @@ export class DatabaseServiceRegistrar {
     container.bind<GraphDataMappingService>(TYPES.GraphDataMappingService).to(GraphDataMappingService).inSingletonScope();
     container.bind<AsyncTaskQueue>(TYPES.AsyncTaskQueue).to(AsyncTaskQueue).inSingletonScope();
     container.bind<DataMappingValidator>(TYPES.DataMappingValidator).to(DataMappingValidator).inSingletonScope();
-    container.bind<GraphMappingCache>(TYPES.GraphMappingCache).to(GraphMappingCache).inSingletonScope();
+    // GraphMappingCache 已在 InfrastructureServiceRegistrar 中注册，不需要重复注册
   }
 }
