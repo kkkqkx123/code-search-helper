@@ -15,14 +15,14 @@ import { GraphModule } from '../service/graph/core/GraphModule';
 console.log('Creating DI container...');
 const diContainer = new Container();
 
-// 按依赖层次注册服务
-console.log('Registering ConfigServiceRegistrar...');
-ConfigServiceRegistrar.register(diContainer);              // 配置服务
-console.log('ConfigServiceRegistrar registered');
-
+// 按依赖层次注册服务 - 基础设施服务(包括LoggerService和ErrorHandlerService)必须先注册
 console.log('Registering InfrastructureServiceRegistrar...');
-InfrastructureServiceRegistrar.register(diContainer);     // 基础设施服务
+InfrastructureServiceRegistrar.register(diContainer);     // 基础设施服务(包括LoggerService和ErrorHandlerService)
 console.log('InfrastructureServiceRegistrar registered');
+
+console.log('Registering ConfigServiceRegistrar...');
+ConfigServiceRegistrar.register(diContainer);              // 配置服务(依赖基础设施服务)
+console.log('ConfigServiceRegistrar registered');
 
 console.log('Registering DatabaseServiceRegistrar...');
 DatabaseServiceRegistrar.register(diContainer);           // 数据库服务

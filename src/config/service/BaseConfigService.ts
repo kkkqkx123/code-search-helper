@@ -9,10 +9,11 @@ export interface ConfigServiceInterface<T> {
 
 @injectable()
 export abstract class BaseConfigService<T> implements ConfigServiceInterface<T> {
-  protected config: T;
+  private _config: T | null = null;
+  private _isInitialized = false;
 
   constructor() {
-    this.config = this.loadConfig();
+    // 不在构造函数中初始化配置，而是使用懒加载
   }
 
   abstract loadConfig(): T;
@@ -20,11 +21,19 @@ export abstract class BaseConfigService<T> implements ConfigServiceInterface<T> 
   abstract getDefaultConfig(): T;
 
   getConfig(): T {
-    return this.config;
+    if (!this._isInitialized) {
+      this._config = this.loadConfig();
+      this._isInitialized = true;
+    }
+    return this._config!;
   }
 
   updateConfig(newConfig: Partial<T>): void {
-    this.config = { ...this.config, ...newConfig };
+    if (!this._isInitialized) {
+      this._config = this.loadConfig();
+      this._isInitialized = true;
+    }
+    this._config = { ...this._config!, ...newConfig };
   }
 
   /**
