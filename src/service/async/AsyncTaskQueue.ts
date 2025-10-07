@@ -195,7 +195,7 @@ export class AsyncTaskQueue {
       // 使用超时包装任务执行
       const taskResult = await this.executeWithTimeout(
         task.execute(),
-        task.timeout || this.options.defaultTimeout
+        task.timeout || this.options.defaultTimeout || 30000
       );
       
       result = {

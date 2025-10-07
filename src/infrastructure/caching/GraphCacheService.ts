@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { ICacheService } from './types';
-import { CacheConfig } from './types';
+import { ICacheService, CacheConfig } from './types';
+import { DatabaseType } from '../../infrastructure/types';
 
 @injectable()
 export class GraphCacheService implements ICacheService {
@@ -29,6 +29,7 @@ export class GraphCacheService implements ICacheService {
       maxEntries: 10000,
       cleanupInterval: 6000, // 1分钟清理间隔
       enableStats: true,
+      databaseSpecific: {}, // 添加缺失的 databaseSpecific 字段
       ...config
     };
 
@@ -68,6 +69,39 @@ export class GraphCacheService implements ICacheService {
     return null;
   }
 
+  // 实现 ICacheService 接口要求的方法
+  getFromCache<T>(key: string): T | undefined {
+    const value = this.cache.get(key);
+    const timestamp = this.timestamps.get(key);
+    const ttl = this.ttlMap.get(key) || this.config.defaultTTL;
+
+    if (value !== undefined && timestamp !== undefined) {
+      // 检查是否过期
+      if (Date.now() - timestamp < ttl) {
+        if (this.config.enableStats) {
+          this.stats.hits++;
+        }
+        this.logger.debug('Cache hit', { key });
+        return value as T;
+      } else {
+        // 过期，删除它
+        this.cache.delete(key);
+        this.timestamps.delete(key);
+        this.ttlMap.delete(key);
+        if (this.config.enableStats) {
+          this.stats.evictions++;
+        }
+        this.logger.debug('Cache entry expired', { key });
+      }
+    }
+
+    if (this.config.enableStats) {
+      this.stats.misses++;
+    }
+    this.logger.debug('Cache miss', { key });
+    return undefined;
+  }
+
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     // 检查是否达到最大条目数
     if (this.cache.size >= this.config.maxEntries) {
@@ -94,6 +128,11 @@ export class GraphCacheService implements ICacheService {
     this.logger.debug('Cache set', { key, ttl: ttl || this.config.defaultTTL });
   }
 
+  // 实现 ICacheService 接口要求的方法
+  async setCache<T>(key: string, data: T, ttl: number): Promise<void> {
+    await this.set(key, data, ttl);
+  }
+
   async has(key: string): Promise<boolean> {
     const value = this.cache.get(key);
     const timestamp = this.timestamps.get(key);
@@ -115,13 +154,44 @@ export class GraphCacheService implements ICacheService {
     }
     
     return existed;
- }
+  }
+
+  // 实现 ICacheService 接口要求的方法
+  deleteFromCache(key: string): boolean {
+    const existed = this.cache.delete(key);
+    this.timestamps.delete(key);
+    this.ttlMap.delete(key);
+    
+    if (existed && this.config.enableStats) {
+      this.logger.debug('Cache delete', { key });
+    }
+    
+    return existed;
+  }
 
   async clearAllCache(): Promise<void> {
     this.cache.clear();
     this.timestamps.clear();
     this.ttlMap.clear();
     this.logger.info('All cache cleared');
+  }
+
+  // 实现 ICacheService 接口要求的方法
+  getCacheStats(): {
+    totalEntries: number;
+    hitCount: number;
+    missCount: number;
+    hitRate: number;
+  } {
+    const total = this.stats.hits + this.stats.misses;
+    const hitRate = total > 0 ? this.stats.hits / total : 0;
+    
+    return {
+      totalEntries: this.cache.size,
+      hitCount: this.stats.hits,
+      missCount: this.stats.misses,
+      hitRate
+    };
   }
 
  async getStats(): Promise<{
@@ -152,7 +222,7 @@ export class GraphCacheService implements ICacheService {
     }, this.config.cleanupInterval);
   }
 
- private cleanupExpiredEntries(): void {
+ public cleanupExpiredEntries(): void {
     const now = Date.now();
     let cleanedCount = 0;
 
@@ -172,6 +242,37 @@ export class GraphCacheService implements ICacheService {
       }
       this.logger.debug('Cache cleanup completed', { cleanedCount });
     }
+  }
+
+  // 实现 ICacheService 接口要求的方法
+  async getDatabaseSpecificCache<T>(key: string, databaseType: DatabaseType): Promise<T | null> {
+    const dbSpecificKey = `${databaseType}:${key}`;
+    return await this.get<T>(dbSpecificKey);
+  }
+
+  async setDatabaseSpecificCache<T>(key: string, value: T, databaseType: DatabaseType, ttl?: number): Promise<void> {
+    const dbSpecificKey = `${databaseType}:${key}`;
+    await this.set(dbSpecificKey, value, ttl);
+  }
+
+  async invalidateDatabaseCache(databaseType: DatabaseType): Promise<void> {
+    const keysToDelete: string[] = [];
+    
+    // 收集所有属于指定数据库类型的键
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(`${databaseType}:`)) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    // 删除这些键
+    for (const key of keysToDelete) {
+      await this.delete(key);
+    }
+    
+    this.logger.info(`Invalidated cache for database type: ${databaseType}`, {
+      deletedEntries: keysToDelete.length
+    });
   }
 
   async cacheNebulaGraphData(spaceName: string, data: any): Promise<void> {

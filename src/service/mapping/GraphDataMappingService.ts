@@ -122,7 +122,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
 
           // 创建文件包含类的关系和类包含方法的关系
           for (const cls of clsBatch) {
-            const classNode = batchNodes.find(n => n.properties.name === cls.name);
+            const classNode = batchNodes.find(n => n.properties.includes(cls.name));
             if (classNode) {
               relationships.push({
                 id: `rel_${uuidv4()}`,
@@ -237,9 +237,9 @@ export class GraphDataMappingService implements IGraphDataMappingService {
             type: GraphNodeType.FUNCTION, // 暂时将代码块视为函数类型
             properties: {
               content: chunk.content,
-              startLine: chunk.startLine,
-              endLine: chunk.endLine,
-              language: chunk.language,
+              startLine: chunk.metadata.startLine,
+              endLine: chunk.metadata.endLine,
+              language: chunk.metadata.language,
               parentFileId,
               embeddingId: chunk.id // 如果有嵌入向量ID
             }
@@ -349,12 +349,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       name: classInfo.name,
       methods: classInfo.methods.map(m => m.name),
       properties: classInfo.properties.map(p => p.name),
-      parentFileId,
-      properties: {
-        ...classInfo,
-        parentFileId,
-        created: new Date().toISOString()
-      }
+      parentFileId
     };
 
     this.logger.debug('Created class node', { nodeId, className: classInfo.name });

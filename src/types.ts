@@ -81,6 +81,7 @@ import { NebulaEventManager } from './database/nebula/NebulaEventManager';
 import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
 
 // 图服务
+// GraphCacheService 从 service/graph/cache 导入
 import { GraphCacheService } from './service/graph/cache/GraphCacheService';
 import { GraphQueryBuilder, IGraphQueryBuilder } from './database/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
@@ -99,7 +100,7 @@ import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
 // 基础设施服务
 import { TransactionCoordinator } from './infrastructure/transaction/TransactionCoordinator';
 import { DatabaseHealthChecker } from './infrastructure/monitoring/DatabaseHealthChecker';
-import { GraphCacheService } from './infrastructure/caching/GraphCacheService';
+// GraphCacheService 已经从 service/graph/cache 导入，不再从 infrastructure/caching 导入
 
 // 图数据映射服务
 import { GraphDataMappingService } from './service/mapping/GraphDataMappingService';
@@ -192,11 +193,11 @@ export const TYPES = {
   GraphSearchService: Symbol.for('GraphSearchService'),
   IGraphSearchService: Symbol.for('IGraphSearchService'),
   GraphPersistenceService: Symbol.for('GraphPersistenceService'),
-  GraphCacheService: Symbol.for('GraphCacheService'),
+  // GraphCacheService 符号已定义在前面
   GraphQueryBuilder: Symbol.for('GraphQueryBuilder'),
   IGraphQueryBuilder: Symbol.for('IGraphQueryBuilder'),
   GraphPerformanceMonitor: Symbol.for('GraphPerformanceMonitor'),
-  GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
+  // GraphBatchOptimizer 符号已定义在前面
   GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
   TransactionManager: Symbol.for('TransactionManager'),
@@ -242,4 +243,24 @@ export const TYPES = {
   
   // 批处理优化服务
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
+  
+  // 事务相关服务
+  TransactionLogger: Symbol.for('TransactionLogger'),
+  DataConsistencyChecker: Symbol.for('DataConsistencyChecker'),
+  ConflictResolver: Symbol.for('ConflictResolver'),
+  TransactionPerformanceOptimizer: Symbol.for('TransactionPerformanceOptimizer'),
+  
+  // 高级映射相关服务
+  AdvancedMappingService: Symbol.for('AdvancedMappingService'),
+  FaultToleranceHandler: Symbol.for('FaultToleranceHandler'),
+  MappingRuleEngine: Symbol.for('MappingRuleEngine'),
+  MappingCacheManager: Symbol.for('MappingCacheManager'),
+  
+  // 性能监控和优化相关服务
+  PerformanceDashboard: Symbol.for('PerformanceDashboard'),
+  PerformanceMetricsCollector: Symbol.for('PerformanceMetricsCollector'),
+  AutoOptimizationAdvisor: Symbol.for('AutoOptimizationAdvisor'),
+  PerformanceBenchmark: Symbol.for('PerformanceBenchmark'),
+  CachePerformanceMonitor: Symbol.for('CachePerformanceMonitor'),
+  BatchProcessingOptimizer: Symbol.for('BatchProcessingOptimizer'),
 };

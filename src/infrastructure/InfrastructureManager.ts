@@ -42,7 +42,6 @@ export class InfrastructureManager {
   private databaseInfrastructures: Map<DatabaseType, IDatabaseInfrastructure>;
   private transactionCoordinator: TransactionCoordinator;
   private config: InfrastructureConfig;
-  private configValidator: ConfigValidator;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -333,8 +332,7 @@ export class InfrastructureManager {
       };
     }
 
-    // 创建配置验证器
-    this.configValidator = new ConfigValidator(this.logger);
+    // ConfigValidator 是静态类，不需要实例化
 
     // 验证配置（无论来自服务还是默认配置）
     this.validateConfiguration(this.config, 'initial configuration');
@@ -775,25 +773,16 @@ export class InfrastructureManager {
   private validateConfiguration(config: InfrastructureConfig, context: string): void {
     this.logger.debug(`Validating configuration: ${context}`);
 
-    const validationResult = this.configValidator.validateConfig(config);
+    const validationResult = ConfigValidator.validate(config);
 
     if (!validationResult.isValid) {
-      const errorMessages = validationResult.errors.map(error =>
-        `${error.field}: ${error.message}`
-      ).join('; ');
+      const errorMessages = validationResult.errors.join('; ');
 
       this.logger.error(`Configuration validation failed for ${context}`, {
-        errors: validationResult.errors,
-        warnings: validationResult.warnings
+        errors: validationResult.errors
       });
 
       throw new Error(`Configuration validation failed: ${errorMessages}`);
-    }
-
-    if (validationResult.warnings.length > 0) {
-      this.logger.warn(`Configuration validation warnings for ${context}`, {
-        warnings: validationResult.warnings
-      });
     }
 
     this.logger.debug(`Configuration validation passed for ${context}`);
@@ -815,12 +804,10 @@ export class InfrastructureManager {
     if (this.config.common.enableBatching) enabledFeatures.push('batching');
     if (this.config.common.enableHealthChecks) enabledFeatures.push('healthChecks');
 
-    const validationResult = this.configValidator.validateConfig(this.config);
+    const validationResult = ConfigValidator.validate(this.config);
     let configurationHealth: 'valid' | 'invalid' | 'warnings' = 'valid';
     if (!validationResult.isValid) {
       configurationHealth = 'invalid';
-    } else if (validationResult.warnings.length > 0) {
-      configurationHealth = 'warnings';
     }
 
     return {
@@ -886,12 +873,12 @@ export class InfrastructureManager {
         };
     }
 
-    const validationResult = this.configValidator.validateConfig(configToValidate);
+    const validationResult = ConfigValidator.validate(configToValidate);
 
     return {
       isValid: validationResult.isValid,
-      errors: validationResult.errors.map(error => error.message),
-      warnings: validationResult.warnings.map(warning => warning.message)
+      errors: validationResult.errors,
+      warnings: [] // ConfigValidator 不返回警告，所以返回空数组
     };
   }
 }

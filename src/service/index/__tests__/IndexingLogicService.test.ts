@@ -88,12 +88,24 @@ describe('IndexingLogicService', () => {
       setProjectEmbedder: jest.fn(),
     } as unknown as jest.Mocked<ChunkToVectorCoordinationService>;
 
+    // Mock the missing dependencies
+    const graphService = {} as any;
+    const graphMappingService = {} as any;
+    const performanceDashboard = {} as any;
+    const optimizationAdvisor = {} as any;
+    const batchProcessingOptimizer = {} as any;
+
     // Create service instance
     indexingLogicService = new IndexingLogicService(
       loggerService,
       errorHandlerService,
       fileSystemTraversal,
       qdrantService,
+      graphService, // 新增
+      graphMappingService, // 新增
+      performanceDashboard, // 新增
+      optimizationAdvisor, // 新增
+      batchProcessingOptimizer, // 新增
       projectIdManager,
       embedderFactory,
       embeddingCacheService,

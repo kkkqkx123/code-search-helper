@@ -192,7 +192,7 @@ export class GraphMappingCache {
     return false;
   }
 
-  private getOldestKey(): string | null> {
+  private getOldestKey(): string | null {
     let oldestKey: string | null = null;
     let oldestTime = Number.MAX_VALUE;
 
@@ -247,7 +247,7 @@ export class GraphMappingCache {
     };
   }
 
- /**
+  /**
    * 清空缓存
    */
   async clear(): Promise<void> {

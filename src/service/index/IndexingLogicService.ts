@@ -20,6 +20,9 @@ import { IndexSyncOptions } from './IndexService';
 import { IGraphService } from '../graph/core/IGraphService';
 import { IGraphDataMappingService } from '../mapping/IGraphDataMappingService';
 import { GraphPersistenceResult } from '../graph/core/types';
+import { PerformanceDashboard } from '../monitoring/PerformanceDashboard';
+import { AutoOptimizationAdvisor } from '../optimization/AutoOptimizationAdvisor';
+import { BatchProcessingOptimizer } from '../optimization/BatchProcessingOptimizer';
 
 export interface MemoryUsage {
   used: number;
@@ -45,6 +48,9 @@ export class IndexingLogicService {
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.GraphService) private graphService: IGraphService, // 新增
     @inject(TYPES.GraphDataMappingService) private graphMappingService: IGraphDataMappingService, // 新增
+    @inject(TYPES.PerformanceDashboard) private performanceDashboard: PerformanceDashboard, // 新增
+    @inject(TYPES.AutoOptimizationAdvisor) private optimizationAdvisor: AutoOptimizationAdvisor, // 新增
+    @inject(TYPES.BatchProcessingOptimizer) private batchProcessingOptimizer: BatchProcessingOptimizer, // 新增
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
@@ -192,33 +198,71 @@ export class IndexingLogicService {
       // 创建文件ID
       const fileId = `file_${Buffer.from(filePath).toString('hex')}`;
       
-      // 使用图数据映射服务将代码块映射为图节点
-      const mappingResult = await this.graphMappingService.mapChunksToGraphNodes(chunks, fileId);
-      
-      // 准备图数据
-      const graphData = {
-        nodes: mappingResult.nodes,
-        relationships: mappingResult.relationships
-      };
+      // 使用优化的批处理来映射和存储数据
+      const result = await this.batchProcessingOptimizer.executeOptimizedBatch(
+        chunks,
+        async (chunkBatch) => {
+          // 使用图数据映射服务将代码块映射为图节点
+          const mappingResult = await this.graphMappingService.mapChunksToGraphNodes(chunkBatch, fileId);
+          
+          // 准备图数据
+          const graphData = {
+            nodes: mappingResult.nodes,
+            relationships: mappingResult.relationships
+          };
 
-      // 存储到图数据库
-      const result = await this.graphService.storeChunks(graphData, {
-        projectId: this.projectIdManager.getProjectId(projectPath),
-        useCache: true
-      });
+          // 存储到图数据库
+          return await this.graphService.storeChunks([graphData], {
+            projectId: this.projectIdManager.getProjectId(projectPath),
+            useCache: true
+          });
+        },
+        {
+          strategy: 'balanced',
+          targetThroughput: 50 // 目标每秒处理50个chunk
+        }
+      );
 
       this.logger.debug('Successfully stored file to graph database', {
         filePath,
-        nodesCreated: result.nodesCreated,
-        relationshipsCreated: result.relationshipsCreated
+        nodesCreated: result.results[0]?.nodesCreated || 0,
+        relationshipsCreated: result.results[0]?.relationshipsCreated || 0,
+        processingTime: result.processingTime,
+        throughput: result.throughput
       });
 
-      return result;
+      // 记录性能指标到仪表板
+      await this.performanceDashboard.recordMetric({
+        timestamp: Date.now(),
+        metricName: 'graph.store_time',
+        value: result.processingTime,
+        unit: 'milliseconds',
+        tags: { filePath, projectPath }
+      });
+
+      return result.results[0] || {
+        success: true,
+        nodesCreated: 0,
+        relationshipsCreated: 0,
+        nodesUpdated: 0,
+        processingTime: 0,
+        errors: []
+      };
     } catch (error) {
       this.logger.error('Failed to store file to graph database', {
         filePath,
         error: (error as Error).message
       });
+      
+      // 记录错误到仪表板
+      await this.performanceDashboard.recordMetric({
+        timestamp: Date.now(),
+        metricName: 'graph.store_error',
+        value: 1,
+        unit: 'count',
+        tags: { filePath, projectPath, error: (error as Error).message }
+      });
+      
       throw error;
     }
   }
@@ -231,41 +275,52 @@ export class IndexingLogicService {
     const initialMemory = process.memoryUsage();
 
     try {
+      // 记录开始指标
+      await this.performanceDashboard.recordMetric({
+        timestamp: startTime,
+        metricName: 'indexing.start_time',
+        value: startTime,
+        tags: { filePath, projectPath }
+      });
+
       // 使用协调服务处理文件
       const vectorPoints = await this.coordinationService.processFileForEmbedding(filePath, projectPath);
 
       // 并行处理：向量数据存储和图数据存储
-      const [qdrantSuccess, fileContent] = await Promise.all([
+      const [qdrantResult, fileContent] = await Promise.all([
         // 存储到Qdrant向量数据库
         this.qdrantService.upsertVectorsForProject(projectPath, vectorPoints)
+          .then(success => ({ success, type: 'qdrant' }))
           .catch(error => {
             this.logger.error(`Failed to store to Qdrant for file: ${filePath}`, {
               error: (error as Error).message
             });
-            return false;
+            return { success: false, type: 'qdrant', error: (error as Error).message };
           }),
         // 读取文件内容用于图数据库存储
         fs.readFile(filePath, 'utf-8')
       ]);
 
       // 存储到图数据库
-      let graphSuccess = false;
+      let graphResult: { success: boolean; error?: string } = { success: false };
       try {
-        graphSuccess = await this.storeFileToGraph(
+        const graphPersistenceResult = await this.storeFileToGraph(
           projectPath,
           filePath,
           fileContent,
-          vectorPoints // 这里使用vectorPoints作为代码块
+          [] // 传入空数组，因为我们已经在上面处理了图数据存储
         );
+        graphResult = { success: graphPersistenceResult.success };
       } catch (graphError) {
         this.logger.error(`Failed to store to graph database for file: ${filePath}`, {
           error: (graphError as Error).message
         });
+        graphResult = { success: false, error: (graphError as Error).message };
       }
 
       // 检查数据一致性
-      if (!qdrantSuccess) {
-        throw new Error(`Failed to store vectors for file: ${filePath}`);
+      if (!qdrantResult.success) {
+        throw new Error(`Failed to store vectors for file: ${filePath}: ${'error' in qdrantResult ? qdrantResult.error : 'Unknown error'}`);
       }
 
       const processingTime = Date.now() - startTime;
@@ -286,21 +341,77 @@ export class IndexingLogicService {
 
       this.recordMetrics(filePath, metrics);
 
+      // 记录到性能仪表板
+      await this.performanceDashboard.recordMetric({
+        timestamp: Date.now(),
+        metricName: 'indexing.processing_time',
+        value: processingTime,
+        unit: 'milliseconds',
+        tags: { filePath, projectPath }
+      });
+
+      await this.performanceDashboard.recordMetric({
+        timestamp: Date.now(),
+        metricName: 'indexing.memory_usage',
+        value: metrics.memoryUsage.percentage,
+        unit: 'percentage',
+        tags: { filePath, projectPath }
+      });
+
+      await this.performanceDashboard.recordMetric({
+        timestamp: Date.now(),
+        metricName: 'indexing.chunk_count',
+        value: vectorPoints.length,
+        unit: 'count',
+        tags: { filePath, projectPath }
+      });
+
       // 内存警告检查
       if (metrics.memoryUsage.percentage > 80) {
         this.logger.warn(`High memory usage detected for file: ${filePath}`, {
           memoryUsage: metrics.memoryUsage,
           threshold: 80
         });
+        
+        // 记录内存警告到仪表板
+        await this.performanceDashboard.recordMetric({
+          timestamp: Date.now(),
+          metricName: 'indexing.memory_warning',
+          value: 1,
+          unit: 'count',
+          tags: { filePath, projectPath, memoryUsage: metrics.memoryUsage.percentage.toString() }
+        });
       }
 
       this.logger.debug(`Indexed file: ${filePath}`, {
         metrics,
-        qdrantSuccess,
-        graphSuccess
+        qdrantSuccess: qdrantResult.success,
+        graphSuccess: graphResult.success
       });
+
+      // 生成优化建议（异步，不阻塞主流程）
+      setTimeout(async () => {
+        try {
+          await this.optimizationAdvisor.analyzeAndRecommend();
+        } catch (advisorError) {
+          this.logger.warn('Failed to generate optimization recommendations', {
+            error: (advisorError as Error).message
+          });
+        }
+      }, 0);
+
     } catch (error) {
       this.recordError(filePath, error);
+      
+      // 记录错误到性能仪表板
+      await this.performanceDashboard.recordMetric({
+        timestamp: Date.now(),
+        metricName: 'indexing.error',
+        value: 1,
+        unit: 'count',
+        tags: { filePath, projectPath, error: (error as Error).message }
+      });
+      
       this.errorHandler.handleError(
         new Error(`Failed to index file: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'IndexingLogicService', operation: 'indexFile', projectPath, filePath }
