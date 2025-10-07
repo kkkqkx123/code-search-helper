@@ -15,7 +15,7 @@
 | `INFRA_COMMON_ENABLE_BATCHING` | `true` | 是否启用批处理 |
 | `INFRA_COMMON_LOG_LEVEL` | `info` | 通用基础设施日志级别 |
 | `INFRA_COMMON_ENABLE_HEALTH_CHECKS` | `true` | 是否启用健康检查 |
-| `INFRA_COMMON_HEALTH_CHECK_INTERVAL` | `300` | 健康检查间隔（毫秒） |
+| `INFRA_COMMON_HEALTH_CHECK_INTERVAL` | `3000` | 健康检查间隔（毫秒） |
 | `INFRA_COMMON_GRACEFUL_SHUTDOWN_TIMEOUT` | `10000` | 优雅关闭超时时间（毫秒） |
 
 ### Qdrant基础设施配置
@@ -23,20 +23,20 @@
 #### Qdrant缓存配置
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `INFRA_QDRANT_CACHE_DEFAULT_TTL` | `3000` | Qdrant缓存默认TTL（毫秒） |
-| `INFRA_QDRANT_CACHE_MAX_ENTRIES` | `100` | Qdrant缓存最大条目数 |
-| `INFRA_QDRANT_CACHE_CLEANUP_INTERVAL` | `600` | Qdrant缓存清理间隔（毫秒） |
+| `INFRA_QDRANT_CACHE_DEFAULT_TTL` | `30000` | Qdrant缓存默认TTL（毫秒） |
+| `INFRA_QDRANT_CACHE_MAX_ENTRIES` | `10000` | Qdrant缓存最大条目数 |
+| `INFRA_QDRANT_CACHE_CLEANUP_INTERVAL` | `60000` | Qdrant缓存清理间隔（毫秒） |
 | `INFRA_QDRANT_CACHE_ENABLE_STATS` | `true` | 是否启用Qdrant缓存统计 |
 
 #### Qdrant性能配置
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `INFRA_QDRANT_PERFORMANCE_MONITORING_INTERVAL` | `300` | Qdrant性能监控间隔（秒） |
+| `INFRA_QDRANT_PERFORMANCE_MONITORING_INTERVAL` | `1000` | Qdrant性能监控间隔（毫秒） |
 | `INFRA_QDRANT_PERFORMANCE_METRICS_RETENTION_PERIOD` | `8640000` | Qdrant性能指标保留周期（毫秒） |
 | `INFRA_QDRANT_PERFORMANCE_ENABLE_DETAILED_LOGGING` | `true` | 是否启用Qdrant详细日志 |
 | `INFRA_QDRANT_PERFORMANCE_QUERY_EXECUTION_TIME` | `1000` | Qdrant查询执行时间阈值（毫秒） |
 | `INFRA_QDRANT_PERFORMANCE_MEMORY_USAGE` | `80` | Qdrant内存使用阈值（%） |
-| `INFRA_QDRANT_PERFORMANCE_RESPONSE_TIME` | `500` | Qdrant响应时间阈值（毫秒） |
+| `INFRA_QDRANT_PERFORMANCE_RESPONSE_TIME` | `50` | Qdrant响应时间阈值（毫秒） |
 
 #### Qdrant批处理配置
 | 配置项 | 默认值 | 说明 |
@@ -58,9 +58,9 @@
 |--------|--------|------|
 | `INFRA_QDRANT_CONNECTION_MAX_CONNECTIONS` | `10` | Qdrant最大连接数 |
 | `INFRA_QDRANT_CONNECTION_MIN_CONNECTIONS` | `2` | Qdrant最小连接数 |
-| `INFRA_QDRANT_CONNECTION_CONNECTION_TIMEOUT` | `30000` | Qdrant连接超时（毫秒） |
+| `INFRA_QDRANT_CONNECTION_CONNECTION_TIMEOUT` | `3000` | Qdrant连接超时（毫秒） |
 | `INFRA_QDRANT_CONNECTION_IDLE_TIMEOUT` | `300000` | Qdrant空闲连接超时（毫秒） |
-| `INFRA_QDRANT_CONNECTION_ACQUIRE_TIMEOUT` | `1000` | Qdrant连接获取超时（毫秒） |
+| `INFRA_QDRANT_CONNECTION_ACQUIRE_TIMEOUT` | `10000` | Qdrant连接获取超时（毫秒） |
 | `INFRA_QDRANT_CONNECTION_VALIDATION_INTERVAL` | `6000` | Qdrant连接验证间隔（毫秒） |
 | `INFRA_QDRANT_CONNECTION_ENABLE_CONNECTION_POOLING` | `true` | 是否启用Qdrant连接池 |
 
@@ -80,9 +80,9 @@
 #### Nebula缓存配置
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `INFRA_NEBULA_CACHE_DEFAULT_TTL` | `3000` | Nebula缓存默认TTL（毫秒） |
+| `INFRA_NEBULA_CACHE_DEFAULT_TTL` | `30000` | Nebula缓存默认TTL（毫秒） |
 | `INFRA_NEBULA_CACHE_MAX_ENTRIES` | `10000` | Nebula缓存最大条目数 |
-| `INFRA_NEBULA_CACHE_CLEANUP_INTERVAL` | `6000` | Nebula缓存清理间隔（毫秒） |
+| `INFRA_NEBULA_CACHE_CLEANUP_INTERVAL` | `60000` | Nebula缓存清理间隔（毫秒） |
 | `INFRA_NEBULA_CACHE_ENABLE_STATS` | `true` | 是否启用Nebula缓存统计 |
 
 #### Nebula性能配置
@@ -115,10 +115,10 @@
 |--------|--------|------|
 | `INFRA_NEBULA_CONNECTION_MAX_CONNECTIONS` | `10` | Nebula最大连接数 |
 | `INFRA_NEBULA_CONNECTION_MIN_CONNECTIONS` | `2` | Nebula最小连接数 |
-| `INFRA_NEBULA_CONNECTION_CONNECTION_TIMEOUT` | `30000` | Nebula连接超时（毫秒） |
-| `INFRA_NEBULA_CONNECTION_IDLE_TIMEOUT` | `300000` | Nebula空闲连接超时（毫秒） |
+| `INFRA_NEBULA_CONNECTION_CONNECTION_TIMEOUT` | `3000` | Nebula连接超时（毫秒） |
+| `INFRA_NEBULA_CONNECTION_IDLE_TIMEOUT` | `30000` | Nebula空闲连接超时（毫秒） |
 | `INFRA_NEBULA_CONNECTION_ACQUIRE_TIMEOUT` | `10000` | Nebula连接获取超时（毫秒） |
-| `INFRA_NEBULA_CONNECTION_VALIDATION_INTERVAL` | `60000` | Nebula连接验证间隔（毫秒） |
+| `INFRA_NEBULA_CONNECTION_VALIDATION_INTERVAL` | `6000` | Nebula连接验证间隔（毫秒） |
 | `INFRA_NEBULA_CONNECTION_ENABLE_CONNECTION_POOLING` | `true` | 是否启用Nebula连接池 |
 
 #### Nebula图配置
