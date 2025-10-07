@@ -153,6 +153,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         });
         
         // 等待客户端连接就绪
+        // 确保等待客户端完全准备好再进行验证
         await this.waitForClientConnection();
         
         // 验证连接是否成功
@@ -179,7 +180,22 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         
         return true;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        // 改进错误处理，确保错误对象被正确转换为字符串
+        let errorMessage: string;
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error && typeof error === 'object') {
+          try {
+            // 尝试获取错误对象的有用属性
+            errorMessage = (error as any).message || (error as any).error_msg || JSON.stringify(error);
+          } catch (stringifyError) {
+            errorMessage = `Error object: ${Object.keys(error).join(', ')}`;
+          }
+        } else {
+          errorMessage = String(error);
+        }
         
         // 如果是最后一次重试，记录错误并返回false
         if (attempt === maxRetries) {
@@ -224,16 +240,66 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         reject(new Error('Connection timeout: Client failed to connect within reasonable time'));
       }, this.config.timeout || 30000);
       
-      // 等待'ready'事件，确保连接完全就绪（包括空间切换）
-      this.client.once('ready', () => {
-        clearTimeout(timeout);
-        resolve();
+      // 标记是否已连接，防止重复触发
+      let connected = false;
+      
+      // 等待'connected'和'authorized'事件，确保连接完全就绪
+      this.client.on('connected', (event: any) => {
+        console.log(`[NebulaConnectionManager] Client connected event: ${JSON.stringify({ connectionInfo: event.sender?.connectionId })}`);
       });
       
-      this.client.once('error', (error: any) => {
-        clearTimeout(timeout);
-        reject(error);
+      this.client.on('authorized', (event: any) => {
+        console.log(`[NebulaConnectionManager] Client authorized event: ${JSON.stringify({ connectionInfo: event.sender?.connectionId })}`);
       });
+      
+      // 定义错误处理函数
+      const onError = (error: any) => {
+        console.log(`[NebulaConnectionManager] Client error event: ${JSON.stringify({ error: error?.message || error })}`);
+        if (!connected) {
+          clearTimeout(timeout);
+          // 移除事件监听器
+          this.client.removeListener('connected', () => {});
+          this.client.removeListener('authorized', () => {});
+          this.client.removeListener('error', onError);
+          reject(error);
+        }
+      };
+      
+      // 监听错误事件
+      this.client.on('error', onError);
+      
+      // 定期检查连接状态并尝试执行测试查询
+      const checkInterval = setInterval(async () => {
+        try {
+          if (this.client.connections && this.client.connections.some((conn: any) => conn.isReady && conn.sessionId)) {
+            console.log(`[NebulaConnectionManager] Client ready check: At least one connection is ready`);
+            
+            // 尝试执行一个简单的测试查询以验证连接是否真正可用
+            try {
+              // 执行一个简单的查询验证连接是否可用
+              const result = await this.client.execute('YIELD 1 AS test;');
+              
+              if (result && !result.error) {
+                console.log('[NebulaConnectionManager] Connection validation successful');
+                if (!connected) {
+                  connected = true;
+                  clearTimeout(timeout);
+                  clearInterval(checkInterval);
+                  // 移除事件监听器
+                  this.client.removeListener('connected', () => {});
+                  this.client.removeListener('authorized', () => {});
+                  this.client.removeListener('error', onError);
+                  resolve();
+                }
+              }
+            } catch (queryError) {
+              console.log(`[NebulaConnectionManager] Connection validation failed: ${queryError}`);
+            }
+          }
+        } catch (error) {
+          console.log(`[NebulaConnectionManager] Error during connection check: ${error}`);
+        }
+      }, 1000); // 每秒检查一次
     });
   }
 
@@ -262,34 +328,87 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         data: { message: 'Validating connection with simple query' }
       });
       
-      // 使用不依赖特定空间的简单查询进行验证
-      const validationQuery = this.connectionStatus.space ? 'SHOW SPACES' : 'YIELD 1';
-      const result = await client.execute(validationQuery);
+      // 尝试执行一个简单的查询验证连接是否可用，重试机制
+      let attempt = 0;
+      const maxAttempts = 10; // 增加重试次数
+      let lastError: any = null;
       
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Connection validation query result',
-          validationQuery,
-          hasResult: !!result,
-          resultType: typeof result,
-          hasCode: typeof result?.code !== 'undefined',
-          code: result?.code,
-          hasError: !!result?.error,
-          error: result?.error,
-          hasData: !!result?.data,
-          dataLength: result?.data?.length
+      while (attempt < maxAttempts) {
+        try {
+          // 使用不依赖特定空间的简单查询进行验证
+          const validationQuery = this.connectionStatus.space ? 'SHOW SPACES' : 'YIELD 1';
+          
+          // 验证查询可能需要等待连接完全准备好
+          const result = await client.execute(validationQuery);
+          
+          await this.logDatabaseEvent({
+            type: DatabaseEventType.QUERY_EXECUTED,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: {
+              message: `Connection validation query result (attempt ${attempt + 1})`,
+              validationQuery,
+              hasResult: !!result,
+              resultType: typeof result,
+              hasErrorCode: typeof result?.error_code !== 'undefined',
+              errorCode: result?.error_code,
+              errorMessage: result?.error_msg,
+              hasError: !!result?.error,
+              error: result?.error,
+              hasData: !!result?.data,
+              dataLength: result?.data?.length,
+              hasResults: !!result?.results
+            }
+          });
+          
+          // 根据 Nebula Graph 的返回结果格式检查连接验证结果
+          // Nebula Graph 返回结果中的 error_code 为 0 表示成功
+          if (!result || (typeof result.error_code !== 'undefined' && result.error_code !== 0)) {
+            const errorMessage = result?.error_msg || result?.error || 'Unknown error';
+            throw new Error(`Connection validation failed: ${errorMessage}`);
+          }
+          
+          // 如果成功，跳出循环
+          console.log(`[NebulaConnectionManager] Connection validation successful on attempt ${attempt + 1}`);
+          return;
+        } catch (queryError) {
+          lastError = queryError;
+          console.log(`[NebulaConnectionManager] Connection validation attempt ${attempt + 1} failed:`, (queryError as Error).message || queryError);
+          
+          // 如果不是"会话无效或连接未就绪"错误，立即重抛错误
+          const queryErrorAsAny = queryError as any;
+          const errorMsg = queryErrorAsAny.message || queryErrorAsAny.error_msg || String(queryError);
+          if (!errorMsg.includes('会话无效或连接未就绪') && !errorMsg.includes('Session invalid') && !errorMsg.includes('Connection not ready')) {
+            throw queryError;
+          }
+          
+          // 等待一段时间后重试
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          attempt++;
         }
-      });
+      }
       
-      if (!result || (typeof result.code !== 'undefined' && result.code !== 0)) {
-        throw new Error(`Connection validation failed: ${result?.error || 'Unknown error'}`);
+      // 如果所有尝试都失败了，抛出最后的错误
+      if (lastError) {
+        throw lastError;
       }
     } catch (error) {
-      // 捕获并重新抛出错误，提供更明确的信息
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      // 改进错误处理，确保错误对象被正确转换为字符串
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        try {
+          // 尝试获取错误对象的有用属性
+          errorMessage = (error as any).message || (error as any).error_msg || JSON.stringify(error);
+        } catch (stringifyError) {
+          errorMessage = `Error object: ${Object.keys(error).join(', ')}`;
+        }
+      } else {
+        errorMessage = String(error);
+      }
       
       await this.logDatabaseEvent({
         type: DatabaseEventType.ERROR_OCCURRED,

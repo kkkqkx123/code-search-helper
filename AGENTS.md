@@ -88,6 +88,12 @@ npm run test:integration
 npm run test:utils
 ```
 
+## 数据库操作指南
+nebula graph和qdrant都部署在docker上，你不需要修改docker相关配置文件，也不需要启动/关闭docker/docker-compose。
+
+### 使用nebula-console连接nebula graph
+nebula-console在宿主机的本地，使用命令：nebula-console -u root -p nebula --address=127.0.0.1 --port=9669 -e 查询语句
+
 ## 📁 项目结构
 
 ```
