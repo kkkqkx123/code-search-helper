@@ -72,49 +72,49 @@ export class EmbeddingProviderFactory {
     switch (provider) {
       case 'openai':
         return {
-          apiKey: process.env.OPENAI_API_KEY,
-          baseUrl: process.env.OPENAI_BASE_URL,
-          model: process.env.OPENAI_MODEL || 'text-embedding-ada-002',
-          dimensions: parseInt(process.env.OPENAI_DIMENSIONS || '1536'),
+          apiKey: EnvironmentUtils.parseOptionalString('OPENAI_API_KEY'),
+          baseUrl: EnvironmentUtils.parseOptionalString('OPENAI_BASE_URL'),
+          model: EnvironmentUtils.parseString('OPENAI_MODEL', 'text-embedding-ada-002'),
+          dimensions: EnvironmentUtils.parseNumber('OPENAI_DIMENSIONS', 1536),
         } as OpenAIConfig;
 
       case 'ollama':
         return {
-          baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-          model: process.env.OLLAMA_MODEL || 'nomic-embed-text',
-          dimensions: parseInt(process.env.OLLAMA_DIMENSIONS || '768'),
+          baseUrl: EnvironmentUtils.parseString('OLLAMA_BASE_URL', 'http://localhost:11434'),
+          model: EnvironmentUtils.parseString('OLLAMA_MODEL', 'nomic-embed-text'),
+          dimensions: EnvironmentUtils.parseNumber('OLLAMA_DIMENSIONS', 768),
         } as OllamaConfig;
 
       case 'gemini':
         return {
-          apiKey: process.env.GEMINI_API_KEY,
-          baseUrl: process.env.GEMINI_BASE_URL,
-          model: process.env.GEMINI_MODEL || 'embedding-001',
-          dimensions: parseInt(process.env.GEMINI_DIMENSIONS || '768'),
+          apiKey: EnvironmentUtils.parseOptionalString('GEMINI_API_KEY'),
+          baseUrl: EnvironmentUtils.parseOptionalString('GEMINI_BASE_URL'),
+          model: EnvironmentUtils.parseString('GEMINI_MODEL', 'embedding-001'),
+          dimensions: EnvironmentUtils.parseNumber('GEMINI_DIMENSIONS', 768),
         } as GeminiConfig;
 
       case 'mistral':
         return {
-          apiKey: process.env.MISTRAL_API_KEY,
-          baseUrl: process.env.MISTRAL_BASE_URL,
-          model: process.env.MISTRAL_MODEL || 'mistral-embed',
-          dimensions: parseInt(process.env.MISTRAL_DIMENSIONS || '1024'),
+          apiKey: EnvironmentUtils.parseOptionalString('MISTRAL_API_KEY'),
+          baseUrl: EnvironmentUtils.parseOptionalString('MISTRAL_BASE_URL'),
+          model: EnvironmentUtils.parseString('MISTRAL_MODEL', 'mistral-embed'),
+          dimensions: EnvironmentUtils.parseNumber('MISTRAL_DIMENSIONS', 1024),
         } as MistralConfig;
 
       case 'siliconflow':
         return {
-          apiKey: process.env.SILICONFLOW_API_KEY,
-          baseUrl: process.env.SILICONFLOW_BASE_URL,
-          model: process.env.SILICONFLOW_MODEL || 'BAAI/bge-large-en-v1.5',
-          dimensions: parseInt(process.env.SILICONFLOW_DIMENSIONS || '1024'),
+          apiKey: EnvironmentUtils.parseOptionalString('SILICONFLOW_API_KEY'),
+          baseUrl: EnvironmentUtils.parseOptionalString('SILICONFLOW_BASE_URL'),
+          model: EnvironmentUtils.parseString('SILICONFLOW_MODEL', 'BAAI/bge-large-en-v1.5'),
+          dimensions: EnvironmentUtils.parseNumber('SILICONFLOW_DIMENSIONS', 1024),
         } as SiliconFlowConfig;
 
       case 'custom':
         return {
-          apiKey: process.env.CUSTOM_API_KEY,
-          baseUrl: process.env.CUSTOM_BASE_URL,
-          model: process.env.CUSTOM_MODEL || 'custom-embed',
-          dimensions: parseInt(process.env.CUSTOM_DIMENSIONS || '768'),
+          apiKey: EnvironmentUtils.parseOptionalString('CUSTOM_API_KEY'),
+          baseUrl: EnvironmentUtils.parseOptionalString('CUSTOM_BASE_URL'),
+          model: EnvironmentUtils.parseString('CUSTOM_MODEL', 'custom-embed'),
+          dimensions: EnvironmentUtils.parseNumber('CUSTOM_DIMENSIONS', 768),
         } as CustomProviderConfig;
 
       default:
@@ -189,7 +189,7 @@ export class EmbeddingProviderFactory {
 @injectable()
 export class EmbeddingConfigService extends BaseConfigService<EmbeddingConfig> {
   loadConfig(): EmbeddingConfig {
-    const provider = process.env.EMBEDDING_PROVIDER || 'openai';
+    const provider = EnvironmentUtils.parseString('EMBEDDING_PROVIDER', 'openai');
 
     try {
       const providerConfig = EmbeddingProviderFactory.createProviderConfig(provider);
@@ -198,8 +198,8 @@ export class EmbeddingConfigService extends BaseConfigService<EmbeddingConfig> {
         provider,
         providerConfig,
         weights: {
-          quality: process.env.QUALITY_WEIGHT ? parseFloat(process.env.QUALITY_WEIGHT) : undefined,
-          performance: process.env.PERFORMANCE_WEIGHT ? parseFloat(process.env.PERFORMANCE_WEIGHT) : undefined,
+          quality: EnvironmentUtils.parseOptionalNumber('QUALITY_WEIGHT'),
+          performance: EnvironmentUtils.parseOptionalNumber('PERFORMANCE_WEIGHT'),
         },
       };
 
@@ -211,9 +211,7 @@ export class EmbeddingConfigService extends BaseConfigService<EmbeddingConfig> {
 
   validateConfig(config: any): EmbeddingConfig {
     const schema = Joi.object({
-      provider: Joi.string()
-        .valid('openai', 'ollama', 'gemini', 'mistral', 'siliconflow', 'custom')
-        .default('openai'),
+      provider: ValidationUtils.enumSchema(['openai', 'ollama', 'gemini', 'mistral', 'siliconflow', 'custom'], 'openai'),
       providerConfig: Joi.when('provider', {
         is: Joi.exist(),
         then: Joi.custom((value, helpers) => {
@@ -227,18 +225,13 @@ export class EmbeddingConfigService extends BaseConfigService<EmbeddingConfig> {
         }),
         otherwise: Joi.forbidden()
       }),
-      weights: Joi.object({
-        quality: Joi.number().min(0).max(1).default(0.7),
-        performance: Joi.number().min(0).max(1).default(0.3),
-      }).optional(),
+      weights: ValidationUtils.optionalObjectSchema({
+        quality: ValidationUtils.rangeNumberSchema(0, 1, 0.7),
+        performance: ValidationUtils.rangeNumberSchema(0, 1, 0.3),
+      }),
     });
 
-    const { error, value } = schema.validate(config);
-    if (error) {
-      throw new Error(`Embedding config validation error: ${error.message}`);
-    }
-
-    return value;
+    return ValidationUtils.validateConfig(config, schema);
   }
 
   getDefaultConfig(): EmbeddingConfig {

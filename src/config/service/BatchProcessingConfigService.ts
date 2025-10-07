@@ -1,6 +1,8 @@
 import { injectable } from 'inversify';
 import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
+import { EnvironmentUtils } from '../utils/EnvironmentUtils';
+import { ValidationUtils } from '../utils/ValidationUtils';
 
 /**
  * Simplified batch processing configuration
@@ -37,24 +39,24 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
   loadConfig(): BatchProcessingConfig {
     const rawConfig = {
       // Core batch processing settings (8 environment variables instead of 18)
-      enabled: process.env.BATCH_PROCESSING_ENABLED !== 'false',
-      maxConcurrentOperations: parseInt(process.env.MAX_CONCURRENT_OPERATIONS || '5'),
-      defaultBatchSize: parseInt(process.env.DEFAULT_BATCH_SIZE || '50'),
-      maxBatchSize: parseInt(process.env.MAX_BATCH_SIZE || '500'),
-      memoryThreshold: parseInt(process.env.MEMORY_THRESHOLD || '80'),
-      processingTimeout: parseInt(process.env.PROCESSING_TIMEOUT || '300000'),
-      retryAttempts: parseInt(process.env.RETRY_ATTEMPTS || '3'),
-      retryDelay: parseInt(process.env.RETRY_DELAY || '1000'),
-      continueOnError: process.env.CONTINUE_ON_ERROR !== 'false',
+      enabled: !EnvironmentUtils.parseBoolean('BATCH_PROCESSING_ENABLED', true),
+      maxConcurrentOperations: EnvironmentUtils.parseNumber('MAX_CONCURRENT_OPERATIONS', 5),
+      defaultBatchSize: EnvironmentUtils.parseNumber('DEFAULT_BATCH_SIZE', 50),
+      maxBatchSize: EnvironmentUtils.parseNumber('MAX_BATCH_SIZE', 500),
+      memoryThreshold: EnvironmentUtils.parseNumber('MEMORY_THRESHOLD', 80),
+      processingTimeout: EnvironmentUtils.parseNumber('PROCESSING_TIMEOUT', 300000),
+      retryAttempts: EnvironmentUtils.parseNumber('RETRY_ATTEMPTS', 3),
+      retryDelay: EnvironmentUtils.parseNumber('RETRY_DELAY', 1000),
+      continueOnError: !EnvironmentUtils.parseBoolean('CONTINUE_ON_ERROR', true),
 
       // Simplified monitoring (4 environment variables instead of 9)
       monitoring: {
-        enabled: process.env.BATCH_MONITORING_ENABLED !== 'false',
-        metricsInterval: parseInt(process.env.METRICS_INTERVAL || '60000'),
+        enabled: !EnvironmentUtils.parseBoolean('BATCH_MONITORING_ENABLED', true),
+        metricsInterval: EnvironmentUtils.parseNumber('METRICS_INTERVAL', 60000),
         alertThresholds: {
-          highLatency: parseInt(process.env.HIGH_LATENCY_THRESHOLD || '5000'),
-          highMemoryUsage: parseInt(process.env.HIGH_MEMORY_USAGE_THRESHOLD || '80'),
-          highErrorRate: parseFloat(process.env.HIGH_ERROR_RATE_THRESHOLD || '0.1'),
+          highLatency: EnvironmentUtils.parseNumber('HIGH_LATENCY_THRESHOLD', 5000),
+          highMemoryUsage: EnvironmentUtils.parseNumber('HIGH_MEMORY_USAGE_THRESHOLD', 80),
+          highErrorRate: EnvironmentUtils.parseFloat('HIGH_ERROR_RATE_THRESHOLD', 0.1),
         },
       },
     };
@@ -64,34 +66,29 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
 
   validateConfig(config: any): BatchProcessingConfig {
     const schema = Joi.object({
-      enabled: Joi.boolean().default(true),
-      maxConcurrentOperations: Joi.number().positive().max(100).default(5),
-      defaultBatchSize: Joi.number().positive().max(10000).default(50),
-      maxBatchSize: Joi.number().positive().max(10000).default(500),
-      memoryThreshold: Joi.number().positive().min(10).max(95).default(80),
-      processingTimeout: Joi.number().positive().min(1000).default(300000),
-      retryAttempts: Joi.number().positive().max(10).default(3),
-      retryDelay: Joi.number().positive().min(100).default(1000),
-      continueOnError: Joi.boolean().default(true),
+      enabled: ValidationUtils.booleanSchema(true),
+      maxConcurrentOperations: ValidationUtils.rangeNumberSchema(1, 100, 5),
+      defaultBatchSize: ValidationUtils.rangeNumberSchema(1, 10000, 50),
+      maxBatchSize: ValidationUtils.rangeNumberSchema(1, 10000, 500),
+      memoryThreshold: ValidationUtils.rangeNumberSchema(10, 95, 80),
+      processingTimeout: ValidationUtils.optionalRangeNumberSchema(1000, Number.MAX_SAFE_INTEGER, 300000),
+      retryAttempts: ValidationUtils.rangeNumberSchema(1, 10, 3),
+      retryDelay: ValidationUtils.optionalRangeNumberSchema(100, Number.MAX_SAFE_INTEGER, 1000),
+      continueOnError: ValidationUtils.booleanSchema(true),
 
       // Optional monitoring - if not needed, can be undefined
-      monitoring: Joi.object({
-        enabled: Joi.boolean().default(true),
-        metricsInterval: Joi.number().positive().min(1000).default(60000),
-        alertThresholds: Joi.object({
-          highLatency: Joi.number().positive().min(100).default(5000),
-          highMemoryUsage: Joi.number().positive().min(10).max(95).default(80),
-          highErrorRate: Joi.number().positive().min(0).max(1).default(0.1),
+      monitoring: ValidationUtils.optionalObjectSchema({
+        enabled: ValidationUtils.booleanSchema(true),
+        metricsInterval: ValidationUtils.optionalRangeNumberSchema(1000, Number.MAX_SAFE_INTEGER, 60000),
+        alertThresholds: ValidationUtils.objectSchema({
+          highLatency: ValidationUtils.optionalRangeNumberSchema(100, Number.MAX_SAFE_INTEGER, 5000),
+          highMemoryUsage: ValidationUtils.rangeNumberSchema(10, 95, 80),
+          highErrorRate: ValidationUtils.rangeNumberSchema(0, 1, 0.1),
         }),
-      }).optional(),
+      }),
     });
 
-    const { error, value } = schema.validate(config);
-    if (error) {
-      throw new Error(`Batch processing config validation error: ${error.message}`);
-    }
-
-    return value;
+    return ValidationUtils.validateConfig(config, schema);
   }
 
   getDefaultConfig(): BatchProcessingConfig {

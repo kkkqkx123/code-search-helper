@@ -14,3 +14,7 @@ export { SemgrepConfigService, SemgrepConfig } from './SemgrepConfigService';
 export { TreeSitterConfigService, TreeSitterConfig } from './TreeSitterConfigService';
 export { NebulaConfigService, NebulaConfig } from './NebulaConfigService';
 export { ProjectNamingConfigService } from './ProjectNamingConfigService';
+
+// 导出工具类
+export { EnvironmentUtils } from '../utils/EnvironmentUtils';
+export { ValidationUtils } from '../utils/ValidationUtils';

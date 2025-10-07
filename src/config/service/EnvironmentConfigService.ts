@@ -1,6 +1,8 @@
 import { injectable } from 'inversify';
 import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
+import { EnvironmentUtils } from '../utils/EnvironmentUtils';
+import { ValidationUtils } from '../utils/ValidationUtils';
 
 export interface EnvironmentConfig {
   nodeEnv: string;
@@ -13,10 +15,10 @@ export interface EnvironmentConfig {
 export class EnvironmentConfigService extends BaseConfigService<EnvironmentConfig> {
   loadConfig(): EnvironmentConfig {
     const rawConfig = {
-      nodeEnv: process.env.NODE_ENV || 'development',
-      port: parseInt(process.env.PORT || '3000'),
-      logLevel: process.env.LOG_LEVEL || 'info',
-      debug: process.env.DEBUG === 'true' || false,
+      nodeEnv: EnvironmentUtils.parseString('NODE_ENV', 'development'),
+      port: EnvironmentUtils.parsePort('PORT', 3000),
+      logLevel: EnvironmentUtils.parseString('LOG_LEVEL', 'info'),
+      debug: EnvironmentUtils.parseBoolean('DEBUG', false),
     };
 
     return this.validateConfig(rawConfig);
@@ -24,18 +26,13 @@ export class EnvironmentConfigService extends BaseConfigService<EnvironmentConfi
 
   validateConfig(config: any): EnvironmentConfig {
     const schema = Joi.object({
-      nodeEnv: Joi.string().trim().valid('development', 'production', 'test').default('development'),
-      port: Joi.number().port().default(3000),
-      logLevel: Joi.string().trim().valid('error', 'warn', 'info', 'debug').default('info'),
-      debug: Joi.boolean().default(false),
+      nodeEnv: ValidationUtils.enumSchema(['development', 'production', 'test'], 'development'),
+      port: ValidationUtils.portSchema(3000),
+      logLevel: ValidationUtils.enumSchema(['error', 'warn', 'info', 'debug'], 'info'),
+      debug: ValidationUtils.booleanSchema(false),
     });
 
-    const { error, value } = schema.validate(config);
-    if (error) {
-      throw new Error(`Environment config validation error: ${error.message}`);
-    }
-
-    return value;
+    return ValidationUtils.validateConfig(config, schema);
   }
 
   getDefaultConfig(): EnvironmentConfig {

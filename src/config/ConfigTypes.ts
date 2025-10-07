@@ -274,3 +274,7 @@ export interface AppConfig {
   project?: ProjectConfig;
   treeSitter?: TreeSitterConfig;
 }
+
+// 导出工具类类型
+export { EnvironmentUtils } from './utils/EnvironmentUtils';
+export { ValidationUtils } from './utils/ValidationUtils';

@@ -1,6 +1,8 @@
 import { injectable } from 'inversify';
 import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
+import { EnvironmentUtils } from '../utils/EnvironmentUtils';
+import { ValidationUtils } from '../utils/ValidationUtils';
 
 export interface LoggingConfig {
   level: string;
@@ -11,8 +13,8 @@ export interface LoggingConfig {
 export class LoggingConfigService extends BaseConfigService<LoggingConfig> {
   loadConfig(): LoggingConfig {
     const rawConfig = {
-      level: process.env.LOG_LEVEL || 'info',
-      format: process.env.LOG_FORMAT || 'json',
+      level: EnvironmentUtils.parseString('LOG_LEVEL', 'info'),
+      format: EnvironmentUtils.parseString('LOG_FORMAT', 'json'),
     };
 
     return this.validateConfig(rawConfig);
@@ -20,16 +22,11 @@ export class LoggingConfigService extends BaseConfigService<LoggingConfig> {
 
   validateConfig(config: any): LoggingConfig {
     const schema = Joi.object({
-      level: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
-      format: Joi.string().valid('json', 'text').default('json'),
+      level: ValidationUtils.enumSchema(['error', 'warn', 'info', 'debug'], 'info'),
+      format: ValidationUtils.enumSchema(['json', 'text'], 'json'),
     });
 
-    const { error, value } = schema.validate(config);
-    if (error) {
-      throw new Error(`Logging config validation error: ${error.message}`);
-    }
-
-    return value;
+    return ValidationUtils.validateConfig(config, schema);
   }
 
   getDefaultConfig(): LoggingConfig {

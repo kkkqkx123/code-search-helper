@@ -1,6 +1,8 @@
 import { injectable } from 'inversify';
 import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
+import { EnvironmentUtils } from '../utils/EnvironmentUtils';
+import { ValidationUtils } from '../utils/ValidationUtils';
 
 export interface RedisConfig {
   enabled: boolean;
@@ -27,23 +29,23 @@ export interface RedisConfig {
 export class RedisConfigService extends BaseConfigService<RedisConfig> {
   loadConfig(): RedisConfig {
     const rawConfig = {
-      enabled: process.env.REDIS_ENABLED === 'true',
-      url: process.env.REDIS_URL || 'redis://localhost:6379',
-      maxmemory: process.env.REDIS_MAXMEMORY || '256mb',
-      useMultiLevel: process.env.REDIS_USE_MULTI_LEVEL !== 'false',
+      enabled: EnvironmentUtils.parseBoolean('REDIS_ENABLED', false),
+      url: EnvironmentUtils.parseString('REDIS_URL', 'redis://localhost:6379'),
+      maxmemory: EnvironmentUtils.parseString('REDIS_MAXMEMORY', '256mb'),
+      useMultiLevel: !EnvironmentUtils.parseBoolean('REDIS_USE_MULTI_LEVEL', true),
       ttl: {
-        embedding: parseInt(process.env.REDIS_TTL_EMBEDDING || '86400'),
-        search: parseInt(process.env.REDIS_TTL_SEARCH || '3600'),
-        graph: parseInt(process.env.REDIS_TTL_GRAPH || '1800'),
-        progress: parseInt(process.env.REDIS_TTL_PROGRESS || '300'),
+        embedding: EnvironmentUtils.parseNumber('REDIS_TTL_EMBEDDING', 86400),
+        search: EnvironmentUtils.parseNumber('REDIS_TTL_SEARCH', 3600),
+        graph: EnvironmentUtils.parseNumber('REDIS_TTL_GRAPH', 1800),
+        progress: EnvironmentUtils.parseNumber('REDIS_TTL_PROGRESS', 300),
       },
       retry: {
-        attempts: parseInt(process.env.REDIS_RETRY_ATTEMPTS || '3'),
-        delay: parseInt(process.env.REDIS_RETRY_DELAY || '1000'),
+        attempts: EnvironmentUtils.parseNumber('REDIS_RETRY_ATTEMPTS', 3),
+        delay: EnvironmentUtils.parseNumber('REDIS_RETRY_DELAY', 1000),
       },
       pool: {
-        min: parseInt(process.env.REDIS_POOL_MIN || '1'),
-        max: parseInt(process.env.REDIS_POOL_MAX || '10'),
+        min: EnvironmentUtils.parseNumber('REDIS_POOL_MIN', 1),
+        max: EnvironmentUtils.parseNumber('REDIS_POOL_MAX', 10),
       },
     };
 
@@ -52,32 +54,27 @@ export class RedisConfigService extends BaseConfigService<RedisConfig> {
 
   validateConfig(config: any): RedisConfig {
     const schema = Joi.object({
-      enabled: Joi.boolean().default(false),
-      url: Joi.string().uri().default('redis://localhost:6379'),
+      enabled: ValidationUtils.booleanSchema(false),
+      url: ValidationUtils.uriSchema('redis://localhost:6379'),
       maxmemory: Joi.string().default('256mb'),
-      useMultiLevel: Joi.boolean().default(true),
-      ttl: Joi.object({
-        embedding: Joi.number().default(86400),
-        search: Joi.number().default(3600),
-        graph: Joi.number().default(1800),
-        progress: Joi.number().default(300),
+      useMultiLevel: ValidationUtils.booleanSchema(true),
+      ttl: ValidationUtils.objectSchema({
+        embedding: ValidationUtils.positiveNumberSchema(86400),
+        search: ValidationUtils.positiveNumberSchema(3600),
+        graph: ValidationUtils.positiveNumberSchema(1800),
+        progress: ValidationUtils.positiveNumberSchema(300),
       }),
-      retry: Joi.object({
-        attempts: Joi.number().default(3),
-        delay: Joi.number().default(1000),
+      retry: ValidationUtils.objectSchema({
+        attempts: ValidationUtils.positiveNumberSchema(3),
+        delay: ValidationUtils.positiveNumberSchema(1000),
       }),
-      pool: Joi.object({
-        min: Joi.number().default(1),
-        max: Joi.number().default(10),
+      pool: ValidationUtils.objectSchema({
+        min: ValidationUtils.positiveNumberSchema(1),
+        max: ValidationUtils.positiveNumberSchema(10),
       }),
     });
 
-    const { error, value } = schema.validate(config);
-    if (error) {
-      throw new Error(`Redis config validation error: ${error.message}`);
-    }
-
-    return value;
+    return ValidationUtils.validateConfig(config, schema);
   }
 
   getDefaultConfig(): RedisConfig {

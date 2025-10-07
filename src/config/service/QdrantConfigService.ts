@@ -4,6 +4,8 @@ import { BaseConfigService } from './BaseConfigService';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
+import { EnvironmentUtils } from '../utils/EnvironmentUtils';
+import { ValidationUtils } from '../utils/ValidationUtils';
 
 export interface QdrantConfig {
   host: string;
@@ -26,12 +28,12 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
   loadConfig(): QdrantConfig {
     try {
       const rawConfig = {
-        host: process.env.QDRANT_HOST || 'localhost',
-        port: parseInt(process.env.QDRANT_PORT || '6333'),
+        host: EnvironmentUtils.parseString('QDRANT_HOST', 'localhost'),
+        port: EnvironmentUtils.parsePort('QDRANT_PORT', 6333),
         collection: this.getCollectionName(), // 使用增强的配置逻辑
-        apiKey: process.env.QDRANT_API_KEY,
-        useHttps: process.env.QDRANT_USE_HTTPS === 'true',
-        timeout: parseInt(process.env.QDRANT_TIMEOUT || '30000'),
+        apiKey: EnvironmentUtils.parseOptionalString('QDRANT_API_KEY'),
+        useHttps: EnvironmentUtils.parseBoolean('QDRANT_USE_HTTPS', false),
+        timeout: EnvironmentUtils.parseNumber('QDRANT_TIMEOUT', 30000),
       };
 
       return this.validateConfig(rawConfig);
@@ -161,18 +163,14 @@ getCollectionNameForProject(projectId: string): string {
     try {
       const schema = Joi.object({
         host: Joi.string().hostname().default('localhost'),
-        port: Joi.number().port().default(6333),
+        port: ValidationUtils.portSchema(6333),
         collection: Joi.string().default('code-snippets'),
         apiKey: Joi.string().optional(),
-        useHttps: Joi.boolean().default(false),
-        timeout: Joi.number().default(30000),
+        useHttps: ValidationUtils.booleanSchema(false),
+        timeout: ValidationUtils.positiveNumberSchema(30000),
       });
 
-      const { error, value } = schema.validate(config);
-      if (error) {
-        this.logger.error(`Qdrant config validation error: ${error.message}`);
-        throw new Error(`Qdrant config validation error: ${error.message}`);
-      }
+      const value = ValidationUtils.validateConfig(config, schema);
 
       // 验证集合名称格式
       if (value.collection && !this.validateNamingConvention(value.collection)) {
