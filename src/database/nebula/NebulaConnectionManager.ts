@@ -11,6 +11,7 @@ import { ConnectionStateManager } from './ConnectionStateManager';
 import { NebulaQueryUtils } from './NebulaQueryUtils';
 import { NebulaResultFormatter } from './NebulaResultFormatter';
 import { EventListener } from '../../types';
+import { NebulaEventManager } from './NebulaEventManager';
 
 // 导入Nebula Graph客户端库
 import { createClient } from '@nebula-contrib/nebula-nodejs';
@@ -37,19 +38,22 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private config: NebulaConfig;
   private client: any; // Nebula Graph客户端实例
   private sessionCleanupInterval: NodeJS.Timeout | null = null;
+ private eventManager: NebulaEventManager;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.NebulaConfigService) nebulaConfigService: NebulaConfigService,
-    @inject(TYPES.ConnectionStateManager) connectionStateManager: ConnectionStateManager
+    @inject(TYPES.ConnectionStateManager) connectionStateManager: ConnectionStateManager,
+    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.configService = configService;
     this.nebulaConfigService = nebulaConfigService;
     this.connectionStateManager = connectionStateManager;
+    this.eventManager = eventManager;
     this.connectionStatus = {
       connected: false,
       host: '',
@@ -86,91 +90,129 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   async connect(): Promise<boolean> {
-    try {
-      // 重新加载配置以确保获取最新配置
-      this.config = this.nebulaConfigService.loadConfig();
-      this.updateConnectionStatusFromConfig();
-      
-      // nebula客户端内部管理连接池，不需要手动配置
+    const maxRetries = this.config.retryAttempts || 3;
+    const retryDelay = this.config.retryDelay || 3000;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // 重新加载配置以确保获取最新配置
+        this.config = this.nebulaConfigService.loadConfig();
+        this.updateConnectionStatusFromConfig();
+        
+        // nebula客户端内部管理连接池，不需要手动配置
 
-      // 使用 DatabaseLoggerService 记录连接信息
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.CONNECTION_OPENED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Connecting to Nebula Graph',
-          host: this.config.host,
-          port: this.config.port,
-          username: this.config.username,
-          space: this.connectionStatus.space,
-          timeout: this.config.timeout,
-          maxConnections: this.config.maxConnections,
-          retryAttempts: this.config.retryAttempts,
-          retryDelay: this.config.retryDelay
+        // 使用 DatabaseLoggerService 记录连接信息
+        await this.logDatabaseEvent({
+          type: DatabaseEventType.CONNECTION_OPENED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: {
+            message: `Connecting to Nebula Graph (attempt ${attempt + 1}/${maxRetries + 1})`,
+            host: this.config.host,
+            port: this.config.port,
+            username: this.config.username,
+            space: this.connectionStatus.space,
+            timeout: this.config.timeout,
+            maxConnections: this.config.maxConnections,
+            retryAttempts: this.config.retryAttempts,
+            retryDelay: this.config.retryDelay
+          }
+        });
+
+        // 创建Nebula Graph客户端配置
+        const clientConfig: any = {
+          servers: [`${this.config.host}:${this.config.port}`],
+          userName: this.config.username,
+          password: this.config.password,
+          poolSize: this.config.maxConnections || 10, // nebula客户端内部管理连接池
+          bufferSize: this.config.bufferSize || 10, // 使用配置中的缓冲区大小
+          executeTimeout: this.config.timeout || 30000, // 使用配置中的超时时间
+          pingInterval: this.config.pingInterval || 3000   // 使用配置中的ping间隔
+        };
+        
+        // 只有在配置了有效空间时才设置space参数
+        const validSpace = this.getValidSpace(this.config.space);
+        if (validSpace) {
+          clientConfig.space = validSpace;
         }
-      });
 
-      // 创建Nebula Graph客户端，但不设置默认空间，只验证连接
-      const clientConfig: any = {
-        servers: [`${this.config.host}:${this.config.port}`],
-        userName: this.config.username,
-        password: this.config.password,
-        poolSize: this.config.maxConnections || 10, // nebula客户端内部管理连接池
-        bufferSize: this.config.bufferSize || 10, // 使用配置中的缓冲区大小
-        executeTimeout: this.config.timeout || 30000, // 使用配置中的超时时间
-        pingInterval: this.config.pingInterval || 3000   // 使用配置中的ping间隔
-      };
+        // 如果已有客户端，先关闭它
+        if (this.client) {
+          await this.closeClient();
+        }
 
-      this.client = createClient(clientConfig);
+        this.client = createClient(clientConfig);
 
-      // 针对@nebula-contrib/nebula-nodejs库，客户端自动管理连接
-      // 不需要手动创建会话，直接使用客户端执行查询
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.SERVICE_INITIALIZED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: 'Client created successfully, waiting for connection...' }
-      });
-      
-      // 等待客户端连接就绪
-      await this.waitForClientConnection();
-      
-      // 验证连接是否成功
-      await this.validateConnection(this.client);
-      
-      // nebula客户端内部管理连接池，不需要手动管理会话
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.SERVICE_INITIALIZED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: 'Client connected successfully (nebula manages internal pool)' }
-      });
+        // 针对@nebula-contrib/nebula-nodejs库，客户端自动管理连接
+        // 不需要手动创建会话，直接使用客户端执行查询
+        await this.logDatabaseEvent({
+          type: DatabaseEventType.SERVICE_INITIALIZED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: 'Client created successfully, waiting for connection...' }
+        });
+        
+        // 等待客户端连接就绪
+        await this.waitForClientConnection();
+        
+        // 验证连接是否成功
+        await this.validateConnection(this.client);
+        
+        // nebula客户端内部管理连接池，不需要手动管理会话
+        await this.logDatabaseEvent({
+          type: DatabaseEventType.SERVICE_INITIALIZED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: 'Client connected successfully (nebula manages internal pool)' }
+        });
 
-      // 设置连接状态
-      this.connectionStatus.connected = true;
-      this.connectionStatus.lastConnected = new Date();
+        // 设置连接状态
+        this.connectionStatus.connected = true;
+        this.connectionStatus.lastConnected = new Date();
 
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.CONNECTION_OPENED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: 'Successfully connected to Nebula Graph' }
-      });
-      
-      return true;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.connectionStatus.connected = false;
-      this.connectionStatus.error = errorMessage;
+        await this.logDatabaseEvent({
+          type: DatabaseEventType.CONNECTION_OPENED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: 'Successfully connected to Nebula Graph' }
+        });
+        
+        return true;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // 如果是最后一次重试，记录错误并返回false
+        if (attempt === maxRetries) {
+          this.connectionStatus.connected = false;
+          this.connectionStatus.error = errorMessage;
 
-      this.errorHandler.handleError(
-        new Error(`Failed to connect to Nebula Graph: ${errorMessage}`),
-        { component: 'NebulaConnectionManager', operation: 'connect' }
-      );
+          this.errorHandler.handleError(
+            new Error(`Failed to connect to Nebula Graph after ${maxRetries + 1} attempts: ${errorMessage}`),
+            { component: 'NebulaConnectionManager', operation: 'connect' }
+          );
 
-      return false;
+          return false;
+        } else {
+          // 记录重试信息
+          await this.logDatabaseEvent({
+            type: DatabaseEventType.ERROR_OCCURRED,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: {
+              message: `Connection attempt ${attempt + 1} failed, retrying in ${retryDelay}ms`,
+              error: errorMessage,
+              attempt: attempt + 1,
+              maxRetries: maxRetries + 1
+            }
+          });
+          
+          // 等待重试延迟
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+      }
     }
+    
+    return false;
   }
 
   /**
@@ -182,7 +224,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         reject(new Error('Connection timeout: Client failed to connect within reasonable time'));
       }, this.config.timeout || 30000);
       
-      this.client.once('authorized', () => {
+      // 等待'ready'事件，确保连接完全就绪（包括空间切换）
+      this.client.once('ready', () => {
         clearTimeout(timeout);
         resolve();
       });
@@ -211,15 +254,17 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
    */
   private async validateConnection(client: any): Promise<void> {
     try {
-      // 执行简单查询验证连接
+      // 执行简单查询验证连接 - 使用不依赖空间的查询
       await this.logDatabaseEvent({
         type: DatabaseEventType.QUERY_EXECUTED,
         source: 'nebula',
         timestamp: new Date(),
-        data: { message: 'Validating connection with SHOW SPACES query' }
+        data: { message: 'Validating connection with simple query' }
       });
       
-      const result = await client.execute('SHOW SPACES');
+      // 使用不依赖特定空间的简单查询进行验证
+      const validationQuery = this.connectionStatus.space ? 'SHOW SPACES' : 'YIELD 1';
+      const result = await client.execute(validationQuery);
       
       await this.logDatabaseEvent({
         type: DatabaseEventType.QUERY_EXECUTED,
@@ -227,6 +272,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         timestamp: new Date(),
         data: {
           message: 'Connection validation query result',
+          validationQuery,
           hasResult: !!result,
           resultType: typeof result,
           hasCode: typeof result?.code !== 'undefined',
@@ -712,9 +758,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
    * 添加事件监听器 - 委托给全局事件管理器
    */
   addEventListener(eventType: string, listener: EventListener): void {
-    // 在实际应用中，这里应该委托给 NebulaEventManager
-    // 为了满足接口要求，暂时保持空实现或输出日志
-    console.warn('addEventListener is deprecated, use NebulaEventManager instead');
+    // 委托给 NebulaEventManager
+    this.eventManager.on(eventType, listener);
   }
 
   /**
@@ -770,9 +815,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
    * 移除事件监听器 - 委托给全局事件管理器
    */
   removeEventListener(eventType: string, listener: EventListener): void {
-    // 在实际应用中，这里应该委托给 NebulaEventManager
-    // 为了满足接口要求，暂时保持空实现或输出日志
-    console.warn('removeEventListener is deprecated, use NebulaEventManager instead');
+    // 委托给 NebulaEventManager
+    // 需要先获取订阅对象才能取消订阅
+    console.warn('Direct removeEventListener is deprecated, use the subscription object to unsubscribe');
   }
   
   /**
@@ -825,8 +870,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       
       // 检查Nebula客户端是否健康
       if (typeof this.client.execute === 'function') {
-        // 执行一个简单的查询来测试连接
-        await this.client.execute('SHOW SPACES');
+        // 执行一个不依赖空间的简单查询来测试连接
+        const cleanupQuery = this.connectionStatus.space ? 'SHOW SPACES' : 'YIELD 1';
+        await this.client.execute(cleanupQuery);
       }
     } catch (error) {
       this.errorHandler.handleError(

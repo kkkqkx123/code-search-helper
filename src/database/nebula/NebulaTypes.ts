@@ -136,9 +136,16 @@ export enum NebulaEventType {
   CONNECTION_CLOSED = 'connection_closed',
   SPACE_CREATED = 'space_created',
   SPACE_DELETED = 'space_deleted',
+  SPACE_UPDATED = 'space_updated',
+  SPACE_ERROR = 'space_error',
   NODE_INSERTED = 'node_inserted',
+  NODE_UPDATED = 'node_updated',
+  NODE_DELETED = 'node_deleted',
   RELATIONSHIP_INSERTED = 'relationship_inserted',
+  RELATIONSHIP_UPDATED = 'relationship_updated',
+  RELATIONSHIP_DELETED = 'relationship_deleted',
   QUERY_EXECUTED = 'query_executed',
+  QUERY_ERROR = 'query_error',
   ERROR_OCCURRED = 'error_occurred'
 }
 

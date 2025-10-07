@@ -48,5 +48,10 @@ export const GraphModule = new ContainerModule((bindObj: any) => {
   bind(TYPES.GraphServiceNewAdapter)
     .to(GraphServiceNewAdapter)
     .inSingletonScope();
+  
+  // 绑定GraphService以解决依赖问题
+  bind(TYPES.GraphService)
+    .to(GraphServiceNewAdapter)
+    .inSingletonScope();
 
 });

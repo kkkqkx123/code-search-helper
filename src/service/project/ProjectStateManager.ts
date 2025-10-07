@@ -72,7 +72,7 @@ export class ProjectStateManager {
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.IndexSyncService) private indexSyncService: IndexService,
+    @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.ConfigService) private configService: ConfigService
   ) {
@@ -124,7 +124,7 @@ export class ProjectStateManager {
    */
   private setupIndexSyncListeners(): void {
     // 监听索引开始事件
-    this.indexSyncService.on?.('indexingStarted', async (projectId: string) => {
+    this.indexService.on?.('indexingStarted', async (projectId: string) => {
       try {
         await this.updateProjectStatus(projectId, 'indexing');
       } catch (error) {
@@ -133,7 +133,7 @@ export class ProjectStateManager {
     });
 
     // 监听索引进度更新事件
-    this.indexSyncService.on?.('indexingProgress', async (projectId: string, progress: number) => {
+    this.indexService.on?.('indexingProgress', async (projectId: string, progress: number) => {
       try {
         await this.updateProjectIndexingProgress(projectId, progress);
       } catch (error) {
@@ -142,7 +142,7 @@ export class ProjectStateManager {
     });
 
     // 监听索引完成事件
-    this.indexSyncService.on?.('indexingCompleted', async (projectId: string) => {
+    this.indexService.on?.('indexingCompleted', async (projectId: string) => {
       try {
         await this.updateProjectStatus(projectId, 'active');
         await this.updateProjectLastIndexed(projectId);
@@ -158,7 +158,7 @@ export class ProjectStateManager {
     });
 
     // 监听索引错误事件
-    this.indexSyncService.on?.('indexingError', async (projectId: string, error: Error) => {
+    this.indexService.on?.('indexingError', async (projectId: string, error: Error) => {
       try {
         await this.updateProjectStatus(projectId, 'error');
         await this.updateProjectMetadata(projectId, { lastError: error.message });
@@ -473,7 +473,7 @@ export class ProjectStateManager {
     state.updatedAt = new Date();
 
     // 从索引同步服务获取索引统计信息
-    const indexStatus = this.indexSyncService.getIndexStatus(projectId);
+    const indexStatus = this.indexService.getIndexStatus(projectId);
     if (indexStatus) {
       state.totalFiles = indexStatus.totalFiles;
       state.indexedFiles = indexStatus.indexedFiles;

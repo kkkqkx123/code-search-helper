@@ -16,15 +16,15 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 // Helper function to wait for indexing to complete
-async function waitForIndexingComplete(indexSyncService: IndexService, projectId: string, timeout = 5000): Promise<void> {
+async function waitForIndexingComplete(indexService: IndexService, projectId: string, timeout = 5000): Promise<void> {
   const startTime = Date.now();
   while (Date.now() - startTime < timeout) {
-    const status = indexSyncService.getIndexStatus(projectId);
+    const status = indexService.getIndexStatus(projectId);
     if (status && !status.isIndexing) {
       return;
     }
     // Also check if project is in completed state
-    const completedStatus = (indexSyncService as any).completedProjects.get(projectId);
+    const completedStatus = (indexService as any).completedProjects.get(projectId);
     if (completedStatus && !completedStatus.isIndexing) {
       return;
     }
@@ -40,7 +40,7 @@ jest.mock('../../service/filesystem/FileSystemTraversal');
 
 describe('Filesystem-Qdrant Integration', () => {
   let tempDir: string;
-  let indexSyncService: IndexService;
+  let indexService: IndexService;
   let projectStateManager: ProjectStateManager;
   let fileSystemTraversal: FileSystemTraversal;
   let fileWatcherService: FileWatcherService;
@@ -67,7 +67,7 @@ describe('Filesystem-Qdrant Integration', () => {
       for (const state of allStates) {
         if (state.status === 'indexing') {
           // Force stop indexing if still running
-          await indexSyncService.stopIndexing(state.projectId);
+          await indexService.stopIndexing(state.projectId);
         }
       }
 
@@ -129,7 +129,7 @@ describe('Filesystem-Qdrant Integration', () => {
     qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService) as jest.Mocked<QdrantService>;
     embedderFactory = diContainer.get<EmbedderFactory>(TYPES.EmbedderFactory) as jest.Mocked<EmbedderFactory>;
     embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
-    indexSyncService = diContainer.get<IndexService>(TYPES.IndexSyncService);
+    indexService = diContainer.get<IndexService>(TYPES.IndexService);
     projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
 
     // Clear any existing project states to ensure clean test environment
@@ -306,10 +306,10 @@ describe('Filesystem-Qdrant Integration', () => {
       });
 
       // Start indexing the project
-      const projectId = await indexSyncService.startIndexing(tempDir);
+      const projectId = await indexService.startIndexing(tempDir);
 
       // Wait for indexing to complete
-      await waitForIndexingComplete(indexSyncService, projectId);
+      await waitForIndexingComplete(indexService, projectId);
 
       // Wait a bit more for the state update to propagate
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -366,10 +366,10 @@ describe('Filesystem-Qdrant Integration', () => {
       });
 
       // Start indexing the project
-      const projectId = await indexSyncService.startIndexing(tempDir);
+      const projectId = await indexService.startIndexing(tempDir);
 
       // Wait for initial indexing to complete
-      await waitForIndexingComplete(indexSyncService, projectId);
+      await waitForIndexingComplete(indexService, projectId);
 
       // Wait a bit more to ensure initial indexing is completely done
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -428,10 +428,10 @@ describe('Filesystem-Qdrant Integration', () => {
       qdrantService.upsertVectorsForProject.mockRejectedValueOnce(new Error('Qdrant connection failed'));
 
       // Start indexing the project
-      const projectId = await indexSyncService.startIndexing(tempDir);
+      const projectId = await indexService.startIndexing(tempDir);
 
       // Wait for indexing to complete (even with errors)
-      await waitForIndexingComplete(indexSyncService, projectId, 3000);
+      await waitForIndexingComplete(indexService, projectId, 3000);
 
       // Wait a bit more for state to be updated
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -510,13 +510,13 @@ describe('Filesystem-Qdrant Integration', () => {
       });
 
       // Index both projects
-      const projectId1 = await indexSyncService.startIndexing(projectDir1);
-      const projectId2 = await indexSyncService.startIndexing(projectDir2);
+      const projectId1 = await indexService.startIndexing(projectDir1);
+      const projectId2 = await indexService.startIndexing(projectDir2);
 
       // Wait for both indexing operations to complete
       await Promise.all([
-        waitForIndexingComplete(indexSyncService, projectId1),
-        waitForIndexingComplete(indexSyncService, projectId2)
+        waitForIndexingComplete(indexService, projectId1),
+        waitForIndexingComplete(indexService, projectId2)
       ]);
 
       // Wait a bit more for state to be updated
@@ -554,11 +554,11 @@ describe('Filesystem-Qdrant Integration', () => {
       console.log('Created project state:', createdState);
 
       // Index the project
-      const projectId = await indexSyncService.startIndexing(projectDir);
+      const projectId = await indexService.startIndexing(projectDir);
       console.log('Indexing returned project ID:', projectId);
 
       // Wait for indexing to complete
-      await waitForIndexingComplete(indexSyncService, projectId);
+      await waitForIndexingComplete(indexService, projectId);
 
       // Wait a bit more for state to be updated
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -633,10 +633,10 @@ describe('Filesystem-Qdrant Integration', () => {
       });
 
       // Index the project
-      const projectId = await indexSyncService.startIndexing(projectDir);
+      const projectId = await indexService.startIndexing(projectDir);
 
       // Wait for indexing to complete
-      await waitForIndexingComplete(indexSyncService, projectId);
+      await waitForIndexingComplete(indexService, projectId);
 
       // Wait a bit more for state to be saved
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -682,7 +682,7 @@ describe('Filesystem-Qdrant Integration', () => {
         loggerService,
         errorHandlerService,
         projectIdManager,
-        indexSyncService,
+        indexService,
         qdrantService,
         configService  // Use the config service with the same storage path
       );
@@ -779,8 +779,8 @@ describe('Filesystem-Qdrant Integration', () => {
 
       // Start indexing with small batch size
       const startTime = Date.now();
-      const projectId = await indexSyncService.startIndexing(tempDir, { batchSize: 1 });
-      await waitForIndexingComplete(indexSyncService, projectId, 10000); // Longer timeout for this test
+      const projectId = await indexService.startIndexing(tempDir, { batchSize: 1 });
+      await waitForIndexingComplete(indexService, projectId, 10000); // Longer timeout for this test
       const endTime = Date.now();
 
       // Verify indexing completed in reasonable time
@@ -820,13 +820,13 @@ describe('Filesystem-Qdrant Integration', () => {
       // Start indexing all projects sequentially to avoid the "already indexing" error
       const projectIds = [];
       for (const dir of projectDirs) {
-        const projectId = await indexSyncService.startIndexing(dir);
+        const projectId = await indexService.startIndexing(dir);
         projectIds.push(projectId);
       }
 
       // Wait for all indexing operations to complete
       await Promise.all(
-        projectIds.map(projectId => waitForIndexingComplete(indexSyncService, projectId))
+        projectIds.map(projectId => waitForIndexingComplete(indexService, projectId))
       );
 
       // Wait a bit more for state to be updated
@@ -893,10 +893,10 @@ describe('Filesystem-Qdrant Integration', () => {
       });
 
       // Start indexing the project
-      const projectId = await indexSyncService.startIndexing(tempDir);
+      const projectId = await indexService.startIndexing(tempDir);
 
       // Wait for indexing to complete
-      await waitForIndexingComplete(indexSyncService, projectId, 5000);
+      await waitForIndexingComplete(indexService, projectId, 5000);
 
       // Wait a bit more for state to be updated
       await new Promise(resolve => setTimeout(resolve, 400));

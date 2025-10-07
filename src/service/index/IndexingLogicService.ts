@@ -49,8 +49,8 @@ export class IndexingLogicService {
     @inject(TYPES.GraphService) private graphService: IGraphService, // 新增
     @inject(TYPES.GraphDataMappingService) private graphMappingService: IGraphDataMappingService, // 新增
     @inject(TYPES.PerformanceDashboard) private performanceDashboard: PerformanceDashboard, // 新增
-    @inject(TYPES.AutoOptimizationAdvisor) private optimizationAdvisor: AutoOptimizationAdvisor, // 新增
-    @inject(TYPES.BatchProcessingOptimizer) private batchProcessingOptimizer: BatchProcessingOptimizer, // 新增
+    // @inject(TYPES.AutoOptimizationAdvisor) private optimizationAdvisor: AutoOptimizationAdvisor, // 暂时禁用
+    // @inject(TYPES.BatchProcessingOptimizer) private batchProcessingOptimizer: BatchProcessingOptimizer, // 暂时禁用
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
@@ -198,30 +198,20 @@ export class IndexingLogicService {
       // 创建文件ID
       const fileId = `file_${Buffer.from(filePath).toString('hex')}`;
       
-      // 使用优化的批处理来映射和存储数据
-      const result = await this.batchProcessingOptimizer.executeOptimizedBatch(
-        chunks,
-        async (chunkBatch) => {
-          // 使用图数据映射服务将代码块映射为图节点
-          const mappingResult = await this.graphMappingService.mapChunksToGraphNodes(chunkBatch, fileId);
-          
-          // 准备图数据
-          const graphData = {
-            nodes: mappingResult.nodes,
-            relationships: mappingResult.relationships
-          };
+      // 简化图数据存储逻辑（暂时禁用批处理优化器）
+      const mappingResult = await this.graphMappingService.mapChunksToGraphNodes(chunks, fileId);
+      
+      // 准备图数据
+      const graphData = {
+        nodes: mappingResult.nodes,
+        relationships: mappingResult.relationships
+      };
 
-          // 存储到图数据库
-          return await this.graphService.storeChunks([graphData], {
-            projectId: this.projectIdManager.getProjectId(projectPath),
-            useCache: true
-          });
-        },
-        {
-          strategy: 'balanced',
-          targetThroughput: 50 // 目标每秒处理50个chunk
-        }
-      );
+      // 存储到图数据库
+      const result = await this.graphService.storeChunks([graphData], {
+        projectId: this.projectIdManager.getProjectId(projectPath),
+        useCache: true
+      });
 
       this.logger.debug('Successfully stored file to graph database', {
         filePath,

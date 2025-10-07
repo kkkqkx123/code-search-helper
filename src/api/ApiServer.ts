@@ -322,7 +322,7 @@ export class ApiServer {
     this.app.use('/api/v1/graph', this.graphStatsRoutes.getRouter());
 
     // 404处理
-    this.app.get('*', (req, res) => {
+    this.app.use((req, res) => {
       res.status(404).json({
         success: false,
         error: 'Not Found',

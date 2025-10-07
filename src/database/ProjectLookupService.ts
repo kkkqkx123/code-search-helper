@@ -1,16 +1,23 @@
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../types';
 import { ProjectIdManager } from './ProjectIdManager';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { IndexService } from '../service/index/IndexService';
 
+@injectable()
 export class ProjectLookupService {
   private projectIdManager: ProjectIdManager;
   private errorHandler: ErrorHandlerService;
-  public indexSyncService: IndexService; // Public for access from ProjectRoutes
+  public indexService: IndexService; // Public for access from ProjectRoutes
 
-  constructor(projectIdManager: ProjectIdManager, errorHandler: ErrorHandlerService, indexSyncService: IndexService) {
+  constructor(
+    @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
+    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
+    @inject(TYPES.IndexService) indexService: IndexService
+  ) {
     this.projectIdManager = projectIdManager;
     this.errorHandler = errorHandler;
-    this.indexSyncService = indexSyncService;
+    this.indexService = indexService;
   }
 
   async getProjectIdByCollection(collectionName: string): Promise<string | null> {

@@ -94,6 +94,43 @@ export class FileSystemTraversal {
     const startTime = Date.now();
     let traversalOptions = { ...this.defaultOptions, ...options };
 
+    // Merge all ignore rules
+    const allIgnorePatterns: string[] = [];
+
+    // 1. Add default ignore patterns
+    allIgnorePatterns.push(...this.getDefaultIgnorePatterns());
+
+    // 2. Add .gitignore rules (if enabled)
+    if (traversalOptions.respectGitignore) {
+      const gitignorePatterns = await GitignoreParser.getAllGitignorePatterns(rootPath);
+      allIgnorePatterns.push(...gitignorePatterns);
+    }
+
+    // 3. Add .indexignore rules
+    const indexignorePatterns = await GitignoreParser.parseIndexignore(rootPath);
+    allIgnorePatterns.push(...indexignorePatterns);
+
+    // 4. Add user custom exclude rules
+    if (traversalOptions.excludePatterns) {
+      allIgnorePatterns.push(...traversalOptions.excludePatterns);
+    }
+
+    // Update exclude rules
+    traversalOptions = {
+      ...traversalOptions,
+      excludePatterns: [...new Set(allIgnorePatterns)] // Remove duplicates
+    };
+
+    // Log rule information (for debugging)
+    this.logger.debug(`[DEBUG] Final ignore patterns for ${rootPath}`, {
+      defaultPatterns: this.getDefaultIgnorePatterns().length,
+      gitignorePatterns: traversalOptions.respectGitignore ?
+        (await GitignoreParser.getAllGitignorePatterns(rootPath)).length : 0,
+      indexignorePatterns: indexignorePatterns.length,
+      customPatterns: options?.excludePatterns?.length || 0,
+      totalPatterns: traversalOptions.excludePatterns?.length || 0
+    });
+
     // Debug: Log the traversal options
     this.logger.debug(`[DEBUG] Traversal options for ${rootPath}`, {
       includePatterns: traversalOptions.includePatterns,
@@ -104,24 +141,6 @@ export class FileSystemTraversal {
       ignoreDirectories: traversalOptions.ignoreDirectories,
       respectGitignore: traversalOptions.respectGitignore
     });
-
-    // If respectGitignore is enabled, parse .gitignore and add patterns to exclude
-    if (traversalOptions.respectGitignore) {
-      try {
-        const gitignorePath = path.join(rootPath, '.gitignore');
-        const gitignorePatterns = await GitignoreParser.parseGitignore(gitignorePath);
-        if (gitignorePatterns.length > 0) {
-          traversalOptions = {
-            ...traversalOptions,
-            excludePatterns: [...(traversalOptions.excludePatterns || []), ...gitignorePatterns],
-          };
-          this.logger.debug(`[DEBUG] Added gitignore patterns`, gitignorePatterns);
-        }
-      } catch (error) {
-        // Log error but continue with traversal
-        console.warn(`Failed to parse .gitignore: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
 
     const result: TraversalResult = {
       files: [],
@@ -134,13 +153,14 @@ export class FileSystemTraversal {
     try {
       await this.traverseRecursive(rootPath, rootPath, result, traversalOptions);
       result.processingTime = Date.now() - startTime;
-      
+
       // Debug: Log the final results
       this.logger.debug(`[DEBUG] Traversal completed for ${rootPath}`, {
         filesFound: result.files.length,
         directoriesFound: result.directories.length,
         errors: result.errors,
         processingTime: result.processingTime,
+        ignorePatternsApplied: traversalOptions.excludePatterns?.length || 0,
         files: result.files.map(f => ({ path: f.path, extension: f.extension, language: f.language }))
       });
     } catch (error) {
@@ -148,7 +168,7 @@ export class FileSystemTraversal {
         `Failed to traverse directory: ${error instanceof Error ? error.message : String(error)}`
       );
       result.processingTime = Date.now() - startTime;
-      
+
       // Debug: Log the error
       this.logger.error(`[DEBUG] Traversal failed for ${rootPath}`, error);
     }
@@ -539,6 +559,167 @@ export class FileSystemTraversal {
         `Failed to read file ${filePath}: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  /**
+   * Gets default ignore patterns
+   * @returns Array of default ignore patterns
+   */
+  private getDefaultIgnorePatterns(): string[] {
+    // Reference the complete list in docs/plan/defaultIgnore.md
+    return [
+      // Version control
+      '.git/**',
+      '.hg/**',
+      '.hgignore',
+      '.svn/**',
+
+      // Dependency directories
+      '**/node_modules/**',
+      '**/bower_components/**',
+      '**/jspm_packages/**',
+      'vendor/**',
+      '**/.bundle/**',
+      '**/.gradle/**',
+      'target/**',
+
+      // Logs
+      'logs/**',
+      '**/*.log',
+      '**/npm-debug.log*',
+      '**/yarn-debug.log*',
+      '**/yarn-error.log*',
+
+      // Runtime data
+      'pids/**',
+      '*.pid',
+      '*.seed',
+      '*.pid.lock',
+
+      // Coverage directory used by tools like istanbul
+      'coverage/**',
+      '.nyc_output/**',
+
+      // Grunt intermediate storage
+      '.grunt/**',
+
+      // Compiled binary addons
+      'build/Release/**',
+
+      // TypeScript v1 declaration files
+      'typings/**',
+
+      // Optional npm cache directory
+      '**/.npm/**',
+
+      // Cache directories
+      '.eslintcache',
+      '.rollup.cache/**',
+      '.webpack.cache/**',
+      '.parcel-cache/**',
+      '.sass-cache/**',
+      '*.cache',
+
+      // Optional REPL history
+      '.node_repl_history',
+
+      // Output of 'npm pack'
+      '*.tgz',
+
+      // Yarn files
+      '**/.yarn/**',
+      '**/.yarn-integrity',
+
+      // dotenv environment variables file
+      '.env',
+
+      // next.js build output
+      '.next/**',
+
+      // nuxt.js build output
+      '.nuxt/**',
+
+      // vuepress build output
+      '.vuepress/dist/**',
+
+      // Serverless directories
+      '.serverless/**',
+
+      // FuseBox cache
+      '.fusebox/**',
+
+      // DynamoDB Local files
+      '.dynamodb/**',
+
+      // TypeScript output
+      'dist/**',
+
+      // OS generated files
+      '**/.DS_Store',
+      '**/Thumbs.db',
+
+      // Editor directories and files
+      '.idea/**',
+      '.vscode/**',
+      '**/*.swp',
+      '**/*.swo',
+      '**/*.swn',
+      '**/*.bak',
+
+      // Build outputs
+      'build/**',
+      'out/**',
+
+      // Temporary files
+      'tmp/**',
+      'temp/**',
+
+      // repomix output
+      '**/repomix-output.*',
+      '**/repopack-output.*', // Legacy
+
+      // Essential Node.js-related entries
+      '**/package-lock.json',
+      '**/yarn-error.log',
+      '**/yarn.lock',
+      '**/pnpm-lock.yaml',
+      '**/bun.lockb',
+      '**/bun.lock',
+
+      // Essential Python-related entries
+      '**/__pycache__/**',
+      '**/*.py[cod]',
+      '**/venv/**',
+      '**/.venv/**',
+      '**/.pytest_cache/**',
+      '**/.mypy_cache/**',
+      '**/.ipynb_checkpoints/**',
+      '**/Pipfile.lock',
+      '**/poetry.lock',
+      '**/uv.lock',
+
+      // Essential Rust-related entries
+      '**/Cargo.lock',
+      '**/Cargo.toml.orig',
+      '**/target/**',
+      '**/*.rs.bk',
+
+      // Essential PHP-related entries
+      '**/composer.lock',
+
+      // Essential Ruby-related entries
+      '**/Gemfile.lock',
+
+      // Essential Go-related entries
+      '**/go.sum',
+
+      // Essential Elixir-related entries
+      '**/mix.lock',
+
+      // Essential Haskell-related entries
+      '**/stack.yaml.lock',
+      '**/cabal.project.freeze'
+    ];
   }
 
   async getDirectoryStats(

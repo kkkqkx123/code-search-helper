@@ -245,4 +245,138 @@ dist/
       expect(patterns).toEqual(['**/node_modules/**']);
     });
   });
+
+  describe('getAllGitignorePatterns', () => {
+    beforeEach(() => {
+      jest.spyOn(GitignoreParser, 'parseGitignore');
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('should get patterns from root and first-level subdirectories', async () => {
+      // Mock fs.readdir
+      const mockEntries = [
+        { name: 'src', isDirectory: () => true },
+        { name: 'tests', isDirectory: () => true },
+        { name: 'package.json', isDirectory: () => false }
+      ];
+      mockedFs.readdir.mockResolvedValue(mockEntries as any);
+
+      // Mock parseGitignore calls
+      (GitignoreParser.parseGitignore as jest.Mock)
+        .mockResolvedValueOnce(['**/node_modules/**', '**/dist/**'])  // root .gitignore
+        .mockResolvedValueOnce(['**/build/**'])                     // src/.gitignore
+        .mockResolvedValueOnce(['**/coverage/**']);                 // tests/.gitignore
+
+      const patterns = await GitignoreParser.getAllGitignorePatterns('/project');
+
+      expect(patterns).toEqual([
+        '**/node_modules/**',
+        '**/dist/**',
+        'src/**/build/**',
+        'tests/**/coverage/**'
+      ]);
+    });
+
+    test('should handle project with no subdirectories', async () => {
+      // Mock fs.readdir with no directories
+      const mockEntries = [
+        { name: 'package.json', isDirectory: () => false },
+        { name: 'README.md', isDirectory: () => false }
+      ];
+      mockedFs.readdir.mockResolvedValue(mockEntries as any);
+
+      // Mock root gitignore
+      (GitignoreParser.parseGitignore as jest.Mock)
+        .mockResolvedValueOnce(['**/node_modules/**']);
+
+      const patterns = await GitignoreParser.getAllGitignorePatterns('/project');
+
+      expect(patterns).toEqual(['**/node_modules/**']);
+      expect(GitignoreParser.parseGitignore).toHaveBeenCalledTimes(1);
+    });
+
+    test('should handle readdir errors gracefully', async () => {
+      // Mock readdir to throw error
+      mockedFs.readdir.mockRejectedValue(new Error('Permission denied'));
+
+      // Mock root gitignore
+      (GitignoreParser.parseGitignore as jest.Mock)
+        .mockResolvedValueOnce(['**/node_modules/**']);
+
+      // Mock console.warn to avoid test output pollution
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const patterns = await GitignoreParser.getAllGitignorePatterns('/project');
+
+      expect(patterns).toEqual(['**/node_modules/**']);
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Failed to read subdirectories: Error: Permission denied');
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('should filter out empty patterns', async () => {
+      // Mock fs.readdir
+      const mockEntries = [
+        { name: 'src', isDirectory: () => true }
+      ];
+      mockedFs.readdir.mockResolvedValue(mockEntries as any);
+
+      // Mock parseGitignore with empty patterns
+      (GitignoreParser.parseGitignore as jest.Mock)
+        .mockResolvedValueOnce(['**/node_modules/**', ''])  // root with empty pattern
+        .mockResolvedValueOnce(['']);                      // src with empty pattern
+
+      const patterns = await GitignoreParser.getAllGitignorePatterns('/project');
+
+      expect(patterns).toEqual(['**/node_modules/**']);
+    });
+  });
+
+  describe('parseIndexignore', () => {
+    test('should parse .indexignore file', async () => {
+      const mockContent = `
+# Index ignore patterns
+*.tmp
+temp/
+logs/
+!important.log
+`;
+      mockedFs.readFile.mockResolvedValue(mockContent);
+
+      const patterns = await GitignoreParser.parseIndexignore('/project');
+
+      expect(patterns).toEqual([
+        '**/*.tmp',
+        '**/temp/**',
+        '**/logs/**'
+        // Negation pattern (!important.log) should be skipped
+      ]);
+      expect(mockedFs.readFile).toHaveBeenCalledWith(path.join('/project', '.indexignore'), 'utf-8');
+    });
+
+    test('should handle non-existent .indexignore file', async () => {
+      mockedFs.readFile.mockRejectedValue({ code: 'ENOENT' });
+
+      const patterns = await GitignoreParser.parseIndexignore('/project');
+
+      expect(patterns).toEqual([]);
+    });
+
+    test('should throw error for other read errors', async () => {
+      mockedFs.readFile.mockRejectedValue(new Error('Permission denied'));
+
+      await expect(GitignoreParser.parseIndexignore('/project')).rejects.toThrow('Permission denied');
+    });
+
+    test('should handle empty .indexignore file', async () => {
+      mockedFs.readFile.mockResolvedValue('');
+
+      const patterns = await GitignoreParser.parseIndexignore('/project');
+
+      expect(patterns).toEqual([]);
+    });
+  });
 });

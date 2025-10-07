@@ -143,7 +143,7 @@ export const TYPES = {
   FileWatcherService: Symbol.for('FileWatcherService'),
   ChangeDetectionService: Symbol.for('ChangeDetectionService'),
   // 索引同步服务
-  IndexSyncService: Symbol.for('IndexSyncService'),
+  IndexService: Symbol.for('IndexService'),
   IndexingLogicService: Symbol.for('IndexingLogicService'),
   // 项目状态管理服务
   ProjectStateManager: Symbol.for('ProjectStateManager'),
@@ -222,41 +222,41 @@ export const TYPES = {
   HealthChecker: Symbol.for('HealthChecker'),
   DatabaseConnectionPool: Symbol.for('DatabaseConnectionPool'),
   TransactionCoordinator: Symbol.for('TransactionCoordinator'),
-  
+
   // 新增基础设施服务
   InfrastructureManager: Symbol.for('InfrastructureManager'),
   DatabaseHealthChecker: Symbol.for('DatabaseHealthChecker'),
   GraphCacheService: Symbol.for('GraphCacheService'),
   CacheConfig: Symbol.for('CacheConfig'),
-  
+
   // 图数据映射服务
   GraphDataMappingService: Symbol.for('GraphDataMappingService'),
-  
+
   // 异步处理服务
   AsyncTaskQueue: Symbol.for('AsyncTaskQueue'),
-  
+
   // 验证服务
   DataMappingValidator: Symbol.for('DataMappingValidator'),
-  
+
   // 缓存服务
   GraphMappingCache: Symbol.for('GraphMappingCache'),
-  
+
   // 批处理优化服务
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
   VectorBatchOptimizer: Symbol.for('VectorBatchOptimizer'),
-  
+
   // 事务相关服务
   TransactionLogger: Symbol.for('TransactionLogger'),
   DataConsistencyChecker: Symbol.for('DataConsistencyChecker'),
   ConflictResolver: Symbol.for('ConflictResolver'),
   TransactionPerformanceOptimizer: Symbol.for('TransactionPerformanceOptimizer'),
-  
+
   // 高级映射相关服务
   AdvancedMappingService: Symbol.for('AdvancedMappingService'),
   FaultToleranceHandler: Symbol.for('FaultToleranceHandler'),
   MappingRuleEngine: Symbol.for('MappingRuleEngine'),
   MappingCacheManager: Symbol.for('MappingCacheManager'),
-  
+
   // 性能监控和优化相关服务
   PerformanceDashboard: Symbol.for('PerformanceDashboard'),
   PerformanceMetricsCollector: Symbol.for('PerformanceMetricsCollector'),

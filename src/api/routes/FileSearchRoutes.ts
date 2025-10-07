@@ -49,7 +49,7 @@ export class FileSearchRoutes {
     // 文件索引操作
     this.router.post('/index', this.indexFile.bind(this));
     this.router.post('/index-batch', this.indexFiles.bind(this));
-    this.router.delete('/index/:filePath(*)', this.deleteFileIndex.bind(this));
+    this.router.delete('/index/:filePath', this.deleteFileIndex.bind(this));
     
     this.logger.info('文件搜索路由已设置');
   }

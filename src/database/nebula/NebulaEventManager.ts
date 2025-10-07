@@ -1,14 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { randomUUID } from 'crypto';
-import { DatabaseEventType, DatabaseEventListener, NebulaEventType } from '../common/DatabaseEventTypes';
-
-// 定义NebulaEvent接口
-export interface NebulaEvent {
-  type: NebulaEventType;
-  timestamp: Date;
-  data?: any;
-  error?: Error;
-}
+import { DatabaseEventType, DatabaseEventListener } from '../common/DatabaseEventTypes';
+import { NebulaEventType, NebulaEvent } from './NebulaTypes';
 import { TYPES } from '../../types';
 import { ConfigService } from '../../config/ConfigService';
 
@@ -34,7 +27,7 @@ export interface ActiveSubscription {
 export interface INebulaEventManager {
   emit(event: NebulaEvent): void;
   emitAsync(event: NebulaEvent): Promise<void>;
-  on(eventType: NebulaEventType | string, handler: EventHandler): Subscription;
+  on(eventType: string, handler: EventHandler): Subscription;
   once(eventType: NebulaEventType | string, handler: EventHandler): Subscription;
   off(subscription: Subscription): void;
   onMultiple(events: (NebulaEventType | string)[], handler: EventHandler): Subscription[];
@@ -46,7 +39,7 @@ export interface INebulaEventManager {
   getConfig(): EventManagerConfig;
 }
 
-type EventHandler = (event: NebulaEvent) => void | Promise<void>;
+export type EventHandler = (event: NebulaEvent) => void | Promise<void>;
 export interface Subscription { 
   id: string; 
   eventType: string; 
@@ -88,7 +81,7 @@ export class NebulaEventManager implements INebulaEventManager {
   emit(event: NebulaEvent): void {
     this.stats.totalEvents++;
 
-    const handlers = this.handlers.get(event.type) || [];
+    const handlers = this.handlers.get(event.type as string) || [];
     const allHandlers = this.handlers.get('*') || []; // Handle wildcard events
 
     // Synchronously execute all handlers
@@ -106,7 +99,7 @@ export class NebulaEventManager implements INebulaEventManager {
   async emitAsync(event: NebulaEvent): Promise<void> {
     this.stats.totalEvents++;
 
-    const handlers = this.handlers.get(event.type) || [];
+    const handlers = this.handlers.get(event.type as string) || [];
     const allHandlers = this.handlers.get('*') || []; // Handle wildcard events
 
     // Asynchronously execute all handlers

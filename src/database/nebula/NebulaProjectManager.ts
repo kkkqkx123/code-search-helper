@@ -1,6 +1,5 @@
 import { injectable, inject } from 'inversify';
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
-import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { ProjectIdManager } from '../ProjectIdManager';
@@ -19,6 +18,7 @@ import {
   NebulaEventType,
   NebulaEvent
 } from './NebulaTypes';
+import { NebulaEventManager } from './NebulaEventManager';
 
 /**
  * Nebula 项目管理器接口
@@ -51,7 +51,8 @@ export class NebulaProjectManager implements INebulaProjectManager {
   private connectionManager: INebulaConnectionManager;
   private queryBuilder: INebulaQueryBuilder;
   private performanceMonitor: PerformanceMonitor;
-  private eventListeners: Map<NebulaEventType, ((event: NebulaEvent) => void)[]> = new Map();
+  private eventManager: NebulaEventManager;
+  private subscriptions: Map<NebulaEventType, any[]> = new Map();
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
@@ -60,7 +61,8 @@ export class NebulaProjectManager implements INebulaProjectManager {
     @inject(TYPES.INebulaSpaceManager) spaceManager: INebulaSpaceManager,
     @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager,
     @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder,
-    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
+    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
@@ -69,6 +71,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
     this.connectionManager = connectionManager;
     this.queryBuilder = queryBuilder;
     this.performanceMonitor = performanceMonitor;
+    this.eventManager = eventManager;
   }
 
   /**
@@ -775,23 +778,21 @@ export class NebulaProjectManager implements INebulaProjectManager {
    * 添加事件监听器
    */
   addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
-    if (!this.eventListeners.has(type)) {
-      this.eventListeners.set(type, []);
+    const subscription = this.eventManager.on(type as string, listener);
+    
+    if (!this.subscriptions.has(type)) {
+      this.subscriptions.set(type, []);
     }
-    this.eventListeners.get(type)!.push(listener);
+    this.subscriptions.get(type)!.push(subscription);
   }
 
   /**
    * 移除事件监听器
    */
   removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
-    const listeners = this.eventListeners.get(type);
-    if (listeners) {
-      const index = listeners.indexOf(listener);
-      if (index > -1) {
-        listeners.splice(index, 1);
-      }
-    }
+    // 由于 NebulaEventManager 使用订阅模式，我们不能直接通过 listener 函数来取消订阅
+    // 因此，我们只提供取消所有订阅的方法，或者需要修改方法签名以使用订阅对象
+    console.warn('Direct removeEventListener is deprecated, use subscription.unsubscribe() instead');
   }
 
   /**
@@ -805,29 +806,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
       error
     };
 
-    const listeners = this.eventListeners.get(type);
-    if (listeners) {
-      listeners.forEach(listener => {
-        try {
-          listener(event);
-        } catch (err) {
-          // 使用 DatabaseLoggerService 记录事件监听器中的错误
-          this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.ERROR_OCCURRED,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: {
-              message: 'Error in event listener',
-              eventType: type,
-              error: err instanceof Error ? err.message : String(err)
-            }
-          }).catch(error => {
-            // 如果日志记录失败，我们不希望影响主流程
-            console.error('Failed to log event listener error:', error);
-          });
-        }
-      });
-    }
+    this.eventManager.emit(event);
   }
 
   /**

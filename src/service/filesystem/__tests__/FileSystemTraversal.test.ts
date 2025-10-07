@@ -248,4 +248,145 @@ describe('FileSystemTraversal', () => {
       (fileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
     });
   });
+
+  describe('Enhanced Ignore Rule Integration', () => {
+    it('should integrate default, gitignore, indexignore, and custom ignore patterns', async () => {
+      const testPath = '/test/path';
+
+      // Mock GitignoreParser methods
+      mockedGitignoreParser.getAllGitignorePatterns.mockResolvedValue([
+        '**/node_modules/**',
+        '**/dist/**',
+        'src/**/build/**'  // Subdirectory gitignore pattern
+      ]);
+
+      mockedGitignoreParser.parseIndexignore.mockResolvedValue([
+        '**/*.tmp',
+        '**/temp/**'
+      ]);
+
+      // Mock directory structure - simpler to avoid recursion
+      const mockStats = {
+        isDirectory: () => true,
+        isFile: () => false,
+        size: 1024,
+        mtime: new Date(),
+      };
+
+      const mockFileStats = {
+        isDirectory: () => false,
+        isFile: () => true,
+        size: 1024,
+        mtime: new Date(),
+      };
+
+      // Mock fs.realpathSync to prevent infinite recursion
+      fsSync.realpathSync.mockImplementation((path: any) => String(path));
+
+      // Mock stat to return different results based on path
+      (mockedFs.stat as jest.Mock).mockImplementation((filePath: string) => {
+        // Only process the root directory and one file
+        if (filePath === testPath) {
+          return Promise.resolve(mockStats as any);
+        }
+        if (filePath === path.join(testPath, 'file.ts')) {
+          return Promise.resolve(mockFileStats as any);
+        }
+        // Everything else should be treated as non-existent to avoid recursion
+        const error = new Error('File not found') as any;
+        error.code = 'ENOENT';
+        return Promise.reject(error);
+      });
+
+      // Mock readdir to return only simple files, no directories to prevent recursion
+      mockedFs.readdir.mockResolvedValue([
+        { name: 'file.ts', isDirectory: () => false, isFile: () => true },      // Should be included
+        { name: 'file.tmp', isDirectory: () => false, isFile: () => true },     // Should be excluded by .indexignore
+        { name: 'node_modules', isDirectory: () => true, isFile: () => false }, // Should be excluded by default patterns
+      ] as any);
+
+      // Mock helper methods
+      const originalCalculateFileHash = (fileSystemTraversal as any).calculateFileHash;
+      const originalIsBinaryFile = (fileSystemTraversal as any).isBinaryFile;
+
+      (fileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue('testhash123');
+      (fileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
+
+      // Execute with custom exclude patterns
+      const result = await fileSystemTraversal.traverseDirectory(testPath, {
+        excludePatterns: ['**/custom-exclude/**']  // Custom pattern
+      });
+
+      // Restore original methods
+      (fileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
+      (fileSystemTraversal as any).isBinaryFile = originalIsBinaryFile;
+
+      // Verify that all ignore patterns were applied
+      expect(mockedGitignoreParser.getAllGitignorePatterns).toHaveBeenCalledWith(testPath);
+      expect(mockedGitignoreParser.parseIndexignore).toHaveBeenCalledWith(testPath);
+
+      // Should only include the .ts file, excluding .tmp and node_modules
+      expect(result.files).toHaveLength(1);
+      expect(result.files[0].name).toBe('file.ts');
+
+      // Verify debug logging was called with pattern counts
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Final ignore patterns for'),
+        expect.objectContaining({
+          defaultPatterns: expect.any(Number),
+          gitignorePatterns: expect.any(Number),
+          indexignorePatterns: expect.any(Number),
+          customPatterns: expect.any(Number),
+          totalPatterns: expect.any(Number)
+        })
+      );
+    });
+
+    it('should handle respectGitignore=false correctly', async () => {
+      const testPath = '/test/path';
+
+      // Mock only indexignore (should still be processed even when respectGitignore=false)
+      mockedGitignoreParser.parseIndexignore.mockResolvedValue(['**/*.tmp']);
+
+      // Mock directory structure
+      const mockStats = { isDirectory: () => true, isFile: () => false, size: 1024, mtime: new Date() };
+      const mockFileStats = { isDirectory: () => false, isFile: () => true, size: 1024, mtime: new Date() };
+
+      (mockedFs.stat as jest.Mock).mockImplementation((filePath: string) => {
+        if (filePath.includes('file.ts')) {
+          return Promise.resolve(mockFileStats as any);
+        }
+        return Promise.resolve(mockStats as any);
+      });
+
+      mockedFs.readdir.mockResolvedValue([
+        { name: 'file.ts', isDirectory: () => false, isFile: () => true }
+      ] as any);
+
+      // Mock helper methods
+      const originalCalculateFileHash = (fileSystemTraversal as any).calculateFileHash;
+      const originalIsBinaryFile = (fileSystemTraversal as any).isBinaryFile;
+
+      (fileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue('testhash123');
+      (fileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
+
+      // Execute with respectGitignore=false
+      const result = await fileSystemTraversal.traverseDirectory(testPath, {
+        respectGitignore: false
+      });
+
+      // Restore original methods
+      (fileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
+      (fileSystemTraversal as any).isBinaryFile = originalIsBinaryFile;
+
+      // Verify getAllGitignorePatterns was NOT called
+      expect(mockedGitignoreParser.getAllGitignorePatterns).not.toHaveBeenCalled();
+
+      // But parseIndexignore should still be called
+      expect(mockedGitignoreParser.parseIndexignore).toHaveBeenCalledWith(testPath);
+
+      // Should still have default patterns applied
+      expect(result.files).toHaveLength(1);
+    });
+  });
 });

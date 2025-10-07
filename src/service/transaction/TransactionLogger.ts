@@ -1,4 +1,4 @@
-import { injectable, inject } from 'inversify';
+import { injectable, inject, unmanaged } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { DatabaseType } from '../../infrastructure/types';
@@ -30,7 +30,7 @@ export class TransactionLogger {
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    options?: TransactionLogOptions
+    @unmanaged() options?: TransactionLogOptions
   ) {
     this.logger = logger;
     this.options = {

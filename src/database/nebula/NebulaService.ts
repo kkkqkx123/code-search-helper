@@ -20,6 +20,7 @@ import { BaseDatabaseService } from '../common/BaseDatabaseService';
 import { IDatabaseService, IConnectionManager, IProjectManager } from '../common/IDatabaseService';
 import { DatabaseEventType, NebulaEventType as UnifiedNebulaEventType } from '../common/DatabaseEventTypes';
 import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
+import { NebulaEventManager } from './NebulaEventManager';
 
 export interface INebulaService {
   // 基础操作
@@ -75,6 +76,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
   private reconnectDelay = 1000;
+  private eventManager: NebulaEventManager;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
@@ -84,7 +86,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     @inject(TYPES.NebulaDataService) dataService: NebulaDataService,
     @inject(TYPES.NebulaSpaceService) spaceService: NebulaSpaceService,
     @inject(TYPES.NebulaQueryBuilder) queryBuilder: NebulaQueryBuilder,
-    @inject(TYPES.INebulaProjectManager) projectManager: NebulaProjectManager
+    @inject(TYPES.INebulaProjectManager) projectManager: NebulaProjectManager,
+    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
   ) {
     // 调用父类构造函数，提供必要的依赖
     super(
@@ -100,6 +103,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     this.spaceService = spaceService;
     this.queryBuilder = queryBuilder;
     this.projectManager = projectManager;
+    this.eventManager = eventManager;
   }
 
   /**
@@ -939,8 +943,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
    * 添加事件监听器
    */
   addEventListener(type: NebulaEventType | string, listener: (event: any) => void): void {
-    // 添加到基础服务
-    super.addEventListener(type, listener);
+    // 委托给 NebulaEventManager
+    this.eventManager.on(type, listener);
     
     // 使用 DatabaseLoggerService 记录事件监听器添加事件
     this.databaseLogger.logDatabaseEvent({
@@ -958,15 +962,16 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
    * 移除事件监听器
    */
   removeEventListener(type: NebulaEventType | string, listener: (event: any) => void): void {
-    // 从基础服务移除
-    super.removeEventListener(type, listener);
+    // 由于 NebulaEventManager 使用订阅模式，我们不能直接通过 listener 函数来取消订阅
+    // 因此，我们只提供取消所有订阅的方法，或者需要修改方法签名以使用订阅对象
+    console.warn('Direct removeEventListener is deprecated, use subscription.unsubscribe() instead');
     
     // 使用 DatabaseLoggerService 记录事件监听器移除事件
     this.databaseLogger.logDatabaseEvent({
       type: DatabaseEventType.SERVICE_INITIALIZED,
       source: 'nebula',
       timestamp: new Date(),
-      data: { message: `Event listener removed for type: ${type}`, eventType: type }
+      data: { message: `Event listener removal attempted for type: ${type}`, eventType: type }
     }).catch(error => {
       // 如果日志记录失败，我们不希望影响主流程
       console.error('Failed to log event listener removal:', error);

@@ -113,32 +113,88 @@ export class GitignoreParser {
    */
   static async getGitignorePatternsForFile(projectRoot: string, filePath: string): Promise<string[]> {
     const patterns: string[] = [];
-    
+
     // Normalize the file path to ensure consistent path separators
     const normalizedFilePath = path.normalize(filePath);
     const fileDir = path.dirname(normalizedFilePath);
-    
+
     // Split the directory path into individual directories
     const dirs = fileDir.split(path.sep).filter(dir => dir !== '');
-    
+
     // Start with root .gitignore
     const rootGitignorePath = path.join(projectRoot, '.gitignore');
     const rootPatterns = await this.parseGitignore(rootGitignorePath);
     patterns.push(...rootPatterns);
-    
+
     // Traverse each directory and collect .gitignore patterns
     let currentPath = projectRoot;
     for (const dir of dirs) {
       if (dir === '' || dir === '.') continue;
-      
+
       currentPath = path.join(currentPath, dir);
       const gitignorePath = path.join(currentPath, '.gitignore');
       const dirPatterns = await this.parseGitignore(gitignorePath);
       patterns.push(...dirPatterns);
     }
-    
+
     // Filter out empty patterns and return
     const filteredPatterns = patterns.filter(pattern => pattern !== '');
     return filteredPatterns;
+  }
+
+  /**
+   * Gets all applicable .gitignore rules from root directory and first-level subdirectories
+   * @param projectRoot Project root directory
+   * @returns Array of all applicable ignore rules
+   */
+  static async getAllGitignorePatterns(projectRoot: string): Promise<string[]> {
+    const patterns: string[] = [];
+
+    // 1. Read root directory .gitignore
+    const rootGitignorePath = path.join(projectRoot, '.gitignore');
+    const rootPatterns = await this.parseGitignore(rootGitignorePath);
+    patterns.push(...rootPatterns);
+
+    // 2. Read .gitignore files in first-level subdirectories
+    try {
+      const entries = await fs.readdir(projectRoot, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const subDirPath = path.join(projectRoot, entry.name);
+          const subGitignorePath = path.join(subDirPath, '.gitignore');
+          const subPatterns = await this.parseGitignore(subGitignorePath);
+
+          // Add prefix to subdirectory rules to ensure they only apply in corresponding directory
+          // Only add non-empty patterns
+          const prefixedPatterns = subPatterns
+            .filter(pattern => pattern !== '')
+            .map(pattern => path.join(entry.name, pattern).replace(/\\/g, '/'));
+          patterns.push(...prefixedPatterns);
+        }
+      }
+    } catch (error) {
+      // Ignore read errors, continue execution
+      console.warn(`Failed to read subdirectories: ${error}`);
+    }
+
+    return patterns.filter(pattern => pattern !== '');
+  }
+
+  /**
+   * Parses .indexignore file
+   * @param projectRoot Project root directory
+   * @returns Array of rules from .indexignore
+   */
+  static async parseIndexignore(projectRoot: string): Promise<string[]> {
+    const indexignorePath = path.join(projectRoot, '.indexignore');
+    try {
+      const content = await fs.readFile(indexignorePath, 'utf-8');
+      return this.parseContent(content);
+    } catch (error) {
+      if ((error as any).code === 'ENOENT') {
+        return [];
+      }
+      throw error;
+    }
   }
 }

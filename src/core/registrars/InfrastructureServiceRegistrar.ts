@@ -14,6 +14,8 @@ import { AdvancedMappingService as SemanticRelationshipExtractor } from '../../s
 
 // 性能监控服务
 import { PerformanceDashboard } from '../../service/monitoring/PerformanceDashboard';
+import { PerformanceMetricsCollector } from '../../service/metrics/PerformanceMetricsCollector';
+import { TransactionLogger } from '../../service/transaction/TransactionLogger';
 import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
 
@@ -40,8 +42,10 @@ export class InfrastructureServiceRegistrar {
     
     // 性能监控和优化服务
     container.bind<PerformanceDashboard>(TYPES.PerformanceDashboard).to(PerformanceDashboard).inSingletonScope();
-    container.bind<AutoOptimizationAdvisor>(TYPES.AutoOptimizationAdvisor).to(AutoOptimizationAdvisor).inSingletonScope();
-    container.bind<BatchProcessingOptimizer>(TYPES.BatchProcessingOptimizer).to(BatchProcessingOptimizer).inSingletonScope();
+    container.bind<TransactionLogger>(TYPES.TransactionLogger).to(TransactionLogger).inSingletonScope();
+    // container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).to(PerformanceMetricsCollector).inSingletonScope();
+    // container.bind<AutoOptimizationAdvisor>(TYPES.AutoOptimizationAdvisor).to(AutoOptimizationAdvisor).inSingletonScope();
+    // container.bind<BatchProcessingOptimizer>(TYPES.BatchProcessingOptimizer).to(BatchProcessingOptimizer).inSingletonScope();
     
     // 基础设施配置服务
     container.bind<InfrastructureConfigService>(TYPES.InfrastructureConfigService)
