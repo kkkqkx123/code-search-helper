@@ -17,6 +17,9 @@ import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordin
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { IndexSyncOptions } from './IndexService';
+import { IGraphService } from '../graph/core/IGraphService';
+import { IGraphDataMappingService } from '../mapping/IGraphDataMappingService';
+import { GraphPersistenceResult } from '../graph/core/types';
 
 export interface MemoryUsage {
   used: number;
@@ -40,6 +43,8 @@ export class IndexingLogicService {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.FileSystemTraversal) private fileSystemTraversal: FileSystemTraversal,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+    @inject(TYPES.GraphService) private graphService: IGraphService, // 新增
+    @inject(TYPES.GraphDataMappingService) private graphMappingService: IGraphDataMappingService, // 新增
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
@@ -173,6 +178,52 @@ export class IndexingLogicService {
   }
 
   /**
+   * 存储文件数据到图数据库（新增方法）
+   */
+  private async storeFileToGraph(
+    projectPath: string,
+    filePath: string,
+    fileContent: string,
+    chunks: CodeChunk[]
+  ): Promise<GraphPersistenceResult> {
+    this.logger.debug('Storing file to graph database', { projectPath, filePath });
+
+    try {
+      // 创建文件ID
+      const fileId = `file_${Buffer.from(filePath).toString('hex')}`;
+      
+      // 使用图数据映射服务将代码块映射为图节点
+      const mappingResult = await this.graphMappingService.mapChunksToGraphNodes(chunks, fileId);
+      
+      // 准备图数据
+      const graphData = {
+        nodes: mappingResult.nodes,
+        relationships: mappingResult.relationships
+      };
+
+      // 存储到图数据库
+      const result = await this.graphService.storeChunks(graphData, {
+        projectId: this.projectIdManager.getProjectId(projectPath),
+        useCache: true
+      });
+
+      this.logger.debug('Successfully stored file to graph database', {
+        filePath,
+        nodesCreated: result.nodesCreated,
+        relationshipsCreated: result.relationshipsCreated
+      });
+
+      return result;
+    } catch (error) {
+      this.logger.error('Failed to store file to graph database', {
+        filePath,
+        error: (error as Error).message
+      });
+      throw error;
+    }
+  }
+
+  /**
    * 索引单个文件（增强版，带性能监控）
    */
   async indexFile(projectPath: string, filePath: string): Promise<void> {
@@ -183,11 +234,38 @@ export class IndexingLogicService {
       // 使用协调服务处理文件
       const vectorPoints = await this.coordinationService.processFileForEmbedding(filePath, projectPath);
 
-      // 存储到Qdrant
-      const success = await this.qdrantService.upsertVectorsForProject(projectPath, vectorPoints);
+      // 并行处理：向量数据存储和图数据存储
+      const [qdrantSuccess, fileContent] = await Promise.all([
+        // 存储到Qdrant向量数据库
+        this.qdrantService.upsertVectorsForProject(projectPath, vectorPoints)
+          .catch(error => {
+            this.logger.error(`Failed to store to Qdrant for file: ${filePath}`, {
+              error: (error as Error).message
+            });
+            return false;
+          }),
+        // 读取文件内容用于图数据库存储
+        fs.readFile(filePath, 'utf-8')
+      ]);
 
-      if (!success) {
-        throw new Error(`Failed to upsert vectors for file: ${filePath}`);
+      // 存储到图数据库
+      let graphSuccess = false;
+      try {
+        graphSuccess = await this.storeFileToGraph(
+          projectPath,
+          filePath,
+          fileContent,
+          vectorPoints // 这里使用vectorPoints作为代码块
+        );
+      } catch (graphError) {
+        this.logger.error(`Failed to store to graph database for file: ${filePath}`, {
+          error: (graphError as Error).message
+        });
+      }
+
+      // 检查数据一致性
+      if (!qdrantSuccess) {
+        throw new Error(`Failed to store vectors for file: ${filePath}`);
       }
 
       const processingTime = Date.now() - startTime;
@@ -216,7 +294,11 @@ export class IndexingLogicService {
         });
       }
 
-      this.logger.debug(`Indexed file: ${filePath}`, { metrics });
+      this.logger.debug(`Indexed file: ${filePath}`, {
+        metrics,
+        qdrantSuccess,
+        graphSuccess
+      });
     } catch (error) {
       this.recordError(filePath, error);
       this.errorHandler.handleError(

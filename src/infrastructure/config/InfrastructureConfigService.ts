@@ -644,18 +644,5 @@ export class InfrastructureConfigService {
   validateConfig(): boolean {
     return ConfigValidationUtil.validateAndLog(this.config, this.logger);
   }
-
-  async saveConfig(): Promise<void> {
-    // 将配置保存到持久化存储
-    // 这里可以实现将配置保存到文件、数据库或其他存储位置
-    try {
-      // 在实际实现中，这里会将配置保存到持久化存储
-      this.logger.info('Infrastructure configuration saved');
-    } catch (error) {
-      this.logger.error('Failed to save infrastructure configuration', {
-        error: (error as Error).message
-      });
-      throw error;
-    }
-  }
+  
 }

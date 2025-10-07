@@ -2,238 +2,314 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { DatabaseType } from '../types';
-import { ITransactionCoordinator } from '../connection/types';
-
-interface TransactionInfo {
-  id: string;
-  participants: DatabaseType[];
-  state: 'active' | 'prepared' | 'committed' | 'rolled_back' | 'failed';
-  created: number;
-  prepared: Map<DatabaseType, boolean>;
-}
+import { ITransactionCoordinator, TransactionParticipant, TransactionStatus } from './ITransactionCoordinator';
 
 @injectable()
 export class TransactionCoordinator implements ITransactionCoordinator {
   private logger: LoggerService;
-  private transactions: Map<string, TransactionInfo>;
-  private timeout: number;
+  private transactions: Map<string, TransactionStatus> = new Map();
+  private participants: Map<string, Map<DatabaseType, TransactionParticipant>> = new Map();
+  private monitoringInterval: NodeJS.Timeout | null = null;
+  private readonly defaultTimeout = 30000; // 30秒默认超时
 
-  constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService
-  ) {
+  constructor(@inject(TYPES.LoggerService) logger: LoggerService) {
     this.logger = logger;
-    this.transactions = new Map();
-    this.timeout = 30000; // 30秒超时
   }
 
-  async beginTransaction(transactionId: string, participants: DatabaseType[]): Promise<void> {
-    if (this.transactions.has(transactionId)) {
-      throw new Error(`Transaction with id ${transactionId} already exists`);
-    }
-
-    const transactionInfo: TransactionInfo = {
+  async beginTransaction(): Promise<string> {
+    const transactionId = this.generateTransactionId();
+    const timestamp = Date.now();
+    
+    const transactionStatus: TransactionStatus = {
       id: transactionId,
-      participants,
       state: 'active',
-      created: Date.now(),
-      prepared: new Map()
+      participants: new Map<DatabaseType, boolean>(),
+      timestamp,
+      timeout: this.defaultTimeout
     };
 
-    this.transactions.set(transactionId, transactionInfo);
+    this.transactions.set(transactionId, transactionStatus);
+    this.participants.set(transactionId, new Map<DatabaseType, TransactionParticipant>());
     
-    this.logger.info('Started new transaction', {
-      transactionId,
-      participants
-    });
+    this.logger.info('Started new distributed transaction', { transactionId });
+    
+    return transactionId;
   }
 
-  async preparePhase(transactionId: string): Promise<Map<DatabaseType, boolean>> {
+ async registerParticipant(transactionId: string, participant: TransactionParticipant): Promise<void> {
     const transaction = this.transactions.get(transactionId);
     if (!transaction) {
-      throw new Error(`Transaction with id ${transactionId} not found`);
+      throw new Error(`Transaction not found: ${transactionId}`);
     }
 
     if (transaction.state !== 'active') {
-      throw new Error(`Transaction ${transactionId} is not in active state`);
+      throw new Error(`Cannot register participant in transaction with state: ${transaction.state}`);
     }
 
-    const results = new Map<DatabaseType, boolean>();
-    let allPrepared = true;
+    const participantMap = this.participants.get(transactionId);
+    if (!participantMap) {
+      throw new Error(`Participants map not found for transaction: ${transactionId}`);
+    }
 
-    // 为每个参与者执行准备阶段
-    for (const participant of transaction.participants) {
-      try {
-        // 模拟向参与者发送准备请求
-        // 在实际实现中，这里会调用具体的数据库准备操作
-        const prepared = await this.prepareParticipant(participant, transactionId);
-        results.set(participant, prepared);
-        
-        if (!prepared) {
-          allPrepared = false;
-          this.logger.warn('Participant failed to prepare for transaction', {
-            transactionId,
-            participant
-          });
-        }
-      } catch (error) {
-        results.set(participant, false);
-        allPrepared = false;
-        this.logger.error('Error during prepare phase for participant', {
-          transactionId,
-          participant,
-          error: (error as Error).message
-        });
+    participantMap.set(participant.databaseType, participant);
+    transaction.participants.set(participant.databaseType, false);
+
+    this.logger.debug('Registered participant in transaction', {
+      transactionId,
+      databaseType: participant.databaseType
+    });
+ }
+
+  async preparePhase(transactionId: string): Promise<boolean> {
+    const transaction = this.transactions.get(transactionId);
+    if (!transaction) {
+      throw new Error(`Transaction not found: ${transactionId}`);
+    }
+
+    if (transaction.state !== 'active') {
+      throw new Error(`Transaction is not in active state: ${transaction.state}`);
+    }
+
+    const participantMap = this.participants.get(transactionId);
+    if (!participantMap) {
+      throw new Error(`Participants map not found for transaction: ${transactionId}`);
+    }
+
+    this.logger.info('Starting prepare phase for transaction', { transactionId });
+
+    try {
+      // 准备所有参与者
+      const preparePromises: Promise<boolean>[] = [];
+      for (const [dbType, participant] of participantMap) {
+        preparePromises.push(
+          this.executeWithTimeout(
+            participant.prepare(),
+            this.defaultTimeout,
+            `Prepare timeout for ${dbType}`
+          )
+        );
       }
-    }
 
-    // 更新事务状态
-    if (allPrepared) {
-      transaction.state = 'prepared';
-      transaction.prepared = results;
-      this.logger.info('Transaction prepared successfully', { transactionId });
-    } else {
-      transaction.state = 'failed';
-      this.logger.warn('Transaction prepare phase failed', { transactionId });
-    }
+      const results = await Promise.all(preparePromises);
 
-    return results;
+      // 检查所有参与者是否准备成功
+      const allPrepared = results.every(result => result);
+      
+      if (allPrepared) {
+        transaction.state = 'prepared';
+        this.logger.info('Prepare phase completed successfully', { transactionId });
+        return true;
+      } else {
+        this.logger.error('Prepare phase failed', { transactionId, results });
+        await this.rollbackTransaction(transactionId);
+        return false;
+      }
+    } catch (error) {
+      this.logger.error('Prepare phase failed with error', { 
+        transactionId, 
+        error: (error as Error).message 
+      });
+      await this.rollbackTransaction(transactionId);
+      return false;
+    }
   }
 
   async commitPhase(transactionId: string): Promise<boolean> {
     const transaction = this.transactions.get(transactionId);
     if (!transaction) {
-      throw new Error(`Transaction with id ${transactionId} not found`);
+      throw new Error(`Transaction not found: ${transactionId}`);
     }
 
     if (transaction.state !== 'prepared') {
-      throw new Error(`Transaction ${transactionId} is not in prepared state`);
+      throw new Error(`Transaction is not in prepared state: ${transaction.state}`);
     }
 
-    let allCommitted = true;
+    const participantMap = this.participants.get(transactionId);
+    if (!participantMap) {
+      throw new Error(`Participants map not found for transaction: ${transactionId}`);
+    }
 
-    // 为每个参与者执行提交操作
-    for (const participant of transaction.participants) {
-      try {
-        // 模拟向参与者发送提交请求
-        // 在实际实现中，这里会调用具体的数据库提交操作
-        const committed = await this.commitParticipant(participant, transactionId);
-        
-        if (!committed) {
-          allCommitted = false;
-          this.logger.warn('Participant failed to commit transaction', {
-            transactionId,
-            participant
-          });
-        }
-      } catch (error) {
-        allCommitted = false;
-        this.logger.error('Error during commit phase for participant', {
-          transactionId,
-          participant,
-          error: (error as Error).message
-        });
+    this.logger.info('Starting commit phase for transaction', { transactionId });
+
+    try {
+      // 提交所有参与者
+      const commitPromises: Promise<boolean>[] = [];
+      for (const [dbType, participant] of participantMap) {
+        commitPromises.push(
+          this.executeWithTimeout(
+            participant.commit(),
+            this.defaultTimeout,
+            `Commit timeout for ${dbType}`
+          )
+        );
       }
-    }
 
-    if (allCommitted) {
-      transaction.state = 'committed';
-      this.logger.info('Transaction committed successfully', { transactionId });
-    } else {
-      transaction.state = 'failed';
-      this.logger.warn('Transaction commit phase failed', { transactionId });
-      
-      // 尝试回滚已提交的参与者
-      await this.rollback(transactionId);
+      const results = await Promise.all(commitPromises);
+      const allCommitted = results.every(result => result);
+
+      if (allCommitted) {
+        transaction.state = 'committed';
+        this.logger.info('Commit phase completed successfully', { transactionId });
+        return true;
+      } else {
+        this.logger.error('Commit phase failed', { transactionId, results });
+        return false;
+      }
+    } catch (error) {
+      this.logger.error('Commit phase failed with error', { 
+        transactionId, 
+        error: (error as Error).message 
+      });
       return false;
     }
-
-    return allCommitted;
   }
 
-  async rollback(transactionId: string): Promise<void> {
+  async executeTwoPhaseCommit(
+    participants: TransactionParticipant[],
+    operation: () => Promise<any>
+  ): Promise<boolean> {
+    const transactionId = await this.beginTransaction();
+
+    try {
+      // 注册所有参与者
+      for (const participant of participants) {
+        await this.registerParticipant(transactionId, participant);
+      }
+
+      // 执行业务操作
+      await operation();
+
+      // 执行准备阶段
+      const prepared = await this.preparePhase(transactionId);
+      if (!prepared) {
+        return false;
+      }
+
+      // 执行提交阶段
+      const committed = await this.commitPhase(transactionId);
+      return committed;
+    } catch (error) {
+      this.logger.error('Two-phase commit operation failed', { 
+        transactionId, 
+        error: (error as Error).message 
+      });
+      await this.rollbackTransaction(transactionId);
+      return false;
+    } finally {
+      await this.cleanupTransaction(transactionId);
+    }
+  }
+
+  async rollbackTransaction(transactionId: string): Promise<boolean> {
     const transaction = this.transactions.get(transactionId);
     if (!transaction) {
-      throw new Error(`Transaction with id ${transactionId} not found`);
+      throw new Error(`Transaction not found: ${transactionId}`);
     }
 
-    this.logger.info('Initiating transaction rollback', { transactionId });
+    const participantMap = this.participants.get(transactionId);
+    if (!participantMap) {
+      throw new Error(`Participants map not found for transaction: ${transactionId}`);
+    }
 
-    // 为每个参与者执行回滚操作
-    for (const participant of transaction.participants) {
-      try {
-        // 模拟向参与者发送回滚请求
-        // 在实际实现中，这里会调用具体的数据库回滚操作
-        await this.rollbackParticipant(participant, transactionId);
-        this.logger.debug('Participant rolled back successfully', {
-          transactionId,
-          participant
-        });
-      } catch (error) {
-        this.logger.error('Error during rollback phase for participant', {
-          transactionId,
-          participant,
-          error: (error as Error).message
-        });
+    this.logger.info('Starting rollback for transaction', { transactionId });
+
+    try {
+      // 回滚所有参与者
+      const rollbackPromises: Promise<boolean>[] = [];
+      for (const [dbType, participant] of participantMap) {
+        rollbackPromises.push(
+          this.executeWithTimeout(
+            participant.rollback(),
+            this.defaultTimeout,
+            `Rollback timeout for ${dbType}`
+          )
+        );
+      }
+
+      const results = await Promise.all(rollbackPromises);
+      const allRolledBack = results.every(result => result);
+
+      transaction.state = 'rolled_back';
+      
+      this.logger.info('Rollback completed', { 
+        transactionId, 
+        allRolledBack,
+        results 
+      });
+
+      return allRolledBack;
+    } catch (error) {
+      this.logger.error('Rollback failed', { 
+        transactionId, 
+        error: (error as Error).message 
+      });
+      transaction.state = 'failed';
+      return false;
+    }
+  }
+
+  async getTransactionStatus(transactionId: string): Promise<TransactionStatus | null> {
+    return this.transactions.get(transactionId) || null;
+  }
+
+ async cleanupTransaction(transactionId: string): Promise<void> {
+    this.transactions.delete(transactionId);
+    this.participants.delete(transactionId);
+    
+    this.logger.debug('Cleaned up transaction', { transactionId });
+  }
+
+  startMonitoring(): void {
+    if (this.monitoringInterval) {
+      this.logger.warn('Transaction monitoring already started');
+      return;
+    }
+
+    this.logger.info('Starting transaction monitoring');
+    
+    this.monitoringInterval = setInterval(() => {
+      this.checkForTimedOutTransactions();
+    }, 5000); // 每5秒检查一次超时事务
+  }
+
+  stopMonitoring(): void {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = null;
+      this.logger.info('Stopped transaction monitoring');
+    }
+  }
+
+ private generateTransactionId(): string {
+    return `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+ private async executeWithTimeout<T>(
+    promise: Promise<T>, 
+    timeout: number, 
+    errorMessage: string
+ ): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => 
+        setTimeout(() => reject(new Error(errorMessage)), timeout)
+      )
+    ]);
+  }
+
+ private checkForTimedOutTransactions(): void {
+    const now = Date.now();
+    for (const [transactionId, transaction] of this.transactions) {
+      if (now - transaction.timestamp > (transaction.timeout || this.defaultTimeout)) {
+        this.logger.warn('Detected timed-out transaction, initiating rollback', { transactionId });
+        this.rollbackTransaction(transactionId)
+          .catch(error => {
+            this.logger.error('Failed to rollback timed-out transaction', { 
+              transactionId, 
+              error: (error as Error).message 
+            });
+          });
       }
     }
-
-    transaction.state = 'rolled_back';
-    this.logger.info('Transaction rolled back successfully', { transactionId });
-  }
-
-  getTransactionStatus(transactionId: string): {
-    state: 'active' | 'prepared' | 'committed' | 'rolled_back' | 'failed';
-    participants: Map<DatabaseType, boolean>;
-    timestamp: number;
- } {
-    const transaction = this.transactions.get(transactionId);
-    if (!transaction) {
-      throw new Error(`Transaction with id ${transactionId} not found`);
-    }
-
-    // 检查是否超时
-    if (Date.now() - transaction.created > this.timeout) {
-      transaction.state = 'failed';
-      this.logger.warn('Transaction timed out', { transactionId });
-    }
-
-    return {
-      state: transaction.state,
-      participants: transaction.prepared || new Map(),
-      timestamp: transaction.created
-    };
-  }
-
-  private async prepareParticipant(participant: DatabaseType, transactionId: string): Promise<boolean> {
-    // 模拟参与者准备操作
-    // 在实际实现中，这里会调用具体的数据库准备操作
-    this.logger.debug('Preparing participant for transaction', {
-      participant,
-      transactionId
-    });
-    
-    // 模拟操作成功
-    return true;
-  }
-
-  private async commitParticipant(participant: DatabaseType, transactionId: string): Promise<boolean> {
-    // 模拟参与者提交操作
-    // 在实际实现中，这里会调用具体的数据库提交操作
-    this.logger.debug('Committing participant for transaction', {
-      participant,
-      transactionId
-    });
-    
-    // 模拟操作成功
-    return true;
-  }
-
-  private async rollbackParticipant(participant: DatabaseType, transactionId: string): Promise<void> {
-    // 模拟参与者回滚操作
-    // 在实际实现中，这里会调用具体的数据库回滚操作
-    this.logger.debug('Rolling back participant for transaction', {
-      participant,
-      transactionId
-    });
   }
 }

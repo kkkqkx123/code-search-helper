@@ -96,6 +96,14 @@ import { GraphServiceNewAdapter } from './service/graph/core/GraphServiceNewAdap
 // 图数据库服务
 import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
 
+// 基础设施服务
+import { TransactionCoordinator } from './infrastructure/transaction/TransactionCoordinator';
+import { DatabaseHealthChecker } from './infrastructure/monitoring/DatabaseHealthChecker';
+import { GraphCacheService } from './infrastructure/caching/GraphCacheService';
+
+// 图数据映射服务
+import { GraphDataMappingService } from './service/mapping/GraphDataMappingService';
+
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
   ConfigFactory: Symbol.for('ConfigFactory'),
@@ -213,4 +221,25 @@ export const TYPES = {
   HealthChecker: Symbol.for('HealthChecker'),
   DatabaseConnectionPool: Symbol.for('DatabaseConnectionPool'),
   TransactionCoordinator: Symbol.for('TransactionCoordinator'),
+  
+  // 新增基础设施服务
+  InfrastructureManager: Symbol.for('InfrastructureManager'),
+  DatabaseHealthChecker: Symbol.for('DatabaseHealthChecker'),
+  GraphCacheService: Symbol.for('GraphCacheService'),
+  CacheConfig: Symbol.for('CacheConfig'),
+  
+  // 图数据映射服务
+  GraphDataMappingService: Symbol.for('GraphDataMappingService'),
+  
+  // 异步处理服务
+  AsyncTaskQueue: Symbol.for('AsyncTaskQueue'),
+  
+  // 验证服务
+  DataMappingValidator: Symbol.for('DataMappingValidator'),
+  
+  // 缓存服务
+  GraphMappingCache: Symbol.for('GraphMappingCache'),
+  
+  // 批处理优化服务
+  GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
 };
