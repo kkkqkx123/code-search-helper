@@ -95,24 +95,23 @@ describe('IndexingLogicService', () => {
     const optimizationAdvisor = {} as any;
     const batchProcessingOptimizer = {} as any;
 
-    // Create service instance
-    indexingLogicService = new IndexingLogicService(
-      loggerService,
-      errorHandlerService,
-      fileSystemTraversal,
-      qdrantService,
-      graphService, // 新增
-      graphMappingService, // 新增
-      performanceDashboard, // 新增
-      optimizationAdvisor, // 新增
-      batchProcessingOptimizer, // 新增
-      projectIdManager,
-      embedderFactory,
-      embeddingCacheService,
-      performanceOptimizerService,
-      astSplitter,
-      coordinationService
-    );
+    // Create service instance using dependency injection approach
+    indexingLogicService = new IndexingLogicService();
+    // Mock the injected properties
+    (indexingLogicService as any).logger = loggerService;
+    (indexingLogicService as any).errorHandler = errorHandlerService;
+    (indexingLogicService as any).fileSystemTraversal = fileSystemTraversal;
+    (indexingLogicService as any).qdrantService = qdrantService;
+    (indexingLogicService as any).graphService = graphService;
+    (indexingLogicService as any).graphMappingService = graphMappingService;
+    (indexingLogicService as any).performanceDashboard = performanceDashboard;
+    (indexingLogicService as any).optimizationAdvisor = optimizationAdvisor;
+    (indexingLogicService as any).projectIdManager = projectIdManager;
+    (indexingLogicService as any).embedderFactory = embedderFactory;
+    (indexingLogicService as any).embeddingCacheService = embeddingCacheService;
+    (indexingLogicService as any).performanceOptimizer = performanceOptimizerService;
+    (indexingLogicService as any).astSplitter = astSplitter;
+    (indexingLogicService as any).coordinationService = coordinationService;
   });
 
   describe('indexProject', () => {

@@ -5,13 +5,15 @@ import { ProjectIdManager } from '../../ProjectIdManager';
 import { INebulaSpaceManager } from '../../nebula/space/NebulaSpaceManager';
 import { INebulaConnectionManager } from '../../nebula/NebulaConnectionManager';
 import { INebulaQueryBuilder } from '../../nebula/NebulaQueryBuilder';
+import { NebulaEventManager } from '../../nebula/NebulaEventManager';
+import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import {
   NebulaNode,
   NebulaRelationship,
   NebulaSpaceInfo,
   ProjectSpaceInfo,
   NebulaEventType,
-  NebulaEvent
+ NebulaEvent
 } from '../../nebula/NebulaTypes';
 
 // Mock 依赖项
@@ -59,6 +61,12 @@ const mockNebulaQueryBuilder = {
   buildRelationshipCountQuery: jest.fn(),
 };
 
+const mockNebulaEventManager = {
+  emit: jest.fn(),
+  on: jest.fn(),
+  once: jest.fn(),
+};
+
 describe('NebulaProjectManager', () => {
   let nebulaProjectManager: NebulaProjectManager;
 
@@ -67,7 +75,7 @@ describe('NebulaProjectManager', () => {
 
     // Mock PerformanceMonitor for testing
     const mockPerformanceMonitor = {} as any;
-    
+
     nebulaProjectManager = new NebulaProjectManager(
       mockDatabaseLoggerService as unknown as DatabaseLoggerService,
       mockErrorHandlerService as unknown as ErrorHandlerService,
@@ -75,7 +83,8 @@ describe('NebulaProjectManager', () => {
       mockNebulaSpaceManager as unknown as INebulaSpaceManager,
       mockNebulaConnectionManager as unknown as INebulaConnectionManager,
       mockNebulaQueryBuilder as unknown as INebulaQueryBuilder,
-      mockPerformanceMonitor
+      mockPerformanceMonitor as unknown as PerformanceMonitor,
+      mockNebulaEventManager as unknown as NebulaEventManager
     );
   });
 
@@ -654,15 +663,15 @@ describe('NebulaProjectManager', () => {
       const projectPath = '/test/project';
       const nodeId = 'node1';
       const data = { properties: { updated: true } };
-      
+
       // Mock a successful query result for finding the node
       mockNebulaConnectionManager.executeQuery = jest.fn()
         .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [{ id: 'node1' }] }) // For the first query (finding node)
         .mockResolvedValueOnce({ error: null }); // For the update query
-      
+
       const result = await nebulaProjectManager.updateProjectData(projectPath, nodeId, data);
-      
+
       expect(result).toBe(true);
       expect(mockNebulaConnectionManager.executeQuery).toHaveBeenCalledTimes(3);
     });
@@ -671,15 +680,15 @@ describe('NebulaProjectManager', () => {
       const projectPath = '/test/project';
       const relId = 'rel1';
       const data = { properties: { updated: true } };
-      
+
       // Mock queries: first one finds no node, second one finds relationship
       mockNebulaConnectionManager.executeQuery = jest.fn()
         .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [] }) // For the first query (finding node)
         .mockResolvedValueOnce({ data: [{ id: 'rel1' }] }); // For the second query (finding relationship)
-      
+
       const result = await nebulaProjectManager.updateProjectData(projectPath, relId, data);
-      
+
       expect(result).toBe(true);
       expect(mockNebulaConnectionManager.executeQuery).toHaveBeenCalledTimes(3);
     });
@@ -692,15 +701,15 @@ describe('NebulaProjectManager', () => {
     it('should delete node data successfully', async () => {
       const projectPath = '/test/project';
       const nodeId = 'node1';
-      
+
       // Mock a successful query result for finding the node
       mockNebulaConnectionManager.executeQuery = jest.fn()
         .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [{ id: 'node1' }] }) // For the first query (finding node)
         .mockResolvedValueOnce({ error: null }); // For the delete query
-      
+
       const result = await nebulaProjectManager.deleteProjectData(projectPath, nodeId);
-      
+
       expect(result).toBe(true);
       expect(mockNebulaConnectionManager.executeQuery).toHaveBeenCalledTimes(3);
     });
@@ -708,15 +717,15 @@ describe('NebulaProjectManager', () => {
     it('should delete relationship data successfully', async () => {
       const projectPath = '/test/project';
       const relId = 'rel1';
-      
+
       // Mock queries: first one finds no node, second one finds relationship
       mockNebulaConnectionManager.executeQuery = jest.fn()
         .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [] }) // For the first query (finding node)
         .mockResolvedValueOnce({ data: [{ id: 'rel1' }] }); // For the second query (finding relationship)
-      
+
       const result = await nebulaProjectManager.deleteProjectData(projectPath, relId);
-      
+
       expect(result).toBe(true);
       expect(mockNebulaConnectionManager.executeQuery).toHaveBeenCalledTimes(3);
     });
@@ -729,13 +738,13 @@ describe('NebulaProjectManager', () => {
     it('should search project data with string query', async () => {
       const projectPath = '/test/project';
       const query = 'MATCH (n) RETURN n';
-      
+
       mockNebulaConnectionManager.executeQuery = jest.fn()
         .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [] }); // Query result
-      
+
       const result = await nebulaProjectManager.searchProjectData(projectPath, query);
-      
+
       expect(result).toEqual([]);
       expect(mockNebulaConnectionManager.executeQuery).toHaveBeenCalledTimes(2);
     });
@@ -743,13 +752,13 @@ describe('NebulaProjectManager', () => {
     it('should search project data with node query', async () => {
       const projectPath = '/test/project';
       const query = { type: 'node', label: 'TestLabel', filter: { name: 'Test' } };
-      
+
       mockNebulaConnectionManager.executeQuery = jest.fn()
         .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [] }); // Query result
-      
+
       const result = await nebulaProjectManager.searchProjectData(projectPath, query);
-      
+
       expect(result).toEqual([]);
       expect(mockNebulaConnectionManager.executeQuery).toHaveBeenCalledTimes(2);
     });
@@ -763,14 +772,14 @@ describe('NebulaProjectManager', () => {
       const projectPath = '/test/project';
       const nodeId = 'node1';
       const mockNodeData = { id: 'node1', name: 'Test Node' };
-      
+
       // Mock a successful query result for finding the node
       mockNebulaConnectionManager.executeQuery = jest.fn()
         .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [mockNodeData] }); // For the first query (finding node)
-      
+
       const result = await nebulaProjectManager.getProjectDataById(projectPath, nodeId);
-      
+
       expect(result).toEqual(mockNodeData);
       expect(mockNebulaConnectionManager.executeQuery).toHaveBeenCalledTimes(2);
     });
@@ -779,15 +788,15 @@ describe('NebulaProjectManager', () => {
       const projectPath = '/test/project';
       const relId = 'rel1';
       const mockRelData = { id: 'rel1', type: 'TEST_REL' };
-      
+
       // Mock queries: first one finds no node, second one finds relationship
       mockNebulaConnectionManager.executeQuery = jest.fn()
         .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [] }) // For the first query (finding node)
         .mockResolvedValueOnce({ data: [mockRelData] }); // For the second query (finding relationship)
-      
+
       const result = await nebulaProjectManager.getProjectDataById(projectPath, relId);
-      
+
       expect(result).toEqual(mockRelData);
       expect(mockNebulaConnectionManager.executeQuery).toHaveBeenCalledTimes(3);
     });
@@ -795,15 +804,15 @@ describe('NebulaProjectManager', () => {
     it('should return null if data not found', async () => {
       const projectPath = '/test/project';
       const nodeId = 'nonexistent';
-      
+
       // Mock empty results for both node and relationship queries
       mockNebulaConnectionManager.executeQuery = jest.fn()
         .mockResolvedValueOnce(undefined) // USE command
         .mockResolvedValueOnce({ data: [] }) // For the first query (finding node)
         .mockResolvedValueOnce({ data: [] }); // For the second query (finding relationship)
-      
+
       const result = await nebulaProjectManager.getProjectDataById(projectPath, nodeId);
-      
+
       expect(result).toBeNull();
       expect(mockNebulaConnectionManager.executeQuery).toHaveBeenCalledTimes(3);
     });
@@ -818,16 +827,16 @@ describe('NebulaProjectManager', () => {
     it('should validate all inputs through the validator', () => {
       // Add DatabaseServiceValidator import
       const { DatabaseServiceValidator } = require('../../common/DatabaseServiceValidator');
-      
+
       // Test that the validator is properly integrated by checking if validation errors are thrown
       expect(() => {
         DatabaseServiceValidator.validateProjectPath('');
       }).toThrow();
-      
+
       expect(() => {
         DatabaseServiceValidator.validateId('');
       }).toThrow();
-      
+
       expect(() => {
         DatabaseServiceValidator.validateData(null);
       }).toThrow();

@@ -82,4 +82,12 @@ export interface IGraphDataService {
    * @returns Promise
    */
   close(): Promise<void>;
+
+  /**
+   * 执行原始查询
+   * @param query 查询语句
+   * @param parameters 查询参数
+   * @returns 查询结果
+   */
+  executeRawQuery(query: string, parameters?: Record<string, any>): Promise<any>;
 }

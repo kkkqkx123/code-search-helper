@@ -8,6 +8,7 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { ConnectionStateManager } from '../ConnectionStateManager';
+import { NebulaEventManager } from '../NebulaEventManager';
 import { LoggerService } from '../../../utils/LoggerService';
 import {
   EnvironmentConfigService,
@@ -69,6 +70,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
     container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
+    container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
     
     // Create and register the connection manager
     connectionManager = new NebulaConnectionManager(
@@ -76,7 +78,8 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       container.get(TYPES.ErrorHandlerService),
       container.get(TYPES.ConfigService),
       container.get(TYPES.NebulaConfigService),
-      container.get(TYPES.ConnectionStateManager)
+      container.get(TYPES.ConnectionStateManager),
+      container.get(TYPES.NebulaEventManager)
     );
     
     // Create services that depend on the connection manager

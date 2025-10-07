@@ -74,7 +74,9 @@ describe('NebulaConnectionManager Refactored', () => {
       container.get(TYPES.ErrorHandlerService),
       container.get(TYPES.ConfigService),
       container.get(TYPES.NebulaConfigService),
-      container.get(TYPES.ConnectionStateManager)
+      container.get(TYPES.ConnectionStateManager),
+      // 添加缺失的 NebulaEventManager 参数
+      {} as any // 在测试中使用模拟对象
     );
     
     // Clear mocks
@@ -254,7 +256,9 @@ describe('NebulaDataService', () => {
       container.get(TYPES.ErrorHandlerService),
       container.get(TYPES.ConfigService),
       container.get(TYPES.NebulaConfigService),
-      container.get(TYPES.ConnectionStateManager)
+      container.get(TYPES.ConnectionStateManager),
+      // 添加缺失的 NebulaEventManager 参数
+      {} as any // 在测试中使用模拟对象
     );
     
     dataService = new NebulaDataService(
@@ -367,7 +371,9 @@ describe('NebulaSpaceService', () => {
       container.get(TYPES.ErrorHandlerService),
       container.get(TYPES.ConfigService),
       container.get(TYPES.NebulaConfigService),
-      container.get(TYPES.ConnectionStateManager)
+      container.get(TYPES.ConnectionStateManager),
+      // 添加缺失的 NebulaEventManager 参数
+      {} as any // 在测试中使用模拟对象
     );
     
     spaceService = new NebulaSpaceService(

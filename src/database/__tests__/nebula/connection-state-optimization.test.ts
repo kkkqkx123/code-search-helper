@@ -59,7 +59,9 @@ describe('Connection State Optimization Tests', () => {
       mockErrorHandler as ErrorHandlerService,
       {} as ConfigService,
       mockNebulaConfigService as NebulaConfigService,
-      mockConnectionStateManager
+      mockConnectionStateManager,
+      // 添加缺失的 NebulaEventManager 参数
+      {} as any // 在测试中使用模拟对象
     );
     
     // 模拟连接已建立

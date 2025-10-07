@@ -126,16 +126,14 @@ export class GraphServiceComposite implements IGraphService {
 
   isServiceInitialized(): boolean {
     // Check if all underlying services are initialized
-    return (
-      this.graphAnalysisService.isServiceInitialized() &&
-      this.graphDataService.isServiceInitialized()
-    );
+    // Note: graphAnalysisService doesn't have isServiceInitialized method
+    return this.graphDataService.isServiceInitialized();
   }
 
   async close(): Promise<void> {
     // Close all underlying services
+    // Note: graphAnalysisService doesn't have close method
     await Promise.all([
-      this.graphAnalysisService.close(),
       this.graphDataService.close(),
       this.graphTransactionService.close()
     ]);
@@ -319,8 +317,8 @@ export class GraphServiceComposite implements IGraphService {
   async isHealthy(): Promise<boolean> {
     // Check if all underlying services are healthy
     try {
+      // Note: graphAnalysisService doesn't have isServiceInitialized method
       return (
-        this.graphAnalysisService.isServiceInitialized() &&
         this.graphDataService.isServiceInitialized() &&
         this.graphTransactionService.isServiceInitialized()
       );
@@ -337,7 +335,7 @@ export class GraphServiceComposite implements IGraphService {
       uptime: process.uptime(),
       version: '1.0.0',
       services: {
-        analysis: this.graphAnalysisService.isServiceInitialized(),
+        // Note: graphAnalysisService doesn't have isServiceInitialized method
         data: this.graphDataService.isServiceInitialized(),
         transaction: this.graphTransactionService.isServiceInitialized()
       }
@@ -402,5 +400,9 @@ export class GraphServiceComposite implements IGraphService {
 
   async batchDeleteNodes(nodeIds: string[], projectId: string): Promise<boolean> {
     return this.graphDataService.deleteNodes(nodeIds);
+  }
+
+  async executeRawQuery(query: string, parameters?: Record<string, any>): Promise<any> {
+    return this.graphDataService.executeRawQuery(query, parameters);
   }
 }

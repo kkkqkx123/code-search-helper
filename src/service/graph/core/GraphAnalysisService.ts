@@ -417,6 +417,258 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     }
   }
 
+  async analyzeDependencies(
+    filePath: string,
+    projectId: string,
+    options?: { includeTransitive?: boolean; includeCircular?: boolean }
+  ): Promise<any> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      this.logger.info('Analyzing dependencies', { filePath, projectId, options });
+
+      // For now, we'll implement a basic version that uses existing functionality
+      // In a full implementation, this would use more sophisticated analysis
+      const dependencies = await this.findDependencies(filePath, {
+        direction: 'outgoing',
+        depth: options?.includeTransitive ? 5 : 1
+      });
+
+      const result = {
+        directDependencies: dependencies.direct,
+        transitiveDependencies: options?.includeTransitive ? dependencies.transitive : [],
+        circularDependencies: [] as string[], // Would require more complex analysis
+        summary: {
+          directCount: dependencies.direct.length,
+          transitiveCount: options?.includeTransitive ? dependencies.transitive.length : 0,
+          circularCount: 0
+        }
+      };
+
+      // If circular dependency check is requested, perform a basic check
+      if (options?.includeCircular) {
+        result.circularDependencies = await this.detectCircularDependencies(projectId);
+      }
+
+      return result;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Dependency analysis failed: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'GraphAnalysisService', operation: 'analyzeDependencies' }
+      );
+      throw error;
+    }
+  }
+
+  async analyzeCallGraph(
+    functionName: string,
+    projectId: string,
+    options?: { depth?: number; direction?: 'in' | 'out' | 'both' }
+  ): Promise<any> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      this.logger.info('Analyzing call graph', { functionName, projectId, options });
+
+      // For now, we'll return a basic implementation
+      // In a full implementation, this would use call relationship data
+      return {
+        callers: [],
+        callees: [],
+        callGraph: [],
+        summary: {
+          callerCount: 0,
+          calleeCount: 0,
+          depth: options?.depth || 3
+        }
+      };
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Call graph analysis failed: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'GraphAnalysisService', operation: 'analyzeCallGraph' }
+      );
+      throw error;
+    }
+  }
+
+  async analyzeImpact(
+    nodeIds: string[],
+    projectId: string,
+    options?: { depth?: number }
+  ): Promise<any> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      this.logger.info('Analyzing impact', { nodeIds, projectId, options });
+
+      // For now, we'll return a basic implementation
+      // In a full implementation, this would use graph traversal to find impacted nodes
+      return {
+        affectedNodes: [],
+        impactPaths: [],
+        summary: {
+          affectedCount: 0,
+          maxDepth: options?.depth || 3,
+          riskLevel: 'low'
+        }
+      };
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Impact analysis failed: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'GraphAnalysisService', operation: 'analyzeImpact' }
+      );
+      throw error;
+    }
+  }
+
+  async getProjectOverview(projectId: string): Promise<any> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      this.logger.info('Getting project overview', { projectId });
+
+      // For now, we'll return a basic implementation
+      // In a full implementation, this would aggregate project data
+      return {
+        projectInfo: {
+          id: projectId,
+          name: projectId,
+          fileCount: 0,
+          directoryCount: 0
+        },
+        graphStats: {
+          nodeCount: 0,
+          edgeCount: 0,
+          componentCount: 0
+        },
+        analysisSummary: {
+          lastAnalyzed: new Date().toISOString(),
+          issues: 0,
+          warnings: 0
+        }
+      };
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Project overview failed: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'GraphAnalysisService', operation: 'getProjectOverview' }
+      );
+      throw error;
+    }
+  }
+
+  async getStructureMetrics(projectId: string): Promise<any> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      this.logger.info('Getting structure metrics', { projectId });
+
+      // For now, we'll return a basic implementation
+      // In a full implementation, this would calculate detailed metrics
+      return {
+        fileMetrics: {
+          totalFiles: 0,
+          codeFiles: 0,
+          testFiles: 0,
+          configFiles: 0
+        },
+        codeMetrics: {
+          linesOfCode: 0,
+          functions: 0,
+          classes: 0,
+          modules: 0
+        },
+        dependencyMetrics: {
+          totalDependencies: 0,
+          externalDependencies: 0,
+          circularDependencies: 0
+        },
+        complexityMetrics: {
+          averageComplexity: 0,
+          maxComplexity: 0,
+          highlyComplexFiles: 0
+        }
+      };
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Structure metrics failed: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'GraphAnalysisService', operation: 'getStructureMetrics' }
+      );
+      throw error;
+    }
+  }
+
+  async detectCircularDependencies(projectId: string): Promise<any> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      this.logger.info('Detecting circular dependencies', { projectId });
+
+      // For now, we'll return an empty array
+      // In a full implementation, this would use graph algorithms to detect cycles
+      return [];
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Circular dependency detection failed: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'GraphAnalysisService', operation: 'detectCircularDependencies' }
+      );
+      throw error;
+    }
+  }
+
+  async getGraphStatsByProject(projectId: string): Promise<any> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      this.logger.info('Getting graph stats by project', { projectId });
+
+      // For now, we'll return a basic implementation
+      return {
+        nodeCount: 0,
+        edgeCount: 0,
+        nodeTypes: {},
+        relationshipTypes: {},
+        projectSpecificMetrics: {
+          id: projectId,
+          name: projectId
+        }
+      };
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(
+          `Graph stats by project failed: ${error instanceof Error ? error.message : String(error)}`
+        ),
+        { component: 'GraphAnalysisService', operation: 'getGraphStatsByProject' }
+      );
+      throw error;
+    }
+  }
+
   private async processAnalysisResult(
     result: any,
     options: GraphAnalysisOptions

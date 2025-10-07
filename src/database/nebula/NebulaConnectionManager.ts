@@ -38,7 +38,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private config: NebulaConfig;
   private client: any; // Nebula Graph客户端实例
   private sessionCleanupInterval: NodeJS.Timeout | null = null;
- private eventManager: NebulaEventManager;
+  private eventManager: NebulaEventManager;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,

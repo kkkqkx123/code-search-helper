@@ -41,23 +41,21 @@ export interface IndexingMetrics {
 
 @injectable()
 export class IndexingLogicService {
-  constructor(
-    @inject(TYPES.LoggerService) private logger: LoggerService,
-    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-    @inject(TYPES.FileSystemTraversal) private fileSystemTraversal: FileSystemTraversal,
-    @inject(TYPES.QdrantService) private qdrantService: QdrantService,
-    @inject(TYPES.GraphService) private graphService: IGraphService, // 新增
-    @inject(TYPES.GraphDataMappingService) private graphMappingService: IGraphDataMappingService, // 新增
-    @inject(TYPES.PerformanceDashboard) private performanceDashboard: PerformanceDashboard, // 新增
-    // @inject(TYPES.AutoOptimizationAdvisor) private optimizationAdvisor: AutoOptimizationAdvisor, // 暂时禁用
-    // @inject(TYPES.BatchProcessingOptimizer) private batchProcessingOptimizer: BatchProcessingOptimizer, // 暂时禁用
-    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-    @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
-    @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
-    @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
-    @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService
-  ) { }
+  @inject(TYPES.LoggerService) private logger!: LoggerService;
+  @inject(TYPES.ErrorHandlerService) private errorHandler!: ErrorHandlerService;
+  @inject(TYPES.FileSystemTraversal) private fileSystemTraversal!: FileSystemTraversal;
+  @inject(TYPES.QdrantService) private qdrantService!: QdrantService;
+  @inject(TYPES.GraphService) private graphService!: IGraphService; // 新增
+  @inject(TYPES.GraphDataMappingService) private graphMappingService!: IGraphDataMappingService; // 新增
+  @inject(TYPES.PerformanceDashboard) private performanceDashboard!: PerformanceDashboard; // 新增
+  @inject(TYPES.AutoOptimizationAdvisor) private optimizationAdvisor!: AutoOptimizationAdvisor; // 暂时禁用
+  // @inject(TYPES.BatchProcessingOptimizer) private batchProcessingOptimizer!: BatchProcessingOptimizer; // 暂时禁用
+  @inject(TYPES.ProjectIdManager) private projectIdManager!: ProjectIdManager;
+  @inject(TYPES.EmbedderFactory) private embedderFactory!: EmbedderFactory;
+  @inject(TYPES.EmbeddingCacheService) private embeddingCacheService!: EmbeddingCacheService;
+  @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer!: PerformanceOptimizerService;
+  @inject(TYPES.ASTCodeSplitter) private astSplitter!: ASTCodeSplitter;
+  @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService!: ChunkToVectorCoordinationService;
 
   /**
    * 索引项目
@@ -215,10 +213,9 @@ export class IndexingLogicService {
 
       this.logger.debug('Successfully stored file to graph database', {
         filePath,
-        nodesCreated: result.results[0]?.nodesCreated || 0,
-        relationshipsCreated: result.results[0]?.relationshipsCreated || 0,
-        processingTime: result.processingTime,
-        throughput: result.throughput
+        nodesCreated: result.nodesCreated || 0,
+        relationshipsCreated: result.relationshipsCreated || 0,
+        processingTime: result.processingTime
       });
 
       // 记录性能指标到仪表板
@@ -229,8 +226,8 @@ export class IndexingLogicService {
         unit: 'milliseconds',
         tags: { filePath, projectPath }
       });
-
-      return result.results[0] || {
+      
+      return result || {
         success: true,
         nodesCreated: 0,
         relationshipsCreated: 0,

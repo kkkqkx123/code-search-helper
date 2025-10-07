@@ -39,7 +39,7 @@ export class BusinessServiceRegistrar {
     container.bind<ChangeDetectionService>(TYPES.ChangeDetectionService).to(ChangeDetectionService).inSingletonScope();
 
     // 项目管理服务
-    container.bind<IndexService>(TYPES.IndexSyncService).to(IndexService).inSingletonScope();
+    container.bind<IndexService>(TYPES.IndexService).to(IndexService).inSingletonScope();
     container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
     container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
 

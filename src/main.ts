@@ -59,7 +59,7 @@ class Application {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-    @inject(TYPES.IndexSyncService) private indexSyncService: IndexService,
+    @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
     @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
@@ -74,7 +74,7 @@ class Application {
     const apiPort = parseInt(process.env.PORT || '3010', 10);
     this.apiServer = new ApiServer(
       this.logger,
-      this.indexSyncService,
+      this.indexService,
       this.embedderFactory,
       this.qdrantService,
       apiPort
@@ -257,7 +257,7 @@ class ApplicationFactory {
     const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
     const qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
     const embedderFactory = diContainer.get<EmbedderFactory>(TYPES.EmbedderFactory);
-    const indexSyncService = diContainer.get<IndexService>(TYPES.IndexSyncService);
+    const indexService = diContainer.get<IndexService>(TYPES.IndexService);
     const projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     const embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
     const embeddingConfigService = diContainer.get<EmbeddingConfigService>(TYPES.EmbeddingConfigService);
@@ -270,7 +270,7 @@ class ApplicationFactory {
       errorHandler,
       qdrantService,
       embedderFactory,
-      indexSyncService,
+      indexService,
       projectStateManager,
       embeddingCacheService,
       embeddingConfigService,
@@ -286,7 +286,7 @@ async function bootstrap(): Promise<void> {
     // 在创建应用实例之前，先初始化配置服务
     const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
     await configService.initialize();
-    
+
     const app = ApplicationFactory.createApplication();
     await app.start();
 

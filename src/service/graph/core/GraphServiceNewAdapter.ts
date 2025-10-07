@@ -21,4 +21,9 @@ export class GraphServiceNewAdapter extends GraphServiceComposite implements IGr
   ) {
     super(logger, errorHandler, graphAnalysisService, graphDataService, graphTransactionService, graphSearchService);
   }
+
+  async executeRawQuery(query: string, parameters?: Record<string, any>): Promise<any> {
+    // Delegate to parent class implementation
+    return super.executeRawQuery(query, parameters);
+  }
 }

@@ -128,19 +128,16 @@ export class GraphServiceAdapter implements IGraphService {
 
   isServiceInitialized(): boolean {
     // Check if all underlying services are initialized
-    return (
-      this.graphAnalysisService.isServiceInitialized() &&
-      this.graphDataService.isServiceInitialized()
-    );
+    // Note: graphAnalysisService and graphSearchService don't have isServiceInitialized method
+    return this.graphDataService.isServiceInitialized();
   }
 
   async close(): Promise<void> {
     // Close all underlying services
+    // Note: graphAnalysisService and graphSearchService don't have close method
     await Promise.all([
-      this.graphAnalysisService.close(),
       this.graphDataService.close(),
-      this.graphTransactionService.close(),
-      this.graphSearchService.close()
+      this.graphTransactionService.close()
     ]);
   }
 
@@ -322,11 +319,10 @@ export class GraphServiceAdapter implements IGraphService {
   async isHealthy(): Promise<boolean> {
     // Check if all underlying services are healthy
     try {
+      // Note: graphAnalysisService and graphSearchService don't have isServiceInitialized method
       return (
-        this.graphAnalysisService.isServiceInitialized() &&
         this.graphDataService.isServiceInitialized() &&
-        this.graphTransactionService.isServiceInitialized() &&
-        this.graphSearchService.isServiceInitialized()
+        this.graphTransactionService.isServiceInitialized()
       );
     } catch (error) {
       this.logger.error('Health check failed', { error: error instanceof Error ? error.message : String(error) });
@@ -341,10 +337,9 @@ export class GraphServiceAdapter implements IGraphService {
       uptime: process.uptime(),
       version: '1.0.0',
       services: {
-        analysis: this.graphAnalysisService.isServiceInitialized(),
+        // Note: graphAnalysisService and graphSearchService don't have isServiceInitialized method
         data: this.graphDataService.isServiceInitialized(),
-        transaction: this.graphTransactionService.isServiceInitialized(),
-        search: this.graphSearchService.isServiceInitialized()
+        transaction: this.graphTransactionService.isServiceInitialized()
       }
     };
   }
@@ -408,5 +403,9 @@ export class GraphServiceAdapter implements IGraphService {
 
   async batchDeleteNodes(nodeIds: string[], projectId: string): Promise<boolean> {
     return this.graphDataService.deleteNodes(nodeIds);
+  }
+
+  async executeRawQuery(query: string, parameters?: Record<string, any>): Promise<any> {
+    return this.graphDataService.executeRawQuery(query, parameters);
   }
 }
