@@ -1,141 +1,80 @@
-import {
-  GraphNode,
-  GraphEdge,
-  GraphAnalysisOptions,
-  GraphAnalysisResult,
-  CodeGraphNode,
-  CodeGraphRelationship,
-  GraphPersistenceOptions,
-  GraphPersistenceResult,
-  GraphSearchOptions,
-  GraphSearchResult
-} from './types';
+import { IGraphAnalysisService } from './IGraphAnalysisService';
+import { IGraphDataService } from './IGraphDataService';
+import { IGraphSearchService } from './IGraphSearchService';
+import { IGraphSpaceService } from './IGraphSpaceService';
 
-export interface IGraphService {
-  // Analysis methods
-  analyzeCodebase(
-    projectPath: string,
-    options?: GraphAnalysisOptions
-  ): Promise<{
-    result: GraphAnalysisResult;
-    formattedResult: any;
-  }>;
+/**
+ * 图服务组合接口
+ * 遵循接口隔离原则，通过组合多个专用接口提供完整的图服务功能
+ * 
+ * 客户端可以根据实际需求选择性地依赖特定的接口，而不是被迫实现不需要的方法
+ */
+export interface IGraphService extends 
+  IGraphAnalysisService,
+  IGraphDataService,
+  IGraphSearchService,
+  IGraphSpaceService {
+  // 组合接口本身不需要额外的方法，所有功能都通过继承专用接口获得
+}
 
-  findDependencies(
-    filePath: string,
-    options?: { direction?: 'incoming' | 'outgoing'; depth?: number }
-  ): Promise<{
-    direct: CodeGraphRelationship[];
-    transitive: CodeGraphRelationship[];
-    summary: {
-      directCount: number;
-      transitiveCount: number;
-      criticalPath: string[];
-    };
-  }>;
+/**
+ * 图服务工厂接口
+ * 用于创建和管理不同类型的图服务实例
+ */
+export interface IGraphServiceFactory {
+  /**
+   * 创建分析服务实例
+   */
+  createAnalysisService(): IGraphAnalysisService;
 
-  findImpact(
-    filePath: string,
-    options?: { maxDepth?: number; includeTests?: boolean }
-  ): Promise<{
-    affectedFiles: string[];
-    riskLevel: 'low' | 'medium' | 'high' | 'critical';
-    impactScore: number;
-    affectedComponents: string[];
-  }>;
+  /**
+   * 创建数据服务实例
+   */
+  createDataService(): IGraphDataService;
 
-  getGraphStats(projectPath: string): Promise<{
-    totalFiles: number;
-    totalFunctions: number;
-    totalClasses: number;
-    totalImports: number;
-    complexityScore: number;
-    maintainabilityIndex: number;
-    cyclicDependencies: number;
-  }>;
+  /**
+   * 创建搜索服务实例
+   */
+  createSearchService(): IGraphSearchService;
 
-  exportGraph(projectPath: string, format: 'json' | 'graphml' | 'dot'): Promise<string>;
+  /**
+   * 创建空间管理服务实例
+   */
+  createSpaceService(): IGraphSpaceService;
 
-  // Data service methods
-  findRelatedNodes(
-    nodeId: string,
-    relationshipTypes?: string[],
-    maxDepth?: number
-  ): Promise<CodeGraphNode[]>;
+  /**
+   * 创建完整的图服务实例
+   */
+  createGraphService(): IGraphService;
+}
 
-  findPath(
-    sourceId: string,
-    targetId: string,
-    maxDepth?: number
-  ): Promise<CodeGraphRelationship[]>;
+/**
+ * 图服务适配器接口
+ * 用于适配不同的图服务实现，确保接口兼容性
+ */
+export interface IGraphServiceAdapter {
+  /**
+   * 获取分析服务
+   */
+  getAnalysisService(): IGraphAnalysisService;
 
-  storeParsedFiles(
-    files: any[],
-    options?: GraphPersistenceOptions
-  ): Promise<GraphPersistenceResult>;
+  /**
+   * 获取数据服务
+   */
+  getDataService(): IGraphDataService;
 
-  storeChunks(
-    chunks: any[],
-    options?: GraphPersistenceOptions
-  ): Promise<GraphPersistenceResult>;
+  /**
+   * 获取搜索服务
+   */
+  getSearchService(): IGraphSearchService;
 
-  deleteNodes(nodeIds: string[]): Promise<boolean>;
+  /**
+   * 获取空间管理服务
+   */
+  getSpaceService(): IGraphSpaceService;
 
-  clearGraph(): Promise<boolean>;
-
-  // Service lifecycle methods
-  isServiceInitialized(): boolean;
-  close(): Promise<void>;
-
-  // Additional analysis methods
-  analyzeDependencies(
-    filePath: string,
-    projectId: string,
-    options?: { includeTransitive?: boolean; includeCircular?: boolean }
-  ): Promise<any>;
-
-  analyzeCallGraph(
-    functionName: string,
-    projectId: string,
-    options?: { depth?: number; direction?: 'in' | 'out' | 'both' }
-  ): Promise<any>;
-
-  analyzeImpact(
-    nodeIds: string[],
-    projectId: string,
-    options?: { depth?: number }
-  ): Promise<any>;
-
-  getProjectOverview(projectId: string): Promise<any>;
-
-  getStructureMetrics(projectId: string): Promise<any>;
-
-  detectCircularDependencies(projectId: string): Promise<any>;
-
-  getGraphStatsByProject(projectId: string): Promise<any>;
-
-  // Health and status methods
-  isHealthy(): Promise<boolean>;
-  getStatus(): Promise<any>;
-
-  // Search methods
-  search(query: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
-  searchByNodeType(nodeType: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
-  searchByRelationshipType(relationshipType: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
-  searchByPath(sourceId: string, targetId: string, options?: GraphSearchOptions): Promise<GraphSearchResult>;
-  getSearchSuggestions(query: string): Promise<string[]>;
-  getSearchStats(): Promise<{
-    totalSearches: number;
-    avgExecutionTime: number;
-    cacheHitRate: number;
-  }>;
-
-  // Space management methods
-  createSpace(projectId: string, config?: any): Promise<boolean>;
-  dropSpace(projectId: string): Promise<boolean>;
-  clearSpace(projectId: string): Promise<boolean>;
-  getSpaceInfo(projectId: string): Promise<any>;
-  batchInsertNodes(nodes: any[], projectId: string): Promise<GraphPersistenceResult>;
-  batchInsertEdges(edges: any[], projectId: string): Promise<GraphPersistenceResult>;
-  batchDeleteNodes(nodeIds: string[], projectId: string): Promise<boolean>;
+  /**
+   * 获取完整的图服务
+   */
+  getGraphService(): IGraphService;
 }
