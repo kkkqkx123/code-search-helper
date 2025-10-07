@@ -3,7 +3,7 @@ import { TYPES } from '../../../types';
 import { GraphAnalysisService } from './GraphAnalysisService';
 import { GraphDataService } from './GraphDataService';
 import { GraphTransactionService } from './GraphTransactionService';
-import { GraphSearchServiceNew } from './GraphSearchServiceNew';
+import { GraphSearchServiceNew } from './GraphSearchService';
 import { GraphServiceNewAdapter } from './GraphServiceNewAdapter';
 import { IGraphSearchService } from './IGraphSearchService';
 

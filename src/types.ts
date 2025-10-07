@@ -91,7 +91,7 @@ import { IGraphSearchService } from './service/graph/core/IGraphSearchService';
 import { GraphAnalysisService } from './service/graph/core/GraphAnalysisService';
 import { GraphDataService } from './service/graph/core/GraphDataService';
 import { GraphTransactionService } from './service/graph/core/GraphTransactionService';
-import { GraphSearchServiceNew } from './service/graph/core/GraphSearchServiceNew';
+import { GraphSearchServiceNew } from './service/graph/core/GraphSearchService';
 import { GraphServiceNewAdapter } from './service/graph/core/GraphServiceNewAdapter';
 
 // 图数据库服务

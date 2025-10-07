@@ -2,7 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { GraphAnalysisRoutes } from '../GraphAnalysisRoutes';
 import { IGraphService } from '../../../service/graph/core/IGraphService';
-import { GraphSearchServiceNew } from '../../../service/graph/core/GraphSearchServiceNew';
+import { GraphSearchServiceNew } from '../../../service/graph/core/GraphSearchService';
 import { GraphPerformanceMonitor } from '../../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../../utils/LoggerService';
 
