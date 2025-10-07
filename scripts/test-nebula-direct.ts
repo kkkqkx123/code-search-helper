@@ -43,35 +43,62 @@ async function testConnectionDirect() {
       client.on('error', (event: any) => {
         console.log('Client error event:', {
           connectionId: event.sender?.connectionId,
-          error: event.error
+          error: event.error?.message || event.error
         });
-        if (!queryTested) {
-          reject(new Error(`Connection error: ${event.error}`));
+        // 对于"会话无效或连接未就绪"错误，不立即reject，等待重试或ready事件
+        const errorMsg = event.error?.message || String(event.error);
+        if (errorMsg.includes('会话无效或连接未就绪') || errorMsg.includes('Session invalid')) {
+          console.log('Connection not ready yet, waiting for ready event...');
+        } else if (!queryTested) {
+          reject(new Error(`Connection error: ${errorMsg}`));
         }
       });
       
-      // 每秒尝试执行测试查询，直到成功
-      const testInterval = setInterval(async () => {
-        try {
-          // 执行一个简单的查询验证连接是否可用
-          const result = await client.execute('YIELD 1 AS test;');
-          
-          if (result && !result.error) {
-            console.log('Connection validation successful:', result);
-            queryTested = true;
-            clearInterval(testInterval);
-            resolve();
-          }
-        } catch (queryError) {
-          console.log(`Connection validation attempt failed, will retry...`);
+      // 等待ready事件，这是连接完全就绪的标志
+      client.on('ready', (event: any) => {
+        console.log('Client ready event:', {
+          connectionId: event.sender?.connectionId
+        });
+        if (!queryTested) {
+          queryTested = true;
+          resolve();
         }
-      }, 1000);
+      });
+      
+      // 监听所有连接的ready状态
+      let readyConnections = 0;
+      const totalConnections = config.poolSize || 10;
+      
+      client.on('connected', (event: any) => {
+        console.log('Client connected event:', {
+          connectionId: event.sender?.connectionId
+        });
+      });
+      
+      client.on('authorized', (event: any) => {
+        console.log('Client authorized event:', {
+          connectionId: event.sender?.connectionId
+        });
+        // 在authorized后，等待一段时间再检查连接是否ready
+        setTimeout(() => {
+          if (event.sender?.isReady) {
+            readyConnections++;
+            console.log(`Connection ${event.sender.connectionId} is ready (${readyConnections}/${totalConnections})`);
+            if (readyConnections >= 1 && !queryTested) {
+              queryTested = true;
+              resolve();
+            }
+          } else {
+            console.log(`Connection ${event.sender?.connectionId} authorized but not ready yet, waiting...`);
+          }
+        }, 2000); // 增加等待时间到2秒
+      });
+      
       
       // 设置总超时时间
       setTimeout(() => {
-        clearInterval(testInterval);
         if (!queryTested) {
-          reject(new Error('Connection validation timeout'));
+          reject(new Error('Connection validation timeout after 30 seconds'));
         }
       }, 30000); // 30秒超时
     });
