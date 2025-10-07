@@ -458,16 +458,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
             }
           }
           
-          // 根据是否有空间设置来选择验证查询
-          let validationQuery: string;
-          if (this.connectionStatus.space) {
-            // 如果指定了空间，先使用SHOW SPACES验证连接，再切换空间
-            validationQuery = 'SHOW SPACES;';
-          } else {
-            // 如果没有指定空间，则使用简单查询
-            validationQuery = 'YIELD 1 AS validation;';
-          }
-
+          // 验证连接时只使用不依赖空间的查询
+          const validationQuery = 'YIELD 1 AS validation;';
+          
           // 验证查询可能需要等待连接完全准备好
           const result = await client.execute(validationQuery);
 
@@ -498,16 +491,23 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
             throw new Error(`Connection validation failed: ${errorMessage}`);
           }
 
-          // 如果指定了空间且验证查询是SHOW SPACES，则执行USE命令切换到指定空间
-          if (this.connectionStatus.space && validationQuery === 'SHOW SPACES;') {
+          // 只有在连接验证成功且配置了有效的空间名称时，才尝试切换到指定空间
+          if (this.connectionStatus.space && this.connectionStatus.space !== 'undefined' && this.connectionStatus.space !== '') {
             const useQuery = `USE \`${this.connectionStatus.space}\`;`;
             console.log(`[NebulaConnectionManager] 切换到空间: ${this.connectionStatus.space}`);
             const useResult = await client.execute(useQuery);
             
             if (useResult && typeof useResult.error_code !== 'undefined' && useResult.error_code !== 0) {
               const errorMessage = useResult?.error_msg || useResult?.error || 'Unknown error';
-              throw new Error(`Failed to switch to space ${this.connectionStatus.space}: ${errorMessage}`);
+              console.log(`[NebulaConnectionManager] Failed to switch to space '${this.connectionStatus.space}': ${errorMessage}`);
+              console.log(`Marking connection as ready anyway. Space switching will be handled by explicit queries.`);
+            } else {
+              // 空间切换成功，更新连接状态管理器中的空间状态
+              this.connectionStateManager.updateConnectionSpace('nebula-client-main', this.connectionStatus.space);
             }
+          } else if (this.connectionStatus.space === 'undefined' || this.connectionStatus.space === '') {
+            // 如果空间名称是 'undefined' 或空字符串，将其设置为 undefined
+            this.connectionStatus.space = undefined;
           }
 
           // 如果成功，跳出循环
@@ -722,6 +722,11 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     }
 
     try {
+      // 额外检查客户端是否存在且可执行查询
+      if (!this.client || typeof this.client.execute !== 'function') {
+        return this.createErrorResult('Client is not ready to execute queries');
+      }
+
       const client = this.client;
 
       // 检查是否是USE命令来更新空间状态
@@ -755,6 +760,24 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
             throw new Error(result?.error || 'Space does not exist');
           }
         }
+      }
+
+      // 验证客户端是否准备好执行查询，避免在连接未完全准备好的情况下执行查询
+      try {
+        // 创建一个简单的查询来测试客户端连接状态
+        const testResult = await client.execute('YIELD 1 AS test_connection;');
+        if (testResult && typeof testResult.error_code !== 'undefined' && testResult.error_code !== 0) {
+          const testError = testResult?.error_msg || testResult?.error || 'Unknown connection error';
+          return this.createErrorResult(`Client is not ready: ${testError}`);
+        }
+      } catch (testError) {
+        const testErrorMessage = testError instanceof Error ? testError.message : String(testError);
+        if (testErrorMessage.includes('会话无效或连接未就绪') ||
+            testErrorMessage.includes('Session invalid') ||
+            testErrorMessage.includes('Connection not ready')) {
+          return this.createErrorResult(`Connection not ready: ${testErrorMessage}`);
+        }
+        // 如果测试查询也失败，继续执行实际查询，让原始错误处理来处理
       }
 
       await this.logDatabaseEvent({
@@ -836,7 +859,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       // 如果错误是"Space does not exist"，我们不应该记录为错误，因为这是预期的行为
-      if (!errorMessage.includes('Space does not exist')) {
+      if (!errorMessage.includes('Space does not exist') && !errorMessage.includes('Connection not ready')) {
         this.errorHandler.handleError(
           new Error(`Failed to execute Nebula query: ${errorMessage}`),
           {
@@ -850,6 +873,11 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
       // 如果错误是由于无效空间名称引起的，应该抛出错误而不是返回错误结果
       if (errorMessage.includes('Space does not exist')) {
+        throw error;
+      }
+
+      // 对于连接未就绪的错误，也要抛出错误而不是返回错误结果
+      if (errorMessage.includes('Connection not ready')) {
         throw error;
       }
 
@@ -955,8 +983,30 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       throw new Error('Not connected to Nebula Graph');
     }
 
+    // 额外检查客户端是否存在且可执行查询
+    if (!this.client || typeof this.client.execute !== 'function') {
+      throw new Error('Client is not ready to execute queries');
+    }
+
     try {
       const client = this.client;
+
+      // 验证客户端是否准备好执行查询
+      try {
+        const testResult = await client.execute('YIELD 1 AS test_connection;');
+        if (testResult && typeof testResult.error_code !== 'undefined' && testResult.error_code !== 0) {
+          const testError = testResult?.error_msg || testResult?.error || 'Unknown connection error';
+          throw new Error(`Connection not ready: ${testError}`);
+        }
+      } catch (testError) {
+        const testErrorMessage = testError instanceof Error ? testError.message : String(testError);
+        if (testErrorMessage.includes('会话无效或连接未就绪') ||
+            testErrorMessage.includes('Session invalid') ||
+            testErrorMessage.includes('Connection not ready')) {
+          throw new Error(`Connection not ready: ${testErrorMessage}`);
+        }
+        // 如果测试查询也失败，让原始错误处理来处理
+      }
 
       await this.logDatabaseEvent({
         type: DatabaseEventType.QUERY_EXECUTED,
@@ -1007,14 +1057,17 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       return results;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.errorHandler.handleError(
-        new Error(`Failed to execute Nebula batch queries: ${errorMessage}`),
-        {
-          component: 'NebulaConnectionManager',
-          operation: 'executeTransaction',
-          queries
-        }
-      );
+      // 对于连接就绪性错误，不记录为错误，因为这是预期的行为
+      if (!errorMessage.includes('Connection not ready')) {
+        this.errorHandler.handleError(
+          new Error(`Failed to execute Nebula batch queries: ${errorMessage}`),
+          {
+            component: 'NebulaConnectionManager',
+            operation: 'executeTransaction',
+            queries
+          }
+        );
+      }
 
       throw error;
     }
@@ -1060,6 +1113,28 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     // 检查连接状态
     if (!this.isConnected()) {
       throw new Error('Not connected to Nebula Graph');
+    }
+
+    // 额外检查客户端是否存在且可执行查询
+    if (!this.client || typeof this.client.execute !== 'function') {
+      throw new Error('Client is not ready to execute queries');
+    }
+
+    // 验证客户端连接是否就绪
+    try {
+      const testResult = await this.client.execute('YIELD 1 AS test_connection;');
+      if (testResult && typeof testResult.error_code !== 'undefined' && testResult.error_code !== 0) {
+        const testError = testResult?.error_msg || testResult?.error || 'Unknown connection error';
+        throw new Error(`Connection not ready: ${testError}`);
+      }
+    } catch (testError) {
+      const testErrorMessage = testError instanceof Error ? testError.message : String(testError);
+      if (testErrorMessage.includes('会话无效或连接未就绪') ||
+          testErrorMessage.includes('Session invalid') ||
+          testErrorMessage.includes('Connection not ready')) {
+        throw new Error(`Connection not ready: ${testErrorMessage}`);
+      }
+      // 如果测试失败，让原始错误处理来处理
     }
 
     // 获取当前连接的空间
@@ -1152,7 +1227,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       // 检查Nebula客户端是否健康
       if (typeof this.client.execute === 'function') {
         // 执行一个不依赖空间的简单查询来测试连接
-        const cleanupQuery = this.connectionStatus.space ? 'SHOW SPACES' : 'YIELD 1';
+        const cleanupQuery = 'YIELD 1 AS health_check;';
         await this.client.execute(cleanupQuery);
       }
     } catch (error) {

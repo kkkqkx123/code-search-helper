@@ -65,7 +65,8 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
     try {
       // 检查显式环境配置
       const explicitName = process.env.NEBULA_SPACE;
-      if (explicitName && explicitName !== 'code_graphs') {
+      // 检查是否显式设置了一个有效的空间名称，排除无效值
+      if (explicitName && explicitName !== 'code_graphs' && explicitName !== 'undefined' && explicitName !== '') {
         // 显式设置的配置，记录警告日志
         this.logger.warn('Using explicit NEBULA_SPACE configuration, this will override project isolation');
         // 验证显式配置的命名是否符合规范

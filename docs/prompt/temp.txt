@@ -1,7 +1,87 @@
 
 前端新增中断索引的功能
 
-@/src/database/__tests__/nebula/NebulaConnectionManager.test.ts  将该文件中的模拟实现改为实际连接nebula数据库
 
-当前创建nebula的space时设置vid_type=fixed_string(30)，分析这是否足够
 
+[2025-10-08T00:11:07.020+08:00] [INFO] Initializing Nebula graph database service... {}
+[2025-10-08T00:11:07.021+08:00] [INFO] Database event: connection_opened {
+  "source": "nebula",
+  "timestamp": "2025-10-07T16:11:07.021Z",
+  "data": {
+    "message": "Connecting to Nebula Graph (attempt 1/4)",
+    "host": "127.0.0.1",
+    "port": 9669,
+    "username": "root",
+    "timeout": 3000,
+    "maxConnections": 10,
+    "retryAttempts": 3,
+    "retryDelay": 30000
+  }
+}
+[2025-10-08T00:11:07.023+08:00] [INFO] Database event: service_initialized {
+  "source": "nebula",
+  "timestamp": "2025-10-07T16:11:07.023Z",
+  "data": {
+    "message": "Client created successfully, waiting for connection..."
+  }
+}
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-0' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-1' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-3' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-2' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-4' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-9' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-6' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-5' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-8' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+[NebulaConnectionManager] Client authorized event: { connectionId: '127.0.0.1-9669-7' }
+Connection not fully ready, but attempting to execute query anyway. Session: present
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+[NebulaConnectionManager] Client ready event: { connectionId: '127.0.0.1-9669-6' }
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+[2025-10-08T00:11:07.043+08:00] [DEBUG] Database event: query_executed {
+  "source": "nebula",
+  "timestamp": "2025-10-07T16:11:07.043Z",
+  "data": {
+    "message": "Validating connection with simple query"
+  }
+}
+Connection not fully ready, but attempting to execute query anyway. Session: present
+Failed to switch to space 'undefined': SpaceNotFound: SpaceName `undefined`
+Marking connection as ready anyway. Space switching will be handled by explicit queries.
+
+
+npm run dev中尝试连接nebula时出现上述问题，使用的spacename未定义，且在此情况下仍然反复尝试执行查询。检查相关模块的实现存在的问题并修复
+
+如果需要修改nebula依赖包，可以修改@nebula-contrib\nebula-nodejs目录，然后使用命令将修改后的文件同步到node_modules中。 
+
+
+检查当前项目中nebula space的选择的逻辑。当前是根据项目名动态选择space，但是初始条件下不存在项目的space。
+可能需要在nebula配置文件中添加默认space，使用test_space作为默认值。

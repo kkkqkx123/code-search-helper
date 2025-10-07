@@ -89,25 +89,40 @@ class Connection extends _events.EventEmitter {
         sender: this
       });
       return new Promise((resolve, reject) => {
-        this.run({
-          command: `Use ${this.connectionOption.space}`,
-          returnOriginalData: false,
-          resolve,
-          reject: (err) => {
-            // 修复：如果 USE 命令失败，仍然标记连接为就绪
-            console.warn(`Failed to switch to space '${this.connectionOption.space}':`, err.message);
-            console.warn('Marking connection as ready anyway. Space switching will be handled by explicit queries.');
-            this.isReady = true;
-            this.isBusy = false;
-            this.emit('ready', {
-              sender: this
-            });
-            this.emit('free', {
-              sender: this
-            });
-            resolve();
-          }
-        });
+        // 检查是否定义了有效的空间名称
+        if (this.connectionOption.space && this.connectionOption.space !== 'undefined' && this.connectionOption.space !== '') {
+          this.run({
+            command: `Use ${this.connectionOption.space}`,
+            returnOriginalData: false,
+            resolve,
+            reject: (err) => {
+              // 修复：如果 USE 命令失败，仍然标记连接为就绪
+              console.warn(`Failed to switch to space '${this.connectionOption.space}':`, err.message);
+              console.warn('Marking connection as ready anyway. Space switching will be handled by explicit queries.');
+              this.isReady = true;
+              this.isBusy = false;
+              this.emit('ready', {
+                sender: this
+              });
+              this.emit('free', {
+                sender: this
+              });
+              resolve();
+            }
+          });
+        } else {
+          // 没有定义空间或空间无效，直接标记为就绪
+          console.log('No valid space specified, marking connection as ready without space switching.');
+          this.isReady = true;
+          this.isBusy = false;
+          this.emit('ready', {
+            sender: this
+          });
+          this.emit('free', {
+            sender: this
+          });
+          resolve();
+        }
       });
     }).then(response => {
       if (response.error_code !== 0) {
