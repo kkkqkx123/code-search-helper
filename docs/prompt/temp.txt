@@ -83,5 +83,5 @@ npm run dev中尝试连接nebula时出现上述问题，使用的spacename未定
 如果需要修改nebula依赖包，可以修改@nebula-contrib\nebula-nodejs目录，然后使用命令将修改后的文件同步到node_modules中。 
 
 
-检查当前项目中nebula space的选择的逻辑。当前是根据项目名动态选择space，但是初始条件下不存在项目的space。
+检查当前项目中nebula space的选择逻辑。当前是根据项目名动态选择space，但是初始条件下不存在项目的space。
 可能需要在nebula配置文件中添加默认space，使用test_space作为默认值。

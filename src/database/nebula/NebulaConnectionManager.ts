@@ -493,21 +493,70 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
           // 只有在连接验证成功且配置了有效的空间名称时，才尝试切换到指定空间
           if (this.connectionStatus.space && this.connectionStatus.space !== 'undefined' && this.connectionStatus.space !== '') {
+            // 尝试切换到指定空间
             const useQuery = `USE \`${this.connectionStatus.space}\`;`;
             console.log(`[NebulaConnectionManager] 切换到空间: ${this.connectionStatus.space}`);
             const useResult = await client.execute(useQuery);
             
+            // 检查是否是因为空间不存在导致的错误
             if (useResult && typeof useResult.error_code !== 'undefined' && useResult.error_code !== 0) {
               const errorMessage = useResult?.error_msg || useResult?.error || 'Unknown error';
               console.log(`[NebulaConnectionManager] Failed to switch to space '${this.connectionStatus.space}': ${errorMessage}`);
-              console.log(`Marking connection as ready anyway. Space switching will be handled by explicit queries.`);
+              
+              // 检查错误信息是否表示空间不存在
+              if (errorMessage.includes('Space not found') ||
+                  errorMessage.includes('Space not exist') ||
+                  errorMessage.includes('Space does not exist')) {
+                console.log(`[NebulaConnectionManager] Space does not exist, attempting to create space: ${this.connectionStatus.space}`);
+                
+                try {
+                  // 创建空间
+                  const createSpaceQuery = `
+                    CREATE SPACE IF NOT EXISTS \`${this.connectionStatus.space}\` (
+                      partition_num = 10,
+                      replica_factor = 1,
+                      vid_type = "FIXED_STRING(32)"
+                    )
+                  `;
+                  
+                  const createResult = await client.execute(createSpaceQuery);
+                  
+                  if (createResult && typeof createResult.error_code !== 'undefined' && createResult.error_code !== 0) {
+                    const createErrorMsg = createResult?.error_msg || createResult?.error || 'Unknown error';
+                    throw new Error(`Failed to create space ${this.connectionStatus.space}: ${createErrorMsg}`);
+                  }
+                  
+                  // 等待空间创建完成
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  
+                  // 再次尝试切换到空间
+                  const reUseResult = await client.execute(useQuery);
+                  
+                  if (reUseResult && typeof reUseResult.error_code !== 'undefined' && reUseResult.error_code !== 0) {
+                    const reUseErrorMsg = reUseResult?.error_msg || reUseResult?.error || 'Unknown error';
+                    throw new Error(`Failed to switch to newly created space ${this.connectionStatus.space}: ${reUseErrorMsg}`);
+                  }
+                  
+                  console.log(`[NebulaConnectionManager] Successfully created and switched to space: ${this.connectionStatus.space}`);
+                  
+                  // 空间切换成功，更新连接状态管理器中的空间状态
+                  this.connectionStateManager.updateConnectionSpace('nebula-client-main', this.connectionStatus.space);
+                } catch (createError) {
+                  const createErrorMsg = createError instanceof Error ? createError.message : String(createError);
+                  console.log(`[NebulaConnectionManager] Failed to create space: ${createErrorMsg}`);
+                  throw new Error(`Space switching failed and automatic creation failed: ${createErrorMsg}`);
+                }
+              } else {
+                // 如果是其他类型的错误，抛出错误
+                throw new Error(`Failed to switch to space ${this.connectionStatus.space}: ${errorMessage}`);
+              }
             } else {
               // 空间切换成功，更新连接状态管理器中的空间状态
               this.connectionStateManager.updateConnectionSpace('nebula-client-main', this.connectionStatus.space);
             }
-          } else if (this.connectionStatus.space === 'undefined' || this.connectionStatus.space === '') {
-            // 如果空间名称是 'undefined' 或空字符串，将其设置为 undefined
-            this.connectionStatus.space = undefined;
+          } else {
+            // 如果没有配置特定空间，记录信息但不抛出错误，因为项目特定的空间将在使用时动态创建
+            console.log(`[NebulaConnectionManager] No specific space configured, connection ready. Project-specific spaces will be created as needed.`);
           }
 
           // 如果成功，跳出循环

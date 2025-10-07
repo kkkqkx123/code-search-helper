@@ -447,6 +447,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
         queries.push({ query, params: {} });
       }
 
+      // 检查空间是否存在，如果不存在则自动创建
+      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
+      if (!spaceExists) {
+        const created = await this.spaceManager.createSpace(projectId);
+        if (!created) {
+          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
+        }
+      }
+      
       // 在项目空间中执行事务，先USE空间，然后执行查询
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const results = await Promise.all(queries.map(q =>
@@ -566,6 +575,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
         queries.push({ query, params: {} });
       }
 
+      // 检查空间是否存在，如果不存在则自动创建
+      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
+      if (!spaceExists) {
+        const created = await this.spaceManager.createSpace(projectId);
+        if (!created) {
+          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
+        }
+      }
+      
       // 在项目空间中执行事务，先USE空间，然后执行查询
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const results = await Promise.all(queries.map(q =>
@@ -650,6 +668,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
         query += ` AND ${conditions}`;
       }
 
+      // 检查空间是否存在，如果不存在则自动创建
+      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
+      if (!spaceExists) {
+        const created = await this.spaceManager.createSpace(projectId);
+        if (!created) {
+          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
+        }
+      }
+      
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const result = await this.connectionManager.executeQuery(query);
 
@@ -728,6 +755,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
         query += ` AND ${conditions}`;
       }
 
+      // 检查空间是否存在，如果不存在则自动创建
+      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
+      if (!spaceExists) {
+        const created = await this.spaceManager.createSpace(projectId);
+        if (!created) {
+          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
+        }
+      }
+      
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const result = await this.connectionManager.executeQuery(query);
 
@@ -890,6 +926,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
     try {
       // 检查ID是否对应节点或关系
+      // 检查空间是否存在，如果不存在则自动创建
+      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
+      if (!spaceExists) {
+        const created = await this.spaceManager.createSpace(projectId);
+        if (!created) {
+          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
+        }
+      }
+      
       // 首先尝试查找节点
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const nodeResult = await this.connectionManager.executeQuery(`MATCH (v) WHERE id(v) == "${id}" RETURN v LIMIT 1`);
@@ -1010,6 +1055,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
     }
 
     try {
+      // 检查空间是否存在，如果不存在则自动创建
+      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
+      if (!spaceExists) {
+        const created = await this.spaceManager.createSpace(projectId);
+        if (!created) {
+          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
+        }
+      }
+      
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 检查ID是否对应节点或关系
@@ -1116,6 +1170,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Invalid space name for project: ${projectPath}`);
       }
 
+      // 检查空间是否存在，如果不存在则自动创建
+      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
+      if (!spaceExists) {
+        const created = await this.spaceManager.createSpace(projectId);
+        if (!created) {
+          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
+        }
+      }
+      
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 根据查询类型构建不同的搜索语句
@@ -1261,6 +1324,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
     }
 
     try {
+      // 检查空间是否存在，如果不存在则自动创建
+      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
+      if (!spaceExists) {
+        const created = await this.spaceManager.createSpace(projectId);
+        if (!created) {
+          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
+        }
+      }
+      
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 首先尝试查找节点
