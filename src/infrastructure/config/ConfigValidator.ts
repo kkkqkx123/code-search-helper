@@ -1,546 +1,475 @@
-import { injectable } from 'inversify';
-import { LoggerService } from '../../utils/LoggerService';
-import { 
-  InfrastructureConfig, 
-  ConfigValidationRule, 
-  ConfigValidationResult 
-} from './types';
+import { InfrastructureConfig } from './types';
 
-@injectable()
+/**
+ * 配置验证器
+ * 提供基础设施配置的验证功能
+ */
 export class ConfigValidator {
-  private logger: LoggerService;
-  private validationRules: Map<string, ConfigValidationRule[]>;
-
-  constructor(logger: LoggerService) {
-    this.logger = logger;
-    this.validationRules = new Map();
-    this.initializeValidationRules();
-  }
-
-  private initializeValidationRules(): void {
-    // 通用配置验证规则
-    this.validationRules.set('common', [
-      {
-        field: 'enableCache',
-        required: true,
-        type: 'boolean',
-        message: 'enableCache must be a boolean value'
-      },
-      {
-        field: 'enableMonitoring',
-        required: true,
-        type: 'boolean',
-        message: 'enableMonitoring must be a boolean value'
-      },
-      {
-        field: 'enableBatching',
-        required: true,
-        type: 'boolean',
-        message: 'enableBatching must be a boolean value'
-      },
-      {
-        field: 'logLevel',
-        required: true,
-        type: 'string',
-        pattern: /^(debug|info|warn|error)$/,
-        message: 'logLevel must be one of: debug, info, warn, error'
-      },
-      {
-        field: 'enableHealthChecks',
-        required: true,
-        type: 'boolean',
-        message: 'enableHealthChecks must be a boolean value'
-      },
-      {
-        field: 'healthCheckInterval',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'healthCheckInterval must be at least 1000ms'
-      },
-      {
-        field: 'gracefulShutdownTimeout',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'gracefulShutdownTimeout must be at least 1000ms'
-      }
-    ]);
-
-    // 缓存配置验证规则
-    this.validationRules.set('cache', [
-      {
-        field: 'defaultTTL',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'defaultTTL must be at least 1000ms'
-      },
-      {
-        field: 'maxEntries',
-        required: true,
-        type: 'number',
-        min: 1,
-        message: 'maxEntries must be at least 1'
-      },
-      {
-        field: 'cleanupInterval',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'cleanupInterval must be at least 1000ms'
-      },
-      {
-        field: 'enableStats',
-        required: true,
-        type: 'boolean',
-        message: 'enableStats must be a boolean value'
-      }
-    ]);
-
-    // 性能配置验证规则
-    this.validationRules.set('performance', [
-      {
-        field: 'monitoringInterval',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'monitoringInterval must be at least 1000ms'
-      },
-      {
-        field: 'metricsRetentionPeriod',
-        required: true,
-        type: 'number',
-        min: 60000,
-        message: 'metricsRetentionPeriod must be at least 60000ms'
-      },
-      {
-        field: 'enableDetailedLogging',
-        required: true,
-        type: 'boolean',
-        message: 'enableDetailedLogging must be a boolean value'
-      }
-    ]);
-
-    // 批处理配置验证规则
-    this.validationRules.set('batch', [
-      {
-        field: 'maxConcurrentOperations',
-        required: true,
-        type: 'number',
-        min: 1,
-        max: 100,
-        message: 'maxConcurrentOperations must be between 1 and 100'
-      },
-      {
-        field: 'defaultBatchSize',
-        required: true,
-        type: 'number',
-        min: 1,
-        max: 10000,
-        message: 'defaultBatchSize must be between 1 and 10000'
-      },
-      {
-        field: 'maxBatchSize',
-        required: true,
-        type: 'number',
-        min: 1,
-        max: 10000,
-        message: 'maxBatchSize must be between 1 and 10000'
-      },
-      {
-        field: 'minBatchSize',
-        required: true,
-        type: 'number',
-        min: 1,
-        max: 1000,
-        message: 'minBatchSize must be between 1 and 1000'
-      },
-      {
-        field: 'memoryThreshold',
-        required: true,
-        type: 'number',
-        min: 10,
-        max: 95,
-        message: 'memoryThreshold must be between 10 and 95'
-      },
-      {
-        field: 'processingTimeout',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'processingTimeout must be at least 1000ms'
-      },
-      {
-        field: 'retryAttempts',
-        required: true,
-        type: 'number',
-        min: 0,
-        max: 10,
-        message: 'retryAttempts must be between 0 and 10'
-      },
-      {
-        field: 'retryDelay',
-        required: true,
-        type: 'number',
-        min: 100,
-        message: 'retryDelay must be at least 100ms'
-      },
-      {
-        field: 'adaptiveBatchingEnabled',
-        required: true,
-        type: 'boolean',
-        message: 'adaptiveBatchingEnabled must be a boolean value'
-      },
-      {
-        field: 'performanceThreshold',
-        required: true,
-        type: 'number',
-        min: 100,
-        message: 'performanceThreshold must be at least 100ms'
-      },
-      {
-        field: 'adjustmentFactor',
-        required: true,
-        type: 'number',
-        min: 0.01,
-        max: 1.0,
-        message: 'adjustmentFactor must be between 0.01 and 1.0'
-      }
-    ]);
-
-    // 连接配置验证规则
-    this.validationRules.set('connection', [
-      {
-        field: 'maxConnections',
-        required: true,
-        type: 'number',
-        min: 1,
-        max: 1000,
-        message: 'maxConnections must be between 1 and 1000'
-      },
-      {
-        field: 'minConnections',
-        required: true,
-        type: 'number',
-        min: 0,
-        message: 'minConnections must be at least 0'
-      },
-      {
-        field: 'connectionTimeout',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'connectionTimeout must be at least 1000ms'
-      },
-      {
-        field: 'idleTimeout',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'idleTimeout must be at least 1000ms'
-      },
-      {
-        field: 'acquireTimeout',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'acquireTimeout must be at least 1000ms'
-      },
-      {
-        field: 'validationInterval',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'validationInterval must be at least 1000ms'
-      },
-      {
-        field: 'enableConnectionPooling',
-        required: true,
-        type: 'boolean',
-        message: 'enableConnectionPooling must be a boolean value'
-      }
-    ]);
-
-    // 事务配置验证规则
-    this.validationRules.set('transaction', [
-      {
-        field: 'timeout',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'timeout must be at least 1000ms'
-      },
-      {
-        field: 'retryAttempts',
-        required: true,
-        type: 'number',
-        min: 0,
-        max: 10,
-        message: 'retryAttempts must be between 0 and 10'
-      },
-      {
-        field: 'retryDelay',
-        required: true,
-        type: 'number',
-        min: 100,
-        message: 'retryDelay must be at least 100ms'
-      },
-      {
-        field: 'enableTwoPhaseCommit',
-        required: true,
-        type: 'boolean',
-        message: 'enableTwoPhaseCommit must be a boolean value'
-      },
-      {
-        field: 'maxConcurrentTransactions',
-        required: true,
-        type: 'number',
-        min: 1,
-        max: 1000,
-        message: 'maxConcurrentTransactions must be between 1 and 1000'
-      },
-      {
-        field: 'deadlockDetectionTimeout',
-        required: true,
-        type: 'number',
-        min: 1000,
-        message: 'deadlockDetectionTimeout must be at least 1000ms'
-      }
-    ]);
-  }
-
-  validateConfig(config: InfrastructureConfig): ConfigValidationResult {
-    this.logger.debug('Starting configuration validation');
-
-    const result: ConfigValidationResult = {
-      isValid: true,
-      errors: [],
-      warnings: []
-    };
+  /**
+   * 验证整个基础设施配置
+   */
+  static validate(config: InfrastructureConfig): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
 
     // 验证通用配置
-    this.validateSection('common', config.common, result);
+    this.validateCommonConfig(config.common, errors);
 
-    // 验证 Qdrant 配置
-    this.validateSection('cache', config.qdrant.cache, result, 'qdrant.cache');
-    this.validateSection('performance', config.qdrant.performance, result, 'qdrant.performance');
-    this.validateSection('batch', config.qdrant.batch, result, 'qdrant.batch');
-    this.validateSection('connection', config.qdrant.connection, result, 'qdrant.connection');
+    // 验证Qdrant配置
+    this.validateQdrantConfig(config.qdrant, errors);
 
-    // 验证 Nebula 配置
-    this.validateSection('cache', config.nebula.cache, result, 'nebula.cache');
-    this.validateSection('performance', config.nebula.performance, result, 'nebula.performance');
-    this.validateSection('batch', config.nebula.batch, result, 'nebula.batch');
-    this.validateSection('connection', config.nebula.connection, result, 'nebula.connection');
+    // 验证Nebula配置
+    this.validateNebulaConfig(config.nebula, errors);
 
     // 验证事务配置
-    this.validateSection('transaction', config.transaction, result);
+    this.validateTransactionConfig(config.transaction, errors);
 
-    // 执行自定义验证逻辑
-    this.performCustomValidations(config, result);
-
-    result.isValid = result.errors.length === 0;
-
-    if (result.isValid) {
-      this.logger.info('Configuration validation passed');
-    } else {
-      this.logger.error('Configuration validation failed', {
-        errors: result.errors.length,
-        warnings: result.warnings.length
-      });
-    }
-
-    return result;
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 
-  private validateSection(
-    sectionName: string, 
-    sectionData: any, 
-    result: ConfigValidationResult,
-    prefix?: string
-  ): void {
-    const rules = this.validationRules.get(sectionName);
-    if (!rules) {
-      this.logger.warn(`No validation rules found for section: ${sectionName}`);
+  /**
+   * 验证通用配置
+   */
+  private static validateCommonConfig(common: any, errors: string[]): void {
+    if (!common) {
+      errors.push('Common configuration is required');
       return;
     }
 
-    const fieldPrefix = prefix ? `${prefix}.` : '';
+    // 验证健康检查间隔
+    if (typeof common.healthCheckInterval !== 'number' || common.healthCheckInterval < 1000) {
+      errors.push('Common health check interval must be a number and at least 1000ms');
+    }
 
-    for (const rule of rules) {
-      const fieldPath = `${fieldPrefix}${rule.field}`;
-      const value = sectionData[rule.field];
+    // 验证优雅关闭超时时间
+    if (typeof common.gracefulShutdownTimeout !== 'number' || common.gracefulShutdownTimeout < 1000) {
+      errors.push('Common graceful shutdown timeout must be a number and at least 1000ms');
+    }
 
-      // 检查必需字段
-      if (rule.required && (value === undefined || value === null)) {
-        result.errors.push({
-          field: fieldPath,
-          message: `${rule.field} is required`,
-          value
-        });
-        continue;
-      }
+    // 验证日志级别
+    const validLogLevels = ['debug', 'info', 'warn', 'error'];
+    if (!validLogLevels.includes(common.logLevel)) {
+      errors.push(`Common log level must be one of: ${validLogLevels.join(', ')}`);
+    }
 
-      // 如果字段不存在且不是必需的，跳过验证
-      if (value === undefined || value === null) {
-        continue;
-      }
-
-      // 类型验证
-      if (!this.validateType(value, rule.type)) {
-        result.errors.push({
-          field: fieldPath,
-          message: rule.message || `${rule.field} must be of type ${rule.type}`,
-          value
-        });
-        continue;
-      }
-
-      // 数值范围验证
-      if (rule.type === 'number') {
-        if (rule.min !== undefined && value < rule.min) {
-          result.errors.push({
-            field: fieldPath,
-            message: rule.message || `${rule.field} must be at least ${rule.min}`,
-            value
-          });
-        }
-        if (rule.max !== undefined && value > rule.max) {
-          result.errors.push({
-            field: fieldPath,
-            message: rule.message || `${rule.field} must be at most ${rule.max}`,
-            value
-          });
-        }
-      }
-
-      // 正则表达式验证
-      if (rule.pattern && typeof value === 'string' && !rule.pattern.test(value)) {
-        result.errors.push({
-          field: fieldPath,
-          message: rule.message || `${rule.field} format is invalid`,
-          value
-        });
-      }
-
-      // 自定义验证器
-      if (rule.validator && !rule.validator(value)) {
-        result.errors.push({
-          field: fieldPath,
-          message: rule.message || `${rule.field} validation failed`,
-          value
-        });
+    // 验证布尔值
+    const booleanFields = ['enableCache', 'enableMonitoring', 'enableBatching', 'enableHealthChecks'];
+    for (const field of booleanFields) {
+      if (typeof common[field] !== 'boolean') {
+        errors.push(`Common ${field} must be a boolean`);
       }
     }
   }
 
-  private validateType(value: any, expectedType: string): boolean {
-    switch (expectedType) {
-      case 'string':
-        return typeof value === 'string';
-      case 'number':
-        return typeof value === 'number' && !isNaN(value);
-      case 'boolean':
-        return typeof value === 'boolean';
-      case 'object':
-        return typeof value === 'object' && value !== null && !Array.isArray(value);
-      case 'array':
-        return Array.isArray(value);
-      default:
-        return true;
+  /**
+   * 验证Qdrant配置
+   */
+  private static validateQdrantConfig(qdrant: any, errors: string[]): void {
+    if (!qdrant) {
+      errors.push('Qdrant configuration is required');
+      return;
+    }
+
+    // 验证缓存配置
+    this.validateCacheConfig(qdrant.cache, 'Qdrant', errors);
+
+    // 验证性能配置
+    this.validatePerformanceConfig(qdrant.performance, 'Qdrant', errors);
+
+    // 验证批处理配置
+    this.validateBatchConfig(qdrant.batch, 'Qdrant', errors);
+
+    // 验证连接配置
+    this.validateConnectionConfig(qdrant.connection, 'Qdrant', errors);
+
+    // 验证向量配置（如果存在）
+    if (qdrant.vector) {
+      this.validateVectorConfig(qdrant.vector, 'Qdrant', errors);
     }
   }
 
-  private performCustomValidations(config: InfrastructureConfig, result: ConfigValidationResult): void {
-    // 验证批处理配置的逻辑一致性
-    this.validateBatchConsistency(config, result);
-
-    // 验证连接池配置的逻辑一致性
-    this.validateConnectionConsistency(config, result);
-
-    // 验证性能阈值配置
-    this.validatePerformanceThresholds(config, result);
-  }
-
-  private validateBatchConsistency(config: InfrastructureConfig, result: ConfigValidationResult): void {
-    // 检查 Qdrant 批处理配置
-    const qdrantBatch = config.qdrant.batch;
-    if (qdrantBatch.minBatchSize > qdrantBatch.defaultBatchSize) {
-      result.errors.push({
-        field: 'qdrant.batch.minBatchSize',
-        message: 'minBatchSize cannot be greater than defaultBatchSize',
-        value: qdrantBatch.minBatchSize
-      });
+  /**
+   * 验证Nebula配置
+   */
+  private static validateNebulaConfig(nebula: any, errors: string[]): void {
+    if (!nebula) {
+      errors.push('Nebula configuration is required');
+      return;
     }
 
-    if (qdrantBatch.defaultBatchSize > qdrantBatch.maxBatchSize) {
-      result.errors.push({
-        field: 'qdrant.batch.defaultBatchSize',
-        message: 'defaultBatchSize cannot be greater than maxBatchSize',
-        value: qdrantBatch.defaultBatchSize
-      });
-    }
+    // 验证缓存配置
+    this.validateCacheConfig(nebula.cache, 'Nebula', errors);
 
-    // 检查 Nebula 批处理配置
-    const nebulaBatch = config.nebula.batch;
-    if (nebulaBatch.minBatchSize > nebulaBatch.defaultBatchSize) {
-      result.errors.push({
-        field: 'nebula.batch.minBatchSize',
-        message: 'minBatchSize cannot be greater than defaultBatchSize',
-        value: nebulaBatch.minBatchSize
-      });
-    }
+    // 验证性能配置
+    this.validatePerformanceConfig(nebula.performance, 'Nebula', errors);
 
-    if (nebulaBatch.defaultBatchSize > nebulaBatch.maxBatchSize) {
-      result.errors.push({
-        field: 'nebula.batch.defaultBatchSize',
-        message: 'defaultBatchSize cannot be greater than maxBatchSize',
-        value: nebulaBatch.defaultBatchSize
-      });
+    // 验证批处理配置
+    this.validateBatchConfig(nebula.batch, 'Nebula', errors);
+
+    // 验证连接配置
+    this.validateConnectionConfig(nebula.connection, 'Nebula', errors);
+
+    // 验证图配置（如果存在）
+    if (nebula.graph) {
+      this.validateGraphConfig(nebula.graph, 'Nebula', errors);
     }
   }
 
-  private validateConnectionConsistency(config: InfrastructureConfig, result: ConfigValidationResult): void {
-    // 检查 Qdrant 连接池配置
-    const qdrantConn = config.qdrant.connection;
-    if (qdrantConn.minConnections > qdrantConn.maxConnections) {
-      result.errors.push({
-        field: 'qdrant.connection.minConnections',
-        message: 'minConnections cannot be greater than maxConnections',
-        value: qdrantConn.minConnections
-      });
+  /**
+   * 验证缓存配置
+   */
+  private static validateCacheConfig(cache: any, service: string, errors: string[]): void {
+    if (!cache) {
+      errors.push(`${service} cache configuration is required`);
+      return;
     }
 
-    // 检查 Nebula 连接池配置
-    const nebulaConn = config.nebula.connection;
-    if (nebulaConn.minConnections > nebulaConn.maxConnections) {
-      result.errors.push({
-        field: 'nebula.connection.minConnections',
-        message: 'minConnections cannot be greater than maxConnections',
-        value: nebulaConn.minConnections
-      });
+    // 验证TTL
+    if (typeof cache.defaultTTL !== 'number' || cache.defaultTTL < 1000) {
+      errors.push(`${service} cache default TTL must be a number and at least 1000ms`);
+    }
+
+    // 验证最大条目数
+    if (typeof cache.maxEntries !== 'number' || cache.maxEntries < 1) {
+      errors.push(`${service} cache max entries must be a number and at least 1`);
+    }
+
+    // 验证清理间隔
+    if (typeof cache.cleanupInterval !== 'number' || cache.cleanupInterval < 1000) {
+      errors.push(`${service} cache cleanup interval must be a number and at least 1000ms`);
+    }
+
+    // 验证统计启用状态
+    if (typeof cache.enableStats !== 'boolean') {
+      errors.push(`${service} cache enableStats must be a boolean`);
     }
   }
 
-  private validatePerformanceThresholds(config: InfrastructureConfig, result: ConfigValidationResult): void {
-    // 检查性能阈值是否合理
-    const qdrantPerf = config.qdrant.performance.performanceThresholds;
-    if (qdrantPerf.queryExecutionTime < 100) {
-      result.warnings.push({
-        field: 'qdrant.performance.performanceThresholds.queryExecutionTime',
-        message: 'queryExecutionTime threshold is very low (< 100ms), may cause false alerts',
-        value: qdrantPerf.queryExecutionTime
-      });
+  /**
+   * 验证性能配置
+   */
+  private static validatePerformanceConfig(performance: any, service: string, errors: string[]): void {
+    if (!performance) {
+      errors.push(`${service} performance configuration is required`);
+      return;
     }
 
-    const nebulaPerf = config.nebula.performance.performanceThresholds;
-    if (nebulaPerf.queryExecutionTime < 100) {
-      result.warnings.push({
-        field: 'nebula.performance.performanceThresholds.queryExecutionTime',
-        message: 'queryExecutionTime threshold is very low (< 100ms), may cause false alerts',
-        value: nebulaPerf.queryExecutionTime
-      });
+    // 验证监控间隔
+    if (typeof performance.monitoringInterval !== 'number' || performance.monitoringInterval < 1000) {
+      errors.push(`${service} performance monitoring interval must be a number and at least 1000ms`);
+    }
+
+    // 验证指标保留周期
+    if (typeof performance.metricsRetentionPeriod !== 'number' || performance.metricsRetentionPeriod < 60000) {
+      errors.push(`${service} performance metrics retention period must be a number and at least 60000ms`);
+    }
+
+    // 验证详细日志启用状态
+    if (typeof performance.enableDetailedLogging !== 'boolean') {
+      errors.push(`${service} performance enableDetailedLogging must be a boolean`);
+    }
+
+    // 验证性能阈值
+    if (!performance.performanceThresholds) {
+      errors.push(`${service} performance thresholds configuration is required`);
+    } else {
+      const thresholds = performance.performanceThresholds;
+      if (typeof thresholds.queryExecutionTime !== 'number' || thresholds.queryExecutionTime < 100) {
+        errors.push(`${service} performance query execution time threshold must be a number and at least 100ms`);
+      }
+      if (typeof thresholds.memoryUsage !== 'number' || thresholds.memoryUsage < 0 || thresholds.memoryUsage > 100) {
+        errors.push(`${service} performance memory usage threshold must be a number between 0 and 100`);
+      }
+      if (typeof thresholds.responseTime !== 'number' || thresholds.responseTime < 1) {
+        errors.push(`${service} performance response time threshold must be a number and at least 1ms`);
+      }
+    }
+  }
+
+  /**
+   * 验证批处理配置
+   */
+  private static validateBatchConfig(batch: any, service: string, errors: string[]): void {
+    if (!batch) {
+      errors.push(`${service} batch configuration is required`);
+      return;
+    }
+
+    // 验证最大并发操作数
+    if (typeof batch.maxConcurrentOperations !== 'number' || batch.maxConcurrentOperations < 1 || batch.maxConcurrentOperations > 100) {
+      errors.push(`${service} batch max concurrent operations must be a number between 1 and 100`);
+    }
+
+    // 验证默认批处理大小
+    if (typeof batch.defaultBatchSize !== 'number' || batch.defaultBatchSize < 1 || batch.defaultBatchSize > 10000) {
+      errors.push(`${service} batch default batch size must be a number between 1 and 10000`);
+    }
+
+    // 验证最大批处理大小
+    if (typeof batch.maxBatchSize !== 'number' || batch.maxBatchSize < 1 || batch.maxBatchSize > 10000) {
+      errors.push(`${service} batch max batch size must be a number between 1 and 10000`);
+    }
+
+    // 验证最小批处理大小
+    if (typeof batch.minBatchSize !== 'number' || batch.minBatchSize < 1 || batch.minBatchSize > 1000) {
+      errors.push(`${service} batch min batch size must be a number between 1 and 1000`);
+    }
+
+    // 验证内存阈值
+    if (typeof batch.memoryThreshold !== 'number' || batch.memoryThreshold < 10 || batch.memoryThreshold > 95) {
+      errors.push(`${service} batch memory threshold must be a number between 10 and 95`);
+    }
+
+    // 验证处理超时时间
+    if (typeof batch.processingTimeout !== 'number' || batch.processingTimeout < 1000) {
+      errors.push(`${service} batch processing timeout must be a number and at least 1000ms`);
+    }
+
+    // 验证重试次数
+    if (typeof batch.retryAttempts !== 'number' || batch.retryAttempts < 0 || batch.retryAttempts > 10) {
+      errors.push(`${service} batch retry attempts must be a number between 0 and 10`);
+    }
+
+    // 验证重试延迟
+    if (typeof batch.retryDelay !== 'number' || batch.retryDelay < 100) {
+      errors.push(`${service} batch retry delay must be a number and at least 100ms`);
+    }
+
+    // 验证自适应批处理启用状态
+    if (typeof batch.adaptiveBatchingEnabled !== 'boolean') {
+      errors.push(`${service} batch adaptiveBatchingEnabled must be a boolean`);
+    }
+
+    // 验证性能阈值
+    if (typeof batch.performanceThreshold !== 'number' || batch.performanceThreshold < 100) {
+      errors.push(`${service} batch performance threshold must be a number and at least 100ms`);
+    }
+
+    // 验证调整因子
+    if (typeof batch.adjustmentFactor !== 'number' || batch.adjustmentFactor < 0.01 || batch.adjustmentFactor > 1.0) {
+      errors.push(`${service} batch adjustment factor must be a number between 0.01 and 1.0`);
+    }
+  }
+
+  /**
+   * 验证连接配置
+   */
+  private static validateConnectionConfig(connection: any, service: string, errors: string[]): void {
+    if (!connection) {
+      errors.push(`${service} connection configuration is required`);
+      return;
+    }
+
+    // 验证最大连接数
+    if (typeof connection.maxConnections !== 'number' || connection.maxConnections < 1 || connection.maxConnections > 1000) {
+      errors.push(`${service} connection max connections must be a number between 1 and 1000`);
+    }
+
+    // 验证最小连接数
+    if (typeof connection.minConnections !== 'number' || connection.minConnections < 0 || connection.minConnections > connection.maxConnections) {
+      errors.push(`${service} connection min connections must be a number between 0 and maxConnections`);
+    }
+
+    // 验证连接超时时间
+    if (typeof connection.connectionTimeout !== 'number' || connection.connectionTimeout < 1000) {
+      errors.push(`${service} connection timeout must be a number and at least 1000ms`);
+    }
+
+    // 验证空闲超时时间
+    if (typeof connection.idleTimeout !== 'number' || connection.idleTimeout < 1000) {
+      errors.push(`${service} connection idle timeout must be a number and at least 1000ms`);
+    }
+
+    // 验证获取超时时间
+    if (typeof connection.acquireTimeout !== 'number' || connection.acquireTimeout < 1000) {
+      errors.push(`${service} connection acquire timeout must be a number and at least 1000ms`);
+    }
+
+    // 验证验证间隔
+    if (typeof connection.validationInterval !== 'number' || connection.validationInterval < 1000) {
+      errors.push(`${service} connection validation interval must be a number and at least 1000ms`);
+    }
+
+    // 验证连接池启用状态
+    if (typeof connection.enableConnectionPooling !== 'boolean') {
+      errors.push(`${service} connection enableConnectionPooling must be a boolean`);
+    }
+  }
+
+  /**
+   * 验证向量配置
+   */
+  private static validateVectorConfig(vector: any, service: string, errors: string[]): void {
+    if (!vector) {
+      return; // 向量配置是可选的
+    }
+
+    // 验证默认集合
+    if (vector.defaultCollection && typeof vector.defaultCollection !== 'string') {
+      errors.push(`${service} vector default collection must be a string`);
+    }
+
+    // 验证集合选项
+    if (vector.collectionOptions) {
+      const collectionOptions = vector.collectionOptions;
+      if (collectionOptions.vectorSize && (typeof collectionOptions.vectorSize !== 'number' || collectionOptions.vectorSize < 1)) {
+        errors.push(`${service} vector collection vectorSize must be a number and at least 1`);
+      }
+      if (collectionOptions.distance && !['Cosine', 'Euclidean', 'DotProduct'].includes(collectionOptions.distance)) {
+        errors.push(`${service} vector collection distance must be one of: Cosine, Euclidean, DotProduct`);
+      }
+    }
+
+    // 验证搜索选项
+    if (vector.searchOptions) {
+      const searchOptions = vector.searchOptions;
+      if (searchOptions.limit && (typeof searchOptions.limit !== 'number' || searchOptions.limit < 1)) {
+        errors.push(`${service} vector search limit must be a number and at least 1`);
+      }
+      if (searchOptions.threshold && (typeof searchOptions.threshold !== 'number' || searchOptions.threshold < 0 || searchOptions.threshold > 1)) {
+        errors.push(`${service} vector search threshold must be a number between 0 and 1`);
+      }
+      if (searchOptions.exactSearch !== undefined && typeof searchOptions.exactSearch !== 'boolean') {
+        errors.push(`${service} vector search exactSearch must be a boolean`);
+      }
+    }
+  }
+
+  /**
+   * 验证图配置
+   */
+  private static validateGraphConfig(graph: any, service: string, errors: string[]): void {
+    if (!graph) {
+      errors.push(`${service} graph configuration is required`);
+      return;
+    }
+
+    // 验证默认空间
+    if (graph.defaultSpace && typeof graph.defaultSpace !== 'string') {
+      errors.push(`${service} graph default space must be a string`);
+    }
+
+    // 验证空间选项
+    if (graph.spaceOptions) {
+      const spaceOptions = graph.spaceOptions;
+      if (spaceOptions.partitionNum && (typeof spaceOptions.partitionNum !== 'number' || spaceOptions.partitionNum < 1)) {
+        errors.push(`${service} graph space partitionNum must be a number and at least 1`);
+      }
+      if (spaceOptions.replicaFactor && (typeof spaceOptions.replicaFactor !== 'number' || spaceOptions.replicaFactor < 1)) {
+        errors.push(`${service} graph space replicaFactor must be a number and at least 1`);
+      }
+      if (spaceOptions.vidType && !['FIXED_STRING', 'INT64'].includes(spaceOptions.vidType)) {
+        errors.push(`${service} graph space vidType must be one of: FIXED_STRING, INT64`);
+      }
+    }
+
+    // 验证查询选项
+    if (graph.queryOptions) {
+      const queryOptions = graph.queryOptions;
+      if (queryOptions.timeout && (typeof queryOptions.timeout !== 'number' || queryOptions.timeout < 1000)) {
+        errors.push(`${service} graph query timeout must be a number and at least 1000ms`);
+      }
+      if (queryOptions.retryAttempts && (typeof queryOptions.retryAttempts !== 'number' || queryOptions.retryAttempts < 0)) {
+        errors.push(`${service} graph query retry attempts must be a number and at least 0`);
+      }
+    }
+
+    // 验证模式管理选项
+    if (graph.schemaManagement) {
+      const schemaManagement = graph.schemaManagement;
+      if (schemaManagement.autoCreateTags !== undefined && typeof schemaManagement.autoCreateTags !== 'boolean') {
+        errors.push(`${service} graph schema autoCreateTags must be a boolean`);
+      }
+      if (schemaManagement.autoCreateEdges !== undefined && typeof schemaManagement.autoCreateEdges !== 'boolean') {
+        errors.push(`${service} graph schema autoCreateEdges must be a boolean`);
+      }
+    }
+  }
+
+  /**
+   * 验证事务配置
+   */
+  private static validateTransactionConfig(transaction: any, errors: string[]): void {
+    if (!transaction) {
+      errors.push('Transaction configuration is required');
+      return;
+    }
+
+    // 验证超时时间
+    if (typeof transaction.timeout !== 'number' || transaction.timeout < 1000) {
+      errors.push('Transaction timeout must be a number and at least 1000ms');
+    }
+
+    // 验证重试次数
+    if (typeof transaction.retryAttempts !== 'number' || transaction.retryAttempts < 0 || transaction.retryAttempts > 10) {
+      errors.push('Transaction retry attempts must be a number between 0 and 10');
+    }
+
+    // 验证重试延迟
+    if (typeof transaction.retryDelay !== 'number' || transaction.retryDelay < 100) {
+      errors.push('Transaction retry delay must be a number and at least 100ms');
+    }
+
+    // 验证两阶段提交启用状态
+    if (typeof transaction.enableTwoPhaseCommit !== 'boolean') {
+      errors.push('Transaction enableTwoPhaseCommit must be a boolean');
+    }
+
+    // 验证最大并发事务数
+    if (typeof transaction.maxConcurrentTransactions !== 'number' || transaction.maxConcurrentTransactions < 1 || transaction.maxConcurrentTransactions > 1000) {
+      errors.push('Transaction max concurrent transactions must be a number between 1 and 1000');
+    }
+
+    // 验证死锁检测超时时间
+    if (typeof transaction.deadlockDetectionTimeout !== 'number' || transaction.deadlockDetectionTimeout < 1000) {
+      errors.push('Transaction deadlock detection timeout must be a number and at least 1000ms');
+    }
+
+    // 验证隔离级别
+    if (transaction.isolationLevel && !['READ_UNCOMMITTED', 'READ_COMMITTED', 'REPEATABLE_READ', 'SERIALIZABLE'].includes(transaction.isolationLevel)) {
+      errors.push('Transaction isolation level must be one of: READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE');
+    }
+  }
+}
+
+/**
+ * 配置验证工具
+ * 提供便捷的配置验证方法
+ */
+export class ConfigValidationUtil {
+  /**
+   * 验证配置并根据结果记录日志
+   */
+  static validateAndLog(config: InfrastructureConfig, logger?: { info: (msg: string, meta?: any) => void; error: (msg: string, meta?: any) => void }): boolean {
+    const validationResult = ConfigValidator.validate(config);
+    
+    if (validationResult.isValid) {
+      if (logger) {
+        logger.info('Configuration validation passed');
+      } else {
+        console.log('Configuration validation passed');
+      }
+      return true;
+    } else {
+      if (logger) {
+        logger.error('Configuration validation failed', { errors: validationResult.errors });
+      } else {
+        console.error('Configuration validation failed:', validationResult.errors);
+      }
+      return false;
+    }
+  }
+
+  /**
+   * 验证配置并抛出错误（如果验证失败）
+   */
+  static validateAndThrow(config: InfrastructureConfig): void {
+    const validationResult = ConfigValidator.validate(config);
+    
+    if (!validationResult.isValid) {
+      throw new Error(`Configuration validation failed: ${validationResult.errors.join(', ')}`);
     }
   }
 }

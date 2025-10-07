@@ -3,49 +3,11 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ConfigService } from '../../config/ConfigService';
 import { DatabaseType } from '../types';
-
-import { CommonConfig, CacheConfig, PerformanceConfig, BatchConfig, ConnectionConfig, GraphSpecificConfig, TransactionConfig } from './types';
-
-export interface InfrastructureConfig {
-  // 通用配置
- common: CommonConfig;
-  
-  // Qdrant特定配置
-  qdrant: {
-    cache: CacheConfig;
-    performance: PerformanceConfig;
-    batch: BatchConfig;
-    connection: ConnectionConfig;
-    vector?: {
-      defaultCollection?: string;
-      collectionOptions?: {
-        vectorSize?: number;
-        distance?: 'Cosine' | 'Euclidean' | 'DotProduct';
-        indexing?: {
-          type?: string;
-          options?: Record<string, any>;
-        };
-      };
-      searchOptions?: {
-        limit?: number;
-        threshold?: number;
-        exactSearch?: boolean;
-      };
-    };
- };
-  
-  // Nebula特定配置
- nebula: {
-    cache: CacheConfig;
-    performance: PerformanceConfig;
-    batch: BatchConfig;
-    connection: ConnectionConfig;
-    graph: GraphSpecificConfig;
-  };
-  
-  // 事务配置
- transaction: TransactionConfig;
-}
+import { ConfigValidationUtil } from './ConfigValidator';
+import { BaseConfigTemplate } from './BaseServiceConfig';
+import { EnvVarOptimizer } from './EnvVarOptimizer';
+import { CommonConfig, TransactionConfig } from './types';
+import { InfrastructureConfig } from './InfrastructureConfigTypes';
 
 @injectable()
 export class InfrastructureConfigService {
@@ -65,144 +27,152 @@ export class InfrastructureConfigService {
   }
 
   private loadInfrastructureConfigFromEnv(): InfrastructureConfig {
+    // 在加载配置时检查是否有使用旧的环境变量命名
+    const legacyVars = EnvVarOptimizer.checkForLegacyEnvVars();
+    if (legacyVars.length > 0) {
+      this.logger.warn('Detected usage of legacy environment variable names. Consider updating to new standardized names.', {
+        legacyVars
+      });
+    }
+
     return {
       common: {
-        enableCache: process.env.INFRA_COMMON_ENABLE_CACHE !== 'false',
-        enableMonitoring: process.env.INFRA_COMMON_ENABLE_MONITORING !== 'false',
-        enableBatching: process.env.INFRA_COMMON_ENABLE_BATCHING !== 'false',
-        logLevel: (process.env.INFRA_COMMON_LOG_LEVEL as any) || 'info',
-        enableHealthChecks: process.env.INFRA_COMMON_ENABLE_HEALTH_CHECKS !== 'false',
-        healthCheckInterval: parseInt(process.env.INFRA_COMMON_HEALTH_CHECK_INTERVAL || '3000'),
-        gracefulShutdownTimeout: parseInt(process.env.INFRA_COMMON_GRACEFUL_SHUTDOWN_TIMEOUT || '10000')
+        enableCache: EnvVarOptimizer.getEnvBooleanValue('INFRA_COMMON_ENABLE_CACHE', true),
+        enableMonitoring: EnvVarOptimizer.getEnvBooleanValue('INFRA_COMMON_ENABLE_MONITORING', true),
+        enableBatching: EnvVarOptimizer.getEnvBooleanValue('INFRA_COMMON_ENABLE_BATCHING', true),
+        logLevel: (EnvVarOptimizer.getEnvValue('INFRA_COMMON_LOG_LEVEL') as any) || 'info',
+        enableHealthChecks: EnvVarOptimizer.getEnvBooleanValue('INFRA_COMMON_ENABLE_HEALTH_CHECKS', true),
+        healthCheckInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_COMMON_HEALTH_CHECK_INTERVAL', 3000),
+        gracefulShutdownTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_COMMON_GRACEFUL_SHUTDOWN_TIMEOUT', 10000)
       },
       qdrant: {
         cache: {
-          defaultTTL: parseInt(process.env.INFRA_QDRANT_CACHE_DEFAULT_TTL || '30000'),
-          maxEntries: parseInt(process.env.INFRA_QDRANT_CACHE_MAX_ENTRIES || '10000'),
-          cleanupInterval: parseInt(process.env.INFRA_QDRANT_CACHE_CLEANUP_INTERVAL || '60000'),
-          enableStats: process.env.INFRA_QDRANT_CACHE_ENABLE_STATS !== 'false',
+          defaultTTL: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CACHE_DEFAULT_TTL', 30000),
+          maxEntries: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CACHE_MAX_ENTRIES', 10000),
+          cleanupInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CACHE_CLEANUP_INTERVAL', 60000),
+          enableStats: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_CACHE_ENABLE_STATS', true),
           databaseSpecific: {}
         },
         performance: {
-          monitoringInterval: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_MONITORING_INTERVAL || '1000'),  // 设置为最低允许值
-          metricsRetentionPeriod: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_METRICS_RETENTION_PERIOD || '8640000'),
-          enableDetailedLogging: process.env.INFRA_QDRANT_PERFORMANCE_ENABLE_DETAILED_LOGGING !== 'false',
+          monitoringInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_MONITORING_INTERVAL', 1000),  // 设置为最低允许值
+          metricsRetentionPeriod: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_METRICS_RETENTION_PERIOD', 8640000),
+          enableDetailedLogging: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_PERFORMANCE_ENABLE_DETAILED_LOGGING', true),
           performanceThresholds: {
-            queryExecutionTime: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_QUERY_EXECUTION_TIME || '1000'),
-            memoryUsage: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_MEMORY_USAGE || '80'),
-            responseTime: parseInt(process.env.INFRA_QDRANT_PERFORMANCE_RESPONSE_TIME || '50')
+            queryExecutionTime: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_QUERY_EXECUTION_TIME', 1000),
+            memoryUsage: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_MEMORY_USAGE', 80),
+            responseTime: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RESPONSE_TIME', 50)
           },
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: parseInt(process.env.INFRA_QDRANT_BATCH_MAX_CONCURRENT_OPERATIONS || '5'),
-          defaultBatchSize: parseInt(process.env.INFRA_QDRANT_BATCH_DEFAULT_BATCH_SIZE || '50'),
-          maxBatchSize: parseInt(process.env.INFRA_QDRANT_BATCH_MAX_BATCH_SIZE || '500'),
-          minBatchSize: parseInt(process.env.INFRA_QDRANT_BATCH_MIN_BATCH_SIZE || '10'),
-          memoryThreshold: parseInt(process.env.INFRA_QDRANT_BATCH_MEMORY_THRESHOLD || '80'),
-          processingTimeout: parseInt(process.env.INFRA_QDRANT_BATCH_PROCESSING_TIMEOUT || '3000'),
-          retryAttempts: parseInt(process.env.INFRA_QDRANT_BATCH_RETRY_ATTEMPTS || '3'),
-          retryDelay: parseInt(process.env.INFRA_QDRANT_BATCH_RETRY_DELAY || '1000'),
-          adaptiveBatchingEnabled: process.env.INFRA_QDRANT_BATCH_ADAPTIVE_BATCHING_ENABLED !== 'false',
-          performanceThreshold: parseInt(process.env.INFRA_QDRANT_BATCH_PERFORMANCE_THRESHOLD || '1000'),
-          adjustmentFactor: parseFloat(process.env.INFRA_QDRANT_BATCH_ADJUSTMENT_FACTOR || '0.1'),
+          maxConcurrentOperations: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_MAX_CONCURRENT_OPERATIONS', 5),
+          defaultBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_DEFAULT_BATCH_SIZE', 50),
+          maxBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_MAX_BATCH_SIZE', 500),
+          minBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_MIN_BATCH_SIZE', 10),
+          memoryThreshold: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_MEMORY_THRESHOLD', 80),
+          processingTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_PROCESSING_TIMEOUT', 3000),
+          retryAttempts: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_RETRY_ATTEMPTS', 3),
+          retryDelay: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_RETRY_DELAY', 1000),
+          adaptiveBatchingEnabled: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_BATCH_ADAPTIVE_BATCHING_ENABLED', true),
+          performanceThreshold: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_PERFORMANCE_THRESHOLD', 1000),
+          adjustmentFactor: EnvVarOptimizer.getEnvFloatValue('INFRA_QDRANT_BATCH_ADJUSTMENT_FACTOR', 0.1),
           databaseSpecific: {}
         },
         connection: {
-          maxConnections: parseInt(process.env.INFRA_QDRANT_CONNECTION_MAX_CONNECTIONS || '10'),
-          minConnections: parseInt(process.env.INFRA_QDRANT_CONNECTION_MIN_CONNECTIONS || '2'),
-          connectionTimeout: parseInt(process.env.INFRA_QDRANT_CONNECTION_CONNECTION_TIMEOUT || '3000'),
-          idleTimeout: parseInt(process.env.INFRA_QDRANT_CONNECTION_IDLE_TIMEOUT || '300000'),
-          acquireTimeout: parseInt(process.env.INFRA_QDRANT_CONNECTION_ACQUIRE_TIMEOUT || '10000'),
-          validationInterval: parseInt(process.env.INFRA_QDRANT_CONNECTION_VALIDATION_INTERVAL || '6000'),
-          enableConnectionPooling: process.env.INFRA_QDRANT_CONNECTION_ENABLE_CONNECTION_POOLING !== 'false',
+          maxConnections: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_MAX_CONNECTIONS', 10),
+          minConnections: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_MIN_CONNECTIONS', 2),
+          connectionTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_CONNECTION_TIMEOUT', 3000),
+          idleTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_IDLE_TIMEOUT', 300000),
+          acquireTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_ACQUIRE_TIMEOUT', 10000),
+          validationInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_VALIDATION_INTERVAL', 6000),
+          enableConnectionPooling: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_CONNECTION_ENABLE_CONNECTION_POOLING', true),
           databaseSpecific: {}
         },
         vector: {
-          defaultCollection: process.env.INFRA_QDRANT_VECTOR_DEFAULT_COLLECTION || 'default',
+          defaultCollection: EnvVarOptimizer.getEnvValue('INFRA_QDRANT_VECTOR_DEFAULT_COLLECTION') || 'default',
           collectionOptions: {
-            vectorSize: parseInt(process.env.INFRA_QDRANT_VECTOR_COLLECTION_VECTOR_SIZE || '1536'),
-            distance: (process.env.INFRA_QDRANT_VECTOR_COLLECTION_DISTANCE as any) || 'Cosine',
+            vectorSize: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_VECTOR_COLLECTION_VECTOR_SIZE', 1536),
+            distance: (EnvVarOptimizer.getEnvValue('INFRA_QDRANT_VECTOR_COLLECTION_DISTANCE') as any) || 'Cosine',
             indexing: {
-              type: process.env.INFRA_QDRANT_VECTOR_COLLECTION_INDEXING_TYPE || 'hnsw',
+              type: EnvVarOptimizer.getEnvValue('INFRA_QDRANT_VECTOR_COLLECTION_INDEXING_TYPE') || 'hnsw',
               options: {}
             }
           },
           searchOptions: {
-            limit: parseInt(process.env.INFRA_QDRANT_VECTOR_SEARCH_LIMIT || '10'),
-            threshold: parseFloat(process.env.INFRA_QDRANT_VECTOR_SEARCH_THRESHOLD || '0.5'),
-            exactSearch: process.env.INFRA_QDRANT_VECTOR_SEARCH_EXACT_SEARCH === 'true'
+            limit: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_VECTOR_SEARCH_LIMIT', 10),
+            threshold: EnvVarOptimizer.getEnvFloatValue('INFRA_QDRANT_VECTOR_SEARCH_THRESHOLD', 0.5),
+            exactSearch: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_VECTOR_SEARCH_EXACT_SEARCH', false)
           }
         }
       },
       nebula: {
         cache: {
-          defaultTTL: parseInt(process.env.INFRA_NEBULA_CACHE_DEFAULT_TTL || '30000'),
-          maxEntries: parseInt(process.env.INFRA_NEBULA_CACHE_MAX_ENTRIES || '10000'),
-          cleanupInterval: parseInt(process.env.INFRA_NEBULA_CACHE_CLEANUP_INTERVAL || '60000'),
-          enableStats: process.env.INFRA_NEBULA_CACHE_ENABLE_STATS !== 'false',
+          defaultTTL: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CACHE_DEFAULT_TTL', 30000),
+          maxEntries: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CACHE_MAX_ENTRIES', 10000),
+          cleanupInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CACHE_CLEANUP_INTERVAL', 60000),
+          enableStats: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_CACHE_ENABLE_STATS', true),
           databaseSpecific: {}
         },
         performance: {
-          monitoringInterval: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_MONITORING_INTERVAL || '1000'),  // 设置为最低允许值
-          metricsRetentionPeriod: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_METRICS_RETENTION_PERIOD || '8640000'),
-          enableDetailedLogging: process.env.INFRA_NEBULA_PERFORMANCE_ENABLE_DETAILED_LOGGING !== 'false',
+          monitoringInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_MONITORING_INTERVAL', 1000),  // 设置为最低允许值
+          metricsRetentionPeriod: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_METRICS_RETENTION_PERIOD', 8640000),
+          enableDetailedLogging: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_PERFORMANCE_ENABLE_DETAILED_LOGGING', true),
           performanceThresholds: {
-            queryExecutionTime: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_QUERY_EXECUTION_TIME || '1000'),
-            memoryUsage: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_MEMORY_USAGE || '80'),
-            responseTime: parseInt(process.env.INFRA_NEBULA_PERFORMANCE_RESPONSE_TIME || '500')
+            queryExecutionTime: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_QUERY_EXECUTION_TIME', 1000),
+            memoryUsage: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_MEMORY_USAGE', 80),
+            responseTime: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_RESPONSE_TIME', 500)
           },
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: parseInt(process.env.INFRA_NEBULA_BATCH_MAX_CONCURRENT_OPERATIONS || '5'),
-          defaultBatchSize: parseInt(process.env.INFRA_NEBULA_BATCH_DEFAULT_BATCH_SIZE || '50'),
-          maxBatchSize: parseInt(process.env.INFRA_NEBULA_BATCH_MAX_BATCH_SIZE || '500'),
-          minBatchSize: parseInt(process.env.INFRA_NEBULA_BATCH_MIN_BATCH_SIZE || '10'),
-          memoryThreshold: parseInt(process.env.INFRA_NEBULA_BATCH_MEMORY_THRESHOLD || '80'),
-          processingTimeout: parseInt(process.env.INFRA_NEBULA_BATCH_PROCESSING_TIMEOUT || '300000'),
-          retryAttempts: parseInt(process.env.INFRA_NEBULA_BATCH_RETRY_ATTEMPTS || '3'),
-          retryDelay: parseInt(process.env.INFRA_NEBULA_BATCH_RETRY_DELAY || '100'),
-          adaptiveBatchingEnabled: process.env.INFRA_NEBULA_BATCH_ADAPTIVE_BATCHING_ENABLED !== 'false',
-          performanceThreshold: parseInt(process.env.INFRA_NEBULA_BATCH_PERFORMANCE_THRESHOLD || '1000'),
-          adjustmentFactor: parseFloat(process.env.INFRA_NEBULA_BATCH_ADJUSTMENT_FACTOR || '0.1'),
+          maxConcurrentOperations: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_MAX_CONCURRENT_OPERATIONS', 5),
+          defaultBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_DEFAULT_BATCH_SIZE', 50),
+          maxBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_MAX_BATCH_SIZE', 500),
+          minBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_MIN_BATCH_SIZE', 10),
+          memoryThreshold: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_MEMORY_THRESHOLD', 80),
+          processingTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_PROCESSING_TIMEOUT', 300000),
+          retryAttempts: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_ATTEMPTS', 3),
+          retryDelay: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_DELAY', 100),
+          adaptiveBatchingEnabled: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_BATCH_ADAPTIVE_BATCHING_ENABLED', true),
+          performanceThreshold: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_PERFORMANCE_THRESHOLD', 1000),
+          adjustmentFactor: EnvVarOptimizer.getEnvFloatValue('INFRA_NEBULA_BATCH_ADJUSTMENT_FACTOR', 0.1),
           databaseSpecific: {}
         },
         connection: {
-          maxConnections: parseInt(process.env.INFRA_NEBULA_CONNECTION_MAX_CONNECTIONS || '10'),
-          minConnections: parseInt(process.env.INFRA_NEBULA_CONNECTION_MIN_CONNECTIONS || '2'),
-          connectionTimeout: parseInt(process.env.INFRA_NEBULA_CONNECTION_CONNECTION_TIMEOUT || '30000'),
-          idleTimeout: parseInt(process.env.INFRA_NEBULA_CONNECTION_IDLE_TIMEOUT || '30000'),
-          acquireTimeout: parseInt(process.env.INFRA_NEBULA_CONNECTION_ACQUIRE_TIMEOUT || '10000'),
-          validationInterval: parseInt(process.env.INFRA_NEBULA_CONNECTION_VALIDATION_INTERVAL || '60000'),
-          enableConnectionPooling: process.env.INFRA_NEBULA_CONNECTION_ENABLE_CONNECTION_POOLING !== 'false',
+          maxConnections: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_MAX_CONNECTIONS', 10),
+          minConnections: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_MIN_CONNECTIONS', 2),
+          connectionTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_CONNECTION_TIMEOUT', 30000),
+          idleTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_IDLE_TIMEOUT', 30000),
+          acquireTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_ACQUIRE_TIMEOUT', 10000),
+          validationInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_VALIDATION_INTERVAL', 60000),
+          enableConnectionPooling: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_CONNECTION_ENABLE_CONNECTION_POOLING', true),
           databaseSpecific: {}
         },
         graph: {
-          defaultSpace: process.env.INFRA_NEBULA_GRAPH_DEFAULT_SPACE || 'default',
+          defaultSpace: EnvVarOptimizer.getEnvValue('INFRA_NEBULA_GRAPH_DEFAULT_SPACE') || 'default',
           spaceOptions: {
-            partitionNum: parseInt(process.env.INFRA_NEBULA_GRAPH_SPACE_PARTITION_NUM || '10'),
-            replicaFactor: parseInt(process.env.INFRA_NEBULA_GRAPH_SPACE_REPLICA_FACTOR || '1'),
-            vidType: (process.env.INFRA_NEBULA_GRAPH_SPACE_VID_TYPE as any) || 'FIXED_STRING'
+            partitionNum: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_GRAPH_SPACE_PARTITION_NUM', 10),
+            replicaFactor: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_GRAPH_SPACE_REPLICA_FACTOR', 1),
+            vidType: (EnvVarOptimizer.getEnvValue('INFRA_NEBULA_GRAPH_SPACE_VID_TYPE') as any) || 'FIXED_STRING'
           },
           queryOptions: {
-            timeout: parseInt(process.env.INFRA_NEBULA_GRAPH_QUERY_TIMEOUT || '30000'),
-            retryAttempts: parseInt(process.env.INFRA_NEBULA_GRAPH_QUERY_RETRY_ATTEMPTS || '3')
+            timeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_GRAPH_QUERY_TIMEOUT', 30000),
+            retryAttempts: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_GRAPH_QUERY_RETRY_ATTEMPTS', 3)
           },
           schemaManagement: {
-            autoCreateTags: process.env.INFRA_NEBULA_GRAPH_SCHEMA_AUTO_CREATE_TAGS === 'true',
-            autoCreateEdges: process.env.INFRA_NEBULA_GRAPH_SCHEMA_AUTO_CREATE_EDGES === 'true'
+            autoCreateTags: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_GRAPH_SCHEMA_AUTO_CREATE_TAGS', false),
+            autoCreateEdges: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_GRAPH_SCHEMA_AUTO_CREATE_EDGES', false)
           }
         }
       },
       transaction: {
-        timeout: parseInt(process.env.INFRA_TRANSACTION_TIMEOUT || '30000'),
-        retryAttempts: parseInt(process.env.INFRA_TRANSACTION_RETRY_ATTEMPTS || '3'),
-        retryDelay: parseInt(process.env.INFRA_TRANSACTION_RETRY_DELAY || '100'),
-        enableTwoPhaseCommit: process.env.INFRA_TRANSACTION_ENABLE_TWO_PHASE_COMMIT !== 'false',
-        maxConcurrentTransactions: parseInt(process.env.INFRA_TRANSACTION_MAX_CONCURRENT_TRANSACTIONS || '100'),
-        deadlockDetectionTimeout: parseInt(process.env.INFRA_TRANSACTION_DEADLOCK_DETECTION_TIMEOUT || '1000'),  // 设置为最低允许值
-        isolationLevel: (process.env.INFRA_TRANSACTION_ISOLATION_LEVEL as any) || undefined
+        timeout: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_TIMEOUT', 30000),
+        retryAttempts: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_RETRY_ATTEMPTS', 3),
+        retryDelay: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_RETRY_DELAY', 100),
+        enableTwoPhaseCommit: EnvVarOptimizer.getEnvBooleanValue('INFRA_TRANSACTION_ENABLE_TWO_PHASE_COMMIT', true),
+        maxConcurrentTransactions: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_MAX_CONCURRENT_TRANSACTIONS', 100),
+        deadlockDetectionTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_DEADLOCK_DETECTION_TIMEOUT', 1000),  // 设置为最低允许值
+        isolationLevel: (EnvVarOptimizer.getEnvValue('INFRA_TRANSACTION_ISOLATION_LEVEL') as any) || undefined
       }
     };
   }
@@ -219,7 +189,7 @@ export class InfrastructureConfigService {
     // 策略1：尝试从环境变量加载
     try {
       this.config = this.loadInfrastructureConfigFromEnv();
-      this.validateEnvironmentConfig(this.config);
+      ConfigValidationUtil.validateAndThrow(this.config);  // 使用新的验证工具
       configLoadSuccess = true;
       this.logger.info('配置从环境变量加载成功');
     } catch (error) {
@@ -234,7 +204,7 @@ export class InfrastructureConfigService {
       try {
         this.config = this.getSafeDefaultConfig();
         this.loadConfigFromMainConfig();
-        this.validateEnvironmentConfig(this.config);
+        ConfigValidationUtil.validateAndThrow(this.config);  // 使用新的验证工具
         configLoadSuccess = true;
         this.logger.info('配置从主配置服务加载成功');
       } catch (error) {
@@ -249,7 +219,7 @@ export class InfrastructureConfigService {
     if (!configLoadSuccess) {
       try {
         this.config = this.getSafeDefaultConfig();
-        this.validateEnvironmentConfig(this.config);
+        ConfigValidationUtil.validateAndThrow(this.config);  // 使用新的验证工具
         configLoadSuccess = true;
         this.logger.info('使用安全默认配置成功');
       } catch (error) {
@@ -575,7 +545,7 @@ export class InfrastructureConfigService {
       const batchProcessingConfig = this.configService.get('batchProcessing');
       const redisConfig = this.configService.get('redis');
       const loggingConfig = this.configService.get('logging');
-      
+
       // 合并相关的配置到基础设施配置中，但保持最小值验证
       if (batchProcessingConfig) {
         // 更新批处理相关的基础设施配置
@@ -610,13 +580,13 @@ export class InfrastructureConfigService {
           this.config.nebula.batch.retryDelay = Math.max(batchProcessingConfig.retryDelay, 100);
         }
       }
-      
+
       if (redisConfig && redisConfig.enabled !== undefined) {
         // 更新缓存相关的基础设施配置
         this.config.qdrant.cache.enableStats = redisConfig.enabled;
         this.config.nebula.cache.enableStats = redisConfig.enabled;
       }
-      
+
       if (loggingConfig && loggingConfig.level !== undefined) {
         // 更新日志相关的基础设施配置
         // 验证日志级别是否有效
@@ -628,7 +598,7 @@ export class InfrastructureConfigService {
           this.logger.warn(`Invalid log level: ${loggingConfig.level}, using default 'info'`);
         }
       }
-      
+
       this.logger.info('Infrastructure configuration updated with values from main config service');
     } catch (error) {
       this.logger.warn('Failed to load config from main config service, using defaults', {
@@ -638,278 +608,16 @@ export class InfrastructureConfigService {
   }
 
   private validateEnvironmentConfig(config: InfrastructureConfig): void {
-    const errors: string[] = [];
-
-    // 验证通用配置
-    if (config.common.healthCheckInterval < 1000) {
-      errors.push('Common health check interval must be at least 1000ms');
-    }
-    
-    if (config.common.gracefulShutdownTimeout < 1000) {
-      errors.push('Common graceful shutdown timeout must be at least 1000ms');
-    }
-
-    // 验证缓存配置
-    if (config.qdrant.cache.defaultTTL < 1000) {
-      errors.push('Qdrant cache default TTL must be at least 1000ms');
-    }
-    
-    if (config.qdrant.cache.maxEntries < 1) {
-      errors.push('Qdrant cache max entries must be at least 1');
-    }
-    
-    if (config.qdrant.cache.cleanupInterval < 1000) {
-      errors.push('Qdrant cache cleanup interval must be at least 1000ms');
-    }
-    
-    if (config.nebula.cache.defaultTTL < 1000) {
-      errors.push('Nebula cache default TTL must be at least 1000ms');
-    }
-    
-    if (config.nebula.cache.maxEntries < 1) {
-      errors.push('Nebula cache max entries must be at least 1');
-    }
-    
-    if (config.nebula.cache.cleanupInterval < 1000) {
-      errors.push('Nebula cache cleanup interval must be at least 1000ms');
-    }
-
-    // 验证性能配置
-    if (config.qdrant.performance.monitoringInterval < 1000) {
-      errors.push('Qdrant performance monitoring interval must be at least 1000ms');
-    }
-    
-    if (config.qdrant.performance.metricsRetentionPeriod < 60000) {
-      errors.push('Qdrant performance metrics retention period must be at least 60000ms');
-    }
-    
-    if (config.nebula.performance.monitoringInterval < 1000) {
-      errors.push('Nebula performance monitoring interval must be at least 1000ms');
-    }
-    
-    if (config.nebula.performance.metricsRetentionPeriod < 60000) {
-      errors.push('Nebula performance metrics retention period must be at least 60000ms');
-    }
-
-    // 验证批处理配置
-    if (config.qdrant.batch.maxConcurrentOperations < 1) {
-      errors.push('Qdrant batch max concurrent operations must be at least 1');
-    }
-    
-    if (config.qdrant.batch.maxConcurrentOperations > 100) {
-      errors.push('Qdrant batch max concurrent operations must be at most 100');
-    }
-    
-    if (config.qdrant.batch.defaultBatchSize < 1) {
-      errors.push('Qdrant batch default batch size must be at least 1');
-    }
-    
-    if (config.qdrant.batch.defaultBatchSize > 10000) {
-      errors.push('Qdrant batch default batch size must be at most 10000');
-    }
-    
-    if (config.qdrant.batch.maxBatchSize < 1) {
-      errors.push('Qdrant batch max batch size must be at least 1');
-    }
-    
-    if (config.qdrant.batch.maxBatchSize > 10000) {
-      errors.push('Qdrant batch max batch size must be at most 10000');
-    }
-    
-    if (config.qdrant.batch.minBatchSize < 1) {
-      errors.push('Qdrant batch min batch size must be at least 1');
-    }
-    
-    if (config.qdrant.batch.minBatchSize > 1000) {
-      errors.push('Qdrant batch min batch size must be at most 1000');
-    }
-    
-    if (config.qdrant.batch.memoryThreshold < 10) {
-      errors.push('Qdrant batch memory threshold must be at least 10');
-    }
-    
-    if (config.qdrant.batch.memoryThreshold > 95) {
-      errors.push('Qdrant batch memory threshold must be at most 95');
-    }
-    
-    if (config.qdrant.batch.processingTimeout < 1000) {
-      errors.push('Qdrant batch processing timeout must be at least 1000ms');
-    }
-    
-    if (config.qdrant.batch.retryDelay < 100) {
-      errors.push('Qdrant batch retry delay must be at least 100ms');
-    }
-    
-    if (config.qdrant.batch.performanceThreshold < 100) {
-      errors.push('Qdrant batch performance threshold must be at least 100ms');
-    }
-    
-    if (config.qdrant.batch.adjustmentFactor < 0.01) {
-      errors.push('Qdrant batch adjustment factor must be at least 0.01');
-    }
-    
-    if (config.qdrant.batch.adjustmentFactor > 1.0) {
-      errors.push('Qdrant batch adjustment factor must be at most 1.0');
-    }
-    
-    if (config.nebula.batch.maxConcurrentOperations < 1) {
-      errors.push('Nebula batch max concurrent operations must be at least 1');
-    }
-    
-    if (config.nebula.batch.maxConcurrentOperations > 100) {
-      errors.push('Nebula batch max concurrent operations must be at most 100');
-    }
-    
-    if (config.nebula.batch.defaultBatchSize < 1) {
-      errors.push('Nebula batch default batch size must be at least 1');
-    }
-    
-    if (config.nebula.batch.defaultBatchSize > 10000) {
-      errors.push('Nebula batch default batch size must be at most 10000');
-    }
-    
-    if (config.nebula.batch.maxBatchSize < 1) {
-      errors.push('Nebula batch max batch size must be at least 1');
-    }
-    
-    if (config.nebula.batch.maxBatchSize > 10000) {
-      errors.push('Nebula batch max batch size must be at most 10000');
-    }
-    
-    if (config.nebula.batch.minBatchSize < 1) {
-      errors.push('Nebula batch min batch size must be at least 1');
-    }
-    
-    if (config.nebula.batch.minBatchSize > 1000) {
-      errors.push('Nebula batch min batch size must be at most 1000');
-    }
-    
-    if (config.nebula.batch.memoryThreshold < 10) {
-      errors.push('Nebula batch memory threshold must be at least 10');
-    }
-    
-    if (config.nebula.batch.memoryThreshold > 95) {
-      errors.push('Nebula batch memory threshold must be at most 95');
-    }
-    
-    if (config.nebula.batch.processingTimeout < 1000) {
-      errors.push('Nebula batch processing timeout must be at least 1000ms');
-    }
-    
-    if (config.nebula.batch.retryDelay < 100) {
-      errors.push('Nebula batch retry delay must be at least 100ms');
-    }
-    
-    if (config.nebula.batch.performanceThreshold < 100) {
-      errors.push('Nebula batch performance threshold must be at least 100ms');
-    }
-    
-    if (config.nebula.batch.adjustmentFactor < 0.01) {
-      errors.push('Nebula batch adjustment factor must be at least 0.01');
-    }
-    
-    if (config.nebula.batch.adjustmentFactor > 1.0) {
-      errors.push('Nebula batch adjustment factor must be at most 1.0');
-    }
-
-    // 验证连接配置
-    if (config.qdrant.connection.maxConnections < 1) {
-      errors.push('Qdrant connection max connections must be at least 1');
-    }
-    
-    if (config.qdrant.connection.maxConnections > 1000) {
-      errors.push('Qdrant connection max connections must be at most 1000');
-    }
-    
-    if (config.qdrant.connection.minConnections < 0) {
-      errors.push('Qdrant connection min connections must be at least 0');
-    }
-    
-    if (config.qdrant.connection.connectionTimeout < 1000) {
-      errors.push('Qdrant connection timeout must be at least 1000ms');
-    }
-    
-    if (config.qdrant.connection.idleTimeout < 1000) {
-      errors.push('Qdrant connection idle timeout must be at least 1000ms');
-    }
-    
-    if (config.qdrant.connection.acquireTimeout < 1000) {
-      errors.push('Qdrant connection acquire timeout must be at least 1000ms');
-    }
-    
-    if (config.qdrant.connection.validationInterval < 1000) {
-      errors.push('Qdrant connection validation interval must be at least 1000ms');
-    }
-    
-    if (config.nebula.connection.maxConnections < 1) {
-      errors.push('Nebula connection max connections must be at least 1');
-    }
-    
-    if (config.nebula.connection.maxConnections > 1000) {
-      errors.push('Nebula connection max connections must be at most 1000');
-    }
-    
-    if (config.nebula.connection.minConnections < 0) {
-      errors.push('Nebula connection min connections must be at least 0');
-    }
-    
-    if (config.nebula.connection.connectionTimeout < 1000) {
-      errors.push('Nebula connection timeout must be at least 1000ms');
-    }
-    
-    if (config.nebula.connection.idleTimeout < 1000) {
-      errors.push('Nebula connection idle timeout must be at least 1000ms');
-    }
-    
-    if (config.nebula.connection.acquireTimeout < 1000) {
-      errors.push('Nebula connection acquire timeout must be at least 1000ms');
-    }
-    
-    if (config.nebula.connection.validationInterval < 1000) {
-      errors.push('Nebula connection validation interval must be at least 1000ms');
-    }
-
-    // 验证事务配置
-    if (config.transaction.timeout < 1000) {
-      errors.push('Transaction timeout must be at least 1000ms');
-    }
-    
-    if (config.transaction.retryAttempts < 0) {
-      errors.push('Transaction retry attempts must be at least 0');
-    }
-    
-    if (config.transaction.retryAttempts > 10) {
-      errors.push('Transaction retry attempts must be at most 10');
-    }
-    
-    if (config.transaction.retryDelay < 100) {
-      errors.push('Transaction retry delay must be at least 100ms');
-    }
-    
-    if (config.transaction.maxConcurrentTransactions < 1) {
-      errors.push('Transaction max concurrent transactions must be at least 1');
-    }
-    
-    if (config.transaction.maxConcurrentTransactions > 1000) {
-      errors.push('Transaction max concurrent transactions must be at most 1000');
-    }
-    
-    if (config.transaction.deadlockDetectionTimeout < 1000) {
-      errors.push('Transaction deadlock detection timeout must be at least 1000ms');
-    }
-
-    if (errors.length > 0) {
-      throw new Error(`Infrastructure configuration validation failed: ${errors.join(', ')}`);
-    }
+    ConfigValidationUtil.validateAndThrow(config);
   }
 
   getConfig(): InfrastructureConfig {
     return { ...this.config };
   }
 
-  
-  
-  
+
+
+
   getDatabaseConfig(databaseType: DatabaseType): any {
     switch (databaseType) {
       case DatabaseType.QDRANT:
@@ -934,48 +642,7 @@ export class InfrastructureConfigService {
   }
 
   validateConfig(): boolean {
-    // 验证配置的有效性
-    const errors: string[] = [];
-
-    // 验证Qdrant配置
-    if (this.config.qdrant.connection.maxConnections <= 0) {
-      errors.push('Qdrant maxConnections must be greater than 0');
-    }
-
-    if (this.config.qdrant.connection.minConnections < 0 || this.config.qdrant.connection.minConnections > this.config.qdrant.connection.maxConnections) {
-      errors.push('Qdrant minConnections must be between 0 and maxConnections');
-    }
-
-    // 验证Nebula配置
-    if (this.config.nebula.connection.maxConnections <= 0) {
-      errors.push('Nebula maxConnections must be greater than 0');
-    }
-
-    if (this.config.nebula.connection.minConnections < 0 || this.config.nebula.connection.minConnections > this.config.nebula.connection.maxConnections) {
-      errors.push('Nebula minConnections must be between 0 and maxConnections');
-    }
-
-    // 验证批处理配置
-    if (this.config.qdrant.batch.minBatchSize > this.config.qdrant.batch.maxBatchSize) {
-      errors.push('Qdrant batch minBatchSize cannot be greater than maxBatchSize');
-    }
-
-    if (this.config.nebula.batch.minBatchSize > this.config.nebula.batch.maxBatchSize) {
-      errors.push('Nebula batch minBatchSize cannot be greater than maxBatchSize');
-    }
-
-    // 验证事务配置
-    if (this.config.transaction.timeout <= 0) {
-      errors.push('Transaction timeout must be greater than 0');
-    }
-
-    if (errors.length > 0) {
-      this.logger.error('Configuration validation failed', { errors });
-      return false;
-    }
-
-    this.logger.info('Configuration validation passed');
-    return true;
+    return ConfigValidationUtil.validateAndLog(this.config, this.logger);
   }
 
   async saveConfig(): Promise<void> {

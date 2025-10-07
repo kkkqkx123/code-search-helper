@@ -184,12 +184,13 @@ interface IGraphIndexingCoordinator {
 
 **具体工作：**
 1. 扩展现有基础设施服务支持多数据库类型
-   - ICacheService扩展支持数据库类型参数
-   - IPerformanceMonitor扩展数据库性能指标
-   - IBatchOptimizer扩展支持数据库批处理
-2. 创建ITransactionCoordinator接口和实现
-3. 创建IDatabaseHealthChecker接口和实现
-4. 添加数据库连接池监控
+   - ICacheService扩展支持数据库类型参数，添加图数据专用缓存策略
+   - IPerformanceMonitor扩展数据库性能指标，支持分布式事务监控
+   - IBatchOptimizer扩展支持数据库批处理，添加智能优化算法
+2. 创建ITransactionCoordinator接口和实现，支持分布式两阶段提交
+3. 创建IDatabaseHealthChecker接口和实现，支持多数据库健康状态聚合
+4. 添加数据库连接池监控和自动调优机制
+5. 实现图数据专用缓存服务（GraphCacheService）
 
 **关键文件：**
 - `src/infrastructure/caching/types.ts` - 扩展缓存接口
@@ -197,115 +198,120 @@ interface IGraphIndexingCoordinator {
 - `src/infrastructure/batching/types.ts` - 扩展批处理接口
 - `src/infrastructure/database/TransactionCoordinator.ts` - 事务协调器
 - `src/infrastructure/database/DatabaseHealthChecker.ts` - 健康检查
+- `src/infrastructure/caching/GraphCacheService.ts` - 图数据专用缓存
+- `src/infrastructure/monitoring/DistributedTransactionMonitor.ts` - 分布式事务监控
 
 **验收标准：**
 - 基础设施服务能够支持Nebula和Qdrant两种数据库类型
-- 事务协调器能够管理两阶段提交
-- 数据库健康检查能够监控连接状态
+- 事务协调器能够管理分布式两阶段提交，支持超时和死锁检测
+- 数据库健康检查能够监控连接状态和性能指标
+- 图数据缓存命中率>80%，缓存策略可配置
+- 分布式事务监控覆盖率达到100%
 
 ### 子任务2：异步并行处理和映射策略
-**优先级：P0**
+**优先级：P0（最高）**
 
 **具体工作：**
-1. 重构IndexingLogicService实现异步并行处理
-   - 向量数据和图数据并行处理
-   - 使用Promise.all管理并发操作
-   - 实现错误隔离，一个失败不影响另一个
-2. 创建IMappingStrategy接口和实现
-   - FileMappingStrategy、FunctionMappingStrategy、ClassMappingStrategy
-   - 支持增量映射和变更检测
-3. 实现智能缓存策略
-   - 缓存解析结果避免重复处理
-   - 支持缓存失效和更新机制
+1. 实现GraphDataMappingService接口和实现，支持智能缓存和批量优化
+2. 扩展IndexingLogicService支持并行处理，集成性能监控和缓存策略
+3. 实现异步任务队列和错误重试机制，支持事务回滚和状态恢复
+4. 添加数据映射验证和转换逻辑，集成分布式事务监控
+5. 实现图数据批量优化器，支持智能批处理策略
 
 **关键文件：**
-- `src/service/index/IndexingLogicService.ts` - 重构索引逻辑
-- `src/service/graph/mapping/MappingStrategy.ts` - 映射策略接口
-- `src/service/graph/mapping/FileMappingStrategy.ts` - 文件映射策略
+- `src/service/mapping/GraphDataMappingService.ts` - 图数据映射服务
+- `src/service/index/IndexingLogicService.ts` - 扩展索引逻辑
+- `src/service/async/AsyncTaskQueue.ts` - 异步任务队列
+- `src/service/validation/DataMappingValidator.ts` - 数据映射验证
+- `src/service/caching/GraphMappingCache.ts` - 图映射缓存
+- `src/service/batching/GraphBatchOptimizer.ts` - 图批量优化器
 
 **验收标准：**
-- 索引时间增加不超过20%（相比纯向量索引）
-- 支持增量更新，只处理变更文件
-- 映射策略可配置和扩展
+- GraphDataMappingService能够将AST节点映射为图节点和关系，缓存命中率>85%
+- 索引流程支持并行处理多个文件，性能提升>50%
+- 异步任务队列支持错误重试和状态跟踪，事务回滚成功率100%
+- 数据映射验证覆盖率达到95%以上，集成分布式事务监控
+- 批量优化器支持智能批处理，处理效率提升>40%
 
 ### 子任务3：两阶段提交事务和数据一致性
-**优先级：P1**
+**优先级：P1（高）**
 
 **具体工作：**
-1. 实现两阶段提交事务机制
-   - 预提交阶段：验证Qdrant和Nebula的可用性
-   - 提交阶段：并行执行实际的存储操作
-   - 回滚阶段：任一失败时回滚已完成的操作
-2. 实现补偿事务（Saga模式）
-   - 记录每个操作的状态
-   - 失败时按逆序执行补偿操作
-3. 添加事务超时和死锁检测
-4. 实现数据一致性验证器
+1. 实现分布式两阶段提交协议，支持超时和死锁检测
+2. 添加事务日志和恢复机制，集成性能监控和缓存策略
+3. 实现数据一致性检查器，支持实时监控和告警
+4. 添加冲突检测和解决策略，集成智能缓存失效机制
+5. 实现事务性能优化器，支持批量事务处理
 
 **关键文件：**
-- `src/infrastructure/database/TwoPhaseCommitCoordinator.ts` - 两阶段提交协调器
-- `src/infrastructure/database/SagaTransactionManager.ts` - Saga事务管理器
-- `src/service/validation/DataConsistencyValidator.ts` - 一致性验证器
+- `src/service/transaction/TwoPhaseCommit.ts` - 两阶段提交实现
+- `src/service/transaction/TransactionLogger.ts` - 事务日志
+- `src/service/consistency/DataConsistencyChecker.ts` - 一致性检查
+- `src/service/conflict/ConflictResolver.ts` - 冲突解决
+- `src/service/transaction/DistributedTransactionMonitor.ts` - 分布式事务监控
+- `src/service/transaction/TransactionPerformanceOptimizer.ts` - 事务性能优化器
+- `src/service/caching/TransactionCacheManager.ts` - 事务缓存管理器
 
 **验收标准：**
-- 事务成功率>99%
-- 数据一致性检查通过率100%
-- 支持自动回滚和恢复
-- 事务超时时间可配置（默认30秒）
+- 两阶段提交成功率达到99.9%，支持分布式事务监控
+- 事务恢复机制能够处理系统故障，恢复时间<5分钟
+- 数据一致性检查覆盖所有关键数据，实时监控覆盖率100%
+- 冲突解决策略能够自动处理常见冲突，缓存一致性保持100%
+- 事务性能优化器支持批量处理，事务吞吐量提升>60%
 
 ### 子任务4：高级映射功能和容错处理
-**优先级：P2**
+**优先级：P1（高）**
 
 **具体工作：**
-1. 实现高级映射功能
-   - 支持复杂代码结构（嵌套类、lambda表达式等）
-   - 实现关系映射（继承、实现、依赖等）
-   - 支持代码语义分析（函数调用关系、变量作用域等）
-2. 实现容错处理机制
-   - 部分映射失败时的处理策略
-   - 支持降级模式（只映射基础信息）
-   - 错误恢复和重试机制
-3. 添加映射规则配置
-   - 支持自定义映射规则
-   - 提供映射规则验证
-   - 支持规则热更新
+1. 实现高级映射功能（继承关系、调用链等），集成智能缓存策略
+2. 添加容错处理和降级策略，支持缓存失效和事务回滚
+3. 实现映射规则引擎，集成性能监控和批量优化
+4. 添加映射性能优化，支持分布式事务一致性
+5. 实现映射缓存管理器，支持多级缓存策略
 
 **关键文件：**
-- `src/service/graph/mapping/AdvancedMappingService.ts` - 高级映射服务
-- `src/service/graph/mapping/MappingRuleEngine.ts` - 映射规则引擎
-- `src/service/graph/mapping/MappingErrorHandler.ts` - 映射错误处理
+- `src/service/mapping/AdvancedMappingService.ts` - 高级映射服务
+- `src/service/fault/FaultToleranceHandler.ts` - 容错处理
+- `src/service/rules/MappingRuleEngine.ts` - 映射规则引擎
+- `src/service/optimization/MappingOptimizer.ts` - 映射优化器
+- `src/service/caching/MappingCacheManager.ts` - 映射缓存管理器
+- `src/service/monitoring/MappingPerformanceMonitor.ts` - 映射性能监控
+- `src/service/batching/MappingBatchProcessor.ts` - 映射批量处理器
 
 **验收标准：**
-- 支持95%以上的代码结构映射
-- 容错处理覆盖率>90%
-- 映射规则可动态配置
+- 支持复杂代码关系的映射（继承、实现、调用等），缓存命中率>90%
+- 容错处理能够保证系统在部分故障时继续运行，降级成功率>95%
+- 映射规则可配置和扩展，性能监控覆盖率100%
+- 映射性能相比基础版本提升50%以上，批量处理效率提升>60%
+- 分布式事务一致性保持100%，缓存一致性保持99.9%
 
 ### 子任务5：性能监控和优化
-**优先级：P3**
+**优先级：P2（中）**
 
 **具体工作：**
-1. 实现性能监控仪表板
-   - 索引时间趋势分析
-   - 数据库操作性能指标
-   - 缓存命中率和批处理效果
-2. 实现自动性能优化
-   - 动态调整批大小
-   - 智能缓存策略
-   - 连接池优化
-3. 添加性能基准测试
-   - 建立性能基准线
-   - 性能回归检测
-   - 优化效果验证
+1. 实现分布式性能监控仪表板，集成缓存和事务监控
+2. 添加性能指标收集和分析，支持实时告警和趋势分析
+3. 实现智能优化建议引擎，集成缓存策略和批量优化
+4. 添加性能基准测试，支持多数据库性能对比
+5. 实现缓存性能监控器，支持缓存命中率分析和优化
+6. 添加批量处理性能优化器，支持智能批处理策略
 
 **关键文件：**
-- `src/infrastructure/monitoring/PerformanceDashboard.ts` - 性能监控仪表板
-- `src/infrastructure/optimization/AutoOptimizer.ts` - 自动优化器
-- `src/benchmark/GraphIndexingBenchmark.ts` - 性能基准测试
+- `src/service/monitoring/PerformanceDashboard.ts` - 性能仪表板
+- `src/service/metrics/PerformanceMetricsCollector.ts` - 指标收集
+- `src/service/optimization/AutoOptimizationAdvisor.ts` - 自动优化建议
+- `src/service/benchmark/PerformanceBenchmark.ts` - 性能基准测试
+- `src/service/monitoring/CachePerformanceMonitor.ts` - 缓存性能监控
+- `src/service/monitoring/TransactionPerformanceMonitor.ts` - 事务性能监控
+- `src/service/optimization/BatchProcessingOptimizer.ts` - 批量处理优化器
+- `src/service/caching/CacheStrategyOptimizer.ts` - 缓存策略优化器
 
 **验收标准：**
-- 性能下降超过10%时自动报警
-- 优化后性能提升>15%
-- 提供详细的性能分析报告
+- 性能监控仪表板能够实时显示关键指标，缓存和事务监控覆盖率100%
+- 性能指标收集覆盖率达到98%以上，支持实时告警响应时间<30秒
+- 智能优化建议准确率达到85%以上，缓存策略优化效果提升>40%
+- 性能基准测试能够比较不同配置的性能差异，批量处理效率提升>50%
+- 缓存命中率监控精度>95%，缓存策略自适应调整成功率>90%
 
 ## 四、数据结构设计
 
@@ -378,9 +384,11 @@ interface GraphRelationship {
 3. **第三阶段**：全面测试和优化（子任务5）
 
 ### 风险控制
-1. **数据一致性风险**：建议在测试环境中充分验证后再上线
-2. **性能风险**：建议先在非关键项目上试运行
-3. **复杂性风险**：建议保持接口简单，逐步增加功能
+1. **数据一致性风险**：建议在测试环境中充分验证后再上线，实施分布式两阶段提交事务机制，支持超时和死锁检测
+2. **性能风险**：建议先在非关键项目上试运行，集成智能缓存和批量优化策略
+3. **复杂性风险**：建议保持接口简单，逐步增加功能，实施多级缓存策略和缓存一致性验证
+4. **缓存策略风险**：实施多级缓存策略，支持缓存失效和更新机制，添加缓存一致性验证
+5. **批量处理风险**：实施智能批量优化策略，支持动态批大小调整，添加批量处理监控
 
 ### 监控指标
 - 图数据存储成功率
