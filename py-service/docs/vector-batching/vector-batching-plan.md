@@ -114,43 +114,25 @@ class ConcurrentExecutionOptimizer:
 ## 📁 项目结构
 
 ```
-vector-batching/
+py-service/
 ├── docs/                    # 文档
-│   └── python-implementation-plan.md
+│   ├── graph-search/       # 图搜索相关文档
+│   ├── vector-batching/    # 向量批处理相关文档
+│   │   └── vector-batching-plan.md
+│   └── 下载依赖.txt
 ├── src/                    # Python源代码
-│   ├── api/               # API接口层
-│   │   ├── __init__.py
-│   │   ├── routes/        # 路由定义
-│   │   │   ├── batch_optimization.py
-│   │   │   ├── performance_monitoring.py
-│   │   │   └── strategy_management.py
-│   │   └── middleware/    # 中间件
-│   ├── core/              # 核心算法
-│   │   ├── batch_size_calculator/   # 批大小计算
-│   │   ├── strategy_optimizer/      # 策略优化
-│   │   ├── dimension_adapter/       # 维度适配
-│   │   └── concurrency_optimizer/   # 并发优化
-│   ├── models/            # 数据模型
-│   │   ├── batch_models.py
-│   │   ├── performance_models.py
-│   │   └── optimization_models.py
-│   ├── services/          # 业务服务
-│   │   ├── batch_optimization_service.py
-│   │   ├── performance_monitoring_service.py
-│   │   └── strategy_management_service.py
-│   ├── utils/             # 工具函数
-│   │   ├── math_utils.py
-│   │   ├── performance_utils.py
-│   │   └── validation_utils.py
-│   └── config/            # 配置管理
-│       └── settings.py
-├── tests/                 # 测试代码
-│   ├── unit/             # 单元测试
-│   ├── integration/      # 集成测试
-│   └── performance/      # 性能测试
-├── requirements.txt       # Python依赖
-├── Dockerfile            # 容器化配置
-└── main.py              # 服务入口
+│   ├── graph-search/       # 图搜索核心代码（目前为空）
+│   ├── main.py             # 服务入口
+│   └── typescript-client/  # TypeScript客户端
+│       └── GraphSearchPythonClient.ts
+├── requirements.txt        # Python依赖
+├── package.json           # Node.js依赖配置
+├── package-lock.json      # Node.js依赖锁定文件
+├── tsconfig.json          # TypeScript配置
+├── jest.config.js         # Jest测试配置
+├── .eslintrc.js           # ESLint配置
+├── docker-compose.yml     # Docker编排配置
+└── README.md             # 项目说明文档
 ```
 
 ## 🔌 API接口设计

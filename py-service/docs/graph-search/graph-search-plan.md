@@ -67,25 +67,24 @@ class SmartQueryOptimizer:
 ## 📁 项目结构
 
 ```
-graph-search/
+py-service/
 ├── docs/                    # 文档
-│   └── python-implementation-plan.md
+│   ├── graph-search/       # 图搜索相关文档
+│   │   └── graph-search-plan.md
+│   └── 下载依赖.txt
 ├── src/                    # Python源代码
-│   ├── api/               # API接口层
-│   │   ├── __init__.py
-│   │   ├── routes/        # 路由定义
-│   │   └── middleware/    # 中间件
-│   ├── core/              # 核心算法
-│   │   ├── fuzzy_match/   # 模糊匹配
-│   │   ├── graph_index/   # 图索引
-│   │   └── query_optimizer/ # 查询优化
-│   ├── models/            # 数据模型
-│   ├── services/          # 业务服务
-│   └── utils/             # 工具函数
-├── tests/                 # 测试代码
-├── requirements.txt       # Python依赖
-├── Dockerfile            # 容器化配置
-└── main.py              # 服务入口
+│   ├── graph-search/       # 图搜索核心代码（目前为空）
+│   ├── main.py             # 服务入口
+│   └── typescript-client/  # TypeScript客户端
+│       └── GraphSearchPythonClient.ts
+├── requirements.txt        # Python依赖
+├── package.json           # Node.js依赖配置
+├── package-lock.json      # Node.js依赖锁定文件
+├── tsconfig.json          # TypeScript配置
+├── jest.config.js         # Jest测试配置
+├── .eslintrc.js           # ESLint配置
+├── docker-compose.yml     # Docker编排配置
+└── README.md             # 项目说明文档
 ```
 
 ## 🔌 API接口设计
