@@ -243,6 +243,7 @@ export const TYPES = {
   
   // 批处理优化服务
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
+  VectorBatchOptimizer: Symbol.for('VectorBatchOptimizer'),
   
   // 事务相关服务
   TransactionLogger: Symbol.for('TransactionLogger'),

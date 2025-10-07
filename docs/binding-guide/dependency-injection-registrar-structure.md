@@ -23,8 +23,9 @@
 - 注册图服务的基础设施组件，包括：
   - 缓存服务 (`GraphCacheService`)
   - 性能监控服务 (`GraphPerformanceMonitor`)
-  - 批处理优化服务 (`GraphBatchOptimizer`)
+  - 图批处理优化服务 (`GraphBatchOptimizer`)
   - 查询验证服务 (`GraphQueryValidator`)
+  - 向量批处理优化服务 (`VectorBatchOptimizer`)
 
 ### 3. DatabaseServiceRegistrar
 
@@ -108,6 +109,14 @@
   - 图服务适配器 (`GraphServiceNewAdapter`)
 - 依赖于下层注册器提供的服务，如数据库层和基础设施层的服务
 
+### 7. 批处理优化服务集成状态
+
+**当前状态**:
+- **GraphBatchOptimizer**: ✅ 已在 `InfrastructureServiceRegistrar` 中正确绑定
+- **BatchProcessingOptimizer**: ✅ 已在 `InfrastructureServiceRegistrar` 中正确绑定  
+- **BatchProcessingConfigService**: ✅ 已在 `ConfigServiceRegistrar` 中正确绑定
+- **VectorBatchOptimizer**: ✅ 已在 `InfrastructureServiceRegistrar` 中正确绑定（2025-10-04 修复）
+
 ## 加载顺序
 
 在 `DIContainer.ts` 中，服务按照以下顺序注册和加载：
@@ -132,3 +141,4 @@
 ## 更新记录
 
 - 2025-10-04: 初始版本，明确了各注册器的职责划分，并移除了 `BusinessServiceRegistrar` 中与 `GraphModule` 重复的图核心业务服务绑定。
+- 2025-10-04: 添加 `VectorBatchOptimizer` 到 `InfrastructureServiceRegistrar` 职责描述，并更新批处理服务集成状态说明。

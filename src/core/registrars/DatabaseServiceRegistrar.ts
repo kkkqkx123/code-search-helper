@@ -1,7 +1,10 @@
 import { Container } from 'inversify';
 import { TYPES } from '../../types';
 import { TransactionManager } from '../../database/core/TransactionManager';
+
+// 项目管理服务
 import { ProjectIdManager } from '../../database/ProjectIdManager';
+import { ProjectLookupService } from '../../database/ProjectLookupService';
 
 // Qdrant 向量数据库服务
 import { QdrantService } from '../../database/qdrant/QdrantService';
@@ -50,6 +53,7 @@ export class DatabaseServiceRegistrar {
   static register(container: Container): void {
     // 通用数据库服务
     container.bind<ProjectIdManager>(TYPES.ProjectIdManager).to(ProjectIdManager).inSingletonScope();
+    container.bind<ProjectLookupService>(TYPES.ProjectLookupService).to(ProjectLookupService).inSingletonScope();
     container.bind<TransactionManager>(TYPES.TransactionManager).to(TransactionManager).inSingletonScope();
 
     // 数据库日志和监控服务
