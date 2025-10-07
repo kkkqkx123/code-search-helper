@@ -238,6 +238,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
   /**
    * 等待客户端连接就绪
+   * 针对@nebula-contrib/nebula-nodejs库的特殊处理
    */
   private async waitForClientConnection(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
@@ -247,8 +248,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
       // 标记是否已连接，防止重复触发
       let connected = false;
-      let readyConnections = 0;
-      const totalConnections = this.config.maxConnections || 10;
+      let authorizedCount = 0;
+      const requiredAuthorizations = 1; // 只需要一个成功的授权
 
       // 监听 ready 事件，这是连接完全就绪的标志
       const onReady = (event: any) => {
@@ -289,31 +290,29 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         }
       };
 
-      // 监听 authorized 事件以进行调试
+      // 监听 authorized 事件 - 这是库版本问题的关键事件
       const onAuthorized = (event: any) => {
         try {
           const connectionId = event.sender?.connectionId;
           console.log(`[NebulaConnectionManager] Client authorized event:`, { connectionId });
 
-          // 在authorized后，等待1秒然后检查连接是否ready
+          authorizedCount++;
+          
+          // 对于@nebula-contrib/nebula-nodejs库版本3.0.3，在authorized事件后
+          // 需要等待一段时间让会话完全就绪，然后直接认为连接成功
+          // 因为ready事件可能永远不会触发
           setTimeout(() => {
-            if (!connected && this.client) {
-              // 检查当前连接是否ready
-              if (event.sender?.isReady) {
-                readyConnections++;
-                console.log(`[NebulaConnectionManager] Connection ${connectionId} is ready (${readyConnections}/${totalConnections})`);
-                if (readyConnections >= 1 && !connected) {
-                  connected = true;
-                  clearTimeout(timeout);
-                  this.client.removeListener('ready', onReady);
-                  this.client.removeListener('error', onError);
-                  this.client.removeListener('connected', onConnected);
-                  this.client.removeListener('authorized', onAuthorized);
-                  resolve();
-                }
-              }
+            if (!connected && authorizedCount >= requiredAuthorizations) {
+              console.log(`[NebulaConnectionManager] Connection authorized ${authorizedCount} times, considering connection ready`);
+              connected = true;
+              clearTimeout(timeout);
+              this.client.removeListener('ready', onReady);
+              this.client.removeListener('error', onError);
+              this.client.removeListener('connected', onConnected);
+              this.client.removeListener('authorized', onAuthorized);
+              resolve();
             }
-          }, 1000);
+          }, 2000); // 增加等待时间到2秒，确保会话完全就绪
         } catch (error) {
           console.error('[NebulaConnectionManager] Error in authorized event handler:', error);
           if (!connected) {
@@ -328,7 +327,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         }
       };
 
-      // 定义错误处理函数
+      // 定义错误处理函数 - 特别处理"会话无效或连接未就绪"错误
       const onError = (error: any) => {
         try {
           // 安全地提取错误信息，避免循环引用问题
@@ -357,6 +356,31 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           }
           
           console.log(`[NebulaConnectionManager] Client error event:`, { error: errorMessage });
+          
+          // 特别处理"会话无效或连接未就绪"错误
+          // 这个错误在库版本3.0.3中经常出现，但不一定意味着连接失败
+          if (errorMessage.includes('会话无效或连接未就绪') ||
+              errorMessage.includes('Session invalid') ||
+              errorMessage.includes('Connection not ready')) {
+            
+            console.log(`[NebulaConnectionManager] Session not ready error, waiting for authorization...`);
+            
+            // 不要立即拒绝，而是等待授权事件
+            // 如果已经收到足够的授权，就认为连接成功
+            if (authorizedCount >= requiredAuthorizations && !connected) {
+              console.log(`[NebulaConnectionManager] Session error but already authorized, considering connection ready`);
+              connected = true;
+              clearTimeout(timeout);
+              this.client.removeListener('ready', onReady);
+              this.client.removeListener('error', onError);
+              this.client.removeListener('connected', onConnected);
+              this.client.removeListener('authorized', onAuthorized);
+              resolve();
+            }
+            return; // 不要拒绝，继续等待
+          }
+          
+          // 对于其他类型的错误，拒绝连接
           if (!connected) {
             clearTimeout(timeout);
             // 移除事件监听器
@@ -371,9 +395,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           if (!connected) {
             clearTimeout(timeout);
             this.client.removeListener('ready', onReady);
+            this.client.removeListener('error', onError);
             this.client.removeListener('connected', onConnected);
             this.client.removeListener('authorized', onAuthorized);
-            this.client.removeListener('error', onError);
             // 使用安全错误信息
             reject(new Error('Connection failed with unhandled error'));
           }

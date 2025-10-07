@@ -93,7 +93,20 @@ class Connection extends _events.EventEmitter {
           command: `Use ${this.connectionOption.space}`,
           returnOriginalData: false,
           resolve,
-          reject
+          reject: (err) => {
+            // 修复：如果 USE 命令失败，仍然标记连接为就绪
+            console.warn(`Failed to switch to space '${this.connectionOption.space}':`, err.message);
+            console.warn('Marking connection as ready anyway. Space switching will be handled by explicit queries.');
+            this.isReady = true;
+            this.isBusy = false;
+            this.emit('ready', {
+              sender: this
+            });
+            this.emit('free', {
+              sender: this
+            });
+            resolve();
+          }
         });
       });
     }).then(response => {
@@ -204,12 +217,18 @@ class Connection extends _events.EventEmitter {
   }
   run(task) {
     // 执行前验证会话状态
-    if (!this.sessionId || !this.isReady) {
-      const error = new _NebulaError.default(9995, '会话无效或连接未就绪');
+    if (!this.sessionId) {
+      const error = new _NebulaError.default(9995, '会话无效');
       task.reject(error);
       this.isBusy = false;
       this.emit('free', { sender: this });
       return;
+    }
+
+    // 修复：如果 sessionId 存在但 isReady 为 false，尝试执行查询
+    // 这允许连接在就绪状态检查失败的情况下仍然可以工作
+    if (!this.isReady) {
+      console.warn(`Connection not fully ready, but attempting to execute query anyway. Session: ${this.sessionId ? 'present' : 'missing'}`);
     }
     
     this.isBusy = true;
