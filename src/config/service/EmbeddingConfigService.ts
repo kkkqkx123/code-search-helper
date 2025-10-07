@@ -1,7 +1,7 @@
 import { injectable } from 'inversify';
 import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
-import { LegacyEmbeddingConfig } from '../ConfigTypes';
+import { EnvironmentUtils, ValidationUtils } from '../ConfigTypes';
 
 /**
  * Base embedding provider configuration

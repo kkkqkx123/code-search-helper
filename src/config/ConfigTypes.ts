@@ -17,60 +17,6 @@ export interface EmbeddingConfig {
   providerConfig?: any; // Simplified to use provider factory pattern
 }
 
-export interface LegacyEmbeddingConfig {
-  provider: string;
-  openai: {
-    apiKey?: string;
-    baseUrl?: string;
-    model: string;
-    dimensions: number;
-  };
-  ollama: {
-    baseUrl: string;
-    model: string;
-    dimensions: number;
-  };
-  gemini: {
-    apiKey?: string;
-    baseUrl?: string;
-    model: string;
-    dimensions: number;
-  };
-  mistral: {
-    apiKey?: string;
-    baseUrl?: string;
-    model: string;
-    dimensions: number;
-  };
-  siliconflow: {
-    apiKey?: string;
-    baseUrl?: string;
-    model: string;
-    dimensions: number;
-  };
-  custom?: {
-    custom1?: {
-      apiKey?: string;
-      baseUrl?: string;
-      model?: string;
-      dimensions?: number;
-    };
-    custom2?: {
-      apiKey?: string;
-      baseUrl?: string;
-      model?: string;
-      dimensions?: number;
-    };
-    custom3?: {
-      apiKey?: string;
-      baseUrl?: string;
-      model?: string;
-      dimensions?: number;
-    };
-  };
-  qualityWeight?: number;
-  performanceWeight?: number;
-}
 
 export interface EnvironmentConfig {
   nodeEnv: string;
@@ -278,3 +224,4 @@ export interface AppConfig {
 // 导出工具类类型
 export { EnvironmentUtils } from './utils/EnvironmentUtils';
 export { ValidationUtils } from './utils/ValidationUtils';
+export { ConfigValidationDecorator } from './utils/ConfigValidationDecorator';

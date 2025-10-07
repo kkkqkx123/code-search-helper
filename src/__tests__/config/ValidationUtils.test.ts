@@ -4,204 +4,266 @@ import { ValidationUtils } from '../../config/utils/ValidationUtils';
 describe('ValidationUtils', () => {
   describe('portSchema', () => {
     it('should create a port schema with the correct default value', () => {
-      const schema = ValidationUtils.portSchema(3000);
+      const schema = Joi.object({
+        port: ValidationUtils.portSchema(3000)
+      });
       const { value } = schema.validate({});
-      expect(value).toBe(3000);
+      expect(value.port).toBe(3000);
     });
 
     it('should validate a valid port number', () => {
-      const schema = ValidationUtils.portSchema(3000);
-      const { value } = schema.validate(8080);
-      expect(value).toBe(8080);
+      const schema = Joi.object({
+        port: ValidationUtils.portSchema(3000)
+      });
+      const { value } = schema.validate({ port: 8080 });
+      expect(value.port).toBe(8080);
     });
 
     it('should reject an invalid port number', () => {
-      const schema = ValidationUtils.portSchema(3000);
-      const { error } = schema.validate(99999);
+      const schema = Joi.object({
+        port: ValidationUtils.portSchema(3000)
+      });
+      const { error } = schema.validate({ port: 99999 });
       expect(error).toBeDefined();
     });
   });
 
   describe('positiveNumberSchema', () => {
     it('should create a positive number schema with the correct default value', () => {
-      const schema = ValidationUtils.positiveNumberSchema(42);
+      const schema = Joi.object({
+        number: ValidationUtils.positiveNumberSchema(42)
+      });
       const { value } = schema.validate({});
-      expect(value).toBe(42);
+      expect(value.number).toBe(42);
     });
 
     it('should validate a positive number', () => {
-      const schema = ValidationUtils.positiveNumberSchema(42);
-      const { value } = schema.validate(100);
-      expect(value).toBe(100);
+      const schema = Joi.object({
+        number: ValidationUtils.positiveNumberSchema(42)
+      });
+      const { value } = schema.validate({ number: 100 });
+      expect(value.number).toBe(100);
     });
 
     it('should reject a negative number', () => {
-      const schema = ValidationUtils.positiveNumberSchema(42);
-      const { error } = schema.validate(-1);
+      const schema = Joi.object({
+        number: ValidationUtils.positiveNumberSchema(42)
+      });
+      const { error } = schema.validate({ number: -1 });
       expect(error).toBeDefined();
     });
 
     it('should reject zero', () => {
-      const schema = ValidationUtils.positiveNumberSchema(42);
-      const { error } = schema.validate(0);
+      const schema = Joi.object({
+        number: ValidationUtils.positiveNumberSchema(42)
+      });
+      const { error } = schema.validate({ number: 0 });
       expect(error).toBeDefined();
     });
   });
 
   describe('optionalPositiveNumberSchema', () => {
     it('should create an optional positive number schema with the correct default value', () => {
-      const schema = ValidationUtils.optionalPositiveNumberSchema(42);
+      const schema = Joi.object({
+        number: ValidationUtils.optionalPositiveNumberSchema(42)
+      });
       const { value } = schema.validate({});
-      expect(value).toBe(42);
+      expect(value.number).toBe(42);
     });
 
     it('should create an optional positive number schema without default value', () => {
-      const schema = ValidationUtils.optionalPositiveNumberSchema();
+      const schema = Joi.object({
+        number: ValidationUtils.optionalPositiveNumberSchema()
+      });
       const { value } = schema.validate({});
-      expect(value).toBeUndefined();
+      expect(value.number).toBeUndefined();
     });
 
     it('should validate a positive number', () => {
-      const schema = ValidationUtils.optionalPositiveNumberSchema(42);
-      const { value } = schema.validate(100);
-      expect(value).toBe(100);
+      const schema = Joi.object({
+        number: ValidationUtils.optionalPositiveNumberSchema(42)
+      });
+      const { value } = schema.validate({ number: 100 });
+      expect(value.number).toBe(100);
     });
 
     it('should reject a negative number', () => {
-      const schema = ValidationUtils.optionalPositiveNumberSchema(42);
-      const { error } = schema.validate(-1);
+      const schema = Joi.object({
+        number: ValidationUtils.optionalPositiveNumberSchema(42)
+      });
+      const { error } = schema.validate({ number: -1 });
       expect(error).toBeDefined();
     });
   });
 
   describe('booleanSchema', () => {
     it('should create a boolean schema with the correct default value', () => {
-      const schema = ValidationUtils.booleanSchema(true);
+      const schema = Joi.object({
+        boolean: ValidationUtils.booleanSchema(true)
+      });
       const { value } = schema.validate({});
-      expect(value).toBe(true);
+      expect(value.boolean).toBe(true);
     });
 
     it('should validate a boolean value', () => {
-      const schema = ValidationUtils.booleanSchema(true);
-      const { value } = schema.validate(false);
-      expect(value).toBe(false);
+      const schema = Joi.object({
+        boolean: ValidationUtils.booleanSchema(true)
+      });
+      const { value } = schema.validate({ boolean: false });
+      expect(value.boolean).toBe(false);
     });
   });
 
   describe('enumSchema', () => {
     it('should create an enum schema with the correct default value', () => {
-      const schema = ValidationUtils.enumSchema(['a', 'b', 'c'], 'a');
+      const schema = Joi.object({
+        enum: ValidationUtils.enumSchema(['a', 'b', 'c'], 'a')
+      });
       const { value } = schema.validate({});
-      expect(value).toBe('a');
+      expect(value.enum).toBe('a');
     });
 
     it('should validate an allowed enum value', () => {
-      const schema = ValidationUtils.enumSchema(['a', 'b', 'c'], 'a');
-      const { value } = schema.validate('b');
-      expect(value).toBe('b');
+      const schema = Joi.object({
+        enum: ValidationUtils.enumSchema(['a', 'b', 'c'], 'a')
+      });
+      const { value } = schema.validate({ enum: 'b' });
+      expect(value.enum).toBe('b');
     });
 
     it('should reject a disallowed enum value', () => {
-      const schema = ValidationUtils.enumSchema(['a', 'b', 'c'], 'a');
-      const { error } = schema.validate('d');
+      const schema = Joi.object({
+        enum: ValidationUtils.enumSchema(['a', 'b', 'c'], 'a')
+      });
+      const { error } = schema.validate({ enum: 'd' });
       expect(error).toBeDefined();
     });
   });
 
   describe('optionalStringSchema', () => {
     it('should create an optional string schema with the correct default value', () => {
-      const schema = ValidationUtils.optionalStringSchema('default');
+      const schema = Joi.object({
+        string: ValidationUtils.optionalStringSchema('default')
+      });
       const { value } = schema.validate({});
-      expect(value).toBe('default');
+      expect(value.string).toBe('default');
     });
 
     it('should create an optional string schema without default value', () => {
-      const schema = ValidationUtils.optionalStringSchema();
+      const schema = Joi.object({
+        string: ValidationUtils.optionalStringSchema()
+      });
       const { value } = schema.validate({});
-      expect(value).toBeUndefined();
+      expect(value.string).toBeUndefined();
     });
 
     it('should validate a string value', () => {
-      const schema = ValidationUtils.optionalStringSchema('default');
-      const { value } = schema.validate('test');
-      expect(value).toBe('test');
+      const schema = Joi.object({
+        string: ValidationUtils.optionalStringSchema('default')
+      });
+      const { value } = schema.validate({ string: 'test' });
+      expect(value.string).toBe('test');
     });
   });
 
   describe('uriSchema', () => {
     it('should create a URI schema with the correct default value', () => {
-      const schema = ValidationUtils.uriSchema('http://localhost');
+      const schema = Joi.object({
+        uri: ValidationUtils.uriSchema('http://localhost')
+      });
       const { value } = schema.validate({});
-      expect(value).toBe('http://localhost');
+      expect(value.uri).toBe('http://localhost');
     });
 
     it('should create an optional URI schema without default value', () => {
-      const schema = ValidationUtils.uriSchema();
+      const schema = Joi.object({
+        uri: ValidationUtils.uriSchema()
+      });
       const { value } = schema.validate({});
-      expect(value).toBeUndefined();
+      expect(value.uri).toBeUndefined();
     });
 
     it('should validate a valid URI', () => {
-      const schema = ValidationUtils.uriSchema();
-      const { value } = schema.validate('http://example.com');
-      expect(value).toBe('http://example.com');
+      const schema = Joi.object({
+        uri: ValidationUtils.uriSchema()
+      });
+      const { value } = schema.validate({ uri: 'http://example.com' });
+      expect(value.uri).toBe('http://example.com');
     });
 
     it('should reject an invalid URI', () => {
-      const schema = ValidationUtils.uriSchema();
-      const { error } = schema.validate('invalid-uri');
+      const schema = Joi.object({
+        uri: ValidationUtils.uriSchema()
+      });
+      const { error } = schema.validate({ uri: 'invalid-uri' });
       expect(error).toBeDefined();
     });
   });
 
   describe('rangeNumberSchema', () => {
     it('should create a range number schema with the correct default value', () => {
-      const schema = ValidationUtils.rangeNumberSchema(1, 100, 50);
+      const schema = Joi.object({
+        number: ValidationUtils.rangeNumberSchema(1, 100, 50)
+      });
       const { value } = schema.validate({});
-      expect(value).toBe(50);
+      expect(value.number).toBe(50);
     });
 
     it('should validate a number within range', () => {
-      const schema = ValidationUtils.rangeNumberSchema(1, 100, 50);
-      const { value } = schema.validate(75);
-      expect(value).toBe(75);
+      const schema = Joi.object({
+        number: ValidationUtils.rangeNumberSchema(1, 100, 50)
+      });
+      const { value } = schema.validate({ number: 75 });
+      expect(value.number).toBe(75);
     });
 
     it('should reject a number below the minimum', () => {
-      const schema = ValidationUtils.rangeNumberSchema(1, 100, 50);
-      const { error } = schema.validate(0);
+      const schema = Joi.object({
+        number: ValidationUtils.rangeNumberSchema(1, 100, 50)
+      });
+      const { error } = schema.validate({ number: 0 });
       expect(error).toBeDefined();
     });
 
     it('should reject a number above the maximum', () => {
-      const schema = ValidationUtils.rangeNumberSchema(1, 100, 50);
-      const { error } = schema.validate(101);
+      const schema = Joi.object({
+        number: ValidationUtils.rangeNumberSchema(1, 100, 50)
+      });
+      const { error } = schema.validate({ number: 101 });
       expect(error).toBeDefined();
     });
   });
 
   describe('optionalRangeNumberSchema', () => {
     it('should create an optional range number schema with the correct default value', () => {
-      const schema = ValidationUtils.optionalRangeNumberSchema(1, 100, 50);
+      const schema = Joi.object({
+        number: ValidationUtils.optionalRangeNumberSchema(1, 100, 50)
+      });
       const { value } = schema.validate({});
-      expect(value).toBe(50);
+      expect(value.number).toBe(50);
     });
 
     it('should create an optional range number schema without default value', () => {
-      const schema = ValidationUtils.optionalRangeNumberSchema(1, 100);
+      const schema = Joi.object({
+        number: ValidationUtils.optionalRangeNumberSchema(1, 100)
+      });
       const { value } = schema.validate({});
-      expect(value).toBeUndefined();
+      expect(value.number).toBeUndefined();
     });
 
     it('should validate a number within range', () => {
-      const schema = ValidationUtils.optionalRangeNumberSchema(1, 100, 50);
-      const { value } = schema.validate(75);
-      expect(value).toBe(75);
+      const schema = Joi.object({
+        number: ValidationUtils.optionalRangeNumberSchema(1, 100, 50)
+      });
+      const { value } = schema.validate({ number: 75 });
+      expect(value.number).toBe(75);
     });
 
     it('should reject a number below the minimum', () => {
-      const schema = ValidationUtils.optionalRangeNumberSchema(1, 100, 50);
-      const { error } = schema.validate(0);
+      const schema = Joi.object({
+        number: ValidationUtils.optionalRangeNumberSchema(1, 100, 50)
+      });
+      const { error } = schema.validate({ number: 0 });
       expect(error).toBeDefined();
     });
   });
@@ -239,49 +301,63 @@ describe('ValidationUtils', () => {
 
   describe('objectSchema', () => {
     it('should create an object schema with the correct structure', () => {
-      const schema = ValidationUtils.objectSchema({
-        name: Joi.string().required(),
-        age: Joi.number().positive().required(),
+      const schema = Joi.object({
+        object: ValidationUtils.objectSchema({
+          name: Joi.string().required(),
+          age: Joi.number().positive().required(),
+        })
       });
 
       const { value } = schema.validate({
-        name: 'test',
-        age: 25,
+        object: {
+          name: 'test',
+          age: 25,
+        },
       });
 
       expect(value).toEqual({
-        name: 'test',
-        age: 25,
+        object: {
+          name: 'test',
+          age: 25,
+        },
       });
     });
   });
 
   describe('optionalObjectSchema', () => {
     it('should create an optional object schema with the correct structure', () => {
-      const schema = ValidationUtils.optionalObjectSchema({
-        name: Joi.string().required(),
-        age: Joi.number().positive().required(),
+      const schema = Joi.object({
+        object: ValidationUtils.optionalObjectSchema({
+          name: Joi.string().required(),
+          age: Joi.number().positive().required(),
+        })
       });
 
       const { value } = schema.validate({
-        name: 'test',
-        age: 25,
+        object: {
+          name: 'test',
+          age: 25,
+        },
       });
 
       expect(value).toEqual({
-        name: 'test',
-        age: 25,
+        object: {
+          name: 'test',
+          age: 25,
+        },
       });
     });
 
     it('should allow undefined values', () => {
-      const schema = ValidationUtils.optionalObjectSchema({
-        name: Joi.string().required(),
-        age: Joi.number().positive().required(),
+      const schema = Joi.object({
+        object: ValidationUtils.optionalObjectSchema({
+          name: Joi.string().required(),
+          age: Joi.number().positive().required(),
+        })
       });
 
-      const { value } = schema.validate(undefined);
-      expect(value).toBeUndefined();
+      const { value } = schema.validate({});
+      expect(value.object).toBeUndefined();
     });
   });
 });

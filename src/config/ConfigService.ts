@@ -17,8 +17,6 @@ import {
   TreeSitterConfigService,
   ProjectNamingConfigService,
 } from './service';
-import { LegacyBatchProcessingConfigService } from './service/LegacyBatchProcessingConfigService';
-import { LegacyEmbeddingConfigService } from './service/LegacyEmbeddingConfigService';
 import { TYPES } from '../types';
 
 dotenv.config();
@@ -32,12 +30,11 @@ export class ConfigService {
   constructor(
     @inject(TYPES.EnvironmentConfigService) private environmentConfigService: EnvironmentConfigService,
     @inject(TYPES.QdrantConfigService) private qdrantConfigService: QdrantConfigService,
-    // Note: Using legacy services for backward compatibility during migration
-    @inject(TYPES.EmbeddingConfigService) private legacyEmbeddingConfigService: LegacyEmbeddingConfigService,
+    @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
     @inject(TYPES.LoggingConfigService) private loggingConfigService: LoggingConfigService,
     @inject(TYPES.MonitoringConfigService) private monitoringConfigService: MonitoringConfigService,
     @inject(TYPES.FileProcessingConfigService) private fileProcessingConfigService: FileProcessingConfigService,
-    @inject(TYPES.BatchProcessingConfigService) private legacyBatchProcessingConfigService: LegacyBatchProcessingConfigService,
+    @inject(TYPES.BatchProcessingConfigService) private batchProcessingConfigService: BatchProcessingConfigService,
     @inject(TYPES.RedisConfigService) private redisConfigService: RedisConfigService,
     @inject(TYPES.ProjectConfigService) private projectConfigService: ProjectConfigService,
     @inject(TYPES.IndexingConfigService) private indexingConfigService: IndexingConfigService,
@@ -48,34 +45,20 @@ export class ConfigService {
 
   async initialize(): Promise<void> {
     try {
-      // 获取各子配置 (using legacy services for backward compatibility)
+      // 获取各子配置
       const environment = this.environmentConfigService.getConfig();
       const qdrant = this.qdrantConfigService.getConfig();
-      const embedding = this.legacyEmbeddingConfigService.getConfig();
+      const embedding = this.embeddingConfigService.getConfig();
       const logging = this.loggingConfigService.getConfig();
       const monitoring = this.monitoringConfigService.getConfig();
       const fileProcessing = this.fileProcessingConfigService.getConfig();
-      const batchProcessing = this.legacyBatchProcessingConfigService.getConfig();
+      const batchProcessing = this.batchProcessingConfigService.getConfig();
       const redis = this.redisConfigService.getConfig();
       const project = this.projectConfigService.getConfig();
       const indexing = this.indexingConfigService.getConfig();
       const lsp = this.lspConfigService.getConfig();
       const semgrep = this.semgrepConfigService.getConfig();
       const treeSitter = this.treeSitterConfigService.getConfig();
-
-      // Log migration warnings in development
-      if (process.env.NODE_ENV === 'development') {
-        const batchWarnings = this.legacyBatchProcessingConfigService.getMigrationWarnings();
-        const embeddingWarnings = this.legacyEmbeddingConfigService.getMigrationWarnings();
-
-        if (batchWarnings.length > 0) {
-          console.warn('[CONFIG MIGRATION] BatchProcessingConfig warnings:', batchWarnings);
-        }
-
-        if (embeddingWarnings.length > 0) {
-          console.warn('[CONFIG MIGRATION] EmbeddingConfig warnings:', embeddingWarnings);
-        }
-      }
 
       // 构建完整的应用配置
       this.config = {

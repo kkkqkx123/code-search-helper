@@ -19,68 +19,12 @@ export const qdrantSchema = Joi.object({
 // Embedding配置验证模式
 export const embeddingSchema = Joi.object({
   provider: Joi.string()
-    .valid(
-      'openai',
-      'ollama',
-      'gemini',
-      'mistral',
-      'siliconflow',
-      'custom1',
-      'custom2',
-      'custom3'
-    )
+    .valid('openai', 'ollama', 'gemini', 'mistral', 'siliconflow')
     .default('openai'),
-  openai: Joi.object({
-    apiKey: Joi.string().when(Joi.ref('...provider'), { is: 'openai', then: Joi.required() }),
-    baseUrl: Joi.string().uri().optional(),
-    model: Joi.string().default('text-embedding-ada-002'),
-    dimensions: Joi.number().positive().default(1536),
-  }),
-  ollama: Joi.object({
-    baseUrl: Joi.string().uri().default('http://localhost:11434'),
-    model: Joi.string().default('nomic-embed-text'),
-    dimensions: Joi.number().positive().default(768),
-  }),
-  gemini: Joi.object({
-    apiKey: Joi.string().when(Joi.ref('...provider'), { is: 'gemini', then: Joi.required() }),
-    baseUrl: Joi.string().uri().optional(),
-    model: Joi.string().default('embedding-001'),
-    dimensions: Joi.number().positive().default(768),
-  }),
-  mistral: Joi.object({
-    apiKey: Joi.string().when(Joi.ref('...provider'), { is: 'mistral', then: Joi.required() }),
-    baseUrl: Joi.string().uri().optional(),
-    model: Joi.string().default('mistral-embed'),
-    dimensions: Joi.number().positive().default(1024),
-  }),
-  siliconflow: Joi.object({
-    apiKey: Joi.string().when(Joi.ref('...provider'), { is: 'siliconflow', then: Joi.required() }),
-    baseUrl: Joi.string().uri().optional(),
-    model: Joi.string().default('BAAI/bge-large-en-v1.5'),
-    dimensions: Joi.number().positive().default(1024),
-  }),
-  custom: Joi.object({
-    custom1: Joi.object({
-      apiKey: Joi.string().allow('').optional(),
-      baseUrl: Joi.string().uri().allow('').optional(),
-      model: Joi.string().allow('').optional(),
-      dimensions: Joi.number().positive().default(768),
-    }),
-    custom2: Joi.object({
-      apiKey: Joi.string().allow('').optional(),
-      baseUrl: Joi.string().uri().allow('').optional(),
-      model: Joi.string().allow('').optional(),
-      dimensions: Joi.number().positive().default(768),
-    }),
-    custom3: Joi.object({
-      apiKey: Joi.string().allow('').optional(),
-      baseUrl: Joi.string().uri().allow('').optional(),
-      model: Joi.string().allow('').optional(),
-      dimensions: Joi.number().positive().default(768),
-    }),
+  weights: Joi.object({
+    quality: Joi.number().min(0).max(1).default(0.7),
+    performance: Joi.number().min(0).max(1).default(0.3),
   }).optional(),
-  qualityWeight: Joi.number().min(0).max(1).default(0.7),
-  performanceWeight: Joi.number().min(0).max(1).default(0.3),
 });
 
 // Logging配置验证模式
@@ -116,24 +60,13 @@ export const batchProcessingSchema = Joi.object({
   retryAttempts: Joi.number().positive().default(3),
   retryDelay: Joi.number().positive().default(1000), // 1 second
   continueOnError: Joi.boolean().default(true),
-  adaptiveBatching: Joi.object({
-    enabled: Joi.boolean().default(true),
-    minBatchSize: Joi.number().positive().default(10),
-    maxBatchSize: Joi.number().positive().default(200),
-    performanceThreshold: Joi.number().positive().default(1000), // ms
-    adjustmentFactor: Joi.number().positive().default(1.2),
-  }),
   monitoring: Joi.object({
     enabled: Joi.boolean().default(true),
     metricsInterval: Joi.number().positive().default(60000), // 1 minute
     alertThresholds: Joi.object({
       highLatency: Joi.number().positive().default(5000), // ms
-      lowThroughput: Joi.number().positive().default(10), // operations/sec
       highErrorRate: Joi.number().positive().default(0.1), // 10%
       highMemoryUsage: Joi.number().positive().default(80), // percentage
-      criticalMemoryUsage: Joi.number().positive().default(90), // percentage
-      highCpuUsage: Joi.number().positive().default(70), // percentage
-      criticalCpuUsage: Joi.number().positive().default(85), // percentage
     }),
   }),
 });

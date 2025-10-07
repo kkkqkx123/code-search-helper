@@ -30,57 +30,16 @@ const mockContainer = {
       return {
         getConfig: () => ({
           provider: 'siliconflow',
-          openai: {
-            apiKey: undefined,
-            baseUrl: 'https://api.openai.com',
-            model: 'text-embedding-ada-002',
-            dimensions: 1536,
-          },
-          ollama: {
-            baseUrl: 'http://localhost:11434',
-            model: 'nomic-embed-text',
-            dimensions: 768,
-          },
-          siliconflow: {
+          providerConfig: {
             apiKey: undefined,
             baseUrl: 'https://api.siliconflow.cn',
             model: 'BAAI/bge-m3',
             dimensions: 1024,
           },
-          gemini: {
-            apiKey: undefined,
-            baseUrl: 'https://generativelanguage.googleapis.com',
-            model: 'embedding-001',
-            dimensions: 768,
-          },
-          mistral: {
-            apiKey: undefined,
-            baseUrl: 'https://api.mistral.ai',
-            model: 'mistral-embed',
-            dimensions: 1024,
-          },
-          custom: {
-            custom1: {
-              apiKey: undefined,
-              baseUrl: 'http://localhost:3000',
-              model: 'custom-embed',
-              dimensions: 768,
-            },
-            custom2: {
-              apiKey: undefined,
-              baseUrl: 'http://localhost:3001',
-              model: 'custom-embed-2',
-              dimensions: 768,
-            },
-            custom3: {
-              apiKey: undefined,
-              baseUrl: 'http://localhost:3002',
-              model: 'custom-embed-3',
-              dimensions: 768,
-            },
-          },
-          qualityWeight: 0.7,
-          performanceWeight: 0.3,
+          weights: {
+            quality: 0.7,
+            performance: 0.3,
+          }
         })
       };
     }
@@ -114,10 +73,24 @@ const mockContainer = {
     if (serviceIdentifier.name === 'BatchProcessingConfigService') {
       return {
         getConfig: () => ({
-          maxBatchSize: 1000,
-          processingInterval: 5000,
+          enabled: true,
+          maxConcurrentOperations: 5,
+          defaultBatchSize: 50,
+          maxBatchSize: 500,
+          memoryThreshold: 80,
+          processingTimeout: 300000,
           retryAttempts: 3,
           retryDelay: 1000,
+          continueOnError: true,
+          monitoring: {
+            enabled: true,
+            metricsInterval: 60000,
+            alertThresholds: {
+              highLatency: 5000,
+              highErrorRate: 0.1,
+              highMemoryUsage: 80,
+            },
+          },
         })
       };
     }
@@ -284,57 +257,15 @@ describe('ConfigService', () => {
           return {
             getConfig: () => ({
               provider: 'ollama',
-              openai: {
-                apiKey: undefined,
-                baseUrl: 'https://api.openai.com',
-                model: 'text-embedding-ada-002',
-                dimensions: 1536,
-              },
-              ollama: {
+              providerConfig: {
                 baseUrl: 'http://localhost:11434',
                 model: 'nomic-embed-text',
                 dimensions: 768,
               },
-              siliconflow: {
-                apiKey: undefined,
-                baseUrl: 'https://api.siliconflow.cn',
-                model: 'BAAI/bge-m3',
-                dimensions: 1024,
-              },
-              gemini: {
-                apiKey: undefined,
-                baseUrl: 'https://generativelanguage.googleapis.com',
-                model: 'embedding-001',
-                dimensions: 768,
-              },
-              mistral: {
-                apiKey: undefined,
-                baseUrl: 'https://api.mistral.ai',
-                model: 'mistral-embed',
-                dimensions: 1024,
-              },
-              custom: {
-                custom1: {
-                  apiKey: undefined,
-                  baseUrl: 'http://localhost:3000',
-                  model: 'custom-embed',
-                  dimensions: 768,
-                },
-                custom2: {
-                  apiKey: undefined,
-                  baseUrl: 'http://localhost:3001',
-                  model: 'custom-embed-2',
-                  dimensions: 768,
-                },
-                custom3: {
-                  apiKey: undefined,
-                  baseUrl: 'http://localhost:3002',
-                  model: 'custom-embed-3',
-                  dimensions: 768,
-                },
-              },
-              qualityWeight: 0.7,
-              performanceWeight: 0.3,
+              weights: {
+                quality: 0.7,
+                performance: 0.3,
+              }
             })
           };
         }
@@ -568,23 +499,15 @@ describe('ConfigService', () => {
           return {
             getConfig: () => ({
               provider: 'ollama',
-              openai: {
-                apiKey: undefined,
-                baseUrl: 'https://api.openai.com',
-                model: 'text-embedding-ada-002',
-                dimensions: 1536,
-              },
-              ollama: {
+              providerConfig: {
                 baseUrl: 'http://test.ollama.com',
                 model: 'test-ollama-model',
                 dimensions: 512,
               },
-              siliconflow: {
-                apiKey: undefined,
-                baseUrl: 'https://api.siliconflow.cn',
-                model: 'BAAI/bge-m3',
-                dimensions: 1024,
-              },
+              weights: {
+                quality: 0.7,
+                performance: 0.3,
+              }
             })
           };
         }
@@ -621,57 +544,16 @@ describe('ConfigService', () => {
           return {
             getConfig: () => ({
               provider: 'gemini',
-              openai: {
-                apiKey: undefined,
-                baseUrl: 'https://api.openai.com',
-                model: 'text-embedding-ada-002',
-                dimensions: 1536,
-              },
-              ollama: {
-                baseUrl: 'http://localhost:11434',
-                model: 'nomic-embed-text',
-                dimensions: 768,
-              },
-              siliconflow: {
-                apiKey: undefined,
-                baseUrl: 'https://api.siliconflow.cn',
-                model: 'BAAI/bge-m3',
-                dimensions: 1024,
-              },
-              gemini: {
+              providerConfig: {
                 apiKey: 'gemini-test-key',
                 baseUrl: 'https://test.gemini.com',
                 model: 'test-gemini-model',
                 dimensions: 384,
               },
-              mistral: {
-                apiKey: undefined,
-                baseUrl: 'https://api.mistral.ai',
-                model: 'mistral-embed',
-                dimensions: 1024,
-              },
-              custom: {
-                custom1: {
-                  apiKey: undefined,
-                  baseUrl: 'http://localhost:3000',
-                  model: 'custom-embed',
-                  dimensions: 768,
-                },
-                custom2: {
-                  apiKey: undefined,
-                  baseUrl: 'http://localhost:3001',
-                  model: 'custom-embed-2',
-                  dimensions: 768,
-                },
-                custom3: {
-                  apiKey: undefined,
-                  baseUrl: 'http://localhost:3002',
-                  model: 'custom-embed-3',
-                  dimensions: 768,
-                },
-              },
-              qualityWeight: 0.7,
-              performanceWeight: 0.3,
+              weights: {
+                quality: 0.7,
+                performance: 0.3,
+              }
             })
           };
         }
@@ -709,13 +591,24 @@ describe('ConfigService', () => {
         if (serviceIdentifier.name === 'BatchProcessingConfigService') {
           return {
             getConfig: () => ({
-              maxBatchSize: 250,
-              processingInterval: 5000,
-              retryAttempts: 3,
-              retryDelay: 1000,
               enabled: false,
               maxConcurrentOperations: 10,
               defaultBatchSize: 25,
+              maxBatchSize: 250,
+              memoryThreshold: 80,
+              processingTimeout: 300000,
+              retryAttempts: 3,
+              retryDelay: 1000,
+              continueOnError: true,
+              monitoring: {
+                enabled: true,
+                metricsInterval: 60000,
+                alertThresholds: {
+                  highLatency: 5000,
+                  highErrorRate: 0.1,
+                  highMemoryUsage: 80,
+                },
+              },
             })
           };
         }

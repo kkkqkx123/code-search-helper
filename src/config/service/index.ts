@@ -18,3 +18,4 @@ export { ProjectNamingConfigService } from './ProjectNamingConfigService';
 // 导出工具类
 export { EnvironmentUtils } from '../utils/EnvironmentUtils';
 export { ValidationUtils } from '../utils/ValidationUtils';
+export { ConfigValidationDecorator } from '../utils/ConfigValidationDecorator';
