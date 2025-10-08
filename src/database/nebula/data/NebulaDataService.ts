@@ -660,8 +660,8 @@ export class NebulaDataService implements INebulaDataService {
       const spaces = spacesResult?.data || [];
       
       // 获取当前space的标签和边类型信息
-      let tags = [];
-      let edgeTypes = [];
+      let tags: any[] = [];
+      let edgeTypes: any[] = [];
       let nodeCount = 0;
       let edgeCount = 0;
 
@@ -672,12 +672,14 @@ export class NebulaDataService implements INebulaDataService {
       if (currentSpace) {
         const tagsResult = await this.connectionManager.executeQuery('SHOW TAGS');
         if (!tagsResult.error) {
-          tags = tagsResult?.data || [];
+          // 确保 tags 是一个数组
+          tags = Array.isArray(tagsResult?.data) ? tagsResult.data : [];
         }
 
         const edgeTypesResult = await this.connectionManager.executeQuery('SHOW EDGES');
         if (!edgeTypesResult.error) {
-          edgeTypes = edgeTypesResult?.data || [];
+          // 确保 edgeTypes 是一个数组
+          edgeTypes = Array.isArray(edgeTypesResult?.data) ? edgeTypesResult.data : [];
         }
 
         // 统计节点数量
