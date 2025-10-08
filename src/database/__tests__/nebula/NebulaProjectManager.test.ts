@@ -4,7 +4,8 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../ProjectIdManager';
 import { INebulaSpaceManager } from '../../nebula/space/NebulaSpaceManager';
 import { INebulaConnectionManager } from '../../nebula/NebulaConnectionManager';
-import { INebulaQueryBuilder } from '../../nebula/NebulaQueryBuilder';
+import { INebulaQueryBuilder } from '../../nebula/query/NebulaQueryBuilder';
+import { INebulaDataOperations } from '../../nebula/operation/NebulaDataOperations';
 import { NebulaEventManager } from '../../nebula/NebulaEventManager';
 import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import {
@@ -13,7 +14,7 @@ import {
   NebulaSpaceInfo,
   ProjectSpaceInfo,
   NebulaEventType,
- NebulaEvent
+  NebulaEvent
 } from '../../nebula/NebulaTypes';
 
 // Mock 依赖项
@@ -76,6 +77,9 @@ describe('NebulaProjectManager', () => {
     // Mock PerformanceMonitor for testing
     const mockPerformanceMonitor = {} as any;
 
+    // Mock INebulaDataOperations for testing
+    const mockDataOperations = {} as any;
+
     nebulaProjectManager = new NebulaProjectManager(
       mockDatabaseLoggerService as unknown as DatabaseLoggerService,
       mockErrorHandlerService as unknown as ErrorHandlerService,
@@ -83,6 +87,7 @@ describe('NebulaProjectManager', () => {
       mockNebulaSpaceManager as unknown as INebulaSpaceManager,
       mockNebulaConnectionManager as unknown as INebulaConnectionManager,
       mockNebulaQueryBuilder as unknown as INebulaQueryBuilder,
+      mockDataOperations as unknown as INebulaDataOperations,
       mockPerformanceMonitor as unknown as PerformanceMonitor,
       mockNebulaEventManager as unknown as NebulaEventManager
     );

@@ -5,8 +5,8 @@ import { TYPES } from '../../types';
 import { ProjectIdManager } from '../ProjectIdManager';
 import { INebulaSpaceManager } from './space/NebulaSpaceManager';
 import { INebulaConnectionManager } from './NebulaConnectionManager';
-import { INebulaQueryBuilder } from './NebulaQueryBuilder';
-import { INebulaDataOperations } from './NebulaDataOperations';
+import { INebulaQueryBuilder } from './query/NebulaQueryBuilder';
+import { INebulaDataOperations } from './operation/NebulaDataOperations';
 import { IProjectManager } from '../common/IDatabaseService';
 import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
 import { DatabaseServiceValidator } from '../common/DatabaseServiceValidator';
@@ -658,7 +658,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
    */
   addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
     const subscription = this.eventManager.on(type as string, listener);
-    
+
     if (!this.subscriptions.has(type)) {
       this.subscriptions.set(type, []);
     }
@@ -777,7 +777,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
           throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
         }
       }
-      
+
       // 首先尝试查找节点
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
       const nodeResult = await this.connectionManager.executeQuery(`MATCH (v) WHERE id(v) == "${id}" RETURN v LIMIT 1`);
@@ -906,7 +906,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
           throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
         }
       }
-      
+
       await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
 
       // 检查ID是否对应节点或关系

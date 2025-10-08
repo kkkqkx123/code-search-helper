@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
-import { INebulaQueryService } from './NebulaQueryService';
+import { INebulaQueryService } from './query/NebulaQueryService';
 import { DatabaseError } from '../common/DatabaseError';
 
 /**
@@ -13,47 +13,47 @@ export interface INebulaIndexManager {
    * 为标签创建索引
    */
   createTagIndex(projectId: string, tagName: string, propertyName: string): Promise<boolean>;
-  
+
   /**
    * 为边类型创建索引
    */
   createEdgeIndex(projectId: string, edgeName: string, propertyName: string): Promise<boolean>;
-  
+
   /**
    * 重建标签索引
    */
   rebuildTagIndex(projectId: string, tagName: string): Promise<boolean>;
-  
+
   /**
    * 重建边类型索引
    */
   rebuildEdgeIndex(projectId: string, edgeName: string): Promise<boolean>;
-  
+
   /**
    * 检查标签索引是否存在
    */
   tagIndexExists(projectId: string, tagName: string, propertyName: string): Promise<boolean>;
-  
+
   /**
    * 检查边类型索引是否存在
    */
   edgeIndexExists(projectId: string, edgeName: string, propertyName: string): Promise<boolean>;
-  
+
   /**
    * 删除标签索引
    */
   dropTagIndex(projectId: string, tagName: string): Promise<boolean>;
-  
+
   /**
    * 删除边类型索引
    */
   dropEdgeIndex(projectId: string, edgeName: string): Promise<boolean>;
-  
+
   /**
    * 获取所有标签索引
    */
   getAllTagIndexes(projectId: string): Promise<any[]>;
-  
+
   /**
    * 获取所有边类型索引
    */

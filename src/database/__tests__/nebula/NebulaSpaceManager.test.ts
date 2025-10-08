@@ -67,9 +67,17 @@ describe('NebulaSpaceManager', () => {
       return {} as any;
     });
 
+    // Mock missing dependencies
+    const mockSchemaManager = {} as any;
+    const mockSpaceNameUtils = {
+      generateSpaceName: jest.fn((projectId: string) => `project_${projectId}`)
+    } as any;
+
     spaceManager = new NebulaSpaceManager(
       mockNebulaService as any,
       mockNebulaQueryBuilder as any,
+      mockSchemaManager as any,
+      mockSpaceNameUtils as any,
       mockDatabaseLoggerService as any,
       mockErrorHandlerService as any,
       mockConfigService as any

@@ -5,7 +5,7 @@ import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { NebulaQueryResult } from './NebulaTypes';
 import { PerformanceMonitor } from '../common/PerformanceMonitor';
-import { INebulaQueryService } from './NebulaQueryService';
+import { INebulaQueryService } from './query/NebulaQueryService';
 
 export interface INebulaTransactionService {
   executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<NebulaQueryResult[]>;
@@ -38,7 +38,7 @@ export class NebulaTransactionService implements INebulaTransactionService {
 
   async executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<NebulaQueryResult[]> {
     const startTime = Date.now();
-    
+
     try {
       // Nebula Graph不支持真正的事务，但我们可以通过批处理模拟事务行为
       // 使用 DatabaseLoggerService 记录事务执行事件
@@ -57,7 +57,7 @@ export class NebulaTransactionService implements INebulaTransactionService {
       for (const { query, params } of queries) {
         const result = await this.queryService.executeQuery(query, params);
         results.push(result);
-        
+
         // 检查单个查询是否失败
         if (result.error) {
           // 使用 DatabaseLoggerService 记录单个查询失败事件
@@ -201,9 +201,9 @@ export class NebulaTransactionService implements INebulaTransactionService {
       const uppercaseQuery = trimmedQuery.toUpperCase();
 
       // 检查是否是不允许的查询类型
-      if (uppercaseQuery.startsWith('DROP SPACE') || 
-          uppercaseQuery.startsWith('CREATE SPACE') ||
-          uppercaseQuery.startsWith('USE ') && trimmedQuery.includes('undefined')) {
+      if (uppercaseQuery.startsWith('DROP SPACE') ||
+        uppercaseQuery.startsWith('CREATE SPACE') ||
+        uppercaseQuery.startsWith('USE ') && trimmedQuery.includes('undefined')) {
         return false;
       }
 

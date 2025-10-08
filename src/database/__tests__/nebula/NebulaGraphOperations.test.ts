@@ -1,9 +1,9 @@
-import { NebulaGraphOperations } from '../../nebula/NebulaGraphOperations';
+import { NebulaGraphOperations } from '../../nebula/operation/NebulaGraphOperations';
 import { NebulaService } from '../../nebula/NebulaService';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
-import { NebulaQueryBuilder } from '../../nebula/NebulaQueryBuilder';
+import { NebulaQueryBuilder } from '../../nebula/query/NebulaQueryBuilder';
 import { BatchVertex, BatchEdge } from '../../nebula/NebulaTypes';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
 

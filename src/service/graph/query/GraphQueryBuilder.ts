@@ -3,7 +3,7 @@ import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
-import { NebulaQueryBuilder } from '../../../database/nebula/NebulaQueryBuilder';
+import { NebulaQueryBuilder } from '../../../database/nebula/query/NebulaQueryBuilder';
 
 export interface IGraphQueryBuilder {
   buildNodeCountQuery(tag: string): { nGQL: string; parameters: Record<string, any> };

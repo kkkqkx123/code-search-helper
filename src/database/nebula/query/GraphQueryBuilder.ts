@@ -3,8 +3,8 @@ import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
-import { NebulaQueryBuilder } from '../NebulaQueryBuilder';
-import { NebulaQueryUtils } from '../NebulaQueryUtils';
+import { NebulaQueryBuilder } from './NebulaQueryBuilder';
+import { NebulaQueryUtils } from './NebulaQueryUtils';
 import { BatchVertex, BatchEdge } from '../NebulaTypes';
 
 export interface IGraphQueryBuilder {
@@ -162,7 +162,7 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
     options: any = {}
   ): { nGQL: string; parameters: Record<string, any> } {
     const { maxDepth = 3, filterConditions = [], returnFields = ['vertex'], limit = 10 } = options;
-    
+
     // 使用 NebulaQueryBuilder 构建基础查询
     const { query: baseQuery, params } = this.nebulaQueryBuilder.buildComplexTraversal(startId, edgeTypes, {
       maxDepth,
@@ -170,10 +170,10 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
       returnFields,
       limit
     });
-    
+
     // 插值参数以生成完整查询
     const query = NebulaQueryUtils.interpolateParameters(baseQuery, params);
-    
+
     return { nGQL: query, parameters: {} };
   }
 

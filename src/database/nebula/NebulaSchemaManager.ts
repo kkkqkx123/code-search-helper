@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
-import { INebulaQueryService } from './NebulaQueryService';
+import { INebulaQueryService } from './query/NebulaQueryService';
 import { INebulaIndexManager } from './NebulaIndexManager';
 import { DatabaseError } from '../common/DatabaseError';
 import { NebulaSpaceConfig } from './NebulaTypes';
@@ -15,32 +15,32 @@ export interface INebulaSchemaManager {
    * 创建图空间的模式（标签、边类型、索引等）
    */
   createGraphSchema(projectId: string, config?: NebulaSpaceConfig): Promise<boolean>;
-  
+
   /**
    * 创建标签（节点类型）
    */
   createTag(projectId: string, tagName: string, properties: { name: string; type: string; nullable?: boolean }[]): Promise<boolean>;
-  
+
   /**
    * 创建边类型
    */
   createEdgeType(projectId: string, edgeName: string, properties: { name: string; type: string; nullable?: boolean }[]): Promise<boolean>;
-  
+
   /**
    * 检查标签是否存在
    */
   tagExists(projectId: string, tagName: string): Promise<boolean>;
-  
+
   /**
    * 检查边类型是否存在
    */
   edgeTypeExists(projectId: string, edgeName: string): Promise<boolean>;
-  
+
   /**
    * 获取所有标签
    */
   getAllTags(projectId: string): Promise<any[]>;
-  
+
   /**
    * 获取所有边类型
    */

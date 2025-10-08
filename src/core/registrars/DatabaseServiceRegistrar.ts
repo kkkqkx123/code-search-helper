@@ -31,15 +31,15 @@ import { NebulaConnectionManager } from '../../database/nebula/NebulaConnectionM
 import { INebulaConnectionManager } from '../../database/nebula/NebulaConnectionManager';
 import { NebulaSpaceManager } from '../../database/nebula/space/NebulaSpaceManager';
 import { INebulaSpaceManager } from '../../database/nebula/space/NebulaSpaceManager';
-import { NebulaQueryBuilder } from '../../database/nebula/NebulaQueryBuilder';
-import { INebulaQueryBuilder } from '../../database/nebula/NebulaQueryBuilder';
-import { NebulaGraphOperations } from '../../database/nebula/NebulaGraphOperations';
-import { INebulaGraphOperations } from '../../database/nebula/NebulaGraphOperations';
+import { NebulaQueryBuilder } from '../../database/nebula/query/NebulaQueryBuilder';
+import { INebulaQueryBuilder } from '../../database/nebula/query/NebulaQueryBuilder';
+import { NebulaGraphOperations } from '../../database/nebula/operation/NebulaGraphOperations';
+import { INebulaGraphOperations } from '../../database/nebula/operation/NebulaGraphOperations';
 import { ConnectionStateManager } from '../../database/nebula/ConnectionStateManager';
 // 新增的Nebula服务
 import { NebulaDataService, INebulaDataService } from '../../database/nebula/data/NebulaDataService';
 import { NebulaSpaceService, INebulaSpaceService } from '../../database/nebula/space/NebulaSpaceService';
-import { NebulaQueryUtils } from '../../database/nebula/NebulaQueryUtils';
+import { NebulaQueryUtils } from '../../database/nebula/query/NebulaQueryUtils';
 import { NebulaResultFormatter } from '../../database/nebula/NebulaResultFormatter';
 import { NebulaEventManager } from '../../database/nebula/NebulaEventManager';
 

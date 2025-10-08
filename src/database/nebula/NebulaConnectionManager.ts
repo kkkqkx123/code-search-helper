@@ -9,7 +9,7 @@ import { NebulaConfigService } from '../../config/service/NebulaConfigService';
 import { ConnectionStateManager } from './ConnectionStateManager';
 import { EventListener } from '../../types';
 import { NebulaEventManager } from './NebulaEventManager';
-import { INebulaQueryService } from './NebulaQueryService';
+import { INebulaQueryService } from './query/NebulaQueryService';
 import { INebulaTransactionService } from './NebulaTransactionService';
 
 // 导入Nebula Graph客户端库
@@ -447,12 +447,12 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
             // 检查是否是因为空间不存在导致的错误
             if (useResult && typeof useResult.error_code !== 'undefined' && useResult.error_code !== 0) {
               const errorMessage = useResult?.error_msg || useResult?.error || 'Unknown error';
-              
+
               // 检查错误信息是否表示空间不存在
               if (errorMessage.includes('Space not found') ||
                 errorMessage.includes('Space not exist') ||
                 errorMessage.includes('Space does not exist')) {
-                
+
                 try {
                   // 创建空间
                   const createSpaceQuery = `
@@ -511,7 +511,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
             errorMsg.includes('Session invalid') ||
             errorMsg.includes('Connection not ready') ||
             errorMsg.includes('ERR_NEBULA')) {
-            
+
             // 检查客户端连接池状态
             // 等待更长时间，让连接状态同步
             await new Promise(resolve => setTimeout(resolve, 2000));
@@ -767,7 +767,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       if (result && (result.code === 0 || (typeof result.error_code !== 'undefined' && result.error_code === 0))) {
         // 更新连接状态管理器中的空间状态
         this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
-        
+
         return this.client;
       } else {
         const errorMsg = result?.error || result?.error_msg || 'Unknown error';

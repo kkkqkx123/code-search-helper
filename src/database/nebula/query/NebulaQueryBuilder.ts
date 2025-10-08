@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { BatchVertex, BatchEdge } from './NebulaTypes';
+import { BatchVertex, BatchEdge } from '../NebulaTypes';
 
 export interface INebulaQueryBuilder {
   insertVertex(tag: string, vertexId: string, properties: Record<string, any>): { query: string; params: Record<string, any> };

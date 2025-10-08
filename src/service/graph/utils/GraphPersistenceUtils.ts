@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { NebulaService } from '../../../database/nebula/NebulaService';
-import { NebulaQueryBuilder } from '../../../database/nebula/NebulaQueryBuilder';
+import { NebulaQueryBuilder } from '../../../database/nebula/query/NebulaQueryBuilder';
 import { CodeGraphNode, CodeGraphRelationship } from '../core/types';
 
 // Define local types for missing imports
@@ -634,7 +634,7 @@ export class GraphPersistenceUtils {
           relationshipTypes: {},
         };
       }
-      
+
       // 获取当前空间 - 使用公共方法替代直接访问受保护的属性
       let currentSpace: string | undefined;
       try {
@@ -657,7 +657,7 @@ export class GraphPersistenceUtils {
         // 如果无法获取当前空间，将其设置为undefined
         currentSpace = undefined;
       }
-      
+
       // 只有在当前空间存在的情况下才执行需要空间上下文的查询
       if (!currentSpace || currentSpace === 'undefined' || currentSpace === '') {
         return {
@@ -667,7 +667,7 @@ export class GraphPersistenceUtils {
           relationshipTypes: {},
         };
       }
-      
+
       const tagResult = await nebulaService.executeReadQuery('SHOW TAGS');
       const edgeResult = await nebulaService.executeReadQuery('SHOW EDGES');
 

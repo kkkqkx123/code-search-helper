@@ -1,11 +1,11 @@
 import { injectable, inject } from 'inversify';
-import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
-import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { TYPES } from '../../types';
-import { INebulaSpaceManager } from './space/NebulaSpaceManager';
-import { INebulaQueryService } from './NebulaQueryService';
-import { NebulaNode, NebulaRelationship } from './NebulaTypes';
-import { DatabaseError } from '../common/DatabaseError';
+import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
+import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { TYPES } from '../../../types';
+import { INebulaSpaceManager } from '../space/NebulaSpaceManager';
+import { INebulaQueryService } from '../query/NebulaQueryService';
+import { NebulaNode, NebulaRelationship } from '../NebulaTypes';
+import { DatabaseError } from '../../common/DatabaseError';
 
 /**
  * Nebula数据操作服务接口
@@ -143,7 +143,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       // 在项目空间中执行事务，先USE空间，然后执行查询
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
       const results = await Promise.all(queries.map(q =>
@@ -228,7 +228,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       // 在项目空间中执行事务，先USE空间，然后执行查询
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
       const results = await Promise.all(queries.map(q =>
@@ -277,7 +277,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
       const nodeResult = await this.queryService.executeQuery(`MATCH (v) WHERE id(v) == "${nodeId}" RETURN v LIMIT 1`);
 
@@ -354,7 +354,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
 
       // 尝试查找关系
@@ -416,7 +416,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
 
       // 首先尝试查找节点
@@ -483,7 +483,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
 
       // 尝试查找关系
@@ -549,7 +549,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
       const result = await this.queryService.executeQuery(query);
 
@@ -602,7 +602,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
       const result = await this.queryService.executeQuery(query);
 
@@ -645,7 +645,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
 
       // 首先尝试查找节点
@@ -712,7 +712,7 @@ export class NebulaDataOperations implements INebulaDataOperations {
           throw new Error(`Failed to create space ${spaceName} for project ${projectId}`);
         }
       }
-      
+
       await this.queryService.executeQuery(`USE \`${spaceName}\``);
 
       // 根据查询类型构建不同的搜索语句

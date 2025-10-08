@@ -9,6 +9,9 @@ import { ConfigService } from '../../../config/ConfigService';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { ConnectionStateManager } from '../ConnectionStateManager';
 import { NebulaEventManager } from '../NebulaEventManager';
+import { NebulaQueryService } from '../query/NebulaQueryService';
+import { NebulaTransactionService } from '../NebulaTransactionService';
+import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import { LoggerService } from '../../../utils/LoggerService';
 import {
   EnvironmentConfigService,
@@ -48,7 +51,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
 
   beforeAll(() => {
     container = new Container();
-    
+
     // Register all necessary services including missing dependencies
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
@@ -64,31 +67,47 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
-    
+
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
     container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
     container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
-    
+
     // Create and register the connection manager
     connectionManager = new NebulaConnectionManager(
-      container.get(TYPES.DatabaseLoggerService),
-      container.get(TYPES.ErrorHandlerService),
-      container.get(TYPES.ConfigService),
-      container.get(TYPES.NebulaConfigService),
-      container.get(TYPES.ConnectionStateManager),
-      container.get(TYPES.NebulaEventManager)
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+      container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
+      container.get<NebulaEventManager>(TYPES.NebulaEventManager),
+      new NebulaQueryService(
+        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
+        container.get<NebulaConfigService>(TYPES.NebulaConfigService)
+      ),
+      new NebulaTransactionService(
+        new NebulaQueryService(
+          container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+          container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+          new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
+          container.get<NebulaConfigService>(TYPES.NebulaConfigService)
+        ),
+        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService))
+      )
     );
-    
+
     // Create services that depend on the connection manager
     dataService = new NebulaDataService(
       connectionManager,
       container.get(TYPES.DatabaseLoggerService),
       container.get(TYPES.ErrorHandlerService)
     );
-    
+
     spaceService = new NebulaSpaceService(
       connectionManager,
       container.get(TYPES.DatabaseLoggerService),
@@ -110,7 +129,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     // Mock the client's authorized event
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
@@ -121,7 +140,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
 
     // Attempt to connect
     const connected = await connectionManager.connect();
-    
+
     // Assertions
     expect(connected).toBe(true);
     expect(connectionManager.isConnected()).toBe(true);
@@ -133,7 +152,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -142,17 +161,17 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     });
 
     await connectionManager.connect();
-    
+
     // Now test query execution
     const mockQueryResult = {
       data: [{ id: '1', name: 'test_node' }],
       code: 0,
     };
-    
+
     mockExecute.mockResolvedValueOnce(mockQueryResult);
 
     const result = await connectionManager.executeQuery('MATCH (n) RETURN n LIMIT 1');
-    
+
     expect(result).toBeDefined();
     expect(result.data).toEqual(mockQueryResult.data);
   });
@@ -163,7 +182,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -172,10 +191,10 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     });
 
     await connectionManager.connect();
-    
+
     // Mock the query result for node creation
     mockExecute.mockResolvedValue({ error: null });
-    
+
     const nodeData = {
       label: 'TestLabel',
       properties: {
@@ -183,9 +202,9 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
         created: Date.now()
       }
     };
-    
+
     const nodeId = await dataService.createNode(nodeData);
-    
+
     expect(nodeId).toBeDefined();
     expect(nodeId).toContain('TestLabel_');
   });
@@ -196,7 +215,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -205,23 +224,23 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     });
 
     await connectionManager.connect();
-    
+
     // Mock the query result for node search
     const mockNodes = [
       { id: '1', name: 'Test Node 1' },
       { id: '2', name: 'Test Node 2' }
     ];
-    
-    mockExecute.mockResolvedValue({ 
+
+    mockExecute.mockResolvedValue({
       data: mockNodes,
-      error: null 
+      error: null
     });
-    
+
     const label = 'TestLabel';
     const properties = { name: 'Test Node' };
-    
+
     const foundNodes = await dataService.findNodesByLabel(label, properties);
-    
+
     expect(foundNodes).toEqual(mockNodes);
   });
 
@@ -231,7 +250,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -240,17 +259,17 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     });
 
     await connectionManager.connect();
-    
+
     // Mock the query result for relationship creation
     mockExecute.mockResolvedValue({ error: null });
-    
+
     const relationship = {
       type: 'TEST_RELATIONSHIP',
       sourceId: 'node1',
       targetId: 'node2',
       properties: { since: 2023 }
     };
-    
+
     await expect(dataService.createRelationship(relationship)).resolves.not.toThrow();
   });
 
@@ -260,7 +279,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -269,20 +288,20 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     });
 
     await connectionManager.connect();
-    
+
     // Mock the query result for space listing
     const mockSpaces = [
       { Name: 'space1' },
       { Name: 'space2' }
     ];
-    
-    mockExecute.mockResolvedValue({ 
+
+    mockExecute.mockResolvedValue({
       data: mockSpaces,
-      error: null 
+      error: null
     });
-    
+
     const spaces = await spaceService.listSpaces();
-    
+
     expect(spaces).toEqual(mockSpaces);
   });
 
@@ -292,7 +311,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -301,12 +320,12 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     });
 
     await connectionManager.connect();
-    
+
     // Mock the query result for space creation
     mockExecute.mockResolvedValue({ error: null });
-    
+
     const created = await spaceService.createSpace('new_test_space');
-    
+
     expect(created).toBe(true);
   });
 
@@ -316,7 +335,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -325,17 +344,17 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     });
 
     await connectionManager.connect();
-    
+
     // Mock the query results
     mockExecute.mockResolvedValueOnce({ error: null }); // for USE space
-    mockExecute.mockResolvedValueOnce({ 
-      data: [{ id: '1', name: 'test' }], 
-      error: null 
+    mockExecute.mockResolvedValueOnce({
+      data: [{ id: '1', name: 'test' }],
+      error: null
     }); // for actual query
-    
+
     await spaceService.useSpace('test_space');
     const result = await spaceService['connectionManager'].executeQuery('MATCH (n) RETURN n');
-    
+
     expect(result).toBeDefined();
     expect(mockExecute).toHaveBeenCalledWith('USE `test_space`');
   });
@@ -346,7 +365,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -355,15 +374,15 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     });
 
     await connectionManager.connect();
-    
+
     // Mock the query results for space validation
     mockExecute
       .mockResolvedValueOnce({ data: [{ Name: 'existing_space' }], error: null }) // SHOW SPACES
       .mockResolvedValueOnce({ error: null }) // USE space
       .mockResolvedValueOnce({ data: [], error: null }); // SHOW TAGS
-    
+
     const isValid = await spaceService.validateSpace('existing_space');
-    
+
     expect(isValid).toBe(true);
   });
 });

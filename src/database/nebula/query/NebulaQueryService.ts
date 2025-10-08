@@ -1,11 +1,11 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../types';
-import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
-import { DatabaseEventType } from '../common/DatabaseEventTypes';
-import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { NebulaQueryResult, NebulaConfig } from './NebulaTypes';
-import { PerformanceMonitor } from '../common/PerformanceMonitor';
-import { NebulaConfigService } from '../../config/service/NebulaConfigService';
+import { TYPES } from '../../../types';
+import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
+import { DatabaseEventType } from '../../common/DatabaseEventTypes';
+import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { NebulaQueryResult, NebulaConfig } from '../NebulaTypes';
+import { PerformanceMonitor } from '../../common/PerformanceMonitor';
+import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { createClient } from '@nebula-contrib/nebula-nodejs';
 import { NebulaQueryUtils } from './NebulaQueryUtils';
 
@@ -67,7 +67,7 @@ export class NebulaQueryService implements INebulaQueryService {
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
     const startTime = Date.now();
-    
+
     try {
       // 使用 DatabaseLoggerService 记录查询执行事件
       await this.databaseLogger.logDatabaseEvent({
@@ -151,11 +151,11 @@ export class NebulaQueryService implements INebulaQueryService {
 
   async executeParameterizedQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
     const startTime = Date.now();
-    
+
     try {
       // 准备查询语句
       const preparedQuery = this.prepareQuery(nGQL, parameters);
-      
+
       // 使用 DatabaseLoggerService 记录参数化查询执行事件
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.QUERY_EXECUTED,
@@ -276,9 +276,9 @@ export class NebulaQueryService implements INebulaQueryService {
     const uppercaseQuery = trimmedQuery.toUpperCase();
 
     // 检查是否是不允许的查询类型（如DROP SPACE等）
-    if (uppercaseQuery.startsWith('DROP SPACE') || 
-        uppercaseQuery.startsWith('CREATE SPACE') ||
-        uppercaseQuery.startsWith('USE ') && trimmedQuery.includes('undefined')) {
+    if (uppercaseQuery.startsWith('DROP SPACE') ||
+      uppercaseQuery.startsWith('CREATE SPACE') ||
+      uppercaseQuery.startsWith('USE ') && trimmedQuery.includes('undefined')) {
       return false;
     }
 
@@ -287,7 +287,7 @@ export class NebulaQueryService implements INebulaQueryService {
 
   async executeBatch(queries: Array<{ query: string; params?: Record<string, any> }>): Promise<NebulaQueryResult[]> {
     const startTime = Date.now();
-    
+
     try {
       // 使用 DatabaseLoggerService 记录批量查询执行事件
       await this.databaseLogger.logDatabaseEvent({

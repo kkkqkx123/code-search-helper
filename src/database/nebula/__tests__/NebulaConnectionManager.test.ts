@@ -26,6 +26,9 @@ import {
 } from '../../../config/service';
 import { ProjectNamingConfigService } from '../../../config/service/ProjectNamingConfigService';
 import { NebulaEventManager } from '../NebulaEventManager';
+import { NebulaQueryService } from '../query/NebulaQueryService';
+import { NebulaTransactionService } from '../NebulaTransactionService';
+import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 
 // Mock the Nebula client
 const mockExecute = jest.fn();
@@ -48,7 +51,7 @@ describe('NebulaConnectionManager Refactored', () => {
 
   beforeEach(() => {
     container = new Container();
-    
+
     // Register all required services including missing dependencies
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
@@ -65,11 +68,11 @@ describe('NebulaConnectionManager Refactored', () => {
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
-    
+
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
-    
+
     // Mock NebulaConfigService to avoid loading real environment variables
     const mockNebulaConfigService = {
       loadConfig: jest.fn().mockReturnValue({
@@ -90,25 +93,48 @@ describe('NebulaConnectionManager Refactored', () => {
       validateNamingConvention: jest.fn().mockReturnValue(true)
     };
     container.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockNebulaConfigService as any);
-    
+
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
-    
+
     // Mock private methods to avoid real connection attempts
     jest.spyOn(NebulaConnectionManager.prototype as any, 'waitForClientConnection').mockResolvedValue(undefined);
     jest.spyOn(NebulaConnectionManager.prototype as any, 'validateConnection').mockResolvedValue(undefined);
-    jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => {});
-    
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => { });
+
+    // Create required services
+    const databaseLogger = container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService);
+    const errorHandler = container.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
+    const performanceMonitor = new PerformanceMonitor(databaseLogger);
+    const nebulaConfigService = container.get<NebulaConfigService>(TYPES.NebulaConfigService);
+    const configService = container.get<ConfigService>(TYPES.ConfigService);
+
+    // Create query service
+    const queryService = new NebulaQueryService(
+      databaseLogger,
+      errorHandler,
+      performanceMonitor,
+      nebulaConfigService
+    );
+
+    // Create transaction service
+    const transactionService = new NebulaTransactionService(
+      queryService,
+      databaseLogger,
+      errorHandler,
+      performanceMonitor
+    );
+
     // Create instance
     connectionManager = new NebulaConnectionManager(
-      container.get(TYPES.DatabaseLoggerService),
-      container.get(TYPES.ErrorHandlerService),
-      container.get(TYPES.ConfigService),
-      container.get(TYPES.NebulaConfigService),
-      container.get(TYPES.ConnectionStateManager),
-      // Add missing NebulaEventManager parameter
-      new NebulaEventManager(container.get(TYPES.ConfigService))
+      databaseLogger,
+      errorHandler,
+      nebulaConfigService,
+      container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
+      new NebulaEventManager(configService),
+      queryService,
+      transactionService
     );
-    
+
     // Clear mocks
     mockExecute.mockClear();
     mockClose.mockClear();
@@ -124,7 +150,7 @@ describe('NebulaConnectionManager Refactored', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     // Mock the client's authorized event
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
@@ -134,7 +160,7 @@ describe('NebulaConnectionManager Refactored', () => {
     });
 
     const result = await connectionManager.connect();
-    
+
     expect(result).toBe(true);
     expect(connectionManager.isConnected()).toBe(true);
   });
@@ -144,27 +170,27 @@ describe('NebulaConnectionManager Refactored', () => {
       data: [{ id: '1', name: 'test' }],
       code: 0,
     };
-    
+
     mockExecute.mockResolvedValue(mockResult);
-    
+
     // First connect
     mockExecute.mockResolvedValueOnce({
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
         setTimeout(() => callback(), 10);
       }
     });
-    
+
     await connectionManager.connect();
-    
+
     // Execute query
     const queryResult = await connectionManager.executeQuery('MATCH (n) RETURN n');
-    
+
     expect(mockExecute).toHaveBeenCalledWith('MATCH (n) RETURN n');
     expect(queryResult.data).toEqual(mockResult.data);
   });
@@ -174,31 +200,31 @@ describe('NebulaConnectionManager Refactored', () => {
       { data: [], code: 0 },
       { data: [], code: 0 },
     ];
-    
+
     mockExecute.mockResolvedValueOnce({
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
         setTimeout(() => callback(), 10);
       }
     });
-    
+
     await connectionManager.connect();
-    
+
     // Mock subsequent calls for transaction
     mockExecute.mockResolvedValue({ data: [], code: 0 });
-    
+
     const queries = [
       { query: 'CREATE (n:Test)', params: {} },
       { query: 'MATCH (n:Test) RETURN n', params: {} }
     ];
-    
+
     const transactionResults = await connectionManager.executeTransaction(queries);
-    
+
     expect(mockExecute).toHaveBeenCalledTimes(queries.length + 1); // +1 for initial connection validation
     expect(transactionResults).toHaveLength(queries.length);
   });
@@ -208,9 +234,9 @@ describe('NebulaConnectionManager Refactored', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     };
-    
+
     mockExecute.mockResolvedValue(mockResult);
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -219,10 +245,10 @@ describe('NebulaConnectionManager Refactored', () => {
     });
 
     await connectionManager.connect();
-    
+
     await connectionManager.executeQuery('USE `test_space`');
     const connectionForSpace = connectionManager;
-    
+
     expect(connectionForSpace).toBeDefined();
   });
 
@@ -231,9 +257,9 @@ describe('NebulaConnectionManager Refactored', () => {
       data: [{ id: '1', name: 'test' }],
       code: 0,
     };
-    
+
     mockExecute.mockResolvedValue(mockResult);
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -242,10 +268,10 @@ describe('NebulaConnectionManager Refactored', () => {
     });
 
     await connectionManager.connect();
-    
+
     await connectionManager.executeQuery('USE `test_space`');
     const result = await connectionManager.executeQuery('MATCH (n) RETURN n');
-    
+
     expect(result).toBeDefined();
     expect(mockExecute).toHaveBeenCalledWith('USE `test_space`');
     expect(mockExecute).toHaveBeenCalledWith('MATCH (n) RETURN n');
@@ -253,46 +279,46 @@ describe('NebulaConnectionManager Refactored', () => {
 
   test('should get connection for non-existent space and create it automatically', async () => {
     const spaceName = 'test_auto_create_space';
-    
+
     // Mock connection setup
     mockExecute.mockResolvedValueOnce({
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
         setTimeout(() => callback(), 10);
       }
     });
-    
+
     await connectionManager.connect();
-    
+
     // Mock space switching failure (space does not exist)
     mockExecute.mockResolvedValueOnce({
       error_msg: 'Space not found',
       error_code: -1,
     });
-    
+
     // Mock space creation success
     mockExecute.mockResolvedValueOnce({
       code: 0,
       error_code: 0,
     });
-    
+
     // Mock successful space switching after creation
     mockExecute.mockResolvedValueOnce({
       code: 0,
       error_code: 0,
     });
-    
+
     // Mock verification query
     mockExecute.mockResolvedValueOnce({
       data: [{ Name: spaceName }],
       code: 0,
     });
-    
+
     // Mock the setTimeout call to avoid actual delay
     const originalSetTimeout = global.setTimeout;
     (global.setTimeout as any) = jest.fn().mockImplementation((callback: Function, delay: number) => {
@@ -304,10 +330,10 @@ describe('NebulaConnectionManager Refactored', () => {
         return originalSetTimeout(callback, delay);
       }
     });
-    
+
     try {
       const connection = await connectionManager.getConnectionForSpace(spaceName);
-      
+
       expect(connection).toBeDefined();
       expect(mockExecute).toHaveBeenCalledWith(`USE \`${spaceName}\``);
       expect(mockExecute).toHaveBeenCalledWith(`CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`);
@@ -318,50 +344,50 @@ describe('NebulaConnectionManager Refactored', () => {
 
   test('should switch to correct space before executing non-USE queries', async () => {
     const spaceName = 'test_project_space';
-    
+
     // Mock connection setup
     mockExecute.mockResolvedValueOnce({
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
         setTimeout(() => callback(), 10);
       }
     });
-    
+
     await connectionManager.connect();
-    
+
     // First, switch to the target space
     mockExecute.mockResolvedValueOnce({
       code: 0,
       error_code: 0,
     });
-    
+
     await connectionManager.getConnectionForSpace(spaceName);
-    
+
     // Mock connection test
     mockExecute.mockResolvedValueOnce({
       code: 0,
       error_code: 0,
     });
-    
+
     // Mock space switch before query
     mockExecute.mockResolvedValueOnce({
       code: 0,
       error_code: 0,
     });
-    
+
     // Mock the actual query
     mockExecute.mockResolvedValueOnce({
       data: [{ tag: 'test_tag' }],
       code: 0,
     });
-    
+
     const result = await connectionManager.executeQuery('SHOW TAGS');
-    
+
     expect(result).toBeDefined();
     // Verify that space switch happened before the query
     expect(mockExecute).toHaveBeenCalledWith(`USE \`${spaceName}\``);
@@ -371,22 +397,22 @@ describe('NebulaConnectionManager Refactored', () => {
   test('should handle project-specific space naming pattern', async () => {
     // Simplified test focusing on core functionality rather than specific call sequences
     const projectIds = ['project_alpha'];
-    
+
     // Mock connection setup
     mockExecute.mockResolvedValueOnce({
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
         setTimeout(() => callback(), 10);
       }
     });
-    
+
     await connectionManager.connect();
-    
+
     // Mock the setTimeout call to avoid actual delay
     const originalSetTimeout = global.setTimeout;
     (global.setTimeout as any) = jest.fn().mockImplementation((callback: Function, delay: number) => {
@@ -398,15 +424,15 @@ describe('NebulaConnectionManager Refactored', () => {
         return originalSetTimeout(callback, delay);
       }
     });
-    
+
     try {
       for (const projectId of projectIds) {
         const projectSpaceName = `project_${projectId}`;
-        
+
         // Directly verify successful connection retrieval without caring about specific call sequences
         // This better aligns with unit testing principles, testing behavior rather than implementation details
         const connection = await connectionManager.getConnectionForSpace(projectSpaceName);
-        
+
         expect(connection).toBeDefined();
         expect(connection).toBe(mockClient); // Verify that the mock client is returned
       }
@@ -418,28 +444,28 @@ describe('NebulaConnectionManager Refactored', () => {
   test('should handle space switching errors gracefully', async () => {
     // Simplified test focusing on error handling logic
     const spaceName = 'invalid_space';
-    
+
     // Mock connection setup
     mockExecute.mockResolvedValueOnce({
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
         setTimeout(() => callback(), 10);
       }
     });
-    
+
     await connectionManager.connect();
-    
+
     // Temporarily modify mockExecute to throw error directly
     const originalMockExecute = mockExecute;
     mockExecute.mockImplementationOnce(() => {
       throw new Error('Space switching failed and automatic creation failed');
     });
-    
+
     try {
       // Verify that exceptions are properly thrown when encountering errors
       await expect(connectionManager.getConnectionForSpace(spaceName))
@@ -457,7 +483,7 @@ describe('NebulaDataService', () => {
 
   beforeEach(() => {
     container = new Container();
-    
+
     // Register all dependencies including missing services
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
@@ -474,11 +500,11 @@ describe('NebulaDataService', () => {
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
-    
+
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
-    
+
     // Mock NebulaConfigService to avoid loading real environment variables
     const mockNebulaConfigService = {
       loadConfig: jest.fn().mockReturnValue({
@@ -499,24 +525,39 @@ describe('NebulaDataService', () => {
       validateNamingConvention: jest.fn().mockReturnValue(true)
     };
     container.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockNebulaConfigService as any);
-    
+
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
-    
+
     // Mock private methods to avoid real connection attempts
     jest.spyOn(NebulaConnectionManager.prototype as any, 'waitForClientConnection').mockResolvedValue(undefined);
     jest.spyOn(NebulaConnectionManager.prototype as any, 'validateConnection').mockResolvedValue(undefined);
-    jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => {});
-    
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => { });
+
     const connectionManager = new NebulaConnectionManager(
-      container.get(TYPES.DatabaseLoggerService),
-      container.get(TYPES.ErrorHandlerService),
-      container.get(TYPES.ConfigService),
-      container.get(TYPES.NebulaConfigService),
-      container.get(TYPES.ConnectionStateManager),
-      // Add missing NebulaEventManager parameter
-      container.get(TYPES.ConfigService) // Use container to get ConfigService instance
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+      container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
+      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService)),
+      new NebulaQueryService(
+        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
+        container.get<NebulaConfigService>(TYPES.NebulaConfigService)
+      ),
+      new NebulaTransactionService(
+        new NebulaQueryService(
+          container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+          container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+          new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
+          container.get<NebulaConfigService>(TYPES.NebulaConfigService)
+        ),
+        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService))
+      )
     );
-    
+
     dataService = new NebulaDataService(
       connectionManager,
       container.get(TYPES.DatabaseLoggerService),
@@ -528,18 +569,18 @@ describe('NebulaDataService', () => {
     // Mock the connection manager
     const mockExecute = jest.fn().mockResolvedValue({ error: null });
     const mockIsConnected = jest.fn().mockReturnValue(true);
-    
+
     Object.defineProperty(dataService['connectionManager'], 'executeQuery', {
       value: mockExecute,
     });
-    
+
     Object.defineProperty(dataService['connectionManager'], 'isConnected', {
       value: mockIsConnected,
     });
 
     const node = { label: 'TestNode', properties: { name: 'Test' } };
     const nodeId = await dataService.createNode(node);
-    
+
     expect(nodeId).toBeDefined();
     expect(nodeId).toContain('TestNode_');
     expect(mockExecute).toHaveBeenCalled();
@@ -547,22 +588,22 @@ describe('NebulaDataService', () => {
 
   test('should find nodes by label', async () => {
     // Mock the connection manager
-    const mockExecute = jest.fn().mockResolvedValue({ 
-      data: [{ id: '1', name: 'Test' }], 
-      error: null 
+    const mockExecute = jest.fn().mockResolvedValue({
+      data: [{ id: '1', name: 'Test' }],
+      error: null
     });
     const mockIsConnected = jest.fn().mockReturnValue(true);
-    
+
     Object.defineProperty(dataService['connectionManager'], 'executeQuery', {
       value: mockExecute,
     });
-    
+
     Object.defineProperty(dataService['connectionManager'], 'isConnected', {
       value: mockIsConnected,
     });
 
     const result = await dataService.findNodesByLabel('TestNode', { name: 'Test' });
-    
+
     expect(result).toHaveLength(1);
     expect(mockExecute).toHaveBeenCalled();
   });
@@ -571,11 +612,11 @@ describe('NebulaDataService', () => {
     // Mock the connection manager
     const mockExecute = jest.fn().mockResolvedValue({ error: null });
     const mockIsConnected = jest.fn().mockReturnValue(true);
-    
+
     Object.defineProperty(dataService['connectionManager'], 'executeQuery', {
       value: mockExecute,
     });
-    
+
     Object.defineProperty(dataService['connectionManager'], 'isConnected', {
       value: mockIsConnected,
     });
@@ -586,9 +627,9 @@ describe('NebulaDataService', () => {
       targetId: 'target1',
       properties: { since: 2023 }
     };
-    
+
     await dataService.createRelationship(relationship);
-    
+
     expect(mockExecute).toHaveBeenCalled();
   });
 });
@@ -599,7 +640,7 @@ describe('NebulaSpaceService', () => {
 
   beforeEach(() => {
     container = new Container();
-    
+
     // Register all dependencies including missing services
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
@@ -616,11 +657,11 @@ describe('NebulaSpaceService', () => {
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
-    
+
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
-    
+
     // Mock NebulaConfigService to avoid loading real environment variables
     const mockNebulaConfigService = {
       loadConfig: jest.fn().mockReturnValue({
@@ -641,19 +682,34 @@ describe('NebulaSpaceService', () => {
       validateNamingConvention: jest.fn().mockReturnValue(true)
     };
     container.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockNebulaConfigService as any);
-    
+
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
-    
+
     const connectionManager = new NebulaConnectionManager(
-      container.get(TYPES.DatabaseLoggerService),
-      container.get(TYPES.ErrorHandlerService),
-      container.get(TYPES.ConfigService),
-      container.get(TYPES.NebulaConfigService),
-      container.get(TYPES.ConnectionStateManager),
-      // Add missing NebulaEventManager parameter
-      container.get(TYPES.ConfigService) // Use container to get ConfigService instance
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+      container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
+      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService)),
+      new NebulaQueryService(
+        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
+        container.get<NebulaConfigService>(TYPES.NebulaConfigService)
+      ),
+      new NebulaTransactionService(
+        new NebulaQueryService(
+          container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+          container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+          new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
+          container.get<NebulaConfigService>(TYPES.NebulaConfigService)
+        ),
+        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService))
+      )
     );
-    
+
     spaceService = new NebulaSpaceService(
       connectionManager,
       container.get(TYPES.DatabaseLoggerService),
@@ -664,44 +720,44 @@ describe('NebulaSpaceService', () => {
 
   test('should check if space exists', async () => {
     // Mock the connection manager
-    const mockExecute = jest.fn().mockResolvedValue({ 
-      data: [{ Name: 'test_space' }], 
-      error: null 
+    const mockExecute = jest.fn().mockResolvedValue({
+      data: [{ Name: 'test_space' }],
+      error: null
     });
     const mockIsConnected = jest.fn().mockReturnValue(true);
-    
+
     Object.defineProperty(spaceService['connectionManager'], 'executeQuery', {
       value: mockExecute,
     });
-    
+
     Object.defineProperty(spaceService['connectionManager'], 'isConnected', {
       value: mockIsConnected,
     });
 
     const exists = await spaceService.checkSpaceExists('test_space');
-    
+
     expect(exists).toBe(true);
     expect(mockExecute).toHaveBeenCalledWith('SHOW SPACES');
   });
 
   test('should list spaces', async () => {
     // Mock the connection manager
-    const mockExecute = jest.fn().mockResolvedValue({ 
-      data: [{ Name: 'space1' }, { Name: 'space2' }], 
-      error: null 
+    const mockExecute = jest.fn().mockResolvedValue({
+      data: [{ Name: 'space1' }, { Name: 'space2' }],
+      error: null
     });
     const mockIsConnected = jest.fn().mockReturnValue(true);
-    
+
     Object.defineProperty(spaceService['connectionManager'], 'executeQuery', {
       value: mockExecute,
     });
-    
+
     Object.defineProperty(spaceService['connectionManager'], 'isConnected', {
       value: mockIsConnected,
     });
 
     const spaces = await spaceService.listSpaces();
-    
+
     expect(spaces).toHaveLength(2);
     expect(mockExecute).toHaveBeenCalledWith('SHOW SPACES');
   });
