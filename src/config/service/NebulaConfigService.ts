@@ -76,15 +76,16 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         return explicitName;
       }
 
-      // 默认使用项目隔离的动态命名（在实际使用时确定）
-      return undefined; // 不设置默认space，实际使用时会被替换
+      // 返回默认的 test_space 作为初始连接空间
+      // 后续会根据项目需要动态切换到项目特定的 space
+      return 'test_space';
     } catch (error) {
       this.errorHandler.handleError(
         error instanceof Error ? error : new Error('Unknown error in getSpaceName'),
         { component: 'NebulaConfigService', operation: 'getSpaceName' }
       );
       // 返回默认值以确保服务可用
-      return undefined;
+      return 'test_space';
     }
   }
 

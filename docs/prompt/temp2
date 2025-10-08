@@ -9,3 +9,117 @@ node_modules中nebula依赖包的复制见@nebula-contrib\nebula-nodejs 目录�
 如果需要修改nebula依赖包，可以修改@nebula-contrib\nebula-nodejs目录，然后使用命令将修改后的文件同步到node_modules中。 
 
 可以在scripts目录中编写ts文件用于测试。目前 @/scripts/test-nebula-direct.ts 能正确运行
+
+
+
+
+
+当前实际执行项目索引时，nebula数据库的日志为：
+I20251008 10:05:53.040418    21 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:53.041158    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:53.041679    42 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:53.042420    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:53.043399    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:53.043960    37 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:53.044651    25 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:53.045666    42 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:53.046548    25 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:53.047293    31 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.119567    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.134317    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57614
+
+I20251008 10:05:54.134752    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57624
+
+I20251008 10:05:54.135645    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57640
+
+I20251008 10:05:54.136111    48 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57648
+
+I20251008 10:05:54.136833    40 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57658
+
+I20251008 10:05:54.137235    40 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57664
+
+I20251008 10:05:54.137586    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57674
+
+I20251008 10:05:54.137951    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57680
+
+I20251008 10:05:54.138381    40 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57694
+
+I20251008 10:05:54.138751    40 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57696
+
+I20251008 10:05:54.141235    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.142201    48 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.143054    25 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.144398    37 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.145246    31 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.145929    45 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.147863    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.148144    48 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.149451    40 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:54.151415    48 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 10:05:55.221405    40 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+使用的依然还是test_space
+
+后端日志为：
+[2025-10-08T10:05:53.208+08:00] [DEBUG] Storing file to graph database {
+  "projectPath": "D:\\ide\\tool\\code-search-helper\\test-files",
+  "filePath": "D:\\ide\\tool\\code-search-helper\\test-files\\test.py"
+}
+[2025-10-08T10:05:53.208+08:00] [DEBUG] Mapping chunks to graph nodes {
+  "chunkCount": 0,
+  "parentFileId": "file_443a5c6964655c746f6f6c5c636f64652d7365617263682d68656c7065725c746573742d66696c65735c746573742e7079"
+}
+[2025-10-08T10:05:53.208+08:00] [DEBUG] Cache miss {
+  "key": "chunk_mapping_file_443a5c6964655c746f6f6c5c636f64652d7365617263682d68656c7065725c746573742d66696c65735c746573742e7079_0"
+}
+[2025-10-08T10:05:53.209+08:00] [INFO] Batch operation completed {
+  "success": true,
+  "totalItems": 0,
+  "successfulItems": 0,
+  "failedItems": 0,
+  "processingTime": 0
+}
+[2025-10-08T10:05:53.209+08:00] [DEBUG] Cache set {
+  "key": "chunk_mapping_file_443a5c6964655c746f6f6c5c636f64652d7365617263682d68656c7065725c746573742d66696c65735c746573742e7079_0",
+  "ttl": 300000,
+  "size": 57,
+  "totalSize": 57
+}
+[2025-10-08T10:05:53.209+08:00] [DEBUG] Starting batch operation {
+  "itemCount": 0,
+  "batchSize": 50,
+  "concurrency": 5
+}
+[2025-10-08T10:05:53.209+08:00] [DEBUG] Chunk mapping completed {
+  "chunkCount": 0,
+  "nodeCount": 0,
+  "relationshipCount": 0
+}
+[2025-10-08T10:05:53.209+08:00] [DEBUG] Executing with optimal batching {
+  "itemCount": 0,
+  "optimalBatchSize": 50
+}
+
+
+对比当前项目动态切换space的代码与
