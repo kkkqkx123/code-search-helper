@@ -1,0 +1,11 @@
+当前项目运行时nebula出现问题：
+No valid space specified, marking connection as ready without space switching.
+
+这应该是被代码的逻辑拦截了，因为数据库的日志没有出现相关报错
+
+目前使用的默认项目为test_space
+
+node_modules中nebula依赖包的复制见@nebula-contrib\nebula-nodejs 目录。
+如果需要修改nebula依赖包，可以修改@nebula-contrib\nebula-nodejs目录，然后使用命令将修改后的文件同步到node_modules中。 
+
+可以在scripts目录中编写ts文件用于测试。目前 @/scripts/test-nebula-direct.ts 能正确运行

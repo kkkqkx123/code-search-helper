@@ -89,7 +89,7 @@ async function testConnection() {
 
     // 查询刚刚插入的数据
     console.log('Querying test data...');
-    const result3 = await client.execute('MATCH (v:file) RETURN v.file.name AS name, v.file.file_path AS path LIMIT 10;');
+    const result3 = await client.execute('MATCH (v:file) RETURN v.name AS name, v.file_path AS file_path LIMIT 10;');
     console.log('Query result:', result3);
 
     // Close the client
