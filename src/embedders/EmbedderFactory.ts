@@ -25,10 +25,12 @@ export class EmbedderFactory {
     lastChecked: number;
     persistentlyUnavailable: boolean; // 标记持续不可用的提供商
   }> = new Map();
-  // 缓存过期时间（30分钟）
-  private readonly CACHE_TTL = 30 * 60 * 1000;
-  // 持续不可用的标记时间（如果提供商连续不可用超过这个时间，将跳过检查）
-  private readonly PERSISTENT_UNAVAILABLE_THRESHOLD = 60 * 60 * 1000; // 1小时
+  // 缓存过期时间（15分钟，减少内存占用）
+  private readonly CACHE_TTL = 15 * 60 * 1000;
+  // 持续不可用的标记时间（30分钟，更快的清理）
+  private readonly PERSISTENT_UNAVAILABLE_THRESHOLD = 30 * 60 * 1000;
+  // 最大缓存条目数
+  private readonly MAX_CACHE_SIZE = 50;
   // 是否跳过已知不可用的提供商检查
   private skipUnavailableProviderChecks: boolean;
 
@@ -297,7 +299,18 @@ export class EmbedderFactory {
           }
         }
         
-        // 更新缓存
+        // 更新缓存，同时检查缓存大小限制
+        if (this.providerInfoCache.size >= this.MAX_CACHE_SIZE) {
+          // 清理最旧的缓存条目
+          const oldestEntries = Array.from(this.providerInfoCache.entries())
+            .sort((a, b) => a[1].lastChecked - b[1].lastChecked)
+            .slice(0, Math.floor(this.MAX_CACHE_SIZE / 2));
+
+          for (const [key] of oldestEntries) {
+            this.providerInfoCache.delete(key);
+          }
+        }
+
         this.providerInfoCache.set(selectedProvider, {
           name: selectedProvider,
           model,

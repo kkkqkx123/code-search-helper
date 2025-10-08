@@ -18,6 +18,9 @@ export class EmbeddingCacheService {
   private defaultTTL: number;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private configService: ConfigService;
+  private maxCacheSize: number;
+  private cacheHits: number = 0;
+  private cacheMisses: number = 0;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService | Logger,
@@ -30,6 +33,7 @@ export class EmbeddingCacheService {
 
     // 简化配置获取
     this.defaultTTL = parseInt(process.env.EMBEDDING_CACHE_TTL || '86400'); // 默认24小时（秒）
+    this.maxCacheSize = parseInt(process.env.EMBEDDING_CACHE_MAX_SIZE || '10000'); // 最大缓存条目数
 
     // 定期清理过期缓存（测试环境中不启动）
     if (process.env.NODE_ENV !== 'test') {
@@ -65,6 +69,7 @@ export class EmbeddingCacheService {
     const now = Date.now();
     let cleanedCount = 0;
 
+    // 清理过期缓存
     for (const [key, entry] of this.cache.entries()) {
       if (this.isExpired(entry)) {
         this.cache.delete(key);
@@ -72,8 +77,25 @@ export class EmbeddingCacheService {
       }
     }
 
+    // 如果缓存仍然过大，清理最旧的条目（LRU策略）
+    if (this.cache.size > this.maxCacheSize) {
+      const entriesToRemove = this.cache.size - this.maxCacheSize;
+      const sortedEntries = Array.from(this.cache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+      for (let i = 0; i < entriesToRemove; i++) {
+        this.cache.delete(sortedEntries[i][0]);
+        cleanedCount++;
+      }
+    }
+
     if (cleanedCount > 0) {
-      this.logger.debug(`Cleaned up ${cleanedCount} expired cache entries`);
+      this.logger.debug(`Cleaned up ${cleanedCount} cache entries (expired + size limit)`);
+    }
+
+    // 强制垃圾回收
+    if (cleanedCount > 100 && global.gc) {
+      global.gc();
     }
   }
 
@@ -105,6 +127,7 @@ export class EmbeddingCacheService {
       const entry = this.cache.get(key);
 
       if (!entry) {
+        this.cacheMisses++;
         this.logger.debug('Cache miss', { key, model });
         return null;
       }
@@ -112,10 +135,12 @@ export class EmbeddingCacheService {
       // 检查是否过期
       if (this.isExpired(entry)) {
         this.cache.delete(key);
+        this.cacheMisses++;
         this.logger.debug('Cache entry expired', { key, model });
         return null;
       }
 
+      this.cacheHits++;
       this.logger.debug('Cache hit', { key, model });
       return entry.data;
     } catch (error) {
@@ -132,6 +157,19 @@ export class EmbeddingCacheService {
    */
   async set(text: string, model: string, result: EmbeddingResult): Promise<void> {
     try {
+      // 检查缓存大小限制
+      if (this.cache.size >= this.maxCacheSize) {
+        // 清理最旧的条目
+        this.cleanup();
+
+        // 如果仍然太大，直接删除最旧的条目
+        if (this.cache.size >= this.maxCacheSize) {
+          const oldestKey = Array.from(this.cache.entries())
+            .sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0];
+          this.cache.delete(oldestKey);
+        }
+      }
+
       const key = this.generateKey(text, model);
       const ttl = parseInt(process.env.EMBEDDING_CACHE_TTL || String(this.defaultTTL));
 
@@ -141,7 +179,7 @@ export class EmbeddingCacheService {
         ttl
       });
 
-      this.logger.debug('Cache set', { key, model, ttl });
+      this.logger.debug('Cache set', { key, model, ttl, cacheSize: this.cache.size });
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Error setting embedding to cache: ${error instanceof Error ? error.message : String(error)}`),
@@ -177,6 +215,20 @@ export class EmbeddingCacheService {
   }
 
   /**
+   * 强制清理缓存（内存保护）
+   */
+  forceCleanup(): void {
+    const beforeSize = this.cache.size;
+    this.cleanup();
+    this.logger.info(`Force cleanup completed: ${beforeSize} -> ${this.cache.size} entries`);
+
+    // 强制垃圾回收
+    if (global.gc) {
+      global.gc();
+    }
+  }
+
+  /**
    * 获取缓存统计信息
    */
   async getStats(): Promise<{ size: number; hits?: number; misses?: number }> {
@@ -186,14 +238,15 @@ export class EmbeddingCacheService {
 
       return {
         size: this.cache.size,
-        // 简化版本不跟踪命中/未命中次数
+        hits: this.cacheHits,
+        misses: this.cacheMisses
       };
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Error getting embedding cache stats: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'EmbeddingCacheService', operation: 'getStats' }
       );
-      return { size: 0 };
+      return { size: 0, hits: this.cacheHits, misses: this.cacheMisses };
     }
   }
 

@@ -137,6 +137,7 @@ export const TYPES = {
   LoggerService: Symbol.for('LoggerService'),
   ErrorHandlerService: Symbol.for('ErrorHandlerService'),
   ProjectIdManager: Symbol.for('ProjectIdManager'),
+  MemoryMonitorService: Symbol.for('MemoryMonitorService'),
 
   // Qdrant 服务模块
   IQdrantConnectionManager: Symbol.for('IQdrantConnectionManager'),

@@ -23,6 +23,7 @@ export const TYPES = {
   // 其他服务
   NebulaService: Symbol.for('NebulaService'),
   QdrantService: Symbol.for('QdrantService'),
+  MemoryMonitorService: Symbol.for('MemoryMonitorService'),
   
   // Nebula-specific services
   INebulaConnectionManager: Symbol.for('INebulaConnectionManager'),

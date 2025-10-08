@@ -94,7 +94,7 @@ export class GraphDataService implements IGraphDataService {
 
       // Switch to project-specific space if projectId is provided
       if (options.projectId) {
-        const projectSpaceName = `project_${options.projectId}`;
+        const projectSpaceName = options.projectId; // 项目ID已经包含适当的前缀
         this.logger.debug('Switching to project space', { projectSpaceName, projectId: options.projectId });
         
         // Check if space exists, create if not
@@ -181,7 +181,7 @@ export class GraphDataService implements IGraphDataService {
 
       // Switch to project-specific space if projectId is provided
       if (options.projectId) {
-        const projectSpaceName = `project_${options.projectId}`;
+        const projectSpaceName = options.projectId; // 项目ID已经包含适当的前缀
         this.logger.debug('Switching to project space', { projectSpaceName, projectId: options.projectId });
         
         // Check if space exists, create if not

@@ -72,6 +72,7 @@ export class FileWatcherService {
   private maxRetries: number = 3;
   private retryDelay: number = 50;
   private testMode: boolean = false;
+  private maxEventQueueSize: number = 1000; // 最大事件队列大小
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -342,7 +343,16 @@ export class FileWatcherService {
       this.eventQueue.set(watchPath, []);
     }
 
-    this.eventQueue.get(watchPath)!.push(event);
+    const queue = this.eventQueue.get(watchPath)!;
+
+    // 检查队列大小限制，防止内存泄漏
+    if (queue.length >= this.maxEventQueueSize) {
+      // 删除最旧的事件
+      queue.shift();
+      this.logger.warn(`Event queue for ${watchPath} exceeded limit, removed oldest event`);
+    }
+
+    queue.push(event);
 
     // Reset retry counter for this path
     this.retryAttempts.delete(filePath);

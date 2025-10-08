@@ -167,9 +167,10 @@ export class IndexingRoutes {
         chunkOverlap: options?.overlapSize
       };
 
-      // 为项目创建初始状态
+      // 为项目创建初始状态，允许重新索引
       await this.projectStateManager.createOrUpdateProjectState(projectPath, {
-        name: projectPath.split('/').pop() || projectPath.split('\\').pop() || projectPath
+        name: projectPath.split('/').pop() || projectPath.split('\\').pop() || projectPath,
+        allowReindex: true  // 在options对象中设置allowReindex
       });
 
       // 开始索引
@@ -328,6 +329,9 @@ export class IndexingRoutes {
         this.projectIdManager.removeProject(projectPath);
         await this.projectIdManager.saveMapping();
       }
+
+      // 删除项目状态和相关数据库资源
+      await this.projectStateManager.deleteProjectState(projectId);
 
       res.status(200).json({
         success: true,

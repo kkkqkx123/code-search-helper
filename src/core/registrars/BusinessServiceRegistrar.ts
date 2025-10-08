@@ -30,6 +30,9 @@ import { FileSearchCache } from '../../service/filesearch/FileSearchCache';
 // Nebula监控服务
 import { NebulaConnectionMonitor } from '../../service/graph/monitoring/NebulaConnectionMonitor';
 
+// 内存监控服务
+import { MemoryMonitorService } from '../../service/memory/MemoryMonitorService';
+
 
 export class BusinessServiceRegistrar {
   static register(container: Container): void {
@@ -61,6 +64,9 @@ export class BusinessServiceRegistrar {
 
     // Nebula监控服务
     container.bind<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor).to(NebulaConnectionMonitor).inSingletonScope();
+
+    // 内存监控服务
+    container.bind<MemoryMonitorService>(TYPES.MemoryMonitorService).to(MemoryMonitorService).inSingletonScope();
 
   }
 }
