@@ -5,7 +5,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { NebulaService } from '../nebula/NebulaService';
 import { NebulaSpaceManager } from '../nebula/space/NebulaSpaceManager';
-import { GraphQueryBuilder } from '../query/GraphQueryBuilder';
+import { GraphQueryBuilder } from '../nebula/query/GraphQueryBuilder';
 import { TransactionManager, TransactionOperation } from '../core/TransactionManager';
 import { TransactionResult } from '../core/TransactionManager';
 import { IBatchOptimizer } from '../../infrastructure/batching/types';

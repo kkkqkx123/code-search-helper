@@ -4,14 +4,14 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { GraphDatabaseService } from '../../../database/graph/GraphDatabaseService';
-import { GraphQueryBuilder } from '../../../database/query/GraphQueryBuilder';
+import { GraphQueryBuilder } from '../../../database/nebula/query/GraphQueryBuilder';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
 import {
   GraphPersistenceOptions,
   GraphPersistenceResult,
   CodeGraphNode,
- CodeGraphRelationship
+  CodeGraphRelationship
 } from './types';
 import { IGraphDataService } from './IGraphDataService';
 
@@ -386,7 +386,7 @@ export class GraphDataService implements IGraphDataService {
       throw error;
     }
   }
-  
+
   async executeRawQuery(query: string, parameters?: Record<string, any>): Promise<any> {
     if (!this.isInitialized) {
       await this.initialize();
@@ -394,7 +394,7 @@ export class GraphDataService implements IGraphDataService {
 
     try {
       this.logger.debug('Executing raw query', { query: query.substring(0, 100) + '...' });
-      
+
       return await this.graphDatabase.executeReadQuery(query, parameters || {});
     } catch (error) {
       this.errorHandler.handleError(

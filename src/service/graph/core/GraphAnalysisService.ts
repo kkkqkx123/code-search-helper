@@ -4,7 +4,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { GraphDatabaseService } from '../../../database/graph/GraphDatabaseService';
-import { GraphQueryBuilder } from '../../../database/query/GraphQueryBuilder';
+import { GraphQueryBuilder } from '../../../database/nebula/query/GraphQueryBuilder';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
 import {

@@ -83,7 +83,7 @@ import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnec
 // 图服务
 // GraphCacheService 从 service/graph/cache 导入
 import { GraphCacheService } from './service/graph/cache/GraphCacheService';
-import { GraphQueryBuilder, IGraphQueryBuilder } from './database/query/GraphQueryBuilder';
+import { GraphQueryBuilder, IGraphQueryBuilder } from './database/nebula/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
 import { GraphQueryValidator } from './service/graph/validation/GraphQueryValidator';

@@ -21,7 +21,7 @@ import { PerformanceMonitor } from '../../database/common/PerformanceMonitor';
 
 // 图数据库服务
 import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService';
-import { GraphQueryBuilder, IGraphQueryBuilder } from '../../database/query/GraphQueryBuilder';
+import { GraphQueryBuilder, IGraphQueryBuilder } from '../../database/nebula/query/GraphQueryBuilder';
 import { NebulaProjectManager } from '../../database/nebula/NebulaProjectManager';
 
 // Nebula图数据库服务
