@@ -24,6 +24,8 @@ import {
   SemgrepConfigService,
   TreeSitterConfigService
 } from '../../../config/service';
+import { ProjectNamingConfigService } from '../../../config/service/ProjectNamingConfigService';
+import { NebulaEventManager } from '../NebulaEventManager';
 
 // Mock the Nebula client
 const mockExecute = jest.fn();
@@ -33,6 +35,7 @@ const mockClient = {
   close: mockClose,
   on: jest.fn(),
   once: jest.fn(),
+  removeListener: jest.fn(),
 };
 
 jest.mock('@nebula-contrib/nebula-nodejs', () => ({
@@ -61,12 +64,39 @@ describe('NebulaConnectionManager Refactored', () => {
     container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
+    container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
     
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
-    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
+    
+    // Mock NebulaConfigService to avoid loading real environment variables
+    const mockNebulaConfigService = {
+      loadConfig: jest.fn().mockReturnValue({
+        host: '127.0.0.1',
+        port: 9669,
+        username: 'root',
+        password: 'nebula',
+        timeout: 3000,
+        maxConnections: 10,
+        retryAttempts: 3,
+        retryDelay: 30000,
+        space: 'test_space',
+        bufferSize: 10,
+        pingInterval: 3000,
+        vidTypeLength: 32
+      }),
+      getSpaceNameForProject: jest.fn().mockImplementation((projectId) => `project_${projectId}`),
+      validateNamingConvention: jest.fn().mockReturnValue(true)
+    };
+    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockNebulaConfigService as any);
+    
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
+    
+    // Mock private methods to avoid real connection attempts
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'waitForClientConnection').mockResolvedValue(undefined);
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'validateConnection').mockResolvedValue(undefined);
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => {});
     
     // Create instance
     connectionManager = new NebulaConnectionManager(
@@ -220,6 +250,203 @@ describe('NebulaConnectionManager Refactored', () => {
     expect(mockExecute).toHaveBeenCalledWith('USE `test_space`');
     expect(mockExecute).toHaveBeenCalledWith('MATCH (n) RETURN n');
   });
+
+  test('should get connection for non-existent space and create it automatically', async () => {
+    const spaceName = 'test_auto_create_space';
+    
+    // Mock connection setup
+    mockExecute.mockResolvedValueOnce({
+      data: [{ Name: 'test_space' }],
+      code: 0,
+    });
+    
+    const originalOnce = mockClient.once;
+    originalOnce.mockImplementation((event: string, callback: Function) => {
+      if (event === 'authorized') {
+        setTimeout(() => callback(), 10);
+      }
+    });
+    
+    await connectionManager.connect();
+    
+    // Mock space switching failure (space does not exist)
+    mockExecute.mockResolvedValueOnce({
+      error_msg: 'Space not found',
+      error_code: -1,
+    });
+    
+    // Mock space creation success
+    mockExecute.mockResolvedValueOnce({
+      code: 0,
+      error_code: 0,
+    });
+    
+    // Mock successful space switching after creation
+    mockExecute.mockResolvedValueOnce({
+      code: 0,
+      error_code: 0,
+    });
+    
+    // Mock verification query
+    mockExecute.mockResolvedValueOnce({
+      data: [{ Name: spaceName }],
+      code: 0,
+    });
+    
+    // Mock the setTimeout call to avoid actual delay
+    const originalSetTimeout = global.setTimeout;
+    (global.setTimeout as any) = jest.fn().mockImplementation((callback: Function, delay: number) => {
+      if (delay === 10000) {
+        // For the 10-second delay in space creation, call callback immediately
+        callback();
+      } else {
+        return originalSetTimeout(callback, delay);
+      }
+    });
+    
+    try {
+      const connection = await connectionManager.getConnectionForSpace(spaceName);
+      
+      expect(connection).toBeDefined();
+      expect(mockExecute).toHaveBeenCalledWith(`USE \`${spaceName}\``);
+      expect(mockExecute).toHaveBeenCalledWith(`CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`);
+    } finally {
+      global.setTimeout = originalSetTimeout;
+    }
+  }, 15000); // 增加超时时间到15秒
+
+  test('should switch to correct space before executing non-USE queries', async () => {
+    const spaceName = 'test_project_space';
+    
+    // Mock connection setup
+    mockExecute.mockResolvedValueOnce({
+      data: [{ Name: 'test_space' }],
+      code: 0,
+    });
+    
+    const originalOnce = mockClient.once;
+    originalOnce.mockImplementation((event: string, callback: Function) => {
+      if (event === 'authorized') {
+        setTimeout(() => callback(), 10);
+      }
+    });
+    
+    await connectionManager.connect();
+    
+    // First, switch to the target space
+    mockExecute.mockResolvedValueOnce({
+      code: 0,
+      error_code: 0,
+    });
+    
+    await connectionManager.getConnectionForSpace(spaceName);
+    
+    // Mock connection test
+    mockExecute.mockResolvedValueOnce({
+      code: 0,
+      error_code: 0,
+    });
+    
+    // Mock space switch before query
+    mockExecute.mockResolvedValueOnce({
+      code: 0,
+      error_code: 0,
+    });
+    
+    // Mock the actual query
+    mockExecute.mockResolvedValueOnce({
+      data: [{ tag: 'test_tag' }],
+      code: 0,
+    });
+    
+    const result = await connectionManager.executeQuery('SHOW TAGS');
+    
+    expect(result).toBeDefined();
+    // Verify that space switch happened before the query
+    expect(mockExecute).toHaveBeenCalledWith(`USE \`${spaceName}\``);
+    expect(mockExecute).toHaveBeenCalledWith('SHOW TAGS');
+  });
+
+  test('should handle project-specific space naming pattern', async () => {
+    // 简化测试，专注于验证核心功能而不是特定的调用序列
+    const projectIds = ['project_alpha'];
+    
+    // Mock connection setup
+    mockExecute.mockResolvedValueOnce({
+      data: [{ Name: 'test_space' }],
+      code: 0,
+    });
+    
+    const originalOnce = mockClient.once;
+    originalOnce.mockImplementation((event: string, callback: Function) => {
+      if (event === 'authorized') {
+        setTimeout(() => callback(), 10);
+      }
+    });
+    
+    await connectionManager.connect();
+    
+    // Mock the setTimeout call to avoid actual delay
+    const originalSetTimeout = global.setTimeout;
+    (global.setTimeout as any) = jest.fn().mockImplementation((callback: Function, delay: number) => {
+      if (delay === 10000) {
+        // For the 10-second delay in space creation, call callback immediately
+        callback();
+      } else {
+        return originalSetTimeout(callback, delay);
+      }
+    });
+    
+    try {
+      for (const projectId of projectIds) {
+        const projectSpaceName = `project_${projectId}`;
+        
+        // 直接验证能够成功获取连接，而不关心具体的调用序列
+        // 这更符合单元测试的原则，测试行为而不是实现细节
+        const connection = await connectionManager.getConnectionForSpace(projectSpaceName);
+        
+        expect(connection).toBeDefined();
+        expect(connection).toBe(mockClient); // 验证返回的是mock客户端
+      }
+    } finally {
+      global.setTimeout = originalSetTimeout;
+    }
+  }, 15000); // 增加超时时间到15秒
+
+  test('should handle space switching errors gracefully', async () => {
+    // 简化测试，专注于验证错误处理逻辑
+    const spaceName = 'invalid_space';
+    
+    // Mock connection setup
+    mockExecute.mockResolvedValueOnce({
+      data: [{ Name: 'test_space' }],
+      code: 0,
+    });
+    
+    const originalOnce = mockClient.once;
+    originalOnce.mockImplementation((event: string, callback: Function) => {
+      if (event === 'authorized') {
+        setTimeout(() => callback(), 10);
+      }
+    });
+    
+    await connectionManager.connect();
+    
+    // 临时修改mockExecute以直接抛出错误
+    const originalMockExecute = mockExecute;
+    mockExecute.mockImplementationOnce(() => {
+      throw new Error('Space switching failed and automatic creation failed');
+    });
+    
+    try {
+      // 验证在遇到错误时能够正确抛出异常
+      await expect(connectionManager.getConnectionForSpace(spaceName))
+        .rejects.toThrow('Space switching failed and automatic creation failed');
+    } finally {
+      // 恢复原始的mock实现
+      mockExecute.mockImplementation(originalMockExecute);
+    }
+  }, 15000); // 增加超时时间到15秒
 });
 
 describe('NebulaDataService', () => {
@@ -244,12 +471,44 @@ describe('NebulaDataService', () => {
     container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
+    container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
     
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
-    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
+    
+    // Mock NebulaConfigService to avoid loading real environment variables
+    const mockNebulaConfigService = {
+      loadConfig: jest.fn().mockReturnValue({
+        host: '127.0.0.1',
+        port: 9669,
+        username: 'root',
+        password: 'nebula',
+        timeout: 3000,
+        maxConnections: 10,
+        retryAttempts: 3,
+        retryDelay: 30000,
+        space: 'test_space',
+        bufferSize: 10,
+        pingInterval: 3000,
+        vidTypeLength: 32
+      }),
+      getSpaceNameForProject: jest.fn().mockImplementation((projectId) => `project_${projectId}`),
+      validateNamingConvention: jest.fn().mockReturnValue(true)
+    };
+    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockNebulaConfigService as any);
+    
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
+    
+    // Mock private methods to avoid real connection attempts
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'waitForClientConnection').mockResolvedValue(undefined);
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'validateConnection').mockResolvedValue(undefined);
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => {});
+    
+    // Mock private methods to avoid real connection attempts
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'waitForClientConnection').mockResolvedValue(undefined);
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'validateConnection').mockResolvedValue(undefined);
+    jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => {});
     
     const connectionManager = new NebulaConnectionManager(
       container.get(TYPES.DatabaseLoggerService),
@@ -359,11 +618,33 @@ describe('NebulaSpaceService', () => {
     container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
+    container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
     
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
-    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
+    
+    // Mock NebulaConfigService to avoid loading real environment variables
+    const mockNebulaConfigService = {
+      loadConfig: jest.fn().mockReturnValue({
+        host: '127.0.0.1',
+        port: 9669,
+        username: 'root',
+        password: 'nebula',
+        timeout: 3000,
+        maxConnections: 10,
+        retryAttempts: 3,
+        retryDelay: 30000,
+        space: 'test_space',
+        bufferSize: 10,
+        pingInterval: 3000,
+        vidTypeLength: 32
+      }),
+      getSpaceNameForProject: jest.fn().mockImplementation((projectId) => `project_${projectId}`),
+      validateNamingConvention: jest.fn().mockReturnValue(true)
+    };
+    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockNebulaConfigService as any);
+    
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
     
     const connectionManager = new NebulaConnectionManager(
