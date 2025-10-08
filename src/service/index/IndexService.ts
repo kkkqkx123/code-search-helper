@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { FileSystemTraversal } from '../filesystem/FileSystemTraversal';
+import { FileSystemTraversal, FileInfo } from '../filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../filesystem/ChangeDetectionService';
 import { QdrantService } from '../../database/qdrant/QdrantService';
@@ -57,6 +57,14 @@ export interface MemoryUsage {
   total: number;
   percentage: number;
   timestamp: Date;
+}
+
+export interface BatchProcessingResult {
+  filePath: string;
+  success: boolean;
+  processingTime?: number;
+  chunkCount?: number;
+  error: string | undefined;
 }
 
 export interface IndexingMetrics {
@@ -345,7 +353,7 @@ export class IndexService {
       const maxConcurrency = options?.maxConcurrency || 3;
 
       // 使用性能优化器批量处理文件
-      await this.performanceOptimizer.processBatches(
+      const batchResults = await this.performanceOptimizer.processBatches(
         files,
         async (batch) => {
           // 内存检查 - 批次开始时检查内存
@@ -364,27 +372,36 @@ export class IndexService {
               global.gc();
             }
 
-            // 如果内存仍然过高，跳过此批次
+            // 如果内存仍然过高，记录警告但不跳过处理
             const memoryAfterGC = process.memoryUsage();
             if (memoryAfterGC.heapUsed / memoryAfterGC.heapTotal > 0.85) {
-              this.logger.warn(`Memory still high after GC, skipping batch for project ${projectId}`, {
+              this.logger.debug(`Memory still high after GC for project ${projectId}`, {
                 memoryAfterGC,
-                skippedFiles: batch.length
+                batchSize: batch.length
               });
-              status.failedFiles += batch.length;
-              return [];
             }
           }
 
+          const results: BatchProcessingResult[] = [];
           const promises = batch.map(async (file) => {
+            const startTime = Date.now();
             try {
               await this.performanceOptimizer.executeWithRetry(
                 () => this.indexFile(projectPath, file.path),
                 `indexFile:${file.path}`
               );
               status.indexedFiles++;
+              
+              // 记录成功结果
+              results.push({
+                filePath: file.path,
+                success: true,
+                processingTime: Date.now() - startTime,
+                error: undefined
+              });
             } catch (error) {
               status.failedFiles++;
+              const errorMessage = error instanceof Error ? error.message : String(error);
               this.logger.error(`Failed to index file: ${file.path}`, { error });
 
               // 如果是内存相关错误，记录额外信息
@@ -394,6 +411,14 @@ export class IndexService {
                   error: error.message
                 });
               }
+              
+              // 记录失败结果
+              results.push({
+                filePath: file.path,
+                success: false,
+                error: errorMessage,
+                processingTime: Date.now() - startTime
+              });
             }
           });
 
@@ -415,8 +440,8 @@ export class IndexService {
           await this.emit('indexingProgress', projectId, status.progress);
           this.logger.debug(`Indexing progress for project ${projectId}: ${status.progress}%`);
 
-          // 返回空数组以满足processBatches的返回类型要求
-          return [];
+          // 返回批处理结果以满足processBatches的返回类型要求
+          return results;
         },
         'indexProjectFiles'
       );

@@ -1,0 +1,29 @@
+Error: 项目路径 "D:/code/Go/dataStructure" 已被项目 "040721e25ac919a0" 使用，不能重复添加
+    at ProjectStateManager.createOrUpdateProjectState (D:\ide\tool\code-search-helper\src\service\project\ProjectStateManager.ts:335:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async ProjectRoutes.reindexProject (D:\ide\tool\code-search-helper\src\api\routes\ProjectRoutes.ts:234:7)
+[2025-10-08T16:57:54.946+08:00] [ERROR] Failed to reindex project {
+  "error": {},
+  "projectId": "86b62e2ebce0231b"
+}
+[2025-10-08T16:57:54.946+08:00] [ERROR] Error in ProjectStateManager.createOrUpdateProjectState: Failed to create or update project state: 项目路径 "D:/code/Go/dataStructure" 已被项目 "040721e25ac919a0" 使用，不能重复添加 {
+  "errorId": "err_mghra4u7_lq570b",
+  "timestamp": "2025-10-08T08:57:54.943Z",
+  "stack": "Error: Failed to create or update project state: 项目路径 \"D:/code/Go/dataStructure\" 已被项目 \"040721e25ac919a0\" 使用，不能重复添加\n    at ProjectStateManager.createOrUpdateProjectState (D:\\ide\\tool\\code-search-helper\\src\\service\\project\\ProjectStateManager.ts:387:9)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async ProjectRoutes.reindexProject (D:\\ide\\tool\\code-search-helper\\src\\api\\routes\\ProjectRoutes.ts:234:7)",
+  "context": {
+    "projectPath": "D:/code/Go/dataStructure",
+    "options": {}
+  }
+}
+[2025-10-08T16:57:54.952+08:00] [INFO] API POST /api/v1/projects/86b62e2ebce0231b/reindex - 500 {
+  "method": "POST",
+  "path": "/api/v1/projects/86b62e2ebce0231b/reindex",
+  "statusCode": 500,
+  "responseTime": "10ms",
+  "origin": "http://localhost:3011",
+  "body": {},
+  "error": "Internal Server Error",
+  "responseBody": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Error: 项目路径 &quot;D:/code/Go/dataStructure&quot; 已被项目 &quot;040721e25ac919a0&quot; 使用，不能重复添加<br> &nbsp; &nbsp;at ProjectStateManager.createOrUpdateProjectState (D:\\ide\\tool\\code-search-helper\\src\\service\\project\\ProjectStateManager.ts:335:15)<br> &nbsp; &nbsp;at processTicksAndRejections (node:internal/process/task_queues:105:5)<br> &nbsp; &nbsp;at async ProjectRoutes.reindexProject (D:\\ide\\tool\\code-search-helper\\src\\api\\routes\\ProjectRoutes.ts:234:7)</pre>\n</body>\n</html>\n"
+}
+
+重新索引应当删除旧的项目，然后再重新索引

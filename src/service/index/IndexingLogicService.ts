@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { FileSystemTraversal } from '../filesystem/FileSystemTraversal';
+import { FileSystemTraversal, FileInfo } from '../filesystem/FileSystemTraversal';
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
@@ -16,7 +16,7 @@ import { CodeChunk } from '../parser/splitting/Splitter';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { IndexSyncOptions } from './IndexService';
+import { IndexSyncOptions, BatchProcessingResult } from './IndexService';
 import { IGraphService } from '../graph/core/IGraphService';
 import { IGraphDataMappingService } from '../mapping/IGraphDataMappingService';
 import { GraphPersistenceResult } from '../graph/core/types';
@@ -91,17 +91,36 @@ export class IndexingLogicService {
       const maxConcurrency = options?.maxConcurrency || 3;
 
       // 使用性能优化器批量处理文件
-      await this.performanceOptimizer.processBatches(
+      const batchResults: BatchProcessingResult[] = await this.performanceOptimizer.processBatches(
         files,
         async (batch) => {
+          const results: BatchProcessingResult[] = [];
           const promises = batch.map(async (file) => {
+            const startTime = Date.now();
             try {
               await this.performanceOptimizer.executeWithRetry(
                 () => this.indexFile(projectPath, file.path),
                 `indexFile:${file.path}`
               );
+              
+              // 记录成功结果
+              results.push({
+                filePath: file.path,
+                success: true,
+                processingTime: Date.now() - startTime,
+                error: undefined
+              });
             } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
               this.logger.error(`Failed to index file: ${file.path}`, { error });
+              
+              // 记录失败结果
+              results.push({
+                filePath: file.path,
+                success: false,
+                processingTime: Date.now() - startTime,
+                error: errorMessage
+              });
             }
           });
 
@@ -114,8 +133,8 @@ export class IndexingLogicService {
             onProgress(progress);
           }
 
-          // 返回空数组以满足processBatches的返回类型要求
-          return [];
+          // 返回批处理结果以满足processBatches的返回类型要求
+          return results;
         },
         'indexProjectFiles'
       );
@@ -261,13 +280,12 @@ export class IndexingLogicService {
     const startTime = Date.now();
     const initialMemory = process.memoryUsage();
 
-    // 内存使用检查 - 如果内存使用超过85%，跳过处理
+    // 内存使用检查 - 如果内存使用超过85%，记录日志但不跳过处理
     if (initialMemory.heapUsed / initialMemory.heapTotal > 0.85) {
-      this.logger.warn(`Memory usage too high, skipping file: ${filePath}`, {
+      this.logger.debug(`High memory usage detected for file: ${filePath}`, {
         memoryUsage: initialMemory,
         threshold: 0.85
       });
-      throw new Error('Memory usage too high, skipping file processing');
     }
 
     try {

@@ -1,22 +1,17 @@
 {
   "projectIdMap": {
-    "D:/ide/tool/code-search-helper/test-files": "a2c7b9d32367187c",
-    "D:/code/Go/dataStructure": "86b62e2ebce0231b"
+    "D:/ide/tool/code-search-helper/test-files": "a2c7b9d32367187c"
   },
   "collectionMap": {
-    "a2c7b9d32367187c": "project-a2c7b9d32367187c",
-    "86b62e2ebce0231b": "project-86b62e2ebce0231b"
+    "a2c7b9d32367187c": "project-a2c7b9d32367187c"
   },
   "spaceMap": {
-    "a2c7b9d32367187c": "project_a2c7b9d32367187c",
-    "86b62e2ebce0231b": "project_86b62e2ebce0231b"
+    "a2c7b9d32367187c": "project_a2c7b9d32367187c"
   },
   "pathToProjectMap": {
-    "a2c7b9d32367187c": "D:/ide/tool/code-search-helper/test-files",
-    "86b62e2ebce0231b": "D:/code/Go/dataStructure"
+    "a2c7b9d32367187c": "D:/ide/tool/code-search-helper/test-files"
   },
   "projectUpdateTimes": {
-    "a2c7b9d32367187c": "2025-10-08T07:53:57.808Z",
-    "86b62e2ebce0231b": "2025-10-08T08:48:44.542Z"
+    "a2c7b9d32367187c": "2025-10-08T07:53:57.808Z"
   }
 }
