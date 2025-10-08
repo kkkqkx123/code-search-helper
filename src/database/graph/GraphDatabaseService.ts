@@ -73,7 +73,7 @@ export class GraphDatabaseService {
     this.performanceOptimizer = performanceOptimizer;
 
     this.config = {
-      defaultSpace: 'default',
+      defaultSpace: 'test_space',
       enableTransactions: true,
       enableCaching: true,
       cacheTTL: 300000, // 5 minutes
@@ -121,8 +121,7 @@ export class GraphDatabaseService {
         throw new Error('Failed to initialize Nebula service');
       }
 
-      // Set default space
-      await this.useSpace(this.config.defaultSpace);
+      // 初始化时不需要切换到特定空间，让项目特定的空间在需要时创建和切换
 
       this.logger.info('Graph database service initialized successfully');
       return true;

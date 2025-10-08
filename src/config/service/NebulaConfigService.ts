@@ -219,7 +219,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       maxConnections: 10,
       retryAttempts: 3,
       retryDelay: 1000,
-      space: 'codebase',
+      space: 'test_space',
       bufferSize: 10,
       pingInterval: 3000,
       vidTypeLength: 128,

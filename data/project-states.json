@@ -5,15 +5,15 @@
     "name": "D:\\ide\\tool\\code-search-helper\\test-files",
     "status": "active",
     "createdAt": "2025-09-29T16:09:10.590Z",
-    "updatedAt": "2025-09-30T02:21:31.165Z",
-    "lastIndexedAt": "2025-09-30T02:21:31.165Z",
+    "updatedAt": "2025-10-08T00:27:51.039Z",
+    "lastIndexedAt": "2025-10-08T00:27:51.039Z",
     "indexingProgress": 100,
     "totalFiles": 1,
     "indexedFiles": 1,
     "failedFiles": 0,
     "collectionInfo": {
       "name": "project-a2c7b9d32367187c",
-      "vectorsCount": 2,
+      "vectorsCount": 1,
       "status": "green"
     },
     "settings": {
