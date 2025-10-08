@@ -829,6 +829,27 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         // 如果测试查询也失败，继续执行实际查询，让原始错误处理来处理
       }
 
+      // 获取当前连接的空间
+      const currentSpace = this.connectionStateManager.getConnectionSpace('nebula-client-main');
+      
+      // 如果配置了特定空间，确保在执行查询前切换到正确的空间
+      if (currentSpace && !trimmedQuery.toUpperCase().startsWith('USE ')) {
+        try {
+          // 检查是否需要在执行查询前切换空间
+          const useResult = await client.execute(`USE \`${currentSpace}\``);
+          if (useResult && (useResult.code !== 0 && (typeof useResult.error_code !== 'undefined' && useResult.error_code !== 0))) {
+            const useError = useResult?.error_msg || useResult?.error || 'Unknown error';
+            console.warn(`[NebulaConnectionManager] Failed to switch to space ${currentSpace} before query: ${useError}`);
+          } else {
+            console.log(`[NebulaConnectionManager] Switched to space ${currentSpace} before executing query`);
+          }
+        } catch (useError) {
+          const useErrorMessage = useError instanceof Error ? useError.message : String(useError);
+          console.warn(`[NebulaConnectionManager] Space switch warning before query: ${useErrorMessage}`);
+          // 不抛出错误，继续执行查询
+        }
+      }
+
       await this.logDatabaseEvent({
         type: DatabaseEventType.QUERY_EXECUTED,
         source: 'nebula',
@@ -1204,6 +1225,19 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         // 更新连接状态管理器中的空间状态
         this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
         console.log(`[NebulaConnectionManager] Successfully switched to space: ${spaceName}`);
+        
+        // 验证空间切换是否真正成功
+        try {
+          const verifyResult = await this.client.execute('SHOW SPACES;');
+          console.log(`[NebulaConnectionManager] Verification query result:`, {
+            hasData: !!verifyResult?.data,
+            dataLength: verifyResult?.data?.length,
+            currentSpace: spaceName
+          });
+        } catch (verifyError) {
+          console.warn(`[NebulaConnectionManager] Space verification failed:`, verifyError);
+        }
+        
         return this.client;
       } else {
         const errorMsg = result?.error || result?.error_msg || 'Unknown error';
