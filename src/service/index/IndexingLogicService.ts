@@ -255,11 +255,20 @@ export class IndexingLogicService {
   }
 
   /**
-   * 索引单个文件（增强版，带性能监控）
+   * 索引单个文件（增强版，带性能监控和内存保护）
    */
   async indexFile(projectPath: string, filePath: string): Promise<void> {
     const startTime = Date.now();
     const initialMemory = process.memoryUsage();
+
+    // 内存使用检查 - 如果内存使用超过85%，跳过处理
+    if (initialMemory.heapUsed / initialMemory.heapTotal > 0.85) {
+      this.logger.warn(`Memory usage too high, skipping file: ${filePath}`, {
+        memoryUsage: initialMemory,
+        threshold: 0.85
+      });
+      throw new Error('Memory usage too high, skipping file processing');
+    }
 
     try {
       // 记录开始指标
@@ -272,6 +281,20 @@ export class IndexingLogicService {
 
       // 使用协调服务处理文件
       const vectorPoints = await this.coordinationService.processFileForEmbedding(filePath, projectPath);
+
+      // 内存压力检查 - 在处理向量数据前检查内存
+      const currentMemory = process.memoryUsage();
+      if (currentMemory.heapUsed / currentMemory.heapTotal > 0.90) {
+        this.logger.warn(`Memory pressure detected during file processing: ${filePath}`, {
+          memoryUsage: currentMemory,
+          heapUsedMB: currentMemory.heapUsed / 1024 / 1024,
+          heapTotalMB: currentMemory.heapTotal / 1024 / 1024
+        });
+        // 强制垃圾回收
+        if (global.gc) {
+          global.gc();
+        }
+      }
 
       // 并行处理：向量数据存储和图数据存储
       const [qdrantResult, fileContent] = await Promise.all([
@@ -376,8 +399,9 @@ export class IndexingLogicService {
         graphSuccess: graphResult.success
       });
 
-      // 生成优化建议（异步，不阻塞主流程）
-      const timer = setTimeout(async () => {
+      // 生成优化建议（异步，不阻塞主流程）- 内存泄漏修复
+      // 使用 setImmediate 替代 setTimeout 以避免定时器累积
+      const immediate = setImmediate(async () => {
         try {
           await this.optimizationAdvisor.analyzeAndRecommend();
         } catch (advisorError) {
@@ -385,16 +409,20 @@ export class IndexingLogicService {
             error: (advisorError as Error).message
           });
         } finally {
-          // 从pendingTimers数组中移除已完成的定时器
-          const index = this.pendingTimers.indexOf(timer);
+          // 清理immediate引用，防止内存泄漏
+          const index = this.pendingTimers.indexOf(immediate);
           if (index !== -1) {
             this.pendingTimers.splice(index, 1);
           }
+          // 手动触发垃圾回收（如果可用）
+          if (global.gc) {
+            global.gc();
+          }
         }
-      }, 0);
-      
-      // 将定时器引用存储到pendingTimers数组中
-      this.pendingTimers.push(timer);
+      });
+
+      // 将immediate引用存储到pendingTimers数组中
+      this.pendingTimers.push(immediate);
 
     } catch (error) {
       this.recordError(filePath, error);
@@ -470,7 +498,7 @@ export class IndexingLogicService {
   /**
    * 存储未完成的定时器引用，以便在测试结束时清理
    */
-  private pendingTimers: NodeJS.Timeout[] = [];
+  private pendingTimers: NodeJS.Immediate[] = [];
 
   /**
    * 并发处理任务
@@ -497,12 +525,16 @@ export class IndexingLogicService {
   }
 
   /**
-   * 清理未完成的定时器
+   * 清理未完成的定时器和immediate对象
    */
   async cleanup(): Promise<void> {
-    for (const timer of this.pendingTimers) {
-      clearTimeout(timer);
+    for (const immediate of this.pendingTimers) {
+      clearImmediate(immediate);
     }
     this.pendingTimers = [];
+    // 强制垃圾回收
+    if (global.gc) {
+      global.gc();
+    }
   }
 }

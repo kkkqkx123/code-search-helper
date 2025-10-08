@@ -21,5 +21,23 @@
       "watchChanges": true
     },
     "metadata": {}
+  },
+  {
+    "projectId": "040721e25ac919a0",
+    "projectPath": "D:\\code\\Go\\dataStructure",
+    "name": "D:\\code\\Go\\dataStructure",
+    "status": "indexing",
+    "createdAt": "2025-10-08T08:27:52.081Z",
+    "updatedAt": "2025-10-08T08:48:44.292Z",
+    "collectionInfo": {
+      "name": "project-040721e25ac919a0",
+      "vectorsCount": 0,
+      "status": "green"
+    },
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {}
   }
 ]

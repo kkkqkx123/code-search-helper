@@ -348,6 +348,34 @@ export class IndexService {
       await this.performanceOptimizer.processBatches(
         files,
         async (batch) => {
+          // 内存检查 - 批次开始时检查内存
+          const memoryBefore = process.memoryUsage();
+          const memoryUsagePercent = memoryBefore.heapUsed / memoryBefore.heapTotal;
+
+          if (memoryUsagePercent > 0.80) {
+            this.logger.warn(`High memory usage detected before batch processing for project ${projectId}`, {
+              memoryUsage: memoryBefore,
+              memoryUsagePercent: memoryUsagePercent * 100,
+              batchSize: batch.length
+            });
+
+            // 强制垃圾回收
+            if (global.gc) {
+              global.gc();
+            }
+
+            // 如果内存仍然过高，跳过此批次
+            const memoryAfterGC = process.memoryUsage();
+            if (memoryAfterGC.heapUsed / memoryAfterGC.heapTotal > 0.85) {
+              this.logger.warn(`Memory still high after GC, skipping batch for project ${projectId}`, {
+                memoryAfterGC,
+                skippedFiles: batch.length
+              });
+              status.failedFiles += batch.length;
+              return [];
+            }
+          }
+
           const promises = batch.map(async (file) => {
             try {
               await this.performanceOptimizer.executeWithRetry(
@@ -358,18 +386,35 @@ export class IndexService {
             } catch (error) {
               status.failedFiles++;
               this.logger.error(`Failed to index file: ${file.path}`, { error });
+
+              // 如果是内存相关错误，记录额外信息
+              if (error instanceof Error && error.message.includes('memory')) {
+                this.logger.warn(`Memory-related error while indexing file: ${file.path}`, {
+                  memoryUsage: process.memoryUsage(),
+                  error: error.message
+                });
+              }
             }
           });
 
           // 限制并发数
           await this.processWithConcurrency(promises, maxConcurrency);
 
+          // 批次完成后的内存清理
+          const memoryAfterBatch = process.memoryUsage();
+          if (memoryAfterBatch.heapUsed / memoryAfterBatch.heapTotal > 0.75) {
+            // 批次完成后触发垃圾回收
+            if (global.gc) {
+              global.gc();
+            }
+          }
 
           // 更新进度
           status.progress = Math.round((status.indexedFiles + status.failedFiles) / status.totalFiles * 100);
           // 触发索引进度更新事件
           await this.emit('indexingProgress', projectId, status.progress);
           this.logger.debug(`Indexing progress for project ${projectId}: ${status.progress}%`);
+
           // 返回空数组以满足processBatches的返回类型要求
           return [];
         },
