@@ -91,9 +91,15 @@ describe('IndexingLogicService', () => {
     // Mock the missing dependencies
     const graphService = {} as any;
     const graphMappingService = {} as any;
-    const performanceDashboard = {} as any;
+    const performanceDashboard = {
+      recordMetric: jest.fn().mockResolvedValue(undefined)
+    } as any;
     const optimizationAdvisor = {} as any;
     const batchProcessingOptimizer = {} as any;
+
+    // Mock fs methods
+    jest.spyOn(require('fs/promises'), 'readFile').mockResolvedValue('test file content');
+    jest.spyOn(require('fs/promises'), 'stat').mockResolvedValue({ size: 1024 } as any);
 
     // Create service instance using dependency injection approach
     indexingLogicService = new IndexingLogicService();

@@ -211,6 +211,19 @@ describe('IndexService', () => {
     );
   });
 
+  // 在所有测试完成后清理资源
+  afterAll(async () => {
+    // 清理FileWatcherService中的计时器
+    if (fileWatcherService && typeof fileWatcherService.stopWatching === 'function') {
+      await fileWatcherService.stopWatching();
+    }
+    
+    // 清理PerformanceOptimizerService中的计时器
+    if (performanceOptimizerService && typeof performanceOptimizerService.stopMemoryMonitoring === 'function') {
+      performanceOptimizerService.stopMemoryMonitoring();
+    }
+  });
+
   describe('startIndexing', () => {
     it('should start indexing a project successfully', async () => {
       const projectPath = '/test/project';

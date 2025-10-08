@@ -3,22 +3,30 @@ import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
 import { TreeSitterCoreService } from '../core/parse/TreeSitterCoreService';
 import { PerformanceMetricsCollector } from '../../metrics/PerformanceMetricsCollector';
+import { AutoOptimizationAdvisor } from '../../optimization/AutoOptimizationAdvisor';
 
 describe('TreeSitterCoreService', () => {
   let container: Container;
   let treeSitterService: TreeSitterCoreService;
   let metricsCollector: PerformanceMetricsCollector;
+  let optimizationAdvisor: AutoOptimizationAdvisor;
 
   beforeAll(() => {
     container = diContainer;
     treeSitterService = container.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
     metricsCollector = container.get<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector);
+    optimizationAdvisor = container.get<AutoOptimizationAdvisor>(TYPES.AutoOptimizationAdvisor);
   });
 
   afterAll(() => {
     // 停止自动收集指标，避免测试完成后仍有异步操作运行
     if (metricsCollector && typeof metricsCollector.stopAutoCollection === 'function') {
       metricsCollector.stopAutoCollection();
+    }
+    
+    // 停止自动优化分析，避免测试完成后仍有异步操作运行
+    if (optimizationAdvisor && typeof optimizationAdvisor.stopAnalysis === 'function') {
+      optimizationAdvisor.stopAnalysis();
     }
   });
 

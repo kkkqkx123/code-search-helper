@@ -121,6 +121,29 @@ export interface NebulaRelationship {
   properties?: Record<string, any>;
 }
 
+// Nebula 空间配置类型
+export interface NebulaSpaceConfig {
+  partitionNum?: number;
+  replicaFactor?: number;
+  vidType?: string;
+  tags?: Array<{
+    name: string;
+    properties: Array<{
+      name: string;
+      type: string;
+      nullable?: boolean;
+    }>;
+  }>;
+  edges?: Array<{
+    name: string;
+    properties: Array<{
+      name: string;
+      type: string;
+      nullable?: boolean;
+    }>;
+  }>;
+}
+
 // 项目空间信息类型
 export interface ProjectSpaceInfo {
   projectPath: string;

@@ -12,6 +12,8 @@ import { NebulaQueryUtils } from './NebulaQueryUtils';
 import { NebulaResultFormatter } from './NebulaResultFormatter';
 import { EventListener } from '../../types';
 import { NebulaEventManager } from './NebulaEventManager';
+import { INebulaQueryService } from './NebulaQueryService';
+import { INebulaTransactionService } from './NebulaTransactionService';
 
 // 导入Nebula Graph客户端库
 import { createClient } from '@nebula-contrib/nebula-nodejs';
@@ -39,6 +41,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private client: any; // Nebula Graph客户端实例
   private sessionCleanupInterval: NodeJS.Timeout | null = null;
   private eventManager: NebulaEventManager;
+  private queryService: INebulaQueryService;
+  private transactionService: INebulaTransactionService;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
@@ -46,7 +50,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.NebulaConfigService) nebulaConfigService: NebulaConfigService,
     @inject(TYPES.ConnectionStateManager) connectionStateManager: ConnectionStateManager,
-    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
+    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager,
+    @inject(TYPES.NebulaQueryService) queryService: INebulaQueryService,
+    @inject(TYPES.NebulaTransactionService) transactionService: INebulaTransactionService
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
@@ -54,6 +60,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     this.nebulaConfigService = nebulaConfigService;
     this.connectionStateManager = connectionStateManager;
     this.eventManager = eventManager;
+    this.queryService = queryService;
+    this.transactionService = transactionService;
     this.connectionStatus = {
       connected: false,
       host: '',
@@ -754,210 +762,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
-    // 验证连接状态
-    if (!this.isConnected()) {
-      return this.createErrorResult('Not connected to Nebula Graph');
-    }
-
-    // 验证查询参数
-    if (!nGQL || typeof nGQL !== 'string' || nGQL.trim() === '') {
-      throw new Error('Invalid query: Query string is empty or invalid');
-    }
-
-    // 检查非USE查询是否是无效的字符串，如 'undefined'
-    const trimmedQuery = nGQL.trim();
-    if (!trimmedQuery.toUpperCase().startsWith('USE ') && trimmedQuery.toLowerCase() === 'undefined') {
-      throw new Error('Invalid query: Query string is invalid');
-    }
-
-    try {
-      // 额外检查客户端是否存在且可执行查询
-      if (!this.client || typeof this.client.execute !== 'function') {
-        return this.createErrorResult('Client is not ready to execute queries');
-      }
-
-      const client = this.client;
-
-      // 检查是否是USE命令来更新空间状态
-      if (trimmedQuery.toUpperCase().startsWith('USE ')) {
-        const match = trimmedQuery.match(/USE\s+`?([^\s`]+)?`?/i);
-        if (match) {
-          const spaceName = match[1]; // 可能是 undefined（当匹配 `` 时）
-
-          // 检查是否试图使用无效的space
-          if (spaceName === undefined || spaceName === 'undefined' || spaceName === '') {
-            throw new Error('Space does not exist');
-          }
-
-          // 获取当前连接的空间
-          const currentSpace = this.connectionStateManager.getConnectionSpace('nebula-client-main');
-
-          // 如果已经在目标空间，则不执行USE命令
-          if (currentSpace === spaceName) {
-            return this.createSuccessResult(`Already in space ${spaceName}`);
-          }
-
-          // 执行USE命令切换空间
-          const result = await client.execute(nGQL);
-
-          // 检查切换是否成功
-          if (result && result.code === 0) {
-            // 更新连接状态管理器中的空间状态
-            this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
-            return this.formatQueryResult(result, 0);
-          } else {
-            throw new Error(result?.error || 'Space does not exist');
-          }
-        }
-      }
-
-      // 验证客户端是否准备好执行查询，避免在连接未完全准备好的情况下执行查询
-      try {
-        // 创建一个简单的查询来测试客户端连接状态
-        const testResult = await client.execute('YIELD 1 AS test_connection;');
-        if (testResult && typeof testResult.error_code !== 'undefined' && testResult.error_code !== 0) {
-          const testError = testResult?.error_msg || testResult?.error || 'Unknown connection error';
-          return this.createErrorResult(`Client is not ready: ${testError}`);
-        }
-      } catch (testError) {
-        const testErrorMessage = testError instanceof Error ? testError.message : String(testError);
-        if (testErrorMessage.includes('会话无效或连接未就绪') ||
-          testErrorMessage.includes('Session invalid') ||
-          testErrorMessage.includes('Connection not ready')) {
-          return this.createErrorResult(`Connection not ready: ${testErrorMessage}`);
-        }
-        // 如果测试查询也失败，继续执行实际查询，让原始错误处理来处理
-      }
-
-      // 获取当前连接的空间
-      const currentSpace = this.connectionStateManager.getConnectionSpace('nebula-client-main');
-      
-      // 如果配置了特定空间，确保在执行查询前切换到正确的空间
-      if (currentSpace && !trimmedQuery.toUpperCase().startsWith('USE ')) {
-        try {
-          // 检查是否需要在执行查询前切换空间
-          const useResult = await client.execute(`USE \`${currentSpace}\``);
-          if (useResult && (useResult.code !== 0 && (typeof useResult.error_code !== 'undefined' && useResult.error_code !== 0))) {
-            const useError = useResult?.error_msg || useResult?.error || 'Unknown error';
-            console.warn(`[NebulaConnectionManager] Failed to switch to space ${currentSpace} before query: ${useError}`);
-          } else {
-            console.log(`[NebulaConnectionManager] Switched to space ${currentSpace} before executing query`);
-          }
-        } catch (useError) {
-          const useErrorMessage = useError instanceof Error ? useError.message : String(useError);
-          console.warn(`[NebulaConnectionManager] Space switch warning before query: ${useErrorMessage}`);
-          // 不抛出错误，继续执行查询
-        }
-      }
-
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Executing Nebula query',
-          query: nGQL.substring(0, 100) + (nGQL.length > 100 ? '...' : ''),
-          hasParameters: !!parameters && Object.keys(parameters).length > 0,
-          clientAvailable: !!client,
-          clientType: typeof client,
-          clientMethods: client ? Object.getOwnPropertyNames(Object.getPrototypeOf(client)).filter(name => typeof client[name] === 'function') : []
-        }
-      });
-
-      const startTime = Date.now();
-
-      // 执行查询 - Nebula Graph客户端库不支持参数化查询，需要手动处理参数
-      const finalQuery = this.prepareQuery(nGQL, parameters);
-
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Prepared query for execution',
-          originalQuery: nGQL,
-          preparedQuery: finalQuery,
-          parameters
-        }
-      });
-
-      const result = await client.execute(finalQuery);
-
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Raw query result from Nebula',
-          hasResult: !!result,
-          resultType: typeof result,
-          hasTable: !!result?.table,
-          hasResults: !!result?.results,
-          hasRows: !!result?.rows,
-          hasData: !!result?.data,
-          dataSize: result?.data?.length,
-          hasError: !!result?.error,
-          error: result?.error,
-          hasCode: typeof result?.code !== 'undefined',
-          code: result?.code,
-          hasTimeCost: typeof result?.timeCost !== 'undefined',
-          timeCost: result?.timeCost
-        }
-      });
-
-      const executionTime = Date.now() - startTime;
-
-      // 转换结果格式
-      const nebulaResult = this.formatQueryResult(result, executionTime);
-
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Formatted query result',
-          executionTime,
-          hasData: !!(nebulaResult.data && nebulaResult.data.length > 0),
-          dataSize: nebulaResult.data?.length,
-          hasError: !!nebulaResult.error,
-          error: nebulaResult.error
-        }
-      });
-
-      return nebulaResult;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // 如果错误是"Space does not exist"，我们不应该记录为错误，因为这是预期的行为
-      if (!errorMessage.includes('Space does not exist') && !errorMessage.includes('Connection not ready')) {
-        this.errorHandler.handleError(
-          new Error(`Failed to execute Nebula query: ${errorMessage}`),
-          {
-            component: 'NebulaConnectionManager',
-            operation: 'executeQuery',
-            query: nGQL,
-            parameters
-          }
-        );
-      }
-
-      // 如果错误是由于无效空间名称引起的，应该抛出错误而不是返回错误结果
-      if (errorMessage.includes('Space does not exist')) {
-        throw error;
-      }
-
-      // 对于连接未就绪的错误，也要抛出错误而不是返回错误结果
-      if (errorMessage.includes('Connection not ready')) {
-        throw error;
-      }
-
-      // 对于空查询验证，我们应抛出错误而不是返回错误结果
-      if (errorMessage.includes('Invalid query:')) {
-        throw error;
-      }
-
-      return this.createErrorResult(errorMessage);
-    }
+    return this.queryService.executeQuery(nGQL, parameters);
   }
 
   /**
@@ -1049,98 +854,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   async executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<NebulaQueryResult[]> {
-    if (!this.isConnected()) {
-      throw new Error('Not connected to Nebula Graph');
-    }
-
-    // 额外检查客户端是否存在且可执行查询
-    if (!this.client || typeof this.client.execute !== 'function') {
-      throw new Error('Client is not ready to execute queries');
-    }
-
-    try {
-      const client = this.client;
-
-      // 验证客户端是否准备好执行查询
-      try {
-        const testResult = await client.execute('YIELD 1 AS test_connection;');
-        if (testResult && typeof testResult.error_code !== 'undefined' && testResult.error_code !== 0) {
-          const testError = testResult?.error_msg || testResult?.error || 'Unknown connection error';
-          throw new Error(`Connection not ready: ${testError}`);
-        }
-      } catch (testError) {
-        const testErrorMessage = testError instanceof Error ? testError.message : String(testError);
-        if (testErrorMessage.includes('会话无效或连接未就绪') ||
-          testErrorMessage.includes('Session invalid') ||
-          testErrorMessage.includes('Connection not ready')) {
-          throw new Error(`Connection not ready: ${testErrorMessage}`);
-        }
-        // 如果测试查询也失败，让原始错误处理来处理
-      }
-
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Executing Nebula batch queries (no true transaction support)',
-          queryCount: queries.length
-        }
-      });
-
-      const startTime = Date.now();
-      const results: NebulaQueryResult[] = [];
-
-      // 执行所有查询（不使用事务，因为nGQL不支持）
-      for (const { query, params } of queries) {
-        let finalQuery = query;
-        if (params && Object.keys(params).length > 0) {
-          finalQuery = NebulaQueryUtils.interpolateParameters(query, params);
-        }
-
-        const result = await client.execute(finalQuery);
-        // 返回完整的NebulaQueryResult对象
-        const nebulaResult: NebulaQueryResult = {
-          table: result?.table || {},
-          results: result?.results || [],
-          rows: result?.rows || [],
-          data: result?.data || [],
-          executionTime: 0, // 批量查询时单独计算每个查询的执行时间不太实际
-          timeCost: result?.timeCost || 0,
-          space: this.connectionStatus.space,
-        };
-        results.push(nebulaResult);
-      }
-
-      const executionTime = Date.now() - startTime;
-
-      await this.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Batch queries executed successfully',
-          executionTime
-        }
-      });
-
-      return results;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      // 对于连接就绪性错误，不记录为错误，因为这是预期的行为
-      if (!errorMessage.includes('Connection not ready')) {
-        this.errorHandler.handleError(
-          new Error(`Failed to execute Nebula batch queries: ${errorMessage}`),
-          {
-            component: 'NebulaConnectionManager',
-            operation: 'executeTransaction',
-            queries
-          }
-        );
-      }
-
-      throw error;
-    }
+    return this.transactionService.executeTransaction(queries);
   }
 
   /**

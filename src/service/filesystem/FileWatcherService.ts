@@ -614,6 +614,12 @@ export class FileWatcherService {
     try {
       this.logger.info('Stopping file watcher');
 
+      // Clear the event processing timer if it exists
+      if (this.eventProcessingTimer) {
+        clearTimeout(this.eventProcessingTimer);
+        this.eventProcessingTimer = null;
+      }
+
       const closePromises: Promise<void>[] = [];
 
       for (const [watchPath, watcher] of this.watchers) {

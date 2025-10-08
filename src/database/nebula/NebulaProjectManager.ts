@@ -6,6 +6,7 @@ import { ProjectIdManager } from '../ProjectIdManager';
 import { INebulaSpaceManager } from './space/NebulaSpaceManager';
 import { INebulaConnectionManager } from './NebulaConnectionManager';
 import { INebulaQueryBuilder } from './NebulaQueryBuilder';
+import { INebulaDataOperations } from './NebulaDataOperations';
 import { IProjectManager } from '../common/IDatabaseService';
 import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
 import { DatabaseServiceValidator } from '../common/DatabaseServiceValidator';
@@ -50,6 +51,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
   private spaceManager: INebulaSpaceManager;
   private connectionManager: INebulaConnectionManager;
   private queryBuilder: INebulaQueryBuilder;
+  private dataOperations: INebulaDataOperations;
   private performanceMonitor: PerformanceMonitor;
   private eventManager: NebulaEventManager;
   private subscriptions: Map<NebulaEventType, any[]> = new Map();
@@ -61,6 +63,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
     @inject(TYPES.INebulaSpaceManager) spaceManager: INebulaSpaceManager,
     @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager,
     @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder,
+    @inject(TYPES.INebulaDataOperations) dataOperations: INebulaDataOperations,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
   ) {
@@ -70,6 +73,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
     this.spaceManager = spaceManager;
     this.connectionManager = connectionManager;
     this.queryBuilder = queryBuilder;
+    this.dataOperations = dataOperations;
     this.performanceMonitor = performanceMonitor;
     this.eventManager = eventManager;
   }
@@ -408,62 +412,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 验证空间名称的有效性
-      if (spaceName === 'undefined' || spaceName === '') {
-        throw new Error(`Invalid space name for project: ${projectPath}`);
-      }
-
-      // 为所有节点添加项目ID（如果尚未存在）
-      const nodesWithProjectId = nodes.map(node => ({
-        ...node,
-        properties: {
-          ...node.properties,
-          projectId
-        }
-      }));
-
-      // 按标签分组节点
-      const nodesByLabel = nodesWithProjectId.reduce((acc, node) => {
-        if (!acc[node.label]) {
-          acc[node.label] = [];
-        }
-        acc[node.label].push(node);
-        return acc;
-      }, {} as Record<string, NebulaNode[]>);
-
-      // 为每个标签创建批量插入语句
-      const queries: Array<{ query: string; params: Record<string, any> }> = [];
-
-      for (const [label, labelNodes] of Object.entries(nodesByLabel)) {
-        const query = `
-          INSERT VERTEX ${label}(${Object.keys(labelNodes[0].properties).join(', ')})
-          VALUES ${labelNodes.map(node =>
-          `"${node.id}": (${Object.values(node.properties).map(val =>
-            typeof val === 'string' ? `"${val}"` : val
-          ).join(', ')})`
-        ).join(', ')}
-        `;
-
-        queries.push({ query, params: {} });
-      }
-
-      // 检查空间是否存在，如果不存在则自动创建
-      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
-      if (!spaceExists) {
-        const created = await this.spaceManager.createSpace(projectId);
-        if (!created) {
-          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
-        }
-      }
-      
-      // 在项目空间中执行事务，先USE空间，然后执行查询
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
-      const results = await Promise.all(queries.map(q =>
-        this.connectionManager.executeQuery(q.query, q.params)
-      ));
-
-      // 在测试环境中，如果所有结果都成功或未定义，则视为成功
-      const success = results.every(result => !result || !result.error);
+      const success = await this.dataOperations.insertNodes(projectId, spaceName, nodes);
 
       if (success) {
         this.emitEvent(NebulaEventType.NODE_INSERTED, {
@@ -478,8 +427,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
       const duration = Date.now() - startTime;
       this.performanceMonitor.recordOperation('insertNodesForProject', duration, {
         projectPath,
-        nodeCount: nodes.length,
-        queryCount: queries.length
+        nodeCount: nodes.length
       });
 
       return success;
@@ -534,64 +482,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 验证空间名称的有效性
-      if (spaceName === 'undefined' || spaceName === '') {
-        throw new Error(`Invalid space name for project: ${projectPath}`);
-      }
-
-      // 为所有关系添加项目ID（如果尚未存在）
-      const relationshipsWithProjectId = relationships.map(rel => ({
-        ...rel,
-        properties: {
-          ...rel.properties,
-          projectId
-        }
-      }));
-
-      // 按类型分组关系
-      const relationshipsByType = relationshipsWithProjectId.reduce((acc, relationship) => {
-        if (!acc[relationship.type]) {
-          acc[relationship.type] = [];
-        }
-        acc[relationship.type].push(relationship);
-        return acc;
-      }, {} as Record<string, NebulaRelationship[]>);
-
-      // 为每个类型创建批量插入语句
-      const queries: Array<{ query: string; params: Record<string, any> }> = [];
-
-      for (const [type, typeRelationships] of Object.entries(relationshipsByType)) {
-        const query = `
-          INSERT EDGE ${type}(${typeRelationships[0].properties ? Object.keys(typeRelationships[0].properties).join(', ') : ''})
-          VALUES ${typeRelationships.map(rel =>
-          `"${rel.sourceId}" -> "${rel.targetId}": ${rel.properties ?
-            `(${Object.values(rel.properties).map(val =>
-              typeof val === 'string' ? `"${val}"` : val
-            ).join(', ')})` : '()'
-          }`
-        ).join(', ')}
-        `;
-
-        queries.push({ query, params: {} });
-      }
-
-      // 检查空间是否存在，如果不存在则自动创建
-      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
-      if (!spaceExists) {
-        const created = await this.spaceManager.createSpace(projectId);
-        if (!created) {
-          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
-        }
-      }
-      
-      // 在项目空间中执行事务，先USE空间，然后执行查询
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
-      const results = await Promise.all(queries.map(q =>
-        this.connectionManager.executeQuery(q.query, q.params)
-      ));
-
-      // 在测试环境中，如果所有结果都成功或未定义，则视为成功
-      const success = results.every(result => !result || !result.error);
+      const success = await this.dataOperations.insertRelationships(projectId, spaceName, relationships);
 
       if (success) {
         this.emitEvent(NebulaEventType.RELATIONSHIP_INSERTED, {
@@ -653,42 +544,18 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 验证空间名称的有效性
-      if (spaceName === 'undefined' || spaceName === '') {
-        throw new Error(`Invalid space name for project: ${projectPath}`);
-      }
-
-      // 构建查询
-      let query = `MATCH (v:${label}) WHERE v.projectId == "${projectId}" RETURN v`;
-
-      if (filter) {
-        const conditions = Object.entries(filter).map(([key, value]) =>
-          `v.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
-        ).join(' AND ');
-        query += ` AND ${conditions}`;
-      }
-
-      // 检查空间是否存在，如果不存在则自动创建
-      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
-      if (!spaceExists) {
-        const created = await this.spaceManager.createSpace(projectId);
-        if (!created) {
-          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
-        }
-      }
-      
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
-      const result = await this.connectionManager.executeQuery(query);
+      const result = await this.dataOperations.findNodesByLabel(projectId, spaceName, label, filter);
 
       this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
         projectPath,
         projectId,
         spaceName,
-        query,
-        resultsCount: result.data?.length || 0
+        label,
+        filter,
+        resultsCount: result.length
       });
 
-      return result.data || [];
+      return result;
     } catch (error) {
       // 如果是验证错误，应该抛出而不是返回空数组
       if (error instanceof Error &&
@@ -740,42 +607,18 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 验证空间名称的有效性
-      if (spaceName === 'undefined' || spaceName === '') {
-        throw new Error(`Invalid space name for project: ${projectPath}`);
-      }
-
-      // 构建查询
-      let query = `MATCH () -[e${type ? `:${type}` : ''}]-> () WHERE e.projectId == "${projectId}" RETURN e`;
-
-      if (filter) {
-        const conditions = Object.entries(filter).map(([key, value]) =>
-          `e.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
-        ).join(' AND ');
-        query += ` AND ${conditions}`;
-      }
-
-      // 检查空间是否存在，如果不存在则自动创建
-      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
-      if (!spaceExists) {
-        const created = await this.spaceManager.createSpace(projectId);
-        if (!created) {
-          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
-        }
-      }
-      
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
-      const result = await this.connectionManager.executeQuery(query);
+      const result = await this.dataOperations.findRelationshipsByType(projectId, spaceName, type, filter);
 
       this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
         projectPath,
         projectId,
         spaceName,
-        query,
-        resultsCount: result.data?.length || 0
+        type,
+        filter,
+        resultsCount: result.length
       });
 
-      return result.data || [];
+      return result;
     } catch (error) {
       // 如果是验证错误，应该抛出而不是返回空数组
       if (error instanceof Error &&
@@ -1165,92 +1008,14 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw new Error(`Space name not found for project: ${projectPath}`);
       }
 
-      // 验证空间名称的有效性
-      if (spaceName === 'undefined' || spaceName === '') {
-        throw new Error(`Invalid space name for project: ${projectPath}`);
-      }
-
-      // 检查空间是否存在，如果不存在则自动创建
-      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
-      if (!spaceExists) {
-        const created = await this.spaceManager.createSpace(projectId);
-        if (!created) {
-          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
-        }
-      }
-      
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
-
-      // 根据查询类型构建不同的搜索语句
-      let searchQuery = '';
-      let params = {};
-
-      if (typeof query === 'string') {
-        // 如果是字符串查询，直接执行
-        searchQuery = query;
-      } else if (query.type === 'node') {
-        // 搜索节点
-        const label = query.label || '*';
-        const filter = query.filter || {};
-
-        searchQuery = `MATCH (v${label !== '*' ? `:${label}` : ''}) WHERE v.projectId == "${projectId}"`;
-
-        const conditions = [];
-        for (const [key, value] of Object.entries(filter)) {
-          conditions.push(`v.${key} == ${typeof value === 'string' ? `"${value}"` : value}`);
-        }
-
-        if (conditions.length > 0) {
-          searchQuery += ` AND ${conditions.join(' AND ')}`;
-        }
-
-        searchQuery += ' RETURN v';
-      } else if (query.type === 'relationship') {
-        // 搜索关系
-        const type = query.relationshipType || '*';
-        const filter = query.filter || {};
-
-        searchQuery = `MATCH ()-[e${type !== '*' ? `:${type}` : ''}]->() WHERE e.projectId == "${projectId}"`;
-
-        const conditions = [];
-        for (const [key, value] of Object.entries(filter)) {
-          conditions.push(`e.${key} == ${typeof value === 'string' ? `"${value}"` : value}`);
-        }
-
-        if (conditions.length > 0) {
-          searchQuery += ` AND ${conditions.join(' AND ')}`;
-        }
-
-        searchQuery += ' RETURN e';
-      } else if (query.type === 'graph') {
-        // 图遍历查询
-        const startNode = query.startNode || null;
-        const pathLength = query.pathLength || 1;
-        const direction = query.direction || 'BOTH';
-
-        if (startNode) {
-          searchQuery = `MATCH (start) WHERE id(start) == "${startNode}" `;
-          searchQuery += `MATCH p = (start)-[:*${direction} ${pathLength}]->(end) `;
-          searchQuery += `WHERE ANY(n IN nodes(p) WHERE n.projectId == "${projectId}") `;
-          searchQuery += 'RETURN p';
-        } else {
-          searchQuery = `MATCH (n) WHERE n.projectId == "${projectId}" `;
-          searchQuery += `MATCH p = (n)-[:*${direction} ${pathLength}]->(m) `;
-          searchQuery += 'RETURN p';
-        }
-      } else {
-        // 默认搜索：查找项目中的所有节点和关系
-        searchQuery = `MATCH (v) WHERE v.projectId == "${projectId}" RETURN v`;
-      }
-
-      const result = await this.connectionManager.executeQuery(searchQuery, params);
+      const result = await this.dataOperations.search(projectId, spaceName, query);
 
       // 记录性能指标
       const duration = Date.now() - startTime;
       this.performanceMonitor.recordOperation('searchProjectData', duration, {
         projectPath,
         queryType: typeof query === 'object' ? query.type : 'string',
-        resultsCount: result && result.data ? result.data.length : 0
+        resultsCount: result.length
       });
 
       this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
@@ -1258,12 +1023,12 @@ export class NebulaProjectManager implements INebulaProjectManager {
         projectId,
         spaceName,
         query,
-        resultsCount: result && result.data ? result.data.length : 0,
+        resultsCount: result.length,
         operation: 'search',
         duration
       });
 
-      return result && result.data ? result.data : [];
+      return result;
     } catch (error) {
       // 如果是特定的验证错误消息，抛出验证错误而不是处理为内部错误
       if (error instanceof Error &&
@@ -1318,70 +1083,31 @@ export class NebulaProjectManager implements INebulaProjectManager {
       throw new Error(`Space name not found for project: ${projectPath}`);
     }
 
-    // 验证空间名称的有效性
-    if (spaceName === 'undefined' || spaceName === '') {
-      throw new Error(`Invalid space name for project: ${projectPath}`);
-    }
-
     try {
-      // 检查空间是否存在，如果不存在则自动创建
-      const spaceExists = await this.spaceManager.checkSpaceExists(projectId);
-      if (!spaceExists) {
-        const created = await this.spaceManager.createSpace(projectId);
-        if (!created) {
-          throw new Error(`Failed to create space ${spaceName} for project ${projectPath}`);
-        }
-      }
-      
-      await this.connectionManager.executeQuery(`USE \`${spaceName}\``);
+      const result = await this.dataOperations.getDataById(projectId, spaceName, id);
 
-      // 首先尝试查找节点
-      const nodeResult = await this.connectionManager.executeQuery(`MATCH (v) WHERE id(v) == "${id}" RETURN v LIMIT 1`);
-
-      if (nodeResult && nodeResult.data && nodeResult.data.length > 0) {
-        // 找到了节点
+      if (result !== null) {
+        const resultType = result.v ? 'node' : 'relationship';
         this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
           projectPath,
           projectId,
           spaceName,
           id,
-          resultType: 'node',
+          resultType,
           operation: 'get_by_id'
         });
-
-        return nodeResult.data[0];
       } else {
-        // 尝试查找关系
-        const relResult = await this.connectionManager.executeQuery(
-          `MATCH ()-[e]->() WHERE id(e) == "${id}" RETURN e LIMIT 1`
-        );
-
-        if (relResult && relResult.data && relResult.data.length > 0) {
-          // 找到了关系
-          this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
-            projectPath,
-            projectId,
-            spaceName,
-            id,
-            resultType: 'relationship',
-            operation: 'get_by_id'
-          });
-
-          return relResult.data[0];
-        } else {
-          // 未找到指定ID的节点或关系
-          this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
-            projectPath,
-            projectId,
-            spaceName,
-            id,
-            resultType: 'not_found',
-            operation: 'get_by_id'
-          });
-
-          return null;
-        }
+        this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
+          projectPath,
+          projectId,
+          spaceName,
+          id,
+          resultType: 'not_found',
+          operation: 'get_by_id'
+        });
       }
+
+      return result;
     } catch (error) {
       // 如果是特定的验证错误消息，抛出验证错误而不是处理为内部错误
       if (error instanceof Error &&

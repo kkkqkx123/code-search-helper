@@ -76,6 +76,12 @@ import { ConnectionStateManager } from './database/nebula/ConnectionStateManager
 import { NebulaQueryUtils } from './database/nebula/NebulaQueryUtils';
 import { NebulaResultFormatter } from './database/nebula/NebulaResultFormatter';
 import { NebulaEventManager } from './database/nebula/NebulaEventManager';
+import { NebulaQueryService, INebulaQueryService } from './database/nebula/NebulaQueryService';
+import { NebulaTransactionService, INebulaTransactionService } from './database/nebula/NebulaTransactionService';
+import { NebulaDataOperations, INebulaDataOperations } from './database/nebula/NebulaDataOperations';
+import { NebulaSchemaManager, INebulaSchemaManager } from './database/nebula/NebulaSchemaManager';
+import { NebulaIndexManager, INebulaIndexManager } from './database/nebula/NebulaIndexManager';
+import { SpaceNameUtils, ISpaceNameUtils } from './database/nebula/SpaceNameUtils';
 
 // Nebula 监控服务
 import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
@@ -181,6 +187,18 @@ export const TYPES = {
   INebulaDataService: Symbol.for('INebulaDataService'),
   NebulaSpaceService: Symbol.for('NebulaSpaceService'),
   INebulaSpaceService: Symbol.for('INebulaSpaceService'),
+  NebulaQueryService: Symbol.for('NebulaQueryService'),
+  INebulaQueryService: Symbol.for('INebulaQueryService'),
+  NebulaTransactionService: Symbol.for('NebulaTransactionService'),
+  INebulaTransactionService: Symbol.for('INebulaTransactionService'),
+  NebulaDataOperations: Symbol.for('NebulaDataOperations'),
+  INebulaDataOperations: Symbol.for('INebulaDataOperations'),
+  NebulaSchemaManager: Symbol.for('NebulaSchemaManager'),
+  INebulaSchemaManager: Symbol.for('INebulaSchemaManager'),
+  NebulaIndexManager: Symbol.for('NebulaIndexManager'),
+  INebulaIndexManager: Symbol.for('INebulaIndexManager'),
+  SpaceNameUtils: Symbol.for('SpaceNameUtils'),
+  ISpaceNameUtils: Symbol.for('ISpaceNameUtils'),
   NebulaQueryUtils: Symbol.for('NebulaQueryUtils'),
   NebulaResultFormatter: Symbol.for('NebulaResultFormatter'),
   NebulaEventManager: Symbol.for('NebulaEventManager'),

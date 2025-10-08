@@ -4,12 +4,14 @@ import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
 import { DatabaseEventType } from '../../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
-import { NebulaSpaceInfo } from '../NebulaTypes';
+import { NebulaSpaceInfo, NebulaSpaceConfig } from '../NebulaTypes';
 import { INebulaConnectionManager } from '../NebulaConnectionManager';
 import { INebulaQueryBuilder } from '../NebulaQueryBuilder';
+import { INebulaSchemaManager } from '../NebulaSchemaManager';
+import { ISpaceNameUtils } from '../SpaceNameUtils';
 
 export interface INebulaSpaceManager {
-  createSpace(projectId: string, config?: any): Promise<boolean>;
+  createSpace(projectId: string, config?: NebulaSpaceConfig): Promise<boolean>;
   deleteSpace(projectId: string): Promise<boolean>;
   listSpaces(): Promise<string[]>;
   getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null>;
@@ -27,6 +29,8 @@ export interface GraphConfig {
 export class NebulaSpaceManager implements INebulaSpaceManager {
   private nebulaConnection: INebulaConnectionManager;
   private nebulaQueryBuilder: INebulaQueryBuilder;
+  private schemaManager: INebulaSchemaManager;
+  private spaceNameUtils: ISpaceNameUtils;
   private databaseLogger: DatabaseLoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
@@ -34,23 +38,24 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   constructor(
     @inject(TYPES.INebulaConnectionManager) nebulaConnection: INebulaConnectionManager,
     @inject(TYPES.INebulaQueryBuilder) nebulaQueryBuilder: INebulaQueryBuilder,
+    @inject(TYPES.INebulaSchemaManager) schemaManager: INebulaSchemaManager,
+    @inject(TYPES.ISpaceNameUtils) spaceNameUtils: ISpaceNameUtils,
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService
   ) {
     this.nebulaConnection = nebulaConnection;
     this.nebulaQueryBuilder = nebulaQueryBuilder;
+    this.schemaManager = schemaManager;
+    this.spaceNameUtils = spaceNameUtils;
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.configService = configService;
   }
 
-  private generateSpaceName(projectId: string): string {
-    return `project_${projectId}`;
-  }
 
   async createSpace(projectId: string, config: GraphConfig = {}): Promise<boolean> {
-    const spaceName = this.generateSpaceName(projectId);
+    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
     
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
@@ -76,7 +81,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       await this.nebulaConnection.executeQuery(`USE \`${spaceName}\``);
 
       // 创建图结构
-      await this.createGraphSchema();
+      await this.schemaManager.createGraphSchema(projectId, config);
 
       // 使用 DatabaseLoggerService 记录空间创建成功信息
       this.databaseLogger.logDatabaseEvent({
@@ -109,7 +114,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   }
 
   async deleteSpace(projectId: string): Promise<boolean> {
-    const spaceName = this.generateSpaceName(projectId);
+    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
     
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
@@ -285,7 +290,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   }
 
   async getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null> {
-    const spaceName = this.generateSpaceName(projectId);
+    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
     
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
@@ -386,7 +391,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   }
 
   async checkSpaceExists(projectId: string): Promise<boolean> {
-    const spaceName = this.generateSpaceName(projectId);
+    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
     
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
@@ -506,176 +511,10 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     throw new Error(`Space ${spaceName} did not become ready within ${maxRetries} retries`);
   }
 
-  private async createGraphSchema(): Promise<void> {
-    try {
-      // 创建标签（Tags）
-      const tagQueries = [
-        'CREATE TAG IF NOT EXISTS Project(id string, name string, createdAt string, updatedAt string)',
-        'CREATE TAG IF NOT EXISTS File(id string, path string, relativePath string, name string, language string, size int, hash string, linesOfCode int, functions int, classes int, lastModified string, updatedAt string)',
-        'CREATE TAG IF NOT EXISTS Function(id string, name string, content string, startLine int, endLine int, complexity int, parameters string, returnType string, language string, updatedAt string)',
-        'CREATE TAG IF NOT EXISTS Class(id string, name string, content string, startLine int, endLine int, methods int, properties int, inheritance string, language string, updatedAt string)',
-        'CREATE TAG IF NOT EXISTS Import(id string, module string, updatedAt string)',
-      ];
 
-      for (const query of tagQueries) {
-        await this.nebulaConnection.executeQuery(query);
-      }
-
-      // 创建边类型（Edge Types）
-      const edgeQueries = [
-        'CREATE EDGE IF NOT EXISTS BELONGS_TO()',
-        'CREATE EDGE IF NOT EXISTS CONTAINS()',
-        'CREATE EDGE IF NOT EXISTS IMPORTS()',
-        'CREATE EDGE IF NOT EXISTS CALLS()',
-        'CREATE EDGE IF NOT EXISTS EXTENDS()',
-        'CREATE EDGE IF NOT EXISTS IMPLEMENTS()',
-      ];
-
-      for (const query of edgeQueries) {
-        await this.nebulaConnection.executeQuery(query);
-      }
-
-      // 创建标签索引（Tag Indexes）- 确保查询性能
-      const tagIndexQueries = [
-        'CREATE TAG INDEX IF NOT EXISTS project_id_index ON Project(id(64))',
-        'CREATE TAG INDEX IF NOT EXISTS project_name_index ON Project(name)',
-        'CREATE TAG INDEX IF NOT EXISTS file_id_index ON File(id(64))',
-        'CREATE TAG INDEX IF NOT EXISTS file_path_index ON File(path)',
-        'CREATE TAG INDEX IF NOT EXISTS file_name_index ON File(name)',
-        'CREATE TAG INDEX IF NOT EXISTS file_language_index ON File(language)',
-        'CREATE TAG INDEX IF NOT EXISTS function_id_index ON Function(id(64))',
-        'CREATE TAG INDEX IF NOT EXISTS function_name_index ON Function(name)',
-        'CREATE TAG INDEX IF NOT EXISTS function_language_index ON Function(language)',
-        'CREATE TAG INDEX IF NOT EXISTS class_id_index ON Class(id(64))',
-        'CREATE TAG INDEX IF NOT EXISTS class_name_index ON Class(name)',
-        'CREATE TAG INDEX IF NOT EXISTS class_language_index ON Class(language)',
-        'CREATE TAG INDEX IF NOT EXISTS import_id_index ON Import(id(64))',
-        'CREATE TAG INDEX IF NOT EXISTS import_module_index ON Import(module)',
-      ];
-
-      for (const query of tagIndexQueries) {
-        await this.createIndexWithRetry(query);
-      }
-
-      // 创建边索引（Edge Indexes）- 确保关系查询性能
-      const edgeIndexQueries = [
-        'CREATE EDGE INDEX IF NOT EXISTS belongs_to_index ON BELONGS_TO()',
-        'CREATE EDGE INDEX IF NOT EXISTS contains_index ON CONTAINS()',
-        'CREATE EDGE INDEX IF NOT EXISTS imports_index ON IMPORTS()',
-        'CREATE EDGE INDEX IF NOT EXISTS calls_index ON CALLS()',
-        'CREATE EDGE INDEX IF NOT EXISTS extends_index ON EXTENDS()',
-        'CREATE EDGE INDEX IF NOT EXISTS implements_index ON IMPLEMENTS()',
-      ];
-
-      for (const query of edgeIndexQueries) {
-        await this.createIndexWithRetry(query);
-      }
-
-      // 使用 DatabaseLoggerService 记录图结构和索引创建成功的消息
-      this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.INFO,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: 'Graph schema and indexes created successfully' }
-      }).catch(error => {
-        // 如果日志记录失败，我们不希望影响主流程
-        console.error('Failed to log graph schema creation success:', error);
-      });
-    } catch (error) {
-      // 使用 DatabaseLoggerService 记录图结构创建失败的错误信息
-      this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.ERROR_OCCURRED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Failed to create graph schema:',
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined
-        }
-      }).catch(error => {
-        // 如果日志记录失败，我们不希望影响主流程
-        console.error('Failed to log graph schema creation failure:', error);
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * 创建索引并带有重试机制
-   */
-  private async createIndexWithRetry(indexQuery: string, maxRetries: number = 3): Promise<void> {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        await this.nebulaConnection.executeQuery(indexQuery);
-        // 使用 DatabaseLoggerService 记录索引创建成功的调试信息
-        this.databaseLogger.logDatabaseEvent({
-          type: DatabaseEventType.DEBUG,
-          source: 'nebula',
-          timestamp: new Date(),
-          data: { message: `Successfully created index: ${indexQuery}` }
-        }).catch(error => {
-          // 如果日志记录失败，我们不希望影响主流程
-          console.error('Failed to log index creation success:', error);
-        });
-        return;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-
-        // 检查是否是"已存在"错误
-        if (errorMessage.includes('already exists') || errorMessage.includes('existed')) {
-          // 使用 DatabaseLoggerService 记录索引已存在的调试信息
-          this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.DEBUG,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: { message: `Index already exists: ${indexQuery}` }
-          }).catch(error => {
-            // 如果日志记录失败，我们不希望影响主流程
-            console.error('Failed to log index already exists debug:', error);
-          });
-          return;
-        }
-
-        if (attempt === maxRetries) {
-          // 使用 DatabaseLoggerService 记录索引创建失败的错误信息
-          this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.ERROR_OCCURRED,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: {
-              message: `Failed to create index after ${maxRetries} attempts: ${indexQuery}`,
-              error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined
-            }
-          }).catch(error => {
-            // 如果日志记录失败，我们不希望影响主流程
-            console.error('Failed to log index creation failure:', error);
-          });
-          throw new Error(`Failed to create index: ${indexQuery}. Error: ${errorMessage}`);
-        }
-
-        // 使用 DatabaseLoggerService 记录索引创建重试的警告信息
-        this.databaseLogger.logDatabaseEvent({
-          type: DatabaseEventType.WARNING,
-          source: 'nebula',
-          timestamp: new Date(),
-          data: {
-            message: `Attempt ${attempt} failed to create index: ${indexQuery}. Retrying...`,
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined
-          }
-        }).catch(error => {
-          // 如果日志记录失败，我们不希望影响主流程
-          console.error('Failed to log index creation retry warning:', error);
-        });
-        // 等待一段时间后重试
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-      }
-    }
-  }
 
   async clearSpace(projectId: string): Promise<boolean> {
-    const spaceName = this.generateSpaceName(projectId);
+    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
     
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {

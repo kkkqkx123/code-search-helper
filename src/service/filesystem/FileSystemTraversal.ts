@@ -103,12 +103,16 @@ export class FileSystemTraversal {
     // 2. Add .gitignore rules (if enabled)
     if (traversalOptions.respectGitignore) {
       const gitignorePatterns = await GitignoreParser.getAllGitignorePatterns(rootPath);
-      allIgnorePatterns.push(...gitignorePatterns);
+      if (Array.isArray(gitignorePatterns)) {
+        allIgnorePatterns.push(...gitignorePatterns);
+      }
     }
 
     // 3. Add .indexignore rules
     const indexignorePatterns = await GitignoreParser.parseIndexignore(rootPath);
-    allIgnorePatterns.push(...indexignorePatterns);
+    if (Array.isArray(indexignorePatterns)) {
+      allIgnorePatterns.push(...indexignorePatterns);
+    }
 
     // 4. Add user custom exclude rules
     if (traversalOptions.excludePatterns) {
@@ -125,8 +129,8 @@ export class FileSystemTraversal {
     this.logger.debug(`[DEBUG] Final ignore patterns for ${rootPath}`, {
       defaultPatterns: this.getDefaultIgnorePatterns().length,
       gitignorePatterns: traversalOptions.respectGitignore ?
-        (await GitignoreParser.getAllGitignorePatterns(rootPath)).length : 0,
-      indexignorePatterns: indexignorePatterns.length,
+        (await GitignoreParser.getAllGitignorePatterns(rootPath) || []).length : 0,
+      indexignorePatterns: Array.isArray(indexignorePatterns) ? indexignorePatterns.length : 0,
       customPatterns: options?.excludePatterns?.length || 0,
       totalPatterns: traversalOptions.excludePatterns?.length || 0
     });

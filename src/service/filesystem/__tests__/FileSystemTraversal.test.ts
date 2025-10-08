@@ -152,14 +152,14 @@ describe('FileSystemTraversal', () => {
 
       mockedFs.stat.mockResolvedValue(mockStats as any);
       mockedFs.readdir.mockResolvedValue([] as any);
-      mockedGitignoreParser.parseGitignore.mockResolvedValue(['**/*.test.ts']);
+      mockedGitignoreParser.getAllGitignorePatterns.mockResolvedValue(['**/*.test.ts']);
 
       const optionsWithGitignore = { ...mockOptions, respectGitignore: true };
       const traversalWithGitignore = new FileSystemTraversal(mockLogger, optionsWithGitignore as any);
 
       await traversalWithGitignore.traverseDirectory(testPath);
 
-      expect(mockedGitignoreParser.parseGitignore).toHaveBeenCalledWith(path.join(testPath, '.gitignore'));
+      expect(mockedGitignoreParser.getAllGitignorePatterns).toHaveBeenCalledWith(testPath);
     });
   });
 
