@@ -105,8 +105,8 @@ describe('NebulaConnectionManager Refactored', () => {
       container.get(TYPES.ConfigService),
       container.get(TYPES.NebulaConfigService),
       container.get(TYPES.ConnectionStateManager),
-      // 添加缺失的 NebulaEventManager 参数
-      {} as any // 在测试中使用模拟对象
+      // Add missing NebulaEventManager parameter
+      new NebulaEventManager(container.get(TYPES.ConfigService))
     );
     
     // Clear mocks
@@ -299,6 +299,7 @@ describe('NebulaConnectionManager Refactored', () => {
       if (delay === 10000) {
         // For the 10-second delay in space creation, call callback immediately
         callback();
+        return undefined; // Return undefined for immediate execution
       } else {
         return originalSetTimeout(callback, delay);
       }
@@ -313,7 +314,7 @@ describe('NebulaConnectionManager Refactored', () => {
     } finally {
       global.setTimeout = originalSetTimeout;
     }
-  }, 15000); // 增加超时时间到15秒
+  }, 15000); // Increase timeout to 15 seconds
 
   test('should switch to correct space before executing non-USE queries', async () => {
     const spaceName = 'test_project_space';
@@ -368,7 +369,7 @@ describe('NebulaConnectionManager Refactored', () => {
   });
 
   test('should handle project-specific space naming pattern', async () => {
-    // 简化测试，专注于验证核心功能而不是特定的调用序列
+    // Simplified test focusing on core functionality rather than specific call sequences
     const projectIds = ['project_alpha'];
     
     // Mock connection setup
@@ -392,6 +393,7 @@ describe('NebulaConnectionManager Refactored', () => {
       if (delay === 10000) {
         // For the 10-second delay in space creation, call callback immediately
         callback();
+        return undefined; // Return undefined for immediate execution
       } else {
         return originalSetTimeout(callback, delay);
       }
@@ -401,20 +403,20 @@ describe('NebulaConnectionManager Refactored', () => {
       for (const projectId of projectIds) {
         const projectSpaceName = `project_${projectId}`;
         
-        // 直接验证能够成功获取连接，而不关心具体的调用序列
-        // 这更符合单元测试的原则，测试行为而不是实现细节
+        // Directly verify successful connection retrieval without caring about specific call sequences
+        // This better aligns with unit testing principles, testing behavior rather than implementation details
         const connection = await connectionManager.getConnectionForSpace(projectSpaceName);
         
         expect(connection).toBeDefined();
-        expect(connection).toBe(mockClient); // 验证返回的是mock客户端
+        expect(connection).toBe(mockClient); // Verify that the mock client is returned
       }
     } finally {
       global.setTimeout = originalSetTimeout;
     }
-  }, 15000); // 增加超时时间到15秒
+  }, 15000); // Increase timeout to 15 seconds
 
   test('should handle space switching errors gracefully', async () => {
-    // 简化测试，专注于验证错误处理逻辑
+    // Simplified test focusing on error handling logic
     const spaceName = 'invalid_space';
     
     // Mock connection setup
@@ -432,21 +434,21 @@ describe('NebulaConnectionManager Refactored', () => {
     
     await connectionManager.connect();
     
-    // 临时修改mockExecute以直接抛出错误
+    // Temporarily modify mockExecute to throw error directly
     const originalMockExecute = mockExecute;
     mockExecute.mockImplementationOnce(() => {
       throw new Error('Space switching failed and automatic creation failed');
     });
     
     try {
-      // 验证在遇到错误时能够正确抛出异常
+      // Verify that exceptions are properly thrown when encountering errors
       await expect(connectionManager.getConnectionForSpace(spaceName))
         .rejects.toThrow('Space switching failed and automatic creation failed');
     } finally {
-      // 恢复原始的mock实现
+      // Restore original mock implementation
       mockExecute.mockImplementation(originalMockExecute);
     }
-  }, 15000); // 增加超时时间到15秒
+  }, 15000); // Increase timeout to 15 seconds
 });
 
 describe('NebulaDataService', () => {
@@ -505,19 +507,14 @@ describe('NebulaDataService', () => {
     jest.spyOn(NebulaConnectionManager.prototype as any, 'validateConnection').mockResolvedValue(undefined);
     jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => {});
     
-    // Mock private methods to avoid real connection attempts
-    jest.spyOn(NebulaConnectionManager.prototype as any, 'waitForClientConnection').mockResolvedValue(undefined);
-    jest.spyOn(NebulaConnectionManager.prototype as any, 'validateConnection').mockResolvedValue(undefined);
-    jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => {});
-    
     const connectionManager = new NebulaConnectionManager(
       container.get(TYPES.DatabaseLoggerService),
       container.get(TYPES.ErrorHandlerService),
       container.get(TYPES.ConfigService),
       container.get(TYPES.NebulaConfigService),
       container.get(TYPES.ConnectionStateManager),
-      // 添加缺失的 NebulaEventManager 参数
-      {} as any // 在测试中使用模拟对象
+      // Add missing NebulaEventManager parameter
+      container.get(TYPES.ConfigService) // Use container to get ConfigService instance
     );
     
     dataService = new NebulaDataService(
@@ -653,8 +650,8 @@ describe('NebulaSpaceService', () => {
       container.get(TYPES.ConfigService),
       container.get(TYPES.NebulaConfigService),
       container.get(TYPES.ConnectionStateManager),
-      // 添加缺失的 NebulaEventManager 参数
-      {} as any // 在测试中使用模拟对象
+      // Add missing NebulaEventManager parameter
+      container.get(TYPES.ConfigService) // Use container to get ConfigService instance
     );
     
     spaceService = new NebulaSpaceService(

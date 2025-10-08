@@ -310,12 +310,12 @@ describe('FileSearchRoutes', () => {
       expect(response.body.message).toBe('文件索引删除成功');
     });
 
-    it('should return 400 when filePath is missing', async () => {
+    it('should return 404 when filePath is missing', async () => {
       const response = await request(app)
         .delete('/api/v1/filesearch/index/')
         .send({ projectId: 'test-project' });
 
-      expect(response.status).toBe(400); // Express will match the route but filePath is empty
+      expect(response.status).toBe(404); // Express cannot match route without filePath parameter
     });
   });
 });

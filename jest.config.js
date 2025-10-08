@@ -12,7 +12,11 @@ module.exports = {
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: 'tsconfig.json'
     }],
+    '^.+\\.jsx?$': 'babel-jest', // 添加对JS文件的转换支持
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(uuid)/)' // 允许uuid模块被转换
+  ],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

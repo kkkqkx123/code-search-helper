@@ -2,14 +2,24 @@ import { Container } from 'inversify';
 import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
 import { TreeSitterCoreService } from '../core/parse/TreeSitterCoreService';
+import { PerformanceMetricsCollector } from '../../metrics/PerformanceMetricsCollector';
 
 describe('TreeSitterCoreService', () => {
   let container: Container;
   let treeSitterService: TreeSitterCoreService;
+  let metricsCollector: PerformanceMetricsCollector;
 
   beforeAll(() => {
     container = diContainer;
     treeSitterService = container.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
+    metricsCollector = container.get<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector);
+  });
+
+  afterAll(() => {
+    // 停止自动收集指标，避免测试完成后仍有异步操作运行
+    if (metricsCollector && typeof metricsCollector.stopAutoCollection === 'function') {
+      metricsCollector.stopAutoCollection();
+    }
   });
 
   describe('initialization', () => {

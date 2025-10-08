@@ -89,7 +89,7 @@
 - [ ] 性能对比测试
 - [ ] 内存泄漏检查
 
-### 阶段3：事务服务抽取（第2-3周）
+### 阶段3：事务服务抽取
 
 #### NebulaTransactionService实现
 - [ ] 创建NebulaTransactionService类
@@ -138,21 +138,21 @@
 ### 阶段5：空间管理服务重构
 
 #### NebulaSchemaManager实现
-- [ ] 创建NebulaSchemaManager类
+- [ ] 创建NebulaSchemaManager类（src/database/nebula/NebulaSchemaManager.ts）
 - [ ] 实现图模式创建逻辑
 - [ ] 实现标签和边类型管理
 - [ ] 实现模式验证
 - [ ] 添加模式版本控制
 
 #### NebulaIndexManager实现
-- [ ] 创建NebulaIndexManager类
+- [ ] 创建NebulaIndexManager类（src/database/nebula/NebulaIndexManager.ts）
 - [ ] 实现索引创建逻辑
 - [ ] 实现索引管理功能
 - [ ] 实现索引性能优化
 - [ ] 添加索引监控
 
 #### SpaceNameUtils实现
-- [ ] 创建SpaceNameUtils工具类
+- [ ] 创建SpaceNameUtils工具类（src/database/nebula/SpaceNameUtils.ts）
 - [ ] 统一空间名称生成逻辑
 - [ ] 实现空间名称验证
 - [ ] 添加单元测试
@@ -169,21 +169,21 @@
 
 #### 空间名称生成逻辑统一
 - [ ] 识别所有空间名称生成代码
-- [ ] 创建SpaceNameUtils工具类
+- [ ] 创建SpaceNameUtils工具类（src/database/nebula/SpaceNameUtils.ts）
 - [ ] 替换所有硬编码的空间名称生成
 - [ ] 添加单元测试
 - [ ] 验证替换后的功能
 
 #### 日志记录模式标准化
 - [ ] 分析现有日志记录模式
-- [ ] 创建标准化的日志工具
+- [ ] 创建标准化的日志工具（src/database/nebula/NebulaLogger.ts）
 - [ ] 替换重复的日志记录代码
 - [ ] 配置日志级别控制
 - [ ] 验证日志输出一致性
 
 #### 错误处理模式统一
 - [ ] 识别重复的错误处理代码
-- [ ] 创建统一的错误处理装饰器
+- [ ] 创建统一的错误处理装饰器（src/database/nebula/NebulaErrorHandler.ts）
 - [ ] 应用错误处理装饰器
 - [ ] 添加错误处理测试
 - [ ] 验证错误处理一致性

@@ -17,24 +17,18 @@
 ```
 src/database/nebula/
 ├── core/                           # 核心服务
-│   ├── NebulaService.ts           # 统一外观服务
-│   ├── NebulaConnectionManager.ts # 精简的连接管理
-│   ├── NebulaProjectManager.ts    # 精简的项目管理
-│   └── NebulaSpaceManager.ts      # 精简的空间管理
-├── operations/                     # 操作服务
-│   ├── NebulaQueryService.ts      # 查询执行服务
-│   ├── NebulaTransactionService.ts # 事务管理服务
-│   ├── NebulaDataOperations.ts    # 数据操作服务
-│   ├── NebulaSchemaManager.ts     # 图模式管理服务
-│   └── NebulaIndexManager.ts      # 索引管理服务
-├── support/                        # 支持服务
-│   ├── NebulaConfigService.ts     # 配置管理服务
-│   ├── NebulaEventManager.ts      # 事件管理服务
-│   ├── NebulaErrorHandler.ts      # 错误处理服务
-│   └── SpaceNameUtils.ts          # 空间名称工具类
-└── monitoring/                     # 监控服务
-    ├── NebulaMetricsCollector.ts  # 指标收集
-    └── NebulaHealthChecker.ts     # 健康检查
+│   ├── NebulaConnectionManager.ts  # 连接管理（400行以内）
+│   ├── NebulaProjectManager.ts     # 项目管理（350行以内）
+│   └── NebulaSpaceManager.ts       # 空间管理（300行以内）
+├── NebulaQueryService.ts           # 查询服务
+├── NebulaTransactionService.ts     # 事务服务
+├── NebulaDataOperations.ts         # 数据操作
+├── NebulaQueryBuilder.ts           # 查询构建
+├── NebulaSchemaManager.ts          # 图模式服务
+├── NebulaIndexManager.ts           # 索引服务
+├── SpaceNameUtils.ts               # 空间名称工具
+├── NebulaLogger.ts                 # 日志工具
+└── NebulaErrorHandler.ts           # 错误处理
 ```
 
 ## 详细拆分方案
@@ -69,19 +63,19 @@ export interface INebulaConnectionManager {
 **步骤1**: 提取查询执行逻辑
 ```bash
 # 创建新文件
-src/database/nebula/operations/NebulaQueryService.ts
+src/database/nebula/NebulaQueryService.ts
 # 从NebulaConnectionManager.ts中提取以下方法：
 # - executeQuery()
-# - executeTransaction()
+# - executeParameterizedQuery()
 # - prepareQuery()
-# - validateQuery()
-# 预计提取：300+行代码
+# - formatResults()
+# 预计提取：200+行代码
 ```
 
 **步骤2**: 提取事务管理逻辑
 ```bash
 # 创建新文件
-src/database/nebula/operations/NebulaTransactionService.ts
+src/database/nebula/NebulaTransactionService.ts
 # 从NebulaConnectionManager.ts中提取以下方法：
 # - executeTransaction()
 # - beginTransaction()
@@ -154,7 +148,7 @@ export interface INebulaSpaceManager {
 **步骤1**: 提取数据操作逻辑
 ```bash
 # 创建新文件
-src/database/nebula/operations/NebulaDataOperations.ts
+src/database/nebula/NebulaDataOperations.ts
 # 从NebulaProjectManager.ts中提取以下方法：
 # - insertNodesForProject()
 # - insertRelationshipsForProject()
@@ -189,7 +183,7 @@ src/database/nebula/NebulaQueryBuilder.ts
 **步骤1**: 提取图模式管理逻辑
 ```bash
 # 创建新文件
-src/database/nebula/schema/NebulaSchemaManager.ts
+src/database/nebula/NebulaSchemaManager.ts
 # 从NebulaSpaceManager.ts中提取以下方法：
 # - createGraphSchema()
 # - 图结构定义常量（标签、边类型、索引定义）
@@ -199,7 +193,7 @@ src/database/nebula/schema/NebulaSchemaManager.ts
 **步骤2**: 提取索引管理逻辑
 ```bash
 # 创建新文件
-src/database/nebula/index/NebulaIndexManager.ts
+src/database/nebula/NebulaIndexManager.ts
 # 从NebulaSpaceManager.ts中提取以下方法：
 # - createIndexWithRetry()
 # - 索引创建和重试逻辑
@@ -209,7 +203,7 @@ src/database/nebula/index/NebulaIndexManager.ts
 **步骤3**: 创建空间名称工具类
 ```bash
 # 创建新文件
-src/database/nebula/support/SpaceNameUtils.ts
+src/database/nebula/SpaceNameUtils.ts
 # 合并NebulaProjectManager.ts和NebulaSpaceManager.ts中的：
 # - generateSpaceName()方法
 # 创建标准化的空间名称生成逻辑
@@ -427,7 +421,7 @@ describe('Performance Comparison', () => {
 **当前问题**: NebulaProjectManager.ts和NebulaSpaceManager.ts都有各自的`generateSpaceName()`方法
 **解决方案**: 
 ```typescript
-// src/database/nebula/support/SpaceNameUtils.ts
+// src/database/nebula/SpaceNameUtils.ts
 export class SpaceNameUtils {
   static generateSpaceName(projectId: string): string {
     return `project_${projectId}`;
@@ -443,7 +437,7 @@ export class SpaceNameUtils {
 **当前问题**: 三个大文件都使用类似的详细日志记录模式，每个操作都有多重日志
 **解决方案**: 创建标准化的日志模板和级别控制
 ```typescript
-// src/database/nebula/support/NebulaLogger.ts
+// src/database/nebula/NebulaLogger.ts
 export class NebulaLogger {
   static async logOperation(
     logger: DatabaseLoggerService,
@@ -460,7 +454,7 @@ export class NebulaLogger {
 **当前问题**: 都使用try-catch包裹每个数据库操作，并进行详细的错误日志记录
 **解决方案**: 创建统一的错误处理装饰器
 ```typescript
-// src/database/nebula/errors/NebulaErrorHandler.ts
+// src/database/nebula/NebulaErrorHandler.ts
 export function NebulaErrorHandler(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
   // 统一的错误处理逻辑
 }

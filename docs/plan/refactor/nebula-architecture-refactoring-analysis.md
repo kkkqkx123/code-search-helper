@@ -179,49 +179,52 @@ export class NebulaService implements IDatabaseService {
 - 数据验证和转换
 
 #### 4. 配置服务增强
-**增强文件**: `src/config/service/NebulaConfigService.ts`
+**增强文件**: `src/database/nebula/NebulaConfigService.ts`
 **职责**:
 - 配置加载和验证
-- 配置动态更新
-- 配置版本管理
-- 环境特定配置
+- 连接参数管理
+- 空间配置管理
+- 性能参数调优
+- 安全配置管理
 
 #### 5. 图模式管理服务
-**新文件**: `src/database/nebula/schema/NebulaSchemaManager.ts`
+**新文件**: `src/database/nebula/NebulaSchemaManager.ts`
 **职责**:
-- 图结构定义和管理
-- 标签和边类型创建
+- 图模式定义和管理
+- 标签类型创建和维护
+- 边类型创建和维护
 - 模式版本控制
-- 模式迁移支持
+- 模式验证和优化
 
 #### 6. 索引管理服务
-**新文件**: `src/database/nebula/index/NebulaIndexManager.ts`
+**新文件**: `src/database/nebula/NebulaIndexManager.ts`
 **职责**:
 - 索引创建和管理
 - 索引性能优化
-- 索引重试机制
-- 索引状态监控
+- 索引存在性检查
+- 索引重建和修复
+- 索引统计信息收集
 
 ### 第三阶段：架构优化
 
-#### 1. 事件系统重构
-**新文件**: `src/database/nebula/events/NebulaEventBus.ts`
+#### 3. 事件系统重构
+**新文件**: `src/database/nebula/NebulaEventBus.ts`
 **职责**:
 - 统一事件总线
 - 事件发布订阅
 - 事件持久化
 - 事件重试机制
 
-#### 2. 监控体系完善
-**新文件**: `src/database/nebula/monitoring/NebulaMetricsCollector.ts`
+#### 4. 监控体系完善
+**新文件**: `src/database/nebula/NebulaMetricsCollector.ts`
 **职责**:
 - 性能指标收集
 - 连接池监控
 - 查询性能分析
 - 错误率统计
 
-#### 3. 错误处理标准化
-**新文件**: `src/database/nebula/errors/NebulaErrorHandler.ts`
+#### 5. 错误处理标准化
+**新文件**: `src/database/nebula/NebulaErrorHandler.ts`
 **职责**:
 - 错误分类和映射
 - 错误恢复策略

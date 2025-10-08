@@ -4,6 +4,8 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { NebulaQueryBuilder } from '../NebulaQueryBuilder';
+import { NebulaQueryUtils } from '../NebulaQueryUtils';
+import { BatchVertex, BatchEdge } from '../NebulaTypes';
 
 export interface IGraphQueryBuilder {
   buildNodeCountQuery(tag: string): { nGQL: string; parameters: Record<string, any> };
@@ -51,22 +53,23 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
   }
 
   buildNodeCountQuery(tag: string): { nGQL: string; parameters: Record<string, any> } {
-    const query = `LOOKUP ON \`${tag}\` YIELD count(*) AS total`;
-    return { nGQL: query, parameters: {} };
+    const { query, params } = this.nebulaQueryBuilder.buildNodeCountQuery(tag);
+    return { nGQL: query, parameters: params };
   }
 
   buildRelationshipCountQuery(edgeType: string): { nGQL: string; parameters: Record<string, any> } {
-    const query = `MATCH () -[r:\`${edgeType}\`]-> () RETURN count(r) AS total`;
-    return { nGQL: query, parameters: {} };
+    const { query, params } = this.nebulaQueryBuilder.buildRelationshipCountQuery(edgeType);
+    return { nGQL: query, parameters: params };
   }
 
   buildNodeSearchQuery(searchTerm: string, nodeType?: string): { nGQL: string; parameters: Record<string, any> } {
     let query = '';
+    const escapedSearchTerm = NebulaQueryUtils.escapeValue(searchTerm);
 
     if (nodeType) {
       // Search within a specific node type
       query = `
-        LOOKUP ON \`${nodeType}\` WHERE name CONTAINS "${searchTerm}" OR content CONTAINS "${searchTerm}"
+        LOOKUP ON \`${nodeType}\` WHERE name CONTAINS ${escapedSearchTerm} OR content CONTAINS ${escapedSearchTerm}
         YIELD vertex AS node
         | FETCH PROP ON \`${nodeType}\` $-.node._id YIELD vertex AS detailed_node
         LIMIT 10
@@ -74,13 +77,13 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
     } else {
       // Search across all node types
       query = `
-        LOOKUP ON * WHERE * CONTAINS "${searchTerm}"
+        LOOKUP ON * WHERE * CONTAINS ${escapedSearchTerm}
         YIELD vertex AS node
         LIMIT 10
       `;
     }
 
-    return { nGQL: query, parameters: { searchTerm } };
+    return { nGQL: query, parameters: {} };
   }
 
   buildRelationshipSearchQuery(relationshipType: string): { nGQL: string; parameters: Record<string, any> } {
@@ -93,11 +96,9 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
   }
 
   buildPathQuery(sourceId: string, targetId: string, maxDepth: number = 5): { nGQL: string; parameters: Record<string, any> } {
-    const query = `
-      FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth} STEPS
-      YIELD path AS p
-    `;
-    return { nGQL: query, parameters: { sourceId, targetId, maxDepth } };
+    const { query, params } = this.nebulaQueryBuilder.buildShortestPath(sourceId, targetId, [], maxDepth);
+    const fullQuery = NebulaQueryUtils.interpolateParameters(query, params);
+    return { nGQL: fullQuery, parameters: { maxDepth } };
   }
 
   buildDependencyQuery(
@@ -120,7 +121,7 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
       LIMIT 50
     `;
 
-    return { nGQL: query, parameters: { fileId, depth } };
+    return { nGQL: query, parameters: { fileId: fileId, depth: depth } };
   }
 
   buildCodeStructureQuery(fileId: string): { nGQL: string; parameters: Record<string, any> } {
@@ -129,7 +130,7 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
       RETURN f, child
       LIMIT 100
     `;
-    return { nGQL: query, parameters: { fileId } };
+    return { nGQL: query, parameters: { fileId: fileId } };
   }
 
   buildImportQuery(fileId: string): { nGQL: string; parameters: Record<string, any> } {
@@ -161,21 +162,19 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
     options: any = {}
   ): { nGQL: string; parameters: Record<string, any> } {
     const { maxDepth = 3, filterConditions = [], returnFields = ['vertex'], limit = 10 } = options;
-
-    const edgeTypeClause = edgeTypes.length > 0 ? `OVER ${edgeTypes.join(',')}` : 'OVER *';
-    const filterClause =
-      filterConditions.length > 0 ? `WHERE ${filterConditions.join(' AND ')}` : '';
-    const returnClause = returnFields.join(', ');
-
-    const query = `
-      GO ${maxDepth} STEPS FROM "${startId}" ${edgeTypeClause}
-      YIELD dst(edge) AS destination
-      ${filterClause}
-      | FETCH PROP ON * $-.destination YIELD ${returnClause}
-      LIMIT ${limit}
-    `;
-
-    return { nGQL: query, parameters: { startId } };
+    
+    // 使用 NebulaQueryBuilder 构建基础查询
+    const { query: baseQuery, params } = this.nebulaQueryBuilder.buildComplexTraversal(startId, edgeTypes, {
+      maxDepth,
+      filterConditions,
+      returnFields,
+      limit
+    });
+    
+    // 插值参数以生成完整查询
+    const query = NebulaQueryUtils.interpolateParameters(baseQuery, params);
+    
+    return { nGQL: query, parameters: {} };
   }
 
   /**
@@ -257,65 +256,26 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
 
   buildInsertNodeQuery(nodeData: { tag: string; id: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> } {
     const { tag, id, properties } = nodeData;
-
-    // Build property assignments
-    const propertyAssignments = Object.entries(properties)
-      .map(([key, value]) => {
-        if (typeof value === 'string') {
-          return `${key}:"${value}"`;
-        } else {
-          return `${key}:${value}`;
-        }
-      })
-      .join(', ');
-
-    const query = `INSERT VERTEX \`${tag}\` (${Object.keys(properties).join(', ')}) VALUES "${id}":(${propertyAssignments})`;
-
-    return { nGQL: query, parameters: {} };
+    const { query, params } = this.nebulaQueryBuilder.insertVertex(tag, id, properties);
+    return { nGQL: query, parameters: params };
   }
 
   buildInsertRelationshipQuery(relationshipData: { type: string; sourceId: string; targetId: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> } {
     const { type, sourceId, targetId, properties } = relationshipData;
-
-    // Build property assignments
-    const propertyAssignments = Object.entries(properties)
-      .map(([key, value]) => {
-        if (typeof value === 'string') {
-          return `${key}:"${value}"`;
-        } else {
-          return `${key}:${value}`;
-        }
-      })
-      .join(', ');
-
-    const query = `INSERT EDGE \`${type}\` (${Object.keys(properties).join(', ')}) VALUES "${sourceId}" -> "${targetId}":(${propertyAssignments})`;
-
-    return { nGQL: query, parameters: {} };
+    const { query, params } = this.nebulaQueryBuilder.insertEdge(type, sourceId, targetId, properties);
+    return { nGQL: query, parameters: params };
   }
 
   buildUpdateNodeQuery(updateData: { tag: string; id: string; properties: Record<string, any> }): { nGQL: string; parameters: Record<string, any> } {
     const { tag, id, properties } = updateData;
-
-    // Build SET clause
-    const setClause = Object.entries(properties)
-      .map(([key, value]) => {
-        if (typeof value === 'string') {
-          return `${key}:"${value}"`;
-        } else {
-          return `${key}:${value}`;
-        }
-      })
-      .join(', ');
-
-    const query = `UPDATE VERTEX ON \`${tag}\` "${id}" SET ${setClause}`;
-
-    return { nGQL: query, parameters: {} };
+    const { query, params } = this.nebulaQueryBuilder.updateVertex(id, tag, properties);
+    return { nGQL: query, parameters: params };
   }
 
   buildDeleteNodeQuery(nodeId: string): { nGQL: string; parameters: Record<string, any> } {
-    const query = `DELETE VERTEX "${nodeId}" WITH EDGE`;
-
-    return { nGQL: query, parameters: {} };
+    const { query, params } = this.nebulaQueryBuilder.deleteVertices([nodeId]);
+    const fullQuery = query + ' WITH EDGE';
+    return { nGQL: fullQuery, parameters: params };
   }
 
   buildFindRelatedNodesQuery(nodeId: string, relationshipTypes?: string[], maxDepth: number = 2): { nGQL: string; parameters: Record<string, any> } {
@@ -326,95 +286,32 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
 
     const query = `GO FROM "${nodeId}" OVER ${edgeTypesClause} UPTO ${maxDepth} STEPS YIELD dst(edge) AS destination | FETCH PROP ON * $-.destination YIELD vertex AS related`;
 
-    return { nGQL: query, parameters: {} };
+    return { nGQL: query, parameters: { nodeId: nodeId, maxDepth: maxDepth } };
   }
 
   buildFindPathQuery(sourceId: string, targetId: string, maxDepth: number = 3): { nGQL: string; parameters: Record<string, any> } {
-    const query = `FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth} STEPS YIELD path as p`;
-
-    return { nGQL: query, parameters: {} };
+    const { query, params } = this.nebulaQueryBuilder.buildShortestPath(sourceId, targetId, [], maxDepth);
+    const baseQuery = NebulaQueryUtils.interpolateParameters(query, params);
+    const fullQuery = baseQuery + ' YIELD path as p';
+    return { nGQL: fullQuery, parameters: { maxDepth } };
   }
 
   batchInsertVertices(vertices: Array<{ tag: string; id: string; properties: Record<string, any> }>): { query: string; params: Record<string, any> } {
-    // Group vertices by tag
-    const verticesByTag: Record<string, Array<{ id: string; properties: Record<string, any> }>> = {};
-
-    for (const vertex of vertices) {
-      if (!verticesByTag[vertex.tag]) {
-        verticesByTag[vertex.tag] = [];
-      }
-      verticesByTag[vertex.tag].push({
-        id: vertex.id,
-        properties: vertex.properties
-      });
-    }
-
-    // Build property assignments for each vertex
-    const tagEntries = Object.entries(verticesByTag);
-    const tagList = tagEntries.map(([tag]) => `\`${tag}\``).join(',');
-
-    const valuesClauses = tagEntries.map(([tag, vertexList]) => {
-      const vertexValues = vertexList.map(vertex => {
-        const propertyAssignments = Object.entries(vertex.properties)
-          .map(([key, value]) => {
-            if (typeof value === 'string') {
-              return `${key}:"${value}"`;
-            } else {
-              return `${key}:${value}`;
-            }
-          })
-          .join(',');
-
-        return `"${vertex.id}":(\`${tag}\`{${propertyAssignments}})`;
-      }).join(',');
-
-      return vertexValues;
-    }).join(',');
-
-    const query = `INSERT VERTEX ${tagList} VALUES ${valuesClauses}`;
-
-    return { query, params: {} };
+    const batchVertices: BatchVertex[] = vertices.map(v => ({
+      tag: v.tag,
+      id: v.id,
+      properties: v.properties
+    }));
+    return this.nebulaQueryBuilder.batchInsertVertices(batchVertices);
   }
 
   batchInsertEdges(edges: Array<{ type: string; srcId: string; dstId: string; properties: Record<string, any> }>): { query: string; params: Record<string, any> } {
-    // Group edges by type
-    const edgesByType: Record<string, Array<{ srcId: string; dstId: string; properties: Record<string, any> }>> = {};
-
-    for (const edge of edges) {
-      if (!edgesByType[edge.type]) {
-        edgesByType[edge.type] = [];
-      }
-      edgesByType[edge.type].push({
-        srcId: edge.srcId,
-        dstId: edge.dstId,
-        properties: edge.properties
-      });
-    }
-
-    // Build values clauses for each edge type
-    const typeEntries = Object.entries(edgesByType);
-    const typeList = typeEntries.map(([type]) => `\`${type}\``).join(',');
-
-    const valuesClauses = typeEntries.map(([type, edgeList]) => {
-      const edgeValues = edgeList.map(edge => {
-        const propertyAssignments = Object.entries(edge.properties)
-          .map(([key, value]) => {
-            if (typeof value === 'string') {
-              return `${key}:"${value}"`;
-            } else {
-              return `${key}:${value}`;
-            }
-          })
-          .join(',');
-
-        return `"${edge.srcId}"->"${edge.dstId}":(\`${type}\`{${propertyAssignments}})`;
-      }).join(',');
-
-      return edgeValues;
-    }).join(',');
-
-    const query = `INSERT EDGE ${typeList} VALUES ${valuesClauses}`;
-
-    return { query, params: {} };
+    const batchEdges: BatchEdge[] = edges.map(e => ({
+      type: e.type,
+      srcId: e.srcId,
+      dstId: e.dstId,
+      properties: e.properties
+    }));
+    return this.nebulaQueryBuilder.batchInsertEdges(batchEdges);
   }
 }

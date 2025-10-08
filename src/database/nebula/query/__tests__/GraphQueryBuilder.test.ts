@@ -11,15 +11,78 @@ describe('GraphQueryBuilder', () => {
       { handleError: jest.fn() } as any, // ErrorHandlerService
       { getConfig: jest.fn().mockReturnValue({}) } as any, // ConfigService
       {
-        // Mock NebulaQueryBuilder methods that might be used
-        buildInsertNodeQuery: jest.fn(),
-        buildInsertRelationshipQuery: jest.fn(),
-        buildUpdateNodeQuery: jest.fn(),
-        buildDeleteNodeQuery: jest.fn(),
-        buildFindRelatedNodesQuery: jest.fn(),
-        buildFindPathQuery: jest.fn(),
-        batchInsertVertices: jest.fn(),
-        batchInsertEdges: jest.fn()
+        // Mock NebulaQueryBuilder methods that are actually used
+        buildNodeCountQuery: jest.fn().mockImplementation((tag: string) => ({
+          query: `LOOKUP ON \`${tag}\` YIELD count(*) AS total`,
+          params: {}
+        })),
+        buildRelationshipCountQuery: jest.fn().mockImplementation((edgeType: string) => ({
+          query: `MATCH () -[r:\`${edgeType}\`]-> () RETURN count(r) AS total`,
+          params: {}
+        })),
+        insertVertex: jest.fn().mockImplementation((tag: string, id: string, properties: Record<string, any>) => {
+          const propString = Object.keys(properties).length > 0
+            ? Object.entries(properties).map(([key, value]) =>
+                typeof value === 'number' ? `${key}:${value}` : `${key}:"${value}"`
+              ).join(', ')
+            : '';
+          const query = `INSERT VERTEX \`${tag}\` ${propString ? `(${propString})` : ''} VALUES "${id}" ${propString ? `(${propString})` : '()'}`;
+          return { query, params: {} };
+        }),
+        insertEdge: jest.fn().mockImplementation((type: string, sourceId: string, targetId: string, properties: Record<string, any>) => {
+          const propString = Object.keys(properties).length > 0
+            ? Object.entries(properties).map(([key, value]) => `${key}:${value}`).join(', ')
+            : '';
+          const query = `INSERT EDGE \`${type}\` ${propString ? `(${propString})` : ''} VALUES "${sourceId}" -> "${targetId}" ${propString ? `(${propString})` : '()'}`;
+          return { query, params: {} };
+        }),
+        updateVertex: jest.fn().mockImplementation((id: string, tag: string, properties: Record<string, any>) => {
+          const setString = Object.entries(properties).map(([key, value]) => `${key}:"${value}"`).join(', ');
+          const query = `UPDATE VERTEX ON \`${tag}\` "${id}" SET ${setString}`;
+          return { query, params: {} };
+        }),
+        deleteVertices: jest.fn().mockImplementation((vertexIds: string[]) => ({
+          query: `DELETE VERTEX "${vertexIds[0]}"`,
+          params: {}
+        })),
+        buildShortestPath: jest.fn().mockImplementation((sourceId: string, targetId: string, edgeTypes: string[] = [], maxDepth: number = 3) => ({
+          query: `FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth} STEPS`,
+          params: { sourceId, targetId, maxDepth }
+        })),
+        batchInsertVertices: jest.fn().mockImplementation((vertices: Array<any>) => {
+          const groups = vertices.reduce((acc, vertex: any) => {
+            if (!acc[vertex.tag]) acc[vertex.tag] = [];
+            acc[vertex.tag].push(vertex);
+            return acc;
+          }, {} as Record<string, any[]>);
+          
+          const tagNames = Object.keys(groups).join('`,`');
+          const values = Object.entries(groups).flatMap(([tag, vertices]) =>
+            (vertices as any[]).map((v: any) => `"${v.id}":(\`${tag}\`{${Object.entries(v.properties).map(([k, v]) => `${k}:"${v}"`).join(', ')}})`)
+          ).join(',');
+          
+          return {
+            query: `INSERT VERTEX \`${tagNames}\` VALUES ${values}`,
+            params: {}
+          };
+        }),
+        batchInsertEdges: jest.fn().mockImplementation((edges: Array<any>) => {
+          const groups = edges.reduce((acc, edge: any) => {
+            if (!acc[edge.type]) acc[edge.type] = [];
+            acc[edge.type].push(edge);
+            return acc;
+          }, {} as Record<string, any[]>);
+          
+          const typeNames = Object.keys(groups).join('`,`');
+          const values = Object.entries(groups).flatMap(([type, edges]) =>
+            (edges as any[]).map((e: any) => `"${e.srcId}"->"${e.dstId}":(\`${type}\`{${Object.entries(e.properties).map(([k, v]) => `${k}:${v}`).join(', ')}})`)
+          ).join(',');
+          
+          return {
+            query: `INSERT EDGE \`${typeNames}\` VALUES ${values}`,
+            params: {}
+          };
+        })
       } as any // NebulaQueryBuilder
     );
   });
@@ -163,7 +226,7 @@ describe('GraphQueryBuilder', () => {
       expect(query.nGQL).toContain('GO FROM "func-123" OVER CONTAINS,CALLS');
       expect(query.nGQL).toContain('YIELD dst(edge) AS destination');
       expect(query.nGQL).toContain('FETCH PROP ON * $-.destination YIELD vertex AS related');
-      expect(query.parameters).toEqual({});
+      expect(query.parameters).toEqual({ nodeId: "func-123", maxDepth: 2 });
     });
 
     it('should handle all relationship types', () => {
@@ -179,7 +242,7 @@ describe('GraphQueryBuilder', () => {
       
       expect(query.nGQL).toContain('FIND SHORTEST PATH FROM "node-1" TO "node-2" OVER * UPTO 3 STEPS');
       expect(query.nGQL).toContain('YIELD path as p');
-      expect(query.parameters).toEqual({});
+      expect(query.parameters).toEqual({ maxDepth: 3 });
     });
   });
 
