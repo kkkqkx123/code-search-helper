@@ -5,8 +5,8 @@
     "name": "D:\\ide\\tool\\code-search-helper\\test-files",
     "status": "active",
     "createdAt": "2025-09-29T16:09:10.590Z",
-    "updatedAt": "2025-10-08T10:25:59.424Z",
-    "lastIndexedAt": "2025-10-08T10:25:59.424Z",
+    "updatedAt": "2025-10-08T13:14:46.354Z",
+    "lastIndexedAt": "2025-10-08T13:14:46.354Z",
     "indexingProgress": 100,
     "totalFiles": 1,
     "indexedFiles": 1,
@@ -16,19 +16,6 @@
       "vectorsCount": 1,
       "status": "green"
     },
-    "settings": {
-      "autoIndex": true,
-      "watchChanges": true
-    },
-    "metadata": {}
-  },
-  {
-    "projectId": "86b62e2ebce0231b",
-    "projectPath": "D:\\code\\Go\\dataStructure",
-    "name": "D:\\code\\Go\\dataStructure",
-    "status": "indexing",
-    "createdAt": "2025-10-08T09:46:05.743Z",
-    "updatedAt": "2025-10-08T09:46:06.425Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true

@@ -224,9 +224,17 @@ export class IndexingLogicService {
         relationships: mappingResult.relationships
       };
 
+      // 获取或生成项目ID，然后获取对应的空间名称
+      let projectId = this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        // 如果项目ID不存在，先生成它（这将创建正确的空间名称映射）
+        projectId = await this.projectIdManager.generateProjectId(projectPath);
+      }
+      const spaceName = this.projectIdManager.getSpaceName(projectId);
+      
       // 存储到图数据库
       const result = await this.graphService.storeChunks([graphData], {
-        projectId: this.projectIdManager.getProjectId(projectPath),
+        projectId: spaceName,
         useCache: true
       });
 

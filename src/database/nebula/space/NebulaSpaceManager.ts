@@ -55,7 +55,8 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
 
   async createSpace(projectId: string, config: GraphConfig = {}): Promise<boolean> {
-    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
+    // 如果projectId已经包含project_前缀，则直接使用；否则使用spaceNameUtils添加前缀
+    const spaceName = projectId.startsWith('project_') ? projectId : this.spaceNameUtils.generateSpaceName(projectId);
 
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
@@ -114,7 +115,8 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   }
 
   async deleteSpace(projectId: string): Promise<boolean> {
-    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
+    // 如果projectId已经包含project_前缀，则直接使用；否则使用spaceNameUtils添加前缀
+    const spaceName = projectId.startsWith('project_') ? projectId : this.spaceNameUtils.generateSpaceName(projectId);
 
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
@@ -290,7 +292,8 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   }
 
   async getSpaceInfo(projectId: string): Promise<NebulaSpaceInfo | null> {
-    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
+    // 如果projectId已经包含project_前缀，则直接使用；否则使用spaceNameUtils添加前缀
+    const spaceName = projectId.startsWith('project_') ? projectId : this.spaceNameUtils.generateSpaceName(projectId);
 
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
@@ -391,7 +394,8 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
   }
 
   async checkSpaceExists(projectId: string): Promise<boolean> {
-    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
+    // 如果projectId已经包含project_前缀，则直接使用；否则使用spaceNameUtils添加前缀
+    const spaceName = projectId.startsWith('project_') ? projectId : this.spaceNameUtils.generateSpaceName(projectId);
 
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
@@ -514,7 +518,8 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
 
   async clearSpace(projectId: string): Promise<boolean> {
-    const spaceName = this.spaceNameUtils.generateSpaceName(projectId);
+    // 如果projectId已经包含project_前缀，则直接使用；否则使用spaceNameUtils添加前缀
+    const spaceName = projectId.startsWith('project_') ? projectId : this.spaceNameUtils.generateSpaceName(projectId);
 
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
