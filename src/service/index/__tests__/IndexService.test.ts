@@ -94,17 +94,24 @@ describe('IndexService', () => {
     fileSystemTraversal = new FileSystemTraversal(
       loggerService as unknown as LoggerService
     ) as jest.Mocked<FileSystemTraversal>;
-    fileWatcherService = new FileWatcherService(
-      loggerService as unknown as LoggerService,
-      errorHandlerService as unknown as ErrorHandlerService,
-      fileSystemTraversal
-    ) as jest.Mocked<FileWatcherService>;
-    changeDetectionService = new ChangeDetectionService(
-      loggerService as unknown as LoggerService,
-      errorHandlerService as unknown as ErrorHandlerService,
-      fileWatcherService,
-      fileSystemTraversal
-    ) as jest.Mocked<ChangeDetectionService>;
+    // Create mock file watcher service
+    fileWatcherService = {
+      startWatching: jest.fn(),
+      stopWatching: jest.fn(),
+      isWatchingPath: jest.fn(),
+      getWatchedPaths: jest.fn(),
+      setCallbacks: jest.fn(),
+    } as unknown as jest.Mocked<FileWatcherService>;
+
+    // Create mock change detection service
+    changeDetectionService = {
+      initialize: jest.fn(),
+      isRunning: jest.fn(),
+      setCallbacks: jest.fn(),
+      getFileHistory: jest.fn(),
+      flushEventQueue: jest.fn(),
+      waitForEvents: jest.fn(),
+    } as unknown as jest.Mocked<ChangeDetectionService>;
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {} as jest.Mocked<IQdrantConnectionManager>;
     const mockCollectionManager = {} as jest.Mocked<IQdrantCollectionManager>;
@@ -151,23 +158,30 @@ describe('IndexService', () => {
       checkConfigurationConflict: jest.fn().mockReturnValue(false)
     } as unknown as jest.Mocked<NebulaConfigService>;
 
-    projectIdManager = new ProjectIdManager(
-      diContainer.get(TYPES.ConfigService),
-      mockQdrantConfigService,
-      mockNebulaConfigService,
-      loggerService,
-      errorHandlerService
-    ) as jest.Mocked<ProjectIdManager>;
-    embedderFactory = new EmbedderFactory(
-      loggerService,
-      errorHandlerService,
-      embeddingCacheService
-    ) as jest.Mocked<EmbedderFactory>;
-    embeddingCacheService = new EmbeddingCacheService(
-      loggerService,
-      errorHandlerService,
-      {} as any
-    ) as jest.Mocked<EmbeddingCacheService>;
+    // Create mock project ID manager
+    projectIdManager = {
+      generateProjectId: jest.fn(),
+      getProjectId: jest.fn(),
+      updateProjectTimestamp: jest.fn(),
+      removeProjectId: jest.fn(),
+      getAllProjectIds: jest.fn(),
+    } as unknown as jest.Mocked<ProjectIdManager>;
+
+    // Create mock embedder factory
+    embedderFactory = {
+      createEmbedder: jest.fn(),
+      getEmbedderDimensions: jest.fn(),
+    } as unknown as jest.Mocked<EmbedderFactory>;
+    // Create mock embedding cache service
+    embeddingCacheService = {
+      get: jest.fn(),
+      set: jest.fn(),
+      has: jest.fn(),
+      delete: jest.fn(),
+      clear: jest.fn(),
+      getStats: jest.fn(),
+      stopCleanupInterval: jest.fn(),
+    } as unknown as jest.Mocked<EmbeddingCacheService>;
 
     performanceOptimizerService = new PerformanceOptimizerService(
       loggerService,
@@ -213,15 +227,8 @@ describe('IndexService', () => {
 
   // 在所有测试完成后清理资源
   afterAll(async () => {
-    // 清理FileWatcherService中的计时器
-    if (fileWatcherService && typeof fileWatcherService.stopWatching === 'function') {
-      await fileWatcherService.stopWatching();
-    }
-    
-    // 清理PerformanceOptimizerService中的计时器
-    if (performanceOptimizerService && typeof performanceOptimizerService.stopMemoryMonitoring === 'function') {
-      performanceOptimizerService.stopMemoryMonitoring();
-    }
+    // 由于所有服务都是mock，不需要清理真实的定时器
+    // 保留空的afterAll钩子以备将来需要
   });
 
   describe('startIndexing', () => {

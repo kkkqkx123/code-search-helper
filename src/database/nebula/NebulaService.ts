@@ -21,6 +21,11 @@ import { IDatabaseService, IConnectionManager, IProjectManager } from '../common
 import { DatabaseEventType, NebulaEventType as UnifiedNebulaEventType } from '../common/DatabaseEventTypes';
 import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
 import { NebulaEventManager } from './NebulaEventManager';
+import { INebulaQueryService } from './NebulaQueryService';
+import { INebulaTransactionService } from './NebulaTransactionService';
+import { INebulaDataOperations } from './NebulaDataOperations';
+import { INebulaSchemaManager } from './NebulaSchemaManager';
+import { INebulaIndexManager } from './NebulaIndexManager';
 
 export interface INebulaService {
   // 基础操作
@@ -77,6 +82,11 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   private maxReconnectAttempts = 3;
   private reconnectDelay = 1000;
   private eventManager: NebulaEventManager;
+  private queryService: INebulaQueryService;
+  private transactionService: INebulaTransactionService;
+  private dataOperations: INebulaDataOperations;
+  private schemaManager: INebulaSchemaManager;
+  private indexManager: INebulaIndexManager;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
@@ -87,7 +97,12 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     @inject(TYPES.NebulaSpaceService) spaceService: NebulaSpaceService,
     @inject(TYPES.NebulaQueryBuilder) queryBuilder: NebulaQueryBuilder,
     @inject(TYPES.INebulaProjectManager) projectManager: NebulaProjectManager,
-    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
+    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager,
+    @inject(TYPES.NebulaQueryService) queryService: INebulaQueryService,
+    @inject(TYPES.NebulaTransactionService) transactionService: INebulaTransactionService,
+    @inject(TYPES.NebulaDataOperations) dataOperations: INebulaDataOperations,
+    @inject(TYPES.NebulaSchemaManager) schemaManager: INebulaSchemaManager,
+    @inject(TYPES.NebulaIndexManager) indexManager: INebulaIndexManager
   ) {
     // 调用父类构造函数，提供必要的依赖
     super(
@@ -104,6 +119,11 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     this.queryBuilder = queryBuilder;
     this.projectManager = projectManager;
     this.eventManager = eventManager;
+    this.queryService = queryService;
+    this.transactionService = transactionService;
+    this.dataOperations = dataOperations;
+    this.schemaManager = schemaManager;
+    this.indexManager = indexManager;
   }
 
   /**
@@ -183,76 +203,16 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         data: { message: 'Initializing Nebula schema' }
       });
 
-      // 创建代码库分析所需的标签（使用反引号转义保留关键字）
-      const tags = [
-        { name: 'File', fields: 'name string, `path` string, type string, size int, language string, hash string' },
-        { name: 'Function', fields: 'name string, signature string, parameters string, returnType string, visibility string, isStatic bool, isAsync bool' },
-        { name: 'Class', fields: 'name string, type string, extends string, implements string, isAbstract bool, isFinal bool' },
-        { name: 'Variable', fields: 'name string, type string, value string, isConstant bool, isGlobal bool, scope string' },
-        { name: 'Import', fields: 'module string, alias string, isDefault bool, isTypeOnly bool' },
-        { name: 'Export', fields: 'name string, type string, isDefault bool' },
-        { name: 'Comment', fields: 'content string, type string, line int, column int' }
-      ];
-
-      // 创建代码库分析所需的边类型
-      const edgeTypes = [
-        { name: 'CONTAINS', fields: 'line int, column int' },
-        { name: 'CALLS', fields: 'line int, column int' },
-        { name: 'EXTENDS', fields: 'line int' },
-        { name: 'IMPLEMENTS', fields: 'line int' },
-        { name: 'IMPORTS', fields: 'line int, isTypeOnly bool' },
-        { name: 'EXPORTS', fields: 'line int' },
-        { name: 'REFERENCES', fields: 'line int, column int, context string' },
-        { name: 'MODIFIES', fields: 'line int, column int' },
-        { name: 'DECLARES', fields: 'line int, column int' },
-        { name: 'OVERRIDES', fields: 'line int' }
-      ];
-
-      // 创建标签 - 这些会自动应用到当前激活的space
-      for (const tag of tags) {
-        try {
-          const createTagQuery = `CREATE TAG IF NOT EXISTS ${tag.name} (${tag.fields})`;
-          await this.executeWriteQuery(createTagQuery);
-          // 使用 DatabaseLoggerService 记录标签创建事件
-          await this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.DATA_INSERTED,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: { message: `Created tag: ${tag.name}` }
-          });
-        } catch (error) {
-          // 使用 DatabaseLoggerService 记录标签创建失败事件
-          await this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.DATA_ERROR,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: { message: `Failed to create tag ${tag.name}` },
-            error: error instanceof Error ? error : new Error(String(error))
-          });
-        }
-      }
-
-      // 创建边类型 - 这些会自动应用到当前激活的space
-      for (const edgeType of edgeTypes) {
-        try {
-          const createEdgeQuery = `CREATE EDGE IF NOT EXISTS ${edgeType.name} (${edgeType.fields})`;
-          await this.executeWriteQuery(createEdgeQuery);
-          // 使用 DatabaseLoggerService 记录边类型创建事件
-          await this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.DATA_INSERTED,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: { message: `Created edge type: ${edgeType.name}` }
-          });
-        } catch (error) {
-          // 使用 DatabaseLoggerService 记录边类型创建失败事件
-          await this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.DATA_ERROR,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: { message: `Failed to create edge type ${edgeType.name}` },
-            error: error instanceof Error ? error : new Error(String(error))
-          });
+      // 获取当前空间名称，从中提取projectId
+      const result = await this.queryService.executeQuery('SHOW SPACES');
+      if (result && result.data && result.data.length > 0) {
+        // 获取第一个或当前活动的空间
+        const spaceInfo = result.data[0];
+        const spaceName = spaceInfo.Name || spaceInfo.name;
+        
+        if (spaceName) {
+          // 使用schemaManager创建图模式
+          await this.schemaManager.createGraphSchema(spaceName);
         }
       }
 
@@ -288,7 +248,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      const result = await this.connectionManager.executeQuery(nGQL, parameters);
+      const result = await this.queryService.executeQuery(nGQL, parameters);
 
       if (result.error) {
         // 检查是否是连接错误，如果是则尝试重连
@@ -303,7 +263,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
           const reconnected = await this.reconnect();
           if (reconnected) {
             // 重连成功后重新执行查询
-            const retryResult = await this.connectionManager.executeQuery(nGQL, parameters);
+            const retryResult = await this.queryService.executeQuery(nGQL, parameters);
             if (retryResult.error) {
               throw new Error(retryResult.error);
             }
@@ -331,7 +291,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         if (reconnected) {
           // 重连成功后重新执行查询
           try {
-            const retryResult = await this.connectionManager.executeQuery(nGQL, parameters);
+            const retryResult = await this.queryService.executeQuery(nGQL, parameters);
             if (retryResult.error) {
               throw new Error(retryResult.error);
             }
@@ -366,7 +326,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      const result = await this.connectionManager.executeQuery(nGQL, parameters);
+      const result = await this.queryService.executeQuery(nGQL, parameters);
 
       if (result.error) {
         // 检查是否是连接错误，如果是则尝试重连
@@ -381,7 +341,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
           const reconnected = await this.reconnect();
           if (reconnected) {
             // 重连成功后重新执行查询
-            const retryResult = await this.connectionManager.executeQuery(nGQL, parameters);
+            const retryResult = await this.queryService.executeQuery(nGQL, parameters);
             if (retryResult.error) {
               throw new Error(retryResult.error);
             }
@@ -409,7 +369,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         if (reconnected) {
           // 重连成功后重新执行查询
           try {
-            const retryResult = await this.connectionManager.executeQuery(nGQL, parameters);
+            const retryResult = await this.queryService.executeQuery(nGQL, parameters);
             if (retryResult.error) {
               throw new Error(retryResult.error);
             }
@@ -444,7 +404,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      const results = await this.connectionManager.executeTransaction(queries);
+      const results = await this.transactionService.executeTransaction(queries);
       return results;
     } catch (error) {
       // 检查是否是连接错误，如果是则尝试重连
@@ -460,7 +420,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         if (reconnected) {
           // 重连成功后重新执行事务
           try {
-            const retryResults = await this.connectionManager.executeTransaction(queries);
+            const retryResults = await this.transactionService.executeTransaction(queries);
             return retryResults;
           } catch (retryError) {
             // 如果重试事务也失败，抛出错误而不继续重试
@@ -806,30 +766,30 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       throw new Error('Nebula service is not initialized');
     }
 
+    if (!nodes || nodes.length === 0) {
+      return true; // 没有节点需要插入，视为成功
+    }
+
     try {
       const startTime = Date.now();
       
-      // 按标签分组节点
-      const nodesByLabel = this.groupNodesByLabel(nodes);
-      
-      // 为每个标签创建批量插入语句
-      const queries: Array<{ query: string; params: Record<string, any> }> = [];
-      
-      for (const [label, labelNodes] of Object.entries(nodesByLabel)) {
-        const query = `
-          INSERT VERTEX ${label}(${Object.keys(labelNodes[0].properties).join(', ')})
-          VALUES ${labelNodes.map(node =>
-            `"${node.id}": (${Object.values(node.properties).map(val =>
-              typeof val === 'string' ? `"${val}"` : val
-            ).join(', ')})`
-          ).join(', ')}
-        `;
-        
-        queries.push({ query, params: {} });
+      // 从第一个节点的属性中获取projectId，如果不存在则尝试获取当前空间的相关信息
+      let projectId = nodes[0].properties?.projectId;
+      if (!projectId) {
+        // 尝试获取当前空间信息以确定projectId
+        const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
+        if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
+          const currentSpace = spaceResult.data[0];
+          projectId = currentSpace.Name || currentSpace.name;
+        }
       }
       
-      // 执行事务
-      await this.executeTransaction(queries);
+      if (!projectId) {
+        throw new Error('Unable to determine project ID for node insertion');
+      }
+      
+      // 使用dataOperations服务进行批量插入
+      const result = await this.dataOperations.insertNodes(projectId, this.generateSpaceNameFromPath(projectId), nodes);
       
       const duration = Date.now() - startTime;
       this.emitEvent('data_inserted', { nodeCount: nodes.length, duration });
@@ -840,7 +800,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         timestamp: new Date(),
         data: { message: `Inserted ${nodes.length} nodes`, nodeCount: nodes.length }
       });
-      return true;
+      return result;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       return false;
@@ -860,32 +820,34 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       throw new Error('Nebula service is not initialized');
     }
 
+    if (!relationships || relationships.length === 0) {
+      return true; // 没有关系需要插入，视为成功
+    }
+
     try {
       const startTime = Date.now();
       
-      // 按类型分组关系
-      const relationshipsByType = this.groupRelationshipsByType(relationships);
-      
-      // 为每个类型创建批量插入语句
-      const queries: Array<{ query: string; params: Record<string, any> }> = [];
-      
-      for (const [type, typeRelationships] of Object.entries(relationshipsByType)) {
-        const query = `
-          INSERT EDGE ${type}(${typeRelationships[0].properties ? Object.keys(typeRelationships[0].properties).join(', ') : ''})
-          VALUES ${typeRelationships.map(rel =>
-            `"${rel.sourceId}" -> "${rel.targetId}": ${rel.properties ?
-              `(${Object.values(rel.properties).map(val =>
-                typeof val === 'string' ? `"${val}"` : val
-              ).join(', ')})` : '()'
-            }`
-          ).join(', ')}
-        `;
-        
-        queries.push({ query, params: {} });
+      // 从第一个关系的属性中获取projectId，如果不存在则尝试获取当前空间的相关信息
+      let projectId = relationships[0].properties?.projectId;
+      if (!projectId) {
+        // 尝试获取当前空间信息以确定projectId
+        const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
+        if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
+          const currentSpace = spaceResult.data[0];
+          projectId = currentSpace.Name || currentSpace.name;
+        }
       }
       
-      // 执行事务
-      await this.executeTransaction(queries);
+      if (!projectId) {
+        throw new Error('Unable to determine project ID for relationship insertion');
+      }
+      
+      // 使用dataOperations服务进行批量插入
+      const result = await this.dataOperations.insertRelationships(
+        projectId,
+        this.generateSpaceNameFromPath(projectId),
+        relationships
+      );
       
       const duration = Date.now() - startTime;
       this.emitEvent('data_inserted', { relationshipCount: relationships.length, duration });
@@ -896,7 +858,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         timestamp: new Date(),
         data: { message: `Inserted ${relationships.length} relationships`, relationshipCount: relationships.length }
       });
-      return true;
+      return result;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       return false;
@@ -919,20 +881,30 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     try {
       const startTime = Date.now();
       
-      let query = `MATCH (v:${label}) RETURN v`;
-      
-      if (filter) {
-        const conditions = Object.entries(filter).map(([key, value]) =>
-          `v.${key} == ${typeof value === 'string' ? `"${value}"` : value}`
-        ).join(' AND ');
-        query += ` WHERE ${conditions}`;
+      // 尝试获取当前空间信息以确定projectId
+      let projectId = '';
+      const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
+      if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
+        const currentSpace = spaceResult.data[0];
+        projectId = currentSpace.Name || currentSpace.name;
       }
       
-      const result = await this.executeReadQuery(query);
+      if (!projectId) {
+        throw new Error('Unable to determine project ID for node lookup');
+      }
+      
+      // 使用dataOperations服务进行查找
+      const result = await this.dataOperations.findNodesByLabel(
+        projectId,
+        this.generateSpaceNameFromPath(projectId),
+        label,
+        filter
+      );
+      
       const duration = Date.now() - startTime;
       
-      this.emitEvent('data_queried', { label, filter, duration, resultCount: result.data?.length || 0 });
-      return result.data || [];
+      this.emitEvent('data_queried', { label, filter, duration, resultCount: result.length });
+      return result;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;

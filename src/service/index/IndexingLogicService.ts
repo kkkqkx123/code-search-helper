@@ -377,15 +377,24 @@ export class IndexingLogicService {
       });
 
       // 生成优化建议（异步，不阻塞主流程）
-      setTimeout(async () => {
+      const timer = setTimeout(async () => {
         try {
           await this.optimizationAdvisor.analyzeAndRecommend();
         } catch (advisorError) {
           this.logger.warn('Failed to generate optimization recommendations', {
             error: (advisorError as Error).message
           });
+        } finally {
+          // 从pendingTimers数组中移除已完成的定时器
+          const index = this.pendingTimers.indexOf(timer);
+          if (index !== -1) {
+            this.pendingTimers.splice(index, 1);
+          }
         }
       }, 0);
+      
+      // 将定时器引用存储到pendingTimers数组中
+      this.pendingTimers.push(timer);
 
     } catch (error) {
       this.recordError(filePath, error);
@@ -459,6 +468,11 @@ export class IndexingLogicService {
   }
 
   /**
+   * 存储未完成的定时器引用，以便在测试结束时清理
+   */
+  private pendingTimers: NodeJS.Timeout[] = [];
+
+  /**
    * 并发处理任务
    */
   private async processWithConcurrency<T>(promises: Promise<T>[], maxConcurrency: number): Promise<void> {
@@ -480,5 +494,15 @@ export class IndexingLogicService {
     }
 
     await Promise.all(results);
+  }
+
+  /**
+   * 清理未完成的定时器
+   */
+  async cleanup(): Promise<void> {
+    for (const timer of this.pendingTimers) {
+      clearTimeout(timer);
+    }
+    this.pendingTimers = [];
   }
 }

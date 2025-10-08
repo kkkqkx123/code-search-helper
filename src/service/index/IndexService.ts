@@ -533,6 +533,13 @@ export class IndexService {
       status.isIndexing = false;
       this.indexingProjects.set(projectId, status);
 
+      // 清理IndexingLogicService中的未完成定时器
+      try {
+        await this.indexingLogicService.cleanup();
+      } catch (cleanupError) {
+        this.logger.warn(`Failed to cleanup IndexingLogicService timers: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
+      }
+
       this.logger.info(`Stopped indexing project: ${projectId}`);
       return true;
     } catch (error) {
