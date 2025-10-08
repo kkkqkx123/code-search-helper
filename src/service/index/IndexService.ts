@@ -17,6 +17,7 @@ import { ASTCodeSplitter } from '../parser/splitting/ASTCodeSplitter';
 import { CodeChunk } from '../parser/splitting/Splitter';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
 import { IndexingLogicService } from './IndexingLogicService';
+import { NebulaService } from '../../database/nebula/NebulaService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -123,6 +124,7 @@ export class IndexService {
     @inject(TYPES.FileWatcherService) private fileWatcherService: FileWatcherService,
     @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+    @inject(TYPES.NebulaService) private nebulaService: NebulaService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
@@ -645,11 +647,22 @@ export class IndexService {
           // 如果集合不存在或删除失败，记录警告但继续执行
           this.logger.warn(`删除项目集合时出现问题（这可能是正常的）: ${deleteError instanceof Error ? deleteError.message : String(deleteError)}`);
         }
-
+ 
+        // 删除Nebula Graph空间（如果存在）
+        try {
+          await this.nebulaService.deleteSpaceForProject(projectPath);
+          this.logger.info(`已删除项目Nebula空间: ${projectPath}`);
+        } catch (deleteSpaceError) {
+          // 如果空间不存在或删除失败，记录警告但继续执行
+          this.logger.warn(`删除项目Nebula空间时出现问题（这可能是正常的）: ${deleteSpaceError instanceof Error ? deleteSpaceError.message : String(deleteSpaceError)}`);
+        }
+ 
         // 清理所有相关的状态缓存
-        this.indexingProjects.delete(projectId);
-        this.completedProjects.delete(projectId);
-        this.logger.info(`已清理项目状态缓存: ${projectId}`);
+        if (projectId) {
+          this.indexingProjects.delete(projectId);
+          this.completedProjects.delete(projectId);
+          this.logger.info(`已清理项目状态缓存: ${projectId}`);
+        }
       } else {
         this.logger.info(`项目 ${projectPath} 不存在，将创建新索引`);
       }

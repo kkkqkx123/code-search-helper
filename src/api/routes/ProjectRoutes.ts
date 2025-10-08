@@ -196,9 +196,16 @@ export class ProjectRoutes {
         return;
       }
 
-      // Remove project from mapping
-      this.projectIdManager.removeProject(projectPath);
-      await this.projectIdManager.saveMapping();
+      // 删除项目状态（这会同时删除Qdrant collection和Nebula Graph space）
+      const deleted = await this.projectStateManager.deleteProjectState(projectId);
+      
+      if (!deleted) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found',
+        });
+        return;
+      }
 
       res.status(200).json({
         success: true,
@@ -231,7 +238,7 @@ export class ProjectRoutes {
       }
 
       // 更新项目状态以允许重新索引
-      await this.projectStateManager.createOrUpdateProjectState(projectPath);
+      await this.projectStateManager.createOrUpdateProjectState(projectPath, { allowReindex: true });
 
       // 调用 IndexSyncService 的 reindexProject 方法
       const reindexProjectId = await this.indexSyncService.reindexProject(projectPath);

@@ -5,6 +5,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { IndexService, IndexSyncStatus } from '../index/IndexService';
 import { QdrantService } from '../../database/qdrant/QdrantService';
+import { NebulaService } from '../../database/nebula/NebulaService';
 import { ConfigService } from '../../config/ConfigService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -74,6 +75,7 @@ export class ProjectStateManager {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+    @inject(TYPES.NebulaService) private nebulaService: NebulaService,
     @inject(TYPES.ConfigService) private configService: ConfigService
   ) {
     // 存储路径将在initialize方法中设置
@@ -327,12 +329,48 @@ export class ProjectStateManager {
       const projectId = await this.projectIdManager.generateProjectId(projectPath);
 
       // 检查是否已存在相同 projectPath 的项目状态
-      // 如果是重新索引操作，则跳过重复检查
+      // 如果是重新索引操作，则先删除现有状态和数据库中的集合/空间
       const existingStateByPath = this.getProjectStateByDirectPath(projectPath);
       const allowReindex = options.allowReindex ?? false;
       if (existingStateByPath && !allowReindex && existingStateByPath.projectId !== projectId) {
         // 如果已存在相同路径的项目，且不是重新索引操作，且projectId不同，则抛出错误
         throw new Error(`项目路径 "${projectPath}" 已被项目 "${existingStateByPath.projectId}" 使用，不能重复添加`);
+      } else if (existingStateByPath && allowReindex && existingStateByPath.projectId !== projectId) {
+        // 如果是重新索引操作且projectId不同，清理旧的项目状态和相关资源
+        this.logger.info(`重新索引项目，清理旧项目状态和资源: ${existingStateByPath.projectId}`, {
+          oldProjectId: existingStateByPath.projectId,
+          newProjectId: projectId,
+          projectPath
+        });
+        
+        // 从内存中删除旧项目状态
+        this.projectStates.delete(existingStateByPath.projectId);
+        
+        // 删除旧的Qdrant集合
+        try {
+          await this.qdrantService.deleteCollectionForProject(existingStateByPath.projectPath);
+          this.logger.info(`已删除旧项目的Qdrant集合: ${existingStateByPath.projectPath}`, {
+            projectId: existingStateByPath.projectId
+          });
+        } catch (error) {
+          this.logger.warn(`删除旧项目Qdrant集合失败: ${existingStateByPath.projectPath}`, {
+            error: error instanceof Error ? error.message : String(error),
+            projectId: existingStateByPath.projectId
+          });
+        }
+        
+        // 删除旧的Nebula Graph空间
+        try {
+          await this.nebulaService.deleteSpaceForProject(existingStateByPath.projectPath);
+          this.logger.info(`已删除旧项目的Nebula空间: ${existingStateByPath.projectPath}`, {
+            projectId: existingStateByPath.projectId
+          });
+        } catch (error) {
+          this.logger.warn(`删除旧项目Nebula空间失败: ${existingStateByPath.projectPath}`, {
+            error: error instanceof Error ? error.message : String(error),
+            projectId: existingStateByPath.projectId
+          });
+        }
       }
 
       // 检查是否已存在状态
@@ -567,6 +605,15 @@ export class ProjectStateManager {
       } catch (collectionError) {
         this.logger.warn(`Failed to delete Qdrant collection for project ${projectId}`, { error: collectionError });
         // 即使删除集合失败，也继续删除项目状态
+      }
+      
+      // 删除对应的Nebula Graph空间
+      try {
+        await this.nebulaService.deleteSpaceForProject(state.projectPath);
+        this.logger.info(`Deleted Nebula space for project ${projectId}`);
+      } catch (spaceError) {
+        this.logger.warn(`Failed to delete Nebula space for project ${projectId}`, { error: spaceError });
+        // 即使删除空间失败，也继续删除项目状态
       }
 
       // 从映射中删除
