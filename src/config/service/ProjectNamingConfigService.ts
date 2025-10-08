@@ -19,7 +19,7 @@ export class ProjectNamingConfigService extends BaseConfigService<ProjectNamingC
 
   constructor() {
     super();
-    this.config = this.loadConfig();
+    // BaseConfigService uses lazy loading, no need to initialize config here
   }
 
   loadConfig(): ProjectNamingConfig {
@@ -85,12 +85,13 @@ export class ProjectNamingConfigService extends BaseConfigService<ProjectNamingC
     }
 
     // 2. 使用配置服务的默认集合（如果不是默认值）
-    if (this.config.qdrant.defaultCollection !== 'default') {
-      return this.config.qdrant.defaultCollection;
+    const config = this.getConfig();
+    if (config.qdrant.defaultCollection !== 'default') {
+      return config.qdrant.defaultCollection;
     }
 
     // 3. 使用配置服务中的命名模式
-    const namingPattern = this.config.qdrant.namingPattern;
+    const namingPattern = config.qdrant.namingPattern;
     if (namingPattern && namingPattern !== '{projectId}') {
       return namingPattern.replace('{projectId}', projectId);
     }
@@ -114,12 +115,13 @@ export class ProjectNamingConfigService extends BaseConfigService<ProjectNamingC
     }
 
     // 2. 使用配置服务的默认空间（如果不是默认值）
-    if (this.config.nebula.defaultSpace !== 'default') {
-      return this.config.nebula.defaultSpace;
+    const config = this.getConfig();
+    if (config.nebula.defaultSpace !== 'default') {
+      return config.nebula.defaultSpace;
     }
 
     // 3. 使用配置服务中的命名模式
-    const namingPattern = this.config.nebula.namingPattern;
+    const namingPattern = config.nebula.namingPattern;
     if (namingPattern && namingPattern !== '{projectId}') {
       return namingPattern.replace('{projectId}', projectId);
     }

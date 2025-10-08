@@ -297,7 +297,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           console.log(`[NebulaConnectionManager] Client authorized event:`, { connectionId });
 
           authorizedCount++;
-          
+
           // 对于@nebula-contrib/nebula-nodejs库版本3.0.3，在authorized事件后
           // 需要等待一段时间让会话完全就绪，然后直接认为连接成功
           // 因为ready事件可能永远不会触发
@@ -354,17 +354,17 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
               }
             }
           }
-          
+
           console.log(`[NebulaConnectionManager] Client error event:`, { error: errorMessage });
-          
+
           // 特别处理"会话无效或连接未就绪"错误
           // 这个错误在库版本3.0.3中经常出现，但不一定意味着连接失败
           if (errorMessage.includes('会话无效或连接未就绪') ||
-              errorMessage.includes('Session invalid') ||
-              errorMessage.includes('Connection not ready')) {
-            
+            errorMessage.includes('Session invalid') ||
+            errorMessage.includes('Connection not ready')) {
+
             console.log(`[NebulaConnectionManager] Session not ready error, waiting for authorization...`);
-            
+
             // 不要立即拒绝，而是等待授权事件
             // 如果已经收到足够的授权，就认为连接成功
             if (authorizedCount >= requiredAuthorizations && !connected) {
@@ -379,7 +379,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
             }
             return; // 不要拒绝，继续等待
           }
-          
+
           // 对于其他类型的错误，拒绝连接
           if (!connected) {
             clearTimeout(timeout);
@@ -447,20 +447,20 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         try {
           // 先等待一小段时间，确保连接状态同步
           await new Promise(resolve => setTimeout(resolve, 1000));
-          
+
           // 直接检查客户端连接池中是否有可用的连接
           if (client.connections && client.connections.length > 0) {
             const readyConnections = client.connections.filter((conn: any) => conn.isReady && !conn.isBusy);
             console.log(`[NebulaConnectionManager] 连接池状态: 总共${client.connections.length}个连接, ${readyConnections.length}个就绪`);
-            
+
             if (readyConnections.length > 0) {
               console.log(`[NebulaConnectionManager] 发现就绪连接，跳过初始验证...`);
             }
           }
-          
+
           // 验证连接时只使用不依赖空间的查询
           const validationQuery = 'YIELD 1 AS validation;';
-          
+
           // 验证查询可能需要等待连接完全准备好
           const result = await client.execute(validationQuery);
 
@@ -497,18 +497,18 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
             const useQuery = `USE \`${this.connectionStatus.space}\`;`;
             console.log(`[NebulaConnectionManager] 切换到空间: ${this.connectionStatus.space}`);
             const useResult = await client.execute(useQuery);
-            
+
             // 检查是否是因为空间不存在导致的错误
             if (useResult && typeof useResult.error_code !== 'undefined' && useResult.error_code !== 0) {
               const errorMessage = useResult?.error_msg || useResult?.error || 'Unknown error';
               console.log(`[NebulaConnectionManager] Failed to switch to space '${this.connectionStatus.space}': ${errorMessage}`);
-              
+
               // 检查错误信息是否表示空间不存在
               if (errorMessage.includes('Space not found') ||
-                  errorMessage.includes('Space not exist') ||
-                  errorMessage.includes('Space does not exist')) {
+                errorMessage.includes('Space not exist') ||
+                errorMessage.includes('Space does not exist')) {
                 console.log(`[NebulaConnectionManager] Space does not exist, attempting to create space: ${this.connectionStatus.space}`);
-                
+
                 try {
                   // 创建空间
                   const createSpaceQuery = `
@@ -518,27 +518,27 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
                       vid_type = "FIXED_STRING(32)"
                     )
                   `;
-                  
+
                   const createResult = await client.execute(createSpaceQuery);
-                  
+
                   if (createResult && typeof createResult.error_code !== 'undefined' && createResult.error_code !== 0) {
                     const createErrorMsg = createResult?.error_msg || createResult?.error || 'Unknown error';
                     throw new Error(`Failed to create space ${this.connectionStatus.space}: ${createErrorMsg}`);
                   }
-                  
+
                   // 等待空间创建完成
                   await new Promise(resolve => setTimeout(resolve, 2000));
-                  
+
                   // 再次尝试切换到空间
                   const reUseResult = await client.execute(useQuery);
-                  
+
                   if (reUseResult && typeof reUseResult.error_code !== 'undefined' && reUseResult.error_code !== 0) {
                     const reUseErrorMsg = reUseResult?.error_msg || reUseResult?.error || 'Unknown error';
                     throw new Error(`Failed to switch to newly created space ${this.connectionStatus.space}: ${reUseErrorMsg}`);
                   }
-                  
+
                   console.log(`[NebulaConnectionManager] Successfully created and switched to space: ${this.connectionStatus.space}`);
-                  
+
                   // 空间切换成功，更新连接状态管理器中的空间状态
                   this.connectionStateManager.updateConnectionSpace('nebula-client-main', this.connectionStatus.space);
                 } catch (createError) {
@@ -569,14 +569,14 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           // 如果不是"会话无效或连接未就绪"错误，立即重抛错误
           const queryErrorAsAny = queryError as any;
           const errorMsg = queryErrorAsAny.message || queryErrorAsAny.error_msg || String(queryError);
-          
+
           // 特殊处理"会话无效或连接未就绪"错误 - 这是库的常见问题，需要重试
           if (errorMsg.includes('会话无效或连接未就绪') ||
-              errorMsg.includes('Session invalid') ||
-              errorMsg.includes('Connection not ready') ||
-              errorMsg.includes('ERR_NEBULA')) {
+            errorMsg.includes('Session invalid') ||
+            errorMsg.includes('Connection not ready') ||
+            errorMsg.includes('ERR_NEBULA')) {
             console.log(`[NebulaConnectionManager] 检测到会话状态问题，等待并重试...`);
-            
+
             // 检查客户端连接池状态
             if (client.connections) {
               const connectionStates = client.connections.map((conn: any) => ({
@@ -587,7 +587,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
               }));
               console.log(`[NebulaConnectionManager] 连接池状态:`, connectionStates);
             }
-            
+
             // 等待更长时间，让连接状态同步
             await new Promise(resolve => setTimeout(resolve, 2000));
             attempt++;
@@ -822,8 +822,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       } catch (testError) {
         const testErrorMessage = testError instanceof Error ? testError.message : String(testError);
         if (testErrorMessage.includes('会话无效或连接未就绪') ||
-            testErrorMessage.includes('Session invalid') ||
-            testErrorMessage.includes('Connection not ready')) {
+          testErrorMessage.includes('Session invalid') ||
+          testErrorMessage.includes('Connection not ready')) {
           return this.createErrorResult(`Connection not ready: ${testErrorMessage}`);
         }
         // 如果测试查询也失败，继续执行实际查询，让原始错误处理来处理
@@ -1050,8 +1050,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       } catch (testError) {
         const testErrorMessage = testError instanceof Error ? testError.message : String(testError);
         if (testErrorMessage.includes('会话无效或连接未就绪') ||
-            testErrorMessage.includes('Session invalid') ||
-            testErrorMessage.includes('Connection not ready')) {
+          testErrorMessage.includes('Session invalid') ||
+          testErrorMessage.includes('Connection not ready')) {
           throw new Error(`Connection not ready: ${testErrorMessage}`);
         }
         // 如果测试查询也失败，让原始错误处理来处理
@@ -1179,8 +1179,8 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     } catch (testError) {
       const testErrorMessage = testError instanceof Error ? testError.message : String(testError);
       if (testErrorMessage.includes('会话无效或连接未就绪') ||
-          testErrorMessage.includes('Session invalid') ||
-          testErrorMessage.includes('Connection not ready')) {
+        testErrorMessage.includes('Session invalid') ||
+        testErrorMessage.includes('Connection not ready')) {
         throw new Error(`Connection not ready: ${testErrorMessage}`);
       }
       // 如果测试失败，让原始错误处理来处理
@@ -1207,42 +1207,36 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         return this.client;
       } else {
         const errorMsg = result?.error || result?.error_msg || 'Unknown error';
-        
+
         // 检查是否是因为空间不存在导致的错误
         if (errorMsg.includes('Space not found') ||
-            errorMsg.includes('Space not exist') ||
-            errorMsg.includes('Space does not exist') ||
-            errorMsg.includes('SpaceNotFound')) {
-          
+          errorMsg.includes('Space not exist') ||
+          errorMsg.includes('Space does not exist') ||
+          errorMsg.includes('SpaceNotFound')) {
+
           console.log(`[NebulaConnectionManager] Space '${spaceName}' does not exist, attempting to create it...`);
-          
+
           try {
             // 创建空间
-            const createSpaceQuery = `
-              CREATE SPACE IF NOT EXISTS \`${spaceName}\` (
-                partition_num = 10,
-                replica_factor = 1,
-                vid_type = "FIXED_STRING(32)"
-              )
-            `;
-            
+            const createSpaceQuery = `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`;
+
             console.log(`[NebulaConnectionManager] Creating space with query: ${createSpaceQuery}`);
             const createResult = await this.client.execute(createSpaceQuery);
-            
+
             if (createResult && (typeof createResult.error_code !== 'undefined' && createResult.error_code !== 0)) {
               const createErrorMsg = createResult?.error_msg || createResult?.error || 'Unknown error';
               throw new Error(`Failed to create space ${spaceName}: ${createErrorMsg}`);
             }
-            
+
             console.log(`[NebulaConnectionManager] Successfully created space: ${spaceName}`);
-            
+
             // 等待空间创建完成并同步到所有节点
             await new Promise(resolve => setTimeout(resolve, 10000));
-            
+
             // 再次尝试切换到空间
             console.log(`[NebulaConnectionManager] Attempting to switch to newly created space: ${spaceName}`);
             const reUseResult = await this.client.execute(useQuery);
-            
+
             if (reUseResult && (reUseResult.code === 0 || (typeof reUseResult.error_code !== 'undefined' && reUseResult.error_code === 0))) {
               // 更新连接状态管理器中的空间状态
               this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);
@@ -1266,39 +1260,33 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       const errorMessage = error instanceof Error ? error.message : String(error);
       // 检查是否是空间不存在的错误，如果是其他错误类型也需要处理
       if (errorMessage.includes('SpaceNotFound') ||
-          errorMessage.includes('Space not found') ||
-          errorMessage.includes('Space not exist') ||
-          errorMessage.includes('Space does not exist')) {
-        
+        errorMessage.includes('Space not found') ||
+        errorMessage.includes('Space not exist') ||
+        errorMessage.includes('Space does not exist')) {
+
         console.log(`[NebulaConnectionManager] Space '${spaceName}' does not exist (catch block), attempting to create it...`);
-        
+
         try {
           // 创建空间
-          const createSpaceQuery = `
-            CREATE SPACE IF NOT EXISTS \`${spaceName}\` (
-              partition_num = 10,
-              replica_factor = 1,
-              vid_type = "FIXED_STRING(32)"
-            )
-          `;
-          
+          const createSpaceQuery = `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`;
+
           console.log(`[NebulaConnectionManager] Creating space with query: ${createSpaceQuery}`);
           const createResult = await this.client.execute(createSpaceQuery);
-          
+
           if (createResult && (typeof createResult.error_code !== 'undefined' && createResult.error_code !== 0)) {
             const createErrorMsg = createResult?.error_msg || createResult?.error || 'Unknown error';
             throw new Error(`Failed to create space ${spaceName}: ${createErrorMsg}`);
           }
-          
+
           console.log(`[NebulaConnectionManager] Successfully created space: ${spaceName}`);
-          
+
           // 等待空间创建完成并同步到所有节点
           await new Promise(resolve => setTimeout(resolve, 10000));
-          
+
           // 再次尝试切换到空间
           console.log(`[NebulaConnectionManager] Attempting to switch to newly created space: ${spaceName}`);
           const reUseResult = await this.client.execute(`USE \`${spaceName}\``);
-          
+
           if (reUseResult && (reUseResult.code === 0 || (typeof reUseResult.error_code !== 'undefined' && reUseResult.error_code === 0))) {
             // 更新连接状态管理器中的空间状态
             this.connectionStateManager.updateConnectionSpace('nebula-client-main', spaceName);

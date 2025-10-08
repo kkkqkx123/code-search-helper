@@ -19,6 +19,25 @@ async function testDynamicSpaceCreation() {
   const container = new Container();
   
   // 注册基本服务
+  container.bind(TYPES.ConfigService).toConstantValue({
+    get: (key: string) => process.env[key],
+    getNumber: (key: string) => parseInt(process.env[key] || '0'),
+    getBoolean: (key: string) => process.env[key] === 'true',
+    getString: (key: string) => process.env[key] || '',
+    getJson: (key: string) => {
+      const value = process.env[key];
+      return value ? JSON.parse(value) : undefined;
+    },
+    has: (key: string) => process.env[key] !== undefined,
+    getAll: () => ({ ...process.env }),
+    set: (key: string, value: any) => { process.env[key] = String(value); },
+    loadConfig: () => ({ ...process.env }),
+    loadConfigSync: () => ({ ...process.env }),
+    validateConfig: () => true,
+    watch: () => ({ close: () => {} }),
+    watchSync: () => ({ close: () => {} })
+  });
+  
   container.bind(TYPES.LoggerService).to(LoggerService).inSingletonScope();
   container.bind(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
   container.bind(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
@@ -200,13 +219,9 @@ async function testDirectSpaceCreation() {
     
     try {
       // 创建空间
-      const createResult = await client.execute(`
-        CREATE SPACE IF NOT EXISTS \`${testSpaceName}\` (
-          partition_num = 10,
-          replica_factor = 1,
-          vid_type = "FIXED_STRING(32)"
-        )
-      `);
+      const createSpaceQuery = `CREATE SPACE IF NOT EXISTS \`${testSpaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`;
+      console.log(`执行创建空间查询: ${createSpaceQuery}`);
+      const createResult = await client.execute(createSpaceQuery);
       
       if (createResult.error_code === 0) {
         console.log('✅ 空间创建成功');
