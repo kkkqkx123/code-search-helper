@@ -249,3 +249,6 @@ frontend/
 - **服务分离**: API调用封装在独立的服务层
 - **样式独立**: CSS样式集中管理，避免样式污染
 - **类型安全**: 全面使用TypeScript类型系统
+
+## nebula-nodejs目录说明
+该目录是node_modules中相应依赖的复制。你可以修改该目录中的文件，在tests目录中测试，然后同步到node_modules中

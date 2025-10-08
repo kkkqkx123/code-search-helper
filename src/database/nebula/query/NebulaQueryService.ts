@@ -8,6 +8,7 @@ import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { createClient } from '@nebula-contrib/nebula-nodejs';
 import { NebulaQueryUtils } from './NebulaQueryUtils';
+import { NebulaConnectionWrapper } from '../connection/NebulaConnectionWrapper';
 
 export interface INebulaQueryService {
   executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
@@ -24,51 +25,48 @@ export class NebulaQueryService implements INebulaQueryService {
   private errorHandler: ErrorHandlerService;
   private performanceMonitor: PerformanceMonitor;
   private configService: NebulaConfigService;
-  private client: any; // Nebula客户端实例
+  private connectionWrapper: NebulaConnectionWrapper;
+  private isInitialized: boolean = false;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
-    @inject(TYPES.NebulaConfigService) configService: NebulaConfigService
+    @inject(TYPES.NebulaConfigService) configService: NebulaConfigService,
+    @inject(TYPES.NebulaConnectionWrapper) connectionWrapper: NebulaConnectionWrapper
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.performanceMonitor = performanceMonitor;
     this.configService = configService;
+    this.connectionWrapper = connectionWrapper;
   }
 
   /**
    * 获取Nebula客户端实例
    */
   private async getClient(): Promise<any> {
-    if (!this.client) {
+    if (!this.isInitialized) {
       const config: NebulaConfig = this.configService.loadConfig();
-      const clientConfig: any = {
-        servers: [`${config.host}:${config.port}`],
-        userName: config.username,
-        password: config.password,
-        poolSize: config.maxConnections || 10,
-        bufferSize: config.bufferSize || 10,
-        executeTimeout: config.timeout || 30000,
-        pingInterval: config.pingInterval || 3000
-      };
-
-      const validSpace = (config.space && config.space !== 'undefined' && config.space !== '') ? config.space : undefined;
-      if (validSpace) {
-        clientConfig.space = validSpace;
-      }
-
-      this.client = createClient(clientConfig);
+      await this.connectionWrapper.connect(config);
+      this.isInitialized = true;
     }
 
-    return this.client;
+    return this.connectionWrapper.getClient();
   }
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
     const startTime = Date.now();
 
     try {
+      // 处理CREATE SPACE语句格式，确保正确的换行和间距
+      let formattedQuery = parameters ? NebulaQueryUtils.interpolateParameters(nGQL, parameters) : nGQL;
+      
+      // 检测是否是CREATE SPACE语句，如果是则格式化
+      if (formattedQuery.trim().toUpperCase().startsWith('CREATE SPACE')) {
+        formattedQuery = this.formatCreateSpaceQuery(formattedQuery);
+      }
+      
       // 使用 DatabaseLoggerService 记录查询执行事件
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.QUERY_EXECUTED,
@@ -76,14 +74,27 @@ export class NebulaQueryService implements INebulaQueryService {
         timestamp: new Date(),
         data: {
           message: 'Executing Nebula query',
-          query: nGQL.substring(0, 100) + (nGQL.length > 100 ? '...' : ''),
+          query: formattedQuery.substring(0, 100) + (formattedQuery.length > 100 ? '...' : ''),
           hasParameters: !!parameters && Object.keys(parameters).length > 0
         }
       });
 
       const client = await this.getClient();
-      const finalQuery = parameters ? NebulaQueryUtils.interpolateParameters(nGQL, parameters) : nGQL;
-      const result = await client.execute(finalQuery);
+      
+      // 在执行前记录查询内容以进行调试
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'About to execute Nebula query with direct client call',
+          query: formattedQuery,
+          queryLength: formattedQuery.length,
+          first100Chars: formattedQuery.substring(0, 100)
+        }
+      });
+
+      const result = await client.execute(formattedQuery);
       const executionTime = Date.now() - startTime;
 
       // 转换结果格式
@@ -99,7 +110,7 @@ export class NebulaQueryService implements INebulaQueryService {
 
       // 记录性能指标
       this.performanceMonitor.recordOperation('executeQuery', executionTime, {
-        queryLength: nGQL.length,
+        queryLength: formattedQuery.length,
         hasParameters: !!parameters
       });
 
@@ -170,6 +181,20 @@ export class NebulaQueryService implements INebulaQueryService {
       });
 
       const client = await this.getClient();
+      
+      // 在执行前记录查询内容以进行调试
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'About to execute parameterized Nebula query with direct client call',
+          query: preparedQuery,
+          queryLength: preparedQuery.length,
+          first100Chars: preparedQuery.substring(0, 100)
+        }
+      });
+
       const result = await client.execute(preparedQuery);
       const executionTime = Date.now() - startTime;
 
@@ -266,6 +291,26 @@ export class NebulaQueryService implements INebulaQueryService {
     };
   }
 
+  /**
+   * 格式化CREATE SPACE查询语句，确保正确的语法和格式
+   */
+  private formatCreateSpaceQuery(query: string): string {
+    // 正则表达式匹配CREATE SPACE语句的各个部分
+    const createSpaceRegex = /CREATE\s+SPACE\s+IF\s+NOT\s+EXISTS\s+`?(\w+)`?\s*\((.+)\)/i;
+    const match = query.match(createSpaceRegex);
+    
+    if (match) {
+      const spaceName = match[1];
+      const params = match[2].trim();
+      
+      // 使用更简化的格式，确保参数之间有适当的换行和缩进
+      return `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (\n  ${params.replace(/,\s*/g, ',\n  ')}\n)`;
+    }
+    
+    // 如果无法匹配，则返回原查询
+    return query;
+  }
+
   validateQuery(nGQL: string): boolean {
     if (!nGQL || typeof nGQL !== 'string' || nGQL.trim() === '') {
       return false;
@@ -277,7 +322,6 @@ export class NebulaQueryService implements INebulaQueryService {
 
     // 检查是否是不允许的查询类型（如DROP SPACE等）
     if (uppercaseQuery.startsWith('DROP SPACE') ||
-      uppercaseQuery.startsWith('CREATE SPACE') ||
       uppercaseQuery.startsWith('USE ') && trimmedQuery.includes('undefined')) {
       return false;
     }
@@ -302,6 +346,19 @@ export class NebulaQueryService implements INebulaQueryService {
 
       const results: NebulaQueryResult[] = [];
       for (const { query, params } of queries) {
+        // 在批处理中直接调用client.execute，需要记录
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.QUERY_EXECUTED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: {
+            message: 'Executing batch query directly',
+            query: query,
+            queryLength: query.length,
+            first100Chars: query.substring(0, 100)
+          }
+        });
+
         const result = await this.executeQuery(query, params);
         results.push(result);
       }

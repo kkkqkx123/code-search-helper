@@ -73,6 +73,21 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         )
       `;
 
+      // 在执行前记录查询内容以进行调试
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.QUERY_EXECUTED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: {
+          message: 'About to execute CREATE SPACE query',
+          query: createQuery,
+          queryLength: createQuery.length,
+          first100Chars: createQuery.substring(0, 100),
+          originalProjectId: projectId,
+          spaceName: spaceName
+        }
+      });
+
       await this.nebulaConnection.executeQuery(createQuery);
 
       // 等待空间创建完成

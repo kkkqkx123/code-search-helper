@@ -427,7 +427,20 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
           // 验证连接时只使用不依赖空间的查询
           const validationQuery = 'YIELD 1 AS validation;';
-
+          
+          // 在执行验证查询前记录调试信息
+          await this.logDatabaseEvent({
+            type: DatabaseEventType.QUERY_EXECUTED,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: {
+              message: 'About to execute validation query',
+              query: validationQuery,
+              queryLength: validationQuery.length,
+              first100Chars: validationQuery.substring(0, 100)
+            }
+          });
+   
           // 验证查询可能需要等待连接完全准备好
           const result = await client.execute(validationQuery);
 
@@ -462,6 +475,20 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
                       vid_type = "FIXED_STRING(32)"
                     )
                   `;
+
+                  // 在执行前记录查询内容以进行调试
+                  await this.logDatabaseEvent({
+                    type: DatabaseEventType.QUERY_EXECUTED,
+                    source: 'nebula',
+                    timestamp: new Date(),
+                    data: {
+                      message: 'About to execute validation CREATE SPACE query',
+                      query: createSpaceQuery,
+                      queryLength: createSpaceQuery.length,
+                      first100Chars: createSpaceQuery.substring(0, 100),
+                      spaceName: this.connectionStatus.space
+                    }
+                  });
 
                   const createResult = await client.execute(createSpaceQuery);
 
@@ -781,6 +808,20 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           // 创建空间
           const createSpaceQuery = `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`;
 
+          // 在执行前记录查询内容以进行调试
+          await this.logDatabaseEvent({
+            type: DatabaseEventType.QUERY_EXECUTED,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: {
+              message: 'About to execute getConnectionForSpace CREATE SPACE query',
+              query: createSpaceQuery,
+              queryLength: createSpaceQuery.length,
+              first100Chars: createSpaceQuery.substring(0, 100),
+              spaceName: spaceName
+            }
+          });
+
           const createResult = await this.client.execute(createSpaceQuery);
 
           if (createResult && (typeof createResult.error_code !== 'undefined' && createResult.error_code !== 0)) {
@@ -817,6 +858,20 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
         // 创建空间
         const createSpaceQuery = `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`;
+
+        // 在执行前记录查询内容以进行调试
+        await this.logDatabaseEvent({
+          type: DatabaseEventType.QUERY_EXECUTED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: {
+            message: 'About to execute fallback CREATE SPACE query',
+            query: createSpaceQuery,
+            queryLength: createSpaceQuery.length,
+            first100Chars: createSpaceQuery.substring(0, 100),
+            spaceName: spaceName
+          }
+        });
 
         const createResult = await this.client.execute(createSpaceQuery);
 
