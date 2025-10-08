@@ -92,6 +92,26 @@ export class GraphDataService implements IGraphDataService {
         options,
       });
 
+      // Switch to project-specific space if projectId is provided
+      if (options.projectId) {
+        const projectSpaceName = `project_${options.projectId}`;
+        this.logger.debug('Switching to project space', { projectSpaceName, projectId: options.projectId });
+        
+        // Check if space exists, create if not
+        const spaceExists = await this.graphDatabase.spaceExists(projectSpaceName);
+        if (!spaceExists) {
+          this.logger.info('Creating project space', { projectSpaceName });
+          const created = await this.graphDatabase.createSpace(projectSpaceName);
+          if (!created) {
+            throw new Error(`Failed to create project space: ${projectSpaceName}`);
+          }
+        }
+        
+        // Switch to the project space
+        await this.graphDatabase.useSpace(projectSpaceName);
+        this.logger.debug('Successfully switched to project space', { projectSpaceName });
+      }
+
       // Generate queries for all files
       const queries = [];
       for (const file of files) {
@@ -158,6 +178,26 @@ export class GraphDataService implements IGraphDataService {
         chunkCount: chunks.length,
         options,
       });
+
+      // Switch to project-specific space if projectId is provided
+      if (options.projectId) {
+        const projectSpaceName = `project_${options.projectId}`;
+        this.logger.debug('Switching to project space', { projectSpaceName, projectId: options.projectId });
+        
+        // Check if space exists, create if not
+        const spaceExists = await this.graphDatabase.spaceExists(projectSpaceName);
+        if (!spaceExists) {
+          this.logger.info('Creating project space', { projectSpaceName });
+          const created = await this.graphDatabase.createSpace(projectSpaceName);
+          if (!created) {
+            throw new Error(`Failed to create project space: ${projectSpaceName}`);
+          }
+        }
+        
+        // Switch to the project space
+        await this.graphDatabase.useSpace(projectSpaceName);
+        this.logger.debug('Successfully switched to project space', { projectSpaceName });
+      }
 
       // Generate queries for all chunks
       const queries = [];

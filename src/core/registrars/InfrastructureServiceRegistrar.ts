@@ -52,13 +52,17 @@ export class InfrastructureServiceRegistrar {
     
     console.log('Attempting to bind PerformanceMetricsCollector...');
     try {
+      // Disable auto-collection in test environment to prevent open handles
+      const isTestEnvironment = process.env.NODE_ENV === 'test';
+      const options = isTestEnvironment ? { enableAutoCollection: false } : {};
+      
       container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).toConstantValue(
         new PerformanceMetricsCollector(
           container.get<LoggerService>(TYPES.LoggerService),
           container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
           container.get<TransactionLogger>(TYPES.TransactionLogger),
           container.get<GraphMappingCache>(TYPES.GraphMappingCache),
-          {} // 默认选项
+          options
         )
       );
       console.log('PerformanceMetricsCollector bound');

@@ -89,7 +89,16 @@ describe('IndexService', () => {
       })
     } as unknown as ConfigService;
 
-    loggerService = new LoggerService() as jest.Mocked<LoggerService>;
+    // Create mock logger service instead of real instance
+    loggerService = {
+      info: jest.fn().mockResolvedValue(undefined),
+      error: jest.fn().mockResolvedValue(undefined),
+      warn: jest.fn().mockResolvedValue(undefined),
+      debug: jest.fn().mockResolvedValue(undefined),
+      getLogFilePath: jest.fn().mockReturnValue('./logs/test.log'),
+      updateLogLevel: jest.fn(),
+      markAsNormalExit: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<LoggerService>;
     errorHandlerService = new ErrorHandlerService(loggerService) as jest.Mocked<ErrorHandlerService>;
     fileSystemTraversal = new FileSystemTraversal(
       loggerService as unknown as LoggerService
@@ -165,12 +174,25 @@ describe('IndexService', () => {
       updateProjectTimestamp: jest.fn(),
       removeProjectId: jest.fn(),
       getAllProjectIds: jest.fn(),
+      saveMapping: jest.fn().mockResolvedValue(undefined),
+      getProjectPath: jest.fn(),
+      getCollectionName: jest.fn(),
+      getSpaceName: jest.fn(),
     } as unknown as jest.Mocked<ProjectIdManager>;
 
     // Create mock embedder factory
     embedderFactory = {
       createEmbedder: jest.fn(),
       getEmbedderDimensions: jest.fn(),
+      getDefaultProvider: jest.fn().mockReturnValue('openai'),
+      getProviderInfo: jest.fn().mockResolvedValue({
+        name: 'openai',
+        model: 'text-embedding-ada-002',
+        dimensions: 1536,
+        available: true
+      }),
+      isProviderRegistered: jest.fn().mockReturnValue(true),
+      getRegisteredProviders: jest.fn().mockReturnValue(['openai', 'ollama', 'siliconflow'])
     } as unknown as jest.Mocked<EmbedderFactory>;
     // Create mock embedding cache service
     embeddingCacheService = {
@@ -183,11 +205,32 @@ describe('IndexService', () => {
       stopCleanupInterval: jest.fn(),
     } as unknown as jest.Mocked<EmbeddingCacheService>;
 
-    performanceOptimizerService = new PerformanceOptimizerService(
-      loggerService,
-      errorHandlerService,
-      diContainer.get(TYPES.ConfigService)
-    ) as jest.Mocked<PerformanceOptimizerService>;
+    // Create mock performance optimizer service
+    performanceOptimizerService = {
+      executeWithRetry: jest.fn().mockImplementation(async (operation) => await operation()),
+      executeWithMonitoring: jest.fn().mockImplementation(async (operation) => await operation()),
+      processBatches: jest.fn().mockImplementation(async (items, processBatch) => {
+        const results: any[] = [];
+        for (let i = 0; i < items.length; i += 10) {
+          const batch = items.slice(i, i + 10);
+          const batchResults = await processBatch(batch);
+          results.push(...batchResults);
+        }
+        return results;
+      }),
+      getPerformanceStats: jest.fn().mockReturnValue({
+        count: 0,
+        successRate: 1,
+        averageDuration: 0,
+        minDuration: 0,
+        maxDuration: 0,
+        p95Duration: 0,
+        p99Duration: 0
+      }),
+      getCurrentBatchSize: jest.fn().mockReturnValue(10),
+      resetBatchSize: jest.fn(),
+      stopMemoryMonitoring: jest.fn(),
+    } as unknown as jest.Mocked<PerformanceOptimizerService>;
 
     astSplitter = {} as jest.Mocked<ASTCodeSplitter>;
     projectStateManager = {} as jest.Mocked<ProjectStateManager>;
@@ -205,6 +248,7 @@ describe('IndexService', () => {
       removeFileFromIndex: jest.fn(),
       indexProject: jest.fn(),
       getEmbedderDimensions: jest.fn().mockResolvedValue(1024), // 添加缺失的mock
+      cleanup: jest.fn().mockResolvedValue(undefined), // 添加cleanup方法
     } as unknown as jest.Mocked<IndexingLogicService>;
 
     // Create service instance
@@ -227,8 +271,12 @@ describe('IndexService', () => {
 
   // 在所有测试完成后清理资源
   afterAll(async () => {
-    // 由于所有服务都是mock，不需要清理真实的定时器
-    // 保留空的afterAll钩子以备将来需要
+    // 清理所有mock的定时器和异步操作
+    jest.clearAllTimers();
+    jest.clearAllMocks();
+    
+    // 确保所有Promise都已完成
+    await new Promise(resolve => setImmediate(resolve));
   });
 
   describe('startIndexing', () => {

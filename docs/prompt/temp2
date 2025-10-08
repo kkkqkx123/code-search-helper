@@ -14,112 +14,152 @@ node_modules中nebula依赖包的复制见@nebula-contrib\nebula-nodejs 目录�
 
 
 
-当前实际执行项目索引时，nebula数据库的日志为：
-I20251008 10:05:53.040418    21 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:53.041158    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:53.041679    42 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:53.042420    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:53.043399    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:53.043960    37 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:53.044651    25 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:53.045666    42 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:53.046548    25 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:53.047293    31 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.119567    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.134317    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57614
-
-I20251008 10:05:54.134752    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57624
-
-I20251008 10:05:54.135645    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57640
-
-I20251008 10:05:54.136111    48 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57648
-
-I20251008 10:05:54.136833    40 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57658
-
-I20251008 10:05:54.137235    40 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57664
-
-I20251008 10:05:54.137586    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57674
-
-I20251008 10:05:54.137951    25 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57680
-
-I20251008 10:05:54.138381    40 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57694
-
-I20251008 10:05:54.138751    40 GraphService.cpp:77] Authenticating user root from 172.19.0.1:57696
-
-I20251008 10:05:54.141235    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.142201    48 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.143054    25 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.144398    37 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.145246    31 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.145929    45 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.147863    23 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.148144    48 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.149451    40 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:54.151415    48 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-I20251008 10:05:55.221405    40 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
-
-使用的依然还是test_space
-
-后端日志为：
-[2025-10-08T10:05:53.208+08:00] [DEBUG] Storing file to graph database {
-  "projectPath": "D:\\ide\\tool\\code-search-helper\\test-files",
-  "filePath": "D:\\ide\\tool\\code-search-helper\\test-files\\test.py"
+当前实际执行项目索引时，后端日志为：
+[2025-10-08T15:54:00.156+08:00] [INFO] Graph database service initialized successfully {}
+[2025-10-08T15:54:00.156+08:00] [INFO] Graph data service initialized successfully {}
+[2025-10-08T15:54:00.156+08:00] [INFO] Storing code chunks {
+  "chunkCount": 1,
+  "options": {
+    "projectId": "a2c7b9d32367187c",
+    "useCache": true
+  }
 }
-[2025-10-08T10:05:53.208+08:00] [DEBUG] Mapping chunks to graph nodes {
-  "chunkCount": 0,
-  "parentFileId": "file_443a5c6964655c746f6f6c5c636f64652d7365617263682d68656c7065725c746573742d66696c65735c746573742e7079"
-}
-[2025-10-08T10:05:53.208+08:00] [DEBUG] Cache miss {
-  "key": "chunk_mapping_file_443a5c6964655c746f6f6c5c636f64652d7365617263682d68656c7065725c746573742d66696c65735c746573742e7079_0"
-}
-[2025-10-08T10:05:53.209+08:00] [INFO] Batch operation completed {
+[2025-10-08T15:54:00.157+08:00] [INFO] Batch operation completed {
   "success": true,
   "totalItems": 0,
   "successfulItems": 0,
   "failedItems": 0,
   "processingTime": 0
 }
-[2025-10-08T10:05:53.209+08:00] [DEBUG] Cache set {
-  "key": "chunk_mapping_file_443a5c6964655c746f6f6c5c636f64652d7365617263682d68656c7065725c746573742d66696c65735c746573742e7079_0",
-  "ttl": 300000,
-  "size": 57,
-  "totalSize": 57
+[2025-10-08T15:54:00.165+08:00] [ERROR] Error in GraphDatabaseService.executeBatch: Failed to execute batch queries: batchResults is not iterable {
+  "errorId": "err_mghozxwe_gse73e",
+  "timestamp": "2025-10-08T07:54:00.158Z",
+  "stack": "Error: Failed to execute batch queries: batchResults is not iterable\n    at GraphDatabaseService.executeBatch (D:\\ide\\tool\\code-search-helper\\src\\database\\graph\\GraphDatabaseService.ts:375:9)\n    at async GraphDataService.storeChunks (D:\\ide\\tool\\code-search-helper\\src\\service\\graph\\core\\GraphDataService.ts:169:27)\n    at async IndexingLogicService.storeFileToGraph (D:\\ide\\tool\\code-search-helper\\src\\service\\index\\IndexingLogicService.ts:209:22)\n    at async IndexingLogicService.indexFile (D:\\ide\\tool\\code-search-helper\\src\\service\\index\\IndexingLogicService.ts:294:40)\n    at async IndexService.indexFile (D:\\ide\\tool\\code-search-helper\\src\\service\\index\\IndexService.ts:422:7)\n    at async PerformanceOptimizerService.executeWithRetry (D:\\ide\\tool\\code-search-helper\\src\\infrastructure\\batching\\PerformanceOptimizerService.ts:119:24)\n    at async <anonymous> (D:\\ide\\tool\\code-search-helper\\src\\service\\index\\IndexService.ts:353:15)\n    at async Promise.all (index 0)\n    at async IndexService.processWithConcurrency (D:\\ide\\tool\\code-search-helper\\src\\service\\index\\IndexService.ts:487:5)\n    at async <anonymous> (D:\\ide\\tool\\code-search-helper\\src\\service\\index\\IndexService.ts:365:11)",
+  "context": {
+    "queryCount": 0
+  }
 }
-[2025-10-08T10:05:53.209+08:00] [DEBUG] Starting batch operation {
-  "itemCount": 0,
-  "batchSize": 50,
-  "concurrency": 5
+[2025-10-08T15:54:00.165+08:00] [ERROR] Failed to store code chunks {
+  "error": "batchResults is not iterable"
 }
-[2025-10-08T10:05:53.209+08:00] [DEBUG] Chunk mapping completed {
-  "chunkCount": 0,
-  "nodeCount": 0,
-  "relationshipCount": 0
+
+qdrant功能正常，且正确创建项目映射：
+[2025-10-08T15:53:58.039+08:00] [INFO] Database event: service_initialized {
+  "source": "qdrant",
+  "timestamp": "2025-10-08T07:53:58.039Z",
+  "data": {
+    "operation": "validate_vectors",
+    "collectionName": "project-a2c7b9d32367187c",
+    "vectorCount": 1,
+    "vectorSize": 1024,
+    "sampleIds": [
+      "D__ide_tool_code-search-helper_test-files_test_py_1-1"
+    ]
+  }
 }
-[2025-10-08T10:05:53.209+08:00] [DEBUG] Executing with optimal batching {
-  "itemCount": 0,
-  "optimalBatchSize": 50
+[2025-10-08T15:53:58.043+08:00] [INFO] Database event: service_initialized {
+  "source": "qdrant",
+  "timestamp": "2025-10-08T07:53:58.043Z",
+  "data": {
+    "operation": "upsert_batch",
+    "collectionName": "project-a2c7b9d32367187c",
+    "batchNumber": 1,
+    "totalBatches": 1,
+    "batchSize": 1,
+    "startIdx": 0,
+    "endIdx": 1
+  }
+}
+[2025-10-08T15:53:58.045+08:00] [INFO] Database event: service_initialized {
+  "source": "qdrant",
+  "timestamp": "2025-10-08T07:53:58.045Z",
+  "data": {
+    "operation": "upsert_points",
+    "collectionName": "project-a2c7b9d32367187c",
+    "pointCount": 1,
+    "samplePoint": {
+      "id": 826811129,
+      "vectorLength": 1024,
+      "vectorSample": [
+        -0.046797093,
+        0.018036379,
+        -0.027429545
+      ],
+      "payloadSample": [
+        "content",
+        "filePath",
+        "language",
+        "chunkType",
+        "startLine",
+        "endLine",
+        "snippetMetadata",
+        "metadata",
+        "timestamp",
+        "projectId"
+      ],
+      "vectorFormat": "object"
+    }
+  }
+}
+[2025-10-08T15:53:58.075+08:00] [INFO] Database event: service_initialized {
+  "source": "qdrant",
+  "timestamp": "2025-10-08T07:53:58.075Z",
+  "data": {
+    "operation": "upsert_batch_success",
+    "collectionName": "project-a2c7b9d32367187c",
+    "batchNumber": 1,
+    "totalBatches": 1,
+    "upsertedCount": 1,
+    "totalProcessed": 1
+  }
+}
+[2025-10-08T15:53:58.076+08:00] [INFO] Batch upsert completed {
+  "batchSize": 1,
+  "collectionName": "project-a2c7b9d32367187c",
+  "totalVectors": 1,
+  "processedCount": 1,
+  "failedCount": 0
+}
+[2025-10-08T15:53:58.078+08:00] [INFO] Vector upsert for project D:\ide\tool\code-search-helper\test-files success {
+  "vectorCount": 1,
+  "duration": 39
+}
+[2025-10-08T15:53:58.079+08:00] [INFO] Batch operation completed {
+  "success": true,
+  "totalItems": 0,
+  "successfulItems": 0,
+  "failedItems": 0,
+  "processingTime": 0
 }
 
 
-对比当前项目动态切换space的代码与
+数据库日志为：
+I20251008 15:53:58.518543    23 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55040
+
+I20251008 15:53:58.518961    23 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55056
+
+I20251008 15:53:58.519523    23 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55078
+
+I20251008 15:53:58.521469    23 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55086
+
+I20251008 15:53:58.521543    23 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55054
+
+I20251008 15:53:58.521828    27 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55102
+
+I20251008 15:53:58.522235    27 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55116
+
+I20251008 15:53:58.522758    27 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55126
+
+I20251008 15:53:58.525012    23 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55130
+
+I20251008 15:53:58.525029    27 GraphService.cpp:77] Authenticating user root from 172.19.0.1:55068
+
+I20251008 15:53:58.539535    46 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+I20251008 15:53:58.539552    48 SwitchSpaceExecutor.cpp:45] Graph switched to `test_space', space id: 1
+
+
+检查当前GraphDatabaseService.executeBatch的功能是否正常，为GraphDatabaseService编写测试文件。
+
+同时当前nebula graph没有正确根据项目名切换使用的space，仍然使用默认的test_space。
+对比当前项目动态切换space的代码与目前成功的测试： @scripts\test-nebula-dynamic-space-creation.ts ，找出space切换存在的问题并修复

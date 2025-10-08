@@ -341,6 +341,16 @@ export class GraphDatabaseService {
         { concurrency: 3 }
       );
 
+      // Handle case where batchResults is not an array
+      if (!Array.isArray(batchResults)) {
+        this.logger.warn('Batch optimizer returned non-array result', { result: batchResults });
+        return {
+          success: true,
+          results: [],
+          executionTime: Date.now() - startTime,
+        };
+      }
+
       // Since batchResults is an array of results from each batch,
       // we need to combine them into a single TransactionResult
       const combinedResults: any[] = [];
@@ -349,17 +359,22 @@ export class GraphDatabaseService {
       let errorMessage = "";
 
       for (const batchResult of batchResults) {
-        if (batchResult.success !== undefined) {
-          // It's a TransactionResult
-          if (batchResult.success) {
-            combinedResults.push(...batchResult.results);
+        if (batchResult && typeof batchResult === 'object') {
+          if (batchResult.success !== undefined) {
+            // It's a TransactionResult
+            if (batchResult.success) {
+              combinedResults.push(...(batchResult.results || []));
+            } else {
+              hasError = true;
+              errorMessage = batchResult.error || "Batch execution failed";
+            }
+            totalExecutionTime += batchResult.executionTime || 0;
           } else {
-            hasError = true;
-            errorMessage = batchResult.error || "Batch execution failed";
+            // It's a regular result from executeWriteQuery
+            combinedResults.push(batchResult);
           }
-          totalExecutionTime += batchResult.executionTime || 0;
         } else {
-          // It's a regular result from executeWriteQuery
+          // Handle primitive results
           combinedResults.push(batchResult);
         }
       }

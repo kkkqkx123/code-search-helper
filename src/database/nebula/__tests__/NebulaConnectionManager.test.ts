@@ -30,6 +30,12 @@ import { NebulaQueryService } from '../query/NebulaQueryService';
 import { NebulaTransactionService } from '../NebulaTransactionService';
 import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 
+// Mock services to avoid real instances with timers and event listeners
+jest.mock('../../../utils/LoggerService');
+jest.mock('../../../utils/ErrorHandlerService');
+jest.mock('../../common/DatabaseLoggerService');
+jest.mock('../../common/PerformanceMonitor');
+
 // Mock the Nebula client
 const mockExecute = jest.fn();
 const mockClose = jest.fn();
@@ -45,6 +51,11 @@ jest.mock('@nebula-contrib/nebula-nodejs', () => ({
   createClient: () => mockClient,
 }));
 
+// Define mock services at module level to make them accessible across all test blocks
+let mockLoggerService: any;
+let mockErrorHandlerService: any;
+let mockDatabaseLoggerService: any;
+
 describe('NebulaConnectionManager Refactored', () => {
   let container: Container;
   let connectionManager: NebulaConnectionManager;
@@ -53,7 +64,42 @@ describe('NebulaConnectionManager Refactored', () => {
     container = new Container();
 
     // Register all required services including missing dependencies
-    container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
+    // Create mock instances for services
+    mockLoggerService = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      log: jest.fn()
+    };
+    
+    mockErrorHandlerService = {
+      handleError: jest.fn(),
+      handleWarning: jest.fn(),
+      getErrorCount: jest.fn().mockReturnValue(0),
+      getWarningCount: jest.fn().mockReturnValue(0),
+      resetCounters: jest.fn()
+    };
+    
+    mockDatabaseLoggerService = {
+      logConnectionEvent: jest.fn(),
+      logQueryEvent: jest.fn(),
+      logTransactionEvent: jest.fn(),
+      logError: jest.fn(),
+      logWarning: jest.fn(),
+      logInfo: jest.fn(),
+      logDebug: jest.fn()
+    };
+    
+    const mockPerformanceMonitor = {
+      recordOperation: jest.fn(),
+      startTimer: jest.fn().mockReturnValue({ end: jest.fn() }),
+      recordError: jest.fn(),
+      getMetrics: jest.fn().mockReturnValue({}),
+      reset: jest.fn()
+    };
+
+    container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService as any);
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
     container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
     container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
@@ -69,8 +115,8 @@ describe('NebulaConnectionManager Refactored', () => {
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
 
-    container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
-    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
+    container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).toConstantValue(mockDatabaseLoggerService as any);
+    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService as any);
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
 
     // Mock NebulaConfigService to avoid loading real environment variables
@@ -101,10 +147,10 @@ describe('NebulaConnectionManager Refactored', () => {
     jest.spyOn(NebulaConnectionManager.prototype as any, 'validateConnection').mockResolvedValue(undefined);
     jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => { });
 
-    // Create required services
+    // Use mock services
     const databaseLogger = container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService);
     const errorHandler = container.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
-    const performanceMonitor = new PerformanceMonitor(databaseLogger);
+    const performanceMonitor = container.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
     const nebulaConfigService = container.get<NebulaConfigService>(TYPES.NebulaConfigService);
     const configService = container.get<ConfigService>(TYPES.ConfigService);
 
@@ -142,6 +188,8 @@ describe('NebulaConnectionManager Refactored', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    jest.clearAllTimers();
+    jest.useRealTimers(); // Ensure real timers are restored
   });
 
   test('should connect successfully', async () => {
@@ -320,14 +368,14 @@ describe('NebulaConnectionManager Refactored', () => {
     });
 
     // Mock the setTimeout call to avoid actual delay
-    const originalSetTimeout = global.setTimeout;
-    (global.setTimeout as any) = jest.fn().mockImplementation((callback: Function, delay: number) => {
+    jest.useFakeTimers();
+    jest.spyOn(global, 'setTimeout').mockImplementation((callback: Function, delay?: number) => {
       if (delay === 10000) {
         // For the 10-second delay in space creation, call callback immediately
         callback();
-        return undefined; // Return undefined for immediate execution
+        return undefined as any; // Return undefined for immediate execution
       } else {
-        return originalSetTimeout(callback, delay);
+        return setTimeout(callback, delay);
       }
     });
 
@@ -338,7 +386,7 @@ describe('NebulaConnectionManager Refactored', () => {
       expect(mockExecute).toHaveBeenCalledWith(`USE \`${spaceName}\``);
       expect(mockExecute).toHaveBeenCalledWith(`CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`);
     } finally {
-      global.setTimeout = originalSetTimeout;
+      // Timer cleanup is handled in afterEach hook
     }
   }, 15000); // Increase timeout to 15 seconds
 
@@ -415,7 +463,7 @@ describe('NebulaConnectionManager Refactored', () => {
 
     // Mock the setTimeout call to avoid actual delay
     const originalSetTimeout = global.setTimeout;
-    (global.setTimeout as any) = jest.fn().mockImplementation((callback: Function, delay: number) => {
+    (global.setTimeout as any) = jest.fn().mockImplementation((callback: Function, delay?: number) => {
       if (delay === 10000) {
         // For the 10-second delay in space creation, call callback immediately
         callback();
@@ -485,7 +533,10 @@ describe('NebulaDataService', () => {
     container = new Container();
 
     // Register all dependencies including missing services
-    container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
+    // Create mock instances for services (reuse from above)
+    // Mock instances are already created at the module level
+    
+    container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService as any);
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
     container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
     container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
@@ -501,8 +552,8 @@ describe('NebulaDataService', () => {
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
 
-    container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
-    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
+    container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).toConstantValue(mockDatabaseLoggerService as any);
+    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService as any);
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
 
     // Mock NebulaConfigService to avoid loading real environment variables
@@ -542,19 +593,19 @@ describe('NebulaDataService', () => {
       new NebulaQueryService(
         container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
         container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
+        container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
         container.get<NebulaConfigService>(TYPES.NebulaConfigService)
       ),
       new NebulaTransactionService(
         new NebulaQueryService(
           container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
           container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-          new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
+          container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
           container.get<NebulaConfigService>(TYPES.NebulaConfigService)
         ),
         container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
         container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService))
+        container.get<PerformanceMonitor>(TYPES.PerformanceMonitor)
       )
     );
 
@@ -642,7 +693,10 @@ describe('NebulaSpaceService', () => {
     container = new Container();
 
     // Register all dependencies including missing services
-    container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
+    // Create mock instances for services (reuse from above)
+    // Mock instances are already created at the module level
+    
+    container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService as any);
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
     container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
     container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
@@ -658,8 +712,8 @@ describe('NebulaSpaceService', () => {
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
 
-    container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
-    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
+    container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).toConstantValue(mockDatabaseLoggerService as any);
+    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService as any);
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
 
     // Mock NebulaConfigService to avoid loading real environment variables
@@ -712,9 +766,9 @@ describe('NebulaSpaceService', () => {
 
     spaceService = new NebulaSpaceService(
       connectionManager,
-      container.get(TYPES.DatabaseLoggerService),
-      container.get(TYPES.ErrorHandlerService),
-      container.get(TYPES.NebulaConfigService)
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<NebulaConfigService>(TYPES.NebulaConfigService)
     );
   });
 
