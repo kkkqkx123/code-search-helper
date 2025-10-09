@@ -293,6 +293,7 @@ export class NebulaQueryService implements INebulaQueryService {
 
   /**
    * 格式化CREATE SPACE查询语句，确保正确的语法和格式
+   * 使用单行格式避免字符串截断问题
    */
   private formatCreateSpaceQuery(query: string): string {
     // 正则表达式匹配CREATE SPACE语句的各个部分
@@ -303,8 +304,8 @@ export class NebulaQueryService implements INebulaQueryService {
       const spaceName = match[1];
       const params = match[2].trim();
       
-      // 使用更简化的格式，确保参数之间有适当的换行和缩进
-      return `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (\n  ${params.replace(/,\s*/g, ',\n  ')}\n)`;
+      // 使用单行格式，避免换行符导致的字符串截断问题
+      return `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (${params})`;
     }
     
     // 如果无法匹配，则返回原查询

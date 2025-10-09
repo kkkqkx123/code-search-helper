@@ -66,11 +66,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
     try {
       // 创建空间
       const createQuery = `
-        CREATE SPACE IF NOT EXISTS \`${spaceName}\` (
-          partition_num = ${config.partitionNum || 10},
-          replica_factor = ${config.replicaFactor || 1},
-          vid_type = ${config.vidType || '"FIXED_STRING(32)"'}
-        )
+        CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = ${config.partitionNum || 10}, replica_factor = ${config.replicaFactor || 1}, vid_type = ${config.vidType || 'FIXED_STRING(32)'})
       `;
 
       // 在执行前记录查询内容以进行调试
