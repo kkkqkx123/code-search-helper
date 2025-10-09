@@ -15,7 +15,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true,
-    "downlevelIteration": true,
     "baseUrl": "./",
     "paths": {
       "@/*": [

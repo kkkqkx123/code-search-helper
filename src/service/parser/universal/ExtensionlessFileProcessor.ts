@@ -433,41 +433,50 @@ export class ExtensionlessFileProcessor {
   }
 
   /**
-   * 检测语法模式
-   */
-  private detectBySyntaxPatterns(content: string): {
-    language: string;
-    confidence: number;
-    indicators: string[];
-  } {
-    const firstFewLines = content.substring(0, Math.min(500, content.length));
-    let bestMatch = { language: 'unknown', confidence: 0, indicators: [] as string[] };
+  * 检测语法模式
+  */
+ private detectBySyntaxPatterns(content: string): {
+   language: string;
+   confidence: number;
+   indicators: string[];
+ } {
+   const firstFewLines = content.substring(0, Math.min(500, content.length));
+   let bestMatch = { language: 'unknown', confidence: 0, indicators: [] as string[] };
 
-    for (const [language, patterns] of Array.from(this.syntaxPatterns.entries())) {
-      let matches = 0;
-      const indicators: string[] = [];
+   // 定义具有强特征的语言，这些语言只需要1个匹配模式即可识别
+   const strongFeatureLanguages = new Set([
+     'javascript', 'python', 'java', 'cpp', 'c', 'go', 'rust',
+     'php', 'ruby', 'shell', 'json', 'html', 'css', 'sql', 'dockerfile'
+   ]);
 
-      for (const pattern of patterns) {
-        if (pattern.test(firstFewLines)) {
-          matches++;
-          indicators.push(pattern.source);
-        }
-      }
+   for (const [language, patterns] of Array.from(this.syntaxPatterns.entries())) {
+     let matches = 0;
+     const indicators: string[] = [];
 
-      const totalPatterns = patterns.length;
-      const confidence = matches / totalPatterns;
+     for (const pattern of patterns) {
+       if (pattern.test(firstFewLines)) {
+         matches++;
+         indicators.push(pattern.source);
+       }
+     }
 
-      if (confidence > bestMatch.confidence && matches >= 2) {
-        bestMatch = {
-          language,
-          confidence,
-          indicators: indicators.slice(0, 3) // 最多保留3个指示器
-        };
-      }
-    }
+     const totalPatterns = patterns.length;
+     const confidence = matches / totalPatterns;
 
-    return bestMatch;
-  }
+     // 对于具有强特征的语言，只需要1个匹配；其他语言需要至少2个匹配
+     const minMatchesRequired = strongFeatureLanguages.has(language) ? 1 : 2;
+
+     if (confidence > bestMatch.confidence && matches >= minMatchesRequired) {
+       bestMatch = {
+         language,
+         confidence,
+         indicators: indicators.slice(0, 3) // 最多保留3个指示器
+       };
+     }
+   }
+
+   return bestMatch;
+ }
 
   /**
    * 检测文件结构

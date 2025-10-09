@@ -203,7 +203,7 @@ export class ProcessingGuard {
 
     // 3. 基于内容检测
     const contentDetection = this.extensionlessFileProcessor.detectLanguageByContent(content);
-    if (contentDetection.language !== 'unknown' && contentDetection.confidence > 0.5) {
+    if (contentDetection.language !== 'unknown' && contentDetection.confidence > 0.05) {
       return contentDetection.language;
     }
 
