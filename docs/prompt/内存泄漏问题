@@ -195,5 +195,4 @@ FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memor
   The memory leak issue that was causing "JavaScript heap out of memory" errors during project re-indexing has been completely resolved. The system now
   handles memory pressure gracefully and maintains stable operation.
 
-
-  最新可能原因：nebula大量重试
+即时不使用bebula也会出现该问题

@@ -193,13 +193,81 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
       }
 
       if (!Array.isArray(data)) {
+        // 检查是否是对象格式，例如 {"Name":["space1", "space2", ...]}
+        if (data && typeof data === 'object') {
+          // 尝试从对象中提取空间名称数组
+          const keys = Object.keys(data);
+          if (keys.length > 0) {
+            const firstKey = keys[0];
+            const value = data[firstKey];
+            if (Array.isArray(value)) {
+              // 如果值是数组，这意味着我们有一个格式如 {"Name":["space1", "space2", ...]}
+              data = (value as any[]).map((item: any) => ({
+                [firstKey]: item
+              }));
+            } else {
+              // 如果值不是数组，则尝试处理其他可能的格式
+              // 使用 DatabaseLoggerService 记录 SHOW SPACES 返回非数组数据的警告
+              this.databaseLogger.logDatabaseEvent({
+                type: DatabaseEventType.WARNING,
+                source: 'nebula',
+                timestamp: new Date(),
+                data: {
+                  message: 'SHOW SPACES returned non-array and non-object-array data:',
+                  resultType: typeof data,
+                  result: JSON.stringify(data).substring(0, 200)
+                }
+              }).catch(error => {
+                // 如果日志记录失败，我们不希望影响主流程
+                console.error('Failed to log SHOW SPACES non-array data warning:', error);
+              });
+              return [];
+            }
+          } else {
+            // 使用 DatabaseLoggerService 记录 SHOW SPACES 返回非数组数据的警告
+            this.databaseLogger.logDatabaseEvent({
+              type: DatabaseEventType.WARNING,
+              source: 'nebula',
+              timestamp: new Date(),
+              data: {
+                message: 'SHOW SPACES returned non-array data:',
+                resultType: typeof data,
+                result: JSON.stringify(data).substring(0, 200)
+              }
+            }).catch(error => {
+              // 如果日志记录失败，我们不希望影响主流程
+              console.error('Failed to log SHOW SPACES non-array data warning:', error);
+            });
+            return [];
+          }
+        } else {
+          // 使用 DatabaseLoggerService 记录 SHOW SPACES 返回非数组数据的警告
+          this.databaseLogger.logDatabaseEvent({
+            type: DatabaseEventType.WARNING,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: {
+              message: 'SHOW SPACES returned non-array data:',
+              resultType: typeof data,
+              result: JSON.stringify(data).substring(0, 200)
+            }
+          }).catch(error => {
+            // 如果日志记录失败，我们不希望影响主流程
+            console.error('Failed to log SHOW SPACES non-array data warning:', error);
+          });
+          return [];
+        }
+      }
+
+      // 提取空间名称
+      if (!Array.isArray(data)) {
         // 使用 DatabaseLoggerService 记录 SHOW SPACES 返回非数组数据的警告
         this.databaseLogger.logDatabaseEvent({
           type: DatabaseEventType.WARNING,
           source: 'nebula',
           timestamp: new Date(),
           data: {
-            message: 'SHOW SPACES returned non-array data:',
+            message: 'SHOW SPACES returned non-array data after processing:',
             resultType: typeof data,
             result: JSON.stringify(data).substring(0, 200)
           }
@@ -209,8 +277,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
         });
         return [];
       }
-
-      // 提取空间名称
+      
       const spaceNames = data.map((row: any, index: number) => {
         try {
           // 处理多种可能的列名格式
@@ -449,8 +516,8 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
   private async waitForSpaceReady(
     spaceName: string,
-    maxRetries: number = 30,
-    retryDelay: number = 1000
+    maxRetries: number = 60,  // 增加重试次数
+    retryDelay: number = 2000  // 增加重试间隔
   ): Promise<void> {
     // 验证空间名称的有效性
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
@@ -470,23 +537,40 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
 
     for (let i = 0; i < maxRetries; i++) {
       try {
-        const result = await this.nebulaConnection.executeQuery(`DESCRIBE SPACE \`${spaceName}\``);
-
-        // 更健壮的结果检查
-        if (result) {
-          const data = result.data || result.table || result.results || result.rows || [];
-          if (Array.isArray(data) && data.length > 0) {
-            // 使用 DatabaseLoggerService 记录空间准备就绪的信息
-            this.databaseLogger.logDatabaseEvent({
-              type: DatabaseEventType.INFO,
-              source: 'nebula',
-              timestamp: new Date(),
-              data: { message: `Space ${spaceName} is ready after ${i + 1} attempts` }
-            }).catch(error => {
-              // 如果日志记录失败，我们不希望影响主流程
-              console.error('Failed to log space ready info:', error);
-            });
-            return;
+        // 首先检查空间是否存在
+        const spaces = await this.listSpaces();
+        if (spaces.includes(spaceName)) {
+          // 尝试使用该空间，这可以更准确地验证空间是否已准备好
+          try {
+            const useResult = await this.nebulaConnection.executeQuery(`USE \`${spaceName}\``);
+            if (!useResult || (useResult.error === undefined || useResult.error === null)) {
+              // 空间切换成功，空间已准备就绪
+              // 使用 DatabaseLoggerService 记录空间准备就绪的信息
+              this.databaseLogger.logDatabaseEvent({
+                type: DatabaseEventType.INFO,
+                source: 'nebula',
+                timestamp: new Date(),
+                data: { message: `Space ${spaceName} is ready after ${i + 1} attempts` }
+              }).catch(error => {
+                // 如果日志记录失败，我们不希望影响主流程
+                console.error('Failed to log space ready info:', error);
+              });
+              return;
+            }
+          } catch (useError) {
+            // USE命令失败，继续等待
+            const useErrorMessage = useError instanceof Error ? useError.message : String(useError);
+            // 记录USE失败但继续等待，因为这可能是暂时的
+            if (i % 5 === 0) { // 每5次尝试记录一次
+              this.databaseLogger.logDatabaseEvent({
+                type: DatabaseEventType.DEBUG,
+                source: 'nebula',
+                timestamp: new Date(),
+                data: { message: `USE ${spaceName} failed (space may still be initializing): ${useErrorMessage}, attempt ${i + 1}/${maxRetries}` }
+              }).catch(error => {
+                console.error('Failed to log USE failure debug:', error);
+              });
+            }
           }
         }
 
@@ -504,7 +588,7 @@ export class NebulaSpaceManager implements INebulaSpaceManager {
           });
         }
       } catch (error) {
-        // Space not ready yet, continue waiting
+        // 如果listSpaces也失败了，记录错误但继续等待
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (i % 5 === 0) { // 每5次尝试记录一次
           // 使用 DatabaseLoggerService 记录空间尚未准备就绪（带错误信息）的调试信息
