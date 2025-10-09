@@ -37,44 +37,47 @@ export class ExtensionlessFileProcessor {
       ['#!/usr/bin/env sed', 'sed'],
       ['#!/usr/bin/env tcl', 'tcl'],
       ['#!/usr/bin/env expect', 'expect'],
-      ['!/usr/bin/env fish', 'fish'],
-      ['!/usr/bin/env zsh', 'zsh'],
-      ['!/usr/bin/env ksh', 'ksh'],
-      ['!/usr/bin/env csh', 'csh'],
-      ['!/usr/bin/env tcsh', 'tcsh']
+      ['#!/usr/bin/env fish', 'fish'],
+      ['#!/usr/bin/env zsh', 'zsh'],
+      ['#!/usr/bin/env ksh', 'ksh'],
+      ['#!/usr/bin/env csh', 'csh'],
+      ['#!/usr/bin/env tcsh', 'tcsh']
     ]);
 
-    // 语法模式 - 基于代码特征的检测
-    this.syntaxPatterns = new Map([
-      ['python', [
-        /^import\s+\w+/m,
-        /^from\s+\w+\s+import/m,
-        /^def\s+\w+\s*\(/m,
-        /^class\s+\w+/m,
-        /print\s*\(/m,
-        /self\./m,
-        /if\s+__name__\s*==\s*['"']__main__['"']/m,
-        /#\s*.*$/m, // Python注释
-        /\"\"\"[\s\S]*?\"\"\"/m, // Python多行注释
-        /'''[\\s\\S]*?'''/m
-      ]],
-      ['javascript', [
-        /function\s+\w+\s*\(/m,
-        /const\s+\w+\s*=/m,
-        /let\s+\w+\s*=/m,
-        /var\s+\w+\s*=/m,
-        /import\s+.*from\s+['"`]/m,
-        /export\s+(default\s+)?/m,
-        /require\s*\(/m,
-        /module\.exports/m,
-        /console\.log/m,
-        /=>\s*{/m, // 箭头函数
-        /\/\*[\s\S]*?\*\//m, // 多行注释
-        /\/\/.*$/m // 单行注释
-      ]],
-      ['typescript', [
-        // JavaScript的所有模式
-        ...this.syntaxPatterns.get('javascript') || [],
+    // 基础JavaScript模式
+   const jsPatterns = [
+     /function\s+\w+\s*\(/m,
+     /const\s+\w+\s*=/m,
+     /let\s+\w+\s*=/m,
+     /var\s+\w+\s*=/m,
+     /import\s+.*from\s+['"`]/m,
+     /export\s+(default\s+)?/m,
+     /require\s*\(/m,
+     /module\.exports/m,
+     /console\.log/m,
+     /=>\s*{/m, // 箭头函数
+     /\/\*[\s\S]*?\*\//m, // 多行注释
+     /\/\/.*$/m // 单行注释
+   ];
+
+   // 语法模式 - 基于代码特征的检测
+   this.syntaxPatterns = new Map([
+     ['python', [
+       /^import\s+\w+/m,
+       /^from\s+\w+\s+import/m,
+       /^def\s+\w+\s*\(/m,
+       /^class\s+\w+/m,
+       /print\s*\(/m,
+       /self\./m,
+       /if\s+__name__\s*==\s*['"']__main__['"']/m,
+       /#\s*.*$/m, // Python注释
+       /\"\"\"[\s\S]*?\"\"\"/m, // Python多行注释
+       /'''[\\s\\S]*?'''/m
+     ]],
+     ['javascript', jsPatterns],
+     ['typescript', [
+       // JavaScript的所有模式
+       ...jsPatterns,
         // TypeScript特有模式
         /interface\s+\w+/m,
         /type\s+\w+\s*=/m,
@@ -188,7 +191,7 @@ export class ExtensionlessFileProcessor {
         /\/\/.*$/m
       ]],
       ['shell', [
-        /#!/bin\/[a-z]+/m,
+        /#!\/bin\/[a-z]+/m,
         /\$\{?\w+\}?/m, // 变量
         /function\s+\w+\s*\(\s*\)/m,
         /if\s+\[/m,
@@ -386,7 +389,7 @@ export class ExtensionlessFileProcessor {
       this.detectByFileStructure.bind(this)
     ];
 
-    let bestMatch = { language: 'unknown', confidence: 0, indicators: [] };
+    let bestMatch = { language: 'unknown', confidence: 0, indicators: [] as string[] };
 
     for (const detector of detectors) {
       try {
@@ -416,7 +419,7 @@ export class ExtensionlessFileProcessor {
   } {
     const firstLine = content.split('\n')[0];
     
-    for (const [pattern, language] of this.shebangPatterns) {
+    for (const [pattern, language] of Array.from(this.shebangPatterns.entries())) {
       if (firstLine.startsWith(pattern)) {
         return {
           language,
@@ -438,9 +441,9 @@ export class ExtensionlessFileProcessor {
     indicators: string[];
   } {
     const firstFewLines = content.substring(0, Math.min(500, content.length));
-    let bestMatch = { language: 'unknown', confidence: 0, indicators: [] };
+    let bestMatch = { language: 'unknown', confidence: 0, indicators: [] as string[] };
 
-    for (const [language, patterns] of this.syntaxPatterns) {
+    for (const [language, patterns] of Array.from(this.syntaxPatterns.entries())) {
       let matches = 0;
       const indicators: string[] = [];
 
@@ -475,9 +478,9 @@ export class ExtensionlessFileProcessor {
     indicators: string[];
   } {
     const firstFewLines = content.substring(0, Math.min(300, content.length));
-    let bestMatch = { language: 'unknown', confidence: 0, indicators: [] };
+    let bestMatch = { language: 'unknown', confidence: 0, indicators: [] as string[] };
 
-    for (const [language, pattern] of this.fileStructurePatterns) {
+    for (const [language, pattern] of Array.from(this.fileStructurePatterns.entries())) {
       if (pattern.test(firstFewLines)) {
         return {
           language,

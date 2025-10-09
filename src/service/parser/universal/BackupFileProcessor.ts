@@ -202,8 +202,7 @@ export class BackupFileProcessor {
       '.vb': 'visualbasic',
       '.ps1': 'powershell',
       '.bat': 'batch',
-      '.cmd': 'batch',
-      '.sql': 'sql'
+      '.cmd': 'batch'
     };
 
     return languageMap[extension.toLowerCase()] || 'unknown';
@@ -259,9 +258,17 @@ export class BackupFileProcessor {
       };
     }
 
-    const originalInfo = this.inferOriginalType(filePath);
+    const inferredType = this.inferOriginalType(filePath);
     const backupType = this.detectBackupType(filePath);
     const isLikelyCode = this.isLikelyCodeFile(filePath);
+
+    // 转换为期望的格式
+    const originalInfo = {
+      fileName: inferredType.originalFileName,
+      extension: inferredType.originalExtension,
+      language: inferredType.originalLanguage,
+      confidence: inferredType.confidence
+    };
 
     return {
       isBackup: true,

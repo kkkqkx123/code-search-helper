@@ -7,7 +7,7 @@ import { LoggerService } from '../../../utils/LoggerService';
  */
 @injectable()
 export class MemoryGuard {
-  private readonly memoryLimit: number;
+  private memoryLimit: number;
   private readonly checkInterval: number;
   private memoryCheckTimer?: NodeJS.Timeout;
   private isMonitoring: boolean = false;
@@ -153,7 +153,7 @@ export class MemoryGuard {
     // 这里可以触发降级处理的回调或事件
     // 实际实现中可能需要与错误阈值管理器协调
     if (typeof process !== 'undefined' && process.emit) {
-      process.emit('memoryPressure', {
+      (process.emit as any)('memoryPressure', {
         type: 'graceful-degradation',
         memoryUsage: process.memoryUsage(),
         limit: this.memoryLimit
@@ -282,7 +282,7 @@ export class MemoryGuard {
       }
     } catch (error) {
       // 忽略错误，可能是模块不存在或方法不可用
-      this.logger?.debug(`Could not clear TreeSitter cache during memory cleanup: ${error.message}`);
+      this.logger?.debug(`Could not clear TreeSitter cache during memory cleanup: ${(error as Error).message}`);
     }
   }
 
@@ -292,14 +292,14 @@ export class MemoryGuard {
   private cleanupOtherCaches(): void {
     try {
       // 清理可能的LRU缓存
-      if (typeof global !== 'undefined' && global.LRUCache) {
-        if (typeof global.LRUCache.clearAll === 'function') {
-          global.LRUCache.clearAll();
+      if (typeof global !== 'undefined' && (global as any).LRUCache) {
+        if (typeof (global as any).LRUCache.clearAll === 'function') {
+          (global as any).LRUCache.clearAll();
           this.logger?.debug('LRU cache cleared during memory cleanup');
         }
       }
     } catch (error) {
-      this.logger?.debug(`Could not clear other caches during memory cleanup: ${error.message}`);
+      this.logger?.debug(`Could not clear other caches during memory cleanup: ${(error as Error).message}`);
     }
   }
 
@@ -313,7 +313,7 @@ export class MemoryGuard {
         this.logger?.debug('Forced garbage collection during memory cleanup');
       }
     } catch (error) {
-      this.logger?.debug(`Could not force garbage collection: ${error.message}`);
+      this.logger?.debug(`Could not force garbage collection: ${(error as Error).message}`);
     }
   }
 

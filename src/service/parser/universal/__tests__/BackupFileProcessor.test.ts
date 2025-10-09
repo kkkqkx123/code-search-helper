@@ -114,4 +114,14 @@ describe('BackupFileProcessor', () => {
 
   describe('isLikelyCodeFile', () => {
     it('should return true for code file backups', () => {
-      expect(processor.isLikelyCodeFile('
+      expect(processor.isLikelyCodeFile('script.js.bak')).toBe(true);
+      expect(processor.isLikelyCodeFile('app.ts.backup')).toBe(true);
+      expect(processor.isLikelyCodeFile('style.css.old')).toBe(true);
+    });
+
+    it('should return false for non-code file backups', () => {
+      expect(processor.isLikelyCodeFile('document.txt.bak')).toBe(false);
+      expect(processor.isLikelyCodeFile('image.jpg.backup')).toBe(false);
+    });
+  });
+});

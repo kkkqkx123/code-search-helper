@@ -3,7 +3,7 @@ export interface CodeChunkMetadata {
   endLine: number;
   language: string;
   filePath?: string;
-  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic';
+  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line';
   functionName?: string;
   className?: string;
   complexity?: number; // 新增：代码复杂度

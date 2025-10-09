@@ -9,8 +9,8 @@ import { LoggerService } from '../../../utils/LoggerService';
 export class ErrorThresholdManager {
   private errorCount: number = 0;
   private lastErrorTime: number = 0;
-  private readonly maxErrors: number;
-  private readonly resetInterval: number;
+  private maxErrors: number;
+  private resetInterval: number;
   private logger?: LoggerService;
 
   constructor(logger?: LoggerService, maxErrors: number = 5, resetInterval: number = 60000) {
@@ -98,7 +98,7 @@ export class ErrorThresholdManager {
       }
     } catch (error) {
       // 忽略错误，可能是模块不存在或方法不可用
-      this.logger?.debug(`Could not clear TreeSitter cache: ${error.message}`);
+      this.logger?.debug(`Could not clear TreeSitter cache: ${(error as Error).message}`);
     }
   }
 
@@ -108,15 +108,15 @@ export class ErrorThresholdManager {
   private cleanupLRUCache(): void {
     try {
       // 尝试清理常见的LRU缓存实例
-      if (typeof global !== 'undefined' && global.LRUCache) {
-        if (typeof global.LRUCache.clearAll === 'function') {
-          global.LRUCache.clearAll();
+      if (typeof global !== 'undefined' && (global as any).LRUCache) {
+        if (typeof (global as any).LRUCache.clearAll === 'function') {
+          (global as any).LRUCache.clearAll();
           this.logger?.debug('LRU cache cleared');
         }
       }
     } catch (error) {
       // 忽略错误，可能是缓存不存在
-      this.logger?.debug(`Could not clear LRU cache: ${error.message}`);
+      this.logger?.debug(`Could not clear LRU cache: ${(error as Error).message}`);
     }
   }
 
@@ -131,7 +131,7 @@ export class ErrorThresholdManager {
       }
     } catch (error) {
       // 忽略错误，可能是垃圾回收不可用
-      this.logger?.debug(`Could not force garbage collection: ${error.message}`);
+      this.logger?.debug(`Could not force garbage collection: ${(error as Error).message}`);
     }
   }
 

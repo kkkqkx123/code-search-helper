@@ -125,4 +125,33 @@ function calculateTotal(items) {
     it('should process various backup file types', async () => {
       const testCases = [
         { file: 'script.py.backup', content: 'print("Hello, World!")', expectedLang: 'python' },
-        { file: 'config.json.old', content: '{"name": "test", "value": 123}', expectedLang: '
+        { file: 'config.json.old', content: '{"name": "test", "value": 123}', expectedLang: 'json' },
+        { file: 'style.css.tmp', content: 'body { margin: 0; padding: 0; }', expectedLang: 'css' }
+      ];
+
+      for (const testCase of testCases) {
+        const result = await processingGuard.processFile(testCase.file, testCase.content);
+        expect(result.language).toBe(testCase.expectedLang);
+      }
+    });
+  });
+
+  describe('Extensionless File Processing', () => {
+    beforeEach(() => {
+      processingGuard.initialize();
+    });
+
+    it('should process extensionless files correctly', async () => {
+      const jsCode = `
+function calculateSum(a, b) {
+  return a + b;
+}
+      `.trim();
+
+      const result = await processingGuard.processFile('script', jsCode);
+      
+      expect(result.language).toBe('javascript');
+      expect(result.chunks.length).toBeGreaterThan(0);
+    });
+  });
+});

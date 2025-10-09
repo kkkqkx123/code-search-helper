@@ -284,4 +284,12 @@ export const TYPES = {
   PerformanceBenchmark: Symbol.for('PerformanceBenchmark'),
   CachePerformanceMonitor: Symbol.for('CachePerformanceMonitor'),
   BatchProcessingOptimizer: Symbol.for('BatchProcessingOptimizer'),
+
+  // 通用文件处理服务
+  UniversalTextSplitter: Symbol.for('UniversalTextSplitter'),
+  ErrorThresholdManager: Symbol.for('ErrorThresholdManager'),
+  MemoryGuard: Symbol.for('MemoryGuard'),
+  BackupFileProcessor: Symbol.for('BackupFileProcessor'),
+  ExtensionlessFileProcessor: Symbol.for('ExtensionlessFileProcessor'),
+  ProcessingGuard: Symbol.for('ProcessingGuard'),
 };

@@ -142,4 +142,23 @@ class ShoppingCart {
 
     it('should chunk XML/HTML with tag balance', () => {
       const xmlContent = `
-<?xml version="1.0" encoding
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <item id="1">
+    <name>Test Item</name>
+    <value>123</value>
+  </item>
+  <item id="2">
+    <name>Another Item</name>
+    <value>456</value>
+  </item>
+</root>
+      `.trim();
+
+      const chunks = splitter.chunkByBracketsAndLines(xmlContent, 'test.xml', 'xml');
+      
+      expect(chunks.length).toBeGreaterThan(0);
+      expect(chunks[0].metadata.language).toBe('xml');
+    });
+  });
+});

@@ -109,4 +109,142 @@ describe('Universal Processing Performance Tests', () => {
       // Generate a very large file that could cause memory issues
       const veryLargeCode = generateLargeJavaScriptFile(50000); // 50,000 lines
       
-      const initialMemory = process
+      const initialMemory = process.memoryUsage();
+      const result = await processingGuard.processFile('very-large.js', veryLargeCode);
+      const finalMemory = process.memoryUsage();
+      
+      // Check that memory usage is reasonable
+      const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
+      const memoryIncreaseMB = memoryIncrease / (1024 * 1024);
+      
+      expect(memoryIncreaseMB).toBeLessThan(200); // Should not increase by more than 200MB
+      expect(result.chunks.length).toBeGreaterThan(0);
+      
+      console.log(`Memory increase: ${memoryIncreaseMB.toFixed(2)}MB`);
+      console.log(`Number of chunks: ${result.chunks.length}`);
+    });
+  });
+
+  // Helper functions for generating test data
+  function generateLargeJavaScriptFile(lines: number): string {
+    const functions = [
+      `function calculateTotal(items) {
+    let total = 0;
+    for (const item of items) {
+      total += item.price * item.quantity;
+    }
+    return total;
+  }`,
+      `function filterActiveUsers(users) {
+    return users.filter(user => user.isActive && user.lastLogin > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+      }`,
+      `function formatCurrency(amount, currency = 'USD') {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+      }`
+    ];
+
+    let result = [];
+    let lineCount = 0;
+
+    while (lineCount < lines) {
+      for (const func of functions) {
+        if (lineCount >= lines) break;
+        
+        const funcLines = func.split('\n');
+        for (const funcLine of funcLines) {
+          if (lineCount >= lines) break;
+          result.push(funcLine);
+          lineCount++;
+        }
+        
+        if (lineCount < lines) {
+          result.push('');
+          lineCount++;
+        }
+      }
+    }
+
+    return result.join('\n');
+  }
+
+  function generateLargeTypeScriptFile(lines: number): string {
+    const interfaces = [
+      `interface User {
+    id: string;
+    name: string;
+    email: string;
+    isActive: boolean;
+    lastLogin: Date;
+    roles: Role[];
+  }`,
+      `interface Product {
+    id: string;
+    name: string;
+    price: number;
+    category: Category;
+    tags: string[];
+    inStock: boolean;
+  }`
+    ];
+
+    let result = [];
+    let lineCount = 0;
+
+    while (lineCount < lines) {
+      for (const iface of interfaces) {
+        if (lineCount >= lines) break;
+        
+        const ifaceLines = iface.split('\n');
+        for (const ifaceLine of ifaceLines) {
+          if (lineCount >= lines) break;
+          result.push(ifaceLine);
+          lineCount++;
+        }
+        
+        if (lineCount < lines) {
+          result.push('');
+          lineCount++;
+        }
+      }
+    }
+
+    return result.join('\n');
+  }
+
+  function generateLargePythonFile(lines: number): string {
+    const functions = [
+      `def calculate_total(items):
+    total = 0
+    for item in items:
+        total += item['price'] * item['quantity']
+    return total`,
+      `def filter_active_users(users):
+    from datetime import datetime, timedelta
+    threshold = datetime.now() - timedelta(days=30)
+    return [user for user in users if user['is_active'] and user['last_login'] > threshold]`
+    ];
+
+    let result = [];
+    let lineCount = 0;
+
+    while (lineCount < lines) {
+      for (const func of functions) {
+        if (lineCount >= lines) break;
+        
+        const funcLines = func.split('\n');
+        for (const funcLine of funcLines) {
+          if (lineCount >= lines) break;
+          result.push(funcLine);
+          lineCount++;
+        }
+        
+        if (lineCount < lines) {
+          result.push('');
+          lineCount++;
+        }
+      }
+    }
+
+    return result.join('\n');
+  }
+});
