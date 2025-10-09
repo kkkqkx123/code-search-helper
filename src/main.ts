@@ -138,18 +138,23 @@ class Application {
         await this.loggerService.warn('No embedder providers available, will continue without embedding functionality');
       }
 
-      // 初始化Nebula图数据库服务
-      await this.loggerService.info('Initializing Nebula graph database service...');
-      const nebulaConnected = await this.nebulaService.initialize();
-      if (nebulaConnected) {
-        await this.loggerService.info('Nebula graph database service initialized successfully');
+      // 检查是否启用Nebula图数据库服务
+      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+      if (nebulaEnabled) {
+        await this.loggerService.info('Initializing Nebula graph database service...');
+        const nebulaConnected = await this.nebulaService.initialize();
+        if (nebulaConnected) {
+          await this.loggerService.info('Nebula graph database service initialized successfully');
 
-        // 启动Nebula连接监控
-        await this.loggerService.info('Starting Nebula connection monitoring...');
-        this.nebulaConnectionMonitor.startMonitoring(30000); // 每30秒检查一次
-        await this.loggerService.info('Nebula connection monitoring started');
+          // 启动Nebula连接监控
+          await this.loggerService.info('Starting Nebula connection monitoring...');
+          this.nebulaConnectionMonitor.startMonitoring(30000); // 每30秒检查一次
+          await this.loggerService.info('Nebula connection monitoring started');
+        } else {
+          await this.loggerService.warn('Nebula graph database service initialization failed, will continue without graph database');
+        }
       } else {
-        await this.loggerService.warn('Nebula graph database service initialization failed, will continue without graph database');
+        await this.loggerService.info('Nebula graph database service is disabled via NEBULA_ENABLED environment variable, skipping initialization');
       }
 
       this.currentPhase = ApplicationLifecyclePhase.SERVICES_STARTED;
@@ -217,16 +222,22 @@ class Application {
         await this.loggerService.error('Error closing Qdrant database service:', error);
       }
 
-      // 关闭Nebula图数据库服务
-      try {
-        // 停止Nebula连接监控
-        this.nebulaConnectionMonitor.stopMonitoring();
-        await this.loggerService.info('Nebula connection monitoring stopped');
+      // 检查是否启用了Nebula图数据库服务，只有在启用的情况下才需要关闭
+      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+      if (nebulaEnabled) {
+        // 关闭Nebula图数据库服务
+        try {
+          // 停止Nebula连接监控
+          this.nebulaConnectionMonitor.stopMonitoring();
+          await this.loggerService.info('Nebula connection monitoring stopped');
 
-        await this.nebulaService.close();
-        await this.loggerService.info('Nebula graph database service closed');
-      } catch (error) {
-        await this.loggerService.error('Error closing Nebula graph database service:', error);
+          await this.nebulaService.close();
+          await this.loggerService.info('Nebula graph database service closed');
+        } catch (error) {
+          await this.loggerService.error('Error closing Nebula graph database service:', error);
+        }
+      } else {
+        await this.loggerService.info('Nebula graph database service is disabled via NEBULA_ENABLED environment variable, skipping shutdown');
       }
 
       // 关闭MCP服务器
