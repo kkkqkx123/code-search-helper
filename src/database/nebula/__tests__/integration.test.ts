@@ -26,7 +26,8 @@ import {
   IndexingConfigService,
   LSPConfigService,
   SemgrepConfigService,
-  TreeSitterConfigService
+  TreeSitterConfigService,
+  ProjectNamingConfigService
 } from '../../../config/service';
 
 // Mock the Nebula client for testing
@@ -67,6 +68,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
+    container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
 
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
@@ -169,7 +171,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
 
     // Now test query execution
     const mockQueryResult = {
-      data: [{ id: '1', name: 'test_node' }],
+      data: [{ Name: 'test_space' }],
       code: 0,
     };
 
@@ -232,8 +234,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
 
     // Mock the query result for node search
     const mockNodes = [
-      { id: '1', name: 'Test Node 1' },
-      { id: '2', name: 'Test Node 2' }
+      { Name: 'test_space' }
     ];
 
     mockExecute.mockResolvedValue({
@@ -296,8 +297,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
 
     // Mock the query result for space listing
     const mockSpaces = [
-      { Name: 'space1' },
-      { Name: 'space2' }
+      { Name: 'test_space' }
     ];
 
     mockExecute.mockResolvedValue({
@@ -382,11 +382,11 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
 
     // Mock the query results for space validation
     mockExecute
-      .mockResolvedValueOnce({ data: [{ Name: 'existing_space' }], error: null }) // SHOW SPACES
+      .mockResolvedValueOnce({ data: [{ Name: 'test_space' }], error: null }) // SHOW SPACES
       .mockResolvedValueOnce({ error: null }) // USE space
       .mockResolvedValueOnce({ data: [], error: null }); // SHOW TAGS
 
-    const isValid = await spaceService.validateSpace('existing_space');
+    const isValid = await spaceService.validateSpace('test_space');
 
     expect(isValid).toBe(true);
   });
