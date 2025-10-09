@@ -310,4 +310,98 @@ export class ApiClient {
         this.clearProjectsCache();
         console.debug('所有缓存已清除');
     }
+
+    /**
+     * 执行向量嵌入
+     */
+    async indexVectors(projectId: string, options?: any): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/index-vectors`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ options })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('向量嵌入失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取向量状态
+     */
+    async getVectorStatus(projectId: string): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/vector-status`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取向量状态失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 执行图存储
+     */
+    async indexGraph(projectId: string, options?: any): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/index-graph`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ options })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('图存储失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取图状态
+     */
+    async getGraphStatus(projectId: string): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/graph-status`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取图状态失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 批量向量嵌入
+     */
+    async batchIndexVectors(projectIds: string[], options?: any): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/batch-index-vectors`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectIds, options })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('批量向量嵌入失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 批量图存储
+     */
+    async batchIndexGraph(projectIds: string[], options?: any): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/batch-index-graph`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectIds, options })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('批量图存储失败:', error);
+            throw error;
+        }
+    }
 }

@@ -62,9 +62,11 @@ export class ApiServer {
     // 创建一个简单的错误处理器实例
     const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
     this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler, this.indexSyncService);
-    // 从依赖注入容器获取ProjectStateManager
+    // 从依赖注入容器获取ProjectStateManager和新服务
     this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
-    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService);
+    const vectorIndexService = diContainer.get<any>(TYPES.VectorIndexService);
+    const graphIndexService = diContainer.get<any>(TYPES.GraphIndexService);
+    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService, vectorIndexService, graphIndexService);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
 
     // 从依赖注入容器获取文件搜索服务

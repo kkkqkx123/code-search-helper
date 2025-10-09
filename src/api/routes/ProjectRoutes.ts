@@ -16,6 +16,8 @@ import * as path from 'path';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { ProjectState } from '../../service/project/ProjectStateManager';
 import { IndexService } from '../../service/index/IndexService';
+import { VectorIndexService } from '../../service/index/VectorIndexService';
+import { GraphIndexService } from '../../service/index/GraphIndexService';
 
 export interface ProjectCreateBody {
   projectPath: string;
@@ -60,19 +62,25 @@ export class ProjectRoutes {
   private logger: Logger;
   private projectStateManager: ProjectStateManager;
   private indexSyncService: IndexService;
+  private vectorIndexService: VectorIndexService;
+  private graphIndexService: GraphIndexService;
 
   constructor(
     projectIdManager: ProjectIdManager,
     projectLookupService: ProjectLookupService,
     logger: Logger,
     projectStateManager: ProjectStateManager,
-    indexSyncService: IndexService
+    indexSyncService: IndexService,
+    vectorIndexService: VectorIndexService,
+    graphIndexService: GraphIndexService
   ) {
     this.projectIdManager = projectIdManager;
     this.projectLookupService = projectLookupService;
     this.logger = logger;
     this.projectStateManager = projectStateManager;
     this.indexSyncService = indexSyncService;
+    this.vectorIndexService = vectorIndexService;
+    this.graphIndexService = graphIndexService;
     this.router = Router();
     this.setupRoutes();
   }
@@ -108,6 +116,18 @@ export class ProjectRoutes {
      * @returns {object} 200 - Re-indexing response
      */
     this.router.post('/:projectId/reindex', this.reindexProject.bind(this));
+    
+    // 向量嵌入相关端点
+    this.router.post('/:projectId/index-vectors', this.indexVectors.bind(this));
+    this.router.get('/:projectId/vector-status', this.getVectorStatus.bind(this));
+    
+    // 图存储相关端点
+    this.router.post('/:projectId/index-graph', this.indexGraph.bind(this));
+    this.router.get('/:projectId/graph-status', this.getGraphStatus.bind(this));
+    
+    // 批量操作端点
+    this.router.post('/batch-index-vectors', this.batchIndexVectors.bind(this));
+    this.router.post('/batch-index-graph', this.batchIndexGraph.bind(this));
   }
 
   private async getProjects(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -253,6 +273,170 @@ export class ProjectRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to reindex project', { error, projectId: req.params.projectId });
+      next(error);
+    }
+  }
+
+  /**
+   * 执行向量嵌入
+   */
+  private async indexVectors(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+      const { options } = req.body;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      // 调用向量索引服务
+      const result = await this.vectorIndexService.indexVectors(projectId, options);
+
+      res.status(200).json({
+        success: result.success,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 获取向量状态
+   */
+  private async getVectorStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      // 调用向量索引服务获取状态
+      const vectorStatus = await this.vectorIndexService.getVectorStatus(projectId);
+
+      res.status(200).json({
+        success: true,
+        data: vectorStatus,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 执行图存储
+   */
+  private async indexGraph(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+      const { options } = req.body;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      // 调用图索引服务
+      const result = await this.graphIndexService.indexGraph(projectId, options);
+
+      res.status(200).json({
+        success: result.success,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 获取图状态
+   */
+  private async getGraphStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      // 调用图索引服务获取状态
+      const graphStatus = await this.graphIndexService.getGraphStatus(projectId);
+
+      res.status(200).json({
+        success: true,
+        data: graphStatus,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 批量向量嵌入
+   */
+  private async batchIndexVectors(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectIds, options } = req.body;
+
+      if (!Array.isArray(projectIds) || projectIds.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'projectIds array is required and cannot be empty',
+        });
+        return;
+      }
+
+      // 调用向量索引服务进行批量处理
+      const result = await this.vectorIndexService.batchIndexVectors(projectIds, options);
+
+      res.status(200).json({
+        success: result.success,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 批量图存储
+   */
+  private async batchIndexGraph(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectIds, options } = req.body;
+
+      if (!Array.isArray(projectIds) || projectIds.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'projectIds array is required and cannot be empty',
+        });
+        return;
+      }
+
+      // 调用图索引服务进行批量处理
+      const result = await this.graphIndexService.batchIndexGraph(projectIds, options);
+
+      res.status(200).json({
+        success: result.success,
+        data: result,
+      });
+    } catch (error) {
       next(error);
     }
   }

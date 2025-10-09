@@ -7,6 +7,16 @@ import { GraphExplorerPage } from './pages/GraphExplorerPage.js';
 import { GraphAnalysisPage } from './pages/GraphAnalysisPage.js';
 import { GraphManagementPage } from './pages/GraphManagementPage.js';
 
+// 导入新的组件
+import { StorageStatusIndicator } from './components/StorageStatusIndicator.js';
+import { StorageActionButtons } from './components/StorageActionButtons.js';
+import { BatchOperationsPanel } from './components/BatchOperationsPanel.js';
+
+// 注册自定义元素
+customElements.define('storage-status-indicator', StorageStatusIndicator);
+customElements.define('storage-action-buttons', StorageActionButtons);
+customElements.define('batch-operations-panel', BatchOperationsPanel);
+
 /**
  * 主应用类
  * 管理整个前端应用的生命周期和页面切换

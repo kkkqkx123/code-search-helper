@@ -17,6 +17,11 @@ export interface ProjectState {
   name: string;
   description?: string;
   status: 'active' | 'inactive' | 'indexing' | 'error';
+  
+  // 分离的状态管理
+  vectorStatus: StorageStatus;
+  graphStatus: StorageStatus;
+  
   createdAt: Date;
   updatedAt: Date;
   lastIndexedAt?: Date;
@@ -38,6 +43,18 @@ export interface ProjectState {
     chunkOverlap?: number;
   };
   metadata?: Record<string, any>;
+}
+
+// 新增存储状态接口
+export interface StorageStatus {
+  status: 'pending' | 'indexing' | 'completed' | 'error' | 'partial';
+  progress: number; // 0-100
+  totalFiles?: number;
+  processedFiles?: number;
+  failedFiles?: number;
+  lastUpdated: Date;
+  lastCompleted?: Date;
+  error?: string;
 }
 
 export interface ProjectStats {
@@ -80,6 +97,41 @@ export class ProjectStateManager {
   ) {
     // 存储路径将在initialize方法中设置
     this.storagePath = './data/project-states.json'; // 默认路径
+  }
+
+  /**
+   * 初始化存储状态
+   */
+  private initializeStorageStatus(): StorageStatus {
+    return {
+      status: 'pending',
+      progress: 0,
+      lastUpdated: new Date(),
+    };
+  }
+
+  /**
+   * 规范化存储状态
+   */
+  private normalizeStorageStatus(rawStatus: any): StorageStatus {
+    if (!rawStatus) {
+      return this.initializeStorageStatus();
+    }
+
+    return {
+      status: ['pending', 'indexing', 'completed', 'error', 'partial'].includes(rawStatus.status)
+        ? rawStatus.status
+        : 'pending',
+      progress: typeof rawStatus.progress === 'number' && rawStatus.progress >= 0 && rawStatus.progress <= 100
+        ? rawStatus.progress
+        : 0,
+      totalFiles: typeof rawStatus.totalFiles === 'number' ? rawStatus.totalFiles : undefined,
+      processedFiles: typeof rawStatus.processedFiles === 'number' ? rawStatus.processedFiles : undefined,
+      failedFiles: typeof rawStatus.failedFiles === 'number' ? rawStatus.failedFiles : undefined,
+      lastUpdated: rawStatus.lastUpdated ? this.parseDate(rawStatus.lastUpdated) : new Date(),
+      lastCompleted: rawStatus.lastCompleted ? this.parseDate(rawStatus.lastCompleted) : undefined,
+      error: typeof rawStatus.error === 'string' ? rawStatus.error : undefined,
+    };
   }
 
   /**
@@ -383,24 +435,26 @@ export class ProjectStateManager {
         if (options.description !== undefined) state.description = options.description;
         if (options.settings) state.settings = { ...state.settings, ...options.settings };
         if (options.metadata) state.metadata = { ...state.metadata, ...options.metadata };
-      } else {
-        // 创建新状态
-        state = {
-          projectId,
-          projectPath,
-          name: options.name || path.basename(projectPath),
-          description: options.description,
-          status: 'inactive',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          settings: {
-            autoIndex: true,
-            watchChanges: true,
-            ...options.settings
-          },
-          metadata: options.metadata || {}
-        };
-      }
+        } else {
+          // 创建新状态
+          state = {
+            projectId,
+            projectPath,
+            name: options.name || path.basename(projectPath),
+            description: options.description,
+            status: 'inactive',
+            vectorStatus: this.initializeStorageStatus(),
+            graphStatus: this.initializeStorageStatus(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            settings: {
+              autoIndex: true,
+              watchChanges: true,
+              ...options.settings
+            },
+            metadata: options.metadata || {}
+          };
+        }
 
       // 更新集合信息
       await this.updateProjectCollectionInfo(projectId);
@@ -851,6 +905,8 @@ export class ProjectStateManager {
       name: rawState.name,
       description: rawState.description || undefined,
       status: rawState.status,
+      vectorStatus: rawState.vectorStatus ? this.normalizeStorageStatus(rawState.vectorStatus) : this.initializeStorageStatus(),
+      graphStatus: rawState.graphStatus ? this.normalizeStorageStatus(rawState.graphStatus) : this.initializeStorageStatus(),
       createdAt: this.parseDate(rawState.createdAt),
       updatedAt: this.parseDate(rawState.updatedAt),
       lastIndexedAt: rawState.lastIndexedAt ? this.parseDate(rawState.lastIndexedAt) : undefined,
@@ -874,6 +930,220 @@ export class ProjectStateManager {
       metadata: rawState.metadata && typeof rawState.metadata === 'object' ? rawState.metadata : {}
     };
 
-    return normalizedState;
+     return normalizedState;
+  }
+
+  /**
+   * 更新向量存储状态
+   */
+  async updateVectorStatus(projectId: string, status: Partial<StorageStatus>): Promise<void> {
+    const state = this.projectStates.get(projectId);
+    if (!state) return;
+
+    state.vectorStatus = {
+      ...state.vectorStatus,
+      ...status,
+      lastUpdated: new Date()
+    };
+
+    // 更新主状态（基于向量状态）
+    this.updateMainStatusBasedOnStorageStates(state);
+
+    this.projectStates.set(projectId, state);
+    await this.saveProjectStates();
+
+    this.logger.debug(`Updated vector status for ${projectId}: ${state.vectorStatus.status}`);
+  }
+
+  /**
+   * 更新图存储状态
+   */
+  async updateGraphStatus(projectId: string, status: Partial<StorageStatus>): Promise<void> {
+    const state = this.projectStates.get(projectId);
+    if (!state) return;
+
+    state.graphStatus = {
+      ...state.graphStatus,
+      ...status,
+      lastUpdated: new Date()
+    };
+
+    // 更新主状态（基于图状态）
+    this.updateMainStatusBasedOnStorageStates(state);
+
+    this.projectStates.set(projectId, state);
+    await this.saveProjectStates();
+
+    this.logger.debug(`Updated graph status for ${projectId}: ${state.graphStatus.status}`);
+  }
+
+  /**
+   * 根据存储状态更新主状态
+   */
+  private updateMainStatusBasedOnStorageStates(state: ProjectState): void {
+    const { vectorStatus, graphStatus } = state;
+
+    // 如果任一存储正在索引中，主状态为 indexing
+    if (vectorStatus.status === 'indexing' || graphStatus.status === 'indexing') {
+      state.status = 'indexing';
+    }
+    // 如果任一存储出错，主状态为 error
+    else if (vectorStatus.status === 'error' || graphStatus.status === 'error') {
+      state.status = 'error';
+    }
+    // 如果两个存储都完成，主状态为 active
+    else if (vectorStatus.status === 'completed' && graphStatus.status === 'completed') {
+      state.status = 'active';
+    }
+    // 如果两个存储都待处理，主状态为 inactive
+    else if (vectorStatus.status === 'pending' && graphStatus.status === 'pending') {
+      state.status = 'inactive';
+    }
+    // 其他情况（部分完成），主状态为 active
+    else {
+      state.status = 'active';
+    }
+
+    state.updatedAt = new Date();
+  }
+
+  /**
+   * 获取向量存储状态
+   */
+  getVectorStatus(projectId: string): StorageStatus | null {
+    const state = this.projectStates.get(projectId);
+    return state ? state.vectorStatus : null;
+  }
+
+  /**
+   * 获取图存储状态
+   */
+  getGraphStatus(projectId: string): StorageStatus | null {
+    const state = this.projectStates.get(projectId);
+    return state ? state.graphStatus : null;
+  }
+
+  /**
+   * 重置向量存储状态
+   */
+  async resetVectorStatus(projectId: string): Promise<void> {
+    await this.updateVectorStatus(projectId, {
+      status: 'pending',
+      progress: 0,
+      processedFiles: 0,
+      failedFiles: 0,
+      error: undefined
+    });
+  }
+
+  /**
+   * 重置图存储状态
+   */
+  async resetGraphStatus(projectId: string): Promise<void> {
+    await this.updateGraphStatus(projectId, {
+      status: 'pending',
+      progress: 0,
+      processedFiles: 0,
+      failedFiles: 0,
+      error: undefined
+    });
+  }
+
+  /**
+   * 开始向量索引
+   */
+  async startVectorIndexing(projectId: string, totalFiles?: number): Promise<void> {
+    await this.updateVectorStatus(projectId, {
+      status: 'indexing',
+      progress: 0,
+      totalFiles,
+      processedFiles: 0,
+      failedFiles: 0,
+      error: undefined
+    });
+  }
+
+  /**
+   * 开始图索引
+   */
+  async startGraphIndexing(projectId: string, totalFiles?: number): Promise<void> {
+    await this.updateGraphStatus(projectId, {
+      status: 'indexing',
+      progress: 0,
+      totalFiles,
+      processedFiles: 0,
+      failedFiles: 0,
+      error: undefined
+    });
+  }
+
+  /**
+   * 更新向量索引进度
+   */
+  async updateVectorIndexingProgress(projectId: string, progress: number, processedFiles?: number, failedFiles?: number): Promise<void> {
+    await this.updateVectorStatus(projectId, {
+      progress,
+      processedFiles,
+      failedFiles
+    });
+  }
+
+  /**
+   * 更新图索引进度
+   */
+  async updateGraphIndexingProgress(projectId: string, progress: number, processedFiles?: number, failedFiles?: number): Promise<void> {
+    await this.updateGraphStatus(projectId, {
+      progress,
+      processedFiles,
+      failedFiles
+    });
+  }
+
+  /**
+   * 完成向量索引
+   */
+  async completeVectorIndexing(projectId: string): Promise<void> {
+    const state = this.projectStates.get(projectId);
+    if (!state) return;
+
+    await this.updateVectorStatus(projectId, {
+      status: 'completed',
+      progress: 100,
+      lastCompleted: new Date()
+    });
+  }
+
+  /**
+   * 完成图索引
+   */
+  async completeGraphIndexing(projectId: string): Promise<void> {
+    const state = this.projectStates.get(projectId);
+    if (!state) return;
+
+    await this.updateGraphStatus(projectId, {
+      status: 'completed',
+      progress: 100,
+      lastCompleted: new Date()
+    });
+  }
+
+  /**
+   * 向量索引出错
+   */
+  async failVectorIndexing(projectId: string, error: string): Promise<void> {
+    await this.updateVectorStatus(projectId, {
+      status: 'error',
+      error
+    });
+  }
+
+  /**
+   * 图索引出错
+   */
+  async failGraphIndexing(projectId: string, error: string): Promise<void> {
+    await this.updateGraphStatus(projectId, {
+      status: 'error',
+      error
+    });
   }
 }

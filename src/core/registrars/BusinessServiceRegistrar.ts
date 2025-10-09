@@ -11,6 +11,11 @@ import { IndexService } from '../../service/index/IndexService';
 import { IndexingLogicService } from '../../service/index/IndexingLogicService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 
+// 新增的索引服务
+import { VectorIndexService } from '../../service/index/VectorIndexService';
+import { GraphIndexService } from '../../service/index/GraphIndexService';
+import { StorageCoordinatorService } from '../../service/index/StorageCoordinatorService';
+
 // 性能优化服务
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
 
@@ -53,6 +58,11 @@ export class BusinessServiceRegistrar {
     container.bind<IndexService>(TYPES.IndexService).to(IndexService).inSingletonScope();
     container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
     container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
+    
+    // 新增的索引服务
+    container.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();
+    container.bind<GraphIndexService>(TYPES.GraphIndexService).to(GraphIndexService).inSingletonScope();
+    container.bind<StorageCoordinatorService>(TYPES.StorageCoordinatorService).to(StorageCoordinatorService).inSingletonScope();
 
     // 性能优化服务
     container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).to(PerformanceOptimizerService).inSingletonScope();

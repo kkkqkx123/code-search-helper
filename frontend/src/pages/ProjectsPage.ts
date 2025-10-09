@@ -7,6 +7,7 @@ export class ProjectsPage {
     private apiClient: ApiClient;
     private container: HTMLElement;
     private onProjectActionComplete?: (action: string, result: any) => void;
+    private refreshInterval: number | null = null;
 
     constructor(container: HTMLElement, apiClient: ApiClient) {
         this.container = container;
@@ -14,6 +15,7 @@ export class ProjectsPage {
         this.render();
         this.setupEventListeners();
         this.loadProjectsList();
+        this.setupBatchOperations();
     }
 
     /**
@@ -27,13 +29,17 @@ export class ProjectsPage {
                     <button id="refresh-projects" class="search-button" style="background-color: #64748b; padding: 6px 12px; font-size: 14px;">刷新</button>
                 </div>
                 
+                <batch-operations-panel id="batch-operations"></batch-operations-panel>
+                
                 <table class="projects-table">
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="select-all-projects" title="选择所有项目"></th>
                             <th>项目名称</th>
                             <th>路径</th>
                             <th>文件数</th>
-                            <th>状态</th>
+                            <th>向量状态</th>
+                            <th>图状态</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -58,6 +64,16 @@ export class ProjectsPage {
             // 强制刷新项目列表，清除缓存
             this.loadProjectsList(true);
         });
+    }
+
+    /**
+     * 设置批量操作面板
+     */
+    private setupBatchOperations() {
+        const batchPanel = this.container.querySelector('#batch-operations') as HTMLElement & { setApiClient: (apiClient: any) => void };
+        if (batchPanel && typeof batchPanel.setApiClient === 'function') {
+            batchPanel.setApiClient(this.apiClient);
+        }
     }
 
     /**
@@ -110,13 +126,25 @@ export class ProjectsPage {
 
         container.innerHTML = projects.map(project => `
             <tr>
+                <td><input type="checkbox" class="project-checkbox" data-project-id="${project.id}" title="选择项目"></td>
                 <td>${this.escapeHtml(project.name || project.id)}</td>
                 <td>${this.escapeHtml(project.path || 'N/A')}</td>
                 <td>${project.fileCount || 0}</td>
                 <td>
-                    <span class="result-score" style="background-color: ${this.getStatusColor(project.status)}">
-                        ${project.status || 'unknown'}
-                    </span>
+                    <storage-status-indicator
+                        project-id="${project.id}"
+                        vector-status="${project.vectorStatus?.status || 'pending'}"
+                        graph-status="${project.graphStatus?.status || 'pending'}"
+                        vector-progress="${project.vectorStatus?.progress || 0}"
+                        graph-progress="${project.graphStatus?.progress || 0}">
+                    </storage-status-indicator>
+                </td>
+                <td>
+                    <storage-action-buttons
+                        project-id="${project.id}"
+                        vector-status="${project.vectorStatus?.status || 'pending'}"
+                        graph-status="${project.graphStatus?.status || 'pending'}">
+                    </storage-action-buttons>
                 </td>
                 <td>
                     <button class="action-button reindex" data-project-id="${project.id}" data-action="reindex">重新索引</button>
@@ -141,6 +169,52 @@ export class ProjectsPage {
                 }
             });
         });
+
+        // 为存储操作按钮添加事件监听器
+        container.querySelectorAll('storage-action-buttons').forEach((element: HTMLElement) => {
+            element.addEventListener('storage-action', async (e: any) => {
+                const { projectId, action } = e.detail;
+                if (action === 'index-vectors') {
+                    await this.indexVectors(projectId);
+                } else if (action === 'index-graph') {
+                    await this.indexGraph(projectId);
+                }
+            });
+        });
+
+        // 为项目复选框添加事件监听器
+        container.querySelectorAll('.project-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const target = e.target as HTMLInputElement;
+                const projectId = target.dataset.projectId;
+                if (projectId) {
+                    document.dispatchEvent(new CustomEvent('project-selected', {
+                        detail: {
+                            projectId,
+                            selected: target.checked
+                        }
+                    }));
+                }
+            });
+        });
+
+        // 为全选复选框添加事件监听器
+        const selectAllCheckbox = this.container.querySelector('#select-all-projects') as HTMLInputElement;
+        if (selectAllCheckbox) {
+            selectAllCheckbox.onchange = (e) => {
+                const target = e.target as HTMLInputElement;
+                const checkboxes = container.querySelectorAll('.project-checkbox') as NodeListOf<HTMLInputElement>;
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = target.checked;
+                    document.dispatchEvent(new CustomEvent('project-selected', {
+                        detail: {
+                            projectId: checkbox.dataset.projectId,
+                            selected: target.checked
+                        }
+                    }));
+                });
+            };
+        }
     }
 
     /**
@@ -213,6 +287,86 @@ export class ProjectsPage {
         } catch (error: any) {
             alert('删除项目时发生错误: ' + error.message);
         }
+    }
+
+    /**
+     * 执行向量索引
+     */
+    async indexVectors(projectId: string) {
+        try {
+            const result = await this.apiClient.indexVectors(projectId);
+            
+            if (result.success) {
+                alert('向量索引已启动');
+                // 清除相关缓存
+                this.apiClient.clearProjectsCache();
+                // 刷新项目列表
+                this.loadProjectsList(true);
+                
+                if (this.onProjectActionComplete) {
+                    this.onProjectActionComplete('indexVectors', result);
+                }
+            } else {
+                alert('向量索引启动失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error: any) {
+            alert('启动向量索引时发生错误: ' + error.message);
+        }
+    }
+
+    /**
+     * 执行图索引
+     */
+    async indexGraph(projectId: string) {
+        try {
+            const result = await this.apiClient.indexGraph(projectId);
+            
+            if (result.success) {
+                alert('图索引已启动');
+                // 清除相关缓存
+                this.apiClient.clearProjectsCache();
+                // 刷新项目列表
+                this.loadProjectsList(true);
+                
+                if (this.onProjectActionComplete) {
+                    this.onProjectActionComplete('indexGraph', result);
+                }
+            } else {
+                alert('图索引启动失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error: any) {
+            alert('启动图索引时发生错误: ' + error.message);
+        }
+    }
+
+    /**
+     * 启用自动刷新
+     */
+    enableAutoRefresh(intervalMs: number = 5000) {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        
+        this.refreshInterval = window.setInterval(() => {
+            this.loadProjectsList(true);
+        }, intervalMs);
+    }
+
+    /**
+     * 禁用自动刷新
+     */
+    disableAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+        }
+    }
+
+    /**
+     * 销毁页面实例
+     */
+    destroy() {
+        this.disableAutoRefresh();
     }
 
     /**

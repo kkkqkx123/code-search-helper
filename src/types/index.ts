@@ -55,4 +55,9 @@ export const TYPES = {
   BackupFileProcessor: Symbol.for('BackupFileProcessor'),
   ExtensionlessFileProcessor: Symbol.for('ExtensionlessFileProcessor'),
   ProcessingGuard: Symbol.for('ProcessingGuard'),
+  
+  // 新增的索引服务
+  VectorIndexService: Symbol.for('VectorIndexService'),
+  GraphIndexService: Symbol.for('GraphIndexService'),
+  StorageCoordinatorService: Symbol.for('StorageCoordinatorService'),
 };
