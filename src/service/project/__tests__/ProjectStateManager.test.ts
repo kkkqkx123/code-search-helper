@@ -185,6 +185,7 @@ describe('ProjectStateManager', () => {
       mockFileWatcherService,
       mockChangeDetectionService,
       qdrantService,
+      {} as any, // Add the missing nebulaService parameter
       projectIdManager,
       mockEmbedderFactory,
       mockEmbeddingCacheService,
@@ -261,6 +262,7 @@ describe('ProjectStateManager', () => {
       projectIdManager,
       indexSyncService,
       qdrantService,
+      {} as any,  // Add the missing nebulaService parameter
       configService
     );
   });

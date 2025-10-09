@@ -8,7 +8,7 @@ import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { createClient } from '@nebula-contrib/nebula-nodejs';
 import { NebulaQueryUtils } from './NebulaQueryUtils';
-import { NebulaConnectionWrapper } from '../connection/NebulaConnectionWrapper';
+import { INebulaConnectionManager } from '../NebulaConnectionManager';
 
 export interface INebulaQueryService {
   executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
@@ -25,7 +25,7 @@ export class NebulaQueryService implements INebulaQueryService {
   private errorHandler: ErrorHandlerService;
   private performanceMonitor: PerformanceMonitor;
   private configService: NebulaConfigService;
-  private connectionWrapper: NebulaConnectionWrapper;
+  private connectionManager: INebulaConnectionManager;
   private isInitialized: boolean = false;
 
   constructor(
@@ -33,13 +33,13 @@ export class NebulaQueryService implements INebulaQueryService {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.NebulaConfigService) configService: NebulaConfigService,
-    @inject(TYPES.NebulaConnectionWrapper) connectionWrapper: NebulaConnectionWrapper
+    @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.performanceMonitor = performanceMonitor;
     this.configService = configService;
-    this.connectionWrapper = connectionWrapper;
+    this.connectionManager = connectionManager;
   }
 
   /**
@@ -47,12 +47,24 @@ export class NebulaQueryService implements INebulaQueryService {
    */
   private async getClient(): Promise<any> {
     if (!this.isInitialized) {
-      const config: NebulaConfig = this.configService.loadConfig();
-      await this.connectionWrapper.connect(config);
+      await this.connectionManager.connect();
       this.isInitialized = true;
     }
 
-    return this.connectionWrapper.getClient();
+    // NebulaConnectionManager直接管理客户端，不需要额外的getClient()方法
+    // 使用connectionManager的isConnected()检查连接状态
+    if (!this.connectionManager.isConnected()) {
+      await this.connectionManager.connect();
+    }
+    
+    // 使用getConnectionForSpace方法获取连接，如果需要空间则传入配置的空间
+    const config = this.configService.loadConfig();
+    if (config.space) {
+      return await this.connectionManager.getConnectionForSpace(config.space);
+    } else {
+      // 如果没有配置空间，返回基础连接
+      return this.connectionManager as any;
+    }
   }
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {

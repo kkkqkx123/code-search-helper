@@ -159,7 +159,8 @@ describe('NebulaConnectionManager Refactored', () => {
       databaseLogger,
       errorHandler,
       performanceMonitor,
-      nebulaConfigService
+      nebulaConfigService,
+      connectionManager // Add the missing connectionManager parameter
     );
 
     // Create transaction service
@@ -584,29 +585,51 @@ describe('NebulaDataService', () => {
     jest.spyOn(NebulaConnectionManager.prototype as any, 'validateConnection').mockResolvedValue(undefined);
     jest.spyOn(NebulaConnectionManager.prototype as any, 'startSessionCleanupTask').mockImplementation(() => { });
 
+    // Create a mock connection manager that implements the interface as a temporary placeholder
+    const mockConnectionManager = {
+      executeQuery: jest.fn(),
+      isConnected: jest.fn(),
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+      getConnectionForSpace: jest.fn(),
+      executeTransaction: jest.fn()
+    };
+    
+    // Create query service with mock connection manager
+    const queryService = new NebulaQueryService(
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
+      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+      mockConnectionManager as any
+    );
+    
+    // Create transaction service with mock connection manager
+    const transactionService = new NebulaTransactionService(
+      queryService,
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<PerformanceMonitor>(TYPES.PerformanceMonitor)
+    );
+    
     const connectionManager = new NebulaConnectionManager(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
       container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
       new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService)),
-      new NebulaQueryService(
-        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-        container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
-        container.get<NebulaConfigService>(TYPES.NebulaConfigService)
-      ),
-      new NebulaTransactionService(
-        new NebulaQueryService(
-          container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-          container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-          container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
-          container.get<NebulaConfigService>(TYPES.NebulaConfigService)
-        ),
-        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-        container.get<PerformanceMonitor>(TYPES.PerformanceMonitor)
-      )
+      queryService,
+      transactionService
+    );
+    
+    // Update the query service and transaction service to reference the actual connection manager
+    queryService['connectionManager'] = connectionManager;
+    transactionService['queryService'] = new NebulaQueryService(
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
+      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+      connectionManager
     );
 
     dataService = new NebulaDataService(
@@ -739,29 +762,51 @@ describe('NebulaSpaceService', () => {
 
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
 
+    // Create a mock connection manager that implements the interface as a temporary placeholder
+    const mockConnectionManager = {
+      executeQuery: jest.fn(),
+      isConnected: jest.fn(),
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+      getConnectionForSpace: jest.fn(),
+      executeTransaction: jest.fn()
+    };
+    
+    // Create query service with mock connection manager
+    const queryService = new NebulaQueryService(
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
+      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+      mockConnectionManager as any
+    );
+    
+    // Create transaction service with mock connection manager
+    const transactionService = new NebulaTransactionService(
+      queryService,
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<PerformanceMonitor>(TYPES.PerformanceMonitor)
+    );
+    
     const connectionManager = new NebulaConnectionManager(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
       container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
       new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService)),
-      new NebulaQueryService(
-        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
-        container.get<NebulaConfigService>(TYPES.NebulaConfigService)
-      ),
-      new NebulaTransactionService(
-        new NebulaQueryService(
-          container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-          container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-          new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
-          container.get<NebulaConfigService>(TYPES.NebulaConfigService)
-        ),
-        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService))
-      )
+      queryService,
+      transactionService
+    );
+    
+    // Update the query service and transaction service to reference the actual connection manager
+    queryService['connectionManager'] = connectionManager;
+    transactionService['queryService'] = new NebulaQueryService(
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
+      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+      connectionManager
     );
 
     spaceService = new NebulaSpaceService(

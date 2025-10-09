@@ -254,24 +254,19 @@ class Connection extends _events.EventEmitter {
       // 首先验证并处理命令字符串
       let command = typeof task.command === 'string' ? task.command : String(task.command);
       
-      // 修复可能被截断的各种模式
-      // 检查是否是常见的截断模式，在创建Buffer之前修复
-      if (command.includes(' oject_')) {
-        command = command.replace(' oject_', 'project_');
-      }
-      if (command.includes('on_num =')) {
-        command = command.replace('on_num =', 'partition_num =');
-      }
-      if (command.startsWith('EATE ')) {
-        command = 'CR' + command; // 修复开头被截断的"CREATE"
-      }
-      if (command.startsWith('REATE ')) {
-        command = 'C' + command; // 修复开头被截断的"CREATE"
+      // 验证命令字符串，避免传输时可能的字符重复问题
+      const originalCommand = command;
+      
+      // 为了避免Buffer.from()导致的字符串截断问题，直接传递原始字符串
+      // 同时添加额外的验证
+      if (typeof command !== 'string' || command.length === 0) {
+        throw new Error('Command must be a non-empty string');
       }
       
-      // 使用更安全的Buffer创建方式
-      const bufferCommand = Buffer.from ? Buffer.from(command, 'utf8') : new Buffer(command, 'utf8');
-      return this.client.execute(this.sessionId, bufferCommand);
+      // 发送前的命令验证
+      console.log(`[Connection] Executing command: ${command.replace(/[\r\n]/g, '\\n').substring(0, 200)}${command.length > 200 ? '...' : ''}`);
+      
+      return this.client.execute(this.sessionId, command);
     }).then(response => {
       var _response$metrics;
       if (task.executingTimer) {

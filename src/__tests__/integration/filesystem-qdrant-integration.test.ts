@@ -684,6 +684,7 @@ describe('Filesystem-Qdrant Integration', () => {
         projectIdManager,
         indexService,
         qdrantService,
+        {} as any,  // Add the missing nebulaService parameter
         configService  // Use the config service with the same storage path
       );
 

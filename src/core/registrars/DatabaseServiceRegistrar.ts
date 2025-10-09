@@ -48,7 +48,6 @@ import { NebulaDataOperations, INebulaDataOperations } from '../../database/nebu
 import { NebulaSchemaManager, INebulaSchemaManager } from '../../database/nebula/NebulaSchemaManager';
 import { NebulaIndexManager, INebulaIndexManager } from '../../database/nebula/NebulaIndexManager';
 import { SpaceNameUtils, ISpaceNameUtils } from '../../database/nebula/SpaceNameUtils';
-import { NebulaConnectionWrapper } from '../../database/nebula/connection/NebulaConnectionWrapper';
 
 // 图数据映射和验证服务
 import { GraphDataMappingService } from '../../service/mapping/GraphDataMappingService';
@@ -113,7 +112,6 @@ export class DatabaseServiceRegistrar {
     container.bind<NebulaQueryUtils>(TYPES.NebulaQueryUtils).to(NebulaQueryUtils).inSingletonScope();
     container.bind<NebulaResultFormatter>(TYPES.NebulaResultFormatter).to(NebulaResultFormatter).inSingletonScope();
     container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
-    container.bind<NebulaConnectionWrapper>(TYPES.NebulaConnectionWrapper).to(NebulaConnectionWrapper).inSingletonScope();
 
     // 图数据映射和验证服务
     container.bind<GraphDataMappingService>(TYPES.GraphDataMappingService).to(GraphDataMappingService).inSingletonScope();

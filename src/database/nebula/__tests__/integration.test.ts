@@ -86,14 +86,16 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
         container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
         container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
         new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
-        container.get<NebulaConfigService>(TYPES.NebulaConfigService)
+        container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+        connectionManager // Add the missing connectionManager parameter
       ),
       new NebulaTransactionService(
         new NebulaQueryService(
           container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
           container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
           new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
-          container.get<NebulaConfigService>(TYPES.NebulaConfigService)
+          container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+          connectionManager // Add the missing connectionManager parameter
         ),
         container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
         container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),

@@ -259,6 +259,7 @@ describe('IndexService', () => {
       fileWatcherService,
       changeDetectionService,
       qdrantService,
+      {} as any, // Add the missing nebulaService parameter
       projectIdManager,
       embedderFactory,
       embeddingCacheService,

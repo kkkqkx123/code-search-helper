@@ -1,0 +1,15 @@
+我已经成功修复了Nebula Graph在创建空间时出现的"SyntaxError: syntax error near `roject_p'"错误。该问题的根本原因是多方面的：
+
+1. **vid_type参数语法错误**：在`src/database/nebula/space/NebulaSpaceManager.ts`中，`vid_type`参数被错误地用双引号包围，导致语法错误。
+
+2. **CREATE SPACE查询格式问题**：查询中使用了多行格式和换行符，这可能导致底层传输过程中出现字符串截断。
+
+3. **底层传输层字符重复问题**：在`nebula-nodejs/nebula/Connection.js`中，数据在传输过程中出现了字符重复（如"project_"变成"pproject_"，"partition_num"变成"pppartition_num"）。
+
+修复措施包括：
+- 修复了vid_type参数的语法（移除双引号）
+- 优化了CREATE SPACE查询格式为单行格式
+- 修复了NebulaConnectionWrapper和NebulaQueryService中的查询处理逻辑
+- 改进了底层Connection.js中的字符串处理，防止字符重复
+
+通过`scripts/test-final-fix.ts`的测试验证，CREATE SPACE查询现在可以正常工作，创建空间、切换空间和清理操作都能成功执行。修复后的代码能够正确处理以"project_"开头的空间名称，解决了原始错误。

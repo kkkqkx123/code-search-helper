@@ -6,7 +6,6 @@ import { NebulaConfigService } from '../src/config/service/NebulaConfigService';
 import { LoggerService } from '../src/utils/LoggerService';
 import { ErrorHandlerService } from '../src/utils/ErrorHandlerService';
 import { PerformanceMonitor } from '../src/database/common/PerformanceMonitor';
-import { NebulaConnectionWrapper } from '../src/database/nebula/connection/NebulaConnectionWrapper';
 import { ConfigService } from '../src/config/ConfigService';
 import { EnvironmentConfigService } from '../src/config/service/EnvironmentConfigService';
 import { QdrantConfigService } from '../src/config/service/QdrantConfigService';
@@ -34,7 +33,6 @@ async function testNebulaConnectionFix() {
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
-    container.bind<NebulaConnectionWrapper>(TYPES.NebulaConnectionWrapper).to(NebulaConnectionWrapper).inSingletonScope();
     
     // 注册配置服务
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();

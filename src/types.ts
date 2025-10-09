@@ -110,7 +110,6 @@ import { DatabaseHealthChecker } from './infrastructure/monitoring/DatabaseHealt
 
 // 图数据映射服务
 import { GraphDataMappingService } from './service/mapping/GraphDataMappingService';
-import { NebulaConnectionWrapper } from './database/nebula/connection/NebulaConnectionWrapper';
 
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
@@ -285,7 +284,4 @@ export const TYPES = {
   PerformanceBenchmark: Symbol.for('PerformanceBenchmark'),
   CachePerformanceMonitor: Symbol.for('CachePerformanceMonitor'),
   BatchProcessingOptimizer: Symbol.for('BatchProcessingOptimizer'),
-  
-  // Nebula连接包装器
-  NebulaConnectionWrapper: Symbol.for('NebulaConnectionWrapper'),
 };

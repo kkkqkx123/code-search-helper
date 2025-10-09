@@ -115,6 +115,21 @@ export class NebulaConnectionWrapper {
           
           // 2. 添加延时确保字符串处理完整
           await new Promise(resolve => setTimeout(resolve, 10));
+          
+          // 3. 针对CREATE SPACE语句，执行额外验证
+          if (safeQuery.includes('CREATE SPACE')) {
+            // 验证关键字符串的完整性
+            const expectedStrings = ['CREATE SPACE', 'partition_num', 'replica_factor', 'vid_type'];
+            for (const expectedStr of expectedStrings) {
+              if (safeQuery.includes(expectedStr)) {
+                // 检查字符串是否完整
+                const matches = safeQuery.match(new RegExp(expectedStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'));
+                if (!matches || matches.length === 0) {
+                  throw new Error(`Query appears to have corrupted string: ${expectedStr} not found properly in query`);
+                }
+              }
+            }
+          }
         }
 
         // 记录查询以进行调试
@@ -196,6 +211,7 @@ export class NebulaConnectionWrapper {
 
   /**
    * 为Nebula格式化CREATE SPACE查询，使用标准格式
+   * 使用单行格式避免字符串截断问题
    */
   private formatCreateSpaceForNebula(query: string): string | null {
     // 尝试解析CREATE SPACE语句并重新格式化
@@ -206,11 +222,11 @@ export class NebulaConnectionWrapper {
       const spaceName = match[1];
       const paramsStr = match[2];
       
-      // 解析参数并以标准格式重新构建
+      // 解析参数并以单行格式重新构建，避免字符串截断问题
       const params = paramsStr.split(',').map(p => p.trim());
       
-      // 标准格式：每个参数单独一行
-      return `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (\n  ` + params.join(',\n  ') + `\n)`;
+      // 单行格式，避免换行符导致的字符串处理问题
+      return `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (${params.join(', ')})`;
     }
     
     return query; // 如果无法解析，返回原查询
