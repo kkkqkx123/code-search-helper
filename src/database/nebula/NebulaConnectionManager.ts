@@ -37,25 +37,19 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private client: any; // Nebula Graph客户端实例
   private sessionCleanupInterval: NodeJS.Timeout | null = null;
   private eventManager: NebulaEventManager;
-  private queryService: INebulaQueryService;
-  private transactionService: INebulaTransactionService;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.NebulaConfigService) nebulaConfigService: NebulaConfigService,
     @inject(TYPES.ConnectionStateManager) connectionStateManager: ConnectionStateManager,
-    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager,
-    @inject(TYPES.NebulaQueryService) queryService: INebulaQueryService,
-    @inject(TYPES.NebulaTransactionService) transactionService: INebulaTransactionService
+    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.nebulaConfigService = nebulaConfigService;
     this.connectionStateManager = connectionStateManager;
     this.eventManager = eventManager;
-    this.queryService = queryService;
-    this.transactionService = transactionService;
     this.connectionStatus = {
       connected: false,
       host: '',
@@ -706,11 +700,59 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
-    return this.queryService.executeQuery(nGQL, parameters);
+    if (!this.isConnected()) {
+      await this.connect();
+    }
+    
+    // 使用参数插值
+    let query = nGQL;
+    if (parameters) {
+      // 简单的参数插值实现
+      for (const [key, value] of Object.entries(parameters)) {
+        const placeholder = new RegExp(`\\$${key}`, 'g');
+        const escapedValue = typeof value === 'string' ? `"${value}"` : String(value);
+        query = query.replace(placeholder, escapedValue);
+      }
+    }
+    
+    // 在执行前记录查询内容以进行调试
+    await this.logDatabaseEvent({
+      type: DatabaseEventType.QUERY_EXECUTED,
+      source: 'nebula',
+      timestamp: new Date(),
+      data: {
+        message: 'About to execute Nebula query directly from connection manager',
+        query,
+        queryLength: query.length,
+        first100Chars: query.substring(0, 100)
+      }
+    });
+    
+    const result = await this.client.execute(query);
+    
+    // 转换结果格式
+    return {
+      table: result?.table || {},
+      results: result?.results || [],
+      rows: result?.rows || [],
+      data: result?.data || [],
+      executionTime: 0,  // 执行时间信息需要额外处理
+      timeCost: result?.timeCost || 0,
+      error: result?.error || undefined
+    };
   }
 
   async executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<NebulaQueryResult[]> {
-    return this.transactionService.executeTransaction(queries);
+    if (!this.isConnected()) {
+      await this.connect();
+    }
+    
+    const results: NebulaQueryResult[] = [];
+    for (const { query, params } of queries) {
+      const result = await this.executeQuery(query, params);
+      results.push(result);
+    }
+    return results;
   }
 
   /**

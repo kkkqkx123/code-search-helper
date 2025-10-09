@@ -120,23 +120,55 @@ async function testFinalFix() {
     } else {
       // 处理不同格式的返回结果
       let spaces = [];
-      if (showSpacesResult?.data && Array.isArray(showSpacesResult.data.rows)) {
-        spaces = showSpacesResult.data.rows.map((row: any) => row[0]);
-      } else if (showSpacesResult?.data && Array.isArray(showSpacesResult.data)) {
-        // 尝试提取空间名称
-        spaces = showSpacesResult.data.map((row: any) => {
-          return row.Name || row.name || row.NAME || (Array.isArray(row) && row.length > 0 ? row[0] : null);
-        }).filter(Boolean);
+      if (showSpacesResult?.data && typeof showSpacesResult.data === 'object') {
+        // 检查是否有Name属性（新版本Nebula Graph的格式）
+        if (showSpacesResult.data.Name && Array.isArray(showSpacesResult.data.Name)) {
+          spaces = showSpacesResult.data.Name;
+        }
+        // 检查是否有rows属性
+        else if (Array.isArray(showSpacesResult.data.rows)) {
+          spaces = showSpacesResult.data.rows.map((row: any) => {
+            // 处理行数据，可能是一个数组或对象
+            if (Array.isArray(row)) {
+              return row[0];
+            } else {
+              // 尝试从对象中提取名称
+              return row.Name || row.name || row.NAME || null;
+            }
+          }).filter(Boolean);
+        }
+        // 检查是否有data属性（另一种可能的格式）
+        else if (Array.isArray(showSpacesResult.data.data)) {
+          spaces = showSpacesResult.data.data.map((row: any) => {
+            if (Array.isArray(row)) {
+              return row[0];
+            } else {
+              return row.Name || row.name || row.NAME || null;
+            }
+          }).filter(Boolean);
+        }
+        // 检查是否直接是数组
+        else if (Array.isArray(showSpacesResult.data)) {
+          spaces = showSpacesResult.data.map((row: any) => {
+            if (Array.isArray(row)) {
+              return row[0];
+            } else {
+              return row.Name || row.name || row.NAME || null;
+            }
+          }).filter(Boolean);
+        }
       }
       
       console.log('找到的空间:', spaces);
-      const spaceFound = spaces.includes(testSpaceName) || 
+      const spaceFound = spaces.includes(testSpaceName) ||
                         spaces.some((s: any) => s && s.includes && s.includes(testSpaceName));
       
       if (spaceFound) {
         console.log(`✅ 空间 "${testSpaceName}" 已成功创建并可在列表中找到`);
       } else {
         console.log(`⚠️ 空间 "${testSpaceName}" 未在列表中找到，但操作可能已成功`);
+        // 添加调试信息，显示完整的返回结果
+        console.log('完整返回结果:', JSON.stringify(showSpacesResult, null, 2));
       }
     }
 

@@ -16,12 +16,12 @@ class Connection extends _events.EventEmitter {
     super();
     this.isReady = false;
     this.isBusy = true;
-    
+
     // 会话生命周期监控相关属性
     this.isZombieSession = false;
     this.zombieDetectedAt = null;
     this.lastActivityTime = Date.now();
-    
+
     connectionOption = _lodash.default.defaults(connectionOption, {
       bufferSize: 2000,
       poolSize: 5
@@ -75,13 +75,13 @@ class Connection extends _events.EventEmitter {
       if (response.error_code !== 0) {
         throw new _NebulaError.default(response.error_code, response.error_msg);
       }
-      
+
       // 认证成功，先清理可能存在的旧会话
       if (this.sessionId && this.sessionId !== response.session_id) {
         console.warn(`发现旧会话 ${this.sessionId}，正在清理...`);
         return this.forceCleanup().then(() => response);
       }
-      
+
       return response;
     }).then(response => {
       this.sessionId = response.session_id;
@@ -146,7 +146,7 @@ class Connection extends _events.EventEmitter {
           error: err
         });
       }
-      
+
       // 重连前先清理当前会话
       if (this.sessionId) {
         this.forceCleanup().finally(() => {
@@ -166,14 +166,14 @@ class Connection extends _events.EventEmitter {
   close() {
     return new Promise((resolve, reject) => {
       // 优先尝试会话注销，无论连接状态如何
-      const cleanupPromise = this.sessionId 
-        ? this.client.signout(this.sessionId).catch(() => {}) 
+      const cleanupPromise = this.sessionId
+        ? this.client.signout(this.sessionId).catch(() => { })
         : Promise.resolve();
-      
+
       cleanupPromise.finally(() => {
         // 清理本地会话ID
         this.sessionId = null;
-        
+
         if (this.connection.connected) {
           try {
             this.connection.end();
@@ -214,8 +214,8 @@ class Connection extends _events.EventEmitter {
         this.client.execute(this.sessionId, 'YIELD 1').then(response => {
           clearTimeout(timer);
           // 验证会话是否仍然有效
-          const isValid = response.error_code === 0 || 
-                         (response.error_code === -1005); // 会话无效错误码
+          const isValid = response.error_code === 0 ||
+            (response.error_code === -1005); // 会话无效错误码
           resolve(isValid);
         }).catch((error) => {
           clearTimeout(timer);
@@ -245,7 +245,7 @@ class Connection extends _events.EventEmitter {
     if (!this.isReady) {
       console.warn(`Connection not fully ready, but attempting to execute query anyway. Session: ${this.sessionId ? 'present' : 'missing'}`);
     }
-    
+
     this.isBusy = true;
     const start = Date.now();
     let end = Date.now();
@@ -253,19 +253,19 @@ class Connection extends _events.EventEmitter {
       // 修复字符串截断问题：使用安全的方式处理命令字符串
       // 首先验证并处理命令字符串
       let command = typeof task.command === 'string' ? task.command : String(task.command);
-      
+
       // 验证命令字符串，避免传输时可能的字符重复问题
       const originalCommand = command;
-      
+
       // 为了避免Buffer.from()导致的字符串截断问题，直接传递原始字符串
       // 同时添加额外的验证
       if (typeof command !== 'string' || command.length === 0) {
         throw new Error('Command must be a non-empty string');
       }
-      
+
       // 发送前的命令验证
       console.log(`[Connection] Executing command: ${command.replace(/[\r\n]/g, '\\n').substring(0, 200)}${command.length > 200 ? '...' : ''}`);
-      
+
       return this.client.execute(this.sessionId, command);
     }).then(response => {
       var _response$metrics;
@@ -304,19 +304,19 @@ class Connection extends _events.EventEmitter {
     this.isZombieSession = true;
     this.zombieDetectedAt = Date.now();
   }
-  
+
   checkZombieSession() {
     const zombieThreshold = 60000; // 60秒阈值
-    return this.isZombieSession || 
-           (this.sessionId && !this.isReady && 
-            this.zombieDetectedAt && 
-            Date.now() - this.zombieDetectedAt > zombieThreshold);
+    return this.isZombieSession ||
+      (this.sessionId && !this.isReady &&
+        this.zombieDetectedAt &&
+        Date.now() - this.zombieDetectedAt > zombieThreshold);
   }
-  
+
   updateActivityTime() {
     this.lastActivityTime = Date.now();
   }
-  
+
   getConnectionInfo() {
     return {
       connectionId: this.connectionId,

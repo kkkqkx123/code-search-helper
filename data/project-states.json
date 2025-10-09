@@ -4,22 +4,17 @@
     "projectPath": "D:\\ide\\tool\\code-search-helper\\test-files",
     "name": "D:\\ide\\tool\\code-search-helper\\test-files",
     "status": "active",
-    "createdAt": "2025-09-29T16:09:10.590Z",
-    "updatedAt": "2025-10-08T13:14:46.354Z",
-    "lastIndexedAt": "2025-10-08T13:14:46.354Z",
-    "indexingProgress": 100,
-    "totalFiles": 1,
-    "indexedFiles": 1,
-    "failedFiles": 0,
-    "collectionInfo": {
-      "name": "project-a2c7b9d32367187c",
-      "vectorsCount": 1,
-      "status": "green"
-    },
+    "createdAt": "2025-10-09T01:48:43.301Z",
+    "updatedAt": "2025-10-09T01:49:20.572Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true
     },
-    "metadata": {}
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-10-09T01:49:20.572Z",
+    "totalFiles": 1,
+    "indexedFiles": 1,
+    "failedFiles": 0
   }
 ]
