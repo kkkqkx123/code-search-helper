@@ -20,6 +20,14 @@ import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitte
 import { ASTCodeSplitter } from '../../service/parser/splitting/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
 
+// 通用文件处理服务
+import { UniversalTextSplitter } from '../../service/parser/universal/UniversalTextSplitter';
+import { ErrorThresholdManager } from '../../service/parser/universal/ErrorThresholdManager';
+import { MemoryGuard } from '../../service/parser/universal/MemoryGuard';
+import { BackupFileProcessor } from '../../service/parser/universal/BackupFileProcessor';
+import { ExtensionlessFileProcessor } from '../../service/parser/universal/ExtensionlessFileProcessor';
+import { ProcessingGuard } from '../../service/parser/universal/ProcessingGuard';
+
 // 文件搜索服务
 import { FileSearchService } from '../../service/filesearch/FileSearchService';
 import { FileVectorIndexer } from '../../service/filesearch/FileVectorIndexer';
@@ -54,6 +62,14 @@ export class BusinessServiceRegistrar {
     container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
     container.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
     container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
+
+    // 通用文件处理服务
+    container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).to(UniversalTextSplitter).inSingletonScope();
+    container.bind<ErrorThresholdManager>(TYPES.ErrorThresholdManager).to(ErrorThresholdManager).inSingletonScope();
+    container.bind<MemoryGuard>(TYPES.MemoryGuard).to(MemoryGuard).inSingletonScope();
+    container.bind<BackupFileProcessor>(TYPES.BackupFileProcessor).to(BackupFileProcessor).inSingletonScope();
+    container.bind<ExtensionlessFileProcessor>(TYPES.ExtensionlessFileProcessor).to(ExtensionlessFileProcessor).inSingletonScope();
+    container.bind<ProcessingGuard>(TYPES.ProcessingGuard).to(ProcessingGuard).inSingletonScope();
 
     // 搜索服务
     container.bind<FileSearchService>(TYPES.FileSearchService).to(FileSearchService).inSingletonScope();
