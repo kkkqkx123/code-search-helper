@@ -44,8 +44,8 @@ export class ChunkToVectorCoordinationService {
       // 1. 读取文件内容
       const content = await fs.readFile(filePath, 'utf-8');
       
-      // 2. 检测语言
-      const language = this.detectLanguage(filePath);
+      // 2. 智能检测语言（考虑内容）
+      const language = await this.detectLanguageByContent(filePath, content);
       
       // 3. 使用AST进行分段
       const codeChunks = await this.astSplitter.split(content, language, filePath);
@@ -115,48 +115,90 @@ export class ChunkToVectorCoordinationService {
       };
     });
   }
+private detectLanguage(filePath: string): string {
+  // 语言检测逻辑 - 改进版本，考虑文件内容
+  const ext = path.extname(filePath).toLowerCase();
+  const languageMap: Record<string, string> = {
+    '.js': 'javascript',
+    '.ts': 'typescript',
+    '.jsx': 'javascript',
+    '.tsx': 'typescript',
+    '.py': 'python',
+    '.java': 'java',
+    '.cpp': 'cpp',
+    '.c': 'c',
+    '.h': 'cpp',
+    '.cs': 'csharp',
+    '.go': 'go',
+    '.rs': 'rust',
+    '.php': 'php',
+    '.rb': 'ruby',
+    '.swift': 'swift',
+    '.kt': 'kotlin',
+    '.scala': 'scala',
+    '.md': 'markdown',
+    '.json': 'json',
+    '.xml': 'xml',
+    '.yaml': 'yaml',
+    '.yml': 'yaml',
+    '.sql': 'sql',
+    '.sh': 'shell',
+    '.bash': 'shell',
+    '.zsh': 'shell',
+    '.fish': 'shell',
+    '.html': 'html',
+    '.css': 'css',
+    '.scss': 'scss',
+    '.sass': 'sass',
+    '.less': 'less',
+    '.vue': 'vue',
+    '.svelte': 'svelte'
+  };
 
-  private detectLanguage(filePath: string): string {
-    // 语言检测逻辑
-    const ext = path.extname(filePath).toLowerCase();
-    const languageMap: Record<string, string> = {
-      '.js': 'javascript',
-      '.ts': 'typescript',
-      '.jsx': 'javascript',
-      '.tsx': 'typescript',
-      '.py': 'python',
-      '.java': 'java',
-      '.cpp': 'cpp',
-      '.c': 'c',
-      '.h': 'cpp',
-      '.cs': 'csharp',
-      '.go': 'go',
-      '.rs': 'rust',
-      '.php': 'php',
-      '.rb': 'ruby',
-      '.swift': 'swift',
-      '.kt': 'kotlin',
-      '.scala': 'scala',
-      '.md': 'markdown',
-      '.json': 'json',
-      '.xml': 'xml',
-      '.yaml': 'yaml',
-      '.yml': 'yaml',
-      '.sql': 'sql',
-      '.sh': 'shell',
-      '.bash': 'shell',
-      '.zsh': 'shell',
-      '.fish': 'shell',
-      '.html': 'html',
-      '.css': 'css',
-      '.scss': 'scss',
-      '.sass': 'sass',
-      '.less': 'less',
-      '.vue': 'vue',
-      '.svelte': 'svelte'
-    };
+  return languageMap[ext] || 'unknown';
+}
 
-    return languageMap[ext] || 'unknown';
+/**
+ * 智能语言检测 - 根据文件内容推断语言
+ * @param filePath 文件路径
+ * @param content 文件内容
+ * @returns 检测到的语言
+ */
+private async detectLanguageByContent(filePath: string, content: string): Promise<string> {
+  // 首先尝试通过文件扩展名检测
+  const ext = path.extname(filePath).toLowerCase();
+  const languageByExt = this.detectLanguage(filePath);
+  
+  // 如果是通用扩展名（如.md）或未知类型，尝试基于内容检测
+  if (languageByExt === 'markdown' || languageByExt === 'unknown') {
+    // 检查内容是否包含特定语言的特征
+    const firstFewLines = content.substring(0, Math.min(200, content.length)).toLowerCase();
+    
+    // 检查是否包含typescript/javascript特征
+    if (firstFewLines.includes('import') || firstFewLines.includes('export') ||
+        firstFewLines.includes('function') || firstFewLines.includes('const') ||
+        firstFewLines.includes('let') || firstFewLines.includes('var') ||
+        firstFewLines.includes('interface') || firstFewLines.includes('type ') ||
+        firstFewLines.includes('declare') || firstFewLines.includes('enum ')) {
+      return 'typescript';
+    }
+    
+    // 检查是否包含python特征
+    if (firstFewLines.includes('import ') || firstFewLines.includes('from ') ||
+        firstFewLines.includes('def ') || firstFewLines.includes('class ')) {
+      return 'python';
+    }
+    
+    // 检查是否包含java特征
+    if (firstFewLines.includes('public ') || firstFewLines.includes('private ') ||
+        firstFewLines.includes('class ') || firstFewLines.includes('import ') ||
+        firstFewLines.includes('package ')) {
+      return 'java';
+    }
+  }
+  
+  return languageByExt;
+}
   }
 
   setProjectEmbedder(projectId: string, embedder: string): void {

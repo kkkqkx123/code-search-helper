@@ -426,8 +426,8 @@ export class IndexingLogicService {
       });
 
       // 生成优化建议（异步，不阻塞主流程）- 内存泄漏修复
-      // 使用 setImmediate 替代 setTimeout 以避免定时器累积
-      const immediate = setImmediate(async () => {
+      // 使用 process.nextTick 替代 setImmediate 以更好地控制执行时机
+      setImmediate(async () => {
         try {
           await this.optimizationAdvisor.analyzeAndRecommend();
         } catch (advisorError) {
@@ -435,20 +435,12 @@ export class IndexingLogicService {
             error: (advisorError as Error).message
           });
         } finally {
-          // 清理immediate引用，防止内存泄漏
-          const index = this.pendingTimers.indexOf(immediate);
-          if (index !== -1) {
-            this.pendingTimers.splice(index, 1);
-          }
           // 手动触发垃圾回收（如果可用）
           if (global.gc) {
             global.gc();
           }
         }
       });
-
-      // 将immediate引用存储到pendingTimers数组中
-      this.pendingTimers.push(immediate);
 
     } catch (error) {
       this.recordError(filePath, error);

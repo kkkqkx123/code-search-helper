@@ -1,20 +1,15 @@
 [
   {
-    "projectId": "a2c7b9d32367187c",
+    "projectId": "7de244c5109905ee",
     "projectPath": "D:\\ide\\tool\\code-search-helper\\test-files",
     "name": "D:\\ide\\tool\\code-search-helper\\test-files",
-    "status": "active",
-    "createdAt": "2025-10-09T01:48:43.301Z",
-    "updatedAt": "2025-10-09T01:49:20.572Z",
+    "status": "indexing",
+    "createdAt": "2025-10-09T11:27:21.274Z",
+    "updatedAt": "2025-10-09T11:27:22.215Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true
     },
-    "metadata": {},
-    "indexingProgress": 100,
-    "lastIndexedAt": "2025-10-09T01:49:20.572Z",
-    "totalFiles": 1,
-    "indexedFiles": 1,
-    "failedFiles": 0
+    "metadata": {}
   }
 ]

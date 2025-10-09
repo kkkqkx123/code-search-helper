@@ -614,7 +614,10 @@ export class ASTCodeSplitter implements Splitter {
     let currentLine = 1;
     let semanticScore = 0;
 
-    for (let i = 0; i < lines.length; i++) {
+    // 添加内存保护：限制处理的行数，避免处理超大文件时内存占用过高
+    const maxLines = Math.min(lines.length, 10000); // 限制为最多1000行
+
+    for (let i = 0; i < maxLines; i++) {
       const line = lines[i];
       const trimmedLine = line.trim();
       
@@ -623,9 +626,9 @@ export class ASTCodeSplitter implements Splitter {
       semanticScore += lineScore;
 
       // 决定是否分段
-      const shouldSplit = semanticScore > this.options.maxChunkSize * 0.8 || 
+      const shouldSplit = semanticScore > this.options.maxChunkSize * 0.8 ||
                          (trimmedLine === '' && currentChunk.length > 3) ||
-                         i === lines.length - 1;
+                         i === maxLines - 1;
 
       if (shouldSplit && currentChunk.length > 0) {
         const chunkContent = currentChunk.join('\n');
@@ -651,6 +654,35 @@ export class ASTCodeSplitter implements Splitter {
       }
 
       currentChunk.push(line);
+      
+      // 每处理1000行检查一次内存使用情况
+      if (i > 0 && i % 1000 === 0) {
+        const currentMemory = process.memoryUsage();
+        if (currentMemory.heapUsed / currentMemory.heapTotal > 0.85) {
+          console.warn(`High memory usage detected during semantic fallback chunking, stopping at line ${i}`);
+          break; // 如果内存使用过高，停止处理
+        }
+      }
+    }
+
+    // 处理最后的chunk
+    if (currentChunk.length > 0) {
+      const chunkContent = currentChunk.join('\n');
+      const complexity = this.calculateComplexity(chunkContent);
+      
+      const metadata: CodeChunkMetadata = {
+        startLine: currentLine,
+        endLine: currentLine + currentChunk.length - 1,
+        language,
+        filePath,
+        type: 'semantic',
+        complexity
+      };
+
+      chunks.push({
+        content: chunkContent,
+        metadata
+      });
     }
 
     return chunks;

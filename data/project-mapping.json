@@ -1,17 +1,17 @@
 {
   "projectIdMap": {
-    "D:/ide/tool/code-search-helper/test-files": "a2c7b9d32367187c"
+    "D:/ide/tool/code-search-helper/test-files": "7de244c5109905ee"
   },
   "collectionMap": {
-    "a2c7b9d32367187c": "project-a2c7b9d32367187c"
+    "7de244c5109905ee": "project-7de244c5109905ee"
   },
   "spaceMap": {
-    "a2c7b9d32367187c": "project_a2c7b9d32367187c"
+    "7de244c5109905ee": "project_7de244c5109905ee"
   },
   "pathToProjectMap": {
-    "a2c7b9d32367187c": "D:/ide/tool/code-search-helper/test-files"
+    "7de244c5109905ee": "D:/ide/tool/code-search-helper/test-files"
   },
   "projectUpdateTimes": {
-    "a2c7b9d32367187c": "2025-10-09T01:48:43.399Z"
+    "7de244c5109905ee": "2025-10-09T11:27:21.369Z"
   }
 }
