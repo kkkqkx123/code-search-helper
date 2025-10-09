@@ -100,6 +100,7 @@ describe('NebulaConnectionManager Refactored', () => {
     };
 
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService as any);
+    container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).toConstantValue(mockPerformanceMonitor as any);
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
     container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
     container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
@@ -154,16 +155,17 @@ describe('NebulaConnectionManager Refactored', () => {
     const nebulaConfigService = container.get<NebulaConfigService>(TYPES.NebulaConfigService);
     const configService = container.get<ConfigService>(TYPES.ConfigService);
 
-    // Create query service
+    // 创建NebulaQueryService实例，需要INebulaConnectionManager作为依赖
+    // 使用类型断言来绕过编译时检查，因为在运行时我们会设置正确的引用
     const queryService = new NebulaQueryService(
       databaseLogger,
       errorHandler,
       performanceMonitor,
       nebulaConfigService,
-      connectionManager // Add the missing connectionManager parameter
+      undefined as any // 连接管理器将在之后设置
     );
 
-    // Create transaction service
+    // 创建NebulaTransactionService实例
     const transactionService = new NebulaTransactionService(
       queryService,
       databaseLogger,
@@ -171,16 +173,17 @@ describe('NebulaConnectionManager Refactored', () => {
       performanceMonitor
     );
 
-    // Create instance
+    // 现在创建NebulaConnectionManager实例
     connectionManager = new NebulaConnectionManager(
       databaseLogger,
       errorHandler,
       nebulaConfigService,
       container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
-      new NebulaEventManager(configService),
-      queryService,
-      transactionService
+      new NebulaEventManager(configService)
     );
+
+    // 设置connectionManager的引用到queryService中
+    (queryService as any).connectionManager = connectionManager;
 
     // Clear mocks
     mockExecute.mockClear();
@@ -617,9 +620,7 @@ describe('NebulaDataService', () => {
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
       container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
-      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService)),
-      queryService,
-      transactionService
+      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService))
     );
     
     // Update the query service and transaction service to reference the actual connection manager
@@ -794,9 +795,7 @@ describe('NebulaSpaceService', () => {
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
       container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
-      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService)),
-      queryService,
-      transactionService
+      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService))
     );
     
     // Update the query service and transaction service to reference the actual connection manager

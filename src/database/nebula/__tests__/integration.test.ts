@@ -76,32 +76,35 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
 
     // Create and register the connection manager
+    // 创建NebulaQueryService实例，需要INebulaConnectionManager作为依赖
+    // 使用类型断言来绕过编译时检查，因为在运行时我们会设置正确的引用
+    const queryService = new NebulaQueryService(
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
+      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
+      undefined as any // 连接管理器将在之后设置
+    );
+
+    // 创建NebulaTransactionService实例
+    const transactionService = new NebulaTransactionService(
+      queryService,
+      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
+      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+      new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService))
+    );
+
+    // 现在创建NebulaConnectionManager实例
     connectionManager = new NebulaConnectionManager(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
       container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
-      container.get<NebulaEventManager>(TYPES.NebulaEventManager),
-      new NebulaQueryService(
-        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
-        container.get<NebulaConfigService>(TYPES.NebulaConfigService),
-        connectionManager // Add the missing connectionManager parameter
-      ),
-      new NebulaTransactionService(
-        new NebulaQueryService(
-          container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-          container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-          new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
-          container.get<NebulaConfigService>(TYPES.NebulaConfigService),
-          connectionManager // Add the missing connectionManager parameter
-        ),
-        container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-        container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-        new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService))
-      )
+      container.get<NebulaEventManager>(TYPES.NebulaEventManager)
     );
+
+    // 设置connectionManager的引用到queryService中
+    (queryService as any).connectionManager = connectionManager;
 
     // Create services that depend on the connection manager
     dataService = new NebulaDataService(
