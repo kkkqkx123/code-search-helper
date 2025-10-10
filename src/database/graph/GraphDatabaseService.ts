@@ -102,6 +102,14 @@ export class GraphDatabaseService {
 
   async initialize(): Promise<boolean> {
     try {
+      // 检查NEBULA_ENABLED环境变量
+      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+      if (!nebulaEnabled) {
+        this.isConnected = false;
+        this.logger.info('Graph database service is disabled via NEBULA_ENABLED environment variable, skipping initialization');
+        return false; // 返回false表示服务被禁用
+      }
+
       this.logger.info('Initializing graph database service');
 
       // Initialize connection

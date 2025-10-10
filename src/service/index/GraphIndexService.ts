@@ -4,7 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ProjectStateManager } from '../project/ProjectStateManager';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
-import { NebulaService } from '../../database/nebula/NebulaService';
+import { INebulaService, NebulaService } from '../../database/nebula/NebulaService';
 import { IndexService } from './IndexService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -35,9 +35,9 @@ export class GraphIndexService {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.NebulaService) private nebulaService: NebulaService,
+    @inject(TYPES.INebulaService) private nebulaService: INebulaService,
     @inject(TYPES.IndexService) private indexService: IndexService
-  ) {}
+  ) { }
 
   /**
    * 执行图存储
@@ -119,14 +119,14 @@ export class GraphIndexService {
   async getGraphStatus(projectId: string): Promise<any> {
     try {
       const graphStatus = this.projectStateManager.getGraphStatus(projectId);
-      
+
       if (!graphStatus) {
         throw new Error(`Project not found: ${projectId}`);
       }
 
       // 检查是否有正在进行的操作
       const activeOperation = this.activeOperations.get(projectId);
-      
+
       return {
         projectId,
         ...graphStatus,
@@ -203,13 +203,13 @@ export class GraphIndexService {
    */
   private async getProjectFiles(projectPath: string): Promise<string[]> {
     const files: string[] = [];
-    
+
     try {
       const entries = await fs.readdir(projectPath, { withFileTypes: true });
-      
+
       for (const entry of entries) {
         const fullPath = path.join(projectPath, entry.name);
-        
+
         if (entry.isFile() && this.isCodeFile(entry.name)) {
           files.push(fullPath);
         } else if (entry.isDirectory() && !entry.name.startsWith('.')) {
@@ -234,7 +234,7 @@ export class GraphIndexService {
       '.go', '.rs', '.rb', '.php', '.cs', '.swift', '.kt', '.scala',
       '.html', '.css', '.scss', '.less', '.json', '.xml', '.yaml', '.yml'
     ];
-    
+
     const ext = path.extname(filename).toLowerCase();
     return codeExtensions.includes(ext);
   }
@@ -250,22 +250,22 @@ export class GraphIndexService {
   ): Promise<void> {
     try {
       const maxConcurrency = options.maxConcurrency || 2; // 图索引并发数较低
-      
+
       let processedFiles = 0;
       let failedFiles = 0;
 
       // 分批处理文件
       const batchSize = 5; // 图索引批次较小
-      
+
       for (let i = 0; i < files.length; i += batchSize) {
         const batch = files.slice(i, i + batchSize);
-        
+
         try {
           // 使用NebulaService处理文件
           await this.processGraphFiles(projectPath, batch);
 
           processedFiles += batch.length;
-          
+
           // 更新进度
           const progress = Math.round((processedFiles / files.length) * 100);
           await this.projectStateManager.updateGraphIndexingProgress(
@@ -307,7 +307,7 @@ export class GraphIndexService {
 
       // 完成图索引
       await this.projectStateManager.completeGraphIndexing(projectId);
-      
+
       this.logger.info(`Completed graph indexing for project ${projectId}`, {
         projectId,
         processedFiles,
@@ -327,9 +327,19 @@ export class GraphIndexService {
    */
   private async processGraphFiles(projectPath: string, files: string[]): Promise<void> {
     try {
+      // 检查NEBULA_ENABLED环境变量
+      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+      if (!nebulaEnabled) {
+        this.logger.info('Nebula graph database is disabled via NEBULA_ENABLED environment variable, skipping graph indexing', {
+          projectPath,
+          fileCount: files.length
+        });
+        return; // 如果Nebula被禁用，直接返回
+      }
+
       // 确保项目空间存在
       await this.nebulaService.createSpaceForProject(projectPath);
-      
+
       // 处理每个文件，构建图结构
       for (const filePath of files) {
         try {

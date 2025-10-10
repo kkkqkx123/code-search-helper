@@ -110,6 +110,7 @@ import { DatabaseHealthChecker } from './infrastructure/monitoring/DatabaseHealt
 
 // 图数据映射服务
 import { GraphDataMappingService } from './service/mapping/GraphDataMappingService';
+import { VectorIndexService } from './service/index/VectorIndexService';
 
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
@@ -153,6 +154,8 @@ export const TYPES = {
   // 索引同步服务
   IndexService: Symbol.for('IndexService'),
   IndexingLogicService: Symbol.for('IndexingLogicService'),
+  VectorIndexService: Symbol.for('VectorIndexService'),
+  GraphIndexService: Symbol.for('GraphIndexService'),
   // 项目状态管理服务
   ProjectStateManager: Symbol.for('ProjectStateManager'),
   // 性能优化器服务

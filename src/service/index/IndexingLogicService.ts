@@ -337,21 +337,32 @@ export class IndexingLogicService {
         fs.readFile(filePath, 'utf-8')
       ]);
 
-      // 存储到图数据库
-      let graphResult: { success: boolean; error?: string } = { success: false };
-      try {
-        const graphPersistenceResult = await this.storeFileToGraph(
-          projectPath,
+      // 检查NEBULA_ENABLED环境变量，如果禁用则跳过图数据库存储
+      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+      let graphResult: { success: boolean; error?: string } = { success: true }; // 默认为成功，因为图数据库可能被禁用
+
+      if (nebulaEnabled) {
+        // 存储到图数据库
+        try {
+          const graphPersistenceResult = await this.storeFileToGraph(
+            projectPath,
+            filePath,
+            fileContent,
+            [] // 传入空数组，因为我们已经在上面处理了图数据存储
+          );
+          graphResult = { success: graphPersistenceResult.success };
+        } catch (graphError) {
+          this.logger.error(`Failed to store to graph database for file: ${filePath}`, {
+            error: (graphError as Error).message
+          });
+          graphResult = { success: false, error: (graphError as Error).message };
+        }
+      } else {
+        // 如果Nebula被禁用，记录信息
+        this.logger.debug('Nebula graph database is disabled via NEBULA_ENABLED environment variable, skipping graph storage for file', {
           filePath,
-          fileContent,
-          [] // 传入空数组，因为我们已经在上面处理了图数据存储
-        );
-        graphResult = { success: graphPersistenceResult.success };
-      } catch (graphError) {
-        this.logger.error(`Failed to store to graph database for file: ${filePath}`, {
-          error: (graphError as Error).message
+          projectPath
         });
-        graphResult = { success: false, error: (graphError as Error).message };
       }
 
       // 检查数据一致性

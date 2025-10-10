@@ -4,7 +4,6 @@
  * 用于显示向量存储和图存储的状态
  */
 export class StorageStatusIndicator extends HTMLElement {
-  private shadowRoot: ShadowRoot;
   private vectorStatus: string = 'pending';
   private graphStatus: string = 'pending';
   private vectorProgress: number = 0;
@@ -12,7 +11,7 @@ export class StorageStatusIndicator extends HTMLElement {
 
   constructor() {
     super();
-    this.shadowRoot = this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: 'open' });
   }
 
   static get observedAttributes() {
@@ -44,7 +43,7 @@ export class StorageStatusIndicator extends HTMLElement {
   }
 
   private render() {
-    this.shadowRoot.innerHTML = `
+    this.shadowRoot!.innerHTML = `
       <style>
         .status-container {
           display: flex;

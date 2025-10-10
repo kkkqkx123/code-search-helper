@@ -46,6 +46,14 @@ export class GraphDataService implements IGraphDataService {
 
   async initialize(): Promise<boolean> {
     try {
+      // 检查NEBULA_ENABLED环境变量
+      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+      if (!nebulaEnabled) {
+        this.isInitialized = false;
+        this.logger.info('Graph data service is disabled via NEBULA_ENABLED environment variable, skipping initialization');
+        return false; // 返回false表示服务被禁用
+      }
+
       this.logger.info('Initializing graph data service');
 
       // Ensure the graph database is initialized

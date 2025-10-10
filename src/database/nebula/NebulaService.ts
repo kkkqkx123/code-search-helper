@@ -131,6 +131,24 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
    */
   async initialize(): Promise<boolean> {
     try {
+      // 检查NEBULA_ENABLED环境变量
+      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+      if (!nebulaEnabled) {
+        this.initialized = false;
+        this.reconnectAttempts = 0;
+        
+        // 使用 DatabaseLoggerService 记录服务被禁用事件
+        await this.databaseLogger.logDatabaseEvent({
+          type: DatabaseEventType.SERVICE_INITIALIZED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: { message: 'Nebula service is disabled via NEBULA_ENABLED environment variable, skipping initialization' }
+        });
+        
+        this.emitEvent('initialized', { timestamp: new Date(), disabled: true });
+        return false; // 返回false表示服务被禁用，不需要连接
+      }
+
       // 初始化基础服务
       const baseInitialized = await super.initialize();
       if (!baseInitialized) {
@@ -160,7 +178,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         this.emitEvent('error', new Error('Failed to connect to Nebula database, will continue without graph database'));
         // 重置重连尝试计数，避免无限重连
         this.reconnectAttempts = 0;
-        return false;  // 返回false表示初始化失败，但不会导致无限重连
+        return false; // 返回false表示初始化失败，但不会导致无限重连
       }
 
       // 不再在服务初始化时初始化schema，而是依赖于项目空间创建时初始化
@@ -189,7 +207,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       // 重置重连尝试计数，避免无限重连
       this.reconnectAttempts = 0;
-      return false;  // 返回false表示初始化失败，但不会导致无限重连
+      return false; // 返回false表示初始化失败，但不会导致无限重连
     }
   }
 
@@ -227,10 +245,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
-  }
-
-  isConnected(): boolean {
-    return this.connectionManager.isConnected();
   }
 
   async executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
