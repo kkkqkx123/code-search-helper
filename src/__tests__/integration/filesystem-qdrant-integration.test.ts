@@ -677,15 +677,49 @@ describe('Filesystem-Qdrant Integration', () => {
         return originalGet(key);
       });
 
+      // Create mock CoreStateService and StorageStateService for the new ProjectStateManager
+      const mockCoreStateService = {
+        createOrUpdateProjectState: jest.fn(),
+        getProjectState: jest.fn(),
+        getAllProjectStates: jest.fn(),
+        getProjectStateByPath: jest.fn(),
+        deleteProjectState: jest.fn(),
+        getProjectStats: jest.fn(),
+        updateProjectStatus: jest.fn(),
+        updateProjectIndexingProgress: jest.fn(),
+        updateProjectLastIndexed: jest.fn(),
+        updateProjectMetadata: jest.fn(),
+        refreshProjectState: jest.fn(),
+        refreshAllProjectStates: jest.fn(),
+        cleanupInvalidStates: jest.fn(),
+        updateProjectCollectionInfoWithRetry: jest.fn(),
+        indexService: indexService as any
+      } as any;
+
+      const mockStorageStateService = {
+        updateVectorStatus: jest.fn(),
+        updateGraphStatus: jest.fn(),
+        getVectorStatus: jest.fn(),
+        getGraphStatus: jest.fn(),
+        resetVectorStatus: jest.fn(),
+        resetGraphStatus: jest.fn(),
+        startVectorIndexing: jest.fn(),
+        startGraphIndexing: jest.fn(),
+        updateVectorIndexingProgress: jest.fn(),
+        updateGraphIndexingProgress: jest.fn(),
+        completeVectorIndexing: jest.fn(),
+        completeGraphIndexing: jest.fn(),
+        failVectorIndexing: jest.fn(),
+        failGraphIndexing: jest.fn()
+      } as any;
+
       // Simulate service restart by creating a new project state manager
       const newProjectStateManager = new ProjectStateManager(
         loggerService,
         errorHandlerService,
-        projectIdManager,
-        indexService,
-        qdrantService,
-        {} as any,  // Add the missing nebulaService parameter
-        configService  // Use the config service with the same storage path
+        configService,
+        mockCoreStateService,
+        mockStorageStateService
       );
 
       // Initialize the new manager to load persisted data

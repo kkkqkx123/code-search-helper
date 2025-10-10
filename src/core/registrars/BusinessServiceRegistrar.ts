@@ -11,6 +11,8 @@ import { ChangeDetectionService } from '../../service/filesystem/ChangeDetection
 import { IndexService } from '../../service/index/IndexService';
 import { IndexingLogicService } from '../../service/index/IndexingLogicService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
+import { CoreStateService } from '../../service/project/services/CoreStateService';
+import { StorageStateService } from '../../service/project/services/StorageStateService';
 
 // 新增的索引服务
 import { VectorIndexService } from '../../service/index/VectorIndexService';
@@ -61,6 +63,8 @@ export class BusinessServiceRegistrar {
       // 项目管理服务
       container.bind<IndexService>(TYPES.IndexService).to(IndexService).inSingletonScope();
       container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
+      container.bind<CoreStateService>(TYPES.CoreStateService).to(CoreStateService).inSingletonScope();
+      container.bind<StorageStateService>(TYPES.StorageStateService).to(StorageStateService).inSingletonScope();
       container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
       
       // 文件遍历服务

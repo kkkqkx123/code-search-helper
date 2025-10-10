@@ -27,6 +27,8 @@ import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoor
 import { IndexingLogicService } from '../../index/IndexingLogicService';
 import { ConcurrencyService } from '../../index/shared/ConcurrencyService';
 import { FileTraversalService } from '../../index/shared/FileTraversalService';
+import { CoreStateService } from '../services/CoreStateService';
+import { StorageStateService } from '../services/StorageStateService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -49,6 +51,8 @@ describe('ProjectStateManager', () => {
   let astSplitter: jest.Mocked<ASTCodeSplitter>;
   let coordinationService: jest.Mocked<ChunkToVectorCoordinationService>;
   let indexingLogicService: jest.Mocked<IndexingLogicService>;
+  let coreStateService: jest.Mocked<CoreStateService>;
+  let storageStateService: jest.Mocked<StorageStateService>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -268,15 +272,49 @@ describe('ProjectStateManager', () => {
       return {};
     });
 
+    // Create mock CoreStateService and StorageStateService
+    coreStateService = {
+      createOrUpdateProjectState: jest.fn(),
+      getProjectState: jest.fn(),
+      getAllProjectStates: jest.fn(),
+      getProjectStateByPath: jest.fn(),
+      deleteProjectState: jest.fn(),
+      getProjectStats: jest.fn(),
+      updateProjectStatus: jest.fn(),
+      updateProjectIndexingProgress: jest.fn(),
+      updateProjectLastIndexed: jest.fn(),
+      updateProjectMetadata: jest.fn(),
+      refreshProjectState: jest.fn(),
+      refreshAllProjectStates: jest.fn(),
+      cleanupInvalidStates: jest.fn(),
+      updateProjectCollectionInfoWithRetry: jest.fn(),
+      indexService: indexSyncService as any
+    } as any;
+
+    storageStateService = {
+      updateVectorStatus: jest.fn(),
+      updateGraphStatus: jest.fn(),
+      getVectorStatus: jest.fn(),
+      getGraphStatus: jest.fn(),
+      resetVectorStatus: jest.fn(),
+      resetGraphStatus: jest.fn(),
+      startVectorIndexing: jest.fn(),
+      startGraphIndexing: jest.fn(),
+      updateVectorIndexingProgress: jest.fn(),
+      updateGraphIndexingProgress: jest.fn(),
+      completeVectorIndexing: jest.fn(),
+      completeGraphIndexing: jest.fn(),
+      failVectorIndexing: jest.fn(),
+      failGraphIndexing: jest.fn()
+    } as any;
+
     // Create service instance
     projectStateManager = new ProjectStateManager(
       loggerService,
       errorHandlerService,
-      projectIdManager,
-      indexSyncService,
-      qdrantService,
-      {} as any,  // Add the missing nebulaService parameter
-      configService
+      configService,
+      coreStateService,
+      storageStateService
     );
   });
 

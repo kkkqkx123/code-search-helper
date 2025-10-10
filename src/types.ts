@@ -112,6 +112,10 @@ import { DatabaseHealthChecker } from './infrastructure/monitoring/DatabaseHealt
 import { GraphDataMappingService } from './service/mapping/GraphDataMappingService';
 import { VectorIndexService } from './service/index/VectorIndexService';
 
+// 项目状态管理服务
+import { CoreStateService } from './service/project/services/CoreStateService';
+import { StorageStateService } from './service/project/services/StorageStateService';
+
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
   ConfigFactory: Symbol.for('ConfigFactory'),
@@ -161,6 +165,8 @@ export const TYPES = {
   ConcurrencyService: Symbol.for('ConcurrencyService'),
   // 项目状态管理服务
   ProjectStateManager: Symbol.for('ProjectStateManager'),
+  CoreStateService: Symbol.for('CoreStateService'),
+  StorageStateService: Symbol.for('StorageStateService'),
   // 性能优化器服务
   PerformanceOptimizerService: Symbol.for('PerformanceOptimizerService'),
   // 嵌入器服务
