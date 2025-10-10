@@ -67,27 +67,32 @@ export class PerformanceMetricsCollector {
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     options?: Partial<MetricsCollectionOptions>
   ) {
-    this.logger = logger;
-    this.dashboard = dashboard;
-    this.transactionLogger = transactionLogger;
-    this.cache = cache;
-    
-    this.options = {
-      enableAutoCollection: true,
-      collectionInterval: 5000,
-      maxMetricsToStore: 10000,
-      ...options
-    };
+    try {
+      this.logger = logger;
+      this.dashboard = dashboard;
+      this.transactionLogger = transactionLogger;
+      this.cache = cache;
+      
+      this.options = {
+        enableAutoCollection: true,
+        collectionInterval: 5000,
+        maxMetricsToStore: 10000,
+        ...options
+      };
 
-    // 注册默认收集规则
-    this.defaultRules.forEach(rule => {
-      this.collectionRules.set(rule.metricName, rule);
-    });
+      // 注册默认收集规则
+      this.defaultRules.forEach(rule => {
+        this.collectionRules.set(rule.metricName, rule);
+      });
 
-    this.logger.info('PerformanceMetricsCollector initialized', { options: this.options });
+      this.logger.info('PerformanceMetricsCollector initialized', { options: this.options });
 
-    if (this.options.enableAutoCollection) {
-      this.startAutoCollection();
+      if (this.options.enableAutoCollection) {
+        this.startAutoCollection();
+      }
+    } catch (error) {
+      logger.error('Failed to initialize PerformanceMetricsCollector', { error: (error as Error).message, stack: (error as Error).stack });
+      throw error;
     }
  }
 

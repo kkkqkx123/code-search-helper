@@ -28,6 +28,14 @@ process.on('uncaughtException', (error) => {
   if (error && typeof error === 'object' && 'kind' in error) {
     console.error('Error kind:', (error as any).kind);
   }
+  // 尝试获取更多错误信息
+  if (error && typeof error === 'object') {
+    Object.getOwnPropertyNames(error).forEach(key => {
+      if (!['name', 'message', 'stack', 'kind'].includes(key)) {
+        console.error(`Error ${key}:`, (error as any)[key]);
+      }
+    });
+  }
   process.exit(1);
 });
 
@@ -36,6 +44,14 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Reason:', reason);
   if (reason && typeof reason === 'object' && 'kind' in reason) {
     console.error('Reason kind:', (reason as any).kind);
+  }
+  // 尝试获取更多原因信息
+  if (reason && typeof reason === 'object') {
+    Object.getOwnPropertyNames(reason).forEach(key => {
+      if (!['name', 'message', 'stack', 'kind'].includes(key)) {
+        console.error(`Reason ${key}:`, (reason as any)[key]);
+      }
+    });
   }
   process.exit(1);
 });

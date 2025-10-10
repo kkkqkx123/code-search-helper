@@ -32,15 +32,20 @@ export class TransactionLogger {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @unmanaged() options?: TransactionLogOptions
   ) {
-    this.logger = logger;
-    this.options = {
-      maxEntries: 10000,
-      retentionPeriod: 24 * 60 * 60 * 1000, // 24小时
-      enableFileLogging: false,
-      ...options
-    };
-    
-    this.logger.info('TransactionLogger initialized', { options: this.options });
+    try {
+      this.logger = logger;
+      this.options = {
+        maxEntries: 10000,
+        retentionPeriod: 24 * 60 * 60 * 1000, // 24小时
+        enableFileLogging: false,
+        ...options
+      };
+      
+      this.logger.info('TransactionLogger initialized', { options: this.options });
+    } catch (error) {
+      logger.error('Failed to initialize TransactionLogger', { error: (error as Error).message, stack: (error as Error).stack });
+      throw error;
+    }
   }
 
   /**

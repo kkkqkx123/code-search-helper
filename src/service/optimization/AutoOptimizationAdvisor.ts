@@ -48,38 +48,43 @@ export class AutoOptimizationAdvisor {
   private checkInterval: NodeJS.Timeout | null = null;
 
  constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.PerformanceDashboard) dashboard: PerformanceDashboard,
-    @inject(TYPES.PerformanceMetricsCollector) metricsCollector: PerformanceMetricsCollector,
-    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
-    @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
-    options?: Partial<AdvisorOptions>
-  ) {
-    this.logger = logger;
-    this.dashboard = dashboard;
-    this.metricsCollector = metricsCollector;
-    this.batchOptimizer = batchOptimizer;
-    this.cache = cache;
+   @inject(TYPES.LoggerService) logger: LoggerService,
+   @inject(TYPES.PerformanceDashboard) dashboard: PerformanceDashboard,
+   @inject(TYPES.PerformanceMetricsCollector) metricsCollector: PerformanceMetricsCollector,
+   @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
+   @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
+   options?: Partial<AdvisorOptions>
+ ) {
+   try {
+     this.logger = logger;
+     this.dashboard = dashboard;
+     this.metricsCollector = metricsCollector;
+     this.batchOptimizer = batchOptimizer;
+     this.cache = cache;
 
-    this.options = {
-      minConfidence: 0.7,
-      checkInterval: 300000, // 5分钟
-      maxRecommendations: 50,
-      enableAutoApply: false,
-      ...options
-    };
+     this.options = {
+       minConfidence: 0.7,
+       checkInterval: 300000, // 5分钟
+       maxRecommendations: 50,
+       enableAutoApply: false,
+       ...options
+     };
 
-    this.logger.info('AutoOptimizationAdvisor initialized', { options: this.options });
+     this.logger.info('AutoOptimizationAdvisor initialized', { options: this.options });
 
-    // 在测试环境中不启动定期分析
-    const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-    if (!isTestEnv) {
-      // 开始定期分析
-      this.startAnalysis();
-    } else {
-      this.logger.info('AutoOptimizationAdvisor running in test mode - periodic analysis disabled');
-    }
-  }
+     // 在测试环境中不启动定期分析
+     const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+     if (!isTestEnv) {
+       // 开始定期分析
+       this.startAnalysis();
+     } else {
+       this.logger.info('AutoOptimizationAdvisor running in test mode - periodic analysis disabled');
+     }
+   } catch (error) {
+     logger.error('Failed to initialize AutoOptimizationAdvisor', { error: (error as Error).message, stack: (error as Error).stack });
+     throw error;
+   }
+ }
 
   /**
    * 开始定期分析

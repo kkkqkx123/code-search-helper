@@ -82,43 +82,48 @@ export class PerformanceDashboard {
     @inject(TYPES.TransactionLogger) transactionLogger: TransactionLogger,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache
   ) {
-    this.logger = logger;
-    this.transactionLogger = transactionLogger;
-    this.cache = cache;
+    try {
+      this.logger = logger;
+      this.transactionLogger = transactionLogger;
+      this.cache = cache;
 
-    // 初始化仪表板统计
-    this.dashboardStats = {
-      qdrant: {
-        operationsPerSecond: 0,
-        averageResponseTime: 0,
-        errorRate: 0,
-        memoryUsage: 0
-      },
-      graph: {
-        operationsPerSecond: 0,
-        averageResponseTime: 0,
-        errorRate: 0,
-        nodeCount: 0,
-        relationshipCount: 0
-      },
-      cache: {
-        hitRate: 0,
-        evictionsPerSecond: 0,
-        memoryUsage: 0
-      },
-      transaction: {
-        successRate: 0,
-        averageDuration: 0,
-        activeTransactions: 0
-      },
-      system: {
-        cpuUsage: 0,
-        memoryUsage: 0,
-        diskUsage: 0
-      }
-    };
+      // 初始化仪表板统计
+      this.dashboardStats = {
+        qdrant: {
+          operationsPerSecond: 0,
+          averageResponseTime: 0,
+          errorRate: 0,
+          memoryUsage: 0
+        },
+        graph: {
+          operationsPerSecond: 0,
+          averageResponseTime: 0,
+          errorRate: 0,
+          nodeCount: 0,
+          relationshipCount: 0
+        },
+        cache: {
+          hitRate: 0,
+          evictionsPerSecond: 0,
+          memoryUsage: 0
+        },
+        transaction: {
+          successRate: 0,
+          averageDuration: 0,
+          activeTransactions: 0
+        },
+        system: {
+          cpuUsage: 0,
+          memoryUsage: 0,
+          diskUsage: 0
+        }
+      };
 
-    this.logger.info('PerformanceDashboard initialized');
+      this.logger.info('PerformanceDashboard initialized');
+    } catch (error) {
+      logger.error('Failed to initialize PerformanceDashboard', { error: (error as Error).message, stack: (error as Error).stack });
+      throw error;
+    }
   }
 
   /**

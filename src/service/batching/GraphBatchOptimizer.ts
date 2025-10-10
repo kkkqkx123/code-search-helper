@@ -47,19 +47,24 @@ export class GraphBatchOptimizer {
     @inject(TYPES.LoggerService) logger: LoggerService,
     config?: Partial<BatchOptimizerConfig>
   ) {
-    this.logger = logger;
-    this.config = {
-      defaultBatchSize: 50,
-      maxBatchSize: 500,
-      minBatchSize: 10,
-      maxConcurrentBatches: 5,
-      timeout: 30000,
-      performanceThreshold: 1000,
-      adjustmentFactor: 0.1,
-      ...config
-    };
-    
-    this.logger.info('GraphBatchOptimizer initialized', { config: this.config });
+    try {
+      this.logger = logger;
+      this.config = {
+        defaultBatchSize: 50,
+        maxBatchSize: 500,
+        minBatchSize: 10,
+        maxConcurrentBatches: 5,
+        timeout: 30000,
+        performanceThreshold: 1000,
+        adjustmentFactor: 0.1,
+        ...config
+      };
+      
+      this.logger.info('GraphBatchOptimizer initialized', { config: this.config });
+    } catch (error) {
+      logger.error('Failed to initialize GraphBatchOptimizer', { error: (error as Error).message, stack: (error as Error).stack });
+      throw error;
+    }
   }
 
   /**

@@ -36,12 +36,17 @@ export class GraphMappingCache {
   private memoryUsage: number = 0;
 
   constructor(@inject(TYPES.LoggerService) logger: LoggerService) {
-    this.logger = logger;
-    this.logger.info('GraphMappingCache initialized', {
-      defaultTTL: this.defaultTTL,
-      maxEntries: this.maxEntries,
-      maxMemory: this.maxMemory
-    });
+    try {
+      this.logger = logger;
+      this.logger.info('GraphMappingCache initialized', {
+        defaultTTL: this.defaultTTL,
+        maxEntries: this.maxEntries,
+        maxMemory: this.maxMemory
+      });
+    } catch (error) {
+      logger.error('Failed to initialize GraphMappingCache', { error: (error as Error).message, stack: (error as Error).stack });
+      throw error;
+    }
   }
 
   /**
