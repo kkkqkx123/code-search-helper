@@ -93,6 +93,10 @@ export class BusinessServiceRegistrar {
 
     // 内存监控服务
     container.bind<MemoryMonitorService>(TYPES.MemoryMonitorService).to(MemoryMonitorService).inSingletonScope();
+    
+    // MemoryGuard 参数
+    container.bind<number>(TYPES.MemoryLimitMB).toConstantValue(500);
+    container.bind<number>(TYPES.MemoryCheckIntervalMs).toConstantValue(5000);
 
   }
 }

@@ -36,7 +36,7 @@ export class ProcessingGuard {
     
     // 如果没有提供依赖，创建默认实例
     this.errorThresholdManager = errorThresholdManager || new ErrorThresholdManager(logger);
-    this.memoryGuard = memoryGuard || new MemoryGuard(500, 5000, logger);
+    this.memoryGuard = memoryGuard || new MemoryGuard(500, 5000, logger || new LoggerService());
     this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
     this.extensionlessFileProcessor = extensionlessFileProcessor || new ExtensionlessFileProcessor(logger);
     this.universalTextSplitter = universalTextSplitter || new UniversalTextSplitter(logger);

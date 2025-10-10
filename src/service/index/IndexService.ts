@@ -665,4 +665,34 @@ constructor(
       }
     }
   }
+
+  /**
+   * 销毁IndexService实例，清理所有资源
+   */
+  async destroy(): Promise<void> {
+    // 停止所有正在进行的索引任务
+    for (const [projectId, status] of this.indexingProjects.entries()) {
+      if (status.isIndexing) {
+        await this.stopIndexing(projectId);
+      }
+    }
+
+    // 清理文件监听器
+    try {
+      this.fileWatcherService.stopWatching();
+    } catch (error) {
+      this.logger.warn(`Failed to stop file watcher: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // 清理变更检测服务
+    try {
+      if (this.changeDetectionService.isServiceRunning()) {
+        await this.changeDetectionService.stop();
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to stop change detection service: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    this.logger.info('IndexService destroyed');
+  }
 }

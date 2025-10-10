@@ -71,8 +71,14 @@ export class AutoOptimizationAdvisor {
 
     this.logger.info('AutoOptimizationAdvisor initialized', { options: this.options });
 
-    // 开始定期分析
-    this.startAnalysis();
+    // 在测试环境中不启动定期分析
+    const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+    if (!isTestEnv) {
+      // 开始定期分析
+      this.startAnalysis();
+    } else {
+      this.logger.info('AutoOptimizationAdvisor running in test mode - periodic analysis disabled');
+    }
   }
 
   /**

@@ -286,6 +286,11 @@ describe('IndexService', () => {
 
   // 在所有测试完成后清理资源
   afterAll(async () => {
+    // 销毁IndexService实例
+    if (indexService && typeof (indexService as any).destroy === 'function') {
+      await (indexService as any).destroy();
+    }
+    
     // 清理所有mock的定时器和异步操作
     jest.clearAllTimers();
     jest.clearAllMocks();

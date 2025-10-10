@@ -298,4 +298,8 @@ export const TYPES = {
   BackupFileProcessor: Symbol.for('BackupFileProcessor'),
   ExtensionlessFileProcessor: Symbol.for('ExtensionlessFileProcessor'),
   ProcessingGuard: Symbol.for('ProcessingGuard'),
+  
+  // MemoryGuard 参数
+  MemoryLimitMB: Symbol.for('MemoryLimitMB'),
+  MemoryCheckIntervalMs: Symbol.for('MemoryCheckIntervalMs'),
 };

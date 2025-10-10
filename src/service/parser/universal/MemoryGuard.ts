@@ -1,5 +1,6 @@
-import { injectable } from 'inversify';
+import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
+import { TYPES } from '../../../types';
 
 /**
  * 内存监控和保护机制
@@ -16,9 +17,9 @@ export class MemoryGuard {
   private maxHistorySize: number = 100;
 
   constructor(
-    memoryLimitMB: number = 500,
-    checkIntervalMs: number = 5000,
-    logger?: LoggerService
+    @inject(TYPES.MemoryLimitMB) memoryLimitMB: number = 500,
+    @inject(TYPES.MemoryCheckIntervalMs) checkIntervalMs: number = 5000,
+    @inject(TYPES.LoggerService) logger: LoggerService
   ) {
     this.memoryLimit = memoryLimitMB * 1024 * 1024; // 转换为字节
     this.checkInterval = checkIntervalMs;
@@ -86,10 +87,10 @@ export class MemoryGuard {
       // 如果内存使用过高，记录警告
       if (!isWithinLimit) {
         this.logger?.warn(`Memory usage exceeds limit: ${this.formatBytes(heapUsed)} > ${this.formatBytes(this.memoryLimit)} (${usagePercent.toFixed(1)}%)`);
-        
+
         // 触发清理
         this.forceCleanup();
-        
+
         // 如果仍然超过限制，触发降级处理
         if (this.checkMemoryUsage().heapUsed > this.memoryLimit) {
           this.logger?.warn('Memory still exceeds limit after cleanup, triggering graceful degradation');
@@ -126,16 +127,16 @@ export class MemoryGuard {
   forceCleanup(): void {
     try {
       this.logger?.info('Performing forced memory cleanup...');
-      
+
       // 清理TreeSitter缓存
       this.cleanupTreeSitterCache();
-      
+
       // 清理其他缓存
       this.cleanupOtherCaches();
-      
+
       // 强制垃圾回收
       this.forceGarbageCollection();
-      
+
       // 记录清理后的内存使用情况
       const afterCleanup = this.checkMemoryUsage();
       this.logger?.info(`Memory cleanup completed. Current usage: ${this.formatBytes(afterCleanup.heapUsed)} (${afterCleanup.usagePercent.toFixed(1)}%)`);
@@ -149,7 +150,7 @@ export class MemoryGuard {
    */
   gracefulDegradation(): void {
     this.logger?.warn('Initiating graceful degradation due to memory pressure...');
-    
+
     // 这里可以触发降级处理的回调或事件
     // 实际实现中可能需要与错误阈值管理器协调
     if (typeof process !== 'undefined' && process.emit) {
@@ -159,7 +160,7 @@ export class MemoryGuard {
         limit: this.memoryLimit
       });
     }
-    
+
     // 强制垃圾回收
     this.forceGarbageCollection();
   }
