@@ -3,7 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { GraphBatchOptimizer } from '../batching/GraphBatchOptimizer';
 import { PerformanceDashboard, PerformanceMetric } from '../monitoring/PerformanceDashboard';
-import { PerformanceMetricsCollector } from '../metrics/PerformanceMetricsCollector';
+import { PerformanceMetricsCollector } from '../monitoring/PerformanceMetricsCollector';
 
 export interface BatchOptimizationConfig {
   minBatchSize: number;
@@ -39,7 +39,7 @@ export interface OptimizationRecommendation {
   impact: 'low' | 'medium' | 'high';
   reason: string;
   expectedImprovement: number; // percentage improvement
- timestamp: number;
+  timestamp: number;
 }
 
 @injectable()
@@ -66,7 +66,7 @@ export class BatchProcessingOptimizer {
     this.batchOptimizer = batchOptimizer;
     this.dashboard = dashboard;
     this.metricsCollector = metricsCollector;
-    
+
     this.config = {
       minBatchSize: 10,
       maxBatchSize: 500,
@@ -101,8 +101,8 @@ export class BatchProcessingOptimizer {
       return;
     }
 
-    this.logger.info('Starting batch processing auto tuning', { 
-      interval: this.config.tuningInterval 
+    this.logger.info('Starting batch processing auto tuning', {
+      interval: this.config.tuningInterval
     });
 
     this.tuningInterval = setInterval(async () => {
@@ -119,7 +119,7 @@ export class BatchProcessingOptimizer {
       this.tuningInterval = null;
       this.logger.info('Stopped batch processing auto tuning');
     }
- }
+  }
 
   /**
    * 执行自动调优
@@ -191,7 +191,7 @@ export class BatchProcessingOptimizer {
     throughput: number;
   }> {
     const startTime = Date.now();
-    
+
     // 根据目标和策略调整参数
     const { batchSize, concurrency } = this.calculateOptimalParams(
       items.length,
@@ -367,7 +367,7 @@ export class BatchProcessingOptimizer {
   /**
    * 计算最优参数
    */
- private calculateOptimalParams(
+  private calculateOptimalParams(
     itemCount: number,
     targetThroughput?: number,
     maxLatency?: number,
@@ -453,12 +453,12 @@ export class BatchProcessingOptimizer {
   private cleanupHistoricalData(): void {
     const cutoffTime = Date.now() - this.config.metricsRetentionPeriod;
     this.performanceHistory = this.performanceHistory.filter(m => m.timestamp > cutoffTime);
-    
+
     // 限制历史记录数量以避免内存问题
     if (this.performanceHistory.length > 1000) {
       this.performanceHistory = this.performanceHistory.slice(-500); // 保留最近500条记录
     }
- }
+  }
 
   /**
    * 获取性能历史
@@ -502,7 +502,7 @@ export class BatchProcessingOptimizer {
       batchSize: this.currentBatchSize,
       concurrency: this.currentConcurrency
     });
- }
+  }
 
   /**
    * 获取性能摘要
@@ -515,7 +515,7 @@ export class BatchProcessingOptimizer {
     recommendations: OptimizationRecommendation[];
   }> {
     const analysis = this.analyzePerformanceHistory();
-    
+
     return {
       currentParams: this.getCurrentParams(),
       avgProcessingTime: analysis.avgProcessingTime,
@@ -533,7 +533,7 @@ export class BatchProcessingOptimizer {
     this.optimizationRecommendations = [];
     this.currentBatchSize = this.config.defaultBatchSize;
     this.currentConcurrency = this.config.defaultConcurrency;
-    
+
     this.logger.info('BatchProcessingOptimizer reset to defaults');
   }
 

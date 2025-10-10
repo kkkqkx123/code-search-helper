@@ -1,13 +1,13 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { 
-  GraphNode, 
-  GraphRelationship, 
-  GraphNodeType, 
+import {
+  GraphNode,
+  GraphRelationship,
+  GraphNodeType,
   GraphRelationshipType,
   FileAnalysisResult
-} from '../mapping/IGraphDataMappingService';
+} from './IGraphDataMappingService';
 import { CodeChunk } from '../parser/splitting/Splitter';
 
 export interface MappingRule {
@@ -24,7 +24,7 @@ export interface MappingRuleContext {
   fileContent: string;
   analysisResult: FileAnalysisResult;
   nodes: GraphNode[];
- relationships: GraphRelationship[];
+  relationships: GraphRelationship[];
   language: string;
   additionalData?: any;
 }
@@ -78,19 +78,19 @@ export class MappingRuleEngine {
       this.rules.splice(insertIndex, 0, rule);
     }
 
-    this.logger.debug('Registered mapping rule', { 
-      ruleId: rule.id, 
-      ruleName: rule.name, 
-      priority: rule.priority 
+    this.logger.debug('Registered mapping rule', {
+      ruleId: rule.id,
+      ruleName: rule.name,
+      priority: rule.priority
     });
- }
+  }
 
   /**
    * 执行映射规则
    */
-  async executeRules(context: MappingRuleContext): Promise<{ 
-    nodes: GraphNode[]; 
-    relationships: GraphRelationship[]; 
+  async executeRules(context: MappingRuleContext): Promise<{
+    nodes: GraphNode[];
+    relationships: GraphRelationship[];
   }> {
     // 检查缓存
     if (this.options.enableCaching) {
@@ -107,9 +107,9 @@ export class MappingRuleEngine {
       }
     }
 
-    this.logger.debug('Executing mapping rules', { 
-      filePath: context.filePath, 
-      ruleCount: this.rules.length 
+    this.logger.debug('Executing mapping rules', {
+      filePath: context.filePath,
+      ruleCount: this.rules.length
     });
 
     // 创建上下文副本以避免修改原始数据
@@ -123,18 +123,18 @@ export class MappingRuleEngine {
     for (const rule of this.rules) {
       try {
         if (rule.condition(executionContext)) {
-          this.logger.debug('Executing rule', { 
-            ruleId: rule.id, 
-            ruleName: rule.name 
+          this.logger.debug('Executing rule', {
+            ruleId: rule.id,
+            ruleName: rule.name
           });
-          
+
           rule.action(executionContext);
         }
       } catch (error) {
-        this.logger.error('Error executing rule', { 
-          ruleId: rule.id, 
-          ruleName: rule.name, 
-          error: (error as Error).message 
+        this.logger.error('Error executing rule', {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          error: (error as Error).message
         });
       }
     }
@@ -149,8 +149,8 @@ export class MappingRuleEngine {
       this.cleanupExpiredCache();
     }
 
-    this.logger.debug('Rule execution completed', { 
-      filePath: context.filePath, 
+    this.logger.debug('Rule execution completed', {
+      filePath: context.filePath,
       nodeCount: executionContext.nodes.length,
       relationshipCount: executionContext.relationships.length
     });
@@ -159,7 +159,7 @@ export class MappingRuleEngine {
       nodes: executionContext.nodes,
       relationships: executionContext.relationships
     };
- }
+  }
 
   /**
    * 批量执行规则
@@ -177,9 +177,9 @@ export class MappingRuleEngine {
     return results;
   }
 
- /**
-   * 获取所有注册的规则
-   */
+  /**
+    * 获取所有注册的规则
+    */
   getRules(): MappingRule[] {
     return [...this.rules];
   }
@@ -219,8 +219,8 @@ export class MappingRuleEngine {
       action: (context: MappingRuleContext) => {
         // 检查是否已存在文件节点
         const existingFileNode = context.nodes.find(
-          node => node.type === GraphNodeType.FILE && 
-                 node.properties.path === context.filePath
+          node => node.type === GraphNodeType.FILE &&
+            node.properties.path === context.filePath
         );
 
         if (!existingFileNode) {
@@ -250,17 +250,17 @@ export class MappingRuleEngine {
       condition: (context: MappingRuleContext) => context.analysisResult.functions.length > 0,
       action: (context: MappingRuleContext) => {
         const fileNode = context.nodes.find(
-          node => node.type === GraphNodeType.FILE && 
-                 node.properties.path === context.filePath
+          node => node.type === GraphNodeType.FILE &&
+            node.properties.path === context.filePath
         );
 
         if (fileNode) {
           for (const func of context.analysisResult.functions) {
             // 检查是否已存在函数节点
             const existingFuncNode = context.nodes.find(
-              node => node.type === GraphNodeType.FUNCTION && 
-                     node.properties.name === func.name &&
-                     node.properties.startLine === func.startLine
+              node => node.type === GraphNodeType.FUNCTION &&
+                node.properties.name === func.name &&
+                node.properties.startLine === func.startLine
             );
 
             if (!existingFuncNode) {
@@ -299,16 +299,16 @@ export class MappingRuleEngine {
       condition: (context: MappingRuleContext) => context.analysisResult.classes.length > 0,
       action: (context: MappingRuleContext) => {
         const fileNode = context.nodes.find(
-          node => node.type === GraphNodeType.FILE && 
-                 node.properties.path === context.filePath
+          node => node.type === GraphNodeType.FILE &&
+            node.properties.path === context.filePath
         );
 
         if (fileNode) {
           for (const cls of context.analysisResult.classes) {
             // 检查是否已存在类节点
             const existingClassNode = context.nodes.find(
-              node => node.type === GraphNodeType.CLASS && 
-                     node.properties.name === cls.name
+              node => node.type === GraphNodeType.CLASS &&
+                node.properties.name === cls.name
             );
 
             if (!existingClassNode) {

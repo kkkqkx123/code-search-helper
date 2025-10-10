@@ -97,7 +97,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       const spaceName = this.projectIdManager.getSpaceName(projectId);
       if (!spaceName) {
-        throw new Error(`Failed to generate space name for project: ${projectPath}`);
+        this.errorHandler.handleError(
+          new Error(`Failed to generate space name for project: ${projectPath}`),
+          { component: 'NebulaProjectManager', operation: 'createSpaceForProject', details: { projectPath, projectId } }
+        );
+        return false;
       }
 
       const success = await this.spaceManager.createSpace(projectId, config);
@@ -167,7 +171,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       const spaceName = this.projectIdManager.getSpaceName(projectId);
       if (!spaceName) {
-        throw new Error(`Space name not found for project: ${projectPath}`);
+        this.errorHandler.handleError(
+          new Error(`Space name not found for project: ${projectPath}`),
+          { component: 'NebulaProjectManager', operation: 'deleteSpaceForProject', details: { projectPath, projectId } }
+        );
+        return false;
       }
 
       const success = await this.spaceManager.deleteSpace(projectId);
@@ -288,7 +296,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       const spaceName = this.projectIdManager.getSpaceName(projectId);
       if (!spaceName) {
-        throw new Error(`Space name not found for project: ${projectPath}`);
+        this.errorHandler.handleError(
+          new Error(`Space name not found for project: ${projectPath}`),
+          { component: 'NebulaProjectManager', operation: 'clearSpaceForProject', details: { projectPath, projectId } }
+        );
+        return false;
       }
 
       const success = await this.spaceManager.clearSpace(projectId);
@@ -409,7 +421,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       const spaceName = this.projectIdManager.getSpaceName(projectId);
       if (!spaceName) {
-        throw new Error(`Space name not found for project: ${projectPath}`);
+        this.errorHandler.handleError(
+          new Error(`Space name not found for project: ${projectPath}`),
+          { component: 'NebulaProjectManager', operation: 'insertNodesForProject', details: { projectPath, projectId } }
+        );
+        return false;
       }
 
       const success = await this.dataOperations.insertNodes(projectId, spaceName, nodes);
@@ -479,7 +495,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       const spaceName = this.projectIdManager.getSpaceName(projectId);
       if (!spaceName) {
-        throw new Error(`Space name not found for project: ${projectPath}`);
+        this.errorHandler.handleError(
+          new Error(`Space name not found for project: ${projectPath}`),
+          { component: 'NebulaProjectManager', operation: 'insertRelationshipsForProject', details: { projectPath, projectId } }
+        );
+        return false;
       }
 
       const success = await this.dataOperations.insertRelationships(projectId, spaceName, relationships);
@@ -541,7 +561,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       const spaceName = this.projectIdManager.getSpaceName(projectId);
       if (!spaceName) {
-        throw new Error(`Space name not found for project: ${projectPath}`);
+        this.errorHandler.handleError(
+          new Error(`Space name not found for project: ${projectPath}`),
+          { component: 'NebulaProjectManager', operation: 'findNodesForProject', details: { projectPath, projectId } }
+        );
+        return [];
       }
 
       const result = await this.dataOperations.findNodesByLabel(projectId, spaceName, label, filter);
@@ -604,7 +628,11 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       const spaceName = this.projectIdManager.getSpaceName(projectId);
       if (!spaceName) {
-        throw new Error(`Space name not found for project: ${projectPath}`);
+        this.errorHandler.handleError(
+          new Error(`Space name not found for project: ${projectPath}`),
+          { component: 'NebulaProjectManager', operation: 'findRelationshipsForProject', details: { projectPath, projectId } }
+        );
+        return [];
       }
 
       const result = await this.dataOperations.findRelationshipsByType(projectId, spaceName, type, filter);
@@ -627,10 +655,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
         throw error;
       }
 
-      // 检查是否是测试中的特定错误
-      if (error instanceof Error && error.message === 'Search failed') {
-        throw error; // 这是测试代码中预设的错误，直接抛出
-      }
+      // 移除特定的错误检查，让所有错误都通过统一的错误处理流程
 
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),

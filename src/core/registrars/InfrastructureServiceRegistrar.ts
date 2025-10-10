@@ -13,7 +13,7 @@ import { AdvancedMappingService as SemanticRelationshipExtractor } from '../../s
 
 // 性能监控服务
 import { PerformanceDashboard } from '../../service/monitoring/PerformanceDashboard';
-import { PerformanceMetricsCollector } from '../../service/metrics/PerformanceMetricsCollector';
+import { PerformanceMetricsCollector } from '../../service/monitoring/PerformanceMetricsCollector';
 import { TransactionLogger } from '../../service/transaction/TransactionLogger';
 import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
@@ -32,31 +32,31 @@ export class InfrastructureServiceRegistrar {
       // 基础设施服务
       container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
       container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
-      
+
       // 图服务基础设施
       container.bind<GraphCacheService>(TYPES.GraphCacheService).to(GraphCacheService).inSingletonScope();
       container.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
       container.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
-      
+
       // 高级映射服务
       container.bind<SemanticRelationshipExtractor>(TYPES.AdvancedMappingService).to(SemanticRelationshipExtractor).inSingletonScope();
       container.bind<GraphMappingCache>(TYPES.GraphMappingCache).to(GraphMappingCache).inSingletonScope();
-      
+
       // 性能监控和优化服务
       console.log('Binding PerformanceDashboard...');
       container.bind<PerformanceDashboard>(TYPES.PerformanceDashboard).to(PerformanceDashboard).inSingletonScope();
       console.log('PerformanceDashboard bound');
-      
+
       console.log('Binding TransactionLogger...');
       container.bind<TransactionLogger>(TYPES.TransactionLogger).to(TransactionLogger).inSingletonScope();
       console.log('TransactionLogger bound');
-      
+
       console.log('Attempting to bind PerformanceMetricsCollector...');
       try {
         // Disable auto-collection in test environment to prevent open handles
         const isTestEnvironment = process.env.NODE_ENV === 'test';
         const options = isTestEnvironment ? { enableAutoCollection: false } : {};
-        
+
         container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).toConstantValue(
           new PerformanceMetricsCollector(
             container.get<LoggerService>(TYPES.LoggerService),
@@ -107,11 +107,11 @@ export class InfrastructureServiceRegistrar {
         throw error;
       }
       // container.bind<BatchProcessingOptimizer>(TYPES.BatchProcessingOptimizer).to(BatchProcessingOptimizer).inSingletonScope();
-      
+
       // 基础设施配置服务
       container.bind<InfrastructureConfigService>(TYPES.InfrastructureConfigService)
         .to(InfrastructureConfigService).inSingletonScope();
-      
+
       // 向量批处理优化器
       container.bind<VectorBatchOptimizer>(TYPES.VectorBatchOptimizer)
         .to(VectorBatchOptimizer).inSingletonScope();

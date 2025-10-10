@@ -2,7 +2,7 @@ import { Container } from 'inversify';
 import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
 import { TreeSitterCoreService } from '../core/parse/TreeSitterCoreService';
-import { PerformanceMetricsCollector } from '../../metrics/PerformanceMetricsCollector';
+import { PerformanceMetricsCollector } from '../../monitoring/PerformanceMetricsCollector';
 import { AutoOptimizationAdvisor } from '../../optimization/AutoOptimizationAdvisor';
 
 describe('TreeSitterCoreService', () => {
@@ -23,7 +23,7 @@ describe('TreeSitterCoreService', () => {
     if (metricsCollector && typeof metricsCollector.stopAutoCollection === 'function') {
       metricsCollector.stopAutoCollection();
     }
-    
+
     // 停止自动优化分析，避免测试完成后仍有异步操作运行
     if (optimizationAdvisor && typeof optimizationAdvisor.stopAnalysis === 'function') {
       optimizationAdvisor.stopAnalysis();
@@ -38,7 +38,7 @@ describe('TreeSitterCoreService', () => {
     it('should support multiple languages', () => {
       const supportedLanguages = treeSitterService.getSupportedLanguages();
       expect(supportedLanguages.length).toBeGreaterThan(0);
-      
+
       // Check that common languages are supported
       const languageNames = supportedLanguages.map(lang => lang.name);
       expect(languageNames).toContain('TypeScript');
@@ -54,7 +54,7 @@ describe('TreeSitterCoreService', () => {
           return "Hello, " + name;
         }
       `;
-      
+
       const result = await treeSitterService.parseCode(code, 'typescript');
       expect(result.success).toBe(true);
       expect(result.ast).toBeDefined();
@@ -67,7 +67,7 @@ describe('TreeSitterCoreService', () => {
           return "Hello, " + name;
         }
       `;
-      
+
       const result = await treeSitterService.parseCode(code, 'javascript');
       expect(result.success).toBe(true);
       expect(result.ast).toBeDefined();
@@ -79,7 +79,7 @@ describe('TreeSitterCoreService', () => {
         def hello(name):
             return "Hello, " + name
       `;
-      
+
       const result = await treeSitterService.parseCode(code, 'python');
       expect(result.success).toBe(true);
       expect(result.ast).toBeDefined();
@@ -105,10 +105,10 @@ describe('TreeSitterCoreService', () => {
           return a * b;
         };
       `;
-      
+
       const result = await treeSitterService.parseCode(code, 'typescript');
       expect(result.success).toBe(true);
-      
+
       const functions = treeSitterService.extractFunctions(result.ast);
       expect(functions.length).toBe(2);
     });
@@ -125,10 +125,10 @@ describe('TreeSitterCoreService', () => {
           }
         }
       `;
-      
+
       const result = await treeSitterService.parseCode(code, 'typescript');
       expect(result.success).toBe(true);
-      
+
       const classes = treeSitterService.extractClasses(result.ast);
       expect(classes.length).toBe(1);
     });

@@ -2,7 +2,7 @@ import { injectable, inject, unmanaged } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { PerformanceDashboard } from '../monitoring/PerformanceDashboard';
-import { PerformanceMetricsCollector } from '../metrics/PerformanceMetricsCollector';
+import { PerformanceMetricsCollector } from '../monitoring/PerformanceMetricsCollector';
 import { GraphBatchOptimizer } from '../batching/GraphBatchOptimizer';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { CacheStats } from '../caching/GraphMappingCache';
@@ -47,44 +47,44 @@ export class AutoOptimizationAdvisor {
   private history: OptimizationHistory[] = [];
   private checkInterval: NodeJS.Timeout | null = null;
 
- constructor(
-   @inject(TYPES.LoggerService) logger: LoggerService,
-   @inject(TYPES.PerformanceDashboard) dashboard: PerformanceDashboard,
-   @inject(TYPES.PerformanceMetricsCollector) metricsCollector: PerformanceMetricsCollector,
-   @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
-   @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
-   options?: Partial<AdvisorOptions>
- ) {
-   try {
-     this.logger = logger;
-     this.dashboard = dashboard;
-     this.metricsCollector = metricsCollector;
-     this.batchOptimizer = batchOptimizer;
-     this.cache = cache;
+  constructor(
+    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.PerformanceDashboard) dashboard: PerformanceDashboard,
+    @inject(TYPES.PerformanceMetricsCollector) metricsCollector: PerformanceMetricsCollector,
+    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
+    @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
+    options?: Partial<AdvisorOptions>
+  ) {
+    try {
+      this.logger = logger;
+      this.dashboard = dashboard;
+      this.metricsCollector = metricsCollector;
+      this.batchOptimizer = batchOptimizer;
+      this.cache = cache;
 
-     this.options = {
-       minConfidence: 0.7,
-       checkInterval: 300000, // 5分钟
-       maxRecommendations: 50,
-       enableAutoApply: false,
-       ...options
-     };
+      this.options = {
+        minConfidence: 0.7,
+        checkInterval: 300000, // 5分钟
+        maxRecommendations: 50,
+        enableAutoApply: false,
+        ...options
+      };
 
-     this.logger.info('AutoOptimizationAdvisor initialized', { options: this.options });
+      this.logger.info('AutoOptimizationAdvisor initialized', { options: this.options });
 
-     // 在测试环境中不启动定期分析
-     const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-     if (!isTestEnv) {
-       // 开始定期分析
-       this.startAnalysis();
-     } else {
-       this.logger.info('AutoOptimizationAdvisor running in test mode - periodic analysis disabled');
-     }
-   } catch (error) {
-     logger.error('Failed to initialize AutoOptimizationAdvisor', { error: (error as Error).message, stack: (error as Error).stack });
-     throw error;
-   }
- }
+      // 在测试环境中不启动定期分析
+      const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+      if (!isTestEnv) {
+        // 开始定期分析
+        this.startAnalysis();
+      } else {
+        this.logger.info('AutoOptimizationAdvisor running in test mode - periodic analysis disabled');
+      }
+    } catch (error) {
+      logger.error('Failed to initialize AutoOptimizationAdvisor', { error: (error as Error).message, stack: (error as Error).stack });
+      throw error;
+    }
+  }
 
   /**
    * 开始定期分析
@@ -95,8 +95,8 @@ export class AutoOptimizationAdvisor {
       return;
     }
 
-    this.logger.info('Starting auto optimization analysis', { 
-      interval: this.options.checkInterval 
+    this.logger.info('Starting auto optimization analysis', {
+      interval: this.options.checkInterval
     });
 
     this.checkInterval = setInterval(async () => {
@@ -113,7 +113,7 @@ export class AutoOptimizationAdvisor {
       this.checkInterval = null;
       this.logger.info('Stopped auto optimization analysis');
     }
- }
+  }
 
   /**
    * 分析性能并生成推荐
@@ -153,7 +153,7 @@ export class AutoOptimizationAdvisor {
       this.recommendations = this.recommendations.slice(-this.options.maxRecommendations);
     }
 
-    this.logger.info('Optimization analysis completed', { 
+    this.logger.info('Optimization analysis completed', {
       newRecommendations: filteredRecommendations.length,
       totalRecommendations: this.recommendations.length
     });
@@ -187,9 +187,9 @@ export class AutoOptimizationAdvisor {
     });
   }
 
- /**
-   * 应用推荐
-   */
+  /**
+    * 应用推荐
+    */
   async applyRecommendation(recommendationId: string): Promise<boolean> {
     const recommendation = this.recommendations.find(rec => rec.id === recommendationId);
     if (!recommendation) {
@@ -225,17 +225,17 @@ export class AutoOptimizationAdvisor {
 
       return applied;
     } catch (error) {
-      this.logger.error('Error applying recommendation', { 
-        recommendationId, 
-        error: (error as Error).message 
+      this.logger.error('Error applying recommendation', {
+        recommendationId,
+        error: (error as Error).message
       });
       return false;
     }
   }
 
- /**
-   * 分析缓存性能
-   */
+  /**
+    * 分析缓存性能
+    */
   private async analyzeCachePerformance(): Promise<OptimizationRecommendation[]> {
     const recommendations: OptimizationRecommendation[] = [];
     const cacheStats = await this.cache.getStats();
@@ -371,19 +371,19 @@ export class AutoOptimizationAdvisor {
     // 实际应用缓存优化的逻辑
     // 这里只是示例，实际实现会根据推荐内容调整缓存配置
     this.logger.debug('Applying cache optimization', { recommendationId: rec.id });
-    
+
     // 例如：调整缓存大小或TTL
     return true;
   }
 
- /**
-   * 应用批处理推荐
-   */
+  /**
+    * 应用批处理推荐
+    */
   private async applyBatchingRecommendation(rec: OptimizationRecommendation): Promise<boolean> {
     // 实际应用批处理优化的逻辑
     // 这里只是示例，实际实现会根据推荐内容调整批处理参数
     this.logger.debug('Applying batching optimization', { recommendationId: rec.id });
-    
+
     // 例如：调整批大小或并发数
     return true;
   }

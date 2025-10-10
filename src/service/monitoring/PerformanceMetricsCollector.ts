@@ -1,7 +1,7 @@
 import { injectable, inject, unmanaged } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { PerformanceDashboard, PerformanceMetric } from '../monitoring/PerformanceDashboard';
+import { PerformanceDashboard, PerformanceMetric } from './PerformanceDashboard';
 import { TransactionLogger } from '../transaction/TransactionLogger';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 
@@ -27,7 +27,7 @@ export class PerformanceMetricsCollector {
   private options: MetricsCollectionOptions;
   private collectionRules: Map<string, CollectionRule> = new Map();
   private collectionInterval: NodeJS.Timeout | null = null;
- private readonly defaultRules: CollectionRule[] = [
+  private readonly defaultRules: CollectionRule[] = [
     {
       metricName: 'system.cpu_usage',
       interval: 5000,
@@ -75,7 +75,7 @@ export class PerformanceMetricsCollector {
       this.dashboard = dashboard;
       this.transactionLogger = transactionLogger;
       this.cache = cache;
-      
+
       this.options = {
         enableAutoCollection: true,
         collectionInterval: 5000,
@@ -89,7 +89,7 @@ export class PerformanceMetricsCollector {
       });
 
       this.logger.info('PerformanceMetricsCollector initialized', { options: this.options });
-  
+
       if (this.options.enableAutoCollection) {
         // 延迟启动自动收集，以避免在系统刚启动时没有足够数据就发出警报
         setTimeout(() => {
@@ -100,7 +100,7 @@ export class PerformanceMetricsCollector {
       logger.error('Failed to initialize PerformanceMetricsCollector', { error: (error as Error).message, stack: (error as Error).stack });
       throw error;
     }
- }
+  }
 
   /**
    * 开始自动收集指标
@@ -111,8 +111,8 @@ export class PerformanceMetricsCollector {
       return;
     }
 
-    this.logger.info('Starting auto metrics collection', { 
-      interval: this.options.collectionInterval 
+    this.logger.info('Starting auto metrics collection', {
+      interval: this.options.collectionInterval
     });
 
     this.collectionInterval = setInterval(async () => {
@@ -139,9 +139,9 @@ export class PerformanceMetricsCollector {
     this.logger.debug('Registered collection rule', { metricName: rule.metricName });
   }
 
- /**
-   * 启用指标收集规则
-   */
+  /**
+    * 启用指标收集规则
+    */
   enableCollectionRule(metricName: string): boolean {
     const rule = this.collectionRules.get(metricName);
     if (rule) {
@@ -185,9 +185,9 @@ export class PerformanceMetricsCollector {
 
         await this.dashboard.recordMetric(metric);
       } catch (error) {
-        this.logger.error('Error collecting metric', { 
-          metricName: rule.metricName, 
-          error: (error as Error).message 
+        this.logger.error('Error collecting metric', {
+          metricName: rule.metricName,
+          error: (error as Error).message
         });
       }
     }
@@ -214,9 +214,9 @@ export class PerformanceMetricsCollector {
       await this.dashboard.recordMetric(metric);
       return true;
     } catch (error) {
-      this.logger.error('Error collecting manual metric', { 
-        metricName, 
-        error: (error as Error).message 
+      this.logger.error('Error collecting manual metric', {
+        metricName,
+        error: (error as Error).message
       });
       return false;
     }
@@ -278,8 +278,8 @@ export class PerformanceMetricsCollector {
    */
   private async getTransactionSuccessRate(): Promise<number> {
     const stats = await this.transactionLogger.getStats();
-    return stats.totalEntries > 0 
-      ? (stats.committedCount + stats.rolledBackCount) / stats.totalEntries 
+    return stats.totalEntries > 0
+      ? (stats.committedCount + stats.rolledBackCount) / stats.totalEntries
       : 1;
   }
 
@@ -307,9 +307,9 @@ export class PerformanceMetricsCollector {
     return await this.transactionLogger.getStats();
   }
 
- /**
-   * 获取指标统计摘要
-   */
+  /**
+    * 获取指标统计摘要
+    */
   async getMetricsSummary(): Promise<{
     totalMetrics: number;
     metricsByType: { [key: string]: number };
