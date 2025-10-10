@@ -210,6 +210,3 @@ export class StorageStatusIndicator extends HTMLElement {
     };
   }
 }
-
-// 注册自定义元素
-customElements.define('storage-status-indicator', StorageStatusIndicator);

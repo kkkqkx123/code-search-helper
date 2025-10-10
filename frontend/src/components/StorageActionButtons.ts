@@ -215,6 +215,3 @@ export class StorageActionButtons extends HTMLElement {
     };
   }
 }
-
-// 注册自定义元素
-customElements.define('storage-action-buttons', StorageActionButtons);

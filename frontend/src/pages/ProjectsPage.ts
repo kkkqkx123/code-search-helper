@@ -171,8 +171,8 @@ export class ProjectsPage {
         });
 
         // 为存储操作按钮添加事件监听器
-        container.querySelectorAll('storage-action-buttons').forEach((element: HTMLElement) => {
-            element.addEventListener('storage-action', async (e: any) => {
+        container.querySelectorAll('storage-action-buttons').forEach((element: Element) => {
+            (element as HTMLElement).addEventListener('storage-action', async (e: any) => {
                 const { projectId, action } = e.detail;
                 if (action === 'index-vectors') {
                     await this.indexVectors(projectId);
@@ -217,21 +217,6 @@ export class ProjectsPage {
         }
     }
 
-    /**
-     * 获取状态颜色
-     */
-    private getStatusColor(status: string): string {
-        switch (status) {
-            case 'indexing':
-                return '#f59e0b'; // amber
-            case 'completed':
-                return '#10b981'; // green
-            case 'failed':
-                return '#ef4444'; // red
-            default:
-                return '#6b7280'; // gray
-        }
-    }
 
     /**
      * 重新索引项目

@@ -3,14 +3,14 @@
  * 提供批量向量和图存储操作功能
  */
 export class BatchOperationsPanel extends HTMLElement {
-  private shadowRoot: ShadowRoot;
+  private _shadowRoot: ShadowRoot;
   private selectedProjects: Set<string> = new Set();
   private apiClient: any; // Will be set from outside
   private onBatchOperationComplete?: (operation: string, result: any) => void;
 
   constructor() {
     super();
-    this.shadowRoot = this.attachShadow({ mode: 'open' });
+    this._shadowRoot = this.attachShadow({ mode: 'open' });
   }
 
  connectedCallback() {
@@ -19,7 +19,7 @@ export class BatchOperationsPanel extends HTMLElement {
   }
 
   private render() {
-    this.shadowRoot.innerHTML = `
+    this._shadowRoot.innerHTML = `
       <style>
         .batch-operations {
           padding: 16px;
@@ -199,16 +199,16 @@ export class BatchOperationsPanel extends HTMLElement {
     });
 
     // 选择控制按钮
-    this.shadowRoot.getElementById('select-all')?.addEventListener('click', () => {
+    this._shadowRoot.getElementById('select-all')?.addEventListener('click', () => {
       this.selectAllProjects();
     });
 
-    this.shadowRoot.getElementById('clear-selection')?.addEventListener('click', () => {
+    this._shadowRoot.getElementById('clear-selection')?.addEventListener('click', () => {
       this.clearSelection();
     });
 
     // 批量操作按钮
-    this.shadowRoot.getElementById('batch-index-vectors')?.addEventListener('click', async () => {
+    this._shadowRoot.getElementById('batch-index-vectors')?.addEventListener('click', async () => {
       if (this.selectedProjects.size === 0) {
         alert('请先选择项目');
         return;
@@ -216,7 +216,7 @@ export class BatchOperationsPanel extends HTMLElement {
       await this.executeBatchOperation('batch-index-vectors');
     });
 
-    this.shadowRoot.getElementById('batch-index-graph')?.addEventListener('click', async () => {
+    this._shadowRoot.getElementById('batch-index-graph')?.addEventListener('click', async () => {
       if (this.selectedProjects.size === 0) {
         alert('请先选择项目');
         return;
@@ -225,7 +225,7 @@ export class BatchOperationsPanel extends HTMLElement {
     });
 
     // 取消批量操作
-    this.shadowRoot.getElementById('cancel-batch')?.addEventListener('click', () => {
+    this._shadowRoot.getElementById('cancel-batch')?.addEventListener('click', () => {
       this.hideProgressOverlay();
     });
   }
@@ -268,7 +268,7 @@ export class BatchOperationsPanel extends HTMLElement {
    * 更新选择计数
    */
   private updateSelectionCount() {
-    const countElement = this.shadowRoot.getElementById('selected-count');
+    const countElement = this._shadowRoot.getElementById('selected-count');
     if (countElement) {
       countElement.textContent = this.selectedProjects.size.toString();
     }
@@ -318,7 +318,7 @@ export class BatchOperationsPanel extends HTMLElement {
    * 显示进度覆盖层
    */
   private showProgressOverlay() {
-    const overlay = this.shadowRoot.getElementById('progress-overlay');
+    const overlay = this._shadowRoot.getElementById('progress-overlay');
     if (overlay) {
       overlay.style.display = 'flex';
     }
@@ -328,7 +328,7 @@ export class BatchOperationsPanel extends HTMLElement {
    * 隐藏进度覆盖层
    */
   private hideProgressOverlay() {
-    const overlay = this.shadowRoot.getElementById('progress-overlay');
+    const overlay = this._shadowRoot.getElementById('progress-overlay');
     if (overlay) {
       overlay.style.display = 'none';
     }
@@ -363,6 +363,3 @@ export class BatchOperationsPanel extends HTMLElement {
     this.updateSelectionCount();
   }
 }
-
-// 注册自定义元素
-customElements.define('batch-operations-panel', BatchOperationsPanel);

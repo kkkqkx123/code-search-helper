@@ -6,10 +6,8 @@ import cytoscape from 'cytoscape';
  */
 export class GraphVisualizer {
   private cy: cytoscape.Core;
-  private container: HTMLElement;
   
   constructor(container: HTMLElement) {
-    this.container = container;
     this.cy = cytoscape({
       container: container,
       style: [
