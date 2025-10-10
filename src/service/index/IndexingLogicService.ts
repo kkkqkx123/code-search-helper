@@ -14,6 +14,7 @@ import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 import { ASTCodeSplitter } from '../parser/splitting/ASTCodeSplitter';
 import { CodeChunk } from '../parser/splitting/Splitter';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
+import { ConcurrencyService } from './shared/ConcurrencyService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { IndexSyncOptions, BatchProcessingResult } from './IndexService';
@@ -56,6 +57,7 @@ export class IndexingLogicService {
   @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer!: PerformanceOptimizerService;
   @inject(TYPES.ASTCodeSplitter) private astSplitter!: ASTCodeSplitter;
   @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService!: ChunkToVectorCoordinationService;
+  @inject(TYPES.ConcurrencyService) private concurrencyService!: ConcurrencyService;
 
   /**
    * 索引项目
@@ -125,7 +127,7 @@ export class IndexingLogicService {
           });
 
           // 限制并发数
-          await this.processWithConcurrency(promises, maxConcurrency);
+          await this.concurrencyService.processWithConcurrency(promises, maxConcurrency);
 
           // 调用进度回调
           if (onProgress) {
@@ -525,42 +527,9 @@ export class IndexingLogicService {
   }
 
   /**
-   * 存储未完成的定时器引用，以便在测试结束时清理
-   */
-  private pendingTimers: NodeJS.Immediate[] = [];
-
-  /**
-   * 并发处理任务
-   */
-  private async processWithConcurrency<T>(promises: Promise<T>[], maxConcurrency: number): Promise<void> {
-    const results: Promise<T>[] = [];
-    const executing: Set<Promise<T>> = new Set();
-
-    for (const promise of promises) {
-      if (executing.size >= maxConcurrency) {
-        await Promise.race(executing);
-      }
-
-      const p = promise.then(result => {
-        executing.delete(p);
-        return result;
-      });
-
-      executing.add(p);
-      results.push(p);
-    }
-
-    await Promise.all(results);
-  }
-
-  /**
    * 清理未完成的定时器和immediate对象
    */
   async cleanup(): Promise<void> {
-    for (const immediate of this.pendingTimers) {
-      clearImmediate(immediate);
-    }
-    this.pendingTimers = [];
     // 强制垃圾回收
     if (global.gc) {
       global.gc();

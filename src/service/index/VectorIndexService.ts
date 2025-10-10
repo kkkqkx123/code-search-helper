@@ -7,6 +7,8 @@ import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { IndexService } from './IndexService';
+import { FileTraversalService } from './shared/FileTraversalService';
+import { ConcurrencyService } from './shared/ConcurrencyService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -40,7 +42,9 @@ export class VectorIndexService {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-    @inject(TYPES.IndexService) private indexService: IndexService
+    @inject(TYPES.IndexService) private indexService: IndexService,
+    @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
+    @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService
   ) {}
 
   /**
@@ -59,7 +63,7 @@ export class VectorIndexService {
       }
 
       // 获取项目文件列表
-      const files = await this.getProjectFiles(projectPath);
+      const files = await this.fileTraversalService.getProjectFiles(projectPath);
       const totalFiles = files.length;
 
       if (totalFiles === 0) {
@@ -200,47 +204,6 @@ export class VectorIndexService {
         error: error instanceof Error ? error.message : String(error)
       };
     }
-  }
-
-  /**
-   * 获取项目文件列表
-   */
-  private async getProjectFiles(projectPath: string): Promise<string[]> {
-    const files: string[] = [];
-    
-    try {
-      const entries = await fs.readdir(projectPath, { withFileTypes: true });
-      
-      for (const entry of entries) {
-        const fullPath = path.join(projectPath, entry.name);
-        
-        if (entry.isFile() && this.isCodeFile(entry.name)) {
-          files.push(fullPath);
-        } else if (entry.isDirectory() && !entry.name.startsWith('.')) {
-          // 递归获取子目录文件
-          const subFiles = await this.getProjectFiles(fullPath);
-          files.push(...subFiles);
-        }
-      }
-    } catch (error) {
-      this.logger.warn(`Failed to read project directory: ${projectPath}`, { error });
-    }
-
-    return files;
-  }
-
-  /**
-   * 检查是否为代码文件
-   */
-  private isCodeFile(filename: string): boolean {
-    const codeExtensions = [
-      '.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.cpp', '.c', '.h',
-      '.go', '.rs', '.rb', '.php', '.cs', '.swift', '.kt', '.scala',
-      '.html', '.css', '.scss', '.less', '.json', '.xml', '.yaml', '.yml'
-    ];
-    
-    const ext = path.extname(filename).toLowerCase();
-    return codeExtensions.includes(ext);
   }
 
   /**

@@ -25,6 +25,8 @@ import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerSe
 import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
 import { IndexingLogicService } from '../IndexingLogicService';
+import { FileTraversalService } from '../shared/FileTraversalService';
+import { ConcurrencyService } from '../shared/ConcurrencyService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -252,10 +254,20 @@ describe('IndexService', () => {
     } as unknown as jest.Mocked<IndexingLogicService>;
 
     // Create service instance
+    // Create mock file traversal service
+    const mockFileTraversalService = {
+      getProjectFiles: jest.fn(),
+      isCodeFile: jest.fn(),
+    } as unknown as jest.Mocked<FileTraversalService>;
+    
+    // Create mock concurrency service
+    const mockConcurrencyService = {
+      processWithConcurrency: jest.fn(),
+    } as unknown as jest.Mocked<ConcurrencyService>;
+    
     indexService = new IndexService(
       loggerService,
       errorHandlerService,
-      fileSystemTraversal,
       fileWatcherService,
       changeDetectionService,
       qdrantService,
@@ -267,6 +279,8 @@ describe('IndexService', () => {
       astSplitter,
       coordinationService,
       indexingLogicService,
+      mockFileTraversalService, // Add the missing fileTraversalService parameter
+      mockConcurrencyService, // Add the missing concurrencyService parameter
     );
   });
 

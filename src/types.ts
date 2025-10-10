@@ -156,6 +156,9 @@ export const TYPES = {
   IndexingLogicService: Symbol.for('IndexingLogicService'),
   VectorIndexService: Symbol.for('VectorIndexService'),
   GraphIndexService: Symbol.for('GraphIndexService'),
+  StorageCoordinatorService: Symbol.for('StorageCoordinatorService'),
+  FileTraversalService: Symbol.for('FileTraversalService'),
+  ConcurrencyService: Symbol.for('ConcurrencyService'),
   // 项目状态管理服务
   ProjectStateManager: Symbol.for('ProjectStateManager'),
   // 性能优化器服务

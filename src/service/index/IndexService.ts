@@ -2,7 +2,6 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { FileSystemTraversal, FileInfo } from '../filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../filesystem/ChangeDetectionService';
 import { QdrantService } from '../../database/qdrant/QdrantService';
@@ -18,6 +17,8 @@ import { CodeChunk } from '../parser/splitting/Splitter';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
 import { IndexingLogicService } from './IndexingLogicService';
 import { NebulaService, INebulaService } from '../../database/nebula/NebulaService';
+import { FileTraversalService } from './shared/FileTraversalService';
+import { ConcurrencyService } from './shared/ConcurrencyService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -117,26 +118,26 @@ export class IndexService {
   private indexingQueue: Array<{ projectPath: string; options?: IndexSyncOptions }> = [];
   private isProcessingQueue: boolean = false;
   private projectEmbedders: Map<string, string> = new Map(); // 存储项目对应的embedder
-
-  constructor(
-    @inject(TYPES.LoggerService) private logger: LoggerService,
-    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-    @inject(TYPES.FileSystemTraversal) private fileSystemTraversal: FileSystemTraversal,
-    @inject(TYPES.FileWatcherService) private fileWatcherService: FileWatcherService,
-    @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
-    @inject(TYPES.QdrantService) private qdrantService: QdrantService,
-    @inject(TYPES.INebulaService) private nebulaService: INebulaService,
-    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-    @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
-    @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
-    @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
-    @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService,
-    @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService
-  ) {
-    // 设置文件变化监听器
-    this.setupFileChangeListeners();
-  }
+constructor(
+  @inject(TYPES.LoggerService) private logger: LoggerService,
+  @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
+  @inject(TYPES.FileWatcherService) private fileWatcherService: FileWatcherService,
+  @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
+  @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+  @inject(TYPES.INebulaService) private nebulaService: INebulaService,
+  @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
+  @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
+  @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
+  @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
+  @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
+  @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService,
+  @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService,
+  @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
+  @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService
+) {
+  // 设置文件变化监听器
+  this.setupFileChangeListeners();
+}
 
   /**
    * 设置文件变化监听器
@@ -334,15 +335,11 @@ export class IndexService {
       this.logger.debug(`[DEBUG] Starting file traversal for project: ${projectId}`, { projectPath });
 
       // 获取项目中的所有文件
-      const traversalResult = await this.performanceOptimizer.executeWithRetry(
-        () => this.fileSystemTraversal.traverseDirectory(projectPath, {
-          includePatterns: options?.includePatterns,
-          excludePatterns: options?.excludePatterns
-        }),
-        'traverseDirectory'
-      );
+      const files = await this.fileTraversalService.getProjectFiles(projectPath, {
+        includePatterns: options?.includePatterns,
+        excludePatterns: options?.excludePatterns
+      });
 
-      const files = traversalResult.files;
       status.totalFiles = files.length;
       this.logger.info(`Found ${files.length} files to index in project: ${projectId}`);
 
@@ -390,14 +387,14 @@ export class IndexService {
             const startTime = Date.now();
             try {
               await this.performanceOptimizer.executeWithRetry(
-                () => this.indexFile(projectPath, file.path),
-                `indexFile:${file.path}`
+                () => this.indexFile(projectPath, file),
+                `indexFile:${file}`
               );
               status.indexedFiles++;
 
               // 记录成功结果
               results.push({
-                filePath: file.path,
+                filePath: file,
                 success: true,
                 processingTime: Date.now() - startTime,
                 error: undefined
@@ -405,11 +402,11 @@ export class IndexService {
             } catch (error) {
               status.failedFiles++;
               const errorMessage = error instanceof Error ? error.message : String(error);
-              this.logger.error(`Failed to index file: ${file.path}`, { error });
+              this.logger.error(`Failed to index file: ${file}`, { error });
 
               // 如果是内存相关错误，记录额外信息
               if (error instanceof Error && error.message.includes('memory')) {
-                this.logger.warn(`Memory-related error while indexing file: ${file.path}`, {
+                this.logger.warn(`Memory-related error while indexing file: ${file}`, {
                   memoryUsage: process.memoryUsage(),
                   error: error.message
                 });
@@ -417,7 +414,7 @@ export class IndexService {
 
               // 记录失败结果
               results.push({
-                filePath: file.path,
+                filePath: file,
                 success: false,
                 error: errorMessage,
                 processingTime: Date.now() - startTime
@@ -426,8 +423,7 @@ export class IndexService {
           });
 
           // 限制并发数
-          await this.processWithConcurrency(promises, maxConcurrency);
-
+          await this.concurrencyService.processWithConcurrency(promises, maxConcurrency);
           // 批次完成后的内存清理
           const memoryAfterBatch = process.memoryUsage();
           if (memoryAfterBatch.heapUsed / memoryAfterBatch.heapTotal > 0.75) {
@@ -536,29 +532,6 @@ export class IndexService {
   }
 
 
-  /**
-   * 并发处理任务
-   */
-  private async processWithConcurrency<T>(promises: Promise<T>[], maxConcurrency: number): Promise<void> {
-    const results: Promise<T>[] = [];
-    const executing: Set<Promise<T>> = new Set();
-
-    for (const promise of promises) {
-      if (executing.size >= maxConcurrency) {
-        await Promise.race(executing);
-      }
-
-      const p = promise.then(result => {
-        executing.delete(p);
-        return result;
-      });
-
-      executing.add(p);
-      results.push(p);
-    }
-
-    await Promise.all(results);
-  }
 
   /**
    * 获取索引状态

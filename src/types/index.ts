@@ -60,4 +60,11 @@ export const TYPES = {
   VectorIndexService: Symbol.for('VectorIndexService'),
   GraphIndexService: Symbol.for('GraphIndexService'),
   StorageCoordinatorService: Symbol.for('StorageCoordinatorService'),
+  
+  // 共享服务
+  FileTraversalService: Symbol.for('FileTraversalService'),
+  ConcurrencyService: Symbol.for('ConcurrencyService'),
+  
+  // 适配器服务
+  IndexAdapterService: Symbol.for('IndexAdapterService'),
 };
