@@ -28,7 +28,7 @@ export interface DashboardStats {
     relationshipCount: number;
   };
   cache: {
-    hitRate: number;
+    hitRate: number | null;
     evictionsPerSecond: number;
     memoryUsage: number;
   };
@@ -76,6 +76,10 @@ export class PerformanceDashboard {
     'cache.hit_rate': 0.8,        // 80%
     'transaction.error_rate': 0.05 // 5%
   };
+  
+  private readonly MIN_STATISTICALLY_SIGNIFICANT_ACCESSES = 10; // 最少10次访问才认为统计显著
+  private readonly ALERT_CONSECUTIVE_THRESHOLD = 3; // 连续3次低于阈值才触发
+  private recentCacheHitRateMetrics: PerformanceMetric[] = [];
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -103,7 +107,7 @@ export class PerformanceDashboard {
           relationshipCount: 0
         },
         cache: {
-          hitRate: 0,
+          hitRate: null,
           evictionsPerSecond: 0,
           memoryUsage: 0
         },
@@ -298,13 +302,14 @@ export class PerformanceDashboard {
     }
 
     // 实现聚合逻辑（这里简化处理）
+    // 实现聚合逻辑（这里简化处理）
     return filteredMetrics.map(m => ({
       timestamp: m.timestamp,
       value: m.value as number
     }));
   }
 
- /**
+  /**
    * 检查警报条件
    */
   private async checkAlerts(metric: PerformanceMetric): Promise<void> {
@@ -317,28 +322,61 @@ export class PerformanceDashboard {
       let shouldAlert = false;
       let severity: Alert['severity'] = 'medium';
 
-      if (metric.metricName.includes('response_time')) {
+      if (metric.metricName === 'cache.hit_rate') {
+        // 特殊处理缓存命中率：检查统计数据是否充足
+        const cacheStats = await this.cache.getStats();
+        if (!cacheStats.hasSufficientData) {
+          this.logger.debug('Skipping cache hit rate alert - insufficient data', {
+            totalAccesses: cacheStats.hits + cacheStats.misses,
+            requiredAccesses: this.MIN_STATISTICALLY_SIGNIFICANT_ACCESSES
+          });
+          return;
+        }
+
+        // 检查连续低于阈值的次数
+        this.recentCacheHitRateMetrics.push(metric);
+        this.recentCacheHitRateMetrics = this.recentCacheHitRateMetrics
+          .filter(m => Date.now() - m.timestamp < 300000); // 保留最近5分钟的数据
+
+        // 只有当连续多次低于阈值时才触发警报
+        const lowHitRateCount = this.recentCacheHitRateMetrics.filter(
+          m => m.metricName === 'cache.hit_rate' && typeof m.value === 'number' && m.value < threshold
+        ).length;
+
+        if (lowHitRateCount >= this.ALERT_CONSECUTIVE_THRESHOLD) {
+          shouldAlert = true;
+          // 基于命中率与阈值的差距调整严重程度
+          if (metric.value < threshold * 0.5) severity = 'critical';
+          else if (metric.value < threshold * 0.75) severity = 'high';
+        }
+      } else if (metric.metricName.includes('response_time')) {
         // 响应时间：超过阈值则警报
         shouldAlert = metric.value > threshold;
         if (metric.value > threshold * 2) severity = 'high';
         if (metric.value > threshold * 3) severity = 'critical';
-      } else if (metric.metricName.includes('error_rate') || metric.metricName.includes('hit_rate')) {
-        // 错误率或命中率：根据阈值方向判断
-        if (metric.metricName.includes('hit_rate')) {
-          shouldAlert = metric.value < threshold; // 命中率低于阈值
-        } else {
-          shouldAlert = metric.value > threshold; // 错误率高于阈值
-        }
+      } else if (metric.metricName.includes('error_rate')) {
+        // 错误率：高于阈值则警报
+        shouldAlert = metric.value > threshold;
         if (metric.value > threshold * 1.5) severity = 'high';
         if (metric.value > threshold * 2) severity = 'critical';
       }
 
       if (shouldAlert) {
+        let message: string;
+        if (metric.metricName === 'cache.hit_rate') {
+          message = `Metric ${metric.metricName} exceeded threshold: ${metric.value} < ${threshold} (连续低于阈值警报)`;
+        } else if (metric.metricName.includes('response_time') || metric.metricName.includes('error_rate')) {
+          message = `Metric ${metric.metricName} exceeded threshold: ${metric.value} > ${threshold}`;
+        } else {
+          // 通用消息
+          message = `Metric ${metric.metricName} exceeded threshold: ${metric.value} > ${threshold}`;
+        }
+
         const alert: Alert = {
           id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           timestamp: Date.now(),
           severity,
-          message: `Metric ${metric.metricName} exceeded threshold: ${metric.value} > ${threshold}`,
+          message,
           metricName: metric.metricName,
           currentValue: metric.value,
           threshold
@@ -354,7 +392,6 @@ export class PerformanceDashboard {
       }
     }
   }
-
   /**
    * 获取系统健康状态
    */
@@ -391,12 +428,17 @@ export class PerformanceDashboard {
     }
 
     let cacheStatus: 'healthy' | 'degraded' | 'critical' = 'healthy';
-    if (stats.cache.hitRate < 0.7) {
-      cacheStatus = 'critical';
-      issues.push(`Cache hit rate low: ${stats.cache.hitRate}`);
-    } else if (stats.cache.hitRate < 0.85) {
-      cacheStatus = 'degraded';
-      issues.push(`Cache hit rate suboptimal: ${stats.cache.hitRate}`);
+    if (stats.cache.hitRate !== null) {
+      if (stats.cache.hitRate < 0.7) {
+        cacheStatus = 'critical';
+        issues.push(`Cache hit rate low: ${stats.cache.hitRate}`);
+      } else if (stats.cache.hitRate < 0.85) {
+        cacheStatus = 'degraded';
+        issues.push(`Cache hit rate suboptimal: ${stats.cache.hitRate}`);
+      }
+    } else {
+      // 当命中率不可用时，不触发警报
+      this.logger.debug('Cache hit rate not available for health check');
     }
 
     let transactionStatus: 'healthy' | 'degraded' | 'critical' = 'healthy';

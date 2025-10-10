@@ -11,13 +11,14 @@ export interface CacheEntry<T> {
 }
 
 export interface CacheStats {
-  hits: number;
+ hits: number;
   misses: number;
   evictions: number;
   sets: number;
   size: number;
   memoryUsage: number;
-  hitRate: number;
+  hitRate: number | null;
+  hasSufficientData: boolean;
 }
 
 @injectable()
@@ -239,7 +240,9 @@ export class GraphMappingCache {
    */
   async getStats(): Promise<CacheStats> {
     const totalAccesses = this.stats.hits + this.stats.misses;
-    const hitRate = totalAccesses > 0 ? this.stats.hits / totalAccesses : 0;
+    const MIN_STATISTICALLY_SIGNIFICANT_ACCESSES = 10; // 最少10次访问才认为统计显著
+    const hasSufficientData = totalAccesses >= MIN_STATISTICALLY_SIGNIFICANT_ACCESSES;
+    const hitRate = hasSufficientData ? this.stats.hits / totalAccesses : null;
 
     return {
       hits: this.stats.hits,
@@ -248,7 +251,8 @@ export class GraphMappingCache {
       sets: this.stats.sets,
       size: this.cache.size,
       memoryUsage: this.memoryUsage,
-      hitRate
+      hitRate,
+      hasSufficientData
     };
   }
 

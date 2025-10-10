@@ -43,7 +43,10 @@ export class PerformanceMetricsCollector {
     {
       metricName: 'cache.hit_rate',
       interval: 10000,
-      collector: async () => (await this.cache.getStats()).hitRate,
+      collector: async () => {
+        const stats = await this.cache.getStats();
+        return stats.hitRate !== null ? stats.hitRate : 0; // 当没有足够数据时返回0
+      },
       enabled: true
     },
     {
@@ -86,9 +89,12 @@ export class PerformanceMetricsCollector {
       });
 
       this.logger.info('PerformanceMetricsCollector initialized', { options: this.options });
-
+  
       if (this.options.enableAutoCollection) {
-        this.startAutoCollection();
+        // 延迟启动自动收集，以避免在系统刚启动时没有足够数据就发出警报
+        setTimeout(() => {
+          this.startAutoCollection();
+        }, 30000); // 30秒后开始收集
       }
     } catch (error) {
       logger.error('Failed to initialize PerformanceMetricsCollector', { error: (error as Error).message, stack: (error as Error).stack });
@@ -281,7 +287,7 @@ export class PerformanceMetricsCollector {
    * 获取缓存统计信息
    */
   async getCacheStats(): Promise<{
-    hitRate: number;
+    hitRate: number | null;
     size: number;
     memoryUsage: number;
   }> {
