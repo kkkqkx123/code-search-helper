@@ -25,6 +25,8 @@ import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor'
 import { IndexService } from '../../index/IndexService';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
 import { IndexingLogicService } from '../../index/IndexingLogicService';
+import { ConcurrencyService } from '../../index/shared/ConcurrencyService';
+import { FileTraversalService } from '../../index/shared/FileTraversalService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -178,21 +180,32 @@ describe('ProjectStateManager', () => {
       processWithConcurrency: jest.fn(),
     } as unknown as jest.Mocked<IndexingLogicService>;
 
+    // Create mock file traversal service
+    const mockFileTraversalService = {
+      getProjectFiles: jest.fn(),
+    } as unknown as jest.Mocked<FileTraversalService>;
+    
+    // Create mock concurrency service
+    const mockConcurrencyService = {
+      processWithConcurrency: jest.fn(),
+    } as unknown as jest.Mocked<ConcurrencyService>;
+
     indexSyncService = new IndexService(
-      loggerService,
-      errorHandlerService,
-      mockFileSystemTraversal,
-      mockFileWatcherService,
-      mockChangeDetectionService,
-      qdrantService,
-      {} as any, // Add the missing nebulaService parameter
-      projectIdManager,
-      mockEmbedderFactory,
-      mockEmbeddingCacheService,
-      mockPerformanceOptimizerService,
-      mockAstSplitter,
-      mockCoordinationService,
-      mockIndexingLogicService
+      loggerService as any,
+      errorHandlerService as any,
+      mockFileWatcherService as any,
+      mockChangeDetectionService as any,
+      qdrantService as any,
+      {} as any, // nebulaService parameter
+      projectIdManager as any,
+      mockEmbedderFactory as any,
+      mockEmbeddingCacheService as any,
+      mockPerformanceOptimizerService as any,
+      mockAstSplitter as any,
+      mockCoordinationService as any,
+      mockIndexingLogicService as any,
+      mockFileTraversalService as any,
+      mockConcurrencyService as any
     ) as jest.Mocked<IndexService>;
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {} as jest.Mocked<IQdrantConnectionManager>;

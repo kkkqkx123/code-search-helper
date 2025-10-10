@@ -241,16 +241,16 @@ export class AutoOptimizationAdvisor {
     const cacheStats = await this.cache.getStats();
 
     // 低命中率推荐
-    if (cacheStats.hitRate < 0.7) {
+    if (cacheStats.hitRate !== null && cacheStats.hitRate < 0.7) {
       recommendations.push({
         id: `rec_cache_hitrate_${Date.now()}`,
         category: 'cache',
         priority: 'high',
         title: 'Low Cache Hit Rate',
-        description: `Current cache hit rate is ${Math.round(cacheStats.hitRate * 100)}%, which is below optimal threshold.`,
+        description: `Current cache hit rate is ${Math.round((cacheStats.hitRate || 0) * 100)}%, which is below optimal threshold.`,
         suggestedAction: 'Increase cache size or adjust eviction policy',
         expectedImprovement: '5-15% performance improvement',
-        currentValue: cacheStats.hitRate,
+        currentValue: cacheStats.hitRate !== null ? cacheStats.hitRate : undefined,
         recommendedValue: 0.85, // 目标命中率
         confidence: 0.85,
         timestamp: Date.now()

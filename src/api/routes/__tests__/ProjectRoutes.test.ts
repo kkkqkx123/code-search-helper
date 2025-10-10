@@ -6,6 +6,8 @@ import { ProjectLookupService } from '../../../database/ProjectLookupService';
 import { Logger } from '../../../utils/logger';
 import { ProjectStateManager, ProjectState } from '../../../service/project/ProjectStateManager';
 import { IndexService } from '../../../service/index/IndexService';
+import { VectorIndexService } from '../../../service/index/VectorIndexService';
+import { GraphIndexService } from '../../../service/index/GraphIndexService';
 
 // Create mock implementations
 const createMockProjectIdManager = () => ({
@@ -39,6 +41,19 @@ const createMockProjectStateManager = () => ({
   refreshAllProjectStates: jest.fn()
 });
 
+// Create mock implementations for new services
+const createMockVectorIndexService = () => ({
+  indexVectors: jest.fn(),
+  getVectorStatus: jest.fn(),
+  batchIndexVectors: jest.fn()
+});
+
+const createMockGraphIndexService = () => ({
+  indexGraph: jest.fn(),
+  getGraphStatus: jest.fn(),
+  batchIndexGraph: jest.fn()
+});
+
 describe('ProjectRoutes', () => {
   let app: express.Application;
   let projectRoutes: ProjectRoutes;
@@ -46,6 +61,8 @@ describe('ProjectRoutes', () => {
   let mockProjectLookupService: any;
   let mockLogger: any;
   let mockProjectStateManager: any;
+  let mockVectorIndexService: any;
+  let mockGraphIndexService: any;
 
   beforeEach(() => {
     // Reset all mocks
@@ -61,6 +78,8 @@ describe('ProjectRoutes', () => {
       debug: jest.fn()
     };
     mockProjectStateManager = createMockProjectStateManager();
+    mockVectorIndexService = createMockVectorIndexService();
+    mockGraphIndexService = createMockGraphIndexService();
 
     // Create ProjectRoutes instance
     projectRoutes = new ProjectRoutes(
@@ -68,7 +87,9 @@ describe('ProjectRoutes', () => {
       mockProjectLookupService as ProjectLookupService,
       mockLogger as Logger,
       mockProjectStateManager as ProjectStateManager,
-      mockProjectLookupService.indexSyncService as IndexService
+      mockProjectLookupService.indexSyncService as IndexService,
+      mockVectorIndexService as VectorIndexService,
+      mockGraphIndexService as GraphIndexService
     );
 
     // Create express app and use the router
