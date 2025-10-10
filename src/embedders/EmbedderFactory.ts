@@ -4,6 +4,7 @@ import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { EmbeddingCacheService } from './EmbeddingCacheService';
 import { Embedder, EmbeddingInput, EmbeddingResult } from './BaseEmbedder';
 import { TYPES } from '../types';
+import { EnvironmentUtils } from '../config/utils/EnvironmentUtils';
 
 /**
  * 简化的嵌入器工厂
@@ -108,6 +109,11 @@ export class EmbedderFactory {
   async getEmbedder(provider?: string): Promise<Embedder> {
     const selectedProvider = provider || this.defaultProvider;
 
+    // 检查提供者是否被禁用
+    if (EnvironmentUtils.isEmbeddingProviderDisabled(selectedProvider)) {
+      throw new Error(`Embedder provider ${selectedProvider} is disabled`);
+    }
+
     const embedder = this.embedders.get(selectedProvider);
     if (!embedder) {
       throw new Error(`Unsupported embedder provider: ${selectedProvider}`);
@@ -131,6 +137,20 @@ export class EmbedderFactory {
 
     for (const provider of providers) {
       try {
+        // 检查提供者是否被禁用
+        if (EnvironmentUtils.isEmbeddingProviderDisabled(provider)) {
+          this.logger.info(`Embedder provider ${provider} is disabled, skipping initialization`);
+          this.providerInfoCache.set(provider, {
+            name: provider,
+            model: 'unknown',
+            dimensions: 0,
+            available: false,
+            lastChecked: Date.now(),
+            persistentlyUnavailable: true
+          });
+          continue;
+        }
+
         const embedder = this.embedders.get(provider)!;
         const isAvailable = await embedder.isAvailable();
         const model = embedder.getModelName();
@@ -201,6 +221,12 @@ export class EmbedderFactory {
     // 只检查配置中指定的提供者
     const configProvider = process.env.EMBEDDING_PROVIDER || 'openai';
 
+    // 检查提供者是否被禁用
+    if (EnvironmentUtils.isEmbeddingProviderDisabled(configProvider)) {
+      this.logger.info(`Configured embedder provider is disabled: ${configProvider}`);
+      return available; // 返回空数组，表示没有可用的提供者
+    }
+
     if (this.embedders.has(configProvider)) {
       try {
         const embedder = this.embedders.get(configProvider)!;
@@ -233,6 +259,17 @@ export class EmbedderFactory {
   }> {
     try {
       const selectedProvider = provider || this.defaultProvider;
+      
+      // 检查提供者是否被禁用
+      if (EnvironmentUtils.isEmbeddingProviderDisabled(selectedProvider)) {
+        this.logger.info(`Provider is disabled: ${selectedProvider}`);
+        return {
+          name: selectedProvider,
+          model: 'unknown',
+          dimensions: 0,
+          available: false,
+        };
+      }
       
       // 检查缓存中是否有该提供商的信息
       const cachedInfo = this.providerInfoCache.get(selectedProvider);

@@ -32,6 +32,11 @@ export class GeminiEmbedder extends BaseEmbedder {
   async embed(
     input: EmbeddingInput | EmbeddingInput[]
   ): Promise<EmbeddingResult | EmbeddingResult[]> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('gemini')) {
+      throw new Error('Gemini provider is disabled');
+    }
+    
     return await this.embedWithCache(input, async inputs => {
       return await this.makeGeminiRequest(inputs);
     }, this.cacheService);
@@ -46,6 +51,12 @@ export class GeminiEmbedder extends BaseEmbedder {
   }
 
   async isAvailable(): Promise<boolean> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('gemini')) {
+      this.logger.info('Gemini provider is disabled');
+      return false;
+    }
+    
     try {
       if (!this.apiKey) {
         this.logger.warn('Gemini API key is not configured');

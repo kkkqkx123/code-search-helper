@@ -103,6 +103,25 @@ export class EnvironmentUtils {
   }
 
   /**
+   * 检查特定嵌入器提供者是否被禁用
+   * @param provider 提供者名称
+   * @returns 如果提供者被禁用则返回true，否则返回false
+   */
+  static isEmbeddingProviderDisabled(provider: string): boolean {
+    // 将提供者名称转换为环境变量格式
+    const envVarName = `${provider.toUpperCase()}_ENABLED`;
+    const envValue = process.env[envVarName];
+    
+    // 如果环境变量未设置，默认为启用（false）
+    if (envValue === undefined) {
+      return false;
+    }
+    
+    // 如果环境变量设置为 'false'，则提供者被禁用
+    return envValue === 'false';
+  }
+
+  /**
    * 验证环境变量值是否在允许的值列表中
    * @param key 环境变量键名
    * @param allowedValues 允许的值列表

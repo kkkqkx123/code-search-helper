@@ -191,6 +191,11 @@ export class EmbeddingConfigService extends BaseConfigService<EmbeddingConfig> {
   loadConfig(): EmbeddingConfig {
     const provider = EnvironmentUtils.parseString('EMBEDDING_PROVIDER', 'openai');
 
+    // 检查提供者是否被禁用
+    if (EnvironmentUtils.isEmbeddingProviderDisabled(provider)) {
+      throw new Error(`Embedding provider ${provider} is disabled`);
+    }
+
     try {
       const providerConfig = EmbeddingProviderFactory.createProviderConfig(provider);
 

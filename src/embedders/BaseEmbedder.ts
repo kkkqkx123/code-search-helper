@@ -1,5 +1,6 @@
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
+import { EnvironmentUtils } from '../config/utils/EnvironmentUtils';
 
 export interface EmbeddingInput {
   text: string;
@@ -46,6 +47,15 @@ export abstract class BaseEmbedder implements Embedder {
   abstract getDimensions(): number;
   abstract getModelName(): string;
   abstract isAvailable(): Promise<boolean>;
+
+  /**
+   * 检查提供者是否被禁用
+   * @param providerName 提供者名称
+   * @returns 如果提供者被禁用则返回true，否则返回false
+   */
+  protected isProviderDisabled(providerName: string): boolean {
+    return EnvironmentUtils.isEmbeddingProviderDisabled(providerName);
+  }
 
   /**
    * Common embedding logic with cache checking and result combination

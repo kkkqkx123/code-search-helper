@@ -30,6 +30,11 @@ export class OpenAIEmbedder extends BaseEmbedder {
   async embed(
     input: EmbeddingInput | EmbeddingInput[]
   ): Promise<EmbeddingResult | EmbeddingResult[]> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('openai')) {
+      throw new Error('OpenAI provider is disabled');
+    }
+    
     return await this.embedWithCache(input, async inputs => {
       return await this.makeOpenAIRequest(inputs);
     });
@@ -44,6 +49,12 @@ export class OpenAIEmbedder extends BaseEmbedder {
   }
 
   async isAvailable(): Promise<boolean> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('openai')) {
+      this.logger.info('OpenAI provider is disabled');
+      return false;
+    }
+    
     try {
       if (!this.apiKey) {
         this.logger.warn('OpenAI API key is not configured');

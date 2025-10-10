@@ -30,6 +30,11 @@ export class SiliconFlowEmbedder extends BaseEmbedder {
   async embed(
     input: EmbeddingInput | EmbeddingInput[]
   ): Promise<EmbeddingResult | EmbeddingResult[]> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('siliconflow')) {
+      throw new Error('SiliconFlow provider is disabled');
+    }
+    
     return await this.embedWithCache(input, async inputs => {
       return await this.makeSiliconFlowRequest(inputs);
     });
@@ -44,6 +49,12 @@ export class SiliconFlowEmbedder extends BaseEmbedder {
   }
 
   async isAvailable(): Promise<boolean> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('siliconflow')) {
+      this.logger.info('SiliconFlow provider is disabled');
+      return false;
+    }
+    
     try {
       if (!this.apiKey) {
         this.logger.warn('SiliconFlow API key is not configured');

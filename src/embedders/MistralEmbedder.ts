@@ -30,6 +30,11 @@ export class MistralEmbedder extends BaseEmbedder {
   async embed(
     input: EmbeddingInput | EmbeddingInput[]
   ): Promise<EmbeddingResult | EmbeddingResult[]> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('mistral')) {
+      throw new Error('Mistral provider is disabled');
+    }
+    
     return await this.embedWithCache(input, async inputs => {
       return await this.makeMistralRequest(inputs);
     });
@@ -44,6 +49,12 @@ export class MistralEmbedder extends BaseEmbedder {
   }
 
   async isAvailable(): Promise<boolean> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('mistral')) {
+      this.logger.info('Mistral provider is disabled');
+      return false;
+    }
+    
     try {
       if (!this.apiKey) {
         this.logger.warn('Mistral API key is not configured');

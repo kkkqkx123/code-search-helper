@@ -28,6 +28,11 @@ export class OllamaEmbedder extends BaseEmbedder {
   async embed(
     input: EmbeddingInput | EmbeddingInput[]
   ): Promise<EmbeddingResult | EmbeddingResult[]> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('ollama')) {
+      throw new Error('Ollama provider is disabled');
+    }
+    
     return await this.embedWithCache(input, async inputs => {
       return await this.makeOllamaRequest(inputs);
     });
@@ -42,6 +47,12 @@ export class OllamaEmbedder extends BaseEmbedder {
   }
 
   async isAvailable(): Promise<boolean> {
+    // 检查提供者是否被禁用
+    if (this.isProviderDisabled('ollama')) {
+      this.logger.info('Ollama provider is disabled');
+      return false;
+    }
+    
     try {
       const response = await fetch(`${this.baseUrl}/api/tags`, {
         method: 'GET',

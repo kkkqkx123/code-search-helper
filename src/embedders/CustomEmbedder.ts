@@ -35,6 +35,11 @@ export class CustomEmbedder extends BaseEmbedder {
   async embed(
     input: EmbeddingInput | EmbeddingInput[]
   ): Promise<EmbeddingResult | EmbeddingResult[]> {
+    // 检查提供者是否被禁用 - 使用实际的providerName
+    if (this.isProviderDisabled(this.providerName)) {
+      throw new Error(`Custom provider ${this.providerName} is disabled`);
+    }
+    
     return await this.embedWithCache(input, async inputs => {
       return await this.makeCustomRequest(inputs);
     });
@@ -49,6 +54,12 @@ export class CustomEmbedder extends BaseEmbedder {
   }
 
   async isAvailable(): Promise<boolean> {
+    // 检查提供者是否被禁用 - 使用实际的providerName
+    if (this.isProviderDisabled(this.providerName)) {
+      this.logger.info(`Custom provider ${this.providerName} is disabled`);
+      return false;
+    }
+    
     try {
       if (!this.baseUrl) {
         this.logger.warn('Custom embedder base URL is not configured');
