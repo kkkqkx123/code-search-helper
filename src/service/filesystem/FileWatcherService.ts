@@ -4,12 +4,15 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { GitignoreParser } from '../ignore/GitignoreParser';
+import { DEFAULT_IGNORE_PATTERNS } from './defaultIgnorePatterns';
+import { LANGUAGE_MAP, DEFAULT_SUPPORTED_EXTENSIONS } from './languageConstants';
 
 // 定义错误上下文接口
 interface ErrorContext {
   component: string;
   operation: string;
-  metadata?: Record<string, any>;
+ metadata?: Record<string, any>;
 }
 
 // 定义 CodebaseIndexError 类
@@ -33,7 +36,7 @@ export interface FileWatcherOptions {
   binaryInterval?: number;
   alwaysStat?: boolean;
   depth?: number;
-  awaitWriteFinish?: boolean;
+ awaitWriteFinish?: boolean;
   awaitWriteFinishOptions?: {
     stabilityThreshold?: number;
     pollInterval?: number;
@@ -47,10 +50,10 @@ export interface FileChangeEvent {
 }
 
 export interface FileWatcherCallbacks {
-  onFileAdded?: (fileInfo: FileInfo) => void;
-  onFileChanged?: (fileInfo: FileInfo) => void;
-  onFileDeleted?: (filePath: string) => void;
-  onDirectoryAdded?: (dirPath: string) => void;
+ onFileAdded?: (fileInfo: FileInfo) => void;
+ onFileChanged?: (fileInfo: FileInfo) => void;
+ onFileDeleted?: (filePath: string) => void;
+ onDirectoryAdded?: (dirPath: string) => void;
   onDirectoryDeleted?: (dirPath: string) => void;
   onError?: (error: Error) => void;
   onReady?: () => void;
@@ -61,25 +64,28 @@ export class FileWatcherService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private fileSystemTraversal: FileSystemTraversal;
-  private watchers: Map<string, FSWatcher> = new Map();
+ private watchers: Map<string, FSWatcher> = new Map();
   private callbacks: FileWatcherCallbacks = {};
   private isWatching: boolean = false;
   private traversalOptions: TraversalOptions;
   private eventQueue: Map<string, FileChangeEvent[]> = new Map();
-  private processingQueue: boolean = false;
-  private eventProcessingTimer: NodeJS.Timeout | null = null;
-  private retryAttempts: Map<string, number> = new Map();
+ private processingQueue: boolean = false;
+ private eventProcessingTimer: NodeJS.Timeout | null = null;
+ private retryAttempts: Map<string, number> = new Map();
   private maxRetries: number = 3;
   private retryDelay: number = 50;
   private testMode: boolean = false;
   private maxEventQueueSize: number = 1000; // 最大事件队列大小
+  private allIgnorePatterns: string[] = [];
+  private gitignorePatterns: string[] = [];
+  private indexignorePatterns: string[] = [];
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.FileSystemTraversal) fileSystemTraversal: FileSystemTraversal,
     @inject('TraversalOptions') @optional() traversalOptions?: TraversalOptions
-  ) {
+ ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.fileSystemTraversal = fileSystemTraversal;
@@ -91,7 +97,67 @@ export class FileWatcherService {
     if (this.testMode) {
       this.logger.info('FileWatcherService running in test mode - using optimized settings');
     }
+
+    // Initialize ignore patterns
+    this.initializeIgnorePatterns();
   }
+
+ private async initializeIgnorePatterns(): Promise<void> {
+    // Initialize with default patterns
+    this.allIgnorePatterns = [...DEFAULT_IGNORE_PATTERNS];
+    
+    // Add custom exclude patterns from traversal options
+    if (this.traversalOptions.excludePatterns) {
+      this.allIgnorePatterns.push(...this.traversalOptions.excludePatterns);
+    }
+ }
+
+  async refreshIgnoreRules(watchPath: string): Promise<void> {
+    try {
+      // Clear previous gitignore and indexignore patterns
+      this.gitignorePatterns = [];
+      this.indexignorePatterns = [];
+
+      // Load .gitignore patterns if enabled
+      if (this.traversalOptions.respectGitignore !== false) {
+        this.gitignorePatterns = await GitignoreParser.getAllGitignorePatterns(watchPath);
+        this.allIgnorePatterns.push(...this.gitignorePatterns);
+      }
+
+      // Load .indexignore patterns
+      this.indexignorePatterns = await GitignoreParser.parseIndexignore(watchPath);
+      this.allIgnorePatterns.push(...this.indexignorePatterns);
+
+      // Add custom exclude patterns
+      if (this.traversalOptions.excludePatterns) {
+        this.allIgnorePatterns = [
+          ...DEFAULT_IGNORE_PATTERNS,
+          ...this.gitignorePatterns,
+          ...this.indexignorePatterns,
+          ...this.traversalOptions.excludePatterns
+        ];
+      } else {
+        this.allIgnorePatterns = [
+          ...DEFAULT_IGNORE_PATTERNS,
+          ...this.gitignorePatterns,
+          ...this.indexignorePatterns
+        ];
+      }
+
+      // Remove duplicates
+      this.allIgnorePatterns = [...new Set(this.allIgnorePatterns)];
+
+      this.logger.debug(`Refreshed ignore rules for ${watchPath}`, {
+        defaultPatterns: DEFAULT_IGNORE_PATTERNS.length,
+        gitignorePatterns: this.gitignorePatterns.length,
+        indexignorePatterns: this.indexignorePatterns.length,
+        customPatterns: this.traversalOptions.excludePatterns?.length || 0,
+        totalPatterns: this.allIgnorePatterns.length
+      });
+    } catch (error) {
+      this.logger.error('Error refreshing ignore rules', error);
+    }
+ }
 
   setCallbacks(callbacks: FileWatcherCallbacks): void {
     this.callbacks = { ...this.callbacks, ...callbacks };
@@ -107,6 +173,8 @@ export class FileWatcherService {
       this.logger.info('Starting file watcher', { options });
 
       for (const watchPath of options.watchPaths) {
+        // Refresh ignore rules for this watch path
+        await this.refreshIgnoreRules(watchPath);
         await this.watchPath(watchPath, options);
       }
 
@@ -160,7 +228,7 @@ export class FileWatcherService {
             ? {
                 stabilityThreshold:
                   options.awaitWriteFinishOptions?.stabilityThreshold ??
-                  (this.testMode ? 100 : 2000),
+                  (this.testMode ? 100 : 200),
                 pollInterval:
                   options.awaitWriteFinishOptions?.pollInterval ?? (this.testMode ? 25 : 100),
               }
@@ -297,7 +365,7 @@ export class FileWatcherService {
     }
   }
 
-  private handleWatcherError(error: Error, watchPath: string): void {
+ private handleWatcherError(error: Error, watchPath: string): void {
     const errorContext: ErrorContext = {
       component: 'FileWatcherService',
       operation: 'watcher',
@@ -461,7 +529,7 @@ export class FileWatcherService {
     }
 
     return false;
-  }
+ }
 
   // Helper method for test environments
   async flushEventQueue(): Promise<void> {
@@ -473,14 +541,14 @@ export class FileWatcherService {
     await this.processEventQueue();
 
     // Wait a bit more to ensure all events are processed
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 10));
   }
 
   isTestMode(): boolean {
     return this.testMode;
   }
 
-  private async getFileInfo(filePath: string, watchPath: string): Promise<FileInfo | null> {
+ private async getFileInfo(filePath: string, watchPath: string): Promise<FileInfo | null> {
     try {
       const rootPath = path.resolve(watchPath);
       const fullPath = path.resolve(filePath);
@@ -538,13 +606,6 @@ export class FileWatcherService {
   }
 
   private shouldIgnoreFile(relativePath: string): boolean {
-    const ignorePatterns = this.traversalOptions.excludePatterns || [
-      '**/node_modules/**',
-      '**/.git/**',
-      '**/dist/**',
-      '**/build/**',
-    ];
-
     const fileName = path.basename(relativePath).toLowerCase();
 
     // Check hidden files
@@ -553,67 +614,21 @@ export class FileWatcherService {
     }
 
     // Check ignore patterns
-    for (const pattern of ignorePatterns) {
-      if (this.matchesPattern(relativePath, pattern)) {
+    for (const pattern of this.allIgnorePatterns) {
+      if (this.fileSystemTraversal['matchesPattern'](relativePath, pattern)) {
         return true;
       }
     }
 
     return false;
-  }
+ }
+private detectLanguage(extension: string): string | null {
+  const supportedExtensions = this.traversalOptions.supportedExtensions || DEFAULT_SUPPORTED_EXTENSIONS;
 
-  private matchesPattern(filePath: string, pattern: string): boolean {
-    const regexPattern = pattern
-      .replace(/\*\*/g, '.*')
-      .replace(/\*/g, '[^/]*')
-      .replace(/\?/g, '[^/]')
-      .replace(/\./g, '\\.');
+  const language = LANGUAGE_MAP[extension];
+  return language && supportedExtensions.includes(extension) ? language : null;
+}
 
-    try {
-      const regex = new RegExp(`^${regexPattern}$`);
-      return regex.test(filePath);
-    } catch (error) {
-      return false;
-    }
-  }
-
-  private detectLanguage(extension: string): string | null {
-    const languageMap: Record<string, string> = {
-      '.ts': 'typescript',
-      '.tsx': 'typescript',
-      '.js': 'javascript',
-      '.jsx': 'javascript',
-      '.py': 'python',
-      '.java': 'java',
-      '.go': 'go',
-      '.rs': 'rust',
-      '.cpp': 'cpp',
-      '.cc': 'cpp',
-      '.cxx': 'cpp',
-      '.c++': 'cpp',
-      '.c': 'c',
-      '.h': 'c',
-      '.hpp': 'cpp',
-    };
-
-    const supportedExtensions = this.traversalOptions.supportedExtensions || [
-      '.ts',
-      '.js',
-      '.tsx',
-      '.jsx',
-      '.py',
-      '.java',
-      '.go',
-      '.rs',
-      '.cpp',
-      '.c',
-      '.h',
-      '.hpp',
-    ];
-
-    const language = languageMap[extension];
-    return language && supportedExtensions.includes(extension) ? language : null;
-  }
 
   async stopWatching(): Promise<void> {
     if (!this.isWatching) {

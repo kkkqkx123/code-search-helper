@@ -6,14 +6,15 @@ import { createHash } from 'crypto';
 import { GitignoreParser } from '../ignore/GitignoreParser';
 import { LoggerService } from '../../utils/LoggerService';
 import { TYPES } from '../../types';
+import { DEFAULT_IGNORE_PATTERNS } from './defaultIgnorePatterns';
 
 export interface FileInfo {
   path: string;
   relativePath: string;
   name: string;
   extension: string;
-  size: number;
-  hash: string;
+ size: number;
+ hash: string;
   lastModified: Date;
   language: string;
   isBinary: boolean;
@@ -41,6 +42,7 @@ export interface TraversalResult {
 @injectable()
 export class FileSystemTraversal {
   private defaultOptions: Required<TraversalOptions>;
+  private cachedIgnorePatterns: Map<string, string[]> = new Map(); // Cache ignore patterns by root path
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
@@ -90,11 +92,12 @@ export class FileSystemTraversal {
     };
   }
 
-  async traverseDirectory(rootPath: string, options?: TraversalOptions): Promise<TraversalResult> {
-    const startTime = Date.now();
-    let traversalOptions = { ...this.defaultOptions, ...options };
-
-    // Merge all ignore rules
+  /**
+   * Refreshes the ignore patterns for a specific root path
+   * This allows for hot updates to ignore rules (e.g., when .gitignore or .indexignore files change)
+   */
+ async refreshIgnoreRules(rootPath: string, options?: TraversalOptions): Promise<void> {
+    const traversalOptions = { ...this.defaultOptions, ...options };
     const allIgnorePatterns: string[] = [];
 
     // 1. Add default ignore patterns
@@ -119,31 +122,53 @@ export class FileSystemTraversal {
       allIgnorePatterns.push(...traversalOptions.excludePatterns);
     }
 
-    // Update exclude rules
-    traversalOptions = {
-      ...traversalOptions,
-      excludePatterns: [...new Set(allIgnorePatterns)] // Remove duplicates
-    };
+    // Store the patterns in cache
+    this.cachedIgnorePatterns.set(rootPath, [...new Set(allIgnorePatterns)]); // Remove duplicates
 
     // Log rule information (for debugging)
-    this.logger.debug(`[DEBUG] Final ignore patterns for ${rootPath}`, {
+    this.logger.debug(`[DEBUG] Refreshed ignore patterns for ${rootPath}`, {
       defaultPatterns: this.getDefaultIgnorePatterns().length,
       gitignorePatterns: traversalOptions.respectGitignore ?
         (await GitignoreParser.getAllGitignorePatterns(rootPath) || []).length : 0,
       indexignorePatterns: Array.isArray(indexignorePatterns) ? indexignorePatterns.length : 0,
       customPatterns: options?.excludePatterns?.length || 0,
-      totalPatterns: traversalOptions.excludePatterns?.length || 0
+      totalPatterns: allIgnorePatterns.length
     });
+  }
+
+  /**
+   * Gets the cached ignore patterns for a specific root path
+   */
+  private getIgnorePatternsForPath(rootPath: string): string[] {
+    return this.cachedIgnorePatterns.get(rootPath) || [];
+  }
+
+  async traverseDirectory(rootPath: string, options?: TraversalOptions): Promise<TraversalResult> {
+    const startTime = Date.now();
+    
+    // Refresh ignore rules for this path before traversal
+    await this.refreshIgnoreRules(rootPath, options);
+    
+    const traversalOptions = { ...this.defaultOptions, ...options };
+    
+    // Get the ignore patterns for this path
+    const allIgnorePatterns = this.getIgnorePatternsForPath(rootPath);
+    
+    // Update traversal options with the latest ignore patterns
+    const updatedOptions = {
+      ...traversalOptions,
+      excludePatterns: allIgnorePatterns
+    };
 
     // Debug: Log the traversal options
     this.logger.debug(`[DEBUG] Traversal options for ${rootPath}`, {
-      includePatterns: traversalOptions.includePatterns,
-      excludePatterns: traversalOptions.excludePatterns,
-      supportedExtensions: traversalOptions.supportedExtensions,
-      maxFileSize: traversalOptions.maxFileSize,
-      ignoreHiddenFiles: traversalOptions.ignoreHiddenFiles,
-      ignoreDirectories: traversalOptions.ignoreDirectories,
-      respectGitignore: traversalOptions.respectGitignore
+      includePatterns: updatedOptions.includePatterns,
+      excludePatterns: updatedOptions.excludePatterns,
+      supportedExtensions: updatedOptions.supportedExtensions,
+      maxFileSize: updatedOptions.maxFileSize,
+      ignoreHiddenFiles: updatedOptions.ignoreHiddenFiles,
+      ignoreDirectories: updatedOptions.ignoreDirectories,
+      respectGitignore: updatedOptions.respectGitignore
     });
 
     const result: TraversalResult = {
@@ -155,7 +180,7 @@ export class FileSystemTraversal {
     };
 
     try {
-      await this.traverseRecursive(rootPath, rootPath, result, traversalOptions);
+      await this.traverseRecursive(rootPath, rootPath, result, updatedOptions);
       result.processingTime = Date.now() - startTime;
 
       // Debug: Log the final results
@@ -164,7 +189,7 @@ export class FileSystemTraversal {
         directoriesFound: result.directories.length,
         errors: result.errors,
         processingTime: result.processingTime,
-        ignorePatternsApplied: traversalOptions.excludePatterns?.length || 0,
+        ignorePatternsApplied: updatedOptions.excludePatterns?.length || 0,
         files: result.files.map(f => ({ path: f.path, extension: f.extension, language: f.language }))
       });
     } catch (error) {
@@ -501,7 +526,7 @@ export class FileSystemTraversal {
 
     const language = languageMap[extension];
     return language && supportedExtensions.includes(extension) ? language : null;
-  }
+ }
 
   private async isBinaryFile(filePath: string): Promise<boolean> {
     try {
@@ -536,11 +561,11 @@ export class FileSystemTraversal {
     }
   }
 
-  async findChangedFiles(
+ async findChangedFiles(
     rootPath: string,
     previousHashes: Map<string, string>,
     options?: TraversalOptions
-  ): Promise<FileInfo[]> {
+ ): Promise<FileInfo[]> {
     const result = await this.traverseDirectory(rootPath, options);
     const changedFiles: FileInfo[] = [];
 
@@ -571,159 +596,7 @@ export class FileSystemTraversal {
    */
   private getDefaultIgnorePatterns(): string[] {
     // Reference the complete list in docs/plan/defaultIgnore.md
-    return [
-      // Version control
-      '.git/**',
-      '.hg/**',
-      '.hgignore',
-      '.svn/**',
-
-      // Dependency directories
-      '**/node_modules/**',
-      '**/bower_components/**',
-      '**/jspm_packages/**',
-      'vendor/**',
-      '**/.bundle/**',
-      '**/.gradle/**',
-      'target/**',
-
-      // Logs
-      'logs/**',
-      '**/*.log',
-      '**/npm-debug.log*',
-      '**/yarn-debug.log*',
-      '**/yarn-error.log*',
-
-      // Runtime data
-      'pids/**',
-      '*.pid',
-      '*.seed',
-      '*.pid.lock',
-
-      // Coverage directory used by tools like istanbul
-      'coverage/**',
-      '.nyc_output/**',
-
-      // Grunt intermediate storage
-      '.grunt/**',
-
-      // Compiled binary addons
-      'build/Release/**',
-
-      // TypeScript v1 declaration files
-      'typings/**',
-
-      // Optional npm cache directory
-      '**/.npm/**',
-
-      // Cache directories
-      '.eslintcache',
-      '.rollup.cache/**',
-      '.webpack.cache/**',
-      '.parcel-cache/**',
-      '.sass-cache/**',
-      '*.cache',
-
-      // Optional REPL history
-      '.node_repl_history',
-
-      // Output of 'npm pack'
-      '*.tgz',
-
-      // Yarn files
-      '**/.yarn/**',
-      '**/.yarn-integrity',
-
-      // dotenv environment variables file
-      '.env',
-
-      // next.js build output
-      '.next/**',
-
-      // nuxt.js build output
-      '.nuxt/**',
-
-      // vuepress build output
-      '.vuepress/dist/**',
-
-      // Serverless directories
-      '.serverless/**',
-
-      // FuseBox cache
-      '.fusebox/**',
-
-      // DynamoDB Local files
-      '.dynamodb/**',
-
-      // TypeScript output
-      'dist/**',
-
-      // OS generated files
-      '**/.DS_Store',
-      '**/Thumbs.db',
-
-      // Editor directories and files
-      '.idea/**',
-      '.vscode/**',
-      '**/*.swp',
-      '**/*.swo',
-      '**/*.swn',
-      '**/*.bak',
-
-      // Build outputs
-      'build/**',
-      'out/**',
-
-      // Temporary files
-      'tmp/**',
-      'temp/**',
-
-      // repomix output
-      '**/repomix-output.*',
-      '**/repopack-output.*', // Legacy
-
-      // Essential Node.js-related entries
-      '**/package-lock.json',
-      '**/yarn-error.log',
-      '**/yarn.lock',
-      '**/pnpm-lock.yaml',
-      '**/bun.lockb',
-      '**/bun.lock',
-
-      // Essential Python-related entries
-      '**/__pycache__/**',
-      '**/*.py[cod]',
-      '**/venv/**',
-      '**/.venv/**',
-      '**/.pytest_cache/**',
-      '**/.mypy_cache/**',
-      '**/.ipynb_checkpoints/**',
-      '**/Pipfile.lock',
-      '**/poetry.lock',
-      '**/uv.lock',
-
-      // Essential Rust-related entries
-      '**/Cargo.lock',
-      '**/Cargo.toml.orig',
-      '**/target/**',
-      '**/*.rs.bk',
-
-      // Essential PHP-related entries
-      '**/composer.lock',
-
-      // Essential Ruby-related entries
-      '**/Gemfile.lock',
-
-      // Essential Go-related entries
-      '**/go.sum',
-
-      // Essential Elixir-related entries
-      '**/mix.lock',
-
-      // Essential Haskell-related entries
-      '**/stack.yaml.lock',
-      '**/cabal.project.freeze'
-    ];
+    return DEFAULT_IGNORE_PATTERNS;
   }
 
   async getDirectoryStats(

@@ -21,5 +21,5 @@ py微服务：
 3.重排
 
 集成单轮对话用于文件搜索/分析。
-用qwen2.5-7b或Qwen/Qwen2.5-Coder-7B-Instruct或THUDM/glm-4-9b-chat模型根据重排结果、相应文件内容对文件与问题的联系进行分析，输出摘要，
+用qwen2.5-7b或Qwen/Qwen2.5-Coder-7B-Instruct或THUDM/glm-4-9b-chat【硅基】或GLM-4.5-Flash【Zai】模型根据重排结果、相应文件内容对文件与问题的联系进行分析，输出摘要，
 然后把重排结果、摘要汇总给ds-r1-0528-8b，给出最后的摘要。
