@@ -21,9 +21,9 @@ export interface MemoryMonitorConfig {
 export class MemoryMonitorConfigService extends BaseConfigService<MemoryMonitorConfig> {
   loadConfig(): MemoryMonitorConfig {
     const rawConfig = {
-      warningThreshold: parseFloat(process.env.MEMORY_WARNING_THRESHOLD || '0.70'),
-      criticalThreshold: parseFloat(process.env.MEMORY_CRITICAL_THRESHOLD || '0.85'),
-      emergencyThreshold: parseFloat(process.env.MEMORY_EMERGENCY_THRESHOLD || '0.95'),
+      warningThreshold: parseFloat(process.env.MEMORY_WARNING_THRESHOLD || '0.90'),
+      criticalThreshold: parseFloat(process.env.MEMORY_CRITICAL_THRESHOLD || '0.94'),
+      emergencyThreshold: parseFloat(process.env.MEMORY_EMERGENCY_THRESHOLD || '0.98'),
       checkInterval: parseInt(process.env.MEMORY_CHECK_INTERVAL || '30000'),
       cleanupCooldown: parseInt(process.env.MEMORY_CLEANUP_COOLDOWN || '30000'),
       maxHistorySize: parseInt(process.env.MEMORY_HISTORY_SIZE || '100'),
@@ -34,9 +34,9 @@ export class MemoryMonitorConfigService extends BaseConfigService<MemoryMonitorC
 
   validateConfig(config: any): MemoryMonitorConfig {
     const schema = Joi.object({
-      warningThreshold: Joi.number().min(0).max(1).default(0.70),
-      criticalThreshold: Joi.number().min(0).max(1).default(0.85),
-      emergencyThreshold: Joi.number().min(0).max(1).default(0.95),
+      warningThreshold: Joi.number().min(0).max(1).default(0.90),
+      criticalThreshold: Joi.number().min(0).max(1).default(0.94),
+      emergencyThreshold: Joi.number().min(0).max(1).default(0.98),
       checkInterval: Joi.number().min(1000).default(30000),
       cleanupCooldown: Joi.number().min(1000).default(30000),
       maxHistorySize: Joi.number().min(10).default(100),
@@ -60,9 +60,9 @@ export class MemoryMonitorConfigService extends BaseConfigService<MemoryMonitorC
 
   getDefaultConfig(): MemoryMonitorConfig {
     return {
-      warningThreshold: 0.70,
-      criticalThreshold: 0.85,
-      emergencyThreshold: 0.95,
+      warningThreshold: 0.90,
+      criticalThreshold: 0.94,
+      emergencyThreshold: 0.98,
       checkInterval: 30000,
       cleanupCooldown: 30000,
       maxHistorySize: 100,

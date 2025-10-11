@@ -26,9 +26,9 @@ export class MemoryMonitorService implements IMemoryMonitorService {
   private embeddingCache: EmbeddingCacheService;
   private configService: ConfigService;
   private memoryCheckInterval: NodeJS.Timeout | null = null;
-  private warningThreshold: number = 0.70;
-  private criticalThreshold: number = 0.85;
-  private emergencyThreshold: number = 0.95;
+  private warningThreshold: number = 0.90;
+  private criticalThreshold: number = 0.94;
+  private emergencyThreshold: number = 0.98;
   private checkInterval: number = 30000;
   private cleanupCooldown: number = 30000;
   private maxHistorySize: number = 100;
@@ -91,9 +91,9 @@ export class MemoryMonitorService implements IMemoryMonitorService {
       this.logger.warn('Failed to load memory monitor configuration from ConfigService, falling back to environment variables', error);
       
       // 回退到环境变量
-      this.warningThreshold = parseFloat(process.env.MEMORY_WARNING_THRESHOLD || '0.70');
-      this.criticalThreshold = parseFloat(process.env.MEMORY_CRITICAL_THRESHOLD || '0.85');
-      this.emergencyThreshold = parseFloat(process.env.MEMORY_EMERGENCY_THRESHOLD || '0.95');
+      this.warningThreshold = parseFloat(process.env.MEMORY_WARNING_THRESHOLD || '0.90');
+      this.criticalThreshold = parseFloat(process.env.MEMORY_CRITICAL_THRESHOLD || '0.94');
+      this.emergencyThreshold = parseFloat(process.env.MEMORY_EMERGENCY_THRESHOLD || '0.98');
       this.checkInterval = parseInt(process.env.MEMORY_CHECK_INTERVAL || '30000');
       this.cleanupCooldown = parseInt(process.env.MEMORY_CLEANUP_COOLDOWN || '30000');
       this.maxHistorySize = parseInt(process.env.MEMORY_HISTORY_SIZE || '100');

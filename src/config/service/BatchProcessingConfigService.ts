@@ -3,6 +3,7 @@ import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
 import { EnvironmentUtils } from '../utils/EnvironmentUtils';
 import { ValidationUtils } from '../utils/ValidationUtils';
+import { parseRateEnv } from '../utils/environment-variables';
 
 /**
  * Simplified batch processing configuration
@@ -43,7 +44,7 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
       maxConcurrentOperations: EnvironmentUtils.parseNumber('MAX_CONCURRENT_OPERATIONS', 5),
       defaultBatchSize: EnvironmentUtils.parseNumber('DEFAULT_BATCH_SIZE', 50),
       maxBatchSize: EnvironmentUtils.parseNumber('MAX_BATCH_SIZE', 500),
-      memoryThreshold: EnvironmentUtils.parseNumber('MEMORY_THRESHOLD', 80),
+      memoryThreshold: parseRateEnv('MEMORY_THRESHOLD', 0.80),
       processingTimeout: EnvironmentUtils.parseNumber('PROCESSING_TIMEOUT', 300000),
       retryAttempts: EnvironmentUtils.parseNumber('RETRY_ATTEMPTS', 3),
       retryDelay: EnvironmentUtils.parseNumber('RETRY_DELAY', 1000),
@@ -55,7 +56,7 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
         metricsInterval: EnvironmentUtils.parseNumber('METRICS_INTERVAL', 60000),
         alertThresholds: {
           highLatency: EnvironmentUtils.parseNumber('HIGH_LATENCY_THRESHOLD', 5000),
-          highMemoryUsage: EnvironmentUtils.parseNumber('HIGH_MEMORY_USAGE_THRESHOLD', 80),
+          highMemoryUsage: parseRateEnv('HIGH_MEMORY_USAGE_THRESHOLD', 0.80),
           highErrorRate: EnvironmentUtils.parseFloat('HIGH_ERROR_RATE_THRESHOLD', 0.1),
         },
       },
@@ -70,7 +71,7 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
       maxConcurrentOperations: ValidationUtils.rangeNumberSchema(1, 100, 5),
       defaultBatchSize: ValidationUtils.rangeNumberSchema(1, 10000, 50),
       maxBatchSize: ValidationUtils.rangeNumberSchema(1, 10000, 500),
-      memoryThreshold: ValidationUtils.rangeNumberSchema(10, 95, 80),
+      memoryThreshold: ValidationUtils.rangeNumberSchema(0.1, 0.95, 0.80),
       processingTimeout: ValidationUtils.optionalRangeNumberSchema(1000, Number.MAX_SAFE_INTEGER, 300000),
       retryAttempts: ValidationUtils.rangeNumberSchema(1, 10, 3),
       retryDelay: ValidationUtils.optionalRangeNumberSchema(100, Number.MAX_SAFE_INTEGER, 1000),
@@ -82,7 +83,7 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
         metricsInterval: ValidationUtils.optionalRangeNumberSchema(1000, Number.MAX_SAFE_INTEGER, 60000),
         alertThresholds: ValidationUtils.objectSchema({
           highLatency: ValidationUtils.optionalRangeNumberSchema(100, Number.MAX_SAFE_INTEGER, 5000),
-          highMemoryUsage: ValidationUtils.rangeNumberSchema(10, 95, 80),
+          highMemoryUsage: ValidationUtils.rangeNumberSchema(0.1, 0.95, 0.80),
           highErrorRate: ValidationUtils.rangeNumberSchema(0, 1, 0.1),
         }),
       }),
@@ -97,7 +98,7 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
       maxConcurrentOperations: 5,
       defaultBatchSize: 50,
       maxBatchSize: 500,
-      memoryThreshold: 80,
+      memoryThreshold: 0.80,
       processingTimeout: 300000,
       retryAttempts: 3,
       retryDelay: 1000,
@@ -109,7 +110,7 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
         metricsInterval: 60000,
         alertThresholds: {
           highLatency: 5000,
-          highMemoryUsage: 80,
+          highMemoryUsage: 0.80,
           highErrorRate: 0.1,
         },
       },
@@ -126,7 +127,7 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
       maxConcurrentOperations: 3,
       defaultBatchSize: 25,
       maxBatchSize: 100,
-      memoryThreshold: 70,
+      memoryThreshold: 0.70,
       processingTimeout: 30000,
       retryAttempts: 2,
       retryDelay: 1000,
