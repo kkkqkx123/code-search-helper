@@ -2,6 +2,7 @@ import { FileWatcherService, FileWatcherOptions, FileWatcherCallbacks } from '..
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { FileSystemTraversal, FileInfo } from '../FileSystemTraversal';
+import { GitignoreParser } from '../../ignore/GitignoreParser';
 import { TYPES } from '../../../types';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -14,12 +15,14 @@ jest.mock('chokidar');
 jest.mock('../../../utils/LoggerService');
 jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../FileSystemTraversal');
+jest.mock('../../ignore/GitignoreParser');
 
 const mockedFs = fs as jest.Mocked<typeof fs>;
 const mockedChokidar = chokidar as jest.Mocked<typeof chokidar>;
 const MockedLoggerService = LoggerService as jest.Mocked<typeof LoggerService>;
 const MockedErrorHandlerService = ErrorHandlerService as jest.Mocked<typeof ErrorHandlerService>;
 const MockedFileSystemTraversal = FileSystemTraversal as jest.Mocked<typeof FileSystemTraversal>;
+const mockedGitignoreParser = GitignoreParser as jest.Mocked<typeof GitignoreParser>;
 
 describe('FileWatcherService', () => {
   let fileWatcherService: FileWatcherService;
@@ -30,6 +33,10 @@ describe('FileWatcherService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Mock GitignoreParser methods
+    mockedGitignoreParser.getAllGitignorePatterns.mockResolvedValue([]);
+    mockedGitignoreParser.parseIndexignore.mockResolvedValue([]);
 
     // Create a container for dependency injection
     container = new Container();
@@ -236,6 +243,9 @@ describe('FileWatcherService', () => {
       mockedFs.stat.mockResolvedValue(mockStats as any);
       (mockFileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
       (mockFileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue('testhash');
+      
+      // Mock the shouldIgnoreFile method to return false
+      (fileWatcherService as any).shouldIgnoreFile = jest.fn().mockReturnValue(false);
 
       const fileInfo = await (fileWatcherService as any).getFileInfo(filePath, watchPath);
 

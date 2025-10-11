@@ -28,7 +28,7 @@ export interface SemgrepConfig {
 export class SemgrepConfigService extends BaseConfigService<SemgrepConfig> {
   loadConfig(): SemgrepConfig {
     const rawConfig = {
-      binaryPath: process.env.SEMGREP_BINARY_PATH || 'semgrep',
+      binaryPath: process.env.SEMGREP_BINARY_PATH || '/usr/local/bin/semgrep',
       timeout: parseInt(process.env.SEMGREP_TIMEOUT || '3000'),
       maxMemory: parseInt(process.env.SEMGREP_MAX_MEMORY || '512'),
       maxTargetBytes: parseInt(process.env.SEMGREP_MAX_TARGET_BYTES || '1000000'),
@@ -64,7 +64,7 @@ export class SemgrepConfigService extends BaseConfigService<SemgrepConfig> {
 
   validateConfig(config: any): SemgrepConfig {
     const schema = Joi.object({
-      binaryPath: Joi.string().default('semgrep'),
+      binaryPath: Joi.string().default('/usr/local/bin/semgrep'),
       timeout: Joi.number().positive().default(3000),
       maxMemory: Joi.number().positive().default(512),
       maxTargetBytes: Joi.number().positive().default(1000000),
@@ -133,7 +133,7 @@ export class SemgrepConfigService extends BaseConfigService<SemgrepConfig> {
 
   getDefaultConfig(): SemgrepConfig {
     return {
-      binaryPath: 'semgrep',
+      binaryPath: '/usr/local/bin/semgrep',
       timeout: 3000,
       maxMemory: 512,
       maxTargetBytes: 1000000,

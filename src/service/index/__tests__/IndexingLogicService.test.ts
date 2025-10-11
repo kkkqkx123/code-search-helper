@@ -134,6 +134,9 @@ describe('IndexingLogicService', () => {
     } as any;
     const optimizationAdvisor = {} as any;
     const batchProcessingOptimizer = {} as any;
+    const concurrencyService = {
+      processWithConcurrency: jest.fn().mockResolvedValue(undefined)
+    } as any;
 
     // Mock fs methods
     jest.spyOn(require('fs/promises'), 'readFile').mockResolvedValue('test file content');
@@ -156,6 +159,7 @@ describe('IndexingLogicService', () => {
     (indexingLogicService as any).performanceOptimizer = performanceOptimizerService;
     (indexingLogicService as any).astSplitter = astSplitter;
     (indexingLogicService as any).coordinationService = coordinationService;
+    (indexingLogicService as any).concurrencyService = concurrencyService;
   });
 
   describe('indexProject', () => {

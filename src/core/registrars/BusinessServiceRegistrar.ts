@@ -5,6 +5,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 
 // 文件系统服务
+import { IgnoreRuleManager } from '../../service/ignore/IgnoreRuleManager';
 import { FileSystemTraversal } from '../../service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../../service/filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../../service/filesystem/ChangeDetectionService';
@@ -54,6 +55,7 @@ import { NebulaConnectionMonitor } from '../../service/graph/monitoring/NebulaCo
 import { MemoryMonitorService } from '../../service/memory/MemoryMonitorService';
 
 
+
 export class BusinessServiceRegistrar {
   static register(container: Container): void {
     try {
@@ -68,17 +70,23 @@ export class BusinessServiceRegistrar {
       container.bind<CoreStateService>(TYPES.CoreStateService).to(CoreStateService).inSingletonScope();
       container.bind<StorageStateService>(TYPES.StorageStateService).to(StorageStateService).inSingletonScope();
       container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
-      
+
       // 文件遍历服务
       container.bind<FileTraversalService>(TYPES.FileTraversalService).to(FileTraversalService).inSingletonScope();
-      
+
       // 并发服务
       container.bind<ConcurrencyService>(TYPES.ConcurrencyService).to(ConcurrencyService).inSingletonScope();
-      
+
       // 新增的索引服务
       container.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();
       container.bind<GraphIndexService>(TYPES.GraphIndexService).to(GraphIndexService).inSingletonScope();
       container.bind<StorageCoordinatorService>(TYPES.StorageCoordinatorService).to(StorageCoordinatorService).inSingletonScope();
+
+      // 忽略规则管理器 - 使用 toDynamicValue 确保正确注入依赖
+      container.bind<IgnoreRuleManager>(TYPES.IgnoreRuleManager).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        return new IgnoreRuleManager(logger);
+      }).inSingletonScope();
 
       // 性能优化服务
       container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).toDynamicValue(context => {
@@ -136,7 +144,7 @@ export class BusinessServiceRegistrar {
 
       // 内存监控服务
       container.bind<MemoryMonitorService>(TYPES.MemoryMonitorService).to(MemoryMonitorService).inSingletonScope();
-      
+
       // MemoryGuard 参数
       container.bind<number>(TYPES.MemoryLimitMB).toConstantValue(500);
       container.bind<number>(TYPES.MemoryCheckIntervalMs).toConstantValue(5000);

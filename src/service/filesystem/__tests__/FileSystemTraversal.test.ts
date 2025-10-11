@@ -10,7 +10,7 @@ jest.mock('fs/promises');
 const mockedFs = fs as jest.Mocked<typeof fs>;
 
 // Mock GitignoreParser
-jest.mock('../../../utils/GitignoreParser');
+jest.mock('../../ignore/GitignoreParser');
 const mockedGitignoreParser = GitignoreParser as jest.Mocked<typeof GitignoreParser>;
 
 // Mock LoggerService
@@ -331,7 +331,7 @@ describe('FileSystemTraversal', () => {
 
       // Verify debug logging was called with pattern counts
       expect(mockLogger.debug).toHaveBeenCalledWith(
-        expect.stringContaining('Final ignore patterns for'),
+        expect.stringContaining('Refreshed ignore patterns for'),
         expect.objectContaining({
           defaultPatterns: expect.any(Number),
           gitignorePatterns: expect.any(Number),

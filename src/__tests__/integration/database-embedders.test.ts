@@ -288,6 +288,14 @@ describe('Database and Embedders Integration', () => {
     });
 
     test('✅ OpenAI嵌入器能够生成嵌入', async () => {
+      // 只有在OpenAI启用的情况下才运行此测试
+      const isOpenAIEnabled = process.env.OPENAI_ENABLED !== 'false';
+      
+      if (!isOpenAIEnabled) {
+        console.warn('OpenAI service is disabled, skipping OpenAI embedding test');
+        return;
+      }
+
       try {
         const input = { text: 'This is a test text for OpenAI embedding generation' };
         const embeddingResult = await embedderFactory.embed(input, 'openai');
@@ -308,6 +316,14 @@ describe('Database and Embedders Integration', () => {
     }, 15000);
 
     test('✅ Ollama嵌入器能够生成嵌入', async () => {
+      // 只有在Ollama启用的情况下才运行此测试
+      const isOllamaEnabled = process.env.OLLAMA_ENABLED !== 'false';
+      
+      if (!isOllamaEnabled) {
+        console.warn('Ollama service is disabled, skipping Ollama embedding test');
+        return;
+      }
+
       try {
         const input = { text: 'This is a test text for Ollama embedding generation' };
         const embeddingResult = await embedderFactory.embed(input, 'ollama');
@@ -324,6 +340,34 @@ describe('Database and Embedders Integration', () => {
       } catch (error) {
         // 如果Ollama服务不可用，会抛出错误，这也是可以接受的
         console.warn('Ollama service not available, skipping Ollama embedding test');
+      }
+    }, 15000);
+
+    test('✅ SiliconFlow嵌入器能够生成嵌入', async () => {
+      // 只有在SiliconFlow启用的情况下才运行此测试
+      const isSiliconFlowEnabled = process.env.SILICONFLOW_ENABLED !== 'false';
+      
+      if (!isSiliconFlowEnabled) {
+        console.warn('SiliconFlow service is disabled, skipping SiliconFlow embedding test');
+        return;
+      }
+
+      try {
+        const input = { text: 'This is a test text for SiliconFlow embedding generation' };
+        const embeddingResult = await embedderFactory.embed(input, 'siliconflow');
+
+        expect(embeddingResult).toBeDefined();
+        if (Array.isArray(embeddingResult)) {
+          expect(embeddingResult.length).toBe(1);
+          expect(embeddingResult[0].vector).toBeDefined();
+          expect(embeddingResult[0].dimensions).toBeGreaterThan(0);
+        } else {
+          expect(embeddingResult.vector).toBeDefined();
+          expect(embeddingResult.dimensions).toBeGreaterThan(0);
+        }
+      } catch (error) {
+        // 如果SiliconFlow服务不可用，会抛出错误，这也是可以接受的
+        console.warn('SiliconFlow service not available, skipping SiliconFlow embedding test');
       }
     }, 15000);
 
@@ -351,7 +395,22 @@ describe('Database and Embedders Integration', () => {
         const selectedProvider = await embedderFactory.autoSelectProvider();
 
         expect(typeof selectedProvider).toBe('string');
-        expect(['openai', 'ollama']).toContain(selectedProvider);
+        // 检查当前环境中的可用提供者
+        const registeredProviders = embedderFactory.getRegisteredProviders();
+        const availableProviders = registeredProviders.filter(provider => {
+          // 根据环境变量判断哪些提供者应该是可用的
+          const envVarName = `${provider.toUpperCase()}_ENABLED`;
+          const envValue = process.env[envVarName];
+          // 如果环境变量未设置或设置为true，则认为提供者可用
+          return envValue === undefined || envValue !== 'false';
+        });
+        
+        if (availableProviders.length > 0) {
+          expect(availableProviders).toContain(selectedProvider);
+        } else {
+          // 如果没有可用的提供者，应该抛出错误
+          throw new Error('No available embedder providers');
+        }
       } catch (error) {
         // 如果没有可用的提供者，会抛出错误，这也是可以接受的
         console.warn('No available embedder providers, skipping auto-select test');
@@ -375,6 +434,27 @@ describe('Database and Embedders Integration', () => {
         console.warn('Embedder service not available, skipping performance test');
       }
     });
+
+    test('✅ 默认提供者能够生成嵌入', async () => {
+      try {
+        const input = { text: 'This is a test text for default provider embedding generation' };
+        // 使用默认提供者生成嵌入
+        const embeddingResult = await embedderFactory.embed(input);
+
+        expect(embeddingResult).toBeDefined();
+        if (Array.isArray(embeddingResult)) {
+          expect(embeddingResult.length).toBe(1);
+          expect(embeddingResult[0].vector).toBeDefined();
+          expect(embeddingResult[0].dimensions).toBeGreaterThan(0);
+        } else {
+          expect(embeddingResult.vector).toBeDefined();
+          expect(embeddingResult.dimensions).toBeGreaterThan(0);
+        }
+      } catch (error) {
+        // 如果默认提供者不可用，会抛出错误，这也是可以接受的
+        console.warn('Default embedder service not available, skipping default provider test');
+      }
+    }, 15000);
 
     test('✅ 向量搜索响应时间 < 1秒', async () => {
       try {

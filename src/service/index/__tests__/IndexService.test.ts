@@ -27,6 +27,7 @@ import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoor
 import { IndexingLogicService } from '../IndexingLogicService';
 import { FileTraversalService } from '../shared/FileTraversalService';
 import { ConcurrencyService } from '../shared/ConcurrencyService';
+import { IgnoreRuleManager } from '../../ignore/IgnoreRuleManager';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -259,19 +260,26 @@ describe('IndexService', () => {
       getProjectFiles: jest.fn(),
       isCodeFile: jest.fn(),
     } as unknown as jest.Mocked<FileTraversalService>;
-    
+
     // Create mock concurrency service
     const mockConcurrencyService = {
       processWithConcurrency: jest.fn(),
     } as unknown as jest.Mocked<ConcurrencyService>;
-    
+
+    const mockIgnoreRuleManager = {
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+      once: jest.fn()
+    } as any;
+
     indexService = new IndexService(
       loggerService,
       errorHandlerService,
       fileWatcherService,
       changeDetectionService,
       qdrantService,
-      {} as any, // Add the missing nebulaService parameter
+      {} as any,
       projectIdManager,
       embedderFactory,
       embeddingCacheService,
@@ -279,8 +287,9 @@ describe('IndexService', () => {
       astSplitter,
       coordinationService,
       indexingLogicService,
-      mockFileTraversalService, // Add the missing fileTraversalService parameter
-      mockConcurrencyService, // Add the missing concurrencyService parameter
+      mockFileTraversalService,
+      mockConcurrencyService,
+      mockIgnoreRuleManager
     );
   });
 
@@ -290,11 +299,11 @@ describe('IndexService', () => {
     if (indexService && typeof (indexService as any).destroy === 'function') {
       await (indexService as any).destroy();
     }
-    
+
     // 清理所有mock的定时器和异步操作
     jest.clearAllTimers();
     jest.clearAllMocks();
-    
+
     // 确保所有Promise都已完成
     await new Promise(resolve => setImmediate(resolve));
   });

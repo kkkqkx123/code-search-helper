@@ -39,7 +39,7 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
   loadConfig(): BatchProcessingConfig {
     const rawConfig = {
       // Core batch processing settings (8 environment variables instead of 18)
-      enabled: !EnvironmentUtils.parseBoolean('BATCH_PROCESSING_ENABLED', true),
+      enabled: EnvironmentUtils.parseBoolean('BATCH_PROCESSING_ENABLED', true),
       maxConcurrentOperations: EnvironmentUtils.parseNumber('MAX_CONCURRENT_OPERATIONS', 5),
       defaultBatchSize: EnvironmentUtils.parseNumber('DEFAULT_BATCH_SIZE', 50),
       maxBatchSize: EnvironmentUtils.parseNumber('MAX_BATCH_SIZE', 500),
@@ -47,7 +47,7 @@ export class BatchProcessingConfigService extends BaseConfigService<BatchProcess
       processingTimeout: EnvironmentUtils.parseNumber('PROCESSING_TIMEOUT', 300000),
       retryAttempts: EnvironmentUtils.parseNumber('RETRY_ATTEMPTS', 3),
       retryDelay: EnvironmentUtils.parseNumber('RETRY_DELAY', 1000),
-      continueOnError: !EnvironmentUtils.parseBoolean('CONTINUE_ON_ERROR', true),
+      continueOnError: EnvironmentUtils.parseBoolean('CONTINUE_ON_ERROR', true),
 
       // Simplified monitoring (4 environment variables instead of 9)
       monitoring: {
