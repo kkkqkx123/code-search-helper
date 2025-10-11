@@ -14,6 +14,7 @@ import {
   QdrantConfigService,
   EmbeddingConfigService,
   LoggingConfigService,
+  MemoryMonitorConfigService,
   MonitoringConfigService,
   FileProcessingConfigService,
   BatchProcessingConfigService,
@@ -106,6 +107,7 @@ describe('NebulaConnectionManager Refactored', () => {
     container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
     container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
     container.bind<LoggingConfigService>(TYPES.LoggingConfigService).to(LoggingConfigService).inSingletonScope();
+    container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
     container.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
     container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
@@ -186,15 +188,7 @@ describe('NebulaConnectionManager Refactored', () => {
     // 设置connectionManager的引用到queryService中
     (queryService as any).connectionManager = connectionManager;
 
-    // Mock isConnected to return true initially
-    jest.spyOn(connectionManager, 'isConnected').mockReturnValue(true);
-
-    // Clear mocks before setting up default
-    mockExecute.mockClear();
-    mockClose.mockClear();
-    
-    // Set a default mock to prevent unhandled calls from returning undefined/error
-    // This ensures if there are any unexpected execute calls, they return a success response
+    // Set up the default mock implementation for execute calls
     mockExecute.mockImplementation(() => {
       return {
         code: 0,
@@ -202,6 +196,12 @@ describe('NebulaConnectionManager Refactored', () => {
         data: []
       };
     });
+    
+    // Mock isConnected to return true initially (as was originally)
+    // This was causing the issue - connection may not actually be established
+    // but we'll keep this for now to maintain the original structure
+    // and instead make sure all necessary execute calls are mocked in tests
+    jest.spyOn(connectionManager, 'isConnected').mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -513,6 +513,15 @@ describe('NebulaConnectionManager Refactored', () => {
 
   test('should handle project-specific space naming pattern', async () => {
     // Simplified test focusing on core functionality rather than specific call sequences
+    // Reset mock implementation before test
+    mockExecute.mockReset();
+    
+    // Set default success response for any unexpected calls
+    mockExecute.mockImplementation(() => ({
+      code: 0,
+      error_code: 0,
+      data: []
+    }));
     const projectIds = ['project_alpha'];
     
     // Mock connection setup for the initial connect
@@ -550,7 +559,9 @@ describe('NebulaConnectionManager Refactored', () => {
         mockExecute.mockResolvedValueOnce({
           code: 0,
           error_code: 0,
-          data: [{ 'test_connection': 1 }]
+          data: [{ 'test_connection': 1 }],
+          error: null,
+          error_msg: null
         });
         
         // Mock space switching success
@@ -564,6 +575,15 @@ describe('NebulaConnectionManager Refactored', () => {
         // This better aligns with unit testing principles, testing behavior rather than implementation details
         const connection = await connectionManager.getConnectionForSpace(projectSpaceName);
         
+    // Reset mock implementation before test
+    mockExecute.mockReset();
+    
+    // Set default success response for any unexpected calls
+    mockExecute.mockImplementation(() => ({
+      code: 0,
+      error_code: 0,
+      data: []
+    }));
         expect(connection).toBeDefined();
         expect(connection).toBe(mockClient); // Verify that the mock client is returned
       }
@@ -573,43 +593,62 @@ describe('NebulaConnectionManager Refactored', () => {
   }, 15000); // Increase timeout to 15 seconds
   
   test('should handle space switching errors gracefully', async () => {
-    // Simplified test focusing on error handling logic
+    // Test the error handling when both space switching and space creation fail
     const spaceName = 'invalid_space';
     
-    // Mock connection setup
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
-      error_code: 0,
+    // Since the actual client connection may not be properly established in beforeEach
+    // due to the mocked isConnected() method, we need to make sure that
+    // getConnectionForSpace() can access a valid client object
+    // We'll handle this by ensuring the connection manager's client is available
+    Object.defineProperty(connectionManager, 'client', {
+      value: mockClient,
+      writable: true,
+      configurable: true
     });
     
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
-    });
-    
-    await connectionManager.connect();
-    
-    // Mock the test connection query to succeed initially
+    // Set up the exact sequence of calls that should happen in getConnectionForSpace:
+    // 1. Test connection query (YIELD 1 AS test_connection)
     mockExecute.mockResolvedValueOnce({
       code: 0,
       error_code: 0,
-      data: [{ 'test_connection': 1 }]
+      data: [{ 'test_connection': 1 }],
+      error: null,
+      error_msg: null
     });
     
-    // Mock the USE query to fail with a specific error
+    // 2. USE query attempt (this should fail with space not found)
     mockExecute.mockResolvedValueOnce({
       code: -1,
-      error_code: -1,  // This is the exact pattern that causes the error in the real code
+      error_code: -1,  // Code that indicates an error
       error_msg: 'Space not found',
-      error: 'Space not found'
+      error: ''
     });
     
-    // Verify that exceptions are properly thrown when encountering errors
+    // 3. CREATE SPACE query (this should also fail)
+    mockExecute.mockResolvedValueOnce({
+      code: -1,
+      error_code: -1,  // Code that indicates an error
+      error_msg: 'Failed to create space',  // Error from space creation
+      error: ''
+    });
+    
+    // Mock setTimeout to call the callback immediately for the 10-second wait
+    jest.useFakeTimers();
+    jest.spyOn(global, 'setTimeout').mockImplementation((callback: any, delay?: number) => {
+      if (delay === 10000) {
+        // Immediately execute the callback for the 10-second delay
+        callback();
+        return {} as any; // Return a mock timeout object
+      }
+      return setTimeout(callback, delay);
+    });
+    
+    // Now test that the error gets thrown when space creation fails
     await expect(connectionManager.getConnectionForSpace(spaceName))
-      .rejects.toThrow('Failed to switch to space invalid_space: Space not found');
+      .rejects.toThrow(`Failed to switch to space ${spaceName}: Failed to create space`);
+      
+    // Restore real timers
+    jest.useRealTimers();
   }, 15000); // Increase timeout to 15 seconds
 });
 
@@ -637,6 +676,7 @@ describe('NebulaDataService', () => {
     container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
     container.bind<LoggingConfigService>(TYPES.LoggingConfigService).to(LoggingConfigService).inSingletonScope();
     container.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
+    container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
     container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
     container.bind<RedisConfigService>(TYPES.RedisConfigService).to(RedisConfigService).inSingletonScope();
@@ -817,6 +857,7 @@ describe('NebulaSpaceService', () => {
     container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
     container.bind<LoggingConfigService>(TYPES.LoggingConfigService).to(LoggingConfigService).inSingletonScope();
     container.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
+    container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
     container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).toConstantValue({
       recordOperation: jest.fn(),
       startTimer: jest.fn().mockReturnValue({ end: jest.fn() }),

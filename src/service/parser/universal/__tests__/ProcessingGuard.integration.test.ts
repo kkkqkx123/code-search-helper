@@ -47,7 +47,9 @@ describe('ProcessingGuard Integration Tests', () => {
       forceGarbageCollection: jest.fn(),
       triggerCleanup: jest.fn(),
       isWithinLimit: jest.fn().mockReturnValue(true),
-      setMemoryLimit: jest.fn()
+      setMemoryLimit: jest.fn(),
+      clearHistory: jest.fn(),
+      getMemoryHistory: jest.fn().mockReturnValue([])
     };
     
     memoryGuard = new MemoryGuard(mockMemoryMonitor, 500, 1000, mockLogger); // Short interval for testing
@@ -75,6 +77,7 @@ describe('ProcessingGuard Integration Tests', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('ProcessingGuard initialized successfully');
       
       processingGuard.destroy();
+      expect(mockLogger.info).toHaveBeenCalledWith('Memory monitoring stopped');
       expect(mockLogger.info).toHaveBeenCalledWith('ProcessingGuard destroyed');
     });
 
