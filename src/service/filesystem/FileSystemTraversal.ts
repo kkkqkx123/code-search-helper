@@ -624,4 +624,12 @@ export class FileSystemTraversal {
       largestFiles,
     };
   }
+
+  /**
+   * 获取支持的文件扩展名列表
+   * 为 FileTraversalService 提供统一的扩展名检查功能
+   */
+  getSupportedExtensions(): string[] {
+    return [...this.defaultOptions.supportedExtensions];
+  }
 }
