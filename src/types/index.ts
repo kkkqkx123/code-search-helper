@@ -8,6 +8,20 @@ export const TYPES = {
   // 配置服务
   NebulaConfigService: Symbol.for('NebulaConfigService'),
   QdrantConfigService: Symbol.for('QdrantConfigService'),
+  EnvironmentConfigService: Symbol.for('EnvironmentConfigService'),
+  EmbeddingConfigService: Symbol.for('EmbeddingConfigService'),
+  LoggingConfigService: Symbol.for('LoggingConfigService'),
+  MonitoringConfigService: Symbol.for('MonitoringConfigService'),
+  MemoryMonitorConfigService: Symbol.for('MemoryMonitorConfigService'),
+  FileProcessingConfigService: Symbol.for('FileProcessingConfigService'),
+  BatchProcessingConfigService: Symbol.for('BatchProcessingConfigService'),
+  RedisConfigService: Symbol.for('RedisConfigService'),
+  ProjectConfigService: Symbol.for('ProjectConfigService'),
+  IndexingConfigService: Symbol.for('IndexingConfigService'),
+  LSPConfigService: Symbol.for('LSPConfigService'),
+  SemgrepConfigService: Symbol.for('SemgrepConfigService'),
+  TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
+  ProjectNamingConfigService: Symbol.for('ProjectNamingConfigService'),
   
   // 连接管理器
   NebulaConnectionManager: Symbol.for('NebulaConnectionManager'),

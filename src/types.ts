@@ -126,6 +126,7 @@ export const TYPES = {
   EmbeddingConfigService: Symbol.for('EmbeddingConfigService'),
   LoggingConfigService: Symbol.for('LoggingConfigService'),
   MonitoringConfigService: Symbol.for('MonitoringConfigService'),
+  MemoryMonitorConfigService: Symbol.for('MemoryMonitorConfigService'),
   FileProcessingConfigService: Symbol.for('FileProcessingConfigService'),
   BatchProcessingConfigService: Symbol.for('BatchProcessingConfigService'),
   RedisConfigService: Symbol.for('RedisConfigService'),

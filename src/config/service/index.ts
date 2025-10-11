@@ -4,6 +4,7 @@ export { QdrantConfigService, QdrantConfig } from './QdrantConfigService';
 export { EmbeddingConfigService, EmbeddingConfig } from './EmbeddingConfigService';
 export { LoggingConfigService, LoggingConfig } from './LoggingConfigService';
 export { MonitoringConfigService, MonitoringConfig } from './MonitoringConfigService';
+export { MemoryMonitorConfigService, MemoryMonitorConfig } from './MemoryMonitorConfigService';
 export { FileProcessingConfigService, FileProcessingConfig } from './FileProcessingConfigService';
 export { BatchProcessingConfigService, BatchProcessingConfig } from './BatchProcessingConfigService';
 export { RedisConfigService, RedisConfig } from './RedisConfigService';

@@ -7,6 +7,7 @@ import {
   EmbeddingConfigService,
   LoggingConfigService,
   MonitoringConfigService,
+  MemoryMonitorConfigService,
   FileProcessingConfigService,
   BatchProcessingConfigService,
   RedisConfigService,
@@ -33,6 +34,7 @@ export class ConfigService {
     @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
     @inject(TYPES.LoggingConfigService) private loggingConfigService: LoggingConfigService,
     @inject(TYPES.MonitoringConfigService) private monitoringConfigService: MonitoringConfigService,
+    @inject(TYPES.MemoryMonitorConfigService) private memoryMonitorConfigService: MemoryMonitorConfigService,
     @inject(TYPES.FileProcessingConfigService) private fileProcessingConfigService: FileProcessingConfigService,
     @inject(TYPES.BatchProcessingConfigService) private batchProcessingConfigService: BatchProcessingConfigService,
     @inject(TYPES.RedisConfigService) private redisConfigService: RedisConfigService,
@@ -42,7 +44,7 @@ export class ConfigService {
     @inject(TYPES.SemgrepConfigService) private semgrepConfigService: SemgrepConfigService,
     @inject(TYPES.TreeSitterConfigService) private treeSitterConfigService: TreeSitterConfigService,
     @inject(TYPES.ProjectNamingConfigService) private projectNamingConfigService: ProjectNamingConfigService,
-  ) {}
+  ) { }
 
   async initialize(): Promise<void> {
     try {
@@ -52,6 +54,7 @@ export class ConfigService {
       const embedding = this.embeddingConfigService.getConfig();
       const logging = this.loggingConfigService.getConfig();
       const monitoring = this.monitoringConfigService.getConfig();
+      const memoryMonitor = this.memoryMonitorConfigService.getConfig();
       const fileProcessing = this.fileProcessingConfigService.getConfig();
       const batchProcessing = this.batchProcessingConfigService.getConfig();
       const redis = this.redisConfigService.getConfig();
@@ -69,6 +72,7 @@ export class ConfigService {
         embedding,
         logging,
         monitoring,
+        memoryMonitor,
         fileProcessing,
         batchProcessing,
         redis,
@@ -141,6 +145,13 @@ export class ConfigService {
    */
   getEmbeddingConfig() {
     return this.get('embedding');
+  }
+
+  /**
+   * 专门用于获取内存监控配置的方法
+   */
+  getMemoryMonitorConfig() {
+    return this.get('memoryMonitor');
   }
 
 

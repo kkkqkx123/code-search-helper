@@ -26,12 +26,12 @@ export class MemoryMonitorService implements IMemoryMonitorService {
   private embeddingCache: EmbeddingCacheService;
   private configService: ConfigService;
   private memoryCheckInterval: NodeJS.Timeout | null = null;
-  private warningThreshold: number;
-  private criticalThreshold: number;
-  private emergencyThreshold: number;
- private checkInterval: number;
- private cleanupCooldown: number;
- private maxHistorySize: number;
+  private warningThreshold: number = 0.70;
+  private criticalThreshold: number = 0.85;
+  private emergencyThreshold: number = 0.95;
+  private checkInterval: number = 30000;
+  private cleanupCooldown: number = 30000;
+  private maxHistorySize: number = 100;
   private lastCleanupTime: number = 0;
   private memoryHistory: IMemoryHistoryItem[] = [];
   private memoryLimit?: number; // 可选的内存限制（字节）
@@ -60,14 +60,45 @@ export class MemoryMonitorService implements IMemoryMonitorService {
     this.embeddingCache = embeddingCache;
     this.configService = configService;
 
-    // 从配置或环境变量获取阈值
-    this.warningThreshold = parseFloat(process.env.MEMORY_WARNING_THRESHOLD || '0.70');
-    this.criticalThreshold = parseFloat(process.env.MEMORY_CRITICAL_THRESHOLD || '0.85');
-    this.emergencyThreshold = parseFloat(process.env.MEMORY_EMERGENCY_THRESHOLD || '0.95');
-    this.checkInterval = parseInt(process.env.MEMORY_CHECK_INTERVAL || '30000');
-    this.cleanupCooldown = parseInt(process.env.MEMORY_CLEANUP_COOLDOWN || '30000');
-    this.maxHistorySize = parseInt(process.env.MEMORY_HISTORY_SIZE || '100');
+    // 延迟初始化，等待配置服务初始化完成
+    this.initializeConfig();
+  }
 
+  /**
+   * 初始化配置
+   */
+  private initializeConfig(): void {
+    try {
+      const config = this.configService.getMemoryMonitorConfig();
+      
+      // 从 ConfigService 获取配置参数
+      this.warningThreshold = config.warningThreshold;
+      this.criticalThreshold = config.criticalThreshold;
+      this.emergencyThreshold = config.emergencyThreshold;
+      this.checkInterval = config.checkInterval;
+      this.cleanupCooldown = config.cleanupCooldown;
+      this.maxHistorySize = config.maxHistorySize;
+      
+      this.logger.info('Memory monitor configuration loaded from ConfigService', {
+        warningThreshold: this.warningThreshold,
+        criticalThreshold: this.criticalThreshold,
+        emergencyThreshold: this.emergencyThreshold,
+        checkInterval: this.checkInterval,
+        cleanupCooldown: this.cleanupCooldown,
+        maxHistorySize: this.maxHistorySize
+      });
+    } catch (error) {
+      this.logger.warn('Failed to load memory monitor configuration from ConfigService, falling back to environment variables', error);
+      
+      // 回退到环境变量
+      this.warningThreshold = parseFloat(process.env.MEMORY_WARNING_THRESHOLD || '0.70');
+      this.criticalThreshold = parseFloat(process.env.MEMORY_CRITICAL_THRESHOLD || '0.85');
+      this.emergencyThreshold = parseFloat(process.env.MEMORY_EMERGENCY_THRESHOLD || '0.95');
+      this.checkInterval = parseInt(process.env.MEMORY_CHECK_INTERVAL || '30000');
+      this.cleanupCooldown = parseInt(process.env.MEMORY_CLEANUP_COOLDOWN || '30000');
+      this.maxHistorySize = parseInt(process.env.MEMORY_HISTORY_SIZE || '100');
+    }
+    
     this.startMonitoring();
   }
 
@@ -358,31 +389,49 @@ export class MemoryMonitorService implements IMemoryMonitorService {
   }
 
  /**
-   * 更新配置
-   */
-  updateConfig(config: {
-    warningThreshold?: number;
-    criticalThreshold?: number;
-    emergencyThreshold?: number;
-    checkInterval?: number;
-  }): void {
-    if (config.warningThreshold !== undefined) {
-      this.warningThreshold = config.warningThreshold;
-    }
-    if (config.criticalThreshold !== undefined) {
-      this.criticalThreshold = config.criticalThreshold;
-    }
-    if (config.emergencyThreshold !== undefined) {
-      this.emergencyThreshold = config.emergencyThreshold;
-    }
-    if (config.checkInterval !== undefined) {
-      this.checkInterval = config.checkInterval;
-      // 重新启动监控
-      this.startMonitoring();
-    }
+  * 更新配置
+  */
+ updateConfig(config: {
+   warningThreshold?: number;
+   criticalThreshold?: number;
+   emergencyThreshold?: number;
+   checkInterval?: number;
+   cleanupCooldown?: number;
+   maxHistorySize?: number;
+ }): void {
+   let needsRestart = false;
+   
+   if (config.warningThreshold !== undefined) {
+     this.warningThreshold = config.warningThreshold;
+   }
+   if (config.criticalThreshold !== undefined) {
+     this.criticalThreshold = config.criticalThreshold;
+   }
+   if (config.emergencyThreshold !== undefined) {
+     this.emergencyThreshold = config.emergencyThreshold;
+   }
+   if (config.checkInterval !== undefined) {
+     this.checkInterval = config.checkInterval;
+     needsRestart = true; // 检查间隔变化需要重新启动监控
+   }
+   if (config.cleanupCooldown !== undefined) {
+     this.cleanupCooldown = config.cleanupCooldown;
+   }
+   if (config.maxHistorySize !== undefined) {
+     this.maxHistorySize = config.maxHistorySize;
+     // 调整历史记录大小
+     if (this.memoryHistory.length > this.maxHistorySize) {
+       this.memoryHistory = this.memoryHistory.slice(-this.maxHistorySize);
+     }
+   }
+   
+   if (needsRestart) {
+     // 重新启动监控
+     this.startMonitoring();
+   }
 
-    this.logger.info('Memory monitoring configuration updated', config);
-  }
+   this.logger.info('Memory monitoring configuration updated', config);
+ }
 
  /**
    * 获取当前内存状态
@@ -487,17 +536,25 @@ export class MemoryMonitorService implements IMemoryMonitorService {
 
   /**
    * 获取当前配置
+   * 优先从 ConfigService 获取最新配置，如果不可用则返回本地配置
    */
   getConfig(): IMemoryMonitorConfig {
-    return {
-      warningThreshold: this.warningThreshold,
-      criticalThreshold: this.criticalThreshold,
-      emergencyThreshold: this.emergencyThreshold,
-      checkInterval: this.checkInterval,
-      cleanupCooldown: this.cleanupCooldown,
-      maxHistorySize: this.maxHistorySize
-    };
- }
+    try {
+      // 尝试从 ConfigService 获取最新配置
+      return this.configService.getMemoryMonitorConfig();
+    } catch (error) {
+      this.logger.debug('Unable to get config from ConfigService, returning local config', error);
+      // 回退到本地配置
+      return {
+        warningThreshold: this.warningThreshold,
+        criticalThreshold: this.criticalThreshold,
+        emergencyThreshold: this.emergencyThreshold,
+        checkInterval: this.checkInterval,
+        cleanupCooldown: this.cleanupCooldown,
+        maxHistorySize: this.maxHistorySize
+      };
+    }
+  }
 
   /**
    * 添加内存事件监听器
