@@ -110,6 +110,43 @@ describe('BackupFileProcessor', () => {
       expect(result.originalLanguage).toBe('json');
       expect(result.originalFileName).toBe('config.json');
     });
+
+    it('should infer language with high confidence for files with extension.backup pattern', () => {
+      const result = processor.inferOriginalType('script.py.bak');
+      
+      expect(result.originalExtension).toBe('.py');
+      expect(result.originalLanguage).toBe('python');
+      expect(result.originalFileName).toBe('script.py');
+      expect(result.confidence).toBe(0.95); // High confidence for this pattern
+    });
+
+    it('should infer language with high confidence for files with extension.backup pattern - multiple examples', () => {
+      const testCases = [
+        { file: 'app.ts.backup', ext: '.ts', lang: 'typescript', name: 'app.ts', conf: 0.95 },
+        { file: 'main.cpp.bak', ext: '.cpp', lang: 'cpp', name: 'main.cpp', conf: 0.95 },
+        { file: 'config.json.old', ext: '.json', lang: 'json', name: 'config.json', conf: 0.95 },
+        { file: 'styles.css.tmp', ext: '.css', lang: 'css', name: 'styles.css', conf: 0.95 },
+      ];
+
+      for (const testCase of testCases) {
+        const result = processor.inferOriginalType(testCase.file);
+        expect(result.originalExtension).toBe(testCase.ext);
+        expect(result.originalLanguage).toBe(testCase.lang);
+        expect(result.originalFileName).toBe(testCase.name);
+        expect(result.confidence).toBe(testCase.conf);
+      }
+    });
+
+    it('should not infer language from invalid extensions in extension.backup pattern', () => {
+      const result = processor.inferOriginalType('readme.invalid.bak');
+      
+      // Should fallback to standard processing - special pattern should be skipped
+      // since 'invalid' is not a valid language extension
+      expect(result.originalExtension).toBe('');
+      expect(result.originalLanguage).toBe('unknown');
+      expect(result.originalFileName).toBe('readme.invalid.bak');
+      expect(result.confidence).toBe(0.5); // Default confidence
+    });
   });
 
   describe('isLikelyCodeFile', () => {
