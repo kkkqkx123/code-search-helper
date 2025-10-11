@@ -10,6 +10,7 @@ import { PerformanceOptimizerService } from '../../../infrastructure/batching/Pe
 import { ASTCodeSplitter } from '../../parser/splitting/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
 import { VectorPoint } from '../../../database/qdrant/IVectorStore';
+import { IMemoryMonitorService } from '../../../service/memory/interfaces/IMemoryMonitorService';
 import { FileInfo } from '../../filesystem/FileSystemTraversal';
 
 // Mock dependencies
@@ -77,10 +78,47 @@ describe('IndexingLogicService', () => {
       errorHandlerService,
       {} as any
     ) as jest.Mocked<EmbeddingCacheService>;
+    // 创建 IMemoryMonitorService 的模拟实现
+    const mockMemoryMonitor: any = {
+      getMemoryStatus: jest.fn().mockReturnValue({
+        heapUsed: 100 * 1024 * 1024, // 100MB
+        heapTotal: 500 * 1024 * 1024, // 500MB
+        heapUsedPercent: 0.2,
+        rss: 200 * 1024 * 1024, // 200MB
+        external: 0,
+        isWarning: false,
+        isCritical: false,
+        isEmergency: false,
+        trend: 'stable',
+        averageUsage: 150 * 1024 * 1024, // 150MB
+        timestamp: new Date()
+      }),
+      forceGarbageCollection: jest.fn(),
+      triggerCleanup: jest.fn(),
+      isWithinLimit: jest.fn().mockReturnValue(true),
+      setMemoryLimit: jest.fn(),
+      getMemoryStats: jest.fn().mockReturnValue({
+        current: {
+          heapUsed: 100 * 1024 * 1024,
+          heapTotal: 500 * 1024 * 1024,
+          heapUsedPercent: 0.2,
+          rss: 200 * 1024 * 1024,
+          external: 0,
+          isWarning: false,
+          isCritical: false,
+          isEmergency: false,
+          trend: 'stable',
+          averageUsage: 150 * 1024 * 1024,
+          timestamp: new Date()
+        }
+      })
+    };
+    
     performanceOptimizerService = new PerformanceOptimizerService(
       loggerService,
       errorHandlerService,
-      {} as any
+      {} as any,
+      mockMemoryMonitor
     ) as jest.Mocked<PerformanceOptimizerService>;
     astSplitter = {} as jest.Mocked<ASTCodeSplitter>;
     coordinationService = {

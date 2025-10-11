@@ -1,6 +1,8 @@
 import { Container } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { ConfigService } from '../../config/ConfigService';
 
 // 文件系统服务
 import { FileSystemTraversal } from '../../service/filesystem/FileSystemTraversal';
@@ -79,7 +81,13 @@ export class BusinessServiceRegistrar {
       container.bind<StorageCoordinatorService>(TYPES.StorageCoordinatorService).to(StorageCoordinatorService).inSingletonScope();
 
       // 性能优化服务
-      container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).to(PerformanceOptimizerService).inSingletonScope();
+      container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        const errorHandler = context.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
+        const configService = context.get<ConfigService>(TYPES.ConfigService);
+        const memoryMonitor = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
+        return new PerformanceOptimizerService(logger, errorHandler, configService, memoryMonitor);
+      }).inSingletonScope();
 
       // 解析服务
       container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
@@ -99,7 +107,13 @@ export class BusinessServiceRegistrar {
         const resetInterval = parseInt(process.env.UNIVERSAL_ERROR_RESET_INTERVAL || '60000', 10);
         return new ErrorThresholdManager(logger, maxErrors, resetInterval);
       }).inSingletonScope();
-      container.bind<MemoryGuard>(TYPES.MemoryGuard).to(MemoryGuard).inSingletonScope();
+      container.bind<MemoryGuard>(TYPES.MemoryGuard).toDynamicValue(context => {
+        const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
+        const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
+        const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        return new MemoryGuard(memoryMonitorService, memoryLimitMB, memoryCheckIntervalMs, logger);
+      }).inSingletonScope();
       container.bind<BackupFileProcessor>(TYPES.BackupFileProcessor).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         return new BackupFileProcessor(logger);

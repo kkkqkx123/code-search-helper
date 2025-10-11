@@ -1,10 +1,12 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
+import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
 
 /**
  * 内存监控和保护机制
  * 负责监控内存使用情况，在达到限制时触发清理或降级处理
+ * 重构为依赖统一的内存监控服务
  */
 @injectable()
 export class MemoryGuard {
@@ -13,17 +15,21 @@ export class MemoryGuard {
   private memoryCheckTimer?: NodeJS.Timeout;
   private isMonitoring: boolean = false;
   private logger?: LoggerService;
-  private memoryHistory: Array<{ timestamp: number; heapUsed: number; heapTotal: number }> = [];
-  private maxHistorySize: number = 100;
+  private memoryMonitor: IMemoryMonitorService;
 
   constructor(
+    @inject(TYPES.MemoryMonitorService) memoryMonitor: IMemoryMonitorService,
     @inject(TYPES.MemoryLimitMB) memoryLimitMB: number = 500,
     @inject(TYPES.MemoryCheckIntervalMs) checkIntervalMs: number = 5000,
-    @inject(TYPES.LoggerService) logger: LoggerService
+    @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
+    this.memoryMonitor = memoryMonitor;
     this.memoryLimit = memoryLimitMB * 1024 * 1024; // 转换为字节
     this.checkInterval = checkIntervalMs;
     this.logger = logger;
+    
+    // 设置内存限制到内存监控服务
+    this.memoryMonitor.setMemoryLimit?.(memoryLimitMB);
   }
 
   /**
@@ -72,17 +78,16 @@ export class MemoryGuard {
     arrayBuffers: number;
   } {
     try {
+      // 使用统一的内存监控服务获取内存状态
+      const memoryStatus = this.memoryMonitor.getMemoryStatus();
+      const heapUsed = memoryStatus.heapUsed;
+      const heapTotal = memoryStatus.heapTotal;
+      const external = memoryStatus.external;
       const memUsage = process.memoryUsage();
-      const heapUsed = memUsage.heapUsed;
-      const heapTotal = memUsage.heapTotal;
-      const external = memUsage.external;
       const arrayBuffers = memUsage.arrayBuffers || 0;
 
       const isWithinLimit = heapUsed <= this.memoryLimit;
       const usagePercent = (heapUsed / this.memoryLimit) * 100;
-
-      // 记录历史数据
-      this.recordMemoryUsage(heapUsed, heapTotal);
 
       // 如果内存使用过高，记录警告
       if (!isWithinLimit) {
@@ -92,7 +97,7 @@ export class MemoryGuard {
         this.forceCleanup();
 
         // 如果仍然超过限制，触发降级处理
-        if (this.checkMemoryUsage().heapUsed > this.memoryLimit) {
+        if (!this.memoryMonitor.isWithinLimit?.()) {
           this.logger?.warn('Memory still exceeds limit after cleanup, triggering graceful degradation');
           this.gracefulDegradation();
         }
@@ -134,8 +139,9 @@ export class MemoryGuard {
       // 清理其他缓存
       this.cleanupOtherCaches();
 
-      // 强制垃圾回收
-      this.forceGarbageCollection();
+      // 使用统一的内存监控服务进行垃圾回收和清理
+      this.memoryMonitor.forceGarbageCollection();
+      this.memoryMonitor.triggerCleanup('deep');
 
       // 记录清理后的内存使用情况
       const afterCleanup = this.checkMemoryUsage();
@@ -179,8 +185,11 @@ export class MemoryGuard {
     const current = process.memoryUsage();
     const usagePercent = (current.heapUsed / this.memoryLimit) * 100;
     const isWithinLimit = current.heapUsed <= this.memoryLimit;
-    const trend = this.calculateMemoryTrend();
-    const averageUsage = this.calculateAverageUsage();
+    
+    // 使用统一的内存监控服务获取趋势和平均值
+    const memoryStatus = this.memoryMonitor.getMemoryStatus();
+    const trend = memoryStatus.trend;
+    const averageUsage = memoryStatus.averageUsage;
 
     return {
       current,
@@ -196,14 +205,21 @@ export class MemoryGuard {
    * 获取内存使用历史
    */
   getMemoryHistory(): Array<{ timestamp: number; heapUsed: number; heapTotal: number }> {
-    return [...this.memoryHistory];
+    // 使用统一的内存监控服务获取历史记录
+    const history = this.memoryMonitor.getMemoryHistory();
+    return history.map(item => ({
+      timestamp: item.timestamp.getTime(),
+      heapUsed: item.heapUsed,
+      heapTotal: item.heapTotal
+    }));
   }
 
   /**
    * 清空内存使用历史
    */
   clearHistory(): void {
-    this.memoryHistory = [];
+    // 使用统一的内存监控服务清空历史记录
+    this.memoryMonitor.clearHistory();
     this.logger?.debug('Memory usage history cleared');
   }
 
@@ -214,61 +230,11 @@ export class MemoryGuard {
     const newLimit = limitMB * 1024 * 1024;
     if (newLimit > 0) {
       this.memoryLimit = newLimit;
+      this.memoryMonitor.setMemoryLimit?.(limitMB);
       this.logger?.info(`Memory limit updated to ${limitMB}MB`);
     }
   }
 
-  /**
-   * 记录内存使用情况
-   */
-  private recordMemoryUsage(heapUsed: number, heapTotal: number): void {
-    const now = Date.now();
-    this.memoryHistory.push({
-      timestamp: now,
-      heapUsed,
-      heapTotal
-    });
-
-    // 限制历史记录大小
-    if (this.memoryHistory.length > this.maxHistorySize) {
-      this.memoryHistory = this.memoryHistory.slice(-this.maxHistorySize);
-    }
-  }
-
-  /**
-   * 计算内存使用趋势
-   */
-  private calculateMemoryTrend(): 'increasing' | 'decreasing' | 'stable' {
-    if (this.memoryHistory.length < 3) {
-      return 'stable';
-    }
-
-    const recent = this.memoryHistory.slice(-5);
-    const first = recent[0];
-    const last = recent[recent.length - 1];
-    const diff = last.heapUsed - first.heapUsed;
-    const threshold = this.memoryLimit * 0.05; // 5%的阈值
-
-    if (diff > threshold) {
-      return 'increasing';
-    } else if (diff < -threshold) {
-      return 'decreasing';
-    } else {
-      return 'stable';
-    }
-  }
-
-  /**
-   * 计算平均内存使用量
-   */
-  private calculateAverageUsage(): number {
-    if (this.memoryHistory.length === 0) {
-      return 0;
-    }
-
-    const total = this.memoryHistory.reduce((sum, entry) => sum + entry.heapUsed, 0);
-    return total / this.memoryHistory.length;
-  }
 
   /**
    * 清理TreeSitter缓存
@@ -311,7 +277,7 @@ export class MemoryGuard {
     try {
       if (typeof global !== 'undefined' && global.gc) {
         global.gc();
-        this.logger?.debug('Forced garbage collection during memory cleanup');
+        this.logger?.debug('Forced garbage collection');
       }
     } catch (error) {
       this.logger?.debug(`Could not force garbage collection: ${(error as Error).message}`);

@@ -3,13 +3,14 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
+import { IMemoryMonitorService } from '../../service/memory/interfaces/IMemoryMonitorService';
 
 export interface PerformanceMetrics {
   operation: string;
   duration: number;
-  success: boolean;
-  timestamp: Date;
-  metadata?: Record<string, any>;
+ success: boolean;
+ timestamp: Date;
+ metadata?: Record<string, any>;
 }
 
 export interface RetryOptions {
@@ -21,7 +22,7 @@ export interface RetryOptions {
 }
 
 export interface BatchOptions {
-  initialSize: number;
+ initialSize: number;
   maxSize: number;
   minSize: number;
   adjustmentFactor: number;
@@ -31,24 +32,23 @@ export interface BatchOptions {
 export interface MemoryUsage {
   used: number;
   total: number;
-  percentage: number;
-  timestamp: Date;
+ percentage: number;
+ timestamp: Date;
 }
 
 @injectable()
 export class PerformanceOptimizerService {
   private performanceMetrics: PerformanceMetrics[] = [];
-  private memoryUsageHistory: MemoryUsage[] = [];
   private retryOptions: RetryOptions;
   private batchOptions: BatchOptions;
   private currentBatchSize: number;
   private isOptimizing: boolean = false;
-  private memoryMonitoringInterval: NodeJS.Timeout | null = null;
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-    @inject(TYPES.ConfigService) private configService: ConfigService
+    @inject(TYPES.ConfigService) private configService: ConfigService,
+    @inject(TYPES.MemoryMonitorService) private memoryMonitor: IMemoryMonitorService
   ) {
     // 在测试环境中，使用默认值以避免配置服务未初始化的问题
     let batchConfig;
@@ -93,9 +93,6 @@ export class PerformanceOptimizerService {
     // Set initial batch size
     this.currentBatchSize = this.batchOptions.initialSize;
 
-    // Start memory monitoring
-    this.startMemoryMonitoring();
-
     this.logger.info('Performance optimizer service initialized', {
       retryOptions: this.retryOptions,
       batchOptions: this.batchOptions
@@ -105,7 +102,7 @@ export class PerformanceOptimizerService {
   /**
    * 执行带有重试逻辑的操作
    */
-  async executeWithRetry<T>(
+ async executeWithRetry<T>(
     operation: () => Promise<T>,
     operationName: string,
     options?: Partial<RetryOptions>
@@ -320,10 +317,10 @@ export class PerformanceOptimizerService {
     this.performanceMetrics.push(metric);
 
     // Keep only the last 1000 metrics to prevent memory issues
-    if (this.performanceMetrics.length > 1000) {
+    if (this.performanceMetrics.length > 100) {
       this.performanceMetrics = this.performanceMetrics.slice(-1000);
     }
-  }
+ }
 
   /**
    * 获取性能统计信息
@@ -371,93 +368,6 @@ export class PerformanceOptimizerService {
   }
 
   /**
-   * 开始内存监控
-   */
-  private startMemoryMonitoring(): void {
-    // 在测试环境中不启动内存监控
-    if (process.env.NODE_ENV === 'test') {
-      return;
-    }
-
-    // Record memory usage every 30 seconds
-    if (this.memoryMonitoringInterval) {
-      clearInterval(this.memoryMonitoringInterval);
-    }
-    this.memoryMonitoringInterval = setInterval(() => {
-      this.recordMemoryUsage();
-    }, 30000);
-
-    // Record initial memory usage
-    this.recordMemoryUsage();
-  }
-
-  /**
-   * 记录内存使用情况
-   */
-  private recordMemoryUsage(): void {
-    const memoryUsage = process.memoryUsage();
-    const total = memoryUsage.heapTotal;
-    const used = memoryUsage.heapUsed;
-    const percentage = (used / total) * 100;
-
-    const memoryRecord: MemoryUsage = {
-      used,
-      total,
-      percentage,
-      timestamp: new Date()
-    };
-
-    this.memoryUsageHistory.push(memoryRecord);
-
-    // Keep only the last 100 records to prevent memory issues
-    if (this.memoryUsageHistory.length > 100) {
-      this.memoryUsageHistory = this.memoryUsageHistory.slice(-100);
-    }
-
-    // Log warning if memory usage is high
-    if (percentage > 90) {
-      this.logger.warn('High memory usage detected', {
-        used: Math.round(used / 1024 / 1024),
-        total: Math.round(total / 1024 / 1024),
-        percentage: Math.round(percentage * 100) / 100
-      });
-    }
-  }
-
-  /**
-   * 获取内存使用统计
-   */
-  getMemoryStats(): {
-    current: MemoryUsage;
-    average: MemoryUsage;
-    peak: MemoryUsage;
-  } {
-    if (this.memoryUsageHistory.length === 0) {
-      return {
-        current: { used: 0, total: 0, percentage: 0, timestamp: new Date() },
-        average: { used: 0, total: 0, percentage: 0, timestamp: new Date() },
-        peak: { used: 0, total: 0, percentage: 0, timestamp: new Date() }
-      };
-    }
-
-    const current = this.memoryUsageHistory[this.memoryUsageHistory.length - 1];
-
-    const average = {
-      used: this.memoryUsageHistory.reduce((sum, record) => sum + record.used, 0) / this.memoryUsageHistory.length,
-      total: this.memoryUsageHistory.reduce((sum, record) => sum + record.total, 0) / this.memoryUsageHistory.length,
-      percentage: this.memoryUsageHistory.reduce((sum, record) => sum + record.percentage, 0) / this.memoryUsageHistory.length,
-      timestamp: new Date()
-    };
-
-    const peak = this.memoryUsageHistory.reduce((max, record) =>
-      record.percentage > max.percentage ? record : max,
-      this.memoryUsageHistory[0]
-    );
-
-    return { current, average, peak };
-  }
-
-  /**
    * 优化内存使用
    */
   optimizeMemory(): void {
@@ -468,11 +378,8 @@ export class PerformanceOptimizerService {
     this.isOptimizing = true;
 
     try {
-      // Force garbage collection if available
-      if (global.gc) {
-        global.gc();
-        this.logger.debug('Performed manual garbage collection');
-      }
+      // Use the unified memory monitor service for garbage collection
+      this.memoryMonitor.forceGarbageCollection();
 
       // Clear old performance metrics
       if (this.performanceMetrics.length > 500) {
@@ -480,15 +387,9 @@ export class PerformanceOptimizerService {
         this.logger.debug('Cleared old performance metrics');
       }
 
-      // Clear old memory usage records
-      if (this.memoryUsageHistory.length > 50) {
-        this.memoryUsageHistory = this.memoryUsageHistory.slice(-50);
-        this.logger.debug('Cleared old memory usage records');
-      }
-
       // Reduce batch size if memory usage is high
-      const memoryStats = this.getMemoryStats();
-      if (memoryStats.current.percentage > 80) {
+      const memoryStats = this.memoryMonitor.getMemoryStats();
+      if (memoryStats.current.heapUsedPercent > 0.8) {
         const oldBatchSize = this.currentBatchSize;
         this.currentBatchSize = Math.max(
           this.batchOptions.minSize,
@@ -499,7 +400,7 @@ export class PerformanceOptimizerService {
           this.logger.info('Reduced batch size due to high memory usage', {
             oldSize: oldBatchSize,
             newSize: this.currentBatchSize,
-            memoryUsage: Math.round(memoryStats.current.percentage * 100) / 100
+            memoryUsage: Math.round(memoryStats.current.heapUsedPercent * 100) / 10
           });
         }
       }
@@ -551,15 +452,5 @@ export class PerformanceOptimizerService {
     */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  /**
-   * 停止内存监控
-   */
-  stopMemoryMonitoring(): void {
-    if (this.memoryMonitoringInterval) {
-      clearInterval(this.memoryMonitoringInterval);
-      this.memoryMonitoringInterval = null;
-    }
   }
 }

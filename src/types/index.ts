@@ -25,6 +25,7 @@ export const TYPES = {
   NebulaService: Symbol.for('NebulaService'),
   QdrantService: Symbol.for('QdrantService'),
   MemoryMonitorService: Symbol.for('MemoryMonitorService'),
+  IMemoryMonitorService: Symbol.for('IMemoryMonitorService'),
   
   // 解析服务
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),

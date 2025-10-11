@@ -4,13 +4,23 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
 import { ConfigService } from '../../config/ConfigService';
+import {
+  IMemoryStatus,
+  IMemoryMonitorConfig,
+  MemoryCleanupLevel,
+  IMemoryMonitorEventListener,
+  IMemoryStats,
+  IMemoryHistoryItem,
+  IMemoryMonitorEvent
+} from './interfaces/IMemoryStatus';
+import { IMemoryMonitorService } from './interfaces/IMemoryMonitorService';
 
 /**
  * 内存监控和保护服务
  * 监控内存使用情况，在内存压力时执行保护措施
  */
 @injectable()
-export class MemoryMonitorService {
+export class MemoryMonitorService implements IMemoryMonitorService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private embeddingCache: EmbeddingCacheService;
@@ -19,9 +29,25 @@ export class MemoryMonitorService {
   private warningThreshold: number;
   private criticalThreshold: number;
   private emergencyThreshold: number;
-  private checkInterval: number;
+ private checkInterval: number;
+ private cleanupCooldown: number;
+ private maxHistorySize: number;
   private lastCleanupTime: number = 0;
-  private cleanupCooldown: number = 30000; // 30秒冷却时间
+  private memoryHistory: IMemoryHistoryItem[] = [];
+  private memoryLimit?: number; // 可选的内存限制（字节）
+  private eventListeners: Map<string, IMemoryMonitorEventListener[]> = new Map();
+  private cleanupStats: {
+    totalCleanups: number;
+    lightweightCleanups: number;
+    deepCleanups: number;
+    emergencyCleanups: number;
+    lastCleanupTime?: Date;
+ } = {
+    totalCleanups: 0,
+    lightweightCleanups: 0,
+    deepCleanups: 0,
+    emergencyCleanups: 0
+  };
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -39,6 +65,8 @@ export class MemoryMonitorService {
     this.criticalThreshold = parseFloat(process.env.MEMORY_CRITICAL_THRESHOLD || '0.85');
     this.emergencyThreshold = parseFloat(process.env.MEMORY_EMERGENCY_THRESHOLD || '0.95');
     this.checkInterval = parseInt(process.env.MEMORY_CHECK_INTERVAL || '30000');
+    this.cleanupCooldown = parseInt(process.env.MEMORY_CLEANUP_COOLDOWN || '30000');
+    this.maxHistorySize = parseInt(process.env.MEMORY_HISTORY_SIZE || '100');
 
     this.startMonitoring();
   }
@@ -46,13 +74,13 @@ export class MemoryMonitorService {
   /**
    * 启动内存监控
    */
-  private startMonitoring(): void {
+  startMonitoring(): void {
     if (this.memoryCheckInterval) {
       clearInterval(this.memoryCheckInterval);
     }
 
     this.memoryCheckInterval = setInterval(() => {
-      this.checkMemoryUsage();
+      this.internalCheckMemoryUsage();
     }, this.checkInterval);
 
     this.logger.info('Memory monitoring started', {
@@ -64,13 +92,16 @@ export class MemoryMonitorService {
   }
 
   /**
-   * 检查内存使用情况
+   * 检查内存使用情况（内部方法）
    */
-  private checkMemoryUsage(): void {
+ private internalCheckMemoryUsage(): void {
     try {
       const memoryUsage = process.memoryUsage();
       const heapUsedPercent = memoryUsage.heapUsed / memoryUsage.heapTotal;
       const rssPercent = memoryUsage.rss / memoryUsage.heapTotal;
+
+      // 记录历史数据
+      this.recordMemoryUsage(memoryUsage);
 
       this.logger.debug('Memory usage check', {
         heapUsed: memoryUsage.heapUsed,
@@ -92,9 +123,28 @@ export class MemoryMonitorService {
     } catch (error) {
       this.logger.error('Error checking memory usage', error);
     }
-  }
+ }
 
   /**
+   * 记录内存使用情况到历史记录
+   */
+  private recordMemoryUsage(memoryUsage: NodeJS.MemoryUsage): void {
+    const now = new Date();
+    this.memoryHistory.push({
+      timestamp: now,
+      heapUsed: memoryUsage.heapUsed,
+      heapTotal: memoryUsage.heapTotal,
+      rss: memoryUsage.rss,
+      external: memoryUsage.external
+    });
+
+    // 限制历史记录大小
+    if (this.memoryHistory.length > this.maxHistorySize) {
+      this.memoryHistory = this.memoryHistory.slice(-this.maxHistorySize);
+    }
+  }
+
+ /**
    * 处理警告级别的内存使用
    */
   private handleWarningMemory(memoryUsage: NodeJS.MemoryUsage, heapUsedPercent: number): void {
@@ -174,11 +224,24 @@ export class MemoryMonitorService {
       // 清理嵌入缓存
       this.embeddingCache.forceCleanup();
 
+      // 更新清理统计
+      this.cleanupStats.totalCleanups++;
+      this.cleanupStats.lightweightCleanups++;
+      this.cleanupStats.lastCleanupTime = new Date();
+
+      // 触发清理事件
+      this.emitEvent('cleanup', {
+        type: 'cleanup',
+        timestamp: new Date(),
+        memoryStatus: this.getMemoryStatus(),
+        details: { level: 'lightweight' }
+      });
+
       this.logger.info('Lightweight cleanup completed');
     } catch (error) {
       this.logger.error('Error during lightweight cleanup', error);
     }
-  }
+ }
 
   /**
    * 执行深度清理
@@ -193,11 +256,24 @@ export class MemoryMonitorService {
         global.gc();
       }
 
+      // 更新清理统计
+      this.cleanupStats.totalCleanups++;
+      this.cleanupStats.deepCleanups++;
+      this.cleanupStats.lastCleanupTime = new Date();
+
+      // 触发清理事件
+      this.emitEvent('cleanup', {
+        type: 'cleanup',
+        timestamp: new Date(),
+        memoryStatus: this.getMemoryStatus(),
+        details: { level: 'deep' }
+      });
+
       this.logger.info('Deep cleanup completed');
     } catch (error) {
       this.logger.error('Error during deep cleanup', error);
     }
-  }
+ }
 
   /**
    * 执行紧急清理
@@ -213,6 +289,19 @@ export class MemoryMonitorService {
           global.gc();
         }
       }
+
+      // 更新清理统计
+      this.cleanupStats.totalCleanups++;
+      this.cleanupStats.emergencyCleanups++;
+      this.cleanupStats.lastCleanupTime = new Date();
+
+      // 触发清理事件
+      this.emitEvent('cleanup', {
+        type: 'cleanup',
+        timestamp: new Date(),
+        memoryStatus: this.getMemoryStatus(),
+        details: { level: 'emergency' }
+      });
 
       this.logger.info('Emergency cleanup completed');
     } catch (error) {
@@ -238,7 +327,7 @@ export class MemoryMonitorService {
       rss: memoryUsage.rss,
       external: memoryUsage.external
     };
-  }
+ }
 
   /**
    * 手动触发内存清理
@@ -257,7 +346,7 @@ export class MemoryMonitorService {
     }
   }
 
-  /**
+ /**
    * 停止内存监控
    */
   stopMonitoring(): void {
@@ -268,7 +357,7 @@ export class MemoryMonitorService {
     }
   }
 
-  /**
+ /**
    * 更新配置
    */
   updateConfig(config: {
@@ -293,5 +382,314 @@ export class MemoryMonitorService {
     }
 
     this.logger.info('Memory monitoring configuration updated', config);
+  }
+
+ /**
+   * 获取当前内存状态
+   */
+  getMemoryStatus(): IMemoryStatus {
+    const memoryUsage = process.memoryUsage();
+    const heapUsedPercent = memoryUsage.heapUsed / memoryUsage.heapTotal;
+    
+    return {
+      heapUsed: memoryUsage.heapUsed,
+      heapTotal: memoryUsage.heapTotal,
+      heapUsedPercent,
+      rss: memoryUsage.rss,
+      external: memoryUsage.external,
+      isWarning: heapUsedPercent >= this.warningThreshold,
+      isCritical: heapUsedPercent >= this.criticalThreshold,
+      isEmergency: heapUsedPercent >= this.emergencyThreshold,
+      trend: this.calculateMemoryTrend(),
+      averageUsage: this.calculateAverageUsage(),
+      memoryLimit: this.memoryLimit,
+      limitUsagePercent: this.memoryLimit ? (memoryUsage.heapUsed / this.memoryLimit) : undefined,
+      timestamp: new Date()
+    };
+  }
+
+  /**
+   * 获取内存统计信息
+   */
+  getMemoryStats(): IMemoryStats {
+    const current = this.getMemoryStatus();
+    const peak = this.calculatePeakMemory();
+    const average = this.calculateAverageMemoryStats();
+
+    return {
+      current,
+      history: [...this.memoryHistory],
+      peak,
+      average,
+      cleanup: { ...this.cleanupStats }
+    };
+  }
+
+ /**
+   * 获取内存使用历史
+   */
+  getMemoryHistory(): IMemoryHistoryItem[] {
+    return [...this.memoryHistory];
+  }
+
+ /**
+   * 清空内存使用历史
+   */
+  clearHistory(): void {
+    this.memoryHistory = [];
+    this.logger.debug('Memory usage history cleared');
+  }
+
+  /**
+   * 检查内存使用情况
+   */
+  checkMemoryUsage(): {
+    isWithinLimit: boolean;
+    usagePercent: number;
+    heapUsed: number;
+    heapTotal: number;
+    external: number;
+    arrayBuffers: number;
+  } {
+    try {
+      const memUsage = process.memoryUsage();
+      const heapUsed = memUsage.heapUsed;
+      const heapTotal = memUsage.heapTotal;
+      const external = memUsage.external;
+      const arrayBuffers = memUsage.arrayBuffers || 0;
+
+      const isWithinLimit = this.memoryLimit ? heapUsed <= this.memoryLimit : true;
+      const usagePercent = this.memoryLimit ? (heapUsed / this.memoryLimit) * 10 : 0;
+
+      // 记录历史数据
+      this.recordMemoryUsage(memUsage);
+
+      return {
+        isWithinLimit,
+        usagePercent,
+        heapUsed,
+        heapTotal,
+        external,
+        arrayBuffers
+      };
+    } catch (error) {
+      this.logger.error(`Error checking memory usage: ${error}`);
+      return {
+        isWithinLimit: true,
+        usagePercent: 0,
+        heapUsed: 0,
+        heapTotal: 0,
+        external: 0,
+        arrayBuffers: 0
+      };
+    }
+  }
+
+  /**
+   * 获取当前配置
+   */
+  getConfig(): IMemoryMonitorConfig {
+    return {
+      warningThreshold: this.warningThreshold,
+      criticalThreshold: this.criticalThreshold,
+      emergencyThreshold: this.emergencyThreshold,
+      checkInterval: this.checkInterval,
+      cleanupCooldown: this.cleanupCooldown,
+      maxHistorySize: this.maxHistorySize
+    };
+ }
+
+  /**
+   * 添加内存事件监听器
+   */
+  addEventListener(event: string, listener: IMemoryMonitorEventListener): void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, []);
+    }
+    this.eventListeners.get(event)!.push(listener);
+ }
+
+  /**
+   * 移除内存事件监听器
+   */
+  removeEventListener(event: string, listener: IMemoryMonitorEventListener): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      const index = listeners.indexOf(listener);
+      if (index > -1) {
+        listeners.splice(index, 1);
+      }
+    }
+  }
+
+  /**
+   * 强制垃圾回收
+   */
+  forceGarbageCollection(): void {
+    try {
+      if (global.gc) {
+        global.gc();
+        this.logger.debug('Forced garbage collection');
+      }
+    } catch (error) {
+      this.logger.error('Error forcing garbage collection', error);
+    }
+ }
+
+  /**
+   * 优化内存使用
+   */
+  optimizeMemory(): void {
+    try {
+      // 强制垃圾回收
+      this.forceGarbageCollection();
+      
+      // 清理历史记录
+      if (this.memoryHistory.length > 50) {
+        this.memoryHistory = this.memoryHistory.slice(-50);
+        this.logger.debug('Cleared old memory usage records during optimization');
+      }
+      
+      this.logger.info('Memory optimization completed');
+    } catch (error) {
+      this.logger.error('Error optimizing memory', error);
+    }
+  }
+
+  /**
+   * 设置内存限制（适用于MemoryGuard场景）
+   */
+  setMemoryLimit(limitMB: number): void {
+    this.memoryLimit = limitMB * 1024 * 1024;
+    this.logger.info(`Memory limit set to ${limitMB}MB`);
+  }
+
+  /**
+   * 获取内存限制（适用于MemoryGuard场景）
+   */
+  getMemoryLimit(): number | undefined {
+    return this.memoryLimit;
+  }
+
+  /**
+   * 检查是否在限制范围内（适用于MemoryGuard场景）
+   */
+  isWithinLimit(): boolean {
+    if (!this.memoryLimit) {
+      return true; // 如果没有设置限制，默认在范围内
+    }
+    
+    const memoryUsage = process.memoryUsage();
+    return memoryUsage.heapUsed <= this.memoryLimit;
+  }
+
+  /**
+   * 销毁服务，清理所有资源
+   */
+  destroy(): void {
+    this.stopMonitoring();
+    this.clearHistory();
+    this.eventListeners.clear();
+    this.logger.info('MemoryMonitorService destroyed');
+  }
+
+  /**
+   * 触发事件
+   */
+  private emitEvent(eventType: string, event: IMemoryMonitorEvent): void {
+    const listeners = this.eventListeners.get(eventType);
+    if (listeners) {
+      listeners.forEach(listener => {
+        try {
+          listener(event);
+        } catch (error) {
+          this.logger.error(`Error in memory event listener for ${eventType}`, error);
+        }
+      });
+    }
+  }
+
+  /**
+   * 计算内存趋势
+   */
+  private calculateMemoryTrend(): 'increasing' | 'decreasing' | 'stable' {
+    if (this.memoryHistory.length < 3) {
+      return 'stable';
+    }
+
+    const recent = this.memoryHistory.slice(-5);
+    const first = recent[0];
+    const last = recent[recent.length - 1];
+    const diff = last.heapUsed - first.heapUsed;
+    const threshold = this.maxHistorySize * 0.05; // 5%的阈值
+
+    if (diff > threshold) {
+      return 'increasing';
+    } else if (diff < -threshold) {
+      return 'decreasing';
+    } else {
+      return 'stable';
+    }
+  }
+
+  /**
+   * 计算平均内存使用量
+   */
+  private calculateAverageUsage(): number {
+    if (this.memoryHistory.length === 0) {
+      return 0;
+    }
+
+    const total = this.memoryHistory.reduce((sum, entry) => sum + entry.heapUsed, 0);
+    return total / this.memoryHistory.length;
+  }
+
+ /**
+   * 计算峰值内存使用
+   */
+ private calculatePeakMemory(): {
+    heapUsed: number;
+    heapUsedPercent: number;
+    timestamp: Date;
+  } {
+    if (this.memoryHistory.length === 0) {
+      const current = process.memoryUsage();
+      return {
+        heapUsed: current.heapUsed,
+        heapUsedPercent: current.heapUsed / current.heapTotal,
+        timestamp: new Date()
+      };
+    }
+
+    const peak = this.memoryHistory.reduce((max, entry) => 
+      entry.heapUsed > max.heapUsed ? entry : max,
+      this.memoryHistory[0]
+    );
+
+    return {
+      heapUsed: peak.heapUsed,
+      heapUsedPercent: peak.heapUsed / peak.heapTotal,
+      timestamp: peak.timestamp
+    };
+  }
+
+  /**
+   * 计算平均内存统计
+   */
+  private calculateAverageMemoryStats(): {
+    heapUsed: number;
+    heapUsedPercent: number;
+  } {
+    if (this.memoryHistory.length === 0) {
+      return { heapUsed: 0, heapUsedPercent: 0 };
+    }
+
+    const totalHeapUsed = this.memoryHistory.reduce((sum, entry) => sum + entry.heapUsed, 0);
+    const totalHeapTotal = this.memoryHistory.reduce((sum, entry) => sum + entry.heapTotal, 0);
+    
+    return {
+      heapUsed: totalHeapUsed / this.memoryHistory.length,
+      heapUsedPercent: (totalHeapUsed / totalHeapTotal)
+    };
   }
 }

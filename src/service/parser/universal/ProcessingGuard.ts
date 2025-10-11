@@ -36,7 +36,36 @@ export class ProcessingGuard {
     
     // 如果没有提供依赖，创建默认实例
     this.errorThresholdManager = errorThresholdManager || new ErrorThresholdManager(logger);
-    this.memoryGuard = memoryGuard || new MemoryGuard(500, 5000, logger || new LoggerService());
+    // 创建默认的 IMemoryMonitorService 实现
+    let defaultMemoryGuard: MemoryGuard;
+    if (!memoryGuard) {
+      // 创建 IMemoryMonitorService 的简单实现
+      const defaultMemoryMonitor: any = {
+        getMemoryStatus: () => ({
+          heapUsed: process.memoryUsage().heapUsed,
+          heapTotal: process.memoryUsage().heapTotal,
+          heapUsedPercent: process.memoryUsage().heapUsed / process.memoryUsage().heapTotal,
+          rss: process.memoryUsage().rss,
+          external: process.memoryUsage().external || 0,
+          isWarning: false,
+          isCritical: false,
+          isEmergency: false,
+          trend: 'stable',
+          averageUsage: process.memoryUsage().heapUsed,
+          timestamp: new Date()
+        }),
+        forceGarbageCollection: () => {
+          if (typeof global !== 'undefined' && global.gc) {
+            global.gc();
+          }
+        },
+        triggerCleanup: () => {},
+        isWithinLimit: () => true,
+        setMemoryLimit: () => {}
+      };
+      defaultMemoryGuard = new MemoryGuard(defaultMemoryMonitor, 500, 5000, logger || new LoggerService());
+    }
+    this.memoryGuard = memoryGuard || defaultMemoryGuard!;
     this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
     this.extensionlessFileProcessor = extensionlessFileProcessor || new ExtensionlessFileProcessor(logger);
     this.universalTextSplitter = universalTextSplitter || new UniversalTextSplitter(logger);
@@ -143,7 +172,9 @@ export class ProcessingGuard {
       // 检查内存状态
       const memoryStatus = this.memoryGuard.checkMemoryUsage();
       if (!memoryStatus.isWithinLimit) {
-        this.logger?.warn(`Memory limit exceeded before processing: ${memoryStatus.heapUsed} > ${this.memoryGuard}`);
+        // 获取内存限制值用于日志
+      const memoryLimit = this.memoryGuard.getMemoryStats().limit;
+      this.logger?.warn(`Memory limit exceeded before processing: ${memoryStatus.heapUsed} > ${memoryLimit}`);
         return this.processWithFallback(filePath, content, 'Memory limit exceeded');
       }
 

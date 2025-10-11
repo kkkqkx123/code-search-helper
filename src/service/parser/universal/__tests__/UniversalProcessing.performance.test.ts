@@ -30,7 +30,28 @@ describe('Universal Processing Performance Tests', () => {
     extensionlessFileProcessor = new ExtensionlessFileProcessor(mockLogger);
     
     const errorThresholdManager = new ErrorThresholdManager(mockLogger);
-    const memoryGuard = new MemoryGuard(1000, 10000, mockLogger);
+    // 创建 IMemoryMonitorService 的模拟实现
+    const mockMemoryMonitor: any = {
+      getMemoryStatus: jest.fn().mockReturnValue({
+        heapUsed: 100 * 1024 * 1024, // 100MB
+        heapTotal: 500 * 1024 * 1024, // 500MB
+        heapUsedPercent: 0.2,
+        rss: 200 * 1024 * 1024, // 200MB
+        external: 0,
+        isWarning: false,
+        isCritical: false,
+        isEmergency: false,
+        trend: 'stable',
+        averageUsage: 150 * 1024 * 1024, // 150MB
+        timestamp: new Date()
+      }),
+      forceGarbageCollection: jest.fn(),
+      triggerCleanup: jest.fn(),
+      isWithinLimit: jest.fn().mockReturnValue(true),
+      setMemoryLimit: jest.fn()
+    };
+    
+    const memoryGuard = new MemoryGuard(mockMemoryMonitor, 1000, 10000, mockLogger);
     
     processingGuard = new ProcessingGuard(
       mockLogger,
