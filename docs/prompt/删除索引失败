@@ -1,0 +1,3 @@
+删除索引后数据库操作正常，但记录项目映射与状态的json文件无法正常更新：
+data\project-mapping.json
+data\project-states.json

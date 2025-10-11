@@ -108,6 +108,7 @@ export class ProjectStateManager {
       await this.loadProjectStates();
 
       // 初始化监听器管理器
+      // 初始化监听器管理器
       this.listenerManager = new ProjectStateListenerManager(
         this.logger,
         this.coreStateService['indexService'], // 通过反射访问私有属性
@@ -115,9 +116,10 @@ export class ProjectStateManager {
         (projectId: string, status: ProjectState['status']) => this.updateProjectStatus(projectId, status),
         (projectId: string, progress: number) => this.updateProjectIndexingProgress(projectId, progress),
         (projectId: string) => this.updateProjectLastIndexed(projectId),
-        (projectId: string, metadata: Record<string, any>) => this.updateProjectMetadata(projectId, metadata)
+        (projectId: string, metadata: Record<string, any>) => this.updateProjectMetadata(projectId, metadata),
+        (projectId: string, status: Partial<any>) => this.updateVectorStatus(projectId, status),
+        (projectId: string, status: Partial<any>) => this.updateGraphStatus(projectId, status)
       );
-
       // 设置索引同步服务监听器
       this.listenerManager.setupIndexSyncListeners();
 

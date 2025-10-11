@@ -49,9 +49,9 @@ export interface Project {
   fileCount: number;
   size: number;
   createdAt: Date;
-  updatedAt: Date;
-  description?: string;
-  configuration?: {
+ updatedAt: Date;
+ description?: string;
+ configuration?: {
     recursive: boolean;
     includePatterns: string[];
     excludePatterns: string[];
@@ -60,6 +60,14 @@ export interface Project {
     encoding?: string;
     followSymlinks?: boolean;
     respectGitignore?: boolean;
+  };
+  vectorStatus?: {
+    status: 'pending' | 'indexing' | 'completed' | 'error' | 'partial';
+    progress: number;
+  };
+  graphStatus?: {
+    status: 'pending' | 'indexing' | 'completed' | 'error' | 'partial';
+    progress: number;
   };
 }
 

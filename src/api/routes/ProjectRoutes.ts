@@ -490,6 +490,10 @@ export class ProjectRoutes {
     const totalFiles = projectState ? (projectState.totalFiles || 0) : 0;
     const lastIndexed = projectState && projectState.lastIndexedAt ? projectState.lastIndexedAt : new Date();
 
+    // 获取向量和图的状态信息
+    const vectorStatus = projectState ? projectState.vectorStatus : undefined;
+    const graphStatus = projectState ? projectState.graphStatus : undefined;
+
     return {
       id: projectId,
       name: projectName,
@@ -501,6 +505,20 @@ export class ProjectRoutes {
       size: 0, // Size calculation would require additional implementation
       createdAt: projectState ? projectState.createdAt : new Date(),
       updatedAt: projectState ? projectState.updatedAt : new Date(),
+      vectorStatus: vectorStatus ? {
+        status: vectorStatus.status,
+        progress: vectorStatus.progress || 0
+      } : {
+        status: 'pending',
+        progress: 0
+      },
+      graphStatus: graphStatus ? {
+        status: graphStatus.status,
+        progress: graphStatus.progress || 0
+      } : {
+        status: 'pending',
+        progress: 0
+      },
       configuration: {
         recursive: projectState ? projectState.settings.autoIndex : true,
         includePatterns: projectState ? (projectState.settings.includePatterns || []) : [],

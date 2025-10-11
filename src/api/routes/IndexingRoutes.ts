@@ -323,15 +323,40 @@ export class IndexingRoutes {
       // 停止索引（如果正在进行）
       await this.indexSyncService.stopIndexing(projectId);
 
-      // 删除项目映射
+      // 获取项目路径以备后续使用
       const projectPath = this.projectIdManager.getProjectPath(projectId);
-      if (projectPath) {
-        this.projectIdManager.removeProject(projectPath);
-        await this.projectIdManager.saveMapping();
-      }
 
       // 删除项目状态和相关数据库资源
       await this.projectStateManager.deleteProjectState(projectId);
+
+      // 删除项目映射
+      // 首先尝试使用ProjectIdManager获取的路径
+      if (projectPath) {
+        this.projectIdManager.removeProject(projectPath);
+        await this.projectIdManager.saveMapping();
+      } else {
+        // 如果无法通过projectId获取项目路径，尝试从ProjectStateManager中获取
+        const projectState = this.projectStateManager.getProjectState(projectId);
+        if (projectState) {
+          this.projectIdManager.removeProject(projectState.projectPath);
+          await this.projectIdManager.saveMapping();
+        } else {
+          // 如果两种方式都失败，尝试直接从ProjectIdManager中删除（即使我们不知道确切路径）
+          // 这种情况可能发生在状态文件损坏或不一致时
+          this.logger.warn(`Project state not found for projectId: ${projectId}, attempting to remove mapping by iterating all mappings`);
+          
+          // 遍历所有项目路径，查找匹配的projectId
+          const allProjectPaths = this.projectIdManager.listAllProjectPaths();
+          for (const path of allProjectPaths) {
+            if (this.projectIdManager.getProjectId(path) === projectId) {
+              this.projectIdManager.removeProject(path);
+              await this.projectIdManager.saveMapping();
+              this.logger.info(`Removed mapping for projectId ${projectId} at path ${path}`);
+              break;
+            }
+          }
+        }
+      }
 
       res.status(200).json({
         success: true,

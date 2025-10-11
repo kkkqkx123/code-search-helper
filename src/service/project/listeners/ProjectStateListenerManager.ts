@@ -1,7 +1,7 @@
 
 import { LoggerService } from '../../../utils/LoggerService';
 import { IndexService } from '../../index/IndexService';
-import { ProjectState } from '../ProjectStateManager';
+import { ProjectState, StorageStatus } from '../ProjectStateManager';
 
 /**
  * 项目状态监听器管理器
@@ -13,6 +13,8 @@ export class ProjectStateListenerManager {
   private updateProjectIndexingProgress: (projectId: string, progress: number) => Promise<void>;
   private updateProjectLastIndexed: (projectId: string) => Promise<void>;
   private updateProjectMetadata: (projectId: string, metadata: Record<string, any>) => Promise<void>;
+  private updateVectorStatus: (projectId: string, status: Partial<StorageStatus>) => Promise<void>;
+  private updateGraphStatus: (projectId: string, status: Partial<StorageStatus>) => Promise<void>;
 
   constructor(
     private logger: LoggerService,
@@ -21,13 +23,17 @@ export class ProjectStateListenerManager {
     updateProjectStatus: (projectId: string, status: ProjectState['status']) => Promise<void>,
     updateProjectIndexingProgress: (projectId: string, progress: number) => Promise<void>,
     updateProjectLastIndexed: (projectId: string) => Promise<void>,
-    updateProjectMetadata: (projectId: string, metadata: Record<string, any>) => Promise<void>
+    updateProjectMetadata: (projectId: string, metadata: Record<string, any>) => Promise<void>,
+    updateVectorStatus: (projectId: string, status: Partial<StorageStatus>) => Promise<void>,
+    updateGraphStatus: (projectId: string, status: Partial<StorageStatus>) => Promise<void>
   ) {
     this.projectStates = projectStates;
     this.updateProjectStatus = updateProjectStatus;
     this.updateProjectIndexingProgress = updateProjectIndexingProgress;
     this.updateProjectLastIndexed = updateProjectLastIndexed;
     this.updateProjectMetadata = updateProjectMetadata;
+    this.updateVectorStatus = updateVectorStatus;
+    this.updateGraphStatus = updateGraphStatus;
   }
 
   /**
@@ -61,6 +67,15 @@ export class ProjectStateListenerManager {
   private async handleIndexingStarted(projectId: string): Promise<void> {
     try {
       await this.updateProjectStatus(projectId, 'indexing');
+      // 同时更新向量和图的状态为索引中
+      await this.updateVectorStatus(projectId, {
+        status: 'indexing',
+        progress: 0
+      });
+      await this.updateGraphStatus(projectId, {
+        status: 'indexing',
+        progress: 0
+      });
     } catch (error) {
       this.logger.error('Failed to update project status to indexing', { projectId, error });
     }
@@ -72,6 +87,15 @@ export class ProjectStateListenerManager {
   private async handleIndexingProgress(projectId: string, progress: number): Promise<void> {
     try {
       await this.updateProjectIndexingProgress(projectId, progress);
+      // 同时更新向量和图的状态，以反映索引进度
+      await this.updateVectorStatus(projectId, {
+        status: 'indexing',
+        progress: progress
+      });
+      await this.updateGraphStatus(projectId, {
+        status: 'indexing',
+        progress: progress
+      });
     } catch (error) {
       this.logger.error('Failed to update project indexing progress', { projectId, progress, error });
     }
@@ -84,6 +108,15 @@ export class ProjectStateListenerManager {
     try {
       await this.updateProjectStatus(projectId, 'active');
       await this.updateProjectLastIndexed(projectId);
+      // 同时更新向量和图的状态为完成
+      await this.updateVectorStatus(projectId, {
+        status: 'completed',
+        progress: 100
+      });
+      await this.updateGraphStatus(projectId, {
+        status: 'completed',
+        progress: 100
+      });
     } catch (error) {
       this.logger.error('Failed to update project status to active', { projectId, error });
       // 即使更新状态失败，也尝试更新最后索引时间
@@ -102,17 +135,25 @@ export class ProjectStateListenerManager {
     try {
       await this.updateProjectStatus(projectId, 'error');
       await this.updateProjectMetadata(projectId, { lastError: error.message });
+      // 同时更新向量和图的状态为错误
+      await this.updateVectorStatus(projectId, {
+        status: 'error',
+        progress: 0
+      });
+      await this.updateGraphStatus(projectId, {
+        status: 'error',
+        progress: 0
+      });
     } catch (updateError) {
       this.logger.error('Failed to update project status to error', { projectId, error: updateError });
       // 即使更新状态失败，也尝试更新元数据
       try {
         await this.updateProjectMetadata(projectId, { lastError: error.message });
       } catch (metadataError) {
-        this
         this.logger.error('Failed to update project metadata', { projectId, error: metadataError });
       }
     }
-  }
+ }
 
   /**
    * 更新项目状态映射引用
