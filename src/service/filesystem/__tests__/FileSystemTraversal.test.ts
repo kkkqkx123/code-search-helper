@@ -1,5 +1,5 @@
 import { FileSystemTraversal, TraversalOptions, TraversalResult, FileInfo } from '../FileSystemTraversal';
-import { GitignoreParser } from '../../../utils/GitignoreParser';
+import { GitignoreParser } from '../../ignore/GitignoreParser';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs/promises';
 import * as path from 'path';

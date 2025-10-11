@@ -3,16 +3,16 @@ import * as path from 'path';
 
 export class GitignoreParser {
   /**
-   * Parses a .gitignore file and returns an array of ignore patterns
-   * @param gitignorePath Path to the .gitignore file
-   * @returns Array of ignore patterns
+   * 解析 .gitignore 文件并返回忽略模式数组
+   * @param gitignorePath .gitignore 文件的路径
+   * @returns 忽略模式数组
    */
   static async parseGitignore(gitignorePath: string): Promise<string[]> {
     try {
       const content = await fs.readFile(gitignorePath, 'utf-8');
       return this.parseContent(content);
     } catch (error) {
-      // If the file doesn't exist, return empty array
+      // 如果文件不存在，返回空数组
       if ((error as any).code === 'ENOENT') {
         return [];
       }
@@ -21,112 +21,112 @@ export class GitignoreParser {
   }
 
   /**
-   * Parses the content of a .gitignore file and returns an array of ignore patterns
-   * @param content Content of the .gitignore file
-   * @returns Array of ignore patterns
+   * 解析 .gitignore 文件的内容并返回忽略模式数组
+   * @param content .gitignore 文件的内容
+   * @returns 忽略模式数组
    */
   static parseContent(content: string): string[] {
-    // Handle case where content might be undefined or null
+    // 处理内容可能为 undefined 或 null 的情况
     if (!content) {
       return [];
     }
-    
+
     const patterns: string[] = [];
-    
+
     const lines = content.split('\n');
-    
+
     for (const line of lines) {
-      // Skip empty lines and comments
+      // 跳过空行和注释
       const trimmedLine = line.trim();
       if (trimmedLine === '' || trimmedLine.startsWith('#')) {
         continue;
       }
-      
-      // Convert gitignore pattern to glob pattern
+
+      // 将 gitignore 模式转换为 glob 模式
       const pattern = this.convertGitignorePattern(trimmedLine);
-      // Only add non-empty patterns (to skip negation patterns)
+      // 只添加非空模式（跳过否定模式）
       if (pattern !== '') {
         patterns.push(pattern);
       }
     }
-    
+
     return patterns;
   }
 
   /**
-   * Converts a gitignore pattern to a glob pattern that can be used with our matching logic
-   * @param pattern Gitignore pattern
-   * @returns Converted glob pattern
+   * 将 gitignore 模式转换为可用于匹配逻辑的 glob 模式
+   * @param pattern Gitignore 模式
+   * @returns 转换后的 glob 模式
    */
   private static convertGitignorePattern(pattern: string): string {
-    // Handle negation patterns (we'll skip these for now as our system doesn't support them)
+    // 处理否定模式（我们暂时跳过这些，因为系统不支持它们）
     if (pattern.startsWith('!')) {
-      // For now, we'll skip negation patterns
+      // 暂时跳过否定模式
       return '';
     }
-    
-    // Normalize path separators
+
+    // 标准化路径分隔符
     pattern = pattern.replace(/\\/g, '/');
-    
-    // Handle patterns that start with /
+
+    // 处理以 / 开头的模式
     if (pattern.startsWith('/')) {
-      // Absolute pattern from root - remove leading /
+      // 从根目录开始的绝对模式 - 移除开头的 /
       pattern = pattern.substring(1);
-      // If it's a simple pattern (no more slashes) and not ending with /, it's a root file pattern
+      // 如果是简单模式（没有更多斜杠）且不以 / 结尾，则是根文件模式
       if (!pattern.includes('/') && !pattern.endsWith('/')) {
         return pattern;
       }
-      // If it's a directory pattern ending with /, convert to glob pattern
+      // 如果是以 / 结尾的目录模式，转换为 glob 模式
       if (pattern.endsWith('/')) {
         return pattern.slice(0, -1) + '/**';
       }
-      // For other absolute patterns with path, add **/ prefix
+      // 对于其他带路径的绝对模式，添加 **/ 前缀
       return '**/' + pattern;
     } else if (!pattern.includes('/')) {
-      // Simple file name pattern - match files with this name anywhere
-      // For simple patterns like *.js, we want to match both:
-      // 1. Files directly: file.js
-      // 2. Files in directories: path/to/file.js
-      // We'll create a pattern that can match both by using a more flexible approach
+      // 简单文件名模式 - 匹配任何位置的同名文件
+      // 对于像 *.js 这样的简单模式，我们想要匹配：
+      // 1. 直接文件：file.js
+      // 2. 目录中的文件：path/to/file.js
+      // 我们将创建一个更灵活的模式来匹配两者
       return '**/' + pattern;
     } else if (!pattern.endsWith('/')) {
-      // Pattern with path but not ending with / - match both file and directory
+      // 带路径但不以 / 结尾的模式 - 同时匹配文件和目录
       pattern = '**/' + pattern;
     } else if (pattern.endsWith('/')) {
-      // Directory pattern - match in any directory
+      // 目录模式 - 在任何目录中匹配
       pattern = '**/' + pattern.slice(0, -1) + '/**';
     }
-    
-    // Handle directory patterns (ending with /) that were absolute
+
+    // 处理以 / 结尾的目录模式（这些是绝对的）
     if (pattern.endsWith('/')) {
       pattern = pattern.slice(0, -1) + '/**';
     }
-    
+
     return pattern;
   }
 
   /**
-   * Gets all gitignore patterns for a project by traversing directories from root to the file
-   * @param projectRoot Root of the project
-   * @param filePath Path to the file relative to project root
-   * @returns Array of all applicable gitignore patterns
+   * 通过从根目录到文件遍历目录，获取项目的所有 gitignore 模式
+   * @param projectRoot 项目的根目录
+   * @param filePath 相对于项目根目录的文件路径
+   * @returns 所有适用的 gitignore 模式数组
    */
   static async getGitignorePatternsForFile(projectRoot: string, filePath: string): Promise<string[]> {
     const patterns: string[] = [];
 
-    // Normalize the file path to ensure consistent path separators
+    // 标准化文件路径以确保一致的路径分隔符
     const normalizedFilePath = path.normalize(filePath);
     const fileDir = path.dirname(normalizedFilePath);
 
-    // Split the directory path into individual directories
+    // 将目录路径拆分为各个目录
     const dirs = fileDir.split(path.sep).filter(dir => dir !== '');
 
-    // Start with root .gitignore
+    // 从根目录的 .gitignore 开始
     const rootGitignorePath = path.join(projectRoot, '.gitignore');
     const rootPatterns = await this.parseGitignore(rootGitignorePath);
     patterns.push(...rootPatterns);
 
-    // Traverse each directory and collect .gitignore patterns
+    // 遍历每个目录并收集 .gitignore 模式
     let currentPath = projectRoot;
     for (const dir of dirs) {
       if (dir === '' || dir === '.') continue;
@@ -137,25 +137,25 @@ export class GitignoreParser {
       patterns.push(...dirPatterns);
     }
 
-    // Filter out empty patterns and return
+    // 过滤掉空模式并返回
     const filteredPatterns = patterns.filter(pattern => pattern !== '');
     return filteredPatterns;
   }
 
   /**
-   * Gets all applicable .gitignore rules from root directory and first-level subdirectories
-   * @param projectRoot Project root directory
-   * @returns Array of all applicable ignore rules
+   * 从根目录和一级子目录获取所有适用的 .gitignore 规则
+   * @param projectRoot 项目根目录
+   * @returns 所有适用的忽略规则数组
    */
   static async getAllGitignorePatterns(projectRoot: string): Promise<string[]> {
     const patterns: string[] = [];
 
-    // 1. Read root directory .gitignore
+    // 1. 读取根目录的 .gitignore
     const rootGitignorePath = path.join(projectRoot, '.gitignore');
     const rootPatterns = await this.parseGitignore(rootGitignorePath);
     patterns.push(...rootPatterns);
 
-    // 2. Read .gitignore files in first-level subdirectories
+    // 2. 读取一级子目录中的 .gitignore 文件
     try {
       const entries = await fs.readdir(projectRoot, { withFileTypes: true });
       for (const entry of entries) {
@@ -164,8 +164,8 @@ export class GitignoreParser {
           const subGitignorePath = path.join(subDirPath, '.gitignore');
           const subPatterns = await this.parseGitignore(subGitignorePath);
 
-          // Add prefix to subdirectory rules to ensure they only apply in corresponding directory
-          // Only add non-empty patterns
+          // 为子目录规则添加前缀以确保它们只应用于相应目录
+          // 只添加非空模式
           const prefixedPatterns = subPatterns
             .filter(pattern => pattern !== '')
             .map(pattern => path.join(entry.name, pattern).replace(/\\/g, '/'));
@@ -173,7 +173,7 @@ export class GitignoreParser {
         }
       }
     } catch (error) {
-      // Ignore read errors, continue execution
+      // 忽略读取错误，继续执行
       console.warn(`Failed to read subdirectories: ${error}`);
     }
 
@@ -181,9 +181,9 @@ export class GitignoreParser {
   }
 
   /**
-   * Parses .indexignore file
-   * @param projectRoot Project root directory
-   * @returns Array of rules from .indexignore
+   * 解析 .indexignore 文件
+   * @param projectRoot 项目根目录
+   * @returns 来自 .indexignore 的规则数组
    */
   static async parseIndexignore(projectRoot: string): Promise<string[]> {
     const indexignorePath = path.join(projectRoot, '.indexignore');

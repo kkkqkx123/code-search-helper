@@ -51,6 +51,7 @@ import { PerformanceOptimizerService } from './infrastructure/batching/Performan
 import { EmbedderFactory } from './embedders/EmbedderFactory';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
 import { ConfigFactory } from './config/ConfigFactory';
+import { IgnoreRuleManager } from './service/ignore/IgnoreRuleManager';
 
 // Tree-sitter 解析服务
 import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
@@ -309,4 +310,7 @@ export const TYPES = {
   // MemoryGuard 参数
   MemoryLimitMB: Symbol.for('MemoryLimitMB'),
   MemoryCheckIntervalMs: Symbol.for('MemoryCheckIntervalMs'),
+  
+  // IgnoreRuleManager 符号
+  IgnoreRuleManager: Symbol.for('IgnoreRuleManager'),
 };

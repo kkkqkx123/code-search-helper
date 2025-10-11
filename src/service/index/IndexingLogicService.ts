@@ -513,6 +513,41 @@ export class IndexingLogicService {
   }
 
   /**
+   * 获取项目当前索引的文件列表
+   */
+  async getIndexedFiles(projectPath: string): Promise<string[]> {
+    try {
+      const projectId = this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project ID not found for path: ${projectPath}`);
+      }
+
+      const collectionName = this.projectIdManager.getCollectionName(projectId);
+      if (!collectionName) {
+        throw new Error(`Collection name not found for project: ${projectId}`);
+      }
+
+      // 使用scrollPoints方法获取所有点，然后解析出文件路径
+      const allPoints = await this.qdrantService.scrollPoints(collectionName);
+      const fileSet = new Set<string>();
+
+      for (const point of allPoints) {
+        if (point.payload && point.payload.file_path) {
+          fileSet.add(point.payload.file_path as string);
+        }
+      }
+
+      return Array.from(fileSet);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to get indexed files: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexingLogicService', operation: 'getIndexedFiles', projectPath }
+      );
+      throw error;
+    }
+  }
+
+  /**
    * 记录性能指标
    */
   async recordMetrics(filePath: string, metrics: IndexingMetrics): Promise<void> {

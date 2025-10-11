@@ -19,6 +19,7 @@ import { IndexingLogicService } from './IndexingLogicService';
 import { NebulaService, INebulaService } from '../../database/nebula/NebulaService';
 import { FileTraversalService } from './shared/FileTraversalService';
 import { ConcurrencyService } from './shared/ConcurrencyService';
+import { IgnoreRuleManager } from '../ignore/IgnoreRuleManager';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -118,26 +119,33 @@ export class IndexService {
   private indexingQueue: Array<{ projectPath: string; options?: IndexSyncOptions }> = [];
   private isProcessingQueue: boolean = false;
   private projectEmbedders: Map<string, string> = new Map(); // 存储项目对应的embedder
-constructor(
-  @inject(TYPES.LoggerService) private logger: LoggerService,
-  @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-  @inject(TYPES.FileWatcherService) private fileWatcherService: FileWatcherService,
-  @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
-  @inject(TYPES.QdrantService) private qdrantService: QdrantService,
-  @inject(TYPES.INebulaService) private nebulaService: INebulaService,
-  @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-  @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-  @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
-  @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
-  @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
-  @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService,
-  @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService,
-  @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
-  @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService
-) {
-  // 设置文件变化监听器
-  this.setupFileChangeListeners();
-}
+  private ignoreRuleManager: IgnoreRuleManager | null = null;
+ constructor(
+   @inject(TYPES.LoggerService) private logger: LoggerService,
+   @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
+   @inject(TYPES.FileWatcherService) private fileWatcherService: FileWatcherService,
+   @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
+   @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+   @inject(TYPES.INebulaService) private nebulaService: INebulaService,
+   @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
+   @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
+   @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
+   @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
+   @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
+   @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService,
+   @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService,
+   @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
+   @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService,
+   @inject(TYPES.IgnoreRuleManager) ignoreRuleManager: IgnoreRuleManager
+ ) {
+   this.ignoreRuleManager = ignoreRuleManager;
+   
+   // 设置文件变化监听器
+   this.setupFileChangeListeners();
+   
+   // 订阅忽略规则变化事件
+   this.setupIgnoreRuleListeners();
+ }
 
   /**
    * 设置文件变化监听器
@@ -318,6 +326,53 @@ constructor(
   }
 
   /**
+   * 设置忽略规则监听器
+   */
+  private setupIgnoreRuleListeners(): void {
+    if (this.ignoreRuleManager) {
+      this.ignoreRuleManager.on('rulesChanged', async (projectPath: string, newPatterns: string[], changedFile: string) => {
+        this.logger.info(`Detected ignore rules change in ${changedFile} for project: ${projectPath}`);
+        
+        try {
+          // 获取当前索引状态
+          const projectId = this.projectIdManager.getProjectId(projectPath);
+          if (!projectId) {
+            return;
+          }
+
+          const status = this.indexingProjects.get(projectId);
+          if (!status) {
+            this.logger.debug(`Project ${projectPath} is not currently indexing, skipping rule update`);
+            return;
+          }
+
+          // 重新遍历项目文件以检测应该被忽略的文件
+          const files = await this.fileTraversalService.getProjectFiles(projectPath, {
+            excludePatterns: newPatterns // 使用更新后的忽略规则重新遍历
+          });
+
+          // 确定哪些文件不再被索引（因为被新的忽略规则过滤掉了）
+          const currentlyIndexedFiles = await this.indexingLogicService.getIndexedFiles(projectPath);
+          const filesToBeRemoved = currentlyIndexedFiles.filter((file: string) => !files.includes(file));
+
+          // 从索引中移除这些文件
+          for (const fileToRemove of filesToBeRemoved) {
+            await this.removeFileFromIndex(projectPath, fileToRemove);
+            this.logger.info(`Removed file from index due to updated ignore rules: ${fileToRemove}`);
+          }
+
+          this.logger.info(`Ignore rules updated for project: ${projectPath}, removed ${filesToBeRemoved.length} files from index`);
+        } catch (error) {
+          this.errorHandler.handleError(
+            new Error(`Failed to update ignore rules for project ${projectPath}: ${error instanceof Error ? error.message : String(error)}`),
+            { component: 'IndexSyncService', operation: 'handleIgnoreRulesChange', projectPath, changedFile }
+          );
+        }
+      });
+    }
+  }
+
+  /**
    * 索引项目
    */
   private async indexProject(projectPath: string, options?: IndexSyncOptions): Promise<void> {
@@ -335,9 +390,14 @@ constructor(
       this.logger.debug(`[DEBUG] Starting file traversal for project: ${projectId}`, { projectPath });
 
       // 获取项目中的所有文件
+      // 使用IgnoreRuleManager获取项目当前的忽略规则
+      const ignoreRules = this.ignoreRuleManager ? await this.ignoreRuleManager.getIgnorePatterns(projectPath) : [];
+      // 合并用户提供的排除模式
+      const combinedExcludePatterns = [...ignoreRules, ...(options?.excludePatterns || [])];
+      
       const files = await this.fileTraversalService.getProjectFiles(projectPath, {
         includePatterns: options?.includePatterns,
-        excludePatterns: options?.excludePatterns
+        excludePatterns: combinedExcludePatterns
       });
 
       status.totalFiles = files.length;

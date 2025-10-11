@@ -3,7 +3,7 @@ import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
-import { GitignoreParser } from '../../utils/GitignoreParser';
+import { GitignoreParser } from '../ignore/GitignoreParser';
 import { LoggerService } from '../../utils/LoggerService';
 import { TYPES } from '../../types';
 
@@ -196,7 +196,7 @@ export class FileSystemTraversal {
         result.errors.push(`Cannot resolve real path: ${currentPath}`);
         return;
       }
-      
+
       if (visitedPaths.has(realPath)) {
         result.errors.push(`Circular reference detected: ${currentPath}`);
         return;
@@ -274,7 +274,7 @@ export class FileSystemTraversal {
   ): Promise<void> {
     // Debug: Log file processing attempt
     this.logger.debug(`[DEBUG] Processing file`, { filePath, relativePath });
-    
+
     if (this.shouldIgnoreFile(relativePath, options)) {
       this.logger.debug(`[DEBUG] File ignored by pattern`, { relativePath });
       return;
@@ -288,7 +288,7 @@ export class FileSystemTraversal {
 
     const extension = path.extname(filePath).toLowerCase();
     const language = this.detectLanguage(extension, options.supportedExtensions);
-    
+
     this.logger.debug(`[DEBUG] File detected`, { extension, language, supported: options.supportedExtensions.includes(extension) });
 
     if (!language) {
@@ -430,14 +430,14 @@ export class FileSystemTraversal {
             .replace(/\*/g, '.*')   // Replace * with .*
             .replace(/\?/g, '.')    // Replace ? with .
             .replace(/\./g, '\\.'); // Escape literal dots (this needs to be last to avoid escaping the dots we just added)
-          
+
           if (!filenameRegexPattern.startsWith('^')) {
             filenameRegexPattern = '^' + filenameRegexPattern;
           }
           if (!filenameRegexPattern.endsWith('$')) {
             filenameRegexPattern = filenameRegexPattern + '$';
           }
-          
+
           const filenameRegex = new RegExp(filenameRegexPattern);
           if (filenameRegex.test(filePath)) {
             return true;
@@ -452,14 +452,14 @@ export class FileSystemTraversal {
           .replace(/\*/g, '.*')   // Replace * with .*
           .replace(/\?/g, '.')    // Replace ? with .
           .replace(/\./g, '\\.'); // Escape literal dots
-          
+
         if (!filenameRegexPattern.startsWith('^')) {
           filenameRegexPattern = '^' + filenameRegexPattern;
         }
         if (!filenameRegexPattern.endsWith('$')) {
           filenameRegexPattern = filenameRegexPattern + '$';
         }
-        
+
         const filenameRegex = new RegExp(filenameRegexPattern);
         if (filenameRegex.test(filePath)) {
           return true;
@@ -507,7 +507,7 @@ export class FileSystemTraversal {
     try {
       // Use simpler approach with readFile
       const buffer = await fs.readFile(filePath, { encoding: null });
-      
+
       // Check first 1024 bytes for null bytes (indicating binary file)
       const checkLength = Math.min(buffer.length, 1024);
       for (let i = 0; i < checkLength; i++) {
@@ -515,7 +515,7 @@ export class FileSystemTraversal {
           return true;
         }
       }
-      
+
       return false;
     } catch (error) {
       this.logger.debug(`[DEBUG] Error checking if file is binary: ${filePath}`, { error: error instanceof Error ? error.message : String(error) });

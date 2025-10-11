@@ -197,7 +197,7 @@ dist/
         .mockResolvedValueOnce(['**/node_modules/**'])  // root .gitignore
         .mockResolvedValueOnce(['**/build/**'])         // src/.gitignore
         .mockResolvedValueOnce(['**/temp/**']);         // src/utils/.gitignore
-      
+
       // Replace the original method with our mock
       const originalParseGitignore = GitignoreParser.parseGitignore;
       GitignoreParser.parseGitignore = mockParseGitignore;
@@ -211,7 +211,7 @@ dist/
       expect(mockParseGitignore).toHaveBeenCalledWith(path.join('/project', '.gitignore'));
       expect(mockParseGitignore).toHaveBeenCalledWith(path.join('/project', 'src', '.gitignore'));
       expect(mockParseGitignore).toHaveBeenCalledWith(path.join('/project', 'src', 'utils', '.gitignore'));
-      
+
       // Restore the original method
       GitignoreParser.parseGitignore = originalParseGitignore;
     });
