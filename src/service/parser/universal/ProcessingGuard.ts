@@ -8,6 +8,7 @@ import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
 import { UniversalTextSplitter } from './UniversalTextSplitter';
 import { CodeChunk } from '../splitting/Splitter';
 import * as path from 'path';
+import { LANGUAGE_MAP, CODE_LANGUAGES, STRUCTURED_LANGUAGES } from './constants';
 
 /**
  * 处理保护器
@@ -246,70 +247,7 @@ export class ProcessingGuard {
    * 根据扩展名检测语言
    */
   private detectLanguageByExtension(extension: string): string {
-    const languageMap: Record<string, string> = {
-      '.js': 'javascript',
-      '.ts': 'typescript',
-      '.jsx': 'javascript',
-      '.tsx': 'typescript',
-      '.py': 'python',
-      '.java': 'java',
-      '.cpp': 'cpp',
-      '.c': 'c',
-      '.h': 'cpp',
-      '.hpp': 'cpp',
-      '.cs': 'csharp',
-      '.go': 'go',
-      '.rs': 'rust',
-      '.php': 'php',
-      '.rb': 'ruby',
-      '.swift': 'swift',
-      '.kt': 'kotlin',
-      '.scala': 'scala',
-      '.md': 'markdown',
-      '.json': 'json',
-      '.xml': 'xml',
-      '.yaml': 'yaml',
-      '.yml': 'yaml',
-      '.sql': 'sql',
-      '.sh': 'shell',
-      '.bash': 'shell',
-      '.zsh': 'shell',
-      '.fish': 'shell',
-      '.html': 'html',
-      '.htm': 'html',
-      '.css': 'css',
-      '.scss': 'scss',
-      '.sass': 'sass',
-      '.less': 'less',
-      '.vue': 'vue',
-      '.svelte': 'svelte',
-      '.txt': 'text',
-      '.log': 'log',
-      '.ini': 'ini',
-      '.cfg': 'ini',
-      '.conf': 'ini',
-      '.toml': 'toml',
-      '.dockerfile': 'dockerfile',
-      '.makefile': 'makefile',
-      '.cmake': 'cmake',
-      '.pl': 'perl',
-      '.r': 'r',
-      '.m': 'matlab',
-      '.lua': 'lua',
-      '.dart': 'dart',
-      '.ex': 'elixir',
-      '.exs': 'elixir',
-      '.erl': 'erlang',
-      '.hs': 'haskell',
-      '.ml': 'ocaml',
-      '.fs': 'fsharp',
-      '.vb': 'visualbasic',
-      '.ps1': 'powershell',
-      '.bat': 'batch',
-      '.cmd': 'batch'
-    };
-
-    return languageMap[extension] || 'unknown';
+    return LANGUAGE_MAP[extension] || 'unknown';
   }
 
   /**
@@ -339,24 +277,14 @@ export class ProcessingGuard {
    * 检查是否为代码语言
    */
   private isCodeLanguage(language: string): boolean {
-    const codeLanguages = [
-      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-      'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'shell',
-      'html', 'css', 'scss', 'sass', 'less', 'vue', 'svelte', 'dockerfile',
-      'cmake', 'perl', 'lua', 'dart', 'elixir', 'erlang', 'haskell',
-      'ocaml', 'fsharp', 'visualbasic', 'powershell', 'batch'
-    ];
-
-    return codeLanguages.includes(language);
+    return CODE_LANGUAGES.includes(language);
   }
 
   /**
    * 检查是否为结构化文件
    */
   private isStructuredFile(content: string, language: string): boolean {
-    const structuredLanguages = ['json', 'xml', 'yaml', 'html', 'css', 'scss', 'sass'];
-    
-    if (structuredLanguages.includes(language)) {
+    if (STRUCTURED_LANGUAGES.includes(language)) {
       return true;
     }
 

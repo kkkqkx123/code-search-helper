@@ -1,6 +1,7 @@
 import { injectable } from 'inversify';
 import { CodeChunk, CodeChunkMetadata } from '../splitting/Splitter';
 import { LoggerService } from '../../../utils/LoggerService';
+import { DEFAULT_CONFIG } from './constants';
 
 /**
  * 通用分段选项
@@ -26,15 +27,7 @@ export class UniversalTextSplitter {
 
   constructor(logger?: LoggerService) {
     this.logger = logger;
-    this.options = {
-      maxChunkSize: 2000,
-      overlapSize: 200,
-      maxLinesPerChunk: 50,
-      errorThreshold: 5,
-      memoryLimitMB: 500,
-      enableBracketBalance: true,
-      enableSemanticDetection: true
-    };
+    this.options = { ...DEFAULT_CONFIG.TEXT_SPLITTER_OPTIONS };
   }
 
   /**

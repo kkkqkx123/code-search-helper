@@ -1,6 +1,7 @@
 
 import { injectable } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
+import { DEFAULT_CONFIG } from './constants';
 
 /**
  * 通用文件处理配置
@@ -11,20 +12,20 @@ export class UniversalProcessingConfig {
   private logger?: LoggerService;
 
   // 错误处理配置
-  private maxErrors: number = 5;
-  private errorResetInterval: number = 60000; // 1分钟
+  private maxErrors: number = DEFAULT_CONFIG.MAX_ERRORS;
+  private errorResetInterval: number = DEFAULT_CONFIG.ERROR_RESET_INTERVAL;
 
   // 内存限制配置
-  private memoryLimitMB: number = 500;
-  private memoryCheckInterval: number = 5000; // 5秒
+  private memoryLimitMB: number = DEFAULT_CONFIG.MEMORY_LIMIT_MB;
+  private memoryCheckInterval: number = DEFAULT_CONFIG.MEMORY_CHECK_INTERVAL;
 
   // 分段参数配置
-  private maxChunkSize: number = 2000;
-  private chunkOverlap: number = 200;
-  private maxLinesPerChunk: number = 50;
+  private maxChunkSize: number = DEFAULT_CONFIG.MAX_CHUNK_SIZE;
+  private chunkOverlap: number = DEFAULT_CONFIG.CHUNK_OVERLAP;
+  private maxLinesPerChunk: number = DEFAULT_CONFIG.MAX_LINES_PER_CHUNK;
 
   // 备份文件处理配置
-  private backupFilePatterns: string[] = ['.bak', '.backup', '.old', '.tmp'];
+  private backupFilePatterns: string[] = [...DEFAULT_CONFIG.BACKUP_FILE_PATTERNS];
 
   constructor(logger?: LoggerService) {
     this.logger = logger;
