@@ -1,26 +1,16 @@
 import { injectable } from 'inversify';
 import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
+import { IMemoryMonitorConfig } from '../../service/memory/interfaces/IMemoryStatus';
 
-export interface MemoryMonitorConfig {
-  /** 警告阈值（0-1） */
-  warningThreshold: number;
-  /** 严重阈值（0-1） */
-  criticalThreshold: number;
-  /** 紧急阈值（0-1） */
-  emergencyThreshold: number;
-  /** 检查间隔（毫秒） */
-  checkInterval: number;
-  /** 清理冷却时间（毫秒） */
-  cleanupCooldown: number;
-  /** 历史记录最大数量 */
-  maxHistorySize: number;
-}
+// 使用统一的接口定义
+export type MemoryMonitorConfig = IMemoryMonitorConfig;
 
 @injectable()
 export class MemoryMonitorConfigService extends BaseConfigService<MemoryMonitorConfig> {
   loadConfig(): MemoryMonitorConfig {
     const rawConfig = {
+      enabled: process.env.MEMORY_MONITORING_ENABLED !== 'false',
       warningThreshold: parseFloat(process.env.MEMORY_WARNING_THRESHOLD || '0.90'),
       criticalThreshold: parseFloat(process.env.MEMORY_CRITICAL_THRESHOLD || '0.94'),
       emergencyThreshold: parseFloat(process.env.MEMORY_EMERGENCY_THRESHOLD || '0.98'),
@@ -34,6 +24,7 @@ export class MemoryMonitorConfigService extends BaseConfigService<MemoryMonitorC
 
   validateConfig(config: any): MemoryMonitorConfig {
     const schema = Joi.object({
+      enabled: Joi.boolean().default(true),
       warningThreshold: Joi.number().min(0).max(1).default(0.90),
       criticalThreshold: Joi.number().min(0).max(1).default(0.94),
       emergencyThreshold: Joi.number().min(0).max(1).default(0.98),
@@ -48,24 +39,27 @@ export class MemoryMonitorConfigService extends BaseConfigService<MemoryMonitorC
     }
 
     // 确保阈值逻辑正确：warning < critical < emergency
-    if (value.warningThreshold >= value.criticalThreshold) {
-      throw new Error('Warning threshold must be less than critical threshold');
-    }
-    if (value.criticalThreshold >= value.emergencyThreshold) {
-      throw new Error('Critical threshold must be less than emergency threshold');
+    if (value.enabled) {
+      if (value.warningThreshold >= value.criticalThreshold) {
+        throw new Error('Warning threshold must be less than critical threshold');
+      }
+      if (value.criticalThreshold >= value.emergencyThreshold) {
+        throw new Error('Critical threshold must be less than emergency threshold');
+      }
     }
 
-    return value;
+    return value as MemoryMonitorConfig;
   }
 
   getDefaultConfig(): MemoryMonitorConfig {
     return {
+      enabled: true,
       warningThreshold: 0.90,
       criticalThreshold: 0.94,
       emergencyThreshold: 0.98,
       checkInterval: 30000,
       cleanupCooldown: 30000,
       maxHistorySize: 100,
-    };
+    } as MemoryMonitorConfig;
   }
 }

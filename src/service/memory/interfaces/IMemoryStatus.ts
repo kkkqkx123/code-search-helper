@@ -35,6 +35,8 @@ export interface IMemoryStatus {
  * 内存监控配置接口
  */
 export interface IMemoryMonitorConfig {
+  /** 是否启用监控 */
+  enabled: boolean;
   /** 警告阈值（0-1） */
   warningThreshold: number;
   /** 严重阈值（0-1） */

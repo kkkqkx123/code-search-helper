@@ -18,6 +18,7 @@ import {
   TreeSitterConfigService,
   ProjectNamingConfigService,
   NebulaConfigService,
+  EmbeddingBatchConfigService,
 } from '../../config/service';
 
 export class ConfigServiceRegistrar {
@@ -40,6 +41,7 @@ export class ConfigServiceRegistrar {
       container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
       container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
       container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
+      container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
 
       // 主配置服务
       container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();

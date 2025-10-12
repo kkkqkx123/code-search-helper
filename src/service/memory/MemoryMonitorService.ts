@@ -26,6 +26,7 @@ export class MemoryMonitorService implements IMemoryMonitorService {
   private embeddingCache: EmbeddingCacheService;
   private configService: ConfigService;
   private memoryCheckInterval: NodeJS.Timeout | null = null;
+  private enabled: boolean = true;
   private warningThreshold: number = 0.90;
   private criticalThreshold: number = 0.94;
   private emergencyThreshold: number = 0.98;
@@ -72,6 +73,7 @@ export class MemoryMonitorService implements IMemoryMonitorService {
       const config = this.configService.getMemoryMonitorConfig();
       
       // 从 ConfigService 获取配置参数
+      this.enabled = config.enabled;
       this.warningThreshold = config.warningThreshold;
       this.criticalThreshold = config.criticalThreshold;
       this.emergencyThreshold = config.emergencyThreshold;
@@ -91,6 +93,7 @@ export class MemoryMonitorService implements IMemoryMonitorService {
       this.logger.warn('Failed to load memory monitor configuration from ConfigService, falling back to environment variables', error);
       
       // 回退到环境变量
+      this.enabled = process.env.MEMORY_MONITORING_ENABLED !== 'false';
       this.warningThreshold = parseFloat(process.env.MEMORY_WARNING_THRESHOLD || '0.90');
       this.criticalThreshold = parseFloat(process.env.MEMORY_CRITICAL_THRESHOLD || '0.94');
       this.emergencyThreshold = parseFloat(process.env.MEMORY_EMERGENCY_THRESHOLD || '0.98');
@@ -106,6 +109,11 @@ export class MemoryMonitorService implements IMemoryMonitorService {
    * 启动内存监控
    */
   startMonitoring(): void {
+    if (!this.enabled) {
+      this.logger.info('Memory monitoring is disabled via configuration');
+      return;
+    }
+    
     if (this.memoryCheckInterval) {
       clearInterval(this.memoryCheckInterval);
     }
@@ -115,6 +123,7 @@ export class MemoryMonitorService implements IMemoryMonitorService {
     }, this.checkInterval);
 
     this.logger.info('Memory monitoring started', {
+      enabled: this.enabled,
       warningThreshold: this.warningThreshold,
       criticalThreshold: this.criticalThreshold,
       emergencyThreshold: this.emergencyThreshold,
@@ -126,6 +135,10 @@ export class MemoryMonitorService implements IMemoryMonitorService {
    * 检查内存使用情况（内部方法）
    */
  private internalCheckMemoryUsage(): void {
+    if (!this.enabled) {
+      return; // 如果监控被禁用，则不执行任何操作
+    }
+    
     try {
       const memoryUsage = process.memoryUsage();
       const heapUsedPercent = memoryUsage.heapUsed / memoryUsage.heapTotal;
@@ -179,6 +192,10 @@ export class MemoryMonitorService implements IMemoryMonitorService {
    * 处理警告级别的内存使用
    */
   private handleWarningMemory(memoryUsage: NodeJS.MemoryUsage, heapUsedPercent: number): void {
+    if (!this.enabled) {
+      return; // 如果监控被禁用，则不执行任何操作
+    }
+    
     const now = Date.now();
 
     if (now - this.lastCleanupTime < this.cleanupCooldown) {
@@ -200,6 +217,10 @@ export class MemoryMonitorService implements IMemoryMonitorService {
    * 处理严重级别的内存使用
    */
   private handleCriticalMemory(memoryUsage: NodeJS.MemoryUsage, heapUsedPercent: number): void {
+    if (!this.enabled) {
+      return; // 如果监控被禁用，则不执行任何操作
+    }
+    
     const now = Date.now();
 
     if (now - this.lastCleanupTime < this.cleanupCooldown / 2) {
@@ -226,6 +247,10 @@ export class MemoryMonitorService implements IMemoryMonitorService {
    * 处理紧急级别的内存使用
    */
   private handleEmergencyMemory(memoryUsage: NodeJS.MemoryUsage, heapUsedPercent: number): void {
+    if (!this.enabled) {
+      return; // 如果监控被禁用，则不执行任何操作
+    }
+    
     this.logger.error('EMERGENCY: Memory usage extremely high', {
       heapUsedPercent: heapUsedPercent * 100,
       heapUsed: memoryUsage.heapUsed,
@@ -364,6 +389,11 @@ export class MemoryMonitorService implements IMemoryMonitorService {
    * 手动触发内存清理
    */
   triggerCleanup(level: 'lightweight' | 'deep' | 'emergency' = 'lightweight'): void {
+    if (!this.enabled) {
+      this.logger.info('Memory monitoring is disabled, skipping cleanup trigger');
+      return;
+    }
+    
     switch (level) {
       case 'lightweight':
         this.performLightweightCleanup();
@@ -392,15 +422,20 @@ export class MemoryMonitorService implements IMemoryMonitorService {
   * 更新配置
   */
  updateConfig(config: {
-   warningThreshold?: number;
-   criticalThreshold?: number;
-   emergencyThreshold?: number;
-   checkInterval?: number;
-   cleanupCooldown?: number;
-   maxHistorySize?: number;
- }): void {
+  enabled?: boolean;
+  warningThreshold?: number;
+  criticalThreshold?: number;
+  emergencyThreshold?: number;
+  checkInterval?: number;
+  cleanupCooldown?: number;
+  maxHistorySize?: number;
+}): void {
    let needsRestart = false;
    
+   if (config.enabled !== undefined) {
+     this.enabled = config.enabled;
+     needsRestart = true; // 启用状态变化需要重新启动监控
+   }
    if (config.warningThreshold !== undefined) {
      this.warningThreshold = config.warningThreshold;
    }
@@ -546,6 +581,7 @@ export class MemoryMonitorService implements IMemoryMonitorService {
       this.logger.debug('Unable to get config from ConfigService, returning local config', error);
       // 回退到本地配置
       return {
+        enabled: this.enabled,
         warningThreshold: this.warningThreshold,
         criticalThreshold: this.criticalThreshold,
         emergencyThreshold: this.emergencyThreshold,

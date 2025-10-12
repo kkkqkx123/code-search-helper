@@ -48,6 +48,8 @@ export interface MonitoringConfig {
 }
 
 export interface MemoryMonitorConfig {
+  /** 是否启用监控 */
+  enabled: boolean;
   /** 警告阈值（0-1） */
   warningThreshold: number;
   /** 严重阈值（0-1） */
