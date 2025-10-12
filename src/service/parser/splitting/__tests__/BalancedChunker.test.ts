@@ -153,8 +153,8 @@ describe('BalancedChunker', () => {
       chunker.analyzeLineSymbols('function test() {');
       const state = chunker.getCurrentState();
       
-      expect(state.brackets).toBe(1);
-      expect(state.braces).toBe(1);
+      expect(state.brackets).toBe(0); // () should balance out
+      expect(state.braces).toBe(1);   // { is not closed
       expect(state.squares).toBe(0);
       expect(state.templates).toBe(0);
       

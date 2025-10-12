@@ -70,6 +70,7 @@ export class BalancedChunker {
     let inMultiComment = false;
     let inString = false;
     let stringChar = '';
+    let templateExprDepth = 0; // 模板字符串内表达式的深度
 
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
@@ -85,10 +86,34 @@ export class BalancedChunker {
         continue;
       }
       if (inString) {
-        if (char === stringChar && line[i - 1] !== '\\') {
-          inString = false;
-          if (char === '`') this.symbolStack.templates--;
+        // 处理转义字符
+        if (char === '\\' && i + 1 < line.length) {
+          i++; // 跳过下一个字符
+          continue;
         }
+        
+        // 处理模板字符串中的表达式
+        if (stringChar === '`' && char === '$' && nextChar === '{') {
+          templateExprDepth++;
+          this.symbolStack.braces++; // 表达式开始增加花括号计数
+          i++; // 跳过'{'
+          continue;
+        }
+        
+        // 处理模板字符串中表达式的结束
+        if (stringChar === '`' && char === '}' && templateExprDepth > 0) {
+          templateExprDepth--;
+          this.symbolStack.braces--; // 表达式结束减少花括号计数
+          continue;
+        }
+        
+        // 结束字符串（对于模板字符串，只有在顶层时才能结束）
+        if (char === stringChar && (stringChar !== '`' || templateExprDepth === 0)) {
+          inString = false;
+          if (stringChar === '`') this.symbolStack.templates--;
+          continue;
+        }
+        
         continue;
       }
 

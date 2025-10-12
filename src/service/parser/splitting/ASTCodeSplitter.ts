@@ -130,6 +130,7 @@ export class ASTCodeSplitter implements Splitter {
       this.functionSplitter.setLogger(logger);
       this.classSplitter.setLogger(logger);
       this.importSplitter.setLogger(logger);
+      this.intelligentSplitter.setLogger(logger);
     }
   }
 

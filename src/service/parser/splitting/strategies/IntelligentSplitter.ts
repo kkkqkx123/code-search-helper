@@ -34,6 +34,14 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
   setOptimizationLevel(level: 'low' | 'medium' | 'high'): void {
     this.optimizationLevel = level;
   }
+  
+  setLogger(logger: LoggerService): void {
+    this.logger = logger;
+    // 更新optimizer的logger
+    if (this.balancedChunker) {
+      this.optimizer = new IntelligentSplitterOptimizer(this.balancedChunker, logger);
+    }
+  }
 
   async split(
     content: string,
@@ -157,6 +165,11 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
       }
     }
 
+    // 记录性能指标
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    this.logger?.debug(`Performance metrics: processed ${lines.length} lines in ${duration}ms, generated ${chunks.length} chunks`);
+    
     return chunks;
   }
 

@@ -1,39 +1,39 @@
 import { Container } from 'inversify';
-import { TYPES } from '../src/types';
-import { NebulaQueryService } from '../src/database/nebula/query/NebulaQueryService';
-import { DatabaseLoggerService } from '../src/database/common/DatabaseLoggerService';
-import { NebulaConfigService } from '../src/config/service/NebulaConfigService';
-import { LoggerService } from '../src/utils/LoggerService';
-import { ErrorHandlerService } from '../src/utils/ErrorHandlerService';
-import { PerformanceMonitor } from '../src/database/common/PerformanceMonitor';
-import { ConfigService } from '../src/config/ConfigService';
-import { EnvironmentConfigService } from '../src/config/service/EnvironmentConfigService';
-import { QdrantConfigService } from '../src/config/service/QdrantConfigService';
-import { EmbeddingConfigService } from '../src/config/service/EmbeddingConfigService';
-import { LoggingConfigService } from '../src/config/service/LoggingConfigService';
-import { MonitoringConfigService } from '../src/config/service/MonitoringConfigService';
-import { FileProcessingConfigService } from '../src/config/service/FileProcessingConfigService';
-import { BatchProcessingConfigService } from '../src/config/service/BatchProcessingConfigService';
-import { RedisConfigService } from '../src/config/service/RedisConfigService';
-import { ProjectConfigService } from '../src/config/service/ProjectConfigService';
-import { IndexingConfigService } from '../src/config/service/IndexingConfigService';
-import { LSPConfigService } from '../src/config/service/LSPConfigService';
-import { SemgrepConfigService } from '../src/config/service/SemgrepConfigService';
-import { TreeSitterConfigService } from '../src/config/service/TreeSitterConfigService';
-import { ProjectNamingConfigService } from '../src/config/service/ProjectNamingConfigService';
+import { TYPES } from '../../src/types';
+import { NebulaQueryService } from '../../src/database/nebula/query/NebulaQueryService';
+import { DatabaseLoggerService } from '../../src/database/common/DatabaseLoggerService';
+import { NebulaConfigService } from '../../src/config/service/NebulaConfigService';
+import { LoggerService } from '../../src/utils/LoggerService';
+import { ErrorHandlerService } from '../../src/utils/ErrorHandlerService';
+import { PerformanceMonitor } from '../../src/database/common/PerformanceMonitor';
+import { ConfigService } from '../../src/config/ConfigService';
+import { EnvironmentConfigService } from '../../src/config/service/EnvironmentConfigService';
+import { QdrantConfigService } from '../../src/config/service/QdrantConfigService';
+import { EmbeddingConfigService } from '../../src/config/service/EmbeddingConfigService';
+import { LoggingConfigService } from '../../src/config/service/LoggingConfigService';
+import { MonitoringConfigService } from '../../src/config/service/MonitoringConfigService';
+import { FileProcessingConfigService } from '../../src/config/service/FileProcessingConfigService';
+import { BatchProcessingConfigService } from '../../src/config/service/BatchProcessingConfigService';
+import { RedisConfigService } from '../../src/config/service/RedisConfigService';
+import { ProjectConfigService } from '../../src/config/service/ProjectConfigService';
+import { IndexingConfigService } from '../../src/config/service/IndexingConfigService';
+import { LSPConfigService } from '../../src/config/service/LSPConfigService';
+import { SemgrepConfigService } from '../../src/config/service/SemgrepConfigService';
+import { TreeSitterConfigService } from '../../src/config/service/TreeSitterConfigService';
+import { ProjectNamingConfigService } from '../../src/config/service/ProjectNamingConfigService';
 
 async function testNebulaConnectionFix() {
     console.log('Testing Nebula Connection Fix...');
-    
+
     // 创建依赖注入容器并注册服务
     const container = new Container();
-    
+
     // 注册基础服务
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
-    
+
     // 注册配置服务
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
     container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
@@ -51,7 +51,7 @@ async function testNebulaConnectionFix() {
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
     container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
-    
+
     // 注册Nebula服务
     container.bind<NebulaQueryService>(TYPES.NebulaQueryService).to(NebulaQueryService).inSingletonScope();
 
@@ -59,7 +59,7 @@ async function testNebulaConnectionFix() {
         // 初始化配置服务
         const configServiceInstance = container.get<ConfigService>(TYPES.ConfigService);
         await configServiceInstance.initialize();
-        
+
         // 获取必要的服务
         const queryService = container.get<NebulaQueryService>(TYPES.NebulaQueryService);
         const configService = container.get<NebulaConfigService>(TYPES.NebulaConfigService);

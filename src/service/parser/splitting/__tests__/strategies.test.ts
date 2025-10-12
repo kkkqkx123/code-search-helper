@@ -50,8 +50,12 @@ class MockTreeSitterService implements Partial<TreeSitterService> {
   }
 
  isLanguageSupported(language: string): boolean {
-    return true;
-  }
+   return true;
+ }
+ 
+ detectLanguage(filePath: string): any {
+   return { name: 'javascript', parser: null, fileExtensions: ['.js'], supported: true };
+ }
 }
 
 describe('Strategies', () => {
