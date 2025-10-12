@@ -37,6 +37,13 @@ export class BalancedChunker {
   private analysisCache: Map<string, SymbolStackChange> = new Map();
   private static readonly MAX_CACHE_SIZE = 1000;
   private accessOrder: string[] = [];
+  
+  // 解析状态变量（类级别，保持跨行状态）
+  private inSingleComment = false;
+  private inMultiComment = false;
+  private inString = false;
+  private stringChar = '';
+  private templateExprDepth = 0; // 模板字符串内表达式的深度
 
   constructor(logger?: LoggerService) {
     this.logger = logger;
@@ -66,26 +73,27 @@ export class BalancedChunker {
    * 内部符号分析方法
    */
   private analyzeLineSymbolsInternal(line: string): void {
-    let inSingleComment = false;
-    let inMultiComment = false;
-    let inString = false;
-    let stringChar = '';
-    let templateExprDepth = 0; // 模板字符串内表达式的深度
+    // 保存初始状态用于调试
+    const initialStack = { ...this.symbolStack };
+
+    // 单行注释在每行开始时重置
+    const wasInSingleComment = this.inSingleComment;
+    this.inSingleComment = false;
 
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
       const nextChar = line[i + 1];
 
       // 跳过注释和字符串内容
-      if (inSingleComment) continue;
-      if (inMultiComment) {
+      if (this.inSingleComment) continue;
+      if (this.inMultiComment) {
         if (char === '*' && nextChar === '/') {
-          inMultiComment = false;
+          this.inMultiComment = false;
           i++; // 跳过'*/'
         }
         continue;
       }
-      if (inString) {
+      if (this.inString) {
         // 处理转义字符
         if (char === '\\' && i + 1 < line.length) {
           i++; // 跳过下一个字符
@@ -93,24 +101,24 @@ export class BalancedChunker {
         }
         
         // 处理模板字符串中的表达式
-        if (stringChar === '`' && char === '$' && nextChar === '{') {
-          templateExprDepth++;
+        if (this.stringChar === '`' && char === '$' && nextChar === '{') {
+          this.templateExprDepth++;
           this.symbolStack.braces++; // 表达式开始增加花括号计数
           i++; // 跳过'{'
           continue;
         }
         
         // 处理模板字符串中表达式的结束
-        if (stringChar === '`' && char === '}' && templateExprDepth > 0) {
-          templateExprDepth--;
+        if (this.stringChar === '`' && char === '}' && this.templateExprDepth > 0) {
+          this.templateExprDepth--;
           this.symbolStack.braces--; // 表达式结束减少花括号计数
           continue;
         }
         
         // 结束字符串（对于模板字符串，只有在顶层时才能结束）
-        if (char === stringChar && (stringChar !== '`' || templateExprDepth === 0)) {
-          inString = false;
-          if (stringChar === '`') this.symbolStack.templates--;
+        if (char === this.stringChar && (this.stringChar !== '`' || this.templateExprDepth === 0)) {
+          this.inString = false;
+          if (this.stringChar === '`') this.symbolStack.templates--;
           continue;
         }
         
@@ -121,18 +129,18 @@ export class BalancedChunker {
       switch (char) {
         case '/':
           if (nextChar === '/') {
-            inSingleComment = true;
+            this.inSingleComment = true;
             continue;
           }
           if (nextChar === '*') {
-            inMultiComment = true;
+            this.inMultiComment = true;
             i++; // 跳过'/*'
             continue;
           }
           break;
         case '"': case "'": case '`':
-          inString = true;
-          stringChar = char;
+          this.inString = true;
+          this.stringChar = char;
           if (char === '`') this.symbolStack.templates++;
           break;
         case '(': this.symbolStack.brackets++; break;
@@ -165,6 +173,13 @@ export class BalancedChunker {
       squares: 0,
       templates: 0
     };
+    
+    // 重置解析状态
+    this.inSingleComment = false;
+    this.inMultiComment = false;
+    this.inString = false;
+    this.stringChar = '';
+    this.templateExprDepth = 0;
   }
 
   /**
