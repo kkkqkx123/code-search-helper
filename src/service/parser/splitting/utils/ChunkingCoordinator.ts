@@ -168,7 +168,16 @@ export class ChunkingCoordinator {
    */
   private extractNodesFromChunk(chunk: CodeChunk, ast?: any): ASTNode[] {
     if (!ast || !chunk.metadata.startLine || !chunk.metadata.endLine) {
-      return [];
+      // 如果没有AST或元数据不完整，返回一个基本节点表示整个chunk
+      return [{
+        id: `chunk-${chunk.metadata.startLine}-${chunk.metadata.endLine}`,
+        type: 'chunk',
+        startByte: 0,
+        endByte: 0,
+        startLine: chunk.metadata.startLine,
+        endLine: chunk.metadata.endLine,
+        text: chunk.content
+      }];
     }
     
     const nodes: ASTNode[] = [];
@@ -176,8 +185,31 @@ export class ChunkingCoordinator {
     const endLine = chunk.metadata.endLine;
     
     // 从AST中提取与代码块范围重叠的节点
-    // 这里需要根据实际的AST结构实现节点提取逻辑
-    // 暂时返回空数组，实际实现需要根据Tree-sitter的AST结构来提取
+    // 简化实现：如果chunk有nodeIds，使用它们创建基本节点
+    if (chunk.metadata.nodeIds && chunk.metadata.nodeIds.length > 0) {
+      for (const nodeId of chunk.metadata.nodeIds) {
+        nodes.push({
+          id: nodeId,
+          type: 'ast_node',
+          startByte: 0,
+          endByte: 0,
+          startLine: startLine,
+          endLine: endLine,
+          text: chunk.content
+        });
+      }
+    } else {
+      // 如果没有nodeIds，创建一个基本的chunk节点
+      nodes.push({
+        id: `chunk-${startLine}-${endLine}`,
+        type: 'chunk',
+        startByte: 0,
+        endByte: 0,
+        startLine: startLine,
+        endLine: endLine,
+        text: chunk.content
+      });
+    }
     
     return nodes;
   }
@@ -209,4 +241,3 @@ export class ChunkingCoordinator {
     return this.options;
   }
 }
-

@@ -134,7 +134,7 @@ export class FunctionSplitter implements FunctionSplitterInterface {
   }
 
   getPriority(): number {
-    return 3; // 函数分段优先级（在类和导入之后）
+    return 2; // 函数分段优先级（中等优先级）
   }
 
   /**

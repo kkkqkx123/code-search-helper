@@ -35,22 +35,22 @@
     "vectorStatus": {
       "status": "completed",
       "progress": 100,
-      "lastUpdated": "2025-10-12T13:21:02.460Z"
+      "lastUpdated": "2025-10-12T16:00:01.188Z"
     },
     "graphStatus": {
       "status": "completed",
       "progress": 100,
-      "lastUpdated": "2025-10-12T13:21:02.461Z"
+      "lastUpdated": "2025-10-12T16:00:01.189Z"
     },
-    "createdAt": "2025-10-12T13:20:58.488Z",
-    "updatedAt": "2025-10-12T13:21:02.461Z",
+    "createdAt": "2025-10-12T15:59:56.849Z",
+    "updatedAt": "2025-10-12T16:00:01.189Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true
     },
     "metadata": {},
     "indexingProgress": 100,
-    "lastIndexedAt": "2025-10-12T13:21:02.458Z",
+    "lastIndexedAt": "2025-10-12T16:00:01.187Z",
     "totalFiles": 4,
     "indexedFiles": 4,
     "failedFiles": 0

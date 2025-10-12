@@ -159,17 +159,9 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
       quality: baseOverlap.quality
     };
     
-    console.log('Before context optimization:', {
-      baseOverlap: { content: baseOverlap.content, lines: baseOverlap.lines, quality: baseOverlap.quality }
-    });
-    
     const optimizedOverlap = this.contextAnalyzer.optimizeOverlapForContext(
       overlapResult, currentChunk, nextChunk
     );
-    
-    console.log('After context optimization:', {
-      optimizedOverlap: { content: optimizedOverlap.content, lines: optimizedOverlap.lines, quality: optimizedOverlap.quality }
-    });
     
     // 将优化后的结果转换回 EnhancedOverlapResult
     const enhancedOptimizedOverlap: EnhancedOverlapResult = {
@@ -195,38 +187,24 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
     nextChunk: CodeChunk,
     options: EnhancedOverlapOptions
   ): OverlapStrategy {
-    console.log('Selecting strategy for:', {
-      enableASTBoundaryDetection: options.enableASTBoundaryDetection,
-      hasAST: !!options.ast,
-      hasNodeTracker: !!options.nodeTracker,
-      isSequentialFunctions: this.isSequentialFunctions(currentChunk, nextChunk),
-      isComplexStructure: this.isComplexStructure(currentChunk),
-      isSimpleCode: this.isSimpleCode(currentChunk, nextChunk)
-    });
-
     // 如果启用了AST边界检测，优先使用AST边界策略
     if (options.enableASTBoundaryDetection && options.ast && options.nodeTracker) {
-      console.log('Selected strategy: ast-boundary');
       return 'ast-boundary';
     }
 
     // 根据块类型和内容选择最适合的重叠策略
     if (this.isSequentialFunctions(currentChunk, nextChunk)) {
-      console.log('Selected strategy: semantic');
       return 'semantic';
     }
 
     if (this.isComplexStructure(currentChunk)) {
-      console.log('Selected strategy: syntactic');
       return 'syntactic';
     }
 
     if (this.isSimpleCode(currentChunk, nextChunk)) {
-      console.log('Selected strategy: size-based');
       return 'size-based';
     }
 
-    console.log('Selected strategy: hybrid');
     return 'hybrid';
   }
 
@@ -333,13 +311,6 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
     const overlapLines: string[] = [];
     const lines = originalCode.split('\n');
 
-    console.log('Semantic overlap debug:', {
-      currentChunk: { start: currentChunk.metadata.startLine, end: currentChunk.metadata.endLine },
-      nextChunk: { start: nextChunk.metadata.startLine, end: nextChunk.metadata.endLine },
-      lines,
-      minLines: options.minLines
-    });
-
     // 从当前块末尾向前搜索，优先选择语义边界
     for (let i = currentChunk.metadata.endLine - 1; i >= currentChunk.metadata.startLine - 1; i--) {
       if (overlapLines.join('\n').length >= options.maxSize) break;
@@ -347,21 +318,25 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
       const line = lines[i];
       const boundaryScore = this.semanticAnalyzer.calculateBoundaryScore(line, [], currentChunk.metadata.language);
 
-      console.log(`Line ${i + 1}: "${line}"`, {
-        boundaryScore,
-        overlapLinesLength: overlapLines.length,
-        condition: boundaryScore.score > 0.6 || overlapLines.length < options.minLines
-      });
-
       // 高评分的边界更有可能被包含在重叠中
-      if (boundaryScore.score > 0.6 || overlapLines.length < options.minLines) {
+      // 特殊处理：如果是函数签名且当前重叠较少，则包含它
+      const isFunctionSignature = this.isFunctionSignature(line);
+      
+      // 先检查添加这行是否会超过重叠比例限制
+      const tentativeOverlap = [line, ...overlapLines].join('\n');
+      const tentativeRatio = tentativeOverlap.length / currentChunk.content.length;
+      
+      // 根据条件决定是否添加这行
+      const shouldAdd = boundaryScore.score > 0.6 || 
+                       overlapLines.length < options.minLines ||
+                       (isFunctionSignature && tentativeRatio <= options.maxOverlapRatio);
+      
+      if (shouldAdd && tentativeRatio <= options.maxOverlapRatio) {
+        // 只有在不超过重叠比例限制时才添加
         overlapLines.unshift(line);
-      }
-
-      // 检查重叠比例限制
-      const currentOverlapRatio = overlapLines.join('\n').length / currentChunk.content.length;
-      if (currentOverlapRatio > options.maxOverlapRatio) {
-        break;
+      } else if (shouldAdd && overlapLines.length === 0) {
+        // 如果这是第一行且会超过限制，仍然添加（至少保证有一些重叠）
+        overlapLines.unshift(line);
       }
     }
 
@@ -459,12 +434,6 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
     }
 
     const overlapContent = overlapLines.join('\n');
-    console.log('Size-based overlap debug:', {
-      currentChunk: { start: currentChunk.metadata.startLine, end: currentChunk.metadata.endLine },
-      nextChunk: { start: nextChunk.metadata.startLine, end: nextChunk.metadata.endLine },
-      overlapLines,
-      overlapContent
-    });
 
     return {
       content: overlapContent,
@@ -508,13 +477,15 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
   ): EnhancedOverlapResult {
     if (!options.enableASTBoundaryDetection || !options.nodeTracker) {
       // 将 OverlapResult 转换为 EnhancedOverlapResult
+      const overlapRatio = overlap.content.length > 0 ? overlap.content.length / currentChunk.content.length : 0;
+      
       return {
         content: overlap.content,
         lines: overlap.lines,
         strategy: overlap.strategy as OverlapStrategy,
         quality: overlap.quality,
         astNodesUsed: [],
-        overlapRatio: overlap.content.length > 0 ? overlap.content.length / currentChunk.content.length : 0
+        overlapRatio
       };
     }
 
@@ -643,5 +614,13 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
     return /^class\s+\w+/.test(line) ||
       /^export\s+default\s+class/.test(line) ||
       /^export\s+class/.test(line);
+  }
+
+  private isFunctionSignature(line: string): boolean {
+    const trimmed = line.trim();
+    return /^function\s+\w+\s*\(/.test(trimmed) ||
+           /^\w+\s*=\s*\([^)]*\)\s*=>/.test(trimmed) ||
+           /^\s*\w+\s*\([^)]*\)\s*:\s*\w+\s*=>/.test(trimmed) ||
+           /^\s*\w+\s*:\s*\([^)]*\)\s*=>/.test(trimmed);
   }
 }

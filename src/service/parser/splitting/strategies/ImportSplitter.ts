@@ -127,7 +127,7 @@ export class ImportSplitter implements ImportSplitterInterface {
   }
 
   getPriority(): number {
-    return 1; // 导入分段最高优先级
+    return 3; // 导入分段较低优先级
   }
 
   /**
