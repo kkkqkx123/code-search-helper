@@ -9,6 +9,24 @@ import { NebulaConfigService } from '../config/service/NebulaConfigService';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 
+// 项目映射信息的接口定义（保留用于兼容旧格式）
+export interface ProjectMappingInfo {
+  projectPath: string;
+  projectId: string;
+  collectionName: string;
+  spaceName: string;
+  lastUpdateTime: Date;
+}
+
+// 用户期望的映射格式接口
+export interface UserExpectedMappingFormat {
+  projectIdMap: { [path: string]: string };
+  collectionMap: { [id: string]: string };
+  spaceMap: { [id: string]: string };
+  pathToProjectMap: { [id: string]: string };
+  projectUpdateTimes: { [id: string]: string }; // ISO string format
+}
+
 @injectable()
 export class ProjectIdManager {
   private projectIdMap: Map<string, string> = new Map(); // projectPath -> projectId
@@ -26,7 +44,7 @@ export class ProjectIdManager {
   ) {
     // 检查是否在测试环境中
     const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-    
+
     if (isTestEnvironment) {
       // 在测试环境中，延迟加载映射以避免配置服务未初始化的问题
       setTimeout(() => {
@@ -63,7 +81,7 @@ export class ProjectIdManager {
     try {
       // Normalize path to ensure consistency across different platforms
       const normalizedPath = HashUtils.normalizePath(projectPath);
-      
+
       // Check if project ID already exists for this path
       const existingProjectId = this.projectIdMap.get(normalizedPath);
       if (existingProjectId) {
@@ -71,7 +89,7 @@ export class ProjectIdManager {
         this.projectUpdateTimes.set(existingProjectId, new Date());
         return existingProjectId;
       }
-      
+
       // Use SHA256 hash to generate project ID
       const directoryHash = await HashUtils.calculateDirectoryHash(projectPath);
       const projectId = directoryHash.hash.substring(0, 16);
@@ -168,19 +186,29 @@ export class ProjectIdManager {
   private async saveMappingWithRetry(maxRetries: number = 3): Promise<void> {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        const mapping = {
-          projectIdMap: Object.fromEntries(this.projectIdMap),
-          collectionMap: Object.fromEntries(this.collectionMap),
-          spaceMap: Object.fromEntries(this.spaceMap),
-          pathToProjectMap: Object.fromEntries(this.pathToProjectMap),
-          projectUpdateTimes: Object.fromEntries(
-            Array.from(this.projectUpdateTimes.entries()).map(([k, v]) => [k, this.formatDate(v)])
-          ),
-        };
+        // 将映射数据转换为数组格式，与 project-states.json 保持一致
+        const mappingArray: any[] = [];
+
+        // 遍历所有项目路径，创建映射信息对象
+        for (const [projectPath, projectId] of this.projectIdMap.entries()) {
+          const collectionName = this.collectionMap.get(projectId) || this.qdrantConfigService.getCollectionNameForProject(projectId);
+          const spaceName = this.spaceMap.get(projectId) || this.nebulaConfigService.getSpaceNameForProject(projectId);
+          const lastUpdateTime = this.projectUpdateTimes.get(projectId) || new Date();
+
+          // 创建一个包含所有映射关系的对象，符合用户期望的格式
+          const mappingInfo: any = {};
+          mappingInfo.projectIdMap = { [projectPath]: projectId };
+          mappingInfo.collectionMap = { [projectId]: collectionName };
+          mappingInfo.spaceMap = { [projectId]: spaceName };
+          mappingInfo.pathToProjectMap = { [projectId]: projectPath };
+          mappingInfo.projectUpdateTimes = { [projectId]: lastUpdateTime };
+
+          mappingArray.push(mappingInfo);
+        }
 
         // Use configurable storage path from config service
         const storagePath = this.configService.get('project')?.mappingPath || './data/project-mapping.json';
-        
+
         // Ensure directory exists
         const dir = path.dirname(storagePath);
         try {
@@ -188,14 +216,20 @@ export class ProjectIdManager {
         } catch (error) {
           // Directory might already exist
         }
-        
+
         // Use atomic write with temporary file + rename
         const tempPath = `${storagePath}.tmp`;
-        const jsonData = JSON.stringify(mapping, null, 2);
-        
+        const jsonData = JSON.stringify(mappingArray, (key, value) => {
+          // 自定义序列化，处理日期对象
+          if (value instanceof Date) {
+            return this.formatDate(value);
+          }
+          return value;
+        }, 2);
+
         await fs.writeFile(tempPath, jsonData);
         await fs.rename(tempPath, storagePath);
-        
+
         // 成功则退出重试循环
         return;
       } catch (error) {
@@ -203,9 +237,9 @@ export class ProjectIdManager {
           // 最后一次尝试仍然失败，抛出错误
           throw new Error(`Failed to save project mapping after ${maxRetries} attempts: ${error instanceof Error ? error.message : String(error)}`);
         }
-        
+
         // 指数退避等待
-        const waitTime = Math.pow(2, attempt) * 1000;
+        const waitTime = Math.pow(2, attempt) * 100;
         console.warn(`Save mapping attempt ${attempt + 1}/${maxRetries} failed, retrying in ${waitTime}ms...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
@@ -223,7 +257,7 @@ export class ProjectIdManager {
   private async loadMappingWithRetry(maxRetries: number = 3): Promise<void> {
     // 检查是否在测试环境中
     const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-    
+
     // 在测试环境中减少重试次数和等待时间
     if (isTestEnvironment) {
       maxRetries = 1;
@@ -232,18 +266,77 @@ export class ProjectIdManager {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const storagePath = this.configService.get('project')?.mappingPath || './data/project-mapping.json';
-        const data = await fs.readFile(storagePath, 'utf8');
-        const mapping = JSON.parse(data);
-
-        // 验证和规范化映射数据
-        const validatedMapping = this.validateAndNormalizeMapping(mapping);
-
-        this.projectIdMap = validatedMapping.projectIdMap;
-        this.collectionMap = validatedMapping.collectionMap;
-        this.spaceMap = validatedMapping.spaceMap;
-        this.pathToProjectMap = validatedMapping.pathToProjectMap;
-        this.projectUpdateTimes = validatedMapping.projectUpdateTimes;
         
+        // 检查文件是否存在，如果不存在则创建空文件
+        try {
+          await fs.access(storagePath);
+        } catch (accessError) {
+          // 文件不存在，创建空的JSON文件
+          this.logger.warn(`Project mapping file does not exist at ${storagePath}, creating empty file...`);
+          const dir = path.dirname(storagePath);
+          await fs.mkdir(dir, { recursive: true });
+          await fs.writeFile(storagePath, '[]', 'utf8');
+        }
+        
+        const data = await fs.readFile(storagePath, 'utf8');
+        const rawMapping = JSON.parse(data);
+
+        // 检查是否是旧格式（对象格式）或新格式（数组格式）
+        if (Array.isArray(rawMapping)) {
+          // 新格式：数组格式，每个元素包含完整的映射信息
+          this.initializeEmptyMapping();
+
+          for (const mappingInfo of rawMapping) {
+            // 检查是否是用户期望的格式（包含projectIdMap, collectionMap等）
+            if (mappingInfo.projectIdMap && mappingInfo.collectionMap && mappingInfo.spaceMap &&
+                mappingInfo.pathToProjectMap && mappingInfo.projectUpdateTimes) {
+              // 用户期望的格式
+              for (const [projectPath, projectId] of Object.entries(mappingInfo.projectIdMap)) {
+                const normalizedPath = HashUtils.normalizePath(projectPath as string);
+                const actualProjectId = projectId as string;
+
+                // 添加到各个映射中
+                this.projectIdMap.set(normalizedPath, actualProjectId);
+                this.pathToProjectMap.set(actualProjectId, normalizedPath);
+                this.collectionMap.set(actualProjectId, mappingInfo.collectionMap[actualProjectId]);
+                this.spaceMap.set(actualProjectId, mappingInfo.spaceMap[actualProjectId]);
+                this.projectUpdateTimes.set(actualProjectId, this.parseDate(mappingInfo.projectUpdateTimes[actualProjectId]));
+              }
+            } else {
+              // 原来的数组格式
+              const normalizedPath = HashUtils.normalizePath(mappingInfo.projectPath);
+              this.projectIdMap.set(normalizedPath, mappingInfo.projectId);
+              this.pathToProjectMap.set(mappingInfo.projectId, normalizedPath);
+              this.collectionMap.set(mappingInfo.projectId, mappingInfo.collectionName);
+              this.spaceMap.set(mappingInfo.projectId, mappingInfo.spaceName);
+              this.projectUpdateTimes.set(mappingInfo.projectId, mappingInfo.lastUpdateTime);
+            }
+          }
+        } else {
+          // 旧格式：对象格式，需要转换
+          this.logger.info('Detected old format project mapping, converting to new format');
+          this.initializeEmptyMapping();
+
+          // 从旧格式加载
+          const projectIdMap = rawMapping.projectIdMap || {};
+          const collectionMap = rawMapping.collectionMap || {};
+          const spaceMap = rawMapping.spaceMap || {};
+          const pathToProjectMap = rawMapping.pathToProjectMap || {};
+          const projectUpdateTimes = rawMapping.projectUpdateTimes || {};
+
+          for (const [projectPath, projectId] of Object.entries(projectIdMap)) {
+            const normalizedPath = HashUtils.normalizePath(projectPath as string);
+            const actualProjectId = projectId as string;
+
+            // 添加到各个映射中
+            this.projectIdMap.set(normalizedPath, actualProjectId);
+            this.pathToProjectMap.set(actualProjectId, normalizedPath);
+            this.collectionMap.set(actualProjectId, collectionMap[actualProjectId]);
+            this.spaceMap.set(actualProjectId, spaceMap[actualProjectId]);
+            this.projectUpdateTimes.set(actualProjectId, this.parseDate(projectUpdateTimes[actualProjectId] || new Date().toISOString()));
+          }
+        }
+
         // 成功则退出重试循环
         return;
       } catch (error) {
@@ -259,14 +352,14 @@ export class ProjectIdManager {
             return;
           }
         }
-        
+
         // 指数退避等待
         const waitTime = isTestEnvironment ? 10 : Math.pow(2, attempt) * 1000;
-        
+
         if (!isTestEnvironment) {
           console.warn(`Load mapping attempt ${attempt + 1}/${maxRetries} failed, retrying in ${waitTime}ms...`);
         }
-        
+
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
@@ -283,54 +376,7 @@ export class ProjectIdManager {
     this.projectUpdateTimes = new Map();
   }
 
-  /**
-   * 验证和规范化映射数据
-   */
-  private validateAndNormalizeMapping(rawMapping: any): {
-    projectIdMap: Map<string, string>;
-    collectionMap: Map<string, string>;
-    spaceMap: Map<string, string>;
-    pathToProjectMap: Map<string, string>;
-    projectUpdateTimes: Map<string, Date>;
-  } {
-    // 验证基本结构
-    if (!rawMapping || typeof rawMapping !== 'object') {
-      throw new Error('Invalid mapping data: not an object');
-    }
 
-    // 验证和规范化各个映射
-    const projectIdMap: Map<string, string> = new Map(Object.entries(rawMapping.projectIdMap || {}));
-    const collectionMap: Map<string, string> = new Map(Object.entries(rawMapping.collectionMap || {}));
-    const spaceMap: Map<string, string> = new Map(Object.entries(rawMapping.spaceMap || {}));
-    const pathToProjectMap: Map<string, string> = new Map(Object.entries(rawMapping.pathToProjectMap || {}));
-
-    // 验证和规范化项目更新时间
-    const projectUpdateTimes: Map<string, Date> = new Map<string, Date>();
-    if (rawMapping.projectUpdateTimes && typeof rawMapping.projectUpdateTimes === 'object') {
-      for (const [projectId, timestamp] of Object.entries(rawMapping.projectUpdateTimes)) {
-        try {
-          if (typeof timestamp === 'string') {
-            projectUpdateTimes.set(projectId, this.parseDate(timestamp));
-          } else {
-            console.warn(`Invalid timestamp format for project ${projectId}, skipping`);
-          }
-        } catch (error) {
-          console.warn(`Failed to parse timestamp for project ${projectId}: ${error}, skipping`);
-        }
-      }
-    }
-
-    // 验证映射的一致性
-    this.validateMappingConsistency(projectIdMap, collectionMap, spaceMap, pathToProjectMap, projectUpdateTimes);
-
-    return {
-      projectIdMap,
-      collectionMap,
-      spaceMap,
-      pathToProjectMap,
-      projectUpdateTimes
-    };
-  }
 
   /**
    * 验证映射的一致性
@@ -350,7 +396,7 @@ export class ProjectIdManager {
           this.logger.warn(`Missing reverse mapping for project ${projectId}, adding...`);
           pathToProjectMap.set(projectId, projectPath);
         }
-        
+
         // 确保集合映射存在
         if (!collectionMap.has(projectId)) {
           this.logger.warn(`Missing collection mapping for project ${projectId}, adding...`);
@@ -358,7 +404,7 @@ export class ProjectIdManager {
           const collectionName = this.qdrantConfigService.getCollectionNameForProject(projectId);
           collectionMap.set(projectId, collectionName);
         }
-        
+
         // 确保空间映射存在（使用配置服务来生成默认空间名）
         if (!spaceMap.has(projectId)) {
           this.logger.warn(`Missing space mapping for project ${projectId}, adding...`);
@@ -366,7 +412,7 @@ export class ProjectIdManager {
           const spaceName = this.nebulaConfigService.getSpaceNameForProject(projectId);
           spaceMap.set(projectId, spaceName);  // 统一使用配置服务生成的名称
         }
-        
+
         // 确保更新时间存在
         if (!projectUpdateTimes.has(projectId)) {
           this.logger.warn(`Missing update time for project ${projectId}, adding...`);
@@ -410,7 +456,7 @@ export class ProjectIdManager {
   }
 
   // Remove a project from mappings
-  removeProject(projectPath: string): boolean {
+  async removeProject(projectPath: string): Promise<boolean> {
     const normalizedPath = HashUtils.normalizePath(projectPath);
     const projectId = this.projectIdMap.get(normalizedPath);
     if (!projectId) {
@@ -423,9 +469,61 @@ export class ProjectIdManager {
     this.pathToProjectMap.delete(projectId);
     this.projectUpdateTimes.delete(projectId);
 
+    // 自动保存映射到文件
+    await this.saveMapping();
+
     return true;
   }
-  
+
+  // Remove a project by projectId directly
+  async removeProjectById(projectId: string): Promise<boolean> {
+    // Find the project path associated with this projectId
+    let projectPath: string | undefined;
+    for (const [path, id] of this.projectIdMap.entries()) {
+      if (id === projectId) {
+        projectPath = path;
+        break;
+      }
+    }
+
+    // Remove all mappings for this projectId
+    let removed = false;
+
+    // Remove from projectIdMap if we found the path
+    if (projectPath) {
+      this.projectIdMap.delete(projectPath);
+      removed = true;
+    }
+
+    // Remove from other maps using the projectId
+    if (this.collectionMap.has(projectId)) {
+      this.collectionMap.delete(projectId);
+      removed = true;
+    }
+
+    if (this.spaceMap.has(projectId)) {
+      this.spaceMap.delete(projectId);
+      removed = true;
+    }
+
+    if (this.pathToProjectMap.has(projectId)) {
+      this.pathToProjectMap.delete(projectId);
+      removed = true;
+    }
+
+    if (this.projectUpdateTimes.has(projectId)) {
+      this.projectUpdateTimes.delete(projectId);
+      removed = true;
+    }
+
+    // 如果删除了任何映射，则保存到文件
+    if (removed) {
+      await this.saveMapping();
+    }
+
+    return removed;
+  }
+
   // Refresh mapping from persistent storage
   async refreshMapping(): Promise<void> {
     // Load the latest mapping from storage
@@ -439,7 +537,7 @@ export class ProjectIdManager {
     try {
       const initialCount = this.projectIdMap.size;
       this.logger.info(`Starting cleanup of invalid project mappings. Initial count: ${initialCount}`);
-      
+
       const validProjectPaths = new Map<string, string>();
       const validCollectionMap = new Map<string, string>();
       const validSpaceMap = new Map<string, string>();
@@ -475,7 +573,7 @@ export class ProjectIdManager {
 
       const removedCount = initialCount - this.projectIdMap.size;
       this.logger.info(`Cleaned up ${removedCount} invalid project mappings, ${this.projectIdMap.size} mappings remaining`);
-      
+
       return removedCount;
     } catch (error) {
       this.logger.error('Failed to cleanup invalid project mappings:', error);
@@ -522,7 +620,7 @@ export class ProjectIdManager {
     if (!explicitName) {
       return false;
     }
-    
+
     // 检查显式配置是否与项目隔离命名冲突
     const projectSpecificName = `project-${projectId}`;
     return explicitName !== projectSpecificName;

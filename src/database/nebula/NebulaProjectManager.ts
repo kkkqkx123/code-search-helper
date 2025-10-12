@@ -182,7 +182,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       if (success) {
         // 删除项目ID映射
-        this.projectIdManager.removeProject(projectPath);
+        await this.projectIdManager.removeProject(projectPath);
 
         this.emitEvent(NebulaEventType.SPACE_DELETED, {
           projectPath,

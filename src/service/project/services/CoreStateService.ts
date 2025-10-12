@@ -204,7 +204,7 @@ options.description !== undefined) state.description = options.description;
         return false;
       }
 
-      // 删除对应的向量集合
+      // 删除对应的向量集合（这会自动删除ProjectIdManager中的映射）
       try {
         await this.qdrantService.deleteCollectionForProject(state.projectPath);
         this.logger.info(`Deleted Qdrant collection for project ${projectId}`);
@@ -213,7 +213,7 @@ options.description !== undefined) state.description = options.description;
         // 即使删除集合失败，也继续删除项目状态
       }
       
-      // 删除对应的Nebula Graph空间
+      // 删除对应的Nebula Graph空间（注意：这里可能会重复删除映射，但removeProject方法会处理）
       try {
         await this.nebulaService.deleteSpaceForProject(state.projectPath);
         this.logger.info(`Deleted Nebula space for project ${projectId}`);

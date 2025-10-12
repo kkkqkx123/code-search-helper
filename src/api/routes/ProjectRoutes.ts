@@ -116,15 +116,15 @@ export class ProjectRoutes {
      * @returns {object} 200 - Re-indexing response
      */
     this.router.post('/:projectId/reindex', this.reindexProject.bind(this));
-    
+
     // 向量嵌入相关端点
     this.router.post('/:projectId/index-vectors', this.indexVectors.bind(this));
     this.router.get('/:projectId/vector-status', this.getVectorStatus.bind(this));
-    
+
     // 图存储相关端点
     this.router.post('/:projectId/index-graph', this.indexGraph.bind(this));
     this.router.get('/:projectId/graph-status', this.getGraphStatus.bind(this));
-    
+
     // 批量操作端点
     this.router.post('/batch-index-vectors', this.batchIndexVectors.bind(this));
     this.router.post('/batch-index-graph', this.batchIndexGraph.bind(this));
@@ -218,13 +218,18 @@ export class ProjectRoutes {
 
       // 删除项目状态（这会同时删除Qdrant collection和Nebula Graph space）
       const deleted = await this.projectStateManager.deleteProjectState(projectId);
-      
+
       if (!deleted) {
         res.status(404).json({
           success: false,
           error: 'Project not found',
         });
         return;
+      }
+
+      // 确保从ProjectIdManager中删除映射
+      if (projectPath) {
+        await this.projectIdManager.removeProject(projectPath);
       }
 
       res.status(200).json({

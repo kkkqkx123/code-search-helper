@@ -323,39 +323,39 @@ export class IndexingRoutes {
       // 停止索引（如果正在进行）
       await this.indexSyncService.stopIndexing(projectId);
 
-      // 获取项目路径以备后续使用
-      const projectPath = this.projectIdManager.getProjectPath(projectId);
+      // 在删除项目状态之前，先获取项目路径信息
+      let projectPath = this.projectIdManager.getProjectPath(projectId);
+      
+      // 如果无法从ProjectIdManager获取，尝试从ProjectStateManager获取
+      if (!projectPath) {
+        const projectState = this.projectStateManager.getProjectState(projectId);
+        if (projectState) {
+          projectPath = projectState.projectPath;
+        }
+      }
 
       // 删除项目状态和相关数据库资源
       await this.projectStateManager.deleteProjectState(projectId);
 
       // 删除项目映射
-      // 首先尝试使用ProjectIdManager获取的路径
+      // 使用获取到的项目路径进行删除
       if (projectPath) {
         this.projectIdManager.removeProject(projectPath);
         await this.projectIdManager.saveMapping();
+        this.logger.info(`Successfully removed mapping for projectId ${projectId} at path ${projectPath}`);
       } else {
-        // 如果无法通过projectId获取项目路径，尝试从ProjectStateManager中获取
-        const projectState = this.projectStateManager.getProjectState(projectId);
-        if (projectState) {
-          this.projectIdManager.removeProject(projectState.projectPath);
+        // 如果两种方式都无法获取项目路径，尝试通过遍历所有映射来删除
+        this.logger.warn(`Project path not found for projectId: ${projectId}, attempting to remove mapping by iteration`);
+        
+        // 直接使用removeProjectById方法，这是最可靠的方式
+        const directRemovalResult = this.projectIdManager.removeProjectById(projectId);
+        if (directRemovalResult) {
           await this.projectIdManager.saveMapping();
+          this.logger.info(`Removed mapping directly for projectId ${projectId}, success: ${directRemovalResult}`);
         } else {
-          // 如果两种方式都失败，尝试直接从ProjectIdManager中删除（即使我们不知道确切路径）
-          // 这种情况可能发生在状态文件损坏或不一致时
-          this.logger.warn(`Project state not found for projectId: ${projectId}, attempting to remove mapping by iterating all mappings`);
-          
-          // 遍历所有项目路径，查找匹配的projectId
-          const allProjectPaths = this.projectIdManager.listAllProjectPaths();
-          for (const path of allProjectPaths) {
-            if (this.projectIdManager.getProjectId(path) === projectId) {
-              this.projectIdManager.removeProject(path);
-              await this.projectIdManager.saveMapping();
-              this.logger.info(`Removed mapping for projectId ${projectId} at path ${path}`);
-              break;
-            }
-          }
+          this.logger.warn(`Failed to remove mapping for projectId ${projectId} using removeProjectById`);
         }
+        
       }
 
       res.status(200).json({
@@ -369,7 +369,7 @@ export class IndexingRoutes {
       this.logger.error('Failed to remove index:', { error, projectId: req.params.projectId });
       next(error);
     }
-  }
+ }
 
   private async search(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

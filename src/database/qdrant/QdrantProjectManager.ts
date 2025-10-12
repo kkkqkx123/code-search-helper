@@ -431,7 +431,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
           duration
         });
         // 删除项目ID映射
-        this.projectIdManager.removeProject(projectPath);
+        await this.projectIdManager.removeProject(projectPath);
 
         this.emitEvent(QdrantEventType.COLLECTION_DELETED, {
           projectPath,
