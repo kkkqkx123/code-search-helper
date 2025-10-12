@@ -5,6 +5,7 @@ import { EmbeddingCacheService } from './EmbeddingCacheService';
 import { Embedder, EmbeddingInput, EmbeddingResult } from './BaseEmbedder';
 import { TYPES } from '../types';
 import { EnvironmentUtils } from '../config/utils/EnvironmentUtils';
+import { ConfigService } from '../config/ConfigService';
 
 /**
  * 简化的嵌入器工厂
@@ -38,7 +39,8 @@ export class EmbedderFactory {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.EmbeddingCacheService) cacheService: EmbeddingCacheService
+    @inject(TYPES.EmbeddingCacheService) cacheService: EmbeddingCacheService,
+    @inject(TYPES.ConfigService) private configService: ConfigService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -202,7 +204,26 @@ export class EmbedderFactory {
   ): Promise<EmbeddingResult | EmbeddingResult[]> {
     try {
       const embedder = await this.getEmbedder(provider);
-      return embedder.embed(input);
+      const selectedProvider = provider || this.defaultProvider;
+      
+      // 获取嵌入器的最大批处理大小
+      const maxBatchSize = this.getEmbedderMaxBatchSize(selectedProvider);
+      const inputs = Array.isArray(input) ? input : [input];
+      
+      // 如果输入数量小于等于最大批处理大小，则直接处理
+      if (inputs.length <= maxBatchSize) {
+        return embedder.embed(input);
+      }
+      
+      // 分批处理
+      const results: EmbeddingResult[] = [];
+      for (let i = 0; i < inputs.length; i += maxBatchSize) {
+        const batch = inputs.slice(i, i + maxBatchSize);
+        const batchResults = await embedder.embed(batch);
+        results.push(...(Array.isArray(batchResults) ? batchResults : [batchResults]));
+      }
+      
+      return results;
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Failed to generate embeddings: ${error instanceof Error ? error.message : String(error)}`),
@@ -477,5 +498,67 @@ export class EmbedderFactory {
     }
     this.defaultProvider = provider;
     this.logger.info(`Default embedder provider set to: ${provider}`);
+  }
+
+  /**
+   * 获取嵌入器特定的批处理大小限制
+   * @param provider 嵌入器提供商名称
+   * @returns 最大批处理大小
+   */
+  private getEmbedderMaxBatchSize(provider: string): number {
+    try {
+      // 尝试从配置服务获取配置
+      const embeddingBatchConfig = this.configService.get('embeddingBatch');
+      if (embeddingBatchConfig) {
+        // 根据提供商名称获取对应的批处理限制
+        switch(provider) {
+          case 'openai':
+            return embeddingBatchConfig.providerBatchLimits.openai;
+          case 'siliconflow':
+            return embeddingBatchConfig.providerBatchLimits.siliconflow;
+          case 'ollama':
+            return embeddingBatchConfig.providerBatchLimits.ollama;
+          case 'gemini':
+            return embeddingBatchConfig.providerBatchLimits.gemini;
+          case 'mistral':
+            return embeddingBatchConfig.providerBatchLimits.mistral;
+          case 'custom1':
+            return embeddingBatchConfig.providerBatchLimits.custom1;
+          case 'custom2':
+            return embeddingBatchConfig.providerBatchLimits.custom2;
+          case 'custom3':
+            return embeddingBatchConfig.providerBatchLimits.custom3;
+          default:
+            return embeddingBatchConfig.defaultBatchSize;
+        }
+      }
+    } catch (error) {
+      this.logger.warn('Failed to get embedding batch config, using defaults', { error });
+    }
+
+    // 如果无法从配置服务获取配置，则使用默认值
+    // 检查环境变量中的全局嵌入批处理大小
+    const globalBatchSize = process.env.EMBEDDING_BATCH_SIZE;
+    if (globalBatchSize) {
+      const size = parseInt(globalBatchSize, 10);
+      if (!isNaN(size) && size > 0) {
+        return size;
+      }
+    }
+
+    // 根据不同的提供商返回特定的最大批处理大小
+    const providerBatchLimits: Record<string, number> = {
+      'openai': 2048,      // OpenAI 实际限制
+      'siliconflow': 64,   // SiliconFlow 限制
+      'ollama': 128,       // Ollama 限制
+      'gemini': 100,       // Gemini 限制
+      'mistral': 512,      // Mistral 限制
+      'custom1': 100,      // 自定义提供商1
+      'custom2': 100,      // 自定义提供商2
+      'custom3': 100,      // 自定义提供商3
+      'default': 50        // 默认安全值
+    };
+
+    return providerBatchLimits[provider] || providerBatchLimits.default;
   }
 }

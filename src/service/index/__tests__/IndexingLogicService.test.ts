@@ -12,6 +12,7 @@ import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoor
 import { VectorPoint } from '../../../database/qdrant/IVectorStore';
 import { IMemoryMonitorService } from '../../../service/memory/interfaces/IMemoryMonitorService';
 import { FileInfo } from '../../filesystem/FileSystemTraversal';
+import { ConfigService } from '../../../config/ConfigService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -68,10 +69,22 @@ describe('IndexingLogicService', () => {
       loggerService,
       errorHandlerService
     ) as jest.Mocked<ProjectIdManager>;
+    
+    // Create a mock ConfigService for testing
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'logging') {
+          return { level: 'info' };
+        }
+        return undefined;
+      })
+    } as unknown as ConfigService;
+    
     embedderFactory = new EmbedderFactory(
       loggerService,
       errorHandlerService,
-      embeddingCacheService
+      embeddingCacheService,
+      mockConfigService
     ) as jest.Mocked<EmbedderFactory>;
     embeddingCacheService = new EmbeddingCacheService(
       loggerService,

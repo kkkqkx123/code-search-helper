@@ -225,6 +225,20 @@ export interface NebulaConfig {
   vidTypeLength?: number;
 }
 
+export interface EmbeddingBatchConfig {
+  defaultBatchSize: number;
+  providerBatchLimits: {
+    openai: number;
+    siliconflow: number;
+    ollama: number;
+    gemini: number;
+    mistral: number;
+    custom1: number;
+    custom2: number;
+    custom3: number;
+  };
+}
+
 export interface AppConfig {
   environment: EnvironmentConfig;
   qdrant: QdrantConfig;
@@ -247,6 +261,7 @@ export interface AppConfig {
   project?: ProjectConfig;
   projectNaming?: ProjectNamingConfig;
   treeSitter?: TreeSitterConfig;
+  embeddingBatch: EmbeddingBatchConfig;
 }
 
 // 导出工具类类型

@@ -15,6 +15,7 @@ import { ProcessingGuard } from './universal/ProcessingGuard';
 import { UniversalTextSplitter } from './universal/UniversalTextSplitter';
 import { BackupFileProcessor } from './universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './universal/ExtensionlessFileProcessor';
+import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
 
 export interface ProcessingOptions {
   maxChunkSize?: number;
@@ -44,7 +45,8 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.ProcessingGuard) private processingGuard: ProcessingGuard,
     @inject(TYPES.UniversalTextSplitter) private universalTextSplitter: UniversalTextSplitter,
     @inject(TYPES.BackupFileProcessor) private backupFileProcessor: BackupFileProcessor,
-    @inject(TYPES.ExtensionlessFileProcessor) private extensionlessFileProcessor: ExtensionlessFileProcessor
+    @inject(TYPES.ExtensionlessFileProcessor) private extensionlessFileProcessor: ExtensionlessFileProcessor,
+    @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer
   ) { }
 
   async processFileForEmbedding(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
@@ -99,12 +101,21 @@ export class ChunkToVectorCoordinationService {
       }
     }));
 
+    // 使用批处理优化器执行嵌入操作
     const projectId = this.projectIdManager.getProjectId(projectPath);
     const projectEmbedder = projectId ? this.projectEmbedders.get(projectId) || this.embedderFactory.getDefaultProvider() : this.embedderFactory.getDefaultProvider();
-    const embeddingResults = await this.embedderFactory.embed(embeddingInputs, projectEmbedder);
-    const results = Array.isArray(embeddingResults) ? embeddingResults : [embeddingResults];
+    
+    const embeddingResults = await this.batchOptimizer.executeWithOptimalBatching(
+      embeddingInputs,
+      async (batch) => {
+        return await this.embedderFactory.embed(batch, projectEmbedder);
+      }
+    );
+    
+    // 将多维数组结果展平
+    const flattenedResults = embeddingResults.flat();
 
-    return results.map((result, index) => {
+    return flattenedResults.map((result: any, index) => {
       const chunk = chunks[index];
       const fileId = `${chunk.metadata.filePath}_${chunk.metadata.startLine}-${chunk.metadata.endLine}`;
       const safeId = fileId

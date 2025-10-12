@@ -2,6 +2,7 @@ export { BaseConfigService, ConfigServiceInterface } from './BaseConfigService';
 export { EnvironmentConfigService, EnvironmentConfig } from './EnvironmentConfigService';
 export { QdrantConfigService, QdrantConfig } from './QdrantConfigService';
 export { EmbeddingConfigService, EmbeddingConfig } from './EmbeddingConfigService';
+export { EmbeddingBatchConfigService, EmbeddingBatchConfig } from './EmbeddingBatchConfigService';
 export { LoggingConfigService, LoggingConfig } from './LoggingConfigService';
 export { MonitoringConfigService, MonitoringConfig } from './MonitoringConfigService';
 export { MemoryMonitorConfigService, MemoryMonitorConfig } from './MemoryMonitorConfigService';

@@ -17,6 +17,7 @@ import {
   SemgrepConfigService,
   TreeSitterConfigService,
   ProjectNamingConfigService,
+  EmbeddingBatchConfigService,
 } from './service';
 import { TYPES } from '../types';
 
@@ -44,6 +45,7 @@ export class ConfigService {
     @inject(TYPES.SemgrepConfigService) private semgrepConfigService: SemgrepConfigService,
     @inject(TYPES.TreeSitterConfigService) private treeSitterConfigService: TreeSitterConfigService,
     @inject(TYPES.ProjectNamingConfigService) private projectNamingConfigService: ProjectNamingConfigService,
+    @inject(TYPES.EmbeddingBatchConfigService) private embeddingBatchConfigService: EmbeddingBatchConfigService,
   ) { }
 
   async initialize(): Promise<void> {
@@ -64,6 +66,7 @@ export class ConfigService {
       const semgrep = this.semgrepConfigService.getConfig();
       const treeSitter = this.treeSitterConfigService.getConfig();
       const projectNaming = this.projectNamingConfigService.getConfig();
+      const embeddingBatch = this.embeddingBatchConfigService.getConfig();
 
       // 构建完整的应用配置
       this.config = {
@@ -87,6 +90,7 @@ export class ConfigService {
         project,
         treeSitter,
         projectNaming,
+        embeddingBatch, // 添加嵌入批处理配置
         // 可选配置项
         mlReranking: undefined, // 可以根据需要添加ML重排序配置
         nebula: undefined, // 可以根据需要添加nebula配置

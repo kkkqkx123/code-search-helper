@@ -161,7 +161,7 @@ describe('Database and Embedders Integration', () => {
 
 
     cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
-    embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);
+    embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService, mockConfigService);
     qdrantService = new QdrantService(
       mockConfigService,
       logger,

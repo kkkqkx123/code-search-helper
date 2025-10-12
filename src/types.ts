@@ -125,6 +125,7 @@ export const TYPES = {
   EnvironmentConfigService: Symbol.for('EnvironmentConfigService'),
   QdrantConfigService: Symbol.for('QdrantConfigService'),
   EmbeddingConfigService: Symbol.for('EmbeddingConfigService'),
+  EmbeddingBatchConfigService: Symbol.for('EmbeddingBatchConfigService'),
   LoggingConfigService: Symbol.for('LoggingConfigService'),
   MonitoringConfigService: Symbol.for('MonitoringConfigService'),
   MemoryMonitorConfigService: Symbol.for('MemoryMonitorConfigService'),
