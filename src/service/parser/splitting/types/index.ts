@@ -43,6 +43,27 @@ export interface ChunkingOptions {
     classHeaderOverlap: number;
     maxClassSize: number;
   };
+  
+  // 新增：重复问题解决方案配置
+  enableASTBoundaryDetection?: boolean;
+  enableChunkDeduplication?: boolean;
+  maxOverlapRatio?: number;
+  deduplicationThreshold?: number;
+  astNodeTracking?: boolean;
+  chunkMergeStrategy?: 'aggressive' | 'conservative';
+  minChunkSimilarity?: number;
+}
+
+// 增强的分段选项，用于解决片段重复问题
+export interface EnhancedChunkingOptions extends ChunkingOptions {
+  maxOverlapRatio: number;           // 最大重叠比例（默认0.3）
+  enableASTBoundaryDetection: boolean; // 启用AST边界检测
+  deduplicationThreshold: number;    // 去重阈值（相似度>0.8）
+  astNodeTracking: boolean;          // 启用AST节点跟踪
+  chunkMergeStrategy: 'aggressive' | 'conservative'; // 合并策略
+  enableChunkDeduplication: boolean; // 启用块去重
+  maxOverlapLines: number;           // 最大重叠行数限制
+  minChunkSimilarity: number;        // 最小块相似度阈值
 }
 
 // 默认配置
@@ -81,7 +102,28 @@ export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
     keepMethodsTogether: true,
     classHeaderOverlap: 100,
     maxClassSize: 3000
-  }
+  },
+  // 新增：重复问题解决方案配置
+  enableASTBoundaryDetection: false,
+  enableChunkDeduplication: false,
+  maxOverlapRatio: 0.3,
+  deduplicationThreshold: 0.8,
+  astNodeTracking: false,
+  chunkMergeStrategy: 'conservative',
+  minChunkSimilarity: 0.6
+};
+
+// 增强配置的默认值
+export const DEFAULT_ENHANCED_CHUNKING_OPTIONS: Required<EnhancedChunkingOptions> = {
+  ...DEFAULT_CHUNKING_OPTIONS,
+  maxOverlapRatio: 0.3,
+  enableASTBoundaryDetection: true,
+  deduplicationThreshold: 0.8,
+  astNodeTracking: true,
+  chunkMergeStrategy: 'conservative',
+  enableChunkDeduplication: true,
+  maxOverlapLines: 50,
+  minChunkSimilarity: 0.6
 };
 
 export interface CodeChunkMetadata {
@@ -114,12 +156,14 @@ export interface SplitStrategy {
    * @param language 编程语言
    * @param filePath 文件路径（可选）
    * @param options 分段选项
+   * @param nodeTracker AST节点跟踪器（可选）
    */
   split(
-    content: string, 
-    language: string, 
+    content: string,
+    language: string,
     filePath?: string,
-    options?: ChunkingOptions
+    options?: ChunkingOptions,
+    nodeTracker?: any
   ): Promise<CodeChunk[]>;
   
   /**

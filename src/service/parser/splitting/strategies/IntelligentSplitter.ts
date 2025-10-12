@@ -64,17 +64,19 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     content: string,
     language: string,
     filePath?: string,
-    options?: ChunkingOptions
+    options?: ChunkingOptions,
+    nodeTracker?: any
   ): Promise<CodeChunk[]> {
     const mergedOptions = { ...this.options, ...options };
-    return this.createIntelligentChunks(content, language, filePath, mergedOptions);
+    return this.createIntelligentChunks(content, language, filePath, mergedOptions, nodeTracker);
   }
 
   private createIntelligentChunks(
     content: string,
     language: string,
     filePath?: string,
-    options: Required<ChunkingOptions> = this.options
+    options: Required<ChunkingOptions> = this.options,
+    nodeTracker?: any
  ): CodeChunk[] {
     const startTime = Date.now();
     const chunks: CodeChunk[] = [];
