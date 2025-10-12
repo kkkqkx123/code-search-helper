@@ -203,7 +203,8 @@ export class ContextAwareOverlapOptimizer {
       if (this.isFunctionSignature(line) || 
           this.isImportStatement(line) || 
           this.isTypeDefinition(line) ||
-          this.isVariableDeclaration(line)) {
+          this.isVariableDeclaration(line) ||
+          this.isFunctionEnd(line)) { // 添加对函数结束符的处理
         optimizedLines.push(line);
       }
     }
@@ -372,5 +373,14 @@ export class ContextAwareOverlapOptimizer {
            !trimmed.startsWith('/*') &&  // 非块注释开始
            !trimmed.startsWith('*') &&   // 非块注释内容
            !trimmed.startsWith('*/');    // 非块注释结束
+  }
+
+  private isFunctionEnd(line: string): boolean {
+    const trimmedLine = line.trim();
+    // 检查是否是函数结束的大括号
+    return /^\s*}\s*(\/\/.*)?$/.test(trimmedLine) || 
+           /^\s*}\s*;?\s*$/.test(trimmedLine) ||
+           /.*=>\s*\{.*\}\s*;?$/.test(line) ||  // 箭头函数
+           /.*function.*\)\s*\{.*\}\s*;?$/.test(line); // 内联函数
   }
 }

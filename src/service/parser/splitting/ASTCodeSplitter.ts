@@ -28,6 +28,10 @@ import { ASTNodeTracker } from './utils/ASTNodeTracker';
 import { ChunkMerger } from './utils/ChunkMerger';
 import { EnhancedOverlapCalculator } from './utils/EnhancedOverlapCalculator';
 import { PerformanceOptimizer } from './utils/PerformanceOptimizer';
+// 导入ChunkingCoordinator
+import { ChunkingCoordinator } from './utils/ChunkingCoordinator';
+// 导入NodeAwareOverlapCalculator
+import { NodeAwareOverlapCalculator } from './utils/NodeAwareOverlapCalculator';
 
 // Simple fallback implementation for unsupported languages
 class SimpleCodeSplitter {
@@ -111,6 +115,9 @@ export class ASTCodeSplitter implements Splitter {
   private chunkMerger: ChunkMerger;
   private enhancedOverlapCalculator: EnhancedOverlapCalculator;
  private duplicateResolutionPerformanceOptimizer: PerformanceOptimizer;
+  // 新增协调机制组件
+  private chunkingCoordinator: ChunkingCoordinator;
+  private nodeAwareOverlapCalculator: NodeAwareOverlapCalculator;
 
   constructor(
     @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
@@ -152,6 +159,21 @@ export class ASTCodeSplitter implements Splitter {
       nodeTracker: this.astNodeTracker
     });
     this.duplicateResolutionPerformanceOptimizer = new PerformanceOptimizer();
+    
+    // 初始化协调机制组件
+    this.chunkingCoordinator = new ChunkingCoordinator(
+      this.astNodeTracker,
+      this.options,
+      this.logger
+    );
+    this.nodeAwareOverlapCalculator = new NodeAwareOverlapCalculator(
+      this.astNodeTracker,
+      {
+        maxOverlapRatio: this.options.maxOverlapRatio,
+        maxOverlapLines: 50
+      },
+      this.logger
+    );
 
     // 设置依赖关系
     this.syntaxAwareSplitter.setTreeSitterService(treeSitterService);
@@ -170,6 +192,14 @@ export class ASTCodeSplitter implements Splitter {
       this.importSplitter.setLogger(logger);
       this.intelligentSplitter.setLogger(logger);
     }
+    
+    // 注册分段策略到协调器
+    this.chunkingCoordinator.registerStrategy(this.importSplitter);
+    this.chunkingCoordinator.registerStrategy(this.classSplitter);
+    this.chunkingCoordinator.registerStrategy(this.functionSplitter);
+    this.chunkingCoordinator.registerStrategy(this.syntaxAwareSplitter);
+    this.chunkingCoordinator.registerStrategy(this.intelligentSplitter);
+    this.chunkingCoordinator.registerStrategy(this.semanticSplitter);
   }
 
   async split(code: string, language: string, filePath?: string): Promise<CodeChunk[]> {
@@ -192,8 +222,21 @@ export class ASTCodeSplitter implements Splitter {
       const parseResult = await this.treeSitterService.parseCode(code, language);
 
       if (parseResult.success && parseResult.ast) {
-        // 使用增强的语法感知分段器
-        let chunks = await this.enhancedSyntaxAwareSplit(code, parseResult, language, filePath, adaptiveOptions);
+        let chunks: CodeChunk[];
+        
+        // 根据配置选择使用协调机制还是原有逻辑
+        if (this.options.enableChunkingCoordination) {
+          // 使用ChunkingCoordinator进行协调分段
+          chunks = await this.chunkingCoordinator.coordinate(
+            code, 
+            language, 
+            filePath, 
+            parseResult.ast
+          );
+        } else {
+          // 使用原有的增强语法感知分段器
+          chunks = await this.enhancedSyntaxAwareSplit(code, parseResult, language, filePath, adaptiveOptions);
+        }
         
         // 应用智能块合并（如果启用）
         if (this.options.enableChunkDeduplication) {
@@ -211,16 +254,16 @@ export class ASTCodeSplitter implements Splitter {
         // 应用重叠计算（根据配置选择计算器）
         if (this.options.addOverlap) {
           if (this.options.enableASTBoundaryDetection && parseResult.ast) {
-            // 使用增强的重叠计算器（支持AST边界检测）
-            this.enhancedOverlapCalculator = new EnhancedOverlapCalculator({
-              maxSize: this.options.overlapSize,
-              minLines: 1,
-              maxOverlapRatio: 0.3,
-              enableASTBoundaryDetection: true,
-              nodeTracker: this.astNodeTracker,
-              ast: parseResult.ast
-            });
-            return this.enhancedOverlapCalculator.addOverlap(chunks, code);
+            // 使用节点感知的重叠计算器
+            this.nodeAwareOverlapCalculator = new NodeAwareOverlapCalculator(
+              this.astNodeTracker,
+              {
+                maxOverlapRatio: this.options.maxOverlapRatio,
+                maxOverlapLines: 50
+              },
+              this.logger
+            );
+            return this.nodeAwareOverlapCalculator.addOverlap(chunks, code);
           } else {
             // 使用原有的统一重叠计算器
             return this.unifiedOverlapCalculator.addOverlap(chunks, code);

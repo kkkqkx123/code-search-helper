@@ -1,5 +1,5 @@
 import { ClassSplitter as ClassSplitterInterface } from './index';
-import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, ASTNode } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
@@ -27,16 +27,22 @@ export class ClassSplitter implements ClassSplitterInterface {
     content: string,
     language: string,
     filePath?: string,
-    options?: ChunkingOptions
+    options?: ChunkingOptions,
+    nodeTracker?: any,
+    ast?: any
   ): Promise<CodeChunk[]> {
     if (!this.treeSitterService) {
       throw new Error('TreeSitterService is required for ClassSplitter');
     }
 
-    const parseResult = await this.treeSitterService.parseCode(content, language);
+    // 使用传入的AST或重新解析
+    let parseResult = ast;
+    if (!parseResult) {
+      parseResult = await this.treeSitterService.parseCode(content, language);
+    }
 
-    if (parseResult.success && parseResult.ast) {
-      return this.extractClasses(content, parseResult.ast, language, filePath);
+    if (parseResult && parseResult.success && parseResult.ast) {
+      return this.extractClasses(content, parseResult.ast, language, filePath, nodeTracker);
     } else {
       return [];
     }
@@ -53,7 +59,8 @@ export class ClassSplitter implements ClassSplitterInterface {
     content: string,
     ast: any,
     language: string,
-    filePath?: string
+    filePath?: string,
+    nodeTracker?: any
   ): CodeChunk[] {
     const chunks: CodeChunk[] = [];
 
@@ -69,7 +76,23 @@ export class ClassSplitter implements ClassSplitterInterface {
       }
 
       for (const classNode of classes) {
-        const classContent = this.treeSitterService.getNodeText(classNode, content);
+        // 创建AST节点对象用于跟踪
+        const astNode: ASTNode = {
+          id: `${classNode.startIndex}-${classNode.endIndex}-class`,
+          type: 'class',
+          startByte: classNode.startIndex,
+          endByte: classNode.endIndex,
+          startLine: classNode.startPosition.row,
+          endLine: classNode.endPosition.row,
+          text: this.treeSitterService.getNodeText(classNode, content)
+        };
+
+        // 检查节点是否已被使用
+        if (nodeTracker && nodeTracker.isUsed(astNode)) {
+          continue; // 跳过已使用的节点
+        }
+
+        const classContent = astNode.text;
         const location = this.treeSitterService.getNodeLocation(classNode);
         const className = this.treeSitterService.getNodeName(classNode);
         const complexity = this.complexityCalculator.calculate(classContent);
@@ -81,13 +104,19 @@ export class ClassSplitter implements ClassSplitterInterface {
           filePath,
           type: 'class',
           className,
-          complexity
+          complexity,
+          nodeIds: [astNode.id] // 关联AST节点ID
         };
 
         chunks.push({
           content: classContent,
           metadata
         });
+
+        // 标记节点为已使用
+        if (nodeTracker) {
+          nodeTracker.markUsed(astNode);
+        }
       }
     } catch (error) {
       this.logger?.warn(`Failed to extract class chunks: ${error}`);
@@ -105,6 +134,35 @@ export class ClassSplitter implements ClassSplitterInterface {
   }
 
   getPriority(): number {
-    return 2; // 中等优先级
+    return 2; // 类分段优先级（在导入之后，函数之前）
+  }
+
+  /**
+   * 提取代码块关联的AST节点
+   */
+  extractNodesFromChunk(chunk: CodeChunk, ast: any): ASTNode[] {
+    if (!chunk.metadata.nodeIds || !ast) {
+      return [];
+    }
+
+    const nodes: ASTNode[] = [];
+    
+    // 从AST中查找与节点ID匹配的节点
+    // 这里需要根据实际的AST结构实现节点查找逻辑
+    // 暂时返回空数组，实际实现需要根据Tree-sitter的AST结构来提取
+    
+    return nodes;
+  }
+
+  /**
+   * 检查代码块是否包含已使用的节点
+   */
+  hasUsedNodes(chunk: CodeChunk, nodeTracker: any, ast: any): boolean {
+    if (!nodeTracker || !chunk.metadata.nodeIds) {
+      return false;
+    }
+
+    const nodes = this.extractNodesFromChunk(chunk, ast);
+    return nodes.some(node => nodeTracker.isUsed(node));
   }
 }

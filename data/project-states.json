@@ -1,38 +1,5 @@
 [
   {
-    "projectId": "86b62e2ebce0231b",
-    "projectPath": "D:\\code\\Go\\dataStructure",
-    "name": "D:\\code\\Go\\dataStructure",
-    "status": "active",
-    "vectorStatus": {
-      "status": "completed",
-      "progress": 100,
-      "lastUpdated": "2025-10-12T10:02:31.079Z"
-    },
-    "graphStatus": {
-      "status": "completed",
-      "progress": 100,
-      "lastUpdated": "2025-10-12T10:02:31.080Z"
-    },
-    "createdAt": "2025-10-12T06:52:20.927Z",
-    "updatedAt": "2025-10-12T10:02:31.080Z",
-    "lastIndexedAt": "2025-10-12T10:02:31.077Z",
-    "indexingProgress": 100,
-    "totalFiles": 4,
-    "indexedFiles": 4,
-    "failedFiles": 0,
-    "collectionInfo": {
-      "name": "project-86b62e2ebce0231b",
-      "vectorsCount": 52,
-      "status": "green"
-    },
-    "settings": {
-      "autoIndex": true,
-      "watchChanges": true
-    },
-    "metadata": {}
-  },
-  {
     "projectId": "62148df65f9d3abb",
     "projectPath": "D:\\项目\\agent\\my-coding-agent",
     "name": "D:\\项目\\agent\\my-coding-agent",
@@ -49,15 +16,43 @@
     },
     "createdAt": "2025-10-12T10:20:49.706Z",
     "updatedAt": "2025-10-12T10:20:53.970Z",
+    "lastIndexedAt": "2025-10-12T10:20:53.968Z",
+    "indexingProgress": 100,
+    "totalFiles": 25,
+    "indexedFiles": 25,
+    "failedFiles": 0,
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {}
+  },
+  {
+    "projectId": "86b62e2ebce0231b",
+    "projectPath": "D:\\code\\Go\\dataStructure",
+    "name": "D:\\code\\Go\\dataStructure",
+    "status": "active",
+    "vectorStatus": {
+      "status": "completed",
+      "progress": 100,
+      "lastUpdated": "2025-10-12T13:21:02.460Z"
+    },
+    "graphStatus": {
+      "status": "completed",
+      "progress": 100,
+      "lastUpdated": "2025-10-12T13:21:02.461Z"
+    },
+    "createdAt": "2025-10-12T13:20:58.488Z",
+    "updatedAt": "2025-10-12T13:21:02.461Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true
     },
     "metadata": {},
     "indexingProgress": 100,
-    "lastIndexedAt": "2025-10-12T10:20:53.968Z",
-    "totalFiles": 25,
-    "indexedFiles": 25,
+    "lastIndexedAt": "2025-10-12T13:21:02.458Z",
+    "totalFiles": 4,
+    "indexedFiles": 4,
     "failedFiles": 0
   }
 ]

@@ -1,23 +1,6 @@
 [
   {
     "projectIdMap": {
-      "D:/code/Go/dataStructure": "86b62e2ebce0231b"
-    },
-    "collectionMap": {
-      "86b62e2ebce0231b": "project-86b62e2ebce0231b"
-    },
-    "spaceMap": {
-      "86b62e2ebce0231b": "project_86b62e2ebce0231b"
-    },
-    "pathToProjectMap": {
-      "86b62e2ebce0231b": "D:/code/Go/dataStructure"
-    },
-    "projectUpdateTimes": {
-      "86b62e2ebce0231b": "2025-10-12T10:02:26.970Z"
-    }
-  },
-  {
-    "projectIdMap": {
       "D:/项目/agent/my-coding-agent": "62148df65f9d3abb"
     },
     "collectionMap": {
@@ -31,6 +14,23 @@
     },
     "projectUpdateTimes": {
       "62148df65f9d3abb": "2025-10-12T10:20:49.846Z"
+    }
+  },
+  {
+    "projectIdMap": {
+      "D:/code/Go/dataStructure": "86b62e2ebce0231b"
+    },
+    "collectionMap": {
+      "86b62e2ebce0231b": "project-86b62e2ebce0231b"
+    },
+    "spaceMap": {
+      "86b62e2ebce0231b": "project_86b62e2ebce0231b"
+    },
+    "pathToProjectMap": {
+      "86b62e2ebce0231b": "D:/code/Go/dataStructure"
+    },
+    "projectUpdateTimes": {
+      "86b62e2ebce0231b": "2025-10-12T13:20:58.616Z"
     }
   }
 ]

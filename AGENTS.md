@@ -140,17 +140,6 @@ code-search-helper/
 └── package.json            # 主项目依赖配置
 ```
 
-### ref目录说明
-
-`ref/` 目录包含了从其他项目迁移来的模块，这些模块可以作为相应部分的参考实现。这些模块包括：
-- 数据库服务（Qdrant、Nebula Graph等）
-- 嵌入器提供商（OpenAI、Ollama、Gemini等）
-- MCP协议实现
-- 各种服务实现（图分析、解析、搜索等）
-- 工具函数
-
-相关的文档可以在 `docs/ref/` 目录中找到。
-
 ## 🔄 模块集成计划
 
 系统采用分阶段集成策略，详细计划请参考 [模块集成计划](docs/plan/module-integration-plan.md)。

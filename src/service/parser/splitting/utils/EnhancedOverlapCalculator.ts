@@ -158,9 +158,18 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
       strategy: baseOverlap.strategy as 'semantic' | 'syntactic' | 'size-based' | 'hybrid',
       quality: baseOverlap.quality
     };
+    
+    console.log('Before context optimization:', {
+      baseOverlap: { content: baseOverlap.content, lines: baseOverlap.lines, quality: baseOverlap.quality }
+    });
+    
     const optimizedOverlap = this.contextAnalyzer.optimizeOverlapForContext(
       overlapResult, currentChunk, nextChunk
     );
+    
+    console.log('After context optimization:', {
+      optimizedOverlap: { content: optimizedOverlap.content, lines: optimizedOverlap.lines, quality: optimizedOverlap.quality }
+    });
     
     // 将优化后的结果转换回 EnhancedOverlapResult
     const enhancedOptimizedOverlap: EnhancedOverlapResult = {
@@ -186,24 +195,38 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
     nextChunk: CodeChunk,
     options: EnhancedOverlapOptions
   ): OverlapStrategy {
+    console.log('Selecting strategy for:', {
+      enableASTBoundaryDetection: options.enableASTBoundaryDetection,
+      hasAST: !!options.ast,
+      hasNodeTracker: !!options.nodeTracker,
+      isSequentialFunctions: this.isSequentialFunctions(currentChunk, nextChunk),
+      isComplexStructure: this.isComplexStructure(currentChunk),
+      isSimpleCode: this.isSimpleCode(currentChunk, nextChunk)
+    });
+
     // 如果启用了AST边界检测，优先使用AST边界策略
     if (options.enableASTBoundaryDetection && options.ast && options.nodeTracker) {
+      console.log('Selected strategy: ast-boundary');
       return 'ast-boundary';
     }
 
     // 根据块类型和内容选择最适合的重叠策略
     if (this.isSequentialFunctions(currentChunk, nextChunk)) {
+      console.log('Selected strategy: semantic');
       return 'semantic';
     }
 
     if (this.isComplexStructure(currentChunk)) {
+      console.log('Selected strategy: syntactic');
       return 'syntactic';
     }
 
     if (this.isSimpleCode(currentChunk, nextChunk)) {
+      console.log('Selected strategy: size-based');
       return 'size-based';
     }
 
+    console.log('Selected strategy: hybrid');
     return 'hybrid';
   }
 
@@ -310,12 +333,25 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
     const overlapLines: string[] = [];
     const lines = originalCode.split('\n');
 
+    console.log('Semantic overlap debug:', {
+      currentChunk: { start: currentChunk.metadata.startLine, end: currentChunk.metadata.endLine },
+      nextChunk: { start: nextChunk.metadata.startLine, end: nextChunk.metadata.endLine },
+      lines,
+      minLines: options.minLines
+    });
+
     // 从当前块末尾向前搜索，优先选择语义边界
     for (let i = currentChunk.metadata.endLine - 1; i >= currentChunk.metadata.startLine - 1; i--) {
       if (overlapLines.join('\n').length >= options.maxSize) break;
 
       const line = lines[i];
       const boundaryScore = this.semanticAnalyzer.calculateBoundaryScore(line, [], currentChunk.metadata.language);
+
+      console.log(`Line ${i + 1}: "${line}"`, {
+        boundaryScore,
+        overlapLinesLength: overlapLines.length,
+        condition: boundaryScore.score > 0.6 || overlapLines.length < options.minLines
+      });
 
       // 高评分的边界更有可能被包含在重叠中
       if (boundaryScore.score > 0.6 || overlapLines.length < options.minLines) {
@@ -403,6 +439,7 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
 
     // 简单按大小计算重叠
     let size = 0;
+    // 从当前块的末尾开始，向前查找重叠内容
     for (let i = currentChunk.metadata.endLine - 1; i >= currentChunk.metadata.startLine - 1; i--) {
       const line = lines[i];
       const lineSize = line.length + 1; // +1 for newline
@@ -421,13 +458,21 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
       }
     }
 
+    const overlapContent = overlapLines.join('\n');
+    console.log('Size-based overlap debug:', {
+      currentChunk: { start: currentChunk.metadata.startLine, end: currentChunk.metadata.endLine },
+      nextChunk: { start: nextChunk.metadata.startLine, end: nextChunk.metadata.endLine },
+      overlapLines,
+      overlapContent
+    });
+
     return {
-      content: overlapLines.join('\n'),
+      content: overlapContent,
       lines: overlapLines.length,
       strategy: 'size-based',
       quality: this.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
       astNodesUsed: [],
-      overlapRatio: overlapLines.join('\n').length / currentChunk.content.length
+      overlapRatio: overlapContent.length / currentChunk.content.length
     };
   }
 
@@ -469,7 +514,7 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
         strategy: overlap.strategy as OverlapStrategy,
         quality: overlap.quality,
         astNodesUsed: [],
-        overlapRatio: 0
+        overlapRatio: overlap.content.length > 0 ? overlap.content.length / currentChunk.content.length : 0
       };
     }
 
@@ -487,7 +532,7 @@ export class EnhancedOverlapCalculator implements OverlapCalculator {
       strategy: overlap.strategy as OverlapStrategy,
       quality: overlap.quality,
       astNodesUsed: [],
-      overlapRatio: 0
+      overlapRatio: overlap.content.length > 0 ? overlap.content.length / currentChunk.content.length : 0
     };
   }
 

@@ -52,6 +52,11 @@ export interface ChunkingOptions {
   astNodeTracking?: boolean;
   chunkMergeStrategy?: 'aggressive' | 'conservative';
   minChunkSimilarity?: number;
+  
+  // 新增：协调机制配置
+  enableChunkingCoordination?: boolean;
+  strategyExecutionOrder?: string[];
+  enableNodeTracking?: boolean;
 }
 
 // 增强的分段选项，用于解决片段重复问题
@@ -69,7 +74,7 @@ export interface EnhancedChunkingOptions extends ChunkingOptions {
 // 默认配置
 export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
  maxChunkSize: 1000,
- overlapSize: 200,
+  overlapSize: 200,
   preserveFunctionBoundaries: true,
   preserveClassBoundaries: true,
   includeComments: false,
@@ -110,7 +115,11 @@ export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
   deduplicationThreshold: 0.8,
   astNodeTracking: false,
   chunkMergeStrategy: 'conservative',
-  minChunkSimilarity: 0.6
+  minChunkSimilarity: 0.6,
+  // 新增：协调机制配置
+  enableChunkingCoordination: false,
+  strategyExecutionOrder: ['ImportSplitter', 'ClassSplitter', 'FunctionSplitter', 'SyntaxAwareSplitter', 'IntelligentSplitter'],
+  enableNodeTracking: false
 };
 
 // 增强配置的默认值
@@ -140,6 +149,7 @@ export interface CodeChunkMetadata {
   imports?: string[];
   exports?: string[];
   nestingLevel?: number;
+  nodeIds?: string[]; // 新增：关联的AST节点ID列表
   [key: string]: any;
 }
 
@@ -149,6 +159,20 @@ export interface CodeChunk {
   metadata: CodeChunkMetadata;
 }
 
+// AST节点接口定义
+export interface ASTNode {
+  id: string;
+  type: string;
+  startByte: number;
+  endByte: number;
+  startLine: number;
+  endLine: number;
+  text: string;
+  parent?: ASTNode;
+  children?: ASTNode[];
+}
+
+// 增强的SplitStrategy接口，支持节点跟踪
 export interface SplitStrategy {
   /**
    * 执行代码分段
@@ -157,13 +181,15 @@ export interface SplitStrategy {
    * @param filePath 文件路径（可选）
    * @param options 分段选项
    * @param nodeTracker AST节点跟踪器（可选）
+   * @param ast AST树（可选）
    */
   split(
     content: string,
     language: string,
     filePath?: string,
     options?: ChunkingOptions,
-    nodeTracker?: any
+    nodeTracker?: any,
+    ast?: any
   ): Promise<CodeChunk[]>;
   
   /**
@@ -181,6 +207,21 @@ export interface SplitStrategy {
    * 获取策略的优先级（数值越小优先级越高）
    */
   getPriority(): number;
+  
+  /**
+   * 提取代码块关联的AST节点（新增）
+   * @param chunk 代码块
+   * @param ast AST树
+   */
+  extractNodesFromChunk?(chunk: CodeChunk, ast: any): ASTNode[];
+  
+  /**
+   * 检查代码块是否包含已使用的节点（新增）
+   * @param chunk 代码块
+   * @param nodeTracker 节点跟踪器
+   * @param ast AST树
+   */
+  hasUsedNodes?(chunk: CodeChunk, nodeTracker: any, ast: any): boolean;
 }
 
 export interface ComplexityCalculator {
