@@ -5,6 +5,10 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 import { SyntaxValidator } from '../utils/SyntaxValidator';
 import { IntelligentSplitterOptimizer } from '../utils/IntelligentSplitterOptimizer';
+import { SemanticBoundaryAnalyzer } from '../utils/SemanticBoundaryAnalyzer';
+import { UnifiedOverlapCalculator } from '../utils/UnifiedOverlapCalculator';
+import { LanguageSpecificConfigManager } from '../config/LanguageSpecificConfigManager';
+import { ChunkingPerformanceOptimizer } from '../utils/ChunkingPerformanceOptimizer';
 
 export class IntelligentSplitter implements IntelligentSplitterInterface {
   private options: Required<ChunkingOptions>;
@@ -14,6 +18,10 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
   private complexityCalculator: ComplexityCalculator;
   private syntaxValidator: SyntaxValidator;
   private optimizer: IntelligentSplitterOptimizer;
+  private semanticBoundaryAnalyzer?: SemanticBoundaryAnalyzer;
+  private unifiedOverlapCalculator?: UnifiedOverlapCalculator;
+  private languageConfigManager: LanguageSpecificConfigManager;
+  private performanceOptimizer: ChunkingPerformanceOptimizer;
 
   constructor(options?: ChunkingOptions) {
     this.options = { ...DEFAULT_CHUNKING_OPTIONS, ...options };
@@ -22,6 +30,15 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     const tempBalancedChunker = new BalancedChunker();
     this.syntaxValidator = new SyntaxValidator(tempBalancedChunker);
     this.optimizer = new IntelligentSplitterOptimizer(tempBalancedChunker);
+    
+    // 初始化新组件
+    this.semanticBoundaryAnalyzer = new SemanticBoundaryAnalyzer();
+    this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
+      maxSize: this.options.overlapSize,
+      minLines: 1
+    });
+    this.languageConfigManager = new LanguageSpecificConfigManager();
+    this.performanceOptimizer = new ChunkingPerformanceOptimizer();
   }
 
   setBalancedChunker(balancedChunker: BalancedChunker): void {
@@ -43,6 +60,14 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     }
   }
 
+  setSemanticBoundaryAnalyzer(analyzer: SemanticBoundaryAnalyzer): void {
+    this.semanticBoundaryAnalyzer = analyzer;
+  }
+
+  setUnifiedOverlapCalculator(calculator: UnifiedOverlapCalculator): void {
+    this.unifiedOverlapCalculator = calculator;
+ }
+
   async split(
     content: string,
     language: string,
@@ -58,7 +83,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     language: string,
     filePath?: string,
     options: Required<ChunkingOptions> = this.options
-  ): CodeChunk[] {
+ ): CodeChunk[] {
     const startTime = Date.now();
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
@@ -84,6 +109,12 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
       this.balancedChunker.preCacheCommonPatterns();
     }
 
+    // 性能优化：预分析文件
+    const preAnalysisResult = this.performanceOptimizer.preAnalyzeFile(content, language);
+
+    // 获取语言特定配置
+    const languageConfig = this.languageConfigManager.getConfig(language);
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const lineSize = line.length + 1; // +1 for newline
@@ -91,13 +122,16 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
       // 更新符号跟踪
       this.balancedChunker.analyzeLineSymbols(line, i + 1);
 
-      // 检查是否需要在逻辑边界处分段
-      const shouldSplit = this.optimizer.shouldSplitAtLineWithSymbols(
+      // 使用语义边界评分检查是否应该在逻辑边界处分段
+      const shouldSplit = this.shouldSplitWithSemanticBoundary(
         line,
         currentChunk,
         currentSize,
         lineSize,
-        this.options.maxChunkSize
+        this.options.maxChunkSize,
+        language,
+        lines,
+        i
       );
 
       if (shouldSplit && currentChunk.length > 0) {
@@ -121,15 +155,28 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
             metadata
           });
 
-          // 应用智能重叠
-          const overlapLines = this.optimizer.calculateSmartOverlap(
-            currentChunk,
-            content,
-            this.options.overlapSize
-          );
-          currentChunk = overlapLines;
-          currentLine = i - overlapLines.length + 1;
-          currentSize = overlapLines.join('\n').length;
+          // 使用统一重叠计算
+          if (this.unifiedOverlapCalculator) {
+            const overlapResult = this.unifiedOverlapCalculator.calculateOptimalOverlap(
+              chunks[chunks.length - 1],
+              { content: '', metadata: { startLine: i + 2, endLine: i + 2, language } as CodeChunkMetadata },
+              content,
+              { maxSize: this.options.overlapSize, minLines: 1 }
+            );
+            currentChunk = overlapResult.content.split('\n');
+            currentLine = i - overlapResult.lines + 1;
+            currentSize = overlapResult.content.length;
+          } else {
+            // 回退到原有逻辑
+            const overlapLines = this.optimizer.calculateSmartOverlap(
+              currentChunk,
+              content,
+              this.options.overlapSize
+            );
+            currentChunk = overlapLines;
+            currentLine = i - overlapLines.length + 1;
+            currentSize = overlapLines.join('\n').length;
+          }
         } else {
           this.logger?.warn(`Skipping chunk due to syntax validation failure at line ${currentLine}`);
           // 如果验证失败，尝试在下一个安全点分段
@@ -173,7 +220,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     return chunks;
   }
 
-  /**
+ /**
    * 获取优化级别
    */
   private getOptimizationLevel(content: string): 'low' | 'medium' | 'high' {
@@ -187,6 +234,61 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     } else {
       return 'high'; // 使用完整优化策略
     }
+  }
+
+ /**
+   * 使用语义边界评分的分割决策
+   */
+  private shouldSplitWithSemanticBoundary(
+    line: string,
+    currentChunk: string[],
+    currentSize: number,
+    lineSize: number,
+    maxChunkSize: number,
+    language: string,
+    allLines: string[],
+    currentIndex: number
+ ): boolean {
+    // 大小限制检查（优先）
+    if (currentSize + lineSize > maxChunkSize) {
+      return true;
+    }
+
+    // 确保balancedChunker存在
+    if (!this.balancedChunker) {
+      this.balancedChunker = new BalancedChunker(this.logger);
+      this.optimizer = new IntelligentSplitterOptimizer(this.balancedChunker, this.logger);
+    }
+
+    // 符号平衡检查 - 只有在符号平衡时才允许分段
+    if (!this.balancedChunker.canSafelySplit()) {
+      return false;
+    }
+
+    // 使用语义边界评分
+    if (this.semanticBoundaryAnalyzer) {
+      const context = allLines.slice(Math.max(0, currentIndex - 2), currentIndex + 1);
+      const boundaryScore = this.semanticBoundaryAnalyzer.calculateBoundaryScore(line, context, language);
+      
+      // 如果边界评分足够高，允许分段
+      if (boundaryScore.score > 0.7) {
+        return currentSize > maxChunkSize * 0.3;
+      }
+      
+      // 如果边界评分中等，需要更大的块大小
+      if (boundaryScore.score > 0.5) {
+        return currentSize > maxChunkSize * 0.5;
+      }
+    }
+
+    // 回退到原有逻辑
+    return this.optimizer.shouldSplitAtLineWithSymbols(
+      line,
+      currentChunk,
+      currentSize,
+      lineSize,
+      maxChunkSize
+    );
   }
 
   getName(): string {

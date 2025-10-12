@@ -9,6 +9,40 @@ export interface ChunkingOptions {
   addOverlap?: boolean;
   optimizationLevel?: 'low' | 'medium' | 'high';
   maxLines?: number; // 内存保护：最大处理行数
+  
+  // 动态调整参数
+  adaptiveBoundaryThreshold?: boolean;
+  contextAwareOverlap?: boolean;
+  semanticWeight?: number;
+  syntacticWeight?: number;
+  
+  // 语义边界评分配置
+  boundaryScoring?: {
+    enableSemanticScoring: boolean;
+    minBoundaryScore: number;
+    maxSearchDistance: number;
+    languageSpecificWeights: boolean;
+  };
+  
+  // 重叠策略配置
+  overlapStrategy?: {
+    preferredStrategy: 'semantic' | 'syntactic' | 'size-based' | 'hybrid';
+    enableContextOptimization: boolean;
+    qualityThreshold: number;
+  };
+  
+  // 针对不同代码类型的专门配置
+  functionSpecificOptions?: {
+    preferWholeFunctions: boolean;
+    minFunctionOverlap: number;
+    maxFunctionSize: number;
+  };
+  
+  classSpecificOptions?: {
+    keepMethodsTogether: boolean;
+    classHeaderOverlap: number;
+    maxClassSize: number;
+  };
 }
 
 // 默认配置
@@ -22,7 +56,32 @@ export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
   extractSnippets: true,
   addOverlap: false,
  optimizationLevel: 'medium',
-  maxLines: 10000
+  maxLines: 10000,
+ adaptiveBoundaryThreshold: false,
+  contextAwareOverlap: false,
+  semanticWeight: 0.7,
+  syntacticWeight: 0.3,
+  boundaryScoring: {
+    enableSemanticScoring: true,
+    minBoundaryScore: 0.5,
+    maxSearchDistance: 10,
+    languageSpecificWeights: true
+ },
+  overlapStrategy: {
+    preferredStrategy: 'semantic',
+    enableContextOptimization: true,
+    qualityThreshold: 0.7
+  },
+  functionSpecificOptions: {
+    preferWholeFunctions: true,
+    minFunctionOverlap: 50,
+    maxFunctionSize: 2000
+  },
+  classSpecificOptions: {
+    keepMethodsTogether: true,
+    classHeaderOverlap: 100,
+    maxClassSize: 3000
+  }
 };
 
 export interface CodeChunkMetadata {

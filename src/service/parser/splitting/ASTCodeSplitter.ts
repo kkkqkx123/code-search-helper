@@ -19,6 +19,12 @@ import { OverlapCalculator } from './utils/OverlapCalculator';
 import { PerformanceMonitor } from './utils/PerformanceMonitor';
 import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from './types';
 
+// 导入新的优化组件
+import { SemanticBoundaryAnalyzer } from './utils/SemanticBoundaryAnalyzer';
+import { UnifiedOverlapCalculator } from './utils/UnifiedOverlapCalculator';
+import { LanguageSpecificConfigManager } from './config/LanguageSpecificConfigManager';
+import { ChunkingPerformanceOptimizer } from './utils/ChunkingPerformanceOptimizer';
+
 // Simple fallback implementation for unsupported languages
 class SimpleCodeSplitter {
   private chunkSize: number;
@@ -93,6 +99,12 @@ export class ASTCodeSplitter implements Splitter {
   private complexityCalculator: ComplexityCalculator;
   private overlapCalculator: OverlapCalculator;
   private performanceMonitor: PerformanceMonitor;
+  
+  // 新增优化组件
+ private semanticBoundaryAnalyzer: SemanticBoundaryAnalyzer;
+  private unifiedOverlapCalculator: UnifiedOverlapCalculator;
+  private languageConfigManager: LanguageSpecificConfigManager;
+ private performanceOptimizer: ChunkingPerformanceOptimizer;
 
   constructor(
     @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
@@ -117,12 +129,23 @@ export class ASTCodeSplitter implements Splitter {
     this.overlapCalculator = new OverlapCalculator(this.options);
     this.performanceMonitor = new PerformanceMonitor(logger);
 
+    // 初始化新的优化组件
+    this.semanticBoundaryAnalyzer = new SemanticBoundaryAnalyzer();
+    this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
+      maxSize: this.options.overlapSize,
+      minLines: 1
+    });
+    this.languageConfigManager = new LanguageSpecificConfigManager();
+    this.performanceOptimizer = new ChunkingPerformanceOptimizer();
+
     // 设置依赖关系
     this.syntaxAwareSplitter.setTreeSitterService(treeSitterService);
     this.functionSplitter.setTreeSitterService(treeSitterService);
     this.classSplitter.setTreeSitterService(treeSitterService);
     this.importSplitter.setTreeSitterService(treeSitterService);
     this.intelligentSplitter.setBalancedChunker(this.balancedChunker);
+    this.intelligentSplitter.setSemanticBoundaryAnalyzer(this.semanticBoundaryAnalyzer);
+    this.intelligentSplitter.setUnifiedOverlapCalculator(this.unifiedOverlapCalculator);
 
     // 设置日志服务
     if (logger) {
@@ -140,26 +163,89 @@ export class ASTCodeSplitter implements Splitter {
       return [];
     }
     
+    // 性能优化：预分析文件
+    const preAnalysisResult = await this.performanceOptimizer.preAnalyzeFile(code, language);
+    
+    // 获取语言特定配置
+    const languageConfig = this.languageConfigManager.getConfig(language);
+    const adaptiveOptions = this.mergeAdaptiveOptions(this.options, languageConfig);
+
     try {
       const parseResult = await this.treeSitterService.parseCode(code, language);
 
       if (parseResult.success && parseResult.ast) {
-        // 使用语法感知分段器
-        return await this.syntaxAwareSplitter.split(code, language, filePath, this.options);
+        // 使用增强的语法感知分段器
+        const chunks = await this.enhancedSyntaxAwareSplit(code, parseResult, language, filePath, adaptiveOptions);
+        
+        // 应用统一重叠计算（如果启用）
+        if (this.options.addOverlap) {
+          return this.unifiedOverlapCalculator.addOverlap(chunks, code);
+        }
+        return chunks;
       } else {
         this.logger?.warn(`TreeSitterService failed for language ${language}, falling back to intelligent splitting`);
-        return await this.intelligentSplitter.split(code, language, filePath, this.options);
+        const chunks = await this.intelligentSplitter.split(code, language, filePath, adaptiveOptions);
+        
+        // 应用统一重叠计算（如果启用）
+        if (this.options.addOverlap) {
+          return this.unifiedOverlapCalculator.addOverlap(chunks, code);
+        }
+        return chunks;
       }
     } catch (error) {
       this.logger?.warn(`TreeSitterService failed with error: ${error}, using intelligent fallback`);
       // 如果智能分段失败，使用语义分段作为后备
       try {
-        return await this.intelligentSplitter.split(code, language, filePath, this.options);
+        const chunks = await this.intelligentSplitter.split(code, language, filePath, adaptiveOptions);
+        
+        // 应用统一重叠计算（如果启用）
+        if (this.options.addOverlap) {
+          return this.unifiedOverlapCalculator.addOverlap(chunks, code);
+        }
+        return chunks;
       } catch (intelligentError) {
         this.logger?.warn(`Intelligent splitter failed, using semantic fallback: ${intelligentError}`);
-        return await this.semanticSplitter.split(code, language, filePath, this.options);
+        const chunks = await this.semanticSplitter.split(code, language, filePath, adaptiveOptions);
+        
+        // 应用统一重叠计算（如果启用）
+        if (this.options.addOverlap) {
+          return this.unifiedOverlapCalculator.addOverlap(chunks, code);
+        }
+        return chunks;
       }
     }
+  }
+
+  private async enhancedSyntaxAwareSplit(
+    code: string,
+    parseResult: any,
+    language: string,
+    filePath: string | undefined,
+    options: Required<ChunkingOptions>
+  ): Promise<CodeChunk[]> {
+    // 使用增强的语法感知分段逻辑
+    return await this.syntaxAwareSplitter.split(code, language, filePath, options);
+ }
+
+  private mergeAdaptiveOptions(
+    baseOptions: Required<ChunkingOptions>,
+    languageConfig: any
+  ): Required<ChunkingOptions> {
+    // 合并基础选项和语言特定配置
+    return {
+      ...baseOptions,
+      maxChunkSize: languageConfig.chunking.defaultMaxSize,
+      overlapSize: languageConfig.chunking.defaultOverlap,
+      // 添加自适应选项
+      adaptiveBoundaryThreshold: true,
+      contextAwareOverlap: true,
+      semanticWeight: baseOptions.semanticWeight,
+      syntacticWeight: baseOptions.syntacticWeight,
+      boundaryScoring: baseOptions.boundaryScoring,
+      overlapStrategy: baseOptions.overlapStrategy,
+      functionSpecificOptions: baseOptions.functionSpecificOptions,
+      classSpecificOptions: baseOptions.classSpecificOptions
+    };
   }
 
   setChunkSize(chunkSize: number): void {
