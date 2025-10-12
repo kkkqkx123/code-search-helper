@@ -217,20 +217,10 @@ export class ProjectRoutes {
       }
 
       // 删除项目状态（这会同时删除Qdrant collection和Nebula Graph space）
-      const deleted = await this.projectStateManager.deleteProjectState(projectId);
-
-      if (!deleted) {
-        res.status(404).json({
-          success: false,
-          error: 'Project not found',
-        });
-        return;
-      }
+      await this.projectStateManager.deleteProjectState(projectId);
 
       // 确保从ProjectIdManager中删除映射
-      if (projectPath) {
-        await this.projectIdManager.removeProject(projectPath);
-      }
+      await this.projectIdManager.removeProject(projectPath);
 
       res.status(200).json({
         success: true,

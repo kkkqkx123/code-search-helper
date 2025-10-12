@@ -10,3 +10,4 @@ frontend/dist
 ref
 .venv
 *.rar
+**/repomix-output.xml
