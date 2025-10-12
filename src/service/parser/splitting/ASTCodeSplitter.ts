@@ -4,6 +4,7 @@ import { TreeSitterService } from '../core/parse/TreeSitterService';
 import { TYPES } from '../../../types';
 import { createHash } from 'crypto';
 import { LoggerService } from '../../../utils/LoggerService';
+import { BalancedChunker } from './BalancedChunker';
 
 // Simple fallback implementation for unsupported languages
 class SimpleCodeSplitter {
@@ -77,6 +78,7 @@ export class ASTCodeSplitter implements Splitter {
   private simpleChunker: SimpleCodeSplitter;
   private options: Required<ChunkingOptions>;
   private logger?: LoggerService;
+  private balancedChunker: BalancedChunker;
 
   constructor(
     @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
@@ -86,6 +88,7 @@ export class ASTCodeSplitter implements Splitter {
     this.logger = logger;
     this.simpleFallback = new SimpleCodeSplitter(this.chunkSize, this.chunkOverlap);
     this.simpleChunker = new SimpleCodeSplitter(this.chunkSize, this.chunkOverlap);
+    this.balancedChunker = new BalancedChunker(logger);
     this.options = {
       maxChunkSize: 1000,
       overlapSize: 200,
@@ -442,26 +445,93 @@ export class ASTCodeSplitter implements Splitter {
     return chunks;
   }
 
-  private createIntelligentChunks(
+    private createIntelligentChunks(
     content: string,
     language: string,
     filePath?: string
   ): CodeChunk[] {
+    const startTime = Date.now();
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
     let currentChunk: string[] = [];
     let currentLine = 1;
     let currentSize = 0;
+    
+    // 获取优化级别
+    const optimizationLevel = this.getOptimizationLevel(content);
+    this.logger?.debug(`Using optimization level: ${optimizationLevel}`);
+    
+    // 重置符号跟踪器
+    this.balancedChunker.reset();
+    
+    // 根据优化级别决定是否预缓存
+    if (optimizationLevel !== 'low') {
+      this.balancedChunker.preCacheCommonPatterns();
+    }
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const lineSize = line.length + 1; // +1 for newline
 
+      // 更新符号跟踪
+      this.balancedChunker.analyzeLineSymbols(line, i + 1);
+
       // 检查是否需要在逻辑边界处分段
-      const shouldSplit = this.shouldSplitAtLine(line, currentChunk, currentSize, lineSize);
+      const shouldSplit = this.shouldSplitAtLineWithSymbols(
+        line, 
+        currentChunk, 
+        currentSize, 
+        lineSize,
+        this.balancedChunker
+      );
       
       if (shouldSplit && currentChunk.length > 0) {
         const chunkContent = currentChunk.join('\n');
+        
+        // 验证分段语法
+        if (this.validateChunkSyntax(chunkContent, language)) {
+          const complexity = this.calculateComplexity(chunkContent);
+          
+          const metadata: CodeChunkMetadata = {
+            startLine: currentLine,
+            endLine: currentLine + currentChunk.length - 1,
+            language,
+            filePath,
+            type: 'generic',
+            complexity
+          };
+
+          chunks.push({
+            content: chunkContent,
+            metadata
+          });
+
+          // 应用智能重叠
+          const overlapLines = this.calculateSmartOverlap(
+            currentChunk, 
+            content, 
+            currentLine
+          );
+          currentChunk = overlapLines;
+          currentLine = i - overlapLines.length + 1;
+          currentSize = overlapLines.join('\n').length;
+        } else {
+          this.logger?.warn(`Skipping chunk due to syntax validation failure at line ${currentLine}`);
+          // 如果验证失败，尝试在下一个安全点分段
+          continue;
+        }
+      }
+
+      currentChunk.push(line);
+      currentSize += lineSize;
+    }
+
+    // 处理最后的chunk
+    if (currentChunk.length > 0) {
+      const chunkContent = currentChunk.join('\n');
+      
+      // 验证最后一段的语法
+      if (this.validateChunkSyntax(chunkContent, language)) {
         const complexity = this.calculateComplexity(chunkContent);
         
         const metadata: CodeChunkMetadata = {
@@ -477,38 +547,12 @@ export class ASTCodeSplitter implements Splitter {
           content: chunkContent,
           metadata
         });
-
-        // 应用重叠
-        const overlapLines = this.calculateOverlap(currentChunk);
-        currentChunk = overlapLines;
-        currentLine = i - overlapLines.length + 1;
-        currentSize = overlapLines.join('\n').length;
       }
-
-      currentChunk.push(line);
-      currentSize += lineSize;
     }
 
-    // 处理最后的chunk
-    if (currentChunk.length > 0) {
-      const chunkContent = currentChunk.join('\n');
-      const complexity = this.calculateComplexity(chunkContent);
-      
-      const metadata: CodeChunkMetadata = {
-        startLine: currentLine,
-        endLine: currentLine + currentChunk.length - 1,
-        language,
-        filePath,
-        type: 'generic',
-        complexity
-      };
-
-      chunks.push({
-        content: chunkContent,
-        metadata
-      });
-    }
-
+    // 记录性能指标
+    this.recordPerformance(startTime, lines.length, optimizationLevel !== 'low');
+    
     return chunks;
   }
 
@@ -549,6 +593,48 @@ export class ASTCodeSplitter implements Splitter {
     return false;
   }
 
+  /**
+   * 基于符号平衡的智能分段判断
+   */
+  private shouldSplitAtLineWithSymbols(
+    line: string,
+    currentChunk: string[],
+    currentSize: number,
+    lineSize: number,
+    symbolTracker: BalancedChunker
+  ): boolean {
+    // 大小限制检查（优先）
+    if (currentSize + lineSize > this.options.maxChunkSize) {
+      return true;
+    }
+
+    // 符号平衡检查 - 只有在符号平衡时才允许分段
+    if (!symbolTracker.canSafelySplit()) {
+      return false;
+    }
+
+    const trimmedLine = line.trim();
+    
+    // 逻辑边界检查（原有的逻辑）
+    if (trimmedLine.match(/^[}\)]\s*$/) && currentChunk.length > 0) {
+      return currentSize > this.options.maxChunkSize * 0.3;
+    }
+
+    if (trimmedLine.match(/^\s*(}|\)|\]|;)\s*$/)) {
+      return currentSize > this.options.maxChunkSize * 0.5;
+    }
+
+    if (trimmedLine === '' && currentChunk.length > 5) {
+      return currentSize > this.options.maxChunkSize * 0.4;
+    }
+
+    if (trimmedLine.match(/^\s*\/\//) || trimmedLine.match(/^\s*\/\*/) || trimmedLine.match(/^\s*\*/)) {
+      return currentSize > this.options.maxChunkSize * 0.6;
+    }
+
+    return false;
+  }
+
   private calculateOverlap(lines: string[]): string[] {
     const overlapSize = this.options.overlapSize;
     let overlapLines: string[] = [];
@@ -570,7 +656,61 @@ export class ASTCodeSplitter implements Splitter {
     return overlapLines;
   }
 
-  private calculateComplexity(content: string): number {
+  /**
+   * 智能重叠计算，考虑符号平衡
+   */
+  private calculateSmartOverlap(
+    currentChunk: string[], 
+    originalCode: string,
+    startLine: number
+  ): string[] {
+    const overlapLines: string[] = [];
+    const tempState = this.balancedChunker.getCurrentState();
+    
+    // 从当前chunk末尾向前寻找安全的分割点
+    for (let i = currentChunk.length - 1; i >= 0; i--) {
+      const line = currentChunk[i];
+      
+      // 模拟分析这一行
+      this.balancedChunker.analyzeLineSymbols(line);
+      
+      // 如果符号平衡，这是一个安全的分割点
+      if (this.balancedChunker.canSafelySplit()) {
+        // 从这个点开始到末尾的所有行都作为重叠
+        const safeOverlapLines = currentChunk.slice(i);
+        overlapLines.unshift(...safeOverlapLines);
+        break;
+      }
+      
+      // 如果找到了合适的重叠大小且符号平衡，也可以作为重叠
+      const currentOverlapSize = overlapLines.join('\n').length;
+      if (currentOverlapSize >= this.options.overlapSize && this.balancedChunker.canSafelySplit()) {
+        break;
+      }
+      
+      // 如果符号不平衡，继续向前寻找
+      overlapLines.unshift(line);
+    }
+    
+    // 恢复符号栈状态
+    this.balancedChunker.setCurrentState(tempState);
+    
+    // 如果重叠太大，截断到合适大小
+    let finalOverlapLines: string[] = [];
+    let size = 0;
+    for (const line of overlapLines) {
+      const lineSize = line.length + 1;
+      if (size + lineSize <= this.options.overlapSize) {
+        finalOverlapLines.push(line);
+        size += lineSize;
+      } else {
+        break;
+      }
+    }
+    
+    return finalOverlapLines;
+  }
+private calculateComplexity(content: string): number {
     let complexity = 0;
     
     // 基于代码结构计算复杂度
@@ -708,5 +848,102 @@ export class ASTCodeSplitter implements Splitter {
     if (line.trim() === '') score = 1;
 
     return score;
+  }
+
+  /**
+   * 验证分段的语法完整性
+   */
+  private validateChunkSyntax(chunkContent: string, language: string): boolean {
+    try {
+      // 使用BalancedChunker验证符号平衡
+      if (!this.balancedChunker.validateCodeBalance(chunkContent)) {
+        this.logger?.warn(`Chunk failed symbol balance validation`);
+        return false;
+      }
+
+      // 对于JavaScript/TypeScript，进行额外的语法检查
+      if (language === 'javascript' || language === 'typescript') {
+        const bracketBalance = this.checkBracketBalance(chunkContent);
+        const braceBalance = this.checkBraceBalance(chunkContent);
+        
+        if (bracketBalance !== 0 || braceBalance !== 0) {
+          this.logger?.warn(`Chunk failed bracket/brace balance validation: brackets=${bracketBalance}, braces=${braceBalance}`);
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      this.logger?.warn(`Syntax validation failed: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * 检查括号平衡
+   */
+  private checkBracketBalance(content: string): number {
+    let balance = 0;
+    for (const char of content) {
+      if (char === '(') balance++;
+      if (char === ')') balance--;
+    }
+    return balance;
+  }
+
+  /**
+   * 检查花括号平衡
+   */
+  private checkBraceBalance(content: string): number {
+    let balance = 0;
+    for (const char of content) {
+      if (char === '{') balance++;
+      if (char === '}') balance--;
+    }
+    return balance;
+  }
+
+  /**
+   * 获取优化级别
+   */
+  private getOptimizationLevel(content: string): 'low' | 'medium' | 'high' {
+    const lines = content.split('\n').length;
+    const complexity = this.estimateComplexity(content);
+
+    if (lines < 100 && complexity < 50) {
+      return 'low'; // 使用基本符号跟踪
+    } else if (lines < 1000 && complexity < 200) {
+      return 'medium'; // 使用缓存优化
+    } else {
+      return 'high'; // 使用完整优化策略
+    }
+  }
+
+  /**
+   * 估算代码复杂度
+   */
+  private estimateComplexity(content: string): number {
+    // 快速复杂度估算
+    let score = 0;
+    score += (content.match(/\b(function|class|interface)\b/g) || []).length * 10;
+    score += (content.match(/\b(if|else|for|while|switch)\b/g) || []).length * 5;
+    score += (content.match(/[{}()[\]]/g) || []).length;
+    return score;
+  }
+
+  /**
+   * 性能监控
+   */
+  private recordPerformance(startTime: number, linesProcessed: number, cacheHit: boolean): void {
+    const endTime = Date.now();
+    const processingTime = endTime - startTime;
+    const timePerLine = processingTime / linesProcessed;
+    
+    this.logger?.debug(`Performance metrics: ${linesProcessed} lines processed in ${processingTime}ms (${timePerLine.toFixed(3)}ms per line), cache hit: ${cacheHit}`);
+    
+    // 如果处理时间过长，记录警告
+    if (timePerLine > 1.0) {
+      this.logger?.warn(`Slow processing detected: ${timePerLine.toFixed(3)}ms per line`);
+    }
   }
 }
