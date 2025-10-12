@@ -3,6 +3,7 @@ import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_C
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
+import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
 
 export class ClassSplitter implements ClassSplitterInterface {
   private options: Required<ChunkingOptions>;
@@ -76,15 +77,24 @@ export class ClassSplitter implements ClassSplitterInterface {
       }
 
       for (const classNode of classes) {
-        // 创建AST节点对象用于跟踪
+        // 创建增强的AST节点对象用于跟踪（支持内容哈希）
         const astNode: ASTNode = {
-          id: `${classNode.startIndex}-${classNode.endIndex}-class`,
+          id: ContentHashIDGenerator.generateNodeId({
+            id: `${classNode.startIndex}-${classNode.endIndex}-class`,
+            type: 'class',
+            startByte: classNode.startIndex,
+            endByte: classNode.endIndex,
+            startLine: classNode.startPosition.row,
+            endLine: classNode.endPosition.row,
+            text: this.treeSitterService.getNodeText(classNode, content)
+          }),
           type: 'class',
           startByte: classNode.startIndex,
           endByte: classNode.endIndex,
           startLine: classNode.startPosition.row,
           endLine: classNode.endPosition.row,
-          text: this.treeSitterService.getNodeText(classNode, content)
+          text: this.treeSitterService.getNodeText(classNode, content),
+          contentHash: ContentHashIDGenerator.getContentHashPrefix(this.treeSitterService.getNodeText(classNode, content))
         };
 
         // 检查节点是否已被使用

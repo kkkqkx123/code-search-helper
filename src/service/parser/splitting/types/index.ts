@@ -140,7 +140,7 @@ export interface CodeChunkMetadata {
   endLine: number;
   language: string;
   filePath?: string;
-  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line';
+  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged';
   functionName?: string;
   className?: string;
   complexity?: number; // 新增：代码复杂度
@@ -170,6 +170,8 @@ export interface ASTNode {
   text: string;
   parent?: ASTNode;
   children?: ASTNode[];
+  contentHash?: string; // 新增：内容哈希，用于相似性检测
+  similarityGroup?: string; // 新增：相似性分组标识
 }
 
 // 增强的SplitStrategy接口，支持节点跟踪
