@@ -6,12 +6,25 @@ import { createHash } from 'crypto';
 import { LoggerService } from '../../../utils/LoggerService';
 import { BalancedChunker } from './BalancedChunker';
 
+// 导入重构后的模块
+import { SyntaxAwareSplitter } from './strategies/SyntaxAwareSplitter';
+import { FunctionSplitter } from './strategies/FunctionSplitter';
+import { ClassSplitter } from './strategies/ClassSplitter';
+import { ImportSplitter } from './strategies/ImportSplitter';
+import { IntelligentSplitter } from './strategies/IntelligentSplitter';
+import { SemanticSplitter } from './strategies/SemanticSplitter';
+import { ChunkOptimizer } from './utils/ChunkOptimizer';
+import { ComplexityCalculator } from './utils/ComplexityCalculator';
+import { OverlapCalculator } from './utils/OverlapCalculator';
+import { PerformanceMonitor } from './utils/PerformanceMonitor';
+import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from './types';
+
 // Simple fallback implementation for unsupported languages
 class SimpleCodeSplitter {
   private chunkSize: number;
   private chunkOverlap: number;
 
-  constructor(chunkSize: number = 2500, chunkOverlap: number = 300) {
+ constructor(chunkSize: number = 2500, chunkOverlap: number = 300) {
     this.chunkSize = chunkSize;
     this.chunkOverlap = chunkOverlap;
   }
@@ -58,20 +71,9 @@ class SimpleCodeSplitter {
   }
 }
 
-export interface ChunkingOptions {
-  maxChunkSize?: number;
-  overlapSize?: number;
-  preserveFunctionBoundaries?: boolean;
-  preserveClassBoundaries?: boolean;
-  includeComments?: boolean;
-  minChunkSize?: number;
-  extractSnippets?: boolean;
-  addOverlap?: boolean;
-}
-
 @injectable()
 export class ASTCodeSplitter implements Splitter {
-  private chunkSize: number = 2500;
+  private chunkSize: number = 250;
   private chunkOverlap: number = 300;
   private treeSitterService: TreeSitterService;
   private simpleFallback: SimpleCodeSplitter;
@@ -79,6 +81,18 @@ export class ASTCodeSplitter implements Splitter {
   private options: Required<ChunkingOptions>;
   private logger?: LoggerService;
   private balancedChunker: BalancedChunker;
+
+  // 重构后的模块实例
+  private syntaxAwareSplitter: SyntaxAwareSplitter;
+  private functionSplitter: FunctionSplitter;
+  private classSplitter: ClassSplitter;
+  private importSplitter: ImportSplitter;
+  private intelligentSplitter: IntelligentSplitter;
+  private semanticSplitter: SemanticSplitter;
+  private chunkOptimizer: ChunkOptimizer;
+  private complexityCalculator: ComplexityCalculator;
+  private overlapCalculator: OverlapCalculator;
+  private performanceMonitor: PerformanceMonitor;
 
   constructor(
     @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
@@ -89,16 +103,34 @@ export class ASTCodeSplitter implements Splitter {
     this.simpleFallback = new SimpleCodeSplitter(this.chunkSize, this.chunkOverlap);
     this.simpleChunker = new SimpleCodeSplitter(this.chunkSize, this.chunkOverlap);
     this.balancedChunker = new BalancedChunker(logger);
-    this.options = {
-      maxChunkSize: 1000,
-      overlapSize: 200,
-      preserveFunctionBoundaries: true,
-      preserveClassBoundaries: true,
-      includeComments: false,
-      minChunkSize: 100,
-      extractSnippets: true,
-      addOverlap: false,
-    };
+    this.options = { ...DEFAULT_CHUNKING_OPTIONS };
+
+    // 初始化重构后的模块
+    this.syntaxAwareSplitter = new SyntaxAwareSplitter(this.options);
+    this.functionSplitter = new FunctionSplitter(this.options);
+    this.classSplitter = new ClassSplitter(this.options);
+    this.importSplitter = new ImportSplitter(this.options);
+    this.intelligentSplitter = new IntelligentSplitter(this.options);
+    this.semanticSplitter = new SemanticSplitter(this.options);
+    this.chunkOptimizer = new ChunkOptimizer(this.options);
+    this.complexityCalculator = new ComplexityCalculator();
+    this.overlapCalculator = new OverlapCalculator(this.options);
+    this.performanceMonitor = new PerformanceMonitor(logger);
+
+    // 设置依赖关系
+    this.syntaxAwareSplitter.setTreeSitterService(treeSitterService);
+    this.functionSplitter.setTreeSitterService(treeSitterService);
+    this.classSplitter.setTreeSitterService(treeSitterService);
+    this.importSplitter.setTreeSitterService(treeSitterService);
+    this.intelligentSplitter.setBalancedChunker(this.balancedChunker);
+
+    // 设置日志服务
+    if (logger) {
+      this.syntaxAwareSplitter.setLogger(logger);
+      this.functionSplitter.setLogger(logger);
+      this.classSplitter.setLogger(logger);
+      this.importSplitter.setLogger(logger);
+    }
   }
 
   async split(code: string, language: string, filePath?: string): Promise<CodeChunk[]> {
@@ -111,839 +143,39 @@ export class ASTCodeSplitter implements Splitter {
       const parseResult = await this.treeSitterService.parseCode(code, language);
 
       if (parseResult.success && parseResult.ast) {
-        // 增强的语法感知分段
-        const chunks = await this.createEnhancedSyntaxAwareChunks(
-          code, parseResult, language, filePath
-        );
-        
-        // 智能块大小调整
-        return this.optimizeChunkSizes(chunks, code);
+        // 使用语法感知分段器
+        return await this.syntaxAwareSplitter.split(code, language, filePath, this.options);
       } else {
         this.logger?.warn(`TreeSitterService failed for language ${language}, falling back to intelligent splitting`);
-        return this.intelligentFallback(code, language, filePath);
+        return await this.intelligentSplitter.split(code, language, filePath, this.options);
       }
     } catch (error) {
       this.logger?.warn(`TreeSitterService failed with error: ${error}, using intelligent fallback`);
-      return this.intelligentFallback(code, language, filePath);
+      // 如果智能分段失败，使用语义分段作为后备
+      try {
+        return await this.intelligentSplitter.split(code, language, filePath, this.options);
+      } catch (intelligentError) {
+        this.logger?.warn(`Intelligent splitter failed, using semantic fallback: ${intelligentError}`);
+        return await this.semanticSplitter.split(code, language, filePath, this.options);
+      }
     }
   }
 
   setChunkSize(chunkSize: number): void {
     this.chunkSize = chunkSize;
     this.simpleFallback.setChunkSize(chunkSize);
+    this.options.maxChunkSize = chunkSize;
+    // 更新相关模块的配置
+    this.chunkOptimizer = new ChunkOptimizer(this.options);
+    this.intelligentSplitter = new IntelligentSplitter(this.options);
+    this.overlapCalculator = new OverlapCalculator(this.options);
   }
 
   setChunkOverlap(chunkOverlap: number): void {
     this.chunkOverlap = chunkOverlap;
     this.simpleFallback.setChunkOverlap(chunkOverlap);
-  }
-
-  private async createEnhancedSyntaxAwareChunks(
-    content: string,
-    parseResult: any,
-    language: string,
-    filePath?: string
-  ): Promise<CodeChunk[]> {
-    const chunks: CodeChunk[] = [];
-
-    // 1. 函数和方法分段（包含嵌套函数）
-    const functionChunks = this.extractFunctionChunks(content, parseResult.ast, language, filePath);
-    chunks.push(...functionChunks);
-
-    // 2. 类和接口分段
-    const classChunks = this.extractClassChunks(content, parseResult.ast, language, filePath);
-    chunks.push(...classChunks);
-
-    // 3. 导入导出语句分段
-    const importChunks = this.extractImportExportChunks(content, parseResult.ast, language, filePath);
-    chunks.push(...importChunks);
-
-    // 4. 剩余代码的智能分段
-    if (chunks.length === 0) {
-      const remainingChunks = this.createIntelligentChunks(content, language, filePath);
-      chunks.push(...remainingChunks);
-    }
-
-    // 5. 优化块大小
-    return this.optimizeChunkSizes(chunks, content);
-  }
-
-  private async optimizeChunkSizes(chunks: CodeChunk[], originalCode: string): Promise<CodeChunk[]> {
-    if (chunks.length <= 1) return chunks;
-
-    const optimizedChunks: CodeChunk[] = [];
-    let currentChunk = chunks[0];
-
-    for (let i = 1; i < chunks.length; i++) {
-      const nextChunk = chunks[i];
-      
-      // 检查是否应该合并
-      const shouldMerge = this.shouldMergeChunks(currentChunk, nextChunk);
-      
-      if (shouldMerge) {
-        // 合并chunks
-        currentChunk = this.mergeChunks(currentChunk, nextChunk);
-      } else {
-        // 添加当前chunk并开始新的
-        optimizedChunks.push(currentChunk);
-        currentChunk = nextChunk;
-      }
-    }
-
-    // 添加最后一个chunk
-    optimizedChunks.push(currentChunk);
-
-    // 应用重叠
-    if (this.options.addOverlap) {
-      return this.addOverlapToChunks(optimizedChunks, originalCode);
-    }
-
-    return optimizedChunks;
-  }
-
-  private shouldMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
-    const totalSize = chunk1.content.length + chunk2.content.length;
-    
-    // 大小检查
-    if (totalSize > this.options.maxChunkSize) {
-      return false;
-    }
-
-    // 类型兼容性检查
-    if (chunk1.metadata.type !== chunk2.metadata.type) {
-      // 不同类型通常不合并，除非是特殊组合
-      const compatibleTypes = [
-        ['function', 'generic'],
-        ['class', 'generic'],
-        ['import', 'generic']
-      ];
-      
-      const typePair = [chunk1.metadata.type, chunk2.metadata.type].sort();
-      const isCompatible = compatibleTypes.some(pair => 
-        pair[0] === typePair[0] && pair[1] === typePair[1]
-      );
-      
-      if (!isCompatible) {
-        return false;
-      }
-    }
-
-    // 对于函数和类类型，不进行合并以保持语义完整性
-    if (chunk1.metadata.type === 'function' || chunk1.metadata.type === 'class') {
-      return false;
-    }
-
-    // 复杂度检查
-    const combinedComplexity = (chunk1.metadata.complexity || 0) + (chunk2.metadata.complexity || 0);
-    if (combinedComplexity > 50) { // 复杂度阈值
-      return false;
-    }
-
-    return true;
-  }
-
-  private mergeChunks(chunk1: CodeChunk, chunk2: CodeChunk): CodeChunk {
-    return {
-      content: chunk1.content + '\n' + chunk2.content,
-      metadata: {
-        ...chunk1.metadata,
-        endLine: chunk2.metadata.endLine,
-        complexity: (chunk1.metadata.complexity || 0) + (chunk2.metadata.complexity || 0)
-      }
-    };
-  }
-
-  private addOverlapToChunks(chunks: CodeChunk[], originalCode: string): CodeChunk[] {
-    if (chunks.length <= 1) return chunks;
-
-    const overlappedChunks: CodeChunk[] = [];
-
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-
-      // 为除最后一个外的所有chunks添加重叠
-      if (i < chunks.length - 1) {
-        const nextChunk = chunks[i + 1];
-        const overlapContent = this.extractOverlapContent(chunk, nextChunk, originalCode);
-        
-        if (overlapContent) {
-          overlappedChunks.push({
-            ...chunk,
-            content: chunk.content + '\n' + overlapContent
-          });
-        } else {
-          overlappedChunks.push(chunk);
-        }
-      } else {
-        overlappedChunks.push(chunk);
-      }
-    }
-
-    return overlappedChunks;
-  }
-
-  private extractOverlapContent(currentChunk: CodeChunk, nextChunk: CodeChunk, originalCode: string): string {
-    try {
-      const lines = originalCode.split('\n');
-      // Calculate the actual character position for overlap
-      // Get the start position of the next chunk in the original code
-      const linesUntilNextChunk = lines.slice(0, nextChunk.metadata.startLine - 1);
-      // Calculate the character position where next chunk starts (subtract 1 for the newline that's not at the end)
-      const charsUntilNextChunk = linesUntilNextChunk.join('\n').length + (linesUntilNextChunk.length > 0 ? 1 : 0) - 1;
-      
-      // Calculate the starting position for overlap in the original code
-      const overlapStartPosition = Math.max(0, charsUntilNextChunk - this.options.overlapSize);
-      
-      // Find which line this overlap position corresponds to
-      let currentPos = 0;
-      let overlapStartLine = 1;
-      for (let i = 0; i < lines.length; i++) {
-        const lineEndPos = currentPos + lines[i].length + 1; // +1 for newline
-        if (currentPos <= overlapStartPosition && overlapStartPosition < lineEndPos) {
-          overlapStartLine = i + 1;
-          break;
-        }
-        currentPos = lineEndPos;
-      }
-      
-      // Ensure overlapStartLine is within valid range
-      overlapStartLine = Math.max(1, Math.min(overlapStartLine, nextChunk.metadata.startLine));
-      
-      if (overlapStartLine < nextChunk.metadata.startLine) {
-        const overlapLines = lines.slice(overlapStartLine - 1, nextChunk.metadata.startLine - 1);
-        return overlapLines.join('\n');
-      }
-    } catch (error) {
-      this.logger?.warn(`Failed to extract overlap content: ${error}`);
-    }
-    
-    return '';
-  }
-
-  private extractFunctionChunks(
-    content: string,
-    ast: any,
-    language: string,
-    filePath?: string
-  ): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-    
-    try {
-      const functions = this.treeSitterService.extractFunctions(ast);
-      
-      if (!functions || functions.length === 0) {
-        return chunks;
-      }
-
-      for (const funcNode of functions) {
-        const funcContent = this.treeSitterService.getNodeText(funcNode, content);
-        const location = this.treeSitterService.getNodeLocation(funcNode);
-        const functionName = this.treeSitterService.getNodeName(funcNode);
-        const complexity = this.calculateComplexity(funcContent);
-
-        const metadata: CodeChunkMetadata = {
-          startLine: location.startLine,
-          endLine: location.endLine,
-          language,
-          filePath,
-          type: 'function',
-          functionName,
-          complexity
-        };
-
-        chunks.push({
-          content: funcContent,
-          metadata
-        });
-      }
-    } catch (error) {
-      this.logger?.warn(`Failed to extract function chunks: ${error}`);
-    }
-
-    return chunks;
-  }
-
-  private extractClassChunks(
-    content: string,
-    ast: any,
-    language: string,
-    filePath?: string
-  ): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-    
-    try {
-      const classes = this.treeSitterService.extractClasses(ast);
-      
-      if (!classes || classes.length === 0) {
-        return chunks;
-      }
-
-      for (const classNode of classes) {
-        const classContent = this.treeSitterService.getNodeText(classNode, content);
-        const location = this.treeSitterService.getNodeLocation(classNode);
-        const className = this.treeSitterService.getNodeName(classNode);
-        const complexity = this.calculateComplexity(classContent);
-
-        const metadata: CodeChunkMetadata = {
-          startLine: location.startLine,
-          endLine: location.endLine,
-          language,
-          filePath,
-          type: 'class',
-          className,
-          complexity
-        };
-
-        chunks.push({
-          content: classContent,
-          metadata
-        });
-      }
-    } catch (error) {
-      this.logger?.warn(`Failed to extract class chunks: ${error}`);
-    }
-
-    return chunks;
-  }
-
-  private extractImportExportChunks(
-    content: string,
-    ast: any,
-    language: string,
-    filePath?: string
-  ): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-    
-    try {
-      const imports = this.treeSitterService.extractImports(ast);
-      
-      if (!imports || imports.length === 0) {
-        return chunks;
-      }
-
-      for (const importNode of imports) {
-        const importContent = this.treeSitterService.getNodeText(importNode, content);
-        const location = this.treeSitterService.getNodeLocation(importNode);
-
-        const metadata: CodeChunkMetadata = {
-          startLine: location.startLine,
-          endLine: location.endLine,
-          language,
-          filePath,
-          type: 'import'
-        };
-
-        chunks.push({
-          content: importContent,
-          metadata
-        });
-      }
-    } catch (error) {
-      this.logger?.warn(`Failed to extract import chunks: ${error}`);
-    }
-
-    return chunks;
-  }
-
-    private createIntelligentChunks(
-    content: string,
-    language: string,
-    filePath?: string
-  ): CodeChunk[] {
-    const startTime = Date.now();
-    const chunks: CodeChunk[] = [];
-    const lines = content.split('\n');
-    let currentChunk: string[] = [];
-    let currentLine = 1;
-    let currentSize = 0;
-    
-    // 获取优化级别
-    const optimizationLevel = this.getOptimizationLevel(content);
-    this.logger?.debug(`Using optimization level: ${optimizationLevel}`);
-    
-    // 重置符号跟踪器
-    this.balancedChunker.reset();
-    
-    // 根据优化级别决定是否预缓存
-    if (optimizationLevel !== 'low') {
-      this.balancedChunker.preCacheCommonPatterns();
-    }
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const lineSize = line.length + 1; // +1 for newline
-
-      // 更新符号跟踪
-      this.balancedChunker.analyzeLineSymbols(line, i + 1);
-
-      // 检查是否需要在逻辑边界处分段
-      const shouldSplit = this.shouldSplitAtLineWithSymbols(
-        line, 
-        currentChunk, 
-        currentSize, 
-        lineSize,
-        this.balancedChunker
-      );
-      
-      if (shouldSplit && currentChunk.length > 0) {
-        const chunkContent = currentChunk.join('\n');
-        
-        // 验证分段语法
-        if (this.validateChunkSyntax(chunkContent, language)) {
-          const complexity = this.calculateComplexity(chunkContent);
-          
-          const metadata: CodeChunkMetadata = {
-            startLine: currentLine,
-            endLine: currentLine + currentChunk.length - 1,
-            language,
-            filePath,
-            type: 'generic',
-            complexity
-          };
-
-          chunks.push({
-            content: chunkContent,
-            metadata
-          });
-
-          // 应用智能重叠
-          const overlapLines = this.calculateSmartOverlap(
-            currentChunk, 
-            content, 
-            currentLine
-          );
-          currentChunk = overlapLines;
-          currentLine = i - overlapLines.length + 1;
-          currentSize = overlapLines.join('\n').length;
-        } else {
-          this.logger?.warn(`Skipping chunk due to syntax validation failure at line ${currentLine}`);
-          // 如果验证失败，尝试在下一个安全点分段
-          continue;
-        }
-      }
-
-      currentChunk.push(line);
-      currentSize += lineSize;
-    }
-
-    // 处理最后的chunk
-    if (currentChunk.length > 0) {
-      const chunkContent = currentChunk.join('\n');
-      
-      // 验证最后一段的语法
-      if (this.validateChunkSyntax(chunkContent, language)) {
-        const complexity = this.calculateComplexity(chunkContent);
-        
-        const metadata: CodeChunkMetadata = {
-          startLine: currentLine,
-          endLine: currentLine + currentChunk.length - 1,
-          language,
-          filePath,
-          type: 'generic',
-          complexity
-        };
-
-        chunks.push({
-          content: chunkContent,
-          metadata
-        });
-      }
-    }
-
-    // 记录性能指标
-    this.recordPerformance(startTime, lines.length, optimizationLevel !== 'low');
-    
-    return chunks;
-  }
-
-  private shouldSplitAtLine(
-    line: string,
-    currentChunk: string[],
-    currentSize: number,
-    lineSize: number
-  ): boolean {
-    // 大小限制检查
-    if (currentSize + lineSize > this.options.maxChunkSize) {
-      return true;
-    }
-
-    // 逻辑边界检查
-    const trimmedLine = line.trim();
-    
-    // 函数/类定义结束
-    if (trimmedLine.match(/^[}\)]\s*$/) && currentChunk.length > 0) {
-      return currentSize > this.options.maxChunkSize * 0.3; // 只在chunk足够大时分割
-    }
-
-    // 控制结构结束
-    if (trimmedLine.match(/^\s*(}|\)|\]|;)\s*$/)) {
-      return currentSize > this.options.maxChunkSize * 0.5;
-    }
-
-    // 空行作为潜在分割点
-    if (trimmedLine === '' && currentChunk.length > 5) {
-      return currentSize > this.options.maxChunkSize * 0.4;
-    }
-
-    // 注释行
-    if (trimmedLine.match(/^\s*\/\//) || trimmedLine.match(/^\s*\/\*/) || trimmedLine.match(/^\s*\*/)) {
-      return currentSize > this.options.maxChunkSize * 0.6;
-    }
-
-    return false;
-  }
-
-  /**
-   * 基于符号平衡的智能分段判断
-   */
-  private shouldSplitAtLineWithSymbols(
-    line: string,
-    currentChunk: string[],
-    currentSize: number,
-    lineSize: number,
-    symbolTracker: BalancedChunker
-  ): boolean {
-    // 大小限制检查（优先）
-    if (currentSize + lineSize > this.options.maxChunkSize) {
-      return true;
-    }
-
-    // 符号平衡检查 - 只有在符号平衡时才允许分段
-    if (!symbolTracker.canSafelySplit()) {
-      return false;
-    }
-
-    const trimmedLine = line.trim();
-    
-    // 逻辑边界检查（原有的逻辑）
-    if (trimmedLine.match(/^[}\)]\s*$/) && currentChunk.length > 0) {
-      return currentSize > this.options.maxChunkSize * 0.3;
-    }
-
-    if (trimmedLine.match(/^\s*(}|\)|\]|;)\s*$/)) {
-      return currentSize > this.options.maxChunkSize * 0.5;
-    }
-
-    if (trimmedLine === '' && currentChunk.length > 5) {
-      return currentSize > this.options.maxChunkSize * 0.4;
-    }
-
-    if (trimmedLine.match(/^\s*\/\//) || trimmedLine.match(/^\s*\/\*/) || trimmedLine.match(/^\s*\*/)) {
-      return currentSize > this.options.maxChunkSize * 0.6;
-    }
-
-    return false;
-  }
-
-  private calculateOverlap(lines: string[]): string[] {
-    const overlapSize = this.options.overlapSize;
-    let overlapLines: string[] = [];
-    let size = 0;
-
-    // 从后往前计算重叠
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i];
-      const lineSize = line.length + 1;
-
-      if (size + lineSize <= overlapSize) {
-        overlapLines.unshift(line);
-        size += lineSize;
-      } else {
-        break;
-      }
-    }
-
-    return overlapLines;
-  }
-
-  /**
-   * 智能重叠计算，考虑符号平衡
-   */
-  private calculateSmartOverlap(
-    currentChunk: string[], 
-    originalCode: string,
-    startLine: number
-  ): string[] {
-    const overlapLines: string[] = [];
-    const tempState = this.balancedChunker.getCurrentState();
-    
-    // 从当前chunk末尾向前寻找安全的分割点
-    for (let i = currentChunk.length - 1; i >= 0; i--) {
-      const line = currentChunk[i];
-      
-      // 模拟分析这一行
-      this.balancedChunker.analyzeLineSymbols(line);
-      
-      // 如果符号平衡，这是一个安全的分割点
-      if (this.balancedChunker.canSafelySplit()) {
-        // 从这个点开始到末尾的所有行都作为重叠
-        const safeOverlapLines = currentChunk.slice(i);
-        overlapLines.unshift(...safeOverlapLines);
-        break;
-      }
-      
-      // 如果找到了合适的重叠大小且符号平衡，也可以作为重叠
-      const currentOverlapSize = overlapLines.join('\n').length;
-      if (currentOverlapSize >= this.options.overlapSize && this.balancedChunker.canSafelySplit()) {
-        break;
-      }
-      
-      // 如果符号不平衡，继续向前寻找
-      overlapLines.unshift(line);
-    }
-    
-    // 恢复符号栈状态
-    this.balancedChunker.setCurrentState(tempState);
-    
-    // 如果重叠太大，截断到合适大小
-    let finalOverlapLines: string[] = [];
-    let size = 0;
-    for (const line of overlapLines) {
-      const lineSize = line.length + 1;
-      if (size + lineSize <= this.options.overlapSize) {
-        finalOverlapLines.push(line);
-        size += lineSize;
-      } else {
-        break;
-      }
-    }
-    
-    return finalOverlapLines;
-  }
-private calculateComplexity(content: string): number {
-    let complexity = 0;
-    
-    // 基于代码结构计算复杂度
-    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
-    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
-    complexity += (content.match(/[{}]/g) || []).length;
-    complexity += (content.match(/[()]/g) || []).length * 0.5;
-    
-    // 基于代码长度调整
-    const lines = content.split('\n').length;
-    complexity += Math.log10(lines + 1) * 2;
-    
-    return Math.round(complexity);
-  }
-
-  private async intelligentFallback(content: string, language: string, filePath?: string): Promise<CodeChunk[]> {
-    try {
-      // 使用简单分块器
-      const simpleChunks = this.simpleChunker.split(content);
-      
-      // 如果简单分块产生太多小块，使用语义降级
-      if (simpleChunks.length > 10 && simpleChunks.every(chunk => chunk.content.length < this.options.maxChunkSize * 0.3)) {
-        return this.createSemanticFallbackChunks(content, language, filePath);
-      }
-      
-      return simpleChunks;
-    } catch (error) {
-      // 如果简单分块失败，使用语义降级
-      return this.createSemanticFallbackChunks(content, language, filePath);
-    }
-  }
-
-  private createSemanticFallbackChunks(
-    content: string,
-    language: string,
-    filePath?: string
-  ): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-    const lines = content.split('\n');
-    let currentChunk: string[] = [];
-    let currentLine = 1;
-    let semanticScore = 0;
-
-    // 添加内存保护：限制处理的行数，避免处理超大文件时内存占用过高
-    const maxLines = Math.min(lines.length, 10000); // 限制为最多1000行
-
-    for (let i = 0; i < maxLines; i++) {
-      const line = lines[i];
-      const trimmedLine = line.trim();
-      
-      // 计算语义分数
-      const lineScore = this.calculateSemanticScore(trimmedLine);
-      semanticScore += lineScore;
-
-      // 决定是否分段
-      const shouldSplit = semanticScore > this.options.maxChunkSize * 0.8 ||
-                         (trimmedLine === '' && currentChunk.length > 3) ||
-                         i === maxLines - 1;
-
-      if (shouldSplit && currentChunk.length > 0) {
-        const chunkContent = currentChunk.join('\n');
-        const complexity = this.calculateComplexity(chunkContent);
-        
-        const metadata: CodeChunkMetadata = {
-          startLine: currentLine,
-          endLine: currentLine + currentChunk.length - 1,
-          language,
-          filePath,
-          type: 'semantic',
-          complexity
-        };
-
-        chunks.push({
-          content: chunkContent,
-          metadata
-        });
-
-        currentChunk = [];
-        currentLine = i + 1;
-        semanticScore = 0;
-      }
-
-      currentChunk.push(line);
-      
-      // 每处理1000行检查一次内存使用情况
-      if (i > 0 && i % 1000 === 0) {
-        const currentMemory = process.memoryUsage();
-        if (currentMemory.heapUsed / currentMemory.heapTotal > 0.85) {
-          console.warn(`High memory usage detected during semantic fallback chunking, stopping at line ${i}`);
-          break; // 如果内存使用过高，停止处理
-        }
-      }
-    }
-
-    // 处理最后的chunk
-    if (currentChunk.length > 0) {
-      const chunkContent = currentChunk.join('\n');
-      const complexity = this.calculateComplexity(chunkContent);
-      
-      const metadata: CodeChunkMetadata = {
-        startLine: currentLine,
-        endLine: currentLine + currentChunk.length - 1,
-        language,
-        filePath,
-        type: 'semantic',
-        complexity
-      };
-
-      chunks.push({
-        content: chunkContent,
-        metadata
-      });
-    }
-
-    return chunks;
-  }
-
-  private calculateSemanticScore(line: string): number {
-    let score = line.length; // 基础分数
-
-    // 语义关键字权重
-    if (line.match(/\b(function|class|interface|const|let|var)\b/)) score += 10;
-    if (line.match(/\b(if|else|while|for|switch|case)\b/)) score += 5;
-    if (line.match(/\b(import|export|require|from)\b/)) score += 8;
-    if (line.match(/\b(try|catch|finally|throw)\b/)) score += 6;
-    if (line.match(/\b(return|break|continue)\b/)) score += 4;
-    
-    // 结构复杂度
-    score += (line.match(/[{}]/g) || []).length * 3;
-    score += (line.match(/[()]/g) || []).length * 2;
-    score += (line.match(/[\[\]]/g) || []).length * 1.5;
-    
-    // 注释和空行降低语义密度
-    if (line.match(/^\s*\/\//) || line.match(/^\s*\/\*/) || line.match(/^\s*\*/)) score *= 0.3;
-    if (line.trim() === '') score = 1;
-
-    return score;
-  }
-
-  /**
-   * 验证分段的语法完整性
-   */
-  private validateChunkSyntax(chunkContent: string, language: string): boolean {
-    try {
-      // 使用BalancedChunker验证符号平衡
-      if (!this.balancedChunker.validateCodeBalance(chunkContent)) {
-        this.logger?.warn(`Chunk failed symbol balance validation`);
-        return false;
-      }
-
-      // 对于JavaScript/TypeScript，进行额外的语法检查
-      if (language === 'javascript' || language === 'typescript') {
-        const bracketBalance = this.checkBracketBalance(chunkContent);
-        const braceBalance = this.checkBraceBalance(chunkContent);
-        
-        if (bracketBalance !== 0 || braceBalance !== 0) {
-          this.logger?.warn(`Chunk failed bracket/brace balance validation: brackets=${bracketBalance}, braces=${braceBalance}`);
-          return false;
-        }
-      }
-      
-      return true;
-    } catch (error) {
-      this.logger?.warn(`Syntax validation failed: ${error}`);
-      return false;
-    }
-  }
-
-  /**
-   * 检查括号平衡
-   */
-  private checkBracketBalance(content: string): number {
-    let balance = 0;
-    for (const char of content) {
-      if (char === '(') balance++;
-      if (char === ')') balance--;
-    }
-    return balance;
-  }
-
-  /**
-   * 检查花括号平衡
-   */
-  private checkBraceBalance(content: string): number {
-    let balance = 0;
-    for (const char of content) {
-      if (char === '{') balance++;
-      if (char === '}') balance--;
-    }
-    return balance;
-  }
-
-  /**
-   * 获取优化级别
-   */
-  private getOptimizationLevel(content: string): 'low' | 'medium' | 'high' {
-    const lines = content.split('\n').length;
-    const complexity = this.estimateComplexity(content);
-
-    if (lines < 100 && complexity < 50) {
-      return 'low'; // 使用基本符号跟踪
-    } else if (lines < 1000 && complexity < 200) {
-      return 'medium'; // 使用缓存优化
-    } else {
-      return 'high'; // 使用完整优化策略
-    }
-  }
-
-  /**
-   * 估算代码复杂度
-   */
-  private estimateComplexity(content: string): number {
-    // 快速复杂度估算
-    let score = 0;
-    score += (content.match(/\b(function|class|interface)\b/g) || []).length * 10;
-    score += (content.match(/\b(if|else|for|while|switch)\b/g) || []).length * 5;
-    score += (content.match(/[{}()[\]]/g) || []).length;
-    return score;
-  }
-
-  /**
-   * 性能监控
-   */
-  private recordPerformance(startTime: number, linesProcessed: number, cacheHit: boolean): void {
-    const endTime = Date.now();
-    const processingTime = endTime - startTime;
-    const timePerLine = processingTime / linesProcessed;
-    
-    this.logger?.debug(`Performance metrics: ${linesProcessed} lines processed in ${processingTime}ms (${timePerLine.toFixed(3)}ms per line), cache hit: ${cacheHit}`);
-    
-    // 如果处理时间过长，记录警告
-    if (timePerLine > 1.0) {
-      this.logger?.warn(`Slow processing detected: ${timePerLine.toFixed(3)}ms per line`);
-    }
+    this.options.overlapSize = chunkOverlap;
+    // 更新相关模块的配置
+    this.overlapCalculator = new OverlapCalculator(this.options);
   }
 }
