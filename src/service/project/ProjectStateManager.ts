@@ -16,11 +16,11 @@ export interface ProjectState {
   name: string;
   description?: string;
   status: 'active' | 'inactive' | 'indexing' | 'error';
-  
+
   // 分离的状态管理
   vectorStatus: StorageStatus;
   graphStatus: StorageStatus;
-  
+
   createdAt: Date;
   updatedAt: Date;
   lastIndexedAt?: Date;
@@ -81,7 +81,7 @@ export class ProjectStateManager {
   ) {
     // 存储路径将在initialize方法中设置
     this.storagePath = './data/project-states.json'; // 默认路径
-    
+
     // 初始化监听器管理器 - 将在 initialize 方法中设置
     this.listenerManager = null as any;
   }
@@ -107,7 +107,6 @@ export class ProjectStateManager {
       // 加载项目状态
       await this.loadProjectStates();
 
-      // 初始化监听器管理器
       // 初始化监听器管理器
       this.listenerManager = new ProjectStateListenerManager(
         this.logger,
@@ -185,7 +184,7 @@ export class ProjectStateManager {
 
     // 保存状态
     await this.saveProjectStates();
-    
+
     // 更新监听器管理器的项目状态引用
     if (this.listenerManager) {
       this.listenerManager.updateProjectStatesReference(this.projectStates);
@@ -417,10 +416,10 @@ export class ProjectStateManager {
   /**
    * 开始图索引
    */
-   async startGraphIndexing(projectId: string, totalFiles?: number): Promise<void> {
-     await this.storageStateService.startGraphIndexing(this.projectStates, projectId, totalFiles, this.storagePath);
-     await this.saveProjectStates();
-   }
+  async startGraphIndexing(projectId: string, totalFiles?: number): Promise<void> {
+    await this.storageStateService.startGraphIndexing(this.projectStates, projectId, totalFiles, this.storagePath);
+    await this.saveProjectStates();
+  }
 
   /**
    * 更新向量索引进度
