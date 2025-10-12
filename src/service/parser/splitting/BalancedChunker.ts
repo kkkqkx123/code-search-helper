@@ -197,8 +197,6 @@ export class BalancedChunker {
   }
 
   /**
-  
-  /**
    * 应用符号变化
    */
   private applySymbolChange(change: SymbolStackChange): void {

@@ -15,7 +15,6 @@ import { IntelligentSplitter } from './strategies/IntelligentSplitter';
 import { SemanticSplitter } from './strategies/SemanticSplitter';
 import { ChunkOptimizer } from './utils/ChunkOptimizer';
 import { ComplexityCalculator } from './utils/ComplexityCalculator';
-import { OverlapCalculator } from './utils/OverlapCalculator';
 import { PerformanceMonitor } from './utils/PerformanceMonitor';
 import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from './types';
 
@@ -83,7 +82,6 @@ export class ASTCodeSplitter implements Splitter {
   private chunkOverlap: number = 300;
   private treeSitterService: TreeSitterService;
   private simpleFallback: SimpleCodeSplitter;
-  private simpleChunker: SimpleCodeSplitter;
   private options: Required<ChunkingOptions>;
   private logger?: LoggerService;
   private balancedChunker: BalancedChunker;
@@ -97,9 +95,7 @@ export class ASTCodeSplitter implements Splitter {
   private semanticSplitter: SemanticSplitter;
   private chunkOptimizer: ChunkOptimizer;
   private complexityCalculator: ComplexityCalculator;
-  private overlapCalculator: OverlapCalculator;
   private performanceMonitor: PerformanceMonitor;
-  
   // 新增优化组件
  private semanticBoundaryAnalyzer: SemanticBoundaryAnalyzer;
   private unifiedOverlapCalculator: UnifiedOverlapCalculator;
@@ -113,7 +109,6 @@ export class ASTCodeSplitter implements Splitter {
     this.treeSitterService = treeSitterService;
     this.logger = logger;
     this.simpleFallback = new SimpleCodeSplitter(this.chunkSize, this.chunkOverlap);
-    this.simpleChunker = new SimpleCodeSplitter(this.chunkSize, this.chunkOverlap);
     this.balancedChunker = new BalancedChunker(logger);
     this.options = { ...DEFAULT_CHUNKING_OPTIONS };
 
@@ -126,9 +121,7 @@ export class ASTCodeSplitter implements Splitter {
     this.semanticSplitter = new SemanticSplitter(this.options);
     this.chunkOptimizer = new ChunkOptimizer(this.options);
     this.complexityCalculator = new ComplexityCalculator();
-    this.overlapCalculator = new OverlapCalculator(this.options);
     this.performanceMonitor = new PerformanceMonitor(logger);
-
     // 初始化新的优化组件
     this.semanticBoundaryAnalyzer = new SemanticBoundaryAnalyzer();
     this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
@@ -255,14 +248,11 @@ export class ASTCodeSplitter implements Splitter {
     // 更新相关模块的配置
     this.chunkOptimizer = new ChunkOptimizer(this.options);
     this.intelligentSplitter = new IntelligentSplitter(this.options);
-    this.overlapCalculator = new OverlapCalculator(this.options);
   }
 
   setChunkOverlap(chunkOverlap: number): void {
     this.chunkOverlap = chunkOverlap;
     this.simpleFallback.setChunkOverlap(chunkOverlap);
     this.options.overlapSize = chunkOverlap;
-    // 更新相关模块的配置
-    this.overlapCalculator = new OverlapCalculator(this.options);
   }
 }

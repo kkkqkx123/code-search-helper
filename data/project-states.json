@@ -7,24 +7,57 @@
     "vectorStatus": {
       "status": "completed",
       "progress": 100,
-      "lastUpdated": "2025-10-12T06:52:24.956Z"
+      "lastUpdated": "2025-10-12T10:02:31.079Z"
     },
     "graphStatus": {
       "status": "completed",
       "progress": 100,
-      "lastUpdated": "2025-10-12T06:52:24.957Z"
+      "lastUpdated": "2025-10-12T10:02:31.080Z"
     },
     "createdAt": "2025-10-12T06:52:20.927Z",
-    "updatedAt": "2025-10-12T06:52:24.957Z",
+    "updatedAt": "2025-10-12T10:02:31.080Z",
+    "lastIndexedAt": "2025-10-12T10:02:31.077Z",
+    "indexingProgress": 100,
+    "totalFiles": 4,
+    "indexedFiles": 4,
+    "failedFiles": 0,
+    "collectionInfo": {
+      "name": "project-86b62e2ebce0231b",
+      "vectorsCount": 52,
+      "status": "green"
+    },
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {}
+  },
+  {
+    "projectId": "62148df65f9d3abb",
+    "projectPath": "D:\\项目\\agent\\my-coding-agent",
+    "name": "D:\\项目\\agent\\my-coding-agent",
+    "status": "active",
+    "vectorStatus": {
+      "status": "completed",
+      "progress": 100,
+      "lastUpdated": "2025-10-12T10:20:53.969Z"
+    },
+    "graphStatus": {
+      "status": "completed",
+      "progress": 100,
+      "lastUpdated": "2025-10-12T10:20:53.970Z"
+    },
+    "createdAt": "2025-10-12T10:20:49.706Z",
+    "updatedAt": "2025-10-12T10:20:53.970Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true
     },
     "metadata": {},
     "indexingProgress": 100,
-    "lastIndexedAt": "2025-10-12T06:52:24.955Z",
-    "totalFiles": 4,
-    "indexedFiles": 4,
+    "lastIndexedAt": "2025-10-12T10:20:53.968Z",
+    "totalFiles": 25,
+    "indexedFiles": 25,
     "failedFiles": 0
   }
 ]

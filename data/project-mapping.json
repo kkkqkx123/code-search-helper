@@ -13,7 +13,24 @@
       "86b62e2ebce0231b": "D:/code/Go/dataStructure"
     },
     "projectUpdateTimes": {
-      "86b62e2ebce0231b": "2025-10-12T06:52:21.067Z"
+      "86b62e2ebce0231b": "2025-10-12T10:02:26.970Z"
+    }
+  },
+  {
+    "projectIdMap": {
+      "D:/项目/agent/my-coding-agent": "62148df65f9d3abb"
+    },
+    "collectionMap": {
+      "62148df65f9d3abb": "project-62148df65f9d3abb"
+    },
+    "spaceMap": {
+      "62148df65f9d3abb": "project_62148df65f9d3abb"
+    },
+    "pathToProjectMap": {
+      "62148df65f9d3abb": "D:/项目/agent/my-coding-agent"
+    },
+    "projectUpdateTimes": {
+      "62148df65f9d3abb": "2025-10-12T10:20:49.846Z"
     }
   }
 ]

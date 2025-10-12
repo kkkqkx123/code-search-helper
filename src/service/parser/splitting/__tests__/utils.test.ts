@@ -1,7 +1,6 @@
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 import { SyntaxValidator } from '../utils/SyntaxValidator';
 import { ChunkOptimizer } from '../utils/ChunkOptimizer';
-import { OverlapCalculator } from '../utils/OverlapCalculator';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor';
 import { BalancedChunker } from '../BalancedChunker';
 import { CodeChunk } from '../types';
@@ -114,31 +113,6 @@ describe('Utils', () => {
       
       const shouldMerge = optimizer.shouldMerge(chunk1, chunk2);
       expect(typeof shouldMerge).toBe('boolean');
-    });
-  });
-
-  describe('OverlapCalculator', () => {
-    let calculator: OverlapCalculator;
-
-    beforeEach(() => {
-      calculator = new OverlapCalculator();
-    });
-
-    it('should calculate overlap', () => {
-      const chunks = [
-        {
-          content: 'function test1() { console.log(1); }',
-          metadata: { startLine: 1, endLine: 1, language: 'javascript' }
-        },
-        {
-          content: 'function test2() { console.log(2); }',
-          metadata: { startLine: 2, endLine: 2, language: 'javascript' }
-        }
-      ];
-      
-      const originalCode = chunks.map(c => c.content).join('\n');
-      const chunksWithOverlap = calculator.addOverlap(chunks, originalCode);
-      expect(Array.isArray(chunksWithOverlap)).toBe(true);
     });
   });
 

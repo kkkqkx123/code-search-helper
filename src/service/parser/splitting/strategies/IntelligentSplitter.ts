@@ -4,7 +4,6 @@ import { BalancedChunker } from '../BalancedChunker';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 import { SyntaxValidator } from '../utils/SyntaxValidator';
-import { IntelligentSplitterOptimizer } from '../utils/IntelligentSplitterOptimizer';
 import { SemanticBoundaryAnalyzer } from '../utils/SemanticBoundaryAnalyzer';
 import { UnifiedOverlapCalculator } from '../utils/UnifiedOverlapCalculator';
 import { LanguageSpecificConfigManager } from '../config/LanguageSpecificConfigManager';
@@ -17,7 +16,6 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
   private optimizationLevel: 'low' | 'medium' | 'high' = 'medium';
   private complexityCalculator: ComplexityCalculator;
   private syntaxValidator: SyntaxValidator;
-  private optimizer: IntelligentSplitterOptimizer;
   private semanticBoundaryAnalyzer?: SemanticBoundaryAnalyzer;
   private unifiedOverlapCalculator?: UnifiedOverlapCalculator;
   private languageConfigManager: LanguageSpecificConfigManager;
@@ -29,7 +27,6 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     // 创建一个临时的balancedChunker用于syntaxValidator
     const tempBalancedChunker = new BalancedChunker();
     this.syntaxValidator = new SyntaxValidator(tempBalancedChunker);
-    this.optimizer = new IntelligentSplitterOptimizer(tempBalancedChunker);
     
     // 初始化新组件
     this.semanticBoundaryAnalyzer = new SemanticBoundaryAnalyzer();
@@ -43,9 +40,8 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
 
   setBalancedChunker(balancedChunker: BalancedChunker): void {
     this.balancedChunker = balancedChunker;
-    // 更新语法验证器和优化器使用的balancedChunker
+    // 更新语法验证器使用的balancedChunker
     this.syntaxValidator = new SyntaxValidator(balancedChunker);
-    this.optimizer = new IntelligentSplitterOptimizer(balancedChunker, this.logger);
   }
 
   setOptimizationLevel(level: 'low' | 'medium' | 'high'): void {
@@ -54,10 +50,6 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
   
   setLogger(logger: LoggerService): void {
     this.logger = logger;
-    // 更新optimizer的logger
-    if (this.balancedChunker) {
-      this.optimizer = new IntelligentSplitterOptimizer(this.balancedChunker, logger);
-    }
   }
 
   setSemanticBoundaryAnalyzer(analyzer: SemanticBoundaryAnalyzer): void {
@@ -93,8 +85,6 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
 
     if (!this.balancedChunker) {
       this.balancedChunker = new BalancedChunker(this.logger);
-      // 更新optimizer的balancedChunker
-      this.optimizer = new IntelligentSplitterOptimizer(this.balancedChunker, this.logger);
     }
 
     // 获取优化级别
@@ -167,15 +157,11 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
             currentLine = i - overlapResult.lines + 1;
             currentSize = overlapResult.content.length;
           } else {
-            // 回退到原有逻辑
-            const overlapLines = this.optimizer.calculateSmartOverlap(
-              currentChunk,
-              content,
-              this.options.overlapSize
-            );
-            currentChunk = overlapLines;
-            currentLine = i - overlapLines.length + 1;
-            currentSize = overlapLines.join('\n').length;
+            // 回退到简单重叠（不应发生，因为现在统一使用unifiedOverlapCalculator）
+            const simpleOverlapLines = currentChunk.slice(-3); // 取最后3行作为简单重叠
+            currentChunk = simpleOverlapLines;
+            currentLine = i - simpleOverlapLines.length + 1;
+            currentSize = simpleOverlapLines.join('\n').length;
           }
         } else {
           this.logger?.warn(`Skipping chunk due to syntax validation failure at line ${currentLine}`);
@@ -257,7 +243,6 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     // 确保balancedChunker存在
     if (!this.balancedChunker) {
       this.balancedChunker = new BalancedChunker(this.logger);
-      this.optimizer = new IntelligentSplitterOptimizer(this.balancedChunker, this.logger);
     }
 
     // 符号平衡检查 - 只有在符号平衡时才允许分段
@@ -281,14 +266,8 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
       }
     }
 
-    // 回退到原有逻辑
-    return this.optimizer.shouldSplitAtLineWithSymbols(
-      line,
-      currentChunk,
-      currentSize,
-      lineSize,
-      maxChunkSize
-    );
+    // 如果没有语义边界分析器，使用简单的大小检查
+    return currentSize > maxChunkSize * 0.8;
   }
 
   getName(): string {
