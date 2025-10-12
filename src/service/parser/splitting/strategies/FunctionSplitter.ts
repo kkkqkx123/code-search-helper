@@ -1,4 +1,5 @@
-import { FunctionSplitter as FunctionSplitterInterface, SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { FunctionSplitter as FunctionSplitterInterface } from './index';
+import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
@@ -100,7 +101,7 @@ export class FunctionSplitter implements FunctionSplitterInterface {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.treeSitterService?.isLanguageSupported(language) || false;
+    return this.treeSitterService?.detectLanguage(language) !== null || false;
   }
 
   getPriority(): number {

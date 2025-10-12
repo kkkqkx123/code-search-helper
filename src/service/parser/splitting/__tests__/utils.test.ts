@@ -4,6 +4,7 @@ import { ChunkOptimizer } from '../utils/ChunkOptimizer';
 import { OverlapCalculator } from '../utils/OverlapCalculator';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor';
 import { BalancedChunker } from '../BalancedChunker';
+import { CodeChunk } from '../types';
 
 describe('Utils', () => {
  describe('ComplexityCalculator', () => {
@@ -86,7 +87,7 @@ describe('Utils', () => {
     });
 
     it('should optimize chunks', () => {
-      const chunks = [
+      const chunks: CodeChunk[] = [
         {
           content: 'function test1() { console.log(1); }',
           metadata: { startLine: 1, endLine: 1, language: 'javascript', type: 'function', complexity: 5 }
@@ -102,11 +103,11 @@ describe('Utils', () => {
     });
 
     it('should determine if chunks should merge', () => {
-      const chunk1 = {
+      const chunk1: CodeChunk = {
         content: 'console.log(1);',
         metadata: { startLine: 1, endLine: 1, language: 'javascript', type: 'generic', complexity: 1 }
       };
-      const chunk2 = {
+      const chunk2: CodeChunk = {
         content: 'console.log(2);',
         metadata: { startLine: 2, endLine: 2, language: 'javascript', type: 'generic', complexity: 1 }
       };

@@ -105,6 +105,8 @@ export class ChunkOptimizer implements ChunkOptimizerInterface {
         complexity: (chunk1.metadata.complexity || 0) + (chunk2.metadata.complexity || 0)
       }
     };
+  }
+  
   /**
    * 为代码块添加重叠内容
    * @param chunks 代码块数组
@@ -181,7 +183,5 @@ export class ChunkOptimizer implements ChunkOptimizerInterface {
     }
     
     return '';
-  }
-}
   }
 }

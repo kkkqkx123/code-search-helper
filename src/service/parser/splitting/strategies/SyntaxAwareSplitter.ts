@@ -1,4 +1,5 @@
-import { SyntaxAwareSplitter as SyntaxAwareSplitterInterface, SplitStrategy, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { SyntaxAwareSplitter as SyntaxAwareSplitterInterface } from './index';
+import { SplitStrategy, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { FunctionSplitter } from './FunctionSplitter';
@@ -58,7 +59,7 @@ export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
     content: string,
     parseResult: any,
     language: string,
-    filePath?: string,
+    filePath: string | undefined,
     options: Required<ChunkingOptions>
   ): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
@@ -103,7 +104,7 @@ export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
 
   supportsLanguage(language: string): boolean {
     // 检查TreeSitterService是否支持该语言
-    return this.treeSitterService?.isLanguageSupported(language) || false;
+    return this.treeSitterService?.detectLanguage(language) !== null || false;
   }
 
   getPriority(): number {

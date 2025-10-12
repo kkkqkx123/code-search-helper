@@ -1,4 +1,5 @@
-import { ClassSplitter as ClassSplitterInterface, SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { ClassSplitter as ClassSplitterInterface } from './index';
+import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
@@ -100,7 +101,7 @@ export class ClassSplitter implements ClassSplitterInterface {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.treeSitterService?.isLanguageSupported(language) || false;
+    return this.treeSitterService?.detectLanguage(language) !== null || false;
   }
 
   getPriority(): number {

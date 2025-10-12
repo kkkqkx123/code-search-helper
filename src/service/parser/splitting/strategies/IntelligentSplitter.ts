@@ -1,4 +1,5 @@
-import { IntelligentSplitter as IntelligentSplitterInterface, SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { IntelligentSplitter as IntelligentSplitterInterface } from './index';
+import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
 import { BalancedChunker } from '../BalancedChunker';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';

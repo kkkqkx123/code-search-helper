@@ -5,7 +5,7 @@ import { ImportSplitter } from '../strategies/ImportSplitter';
 import { IntelligentSplitter } from '../strategies/IntelligentSplitter';
 import { SemanticSplitter } from '../strategies/SemanticSplitter';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 import { BalancedChunker } from '../BalancedChunker';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 

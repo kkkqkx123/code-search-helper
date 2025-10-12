@@ -1,6 +1,7 @@
-import { ImportSplitter as ImportSplitterInterface, SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { ImportSplitter as ImportSplitterInterface } from './index';
+import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 
 export class ImportSplitter implements ImportSplitterInterface {
   private options: Required<ChunkingOptions>;
@@ -20,23 +21,23 @@ export class ImportSplitter implements ImportSplitterInterface {
   }
 
   async split(
-    content: string, 
-    language: string, 
+    content: string,
+    language: string,
     filePath?: string,
     options?: ChunkingOptions
   ): Promise<CodeChunk[]> {
     if (!this.treeSitterService) {
       throw new Error('TreeSitterService is required for ImportSplitter');
     }
-    
+
     const parseResult = await this.treeSitterService.parseCode(content, language);
-    
+
     if (parseResult.success && parseResult.ast) {
       return this.extractImports(content, parseResult.ast, language, filePath);
     } else {
       return [];
     }
- }
+  }
 
   /**
    * 提取导入语句块
@@ -52,14 +53,14 @@ export class ImportSplitter implements ImportSplitterInterface {
     filePath?: string
   ): CodeChunk[] {
     const chunks: CodeChunk[] = [];
-    
+
     try {
       if (!this.treeSitterService) {
         throw new Error('TreeSitterService is required for ImportSplitter');
       }
-      
+
       const imports = this.treeSitterService.extractImports(ast);
-      
+
       if (!imports || imports.length === 0) {
         return chunks;
       }
@@ -86,14 +87,14 @@ export class ImportSplitter implements ImportSplitterInterface {
     }
 
     return chunks;
- }
+  }
 
   getName(): string {
     return 'ImportSplitter';
   }
 
   supportsLanguage(language: string): boolean {
-    return this.treeSitterService?.isLanguageSupported(language) || false;
+    return this.treeSitterService?.detectLanguage(language) !== null || false;
   }
 
   getPriority(): number {

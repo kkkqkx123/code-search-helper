@@ -1,5 +1,5 @@
 import { PerformanceMonitor as PerformanceMonitorInterface, PerformanceStats } from '../types';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 
 export class PerformanceMonitor implements PerformanceMonitorInterface {
  private totalLines: number = 0;
