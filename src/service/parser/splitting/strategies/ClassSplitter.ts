@@ -3,6 +3,7 @@ import { CodeChunk, ChunkingOptions, ASTNode } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
+import { ASTNodeExtractor } from '../utils/ASTNodeExtractor';
 
 /**
  * 类分割策略
@@ -10,10 +11,17 @@ import { ComplexityCalculator } from '../utils/ComplexityCalculator';
  */
 export class ClassSplitter extends BaseSplitStrategy {
   private complexityCalculator: ComplexityCalculator;
+  private astNodeExtractor?: ASTNodeExtractor;
 
   constructor(options?: ChunkingOptions) {
     super(options);
     this.complexityCalculator = new ComplexityCalculator();
+  }
+
+  // 设置 TreeSitterService 并初始化 ASTNodeExtractor
+  setTreeSitterService(treeSitterService: TreeSitterService): void {
+    super.setTreeSitterService(treeSitterService);
+    this.astNodeExtractor = new ASTNodeExtractor(treeSitterService);
   }
 
   async split(
@@ -248,12 +256,12 @@ export class ClassSplitter extends BaseSplitStrategy {
   }
 
   extractNodesFromChunk(chunk: CodeChunk, ast: any): ASTNode[] {
-    if (!chunk.metadata.nodeIds || !ast) {
+    if (!this.astNodeExtractor) {
+      this.logger?.warn('ASTNodeExtractor not initialized');
       return [];
     }
-
-    // 这里需要根据实际的AST结构实现节点查找逻辑
-    return [];
+    
+    return this.astNodeExtractor.extractNodesFromChunk(chunk, ast, 'class');
   }
 
   hasUsedNodes(chunk: CodeChunk, nodeTracker: any, ast: any): boolean {

@@ -2,14 +2,26 @@ import { BaseSplitStrategy } from './base/BaseSplitStrategy';
 import { CodeChunk, ChunkingOptions, ASTNode } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
+import { ComplexityCalculator } from '../utils/ComplexityCalculator';
+import { ASTNodeExtractor } from '../utils/ASTNodeExtractor';
 
 /**
  * 导入语句分割策略
- * 专注于提取导入语句
+ * 专注于提取和分割导入/引入语句
  */
 export class ImportSplitter extends BaseSplitStrategy {
+  private complexityCalculator: ComplexityCalculator;
+  private astNodeExtractor?: ASTNodeExtractor;
+
   constructor(options?: ChunkingOptions) {
     super(options);
+    this.complexityCalculator = new ComplexityCalculator();
+  }
+
+  // 设置 TreeSitterService 并初始化 ASTNodeExtractor
+  setTreeSitterService(treeSitterService: TreeSitterService): void {
+    super.setTreeSitterService(treeSitterService);
+    this.astNodeExtractor = new ASTNodeExtractor(treeSitterService);
   }
 
   async split(
@@ -54,21 +66,15 @@ export class ImportSplitter extends BaseSplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    // 导入语句在大多数现代编程语言中都存在
-    const supportedLanguages = [
-      'javascript', 'typescript', 'python', 'java', 'csharp', 'cpp', 'c', 'go', 
-      'rust', 'kotlin', 'scala', 'php', 'ruby', 'swift', 'dart', 'elixir'
-    ];
-    
-    return supportedLanguages.includes(language.toLowerCase());
+    return this.treeSitterService?.detectLanguage(language) !== null || false;
   }
 
   getPriority(): number {
-    return 3; // 较低优先级，与测试期望一致
+    return 3; // 低优先级，在其他分割策略之前处理
   }
 
   /**
-   * 提取导入语句 - 改为public以便测试
+   * 提取导入块 - 改为public以便测试
    */
   extractImports(
     content: string,
@@ -80,7 +86,7 @@ export class ImportSplitter extends BaseSplitStrategy {
     const chunks: CodeChunk[] = [];
 
     try {
-      const imports = this.treeSitterService!.extractImports(ast);
+      const imports = this.treeSitterService!.extractImportNodes(ast);
 
       if (!imports || imports.length === 0) {
         return chunks;
@@ -122,6 +128,9 @@ export class ImportSplitter extends BaseSplitStrategy {
       return chunks;
     }
 
+    const lineCount = location.endLine - location.startLine + 1;
+    const complexity = this.complexityCalculator.calculate(importText);
+
     // 创建AST节点对象
     const astNode: ASTNode = this.createASTNode(importNode, importText, 'import');
 
@@ -130,20 +139,19 @@ export class ImportSplitter extends BaseSplitStrategy {
       return chunks;
     }
 
-    // 提取导入的模块信息
-    const importInfo = this.extractImportInfo(importText, language);
-
+    // 创建导入块的元数据
     const metadata = {
       startLine: location.startLine,
       endLine: location.endLine,
       language,
       filePath,
       type: 'import' as const,
-      imports: importInfo.modules,
+      complexity,
       nodeIds: [astNode.id],
-      lineCount: location.endLine - location.startLine + 1
+      lineCount
     };
 
+    // 创建代码块
     chunks.push(this.createChunk(importText, metadata));
 
     // 标记节点为已使用
@@ -152,92 +160,6 @@ export class ImportSplitter extends BaseSplitStrategy {
     }
 
     return chunks;
-  }
-
-  /**
-   * 提取导入信息
-   */
-  private extractImportInfo(importText: string, language: string): { modules: string[] } {
-    const modules: string[] = [];
-
-    try {
-      switch (language.toLowerCase()) {
-        case 'javascript':
-        case 'typescript':
-          // JavaScript/TypeScript: import ... from 'module'
-          const jsMatch = importText.match(/from\s+['"`]([^'"`]+)['"`]/);
-          if (jsMatch) {
-            modules.push(jsMatch[1]);
-          }
-          // 也处理 require('module')
-          const requireMatch = importText.match(/require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/);
-          if (requireMatch) {
-            modules.push(requireMatch[1]);
-          }
-          break;
-
-        case 'python':
-          // Python: import module 或 from module import ...
-          const pythonMatch = importText.match(/^(?:import|from)\s+([^\s]+)/);
-          if (pythonMatch) {
-            modules.push(pythonMatch[1]);
-          }
-          break;
-
-        case 'java':
-        case 'kotlin':
-          // Java/Kotlin: import package.Class;
-          const javaMatch = importText.match(/import\s+([^;]+);?/);
-          if (javaMatch) {
-            modules.push(javaMatch[1].trim());
-          }
-          break;
-
-        case 'csharp':
-          // C#: using Namespace;
-          const csharpMatch = importText.match(/using\s+([^;]+);?/);
-          if (csharpMatch) {
-            modules.push(csharpMatch[1].trim());
-          }
-          break;
-
-        case 'go':
-          // Go: import "package"
-          const goMatch = importText.match(/import\s+(?:\(\s*)?["`]([^"`]+)["`](?:\s*\))?/);
-          if (goMatch) {
-            modules.push(goMatch[1]);
-          }
-          break;
-
-        case 'rust':
-          // Rust: use crate::module;
-          const rustMatch = importText.match(/use\s+([^;]+);?/);
-          if (rustMatch) {
-            modules.push(rustMatch[1].trim());
-          }
-          break;
-
-        case 'php':
-          // PHP: use Namespace\Class;
-          const phpMatch = importText.match(/use\s+([^;]+);?/);
-          if (phpMatch) {
-            modules.push(phpMatch[1].trim());
-          }
-          break;
-
-        default:
-          // 通用模式匹配
-          const genericMatch = importText.match(/(?:import|using|use|require)\s+['"`]([^'"`]+)['"`]/);
-          if (genericMatch) {
-            modules.push(genericMatch[1]);
-          }
-          break;
-      }
-    } catch (error) {
-      this.logger?.warn(`Failed to extract import info: ${error}`);
-    }
-
-    return { modules };
   }
 
   /**
@@ -267,12 +189,12 @@ export class ImportSplitter extends BaseSplitStrategy {
   }
 
   extractNodesFromChunk(chunk: CodeChunk, ast: any): ASTNode[] {
-    if (!chunk.metadata.nodeIds || !ast) {
+    if (!this.astNodeExtractor) {
+      this.logger?.warn('ASTNodeExtractor not initialized');
       return [];
     }
-
-    // 这里需要根据实际的AST结构实现节点查找逻辑
-    return [];
+    
+    return this.astNodeExtractor.extractNodesFromChunk(chunk, ast, 'import');
   }
 
   hasUsedNodes(chunk: CodeChunk, nodeTracker: any, ast: any): boolean {

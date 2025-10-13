@@ -2,6 +2,7 @@ src\service\parser\splitting\strategies\ClassSplitter.ts
 src\service\parser\splitting\strategies\FunctionSplitter.ts
 src\service\parser\splitting\strategies\ImportSplitter.ts
 extractNodesFromChunk
+[x]
 
 src\service\parser\splitting\utils\OverlapStrategyUtils.ts
   /**
