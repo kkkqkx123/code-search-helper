@@ -1,28 +1,30 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../types';
-import { LoggerService } from '../../utils/LoggerService';
-import { IGraphDataMappingService,
-         GraphNodeType,
-         GraphRelationshipType,
-         GraphNode,
-         GraphFileNode,
-         GraphFunctionNode,
-         GraphClassNode,
-         GraphRelationship,
-         FileAnalysisResult,
-         FunctionInfo,
-         ClassInfo,
-         ImportInfo,
-         VariableInfo,
-         GraphNodeMappingResult,
-         ChunkNodeMappingResult,
-         FileMetadata,
-         PropertyInfo } from './IGraphDataMappingService';
-import { CodeChunk } from '../parser/splitting/Splitter';
+import { TYPES } from '../../../types';
+import { LoggerService } from '../../../utils/LoggerService';
+import {
+  IGraphDataMappingService,
+  GraphNodeType,
+  GraphRelationshipType,
+  GraphNode,
+  GraphFileNode,
+  GraphFunctionNode,
+  GraphClassNode,
+  GraphRelationship,
+  FileAnalysisResult,
+  FunctionInfo,
+  ClassInfo,
+  ImportInfo,
+  VariableInfo,
+  GraphNodeMappingResult,
+  ChunkNodeMappingResult,
+  FileMetadata,
+  PropertyInfo
+} from './IGraphDataMappingService';
+import { CodeChunk } from '../../parser/splitting/Splitter';
 import { v4 as uuidv4 } from 'uuid';
-import { DataMappingValidator } from '../validation/DataMappingValidator';
-import { GraphMappingCache } from '../caching/GraphMappingCache';
-import { GraphBatchOptimizer } from '../batching/GraphBatchOptimizer';
+import { DataMappingValidator } from '../../validation/DataMappingValidator';
+import { GraphMappingCache } from '../../caching/GraphMappingCache';
+import { GraphBatchOptimizer } from '../../batching/GraphBatchOptimizer';
 
 @injectable()
 export class GraphDataMappingService implements IGraphDataMappingService {
@@ -260,7 +262,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
         }));
 
         relationships.push(...batchRelationships);
-        
+
         return batchNodes;
       }
     );
@@ -338,7 +340,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
 
     this.logger.debug('Created function node', { nodeId, functionName: functionInfo.name });
     return node;
- }
+  }
 
   createClassNode(classInfo: ClassInfo, parentFileId: string): GraphClassNode {
     const nodeId = `class_${uuidv4()}`;
@@ -354,7 +356,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
 
     this.logger.debug('Created class node', { nodeId, className: classInfo.name });
     return node;
- }
+  }
 
   createRelationships(nodes: GraphNode[], fileId: string): GraphRelationship[] {
     const relationships: GraphRelationship[] = [];
@@ -493,7 +495,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
 
     this.logger.debug('Code element extraction completed', { filePath });
     return result;
- }
+  }
 
   private getLanguageFromPath(filePath: string): string {
     const ext = filePath.split('.').pop()?.toLowerCase() || '';

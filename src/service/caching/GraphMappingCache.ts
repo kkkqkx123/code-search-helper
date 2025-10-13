@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { GraphNode, GraphRelationship } from '../mapping/IGraphDataMappingService';
+import { GraphNode, GraphRelationship } from '../graph/mapping/IGraphDataMappingService';
 
 export interface CacheEntry<T> {
   data: T;
@@ -11,7 +11,7 @@ export interface CacheEntry<T> {
 }
 
 export interface CacheStats {
- hits: number;
+  hits: number;
   misses: number;
   evictions: number;
   sets: number;
@@ -119,7 +119,7 @@ export class GraphMappingCache {
 
   private async get<T>(key: string): Promise<T | null> {
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       this.stats.misses++;
       this.logger.debug('Cache miss', { key });
@@ -143,7 +143,7 @@ export class GraphMappingCache {
     try {
       // 计算数据大小（简单估算）
       const dataSize = JSON.stringify(data).length;
-      
+
       // 检查内存使用情况
       if (this.memoryUsage + dataSize > this.maxMemory) {
         this.evictOldestEntries(dataSize);
@@ -169,18 +169,18 @@ export class GraphMappingCache {
       this.memoryUsage += dataSize;
       this.stats.sets++;
 
-      this.logger.debug('Cache set', { 
-        key, 
-        ttl: cacheEntry.ttl, 
+      this.logger.debug('Cache set', {
+        key,
+        ttl: cacheEntry.ttl,
         size: dataSize,
-        totalSize: this.memoryUsage 
+        totalSize: this.memoryUsage
       });
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to set cache entry', { 
-        key, 
-        error: (error as Error).message 
+      this.logger.error('Failed to set cache entry', {
+        key,
+        error: (error as Error).message
       });
       return false;
     }
@@ -221,14 +221,14 @@ export class GraphMappingCache {
       if (freedSpace >= requiredSpace) {
         break;
       }
-      
+
       this.cache.delete(key);
       freedSpace += entry.size;
       this.stats.evictions++;
-      this.logger.debug('Evicted cache entry due to memory pressure', { 
-        key, 
+      this.logger.debug('Evicted cache entry due to memory pressure', {
+        key,
         size: entry.size,
-        freedSpace 
+        freedSpace
       });
     }
 
@@ -281,13 +281,13 @@ export class GraphMappingCache {
     if (!entry) {
       return false;
     }
-    
+
     // 检查是否过期
     if (Date.now() - entry.timestamp > entry.ttl) {
       await this.delete(key);
       return false;
     }
-    
+
     return true;
   }
 }

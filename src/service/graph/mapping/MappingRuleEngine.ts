@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../types';
-import { LoggerService } from '../../utils/LoggerService';
+import { TYPES } from '../../../types';
+import { LoggerService } from '../../../utils/LoggerService';
 import {
   GraphNode,
   GraphRelationship,
@@ -8,7 +8,7 @@ import {
   GraphRelationshipType,
   FileAnalysisResult
 } from './IGraphDataMappingService';
-import { CodeChunk } from '../parser/splitting/Splitter';
+import { CodeChunk } from '../../parser/splitting/Splitter';
 
 export interface MappingRule {
   id: string;

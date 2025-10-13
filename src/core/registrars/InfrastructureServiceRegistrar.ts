@@ -9,7 +9,7 @@ import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPe
 import { GraphQueryValidator } from '../../service/graph/validation/GraphQueryValidator';
 
 // 高级映射服务
-import { AdvancedMappingService as SemanticRelationshipExtractor } from '../../service/mapping/SemanticRelationshipExtractor';
+import { AdvancedMappingService as SemanticRelationshipExtractor } from '../../service/graph/mapping/SemanticRelationshipExtractor';
 
 // 性能监控服务
 import { PerformanceDashboard } from '../../service/monitoring/PerformanceDashboard';

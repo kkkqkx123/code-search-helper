@@ -1,4 +1,4 @@
-import { CodeChunk } from '../parser/splitting/Splitter';
+import { CodeChunk } from '../../parser/splitting/Splitter';
 
 // 图节点类型枚举
 export enum GraphNodeType {
@@ -34,8 +34,8 @@ export interface GraphNode {
 export interface GraphFileNode extends GraphNode {
   type: GraphNodeType.FILE;
   name: string;
- path: string;
- language: string;
+  path: string;
+  language: string;
   size: number;
   lastModified: Date;
   projectId: string;
@@ -56,7 +56,7 @@ export interface GraphFunctionNode extends GraphNode {
 export interface GraphClassNode extends GraphNode {
   type: GraphNodeType.CLASS;
   name: string;
- methods: string[];
+  methods: string[];
   properties: string[];
   parentFileId: string;
 }
@@ -94,8 +94,8 @@ export interface FunctionInfo {
 
 // 类信息接口
 export interface ClassInfo {
- name: string;
- methods: FunctionInfo[];
+  name: string;
+  methods: FunctionInfo[];
   properties: PropertyInfo[];
   superClass?: string;
   interfaces: string[];
@@ -146,8 +146,8 @@ export interface ChunkNodeMappingResult {
 
 // 文件元数据接口
 export interface FileMetadata {
- name: string;
- path: string;
+  name: string;
+  path: string;
   size: number;
   language: string;
   lastModified: Date;
@@ -170,7 +170,7 @@ export interface IGraphDataMappingService {
   mapChunksToGraphNodes(
     chunks: CodeChunk[],
     parentFileId: string
- ): Promise<ChunkNodeMappingResult>;
+  ): Promise<ChunkNodeMappingResult>;
 
   /**
    * 创建文件节点数据
@@ -199,7 +199,7 @@ export interface IGraphDataMappingService {
   /**
    * 创建节点间关系
    */
- createRelationships(
+  createRelationships(
     nodes: GraphNode[],
     fileId: string
   ): GraphRelationship[];
@@ -223,5 +223,5 @@ export interface IGraphDataMappingService {
   /**
    * 从AST中提取代码元素
    */
- extractCodeElementsFromAST(ast: any, filePath: string): Promise<FileAnalysisResult>;
+  extractCodeElementsFromAST(ast: any, filePath: string): Promise<FileAnalysisResult>;
 }

@@ -1,12 +1,12 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { 
- GraphNode, 
-  GraphRelationship, 
-  GraphNodeType, 
-  GraphRelationshipType 
-} from '../mapping/IGraphDataMappingService';
+import {
+  GraphNode,
+  GraphRelationship,
+  GraphNodeType,
+  GraphRelationshipType
+} from '../graph/mapping/IGraphDataMappingService';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -30,7 +30,7 @@ export class DataMappingValidator {
 
   constructor(@inject(TYPES.LoggerService) logger: LoggerService) {
     this.logger = logger;
-    
+
     // 初始化默认验证规则
     this.initializeDefaultRules();
   }
@@ -38,7 +38,7 @@ export class DataMappingValidator {
   /**
    * 验证图节点
    */
- validateNode(node: GraphNode): ValidationResult {
+  validateNode(node: GraphNode): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -84,9 +84,9 @@ export class DataMappingValidator {
     };
 
     if (!result.isValid) {
-      this.logger.warn('Node validation failed', { 
-        nodeId: node.id, 
-        errors: result.errors 
+      this.logger.warn('Node validation failed', {
+        nodeId: node.id,
+        errors: result.errors
       });
     }
 
@@ -132,9 +132,9 @@ export class DataMappingValidator {
     };
 
     if (!result.isValid) {
-      this.logger.warn('Relationship validation failed', { 
-        relationshipId: relationship.id, 
-        errors: result.errors 
+      this.logger.warn('Relationship validation failed', {
+        relationshipId: relationship.id,
+        errors: result.errors
       });
     }
 
@@ -274,5 +274,5 @@ export class DataMappingValidator {
         path: (value: any) => typeof value === 'string' && value.length > 0
       }
     });
- }
+  }
 }

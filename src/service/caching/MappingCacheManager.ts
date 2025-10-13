@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { GraphNode, GraphRelationship } from '../mapping/IGraphDataMappingService';
+import { GraphNode, GraphRelationship } from '../graph/mapping/IGraphDataMappingService';
 
 export interface CacheLevel {
   name: string;
@@ -52,7 +52,7 @@ export class MappingCacheManager {
     config?: Partial<MultiLevelCacheConfig>
   ) {
     this.logger = logger;
-    
+
     // 默认配置：3级缓存（内存、SSD、磁盘）
     this.config = {
       levels: [
@@ -74,9 +74,9 @@ export class MappingCacheManager {
     this.logger.info('MappingCacheManager initialized', { config: this.config });
   }
 
- /**
-   * 获取缓存项
-   */
+  /**
+    * 获取缓存项
+    */
   async get<T>(key: string): Promise<T | null> {
     // 从最高优先级（最快）的缓存开始查找
     for (const level of this.config.levels) {
@@ -84,7 +84,7 @@ export class MappingCacheManager {
       if (!levelCache) continue;
 
       const entry = levelCache.get(key);
-      
+
       if (entry) {
         // 检查是否过期
         if (Date.now() - entry.timestamp > entry.ttl) {
@@ -121,7 +121,7 @@ export class MappingCacheManager {
 
     this.logger.debug('Cache miss', { key });
     return null;
- }
+  }
 
   /**
    * 设置缓存项
@@ -201,7 +201,7 @@ export class MappingCacheManager {
       if (levelCache && levelCache.has(key)) {
         levelCache.delete(key);
         deleted = true;
-        
+
         // 更新统计信息
         if (this.config.enableStats) {
           const levelStat = this.levelStats.get(level.name);
@@ -217,7 +217,7 @@ export class MappingCacheManager {
     }
 
     return deleted;
- }
+  }
 
   /**
    * 批量获取
@@ -276,13 +276,13 @@ export class MappingCacheManager {
     return this.get<GraphRelationship[]>(`${key}_relationships`);
   }
 
- /**
-   * 缓存映射结果
-   */
+  /**
+    * 缓存映射结果
+    */
   async cacheMappingResult(
-    key: string, 
-    nodes: GraphNode[], 
-    relationships: GraphRelationship[], 
+    key: string,
+    nodes: GraphNode[],
+    relationships: GraphRelationship[],
     ttl?: number
   ): Promise<boolean> {
     const result = {
@@ -296,13 +296,13 @@ export class MappingCacheManager {
   /**
    * 获取缓存的映射结果
    */
-  async getMappingResult(key: string): Promise<{ 
-    nodes: GraphNode[]; 
-    relationships: GraphRelationship[]; 
-    timestamp: number 
+  async getMappingResult(key: string): Promise<{
+    nodes: GraphNode[];
+    relationships: GraphRelationship[];
+    timestamp: number
   } | null> {
     return this.get<{ nodes: GraphNode[]; relationships: GraphRelationship[]; timestamp: number }>(key);
- }
+  }
 
   /**
    * 清空指定级别的缓存
@@ -317,7 +317,7 @@ export class MappingCacheManager {
       }
       this.logger.info('Cleared cache level', { levelName });
     }
- }
+  }
 
   /**
    * 清空所有缓存
@@ -326,19 +326,19 @@ export class MappingCacheManager {
     for (const [levelName] of this.caches) {
       await this.clearLevel(levelName);
     }
-    
+
     // 重置统计信息
     this.stats = { hits: 0, misses: 0, evictions: 0, sets: 0 };
     for (const [levelName] of this.levelStats) {
       this.levelStats.set(levelName, { hits: 0, misses: 0, size: 0 });
     }
-    
+
     this.logger.info('Cleared all cache levels');
   }
 
- /**
-   * 获取统计信息
-   */
+  /**
+    * 获取统计信息
+    */
   async getStats(): Promise<CacheStats> {
     const totalAccesses = this.stats.hits + this.stats.misses;
     const hitRate = totalAccesses > 0 ? this.stats.hits / totalAccesses : 0;
@@ -359,23 +359,23 @@ export class MappingCacheManager {
    */
   async getKeys(): Promise<string[]> {
     const allKeys = new Set<string>();
-    
+
     for (const cache of this.caches.values()) {
       for (const key of cache.keys()) {
         allKeys.add(key);
       }
     }
-    
+
     return Array.from(allKeys);
   }
 
- /**
-   * 驱逐指定级别的缓存项
-   */
+  /**
+    * 驱逐指定级别的缓存项
+    */
   private async evictFromLevel(levelName: string): Promise<void> {
     const levelCache = this.caches.get(levelName);
     const levelConfig = this.config.levels.find(l => l.name === levelName);
-    
+
     if (!levelCache || !levelConfig) return;
 
     switch (this.config.evictionPolicy) {
@@ -383,27 +383,27 @@ export class MappingCacheManager {
         // 删除最久未使用的项（时间戳最早的）
         let oldestKey: string | null = null;
         let oldestTime = Number.MAX_VALUE;
-        
+
         for (const [key, entry] of levelCache) {
           if (entry.timestamp < oldestTime) {
             oldestTime = entry.timestamp;
             oldestKey = key;
           }
         }
-        
+
         if (oldestKey) {
           levelCache.delete(oldestKey);
           this.stats.evictions++;
-          
+
           // 更新统计信息
           const levelStat = this.levelStats.get(levelName);
           if (levelStat) {
             levelStat.size = levelCache.size;
           }
-          
-          this.logger.debug('Evicted cache entry (LRU)', { 
-            level: levelName, 
-            key: oldestKey 
+
+          this.logger.debug('Evicted cache entry (LRU)', {
+            level: levelName,
+            key: oldestKey
           });
         }
         break;
@@ -415,16 +415,16 @@ export class MappingCacheManager {
           if (firstKey) {
             levelCache.delete(firstKey);
             this.stats.evictions++;
-            
+
             // 更新统计信息
             const levelStat = this.levelStats.get(levelName);
             if (levelStat) {
               levelStat.size = levelCache.size;
             }
-            
-            this.logger.debug('Evicted cache entry (FIFO)', { 
-              level: levelName, 
-              key: firstKey 
+
+            this.logger.debug('Evicted cache entry (FIFO)', {
+              level: levelName,
+              key: firstKey
             });
           }
         }
@@ -434,27 +434,27 @@ export class MappingCacheManager {
         // 删除使用频率最低的项
         let leastFrequentKey: string | null = null;
         let leastFrequentTime = Number.MAX_VALUE; // 这里简化为使用时间戳作为频率指标
-        
+
         for (const [key, entry] of levelCache) {
           if (entry.timestamp < leastFrequentTime) {
             leastFrequentTime = entry.timestamp;
             leastFrequentKey = key;
           }
         }
-        
+
         if (leastFrequentKey) {
           levelCache.delete(leastFrequentKey);
           this.stats.evictions++;
-          
+
           // 更新统计信息
           const levelStat = this.levelStats.get(levelName);
           if (levelStat) {
             levelStat.size = levelCache.size;
           }
-          
-          this.logger.debug('Evicted cache entry (LFU)', { 
-            level: levelName, 
-            key: leastFrequentKey 
+
+          this.logger.debug('Evicted cache entry (LFU)', {
+            level: levelName,
+            key: leastFrequentKey
           });
         }
         break;

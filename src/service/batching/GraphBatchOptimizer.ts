@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { GraphNode, GraphRelationship } from '../mapping/IGraphDataMappingService';
+import { GraphNode, GraphRelationship } from '../graph/mapping/IGraphDataMappingService';
 
 export interface BatchOperation<T> {
   items: T[];
@@ -59,7 +59,7 @@ export class GraphBatchOptimizer {
         adjustmentFactor: 0.1,
         ...config
       };
-      
+
       this.logger.info('GraphBatchOptimizer initialized', { config: this.config });
     } catch (error) {
       logger.error('Failed to initialize GraphBatchOptimizer', { error: (error as Error).message, stack: (error as Error).stack });
@@ -128,10 +128,10 @@ export class GraphBatchOptimizer {
 
     // 并发处理批次
     const batchPromises: Promise<any>[] = [];
-    
+
     for (let i = 0; i < batches.length; i += concurrency) {
       const concurrentBatches = batches.slice(i, i + concurrency);
-      
+
       const concurrentPromises = concurrentBatches.map(async (batch, batchIndex) => {
         try {
           // 使用超时包装操作
@@ -140,13 +140,13 @@ export class GraphBatchOptimizer {
             timeout,
             `Batch operation timeout after ${timeout}ms`
           );
-          
+
           results.push(result);
           successfulItems.push(...batch);
-          
+
           // 记录性能数据
           this.recordPerformance(batchSize, Date.now() - startTime, batch.length);
-          
+
           this.logger.debug('Batch completed successfully', {
             batchIndex: i + batchIndex,
             batchSize: batch.length
@@ -157,7 +157,7 @@ export class GraphBatchOptimizer {
             batchSize: batch.length,
             error: (error as Error).message
           });
-          
+
           failedItems.push(...batch);
         }
       });
@@ -198,7 +198,7 @@ export class GraphBatchOptimizer {
   ): Promise<BatchResult<T>> {
     // 根据性能历史确定最佳批大小
     const optimalBatchSize = this.calculateOptimalBatchSize();
-    
+
     this.logger.debug('Executing with optimal batching', {
       itemCount: items.length,
       optimalBatchSize
@@ -210,7 +210,7 @@ export class GraphBatchOptimizer {
   /**
    * 执行图数据混合批处理（节点和关系一起处理）
    */
- async executeGraphMixedBatch(
+  async executeGraphMixedBatch(
     nodes: GraphNode[],
     relationships: GraphRelationship[],
     nodeOperation: (batch: GraphNode[]) => Promise<any>,
@@ -250,7 +250,7 @@ export class GraphBatchOptimizer {
     }
 
     const avgProcessingTime = recentHistory.reduce((sum, record) => sum + record.processingTime, 0) / recentHistory.length;
-    const avgItemsPerMs = recentHistory.reduce((sum, record) => 
+    const avgItemsPerMs = recentHistory.reduce((sum, record) =>
       sum + (record.itemsProcessed / Math.max(record.processingTime, 1)), 0) / recentHistory.length;
 
     // 根据性能阈值调整批大小

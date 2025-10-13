@@ -19,7 +19,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { IndexSyncOptions, BatchProcessingResult } from './IndexService';
 import { IGraphService } from '../graph/core/IGraphService';
-import { IGraphDataMappingService } from '../mapping/IGraphDataMappingService';
+import { IGraphDataMappingService } from '../graph/mapping/IGraphDataMappingService';
 import { GraphPersistenceResult } from '../graph/core/types';
 import { PerformanceDashboard } from '../monitoring/PerformanceDashboard';
 import { AutoOptimizationAdvisor } from '../optimization/AutoOptimizationAdvisor';
@@ -104,7 +104,7 @@ export class IndexingLogicService {
                 () => this.indexFile(projectPath, file.path),
                 `indexFile:${file.path}`
               );
-              
+
               // 记录成功结果
               results.push({
                 filePath: file.path,
@@ -115,7 +115,7 @@ export class IndexingLogicService {
             } catch (error) {
               const errorMessage = error instanceof Error ? error.message : String(error);
               this.logger.error(`Failed to index file: ${file.path}`, { error });
-              
+
               // 记录失败结果
               results.push({
                 filePath: file.path,
@@ -216,10 +216,10 @@ export class IndexingLogicService {
     try {
       // 创建文件ID
       const fileId = `file_${Buffer.from(filePath).toString('hex')}`;
-      
+
       // 简化图数据存储逻辑（暂时禁用批处理优化器）
       const mappingResult = await this.graphMappingService.mapChunksToGraphNodes(chunks, fileId);
-      
+
       // 准备图数据
       const graphData = {
         nodes: mappingResult.nodes,
@@ -233,7 +233,7 @@ export class IndexingLogicService {
         projectId = await this.projectIdManager.generateProjectId(projectPath);
       }
       const spaceName = this.projectIdManager.getSpaceName(projectId);
-      
+
       // 存储到图数据库
       const result = await this.graphService.storeChunks([graphData], {
         projectId: spaceName,
@@ -255,7 +255,7 @@ export class IndexingLogicService {
         unit: 'milliseconds',
         tags: { filePath, projectPath }
       });
-      
+
       return result || {
         success: true,
         nodesCreated: 0,
@@ -269,7 +269,7 @@ export class IndexingLogicService {
         filePath,
         error: (error as Error).message
       });
-      
+
       // 记录错误到仪表板
       await this.performanceDashboard.recordMetric({
         timestamp: Date.now(),
@@ -278,7 +278,7 @@ export class IndexingLogicService {
         unit: 'count',
         tags: { filePath, projectPath, error: (error as Error).message }
       });
-      
+
       throw error;
     }
   }
@@ -421,7 +421,7 @@ export class IndexingLogicService {
           memoryUsage: metrics.memoryUsage,
           threshold: 80
         });
-        
+
         // 记录内存警告到仪表板
         await this.performanceDashboard.recordMetric({
           timestamp: Date.now(),
@@ -457,7 +457,7 @@ export class IndexingLogicService {
 
     } catch (error) {
       this.recordError(filePath, error);
-      
+
       // 记录错误到性能仪表板
       await this.performanceDashboard.recordMetric({
         timestamp: Date.now(),
@@ -466,7 +466,7 @@ export class IndexingLogicService {
         unit: 'count',
         tags: { filePath, projectPath, error: (error as Error).message }
       });
-      
+
       this.errorHandler.handleError(
         new Error(`Failed to index file: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'IndexingLogicService', operation: 'indexFile', projectPath, filePath }

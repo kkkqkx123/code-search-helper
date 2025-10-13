@@ -110,7 +110,7 @@ import { DatabaseHealthChecker } from './infrastructure/monitoring/DatabaseHealt
 // GraphCacheService 已经从 service/graph/cache 导入，不再从 infrastructure/caching 导入
 
 // 图数据映射服务
-import { GraphDataMappingService } from './service/mapping/GraphDataMappingService';
+import { GraphDataMappingService } from './service/graph/mapping/GraphDataMappingService';
 import { VectorIndexService } from './service/index/VectorIndexService';
 
 // 项目状态管理服务
@@ -307,11 +307,11 @@ export const TYPES = {
   BackupFileProcessor: Symbol.for('BackupFileProcessor'),
   ExtensionlessFileProcessor: Symbol.for('ExtensionlessFileProcessor'),
   ProcessingGuard: Symbol.for('ProcessingGuard'),
-  
+
   // MemoryGuard 参数
   MemoryLimitMB: Symbol.for('MemoryLimitMB'),
   MemoryCheckIntervalMs: Symbol.for('MemoryCheckIntervalMs'),
-  
+
   // IgnoreRuleManager 符号
   IgnoreRuleManager: Symbol.for('IgnoreRuleManager'),
 };

@@ -50,7 +50,7 @@ import { NebulaIndexManager, INebulaIndexManager } from '../../database/nebula/N
 import { SpaceNameUtils, ISpaceNameUtils } from '../../database/nebula/SpaceNameUtils';
 
 // 图数据映射和验证服务
-import { GraphDataMappingService } from '../../service/mapping/GraphDataMappingService';
+import { GraphDataMappingService } from '../../service/graph/mapping/GraphDataMappingService';
 import { AsyncTaskQueue } from '../../service/async/AsyncTaskQueue';
 import { DataMappingValidator } from '../../service/validation/DataMappingValidator';
 import { GraphMappingCache } from '../../service/caching/GraphMappingCache';
