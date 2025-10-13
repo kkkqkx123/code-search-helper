@@ -1,27 +1,19 @@
-import { ClassSplitter as ClassSplitterInterface } from './index';
-import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, ASTNode } from '../types';
+import { BaseSplitStrategy } from './base/BaseSplitStrategy';
+import { CodeChunk, ChunkingOptions, ASTNode } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
+import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 
-export class ClassSplitter implements ClassSplitterInterface {
-  private options: Required<ChunkingOptions>;
-  private treeSitterService?: TreeSitterService;
-  private logger?: LoggerService;
+/**
+ * 类分割策略
+ * 专注于提取和分割类定义
+ */
+export class ClassSplitter extends BaseSplitStrategy {
   private complexityCalculator: ComplexityCalculator;
 
   constructor(options?: ChunkingOptions) {
-    this.options = { ...DEFAULT_CHUNKING_OPTIONS, ...options };
+    super(options);
     this.complexityCalculator = new ComplexityCalculator();
-  }
-
-  setTreeSitterService(treeSitterService: TreeSitterService): void {
-    this.treeSitterService = treeSitterService;
-  }
-
-  setLogger(logger: LoggerService): void {
-    this.logger = logger;
   }
 
   async split(
@@ -32,107 +24,33 @@ export class ClassSplitter implements ClassSplitterInterface {
     nodeTracker?: any,
     ast?: any
   ): Promise<CodeChunk[]> {
-    if (!this.treeSitterService) {
-      throw new Error('TreeSitterService is required for ClassSplitter');
-    }
-
-    // 使用传入的AST或重新解析
-    let parseResult = ast;
-    if (!parseResult) {
-      parseResult = await this.treeSitterService.parseCode(content, language);
-    }
-
-    if (parseResult && parseResult.success && parseResult.ast) {
-      return this.extractClasses(content, parseResult.ast, language, filePath, nodeTracker);
-    } else {
+    // 验证输入
+    if (!this.validateInput(content, language)) {
       return [];
     }
-  }
 
-  /**
-   * 提取类块
-   * @param content 源代码
-   * @param ast AST树
-   * @param language 编程语言
-   * @param filePath 文件路径
-   */
-  extractClasses(
-    content: string,
-    ast: any,
-    language: string,
-    filePath?: string,
-    nodeTracker?: any
-  ): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-
-    try {
-      if (!this.treeSitterService) {
-        throw new Error('TreeSitterService is required for ClassSplitter');
-      }
-
-      const classes = this.treeSitterService.extractClasses(ast);
-
-      if (!classes || classes.length === 0) {
-        return chunks;
-      }
-
-      for (const classNode of classes) {
-        // 创建增强的AST节点对象用于跟踪（支持内容哈希）
-        const astNode: ASTNode = {
-          id: ContentHashIDGenerator.generateNodeId({
-            id: `${classNode.startIndex}-${classNode.endIndex}-class`,
-            type: 'class',
-            startByte: classNode.startIndex,
-            endByte: classNode.endIndex,
-            startLine: classNode.startPosition.row,
-            endLine: classNode.endPosition.row,
-            text: this.treeSitterService.getNodeText(classNode, content)
-          }),
-          type: 'class',
-          startByte: classNode.startIndex,
-          endByte: classNode.endIndex,
-          startLine: classNode.startPosition.row,
-          endLine: classNode.endPosition.row,
-          text: this.treeSitterService.getNodeText(classNode, content),
-          contentHash: ContentHashIDGenerator.getContentHashPrefix(this.treeSitterService.getNodeText(classNode, content))
-        };
-
-        // 检查节点是否已被使用
-        if (nodeTracker && nodeTracker.isUsed(astNode)) {
-          continue; // 跳过已使用的节点
-        }
-
-        const classContent = astNode.text;
-        const location = this.treeSitterService.getNodeLocation(classNode);
-        const className = this.treeSitterService.getNodeName(classNode);
-        const complexity = this.complexityCalculator.calculate(classContent);
-
-        const metadata: CodeChunkMetadata = {
-          startLine: location.startLine,
-          endLine: location.endLine,
-          language,
-          filePath,
-          type: 'class',
-          className,
-          complexity,
-          nodeIds: [astNode.id] // 关联AST节点ID
-        };
-
-        chunks.push({
-          content: classContent,
-          metadata
-        });
-
-        // 标记节点为已使用
-        if (nodeTracker) {
-          nodeTracker.markUsed(astNode);
-        }
-      }
-    } catch (error) {
-      this.logger?.warn(`Failed to extract class chunks: ${error}`);
+    if (!this.treeSitterService) {
+      this.logger?.warn('TreeSitterService is required for ClassSplitter');
+      return [];
     }
 
-    return chunks;
+    try {
+      // 使用传入的AST或重新解析
+      let parseResult = ast;
+      if (!parseResult) {
+        parseResult = await this.treeSitterService.parseCode(content, language);
+      }
+
+      if (parseResult && parseResult.success && parseResult.ast) {
+        return this.extractClasses(content, parseResult.ast, language, filePath, nodeTracker);
+      } else {
+        this.logger?.warn('Failed to parse code for class extraction');
+        return [];
+      }
+    } catch (error) {
+      this.logger?.warn(`Class splitting failed: ${error}`);
+      return [];
+    }
   }
 
   getName(): string {
@@ -144,29 +62,271 @@ export class ClassSplitter implements ClassSplitterInterface {
   }
 
   getPriority(): number {
-    return 2; // 类分段优先级（在导入之后，函数之前）
+    return 2; // 中等优先级
   }
 
   /**
-   * 提取代码块关联的AST节点
+   * 提取类块
    */
+  private extractClasses(
+    content: string,
+    ast: any,
+    language: string,
+    filePath?: string,
+    nodeTracker?: any
+  ): CodeChunk[] {
+    const chunks: CodeChunk[] = [];
+
+    try {
+      const classes = this.treeSitterService!.extractClasses(ast);
+
+      if (!classes || classes.length === 0) {
+        return chunks;
+      }
+
+      this.logger?.debug(`Found ${classes.length} classes to process`);
+
+      for (const classNode of classes) {
+        const classChunks = this.processClassNode(classNode, content, language, filePath, nodeTracker);
+        chunks.push(...classChunks);
+      }
+
+    } catch (error) {
+      this.logger?.warn(`Failed to extract class chunks: ${error}`);
+    }
+
+    return chunks;
+  }
+
+  /**
+   * 处理单个类节点
+   */
+  private processClassNode(
+    classNode: any,
+    content: string,
+    language: string,
+    filePath?: string,
+    nodeTracker?: any
+  ): CodeChunk[] {
+    const chunks: CodeChunk[] = [];
+
+    // 获取类文本和位置信息
+    const classText = this.treeSitterService!.getNodeText(classNode, content);
+    const location = this.treeSitterService!.getNodeLocation(classNode);
+    const className = this.treeSitterService!.getNodeName(classNode);
+
+    // 验证基本信息
+    if (!location || !className) {
+      this.logger?.warn('Failed to get class location or name');
+      return chunks;
+    }
+
+    const lineCount = location.endLine - location.startLine + 1;
+    const complexity = this.complexityCalculator.calculate(classText);
+
+    // 创建AST节点对象
+    const astNode: ASTNode = this.createASTNode(classNode, classText, 'class');
+
+    // 检查节点是否已被使用
+    if (nodeTracker && nodeTracker.isUsed(astNode)) {
+      return chunks;
+    }
+
+    // 根据配置决定是否保持方法在一起
+    const keepMethodsTogether = this.options.classSpecificOptions?.keepMethodsTogether ?? true;
+
+    if (keepMethodsTogether) {
+      // 保持方法在一起，将整个类作为一个块
+      const metadata = {
+        startLine: location.startLine,
+        endLine: location.endLine,
+        language,
+        filePath,
+        type: 'class' as const,
+        className,
+        complexity,
+        nodeIds: [astNode.id],
+        lineCount
+      };
+
+      chunks.push(this.createChunk(classText, metadata));
+    } else {
+      // 分别提取类定义和方法
+      chunks.push(...this.splitClassComponents(classNode, classText, location, language, filePath, nodeTracker));
+    }
+
+    // 标记节点为已使用
+    if (nodeTracker) {
+      nodeTracker.markUsed(astNode);
+    }
+
+    return chunks;
+  }
+
+  /**
+   * 分割类组件（类定义和方法）
+   */
+  private splitClassComponents(
+    classNode: any,
+    classContent: string,
+    location: any,
+    language: string,
+    filePath?: string,
+    nodeTracker?: any
+  ): CodeChunk[] {
+    const chunks: CodeChunk[] = [];
+
+    // 首先添加类定义头
+    const classHeader = this.extractClassHeader(classNode, classContent);
+    if (classHeader) {
+      const headerMetadata = {
+        startLine: location.startLine,
+        endLine: location.startLine + classHeader.split('\n').length - 1,
+        language,
+        filePath,
+        type: 'class' as const,
+        className: this.treeSitterService!.getNodeName(classNode) || 'unknown_class',
+        complexity: this.complexityCalculator.calculate(classHeader),
+        component: 'header'
+      };
+
+      chunks.push(this.createChunk(classHeader, headerMetadata));
+    }
+
+    // 提取方法
+    const methods = this.treeSitterService!.extractMethods(classNode);
+    if (methods && methods.length > 0) {
+      for (const methodNode of methods) {
+        const methodChunks = this.processMethodNode(methodNode, classContent, language, filePath, nodeTracker);
+        chunks.push(...methodChunks);
+      }
+    }
+
+    return chunks;
+  }
+
+  /**
+   * 提取类头部定义
+   */
+  private extractClassHeader(classNode: any, classContent: string): string {
+    // 找到类名后的第一个大括号，提取到那里为止的内容
+    const lines = classContent.split('\n');
+    let braceCount = 0;
+    let headerEnd = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      braceCount += (line.match(/\{/g) || []).length;
+      braceCount -= (line.match(/\}/g) || []).length;
+
+      if (braceCount > 0) {
+        headerEnd = i;
+        break;
+      }
+    }
+
+    return lines.slice(0, headerEnd + 1).join('\n');
+  }
+
+  /**
+   * 处理方法节点
+   */
+  private processMethodNode(
+    methodNode: any,
+    classContent: string,
+    language: string,
+    filePath?: string,
+    nodeTracker?: any
+  ): CodeChunk[] {
+    const chunks: CodeChunk[] = [];
+
+    // 获取方法文本和位置信息
+    const methodText = this.treeSitterService!.getNodeText(methodNode, classContent);
+    const location = this.treeSitterService!.getNodeLocation(methodNode);
+    const methodName = this.treeSitterService!.getNodeName(methodNode);
+
+    // 验证基本信息
+    if (!location || !methodName) {
+      this.logger?.warn('Failed to get method location or name');
+      return chunks;
+    }
+
+    const lineCount = location.endLine - location.startLine + 1;
+    const complexity = this.complexityCalculator.calculate(methodText);
+
+    // 创建AST节点对象
+    const astNode: ASTNode = this.createASTNode(methodNode, methodText, 'method');
+
+    // 检查节点是否已被使用
+    if (nodeTracker && nodeTracker.isUsed(astNode)) {
+      return chunks;
+    }
+
+    // 检查方法大小是否合适
+    const maxClassSize = this.options.classSpecificOptions?.maxClassSize || 3000;
+    if (methodText.length > maxClassSize) {
+      this.logger?.warn(`Method ${methodName} exceeds maximum size, skipping`);
+      return chunks;
+    }
+
+    const metadata = {
+      startLine: location.startLine,
+      endLine: location.endLine,
+      language,
+      filePath,
+      type: 'method' as const,
+      functionName: methodName,
+      complexity,
+      nodeIds: [astNode.id],
+      lineCount,
+      className: 'parent_class' // 这里应该获取实际的类名
+    };
+
+    chunks.push(this.createChunk(methodText, metadata));
+
+    // 标记节点为已使用
+    if (nodeTracker) {
+      nodeTracker.markUsed(astNode);
+    }
+
+    return chunks;
+  }
+
+  /**
+   * 创建AST节点
+   */
+  private createASTNode(node: any, content: string, type: string, customId?: string): ASTNode {
+    const nodeId = customId || `${node.startIndex}-${node.endIndex}-${type}`;
+    
+    return {
+      id: ContentHashIDGenerator.generateNodeId({
+        id: nodeId,
+        type,
+        startByte: node.startIndex,
+        endByte: node.endIndex,
+        startLine: node.startPosition.row,
+        endLine: node.endPosition.row,
+        text: content
+      }),
+      type,
+      startByte: node.startIndex,
+      endByte: node.endIndex,
+      startLine: node.startPosition.row,
+      endLine: node.endPosition.row,
+      text: content,
+      contentHash: ContentHashIDGenerator.getContentHashPrefix(content)
+    };
+  }
+
   extractNodesFromChunk(chunk: CodeChunk, ast: any): ASTNode[] {
     if (!chunk.metadata.nodeIds || !ast) {
       return [];
     }
 
-    const nodes: ASTNode[] = [];
-    
-    // 从AST中查找与节点ID匹配的节点
     // 这里需要根据实际的AST结构实现节点查找逻辑
-    // 暂时返回空数组，实际实现需要根据Tree-sitter的AST结构来提取
-    
-    return nodes;
+    return [];
   }
 
-  /**
-   * 检查代码块是否包含已使用的节点
-   */
   hasUsedNodes(chunk: CodeChunk, nodeTracker: any, ast: any): boolean {
     if (!nodeTracker || !chunk.metadata.nodeIds) {
       return false;

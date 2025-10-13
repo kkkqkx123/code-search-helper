@@ -1,0 +1,18 @@
+src\service\parser\splitting\strategies\ClassSplitter.ts
+src\service\parser\splitting\strategies\FunctionSplitter.ts
+src\service\parser\splitting\strategies\ImportSplitter.ts
+extractNodesFromChunk
+
+src\service\parser\splitting\utils\OverlapStrategyUtils.ts
+  /**
+   * 检查语法是否有效（简化版）
+   */
+  private static isSyntacticallyValid(content: string): boolean {
+    // 简单的语法检查：括号是否平衡
+    const openBrackets = (content.match(/\(/g) || []).length;
+    const closeBrackets = (content.match(/\)/g) || []).length;
+    const openBraces = (content.match(/\{/g) || []).length;
+    const closeBraces = (content.match(/\}/g) || []).length;
+    
+    return openBrackets === closeBrackets && openBraces === closeBraces;
+  }

@@ -1,38 +1,27 @@
-import { FunctionSplitter as FunctionSplitterInterface } from './index';
-import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, ASTNode } from '../types';
+import { BaseSplitStrategy } from './base/BaseSplitStrategy';
+import { CodeChunk, ChunkingOptions, ASTNode } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
+import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 
 /**
- * 统一的函数分割器 - 合并了FunctionSplitter和EnhancedFunctionSplitter的功能
+ * 函数分割策略
+ * 专注于提取和分割函数定义
  */
-export class FunctionSplitter implements FunctionSplitterInterface {
-  private options: Required<ChunkingOptions>;
-  private treeSitterService?: TreeSitterService;
-  private logger?: LoggerService;
+export class FunctionSplitter extends BaseSplitStrategy {
   private complexityCalculator: ComplexityCalculator;
   private maxFunctionLines: number;
   private minFunctionLines: number;
   private enableSubFunctionExtraction: boolean;
 
   constructor(options?: ChunkingOptions) {
-    this.options = { ...DEFAULT_CHUNKING_OPTIONS, ...options };
+    super(options);
     this.complexityCalculator = new ComplexityCalculator();
     
     // 配置参数 - 从 functionSpecificOptions 中获取
     this.maxFunctionLines = options?.functionSpecificOptions?.maxFunctionLines || 50;
     this.minFunctionLines = options?.functionSpecificOptions?.minFunctionLines || 3;
     this.enableSubFunctionExtraction = options?.functionSpecificOptions?.enableSubFunctionExtraction ?? false;
-  }
-
-  setTreeSitterService(treeSitterService: TreeSitterService): void {
-    this.treeSitterService = treeSitterService;
-  }
-
-  setLogger(logger: LoggerService): void {
-    this.logger = logger;
   }
 
   async split(
@@ -43,32 +32,51 @@ export class FunctionSplitter implements FunctionSplitterInterface {
     nodeTracker?: any,
     ast?: any
   ): Promise<CodeChunk[]> {
+    // 验证输入
+    if (!this.validateInput(content, language)) {
+      return [];
+    }
+
     if (!this.treeSitterService) {
-      throw new Error('TreeSitterService is required for FunctionSplitter');
+      this.logger?.warn('TreeSitterService is required for FunctionSplitter');
+      return [];
     }
 
-    // 使用传入的AST或重新解析
-    let parseResult = ast;
-    if (!parseResult) {
-      parseResult = await this.treeSitterService.parseCode(content, language);
-    }
+    try {
+      // 使用传入的AST或重新解析
+      let parseResult = ast;
+      if (!parseResult) {
+        parseResult = await this.treeSitterService.parseCode(content, language);
+      }
 
-    if (parseResult && parseResult.success && parseResult.ast) {
-      return this.extractFunctions(content, parseResult.ast, language, filePath, nodeTracker);
-    } else {
+      if (parseResult && parseResult.success && parseResult.ast) {
+        return this.extractFunctions(content, parseResult.ast, language, filePath, nodeTracker);
+      } else {
+        this.logger?.warn('Failed to parse code for function extraction');
+        return [];
+      }
+    } catch (error) {
+      this.logger?.warn(`Function splitting failed: ${error}`);
       return [];
     }
   }
 
+  getName(): string {
+    return 'FunctionSplitter';
+  }
+
+  supportsLanguage(language: string): boolean {
+    return this.treeSitterService?.detectLanguage(language) !== null || false;
+  }
+
+  getPriority(): number {
+    return 2; // 中等优先级
+  }
+
   /**
-   * 提取函数块 - 支持智能分段
-   * @param content 源代码
-   * @param ast AST树
-   * @param language 编程语言
-   * @param filePath 文件路径
-   * @param nodeTracker 节点跟踪器
+   * 提取函数块
    */
-  extractFunctions(
+  private extractFunctions(
     content: string,
     ast: any,
     language: string,
@@ -78,11 +86,7 @@ export class FunctionSplitter implements FunctionSplitterInterface {
     const chunks: CodeChunk[] = [];
 
     try {
-      if (!this.treeSitterService) {
-        throw new Error('TreeSitterService is required for FunctionSplitter');
-      }
-
-      const functions = this.treeSitterService.extractFunctions(ast);
+      const functions = this.treeSitterService!.extractFunctions(ast);
 
       if (!functions || functions.length === 0) {
         return chunks;
@@ -103,7 +107,7 @@ export class FunctionSplitter implements FunctionSplitterInterface {
   }
 
   /**
-   * 处理单个函数节点 - 支持智能分段
+   * 处理单个函数节点
    */
   private processFunctionNode(
     funcNode: any,
@@ -114,75 +118,48 @@ export class FunctionSplitter implements FunctionSplitterInterface {
   ): CodeChunk[] {
     const chunks: CodeChunk[] = [];
 
-    // 检查treeSitterService是否存在
-    if (!this.treeSitterService) {
-      throw new Error('TreeSitterService is required for FunctionSplitter');
+    // 获取函数文本和位置信息
+    const funcText = this.treeSitterService!.getNodeText(funcNode, content);
+    const location = this.treeSitterService!.getNodeLocation(funcNode);
+    const functionName = this.treeSitterService!.getNodeName(funcNode);
+
+    // 验证基本信息
+    if (!location || !functionName) {
+      this.logger?.warn('Failed to get function location or name');
+      return chunks;
     }
 
-    // 获取函数文本
-    const funcText = this.treeSitterService.getNodeText(funcNode, content);
-    
-    // 创建增强的AST节点对象
-    const astNode: ASTNode = {
-      id: ContentHashIDGenerator.generateNodeId({
-        id: `${funcNode.startIndex}-${funcNode.endIndex}-function`,
-        type: 'function',
-        startByte: funcNode.startIndex,
-        endByte: funcNode.endIndex,
-        startLine: funcNode.startPosition.row,
-        endLine: funcNode.endPosition.row,
-        text: funcText
-      }),
-      type: 'function',
-      startByte: funcNode.startIndex,
-      endByte: funcNode.endIndex,
-      startLine: funcNode.startPosition.row,
-      endLine: funcNode.endPosition.row,
-      text: funcText,
-      contentHash: ContentHashIDGenerator.getContentHashPrefix(funcText)
-    };
+    const lineCount = location.endLine - location.startLine + 1;
+    const complexity = this.complexityCalculator.calculate(funcText);
+
+    // 创建AST节点对象
+    const astNode: ASTNode = this.createASTNode(funcNode, funcText, 'function');
 
     // 检查节点是否已被使用
     if (nodeTracker && nodeTracker.isUsed(astNode)) {
-      return chunks; // 跳过已使用的节点
-    }
-
-    const funcContent = astNode.text;
-    const location = this.treeSitterService.getNodeLocation(funcNode);
-    const functionName = this.treeSitterService.getNodeName(funcNode);
-    
-    // 添加空值检查
-    if (!location) {
-      this.logger?.warn('Failed to get node location');
       return chunks;
     }
-    
-    const lineCount = location.endLine - location.startLine + 1;
-    const complexity = this.complexityCalculator.calculate(funcContent);
 
     // 决策：是否需要细分这个函数？
-    if (this.shouldSplitFunction(funcContent, lineCount, complexity)) {
+    if (this.shouldSplitFunction(funcText, lineCount, complexity)) {
       // 智能分段大函数
-      const subChunks = this.splitLargeFunction(funcNode, funcContent, location, language, filePath, nodeTracker);
+      const subChunks = this.splitLargeFunction(funcNode, funcText, location, language, filePath, nodeTracker);
       chunks.push(...subChunks);
     } else {
       // 保持为单个函数块
-      const metadata: CodeChunkMetadata = {
+      const metadata = {
         startLine: location.startLine,
         endLine: location.endLine,
         language,
         filePath,
-        type: 'function',
+        type: 'function' as const,
         functionName,
         complexity,
         nodeIds: [astNode.id],
         lineCount
       };
 
-      chunks.push({
-        content: funcContent,
-        metadata
-      });
+      chunks.push(this.createChunk(funcText, metadata));
     }
 
     // 标记节点为已使用
@@ -197,18 +174,23 @@ export class FunctionSplitter implements FunctionSplitterInterface {
    * 判断是否需要对函数进行细分
    */
   private shouldSplitFunction(funcContent: string, lineCount: number, complexity: number): boolean {
-    // 基于多个因素决定是否分段
     const reasons = [];
 
     if (lineCount > this.maxFunctionLines) {
       reasons.push(`Lines: ${lineCount} > ${this.maxFunctionLines}`);
     }
 
-    if (complexity > 20) { // 复杂度阈值
+    if (complexity > 20) {
       reasons.push(`Complexity: ${complexity} > 20`);
     }
 
-    if (funcContent.split('\n').filter(line => line.trim().startsWith('if ') || line.trim().startsWith('for ') || line.trim().startsWith('switch ')).length > 5) {
+    const controlStructures = funcContent.split('\n').filter(line => 
+      line.trim().startsWith('if ') || 
+      line.trim().startsWith('for ') || 
+      line.trim().startsWith('switch ')
+    ).length;
+
+    if (controlStructures > 5) {
       reasons.push('Too many control structures');
     }
 
@@ -234,21 +216,18 @@ export class FunctionSplitter implements FunctionSplitterInterface {
   ): CodeChunk[] {
     if (!this.enableSubFunctionExtraction) {
       // 如果禁用子函数提取，返回原始函数
-      const metadata: CodeChunkMetadata = {
+      const metadata = {
         startLine: location.startLine,
         endLine: location.endLine,
         language,
         filePath,
-        type: 'function',
-        functionName: this.treeSitterService ? this.treeSitterService.getNodeName(funcNode) || 'unknown_function' : 'unknown_function',
+        type: 'function' as const,
+        functionName: this.treeSitterService!.getNodeName(funcNode) || 'unknown_function',
         complexity: this.complexityCalculator.calculate(funcContent),
         nodeIds: [`${funcNode.startIndex}-${funcNode.endIndex}-function`]
       };
 
-      return [{
-        content: funcContent,
-        metadata
-      }];
+      return [this.createChunk(funcContent, metadata)];
     }
 
     const chunks: CodeChunk[] = [];
@@ -275,39 +254,32 @@ export class FunctionSplitter implements FunctionSplitterInterface {
       if (blockContent.trim().length < 10) continue;
       
       // 创建子函数块
-      const subAstNode: ASTNode = {
-        id: `${funcNode.startIndex}-${funcNode.endIndex}-subfunction-${i}`,
-        type: 'sub_function',
-        startByte: funcNode.startIndex,
-        endByte: funcNode.endIndex,
-        startLine: location.startLine + block.startLine,
-        endLine: location.startLine + block.endLine,
-        text: blockContent,
-        contentHash: ContentHashIDGenerator.getContentHashPrefix(blockContent)
-      };
+      const subAstNode: ASTNode = this.createASTNode(
+        funcNode, 
+        blockContent, 
+        'sub_function',
+        `${funcNode.startIndex}-${funcNode.endIndex}-subfunction-${i}`
+      );
 
       // 检查是否已被使用
       if (nodeTracker && nodeTracker.isUsed(subAstNode)) {
         continue;
       }
 
-      const metadata: CodeChunkMetadata = {
+      const metadata = {
         startLine: location.startLine + block.startLine,
         endLine: location.startLine + block.endLine,
         language,
         filePath,
-        type: 'sub_function',
+        type: 'sub_function' as const,
         functionName: `block_${i}`,
         complexity: this.complexityCalculator.calculate(blockContent),
         nodeIds: [subAstNode.id],
-        parentFunction: this.treeSitterService ? this.treeSitterService.getNodeName(funcNode) || 'unknown' : 'unknown',
+        parentFunction: this.treeSitterService!.getNodeName(funcNode) || 'unknown',
         blockType: block.type
       };
 
-      chunks.push({
-        content: blockContent,
-        metadata
-      });
+      chunks.push(this.createChunk(blockContent, metadata));
 
       // 标记为已使用
       if (nodeTracker) {
@@ -317,21 +289,18 @@ export class FunctionSplitter implements FunctionSplitterInterface {
 
     // 如果没有有效的子块，返回原始函数
     if (chunks.length === 0) {
-      const metadata: CodeChunkMetadata = {
+      const metadata = {
         startLine: location.startLine,
         endLine: location.endLine,
         language,
         filePath,
-        type: 'function',
-        functionName: this.treeSitterService ? this.treeSitterService.getNodeName(funcNode) || 'unknown_function' : 'unknown_function',
+        type: 'function' as const,
+        functionName: this.treeSitterService!.getNodeName(funcNode) || 'unknown_function',
         complexity: this.complexityCalculator.calculate(funcContent),
         nodeIds: [`${funcNode.startIndex}-${funcNode.endIndex}-function`]
       };
 
-      chunks.push({
-        content: funcContent,
-        metadata
-      });
+      chunks.push(this.createChunk(funcContent, metadata));
     }
 
     return chunks;
@@ -344,7 +313,7 @@ export class FunctionSplitter implements FunctionSplitterInterface {
     const blocks = [];
     let currentBlockStart = 0;
     let braceLevel = 0;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       
@@ -389,7 +358,7 @@ export class FunctionSplitter implements FunctionSplitterInterface {
     const blocks = [];
     let inCommentBlock = false;
     let commentStart = 0;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
@@ -420,7 +389,7 @@ export class FunctionSplitter implements FunctionSplitterInterface {
     const blocks = [];
     let currentComplexity = 0;
     let blockStart = 0;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
@@ -482,38 +451,47 @@ export class FunctionSplitter implements FunctionSplitterInterface {
     return mergedBlocks;
   }
 
-  getName(): string {
-    return 'FunctionSplitter';
-  }
-
-  supportsLanguage(language: string): boolean {
-    return this.treeSitterService?.detectLanguage(language) !== null || false;
-  }
-
-  getPriority(): number {
-    return 2; // 函数分段优先级（中等优先级）
-  }
-
   /**
-   * 提取代码块关联的AST节点
+   * 创建AST节点
    */
+  private createASTNode(
+    node: any, 
+    content: string, 
+    type: string, 
+    customId?: string
+  ): ASTNode {
+    const nodeId = customId || `${node.startIndex}-${node.endIndex}-${type}`;
+    
+    return {
+      id: ContentHashIDGenerator.generateNodeId({
+        id: nodeId,
+        type,
+        startByte: node.startIndex,
+        endByte: node.endIndex,
+        startLine: node.startPosition.row,
+        endLine: node.endPosition.row,
+        text: content
+      }),
+      type,
+      startByte: node.startIndex,
+      endByte: node.endIndex,
+      startLine: node.startPosition.row,
+      endLine: node.endPosition.row,
+      text: content,
+      contentHash: ContentHashIDGenerator.getContentHashPrefix(content)
+    };
+  }
+
   extractNodesFromChunk(chunk: CodeChunk, ast: any): ASTNode[] {
     if (!chunk.metadata.nodeIds || !ast) {
       return [];
     }
 
-    const nodes: ASTNode[] = [];
-    
-    // 从AST中查找与节点ID匹配的节点
     // 这里需要根据实际的AST结构实现节点查找逻辑
     // 暂时返回空数组，实际实现需要根据Tree-sitter的AST结构来提取
-    
-    return nodes;
+    return [];
   }
 
-  /**
-   * 检查代码块是否包含已使用的节点
-   */
   hasUsedNodes(chunk: CodeChunk, nodeTracker: any, ast: any): boolean {
     if (!nodeTracker || !chunk.metadata.nodeIds) {
       return false;
