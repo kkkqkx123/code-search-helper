@@ -14,6 +14,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { TYPES } from '../../../../types';
 import { TreeSitterLanguageDetector } from '../language-detection/TreeSitterLanguageDetector';
+import { languageExtensionMap } from '../../utils';
 
 export interface ParserLanguage {
   name: string;
@@ -50,6 +51,7 @@ export class TreeSitterCoreService {
     minParseTime: Number.MAX_VALUE,
   };
   private languageDetector: TreeSitterLanguageDetector;
+  private extensionMap = languageExtensionMap;
 
   constructor() {
     this.languageDetector = new TreeSitterLanguageDetector();
@@ -58,13 +60,16 @@ export class TreeSitterCoreService {
 
   private initializeParsers(): void {
     try {
+      // 使用公共的扩展名映射来获取支持的扩展名
+      const supportedExtensions = this.extensionMap.getAllSupportedLanguages();
+
       // Initialize TypeScript parser
       const tsParser = new Parser();
       tsParser.setLanguage(TypeScript.typescript as any);
       this.parsers.set('typescript', {
         name: 'TypeScript',
         parser: tsParser,
-        fileExtensions: ['.ts', '.tsx'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('typescript'),
         supported: true,
       });
 
@@ -74,7 +79,7 @@ export class TreeSitterCoreService {
       this.parsers.set('javascript', {
         name: 'JavaScript',
         parser: jsParser,
-        fileExtensions: ['.js', '.jsx'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('javascript'),
         supported: true,
       });
 
@@ -84,7 +89,7 @@ export class TreeSitterCoreService {
       this.parsers.set('python', {
         name: 'Python',
         parser: pythonParser,
-        fileExtensions: ['.py'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('python'),
         supported: true,
       });
 
@@ -94,7 +99,7 @@ export class TreeSitterCoreService {
       this.parsers.set('java', {
         name: 'Java',
         parser: javaParser,
-        fileExtensions: ['.java'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('java'),
         supported: true,
       });
 
@@ -104,7 +109,7 @@ export class TreeSitterCoreService {
       this.parsers.set('go', {
         name: 'Go',
         parser: goParser,
-        fileExtensions: ['.go'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('go'),
         supported: true,
       });
 
@@ -114,7 +119,7 @@ export class TreeSitterCoreService {
       this.parsers.set('rust', {
         name: 'Rust',
         parser: rustParser,
-        fileExtensions: ['.rs'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('rust'),
         supported: true,
       });
 
@@ -124,7 +129,7 @@ export class TreeSitterCoreService {
       this.parsers.set('cpp', {
         name: 'C++',
         parser: cppParser,
-        fileExtensions: ['.cpp', '.cc', '.cxx', '.c++', '.h', '.hpp'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('cpp'),
         supported: true,
       });
 
@@ -134,7 +139,7 @@ export class TreeSitterCoreService {
       this.parsers.set('c', {
         name: 'C',
         parser: cParser,
-        fileExtensions: ['.c', '.h'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('c'),
         supported: true,
       });
 
@@ -142,7 +147,7 @@ export class TreeSitterCoreService {
       this.parsers.set('csharp', {
         name: 'C#',
         parser: null, // Will be implemented later
-        fileExtensions: ['.cs'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('csharp'),
         supported: false,
       });
 
@@ -150,7 +155,7 @@ export class TreeSitterCoreService {
       this.parsers.set('scala', {
         name: 'Scala',
         parser: null, // Will be implemented later
-        fileExtensions: ['.scala'],
+        fileExtensions: this.extensionMap.getExtensionsByLanguage('scala'),
         supported: false,
       });
 
@@ -519,5 +524,30 @@ export class TreeSitterCoreService {
 
     traverse(ast);
     return exports;
+  }
+
+  /**
+   * 获取支持的语言扩展名映射
+   * @returns 语言到扩展名的映射
+   */
+  getLanguageExtensionMap(): Map<string, string[]> {
+    const map = new Map<string, string[]>();
+    
+    this.parsers.forEach((parser, language) => {
+      if (parser.supported) {
+        map.set(language, parser.fileExtensions);
+      }
+    });
+    
+    return map;
+  }
+
+  /**
+   * 检查语言是否支持
+   * @param language 语言名称
+   * @returns 是否支持
+   */
+  isLanguageSupported(language: string): boolean {
+    return this.languageDetector.isLanguageSupported(language, this.parsers);
   }
 }

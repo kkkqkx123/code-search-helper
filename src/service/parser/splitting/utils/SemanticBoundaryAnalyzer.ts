@@ -1,4 +1,5 @@
 import { BalancedChunker } from '../BalancedChunker';
+import { languageWeightsProvider, structureDetector } from '../../utils';
 
 export interface BoundaryScore {
   score: number; // 0-1之间的分数，越高越适合作为边界
@@ -7,12 +8,12 @@ export interface BoundaryScore {
     semantic: boolean;
     logical: boolean;
     comment: boolean;
- };
+  };
 }
 
 export interface LanguageWeights {
   syntactic: number;
- function: number;
+  function: number;
   class: number;
   method: number;
   import: number;
@@ -29,39 +30,16 @@ export interface PreAnalysisResult {
   estimatedComplexity: number;
 }
 
-const LANGUAGE_WEIGHTS: Record<string, LanguageWeights> = {
-  typescript: {
-    syntactic: 0.8, function: 0.9, class: 0.9, method: 0.8,
-    import: 0.7, logical: 0.6, comment: 0.4
-  },
-  python: {
-    syntactic: 0.7, function: 0.9, class: 0.9, method: 0.8,
-    import: 0.8, logical: 0.7, comment: 0.5
-  },
-  javascript: {
-    syntactic: 0.8, function: 0.9, class: 0.9, method: 0.8,
-    import: 0.7, logical: 0.6, comment: 0.4
-  },
-  java: {
-    syntactic: 0.8, function: 0.9, class: 0.9, method: 0.8,
-    import: 0.8, logical: 0.5, comment: 0.4
-  },
-  go: {
-    syntactic: 0.7, function: 0.9, class: 0.7, method: 0.7,
-    import: 0.8, logical: 0.6, comment: 0.4
-  },
-  rust: {
-    syntactic: 0.8, function: 0.9, class: 0.7, method: 0.8,
-    import: 0.7, logical: 0.6, comment: 0.4
-  },
-  default: {
-    syntactic: 0.7, function: 0.8, class: 0.8, method: 0.7,
-    import: 0.7, logical: 0.6, comment: 0.4
-  }
-};
-
+/**
+ * 语义边界分析器
+ * 负责分析代码边界，确定最佳的分割点
+ * 
+ * 重构完成：此类现在完全使用公共工具类，所有旧实现已移除
+ */
 export class SemanticBoundaryAnalyzer {
   private balancedChunker: BalancedChunker;
+  private weightsProvider = languageWeightsProvider;
+  private structureDetector = structureDetector;
 
   constructor() {
     this.balancedChunker = new BalancedChunker();
@@ -70,10 +48,16 @@ export class SemanticBoundaryAnalyzer {
   /**
    * 计算行作为分割边界的合适度
    * 返回 0-1 的分数，越高越适合作为边界
+   * @param line 代码行
+   * @param context 上下文行数组
+   * @param language 编程语言名称
+   * @returns 边界分数
    */
   calculateBoundaryScore(line: string, context: string[], language: string): BoundaryScore {
+    // 使用公共的权重配置
+    const weights = this.weightsProvider.getWeights(language);
+    
     let score = 0;
-    const weights = this.getLanguageSpecificWeights(language);
     
     // 1. 基础语法完整性检查 (权重: 0.3)
     if (this.isSyntacticallySafe(line)) {
@@ -105,10 +89,11 @@ export class SemanticBoundaryAnalyzer {
     };
   }
 
-  private getLanguageSpecificWeights(language: string): LanguageWeights {
-    return LANGUAGE_WEIGHTS[language] || LANGUAGE_WEIGHTS.default;
-  }
-
+  /**
+   * 检查是否语法安全
+   * @param line 代码行
+   * @returns 是否语法安全
+   */
   private isSyntacticallySafe(line: string): boolean {
     // 检查是否有完整的语法结构，例如闭合的括号、花括号等
     const trimmedLine = line.trim();
@@ -127,38 +112,56 @@ export class SemanticBoundaryAnalyzer {
     return isBalanced;
   }
 
+  /**
+   * 检查是否为函数结束
+   * @param line 代码行
+   * @returns 是否为函数结束
+   */
   private isFunctionEnd(line: string): boolean {
-    const trimmedLine = line.trim();
-    // 检查是否是函数结束的大括号
-    return /^\s*}\s*(\/\/.*)?$/.test(trimmedLine) || 
-           /^\s*}\s*;?\s*$/.test(trimmedLine) ||
-           /.*=>\s*\{.*\}\s*;?$/.test(line) ||  // 箭头函数
-           /.*function.*\)\s*\{.*\}\s*;?$/.test(line); // 内联函数
+    return this.structureDetector.isFunctionEnd(line);
   }
 
- private isClassEnd(line: string): boolean {
-    const trimmedLine = line.trim();
-    return /^\s*}\s*(\/\/.*)?$/.test(trimmedLine) || 
-           /^\s*}\s*;?\s*$/.test(trimmedLine);
+  /**
+   * 检查是否为类结束
+   * @param line 代码行
+   * @returns 是否为类结束
+   */
+  private isClassEnd(line: string): boolean {
+    return this.structureDetector.isClassEnd(line);
   }
 
+  /**
+   * 检查是否为方法结束
+   * @param line 代码行
+   * @returns 是否为方法结束
+   */
   private isMethodEnd(line: string): boolean {
-    const trimmedLine = line.trim();
-    return /^\s*}\s*(\/\/.*)?$/.test(trimmedLine);
+    return this.structureDetector.isMethodEnd(line);
   }
 
+  /**
+   * 检查是否为导入结束
+   * @param line 代码行
+   * @returns 是否为导入结束
+   */
   private isImportEnd(line: string): boolean {
-    const trimmedLine = line.trim();
-    // 检查是否是导入语句
-    return /^import\s+.*$/.test(trimmedLine) || 
-           /^from\s+.*$/.test(trimmedLine) ||
-           /^export\s+.*$/.test(trimmedLine);
+    return this.structureDetector.isImportEnd(line);
   }
 
+  /**
+   * 检查是否为空行
+   * @param line 代码行
+   * @returns 是否为空行
+   */
   private isEmptyLine(line: string): boolean {
-    return line.trim() === '';
+    return this.structureDetector.isEmptyLine(line);
   }
 
+  /**
+   * 检查是否有逻辑分离
+   * @param context 上下文行数组
+   * @returns 是否有逻辑分离
+   */
   private hasLogicalSeparation(context: string[]): boolean {
     // 检查上下文中的逻辑分离
     if (context.length < 3) return false;
@@ -172,39 +175,46 @@ export class SemanticBoundaryAnalyzer {
     if (currentLine.trim() !== '') return false;
     
     // 对于测试用例，我们需要检查是否是变量声明的分离
-    const isPrevVarDeclaration = prevLine.trim().startsWith('const ') || prevLine.trim().startsWith('let ') || prevLine.trim().startsWith('var ');
-    const isNextVarDeclaration = nextLine.trim().startsWith('const ') || nextLine.trim().startsWith('let ') || nextLine.trim().startsWith('var ');
+    const isPrevVarDeclaration = this.structureDetector.isVariableDeclaration(prevLine);
+    const isNextVarDeclaration = this.structureDetector.isVariableDeclaration(nextLine);
     
     return (this.isFunctionStart(prevLine) || this.isClassStart(prevLine) ||
            this.isFunctionStart(nextLine) || this.isClassStart(nextLine)) ||
            (isPrevVarDeclaration && isNextVarDeclaration);
   }
 
+  /**
+   * 检查是否为函数开始
+   * @param line 代码行
+   * @returns 是否为函数开始
+   */
   private isFunctionStart(line: string): boolean {
-    const trimmedLine = line.trim();
-    return /^function\s+\w+\s*\(/.test(trimmedLine) ||
-           /^\w+\s*=\s*\([^)]*\)\s*=>/.test(trimmedLine) ||
-           /^\w+\s*\([^)]*\)\s*:\s*\w+\s*=>/.test(trimmedLine) ||
-           /^.*=>\s*[^{]/.test(trimmedLine) ||
-           /^\s*async\s+function/.test(trimmedLine) ||
-           /^\s*static\s+\w+\s*\(/.test(trimmedLine) ||
-           /^\s*\w+\s*\([^)]*\)\s*\{/.test(trimmedLine); // method declaration
+    return this.structureDetector.isFunctionStart(line);
   }
 
+  /**
+   * 检查是否为类开始
+   * @param line 代码行
+   * @returns 是否为类开始
+   */
   private isClassStart(line: string): boolean {
-    const trimmedLine = line.trim();
-    return /^class\s+\w+/.test(trimmedLine) ||
-           /^export\s+default\s+class/.test(trimmedLine) ||
-           /^export\s+class/.test(trimmedLine);
+    return this.structureDetector.isClassStart(line);
   }
 
+  /**
+   * 检查是否为注释块结束
+   * @param line 代码行
+   * @returns 是否为注释块结束
+   */
   private isCommentBlockEnd(line: string): boolean {
-    const trimmedLine = line.trim();
-    return /^\/\/.*$/.test(trimmedLine) ||
-           /^\s*\*\s.*$/.test(trimmedLine) || // JSDoc-style comment
-           /^\/\*.*\*\/$/.test(trimmedLine);    // Inline block comment
+    return this.structureDetector.isCommentBlockEnd(line);
   }
 
+  /**
+   * 检查是否为语义边界
+   * @param line 代码行
+   * @returns 是否为语义边界
+   */
   private isSemanticBoundary(line: string): boolean {
     return this.isFunctionEnd(line) || 
            this.isClassEnd(line) || 
@@ -212,11 +222,57 @@ export class SemanticBoundaryAnalyzer {
            this.isImportEnd(line);
   }
 
- private isLogicalBoundary(line: string, context: string[]): boolean {
+  /**
+   * 检查是否为逻辑边界
+   * @param line 代码行
+   * @param context 上下文行数组
+   * @returns 是否为逻辑边界
+   */
+  private isLogicalBoundary(line: string, context: string[]): boolean {
     return this.isEmptyLine(line) && this.hasLogicalSeparation(context);
   }
 
+  /**
+   * 检查是否为注释边界
+   * @param line 代码行
+   * @returns 是否为注释边界
+   */
   private isCommentBoundary(line: string): boolean {
     return this.isCommentBlockEnd(line);
- }
+  }
+
+  /**
+   * 设置自定义权重配置
+   * @param language 编程语言名称
+   * @param weights 权重配置
+   */
+  setCustomWeights(language: string, weights: LanguageWeights): void {
+    this.weightsProvider.setCustomWeights(language, weights);
+  }
+
+  /**
+   * 清除自定义权重配置
+   * @param language 编程语言名称，如果不提供则清除所有
+   */
+  clearCustomWeights(language?: string): void {
+    this.weightsProvider.clearCustomWeights(language);
+  }
+
+  /**
+   * 获取语言权重配置
+   * @param language 编程语言名称
+   * @returns 权重配置
+   */
+  getWeights(language: string): LanguageWeights {
+    return this.weightsProvider.getWeights(language);
+  }
+
+  /**
+   * 检测代码结构类型
+   * @param line 代码行
+   * @returns 结构类型名称或null
+   */
+  detectStructureType(line: string): string | null {
+    return this.structureDetector.detectStructureType(line);
+  }
 }

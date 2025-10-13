@@ -1,13 +1,24 @@
 import { ParserLanguage } from '../parse/TreeSitterCoreService';
-import { LanguageDetectionResult } from './LanguageDetector';
+import { LanguageDetectionResult } from './types';
+import { languageExtensionMap, fileUtils, languageFeatureDetector } from '../../utils';
 
 /**
  * TreeSitter专用的语言检测器
  * 扩展基础语言检测器，增加TreeSitter特定的检测逻辑
+ * 
+ * 重构说明：此类现在使用公共工具类，减少了重复代码
  */
 export class TreeSitterLanguageDetector {
+  private extensionMap = languageExtensionMap;
+  private fileUtils = fileUtils;
+  private featureDetector = languageFeatureDetector;
+
   /**
    * 基于TreeSitter解析器配置的语言检测
+   * @param filePath 文件路径
+   * @param parsers 解析器映射
+   * @param content 代码内容（可选）
+   * @returns 解析器语言或null
    */
   detectLanguageByParserConfig(
     filePath: string, 
@@ -49,111 +60,37 @@ export class TreeSitterLanguageDetector {
 
   /**
    * 安全的文件扩展名提取
+   * @param filePath 文件路径
+   * @returns 文件扩展名
    */
   private extractFileExtension(filePath: string): string {
-    try {
-      // 处理路径中的特殊字符和大小写
-      const basename = filePath.split(/[\\/]/).pop()?.toLowerCase() || '';
-      const lastDot = basename.lastIndexOf('.');
-
-      // 确保扩展名有效
-      if (lastDot <= 0 || lastDot === basename.length - 1) {
-        return '';
-      }
-
-      return basename.substring(lastDot);
-    } catch (error) {
-      console.error('Failed to extract file extension:', error);
-      return '';
-    }
+    return this.fileUtils.extractFileExtension(filePath);
   }
 
   /**
    * 基于扩展名获取语言键
+   * @param ext 文件扩展名
+   * @returns 语言键
    */
   private getLanguageKeyByExtension(ext: string): string {
-    const extToLangMap: Map<string, string> = new Map([
-      ['.ts', 'typescript'],
-      ['.tsx', 'typescript'],
-      ['.js', 'javascript'],
-      ['.jsx', 'javascript'],
-      ['.py', 'python'],
-      ['.java', 'java'],
-      ['.go', 'go'],
-      ['.rs', 'rust'],
-      ['.cpp', 'cpp'],
-      ['.cc', 'cpp'],
-      ['.cxx', 'cpp'],
-      ['.c++', 'cpp'],
-      ['.h', 'c'],  // C头文件
-      ['.hpp', 'cpp'], // C++头文件
-      ['.c', 'c'],
-      ['.cs', 'csharp'],
-      ['.scala', 'scala'],
-      ['.txt', 'text'],// 文本文件，需要内容检测
-      ['.md', 'markdown'],// markdown文件，需要内容检测
-    ]);
-
-    return extToLangMap.get(ext) || '';
+    return this.extensionMap.getLanguageByExtension(ext) || '';
   }
 
   /**
    * 基于内容验证语言
+   * @param content 代码内容
+   * @param detectedLanguage 检测到的语言
+   * @returns 验证后的语言或null
    */
   private validateLanguageByContent(content: string, detectedLanguage: ParserLanguage): ParserLanguage | null {
     try {
       const contentLower = content.trim().toLowerCase();
 
-      // Go语言特征检测
-      if (detectedLanguage.name === 'Go') {
-        const goPatterns = [
-          /package\s+\w+/,
-          /import\s+["'][\w\/]+["']/,
-          /func\s+\w+\s*\(/,
-          /type\s+\w+\s+struct\s*{/,
-          /interface\s*{/,
-          /chan\s+\w+/,
-          /go\s+\w+\(/
-        ];
-
-        const goScore = goPatterns.filter(pattern => pattern.test(contentLower)).length;
-        if (goScore >= 2) {  // 至少匹配2个Go特征
-          return detectedLanguage;
-        }
-      }
-
-      // TypeScript/JavaScript特征检测
-      if (['TypeScript', 'JavaScript'].includes(detectedLanguage.name)) {
-        const jsPatterns = [
-          /(const|let|var)\s+\w+/,
-          /function\s+\w+\s*\(/,
-          /=>/,
-          /import\s+.*from\s+/,
-          /export\s+(default\s+)?(const|function|class)/,
-          /console\.log/,
-          /document\.getElementById/
-        ];
-
-        const jsScore = jsPatterns.filter(pattern => pattern.test(contentLower)).length;
-        if (jsScore >= 2) {
-          return detectedLanguage;
-        }
-      }
-
-      // Python特征检测
-      if (detectedLanguage.name === 'Python') {
-        const pyPatterns = [
-          /def\s+\w+\s*\(/,
-          /import\s+\w+/,
-          /from\s+\w+\s+import/,
-          /class\s+\w+.*:/,
-          /if\s+__name__\s*==\s*["']__main__["']/
-        ];
-
-        const pyScore = pyPatterns.filter(pattern => pattern.test(contentLower)).length;
-        if (pyScore >= 2) {
-          return detectedLanguage;
-        }
+      // 使用公共的特征检测器验证
+      const isValid = this.featureDetector.validateLanguageDetection(content, detectedLanguage.name.toLowerCase());
+      
+      if (isValid) {
+        return detectedLanguage;
       }
 
       return null; // 验证失败
@@ -165,100 +102,19 @@ export class TreeSitterLanguageDetector {
 
   /**
    * 基于内容特征检测语言
+   * @param content 代码内容
+   * @param parsers 解析器映射
+   * @returns 检测到的语言或null
    */
   private detectLanguageByContentFeatures(content: string, parsers: Map<string, ParserLanguage>): ParserLanguage | null {
     try {
       const contentLower = content.trim().toLowerCase();
 
-      // Go特征检测 - 增强版本
-      const goPatterns = [
-        /package\s+\w+/,                    // package声明
-        /import\s+["'][\w\/]+["']/,          // import语句
-        /func\s+\w+\s*\(/,                   // 函数定义
-        /type\s+\w+\s+struct\s*{/,           // 结构体定义
-        /func\s+\(.*\)\s*\w+\s*{/,           // 方法定义
-        /chan\s+\w+/,                        // channel
-        /go\s+\w+\(/,                        // goroutine
-        /interface\s*{/,                     // 接口定义
-        /:=\s*make\s*\(/,                    // make函数
-        /fmt\.(Print|Scan)/,                 // fmt包使用
-        /len\s*\(/,                          // len函数
-        /append\s*\(/                        // append函数
-      ];
-      const goScore = goPatterns.filter(pattern => pattern.test(contentLower)).length;
-      if (goScore >= 3) {  // 降低阈值，提高检测灵敏度
-        return parsers.get('go') || null;
-      }
-
-      // Python特征检测 - 增强版本
-      const pyPatterns = [
-        /def\s+\w+\s*\(/,                     // 函数定义
-        /import\s+\w+/,                       // import语句
-        /from\s+\w+\s+import/,                // from import语句
-        /class\s+\w+.*:/,                     // 类定义
-        /if\s+.*:/,                           // if语句
-        /for\s+\w+\s+in\s+.*:/,               // for循环
-        /while\s+.*:/,                        // while循环
-        /try:/,                               // try语句
-        /with\s+.*as\s+\w+:/,                 // with语句
-        /print\s*\(/,                         // print语句
-        /if\s+__name__\s*==\s*["']__main__["']/ // main检查
-      ];
-      const pyScore = pyPatterns.filter(pattern => pattern.test(contentLower)).length;
-      if (pyScore >= 3) {
-        return parsers.get('python') || null;
-      }
-
-      // TypeScript/JavaScript特征检测 - 增强版本
-      const jsPatterns = [
-        /(const|let|var)\s+\w+/,              // 变量声明
-        /function\s+\w+\s*\(/,                // 函数定义
-        /=>/,                                 // 箭头函数
-        /import\s+.*from\s+/,                // import语句
-        /export\s+(default\s+)?\w+/,         // export语句
-        /class\s+\w+/,                        // 类定义
-        /console\.(log|error|warn|info)/,    // console调用
-        /document\.(getElementById|querySelector)/, // DOM操作
-        /require\s*\(/,                       // CommonJS
-        /window\./,                           // window对象
-        /async\s+function/                    // async函数
-      ];
-      const jsScore = jsPatterns.filter(pattern => pattern.test(contentLower)).length;
-      if (jsScore >= 3) {
-        return parsers.get('typescript') || null;
-      }
-
-      // Java特征检测
-      const javaPatterns = [
-        /public\s+class\s+\w+/,               // 公共类
-        /private\s+\w+\s+\w+/,                // 私有字段
-        /public\s+static\s+void\s+main/,     // main方法
-        /import\s+java\./,                    // Java导入
-        /System\.out\.println/,               // 输出语句
-        /new\s+\w+\(/,                        // 对象创建
-        /@Override/,                          // 注解
-        /throws\s+\w+/                        // 异常声明
-      ];
-      const javaScore = javaPatterns.filter(pattern => pattern.test(contentLower)).length;
-      if (javaScore >= 3) {
-        return parsers.get('java') || null;
-      }
-
-      // C/C++特征检测
-      const cppPatterns = [
-        /#include\s+[<"]/,                    // 头文件包含
-        /int\s+main\s*\(/,                    // main函数
-        /std::\w+/,                           // std命名空间
-        /cout\s*<</,                          // 输出流
-        /cin\s*>>/,                           // 输入流
-        /using\s+namespace\s+std/,            // using声明
-        /class\s+\w+/,                        // 类定义
-        /template\s*</,                       // 模板
-        /#define\s+\w+/                        // 宏定义
-      ];
-      const cppScore = cppPatterns.filter(pattern => pattern.test(contentLower)).length;
-      if (cppScore >= 3) {
-        return parsers.get('cpp') || null;
+      // 使用公共的特征检测器进行检测
+      const detectionResult = this.featureDetector.detectLanguageByContent(contentLower);
+      
+      if (detectionResult.language && detectionResult.confidence > 0.5) {
+        return parsers.get(detectionResult.language) || null;
       }
 
       return null;
@@ -270,6 +126,8 @@ export class TreeSitterLanguageDetector {
 
   /**
    * 创建扩展名到TreeSitter解析器的映射
+   * @param parsers 解析器映射
+   * @returns 扩展名到解析器的映射
    */
   createExtensionToParserMap(parsers: Map<string, ParserLanguage>): Map<string, ParserLanguage> {
     const extMap = new Map<string, ParserLanguage>();
@@ -287,6 +145,9 @@ export class TreeSitterLanguageDetector {
 
   /**
    * 检查语言是否被TreeSitter支持
+   * @param language 语言名称
+   * @param parsers 解析器映射
+   * @returns 是否支持
    */
   isLanguageSupported(language: string, parsers: Map<string, ParserLanguage>): boolean {
     const parser = parsers.get(language.toLowerCase());
@@ -295,8 +156,20 @@ export class TreeSitterLanguageDetector {
 
   /**
    * 获取所有支持的语言列表
+   * @param parsers 解析器映射
+   * @returns 支持的语言列表
    */
   getSupportedLanguages(parsers: Map<string, ParserLanguage>): ParserLanguage[] {
     return Array.from(parsers.values()).filter(lang => lang.supported);
+  }
+
+  /**
+   * 验证语言检测结果
+   * @param content 代码内容
+   * @param detectedLanguage 检测到的语言
+   * @returns 验证结果
+   */
+  validateLanguageDetection(content: string, detectedLanguage: string): boolean {
+    return this.featureDetector.validateLanguageDetection(content, detectedLanguage);
   }
 }
