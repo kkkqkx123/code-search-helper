@@ -244,6 +244,31 @@ export class SyntaxPatternMatcher implements ISyntaxPatternMatcher {
   }
 
   /**
+   * 检测TypeScript特有特征
+   * @param content 代码内容
+   * @returns 匹配的特征数量
+   */
+  detectTypeScriptSpecificFeatures(content: string): number {
+    const tsSpecificPatterns = [
+      /\binterface\s+\w+/,
+      /\btype\s+\w+\s*=/,
+      /\benum\s+\w+/,
+      /\bdeclare\s+/,
+      /\:\s*\w+\s*(\[\]|\&amp;|\|)/, // 类型注解
+      /\:\s*\w+\s*=\s*\w+/, // 类型注解与默认值
+      /\bextends\s+\w+\s*&lt;\w+&gt;/, // 泛型继承
+      /\bimplements\s+\w+/,
+      /\breadonly\s+\w+/,
+      /\babstract\s+class/,
+      /\bprivate\s+\w+/,
+      /\bprotected\s+\w+/,
+      /\bpublic\s+\w+/
+    ];
+    
+    return this.countPatternMatches(content, tsSpecificPatterns);
+  }
+
+  /**
    * 根据内容检测语言
    * @param content 代码内容
    * @returns 语言检测结果
@@ -260,16 +285,22 @@ export class SyntaxPatternMatcher implements ISyntaxPatternMatcher {
     const contentLower = content.substring(0, Math.min(200, content.length)).toLowerCase();
     const languageScores: Array<{ language: string; score: number }> = [];
 
-    // 计算各语言的匹配分数
-    languageScores.push({
-      language: 'typescript',
-      score: this.detectTypeScriptFeatures(contentLower)
-    });
+    // 首先检测TypeScript特定特征
+    const tsSpecificScore = this.detectTypeScriptSpecificFeatures(contentLower);
+    const jsScore = this.detectJavaScriptFeatures(contentLower);
 
-    languageScores.push({
-      language: 'javascript',
-      score: this.detectJavaScriptFeatures(contentLower)
-    });
+    // 如果有TypeScript特定特征，优先认为是TypeScript
+    if (tsSpecificScore > 0) {
+      languageScores.push({
+        language: 'typescript',
+        score: tsSpecificScore + jsScore // TypeScript包含JavaScript特征
+      });
+    } else {
+      languageScores.push({
+        language: 'javascript',
+        score: jsScore
+      });
+    }
 
     languageScores.push({
       language: 'python',
@@ -308,7 +339,7 @@ export class SyntaxPatternMatcher implements ISyntaxPatternMatcher {
     );
 
     // 如果最高分太低，返回未识别
-    if (topScore.score < 2) {
+    if (topScore.score < 1) {
       return {
         language: undefined,
         confidence: 0.0,

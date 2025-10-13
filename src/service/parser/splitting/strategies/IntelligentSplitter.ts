@@ -7,7 +7,7 @@ import { SyntaxValidator } from '../utils/SyntaxValidator';
 import { SemanticBoundaryAnalyzer } from '../utils/SemanticBoundaryAnalyzer';
 import { UnifiedOverlapCalculator } from '../utils/UnifiedOverlapCalculator';
 import { LanguageSpecificConfigManager } from '../config/LanguageSpecificConfigManager';
-import { ChunkingPerformanceOptimizer } from '../utils/ChunkingPerformanceOptimizer';
+import { ChunkingPerformanceOptimizer } from '../utils/performance/ChunkingPerformanceOptimizer';
 
 export class IntelligentSplitter implements IntelligentSplitterInterface {
   private options: Required<ChunkingOptions>;

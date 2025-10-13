@@ -6,10 +6,10 @@ import { BalancedChunker } from '../BalancedChunker';
 import { ContextAwareOverlapOptimizer, OverlapResult } from './ContextAwareOverlapOptimizer';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
-import { SimilarityDetector } from './SimilarityDetector';
+import { SimilarityDetector } from './similarity/SimilarityDetector';
 import { CodeQualityAssessmentUtils } from './CodeQualityAssessmentUtils';
 import { OverlapStrategyUtils } from './OverlapStrategyUtils';
-import { ChunkSimilarityUtils } from './ChunkSimilarityUtils';
+import { ChunkSimilarityUtils } from './chunk-processing/ChunkSimilarityUtils';
 
 export type OverlapStrategy = 'semantic' | 'syntactic' | 'size-based' | 'hybrid' | 'ast-boundary' | 'node-aware' | 'smart-deduplication';
 

@@ -2,6 +2,9 @@
  * Parser工具类统一导出
  */
 
+import { languageUtils } from './language';
+import { syntaxUtils } from './syntax';
+
 // 语言相关工具
 export * from './language';
 

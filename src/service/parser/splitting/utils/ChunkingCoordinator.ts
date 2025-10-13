@@ -1,7 +1,7 @@
 import { CodeChunk, ChunkingOptions, ASTNode, SplitStrategy } from '../types';
 import { ASTNodeTracker } from './ASTNodeTracker';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
-import { SimilarityDetector } from './SimilarityDetector';
+import { SimilarityDetector } from './similarity/SimilarityDetector';
 import { UnifiedOverlapCalculator } from './UnifiedOverlapCalculator';
 import { LoggerService } from '../../../../utils/LoggerService';
 

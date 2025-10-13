@@ -1,6 +1,6 @@
 import { Tree } from 'tree-sitter';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
-import { SimilarityDetector } from './SimilarityDetector';
+import { SimilarityDetector } from './similarity/SimilarityDetector';
 import { LoggerService } from '../../../../utils/LoggerService';
 
 export interface TrackingStats {

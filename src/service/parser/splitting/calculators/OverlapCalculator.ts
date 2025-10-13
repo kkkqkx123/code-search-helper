@@ -1,7 +1,7 @@
 import { IOverlapCalculator } from '../interfaces/IOverlapCalculator';
 import { CodeChunk } from '../types';
 import { OverlapStrategyUtils } from '../utils/OverlapStrategyUtils';
-import { SimilarityUtils } from '../utils/SimilarityUtils';
+import { SimilarityUtils } from '../utils/similarity/SimilarityUtils';
 
 export interface OverlapCalculatorOptions {
   maxSize?: number;

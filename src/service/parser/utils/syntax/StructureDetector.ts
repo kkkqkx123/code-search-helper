@@ -21,7 +21,13 @@ export class StructureDetector implements IStructureDetector {
   // 函数开始模式
   private static readonly FUNCTION_START_PATTERNS = [
     /^function\s+\w+\s*\(/,
+    /^const\s+\w+\s*=\s*\([^)]*\)\s*=>/,
+    /^let\s+\w+\s*=\s*\([^)]*\)\s*=>/,
+    /^var\s+\w+\s*=\s*\([^)]*\)\s*=>/,
     /^\w+\s*=\s*\([^)]*\)\s*=>/,
+    /^const\s+\w+\s*=\s*async\s*\([^)]*\)\s*=>/,
+    /^let\s+\w+\s*=\s*async\s*\([^)]*\)\s*=>/,
+    /^var\s+\w+\s*=\s*async\s*\([^)]*\)\s*=>/,
     /^\w+\s*=\s*async\s*\([^)]*\)\s*=>/,
     /^\w+\s*:\s*\([^)]*\)\s*=>/,
     /^\w+\s*:\s*async\s*\([^)]*\)\s*=>/,

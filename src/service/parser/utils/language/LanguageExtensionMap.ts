@@ -39,7 +39,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
     '.kt': 'kotlin',
     '.scala': 'scala',
     '.md': 'markdown',
-    '.txt': 'text',  // 文本文件，需要内容检测
+    '.txt': 'text',
     '.json': 'json',
     '.xml': 'xml',
     '.yaml': 'yaml',
@@ -96,7 +96,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    */
   getLanguageByExtension(ext: string): string | undefined {
     if (!ext) return undefined;
-    
+
     // 标准化扩展名为小写
     const normalizedExt = ext.toLowerCase();
     return LanguageExtensionMap.EXTENSION_TO_LANGUAGE[normalizedExt];
@@ -109,7 +109,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    */
   getExtensionsByLanguage(language: string): string[] {
     if (!language) return [];
-    
+
     const normalizedLanguage = language.toLowerCase();
     return LanguageExtensionMap.LANGUAGE_TO_EXTENSIONS[normalizedLanguage] || [];
   }
@@ -129,7 +129,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    */
   isLanguageSupported(language: string): boolean {
     if (!language) return false;
-    
+
     const normalizedLanguage = language.toLowerCase();
     return normalizedLanguage in LanguageExtensionMap.LANGUAGE_TO_EXTENSIONS;
   }
@@ -141,7 +141,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    */
   isExtensionSupported(ext: string): boolean {
     if (!ext) return false;
-    
+
     const normalizedExt = ext.toLowerCase();
     return normalizedExt in LanguageExtensionMap.EXTENSION_TO_LANGUAGE;
   }
@@ -153,7 +153,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    */
   getLanguageFromPath(filePath: string): string | undefined {
     if (!filePath) return undefined;
-    
+
     const ext = path.extname(filePath);
     return this.getLanguageByExtension(ext);
   }

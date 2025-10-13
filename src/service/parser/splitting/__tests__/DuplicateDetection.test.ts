@@ -1,4 +1,4 @@
-import { SimilarityDetector } from '../utils/SimilarityDetector';
+import { SimilarityDetector } from '../utils/similarity/SimilarityDetector';
 import { UnifiedOverlapCalculator } from '../utils/UnifiedOverlapCalculator';
 import { ASTNodeTracker } from '../utils/ASTNodeTracker';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';

@@ -5,7 +5,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { FunctionSplitter } from './FunctionSplitter';
 import { ClassSplitter } from './ClassSplitter';
 import { ImportSplitter } from './ImportSplitter';
-import { ChunkOptimizer } from '../utils/ChunkOptimizer';
+import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';
 
 export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
   private options: Required<ChunkingOptions>;
