@@ -210,7 +210,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     // 检查当前块是否以函数结束，下一块是否以函数开始
     return (lastLineOfCurrent.endsWith('}') &&
       (firstLineOfNext.startsWith('function') ||
-        !!firstLineOfNext.match(/^\w+\s*\([^)]*\)\s*{/)));
+        !!firstLineOfNext.match(/^\w+\s*\([^)]*\)\s*\{/)));
   }
 
   private isComplexStructure(chunk: CodeChunk): boolean {
@@ -218,11 +218,13 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     const lines = chunk.content.split('\n');
     let braceDepth = 0;
     let maxDepth = 0;
+    let totalBraces = 0;
 
     for (const line of lines) {
       for (const char of line) {
         if (char === '{') {
           braceDepth++;
+          totalBraces++;
           maxDepth = Math.max(maxDepth, braceDepth);
         } else if (char === '}') {
           braceDepth--;
@@ -230,7 +232,11 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       }
     }
 
-    return maxDepth > 2;
+    // 检查是否包含类关键字
+    const hasClassKeyword = chunk.content.includes('class ');
+
+    // 复杂结构应该有较多的嵌套层级和较多的大括号，或者包含类定义
+    return (maxDepth >= 2 && totalBraces >= 3) || hasClassKeyword;
   }
 
   private isSimpleCode(currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
@@ -282,11 +288,30 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       if (overlapLines.join('\n').length >= options.maxSize) break;
 
       const line = lines[i];
-      const boundaryScore = this.semanticAnalyzer.calculateBoundaryScore(line, [], currentChunk.metadata.language);
+      const context = lines.slice(Math.max(0, i - 2), i + 1);
+      const boundaryScore = this.semanticAnalyzer.calculateBoundaryScore(line, context, currentChunk.metadata.language);
 
       // 高评分的边界更有可能被包含在重叠中
       if (boundaryScore.score > 0.6 || overlapLines.length < options.minLines) {
         overlapLines.unshift(line);
+      }
+      
+      // 如果我们已经有了足够的行或者到达了起始行，停止
+      if (overlapLines.length >= 5 || i <= currentChunk.metadata.startLine - 1) {
+        break;
+      }
+    }
+
+    // 确保至少有一些上下文内容
+    if (overlapLines.length < options.minLines && currentChunk.metadata.endLine > currentChunk.metadata.startLine) {
+      const startIndex = Math.max(currentChunk.metadata.startLine - 1, 0);
+      const endIndex = Math.min(currentChunk.metadata.endLine - 1, lines.length - 1);
+      
+      // 添加一些起始内容
+      for (let i = startIndex; i <= Math.min(startIndex + 2, endIndex); i++) {
+        if (overlapLines.length < options.minLines) {
+          overlapLines.push(lines[i]);
+        }
       }
     }
 

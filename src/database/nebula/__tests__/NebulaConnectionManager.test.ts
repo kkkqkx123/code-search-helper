@@ -26,6 +26,7 @@ import {
   TreeSitterConfigService
 } from '../../../config/service';
 import { ProjectNamingConfigService } from '../../../config/service/ProjectNamingConfigService';
+import { EmbeddingBatchConfigService } from '../../../config/service/EmbeddingBatchConfigService';
 import { NebulaEventManager } from '../NebulaEventManager';
 import { NebulaQueryService } from '../query/NebulaQueryService';
 import { NebulaTransactionService } from '../NebulaTransactionService';
@@ -118,6 +119,7 @@ describe('NebulaConnectionManager Refactored', () => {
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
+    container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
 
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).toConstantValue(mockDatabaseLoggerService as any);
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService as any);
@@ -686,6 +688,7 @@ describe('NebulaDataService', () => {
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
+    container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
 
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).toConstantValue(mockDatabaseLoggerService as any);
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService as any);
@@ -874,6 +877,7 @@ describe('NebulaSpaceService', () => {
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
+    container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
 
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).toConstantValue(mockDatabaseLoggerService as any);
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService as any);

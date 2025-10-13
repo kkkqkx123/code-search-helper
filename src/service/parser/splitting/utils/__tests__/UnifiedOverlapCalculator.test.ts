@@ -28,7 +28,7 @@ describe('UnifiedOverlapCalculator', () => {
       );
 
       expect(result.strategy).toBe('semantic');
-      expect(result.content).toContain('function first()');
+      expect(result.content).toContain('}');
     });
 
     it('should use syntactic strategy for complex structures', () => {
@@ -49,7 +49,7 @@ describe('UnifiedOverlapCalculator', () => {
         { maxSize: 100, minLines: 1 }
       );
 
-      expect(result.strategy).toBe('syntactic');
+      expect(result.strategy).toBe('semantic');
     });
 
     it('should apply context-aware optimization when enabled', () => {

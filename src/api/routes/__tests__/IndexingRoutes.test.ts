@@ -17,6 +17,7 @@ const createMockIndexSyncService = () => ({
 const createMockProjectIdManager = () => ({
   getProjectPath: jest.fn(),
   removeProject: jest.fn(),
+  removeProjectById: jest.fn(),
   saveMapping: jest.fn(),
   listAllProjects: jest.fn(),
   refreshMapping: jest.fn()
@@ -31,7 +32,8 @@ const createMockEmbedderFactory = () => ({
 
 const createMockProjectStateManager = () => ({
   createOrUpdateProjectState: jest.fn(),
-  getProjectState: jest.fn()
+  getProjectState: jest.fn(),
+  deleteProjectState: jest.fn()
 });
 
 // Mock logger
@@ -318,6 +320,7 @@ describe('IndexingRoutes', () => {
       mockProjectIdManager.getProjectPath.mockReturnValue(projectPath);
       mockIndexSyncService.stopIndexing.mockResolvedValue(undefined);
       mockProjectIdManager.removeProject.mockReturnValue(true);
+      mockProjectIdManager.removeProjectById.mockResolvedValue(true);
       mockProjectIdManager.saveMapping.mockResolvedValue(undefined);
 
       const response = await request(app)
@@ -333,6 +336,7 @@ describe('IndexingRoutes', () => {
     it('should return 404 when project is not found', async () => {
       const projectId = 'non-existent-project';
       mockProjectIdManager.getProjectPath.mockReturnValue(undefined);
+      mockProjectIdManager.removeProjectById.mockResolvedValue(true);
       mockIndexSyncService.stopIndexing.mockResolvedValue(undefined);
 
       const response = await request(app)

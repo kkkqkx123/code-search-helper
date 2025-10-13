@@ -1,6 +1,6 @@
 import { ASTCodeSplitter } from '../ASTCodeSplitter';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 import { CodeChunk } from '../Splitter';
 
 // 模拟 TreeSitterService

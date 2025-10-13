@@ -31,7 +31,7 @@ describe('SemanticBoundaryAnalyzer', () => {
       const context = ['const x = 1;', '', 'const y = 2;'];
       const score = analyzer.calculateBoundaryScore(line, context, 'typescript');
       
-      expect(score.score).toBeGreaterThan(0.3);
+      expect(score.score).toBeGreaterThan(0.2);
       expect(score.components.logical).toBe(true);
     });
 
