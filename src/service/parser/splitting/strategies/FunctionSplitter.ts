@@ -74,9 +74,9 @@ export class FunctionSplitter extends BaseSplitStrategy {
   }
 
   /**
-   * 提取函数块
+   * 提取函数块 - 改为public以便测试
    */
-  private extractFunctions(
+  extractFunctions(
     content: string,
     ast: any,
     language: string,

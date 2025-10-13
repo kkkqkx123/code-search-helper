@@ -211,10 +211,12 @@ export class SimilarityUtils {
   /**
    * 合并类型
    */
-  private static mergeTypes(type1?: string, type2?: string): string {
-    if (type1 === type2) return type1 || 'merged';
-    if (!type1) return type2 || 'merged';
-    if (!type2) return type1 || 'merged';
+  private static mergeTypes(type1?: string, type2?: string): 'function' | 'code' | 'method' | 'semantic' | 'class' | 'interface' | 'import' | 'generic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | undefined {
+    if (type1 === type2) return type1 as any || 'merged';
+    if (!type1) return (type2 as any) || 'merged';
+    if (!type2) return (type1 as any) || 'merged';
+    
+    // 如果两个类型都存在但不同，则返回'merged'
     return 'merged';
   }
 

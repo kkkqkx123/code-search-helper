@@ -268,7 +268,9 @@ export class CacheDecorator implements ISplitStrategy {
     // 如果缓存已满，移除最旧的条目
     if (this.cache.size >= this.maxCacheSize) {
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
     }
 
     // 深度克隆块以避免引用问题

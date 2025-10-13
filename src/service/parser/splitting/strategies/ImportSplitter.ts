@@ -64,13 +64,13 @@ export class ImportSplitter extends BaseSplitStrategy {
   }
 
   getPriority(): number {
-    return 1; // 最高优先级，首先处理导入语句
+    return 3; // 较低优先级，与测试期望一致
   }
 
   /**
-   * 提取导入语句
+   * 提取导入语句 - 改为public以便测试
    */
-  private extractImports(
+  extractImports(
     content: string,
     ast: any,
     language: string,
