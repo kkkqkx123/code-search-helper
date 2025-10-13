@@ -28,29 +28,29 @@
     "metadata": {}
   },
   {
-    "projectId": "86b62e2ebce0231b",
-    "projectPath": "D:\\code\\Go\\dataStructure",
-    "name": "D:\\code\\Go\\dataStructure",
+    "projectId": "040721e25ac919a0",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\test-files\\dataStructure",
+    "name": "D:\\ide\\tool\\code-search-helper\\test-files\\dataStructure",
     "status": "active",
     "vectorStatus": {
       "status": "completed",
       "progress": 100,
-      "lastUpdated": "2025-10-13T02:27:34.452Z"
+      "lastUpdated": "2025-10-13T12:03:40.003Z"
     },
     "graphStatus": {
       "status": "completed",
       "progress": 100,
-      "lastUpdated": "2025-10-13T02:27:34.454Z"
+      "lastUpdated": "2025-10-13T12:03:40.004Z"
     },
-    "createdAt": "2025-10-13T02:27:29.884Z",
-    "updatedAt": "2025-10-13T02:27:34.454Z",
+    "createdAt": "2025-10-13T12:03:35.569Z",
+    "updatedAt": "2025-10-13T12:03:40.004Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true
     },
     "metadata": {},
     "indexingProgress": 100,
-    "lastIndexedAt": "2025-10-13T02:27:34.451Z",
+    "lastIndexedAt": "2025-10-13T12:03:40.002Z",
     "totalFiles": 4,
     "indexedFiles": 4,
     "failedFiles": 0
