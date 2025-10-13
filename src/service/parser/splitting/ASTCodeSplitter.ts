@@ -9,6 +9,7 @@ import { BalancedChunker } from './BalancedChunker';
 // 导入重构后的模块
 import { SyntaxAwareSplitter } from './strategies/SyntaxAwareSplitter';
 import { FunctionSplitter } from './strategies/FunctionSplitter';
+import { EnhancedFunctionSplitter } from './strategies/EnhancedFunctionSplitter';
 import { ClassSplitter } from './strategies/ClassSplitter';
 import { ImportSplitter } from './strategies/ImportSplitter';
 import { IntelligentSplitter } from './strategies/IntelligentSplitter';
@@ -98,6 +99,7 @@ export class ASTCodeSplitter implements Splitter {
   // 重构后的模块实例
   private syntaxAwareSplitter: SyntaxAwareSplitter;
   private functionSplitter: FunctionSplitter;
+  private enhancedFunctionSplitter: EnhancedFunctionSplitter;
   private classSplitter: ClassSplitter;
   private importSplitter: ImportSplitter;
   private intelligentSplitter: IntelligentSplitter;
@@ -132,6 +134,16 @@ export class ASTCodeSplitter implements Splitter {
     // 初始化重构后的模块
     this.syntaxAwareSplitter = new SyntaxAwareSplitter(this.options);
     this.functionSplitter = new FunctionSplitter(this.options);
+    this.enhancedFunctionSplitter = new EnhancedFunctionSplitter({
+      ...this.options,
+      functionSpecificOptions: {
+        ...this.options.functionSpecificOptions,
+        maxFunctionLines: 30,  // 最大函数行数阈值
+        minFunctionLines: 5,   // 最小函数行数
+        enableSubFunctionExtraction: true  // 启用子函数提取
+      },
+      enableChunkDeduplication: true
+    });
     this.classSplitter = new ClassSplitter(this.options);
     this.importSplitter = new ImportSplitter(this.options);
     this.intelligentSplitter = new IntelligentSplitter(this.options);
@@ -178,6 +190,7 @@ export class ASTCodeSplitter implements Splitter {
     // 设置依赖关系
     this.syntaxAwareSplitter.setTreeSitterService(treeSitterService);
     this.functionSplitter.setTreeSitterService(treeSitterService);
+    this.enhancedFunctionSplitter.setTreeSitterService(treeSitterService);
     this.classSplitter.setTreeSitterService(treeSitterService);
     this.importSplitter.setTreeSitterService(treeSitterService);
     this.intelligentSplitter.setBalancedChunker(this.balancedChunker);
@@ -188,6 +201,7 @@ export class ASTCodeSplitter implements Splitter {
     if (logger) {
       this.syntaxAwareSplitter.setLogger(logger);
       this.functionSplitter.setLogger(logger);
+      this.enhancedFunctionSplitter.setLogger(logger);
       this.classSplitter.setLogger(logger);
       this.importSplitter.setLogger(logger);
       this.intelligentSplitter.setLogger(logger);
@@ -196,7 +210,7 @@ export class ASTCodeSplitter implements Splitter {
     // 注册分段策略到协调器
     this.chunkingCoordinator.registerStrategy(this.importSplitter);
     this.chunkingCoordinator.registerStrategy(this.classSplitter);
-    this.chunkingCoordinator.registerStrategy(this.functionSplitter);
+    this.chunkingCoordinator.registerStrategy(this.enhancedFunctionSplitter);
     this.chunkingCoordinator.registerStrategy(this.syntaxAwareSplitter);
     this.chunkingCoordinator.registerStrategy(this.intelligentSplitter);
     this.chunkingCoordinator.registerStrategy(this.semanticSplitter);

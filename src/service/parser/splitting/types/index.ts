@@ -36,6 +36,9 @@ export interface ChunkingOptions {
     preferWholeFunctions: boolean;
     minFunctionOverlap: number;
     maxFunctionSize: number;
+    maxFunctionLines?: number;        // 最大函数行数
+    minFunctionLines?: number;        // 最小函数行数
+    enableSubFunctionExtraction?: boolean; // 启用子函数提取
   };
   
   classSpecificOptions?: {
@@ -73,17 +76,17 @@ export interface EnhancedChunkingOptions extends ChunkingOptions {
 
 // 默认配置
 export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
- maxChunkSize: 1000,
+  maxChunkSize: 1000,
   overlapSize: 200,
   preserveFunctionBoundaries: true,
   preserveClassBoundaries: true,
   includeComments: false,
- minChunkSize: 100,
+  minChunkSize: 100,
   extractSnippets: true,
   addOverlap: false,
- optimizationLevel: 'medium',
+  optimizationLevel: 'medium',
   maxLines: 10000,
- adaptiveBoundaryThreshold: false,
+  adaptiveBoundaryThreshold: false,
   contextAwareOverlap: false,
   semanticWeight: 0.7,
   syntacticWeight: 0.3,
@@ -92,7 +95,7 @@ export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
     minBoundaryScore: 0.5,
     maxSearchDistance: 10,
     languageSpecificWeights: true
- },
+  },
   overlapStrategy: {
     preferredStrategy: 'semantic',
     enableContextOptimization: true,
@@ -101,7 +104,10 @@ export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
   functionSpecificOptions: {
     preferWholeFunctions: true,
     minFunctionOverlap: 50,
-    maxFunctionSize: 2000
+    maxFunctionSize: 2000,
+    maxFunctionLines: 30,              // 最大函数行数
+    minFunctionLines: 5,               // 最小函数行数
+    enableSubFunctionExtraction: true  // 启用子函数提取
   },
   classSpecificOptions: {
     keepMethodsTogether: true,
@@ -140,7 +146,7 @@ export interface CodeChunkMetadata {
   endLine: number;
   language: string;
   filePath?: string;
-  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged';
+  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function';
   functionName?: string;
   className?: string;
   complexity?: number; // 新增：代码复杂度
@@ -260,7 +266,7 @@ export interface SyntaxValidator {
    */
   checkBracketBalance(content: string): number;
   
- /**
+  /**
    * 检查花括号平衡
    * @param content 代码内容
    */
@@ -331,8 +337,8 @@ export interface OverlapCalculator {
 
 export interface PerformanceStats {
   totalLines: number;
- totalTime: number;
- averageTimePerLine: number;
+  totalTime: number;
+  averageTimePerLine: number;
   cacheHitRate: number;
   memoryUsage: NodeJS.MemoryUsage;
 }

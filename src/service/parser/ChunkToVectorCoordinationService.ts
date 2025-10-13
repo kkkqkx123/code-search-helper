@@ -49,7 +49,7 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer
   ) { }
 
-  async processFileForEmbedding(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
+    async processFileForEmbedding(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
     try {
       // 检查错误阈值
       if (this.processingGuard.shouldUseFallback()) {
@@ -60,16 +60,26 @@ export class ChunkToVectorCoordinationService {
       // 1. 读取文件内容
       const content = await fs.readFile(filePath, 'utf-8');
       
-      // 2. 智能处理文件（集成备份文件、无扩展名文件等处理）
+      // 2. 检测语言
+      const language = await this.detectLanguageByContent(filePath, content);
+      
+      // 3. 优先尝试使用ASTCodeSplitter进行智能分段（防止重复）
+      const astChunks = await this.splitWithASTCodeSplitter(content, filePath, language);
+      if (astChunks.length > 0) {
+        this.logger.info(`Using ASTCodeSplitter for ${filePath}, produced ${astChunks.length} chunks`);
+        return await this.convertToVectorPoints(astChunks, projectPath, options);
+      }
+      
+      // 4. 如果AST分段失败，使用智能处理文件（集成备份文件、无扩展名文件等处理）
       const processingResult = await this.processingGuard.processFile(filePath, content);
       
-      // 3. 如果需要降级处理，使用通用分段
+      // 5. 如果需要降级处理，使用通用分段
       if (processingResult.fallbackReason) {
         this.logger.info(`File ${filePath} processed with fallback: ${processingResult.fallbackReason}`);
         return this.processWithUniversalSplitter(filePath, content, projectPath, options);
       }
       
-      // 4. 转换为向量点
+      // 6. 转换为向量点
       const vectorPoints = await this.convertToVectorPoints(processingResult.chunks, projectPath, options);
       
       return vectorPoints;
@@ -87,6 +97,28 @@ export class ChunkToVectorCoordinationService {
         );
         throw error;
       }
+    }
+  }
+
+    /**
+    * 使用ASTCodeSplitter进行智能代码分段
+    */
+  private async splitWithASTCodeSplitter(content: string, filePath: string, language: string): Promise<CodeChunk[]> {
+    try {
+      // 检查语言是否支持AST解析
+      const supportedLanguages = ['typescript', 'javascript', 'python', 'java', 'go', 'rust', 'cpp', 'c', 'csharp'];
+      if (!supportedLanguages.includes(language)) {
+        return [];
+      }
+
+      // 使用ASTCodeSplitter进行分段
+      const chunks = await this.astSplitter.split(content, filePath, language);
+      
+      this.logger.debug(`ASTCodeSplitter produced ${chunks.length} chunks for ${filePath}`);
+      return chunks;
+    } catch (error) {
+      this.logger.warn(`ASTCodeSplitter failed for ${filePath}, falling back to universal splitter: ${error}`);
+      return [];
     }
   }
 
@@ -151,6 +183,57 @@ export class ChunkToVectorCoordinationService {
       };
     });
   }
+    /**
+    * 智能语言检测 - 根据文件内容推断语言
+    */
+  private async detectLanguageByContent(filePath: string, content: string): Promise<string> {
+    // 首先尝试通过文件扩展名检测
+    const ext = path.extname(filePath).toLowerCase();
+    const languageByExt = this.detectLanguage(filePath);
+    
+    // 如果是通用扩展名（如.md）或未知类型，进一步检查内容
+    if (languageByExt === 'markdown' || languageByExt === 'unknown' || languageByExt === 'text') {
+      // 检查内容是否包含特定语言的特征
+      const firstFewLines = content.substring(0, Math.min(200, content.length)).toLowerCase();
+      
+      // 检查是否包含typescript/javascript特征
+      if (firstFewLines.includes('import') || firstFewLines.includes('export') ||
+          firstFewLines.includes('function') || firstFewLines.includes('const') ||
+          firstFewLines.includes('let') || firstFewLines.includes('var') ||
+          firstFewLines.includes('interface') || firstFewLines.includes('type ') ||
+          firstFewLines.includes('declare') || firstFewLines.includes('enum ')) {
+        return 'typescript';
+      }
+      
+      // 检查是否包含python特征
+      if (firstFewLines.includes('import ') || firstFewLines.includes('from ') ||
+          firstFewLines.includes('def ') || firstFewLines.includes('class ')) {
+        return 'python';
+      }
+      
+      // 检查是否包含java特征
+      if (firstFewLines.includes('public ') || firstFewLines.includes('private ') ||
+          firstFewLines.includes('class ') || firstFewLines.includes('import ') ||
+          firstFewLines.includes('package ')) {
+        return 'java';
+      }
+      
+      // 检查是否包含go特征
+      if (firstFewLines.includes('package ') || firstFewLines.includes('func ') ||
+          firstFewLines.includes('type ') || firstFewLines.includes('struct ')) {
+        return 'go';
+      }
+      
+      // 检查是否包含rust特征
+      if (firstFewLines.includes('fn ') || firstFewLines.includes('struct ') ||
+          firstFewLines.includes('impl ') || firstFewLines.includes('use ')) {
+        return 'rust';
+      }
+    }
+    
+    return languageByExt;
+  }
+
   private detectLanguage(filePath: string): string {
     // 语言检测逻辑 - 改进版本，考虑文件内容
     const ext = path.extname(filePath).toLowerCase();
@@ -192,48 +275,6 @@ export class ChunkToVectorCoordinationService {
     };
 
     return languageMap[ext] || 'unknown';
-  }
-
-  /**
-   * 智能语言检测 - 根据文件内容推断语言
-   * @param filePath 文件路径
-   * @param content 文件内容
-   * @returns 检测到的语言
-   */
-  private async detectLanguageByContent(filePath: string, content: string): Promise<string> {
-    // 首先尝试通过文件扩展名检测
-    const ext = path.extname(filePath).toLowerCase();
-    const languageByExt = this.detectLanguage(filePath);
-
-    // 如果是通用扩展名（如.md）或未知类型，尝试基于内容检测
-    if (languageByExt === 'markdown' || languageByExt === 'unknown') {
-      // 检查内容是否包含特定语言的特征
-      const firstFewLines = content.substring(0, Math.min(200, content.length)).toLowerCase();
-
-      // 检查是否包含typescript/javascript特征
-      if (firstFewLines.includes('import') || firstFewLines.includes('export') ||
-        firstFewLines.includes('function') || firstFewLines.includes('const') ||
-        firstFewLines.includes('let') || firstFewLines.includes('var') ||
-        firstFewLines.includes('interface') || firstFewLines.includes('type ') ||
-        firstFewLines.includes('declare') || firstFewLines.includes('enum ')) {
-        return 'typescript';
-      }
-
-      // 检查是否包含python特征
-      if (firstFewLines.includes('import ') || firstFewLines.includes('from ') ||
-        firstFewLines.includes('def ') || firstFewLines.includes('class ')) {
-        return 'python';
-      }
-
-      // 检查是否包含java特征
-      if (firstFewLines.includes('public ') || firstFewLines.includes('private ') ||
-        firstFewLines.includes('class ') || firstFewLines.includes('import ') ||
-        firstFewLines.includes('package ')) {
-        return 'java';
-      }
-    }
-
-    return languageByExt;
   }
 
   private processWithFallback(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
