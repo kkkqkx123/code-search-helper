@@ -333,26 +333,34 @@ export class ASTCodeSplitter implements Splitter {
         return chunks;
       } catch (intelligentError) {
         this.logger?.warn(`Intelligent splitter failed, using semantic fallback: ${intelligentError}`);
-        let chunks = await this.semanticSplitter.split(code, language, filePath, adaptiveOptions);
-        
-        // 应用智能块合并（如果启用）
-        if (this.options.enableChunkDeduplication) {
-          chunks = this.chunkMerger.mergeOverlappingChunks(chunks);
+        try {
+          let chunks = await this.semanticSplitter.split(code, language, filePath, adaptiveOptions);
+          
+          // 应用智能块合并（如果启用）
+          if (this.options.enableChunkDeduplication) {
+            chunks = this.chunkMerger.mergeOverlappingChunks(chunks);
+          }
+          
+          // 应用性能优化
+          const optimizationResult = this.duplicateResolutionPerformanceOptimizer.optimizeChunks(
+            chunks,
+            adaptiveOptions as any,
+            this.astNodeTracker
+          );
+          chunks = optimizationResult.optimizedChunks;
+          
+          // 应用统一重叠计算（如果启用）
+          if (this.options.addOverlap) {
+            return this.unifiedOverlapCalculator.addOverlap(chunks, code);
+          }
+          return chunks;
+        } catch (semanticError) {
+          this.logger?.warn(`Semantic splitter failed, using simple fallback: ${semanticError}`);
+          // 最终后备方案：使用SimpleCodeSplitter
+          const simpleChunks = this.simpleFallback.split(code);
+          this.logger?.debug(`Simple fallback generated ${simpleChunks.length} chunks`);
+          return simpleChunks;
         }
-        
-        // 应用性能优化
-        const optimizationResult = this.duplicateResolutionPerformanceOptimizer.optimizeChunks(
-          chunks, 
-          adaptiveOptions as any, 
-          this.astNodeTracker
-        );
-        chunks = optimizationResult.optimizedChunks;
-        
-        // 应用统一重叠计算（如果启用）
-        if (this.options.addOverlap) {
-          return this.unifiedOverlapCalculator.addOverlap(chunks, code);
-        }
-        return chunks;
       }
     }
   }

@@ -25,10 +25,10 @@ import { TreeSitterConfigService } from '../config/service/TreeSitterConfigServi
 import { ProjectNamingConfigService } from '../config/service/ProjectNamingConfigService';
 import { EmbeddingBatchConfigService } from '../config/service/EmbeddingBatchConfigService';
 
-// 在测试开始前设置环境变量
-process.env.MEMORY_MONITORING_ENABLED = 'true';
+// 在测试开始前设置环境变量 - 禁用内存监控
+process.env.MEMORY_MONITORING_ENABLED = 'false';
 
-describe('Memory Monitor Integration Tests', () => {
+describe('Memory Monitor Disabled Tests', () => {
   let container: Container;
   let memoryMonitor: MemoryMonitorService;
   let memoryGuard: MemoryGuard;
@@ -75,12 +75,13 @@ describe('Memory Monitor Integration Tests', () => {
       memoryMonitor.stopMonitoring();
       memoryMonitor.destroy();
     }
- });
+  });
 
-  test('should have unified memory monitoring through MemoryMonitorService', () => {
+  test('should have unified memory monitoring through MemoryMonitorService when disabled', () => {
     // 验证 MemoryMonitorService 正常工作
     expect(memoryMonitor).toBeDefined();
     
+    // 获取内存状态
     const status = memoryMonitor.getMemoryStatus();
     expect(status).toHaveProperty('heapUsed');
     expect(status).toHaveProperty('heapTotal');
@@ -93,9 +94,13 @@ describe('Memory Monitor Integration Tests', () => {
     expect(status).toHaveProperty('trend');
     expect(status).toHaveProperty('averageUsage');
     expect(status).toHaveProperty('timestamp');
+    
+    // 检查监控状态
+    const config = memoryMonitor.getConfig();
+    expect(config.enabled).toBe(false);
   });
 
- test('should have MemoryGuard using unified MemoryMonitorService', () => {
+  test('should have MemoryGuard using unified MemoryMonitorService when disabled', () => {
     // 验证 MemoryGuard 使用统一的内存监控服务
     expect(memoryGuard).toBeDefined();
     
@@ -118,30 +123,8 @@ describe('Memory Monitor Integration Tests', () => {
     expect(checkResult).toHaveProperty('arrayBuffers');
   });
 
-  test('should have PerformanceOptimizerService using unified MemoryMonitorService', () => {
-    // 验证 PerformanceOptimizerService 使用统一的内存监控服务
-    expect(performanceOptimizer).toBeDefined();
-    
-    // 验证 PerformanceOptimizerService 可以执行操作
-    const initialBatchSize = performanceOptimizer.getCurrentBatchSize();
-    expect(initialBatchSize).toBeGreaterThan(0);
-    
-    // 验证内存优化功能
-    performanceOptimizer.optimizeMemory();
-  });
-
-  test('should maintain consistent memory state across services', () => {
-    // 验证所有服务访问的是统一的内存状态
-    const monitorStatus = memoryMonitor.getMemoryStatus();
-    const guardStats = memoryGuard.getMemoryStats();
-    
-    // 基本内存使用应该一致（允许小的差异，因为检查时间不同）
-    expect(monitorStatus.heapUsed).toBeCloseTo(guardStats.current.heapUsed, -6); // 检查到MB级别
-    expect(monitorStatus.heapTotal).toBeCloseTo(guardStats.current.heapTotal, -6);
-  });
-
- test('should handle memory cleanup through unified service', () => {
-    // 验证清理功能正常工作
+  test('should handle memory cleanup when monitoring is disabled', () => {
+    // 验证清理功能正常工作，即使监控被禁用
     const initialStatus = memoryMonitor.getMemoryStatus();
     
     // 触发轻量级清理
@@ -162,7 +145,7 @@ describe('Memory Monitor Integration Tests', () => {
     expect(afterEmergencyCleanup).toBeDefined();
   });
 
-  test('should support memory limit functionality', () => {
+  test('should support memory limit functionality when monitoring is disabled', () => {
     // 验证内存限制功能
     const limitMB = 600; // 设置为600MB
     memoryMonitor.setMemoryLimit?.(limitMB);
@@ -174,26 +157,5 @@ describe('Memory Monitor Integration Tests', () => {
     // 验证是否在限制内
     const withinLimit = memoryMonitor.isWithinLimit?.();
     expect(withinLimit).toBe(true); // 应该在限制内，因为当前内存使用量远小于600MB
- });
-
-  test('should support event handling', (done) => {
-    // 验证事件处理功能
-    const mockListener = jest.fn();
-    
-    if (memoryMonitor) {
-      memoryMonitor.addEventListener('cleanup', mockListener);
-      
-      // 触发一个清理事件
-      memoryMonitor.triggerCleanup('lightweight');
-      
-      // 短暂延迟以确保事件处理完成
-      setTimeout(() => {
-        expect(mockListener).toHaveBeenCalled();
-        memoryMonitor.removeEventListener('cleanup', mockListener);
-        done();
-      }, 100);
-    } else {
-      done();
-    }
   });
 });

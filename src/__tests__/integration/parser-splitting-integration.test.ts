@@ -43,40 +43,114 @@ describe('Parser and Splitting Module Integration Tests', () => {
         return languageName ? { name: languageName, extensions: [ext] } : null;
       }),
       parseCode: jest.fn().mockImplementation((code: string, language: string) => {
+        // 创建一个更真实的AST节点结构来模拟tree-sitter的输出
+        const createMockNode = (type: string, start: { row: number; column: number }, end: { row: number; column: number }) => {
+          const node: any = {
+            type,
+            startPosition: start,
+            endPosition: end,
+            startIndex: start.row * 100 + start.column, // 简单的索引计算
+            endIndex: end.row * 100 + end.column,
+            children: [] as any[],
+            namedChildren: [] as any[],
+            childCount: 0,
+            namedChildCount: 0,
+            parent: null,
+            nextSibling: null,
+            previousSibling: null,
+            text: code.substring(start.row * 100 + start.column, end.row * 100 + end.column),
+            isNamed: true,
+            hasError: false,
+            toString: () => `(${type})`
+          };
+          return node;
+        };
+
+        // 创建一个更复杂的AST结构来模拟真实解析结果
+        const lines = code.split('\n');
+        const ast: any = createMockNode('program', { row: 0, column: 0 }, { row: lines.length - 1, column: lines[lines.length - 1].length });
+        
+        // 添加一些子节点来模拟函数和类
+        if (code.includes('function') || code.includes('def') || code.includes('class')) {
+          ast.children = [
+            createMockNode('function_declaration', { row: 1, column: 0 }, { row: 3, column: 1 }),
+            createMockNode('class_declaration', { row: 5, column: 0 }, { row: 9, column: 1 })
+          ] as any[];
+          ast.childCount = 2;
+          ast.namedChildren = ast.children;
+          ast.namedChildCount = 2;
+        }
+
         return Promise.resolve({
-          ast: {
-            type: 'program',
-            startPosition: { row: 0, column: 0 },
-            endPosition: { row: code.split('\n').length - 1, column: 0 },
-            startIndex: 0,
-            endIndex: code.length,
-            children: [],
-          },
-          language: { name: language, supported: true },
+          ast,
+          language: { name: language, supported: true, parser: {}, fileExtensions: [] },
           parseTime: 10,
-          success: true,
-          error: null,
+          success: false, // 模拟解析失败
+          error: 'Parse failed',
+          fromCache: false
         });
       }),
       parseFile: jest.fn().mockImplementation((filePath: string, content: string) => {
         const detectedLanguage = mockTreeSitterCoreService.detectLanguage(filePath);
+        // 使用与parseCode相同的逻辑
+        const createMockNode = (type: string, start: { row: number; column: number }, end: { row: number; column: number }) => {
+          const node: any = {
+            type,
+            startPosition: start,
+            endPosition: end,
+            startIndex: start.row * 100 + start.column,
+            endIndex: end.row * 100 + end.column,
+            children: [] as any[],
+            namedChildren: [] as any[],
+            childCount: 0,
+            namedChildCount: 0,
+            parent: null,
+            nextSibling: null,
+            previousSibling: null,
+            text: content.substring(start.row * 100 + start.column, end.row * 100 + end.column),
+            isNamed: true,
+            hasError: false,
+            toString: () => `(${type})`
+          };
+          return node;
+        };
+
+        const lines = content.split('\n');
+        const ast: any = createMockNode('program', { row: 0, column: 0 }, { row: lines.length - 1, column: lines[lines.length - 1].length });
+        
+        if (content.includes('function') || content.includes('def') || content.includes('class')) {
+          ast.children = [
+            createMockNode('function_declaration', { row: 1, column: 0 }, { row: 3, column: 1 }),
+            createMockNode('class_declaration', { row: 5, column: 0 }, { row: 9, column: 1 })
+          ] as any[];
+          ast.childCount = 2;
+          ast.namedChildren = ast.children;
+          ast.namedChildCount = 2;
+        }
+
         return Promise.resolve({
-          ast: {
-            type: 'program',
-            startPosition: { row: 0, column: 0 },
-            endPosition: { row: content.split('\n').length - 1, column: 0 },
-            startIndex: 0,
-            endIndex: content.length,
-            children: [],
-          },
-          language: { name: detectedLanguage?.name || 'javascript', supported: true },
+          ast,
+          language: { name: detectedLanguage?.name || 'javascript', supported: true, parser: {}, fileExtensions: [] },
           parseTime: 10,
           success: true,
           error: null,
+          fromCache: false
         });
       }),
-      extractFunctions: jest.fn().mockReturnValue([]),
-      extractClasses: jest.fn().mockReturnValue([]),
+      extractFunctions: jest.fn().mockImplementation((ast: any) => {
+        // 如果AST包含函数声明，返回模拟的函数节点
+        if (ast && ast.children && ast.children.length > 0) {
+          return ast.children.filter((child: any) => child.type.includes('function'));
+        }
+        return [];
+      }),
+      extractClasses: jest.fn().mockImplementation((ast: any) => {
+        // 如果AST包含类声明，返回模拟的类节点
+        if (ast && ast.children && ast.children.length > 0) {
+          return ast.children.filter((child: any) => child.type.includes('class'));
+        }
+        return [];
+      }),
       extractImports: jest.fn().mockReturnValue([]),
       extractExports: jest.fn().mockReturnValue([]),
       isInitialized: jest.fn().mockReturnValue(true),
@@ -90,7 +164,12 @@ describe('Parser and Splitting Module Integration Tests', () => {
         endColumn: 0,
       }),
       getNodeName: jest.fn().mockReturnValue('testFunction'),
-      findNodeByType: jest.fn().mockReturnValue([]),
+      findNodeByType: jest.fn().mockImplementation((ast: any, type: string) => {
+        if (ast && ast.children && ast.children.length > 0) {
+          return ast.children.filter((child: any) => child.type === type);
+        }
+        return [];
+      }),
       queryTree: jest.fn().mockReturnValue([]),
     };
 
@@ -244,12 +323,19 @@ def example_function():
       
       // Mock to simulate unsupported language
       jest.spyOn(treeSitterService['coreService'], 'parseCode').mockResolvedValue({
-        ast: null,
-        language: { name: 'unsupported', supported: false },
+        ast: {} as any,
+        language: { name: 'unsupported', supported: false, parser: {}, fileExtensions: [] },
         parseTime: 5,
         success: false,
-        error: 'Language not supported'
-      } as any);
+        error: 'Language not supported',
+        fromCache: false
+      });
+
+      // Mock intelligentSplitter to also fail
+      jest.spyOn((astCodeSplitter as any).intelligentSplitter, 'split').mockRejectedValue(new Error('Intelligent splitter failed'));
+
+      // Mock semanticSplitter to also fail
+      jest.spyOn((astCodeSplitter as any).semanticSplitter, 'split').mockRejectedValue(new Error('Semantic splitter failed'));
 
       const chunks = await astCodeSplitter.split(code, 'unsupported', '/test/unsupported.lang');
       
@@ -259,7 +345,7 @@ def example_function():
       expect(chunks.length).toBeGreaterThan(0);
       
       chunks.forEach(chunk => {
-        expect(chunk.metadata.language).toBe('unknown'); // Fallback language
+        expect(chunk.metadata.language).toBe('unknown'); // Fallback language should be 'unknown'
       });
     });
   });
