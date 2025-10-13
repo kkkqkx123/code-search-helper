@@ -13,6 +13,7 @@ import { ConfigService } from '../../../../config/ConfigService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { TYPES } from '../../../../types';
+import { TreeSitterLanguageDetector } from '../language-detection/TreeSitterLanguageDetector';
 
 export interface ParserLanguage {
   name: string;
@@ -48,8 +49,10 @@ export class TreeSitterCoreService {
     maxParseTime: 0,
     minParseTime: Number.MAX_VALUE,
   };
+  private languageDetector: TreeSitterLanguageDetector;
 
   constructor() {
+    this.languageDetector = new TreeSitterLanguageDetector();
     this.initializeParsers();
   }
 
@@ -152,6 +155,7 @@ export class TreeSitterCoreService {
       });
 
       this.initialized = true;
+      console.log('Tree-sitter parsers initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Tree-sitter parsers:', error);
       this.initialized = false;
@@ -159,19 +163,11 @@ export class TreeSitterCoreService {
   }
 
   getSupportedLanguages(): ParserLanguage[] {
-    return Array.from(this.parsers.values()).filter(lang => lang.supported);
+    return this.languageDetector.getSupportedLanguages(this.parsers);
   }
 
-  detectLanguage(filePath: string): ParserLanguage | null {
-    const ext = filePath.toLowerCase().substring(filePath.lastIndexOf('.'));
-
-    for (const lang of this.parsers.values()) {
-      if (lang.fileExtensions.includes(ext) && lang.supported) {
-        return lang;
-      }
-    }
-
-    return null;
+  detectLanguage(filePath: string, content?: string): ParserLanguage | null {
+    return this.languageDetector.detectLanguageByParserConfig(filePath, this.parsers, content);
   }
 
   async parseCode(code: string, language: string): Promise<ParseResult> {
@@ -211,6 +207,7 @@ export class TreeSitterCoreService {
         fromCache,
       };
     } catch (error) {
+      console.error(`Failed to parse ${language} code:`, error);
       return {
         ast: {} as Parser.SyntaxNode,
         language: this.parsers.get(language.toLowerCase()) || {

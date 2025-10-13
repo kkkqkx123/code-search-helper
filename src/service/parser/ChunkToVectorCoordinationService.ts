@@ -16,6 +16,7 @@ import { UniversalTextSplitter } from './universal/UniversalTextSplitter';
 import { BackupFileProcessor } from './universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './universal/ExtensionlessFileProcessor';
 import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
+import { LanguageDetector } from './core/language-detection/LanguageDetector';
 
 export interface ProcessingOptions {
   maxChunkSize?: number;
@@ -34,6 +35,7 @@ export interface ProcessingOptions {
 @injectable()
 export class ChunkToVectorCoordinationService {
   private projectEmbedders: Map<string, string> = new Map(); // 存储项目对应的embedder
+  private languageDetector: LanguageDetector;
 
   constructor(
     @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
@@ -47,7 +49,9 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.BackupFileProcessor) private backupFileProcessor: BackupFileProcessor,
     @inject(TYPES.ExtensionlessFileProcessor) private extensionlessFileProcessor: ExtensionlessFileProcessor,
     @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer
-  ) { }
+  ) {
+    this.languageDetector = new LanguageDetector();
+  }
 
     async processFileForEmbedding(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
     try {
@@ -101,13 +105,12 @@ export class ChunkToVectorCoordinationService {
   }
 
     /**
-    * 使用ASTCodeSplitter进行智能代码分段
-    */
-  private async splitWithASTCodeSplitter(content: string, filePath: string, language: string): Promise<CodeChunk[]> {
+     * 使用ASTCodeSplitter进行智能代码分段
+     */
+  private async splitWithASTCodeSplitter(content: string, filePath: string, language: string | undefined): Promise<CodeChunk[]> {
     try {
       // 检查语言是否支持AST解析
-      const supportedLanguages = ['typescript', 'javascript', 'python', 'java', 'go', 'rust', 'cpp', 'c', 'csharp'];
-      if (!supportedLanguages.includes(language)) {
+      if (!language || !this.languageDetector.isLanguageSupportedForAST(language)) {
         return [];
       }
 
@@ -184,97 +187,15 @@ export class ChunkToVectorCoordinationService {
     });
   }
     /**
-    * 智能语言检测 - 根据文件内容推断语言
-    */
-  private async detectLanguageByContent(filePath: string, content: string): Promise<string> {
-    // 首先尝试通过文件扩展名检测
-    const ext = path.extname(filePath).toLowerCase();
-    const languageByExt = this.detectLanguage(filePath);
-    
-    // 如果是通用扩展名（如.md）或未知类型，进一步检查内容
-    if (languageByExt === 'markdown' || languageByExt === 'unknown' || languageByExt === 'text') {
-      // 检查内容是否包含特定语言的特征
-      const firstFewLines = content.substring(0, Math.min(200, content.length)).toLowerCase();
-      
-      // 检查是否包含typescript/javascript特征
-      if (firstFewLines.includes('import') || firstFewLines.includes('export') ||
-          firstFewLines.includes('function') || firstFewLines.includes('const') ||
-          firstFewLines.includes('let') || firstFewLines.includes('var') ||
-          firstFewLines.includes('interface') || firstFewLines.includes('type ') ||
-          firstFewLines.includes('declare') || firstFewLines.includes('enum ')) {
-        return 'typescript';
-      }
-      
-      // 检查是否包含python特征
-      if (firstFewLines.includes('import ') || firstFewLines.includes('from ') ||
-          firstFewLines.includes('def ') || firstFewLines.includes('class ')) {
-        return 'python';
-      }
-      
-      // 检查是否包含java特征
-      if (firstFewLines.includes('public ') || firstFewLines.includes('private ') ||
-          firstFewLines.includes('class ') || firstFewLines.includes('import ') ||
-          firstFewLines.includes('package ')) {
-        return 'java';
-      }
-      
-      // 检查是否包含go特征
-      if (firstFewLines.includes('package ') || firstFewLines.includes('func ') ||
-          firstFewLines.includes('type ') || firstFewLines.includes('struct ')) {
-        return 'go';
-      }
-      
-      // 检查是否包含rust特征
-      if (firstFewLines.includes('fn ') || firstFewLines.includes('struct ') ||
-          firstFewLines.includes('impl ') || firstFewLines.includes('use ')) {
-        return 'rust';
-      }
-    }
-    
-    return languageByExt;
+     * 智能语言检测 - 根据文件内容推断语言
+     */
+  private async detectLanguageByContent(filePath: string, content: string): Promise<string | undefined> {
+    const detectionResult = await this.languageDetector.detectLanguage(filePath, content);
+    return detectionResult.language;
   }
 
-  private detectLanguage(filePath: string): string {
-    // 语言检测逻辑 - 改进版本，考虑文件内容
-    const ext = path.extname(filePath).toLowerCase();
-    const languageMap: Record<string, string> = {
-      '.js': 'javascript',
-      '.ts': 'typescript',
-      '.jsx': 'javascript',
-      '.tsx': 'typescript',
-      '.py': 'python',
-      '.java': 'java',
-      '.cpp': 'cpp',
-      '.c': 'c',
-      '.h': 'cpp',
-      '.cs': 'csharp',
-      '.go': 'go',
-      '.rs': 'rust',
-      '.php': 'php',
-      '.rb': 'ruby',
-      '.swift': 'swift',
-      '.kt': 'kotlin',
-      '.scala': 'scala',
-      '.md': 'markdown',
-      '.json': 'json',
-      '.xml': 'xml',
-      '.yaml': 'yaml',
-      '.yml': 'yaml',
-      '.sql': 'sql',
-      '.sh': 'shell',
-      '.bash': 'shell',
-      '.zsh': 'shell',
-      '.fish': 'shell',
-      '.html': 'html',
-      '.css': 'css',
-      '.scss': 'scss',
-      '.sass': 'sass',
-      '.less': 'less',
-      '.vue': 'vue',
-      '.svelte': 'svelte'
-    };
-
-    return languageMap[ext] || 'unknown';
+  private detectLanguage(filePath: string): string | undefined {
+    return this.languageDetector.detectLanguageSync(filePath);
   }
 
   private processWithFallback(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {

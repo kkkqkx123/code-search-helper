@@ -1,0 +1,129 @@
+{
+  "languageDetection": {
+    "results": [
+      {
+        "file": "test-files/dataStructure/bt.go",
+        "expected": "Go",
+        "detected": "Go",
+        "success": true,
+        "contentPreview": "package main\r\n\r\ntype Node struct {\r\n\tdata       int\r\n\tleftChild  *Node\r\n\trightChild *Node\r\n}\r\n\r\ntype"
+      },
+      {
+        "file": "test-files/dataStructure/datastructure/linked_list.go",
+        "expected": "Go",
+        "detected": "Go",
+        "success": true,
+        "contentPreview": "package datastructure\r\n\r\nimport \"fmt\"\r\n\r\ntype node struct {\r\n\tvalue int\r\n\tnext  *node\r\n}\r\n\r\ntype lin"
+      },
+      {
+        "file": "test-files/dataStructure/堆排序.txt",
+        "expected": "Go",
+        "detected": "Go",
+        "success": true,
+        "contentPreview": "// 堆排序函数，输入整数切片，返回排序后的切片\r\nfunc HeapSort(nums []int) []int {\r\n\t// 避免修改原切片，创建一个副本\r\n arr := make([]int,"
+      }
+    ],
+    "successRate": 1
+  },
+  "smallFileHandling": {
+    "results": [
+      {
+        "file": "test-files/dataStructure/bt.go",
+        "contentLines": 11,
+        "chunksGenerated": 1,
+        "success": true,
+        "chunkDetails": [
+          {
+            "lines": 11,
+            "preview": "package main\r\n\r\ntype Node struct {\r\n\tdata       in"
+          }
+        ]
+      },
+      {
+        "file": "test-files/dataStructure/tiny-test.go",
+        "contentLines": 2,
+        "chunksGenerated": 1,
+        "success": true,
+        "chunkDetails": [
+          {
+            "lines": 2,
+            "preview": "package main\nfunc hello() { println(\"hi\") }"
+          }
+        ]
+      }
+    ],
+    "successRate": 1
+  },
+  "codeBlockValidation": {
+    "results": [
+      {
+        "content": "}",
+        "expected": "rejected",
+        "actual": "rejected",
+        "success": true
+      },
+      {
+        "content": "{",
+        "expected": "rejected",
+        "actual": "rejected",
+        "success": true
+      },
+      {
+        "content": ";",
+        "expected": "rejected",
+        "actual": "rejected",
+        "success": true
+      },
+      {
+        "content": "",
+        "expected": "rejected",
+        "actual": "rejected",
+        "success": true
+      },
+      {
+        "content": "   ",
+        "expected": "rejected",
+        "actual": "rejected",
+        "success": true
+      },
+      {
+        "content": "// just comment",
+        "expected": "rejected",
+        "actual": "rejected",
+        "success": true
+      },
+      {
+        "content": "/* just comment */",
+        "expected": "rejected",
+        "actual": "rejected",
+        "success": true
+      },
+      {
+        "content": "package main\nfunc test() {}",
+        "expected": "accepted",
+        "actual": "accepted",
+        "success": true
+      },
+      {
+        "content": "type Node struct { value int }",
+        "expected": "accepted",
+        "actual": "accepted",
+        "success": true
+      },
+      {
+        "content": "import \"fmt\"\nfunc main() {}",
+        "expected": "accepted",
+        "actual": "accepted",
+        "success": true
+      }
+    ],
+    "successRate": 1
+  },
+  "searchRelevance": {
+    "totalChunks": 1,
+    "relevantChunks": 1,
+    "maxRelevance": 1,
+    "hasStructDefinition": true,
+    "success": true
+  }
+}

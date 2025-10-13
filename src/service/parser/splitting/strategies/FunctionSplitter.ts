@@ -43,6 +43,9 @@ export class FunctionSplitter extends BaseSplitStrategy {
     }
 
     try {
+      // 根据文件大小动态调整参数
+      const adjustedOptions = this.adjustOptionsForFileSize(content, options);
+      
       // 使用传入的AST或重新解析
       let parseResult = ast;
       if (!parseResult) {
@@ -59,6 +62,50 @@ export class FunctionSplitter extends BaseSplitStrategy {
       this.logger?.warn(`Function splitting failed: ${error}`);
       return [];
     }
+  }
+
+  // 新增：根据文件大小调整选项
+  private adjustOptionsForFileSize(content: string, originalOptions?: ChunkingOptions): ChunkingOptions {
+    const lines = content.split('\n');
+    const lineCount = lines.length;
+    
+    // 基础配置
+    const baseOptions = originalOptions || {};
+    
+    // 小文件特殊处理
+    if (lineCount <= 20) {
+      return {
+        ...baseOptions,
+        functionSpecificOptions: {
+          preferWholeFunctions: true,
+          minFunctionOverlap: baseOptions.functionSpecificOptions?.minFunctionOverlap || 50,
+          maxFunctionSize: baseOptions.functionSpecificOptions?.maxFunctionSize || 2000,
+          maxFunctionLines: Math.max(lineCount, 50), // 放宽最大行数限制
+          minFunctionLines: 1, // 最小行数降为1
+          enableSubFunctionExtraction: false // 禁用子函数提取
+        },
+        minChunkSize: 5, // 降低最小块大小
+        maxChunkSize: Math.max(100, lineCount * 3) // 调整最大块大小
+      };
+    }
+    
+    // 中等文件
+    if (lineCount <= 100) {
+      return {
+        ...baseOptions,
+        functionSpecificOptions: {
+          preferWholeFunctions: true,
+          minFunctionOverlap: baseOptions.functionSpecificOptions?.minFunctionOverlap || 50,
+          maxFunctionSize: baseOptions.functionSpecificOptions?.maxFunctionSize || 2000,
+          maxFunctionLines: 100, // 适度放宽
+          minFunctionLines: 3, // 稍微降低最小行数
+          enableSubFunctionExtraction: baseOptions.functionSpecificOptions?.enableSubFunctionExtraction ?? true
+        }
+      };
+    }
+    
+    // 大文件使用默认配置
+    return baseOptions;
   }
 
   getName(): string {

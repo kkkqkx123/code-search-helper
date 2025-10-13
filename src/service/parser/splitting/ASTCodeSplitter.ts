@@ -75,7 +75,7 @@ export class ASTCodeSplitter implements Splitter {
     try {
       // 获取配置
       const config = this.configManager.getMergedConfig(language);
-      
+
       // 解析代码
       const parseResult = await this.treeSitterService.parseCode(code, language);
 
@@ -131,12 +131,12 @@ export class ASTCodeSplitter implements Splitter {
     config?: ChunkingOptions
   ): Promise<CodeChunk[]> {
     const allChunks: CodeChunk[] = [];
-    const processedRanges: Array<{startLine: number, endLine: number}> = [];
+    const processedRanges: Array<{ startLine: number, endLine: number }> = [];
 
     // 按优先级顺序执行策略
     const strategyTypes = this.options.strategyExecutionOrder || [
       'ImportSplitter',
-      'ClassSplitter', 
+      'ClassSplitter',
       'FunctionSplitter',
       'SyntaxAwareSplitter',
       'IntelligentSplitter'
@@ -151,16 +151,16 @@ export class ASTCodeSplitter implements Splitter {
 
         // 创建策略实例
         const strategy = this.strategyFactory.create(strategyType, config);
-        
+
         // 设置依赖服务
         this.configureStrategy(strategy);
 
         // 执行策略
         const strategyChunks = await strategy.split(code, language, filePath, config, null, parseResult.ast);
-        
+
         // 过滤掉已处理的区域
         const newChunks = this.filterUnprocessedChunks(strategyChunks, processedRanges);
-        
+
         allChunks.push(...newChunks);
         this.updateProcessedRanges(newChunks, processedRanges);
 
@@ -185,11 +185,11 @@ export class ASTCodeSplitter implements Splitter {
     if (typeof strategy.setTreeSitterService === 'function') {
       strategy.setTreeSitterService(this.treeSitterService);
     }
-    
+
     if (typeof strategy.setLogger === 'function' && this.logger) {
       strategy.setLogger(this.logger);
     }
-    
+
     if (typeof strategy.setBalancedChunker === 'function') {
       strategy.setBalancedChunker(this.balancedChunker);
     }
@@ -199,15 +199,15 @@ export class ASTCodeSplitter implements Splitter {
    * 过滤未处理的代码块
    */
   private filterUnprocessedChunks(
-    chunks: CodeChunk[], 
-    processedRanges: Array<{startLine: number, endLine: number}>
+    chunks: CodeChunk[],
+    processedRanges: Array<{ startLine: number, endLine: number }>
   ): CodeChunk[] {
     return chunks.filter(chunk => {
       const chunkRange = {
         startLine: chunk.metadata.startLine,
         endLine: chunk.metadata.endLine
       };
-      
+
       return !this.isRangeProcessed(chunkRange, processedRanges);
     });
   }
@@ -216,10 +216,10 @@ export class ASTCodeSplitter implements Splitter {
    * 检查范围是否已处理
    */
   private isRangeProcessed(
-    range: {startLine: number, endLine: number}, 
-    processedRanges: Array<{startLine: number, endLine: number}>
+    range: { startLine: number, endLine: number },
+    processedRanges: Array<{ startLine: number, endLine: number }>
   ): boolean {
-    return processedRanges.some(processed => 
+    return processedRanges.some(processed =>
       (range.startLine >= processed.startLine && range.startLine <= processed.endLine) ||
       (range.endLine >= processed.startLine && range.endLine <= processed.endLine) ||
       (range.startLine <= processed.startLine && range.endLine >= processed.endLine)
@@ -230,8 +230,8 @@ export class ASTCodeSplitter implements Splitter {
    * 更新已处理范围
    */
   private updateProcessedRanges(
-    chunks: CodeChunk[], 
-    processedRanges: Array<{startLine: number, endLine: number}>
+    chunks: CodeChunk[],
+    processedRanges: Array<{ startLine: number, endLine: number }>
   ): void {
     for (const chunk of chunks) {
       processedRanges.push({
@@ -248,7 +248,7 @@ export class ASTCodeSplitter implements Splitter {
     code: string,
     language: string,
     filePath?: string,
-    processedRanges?: Array<{startLine: number, endLine: number}>
+    processedRanges?: Array<{ startLine: number, endLine: number }>
   ): Promise<CodeChunk[]> {
     if (!processedRanges || processedRanges.length === 0) {
       // 如果没有已处理的区域，使用智能分割
@@ -260,21 +260,21 @@ export class ASTCodeSplitter implements Splitter {
     // 识别未处理的代码区域
     const lines = code.split('\n');
     const unprocessedRanges = this.calculateUnprocessedRanges(lines.length, processedRanges);
-    
+
     const remainingChunks: CodeChunk[] = [];
 
     for (const range of unprocessedRanges) {
       if (range.endLine < range.startLine) continue;
-      
+
       const remainingContent = lines.slice(range.startLine - 1, range.endLine).join('\n');
       if (remainingContent.trim().length === 0) continue;
 
       // 对每个未处理区域使用智能分割
       const intelligentStrategy = this.strategyFactory.create('IntelligentSplitter', this.options);
       this.configureStrategy(intelligentStrategy);
-      
+
       const chunks = await intelligentStrategy.split(remainingContent, language, filePath, this.options);
-      
+
       // 调整行号
       const adjustedChunks = chunks.map(chunk => ({
         ...chunk,
@@ -296,16 +296,16 @@ export class ASTCodeSplitter implements Splitter {
    */
   private calculateUnprocessedRanges(
     totalLines: number,
-    processedRanges: Array<{startLine: number, endLine: number}>
-  ): Array<{startLine: number, endLine: number}> {
+    processedRanges: Array<{ startLine: number, endLine: number }>
+  ): Array<{ startLine: number, endLine: number }> {
     if (processedRanges.length === 0) {
       return [{ startLine: 1, endLine: totalLines }];
     }
 
     // 排序处理范围
     const sortedRanges = [...processedRanges].sort((a, b) => a.startLine - b.startLine);
-    
-    const unprocessedRanges: Array<{startLine: number, endLine: number}> = [];
+
+    const unprocessedRanges: Array<{ startLine: number, endLine: number }> = [];
     let currentLine = 1;
 
     for (const range of sortedRanges) {
@@ -341,14 +341,14 @@ export class ASTCodeSplitter implements Splitter {
     try {
       const intelligentStrategy = this.strategyFactory.create('IntelligentSplitter', config);
       this.configureStrategy(intelligentStrategy);
-      
+
       let chunks = await intelligentStrategy.split(code, language, filePath, config);
-      
+
       // 应用重叠
       if (this.options.addOverlap && this.overlapCalculator) {
         chunks = this.overlapCalculator.addOverlap(chunks, code);
       }
-      
+
       return chunks;
     } catch (error) {
       this.logger?.warn(`Intelligent splitter failed: ${error}`);
@@ -362,22 +362,44 @@ export class ASTCodeSplitter implements Splitter {
   private simpleTextSplit(code: string, language: string, filePath?: string): CodeChunk[] {
     const chunks: CodeChunk[] = [];
     const lines = code.split('\n');
-    const chunkSize = Math.max(10, Math.floor(lines.length / 5)); // 至少分成5块
-    
+
+    // 对于非常小的文件，直接返回整个文件
+    if (lines.length <= 20) {
+      if (this.validateCodeChunk(code, language)) {
+        chunks.push({
+          content: code,
+          metadata: {
+            startLine: 1,
+            endLine: lines.length,
+            language,
+            filePath,
+            type: 'generic',
+            chunkIndex: 0
+          }
+        });
+      }
+      return chunks;
+    }
+
+    // 对于较大的文件，使用智能分割
+    const chunkSize = Math.max(15, Math.floor(lines.length / 3)); // 增加最小块大小
+
     let position = 0;
     let chunkIndex = 0;
 
     while (position < lines.length) {
-      const endPosition = Math.min(position + chunkSize, lines.length);
-      const chunkLines = lines.slice(position, endPosition);
-      const chunkContent = chunkLines.join('\n');
+      // 寻找合适的分割点
+      const splitResult = this.findSmartSplitPoint(lines, position, chunkSize, language);
+      if (!splitResult) break;
 
-      if (chunkContent.trim().length > 0) {
+      const { content, startLine, endLine } = splitResult;
+
+      if (this.validateCodeChunk(content, language)) {
         chunks.push({
-          content: chunkContent,
+          content,
           metadata: {
-            startLine: position + 1,
-            endLine: endPosition,
+            startLine,
+            endLine,
             language,
             filePath,
             type: 'generic',
@@ -386,10 +408,315 @@ export class ASTCodeSplitter implements Splitter {
         });
       }
 
-      position = endPosition;
+      position = endLine;
     }
 
     return chunks;
+  }
+
+  // 新增：寻找智能分割点
+  private findSmartSplitPoint(
+    lines: string[],
+    startPos: number,
+    preferredSize: number,
+    language: string
+  ): { content: string; startLine: number; endLine: number } | null {
+
+    const maxPos = Math.min(startPos + preferredSize * 2, lines.length); // 允许扩展到2倍大小
+    let bestEndPos = -1;
+    let bestScore = -1;
+
+    // 在允许范围内寻找最佳分割点
+    for (let pos = startPos + preferredSize; pos <= maxPos; pos++) {
+      if (pos >= lines.length) break;
+
+      const candidateLines = lines.slice(startPos, pos);
+      const candidateContent = candidateLines.join('\n');
+
+      // 评估分割点的质量
+      const score = this.evaluateSplitPoint(candidateContent, lines[pos] || '', language);
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestEndPos = pos;
+      }
+
+      // 如果找到完美分割点，立即停止
+      if (score >= 0.9) break;
+    }
+
+    if (bestEndPos === -1) {
+      return null;
+    }
+
+    const content = lines.slice(startPos, bestEndPos).join('\n');
+    return {
+      content,
+      startLine: startPos + 1,
+      endLine: bestEndPos
+    };
+  }
+
+  // 新增：评估分割点质量
+  private evaluateSplitPoint(
+    beforeContent: string,
+    nextLine: string,
+    language: string
+  ): number {
+    let score = 0;
+
+    // 1. 基本语法完整性检查
+    if (!this.isSymbolBalanced(beforeContent, language)) {
+      return 0; // 语法不平衡，无效分割点
+    }
+
+    // 2. 语义分割点偏好
+    const trimmedContent = beforeContent.trim();
+
+    // 在函数/类/语句结束处分割得分高
+    if (trimmedContent.endsWith('}') || trimmedContent.endsWith(';')) {
+      score += 0.5;
+    }
+
+    // 3. 避免在字符串或注释中分割
+    if (this.isInStringOrComment(trimmedContent, language)) {
+      score -= 0.3;
+    }
+
+    // 4. 内容质量检查
+    if (trimmedContent.length < 10) {
+      score -= 0.2; // 内容太少
+    }
+
+    // 5. 下一行开始的合理性检查
+    if (nextLine) {
+      const trimmedNext = nextLine.trim();
+      if (trimmedNext.startsWith('func ') ||
+        trimmedNext.startsWith('type ') ||
+        trimmedNext.startsWith('class ') ||
+        trimmedNext.startsWith('def ')) {
+        score += 0.3; // 在重要结构开始前的分割点
+      }
+    }
+
+    return Math.max(0, Math.min(1, score));
+  }
+
+  // 新增：代码块验证
+  private validateCodeChunk(content: string, language: string): boolean {
+    try {
+      // 1. 基本内容验证
+      const trimmed = content.trim();
+      if (trimmed.length < 5) {  // 最少5个字符
+        return false;
+      }
+
+      // 2. 排除明显无效的代码块
+      if (trimmed === '}' || trimmed === '{' || trimmed === ';') {
+        return false;
+      }
+
+      // 3. 语法符号平衡检查
+      if (!this.isSymbolBalanced(content, language)) {
+        return false;
+      }
+
+      // 4. 语言特定验证
+      switch (language.toLowerCase()) {
+        case 'go':
+          return this.validateGoCode(content);
+        case 'typescript':
+        case 'javascript':
+          return this.validateJSCode(content);
+        case 'python':
+          return this.validatePythonCode(content);
+        default:
+          return true; // 未知语言，基本验证通过即可
+      }
+    } catch (error) {
+      this.logger?.warn(`Code chunk validation failed: ${error}`);
+      return false;
+    }
+  }
+
+  // 新增：符号平衡检查
+  private isSymbolBalanced(content: string, language: string): boolean {
+    try {
+      const symbols = this.getLanguageSymbols(language);
+      const stack: string[] = [];
+
+      let inString = false;
+      let stringChar = '';
+      let escaped = false;
+
+      for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+
+        // 处理转义字符
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+
+        if (char === '\\') {
+          escaped = true;
+          continue;
+        }
+
+        // 处理字符串
+        if ((char === '"' || char === "'" || char === '`') && !inString) {
+          inString = true;
+          stringChar = char;
+          continue;
+        }
+
+        if (inString && char === stringChar) {
+          inString = false;
+          stringChar = '';
+          continue;
+        }
+
+        // 在字符串中，不检查括号
+        if (inString) continue;
+
+        // 检查括号匹配
+        if (symbols.opening.includes(char)) {
+          stack.push(char);
+        } else if (symbols.closing.includes(char)) {
+          const last = stack.pop();
+          if (!last || !this.isMatchingPair(last, char)) {
+            return false;
+          }
+        }
+      }
+
+      return stack.length === 0 && !inString;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // 新增：获取语言特定符号
+  private getLanguageSymbols(language: string): { opening: string[]; closing: string[] } {
+    const languageSymbols: Map<string, { opening: string[]; closing: string[] }> = new Map([
+      ['go', { opening: ['(', '[', '{'], closing: [')', ']', '}'] }],
+      ['typescript', { opening: ['(', '[', '{'], closing: [')', ']', '}'] }],
+      ['javascript', { opening: ['(', '[', '{'], closing: [')', ']', '}'] }],
+      ['python', { opening: ['(', '[', '{'], closing: [')', ']', '}'] }],
+      ['java', { opening: ['(', '[', '{'], closing: [')', ']', '}'] }],
+      ['rust', { opening: ['(', '[', '{'], closing: [')', ']', '}'] }],
+      ['cpp', { opening: ['(', '[', '{'], closing: [')', ']', '}'] }],
+      ['c', { opening: ['(', '[', '{'], closing: [')', ']', '}'] }]
+    ]);
+
+    return languageSymbols.get(language.toLowerCase()) ||
+      { opening: ['(', '[', '{'], closing: [')', ']', '}'] };
+  }
+
+  // 新增：检查括号匹配
+  private isMatchingPair(opening: string, closing: string): boolean {
+    const pairs: Map<string, string> = new Map([
+      ['(', ')'],
+      ['[', ']'],
+      ['{', '}']
+    ]);
+    return pairs.get(opening) === closing;
+  }
+
+  // 新增：Go代码验证
+  private validateGoCode(content: string): boolean {
+    const trimmed = content.trim();
+
+    // Go代码应该包含一些基本元素
+    if (trimmed.includes('package ') ||
+      trimmed.includes('func ') ||
+      trimmed.includes('type ') ||
+      trimmed.includes('import ')) {
+      return true;
+    }
+
+    // 或者至少有一些有效的Go语法结构
+    const goPatterns = [
+      /package\s+\w+/,           // package声明
+      /func\s+\w+\s*\(/,         // 函数定义
+      /type\s+\w+\s+(struct|interface)/, // 类型定义
+      /var\s+\w+\s+\w+/,         // 变量声明
+      /const\s+\w+\s*=/,         // 常量定义
+      /if\s+\w+.*{/,             // if语句
+      /for\s+.*{/,               // for循环
+      /switch\s+.*{/,            // switch语句
+      /struct\s*{/,              // 结构体
+      /interface\s*{/            // 接口
+    ];
+
+    return goPatterns.some(pattern => pattern.test(trimmed));
+  }
+
+  // 新增：JavaScript/TypeScript代码验证
+  private validateJSCode(content: string): boolean {
+    const trimmed = content.trim();
+
+    const jsPatterns = [
+      /(const|let|var)\s+\w+/,           // 变量声明
+      /function\s+\w+\s*\(/,            // 函数定义
+      /=>/,                              // 箭头函数
+      /import\s+.*from\s+/,             // import语句
+      /export\s+(default\s+)?\w+/,      // export语句
+      /class\s+\w+/,                     // 类定义
+      /if\s*\(.*\)\s*{/,                 // if语句
+      /for\s*\(.*\)\s*{/,                // for循环
+      /while\s*\(.*\)\s*{/,              // while循环
+      /try\s*{/,                         // try语句
+      /console\.(log|error|warn)/,       // console调用
+      /document\.(getElementById|querySelector)/ // DOM操作
+    ];
+
+    return jsPatterns.some(pattern => pattern.test(trimmed));
+  }
+
+  // 新增：Python代码验证
+  private validatePythonCode(content: string): boolean {
+    const trimmed = content.trim();
+
+    const pyPatterns = [
+      /def\s+\w+\s*\(/,                   // 函数定义
+      /import\s+\w+/,                     // import语句
+      /from\s+\w+\s+import/,              // from import语句
+      /class\s+\w+.*:/,                   // 类定义
+      /if\s+.*:/,                         // if语句
+      /for\s+\w+\s+in\s+.*:/,             // for循环
+      /while\s+.*:/,                      // while循环
+      /try:/,                             // try语句
+      /with\s+.*as\s+\w+:/,               // with语句
+      /print\s*\(/,                       // print语句
+      /if\s+__name__\s*==\s*["']__main__["']/ // main检查
+    ];
+
+    return pyPatterns.some(pattern => pattern.test(trimmed));
+  }
+
+  // 新增：检查是否在字符串或注释中
+  private isInStringOrComment(content: string, language: string): boolean {
+    // 简单的启发式检查，可以根据需要扩展
+    const trimmed = content.trim();
+
+    // 如果以这些字符结尾，可能在字符串中
+    if (trimmed.endsWith('"') || trimmed.endsWith("'") || trimmed.endsWith('`')) {
+      return true;
+    }
+
+    // 如果以注释符号结尾，可能在注释中
+    if (language === 'python' && trimmed.endsWith('#')) {
+      return true;
+    }
+
+    if (['javascript', 'typescript', 'go', 'java', 'cpp', 'c'].includes(language)) {
+      if (trimmed.endsWith('//') || trimmed.endsWith('/*')) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   setChunkSize(chunkSize: number): void {
@@ -400,7 +727,7 @@ export class ASTCodeSplitter implements Splitter {
   setChunkOverlap(chunkOverlap: number): void {
     this.options.overlapSize = chunkOverlap;
     this.configManager.updateGlobalConfig({ overlapSize: chunkOverlap });
-    
+
     // 重新初始化重叠计算器
     if (this.overlapCalculator) {
       this.overlapCalculator = new UnifiedOverlapCalculator({
