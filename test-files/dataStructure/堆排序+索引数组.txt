@@ -1,0 +1,81 @@
+package main
+
+import "fmt"
+
+// 定义一个结构体，保存值和原始索引
+type indexedValue struct {
+    value int
+    index int
+}
+
+// 堆排序函数，返回排序后的值及其原始索引
+func HeapSortWithIndex(nums []int) ([]int, []int) {
+    // 创建包含原始索引的结构体切片
+    indexedNums := make([]indexedValue, len(nums))
+    for i, v := range nums {
+        indexedNums[i] = indexedValue{value: v, index: i}
+    }
+    
+    // 构建大顶堆
+    n := len(indexedNums)
+    for i := n/2 - 1; i >= 0; i-- {
+        heapifyWithIndex(indexedNums, n, i)
+    }
+    
+    // 逐个提取堆顶元素（最大值）
+    for i := n - 1; i > 0; i-- {
+        // 将当前堆顶（最大值）与堆尾元素交换
+        indexedNums[0], indexedNums[i] = indexedNums[i], indexedNums[0]
+        
+        // 调整剩余元素为大顶堆
+        heapifyWithIndex(indexedNums, i, 0)
+    }
+    
+    // 提取排序后的值和原始索引
+    sortedValues := make([]int, len(nums))
+    originalIndices := make([]int, len(nums))
+    for i, iv := range indexedNums {
+        sortedValues[i] = iv.value
+        originalIndices[i] = iv.index
+    }
+    
+    return sortedValues, originalIndices
+}
+
+// 针对带索引的结构体进行堆化
+func heapifyWithIndex(arr []indexedValue, n, i int) {
+    largest := i      // 初始化最大值为当前节点
+    left := 2*i + 1   // 左子节点索引
+    right := 2*i + 2  // 右子节点索引
+    
+    // 比较值的大小，维护大顶堆
+    if left < n && arr[left].value > arr[largest].value {
+        largest = left
+    }
+    
+    if right < n && arr[right].value > arr[largest].value {
+        largest = right
+    }
+    
+    // 如果最大值不是当前节点，则交换并递归堆化
+    if largest != i {
+        arr[i], arr[largest] = arr[largest], arr[i]
+        heapifyWithIndex(arr, n, largest)
+    }
+}
+
+// 示例用法
+func main() {
+    nums := []int{3, 1, 4, 1, 5, 9, 2, 6}
+    sorted, indices := HeapSortWithIndex(nums)
+    
+    fmt.Println("原始数组:", nums)
+    fmt.Println("排序后数组:", sorted)
+    fmt.Println("原始索引:", indices)
+    
+    // 验证：排序后的值对应的原始索引是否正确
+    for i := 0; i < len(sorted); i++ {
+        fmt.Printf("排序后的值 %d 来自原始数组索引 %d\n", sorted[i], indices[i])
+    }
+}
+    
