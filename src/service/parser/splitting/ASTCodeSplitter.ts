@@ -6,40 +6,41 @@ import { createHash } from 'crypto';
 import { LoggerService } from '../../../utils/LoggerService';
 import { BalancedChunker } from './BalancedChunker';
 
-// 导入重构后的模块
+// 导入核心策略
 import { SyntaxAwareSplitter } from './strategies/SyntaxAwareSplitter';
 import { FunctionSplitter } from './strategies/FunctionSplitter';
-import { EnhancedFunctionSplitter } from './strategies/EnhancedFunctionSplitter';
 import { ClassSplitter } from './strategies/ClassSplitter';
 import { ImportSplitter } from './strategies/ImportSplitter';
 import { IntelligentSplitter } from './strategies/IntelligentSplitter';
 import { SemanticSplitter } from './strategies/SemanticSplitter';
+
+// 导入核心工具
 import { ChunkOptimizer } from './utils/ChunkOptimizer';
 import { ComplexityCalculator } from './utils/ComplexityCalculator';
 import { PerformanceMonitor } from './utils/PerformanceMonitor';
 import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from './types';
 
-// 导入新的优化组件
-import { SemanticBoundaryAnalyzer } from './utils/SemanticBoundaryAnalyzer';
+// 导入统一的重叠计算器
 import { UnifiedOverlapCalculator } from './utils/UnifiedOverlapCalculator';
-import { LanguageSpecificConfigManager } from './config/LanguageSpecificConfigManager';
-import { ChunkingPerformanceOptimizer } from './utils/ChunkingPerformanceOptimizer';
-// 导入新的重复问题解决方案组件
+
+// 导入节点跟踪器
 import { ASTNodeTracker } from './utils/ASTNodeTracker';
-import { ChunkMerger } from './utils/ChunkMerger';
-import { EnhancedOverlapCalculator } from './utils/EnhancedOverlapCalculator';
-import { PerformanceOptimizer } from './utils/PerformanceOptimizer';
-// 导入ChunkingCoordinator
+
+// 导入配置管理器
+import { LanguageSpecificConfigManager } from './config/LanguageSpecificConfigManager';
+
+// 导入性能优化器
+import { ChunkingPerformanceOptimizer } from './utils/ChunkingPerformanceOptimizer';
+
+// 导入协调器
 import { ChunkingCoordinator } from './utils/ChunkingCoordinator';
-// 导入NodeAwareOverlapCalculator
-import { NodeAwareOverlapCalculator } from './utils/NodeAwareOverlapCalculator';
 
 // Simple fallback implementation for unsupported languages
 class SimpleCodeSplitter {
   private chunkSize: number;
   private chunkOverlap: number;
 
- constructor(chunkSize: number = 2500, chunkOverlap: number = 300) {
+  constructor(chunkSize: number = 2500, chunkOverlap: number = 300) {
     this.chunkSize = chunkSize;
     this.chunkOverlap = chunkOverlap;
   }
@@ -53,9 +54,6 @@ class SimpleCodeSplitter {
       const chunkContent = code.substring(position, endPosition);
 
       // Calculate line numbers
-      // When splitting a string by \n, we get an array with one more element than the number of \n characters
-      // So if we have "line1\nline2\nline3", we get ["line1", "line2", "line3"] - 3 elements, meaning we're at line 3
-      // If we have "line1\nline2" (no trailing newline), we get ["line1", "line2"] - 2 elements, meaning we're at line 2
       const linesBefore = position === 0 ? 0 : code.substring(0, position).split('\n').length - 1;
       const startLine = linesBefore + 1; // Convert to 1-based line numbers
       const chunkLines = chunkContent.split('\n').length;
@@ -96,30 +94,27 @@ export class ASTCodeSplitter implements Splitter {
   private logger?: LoggerService;
   private balancedChunker: BalancedChunker;
 
-  // 重构后的模块实例
+  // 核心策略实例
   private syntaxAwareSplitter: SyntaxAwareSplitter;
   private functionSplitter: FunctionSplitter;
-  private enhancedFunctionSplitter: EnhancedFunctionSplitter;
   private classSplitter: ClassSplitter;
   private importSplitter: ImportSplitter;
   private intelligentSplitter: IntelligentSplitter;
   private semanticSplitter: SemanticSplitter;
+  
+  // 核心工具实例
   private chunkOptimizer: ChunkOptimizer;
   private complexityCalculator: ComplexityCalculator;
   private performanceMonitor: PerformanceMonitor;
-  // 新增优化组件
-  private semanticBoundaryAnalyzer: SemanticBoundaryAnalyzer;
-   private unifiedOverlapCalculator: UnifiedOverlapCalculator;
-   private languageConfigManager: LanguageSpecificConfigManager;
-  private performanceOptimizer: ChunkingPerformanceOptimizer;
-  // 新增重复问题解决方案组件
+  
+  // 统一组件实例
+  private unifiedOverlapCalculator: UnifiedOverlapCalculator;
   private astNodeTracker: ASTNodeTracker;
-  private chunkMerger: ChunkMerger;
-  private enhancedOverlapCalculator: EnhancedOverlapCalculator;
- private duplicateResolutionPerformanceOptimizer: PerformanceOptimizer;
-  // 新增协调机制组件
+  private languageConfigManager: LanguageSpecificConfigManager;
+  private performanceOptimizer: ChunkingPerformanceOptimizer;
+  
+  // 协调器实例
   private chunkingCoordinator: ChunkingCoordinator;
-  private nodeAwareOverlapCalculator: NodeAwareOverlapCalculator;
 
   constructor(
     @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
@@ -131,77 +126,60 @@ export class ASTCodeSplitter implements Splitter {
     this.balancedChunker = new BalancedChunker(logger);
     this.options = { ...DEFAULT_CHUNKING_OPTIONS };
 
-    // 初始化重构后的模块
+    // 初始化核心策略
     this.syntaxAwareSplitter = new SyntaxAwareSplitter(this.options);
-    this.functionSplitter = new FunctionSplitter(this.options);
-    this.enhancedFunctionSplitter = new EnhancedFunctionSplitter({
+    this.functionSplitter = new FunctionSplitter({
       ...this.options,
       functionSpecificOptions: {
         ...this.options.functionSpecificOptions,
-        maxFunctionLines: 30,  // 最大函数行数阈值
-        minFunctionLines: 5,   // 最小函数行数
-        enableSubFunctionExtraction: true  // 启用子函数提取
-      },
-      enableChunkDeduplication: true
+        maxFunctionLines: 30,
+        minFunctionLines: 5,
+        enableSubFunctionExtraction: true
+      }
     });
     this.classSplitter = new ClassSplitter(this.options);
     this.importSplitter = new ImportSplitter(this.options);
     this.intelligentSplitter = new IntelligentSplitter(this.options);
     this.semanticSplitter = new SemanticSplitter(this.options);
+    
+    // 初始化核心工具
     this.chunkOptimizer = new ChunkOptimizer(this.options);
     this.complexityCalculator = new ComplexityCalculator();
     this.performanceMonitor = new PerformanceMonitor(logger);
-    // 初始化新的优化组件
-    this.semanticBoundaryAnalyzer = new SemanticBoundaryAnalyzer();
+    
+    // 初始化统一组件
     this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
       maxSize: this.options.overlapSize,
-      minLines: 1
+      minLines: 1,
+      maxOverlapRatio: this.options.maxOverlapRatio,
+      maxOverlapLines: 50,
+      enableASTBoundaryDetection: this.options.enableASTBoundaryDetection,
+      enableNodeAwareOverlap: true,
+      logger: logger
     });
+    
+    this.astNodeTracker = new ASTNodeTracker(10000, true, 0.8, logger);
     this.languageConfigManager = new LanguageSpecificConfigManager();
     this.performanceOptimizer = new ChunkingPerformanceOptimizer();
     
-    // 初始化重复问题解决方案组件
-    this.astNodeTracker = new ASTNodeTracker();
-    this.chunkMerger = new ChunkMerger(this.options as any, this.astNodeTracker);
-    this.enhancedOverlapCalculator = new EnhancedOverlapCalculator({
-      maxSize: this.options.overlapSize,
-      minLines: 1,
-      maxOverlapRatio: 0.3,
-      enableASTBoundaryDetection: true,
-      nodeTracker: this.astNodeTracker
-    });
-    this.duplicateResolutionPerformanceOptimizer = new PerformanceOptimizer();
-    
-    // 初始化协调机制组件
+    // 初始化协调器
     this.chunkingCoordinator = new ChunkingCoordinator(
       this.astNodeTracker,
       this.options,
-      this.logger
-    );
-    this.nodeAwareOverlapCalculator = new NodeAwareOverlapCalculator(
-      this.astNodeTracker,
-      {
-        maxOverlapRatio: this.options.maxOverlapRatio,
-        maxOverlapLines: 50
-      },
       this.logger
     );
 
     // 设置依赖关系
     this.syntaxAwareSplitter.setTreeSitterService(treeSitterService);
     this.functionSplitter.setTreeSitterService(treeSitterService);
-    this.enhancedFunctionSplitter.setTreeSitterService(treeSitterService);
     this.classSplitter.setTreeSitterService(treeSitterService);
     this.importSplitter.setTreeSitterService(treeSitterService);
     this.intelligentSplitter.setBalancedChunker(this.balancedChunker);
-    this.intelligentSplitter.setSemanticBoundaryAnalyzer(this.semanticBoundaryAnalyzer);
-    this.intelligentSplitter.setUnifiedOverlapCalculator(this.unifiedOverlapCalculator);
 
     // 设置日志服务
     if (logger) {
       this.syntaxAwareSplitter.setLogger(logger);
       this.functionSplitter.setLogger(logger);
-      this.enhancedFunctionSplitter.setLogger(logger);
       this.classSplitter.setLogger(logger);
       this.importSplitter.setLogger(logger);
       this.intelligentSplitter.setLogger(logger);
@@ -210,7 +188,7 @@ export class ASTCodeSplitter implements Splitter {
     // 注册分段策略到协调器
     this.chunkingCoordinator.registerStrategy(this.importSplitter);
     this.chunkingCoordinator.registerStrategy(this.classSplitter);
-    this.chunkingCoordinator.registerStrategy(this.enhancedFunctionSplitter);
+    this.chunkingCoordinator.registerStrategy(this.functionSplitter);
     this.chunkingCoordinator.registerStrategy(this.syntaxAwareSplitter);
     this.chunkingCoordinator.registerStrategy(this.intelligentSplitter);
     this.chunkingCoordinator.registerStrategy(this.semanticSplitter);
@@ -252,59 +230,27 @@ export class ASTCodeSplitter implements Splitter {
           chunks = await this.enhancedSyntaxAwareSplit(code, parseResult, language, filePath, adaptiveOptions);
         }
         
-        // 应用智能块合并（如果启用）
-        if (this.options.enableChunkDeduplication) {
-          chunks = this.chunkMerger.mergeOverlappingChunks(chunks);
-        }
-        
-        // 应用性能优化
-        const optimizationResult = this.duplicateResolutionPerformanceOptimizer.optimizeChunks(
-          chunks, 
-          adaptiveOptions as any, 
-          this.astNodeTracker
-        );
-        chunks = optimizationResult.optimizedChunks;
-        
-        // 应用重叠计算（根据配置选择计算器）
-        if (this.options.addOverlap) {
-          if (this.options.enableASTBoundaryDetection && parseResult.ast) {
-            // 使用节点感知的重叠计算器
-            this.nodeAwareOverlapCalculator = new NodeAwareOverlapCalculator(
-              this.astNodeTracker,
-              {
-                maxOverlapRatio: this.options.maxOverlapRatio,
-                maxOverlapLines: 50
-              },
-              this.logger
-            );
-            return this.nodeAwareOverlapCalculator.addOverlap(chunks, code);
-          } else {
-            // 使用原有的统一重叠计算器
-            return this.unifiedOverlapCalculator.addOverlap(chunks, code);
-          }
-        }
-        return chunks;
-      } else {
-        this.logger?.warn(`TreeSitterService failed for language ${language}, falling back to intelligent splitting`);
-        let chunks = await this.intelligentSplitter.split(code, language, filePath, adaptiveOptions, this.astNodeTracker);
-        
-        // 应用智能块合并（如果启用）
-        if (this.options.enableChunkDeduplication) {
-          chunks = this.chunkMerger.mergeOverlappingChunks(chunks);
-        }
-        
-        // 应用性能优化
-        const optimizationResult = this.duplicateResolutionPerformanceOptimizer.optimizeChunks(
-          chunks, 
-          adaptiveOptions as any, 
-          this.astNodeTracker
-        );
-        chunks = optimizationResult.optimizedChunks;
+        // 记录性能指标
+        this.performanceMonitor.record(Date.now(), code.split('\n').length, false);
         
         // 应用统一重叠计算（如果启用）
         if (this.options.addOverlap) {
           return this.unifiedOverlapCalculator.addOverlap(chunks, code);
         }
+        
+        return chunks;
+      } else {
+        this.logger?.warn(`TreeSitterService failed for language ${language}, falling back to intelligent splitting`);
+        let chunks = await this.intelligentSplitter.split(code, language, filePath, adaptiveOptions, this.astNodeTracker);
+        
+        // 记录性能指标
+        this.performanceMonitor.record(Date.now(), code.split('\n').length, false);
+        
+        // 应用统一重叠计算（如果启用）
+        if (this.options.addOverlap) {
+          return this.unifiedOverlapCalculator.addOverlap(chunks, code);
+        }
+        
         return chunks;
       }
     } catch (error) {
@@ -313,46 +259,28 @@ export class ASTCodeSplitter implements Splitter {
       try {
         let chunks = await this.intelligentSplitter.split(code, language, filePath, adaptiveOptions, this.astNodeTracker);
         
-        // 应用智能块合并（如果启用）
-        if (this.options.enableChunkDeduplication) {
-          chunks = this.chunkMerger.mergeOverlappingChunks(chunks);
-        }
-        
-        // 应用性能优化
-        const optimizationResult = this.duplicateResolutionPerformanceOptimizer.optimizeChunks(
-          chunks, 
-          adaptiveOptions as any, 
-          this.astNodeTracker
-        );
-        chunks = optimizationResult.optimizedChunks;
+        // 记录性能指标
+        this.performanceMonitor.record(Date.now(), code.split('\n').length, false);
         
         // 应用统一重叠计算（如果启用）
         if (this.options.addOverlap) {
           return this.unifiedOverlapCalculator.addOverlap(chunks, code);
         }
+        
         return chunks;
       } catch (intelligentError) {
         this.logger?.warn(`Intelligent splitter failed, using semantic fallback: ${intelligentError}`);
         try {
           let chunks = await this.semanticSplitter.split(code, language, filePath, adaptiveOptions);
           
-          // 应用智能块合并（如果启用）
-          if (this.options.enableChunkDeduplication) {
-            chunks = this.chunkMerger.mergeOverlappingChunks(chunks);
-          }
-          
-          // 应用性能优化
-          const optimizationResult = this.duplicateResolutionPerformanceOptimizer.optimizeChunks(
-            chunks,
-            adaptiveOptions as any,
-            this.astNodeTracker
-          );
-          chunks = optimizationResult.optimizedChunks;
+          // 记录性能指标
+          this.performanceMonitor.record(Date.now(), code.split('\n').length, false);
           
           // 应用统一重叠计算（如果启用）
           if (this.options.addOverlap) {
             return this.unifiedOverlapCalculator.addOverlap(chunks, code);
           }
+          
           return chunks;
         } catch (semanticError) {
           this.logger?.warn(`Semantic splitter failed, using simple fallback: ${semanticError}`);
@@ -374,7 +302,7 @@ export class ASTCodeSplitter implements Splitter {
   ): Promise<CodeChunk[]> {
     // 使用增强的语法感知分段逻辑
     return await this.syntaxAwareSplitter.split(code, language, filePath, options);
- }
+  }
 
   private mergeAdaptiveOptions(
     baseOptions: Required<ChunkingOptions>,
@@ -410,5 +338,15 @@ export class ASTCodeSplitter implements Splitter {
     this.chunkOverlap = chunkOverlap;
     this.simpleFallback.setChunkOverlap(chunkOverlap);
     this.options.overlapSize = chunkOverlap;
+    // 更新统一重叠计算器
+    this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
+      maxSize: this.options.overlapSize,
+      minLines: 1,
+      maxOverlapRatio: this.options.maxOverlapRatio,
+      maxOverlapLines: 50,
+      enableASTBoundaryDetection: this.options.enableASTBoundaryDetection,
+      enableNodeAwareOverlap: true,
+      logger: this.logger
+    });
   }
 }

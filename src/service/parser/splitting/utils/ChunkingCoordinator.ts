@@ -1,9 +1,8 @@
 import { CodeChunk, ChunkingOptions, ASTNode, SplitStrategy } from '../types';
 import { ASTNodeTracker } from './ASTNodeTracker';
-import { EnhancedASTNodeTracker } from './EnhancedASTNodeTracker';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
 import { SimilarityDetector } from './SimilarityDetector';
-import { SmartOverlapController } from './SmartOverlapController';
+import { UnifiedOverlapCalculator } from './UnifiedOverlapCalculator';
 import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
@@ -11,11 +10,10 @@ import { LoggerService } from '../../../../utils/LoggerService';
  */
 export class ChunkingCoordinator {
   private nodeTracker: ASTNodeTracker;
-  private enhancedNodeTracker: EnhancedASTNodeTracker;
   private strategies: Map<string, SplitStrategy> = new Map();
   private logger?: LoggerService;
   private options: Required<ChunkingOptions>;
-  private smartOverlapController?: SmartOverlapController;
+  private unifiedOverlapCalculator?: UnifiedOverlapCalculator;
   private enableDeduplication: boolean;
   private similarityThreshold: number;
 
@@ -42,20 +40,21 @@ export class ChunkingCoordinator {
     this.enableDeduplication = options.enableChunkDeduplication ?? false;
     this.similarityThreshold = options.deduplicationThreshold ?? 0.8;
     
-    // 初始化增强的节点跟踪器
-    this.enhancedNodeTracker = new EnhancedASTNodeTracker({
-      similarityThreshold: this.similarityThreshold,
-      enableContentHash: true,
-      enableLineRangeTracking: true
-    }, logger);
-    
-    // 初始化智能重叠控制器
+    // 初始化统一重叠计算器（整合SmartOverlapController功能）
     if (this.enableDeduplication) {
-      this.smartOverlapController = new SmartOverlapController(
-        this.similarityThreshold,
-        options.chunkMergeStrategy ?? 'conservative',
-        options.maxOverlapRatio ?? 0.3
-      );
+      this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
+        maxSize: options.overlapSize ?? 200,
+        minLines: 1,
+        maxOverlapRatio: options.maxOverlapRatio ?? 0.3,
+        maxOverlapLines: 50,
+        enableASTBoundaryDetection: options.enableASTBoundaryDetection ?? false,
+        enableNodeAwareOverlap: options.astNodeTracking ?? false, // 使用astNodeTracking代替
+        enableSmartDeduplication: true,
+        similarityThreshold: this.similarityThreshold,
+        mergeStrategy: options.chunkMergeStrategy ?? 'conservative',
+        nodeTracker: this.nodeTracker,
+        logger: this.logger
+      });
     }
   }
 
@@ -83,7 +82,6 @@ export class ChunkingCoordinator {
     
     // 重置节点跟踪器
     this.nodeTracker.clear();
-    this.enhancedNodeTracker.clear();
     
     // 按优先级执行分段策略
     for (const strategyName of this.strategyPriority) {
@@ -116,11 +114,11 @@ export class ChunkingCoordinator {
         const strategyDuration = Date.now() - strategyStartTime;
         this.logger?.debug(`Strategy ${strategyName} generated ${chunks.length} chunks in ${strategyDuration}ms`);
         
-        // 增强过滤：使用增强的节点跟踪器检查冲突
-        const filteredChunks = this.filterChunksWithEnhancedTracker(chunks);
+        // 过滤冲突的代码块
+        const filteredChunks = this.filterChunksWithTracker(chunks);
         
         // 标记节点为已使用
-        this.markUsedNodesWithEnhancedTracker(filteredChunks);
+        this.markUsedNodesWithTracker(filteredChunks);
         
         allChunks.push(...filteredChunks);
         this.logger?.debug(`Strategy ${strategyName} contributed ${filteredChunks.length} unique chunks`);
@@ -135,13 +133,11 @@ export class ChunkingCoordinator {
     
     const totalTime = Date.now() - startTime;
     const stats = this.nodeTracker.getStats();
-    const enhancedStats = this.enhancedNodeTracker.getStats();
     
     this.logger?.info(
       `Chunking coordination completed. ` +
       `Total chunks: ${processedChunks.length} (original: ${allChunks.length}), ` +
       `Used nodes: ${stats.usedNodes}/${stats.totalNodes}, ` +
-      `Enhanced tracker hits: ${enhancedStats.similarityHits + enhancedStats.lineRangeConflicts}, ` +
       `Similarity hits: ${stats.similarityHits}, ` +
       `Hash collisions: ${stats.contentHashCollisions}, ` +
       `Duration: ${totalTime}ms`
@@ -151,14 +147,14 @@ export class ChunkingCoordinator {
   }
 
   /**
-   * 使用增强的节点跟踪器过滤代码块
+   * 使用节点跟踪器过滤代码块
    */
-  private filterChunksWithEnhancedTracker(chunks: CodeChunk[]): CodeChunk[] {
+  private filterChunksWithTracker(chunks: CodeChunk[]): CodeChunk[] {
     const filteredChunks: CodeChunk[] = [];
     
     for (const chunk of chunks) {
-      // 使用增强的节点跟踪器检查冲突
-      if (this.enhancedNodeTracker.isChunkConflicting(chunk)) {
+      // 使用节点跟踪器检查冲突
+      if (this.isChunkConflicting(chunk)) {
         this.logger?.debug(`Filtered out conflicting chunk: ${chunk.metadata.startLine}-${chunk.metadata.endLine}`);
         continue;
       }
@@ -170,12 +166,47 @@ export class ChunkingCoordinator {
   }
 
   /**
-   * 使用增强的节点跟踪器标记已使用的节点
+   * 使用节点跟踪器标记已使用的节点
    */
-  private markUsedNodesWithEnhancedTracker(chunks: CodeChunk[]): void {
+  private markUsedNodesWithTracker(chunks: CodeChunk[]): void {
     for (const chunk of chunks) {
-      this.enhancedNodeTracker.markChunkUsed(chunk);
+      // 为每个代码块创建临时AST节点并标记为已使用
+      if (chunk.metadata.startLine && chunk.metadata.endLine) {
+        const tempNode: ASTNode = {
+          id: `chunk-${chunk.metadata.startLine}-${chunk.metadata.endLine}`,
+          type: chunk.metadata.type || 'chunk',
+          startByte: 0,
+          endByte: 0,
+          startLine: chunk.metadata.startLine,
+          endLine: chunk.metadata.endLine,
+          text: chunk.content,
+          contentHash: ContentHashIDGenerator.getContentHashPrefix(chunk.content)
+        };
+        
+        this.nodeTracker.markUsed(tempNode);
+      }
     }
+  }
+
+  /**
+   * 检查代码块是否与已使用的节点冲突
+   */
+  private isChunkConflicting(chunk: CodeChunk): boolean {
+    if (!chunk.metadata.startLine || !chunk.metadata.endLine) return false;
+
+    // 为代码块创建临时AST节点
+    const tempNode: ASTNode = {
+      id: `chunk-${chunk.metadata.startLine}-${chunk.metadata.endLine}`,
+      type: chunk.metadata.type || 'chunk',
+      startByte: 0,
+      endByte: 0,
+      startLine: chunk.metadata.startLine,
+      endLine: chunk.metadata.endLine,
+      text: chunk.content,
+      contentHash: ContentHashIDGenerator.getContentHashPrefix(chunk.content)
+    };
+
+    return this.nodeTracker.isUsed(tempNode) || this.nodeTracker.hasOverlap(tempNode);
   }
 
   /**
@@ -194,9 +225,9 @@ export class ChunkingCoordinator {
     
     this.logger?.debug(`Deduplication: ${chunks.length} -> ${deduplicatedChunks.length} chunks`);
     
-    // 第二步：智能合并相似且相邻的块
-    if (this.smartOverlapController) {
-      const mergedChunks = this.smartOverlapController.mergeSimilarChunks(deduplicatedChunks);
+    // 第二步：智能合并相似且相邻的块（使用统一重叠计算器）
+    if (this.unifiedOverlapCalculator) {
+      const mergedChunks = this.unifiedOverlapCalculator.mergeSimilarChunks(deduplicatedChunks);
       
       this.logger?.debug(`Smart merge: ${deduplicatedChunks.length} -> ${mergedChunks.length} chunks`);
       
@@ -212,14 +243,12 @@ export class ChunkingCoordinator {
   getCoordinatorStats(): {
     registeredStrategies: number;
     nodeTrackerStats: any;
-    enhancedNodeTrackerStats: any;
     deduplicationEnabled: boolean;
     similarityThreshold: number;
   } {
     return {
       registeredStrategies: this.strategies.size,
       nodeTrackerStats: this.nodeTracker.getStats(),
-      enhancedNodeTrackerStats: this.enhancedNodeTracker.getStats(),
       deduplicationEnabled: this.enableDeduplication,
       similarityThreshold: this.similarityThreshold
     };
@@ -235,22 +264,23 @@ export class ChunkingCoordinator {
     this.enableDeduplication = options.enableChunkDeduplication ?? false;
     this.similarityThreshold = options.deduplicationThreshold ?? 0.8;
     
-    // 更新增强的节点跟踪器
-    this.enhancedNodeTracker = new EnhancedASTNodeTracker({
-      similarityThreshold: this.similarityThreshold,
-      enableContentHash: true,
-      enableLineRangeTracking: true
-    }, this.logger);
-    
-    // 重新初始化智能重叠控制器
+    // 重新初始化统一重叠计算器（整合SmartOverlapController功能）
     if (this.enableDeduplication) {
-      this.smartOverlapController = new SmartOverlapController(
-        this.similarityThreshold,
-        options.chunkMergeStrategy ?? 'conservative',
-        options.maxOverlapRatio ?? 0.3
-      );
+      this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
+        maxSize: options.overlapSize ?? 200,
+        minLines: 1,
+        maxOverlapRatio: options.maxOverlapRatio ?? 0.3,
+        maxOverlapLines: 50,
+        enableASTBoundaryDetection: options.enableASTBoundaryDetection ?? false,
+        enableNodeAwareOverlap: options.astNodeTracking ?? false, // 使用astNodeTracking代替
+        enableSmartDeduplication: true,
+        similarityThreshold: this.similarityThreshold,
+        mergeStrategy: options.chunkMergeStrategy ?? 'conservative',
+        nodeTracker: this.nodeTracker,
+        logger: this.logger
+      });
     } else {
-      this.smartOverlapController = undefined;
+      this.unifiedOverlapCalculator = undefined;
     }
   }
 
@@ -266,7 +296,6 @@ export class ChunkingCoordinator {
    */
   clear(): void {
     this.nodeTracker.clear();
-    this.enhancedNodeTracker.clear();
-    this.smartOverlapController?.clearHistory();
+    this.unifiedOverlapCalculator?.clearHistory();
   }
 }

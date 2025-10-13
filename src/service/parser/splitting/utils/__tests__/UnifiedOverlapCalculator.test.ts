@@ -5,7 +5,12 @@ describe('UnifiedOverlapCalculator', () => {
   let calculator: UnifiedOverlapCalculator;
 
   beforeEach(() => {
-    calculator = new UnifiedOverlapCalculator();
+    calculator = new UnifiedOverlapCalculator({
+      maxSize: 200,
+      minLines: 1,
+      maxOverlapRatio: 0.3,
+      enableASTBoundaryDetection: false
+    });
   });
 
   describe('calculateOptimalOverlap', () => {
@@ -67,7 +72,7 @@ describe('UnifiedOverlapCalculator', () => {
         currentChunk,
         nextChunk,
         originalCode,
-        { maxSize: 100, minLines: 1, enableContextOptimization: true }
+        { maxSize: 100, minLines: 1 }
       );
 
       // Should have reasonable quality score

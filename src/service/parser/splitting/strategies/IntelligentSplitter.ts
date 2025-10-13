@@ -32,7 +32,9 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     this.semanticBoundaryAnalyzer = new SemanticBoundaryAnalyzer();
     this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
       maxSize: this.options.overlapSize,
-      minLines: 1
+      minLines: 1,
+      maxOverlapRatio: 0.3,
+      enableASTBoundaryDetection: false
     });
     this.languageConfigManager = new LanguageSpecificConfigManager();
     this.performanceOptimizer = new ChunkingPerformanceOptimizer();
@@ -58,7 +60,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
 
   setUnifiedOverlapCalculator(calculator: UnifiedOverlapCalculator): void {
     this.unifiedOverlapCalculator = calculator;
- }
+  }
 
   async split(
     content: string,
@@ -77,7 +79,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     filePath?: string,
     options: Required<ChunkingOptions> = this.options,
     nodeTracker?: any
- ): CodeChunk[] {
+  ): CodeChunk[] {
     const startTime = Date.now();
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
@@ -149,15 +151,14 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
 
           // 使用统一重叠计算
           if (this.unifiedOverlapCalculator) {
-            const overlapResult = this.unifiedOverlapCalculator.calculateOptimalOverlap(
-              chunks[chunks.length - 1],
-              { content: '', metadata: { startLine: i + 2, endLine: i + 2, language } as CodeChunkMetadata },
+            const overlapLines = this.unifiedOverlapCalculator.calculateSmartOverlap(
+              currentChunk,
               content,
-              { maxSize: this.options.overlapSize, minLines: 1 }
+              currentLine
             );
-            currentChunk = overlapResult.content.split('\n');
-            currentLine = i - overlapResult.lines + 1;
-            currentSize = overlapResult.content.length;
+            currentChunk = overlapLines;
+            currentLine = i - overlapLines.length + 1;
+            currentSize = overlapLines.join('\n').length;
           } else {
             // 回退到简单重叠（不应发生，因为现在统一使用unifiedOverlapCalculator）
             const simpleOverlapLines = currentChunk.slice(-3); // 取最后3行作为简单重叠
@@ -208,7 +209,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     return chunks;
   }
 
- /**
+  /**
    * 获取优化级别
    */
   private getOptimizationLevel(content: string): 'low' | 'medium' | 'high' {
@@ -224,7 +225,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     }
   }
 
- /**
+  /**
    * 使用语义边界评分的分割决策
    */
   private shouldSplitWithSemanticBoundary(
@@ -236,7 +237,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     language: string,
     allLines: string[],
     currentIndex: number
- ): boolean {
+  ): boolean {
     // 大小限制检查（优先）
     if (currentSize + lineSize > maxChunkSize) {
       return true;
