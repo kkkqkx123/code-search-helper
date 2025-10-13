@@ -7,6 +7,9 @@ import { ContextAwareOverlapOptimizer, OverlapResult } from './ContextAwareOverl
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
 import { SimilarityDetector } from './SimilarityDetector';
+import { CodeQualityAssessmentUtils } from './CodeQualityAssessmentUtils';
+import { OverlapStrategyUtils } from './OverlapStrategyUtils';
+import { ChunkSimilarityUtils } from './ChunkSimilarityUtils';
 
 export type OverlapStrategy = 'semantic' | 'syntactic' | 'size-based' | 'hybrid' | 'ast-boundary' | 'node-aware' | 'smart-deduplication';
 
@@ -359,81 +362,24 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     currentChunk: CodeChunk,
     nextChunk: CodeChunk
   ): OverlapStrategy {
-    // 智能去重策略优先级最高
-    if (this.options.enableSmartDeduplication) {
-      if (this.shouldUseSmartDeduplicationStrategy(currentChunk, nextChunk)) {
-        return 'smart-deduplication';
-      }
-    }
-
-    // 节点感知策略
-    if (this.options.enableNodeAwareOverlap && this.nodeTracker) {
-      if (this.shouldUseNodeAwareStrategy(currentChunk, nextChunk)) {
-        return 'node-aware';
-      }
-    }
-
-    // AST边界检测策略
-    if (this.options.enableASTBoundaryDetection && this.options.ast && this.nodeTracker) {
-      return 'ast-boundary';
-    }
-
-    // 基于内容特征选择策略
-    if (this.isSequentialFunctions(currentChunk, nextChunk)) {
-      return 'semantic';
-    }
-
-    if (this.isComplexStructure(currentChunk)) {
-      return 'syntactic';
-    }
-
-    if (this.isSimpleCode(currentChunk, nextChunk)) {
-      return 'size-based';
-    }
-
-    return 'hybrid';
+    // 使用新的工具类方法
+    return OverlapStrategyUtils.selectUnifiedOverlapStrategy(currentChunk, nextChunk, this.options);
   }
 
   /**
    * 判断是否应使用智能去重策略
    */
   private shouldUseSmartDeduplicationStrategy(currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
-    // 检查内容相似度
-    if (SimilarityDetector.isSimilar(currentChunk.content, nextChunk.content, this.options.similarityThreshold)) {
-      return true;
-    }
-
-    // 检查是否已经有相似的历史重叠
-    const overlapKey = `${currentChunk.metadata.endLine}-${nextChunk.metadata.startLine}`;
-    const history = this.overlapHistory.get(overlapKey) || [];
-
-    if (history.length > 0) {
-      return true;
-    }
-
-    return false;
+    // 使用新的工具类方法
+    return OverlapStrategyUtils.shouldUseSmartDeduplicationStrategy(currentChunk, nextChunk, this.options);
   }
-
+ 
   /**
    * 判断是否应使用节点感知策略
    */
   private shouldUseNodeAwareStrategy(currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
-    // 检查行范围重叠
-    if (currentChunk.metadata.endLine >= nextChunk.metadata.startLine) {
-      return true;
-    }
-
-    // 检查节点ID重叠
-    if (currentChunk.metadata.nodeIds && nextChunk.metadata.nodeIds) {
-      const commonNodes = currentChunk.metadata.nodeIds.filter(id =>
-        nextChunk.metadata.nodeIds!.includes(id)
-      );
-      if (commonNodes.length > 0) {
-        return true;
-      }
-    }
-
-    return false;
+    // 使用新的工具类方法
+    return OverlapStrategyUtils.shouldUseNodeAwareStrategy(currentChunk, nextChunk);
   }
 
   /**
@@ -562,7 +508,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       content: overlapContent,
       lines: overlapContent.split('\n').length,
       strategy: 'node-aware',
-      quality: this.calculateOverlapQuality(overlapContent.split('\n'), currentChunk, nextChunk),
+      quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapContent.split('\n'), currentChunk, nextChunk),
       astNodesUsed: unusedNodes.map(n => n.id),
       overlapRatio: overlapContent.length / currentChunk.content.length
     };
@@ -612,7 +558,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       content: overlapLines.join('\n'),
       lines: overlapLines.length,
       strategy: 'ast-boundary',
-      quality: this.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
+      quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
       astNodesUsed,
       overlapRatio: overlapLines.join('\n').length / currentChunk.content.length
     };
@@ -634,7 +580,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
 
       const line = lines[i];
       const boundaryScore = this.semanticAnalyzer.calculateBoundaryScore(line, [], currentChunk.metadata.language);
-      const isFunctionSignature = this.isFunctionSignature(line);
+      const isFunctionSignature = CodeQualityAssessmentUtils.isFunctionSignature(line);
 
       const tentativeOverlap = [line, ...overlapLines].join('\n');
       const tentativeRatio = tentativeOverlap.length / currentChunk.content.length;
@@ -654,7 +600,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       content: overlapLines.join('\n'),
       lines: overlapLines.length,
       strategy: 'semantic',
-      quality: this.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
+      quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
       astNodesUsed: [],
       overlapRatio: overlapLines.join('\n').length / currentChunk.content.length
     };
@@ -700,7 +646,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       content: overlapLines.join('\n'),
       lines: overlapLines.length,
       strategy: 'syntactic',
-      quality: this.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
+      quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
       astNodesUsed: [],
       overlapRatio: overlapLines.join('\n').length / currentChunk.content.length
     };
@@ -741,7 +687,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       content: overlapContent,
       lines: overlapLines.length,
       strategy: 'size-based',
-      quality: this.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
+      quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
       astNodesUsed: [],
       overlapRatio: overlapContent.length / currentChunk.content.length
     };
@@ -777,7 +723,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     if (this.options.enableASTBoundaryDetection && this.nodeTracker && overlap.content) {
       const lines = overlap.content.split('\n');
       const hasUsedNodes = this.hasUsedNodesInOverlap(lines, currentChunk, nextChunk);
-
+ 
       if (hasUsedNodes && overlap.lines > 1) {
         // 减少重叠行数
         const reducedLines = lines.slice(0, -1);
@@ -789,10 +735,10 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         };
       }
     }
-
+ 
     return overlap;
   }
-
+ 
   // SmartOverlapController 功能相关方法
   /**
    * 智能重叠控制 - 检查新的重叠块是否与已有块过于相似
@@ -802,37 +748,10 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     existingChunks: CodeChunk[],
     originalContent: string
   ): boolean {
-    // 生成新块的内容哈希
-    const newChunkHash = ContentHashIDGenerator.getContentHashPrefix(newChunk.content);
-
-    // 检查是否已经存在相同内容的块
-    for (const existingChunk of existingChunks) {
-      const existingHash = ContentHashIDGenerator.getContentHashPrefix(existingChunk.content);
-
-      // 如果内容哈希相同，说明内容基本相同
-      if (newChunkHash === existingHash) {
-        return false; // 跳过这个重叠块
-      }
-
-      // 检查相似度
-      if (SimilarityDetector.isSimilar(newChunk.content, existingChunk.content, this.options.similarityThreshold)) {
-        return false; // 跳过过于相似的重叠块
-      }
-    }
-
-    // 检查重叠历史，避免在同一区域重复生成相似块
-    const overlapKey = `${newChunk.metadata.startLine}-${newChunk.metadata.endLine}`;
-    const history = this.overlapHistory.get(overlapKey) || [];
-
-    for (const historicalHash of history) {
-      if (historicalHash === newChunkHash) {
-        return false; // 这个区域已经生成过相同内容的重叠块
-      }
-    }
-
-    return true;
+    // 使用新的工具类方法
+    return ChunkSimilarityUtils.shouldCreateOverlap(newChunk, existingChunks, this.options.similarityThreshold);
   }
-
+ 
   /**
    * 从原始内容中提取重叠内容（SmartOverlapController 功能）
    */
@@ -843,36 +762,36 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     overlapSize: number
   ): string {
     const lines = originalContent.split('\n');
-
+ 
     // 计算重叠区域
     const overlapStartLine = Math.max(0, currentChunk.metadata.endLine - overlapSize);
     const overlapEndLine = currentChunk.metadata.endLine;
-
+ 
     if (overlapStartLine >= lines.length || overlapEndLine > lines.length) {
       return '';
     }
-
+ 
     const overlapLines = lines.slice(overlapStartLine, overlapEndLine);
     return overlapLines.join('\n');
   }
-
+ 
   /**
    * 计算最佳重叠大小（SmartOverlapController 功能）
    */
   private calculateOptimalOverlapSize(chunk1: CodeChunk, chunk2: CodeChunk): number {
     const chunk1Size = chunk1.metadata.endLine - chunk1.metadata.startLine + 1;
     const chunk2Size = chunk2.metadata.endLine - chunk2.metadata.startLine + 1;
-
+ 
     // 基于块大小和最大重叠比例计算
     const maxOverlap = Math.min(chunk1Size, chunk2Size) * this.options.maxOverlapRatio;
-
+ 
     // 保守策略：使用较小的重叠
     // 激进策略：使用较大的重叠
     const overlapMultiplier = this.options.mergeStrategy === 'conservative' ? 0.7 : 1.0;
-
+ 
     return Math.max(1, Math.floor(maxOverlap * overlapMultiplier));
   }
-
+ 
   /**
    * 生成替代的重叠内容（当原始重叠太相似时）（SmartOverlapController 功能）
    */
@@ -885,7 +804,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     const lines = originalContent.split('\n');
     const currentEndLine = currentChunk.metadata.endLine;
     const nextStartLine = nextChunk.metadata.startLine;
-
+ 
     // 尝试不同的重叠策略
     const strategies = [
       // 策略1：减少重叠大小
@@ -893,14 +812,14 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         const smallerOverlap = Math.max(1, Math.floor((currentEndLine - currentChunk.metadata.startLine + 1) * this.options.maxOverlapRatio * 0.5));
         return this.extractOverlapContentFromOriginal(currentChunk, nextChunk, originalContent, smallerOverlap);
       },
-
+ 
       // 策略2：调整重叠起始位置
       () => {
         const offset = Math.max(0, currentEndLine - 2);
         const availableLines = lines.slice(Math.max(0, offset - 1), currentEndLine);
         return availableLines.join('\n');
       },
-
+ 
       // 策略3：使用语义边界（简化实现）
       () => {
         // 查找语义边界，如函数结束、类结束等
@@ -914,11 +833,11 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         return '';
       }
     ];
-
+ 
     // 尝试每种策略，直到找到不相似的重叠
     for (const strategy of strategies) {
       const alternativeOverlap = strategy();
-
+ 
       if (alternativeOverlap) {
         const tempChunk: CodeChunk = {
           content: alternativeOverlap,
@@ -930,135 +849,68 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
             type: 'overlap'
           }
         };
-
+ 
         if (this.shouldCreateOverlap(tempChunk, allChunks, originalContent)) {
           this.recordOverlapHistory(tempChunk);
           return alternativeOverlap;
         }
       }
     }
-
+ 
     // 如果所有策略都失败，返回空字符串（表示不创建重叠）
     return '';
   }
-
+ 
   /**
    * 记录重叠历史（SmartOverlapController 功能）
    */
   private recordOverlapHistory(chunk: CodeChunk): void {
     const overlapKey = `${chunk.metadata.startLine}-${chunk.metadata.endLine}`;
     const contentHash = ContentHashIDGenerator.getContentHashPrefix(chunk.content);
-
+ 
     if (!this.overlapHistory.has(overlapKey)) {
       this.overlapHistory.set(overlapKey, []);
     }
-
+ 
     const history = this.overlapHistory.get(overlapKey)!;
     history.push(contentHash);
-
+ 
     // 限制历史记录大小
     if (history.length > 10) {
       history.shift();
     }
   }
-
+ 
   /**
    * 检查两个块是否可以合并（SmartOverlapController 功能）
    */
   private canMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
-    // 检查相似度
-    if (!SimilarityDetector.isSimilar(chunk1.content, chunk2.content, this.options.similarityThreshold)) {
-      return false;
-    }
-
-    // 检查位置关系（相邻或重叠）
-    const start1 = chunk1.metadata.startLine;
-    const end1 = chunk1.metadata.endLine;
-    const start2 = chunk2.metadata.startLine;
-    const end2 = chunk2.metadata.endLine;
-
-    // 相邻：块2紧接在块1后面
-    const isAdjacent = start2 === end1 + 1;
-
-    // 重叠：两个块有重叠区域
-    const isOverlapping = start2 <= end1 && start1 <= end2;
-
-    return isAdjacent || isOverlapping;
+    // 使用新的工具类方法
+    return ChunkSimilarityUtils.canMergeChunks(chunk1, chunk2, this.options.similarityThreshold);
   }
-
+ 
   /**
    * 合并两个块（SmartOverlapController 功能）
    */
   private mergeTwoChunks(chunk1: CodeChunk, chunk2: CodeChunk): CodeChunk {
-    const startLine = Math.min(chunk1.metadata.startLine, chunk2.metadata.startLine);
-    const endLine = Math.max(chunk1.metadata.endLine, chunk2.metadata.endLine);
-
-    // 合并内容（处理重叠情况）
-    let mergedContent: string;
-
-    if (chunk1.metadata.startLine <= chunk2.metadata.startLine) {
-      // chunk1在前
-      mergedContent = this.mergeContents(chunk1.content, chunk2.content, chunk1.metadata.startLine, chunk2.metadata.startLine);
-    } else {
-      // chunk2在前
-      mergedContent = this.mergeContents(chunk2.content, chunk1.content, chunk2.metadata.startLine, chunk1.metadata.startLine);
-    }
-
-    return {
-      content: mergedContent,
-      metadata: {
-        startLine,
-        endLine,
-        language: chunk1.metadata.language,
-        filePath: chunk1.metadata.filePath,
-        type: chunk1.metadata.type || chunk2.metadata.type || 'merged',
-        complexity: Math.max(chunk1.metadata.complexity || 0, chunk2.metadata.complexity || 0)
-      }
-    };
+    // 使用新的工具类方法
+    return ChunkSimilarityUtils.mergeTwoChunks(chunk1, chunk2);
   }
-
+ 
   /**
    * 智能合并内容（处理重叠）（SmartOverlapController 功能）
    */
   private mergeContents(content1: string, content2: string, startLine1: number, startLine2: number): string {
-    const lines1 = content1.split('\n');
-    const lines2 = content2.split('\n');
-
-    // 计算重叠行数
-    const overlapLines = Math.max(0, startLine1 + lines1.length - startLine2);
-
-    if (overlapLines <= 0) {
-      // 没有重叠，简单拼接
-      return content1 + '\n' + content2;
-    }
-
-    // 有重叠，需要智能合并
-    const nonOverlapLines1 = lines1.slice(0, -overlapLines);
-    const mergedLines = [...nonOverlapLines1, ...lines2];
-
-    return mergedLines.join('\n');
+    // 使用新的工具类方法
+    return ChunkSimilarityUtils.mergeContents(content1, content2, startLine1, startLine2);
   }
-
+ 
   // 辅助方法
   private isDuplicateChunk(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
-    if (chunk1.content === chunk2.content) {
-      return true;
-    }
-
-    if (chunk1.metadata.nodeIds && chunk2.metadata.nodeIds) {
-      const commonNodes = chunk1.metadata.nodeIds.filter(id =>
-        chunk2.metadata.nodeIds!.includes(id)
-      );
-
-      const maxNodes = Math.max(chunk1.metadata.nodeIds.length, chunk2.metadata.nodeIds.length);
-      if (commonNodes.length / maxNodes > 0.5) {
-        return true;
-      }
-    }
-
-    return false;
+    // 使用新的工具类方法
+    return ChunkSimilarityUtils.isDuplicateChunk(chunk1, chunk2);
   }
-
+ 
   private extractOverlapFromOriginal(
     originalCode: string,
     startLine: number,
@@ -1068,7 +920,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     const overlapLines = lines.slice(startLine - 1, endLine);
     return overlapLines.join('\n');
   }
-
+ 
   private extractNodesFromContent(
     content: string,
     startLine: number,
@@ -1076,145 +928,42 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
   ): ASTNode[] {
     return [];
   }
-
+ 
   private findReducedOverlap(
     originalOverlap: string,
     originalCode: string,
     currentEndLine: number
   ): string {
     const lines = originalOverlap.split('\n');
-
+ 
     for (let i = lines.length - 1; i >= 0; i--) {
       const testOverlap = lines.slice(0, i + 1).join('\n');
       const testStartLine = currentEndLine + 1;
       const testEndLine = currentEndLine + i + 1;
-
+ 
       const testNodes = this.extractNodesFromContent(testOverlap, testStartLine, testEndLine);
       const unusedNodes = testNodes.filter(node => !this.nodeTracker!.isUsed(node));
-
+ 
       if (unusedNodes.length > 0) {
         unusedNodes.forEach(node => this.nodeTracker!.markUsed(node));
         return testOverlap;
       }
     }
-
+ 
     return '';
   }
-
+ 
   private filterUnusedNodesFromTree(tree: any, startLine: number, endLine: number): ASTNode[] {
     return [];
   }
-
+ 
   private hasUsedNodes(nodes: ASTNode[]): boolean {
     if (!this.nodeTracker) return false;
     return nodes.some(node => this.nodeTracker!.isUsed(node));
   }
-
+ 
   private hasUsedNodesInOverlap(lines: string[], currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
     return false;
   }
-
-  private calculateOverlapQuality(lines: string[], currentChunk: CodeChunk, nextChunk: CodeChunk): number {
-    if (lines.length === 0) return 0;
-
-    let quality = 0;
-    const firstLine = lines[0]?.trim() || '';
-    const lastLine = lines[lines.length - 1]?.trim() || '';
-
-    if (this.isFunctionStart(firstLine) || this.isClassStart(firstLine)) {
-      quality += 0.3;
-    }
-
-    if (lastLine.match(/^[}\])];?]?$/)) {
-      quality += 0.2;
-    }
-
-    if (firstLine.match(/^\/\//) || firstLine.match(/^\/\*/)) {
-      quality += 0.1;
-    }
-
-    if (lines.length > 0 && lines.length < 10) {
-      quality += 0.2;
-    }
-
-    const meaningfulLines = lines.filter(line =>
-      line.trim() !== '' &&
-      !line.trim().match(/^\/\//) &&
-      !line.trim().match(/^\/\*/)
-    );
-
-    if (meaningfulLines.length / lines.length > 0.5) {
-      quality += 0.2;
-    }
-
-    return Math.min(quality, 1.0);
-  }
-
-  private isSequentialFunctions(currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
-    const currentLines = currentChunk.content.split('\n');
-    const nextLines = nextChunk.content.split('\n');
-
-    const lastLineOfCurrent = currentLines[currentLines.length - 1]?.trim() || '';
-    const firstLineOfNext = nextLines[0]?.trim() || '';
-
-    return (lastLineOfCurrent.endsWith('}') &&
-      (firstLineOfNext.startsWith('function') ||
-        !!firstLineOfNext.match(/^\w+\s*\([^)]*\)\s*{/)));
-  }
-
-  private isComplexStructure(chunk: CodeChunk): boolean {
-    const lines = chunk.content.split('\n');
-    let braceDepth = 0;
-    let maxDepth = 0;
-
-    for (const line of lines) {
-      for (const char of line) {
-        if (char === '{') {
-          braceDepth++;
-          maxDepth = Math.max(maxDepth, braceDepth);
-        } else if (char === '}') {
-          braceDepth--;
-        }
-      }
-    }
-
-    return maxDepth > 2;
-  }
-
-  private isSimpleCode(currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
-    const currentLines = currentChunk.content.split('\n');
-    const nextLines = nextChunk.content.split('\n');
-
-    const allLines = [...currentLines, ...nextLines];
-    return allLines.every(line =>
-      line.trim().startsWith('const') ||
-      line.trim().startsWith('let') ||
-      line.trim().startsWith('var') ||
-      line.trim().startsWith('import') ||
-      line.trim().startsWith('export') ||
-      line.trim().match(/^\w+\s*=/)
-    );
-  }
-
-  private isFunctionStart(line: string): boolean {
-    return /^function\s+\w+\s*\(/.test(line) ||
-      /^\w+\s*=\s*\([^)]*\)\s*=>/.test(line) ||
-      /^\s*async\s+function/.test(line) ||
-      /^\s*static\s+\w+\s*\(/.test(line) ||
-      /^\s*\w+\s*\([^)]*\)\s*\{/.test(line);
-  }
-
-  private isClassStart(line: string): boolean {
-    return /^class\s+\w+/.test(line) ||
-      /^export\s+default\s+class/.test(line) ||
-      /^export\s+class/.test(line);
-  }
-
-  private isFunctionSignature(line: string): boolean {
-    const trimmed = line.trim();
-    return /^function\s+\w+\s*\(/.test(trimmed) ||
-      /^\w+\s*=\s*\([^)]*\)\s*=>/.test(trimmed) ||
-      /^\s*\w+\s*\([^)]*\)\s*:\s*\w+\s*=>/.test(trimmed) ||
-      /^\s*\w+\s*:\s*\([^)]*\)\s*=>/.test(trimmed);
-  }
+ 
 }
