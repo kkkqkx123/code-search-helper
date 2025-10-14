@@ -468,4 +468,34 @@ export class ProjectStateManager {
     await this.storageStateService.failGraphIndexing(this.projectStates, projectId, error, this.storagePath);
     await this.saveProjectStates();
   }
-}
+
+  /**
+   * 获取所有已知项目的路径
+   */
+  async getAllProjects(): Promise<string[]> {
+    try {
+      const allStates = this.getAllProjectStates();
+      return allStates.map(state => state.projectPath);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to get all projects: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'ProjectStateManager', operation: 'getAllProjects' }
+      );
+      return [];
+    }
+  }
+
+  /**
+   * 根据项目路径获取项目ID
+   */
+  getProjectId(projectPath: string): string | null {
+    try {
+      return this.coreStateService['projectIdManager'].getProjectId(projectPath);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to get project ID for path: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'ProjectStateManager', operation: 'getProjectId', projectPath }
+      );
+      return null;
+    }
+  }

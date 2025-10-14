@@ -15,9 +15,11 @@ import { ConfigFactory } from './config/ConfigFactory';
 import { diContainer } from './core/DIContainer';
 import { TYPES } from './types';
 import { EmbeddingConfigService } from './config/service/EmbeddingConfigService';
+import { ProjectIdManager } from './database/ProjectIdManager';
 import { NebulaService } from './database/nebula/NebulaService';
 import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
+import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
 
 // 添加详细的错误处理
 process.on('uncaughtException', (error) => {
@@ -91,7 +93,9 @@ class Application {
     @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
     @inject(TYPES.INebulaService) private nebulaService: NebulaService,
     @inject(TYPES.NebulaConnectionMonitor) private nebulaConnectionMonitor: NebulaConnectionMonitor,
-    @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService
+    @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
+    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
+    @inject(TYPES.HotReloadRestartService) private hotReloadRestartService: HotReloadRestartService
   ) {
     // 创建一个 Logger 实例，用于整个应用
     this.logger = new Logger('code-search-helper');
@@ -185,11 +189,54 @@ class Application {
       this.apiServer.start();
       await this.logger.info('API Server started successfully');
 
-      // Initialize ChangeDetectionService for hot reload functionality
-      await this.loggerService.info('Initializing Change Detection Service for hot reload...');
-      // Note: We don't start watching any specific paths here, as the ChangeDetectionService
-      // will be started when projects are indexed via the IndexService
-      await this.loggerService.info('Change Detection Service initialized');
+      // Initialize hot reload services with restart recovery
+      await this.loggerService.info('Initializing hot reload services with restart recovery...');
+      
+      // 首先处理重启恢复逻辑
+      try {
+        await this.hotReloadRestartService.handleApplicationRestart();
+        await this.loggerService.info('Hot reload restart recovery completed');
+      } catch (error) {
+        await this.loggerService.error('Failed to handle hot reload restart recovery:', error);
+        // 继续执行，因为这不应该阻止应用启动
+      }
+      
+      // Check if hot reload is enabled via configuration
+      // 直接启用热重载，因为目前没有专门的配置项
+      const hotReloadEnabled = true;
+      if (hotReloadEnabled) {
+        try {
+          // 获取项目根路径（使用当前工作目录作为项目路径）
+          const projectPath = process.cwd();
+          
+          // 检查项目是否已索引，如果未索引则启动索引
+          const projectId = this.projectIdManager.getProjectId(projectPath);
+          if (!projectId) {
+            await this.loggerService.info('Project not indexed, starting indexing process...');
+            
+            // 初始化变更检测服务
+            await this.changeDetectionService.initialize([projectPath]);
+            await this.loggerService.info('Change Detection Service initialized successfully');
+            
+            // 开始索引项目（这将自动启用热更新，如果配置了enableHotReload）
+            await this.indexService.startIndexing(projectPath, { enableHotReload: true });
+            await this.loggerService.info('Project indexing started with hot reload enabled');
+          } else {
+            // 项目已存在，但可能没有激活热更新，检查是否需要激活
+            await this.loggerService.info('Project already indexed, checking hot reload status...');
+            
+            // 尝试为已索引的项目启用热更新
+            await this.indexService.startProjectWatching(projectPath);
+            await this.loggerService.info('Project watching started for hot reload');
+          }
+        } catch (error) {
+          await this.loggerService.error('Failed to initialize hot reload services:', error);
+          // Graceful degradation - continue without hot reload
+          await this.loggerService.warn('Hot reload disabled due to initialization error');
+        }
+      } else {
+        await this.loggerService.info('Hot reload is disabled via configuration');
+      }
 
       this.currentPhase = ApplicationLifecyclePhase.RUNNING;
 
@@ -265,17 +312,25 @@ class Application {
 
       // 关闭MCP服务器
       await this.mcpServer.stop();
+// 保存热更新重启状态
+try {
+  await this.hotReloadRestartService.saveCurrentState();
+  await this.loggerService.info('Hot reload restart state saved');
+} catch (error) {
+  await this.loggerService.error('Error saving hot reload restart state:', error);
+}
 
-      // 关闭变更检测服务
-      try {
-        if (this.changeDetectionService.isServiceRunning()) {
-          await this.loggerService.info('Stopping Change Detection Service...');
-          await this.changeDetectionService.stop();
-          await this.loggerService.info('Change Detection Service stopped');
-        }
-      } catch (error) {
-        await this.loggerService.error('Error stopping Change Detection Service:', error);
-      }
+// 关闭变更检测服务
+try {
+  if (this.changeDetectionService.isServiceRunning()) {
+    await this.loggerService.info('Stopping Change Detection Service...');
+    await this.changeDetectionService.stop();
+    await this.loggerService.info('Change Detection Service stopped');
+  }
+} catch (error) {
+  await this.loggerService.error('Error stopping Change Detection Service:', error);
+}
+
 
       this.currentPhase = ApplicationLifecyclePhase.STOPPED;
       await this.logger.info('Application stopped');
@@ -319,6 +374,8 @@ class ApplicationFactory {
     const nebulaService = diContainer.get<NebulaService>(TYPES.INebulaService);
     const nebulaConnectionMonitor = diContainer.get<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor);
     const changeDetectionService = diContainer.get<ChangeDetectionService>(TYPES.ChangeDetectionService);
+    const projectIdManager = diContainer.get<ProjectIdManager>(TYPES.ProjectIdManager);
+    const hotReloadRestartService = diContainer.get<HotReloadRestartService>(TYPES.HotReloadRestartService);
 
     return new Application(
       configService,
@@ -332,7 +389,9 @@ class ApplicationFactory {
       embeddingConfigService,
       nebulaService,
       nebulaConnectionMonitor,
-      changeDetectionService
+      changeDetectionService,
+      projectIdManager,
+      hotReloadRestartService
     );
   }
 }

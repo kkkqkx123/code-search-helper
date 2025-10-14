@@ -115,6 +115,7 @@ export class IndexService {
       }
     }
   }
+
   private indexingProjects: Map<string, IndexSyncStatus> = new Map();
   private completedProjects: Map<string, IndexSyncStatus> = new Map(); // 存储已完成的项目状态
   private indexingQueue: Array<{ projectPath: string; options?: IndexSyncOptions }> = [];
@@ -122,34 +123,34 @@ export class IndexService {
   private projectEmbedders: Map<string, string> = new Map(); // 存储项目对应的embedder
   private ignoreRuleManager: IgnoreRuleManager | null = null;
   private projectHotReloadService: ProjectHotReloadService | null = null;
- constructor(
-   @inject(TYPES.LoggerService) private logger: LoggerService,
-   @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-   @inject(TYPES.FileWatcherService) private fileWatcherService: FileWatcherService,
-   @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
-   @inject(TYPES.ProjectHotReloadService) projectHotReloadService: ProjectHotReloadService,
-   @inject(TYPES.QdrantService) private qdrantService: QdrantService,
-   @inject(TYPES.INebulaService) private nebulaService: INebulaService,
-   @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-   @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-   @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
-   @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
-   @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
-   @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService,
-   @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService,
-   @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
-   @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService,
-   @inject(TYPES.IgnoreRuleManager) ignoreRuleManager: IgnoreRuleManager
- ) {
-   this.ignoreRuleManager = ignoreRuleManager;
-   this.projectHotReloadService = projectHotReloadService;
-   
-   // 设置文件变化监听器
-   this.setupFileChangeListeners();
-   
-   // 订阅忽略规则变化事件
-   this.setupIgnoreRuleListeners();
- }
+  constructor(
+    @inject(TYPES.LoggerService) private logger: LoggerService,
+    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
+    @inject(TYPES.FileWatcherService) private fileWatcherService: FileWatcherService,
+    @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
+    @inject(TYPES.ProjectHotReloadService) projectHotReloadService: ProjectHotReloadService,
+    @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+    @inject(TYPES.INebulaService) private nebulaService: INebulaService,
+    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
+    @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
+    @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
+    @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
+    @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
+    @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService,
+    @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService,
+    @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
+    @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService,
+    @inject(TYPES.IgnoreRuleManager) ignoreRuleManager: IgnoreRuleManager
+  ) {
+    this.ignoreRuleManager = ignoreRuleManager;
+    this.projectHotReloadService = projectHotReloadService;
+
+    // 设置文件变化监听器
+    this.setupFileChangeListeners();
+
+    // 订阅忽略规则变化事件
+    this.setupIgnoreRuleListeners();
+  }
 
   /**
    * 设置文件变化监听器
@@ -336,7 +337,7 @@ export class IndexService {
     if (this.ignoreRuleManager) {
       this.ignoreRuleManager.on('rulesChanged', async (projectPath: string, newPatterns: string[], changedFile: string) => {
         this.logger.info(`Detected ignore rules change in ${changedFile} for project: ${projectPath}`);
-        
+
         try {
           // 获取当前索引状态
           const projectId = this.projectIdManager.getProjectId(projectPath);
@@ -398,7 +399,7 @@ export class IndexService {
       const ignoreRules = this.ignoreRuleManager ? await this.ignoreRuleManager.getIgnorePatterns(projectPath) : [];
       // 合并用户提供的排除模式
       const combinedExcludePatterns = [...ignoreRules, ...(options?.excludePatterns || [])];
-      
+
       const files = await this.fileTraversalService.getProjectFiles(projectPath, {
         includePatterns: options?.includePatterns,
         excludePatterns: combinedExcludePatterns
@@ -517,39 +518,39 @@ export class IndexService {
 
       // 保存项目映射到持久化存储
       await this.projectIdManager.saveMapping();
-// 触发索引完成事件
-await this.emit('indexingCompleted', projectId);
+      // 触发索引完成事件
+      await this.emit('indexingCompleted', projectId);
 
-// 索引完成后启动项目文件监视（如果启用了热更新）
-if (options?.enableHotReload !== false) {
-  if (this.projectHotReloadService) {
-    await this.projectHotReloadService.enableForProject(projectPath, {
-      debounceInterval: 500,
-      enabled: true,
-      watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java}'], // 根据项目类型调整
-      ignorePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**', '**/target/**', '**/venv/**'],
-      maxFileSize: 10 * 1024 * 1024, // 10MB
-      errorHandling: {
-        maxRetries: 3,
-        alertThreshold: 5,
-        autoRecovery: true
+      // 索引完成后启动项目文件监视（如果启用了热更新）
+      if (options?.enableHotReload !== false) {
+        if (this.projectHotReloadService) {
+          await this.projectHotReloadService.enableForProject(projectPath, {
+            debounceInterval: 500,
+            enabled: true,
+            watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java}'], // 根据项目类型调整
+            ignorePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**', '**/target/**', '**/venv/**'],
+            maxFileSize: 10 * 1024 * 1024, // 10MB
+            errorHandling: {
+              maxRetries: 3,
+              alertThreshold: 5,
+              autoRecovery: true
+            }
+          });
+          this.logger.info(`Hot reload enabled for project: ${projectPath}`);
+        } else {
+          // 如果没有ProjectHotReloadService，使用旧方法
+          await this.startProjectWatching(projectPath);
+          this.logger.warn(`ProjectHotReloadService not available, using legacy file watching for: ${projectPath}`);
+        }
       }
-    });
-    this.logger.info(`Hot reload enabled for project: ${projectPath}`);
-  } else {
-    // 如果没有ProjectHotReloadService，使用旧方法
-    await this.startProjectWatching(projectPath);
-    this.logger.warn(`ProjectHotReloadService not available, using legacy file watching for: ${projectPath}`);
-  }
-}
 
-this.logger.info(`Completed indexing project: ${projectId}`, {
-  totalFiles: status.totalFiles,
-  indexedFiles: status.indexedFiles,
-  failedFiles: status.failedFiles,
-  progress: status.progress
-  });
-      } catch (error) {
+      this.logger.info(`Completed indexing project: ${projectId}`, {
+        totalFiles: status.totalFiles,
+        indexedFiles: status.indexedFiles,
+        failedFiles: status.failedFiles,
+        progress: status.progress
+      });
+    } catch (error) {
       try {
         status.isIndexing = false;
         this.indexingProjects.delete(projectId); // 从正在进行的索引中移除
@@ -755,10 +756,10 @@ this.logger.info(`Completed indexing project: ${projectId}`, {
   /**
    * 启动项目文件监视
    */
-  private async startProjectWatching(projectPath: string): Promise<void> {
+  public async startProjectWatching(projectPath: string): Promise<void> {
     try {
       this.logger.info(`Starting file watching for project: ${projectPath}`);
-      
+
       // 初始化变更检测服务，监控项目路径
       await this.changeDetectionService.initialize([projectPath], {
         watchPaths: [projectPath],
@@ -815,5 +816,124 @@ this.logger.info(`Completed indexing project: ${projectId}`, {
     }
 
     this.logger.info('IndexService destroyed');
+  }
+
+  /**
+   * 获取所有已索引的项目路径
+   */
+  public getAllIndexedProjectPaths(): string[] {
+    const projectPaths: string[] = [];
+    for (const [projectId, status] of this.completedProjects.entries()) {
+      if (status.projectPath) {
+        projectPaths.push(status.projectPath);
+      }
+    }
+    return projectPaths;
+  }
+
+  /**
+   * 检查项目是否已被索引
+   */
+  public isProjectIndexed(projectPath: string): boolean {
+    // 检查项目是否在已完成的项目中
+    for (const [, status] of this.completedProjects.entries()) {
+      if (status.projectPath === projectPath) {
+        return true;
+      }
+    }
+
+    // 检查项目是否在进行索引的项目中
+    for (const [, status] of this.indexingProjects.entries()) {
+      if (status.projectPath === projectPath) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * 重启后恢复所有已索引项目的监听
+   */
+  public async restoreProjectWatchingAfterRestart(): Promise<void> {
+    try {
+      this.logger.info('Restoring project watching after restart...');
+
+      // 获取所有已索引的项目路径
+      const indexedProjectPaths = this.getAllIndexedProjectPaths();
+
+      if (indexedProjectPaths.length === 0) {
+        this.logger.info('No indexed projects found, nothing to restore');
+        return;
+      }
+
+      this.logger.info(`Found ${indexedProjectPaths.length} indexed projects to restore watching for`);
+
+      // 为每个已索引的项目启动监听
+      for (const projectPath of indexedProjectPaths) {
+        try {
+          // 检查项目路径是否存在
+          const projectExists = await this.checkProjectExists(projectPath);
+          if (!projectExists) {
+            this.logger.warn(`Project path does not exist, skipping: ${projectPath}`);
+            continue;
+          }
+
+          // 优先使用ProjectHotReloadService，如果可用的话
+          if (this.projectHotReloadService) {
+            try {
+              // 检查该项目是否之前已启用热重载
+              const projectConfig = {
+                debounceInterval: 500,
+                enabled: true,
+                watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java}'], // 根据项目类型调整
+                ignorePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**', '**/target/**', '**/venv/**'],
+                maxFileSize: 10 * 1024 * 1024, // 10MB
+                errorHandling: {
+                  maxRetries: 3,
+                  alertThreshold: 5,
+                  autoRecovery: true
+                }
+              };
+              
+              await this.projectHotReloadService.enableForProject(projectPath, projectConfig);
+              this.logger.info(`Hot reload enabled for project through ProjectHotReloadService: ${projectPath}`);
+            } catch (hotReloadError) {
+              this.logger.warn(`Failed to enable hot reload through ProjectHotReloadService for ${projectPath}, falling back to legacy method:`, hotReloadError);
+              // 回退到旧方法
+              await this.startProjectWatching(projectPath);
+            }
+          } else {
+            // 使用旧方法
+            await this.startProjectWatching(projectPath);
+            this.logger.info(`Project watching restored for: ${projectPath}`);
+          }
+        } catch (error) {
+          this.logger.error(`Failed to restore project watching for ${projectPath}:`, error);
+          // 继续处理其他项目
+        }
+      }
+
+      this.logger.info('Project watching restoration completed');
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to restore project watching after restart: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexService', operation: 'restoreProjectWatchingAfterRestart' }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 检查项目路径是否存在
+   */
+  private async checkProjectExists(projectPath: string): Promise<boolean> {
+    try {
+      const fs = await import('fs/promises');
+      await fs.access(projectPath);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

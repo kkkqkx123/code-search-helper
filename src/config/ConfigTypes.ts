@@ -241,6 +241,19 @@ export interface EmbeddingBatchConfig {
   };
 }
 
+export interface HotReloadConfig {
+  enabled: boolean;
+  debounceInterval: number;
+  maxFileSize: number;
+  maxConcurrentProjects: number;
+  enableDetailedLogging: boolean;
+  errorHandling: {
+    maxRetries: number;
+    alertThreshold: number;
+    autoRecovery: boolean;
+  };
+}
+
 export interface AppConfig {
   environment: EnvironmentConfig;
   qdrant: QdrantConfig;
@@ -262,10 +275,11 @@ export interface AppConfig {
   fusion?: FusionConfig;
   project?: ProjectConfig;
   projectNaming?: ProjectNamingConfig;
-  treeSitter?: TreeSitterConfig;
-  embeddingBatch: EmbeddingBatchConfig;
-}
-
+   treeSitter?: TreeSitterConfig;
+   embeddingBatch: EmbeddingBatchConfig;
+   hotReload: HotReloadConfig;
+ }
+ 
 // 导出工具类类型
 export { EnvironmentUtils } from './utils/EnvironmentUtils';
 export { ValidationUtils } from './utils/ValidationUtils';

@@ -88,6 +88,13 @@ export class ConfigFactory {
   }
 
   /**
+   * 获取热更新配置
+   */
+  getHotReloadConfig(): AppConfig['hotReload'] {
+    return this.configService.get('hotReload');
+  }
+
+  /**
    * 获取ML重排序配置
    */
   getMLRerankingConfig(): AppConfig['mlReranking'] | undefined {

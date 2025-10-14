@@ -278,8 +278,9 @@ describe('IndexService', () => {
       errorHandlerService,
       fileWatcherService,
       changeDetectionService,
+      {} as any, // ProjectHotReloadService
       qdrantService,
-      {} as any,
+      {} as any, // INebulaService
       projectIdManager,
       embedderFactory,
       embeddingCacheService,

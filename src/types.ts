@@ -49,6 +49,7 @@ import { ProjectHotReloadService } from './service/filesystem/ProjectHotReloadSe
 import { HotReloadConfigService } from './service/filesystem/HotReloadConfigService';
 import { HotReloadMonitoringService } from './service/filesystem/HotReloadMonitoringService';
 import { HotReloadErrorPersistenceService } from './service/filesystem/HotReloadErrorPersistenceService';
+import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
 import { IndexService } from './service/index/IndexService';
 import { IndexingLogicService } from './service/index/IndexingLogicService';
 import { ProjectStateManager } from './service/project/ProjectStateManager';
@@ -145,6 +146,7 @@ export const TYPES = {
   NebulaConfigService: Symbol.for('NebulaConfigService'),
   ProjectNamingConfigService: Symbol.for('ProjectNamingConfigService'),
   InfrastructureConfigService: Symbol.for('InfrastructureConfigService'),
+  HotReloadConfigService: Symbol.for('HotReloadConfigService'),
 
   QdrantService: Symbol.for('QdrantService'),
   LoggerService: Symbol.for('LoggerService'),
@@ -168,6 +170,7 @@ export const TYPES = {
   HotReloadConfigService: Symbol.for('HotReloadConfigService'),
   HotReloadMonitoringService: Symbol.for('HotReloadMonitoringService'),
   HotReloadErrorPersistenceService: Symbol.for('HotReloadErrorPersistenceService'),
+  HotReloadRestartService: Symbol.for('HotReloadRestartService'),
   // 索引同步服务
   IndexService: Symbol.for('IndexService'),
   IndexingLogicService: Symbol.for('IndexingLogicService'),
