@@ -188,10 +188,17 @@ export class MarkdownTextSplitter {
     // 不同块类型通常开始新块
     if (blockType !== currentType) {
       // 但段落之间可以合并
-      if (blockType === MarkdownBlockType.PARAGRAPH && 
+      if (blockType === MarkdownBlockType.PARAGRAPH &&
           currentType === MarkdownBlockType.PARAGRAPH) {
         return false;
       }
+      
+      // 如果当前块太小，考虑不开始新块，让合并逻辑处理
+      const currentLength = currentBlock.lines.join('\n').length;
+      if (currentLength < this.config.minChunkSize) {
+        return false;
+      }
+      
       return true;
     }
 
@@ -216,38 +223,71 @@ export class MarkdownTextSplitter {
    * 合并相关块
    */
   private mergeRelatedBlocks(blocks: MarkdownBlock[]): MarkdownBlock[] {
-    const mergedBlocks: MarkdownBlock[] = [];
-    let currentMerge: MarkdownBlock | null = null;
-
-    for (let i = 0; i < blocks.length; i++) {
-      const block = blocks[i];
-      const nextBlock = i < blocks.length - 1 ? blocks[i + 1] : null;
-
-      if (!currentMerge) {
-        currentMerge = { ...block };
-        continue;
-      }
-
-      const shouldMerge = this.shouldMergeBlocks(currentMerge, block, nextBlock);
+    if (blocks.length === 0) return blocks;
+    
+    let currentBlocks = [...blocks]; // 创建副本以避免修改原始数组
+    let merged = false;
+    
+    // 迭代合并直到没有更多块可以合并
+    do {
+      merged = false;
+      const newBlocks: MarkdownBlock[] = [];
+      let i = 0;
       
-      if (shouldMerge) {
-        // 合并块
-        currentMerge.lines.push(...block.lines);
-        currentMerge.content = currentMerge.lines.join('\n');
-        currentMerge.endLine = block.endLine;
-      } else {
-        // 完成当前合并，开始新的
-        mergedBlocks.push(currentMerge);
-        currentMerge = { ...block };
+      while (i < currentBlocks.length) {
+        if (i < currentBlocks.length - 1) {
+          const currentBlock = currentBlocks[i];
+          const nextBlock = currentBlocks[i + 1];
+          
+          // 检查是否可以合并当前块和下一个块
+          if (this.shouldMergeBlocks(currentBlock, nextBlock,
+              i + 2 < currentBlocks.length ? currentBlocks[i + 2] : null)) {
+            // 合并块
+            const mergedBlock: MarkdownBlock = {
+              type: this.determineMergedBlockType(currentBlock, nextBlock),
+              lines: [...currentBlock.lines, ...nextBlock.lines],
+              content: currentBlock.content + '\n' + nextBlock.content,
+              startLine: currentBlock.startLine,
+              endLine: nextBlock.endLine
+            };
+            
+            newBlocks.push(mergedBlock);
+            i += 2; // 跳过下一个块，因为它已经被合并
+            merged = true;
+          } else {
+            newBlocks.push(currentBlock);
+            i++;
+          }
+        } else {
+          // 最后一个块，无法合并，直接添加
+          newBlocks.push(currentBlocks[i]);
+          i++;
+        }
       }
-    }
+      
+      currentBlocks = newBlocks;
+    } while (merged); // 继续合并直到没有更多合并发生
 
-    // 处理最后一个合并块
-    if (currentMerge) {
-      mergedBlocks.push(currentMerge);
-    }
+    return currentBlocks;
+  }
 
-    return mergedBlocks;
+  /**
+   * 确定合并后块的类型
+   */
+  private determineMergedBlockType(currentBlock: MarkdownBlock, nextBlock: MarkdownBlock): MarkdownBlockType {
+    // 如果任一块是代码块或表格，优先保留这些特殊类型
+    if (currentBlock.type === MarkdownBlockType.CODE_BLOCK || nextBlock.type === MarkdownBlockType.CODE_BLOCK) {
+      return MarkdownBlockType.CODE_BLOCK;
+    }
+    if (currentBlock.type === MarkdownBlockType.TABLE || nextBlock.type === MarkdownBlockType.TABLE) {
+      return MarkdownBlockType.TABLE;
+    }
+    // 如果当前块是标题，优先使用标题类型
+    if (currentBlock.type === MarkdownBlockType.HEADING) {
+      return MarkdownBlockType.HEADING;
+    }
+    // 否则使用当前块的类型
+    return currentBlock.type;
   }
 
   /**
@@ -288,15 +328,23 @@ export class MarkdownTextSplitter {
       return true;
     }
 
-    // 代码块保持完整
+    // 代码块保持完整，但如果当前块太小则允许合并
     if (this.config.preserveCodeBlocks &&
         (currentType === MarkdownBlockType.CODE_BLOCK || nextType === MarkdownBlockType.CODE_BLOCK)) {
+      // 如果当前块太小，仍然允许合并
+      if (currentSize < this.config.minChunkSize) {
+        return true;
+      }
       return false;
     }
 
     // 表格保持完整
-    if (this.config.preserveTables && 
+    if (this.config.preserveTables &&
         (currentType === MarkdownBlockType.TABLE || nextType === MarkdownBlockType.TABLE)) {
+      // 如果当前块太小，仍然允许合并
+      if (currentSize < this.config.minChunkSize) {
+        return true;
+      }
       return false;
     }
 
