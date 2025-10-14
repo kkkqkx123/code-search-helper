@@ -490,7 +490,8 @@ export class ProjectStateManager {
    */
   getProjectId(projectPath: string): string | null {
     try {
-      return this.coreStateService['projectIdManager'].getProjectId(projectPath);
+      const projectId = this.coreStateService['projectIdManager'].getProjectId(projectPath);
+      return projectId || null; // Convert undefined to null
     } catch (error) {
       this.errorHandler.handleError(
         new Error(`Failed to get project ID for path: ${error instanceof Error ? error.message : String(error)}`),
@@ -499,3 +500,4 @@ export class ProjectStateManager {
       return null;
     }
   }
+}
