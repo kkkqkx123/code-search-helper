@@ -216,7 +216,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
   /**
    * 计算缓存命中率
    */
-  private calculateCacheHitRate(): number {
+  protected calculateCacheHitRate(): number {
     const total = this.cacheHits + this.cacheMisses;
     return total > 0 ? this.cacheHits / total : 0;
   }
