@@ -2,6 +2,7 @@ import { injectable } from 'inversify';
 import { CodeChunk, CodeChunkMetadata } from '../splitting/Splitter';
 import { LoggerService } from '../../../utils/LoggerService';
 import { DEFAULT_CONFIG } from './constants';
+import { MarkdownTextSplitter } from './MarkdownTextSplitter';
 
 /**
  * 通用分段选项
@@ -24,10 +25,12 @@ export interface UniversalChunkingOptions {
 export class UniversalTextSplitter {
   private options: UniversalChunkingOptions;
   private logger?: LoggerService;
+  private markdownSplitter: MarkdownTextSplitter;
 
   constructor(logger?: LoggerService) {
     this.logger = logger;
     this.options = { ...DEFAULT_CONFIG.TEXT_SPLITTER_OPTIONS };
+    this.markdownSplitter = new MarkdownTextSplitter(logger);
   }
 
   /**
@@ -40,8 +43,14 @@ export class UniversalTextSplitter {
   /**
    * 基于语义边界的分段
    * 优先在逻辑边界处分段，如函数、类、代码块等
+   * 对 Markdown 文件使用专门的分段策略
    */
   chunkBySemanticBoundaries(content: string, filePath?: string, language?: string): CodeChunk[] {
+    // 对 Markdown 文件使用专门的分段器
+    if (language === 'markdown' || (filePath && filePath.endsWith('.md'))) {
+      this.logger?.info(`Using specialized markdown chunking for ${filePath}`);
+      return this.markdownSplitter.chunkMarkdown(content, filePath);
+    }
     try {
       const chunks: CodeChunk[] = [];
       const lines = content.split('\n');
