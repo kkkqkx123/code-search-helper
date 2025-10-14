@@ -1,6 +1,6 @@
 import { IOverlapCalculator } from '../interfaces/IOverlapCalculator';
 import { CodeChunk } from '../types';
-import { OverlapStrategyUtils } from '../utils/OverlapStrategyUtils';
+import { OverlapStrategyUtils } from '../utils/overlap/OverlapStrategyUtils';
 import { SimilarityUtils } from '../utils/similarity/SimilarityUtils';
 
 export interface OverlapCalculatorOptions {
@@ -65,7 +65,7 @@ export class OverlapCalculator implements IOverlapCalculator {
 
         // 计算重叠
         const overlapContent = this.extractOverlapContent(chunk, nextChunk, originalCode);
-        
+
         if (overlapContent) {
           overlappedChunks.push({
             ...chunk,
@@ -193,12 +193,12 @@ export class OverlapCalculator implements IOverlapCalculator {
 
     // 从当前块的末尾开始，向前查找合适的重叠点
     const startLine = Math.max(0, currentChunk.metadata.endLine - this.options.maxOverlapLines);
-    
+
     for (let i = currentChunk.metadata.endLine - 1; i >= startLine; i--) {
       if (i >= lines.length) continue;
 
       const line = lines[i];
-      
+
       // 检查是否超过最大大小限制
       const currentContent = overlapLines.join('\n');
       if (currentContent.length + line.length + 1 > this.options.maxSize) {
@@ -208,7 +208,7 @@ export class OverlapCalculator implements IOverlapCalculator {
       // 检查重叠比例
       const tentativeOverlap = [line, ...overlapLines].join('\n');
       const overlapRatio = tentativeOverlap.length / currentChunk.content.length;
-      
+
       if (overlapRatio > this.options.maxOverlapRatio) {
         break;
       }
@@ -235,19 +235,19 @@ export class OverlapCalculator implements IOverlapCalculator {
   ): string {
     const lines = originalCode.split('\n');
     const overlapLines: string[] = [];
-    
+
     let braceCount = 0;
     let parenCount = 0;
     let bracketCount = 0;
 
     // 从当前块的末尾开始，向前查找语法边界
     const startLine = Math.max(0, currentChunk.metadata.endLine - this.options.maxOverlapLines);
-    
+
     for (let i = currentChunk.metadata.endLine - 1; i >= startLine; i--) {
       if (i >= lines.length) continue;
 
       const line = lines[i];
-      
+
       // 更新括号计数
       braceCount += (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length;
       parenCount += (line.match(/\(/g) || []).length - (line.match(/\)/g) || []).length;
@@ -262,7 +262,7 @@ export class OverlapCalculator implements IOverlapCalculator {
       // 检查重叠比例
       const tentativeOverlap = [line, ...overlapLines].join('\n');
       const overlapRatio = tentativeOverlap.length / currentChunk.content.length;
-      
+
       if (overlapRatio > this.options.maxOverlapRatio) {
         break;
       }
@@ -293,7 +293,7 @@ export class OverlapCalculator implements IOverlapCalculator {
 
     // 从当前块的末尾开始，向前添加行直到达到大小限制
     const startLine = Math.max(0, currentChunk.metadata.endLine - this.options.maxOverlapLines);
-    
+
     for (let i = currentChunk.metadata.endLine - 1; i >= startLine; i--) {
       if (i >= lines.length) continue;
 
@@ -308,7 +308,7 @@ export class OverlapCalculator implements IOverlapCalculator {
       // 检查重叠比例
       const newTotalSize = totalSize + lineSize;
       const overlapRatio = newTotalSize / currentChunk.content.length;
-      
+
       if (overlapRatio > this.options.maxOverlapRatio) {
         break;
       }
@@ -431,7 +431,7 @@ export class OverlapCalculator implements IOverlapCalculator {
     // 尝试每种策略，直到找到合适的重叠
     for (const strategy of strategies) {
       const alternativeOverlap = strategy();
-      
+
       if (alternativeOverlap) {
         const tempChunk: CodeChunk = {
           content: alternativeOverlap,

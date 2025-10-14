@@ -1,5 +1,5 @@
 import { SimilarityDetector } from '../utils/similarity/SimilarityDetector';
-import { UnifiedOverlapCalculator } from '../utils/UnifiedOverlapCalculator';
+import { UnifiedOverlapCalculator } from '../utils/overlap/UnifiedOverlapCalculator';
 import { ASTNodeTracker } from '../utils/ASTNodeTracker';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
 import { CodeChunk } from '../types';
@@ -30,7 +30,7 @@ describe('Duplicate Detection and Overlap Control', () => {
     it('should detect similar content', () => {
       const content1 = 'function test() { return 1; }';
       const content2 = 'function test() { return 1; }';
-      
+
       const isSimilar = SimilarityDetector.isSimilar(content1, content2, 0.8);
       expect(isSimilar).toBe(true);
     });
@@ -38,7 +38,7 @@ describe('Duplicate Detection and Overlap Control', () => {
     it('should detect different content', () => {
       const content1 = 'function test() { return 1; }';
       const content2 = 'function different() { return 2; }';
-      
+
       const isSimilar = SimilarityDetector.isSimilar(content1, content2, 0.8);
       expect(isSimilar).toBe(false);
     });
@@ -69,17 +69,17 @@ describe('Duplicate Detection and Overlap Control', () => {
       const content = 'function test() { return 1; }';
       const hash1 = ContentHashIDGenerator.getContentHashPrefix(content);
       const hash2 = ContentHashIDGenerator.getContentHashPrefix(content);
-      
+
       expect(hash1).toBe(hash2);
     });
 
     it('should generate different hash prefixes for different content', () => {
       const content1 = 'function test() { return 1; }';
       const content2 = 'function different() { return 2; }';
-      
+
       const hash1 = ContentHashIDGenerator.getContentHashPrefix(content1);
       const hash2 = ContentHashIDGenerator.getContentHashPrefix(content2);
-      
+
       expect(hash1).not.toBe(hash2);
     });
   });
@@ -123,7 +123,7 @@ describe('Duplicate Detection and Overlap Control', () => {
         content: 'function test1() { return 1; }\n',
         metadata: { startLine: 1, endLine: 2, language: 'javascript', type: 'function' }
       };
-      
+
       const nextChunk: CodeChunk = {
         content: 'function test2() { return 2; }',
         metadata: { startLine: 3, endLine: 3, language: 'javascript', type: 'function' }
@@ -135,7 +135,7 @@ describe('Duplicate Detection and Overlap Control', () => {
         'function test1() { return 1; }\nfunction test2() { return 2; }',
         [currentChunk, nextChunk]
       );
-      
+
       expect(typeof overlap).toBe('string');
     });
 

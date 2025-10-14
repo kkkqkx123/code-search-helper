@@ -1,4 +1,4 @@
-import { UnifiedOverlapCalculator } from '../UnifiedOverlapCalculator';
+import { UnifiedOverlapCalculator } from '../overlap/UnifiedOverlapCalculator';
 import { CodeChunk, CodeChunkMetadata } from '../../types';
 
 describe('UnifiedOverlapCalculator', () => {

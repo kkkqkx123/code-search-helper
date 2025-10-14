@@ -7,7 +7,7 @@ import { BalancedChunker } from './BalancedChunker';
 import { ChunkingConfigManager } from './config/ChunkingConfigManager';
 import { SplitStrategyFactory } from './core/SplitStrategyFactory';
 import { ChunkingCoordinator } from './utils/ChunkingCoordinator';
-import { UnifiedOverlapCalculator } from './utils/UnifiedOverlapCalculator';
+import { UnifiedOverlapCalculator } from './utils/overlap/UnifiedOverlapCalculator';
 import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from './types';
 
 /**

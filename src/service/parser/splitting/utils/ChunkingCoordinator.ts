@@ -2,7 +2,7 @@ import { CodeChunk, ChunkingOptions, ASTNode, SplitStrategy } from '../types';
 import { ASTNodeTracker } from './ASTNodeTracker';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
 import { SimilarityDetector } from './similarity/SimilarityDetector';
-import { UnifiedOverlapCalculator } from './UnifiedOverlapCalculator';
+import { UnifiedOverlapCalculator } from './overlap/UnifiedOverlapCalculator';
 import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
@@ -35,11 +35,11 @@ export class ChunkingCoordinator {
     this.nodeTracker = nodeTracker;
     this.options = options;
     this.logger = logger;
-    
+
     // 配置重复检测参数
     this.enableDeduplication = options.enableChunkDeduplication ?? false;
     this.similarityThreshold = options.deduplicationThreshold ?? 0.8;
-    
+
     // 初始化统一重叠计算器（整合SmartOverlapController功能）
     if (this.enableDeduplication) {
       this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
@@ -77,63 +77,63 @@ export class ChunkingCoordinator {
   ): Promise<CodeChunk[]> {
     const allChunks: CodeChunk[] = [];
     const startTime = Date.now();
-    
+
     this.logger?.info(`Starting coordinated chunking for ${language} file: ${filePath || 'unknown'}`);
-    
+
     // 重置节点跟踪器
     this.nodeTracker.clear();
-    
+
     // 按优先级执行分段策略
     for (const strategyName of this.strategyPriority) {
       const strategy = this.strategies.get(strategyName);
-      
+
       if (!strategy) {
         this.logger?.warn(`Strategy ${strategyName} not found, skipping`);
         continue;
       }
-      
+
       if (!strategy.supportsLanguage(language)) {
         this.logger?.debug(`Strategy ${strategyName} does not support ${language}, skipping`);
         continue;
       }
-      
+
       try {
         this.logger?.debug(`Executing strategy: ${strategyName}`);
         const strategyStartTime = Date.now();
-        
+
         // 执行分段策略
         const chunks = await strategy.split(
-          content, 
-          language, 
-          filePath, 
+          content,
+          language,
+          filePath,
           this.options,
           this.nodeTracker,
           ast
         );
-        
+
         const strategyDuration = Date.now() - strategyStartTime;
         this.logger?.debug(`Strategy ${strategyName} generated ${chunks.length} chunks in ${strategyDuration}ms`);
-        
+
         // 过滤冲突的代码块
         const filteredChunks = this.filterChunksWithTracker(chunks);
-        
+
         // 标记节点为已使用
         this.markUsedNodesWithTracker(filteredChunks);
-        
+
         allChunks.push(...filteredChunks);
         this.logger?.debug(`Strategy ${strategyName} contributed ${filteredChunks.length} unique chunks`);
-        
+
       } catch (error) {
         this.logger?.warn(`Strategy ${strategyName} failed: ${error}`);
       }
     }
-    
+
     // 后处理：合并相似块和智能重叠控制
     const processedChunks = this.postProcessChunks(allChunks, content);
-    
+
     const totalTime = Date.now() - startTime;
     const stats = this.nodeTracker.getStats();
-    
+
     this.logger?.info(
       `Chunking coordination completed. ` +
       `Total chunks: ${processedChunks.length} (original: ${allChunks.length}), ` +
@@ -142,7 +142,7 @@ export class ChunkingCoordinator {
       `Hash collisions: ${stats.contentHashCollisions}, ` +
       `Duration: ${totalTime}ms`
     );
-    
+
     return processedChunks;
   }
 
@@ -151,17 +151,17 @@ export class ChunkingCoordinator {
    */
   private filterChunksWithTracker(chunks: CodeChunk[]): CodeChunk[] {
     const filteredChunks: CodeChunk[] = [];
-    
+
     for (const chunk of chunks) {
       // 使用节点跟踪器检查冲突
       if (this.isChunkConflicting(chunk)) {
         this.logger?.debug(`Filtered out conflicting chunk: ${chunk.metadata.startLine}-${chunk.metadata.endLine}`);
         continue;
       }
-      
+
       filteredChunks.push(chunk);
     }
-    
+
     return filteredChunks;
   }
 
@@ -182,7 +182,7 @@ export class ChunkingCoordinator {
           text: chunk.content,
           contentHash: ContentHashIDGenerator.getContentHashPrefix(chunk.content)
         };
-        
+
         this.nodeTracker.markUsed(tempNode);
       }
     }
@@ -216,24 +216,24 @@ export class ChunkingCoordinator {
     if (!this.enableDeduplication || chunks.length <= 1) {
       return chunks;
     }
-    
+
     // 第一步：基于内容相似度过滤重复块
     const deduplicatedChunks = SimilarityDetector.filterSimilarChunks(
       chunks,
       this.similarityThreshold
     );
-    
+
     this.logger?.debug(`Deduplication: ${chunks.length} -> ${deduplicatedChunks.length} chunks`);
-    
+
     // 第二步：智能合并相似且相邻的块（使用统一重叠计算器）
     if (this.unifiedOverlapCalculator) {
       const mergedChunks = this.unifiedOverlapCalculator.mergeSimilarChunks(deduplicatedChunks);
-      
+
       this.logger?.debug(`Smart merge: ${deduplicatedChunks.length} -> ${mergedChunks.length} chunks`);
-      
+
       return mergedChunks;
     }
-    
+
     return deduplicatedChunks;
   }
 
@@ -259,11 +259,11 @@ export class ChunkingCoordinator {
    */
   setOptions(options: Required<ChunkingOptions>): void {
     this.options = options;
-    
+
     // 更新重复检测参数
     this.enableDeduplication = options.enableChunkDeduplication ?? false;
     this.similarityThreshold = options.deduplicationThreshold ?? 0.8;
-    
+
     // 重新初始化统一重叠计算器（整合SmartOverlapController功能）
     if (this.enableDeduplication) {
       this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({

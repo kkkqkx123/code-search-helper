@@ -1,15 +1,15 @@
 
-import { CodeChunk, ASTNode, OverlapCalculator } from '../types';
-import { ASTNodeTracker } from './ASTNodeTracker';
-import { SemanticBoundaryAnalyzer } from './SemanticBoundaryAnalyzer';
-import { BalancedChunker } from '../BalancedChunker';
+import { CodeChunk, ASTNode, OverlapCalculator } from '../../types';
+import { ASTNodeTracker } from '../ASTNodeTracker';
+import { SemanticBoundaryAnalyzer } from '../SemanticBoundaryAnalyzer';
+import { BalancedChunker } from '../../BalancedChunker';
 import { ContextAwareOverlapOptimizer, OverlapResult } from './ContextAwareOverlapOptimizer';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { ContentHashIDGenerator } from './ContentHashIDGenerator';
-import { SimilarityDetector } from './similarity/SimilarityDetector';
-import { CodeQualityAssessmentUtils } from './CodeQualityAssessmentUtils';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
+import { SimilarityDetector } from '../similarity/SimilarityDetector';
+import { CodeQualityAssessmentUtils } from '../CodeQualityAssessmentUtils';
 import { OverlapStrategyUtils } from './OverlapStrategyUtils';
-import { ChunkSimilarityUtils } from './chunk-processing/ChunkSimilarityUtils';
+import { ChunkSimilarityUtils } from '../chunk-processing/ChunkSimilarityUtils';
 
 export type OverlapStrategy = 'semantic' | 'syntactic' | 'size-based' | 'hybrid' | 'ast-boundary' | 'node-aware' | 'smart-deduplication';
 
@@ -373,7 +373,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     // 使用新的工具类方法
     return OverlapStrategyUtils.shouldUseSmartDeduplicationStrategy(currentChunk, nextChunk, this.options);
   }
- 
+
   /**
    * 判断是否应使用节点感知策略
    */
@@ -723,7 +723,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     if (this.options.enableASTBoundaryDetection && this.nodeTracker && overlap.content) {
       const lines = overlap.content.split('\n');
       const hasUsedNodes = this.hasUsedNodesInOverlap(lines, currentChunk, nextChunk);
- 
+
       if (hasUsedNodes && overlap.lines > 1) {
         // 减少重叠行数
         const reducedLines = lines.slice(0, -1);
@@ -735,10 +735,10 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         };
       }
     }
- 
+
     return overlap;
   }
- 
+
   // SmartOverlapController 功能相关方法
   /**
    * 智能重叠控制 - 检查新的重叠块是否与已有块过于相似
@@ -751,7 +751,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     // 使用新的工具类方法
     return ChunkSimilarityUtils.shouldCreateOverlap(newChunk, existingChunks, this.options.similarityThreshold);
   }
- 
+
   /**
    * 从原始内容中提取重叠内容（SmartOverlapController 功能）
    */
@@ -762,36 +762,36 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     overlapSize: number
   ): string {
     const lines = originalContent.split('\n');
- 
+
     // 计算重叠区域
     const overlapStartLine = Math.max(0, currentChunk.metadata.endLine - overlapSize);
     const overlapEndLine = currentChunk.metadata.endLine;
- 
+
     if (overlapStartLine >= lines.length || overlapEndLine > lines.length) {
       return '';
     }
- 
+
     const overlapLines = lines.slice(overlapStartLine, overlapEndLine);
     return overlapLines.join('\n');
   }
- 
+
   /**
    * 计算最佳重叠大小（SmartOverlapController 功能）
    */
   private calculateOptimalOverlapSize(chunk1: CodeChunk, chunk2: CodeChunk): number {
     const chunk1Size = chunk1.metadata.endLine - chunk1.metadata.startLine + 1;
     const chunk2Size = chunk2.metadata.endLine - chunk2.metadata.startLine + 1;
- 
+
     // 基于块大小和最大重叠比例计算
     const maxOverlap = Math.min(chunk1Size, chunk2Size) * this.options.maxOverlapRatio;
- 
+
     // 保守策略：使用较小的重叠
     // 激进策略：使用较大的重叠
     const overlapMultiplier = this.options.mergeStrategy === 'conservative' ? 0.7 : 1.0;
- 
+
     return Math.max(1, Math.floor(maxOverlap * overlapMultiplier));
   }
- 
+
   /**
    * 生成替代的重叠内容（当原始重叠太相似时）（SmartOverlapController 功能）
    */
@@ -804,7 +804,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     const lines = originalContent.split('\n');
     const currentEndLine = currentChunk.metadata.endLine;
     const nextStartLine = nextChunk.metadata.startLine;
- 
+
     // 尝试不同的重叠策略
     const strategies = [
       // 策略1：减少重叠大小
@@ -812,14 +812,14 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         const smallerOverlap = Math.max(1, Math.floor((currentEndLine - currentChunk.metadata.startLine + 1) * this.options.maxOverlapRatio * 0.5));
         return this.extractOverlapContentFromOriginal(currentChunk, nextChunk, originalContent, smallerOverlap);
       },
- 
+
       // 策略2：调整重叠起始位置
       () => {
         const offset = Math.max(0, currentEndLine - 2);
         const availableLines = lines.slice(Math.max(0, offset - 1), currentEndLine);
         return availableLines.join('\n');
       },
- 
+
       // 策略3：使用语义边界（简化实现）
       () => {
         // 查找语义边界，如函数结束、类结束等
@@ -833,11 +833,11 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         return '';
       }
     ];
- 
+
     // 尝试每种策略，直到找到不相似的重叠
     for (const strategy of strategies) {
       const alternativeOverlap = strategy();
- 
+
       if (alternativeOverlap) {
         const tempChunk: CodeChunk = {
           content: alternativeOverlap,
@@ -849,38 +849,38 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
             type: 'overlap'
           }
         };
- 
+
         if (this.shouldCreateOverlap(tempChunk, allChunks, originalContent)) {
           this.recordOverlapHistory(tempChunk);
           return alternativeOverlap;
         }
       }
     }
- 
+
     // 如果所有策略都失败，返回空字符串（表示不创建重叠）
     return '';
   }
- 
+
   /**
    * 记录重叠历史（SmartOverlapController 功能）
    */
   private recordOverlapHistory(chunk: CodeChunk): void {
     const overlapKey = `${chunk.metadata.startLine}-${chunk.metadata.endLine}`;
     const contentHash = ContentHashIDGenerator.getContentHashPrefix(chunk.content);
- 
+
     if (!this.overlapHistory.has(overlapKey)) {
       this.overlapHistory.set(overlapKey, []);
     }
- 
+
     const history = this.overlapHistory.get(overlapKey)!;
     history.push(contentHash);
- 
+
     // 限制历史记录大小
     if (history.length > 10) {
       history.shift();
     }
   }
- 
+
   /**
    * 检查两个块是否可以合并（SmartOverlapController 功能）
    */
@@ -888,7 +888,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     // 使用新的工具类方法
     return ChunkSimilarityUtils.canMergeChunks(chunk1, chunk2, this.options.similarityThreshold);
   }
- 
+
   /**
    * 合并两个块（SmartOverlapController 功能）
    */
@@ -896,7 +896,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     // 使用新的工具类方法
     return ChunkSimilarityUtils.mergeTwoChunks(chunk1, chunk2);
   }
- 
+
   /**
    * 智能合并内容（处理重叠）（SmartOverlapController 功能）
    */
@@ -904,13 +904,13 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     // 使用新的工具类方法
     return ChunkSimilarityUtils.mergeContents(content1, content2, startLine1, startLine2);
   }
- 
+
   // 辅助方法
   private isDuplicateChunk(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
     // 使用新的工具类方法
     return ChunkSimilarityUtils.isDuplicateChunk(chunk1, chunk2);
   }
- 
+
   private extractOverlapFromOriginal(
     originalCode: string,
     startLine: number,
@@ -920,7 +920,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     const overlapLines = lines.slice(startLine - 1, endLine);
     return overlapLines.join('\n');
   }
- 
+
   private extractNodesFromContent(
     content: string,
     startLine: number,
@@ -928,42 +928,42 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
   ): ASTNode[] {
     return [];
   }
- 
+
   private findReducedOverlap(
     originalOverlap: string,
     originalCode: string,
     currentEndLine: number
   ): string {
     const lines = originalOverlap.split('\n');
- 
+
     for (let i = lines.length - 1; i >= 0; i--) {
       const testOverlap = lines.slice(0, i + 1).join('\n');
       const testStartLine = currentEndLine + 1;
       const testEndLine = currentEndLine + i + 1;
- 
+
       const testNodes = this.extractNodesFromContent(testOverlap, testStartLine, testEndLine);
       const unusedNodes = testNodes.filter(node => !this.nodeTracker!.isUsed(node));
- 
+
       if (unusedNodes.length > 0) {
         unusedNodes.forEach(node => this.nodeTracker!.markUsed(node));
         return testOverlap;
       }
     }
- 
+
     return '';
   }
- 
+
   private filterUnusedNodesFromTree(tree: any, startLine: number, endLine: number): ASTNode[] {
     return [];
   }
- 
+
   private hasUsedNodes(nodes: ASTNode[]): boolean {
     if (!this.nodeTracker) return false;
     return nodes.some(node => this.nodeTracker!.isUsed(node));
   }
- 
+
   private hasUsedNodesInOverlap(lines: string[], currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
     return false;
   }
- 
+
 }

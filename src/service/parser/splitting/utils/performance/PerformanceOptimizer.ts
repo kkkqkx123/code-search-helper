@@ -25,7 +25,7 @@ export interface OptimizationResult {
 export class PerformanceOptimizer extends BasePerformanceTracker {
   private cache: Map<string, any> = new Map();
   protected cacheHits: number = 0;
-  private cacheMisses: number = 0;
+  protected cacheMisses: number = 0;
   private maxCacheSize: number = 1000;
 
   constructor(maxCacheSize: number = 1000) {
@@ -115,7 +115,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
       
       if (this.cache.has(cacheKey)) {
         this.cacheHits++;
-        return this.cache.get(cacheKey);
+        return this.cache.get(cacheKey) || chunk;
       } else {
         this.cacheMisses++;
         this.cache.set(cacheKey, chunk);
@@ -157,7 +157,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
       // 移除多余的空白行
       const optimizedContent = chunk.content
         .split('\n')
-        .filter(line => line.trim() !== '' || chunk.content.split('\n').length <= 10)
+        .filter(line => line.trim() !== '' || batch.length <= 10)
         .join('\n');
       
       return {

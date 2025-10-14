@@ -5,7 +5,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 import { SyntaxValidator } from '../utils/SyntaxValidator';
 import { SemanticBoundaryAnalyzer } from '../utils/SemanticBoundaryAnalyzer';
-import { UnifiedOverlapCalculator } from '../utils/UnifiedOverlapCalculator';
+import { UnifiedOverlapCalculator } from '../utils/overlap/UnifiedOverlapCalculator';
 import { LanguageSpecificConfigManager } from '../config/LanguageSpecificConfigManager';
 import { ChunkingPerformanceOptimizer } from '../utils/performance/ChunkingPerformanceOptimizer';
 
@@ -27,7 +27,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     // 创建一个临时的balancedChunker用于syntaxValidator
     const tempBalancedChunker = new BalancedChunker();
     this.syntaxValidator = new SyntaxValidator(tempBalancedChunker);
-    
+
     // 初始化新组件
     this.semanticBoundaryAnalyzer = new SemanticBoundaryAnalyzer();
     this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
@@ -49,7 +49,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
   setOptimizationLevel(level: 'low' | 'medium' | 'high'): void {
     this.optimizationLevel = level;
   }
-  
+
   setLogger(logger: LoggerService): void {
     this.logger = logger;
   }
@@ -205,7 +205,7 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     const endTime = Date.now();
     const duration = endTime - startTime;
     this.logger?.debug(`Performance metrics: processed ${lines.length} lines in ${duration}ms, generated ${chunks.length} chunks`);
-    
+
     return chunks;
   }
 
@@ -257,12 +257,12 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     if (this.semanticBoundaryAnalyzer) {
       const context = allLines.slice(Math.max(0, currentIndex - 2), currentIndex + 1);
       const boundaryScore = this.semanticBoundaryAnalyzer.calculateBoundaryScore(line, context, language);
-      
+
       // 如果边界评分足够高，允许分段
       if (boundaryScore.score > 0.7) {
         return currentSize > maxChunkSize * 0.3;
       }
-      
+
       // 如果边界评分中等，需要更大的块大小
       if (boundaryScore.score > 0.5) {
         return currentSize > maxChunkSize * 0.5;

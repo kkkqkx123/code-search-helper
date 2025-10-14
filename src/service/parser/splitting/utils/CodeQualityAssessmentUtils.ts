@@ -4,8 +4,7 @@ import { structureDetector } from '../../utils';
 /**
  * 代码质量评估工具类
  * 提供评估代码块和重叠内容质量的方法
- * 
- * 重构完成：此类现在完全使用公共的结构检测器，所有旧实现已移除
+ * 此类现在完全使用公共的结构检测器
  */
 export class CodeQualityAssessmentUtils {
   private static structureDetector = structureDetector;
@@ -203,9 +202,9 @@ export class CodeQualityAssessmentUtils {
     }
 
     // 检查注释覆盖率
-    const commentLines = lines.filter(line => 
-      line.trim().startsWith('//') || 
-      line.trim().startsWith('/*') || 
+    const commentLines = lines.filter(line =>
+      line.trim().startsWith('//') ||
+      line.trim().startsWith('/*') ||
       line.trim().startsWith('*')
     );
     const commentRatio = commentLines.length / lines.length;
@@ -264,7 +263,7 @@ export class CodeQualityAssessmentUtils {
 
     for (const line of lines) {
       const trimmedLine = line.trim();
-      
+
       // 提取函数名
       const functionMatch = trimmedLine.match(/(?:function\s+(\w+)|(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>))/);
       if (functionMatch) {
@@ -280,12 +279,12 @@ export class CodeQualityAssessmentUtils {
     }
 
     // 检查函数命名（驼峰命名）
-    const functionNamesValid = functionNames.every(name => 
+    const functionNamesValid = functionNames.every(name =>
       /^[a-z][a-zA-Z0-9]*$/.test(name)
     );
 
     // 检查类命名（帕斯卡命名）
-    const classNamesValid = classNames.every(name => 
+    const classNamesValid = classNames.every(name =>
       /^[A-Z][a-zA-Z0-9]*$/.test(name)
     );
 

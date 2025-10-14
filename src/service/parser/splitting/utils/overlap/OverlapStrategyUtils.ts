@@ -1,4 +1,4 @@
-import { CodeChunk } from '../types';
+import { CodeChunk } from '../../types';
 
 export type OverlapStrategy = 'semantic' | 'syntactic' | 'size-based' | 'hybrid' | 'ast-boundary' | 'node-aware' | 'smart-deduplication';
 
@@ -56,10 +56,10 @@ export class OverlapStrategyUtils {
   ): boolean {
     // 检查内容相似度
     const contentSimilarity = this.calculateContentSimilarity(currentChunk.content, nextChunk.content);
-    
+
     // 检查是否有重复的历史记录
     const hasDuplicateHistory = this.checkDuplicateHistory(currentChunk, nextChunk);
-    
+
     // 检查块大小是否适合去重
     const isSizeAppropriate = this.isSizeAppropriateForDeduplication(currentChunk, nextChunk, options);
 
@@ -72,10 +72,10 @@ export class OverlapStrategyUtils {
   static shouldUseNodeAwareStrategy(currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
     // 检查是否有AST节点信息
     const hasNodeIds = currentChunk.metadata.nodeIds && currentChunk.metadata.nodeIds.length > 0;
-    
+
     // 检查块之间是否有明显间隙
     const hasGap = nextChunk.metadata.startLine > currentChunk.metadata.endLine + 1;
-    
+
     // 检查内容是否有明显的语义边界
     const hasSemanticBoundary = this.hasSemanticBoundary(currentChunk, nextChunk);
 
@@ -87,14 +87,14 @@ export class OverlapStrategyUtils {
    */
   private static calculateContentSimilarity(content1: string, content2: string): number {
     if (!content1 || !content2) return 0;
-    
+
     // 简单的相似度计算：基于共同行数
     const lines1 = new Set(content1.split('\n').map(line => line.trim()));
     const lines2 = new Set(content2.split('\n').map(line => line.trim()));
-    
+
     const commonLines = Array.from(lines1).filter(line => lines2.has(line) && line.length > 0);
     const totalLines = Array.from(new Set([...lines1, ...lines2])).filter(line => line.length > 0);
-    
+
     return totalLines.length === 0 ? 0 : commonLines.length / totalLines.length;
   }
 
@@ -118,11 +118,11 @@ export class OverlapStrategyUtils {
     const currentSize = currentChunk.content.length;
     const nextSize = nextChunk.content.length;
     const maxSize = Math.max(currentSize, nextSize);
-    
+
     // 检查是否超过最大重叠比例
     const overlapRatio = options.maxOverlapRatio || 0.3;
     const maxAllowedOverlap = maxSize * overlapRatio;
-    
+
     return maxAllowedOverlap >= options.minLines * 50; // 假设每行平均50字符
   }
 
@@ -257,11 +257,11 @@ export class OverlapStrategyUtils {
    */
   private static hasCompleteStatements(content: string): boolean {
     const lines = content.split('\n').map(line => line.trim());
-    
+
     // 检查是否有完整的语句（以分号结束，或是完整的控制结构）
-    return lines.some(line => 
-      line.endsWith(';') || 
-      line.endsWith('{') || 
+    return lines.some(line =>
+      line.endsWith(';') ||
+      line.endsWith('{') ||
       line.endsWith('}') ||
       line.match(/^\s*(return|break|continue|throw)\s/)
     );
@@ -276,7 +276,7 @@ export class OverlapStrategyUtils {
     const closeBrackets = (content.match(/\)/g) || []).length;
     const openBraces = (content.match(/\{/g) || []).length;
     const closeBraces = (content.match(/\}/g) || []).length;
-    
+
     return openBrackets === closeBrackets && openBraces === closeBraces;
   }
 
@@ -290,7 +290,7 @@ export class OverlapStrategyUtils {
   ): boolean {
     // 检查是否位于函数、类或其他语义单元的边界
     const lines = overlapContent.split('\n').map(line => line.trim());
-    
+
     // 检查是否以右大括号结束（可能是函数/类结束）
     if (lines.length > 0 && lines[lines.length - 1] === '}') {
       return true;

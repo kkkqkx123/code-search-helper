@@ -1,4 +1,4 @@
-import { ContextAwareOverlapOptimizer } from '../ContextAwareOverlapOptimizer';
+import { ContextAwareOverlapOptimizer } from '../overlap/ContextAwareOverlapOptimizer';
 import { CodeChunk, CodeChunkMetadata } from '../../types';
 
 describe('ContextAwareOverlapOptimizer', () => {
@@ -20,7 +20,7 @@ describe('ContextAwareOverlapOptimizer', () => {
       };
 
       const relationship = (optimizer as any).analyzeChunkRelationship(currentChunk, nextChunk);
-      
+
       expect(relationship.type).toBe('sequential_functions');
       expect(relationship.similarity).toBeGreaterThan(0.8);
     });
@@ -36,7 +36,7 @@ describe('ContextAwareOverlapOptimizer', () => {
       };
 
       const relationship = (optimizer as any).analyzeChunkRelationship(currentChunk, nextChunk);
-      
+
       expect(relationship.type).toBe('class_methods');
     });
 
@@ -51,10 +51,10 @@ describe('ContextAwareOverlapOptimizer', () => {
       };
 
       const relationship = (optimizer as any).analyzeChunkRelationship(currentChunk, nextChunk);
-      
+
       expect(relationship.type).toBe('related_imports');
     });
- });
+  });
 
   describe('optimizeOverlapForContext', () => {
     it('should optimize overlap for sequential functions', () => {
@@ -64,7 +64,7 @@ describe('ContextAwareOverlapOptimizer', () => {
         strategy: 'semantic' as const,
         quality: 0.7
       };
-      
+
       const currentChunk: CodeChunk = {
         content: 'function test() {\n return "test";\n}',
         metadata: { startLine: 1, endLine: 3, language: 'typescript' } as CodeChunkMetadata
@@ -75,7 +75,7 @@ describe('ContextAwareOverlapOptimizer', () => {
       };
 
       const result = optimizer.optimizeOverlapForContext(overlap, currentChunk, nextChunk);
-      
+
       // Should preserve function signatures
       expect(result.content).toContain('function');
       // Quality should be improved
@@ -89,7 +89,7 @@ describe('ContextAwareOverlapOptimizer', () => {
         strategy: 'semantic' as const,
         quality: 0.6
       };
-      
+
       const currentChunk: CodeChunk = {
         content: 'class TestClass {\n prop: string;\n  method1() {',
         metadata: { startLine: 1, endLine: 3, language: 'typescript' } as CodeChunkMetadata
@@ -100,7 +100,7 @@ describe('ContextAwareOverlapOptimizer', () => {
       };
 
       const result = optimizer.optimizeOverlapForContext(overlap, currentChunk, nextChunk);
-      
+
       // Should preserve class structure
       expect(result.content).toContain('class');
       expect(result.content).toContain('prop:');
