@@ -115,6 +115,46 @@ export const STRUCTURED_LANGUAGES = [
   'json', 'xml', 'yaml', 'html', 'css', 'scss', 'sass'
 ];
 
+// 块大小限制常量（基于kilocode经验，但根据文件大小动态调整）
+export const BLOCK_SIZE_LIMITS = {
+  MIN_BLOCK_CHARS: 20,                    // 小文件最小块大小（原50太大）
+  MAX_BLOCK_CHARS: 1000,                  // 避免AI处理超长上下文
+  MAX_CHARS_TOLERANCE_FACTOR: 1.2,        // 允许1200字符的弹性空间
+  MIN_CHUNK_REMAINDER_CHARS: 100          // 小文件最后一块最小大小（原200太大）
+} as const;
+
+// 根据文件大小动态调整块大小限制
+export const getDynamicBlockLimits = (contentLength: number, lineCount: number) => {
+  // 小文件：放宽限制
+  if (contentLength < 500 || lineCount < 20) {
+    return {
+      MIN_BLOCK_CHARS: 10,
+      MAX_BLOCK_CHARS: 800,
+      MAX_CHARS_TOLERANCE_FACTOR: 1.5,
+      MIN_CHUNK_REMAINDER_CHARS: 50
+    };
+  }
+  
+  // 中等文件：标准限制
+  if (contentLength < 2000 || lineCount < 100) {
+    return BLOCK_SIZE_LIMITS;
+  }
+  
+  // 大文件：严格限制
+  return {
+    MIN_BLOCK_CHARS: 50,
+    MAX_BLOCK_CHARS: 1000,
+    MAX_CHARS_TOLERANCE_FACTOR: 1.2,
+    MIN_CHUNK_REMAINDER_CHARS: 200
+  };
+};
+
+// 小文件阈值 - 小于这个大小的文件直接作为一个块处理
+export const SMALL_FILE_THRESHOLD = {
+  CHARS: 300,    // 300字符以下
+  LINES: 15      // 15行以下
+} as const;
+
 // 配置默认值常量
 export const DEFAULT_CONFIG = {
   // 错误处理配置
@@ -168,10 +208,10 @@ export const SHEBANG_PATTERNS: [string, string][] = [
   ['#!/usr/bin/env tcl', 'tcl'],
   ['#!/usr/bin/env expect', 'expect'],
   ['#!/usr/bin/env fish', 'fish'],
-  ['#!/usr/bin/env zsh', 'zsh'],
-  ['#!/usr/bin/env ksh', 'ksh'],
-  ['#!/usr/bin/env csh', 'csh'],
-  ['#!/usr/bin/env tcsh', 'tcsh']
+  ['#!/usr/bin/env zsh', 'shell'],
+  ['#!/usr/bin/env ksh', 'shell'],
+  ['#!/usr/bin/env csh', 'shell'],
+  ['#!/usr/bin/env tcsh', 'shell']
 ];
 
 // 语法模式常量

@@ -27,7 +27,27 @@ export class OverlapDecorator implements ISplitStrategy {
       return chunks;
     }
 
-    // 添加重叠内容
+    // 检查是否为代码文件（非markdown）
+    const isCodeFile = this.isCodeFile(language, filePath);
+    
+    // 代码文件：只有在块大小超过限制时才使用重叠
+    if (isCodeFile) {
+      // 检查是否有块超过最大大小限制
+      const hasOversizedChunks = chunks.some(chunk => {
+        const maxSize = options?.maxChunkSize || 2000;
+        return chunk.content.length > maxSize;
+      });
+      
+      // 如果有超大块，需要应用重叠策略进行重新处理
+      if (hasOversizedChunks) {
+        return this.overlapCalculator.addOverlap(chunks, content);
+      }
+      
+      // 否则返回原始块（无重叠）
+      return chunks;
+    }
+
+    // 非代码文件：添加重叠内容
     return this.overlapCalculator.addOverlap(chunks, content);
   }
 
@@ -55,6 +75,24 @@ export class OverlapDecorator implements ISplitStrategy {
       return this.strategy.hasUsedNodes(chunk, nodeTracker, ast);
     }
     return false;
+  }
+
+  /**
+   * 检查是否为代码文件（非markdown）
+   */
+  private isCodeFile(language?: string, filePath?: string): boolean {
+    if (language === 'markdown' || (filePath && filePath.endsWith('.md'))) {
+      return false;
+    }
+    // 检查是否在代码语言列表中
+    const codeLanguages = ['javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
+      'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'shell',
+      'html', 'css', 'scss', 'sass', 'less', 'vue', 'svelte', 'json',
+      'xml', 'yaml', 'sql', 'dockerfile', 'cmake', 'perl', 'r', 'matlab',
+      'lua', 'dart', 'elixir', 'erlang', 'haskell', 'ocaml', 'fsharp',
+      'visualbasic', 'powershell', 'batch'];
+    
+    return language ? codeLanguages.includes(language) : false;
   }
 }
 

@@ -380,11 +380,15 @@ export class ProcessingGuard {
     // 使用更精细的分段参数
     const originalOptions = this.universalTextSplitter.setOptions;
     
+    // 根据内容大小调整重叠大小，小文件使用更小的重叠
+    const contentLines = content.split('\n').length;
+    const adjustedOverlapSize = Math.min(50, Math.max(20, contentLines * 2)); // 每行约2-50字符重叠
+    
     // 临时设置更精细的分段参数
     this.universalTextSplitter.setOptions({
       maxChunkSize: 800,  // 从2000降低到800
       maxLinesPerChunk: 20, // 从50降低到20
-      overlapSize: 100,   // 从200降低到100
+      overlapSize: adjustedOverlapSize,   // 动态调整重叠大小
       enableSemanticDetection: true
     });
     
