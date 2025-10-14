@@ -9,13 +9,13 @@ export interface ChunkingOptions {
   addOverlap?: boolean;
   optimizationLevel?: 'low' | 'medium' | 'high';
   maxLines?: number; // 内存保护：最大处理行数
-  
+
   // 动态调整参数
   adaptiveBoundaryThreshold?: boolean;
   contextAwareOverlap?: boolean;
   semanticWeight?: number;
   syntacticWeight?: number;
-  
+
   // 语义边界评分配置
   boundaryScoring?: {
     enableSemanticScoring: boolean;
@@ -23,14 +23,14 @@ export interface ChunkingOptions {
     maxSearchDistance: number;
     languageSpecificWeights: boolean;
   };
-  
+
   // 重叠策略配置
   overlapStrategy?: {
     preferredStrategy: 'semantic' | 'syntactic' | 'size-based' | 'hybrid';
     enableContextOptimization: boolean;
     qualityThreshold: number;
   };
-  
+
   // 针对不同代码类型的专门配置
   functionSpecificOptions?: {
     preferWholeFunctions: boolean;
@@ -40,13 +40,13 @@ export interface ChunkingOptions {
     minFunctionLines?: number;        // 最小函数行数
     enableSubFunctionExtraction?: boolean; // 启用子函数提取
   };
-  
+
   classSpecificOptions?: {
     keepMethodsTogether: boolean;
     classHeaderOverlap: number;
     maxClassSize: number;
   };
-  
+
   // 新增：重复问题解决方案配置
   enableASTBoundaryDetection?: boolean;
   enableChunkDeduplication?: boolean;
@@ -55,10 +55,13 @@ export interface ChunkingOptions {
   astNodeTracking?: boolean;
   chunkMergeStrategy?: 'aggressive' | 'conservative';
   minChunkSimilarity?: number;
-  
+
   // 新增：协调机制配置
   enableChunkingCoordination?: boolean;
   strategyExecutionOrder?: string[];
+  // 新增：性能优化配置
+  enablePerformanceOptimization?: boolean;
+  enablePerformanceMonitoring?: boolean;
   enableNodeTracking?: boolean;
 }
 
@@ -122,6 +125,9 @@ export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
   astNodeTracking: false,
   chunkMergeStrategy: 'conservative',
   minChunkSimilarity: 0.6,
+  // 新增：性能优化配置
+  enablePerformanceOptimization: false,
+  enablePerformanceMonitoring: false,
   // 新增：协调机制配置
   enableChunkingCoordination: false,
   strategyExecutionOrder: ['ImportSplitter', 'ClassSplitter', 'FunctionSplitter', 'SyntaxAwareSplitter', 'IntelligentSplitter'],
@@ -199,30 +205,30 @@ export interface SplitStrategy {
     nodeTracker?: any,
     ast?: any
   ): Promise<CodeChunk[]>;
-  
+
   /**
    * 获取策略名称（用于日志和调试）
    */
   getName(): string;
-  
+
   /**
    * 检查是否支持该语言
    * @param language 编程语言
    */
   supportsLanguage(language: string): boolean;
-  
+
   /**
    * 获取策略的优先级（数值越小优先级越高）
    */
   getPriority(): number;
-  
+
   /**
    * 提取代码块关联的AST节点（新增）
    * @param chunk 代码块
    * @param ast AST树
    */
   extractNodesFromChunk?(chunk: CodeChunk, ast: any): ASTNode[];
-  
+
   /**
    * 检查代码块是否包含已使用的节点（新增）
    * @param chunk 代码块
@@ -238,13 +244,13 @@ export interface ComplexityCalculator {
    * @param content 代码内容
    */
   calculate(content: string): number;
-  
+
   /**
    * 快速估算复杂度（用于性能优化）
    * @param content 代码内容
    */
   estimate(content: string): number;
-  
+
   /**
    * 计算语义分数
    * @param line 单行代码
@@ -259,19 +265,19 @@ export interface SyntaxValidator {
    * @param language 编程语言
    */
   validate(content: string, language: string): boolean;
-  
+
   /**
    * 检查括号平衡
    * @param content 代码内容
    */
   checkBracketBalance(content: string): number;
-  
+
   /**
    * 检查花括号平衡
    * @param content 代码内容
    */
   checkBraceBalance(content: string): number;
-  
+
   /**
    * 检查符号平衡（使用BalancedChunker）
    * @param content 代码内容
@@ -286,14 +292,14 @@ export interface ChunkOptimizer {
    * @param originalCode 原始代码（用于上下文）
    */
   optimize(chunks: CodeChunk[], originalCode: string): CodeChunk[];
-  
+
   /**
    * 检查是否应该合并两个块
    * @param chunk1 第一个块
    * @param chunk2 第二个块
    */
   shouldMerge(chunk1: CodeChunk, chunk2: CodeChunk): boolean;
-  
+
   /**
    * 合并两个代码块
    * @param chunk1 第一个块
@@ -309,7 +315,7 @@ export interface OverlapCalculator {
    * @param originalCode 原始代码
    */
   addOverlap(chunks: CodeChunk[], originalCode: string): CodeChunk[];
-  
+
   /**
    * 提取重叠内容
    * @param currentChunk 当前块
@@ -317,11 +323,11 @@ export interface OverlapCalculator {
    * @param originalCode 原始代码
    */
   extractOverlapContent(
-    currentChunk: CodeChunk, 
-    nextChunk: CodeChunk, 
+    currentChunk: CodeChunk,
+    nextChunk: CodeChunk,
     originalCode: string
   ): string;
-  
+
   /**
    * 智能计算重叠
    * @param currentChunk 当前块的行数组
@@ -329,7 +335,7 @@ export interface OverlapCalculator {
    * @param startLine 起始行号
    */
   calculateSmartOverlap(
-    currentChunk: string[], 
+    currentChunk: string[],
     originalCode: string,
     startLine: number
   ): string[];
@@ -351,12 +357,12 @@ export interface PerformanceMonitor {
    * @param cacheHit 是否缓存命中
    */
   record(startTime: number, linesProcessed: number, cacheHit: boolean): void;
-  
+
   /**
    * 获取性能统计
    */
   getStats(): PerformanceStats;
-  
+
   /**
    * 重置性能统计
    */

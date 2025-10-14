@@ -3,6 +3,7 @@ import { ASTNodeTracker } from './ASTNodeTracker';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
 import { SimilarityDetector } from './similarity/SimilarityDetector';
 import { UnifiedOverlapCalculator } from './overlap/UnifiedOverlapCalculator';
+import { PerformanceMonitor } from './performance/PerformanceMonitor';
 import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
@@ -13,6 +14,7 @@ export class ChunkingCoordinator {
   private strategies: Map<string, SplitStrategy> = new Map();
   private logger?: LoggerService;
   private options: Required<ChunkingOptions>;
+  private performanceMonitor?: PerformanceMonitor;
   private unifiedOverlapCalculator?: UnifiedOverlapCalculator;
   private enableDeduplication: boolean;
   private similarityThreshold: number;
@@ -38,6 +40,10 @@ export class ChunkingCoordinator {
 
     // 配置重复检测参数
     this.enableDeduplication = options.enableChunkDeduplication ?? false;
+    // 初始化性能监控器
+    if (options.enablePerformanceMonitoring) {
+      this.performanceMonitor = new PerformanceMonitor(logger);
+    }
     this.similarityThreshold = options.deduplicationThreshold ?? 0.8;
 
     // 初始化统一重叠计算器（整合SmartOverlapController功能）
@@ -131,6 +137,10 @@ export class ChunkingCoordinator {
     // 后处理：合并相似块和智能重叠控制
     const processedChunks = this.postProcessChunks(allChunks, content);
 
+    // 记录性能指标
+    if (this.performanceMonitor) {
+      this.performanceMonitor.record(startTime, content.split('\n').length, false);
+    }
     const totalTime = Date.now() - startTime;
     const stats = this.nodeTracker.getStats();
 
