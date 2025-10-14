@@ -1,6 +1,12 @@
 import { TreeSitterService } from '../../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../../service/parser/core/parse/TreeSitterCoreService';
 import { ASTCodeSplitter } from '../../../service/parser/splitting/ASTCodeSplitter';
+import { ProcessingGuard } from '../../../service/parser/universal/ProcessingGuard';
+import { ErrorThresholdManager } from '../../../service/parser/universal/ErrorThresholdManager';
+import { MemoryGuard } from '../../../service/parser/universal/MemoryGuard';
+import { BackupFileProcessor } from '../../../service/parser/universal/BackupFileProcessor';
+import { ExtensionlessFileProcessor } from '../../../service/parser/universal/ExtensionlessFileProcessor';
+import { UniversalTextSplitter } from '../../../service/parser/universal/UniversalTextSplitter';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -8,13 +14,62 @@ import * as path from 'path';
 describe('Parser Splitting Integration Test', () => {
   let treeSitterService: TreeSitterService;
   let astCodeSplitter: ASTCodeSplitter;
+  let processingGuard: ProcessingGuard;
   let logger: LoggerService;
 
   beforeAll(() => {
     logger = new LoggerService();
     const treeSitterCoreService = new TreeSitterCoreService();
     treeSitterService = new TreeSitterService(treeSitterCoreService);
-    astCodeSplitter = new ASTCodeSplitter(treeSitterService, logger);
+    
+    // 创建ProcessingGuard的依赖
+    const errorThresholdManager = new ErrorThresholdManager(logger);
+    const backupFileProcessor = new BackupFileProcessor(logger);
+    const extensionlessFileProcessor = new ExtensionlessFileProcessor(logger);
+    const universalTextSplitter = new UniversalTextSplitter(logger);
+    
+    // 创建IMemoryMonitorService的简单实现
+    const memoryMonitor: any = {
+      getMemoryStatus: () => ({
+        heapUsed: process.memoryUsage().heapUsed,
+        heapTotal: process.memoryUsage().heapTotal,
+        heapUsedPercent: process.memoryUsage().heapUsed / process.memoryUsage().heapTotal,
+        rss: process.memoryUsage().rss,
+        external: process.memoryUsage().external || 0,
+        isWarning: false,
+        isCritical: false,
+        isEmergency: false,
+        trend: 'stable',
+        averageUsage: process.memoryUsage().heapUsed,
+        timestamp: new Date()
+      }),
+      forceGarbageCollection: () => {
+        if (typeof global !== 'undefined' && global.gc) {
+          global.gc();
+        }
+      },
+      triggerCleanup: () => {},
+      isWithinLimit: () => true,
+      setMemoryLimit: () => {}
+    };
+    
+    const memoryGuard = new MemoryGuard(memoryMonitor, 500, 5000, logger);
+    
+    // 创建ProcessingGuard
+    processingGuard = new ProcessingGuard(
+      logger,
+      errorThresholdManager,
+      memoryGuard,
+      backupFileProcessor,
+      extensionlessFileProcessor,
+      universalTextSplitter
+    );
+    
+    // 初始化ProcessingGuard
+    processingGuard.initialize();
+    
+    // 创建ASTCodeSplitter时传入ProcessingGuard
+    astCodeSplitter = new ASTCodeSplitter(treeSitterService, logger, processingGuard);
   });
 
   it('should process all files in test-files directory and save results to test-data/parser-result', async () => {
@@ -46,20 +101,17 @@ describe('Parser Splitting Integration Test', () => {
         // 读取文件内容
         const content = fs.readFileSync(filePath, 'utf-8');
         
-        // 检测语言
-        const detectedLanguage = treeSitterService.detectLanguage(filePath);
-        const language = detectedLanguage ? detectedLanguage.name.toLowerCase() : 'unknown';
+        // 使用ProcessingGuard进行智能文件处理
+        const processingResult = await processingGuard.processFile(filePath, content);
+        const { chunks, language, processingStrategy } = processingResult;
         
-        logger.info(`Processing file: ${filePath}, detected language: ${language}`);
-        
-        // 使用ASTCodeSplitter进行分块
-        const chunks = await astCodeSplitter.split(content, language, filePath);
+        logger.info(`Processing file: ${filePath}, detected language: ${language}, strategy: ${processingStrategy}, chunks: ${chunks.length}`);
         
         // 准备结果数据
         const resultData = {
           filePath,
           language,
-          detectedLanguage: detectedLanguage ? detectedLanguage.name : null,
+          processingStrategy,
           chunksCount: chunks.length,
           chunks: chunks.map((chunk, index) => ({
             index,

@@ -11,4 +11,4 @@ ref
 .venv
 *.rar
 **/repomix-output.xml
-test-data/parser-result
+test-data

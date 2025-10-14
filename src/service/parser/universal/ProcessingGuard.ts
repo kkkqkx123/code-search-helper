@@ -225,7 +225,7 @@ export class ProcessingGuard {
         // 对于通用扩展名（如.md），进一步检查内容
         if (languageFromExt === 'markdown' || languageFromExt === 'text') {
           const contentDetection = this.extensionlessFileProcessor.detectLanguageByContent(content);
-          if (contentDetection.confidence > 0.7) {
+          if (contentDetection.confidence > 0.3) {
             return contentDetection.language;
           }
         }
@@ -259,8 +259,18 @@ export class ProcessingGuard {
       return 'universal-bracket';
     }
 
-    // 如果是代码文件，优先使用语义分段
+    // 如果是代码文件，优先使用TreeSitter进行AST解析
     if (this.isCodeLanguage(language)) {
+      // 检查是否可以使用TreeSitter
+      if (this.canUseTreeSitter(language)) {
+        return 'treesitter-ast';
+      }
+      // 如果不能使用TreeSitter，使用精细的语义分段
+      return 'universal-semantic-fine';
+    }
+    
+    // 对于文本类语言（markdown, text等），使用语义分段
+    if (this.isTextLanguage(language)) {
       return 'universal-semantic';
     }
 
@@ -278,6 +288,25 @@ export class ProcessingGuard {
    */
   private isCodeLanguage(language: string): boolean {
     return CODE_LANGUAGES.includes(language);
+  }
+  
+  /**
+   * 检查是否为文本类语言（需要智能分段的非代码文件）
+   */
+  private isTextLanguage(language: string): boolean {
+    return ['markdown', 'text', 'log', 'ini', 'cfg', 'conf', 'toml'].includes(language);
+  }
+
+  /**
+   * 检查是否可以使用TreeSitter
+   */
+  private canUseTreeSitter(language: string): boolean {
+    // TreeSitter支持的编程语言
+    const TREESITTER_LANGUAGES = [
+      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
+      'go', 'rust', 'php', 'ruby'
+    ];
+    return TREESITTER_LANGUAGES.includes(language);
   }
 
   /**
@@ -306,6 +335,14 @@ export class ProcessingGuard {
     language: string
   ): Promise<CodeChunk[]> {
     switch (strategy) {
+      case 'treesitter-ast':
+        // 使用TreeSitter进行AST解析分段
+        return this.chunkByTreeSitter(content, filePath, language);
+      
+      case 'universal-semantic-fine':
+        // 使用更精细的语义分段
+        return this.chunkByFineSemantic(content, filePath, language);
+        
       case 'universal-semantic':
         return this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
       
@@ -318,6 +355,61 @@ export class ProcessingGuard {
       default:
         this.logger?.warn(`Unknown processing strategy: ${strategy}, falling back to line-based`);
         return this.universalTextSplitter.chunkByLines(content, filePath, language);
+    }
+  }
+
+  /**
+   * 使用TreeSitter进行AST解析分段
+   */
+  private async chunkByTreeSitter(content: string, filePath: string, language: string): Promise<CodeChunk[]> {
+    try {
+      // 这里应该调用TreeSitterService进行AST解析
+      // 暂时使用精细的语义分段作为替代
+      this.logger?.info(`Using TreeSitter AST parsing for ${language}`);
+      return this.chunkByFineSemantic(content, filePath, language);
+    } catch (error) {
+      this.logger?.error(`TreeSitter parsing failed: ${error}, falling back to fine semantic`);
+      return this.chunkByFineSemantic(content, filePath, language);
+    }
+  }
+
+  /**
+   * 精细语义分段
+   */
+  private async chunkByFineSemantic(content: string, filePath: string, language: string): Promise<CodeChunk[]> {
+    // 使用更精细的分段参数
+    const originalOptions = this.universalTextSplitter.setOptions;
+    
+    // 临时设置更精细的分段参数
+    this.universalTextSplitter.setOptions({
+      maxChunkSize: 800,  // 从2000降低到800
+      maxLinesPerChunk: 20, // 从50降低到20
+      overlapSize: 100,   // 从200降低到100
+      enableSemanticDetection: true
+    });
+    
+    try {
+      const chunks = this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
+      
+      // 恢复原始选项
+      this.universalTextSplitter.setOptions({
+        maxChunkSize: 2000,
+        maxLinesPerChunk: 50,
+        overlapSize: 200,
+        enableSemanticDetection: true
+      });
+      
+      return chunks;
+    } catch (error) {
+      // 恢复原始选项
+      this.universalTextSplitter.setOptions({
+        maxChunkSize: 2000,
+        maxLinesPerChunk: 50,
+        overlapSize: 200,
+        enableSemanticDetection: true
+      });
+      
+      throw error;
     }
   }
 

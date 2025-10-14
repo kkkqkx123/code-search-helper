@@ -12,6 +12,7 @@ import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from './types';
 import { PerformanceOptimizer } from './utils/performance/PerformanceOptimizer';
 import { IPerformanceMonitoringSystem } from './utils/performance/IPerformanceMonitoringSystem';
 import { UnifiedPerformanceMonitoringSystem } from './utils/performance/UnifiedPerformanceMonitoringSystem';
+import { ProcessingGuard } from '../universal/ProcessingGuard';
 
 /**
  * 重构后的AST代码分割器（完全替换旧实现）
@@ -29,13 +30,16 @@ export class ASTCodeSplitter implements Splitter {
   private performanceOptimizer?: PerformanceOptimizer;
   private performanceMonitoring?: IPerformanceMonitoringSystem;
   private options: Required<ChunkingOptions>;
+  private processingGuard?: ProcessingGuard;
 
   constructor(
     @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
-    @inject(TYPES.LoggerService) logger?: LoggerService
+    @inject(TYPES.LoggerService) logger?: LoggerService,
+    @inject(TYPES.ProcessingGuard) processingGuard?: ProcessingGuard
   ) {
     this.treeSitterService = treeSitterService;
     this.logger = logger;
+    this.processingGuard = processingGuard;
     this.balancedChunker = new BalancedChunker(logger);
     this.configManager = new ChunkingConfigManager();
     this.strategyFactory = new SplitStrategyFactory();
@@ -188,7 +192,7 @@ export class ASTCodeSplitter implements Splitter {
    */
   private determineOptimizationLevel(code: string): 'low' | 'medium' | 'high' {
     const lines = code.split('\n').length;
-    
+
     if (lines < 50) {
       return 'low';
     } else if (lines < 500) {
@@ -315,16 +319,16 @@ export class ASTCodeSplitter implements Splitter {
       // 使用tree-sitter节点的正确位置信息
       const startLine = item.startPosition ? item.startPosition.row + 1 : 1;
       const endLine = item.endPosition ? item.endPosition.row + 1 : startLine + 1;
-      
+
       // 确保行号在有效范围内
       const adjustedStartLine = Math.max(1, Math.min(startLine, lines.length));
       const adjustedEndLine = Math.max(adjustedStartLine, Math.min(endLine, lines.length));
-      
+
       const content = lines.slice(adjustedStartLine - 1, adjustedEndLine).join('\n');
-      
+
       // 获取函数或类的名称
       const name = this.treeSitterService.getNodeName(item);
-      
+
       chunks.push({
         content,
         metadata: {
@@ -351,6 +355,16 @@ export class ASTCodeSplitter implements Splitter {
     filePath?: string,
     config?: ChunkingOptions
   ): Promise<CodeChunk[]> {
+    // 如果有ProcessingGuard，使用它进行智能分段
+    if (this.processingGuard && filePath) {
+      try {
+        const result = await this.processingGuard.processFile(filePath, code);
+        return result.chunks;
+      } catch (error) {
+        this.logger?.warn(`ProcessingGuard failed, falling back to simple text split: ${error}`);
+      }
+    }
+    
     // 使用BalancedChunker进行符号平衡的分割
     return this.simpleTextSplit(code, language, filePath);
   }
@@ -362,24 +376,24 @@ export class ASTCodeSplitter implements Splitter {
     const chunks: CodeChunk[] = [];
     const lines = code.split('\n');
     const maxChunkSize = this.options.maxChunkSize || 1000;
-    
+
     if (lines.length === 0) {
       return chunks;
     }
 
     // 使用BalancedChunker来确保符号平衡
     this.balancedChunker.reset();
-    
+
     let currentChunkLines: string[] = [];
     let currentLineStart = 1;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       currentChunkLines.push(line);
-      
+
       // 分析当前行的符号变化
       this.balancedChunker.analyzeLineSymbols(line, i + 1);
-      
+
       // 检查是否达到块大小限制并且可以安全分割
       const currentChunkSize = currentChunkLines.join('\n').length;
       if (currentChunkSize >= maxChunkSize && this.balancedChunker.canSafelySplit()) {
@@ -396,14 +410,14 @@ export class ASTCodeSplitter implements Splitter {
             }
           });
         }
-        
+
         // 重置当前块
         currentChunkLines = [];
         currentLineStart = i + 1;
         this.balancedChunker.reset();
       }
     }
-    
+
     // 添加最后一个块
     if (currentChunkLines.length > 0) {
       chunks.push({
@@ -417,7 +431,7 @@ export class ASTCodeSplitter implements Splitter {
         }
       });
     }
-    
+
     return chunks;
   }
 }

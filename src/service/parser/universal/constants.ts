@@ -513,6 +513,6 @@ export const FILE_STRUCTURE_PATTERNS: [string, RegExp][] = [
 
 // 具有强特征的语言列表
 export const STRONG_FEATURE_LANGUAGES = [
-  'javascript', 'python', 'java', 'cpp', 'c', 'go', 'rust',
+  'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'go', 'rust',
   'php', 'ruby', 'shell', 'json', 'html', 'css', 'sql', 'dockerfile'
 ];
