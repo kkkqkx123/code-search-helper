@@ -105,6 +105,10 @@ export class ASTCodeSplitter implements Splitter {
       return [];
     }
 
+    // 根据代码大小确定优化级别
+    const optimizationLevel = this.determineOptimizationLevel(code);
+    this.logger?.debug(`Using optimization level: ${optimizationLevel}`);
+
     try {
       // 获取配置
       const config = this.configManager.getMergedConfig(language);
@@ -126,6 +130,13 @@ export class ASTCodeSplitter implements Splitter {
           });
         }
 
+        // 记录性能指标
+        this.logger?.debug('Performance metrics: ' + JSON.stringify({
+          duration: Date.now() - startTime,
+          chunksGenerated: chunks.length,
+          optimizationLevel
+        }));
+
         return chunks;
       } else {
         this.logger?.warn(`TreeSitterService failed for language ${language}, using fallback strategy`);
@@ -141,6 +152,14 @@ export class ASTCodeSplitter implements Splitter {
             metadata: { language, filePath, chunksGenerated: chunks.length }
           });
         }
+
+        // 记录性能指标
+        this.logger?.debug('Performance metrics: ' + JSON.stringify({
+          duration: Date.now() - startTime,
+          chunksGenerated: chunks.length,
+          optimizationLevel,
+          fallback: true
+        }));
 
         return chunks;
       }
@@ -161,6 +180,21 @@ export class ASTCodeSplitter implements Splitter {
 
       // 最终fallback：简单的文本分割
       return this.simpleTextSplit(code, language, filePath);
+    }
+  }
+
+  /**
+   * 根据代码大小确定优化级别
+   */
+  private determineOptimizationLevel(code: string): 'low' | 'medium' | 'high' {
+    const lines = code.split('\n').length;
+    
+    if (lines < 50) {
+      return 'low';
+    } else if (lines < 500) {
+      return 'medium';
+    } else {
+      return 'high';
     }
   }
 
@@ -231,7 +265,6 @@ export class ASTCodeSplitter implements Splitter {
     }
   }
 
-  // 其他方法将在后续步骤中实现
   /**
    * 使用策略链进行处理
    */
@@ -242,22 +275,149 @@ export class ASTCodeSplitter implements Splitter {
     filePath?: string,
     config?: ChunkingOptions
   ): Promise<CodeChunk[]> {
-    // 简化实现，将在后续步骤中完善
-    return [];
+    // 如果解析成功，尝试使用AST信息进行分割
+    if (parseResult.ast) {
+      try {
+        // 尝试提取函数
+        const functions = this.treeSitterService.extractFunctions(parseResult.ast);
+        if (functions && functions.length > 0) {
+          return this.createChunksFromExtractedItems(functions, code, language, filePath, 'function');
+        }
+
+        // 尝试提取类
+        const classes = this.treeSitterService.extractClasses(parseResult.ast);
+        if (classes && classes.length > 0) {
+          return this.createChunksFromExtractedItems(classes, code, language, filePath, 'class');
+        }
+      } catch (error) {
+        this.logger?.warn(`AST-based extraction failed: ${error}`);
+      }
+    }
+
+    // 如果AST处理失败，使用fallback
+    return this.processWithFallback(code, language, filePath, config);
   }
 
+  /**
+   * 从提取的项目创建代码块
+   */
+  private createChunksFromExtractedItems(
+    items: any[],
+    code: string,
+    language: string,
+    filePath?: string,
+    type: 'function' | 'class' = 'function'
+  ): CodeChunk[] {
+    const chunks: CodeChunk[] = [];
+    const lines = code.split('\n');
+
+    for (const item of items) {
+      // 使用tree-sitter节点的正确位置信息
+      const startLine = item.startPosition ? item.startPosition.row + 1 : 1;
+      const endLine = item.endPosition ? item.endPosition.row + 1 : startLine + 1;
+      
+      // 确保行号在有效范围内
+      const adjustedStartLine = Math.max(1, Math.min(startLine, lines.length));
+      const adjustedEndLine = Math.max(adjustedStartLine, Math.min(endLine, lines.length));
+      
+      const content = lines.slice(adjustedStartLine - 1, adjustedEndLine).join('\n');
+      
+      // 获取函数或类的名称
+      const name = this.treeSitterService.getNodeName(item);
+      
+      chunks.push({
+        content,
+        metadata: {
+          startLine: adjustedStartLine,
+          endLine: adjustedEndLine,
+          language,
+          filePath,
+          type,
+          functionName: type === 'function' ? name : undefined,
+          className: type === 'class' ? name : undefined
+        }
+      });
+    }
+
+    return chunks;
+  }
+
+  /**
+   * 使用fallback策略进行处理
+   */
   private async processWithFallback(
     code: string,
     language: string,
     filePath?: string,
     config?: ChunkingOptions
   ): Promise<CodeChunk[]> {
-    // 简化实现，将在后续步骤中完善
+    // 使用BalancedChunker进行符号平衡的分割
     return this.simpleTextSplit(code, language, filePath);
   }
 
+  /**
+   * 简单文本分割实现
+   */
   private simpleTextSplit(code: string, language: string, filePath?: string): CodeChunk[] {
-    // 简化实现，将在后续步骤中完善
-    return [];
+    const chunks: CodeChunk[] = [];
+    const lines = code.split('\n');
+    const maxChunkSize = this.options.maxChunkSize || 1000;
+    
+    if (lines.length === 0) {
+      return chunks;
+    }
+
+    // 使用BalancedChunker来确保符号平衡
+    this.balancedChunker.reset();
+    
+    let currentChunkLines: string[] = [];
+    let currentLineStart = 1;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      currentChunkLines.push(line);
+      
+      // 分析当前行的符号变化
+      this.balancedChunker.analyzeLineSymbols(line, i + 1);
+      
+      // 检查是否达到块大小限制并且可以安全分割
+      const currentChunkSize = currentChunkLines.join('\n').length;
+      if (currentChunkSize >= maxChunkSize && this.balancedChunker.canSafelySplit()) {
+        // 创建当前块
+        if (currentChunkLines.length > 0) {
+          chunks.push({
+            content: currentChunkLines.join('\n'),
+            metadata: {
+              startLine: currentLineStart,
+              endLine: currentLineStart + currentChunkLines.length - 1,
+              language,
+              filePath,
+              type: 'code'
+            }
+          });
+        }
+        
+        // 重置当前块
+        currentChunkLines = [];
+        currentLineStart = i + 1;
+        this.balancedChunker.reset();
+      }
+    }
+    
+    // 添加最后一个块
+    if (currentChunkLines.length > 0) {
+      chunks.push({
+        content: currentChunkLines.join('\n'),
+        metadata: {
+          startLine: currentLineStart,
+          endLine: currentLineStart + currentChunkLines.length - 1,
+          language,
+          filePath,
+          type: 'code'
+        }
+      });
+    }
+    
+    return chunks;
   }
 }

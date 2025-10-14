@@ -117,7 +117,7 @@ export class FunctionSplitter extends BaseSplitStrategy {
   }
 
   getPriority(): number {
-    return 1; // 高优先级
+    return 2; // 中等优先级
   }
 
   /**
