@@ -4,6 +4,8 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { HotReloadRecoveryService } from './HotReloadRecoveryService';
+import { HotReloadError, HotReloadErrorCode } from './HotReloadError';
 import { GitignoreParser } from '../ignore/GitignoreParser';
 import { DEFAULT_IGNORE_PATTERNS } from './defaultIgnorePatterns';
 import { LANGUAGE_MAP, DEFAULT_SUPPORTED_EXTENSIONS } from './languageConstants';
@@ -83,9 +85,10 @@ export class FileWatcherService {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
+    @inject(TYPES.HotReloadRecoveryService) private hotReloadRecoveryService: HotReloadRecoveryService,
     @inject(TYPES.FileSystemTraversal) fileSystemTraversal: FileSystemTraversal,
     @inject('TraversalOptions') @optional() traversalOptions?: TraversalOptions
- ) {
+  ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.fileSystemTraversal = fileSystemTraversal;

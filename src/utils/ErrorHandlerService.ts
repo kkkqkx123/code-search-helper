@@ -13,6 +13,9 @@ export interface ErrorReport {
   message: string;
   stack?: string;
   context?: Record<string, any>;
+  errorCode?: string; // 新增错误代码字段
+  retryCount?: number; // 重试次数
+  autoRecovered?: boolean; // 是否自动恢复
 }
 
 /**
@@ -138,6 +141,48 @@ export class ErrorHandlerService {
     this.logger.error(logMessage, logMeta).catch(err => {
       console.error('Failed to log error:', err);
     });
+  }
+
+  /**
+   * 处理热更新错误
+   * @param error 热更新错误对象
+   * @param context 错误上下文信息
+   * @returns 错误报告
+   */
+  handleHotReloadError(error: any, context: {
+    component: string;
+    operation: string;
+    [key: string]: any;
+  }): ErrorReport {
+    const errorId = this.generateErrorId();
+    const timestamp = new Date();
+
+    // 确定错误代码
+    const errorCode = error.code || (error.constructor?.name === 'HotReloadError' ? error.code : undefined);
+
+    const report: ErrorReport = {
+      id: errorId,
+      timestamp,
+      component: context.component,
+      operation: context.operation,
+      message: error.message,
+      stack: error.stack,
+      context: {
+        ...context,
+        // 移除已包含在报告中的字段
+        component: undefined,
+        operation: undefined,
+      },
+      errorCode,
+    };
+
+    // 存储错误报告
+    this.errorReports.set(errorId, report);
+
+    // 记录错误日志
+    this.logError(report);
+
+    return report;
   }
 
   /**

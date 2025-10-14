@@ -25,6 +25,7 @@ describe('FileWatcherService Ignore Rules', () => {
     fileWatcherService = new FileWatcherService(
       loggerService,
       errorHandlerService,
+      {} as any, // HotReloadRecoveryService
       fileSystemTraversal
     );
   });

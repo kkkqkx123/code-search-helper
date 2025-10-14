@@ -4,6 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { FileWatcherService } from '../filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../filesystem/ChangeDetectionService';
+import { ProjectHotReloadService } from '../filesystem/ProjectHotReloadService';
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
@@ -23,7 +24,6 @@ import { IgnoreRuleManager } from '../ignore/IgnoreRuleManager';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-
 export interface IndexSyncOptions {
   embedder?: string;
   batchSize?: number;
@@ -32,6 +32,7 @@ export interface IndexSyncOptions {
   excludePatterns?: string[];
   chunkSize?: number;
   chunkOverlap?: number;
+  enableHotReload?: boolean; // 新增热更新启用选项
 }
 
 export interface IndexSyncStatus {
@@ -120,11 +121,13 @@ export class IndexService {
   private isProcessingQueue: boolean = false;
   private projectEmbedders: Map<string, string> = new Map(); // 存储项目对应的embedder
   private ignoreRuleManager: IgnoreRuleManager | null = null;
+  private projectHotReloadService: ProjectHotReloadService | null = null;
  constructor(
    @inject(TYPES.LoggerService) private logger: LoggerService,
    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
    @inject(TYPES.FileWatcherService) private fileWatcherService: FileWatcherService,
    @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
+   @inject(TYPES.ProjectHotReloadService) projectHotReloadService: ProjectHotReloadService,
    @inject(TYPES.QdrantService) private qdrantService: QdrantService,
    @inject(TYPES.INebulaService) private nebulaService: INebulaService,
    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
@@ -139,6 +142,7 @@ export class IndexService {
    @inject(TYPES.IgnoreRuleManager) ignoreRuleManager: IgnoreRuleManager
  ) {
    this.ignoreRuleManager = ignoreRuleManager;
+   this.projectHotReloadService = projectHotReloadService;
    
    // 设置文件变化监听器
    this.setupFileChangeListeners();
@@ -513,17 +517,39 @@ export class IndexService {
 
       // 保存项目映射到持久化存储
       await this.projectIdManager.saveMapping();
+// 触发索引完成事件
+await this.emit('indexingCompleted', projectId);
 
-      // 触发索引完成事件
-      await this.emit('indexingCompleted', projectId);
+// 索引完成后启动项目文件监视（如果启用了热更新）
+if (options?.enableHotReload !== false) {
+  if (this.projectHotReloadService) {
+    await this.projectHotReloadService.enableForProject(projectPath, {
+      debounceInterval: 500,
+      enabled: true,
+      watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java}'], // 根据项目类型调整
+      ignorePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**', '**/target/**', '**/venv/**'],
+      maxFileSize: 10 * 1024 * 1024, // 10MB
+      errorHandling: {
+        maxRetries: 3,
+        alertThreshold: 5,
+        autoRecovery: true
+      }
+    });
+    this.logger.info(`Hot reload enabled for project: ${projectPath}`);
+  } else {
+    // 如果没有ProjectHotReloadService，使用旧方法
+    await this.startProjectWatching(projectPath);
+    this.logger.warn(`ProjectHotReloadService not available, using legacy file watching for: ${projectPath}`);
+  }
+}
 
-      this.logger.info(`Completed indexing project: ${projectId}`, {
-        totalFiles: status.totalFiles,
-        indexedFiles: status.indexedFiles,
-        failedFiles: status.failedFiles,
-        progress: status.progress
-      });
-    } catch (error) {
+this.logger.info(`Completed indexing project: ${projectId}`, {
+  totalFiles: status.totalFiles,
+  indexedFiles: status.indexedFiles,
+  failedFiles: status.failedFiles,
+  progress: status.progress
+  });
+      } catch (error) {
       try {
         status.isIndexing = false;
         this.indexingProjects.delete(projectId); // 从正在进行的索引中移除
@@ -727,6 +753,31 @@ export class IndexService {
   }
 
   /**
+   * 启动项目文件监视
+   */
+  private async startProjectWatching(projectPath: string): Promise<void> {
+    try {
+      this.logger.info(`Starting file watching for project: ${projectPath}`);
+      
+      // 初始化变更检测服务，监控项目路径
+      await this.changeDetectionService.initialize([projectPath], {
+        watchPaths: [projectPath],
+        debounceInterval: 500,
+        enableHashComparison: true,
+        trackFileHistory: true,
+      });
+
+      this.logger.info(`File watching started for project: ${projectPath}`);
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to start project watching: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'IndexService', operation: 'startProjectWatching', projectPath }
+      );
+      throw error;
+    }
+  }
+
+  /**
    * 销毁IndexService实例，清理所有资源
    */
   async destroy(): Promise<void> {
@@ -751,6 +802,16 @@ export class IndexService {
       }
     } catch (error) {
       this.logger.warn(`Failed to stop change detection service: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // 如果有ProjectHotReloadService，也清理它
+    if (this.projectHotReloadService) {
+      try {
+        // 可以添加禁用所有项目热重载的逻辑
+        this.logger.info('IndexService destroyed');
+      } catch (error) {
+        this.logger.warn(`Failed to clean up ProjectHotReloadService: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
 
     this.logger.info('IndexService destroyed');

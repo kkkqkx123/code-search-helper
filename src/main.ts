@@ -17,6 +17,7 @@ import { TYPES } from './types';
 import { EmbeddingConfigService } from './config/service/EmbeddingConfigService';
 import { NebulaService } from './database/nebula/NebulaService';
 import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
+import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
 
 // 添加详细的错误处理
 process.on('uncaughtException', (error) => {
@@ -78,7 +79,6 @@ class Application {
   private apiServer: ApiServer;
   private logger: Logger;
   private currentPhase: ApplicationLifecyclePhase = ApplicationLifecyclePhase.INITIALIZING;
-
   constructor(
     @inject(TYPES.ConfigService) private configService: ConfigService,
     @inject(TYPES.LoggerService) private loggerService: LoggerService,
@@ -90,7 +90,8 @@ class Application {
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
     @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
     @inject(TYPES.INebulaService) private nebulaService: NebulaService,
-    @inject(TYPES.NebulaConnectionMonitor) private nebulaConnectionMonitor: NebulaConnectionMonitor
+    @inject(TYPES.NebulaConnectionMonitor) private nebulaConnectionMonitor: NebulaConnectionMonitor,
+    @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService
   ) {
     // 创建一个 Logger 实例，用于整个应用
     this.logger = new Logger('code-search-helper');
@@ -180,9 +181,15 @@ class Application {
       await this.mcpServer.start();
       await this.logger.info('MCP Server started successfully');
 
-      await this.loggerService.info('Starting API server...');
+      await this.logger.info('Starting API server...');
       this.apiServer.start();
       await this.logger.info('API Server started successfully');
+
+      // Initialize ChangeDetectionService for hot reload functionality
+      await this.loggerService.info('Initializing Change Detection Service for hot reload...');
+      // Note: We don't start watching any specific paths here, as the ChangeDetectionService
+      // will be started when projects are indexed via the IndexService
+      await this.loggerService.info('Change Detection Service initialized');
 
       this.currentPhase = ApplicationLifecyclePhase.RUNNING;
 
@@ -259,6 +266,17 @@ class Application {
       // 关闭MCP服务器
       await this.mcpServer.stop();
 
+      // 关闭变更检测服务
+      try {
+        if (this.changeDetectionService.isServiceRunning()) {
+          await this.loggerService.info('Stopping Change Detection Service...');
+          await this.changeDetectionService.stop();
+          await this.loggerService.info('Change Detection Service stopped');
+        }
+      } catch (error) {
+        await this.loggerService.error('Error stopping Change Detection Service:', error);
+      }
+
       this.currentPhase = ApplicationLifecyclePhase.STOPPED;
       await this.logger.info('Application stopped');
 
@@ -300,6 +318,7 @@ class ApplicationFactory {
     const embeddingConfigService = diContainer.get<EmbeddingConfigService>(TYPES.EmbeddingConfigService);
     const nebulaService = diContainer.get<NebulaService>(TYPES.INebulaService);
     const nebulaConnectionMonitor = diContainer.get<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor);
+    const changeDetectionService = diContainer.get<ChangeDetectionService>(TYPES.ChangeDetectionService);
 
     return new Application(
       configService,
@@ -312,7 +331,8 @@ class ApplicationFactory {
       embeddingCacheService,
       embeddingConfigService,
       nebulaService,
-      nebulaConnectionMonitor
+      nebulaConnectionMonitor,
+      changeDetectionService
     );
   }
 }

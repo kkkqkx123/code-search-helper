@@ -9,6 +9,11 @@ import { IgnoreRuleManager } from '../../service/ignore/IgnoreRuleManager';
 import { FileSystemTraversal } from '../../service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../../service/filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../../service/filesystem/ChangeDetectionService';
+import { HotReloadRecoveryService } from '../../service/filesystem/HotReloadRecoveryService';
+import { ProjectHotReloadService } from '../../service/filesystem/ProjectHotReloadService';
+import { HotReloadConfigService } from '../../service/filesystem/HotReloadConfigService';
+import { HotReloadMonitoringService } from '../../service/filesystem/HotReloadMonitoringService';
+import { HotReloadErrorPersistenceService } from '../../service/filesystem/HotReloadErrorPersistenceService';
 
 // 项目管理服务
 import { IndexService } from '../../service/index/IndexService';
@@ -58,12 +63,17 @@ import { MemoryMonitorService } from '../../service/memory/MemoryMonitorService'
 
 export class BusinessServiceRegistrar {
   static register(container: Container): void {
-    try {
-      // 文件系统服务
-      container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).to(FileSystemTraversal).inSingletonScope();
-      container.bind<FileWatcherService>(TYPES.FileWatcherService).to(FileWatcherService).inSingletonScope();
-      container.bind<ChangeDetectionService>(TYPES.ChangeDetectionService).to(ChangeDetectionService).inSingletonScope();
+    // 文件系统服务
+    container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).to(FileSystemTraversal).inSingletonScope();
+    container.bind<FileWatcherService>(TYPES.FileWatcherService).to(FileWatcherService).inSingletonScope();
+    container.bind<ChangeDetectionService>(TYPES.ChangeDetectionService).to(ChangeDetectionService).inSingletonScope();
+    container.bind<HotReloadRecoveryService>(TYPES.HotReloadRecoveryService).to(HotReloadRecoveryService).inSingletonScope();
+    container.bind<ProjectHotReloadService>(TYPES.ProjectHotReloadService).to(ProjectHotReloadService).inSingletonScope();
+    container.bind<HotReloadConfigService>(TYPES.HotReloadConfigService).to(HotReloadConfigService).inSingletonScope();
+    container.bind<HotReloadMonitoringService>(TYPES.HotReloadMonitoringService).to(HotReloadMonitoringService).inSingletonScope();
+    container.bind<HotReloadErrorPersistenceService>(TYPES.HotReloadErrorPersistenceService).to(HotReloadErrorPersistenceService).inSingletonScope();
 
+    // 项目管理服务
       // 项目管理服务
       container.bind<IndexService>(TYPES.IndexService).to(IndexService).inSingletonScope();
       container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
@@ -154,4 +164,3 @@ export class BusinessServiceRegistrar {
       throw error;
     }
   }
-}

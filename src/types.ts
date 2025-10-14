@@ -44,6 +44,11 @@ export type EventListener<T = any> = (data: T) => void;
 import { FileSystemTraversal } from './service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from './service/filesystem/FileWatcherService';
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
+import { HotReloadRecoveryService } from './service/filesystem/HotReloadRecoveryService';
+import { ProjectHotReloadService } from './service/filesystem/ProjectHotReloadService';
+import { HotReloadConfigService } from './service/filesystem/HotReloadConfigService';
+import { HotReloadMonitoringService } from './service/filesystem/HotReloadMonitoringService';
+import { HotReloadErrorPersistenceService } from './service/filesystem/HotReloadErrorPersistenceService';
 import { IndexService } from './service/index/IndexService';
 import { IndexingLogicService } from './service/index/IndexingLogicService';
 import { ProjectStateManager } from './service/project/ProjectStateManager';
@@ -158,6 +163,11 @@ export const TYPES = {
   FileSystemTraversal: Symbol.for('FileSystemTraversal'),
   FileWatcherService: Symbol.for('FileWatcherService'),
   ChangeDetectionService: Symbol.for('ChangeDetectionService'),
+  HotReloadRecoveryService: Symbol.for('HotReloadRecoveryService'),
+  ProjectHotReloadService: Symbol.for('ProjectHotReloadService'),
+  HotReloadConfigService: Symbol.for('HotReloadConfigService'),
+  HotReloadMonitoringService: Symbol.for('HotReloadMonitoringService'),
+  HotReloadErrorPersistenceService: Symbol.for('HotReloadErrorPersistenceService'),
   // 索引同步服务
   IndexService: Symbol.for('IndexService'),
   IndexingLogicService: Symbol.for('IndexingLogicService'),

@@ -2,6 +2,8 @@ import { injectable, inject, optional } from 'inversify';
 import { EventEmitter } from 'events';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { HotReloadRecoveryService } from './HotReloadRecoveryService';
+import { HotReloadError, HotReloadErrorCode } from './HotReloadError';
 
 // 定义错误上下文接口
 interface ErrorContext {
@@ -9,10 +11,24 @@ interface ErrorContext {
   operation: string;
   metadata?: Record<string, any>;
 }
-import { FileWatcherService, FileWatcherOptions, FileWatcherCallbacks } from './FileWatcherService';
+import { FileWatcherService, FileWatcherCallbacks } from './FileWatcherService';
 import { FileSystemTraversal, FileInfo } from './FileSystemTraversal';
 import { TYPES } from '../../types';
 import * as path from 'path';
+
+export interface FileWatcherOptions {
+  watchPaths: string[];
+  ignored?: string[];
+  ignoreInitial?: boolean;
+  awaitWriteFinish?: boolean;
+  awaitWriteFinishOptions?: {
+    stabilityThreshold: number;
+    pollInterval: number;
+  };
+  usePolling?: boolean;
+  interval?: number;
+  [key: string]: any;
+}
 
 export interface ChangeDetectionOptions {
   debounceInterval?: number;
@@ -64,6 +80,7 @@ export class ChangeDetectionService extends EventEmitter {
   private fileHistory: Map<string, FileHistoryEntry[]> = new Map();
   private pendingChanges: Map<string, NodeJS.Timeout> = new Map();
   private isRunning: boolean = false;
+  private testMode: boolean = false;
   private options: Required<ChangeDetectionOptions>;
   private callbacks: ChangeDetectionCallbacks = {};
   private stats = {
@@ -73,11 +90,10 @@ export class ChangeDetectionService extends EventEmitter {
     permissionErrors: 0,
     averageProcessingTime: 0,
   };
-  private testMode: boolean = false;
-
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
+    @inject(TYPES.HotReloadRecoveryService) private hotReloadRecoveryService: HotReloadRecoveryService,
     @inject(TYPES.FileWatcherService) fileWatcherService: FileWatcherService,
     @inject(TYPES.FileSystemTraversal) fileSystemTraversal: FileSystemTraversal,
     @inject('ChangeDetectionOptions') @optional() options?: ChangeDetectionOptions
@@ -92,14 +108,14 @@ export class ChangeDetectionService extends EventEmitter {
     this.testMode = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
 
     this.options = {
-      debounceInterval: this.testMode ? 100 : (options?.debounceInterval ?? 500),
+      debounceInterval: this.isTestMode() ? 100 : (options?.debounceInterval ?? 500),
       maxConcurrentOperations: options?.maxConcurrentOperations ?? 10,
       enableHashComparison: options?.enableHashComparison ?? true,
       trackFileHistory: options?.trackFileHistory ?? true,
       historySize: options?.historySize ?? 10,
       enableDetailedLogging: options?.enableDetailedLogging ?? false,
       permissionRetryAttempts: options?.permissionRetryAttempts ?? 3,
-      permissionRetryDelay: this.testMode ? 100 : (options?.permissionRetryDelay ?? 1000),
+      permissionRetryDelay: this.isTestMode() ? 100 : (options?.permissionRetryDelay ?? 1000),
       maxFileSizeBytes: options?.maxFileSizeBytes ?? 10 * 1024 * 1024, // 10MB
       excludedExtensions: options?.excludedExtensions ?? ['.log', '.tmp', '.bak'],
       excludedDirectories: options?.excludedDirectories ?? [
@@ -110,7 +126,7 @@ export class ChangeDetectionService extends EventEmitter {
       ],
     };
 
-    if (this.testMode) {
+    if (this.isTestMode()) {
       this.logger.info('ChangeDetectionService running in test mode - using optimized settings');
     }
   }
@@ -150,11 +166,11 @@ export class ChangeDetectionService extends EventEmitter {
         awaitWriteFinish: true,
         awaitWriteFinishOptions: {
           stabilityThreshold: this.options.debounceInterval,
-          pollInterval: this.testMode ? 25 : 100,
+          pollInterval: this.isTestMode() ? 25 : 100,
         },
         // Test-specific optimizations
-        usePolling: this.testMode,
-        interval: this.testMode ? 50 : undefined,
+        usePolling: this.isTestMode(),
+        interval: this.isTestMode() ? 50 : undefined,
         ...watcherOptions,
       };
 
@@ -177,6 +193,30 @@ export class ChangeDetectionService extends EventEmitter {
       this.logger.error('Failed to initialize ChangeDetectionService', { errorId: report.id });
       throw error;
     }
+  }
+
+  private async handleInitializationError(error: any, rootPaths: string[]): Promise<void> {
+    const errorContext: ErrorContext = {
+      component: 'ChangeDetectionService',
+      operation: 'initialize',
+      metadata: { rootPaths, options: this.options },
+    };
+
+    // 创建热更新错误
+    const hotReloadError = new HotReloadError(
+      HotReloadErrorCode.CHANGE_DETECTION_FAILED,
+      `Failed to initialize ChangeDetectionService: ${error instanceof Error ? error.message : String(error)}`,
+      { rootPaths, options: this.options }
+    );
+
+    // 使用错误处理服务处理错误
+    const report = this.errorHandler.handleHotReloadError(hotReloadError, errorContext);
+
+    // 使用恢复服务处理错误
+    await this.hotReloadRecoveryService.handleError(hotReloadError, errorContext);
+
+    this.logger.error('Failed to initialize ChangeDetectionService', { errorId: report.id });
+    throw hotReloadError;
   }
 
   private async initializeFileHashes(rootPaths: string[]): Promise<void> {
@@ -486,11 +526,11 @@ export class ChangeDetectionService extends EventEmitter {
 
   // Test environment helper methods
   isTestMode(): boolean {
-    return this.testMode;
+    return this.isTestMode();
   }
 
   async waitForFileProcessing(filePath: string, timeout: number = 3000): Promise<boolean> {
-    if (!this.testMode) {
+    if (!this.isTestMode()) {
       return true;
     }
 
@@ -510,7 +550,7 @@ export class ChangeDetectionService extends EventEmitter {
   }
 
   async waitForAllProcessing(timeout: number = 5000): Promise<boolean> {
-    if (!this.testMode) {
+    if (!this.isTestMode()) {
       return true;
     }
 
@@ -530,7 +570,7 @@ export class ChangeDetectionService extends EventEmitter {
   }
 
   async flushPendingChanges(): Promise<void> {
-    if (!this.testMode) {
+    if (!this.isTestMode()) {
       return;
     }
 
