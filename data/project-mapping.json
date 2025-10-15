@@ -32,5 +32,22 @@
     "projectUpdateTimes": {
       "040721e25ac919a0": "2025-10-13T13:02:53.481Z"
     }
+  },
+  {
+    "projectIdMap": {
+      "D:/ide/tool/code-search-helper": "443cee618172c9d8"
+    },
+    "collectionMap": {
+      "443cee618172c9d8": "project-443cee618172c9d8"
+    },
+    "spaceMap": {
+      "443cee618172c9d8": "project_443cee618172c9d8"
+    },
+    "pathToProjectMap": {
+      "443cee618172c9d8": "D:/ide/tool/code-search-helper"
+    },
+    "projectUpdateTimes": {
+      "443cee618172c9d8": "2025-10-15T12:56:52.204Z"
+    }
   }
 ]

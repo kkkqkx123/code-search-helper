@@ -14,6 +14,7 @@ import { ProjectHotReloadService } from '../../service/filesystem/ProjectHotRelo
 import { HotReloadConfigService } from '../../service/filesystem/HotReloadConfigService';
 import { HotReloadMonitoringService } from '../../service/filesystem/HotReloadMonitoringService';
 import { HotReloadErrorPersistenceService } from '../../service/filesystem/HotReloadErrorPersistenceService';
+import { HotReloadRestartService } from '../../service/filesystem/HotReloadRestartService';
 
 // 项目管理服务
 import { IndexService } from '../../service/index/IndexService';
@@ -72,6 +73,7 @@ export class BusinessServiceRegistrar {
     container.bind<HotReloadConfigService>(TYPES.HotReloadConfigService).to(HotReloadConfigService).inSingletonScope();
     container.bind<HotReloadMonitoringService>(TYPES.HotReloadMonitoringService).to(HotReloadMonitoringService).inSingletonScope();
     container.bind<HotReloadErrorPersistenceService>(TYPES.HotReloadErrorPersistenceService).to(HotReloadErrorPersistenceService).inSingletonScope();
+    container.bind<HotReloadRestartService>(TYPES.HotReloadRestartService).to(HotReloadRestartService).inSingletonScope();
 
     // 项目管理服务
       // 项目管理服务

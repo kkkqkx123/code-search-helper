@@ -526,7 +526,7 @@ export class ChangeDetectionService extends EventEmitter {
 
   // Test environment helper methods
   isTestMode(): boolean {
-    return this.isTestMode();
+    return this.testMode;
   }
 
   async waitForFileProcessing(filePath: string, timeout: number = 3000): Promise<boolean> {

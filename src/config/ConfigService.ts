@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
 import * as dotenv from 'dotenv';
-import { AppConfig, TreeSitterConfig } from './ConfigTypes';
+import { AppConfig, TreeSitterConfig, HotReloadConfig } from './ConfigTypes';
 import {
   EnvironmentConfigService,
   QdrantConfigService,
@@ -20,7 +20,6 @@ import {
   EmbeddingBatchConfigService,
 } from './service';
 import { TYPES } from '../types';
-import { HotReloadConfigService } from './service/HotReloadConfigService';
 
 dotenv.config();
 
@@ -47,7 +46,6 @@ export class ConfigService {
     @inject(TYPES.TreeSitterConfigService) private treeSitterConfigService: TreeSitterConfigService,
     @inject(TYPES.ProjectNamingConfigService) private projectNamingConfigService: ProjectNamingConfigService,
     @inject(TYPES.EmbeddingBatchConfigService) private embeddingBatchConfigService: EmbeddingBatchConfigService,
-    @inject(TYPES.HotReloadConfigService) private hotReloadConfigService: HotReloadConfigService,
   ) { }
   
   async initialize(): Promise<void> {
@@ -69,7 +67,8 @@ export class ConfigService {
       const treeSitter = this.treeSitterConfigService.getConfig();
       const projectNaming = this.projectNamingConfigService.getConfig();
       const embeddingBatch = this.embeddingBatchConfigService.getConfig();
-      const hotReload = this.hotReloadConfigService.getConfig();
+      // 提供默认的热重载配置
+      const hotReload = this.getDefaultHotReloadConfig();
 
       // 构建完整的应用配置
       this.config = {
@@ -114,10 +113,24 @@ export class ConfigService {
           popularityWeight: 0.05,
         },
       };
-
     } catch (error) {
       throw new Error(`Failed to initialize configuration: ${error}`);
     }
+  }
+
+  private getDefaultHotReloadConfig(): HotReloadConfig {
+    return {
+      enabled: true,
+      debounceInterval: 500,
+      maxFileSize: 10 * 1024 * 1024, // 10MB
+      maxConcurrentProjects: 5,
+      enableDetailedLogging: false,
+      errorHandling: {
+        maxRetries: 3,
+        alertThreshold: 5,
+        autoRecovery: true
+      }
+    };
   }
 
   get<K extends keyof AppConfig>(key: K): AppConfig[K] {

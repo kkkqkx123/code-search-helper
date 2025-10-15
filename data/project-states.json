@@ -44,15 +44,15 @@
     },
     "createdAt": "2025-10-13T13:02:53.360Z",
     "updatedAt": "2025-10-13T13:02:58.575Z",
+    "lastIndexedAt": "2025-10-13T13:02:58.572Z",
+    "indexingProgress": 100,
+    "totalFiles": 4,
+    "indexedFiles": 4,
+    "failedFiles": 0,
     "settings": {
       "autoIndex": true,
       "watchChanges": true
     },
-    "metadata": {},
-    "indexingProgress": 100,
-    "lastIndexedAt": "2025-10-13T13:02:58.572Z",
-    "totalFiles": 4,
-    "indexedFiles": 4,
-    "failedFiles": 0
+    "metadata": {}
   }
 ]

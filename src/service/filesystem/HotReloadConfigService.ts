@@ -3,8 +3,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { ProjectHotReloadConfig } from './ProjectHotReloadService';
-import { ConfigService } from '../../../src/config/ConfigService';
-import { HotReloadConfig as GlobalHotReloadConfig } from '../../../src/config/ConfigTypes';
+import { HotReloadConfig as GlobalHotReloadConfig } from '../../config/ConfigTypes';
 
 export interface HotReloadGlobalConfig {
   enabled: boolean;
@@ -29,78 +28,42 @@ export class HotReloadConfigService {
   
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
-    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-    @inject(TYPES.ConfigService) private configService: ConfigService
+    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService
   ) {
     this.configFilePath = './hotreload.config.json';
     this.globalConfig = this.getDefaultGlobalConfig();
   }
   
   private getDefaultGlobalConfig(): HotReloadGlobalConfig {
-    try {
-      // 尝试从全局配置服务获取配置
-      const globalHotReloadConfig = this.configService.get('hotReload');
-      
-      return {
-        enabled: globalHotReloadConfig.enabled,
-        defaultDebounceInterval: globalHotReloadConfig.debounceInterval,
-        defaultWatchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java,css,html,scss}'], // 默认值保持不变
-        defaultIgnorePatterns: [
-          '**/node_modules/**',
-          '**/.git/**',
-          '**/dist/**',
-          '**/build/**',
-          '**/target/**',
-          '**/venv/**',
-          '**/.vscode/**',
-          '**/.idea/**',
-          '**/logs/**',
-          '**/*.log',
-          '**/coverage/**',
-          '**/tmp/**',
-          '**/temp/**'
-        ],
-        defaultMaxFileSize: globalHotReloadConfig.maxFileSize,
-        defaultErrorHandling: {
-          maxRetries: globalHotReloadConfig.errorHandling.maxRetries,
-          alertThreshold: globalHotReloadConfig.errorHandling.alertThreshold,
-          autoRecovery: globalHotReloadConfig.errorHandling.autoRecovery
-        },
-        enableDetailedLogging: globalHotReloadConfig.enableDetailedLogging,
-        maxConcurrentProjects: globalHotReloadConfig.maxConcurrentProjects
-      };
-    } catch (error) {
-      // 如果无法获取全局配置，则使用硬编码的默认值
-      this.logger.warn('Failed to get hot reload config from global config service, using defaults', error);
-      return {
-        enabled: true,
-        defaultDebounceInterval: 500,
-        defaultWatchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java,css,html,scss}'],
-        defaultIgnorePatterns: [
-          '**/node_modules/**',
-          '**/.git/**',
-          '**/dist/**',
-          '**/build/**',
-          '**/target/**',
-          '**/venv/**',
-          '**/.vscode/**',
-          '**/.idea/**',
-          '**/logs/**',
-          '**/*.log',
-          '**/coverage/**',
-          '**/tmp/**',
-          '**/temp/**'
-        ],
-        defaultMaxFileSize: 10 * 1024 * 1024, // 10MB
-        defaultErrorHandling: {
-          maxRetries: 3,
-          alertThreshold: 5,
-          autoRecovery: true
-        },
-        enableDetailedLogging: false,
-        maxConcurrentProjects: 5
-      };
-    }
+    // 直接使用硬编码的默认值，避免循环依赖
+    return {
+      enabled: true,
+      defaultDebounceInterval: 500,
+      defaultWatchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java,css,html,scss}'],
+      defaultIgnorePatterns: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/build/**',
+        '**/target/**',
+        '**/venv/**',
+        '**/.vscode/**',
+        '**/.idea/**',
+        '**/logs/**',
+        '**/*.log',
+        '**/coverage/**',
+        '**/tmp/**',
+        '**/temp/**'
+      ],
+      defaultMaxFileSize: 10 * 1024 * 1024, // 10MB
+      defaultErrorHandling: {
+        maxRetries: 3,
+        alertThreshold: 5,
+        autoRecovery: true
+      },
+      enableDetailedLogging: false,
+      maxConcurrentProjects: 5
+    };
   }
   
   /**
