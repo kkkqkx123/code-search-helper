@@ -6,6 +6,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { BalancedChunker } from './BalancedChunker';
 import { ChunkingConfigManager } from './config/ChunkingConfigManager';
 import { SplitStrategyFactory } from './core/SplitStrategyFactory';
+import { ensureStrategyProvidersRegistered } from './core/StrategyProviderRegistration';
 import { ChunkingCoordinator } from './utils/ChunkingCoordinator';
 import { UnifiedOverlapCalculator } from './utils/overlap/UnifiedOverlapCalculator';
 import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from './types';
@@ -45,7 +46,21 @@ export class ASTCodeSplitter implements Splitter {
     this.strategyFactory = new SplitStrategyFactory();
     this.options = { ...DEFAULT_CHUNKING_OPTIONS };
 
+    // 确保策略提供者已注册
+    this.ensureStrategyProvidersRegistered();
+
     this.initializeComponents();
+  }
+
+  /**
+ * 确保策略提供者已注册
+ */
+  private ensureStrategyProvidersRegistered(): void {
+    try {
+      ensureStrategyProvidersRegistered(this.logger);
+    } catch (error) {
+      this.logger?.warn('Failed to ensure strategy providers registration:', error);
+    }
   }
 
   /**
@@ -364,7 +379,7 @@ export class ASTCodeSplitter implements Splitter {
         this.logger?.warn(`ProcessingGuard failed, falling back to simple text split: ${error}`);
       }
     }
-    
+
     // 使用BalancedChunker进行符号平衡的分割
     return this.simpleTextSplit(code, language, filePath);
   }

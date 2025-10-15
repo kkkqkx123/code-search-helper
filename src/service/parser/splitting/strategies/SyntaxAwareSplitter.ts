@@ -2,18 +2,17 @@ import { SyntaxAwareSplitter as SyntaxAwareSplitterInterface } from './index';
 import { SplitStrategy, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { FunctionSplitter } from './FunctionSplitter';
-import { ClassSplitter } from './ClassSplitter';
-import { ImportSplitter } from './ImportSplitter';
 import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';
+import { strategyFactory } from '../core/SplitStrategyFactory';
+import { ISplitStrategy } from '../interfaces/ISplitStrategy';
 
 export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
   private options: Required<ChunkingOptions>;
   private treeSitterService?: TreeSitterService;
   private logger?: LoggerService;
-  private functionSplitter?: FunctionSplitter;
-  private classSplitter?: ClassSplitter;
-  private importSplitter?: ImportSplitter;
+  private functionSplitter?: ISplitStrategy;
+  private classSplitter?: ISplitStrategy;
+  private importSplitter?: ISplitStrategy;
   private chunkOptimizer?: ChunkOptimizer;
 
   constructor(options?: ChunkingOptions) {
@@ -22,13 +21,30 @@ export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
 
   setTreeSitterService(treeSitterService: TreeSitterService): void {
     this.treeSitterService = treeSitterService;
-    if (this.functionSplitter) this.functionSplitter.setTreeSitterService(treeSitterService);
-    if (this.classSplitter) this.classSplitter.setTreeSitterService(treeSitterService);
-    if (this.importSplitter) this.importSplitter.setTreeSitterService(treeSitterService);
+    // 如果子分割器已创建，也设置TreeSitterService
+    if (this.functionSplitter && typeof (this.functionSplitter as any).setTreeSitterService === 'function') {
+      (this.functionSplitter as any).setTreeSitterService(treeSitterService);
+    }
+    if (this.classSplitter && typeof (this.classSplitter as any).setTreeSitterService === 'function') {
+      (this.classSplitter as any).setTreeSitterService(treeSitterService);
+    }
+    if (this.importSplitter && typeof (this.importSplitter as any).setTreeSitterService === 'function') {
+      (this.importSplitter as any).setTreeSitterService(treeSitterService);
+    }
   }
 
   setLogger(logger: LoggerService): void {
     this.logger = logger;
+    // 如果子分割器已创建，也设置Logger
+    if (this.functionSplitter && typeof (this.functionSplitter as any).setLogger === 'function') {
+      (this.functionSplitter as any).setLogger(logger);
+    }
+    if (this.classSplitter && typeof (this.classSplitter as any).setLogger === 'function') {
+      (this.classSplitter as any).setLogger(logger);
+    }
+    if (this.importSplitter && typeof (this.importSplitter as any).setLogger === 'function') {
+      (this.importSplitter as any).setLogger(logger);
+    }
   }
 
   async split(
@@ -64,34 +80,64 @@ export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
   ): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
 
-    // 初始化子分段器
-    this.functionSplitter = this.functionSplitter || new FunctionSplitter(options);
-    this.classSplitter = this.classSplitter || new ClassSplitter(options);
-    this.importSplitter = this.importSplitter || new ImportSplitter(options);
+    // 使用策略工厂创建子分割器，避免直接导入
+    this.functionSplitter = this.functionSplitter || strategyFactory.create('FunctionSplitter', options);
+    this.classSplitter = this.classSplitter || strategyFactory.create('ClassSplitter', options);
+    this.importSplitter = this.importSplitter || strategyFactory.create('ImportSplitter', options);
 
+    // 设置必要的服务
     if (this.treeSitterService) {
-      this.functionSplitter.setTreeSitterService(this.treeSitterService);
-      this.classSplitter.setTreeSitterService(this.treeSitterService);
-      this.importSplitter.setTreeSitterService(this.treeSitterService);
+      if (this.functionSplitter && typeof (this.functionSplitter as any).setTreeSitterService === 'function') {
+        (this.functionSplitter as any).setTreeSitterService(this.treeSitterService);
+      }
+      if (this.classSplitter && typeof (this.classSplitter as any).setTreeSitterService === 'function') {
+        (this.classSplitter as any).setTreeSitterService(this.treeSitterService);
+      }
+      if (this.importSplitter && typeof (this.importSplitter as any).setTreeSitterService === 'function') {
+        (this.importSplitter as any).setTreeSitterService(this.treeSitterService);
+      }
     }
 
     if (this.logger) {
-      this.functionSplitter.setLogger(this.logger);
-      this.classSplitter.setLogger(this.logger);
-      this.importSplitter.setLogger(this.logger);
+      if (this.functionSplitter && typeof (this.functionSplitter as any).setLogger === 'function') {
+        (this.functionSplitter as any).setLogger(this.logger);
+      }
+      if (this.classSplitter && typeof (this.classSplitter as any).setLogger === 'function') {
+        (this.classSplitter as any).setLogger(this.logger);
+      }
+      if (this.importSplitter && typeof (this.importSplitter as any).setLogger === 'function') {
+        (this.importSplitter as any).setLogger(this.logger);
+      }
     }
 
-    // 1. 函数和方法分段（包含嵌套函数）
-    const functionChunks = this.functionSplitter.extractFunctions(content, parseResult.ast, language, filePath);
-    chunks.push(...functionChunks);
+    try {
+      // 1. 函数和方法分段（包含嵌套函数）
+      if (this.functionSplitter && typeof (this.functionSplitter as any).extractFunctions === 'function') {
+        const functionChunks = (this.functionSplitter as any).extractFunctions(content, parseResult.ast, language, filePath);
+        if (functionChunks && functionChunks.length > 0) {
+          chunks.push(...functionChunks);
+        }
+      }
 
-    // 2. 类和接口分段
-    const classChunks = this.classSplitter.extractClasses(content, parseResult.ast, language, filePath);
-    chunks.push(...classChunks);
+      // 2. 类和接口分段
+      if (this.classSplitter && typeof (this.classSplitter as any).extractClasses === 'function') {
+        const classChunks = (this.classSplitter as any).extractClasses(content, parseResult.ast, language, filePath);
+        if (classChunks && classChunks.length > 0) {
+          chunks.push(...classChunks);
+        }
+      }
 
-    // 3. 导入导出语句分段
-    const importChunks = this.importSplitter.extractImports(content, parseResult.ast, language, filePath);
-    chunks.push(...importChunks);
+      // 3. 导入导出语句分段
+      if (this.importSplitter && typeof (this.importSplitter as any).extractImports === 'function') {
+        const importChunks = (this.importSplitter as any).extractImports(content, parseResult.ast, language, filePath);
+        if (importChunks && importChunks.length > 0) {
+          chunks.push(...importChunks);
+        }
+      }
+    } catch (error) {
+      this.logger?.error(`Error in syntax-aware chunking: ${error}`);
+      // 如果某个步骤失败，继续处理其他步骤
+    }
 
     // 4. 优化块大小
     this.chunkOptimizer = this.chunkOptimizer || new ChunkOptimizer(options);

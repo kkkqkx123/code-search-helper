@@ -5,3 +5,10 @@ export {
   CacheDecorator, 
   SplitStrategyDecoratorBuilder 
 } from './OverlapDecorator';
+export {
+  registerDefaultStrategyProviders,
+  ensureStrategyProvidersRegistered,
+  validateStrategyProviderRegistration,
+  getStrategyFactoryDebugInfo,
+  cleanupStrategyFactory
+} from './StrategyProviderRegistration';

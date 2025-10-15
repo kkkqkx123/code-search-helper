@@ -146,7 +146,7 @@ export const TYPES = {
   NebulaConfigService: Symbol.for('NebulaConfigService'),
   ProjectNamingConfigService: Symbol.for('ProjectNamingConfigService'),
   InfrastructureConfigService: Symbol.for('InfrastructureConfigService'),
-  HotReloadConfigService: Symbol.for('HotReloadConfigService'),
+  
 
   QdrantService: Symbol.for('QdrantService'),
   LoggerService: Symbol.for('LoggerService'),
