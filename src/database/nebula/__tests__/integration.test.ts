@@ -17,6 +17,7 @@ import {
   EnvironmentConfigService,
   QdrantConfigService,
   EmbeddingConfigService,
+  EmbeddingBatchConfigService,
   LoggingConfigService,
   MonitoringConfigService,
   MemoryMonitorConfigService,
@@ -71,6 +72,7 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
     container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
+    container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
 
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();

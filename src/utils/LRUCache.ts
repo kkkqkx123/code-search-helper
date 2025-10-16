@@ -11,6 +11,7 @@ export interface CacheStats {
   evictions: number;
   sets: number;
   size: number;
+  memoryUsage: number;
 }
 
 interface CacheEntry<V> {
@@ -64,7 +65,7 @@ export class LRUCache<K, V> {
     this.enableStats = options.enableStats || false;
     this.defaultTTL = options.defaultTTL || 0; // 0表示无TTL
     this.enableFastAccess = options.enableFastAccess || false;
-    this.stats = { hits: 0, misses: 0, evictions: 0, sets: 0, size: 0 };
+    this.stats = { hits: 0, misses: 0, evictions: 0, sets: 0, size: 0, memoryUsage: 0 };
     this.entryPool = new EntryPool<V>(Math.min(maxSize / 10, 100)); // 池大小为maxSize的10%
   }
 
@@ -173,7 +174,8 @@ export class LRUCache<K, V> {
     if (!this.enableStats) return undefined;
     return {
       ...this.stats,
-      size: this.cache.size
+      size: this.cache.size,
+      memoryUsage: 0 // LRUCache currently doesn't track actual memory usage
     };
   }
 
@@ -230,7 +232,7 @@ export class LRUCache<K, V> {
     this.fastAccessCache.clear();
     
     if (this.enableStats) {
-      this.stats = { hits: 0, misses: 0, evictions: 0, sets: 0, size: 0 };
+      this.stats = { hits: 0, misses: 0, evictions: 0, sets: 0, size: 0, memoryUsage: 0 };
     }
   }
 

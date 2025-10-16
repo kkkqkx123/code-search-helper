@@ -5,7 +5,6 @@ export interface DetailedStats extends CacheStats {
   deletes: number;
   clears: number;
   hitRate: number;
-  memoryUsage?: number;
   maxMemory?: number;
 }
 
@@ -73,7 +72,7 @@ export class StatsDecorator<K, V> {
   }
 
   getStats(): DetailedStats {
-    const baseStats = this.cache.getStats?.() || { hits: 0, misses: 0, evictions: 0, sets: 0, size: 0 };
+    const baseStats = this.cache.getStats?.() || { hits: 0, misses: 0, evictions: 0, sets: 0, size: 0, memoryUsage: 0 };
     const totalGets = this.stats.gets;
     
     return {

@@ -168,6 +168,7 @@ export class GraphMappingCache {
         evictions: 0,
         sets: 0,
         size: this.cache.size(),
+        memoryUsage: 0, // 默认内存使用为0
         hitRate: 0,
         hasSufficientData: false
       };

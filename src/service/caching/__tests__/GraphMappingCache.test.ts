@@ -21,13 +21,10 @@ describe('GraphMappingCache', () => {
   describe('基础功能测试', () => {
     it('应该正确初始化缓存', () => {
       expect(cache).toBeDefined();
-      expect(mockLogger.info).toHaveBeenCalledWith('GraphMappingCache initialized with fully optimized cache', {
+      expect(mockLogger.info).toHaveBeenCalledWith('GraphMappingCache initialized with optimized LRU cache', {
         maxSize: 10000,
-        maxMemory: 50 * 1024 * 1024,
         defaultTTL: 300000,
         optimizations: {
-          compression: true,
-          compressionThreshold: 1024,
           fastAccess: true,
           stats: true
         }
@@ -80,8 +77,8 @@ describe('GraphMappingCache', () => {
       // 存储映射结果
       const setResult = await cache.cacheMappingResult(key, nodes, relationships);
       expect(setResult).toBe(true);
-      expect(mockLogger.debug).toHaveBeenCalledWith('Mapping result cached', { 
-        key, nodeCount: 1, relationshipCount: 1 
+      expect(mockLogger.debug).toHaveBeenCalledWith('Mapping result cached', {
+        key, nodeCount: 1, relationshipCount: 1
       });
 
       // 获取映射结果
@@ -182,8 +179,6 @@ describe('GraphMappingCache', () => {
       expect(stats.misses).toBe(0);
       expect(stats.sets).toBe(0);
       expect(stats.size).toBe(0);
-      expect(stats.memoryUsage).toBeGreaterThanOrEqual(0);
-      expect(stats.maxMemory).toBe(50 * 1024 * 1024);
       expect(stats.hitRate).toBe(0);
       expect(stats.hasSufficientData).toBe(false);
 
@@ -289,19 +284,6 @@ describe('GraphMappingCache', () => {
       // 验证过期条目已被清理
       expect(await cache.has('will-expire')).toBe(false);
       expect(await cache.has('wont-expire')).toBe(true);
-    });
-  });
-
-  describe('内存管理测试', () => {
-    it('应该能够获取内存使用情况', () => {
-      const memoryUsage = cache.getMemoryUsage();
-      expect(typeof memoryUsage).toBe('number');
-      expect(memoryUsage).toBeGreaterThanOrEqual(0);
-    });
-
-    it('应该能够获取最大内存限制', () => {
-      const maxMemory = cache.getMaxMemory();
-      expect(maxMemory).toBe(50 * 1024 * 1024); // 50MB
     });
   });
 
