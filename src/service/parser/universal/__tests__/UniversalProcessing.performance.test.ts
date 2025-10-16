@@ -1,10 +1,9 @@
-
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
-import { BackupFileProcessor } from '../BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
-import { ProcessingGuard } from '../ProcessingGuard';
+import { ProcessingGuard } from '../../guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
 import { MemoryGuard } from '../../guard/MemoryGuard';
+import { ProcessingStrategySelector } from '../coordination/ProcessingStrategySelector';
+import { FileProcessingCoordinator } from '../coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../../utils/LoggerService';
 
 // Mock LoggerService
@@ -13,9 +12,6 @@ const MockLoggerService = LoggerService as jest.MockedClass<typeof LoggerService
 
 describe('Universal Processing Performance Tests', () => {
   let mockLogger: jest.Mocked<LoggerService>;
-  let universalTextSplitter: UniversalTextSplitter;
-  let backupFileProcessor: BackupFileProcessor;
-  let extensionlessFileProcessor: ExtensionlessFileProcessor;
   let processingGuard: ProcessingGuard;
 
   beforeEach(() => {
@@ -24,10 +20,6 @@ describe('Universal Processing Performance Tests', () => {
     mockLogger.warn = jest.fn();
     mockLogger.error = jest.fn();
     mockLogger.info = jest.fn();
-
-    universalTextSplitter = new UniversalTextSplitter(mockLogger);
-    backupFileProcessor = new BackupFileProcessor(mockLogger);
-    extensionlessFileProcessor = new ExtensionlessFileProcessor(mockLogger);
 
     const errorThresholdManager = new ErrorThresholdManager(mockLogger);
     // 创建 IMemoryMonitorService 的模拟实现
@@ -57,9 +49,8 @@ describe('Universal Processing Performance Tests', () => {
       mockLogger,
       errorThresholdManager,
       memoryGuard,
-      backupFileProcessor,
-      extensionlessFileProcessor,
-      universalTextSplitter
+      new ProcessingStrategySelector(mockLogger),
+      new FileProcessingCoordinator(mockLogger)
     );
 
     processingGuard.initialize();

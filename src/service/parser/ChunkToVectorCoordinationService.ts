@@ -11,7 +11,7 @@ import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { CodeChunk } from './splitting/Splitter';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { ProcessingGuard } from './universal/ProcessingGuard';
+import { ProcessingGuard } from './guard/ProcessingGuard';
 import { UniversalTextSplitter } from './universal/UniversalTextSplitter';
 import { BackupFileProcessor } from './universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './universal/ExtensionlessFileProcessor';
@@ -53,47 +53,47 @@ export class ChunkToVectorCoordinationService {
     this.languageDetector = new LanguageDetector();
   }
 
-    async processFileForEmbedding(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
+  async processFileForEmbedding(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
     try {
       // 检查错误阈值
       if (this.processingGuard.shouldUseFallback()) {
         this.logger.info(`Using fallback processing for ${filePath} due to error threshold`);
         return this.processWithFallback(filePath, projectPath, options);
       }
-      
+
       // 1. 读取文件内容
       const content = await fs.readFile(filePath, 'utf-8');
-      
+
       // 2. 检测语言
       const language = await this.detectLanguageByContent(filePath, content);
-      
+
       // 3. 优先尝试使用ASTCodeSplitter进行智能分段（防止重复）
       const astChunks = await this.splitWithASTCodeSplitter(content, filePath, language);
       if (astChunks.length > 0) {
         this.logger.info(`Using ASTCodeSplitter for ${filePath}, produced ${astChunks.length} chunks`);
         return await this.convertToVectorPoints(astChunks, projectPath, options);
       }
-      
+
       // 4. 如果AST分段失败，使用智能处理文件（集成备份文件、无扩展名文件等处理）
       const processingResult = await this.processingGuard.processFile(filePath, content);
-      
+
       // 5. 如果需要降级处理，使用通用分段
       if (processingResult.fallbackReason) {
         this.logger.info(`File ${filePath} processed with fallback: ${processingResult.fallbackReason}`);
-        return this.processWithUniversalSplitter(filePath, content, projectPath, options);
+        return await this.processWithUniversalSplitter(filePath, content, projectPath, options);
       }
-      
+
       // 6. 转换为向量点
       const vectorPoints = await this.convertToVectorPoints(processingResult.chunks, projectPath, options);
-      
+
       return vectorPoints;
     } catch (error) {
       // 记录错误并清理
       this.processingGuard.recordError(error as Error, `processFileForEmbedding: ${filePath}`);
-      
+
       // 使用降级方案
       try {
-        return this.processWithFallback(filePath, projectPath, options);
+        return await this.processWithFallback(filePath, projectPath, options);
       } catch (fallbackError) {
         this.errorHandler.handleError(
           new Error(`Failed to process file for embedding: ${error instanceof Error ? error.message : String(error)}, fallback also failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`),
@@ -104,9 +104,9 @@ export class ChunkToVectorCoordinationService {
     }
   }
 
-    /**
-     * 使用ASTCodeSplitter进行智能代码分段
-     */
+  /**
+   * 使用ASTCodeSplitter进行智能代码分段
+   */
   private async splitWithASTCodeSplitter(content: string, filePath: string, language: string | undefined): Promise<CodeChunk[]> {
     try {
       // 检查语言是否支持AST解析
@@ -116,7 +116,7 @@ export class ChunkToVectorCoordinationService {
 
       // 使用ASTCodeSplitter进行分段
       const chunks = await this.astSplitter.split(content, filePath, language);
-      
+
       this.logger.debug(`ASTCodeSplitter produced ${chunks.length} chunks for ${filePath}`);
       return chunks;
     } catch (error) {
@@ -139,14 +139,14 @@ export class ChunkToVectorCoordinationService {
     // 使用批处理优化器执行嵌入操作
     const projectId = this.projectIdManager.getProjectId(projectPath);
     const projectEmbedder = projectId ? this.projectEmbedders.get(projectId) || this.embedderFactory.getDefaultProvider() : this.embedderFactory.getDefaultProvider();
-    
+
     const embeddingResults = await this.batchOptimizer.executeWithOptimalBatching(
       embeddingInputs,
       async (batch) => {
         return await this.embedderFactory.embed(batch, projectEmbedder);
       }
     );
-    
+
     // 将多维数组结果展平
     const flattenedResults = embeddingResults.flat();
 
@@ -186,9 +186,9 @@ export class ChunkToVectorCoordinationService {
       };
     });
   }
-    /**
-     * 智能语言检测 - 根据文件内容推断语言
-     */
+  /**
+   * 智能语言检测 - 根据文件内容推断语言
+   */
   private async detectLanguageByContent(filePath: string, content: string): Promise<string | undefined> {
     const detectionResult = await this.languageDetector.detectLanguage(filePath, content);
     return detectionResult.language;
@@ -198,8 +198,8 @@ export class ChunkToVectorCoordinationService {
     return this.languageDetector.detectLanguageSync(filePath);
   }
 
-  private processWithFallback(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
-    return this.processWithUniversalSplitter(filePath, null, projectPath, options);
+  private async processWithFallback(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
+    return await this.processWithUniversalSplitter(filePath, null, projectPath, options);
   }
 
   private async processWithUniversalSplitter(
@@ -218,10 +218,10 @@ export class ChunkToVectorCoordinationService {
       let chunks: CodeChunk[];
       if (this.backupFileProcessor.isBackupFile(filePath)) {
         // 对备份文件使用括号平衡分段
-        chunks = this.universalTextSplitter.chunkByBracketsAndLines(content, filePath);
+        chunks = await this.universalTextSplitter.chunkByBracketsAndLines(content, filePath);
       } else {
         // 对其他文件使用行分段（最安全的降级方案）
-        chunks = this.universalTextSplitter.chunkByLines(content, filePath);
+        chunks = await this.universalTextSplitter.chunkByLines(content, filePath);
       }
 
       return await this.convertToVectorPoints(chunks, projectPath, options);

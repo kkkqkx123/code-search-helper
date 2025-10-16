@@ -1,12 +1,11 @@
 import { TreeSitterService } from '../../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../../service/parser/core/parse/TreeSitterCoreService';
 import { ASTCodeSplitter } from '../../../service/parser/splitting/ASTCodeSplitter';
-import { ProcessingGuard } from '../../../service/parser/universal/ProcessingGuard';
+import { ProcessingGuard } from '../../../service/parser/guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../../../service/parser/universal/ErrorThresholdManager';
 import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
-import { BackupFileProcessor } from '../../../service/parser/universal/BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../../../service/parser/universal/ExtensionlessFileProcessor';
-import { UniversalTextSplitter } from '../../../service/parser/universal/UniversalTextSplitter';
+import { ProcessingStrategySelector } from '../../../service/parser/universal/coordination/ProcessingStrategySelector';
+import { FileProcessingCoordinator } from '../../../service/parser/universal/coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -24,9 +23,6 @@ describe('Parser Splitting Integration Test', () => {
 
     // 创建ProcessingGuard的依赖
     const errorThresholdManager = new ErrorThresholdManager(logger);
-    const backupFileProcessor = new BackupFileProcessor(logger);
-    const extensionlessFileProcessor = new ExtensionlessFileProcessor(logger);
-    const universalTextSplitter = new UniversalTextSplitter(logger);
 
     // 创建IMemoryMonitorService的简单实现
     const memoryMonitor: any = {
@@ -60,9 +56,8 @@ describe('Parser Splitting Integration Test', () => {
       logger,
       errorThresholdManager,
       memoryGuard,
-      backupFileProcessor,
-      extensionlessFileProcessor,
-      universalTextSplitter
+      new ProcessingStrategySelector(logger),
+      new FileProcessingCoordinator(logger)
     );
 
     // 初始化ProcessingGuard

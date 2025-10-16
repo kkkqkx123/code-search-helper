@@ -8,7 +8,7 @@ import { ICleanupContext } from '../universal/cleanup/interfaces/ICleanupStrateg
 /**
  * 内存监控和保护机制
  * 负责监控内存使用情况，在达到限制时触发清理或降级处理
- * 重构为依赖统一的内存监控服务和CleanupManager
+ * 重构后：专注于内存监控和保护，清理逻辑完全委托给CleanupManager
  */
 @injectable()
 export class MemoryGuard {
@@ -133,7 +133,7 @@ export class MemoryGuard {
 
   /**
    * 强制清理缓存和临时对象
-   * 重构后：委托给CleanupManager执行清理
+   * 重构后：完全委托给CleanupManager执行清理
    */
   forceCleanup(): void {
     try {
@@ -166,36 +166,10 @@ export class MemoryGuard {
           this.logger?.error(`Cleanup execution failed: ${error}`);
         });
       } else {
-        // 降级到原有的清理逻辑（向后兼容）
-        this.logger?.warn('CleanupManager not available, falling back to legacy cleanup');
-        this.legacyCleanup();
+        this.logger?.warn('CleanupManager not available, cleanup skipped');
       }
     } catch (error) {
       this.logger?.error(`Error during memory cleanup: ${error}`);
-    }
-  }
-
-  /**
-   * 遗留清理逻辑（向后兼容）
-   * @deprecated 仅在没有CleanupManager时使用
-   */
-  private legacyCleanup(): void {
-    try {
-      // 清理TreeSitter缓存
-      this.cleanupTreeSitterCache();
-
-      // 清理其他缓存
-      this.cleanupOtherCaches();
-
-      // 使用统一的内存监控服务进行垃圾回收和清理
-      this.memoryMonitor.forceGarbageCollection();
-      this.memoryMonitor.triggerCleanup('deep');
-
-      // 记录清理后的内存使用情况
-      const afterCleanup = this.checkMemoryUsage();
-      this.logger?.info(`Legacy memory cleanup completed. Current usage: ${this.formatBytes(afterCleanup.heapUsed)} (${afterCleanup.usagePercent.toFixed(1)}%)`);
-    } catch (error) {
-      this.logger?.error(`Error during legacy memory cleanup: ${error}`);
     }
   }
 
@@ -284,51 +258,13 @@ export class MemoryGuard {
   }
 
   /**
-   * 清理TreeSitter缓存（遗留方法）
-   * @deprecated 将由CleanupManager处理
+   * 强制垃圾回收
    */
-  private cleanupTreeSitterCache(): void {
+  forceGarbageCollection(): void {
     try {
-      // 动态导入TreeSitterCoreService以避免循环依赖
-      const TreeSitterCoreService = require('../core/parse/TreeSitterCoreService').TreeSitterCoreService;
-      if (TreeSitterCoreService && typeof TreeSitterCoreService.getInstance === 'function') {
-        TreeSitterCoreService.getInstance().clearCache();
-        this.logger?.debug('TreeSitter cache cleared during memory cleanup');
-      }
-    } catch (error) {
-      // 忽略错误，可能是模块不存在或方法不可用
-      this.logger?.debug(`Could not clear TreeSitter cache during memory cleanup: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * 清理其他缓存（遗留方法）
-   * @deprecated 将由CleanupManager处理
-   */
-  private cleanupOtherCaches(): void {
-    try {
-      // 清理可能的LRU缓存
-      if (typeof global !== 'undefined' && (global as any).LRUCache) {
-        if (typeof (global as any).LRUCache.clearAll === 'function') {
-          (global as any).LRUCache.clearAll();
-          this.logger?.debug('LRU cache cleared during memory cleanup');
-        }
-      }
-    } catch (error) {
-      this.logger?.debug(`Could not clear other caches during memory cleanup: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * 强制垃圾回收（遗留方法）
-   * @deprecated 将由CleanupManager处理
-   */
-  private forceGarbageCollection(): void {
-    try {
-      if (typeof global !== 'undefined' && global.gc) {
-        global.gc();
-        this.logger?.debug('Forced garbage collection');
-      }
+      // 使用统一的内存监控服务进行垃圾回收
+      this.memoryMonitor.forceGarbageCollection();
+      this.logger?.debug('Forced garbage collection');
     } catch (error) {
       this.logger?.debug(`Could not force garbage collection: ${(error as Error).message}`);
     }

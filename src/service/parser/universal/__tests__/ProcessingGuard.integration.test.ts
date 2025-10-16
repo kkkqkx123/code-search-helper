@@ -1,10 +1,8 @@
-
-import { ProcessingGuard } from '../ProcessingGuard';
+import { ProcessingGuard } from '../../guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
 import { MemoryGuard } from '../../guard/MemoryGuard';
-import { BackupFileProcessor } from '../BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
-import { UniversalTextSplitter } from '../UniversalTextSplitter';
+import { ProcessingStrategySelector } from '../coordination/ProcessingStrategySelector';
+import { FileProcessingCoordinator } from '../coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../../utils/LoggerService';
 
 // Mock LoggerService
@@ -16,9 +14,6 @@ describe('ProcessingGuard Integration Tests', () => {
   let mockLogger: jest.Mocked<LoggerService>;
   let errorThresholdManager: ErrorThresholdManager;
   let memoryGuard: MemoryGuard;
-  let backupFileProcessor: BackupFileProcessor;
-  let extensionlessFileProcessor: ExtensionlessFileProcessor;
-  let universalTextSplitter: UniversalTextSplitter;
 
   beforeEach(() => {
     mockLogger = new MockLoggerService() as jest.Mocked<LoggerService>;
@@ -53,17 +48,13 @@ describe('ProcessingGuard Integration Tests', () => {
     };
 
     memoryGuard = new MemoryGuard(mockMemoryMonitor, 500, 1000, mockLogger); // Short interval for testing
-    backupFileProcessor = new BackupFileProcessor(mockLogger);
-    extensionlessFileProcessor = new ExtensionlessFileProcessor(mockLogger);
-    universalTextSplitter = new UniversalTextSplitter(mockLogger);
 
     processingGuard = new ProcessingGuard(
       mockLogger,
       errorThresholdManager,
       memoryGuard,
-      backupFileProcessor,
-      extensionlessFileProcessor,
-      universalTextSplitter
+      new ProcessingStrategySelector(mockLogger),
+      new FileProcessingCoordinator(mockLogger)
     );
   });
 

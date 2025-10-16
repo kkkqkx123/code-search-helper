@@ -7,7 +7,7 @@ import { ICleanupContext } from './cleanup/interfaces/ICleanupStrategy';
 /**
  * 错误阈值管理器
  * 负责监控错误计数，当达到阈值时触发降级处理
- * 重构后：将清理逻辑委托给CleanupManager
+ * 重构后：专注于错误阈值管理，清理逻辑完全委托给CleanupManager
  */
 @injectable()
 export class ErrorThresholdManager {
@@ -45,7 +45,7 @@ export class ErrorThresholdManager {
   }
 
   /**
-   * 记录错误并清理资源
+   * 记录错误并触发清理
    */
   recordError(error: Error, context?: string): void {
     this.errorCount++;
@@ -78,7 +78,7 @@ export class ErrorThresholdManager {
 
   /**
    * 强制清理缓存和临时对象
-   * 重构后：委托给CleanupManager执行清理
+   * 重构后：完全委托给CleanupManager执行清理
    */
   private forceCleanup(): void {
     try {
@@ -106,88 +106,12 @@ export class ErrorThresholdManager {
           this.logger?.error(`Cleanup execution failed: ${error}`);
         });
       } else {
-        // 降级到原有的清理逻辑（向后兼容）
-        this.logger?.warn('CleanupManager not available, falling back to legacy cleanup');
-        this.legacyCleanup();
+        this.logger?.warn('CleanupManager not available, cleanup skipped');
       }
 
       this.logger?.info('Error threshold cleanup completed');
     } catch (error) {
       this.logger?.error(`Error during cleanup: ${error}`);
-    }
-  }
-
-  /**
-   * 遗留清理逻辑（向后兼容）
-   * @deprecated 仅在没有CleanupManager时使用
-   */
-  private legacyCleanup(): void {
-    try {
-      // 清理TreeSitter缓存（如果可用）
-      this.cleanupTreeSitterCache();
-      
-      // 清理LRU缓存（如果可用）
-      this.cleanupLRUCache();
-      
-      // 强制垃圾回收（如果可用）
-      this.forceGarbageCollection();
-      
-      this.logger?.info('Legacy cleanup completed');
-    } catch (error) {
-      this.logger?.error(`Error during legacy cleanup: ${error}`);
-    }
-  }
-
-  /**
-   * 清理TreeSitter缓存（遗留方法）
-   * @deprecated 将由CleanupManager处理
-   */
-  private cleanupTreeSitterCache(): void {
-    try {
-      // 动态导入TreeSitterCoreService以避免循环依赖
-      const TreeSitterCoreService = require('../core/parse/TreeSitterCoreService').TreeSitterCoreService;
-      if (TreeSitterCoreService && typeof TreeSitterCoreService.getInstance === 'function') {
-        TreeSitterCoreService.getInstance().clearCache();
-        this.logger?.debug('TreeSitter cache cleared');
-      }
-    } catch (error) {
-      // 忽略错误，可能是模块不存在或方法不可用
-      this.logger?.debug(`Could not clear TreeSitter cache: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * 清理LRU缓存（遗留方法）
-   * @deprecated 将由CleanupManager处理
-   */
-  private cleanupLRUCache(): void {
-    try {
-      // 尝试清理常见的LRU缓存实例
-      if (typeof global !== 'undefined' && (global as any).LRUCache) {
-        if (typeof (global as any).LRUCache.clearAll === 'function') {
-          (global as any).LRUCache.clearAll();
-          this.logger?.debug('LRU cache cleared');
-        }
-      }
-    } catch (error) {
-      // 忽略错误，可能是缓存不存在
-      this.logger?.debug(`Could not clear LRU cache: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * 强制垃圾回收（遗留方法）
-   * @deprecated 将由CleanupManager处理
-   */
-  private forceGarbageCollection(): void {
-    try {
-      if (typeof global !== 'undefined' && global.gc) {
-        global.gc();
-        this.logger?.debug('Forced garbage collection');
-      }
-    } catch (error) {
-      // 忽略错误，可能是垃圾回收不可用
-      this.logger?.debug(`Could not force garbage collection: ${(error as Error).message}`);
     }
   }
 

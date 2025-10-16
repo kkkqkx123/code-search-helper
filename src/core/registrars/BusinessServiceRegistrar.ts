@@ -45,7 +45,7 @@ import { ErrorThresholdManager } from '../../service/parser/universal/ErrorThres
 import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../service/parser/universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../../service/parser/universal/ExtensionlessFileProcessor';
-import { ProcessingGuard } from '../../service/parser/universal/ProcessingGuard';
+import { ProcessingGuard } from '../../service/parser/guard/ProcessingGuard';
 import { CleanupManager } from '../../service/parser/universal/cleanup/CleanupManager';
 
 // 文件搜索服务
@@ -120,19 +120,19 @@ export class BusinessServiceRegistrar {
     container.bind<CleanupManager>(TYPES.CleanupManager).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
       const cleanupManager = new CleanupManager(logger);
-      
+
       // 初始化CleanupManager
       cleanupManager.initialize();
-      
+
       // 注册清理策略
       const { TreeSitterCacheCleanupStrategy } = require('../../service/parser/universal/cleanup/strategies/TreeSitterCacheCleanupStrategy');
       const { LRUCacheCleanupStrategy } = require('../../service/parser/universal/cleanup/strategies/LRUCacheCleanupStrategy');
       const { GarbageCollectionStrategy } = require('../../service/parser/universal/cleanup/strategies/GarbageCollectionStrategy');
-      
+
       cleanupManager.registerStrategy(new TreeSitterCacheCleanupStrategy(logger));
       cleanupManager.registerStrategy(new LRUCacheCleanupStrategy(logger));
       cleanupManager.registerStrategy(new GarbageCollectionStrategy(logger));
-      
+
       return cleanupManager;
     }).inSingletonScope();
 

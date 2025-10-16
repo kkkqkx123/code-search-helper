@@ -1,53 +1,41 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
-import { ErrorThresholdManager } from './ErrorThresholdManager';
-import { MemoryGuard } from '../guard/MemoryGuard';
-import { BackupFileProcessor } from './BackupFileProcessor';
-import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
-import { UniversalTextSplitter } from './UniversalTextSplitter';
-import { CodeChunk } from '../splitting/Splitter';
-import * as path from 'path';
-import { ProcessingStrategySelector } from './coordination/ProcessingStrategySelector';
-import { FileProcessingCoordinator } from './coordination/FileProcessingCoordinator';
-import { IProcessingStrategySelector } from './coordination/interfaces/IProcessingStrategySelector';
-import { IFileProcessingCoordinator } from './coordination/interfaces/IFileProcessingCoordinator';
+import { ErrorThresholdManager } from '../universal/ErrorThresholdManager';
+import { MemoryGuard } from './MemoryGuard';
+import { ProcessingStrategySelector } from '../universal/coordination/ProcessingStrategySelector';
+import { FileProcessingCoordinator } from '../universal/coordination/FileProcessingCoordinator';
+import { IProcessingStrategySelector } from '../universal/coordination/interfaces/IProcessingStrategySelector';
+import { IFileProcessingCoordinator } from '../universal/coordination/interfaces/IFileProcessingCoordinator';
 
 /**
  * 处理保护器
  * 整合所有保护机制，提供统一的文件处理接口
+ * 重构后：专注于保护和监控职责，业务逻辑已迁移到专门的协调器模块
  */
 @injectable()
 export class ProcessingGuard {
-   private static instance: ProcessingGuard;
-   private errorThresholdManager: ErrorThresholdManager;
-   private memoryGuard: MemoryGuard;
-   private backupFileProcessor: BackupFileProcessor;
-   private extensionlessFileProcessor: ExtensionlessFileProcessor;
-   private universalTextSplitter: UniversalTextSplitter;
-   private processingStrategySelector: IProcessingStrategySelector;
-   private fileProcessingCoordinator: IFileProcessingCoordinator;
-   private logger?: LoggerService;
-   private isInitialized: boolean = false;
+  private static instance: ProcessingGuard;
+  private errorThresholdManager: ErrorThresholdManager;
+  private memoryGuard: MemoryGuard;
+  private processingStrategySelector: IProcessingStrategySelector;
+  private fileProcessingCoordinator: IFileProcessingCoordinator;
+  private logger?: LoggerService;
+  private isInitialized: boolean = false;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.ErrorThresholdManager) errorThresholdManager?: ErrorThresholdManager,
     @inject(TYPES.MemoryGuard) memoryGuard?: MemoryGuard,
-    @inject(TYPES.BackupFileProcessor) backupFileProcessor?: BackupFileProcessor,
-    @inject(TYPES.ExtensionlessFileProcessor) extensionlessFileProcessor?: ExtensionlessFileProcessor,
-    @inject(TYPES.UniversalTextSplitter) universalTextSplitter?: UniversalTextSplitter,
     @inject(TYPES.ProcessingStrategySelector) processingStrategySelector?: IProcessingStrategySelector,
     @inject(TYPES.FileProcessingCoordinator) fileProcessingCoordinator?: IFileProcessingCoordinator
   ) {
     this.logger = logger;
-
-    // 如果没有提供依赖，创建默认实例
     this.errorThresholdManager = errorThresholdManager || new ErrorThresholdManager(logger);
-    // 创建默认的 IMemoryMonitorService 实现
+
+    // 创建默认的内存监控器（简化实现）
     let defaultMemoryGuard: MemoryGuard;
     if (!memoryGuard) {
-      // 创建 IMemoryMonitorService 的简单实现
       const defaultMemoryMonitor: any = {
         getMemoryStatus: () => ({
           heapUsed: process.memoryUsage().heapUsed,
@@ -74,11 +62,9 @@ export class ProcessingGuard {
       defaultMemoryGuard = new MemoryGuard(defaultMemoryMonitor, 500, 5000, logger || new LoggerService());
     }
     this.memoryGuard = memoryGuard || defaultMemoryGuard!;
-    this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
-    this.extensionlessFileProcessor = extensionlessFileProcessor || new ExtensionlessFileProcessor(logger);
-    this.universalTextSplitter = universalTextSplitter || new UniversalTextSplitter(logger);
-    this.processingStrategySelector = processingStrategySelector || new ProcessingStrategySelector(logger, this.backupFileProcessor, this.extensionlessFileProcessor);
-    this.fileProcessingCoordinator = fileProcessingCoordinator || new FileProcessingCoordinator(logger, this.universalTextSplitter);
+
+    this.processingStrategySelector = processingStrategySelector || new ProcessingStrategySelector(logger);
+    this.fileProcessingCoordinator = fileProcessingCoordinator || new FileProcessingCoordinator(logger);
   }
 
   /**
@@ -88,9 +74,6 @@ export class ProcessingGuard {
     logger?: LoggerService,
     errorThresholdManager?: ErrorThresholdManager,
     memoryGuard?: MemoryGuard,
-    backupFileProcessor?: BackupFileProcessor,
-    extensionlessFileProcessor?: ExtensionlessFileProcessor,
-    universalTextSplitter?: UniversalTextSplitter,
     processingStrategySelector?: IProcessingStrategySelector,
     fileProcessingCoordinator?: IFileProcessingCoordinator
   ): ProcessingGuard {
@@ -99,9 +82,6 @@ export class ProcessingGuard {
         logger,
         errorThresholdManager,
         memoryGuard,
-        backupFileProcessor,
-        extensionlessFileProcessor,
-        universalTextSplitter,
         processingStrategySelector,
         fileProcessingCoordinator
       );
@@ -173,11 +153,12 @@ export class ProcessingGuard {
     this.errorThresholdManager.recordError(error, context);
   }
 
- /**
-   * 智能文件处理
+  /**
+   * 智能文件处理（保护协调入口）
+   * 专注于保护决策，具体业务逻辑委托给专门的协调器
    */
   async processFile(filePath: string, content: string): Promise<{
-    chunks: CodeChunk[];
+    chunks: any[];
     language: string;
     processingStrategy: string;
     fallbackReason?: string;
@@ -210,7 +191,7 @@ export class ProcessingGuard {
         };
       }
 
-      // 使用新的策略选择器进行语言检测和策略选择
+      // 使用专门的策略选择器进行语言检测和策略选择
       const languageInfo = await this.processingStrategySelector.detectLanguageIntelligently(filePath, content);
       const strategyContext = {
         filePath,
@@ -220,7 +201,7 @@ export class ProcessingGuard {
       };
       const strategy = await this.processingStrategySelector.selectProcessingStrategy(strategyContext);
 
-      // 使用新的文件处理协调器执行处理
+      // 使用专门的文件处理协调器执行处理
       const context = {
         filePath,
         content,
@@ -249,10 +230,6 @@ export class ProcessingGuard {
       };
     }
   }
-
-  // 旧的方法已被新模块替代，保留接口兼容性
-  // 语言检测和策略选择逻辑已迁移到ProcessingStrategySelector
-  // 文件处理协调逻辑已迁移到FileProcessingCoordinator
 
   /**
    * 处理内存压力事件

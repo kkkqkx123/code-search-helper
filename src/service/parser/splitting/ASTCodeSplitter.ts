@@ -13,7 +13,7 @@ import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from './types';
 import { PerformanceOptimizer } from './utils/performance/PerformanceOptimizer';
 import { IPerformanceMonitoringSystem } from './utils/performance/IPerformanceMonitoringSystem';
 import { UnifiedPerformanceMonitoringSystem } from './utils/performance/UnifiedPerformanceMonitoringSystem';
-import { ProcessingGuard } from '../universal/ProcessingGuard';
+import { ProcessingGuard } from '../guard/ProcessingGuard';
 
 /**
  * 重构后的AST代码分割器（完全替换旧实现）

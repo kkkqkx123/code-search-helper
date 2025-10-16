@@ -1,4 +1,4 @@
-import { ProcessingGuard } from '../../../service/parser/universal/ProcessingGuard';
+import { ProcessingGuard } from '../../../service/parser/guard/ProcessingGuard';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -31,18 +31,18 @@ describe('ProcessingGuard Integration Test', () => {
       try {
         // 读取文件内容
         const content = fs.readFileSync(testFile, 'utf-8');
-        
+
         console.log(`\n=== 处理文件: ${path.basename(testFile)} ===`);
         console.log(`文件大小: ${content.length} 字符`);
-        
+
         // 使用ProcessingGuard处理文件
         const result = await processingGuard.processFile(testFile, content);
-        
+
         console.log(`检测语言: ${result.language}`);
         console.log(`处理策略: ${result.processingStrategy}`);
         console.log(`分段数量: ${result.chunks.length}`);
         console.log(`降级原因: ${result.fallbackReason || '无'}`);
-        
+
         results.push({
           file: testFile,
           language: result.language,
@@ -76,7 +76,7 @@ describe('ProcessingGuard Integration Test', () => {
 
     // 验证至少处理了一个文件
     expect(results.length).toBeGreaterThan(0);
-    
+
     // 打印总结
     console.log('\n=== 测试结果总结 ===');
     results.forEach(result => {
@@ -105,7 +105,7 @@ describe('ProcessingGuard Integration Test', () => {
       console.log(`\n${path.basename(testCase.file)}:`);
       console.log(`  期望语言: ${testCase.expectedLang}`);
       console.log(`  实际语言: ${result.language}`);
-      
+
       if (typeof testCase.expectedLang === 'string') {
         expect(result.language).toBe(testCase.expectedLang);
       } else {

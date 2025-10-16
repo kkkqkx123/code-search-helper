@@ -1,4 +1,3 @@
-
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
 import { LoggerService } from '../../../../utils/LoggerService';
 
@@ -21,7 +20,7 @@ describe('UniversalTextSplitter', () => {
   });
 
   describe('chunkBySemanticBoundaries', () => {
-    it('should chunk TypeScript code correctly', () => {
+    it('should chunk TypeScript code correctly', async () => {
       const tsCode = `
 import { Component } from '@angular/core';
 
@@ -45,7 +44,7 @@ export class TestComponent {
 }
       `.trim();
 
-      const chunks = splitter.chunkBySemanticBoundaries(tsCode, 'test.ts', 'typescript');
+      const chunks = await splitter.chunkBySemanticBoundaries(tsCode, 'test.ts', 'typescript');
       
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.language).toBe('typescript');
@@ -53,7 +52,7 @@ export class TestComponent {
       expect(chunks[0].metadata.filePath).toBe('test.ts');
     });
 
-    it('should chunk Python code correctly', () => {
+    it('should chunk Python code correctly', async () => {
       const pythonCode = `
 import os
 import sys
@@ -84,18 +83,18 @@ if __name__ == "__main__":
     main()
       `.trim();
 
-      const chunks = splitter.chunkBySemanticBoundaries(pythonCode, 'test.py', 'python');
+      const chunks = await splitter.chunkBySemanticBoundaries(pythonCode, 'test.py', 'python');
       
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.language).toBe('python');
       expect(chunks[0].metadata.type).toBe('semantic');
     });
 
-    it('should handle large files with memory protection', () => {
+    it('should handle large files with memory protection', async () => {
       // Create a large content that would normally cause memory issues
       const largeContent = 'const x = 1;\n'.repeat(20000); // 20,000 lines
       
-      const chunks = splitter.chunkBySemanticBoundaries(largeContent, 'large.js', 'javascript');
+      const chunks = await splitter.chunkBySemanticBoundaries(largeContent, 'large.js', 'javascript');
       
       expect(chunks.length).toBeGreaterThan(0);
       // Should have limited the number of lines processed due to memory protection
@@ -104,7 +103,7 @@ if __name__ == "__main__":
   });
 
   describe('chunkByBracketsAndLines', () => {
-    it('should chunk JavaScript code with bracket balance', () => {
+    it('should chunk JavaScript code with bracket balance', async () => {
       const jsCode = `
 function calculateTotal(items) {
   let total = 0;
@@ -133,14 +132,14 @@ class ShoppingCart {
 }
       `.trim();
 
-      const chunks = splitter.chunkByBracketsAndLines(jsCode, 'cart.js', 'javascript');
+      const chunks = await splitter.chunkByBracketsAndLines(jsCode, 'cart.js', 'javascript');
       
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.language).toBe('javascript');
       expect(chunks[0].metadata.type).toBe('bracket');
     });
 
-    it('should chunk XML/HTML with tag balance', () => {
+    it('should chunk XML/HTML with tag balance', async () => {
       const xmlContent = `
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
@@ -155,7 +154,7 @@ class ShoppingCart {
 </root>
       `.trim();
 
-      const chunks = splitter.chunkByBracketsAndLines(xmlContent, 'test.xml', 'xml');
+      const chunks = await splitter.chunkByBracketsAndLines(xmlContent, 'test.xml', 'xml');
       
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.language).toBe('xml');

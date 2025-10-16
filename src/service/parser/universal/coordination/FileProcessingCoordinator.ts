@@ -2,6 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
+import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { CodeChunk } from '../../splitting/Splitter';
 import {
   IFileProcessingCoordinator,
@@ -19,15 +20,18 @@ import { IStrategySelectionResult, ProcessingStrategyType } from './interfaces/I
 export class FileProcessingCoordinator implements IFileProcessingCoordinator {
   private logger?: LoggerService;
   private universalTextSplitter: UniversalTextSplitter;
+  private treeSitterService?: TreeSitterService;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.UniversalTextSplitter) universalTextSplitter?: UniversalTextSplitter
+    @inject(TYPES.UniversalTextSplitter) universalTextSplitter?: UniversalTextSplitter,
+    @inject(TYPES.TreeSitterService) treeSitterService?: TreeSitterService
   ) {
     this.logger = logger;
     
     // 如果没有提供依赖，创建默认实例
     this.universalTextSplitter = universalTextSplitter || new UniversalTextSplitter(logger);
+    this.treeSitterService = treeSitterService;
   }
 
   get name(): string {
@@ -152,17 +156,17 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
         return await this.chunkByFineSemantic(content, filePath, language);
 
       case ProcessingStrategyType.UNIVERSAL_SEMANTIC:
-        return this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
+        return await this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
 
       case ProcessingStrategyType.UNIVERSAL_BRACKET:
-        return this.universalTextSplitter.chunkByBracketsAndLines(content, filePath, language);
+        return await this.universalTextSplitter.chunkByBracketsAndLines(content, filePath, language);
 
       case ProcessingStrategyType.UNIVERSAL_LINE:
-        return this.universalTextSplitter.chunkByLines(content, filePath, language);
+        return await this.universalTextSplitter.chunkByLines(content, filePath, language);
 
       default:
         this.logger?.warn(`Unknown processing strategy: ${strategyType}, falling back to line-based`);
-        return this.universalTextSplitter.chunkByLines(content, filePath, language);
+        return await this.universalTextSplitter.chunkByLines(content, filePath, language);
     }
   }
 
@@ -179,7 +183,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
 
     try {
       // 使用最简单的分段方法 - 按行分段
-      const chunks = this.universalTextSplitter.chunkByLines(content, filePath, 'text');
+      const chunks = await this.universalTextSplitter.chunkByLines(content, filePath, 'text');
 
       this.logger?.info(`Fallback processing completed, generated ${chunks.length} chunks`);
 
@@ -220,12 +224,82 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
    */
   async chunkByTreeSitter(content: string, filePath: string, language: string): Promise<CodeChunk[]> {
     try {
-      // 这里应该调用TreeSitterService进行AST解析
-      // 暂时使用精细的语义分段作为替代
-      this.logger?.info(`Using TreeSitter AST parsing for ${language}`);
+      if (!this.treeSitterService) {
+        this.logger?.warn('TreeSitterService not available, falling back to fine semantic');
+        return await this.chunkByFineSemantic(content, filePath, language);
+      }
+
+      // 检测语言支持
+      const detectedLanguage = this.treeSitterService.detectLanguage(filePath);
+      if (!detectedLanguage) {
+        this.logger?.warn(`Language not supported by TreeSitter for ${filePath}, falling back to fine semantic`);
+        return await this.chunkByFineSemantic(content, filePath, language);
+      }
+
+      this.logger?.info(`Using TreeSitter AST parsing for ${detectedLanguage.name}`);
+
+      // 使用TreeSitter解析代码
+      const parseResult = await this.treeSitterService.parseCode(content, detectedLanguage.name);
       
-      // 记录TreeSitter使用情况
-      return await this.chunkByFineSemantic(content, filePath, language);
+      if (!parseResult.success || !parseResult.ast) {
+        this.logger?.warn(`TreeSitter parsing failed for ${filePath}, falling back to fine semantic`);
+        return await this.chunkByFineSemantic(content, filePath, language);
+      }
+
+      // 提取函数和类定义
+      const functions = this.treeSitterService.extractFunctions(parseResult.ast);
+      const classes = this.treeSitterService.extractClasses(parseResult.ast);
+
+      this.logger?.debug(`TreeSitter extracted ${functions.length} functions and ${classes.length} classes`);
+
+      // 将AST节点转换为CodeChunk
+      const chunks: CodeChunk[] = [];
+
+      // 处理函数定义
+      for (const func of functions) {
+        const location = this.treeSitterService.getNodeLocation(func);
+        const funcText = this.treeSitterService.getNodeText(func, content);
+        
+        chunks.push({
+          content: funcText,
+          metadata: {
+            startLine: location.startLine,
+            endLine: location.endLine,
+            language: detectedLanguage.name,
+            filePath: filePath,
+            type: 'function',
+            complexity: this.calculateComplexity(funcText)
+          }
+        });
+      }
+
+      // 处理类定义
+      for (const cls of classes) {
+        const location = this.treeSitterService.getNodeLocation(cls);
+        const clsText = this.treeSitterService.getNodeText(cls, content);
+        
+        chunks.push({
+          content: clsText,
+          metadata: {
+            startLine: location.startLine,
+            endLine: location.endLine,
+            language: detectedLanguage.name,
+            filePath: filePath,
+            type: 'class',
+            complexity: this.calculateComplexity(clsText)
+          }
+        });
+      }
+
+      // 如果没有提取到任何函数或类，使用精细语义分段作为后备
+      if (chunks.length === 0) {
+        this.logger?.info('No functions or classes found by TreeSitter, falling back to fine semantic');
+        return await this.chunkByFineSemantic(content, filePath, language);
+      }
+
+      this.logger?.info(`TreeSitter AST parsing completed, generated ${chunks.length} chunks`);
+      return chunks;
+
     } catch (error) {
       this.logger?.error(`TreeSitter parsing failed: ${error}, falling back to fine semantic`);
       
@@ -260,7 +334,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
         enableSemanticDetection: true
       });
 
-      const chunks = this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
+      const chunks = await this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
 
       this.logger?.debug(`Fine semantic segmentation completed, generated ${chunks.length} chunks`);
 
@@ -280,5 +354,24 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
         this.logger?.warn(`Failed to restore original text splitter options: ${restoreError}`);
       }
     }
+  }
+
+  /**
+   * 计算代码复杂度
+   */
+  private calculateComplexity(content: string): number {
+    let complexity = 0;
+
+    // 基于代码结构计算复杂度
+    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
+    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
+    complexity += (content.match(/[{}]/g) || []).length;
+    complexity += (content.match(/[()]/g) || []).length * 0.5;
+
+    // 基于代码长度调整
+    const lines = content.split('\n').length;
+    complexity += Math.log10(lines + 1) * 2;
+
+    return Math.round(complexity);
   }
 }

@@ -1,4 +1,4 @@
-import { ProcessingGuard } from '../../service/parser/universal/ProcessingGuard';
+import { ProcessingGuard } from '../../service/parser/guard/ProcessingGuard';
 import { LoggerService } from '../../utils/LoggerService';
 import { ProcessingStrategySelector } from '../../service/parser/universal/coordination/ProcessingStrategySelector';
 import { FileProcessingCoordinator } from '../../service/parser/universal/coordination/FileProcessingCoordinator';
@@ -18,9 +18,6 @@ describe('ProcessingGuard Refactor Test', () => {
       logger,
       new ErrorThresholdManager(logger),
       new MemoryGuard({} as any, 500, 5000, logger),
-      new BackupFileProcessor(logger),
-      new ExtensionlessFileProcessor(logger),
-      new UniversalTextSplitter(logger),
       new ProcessingStrategySelector(logger),
       new FileProcessingCoordinator(logger)
     );
