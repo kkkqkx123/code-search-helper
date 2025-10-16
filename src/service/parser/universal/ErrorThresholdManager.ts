@@ -1,9 +1,13 @@
-import { injectable } from 'inversify';
+import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
+import { TYPES } from '../../../types';
+import { CleanupManager } from './cleanup/CleanupManager';
+import { ICleanupContext } from './cleanup/interfaces/ICleanupStrategy';
 
 /**
  * 错误阈值管理器
  * 负责监控错误计数，当达到阈值时触发降级处理
+ * 重构后：将清理逻辑委托给CleanupManager
  */
 @injectable()
 export class ErrorThresholdManager {
@@ -12,9 +16,16 @@ export class ErrorThresholdManager {
   private maxErrors: number;
   private resetInterval: number;
   private logger?: LoggerService;
+  private cleanupManager?: CleanupManager;
 
-  constructor(logger?: LoggerService, maxErrors: number = 5, resetInterval: number = 60000) {
+  constructor(
+    @inject(TYPES.LoggerService) logger?: LoggerService,
+    @inject(TYPES.CleanupManager) cleanupManager?: CleanupManager,
+    maxErrors: number = 5, 
+    resetInterval: number = 60000
+  ) {
     this.logger = logger;
+    this.cleanupManager = cleanupManager;
     this.maxErrors = maxErrors;
     this.resetInterval = resetInterval;
   }
@@ -67,8 +78,50 @@ export class ErrorThresholdManager {
 
   /**
    * 强制清理缓存和临时对象
+   * 重构后：委托给CleanupManager执行清理
    */
   private forceCleanup(): void {
+    try {
+      this.logger?.info('Starting error threshold cleanup...');
+
+      if (this.cleanupManager) {
+        // 使用CleanupManager执行清理
+        const cleanupContext: ICleanupContext = {
+          triggerReason: `error_threshold_reached_${this.errorCount}_${this.maxErrors}`,
+          errorStats: {
+            count: this.errorCount,
+            lastErrorTime: this.lastErrorTime,
+            errorRate: this.getErrorRate()
+          },
+          timestamp: new Date()
+        };
+
+        this.cleanupManager.performCleanup(cleanupContext).then(result => {
+          if (result.success) {
+            this.logger?.info(`Cleanup completed successfully, freed ${this.formatBytes(result.memoryFreed)} bytes, cleaned caches: ${result.cleanedCaches.join(', ')}`);
+          } else {
+            this.logger?.error(`Cleanup failed: ${result.error?.message}`);
+          }
+        }).catch(error => {
+          this.logger?.error(`Cleanup execution failed: ${error}`);
+        });
+      } else {
+        // 降级到原有的清理逻辑（向后兼容）
+        this.logger?.warn('CleanupManager not available, falling back to legacy cleanup');
+        this.legacyCleanup();
+      }
+
+      this.logger?.info('Error threshold cleanup completed');
+    } catch (error) {
+      this.logger?.error(`Error during cleanup: ${error}`);
+    }
+  }
+
+  /**
+   * 遗留清理逻辑（向后兼容）
+   * @deprecated 仅在没有CleanupManager时使用
+   */
+  private legacyCleanup(): void {
     try {
       // 清理TreeSitter缓存（如果可用）
       this.cleanupTreeSitterCache();
@@ -79,14 +132,15 @@ export class ErrorThresholdManager {
       // 强制垃圾回收（如果可用）
       this.forceGarbageCollection();
       
-      this.logger?.info('Cleanup completed after error threshold reached');
+      this.logger?.info('Legacy cleanup completed');
     } catch (error) {
-      this.logger?.error(`Error during cleanup: ${error}`);
+      this.logger?.error(`Error during legacy cleanup: ${error}`);
     }
   }
 
   /**
-   * 清理TreeSitter缓存
+   * 清理TreeSitter缓存（遗留方法）
+   * @deprecated 将由CleanupManager处理
    */
   private cleanupTreeSitterCache(): void {
     try {
@@ -103,7 +157,8 @@ export class ErrorThresholdManager {
   }
 
   /**
-   * 清理LRU缓存
+   * 清理LRU缓存（遗留方法）
+   * @deprecated 将由CleanupManager处理
    */
   private cleanupLRUCache(): void {
     try {
@@ -121,7 +176,8 @@ export class ErrorThresholdManager {
   }
 
   /**
-   * 强制垃圾回收
+   * 强制垃圾回收（遗留方法）
+   * @deprecated 将由CleanupManager处理
    */
   private forceGarbageCollection(): void {
     try {
@@ -191,5 +247,29 @@ export class ErrorThresholdManager {
     // 计算每分钟的错误数
     const minutesDiff = timeDiff / 60000;
     return this.errorCount / Math.max(minutesDiff, 1/60); // 避免除以零
+  }
+
+  /**
+   * 设置CleanupManager（用于动态注入）
+   */
+  setCleanupManager(cleanupManager: CleanupManager): void {
+    this.cleanupManager = cleanupManager;
+    this.logger?.info('CleanupManager injected into ErrorThresholdManager');
+  }
+
+  /**
+   * 格式化字节数为可读格式
+   */
+  private formatBytes(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+
+    return `${size.toFixed(1)}${units[unitIndex]}`;
   }
 }

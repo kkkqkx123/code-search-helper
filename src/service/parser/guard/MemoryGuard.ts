@@ -2,11 +2,13 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
+import { CleanupManager } from '../universal/cleanup/CleanupManager';
+import { ICleanupContext } from '../universal/cleanup/interfaces/ICleanupStrategy';
 
 /**
  * 内存监控和保护机制
  * 负责监控内存使用情况，在达到限制时触发清理或降级处理
- * 重构为依赖统一的内存监控服务
+ * 重构为依赖统一的内存监控服务和CleanupManager
  */
 @injectable()
 export class MemoryGuard {
@@ -16,17 +18,20 @@ export class MemoryGuard {
   private isMonitoring: boolean = false;
   private logger?: LoggerService;
   private memoryMonitor: IMemoryMonitorService;
+  private cleanupManager?: CleanupManager;
 
   constructor(
     @inject(TYPES.MemoryMonitorService) memoryMonitor: IMemoryMonitorService,
     @inject(TYPES.MemoryLimitMB) memoryLimitMB: number = 500,
     @inject(TYPES.MemoryCheckIntervalMs) checkIntervalMs: number = 5000,
-    @inject(TYPES.LoggerService) logger?: LoggerService
+    @inject(TYPES.LoggerService) logger?: LoggerService,
+    @inject(TYPES.CleanupManager) cleanupManager?: CleanupManager
   ) {
     this.memoryMonitor = memoryMonitor;
     this.memoryLimit = memoryLimitMB * 1024 * 1024; // 转换为字节
     this.checkInterval = checkIntervalMs;
     this.logger = logger;
+    this.cleanupManager = cleanupManager;
     
     // 设置内存限制到内存监控服务
     this.memoryMonitor.setMemoryLimit?.(memoryLimitMB);
@@ -128,11 +133,54 @@ export class MemoryGuard {
 
   /**
    * 强制清理缓存和临时对象
+   * 重构后：委托给CleanupManager执行清理
    */
   forceCleanup(): void {
     try {
       this.logger?.info('Performing forced memory cleanup...');
 
+      if (this.cleanupManager) {
+        // 使用CleanupManager执行清理
+        const cleanupContext: ICleanupContext = {
+          triggerReason: 'memory_limit_exceeded',
+          memoryUsage: {
+            heapUsed: process.memoryUsage().heapUsed,
+            heapTotal: process.memoryUsage().heapTotal,
+            external: process.memoryUsage().external,
+            arrayBuffers: process.memoryUsage().arrayBuffers
+          },
+          timestamp: new Date()
+        };
+
+        this.cleanupManager.performCleanup(cleanupContext).then(result => {
+          if (result.success) {
+            this.logger?.info(`Cleanup completed successfully, freed ${this.formatBytes(result.memoryFreed)} bytes, cleaned caches: ${result.cleanedCaches.join(', ')}`);
+            
+            // 记录清理后的内存使用情况
+            const afterCleanup = this.checkMemoryUsage();
+            this.logger?.info(`Memory cleanup completed. Current usage: ${this.formatBytes(afterCleanup.heapUsed)} (${afterCleanup.usagePercent.toFixed(1)}%)`);
+          } else {
+            this.logger?.error(`Cleanup failed: ${result.error?.message}`);
+          }
+        }).catch(error => {
+          this.logger?.error(`Cleanup execution failed: ${error}`);
+        });
+      } else {
+        // 降级到原有的清理逻辑（向后兼容）
+        this.logger?.warn('CleanupManager not available, falling back to legacy cleanup');
+        this.legacyCleanup();
+      }
+    } catch (error) {
+      this.logger?.error(`Error during memory cleanup: ${error}`);
+    }
+  }
+
+  /**
+   * 遗留清理逻辑（向后兼容）
+   * @deprecated 仅在没有CleanupManager时使用
+   */
+  private legacyCleanup(): void {
+    try {
       // 清理TreeSitter缓存
       this.cleanupTreeSitterCache();
 
@@ -145,9 +193,9 @@ export class MemoryGuard {
 
       // 记录清理后的内存使用情况
       const afterCleanup = this.checkMemoryUsage();
-      this.logger?.info(`Memory cleanup completed. Current usage: ${this.formatBytes(afterCleanup.heapUsed)} (${afterCleanup.usagePercent.toFixed(1)}%)`);
+      this.logger?.info(`Legacy memory cleanup completed. Current usage: ${this.formatBytes(afterCleanup.heapUsed)} (${afterCleanup.usagePercent.toFixed(1)}%)`);
     } catch (error) {
-      this.logger?.error(`Error during memory cleanup: ${error}`);
+      this.logger?.error(`Error during legacy memory cleanup: ${error}`);
     }
   }
 
@@ -235,9 +283,9 @@ export class MemoryGuard {
     }
   }
 
-
   /**
-   * 清理TreeSitter缓存
+   * 清理TreeSitter缓存（遗留方法）
+   * @deprecated 将由CleanupManager处理
    */
   private cleanupTreeSitterCache(): void {
     try {
@@ -254,7 +302,8 @@ export class MemoryGuard {
   }
 
   /**
-   * 清理其他缓存
+   * 清理其他缓存（遗留方法）
+   * @deprecated 将由CleanupManager处理
    */
   private cleanupOtherCaches(): void {
     try {
@@ -271,7 +320,8 @@ export class MemoryGuard {
   }
 
   /**
-   * 强制垃圾回收
+   * 强制垃圾回收（遗留方法）
+   * @deprecated 将由CleanupManager处理
    */
   private forceGarbageCollection(): void {
     try {
@@ -307,5 +357,13 @@ export class MemoryGuard {
     this.stopMonitoring();
     this.clearHistory();
     this.logger?.info('MemoryGuard destroyed');
+  }
+
+  /**
+   * 设置CleanupManager（用于动态注入）
+   */
+  setCleanupManager(cleanupManager: CleanupManager): void {
+    this.cleanupManager = cleanupManager;
+    this.logger?.info('CleanupManager injected into MemoryGuard');
   }
 }

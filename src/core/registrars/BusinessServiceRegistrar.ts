@@ -46,6 +46,7 @@ import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../service/parser/universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../../service/parser/universal/ExtensionlessFileProcessor';
 import { ProcessingGuard } from '../../service/parser/universal/ProcessingGuard';
+import { CleanupManager } from '../../service/parser/universal/cleanup/CleanupManager';
 
 // 文件搜索服务
 import { FileSearchService } from '../../service/filesearch/FileSearchService';
@@ -115,6 +116,26 @@ export class BusinessServiceRegistrar {
     container.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
     container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
 
+    // CleanupManager - 需要在ErrorThresholdManager和MemoryGuard之前注册
+    container.bind<CleanupManager>(TYPES.CleanupManager).toDynamicValue(context => {
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      const cleanupManager = new CleanupManager(logger);
+      
+      // 初始化CleanupManager
+      cleanupManager.initialize();
+      
+      // 注册清理策略
+      const { TreeSitterCacheCleanupStrategy } = require('../../service/parser/universal/cleanup/strategies/TreeSitterCacheCleanupStrategy');
+      const { LRUCacheCleanupStrategy } = require('../../service/parser/universal/cleanup/strategies/LRUCacheCleanupStrategy');
+      const { GarbageCollectionStrategy } = require('../../service/parser/universal/cleanup/strategies/GarbageCollectionStrategy');
+      
+      cleanupManager.registerStrategy(new TreeSitterCacheCleanupStrategy(logger));
+      cleanupManager.registerStrategy(new LRUCacheCleanupStrategy(logger));
+      cleanupManager.registerStrategy(new GarbageCollectionStrategy(logger));
+      
+      return cleanupManager;
+    }).inSingletonScope();
+
     // 通用文件处理服务
     container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
@@ -122,17 +143,19 @@ export class BusinessServiceRegistrar {
     }).inSingletonScope();
     container.bind<ErrorThresholdManager>(TYPES.ErrorThresholdManager).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
+      const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
       // 从环境变量获取配置，如果没有则使用默认值
       const maxErrors = parseInt(process.env.UNIVERSAL_MAX_ERRORS || '5', 10);
       const resetInterval = parseInt(process.env.UNIVERSAL_ERROR_RESET_INTERVAL || '60000', 10);
-      return new ErrorThresholdManager(logger, maxErrors, resetInterval);
+      return new ErrorThresholdManager(logger, cleanupManager, maxErrors, resetInterval);
     }).inSingletonScope();
     container.bind<MemoryGuard>(TYPES.MemoryGuard).toDynamicValue(context => {
       const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
       const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
       const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
       const logger = context.get<LoggerService>(TYPES.LoggerService);
-      return new MemoryGuard(memoryMonitorService, memoryLimitMB, memoryCheckIntervalMs, logger);
+      const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
+      return new MemoryGuard(memoryMonitorService, memoryLimitMB, memoryCheckIntervalMs, logger, cleanupManager);
     }).inSingletonScope();
     container.bind<BackupFileProcessor>(TYPES.BackupFileProcessor).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);

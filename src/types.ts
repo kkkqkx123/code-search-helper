@@ -321,6 +321,7 @@ export const TYPES = {
   ExtensionlessFileProcessor: Symbol.for('ExtensionlessFileProcessor'),
   ProcessingGuard: Symbol.for('ProcessingGuard'),
   ProcessingStrategySelector: Symbol.for('ProcessingStrategySelector'),
+  CleanupManager: Symbol.for('CleanupManager'),
   FileProcessingCoordinator: Symbol.for('FileProcessingCoordinator'),
 
   // MemoryGuard 参数
