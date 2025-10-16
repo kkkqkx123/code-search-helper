@@ -4,13 +4,13 @@ import { LoggerService } from '../../utils/LoggerService';
 import { GraphNode, GraphRelationship } from '../graph/mapping/IGraphDataMappingService';
 import { LRUCache, CacheStats } from '../../utils/LRUCache';
 
-export interface GraphCacheStats extends CacheStats {
+export interface SimpleGraphCacheStats extends CacheStats {
   hitRate: number;
   hasSufficientData: boolean;
 }
 
 @injectable()
-export class GraphMappingCache {
+export class SimpleGraphMappingCache {
   private logger: LoggerService;
   private cache: LRUCache<string, any>;
   private readonly defaultTTL: number = 300000; // 5分钟
@@ -18,23 +18,23 @@ export class GraphMappingCache {
   constructor(@inject(TYPES.LoggerService) logger: LoggerService) {
     try {
       this.logger = logger;
-      // 使用优化的LRU缓存，启用快速访问以提高读取性能
+      // 使用简化的LRU缓存，禁用所有额外功能以减少开销
       this.cache = new LRUCache<string, any>(10000, {
         enableStats: true,
         defaultTTL: this.defaultTTL,
-        enableFastAccess: true // 启用快速访问以提高读取性能
+        enableFastAccess: false // 禁用快速访问以减少内存开销
       });
       
-      this.logger.info('GraphMappingCache initialized with optimized LRU cache', {
+      this.logger.info('SimpleGraphMappingCache initialized with optimized LRU cache', {
         maxSize: 10000,
         defaultTTL: this.defaultTTL,
         optimizations: {
-          fastAccess: true,
+          fastAccess: false,
           stats: true
         }
       });
     } catch (error) {
-      logger.error('Failed to initialize GraphMappingCache', { error: (error as Error).message, stack: (error as Error).stack });
+      logger.error('Failed to initialize SimpleGraphMappingCache', { error: (error as Error).message, stack: (error as Error).stack });
       throw error;
     }
   }
@@ -158,7 +158,7 @@ export class GraphMappingCache {
   /**
    * 获取缓存统计信息
    */
-  async getStats(): Promise<GraphCacheStats> {
+  async getStats(): Promise<SimpleGraphCacheStats> {
     const baseStats = this.cache.getStats();
     if (!baseStats) {
       // 如果统计未启用，返回默认值

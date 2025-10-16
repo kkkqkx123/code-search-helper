@@ -89,9 +89,8 @@ export class LRUCache<K, V> {
       return undefined;
     }
 
-    // LRU：删除并重新插入以更新位置
-    this.cache.delete(key);
-    this.cache.set(key, { ...entry, accessTime: Date.now() });
+    // 优化：直接更新访问时间，避免删除和重新插入的开销
+    entry.accessTime = Date.now();
     
     if (this.enableStats) this.stats.hits++;
     
