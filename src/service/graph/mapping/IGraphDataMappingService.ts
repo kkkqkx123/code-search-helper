@@ -9,7 +9,8 @@ export enum GraphNodeType {
   IMPORT = 'Import',
   INTERFACE = 'Interface',
   METHOD = 'Method',
-  PROPERTY = 'Property'
+  PROPERTY = 'Property',
+  CHUNK = 'Chunk'
 }
 
 // 图关系类型枚举

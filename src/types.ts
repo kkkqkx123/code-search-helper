@@ -292,6 +292,7 @@ export const TYPES = {
 
   // 缓存服务
   GraphMappingCache: Symbol.for('GraphMappingCache'),
+  UnifiedGraphCacheService: Symbol.for('UnifiedGraphCacheService'),
 
   // 批处理优化服务
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
@@ -308,6 +309,7 @@ export const TYPES = {
   FaultToleranceHandler: Symbol.for('FaultToleranceHandler'),
   MappingRuleEngine: Symbol.for('MappingRuleEngine'),
   MappingCacheManager: Symbol.for('MappingCacheManager'),
+  IGraphCacheService: Symbol.for('IGraphCacheService'),
 
   // 性能监控和优化相关服务
   PerformanceDashboard: Symbol.for('PerformanceDashboard'),

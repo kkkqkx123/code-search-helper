@@ -3,6 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
 import { MappingCacheManager } from '../graph/caching/MappingCacheManager';
+import { UnifiedGraphCacheService } from '../graph/caching/UnifiedGraphCacheService';
 import { PerformanceDashboard, PerformanceMetric } from './PerformanceDashboard';
 
 export interface CachePerformanceStats {
@@ -46,6 +47,7 @@ export class CachePerformanceMonitor {
   private logger: LoggerService;
   private cache: GraphMappingCache;
   private multiLevelCache?: MappingCacheManager;
+  private unifiedCache?: UnifiedGraphCacheService;
   private dashboard: PerformanceDashboard;
   private config: CacheMonitoringConfig;
   private performanceHistory: CachePerformanceStats[] = [];
@@ -61,12 +63,14 @@ export class CachePerformanceMonitor {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     @inject(TYPES.MappingCacheManager) multiLevelCache?: MappingCacheManager,
+    @inject(TYPES.UnifiedGraphCacheService) unifiedCache?: UnifiedGraphCacheService,
     @inject(TYPES.PerformanceDashboard) dashboard?: PerformanceDashboard,
     config?: Partial<CacheMonitoringConfig>
   ) {
     this.logger = logger;
     this.cache = cache;
     this.multiLevelCache = multiLevelCache;
+    this.unifiedCache = unifiedCache;
     this.dashboard = dashboard!;
 
     this.config = {
@@ -116,8 +120,8 @@ export class CachePerformanceMonitor {
   }
 
   /**
-    * 收集并记录统计信息
-    */
+   * 收集并记录统计信息
+   */
   async collectAndRecordStats(): Promise<void> {
     const stats = await this.getCachePerformanceStats();
     this.performanceHistory.push(stats);
@@ -176,6 +180,54 @@ export class CachePerformanceMonitor {
    * 获取缓存性能统计
    */
   async getCachePerformanceStats(): Promise<CachePerformanceStats> {
+    // 优先使用统一缓存服务获取统计信息
+    if (this.unifiedCache) {
+      try {
+        const cacheStats = await this.unifiedCache.getCacheStats();
+        const currentTime = Date.now();
+        const timeWindow = currentTime - this.lastStatsTime;
+
+        // 计算速率
+        const totalRequests = cacheStats.hits + cacheStats.misses;
+        const hitRate = totalRequests > 0 ? cacheStats.hits / totalRequests : 0;
+        const missRate = totalRequests > 0 ? cacheStats.misses / totalRequests : 0;
+        const evictionRate = totalRequests > 0 ? cacheStats.evictions / totalRequests : 0;
+
+        // 更新内部计数器
+        this.requestCount = totalRequests;
+        this.hitCount = cacheStats.hits;
+        this.missCount = cacheStats.misses;
+        this.evictionCount = cacheStats.evictions;
+        this.lastStatsTime = currentTime;
+
+        // 计算命中率趋势
+        const hitRateTrend = this.calculateHitRateTrend();
+
+        const stats: CachePerformanceStats = {
+          hitRate,
+          missRate,
+          evictionRate,
+          averageResponseTime: 0, // 实际实现中需要测量响应时间
+          totalRequests,
+          hits: cacheStats.hits,
+          misses: cacheStats.misses,
+          evictions: cacheStats.evictions,
+          size: cacheStats.size,
+          memoryUsage: 0, // 统一缓存服务可能不提供内存使用信息
+          hitRateTrend,
+          timestamp: currentTime
+        };
+
+        return stats;
+      } catch (error) {
+        this.logger.error('Error getting stats from unified cache service', { 
+          error: (error as Error).message 
+        });
+        // 回退到旧的缓存服务
+      }
+    }
+
+    // 回退到旧的缓存服务
     const cacheStats = await this.cache.getStats();
     const currentTime = Date.now();
     const timeWindow = currentTime - this.lastStatsTime;
@@ -306,16 +358,16 @@ export class CachePerformanceMonitor {
   }
 
   /**
-    * 获取优化建议
-    */
+   * 获取优化建议
+   */
   async getOptimizationSuggestions(): Promise<CacheOptimizationSuggestion[]> {
     // 按置信度排序
     return [...this.optimizationSuggestions].sort((a, b) => b.confidence - a.confidence);
   }
 
   /**
-    * 获取性能摘要
-    */
+   * 获取性能摘要
+   */
   async getPerformanceSummary(): Promise<{
     currentStats: CachePerformanceStats;
     hitRateTrend: 'increasing' | 'decreasing' | 'stable';
@@ -371,8 +423,8 @@ export class CachePerformanceMonitor {
   }
 
   /**
-    * 计算驱逐率趋势
-    */
+   * 计算驱逐率趋势
+   */
   private calculateEvictionRateTrend(history: CachePerformanceStats[]): 'increasing' | 'decreasing' | 'stable' {
     if (history.length < 2) {
       return 'stable';
@@ -388,8 +440,8 @@ export class CachePerformanceMonitor {
   }
 
   /**
-    * 计算大小趋势
-    */
+   * 计算大小趋势
+   */
   private calculateSizeTrend(history: CachePerformanceStats[]): 'increasing' | 'decreasing' | 'stable' {
     if (history.length < 2) {
       return 'stable';
@@ -462,8 +514,8 @@ export class CachePerformanceMonitor {
   }
 
   /**
-    * 重置监控数据
-    */
+   * 重置监控数据
+   */
   async reset(): Promise<void> {
     this.performanceHistory = [];
     this.optimizationSuggestions = [];
