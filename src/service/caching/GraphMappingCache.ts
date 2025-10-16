@@ -10,6 +10,12 @@ export interface GraphCacheStats extends CacheStats {
   maxMemory: number;
   hasSufficientData: boolean;
   hitRate: number;
+  compressionStats?: {
+    enabled: boolean;
+    compressedEntries?: number;
+    savingsPercent?: string;
+    message?: string;
+  };
 }
 
 @injectable()
@@ -21,17 +27,28 @@ export class GraphMappingCache {
   constructor(@inject(TYPES.LoggerService) logger: LoggerService) {
     try {
       this.logger = logger;
-      // 使用内存感知的缓存，替换原有的Map实现
+      // 使用完全优化的内存感知缓存，启用所有优化功能
       this.cache = new MemoryAwareCache<string, any>(10000, {
         maxMemory: 50 * 1024 * 1024, // 50MB
         defaultTTL: this.defaultTTL,
-        enableStats: true
+        enableStats: true,
+        // 启用数据压缩优化
+        enableCompression: true,
+        compressionThreshold: 1024, // 1KB以上数据压缩
+        // 优化内存估算精度
+        enableFastAccess: true
       });
       
-      this.logger.info('GraphMappingCache initialized with enhanced cache', {
+      this.logger.info('GraphMappingCache initialized with fully optimized cache', {
         maxSize: 10000,
         maxMemory: 50 * 1024 * 1024,
-        defaultTTL: this.defaultTTL
+        defaultTTL: this.defaultTTL,
+        optimizations: {
+          compression: true,
+          compressionThreshold: 1024,
+          fastAccess: true,
+          stats: true
+        }
       });
     } catch (error) {
       logger.error('Failed to initialize GraphMappingCache', { error: (error as Error).message, stack: (error as Error).stack });
@@ -179,12 +196,16 @@ export class GraphMappingCache {
     const MIN_STATISTICALLY_SIGNIFICANT_ACCESSES = 10;
     const hasSufficientData = totalAccesses >= MIN_STATISTICALLY_SIGNIFICANT_ACCESSES;
 
+    // 获取压缩统计信息
+    const compressionStats = this.cache.getCompressionStats();
+
     return {
       ...baseStats,
       memoryUsage: this.cache.getMemoryUsage(),
       maxMemory: this.cache.getMaxMemory(),
       hitRate: totalAccesses > 0 ? baseStats.hits / totalAccesses : 0,
-      hasSufficientData
+      hasSufficientData,
+      compressionStats
     };
   }
 
@@ -233,5 +254,95 @@ export class GraphMappingCache {
    */
   getMaxMemory(): number {
     return this.cache.getMaxMemory();
+  }
+
+  /**
+   * 获取详细的压缩统计信息
+   */
+  getCompressionStats() {
+    return this.cache.getCompressionStats();
+  }
+
+  /**
+   * 预热缓存 - 预加载常用数据
+   */
+  async warmup(commonKeys: string[]): Promise<void> {
+    this.logger.info('Starting cache warmup', { keyCount: commonKeys.length });
+    
+    // 这里可以根据实际需求实现预热逻辑
+    // 例如：预加载常用的图结构数据
+    for (const key of commonKeys) {
+      if (!this.cache.has(key)) {
+        this.logger.debug('Warmup: key not found', { key });
+      }
+    }
+    
+    this.logger.info('Cache warmup completed');
+  }
+
+  /**
+   * 获取缓存健康状态
+   */
+  async getHealthStatus(): Promise<{
+    status: 'healthy' | 'warning' | 'critical';
+    memoryUsage: number;
+    memoryPercent: number;
+    hitRate: number;
+    size: number;
+    compressionEfficiency?: string;
+  }> {
+    const stats = await this.getStats();
+    const memoryUsage = this.getMemoryUsage();
+    const maxMemory = this.getMaxMemory();
+    const memoryPercent = (memoryUsage / maxMemory) * 100;
+    
+    let status: 'healthy' | 'warning' | 'critical' = 'healthy';
+    
+    // 基于内存使用率和命中率判断健康状态
+    if (memoryPercent > 90 || (stats.hitRate < 0.5 && stats.hits + stats.misses > 100)) {
+      status = 'critical';
+    } else if (memoryPercent > 75 || (stats.hitRate < 0.7 && stats.hits + stats.misses > 50)) {
+      status = 'warning';
+    }
+    
+    return {
+      status,
+      memoryUsage,
+      memoryPercent,
+      hitRate: stats.hitRate,
+      size: stats.size,
+      compressionEfficiency: stats.compressionStats?.savingsPercent
+    };
+  }
+
+  /**
+   * 批量操作 - 批量存储多个键值对
+   */
+  async cacheBatch<T>(items: Array<{ key: string; value: T; ttl?: number }>): Promise<boolean> {
+    try {
+      for (const item of items) {
+        this.cache.set(item.key, item.value, item.ttl);
+      }
+      this.logger.debug('Batch cache completed', { itemCount: items.length });
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to cache batch', { error: (error as Error).message, itemCount: items.length });
+      return false;
+    }
+  }
+
+  /**
+   * 批量获取 - 批量获取多个键的值
+   */
+  async getBatch<T>(keys: string[]): Promise<Map<string, T | null>> {
+    const results = new Map<string, T | null>();
+    
+    for (const key of keys) {
+      const result = this.cache.get(key) as T | undefined;
+      results.set(key, result || null);
+    }
+    
+    this.logger.debug('Batch get completed', { keyCount: keys.length, hitCount: Array.from(results.values()).filter(v => v !== null).length });
+    return results;
   }
 }

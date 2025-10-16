@@ -21,10 +21,16 @@ describe('GraphMappingCache', () => {
   describe('基础功能测试', () => {
     it('应该正确初始化缓存', () => {
       expect(cache).toBeDefined();
-      expect(mockLogger.info).toHaveBeenCalledWith('GraphMappingCache initialized with enhanced cache', {
+      expect(mockLogger.info).toHaveBeenCalledWith('GraphMappingCache initialized with fully optimized cache', {
         maxSize: 10000,
         maxMemory: 50 * 1024 * 1024,
-        defaultTTL: 300000
+        defaultTTL: 300000,
+        optimizations: {
+          compression: true,
+          compressionThreshold: 1024,
+          fastAccess: true,
+          stats: true
+        }
       });
     });
 
