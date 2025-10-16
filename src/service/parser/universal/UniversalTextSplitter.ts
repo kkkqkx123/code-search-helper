@@ -43,6 +43,13 @@ export class UniversalTextSplitter {
   }
 
   /**
+   * 获取当前分段选项
+   */
+  getOptions(): UniversalChunkingOptions {
+    return { ...this.options };
+  }
+
+  /**
    * 过滤小块 - 基于kilocode经验
    * 过滤掉小于最小块大小的无意义片段
    */

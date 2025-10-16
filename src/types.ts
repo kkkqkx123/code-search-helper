@@ -320,6 +320,8 @@ export const TYPES = {
   BackupFileProcessor: Symbol.for('BackupFileProcessor'),
   ExtensionlessFileProcessor: Symbol.for('ExtensionlessFileProcessor'),
   ProcessingGuard: Symbol.for('ProcessingGuard'),
+  ProcessingStrategySelector: Symbol.for('ProcessingStrategySelector'),
+  FileProcessingCoordinator: Symbol.for('FileProcessingCoordinator'),
 
   // MemoryGuard 参数
   MemoryLimitMB: Symbol.for('MemoryLimitMB'),

@@ -8,7 +8,10 @@ import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
 import { UniversalTextSplitter } from './UniversalTextSplitter';
 import { CodeChunk } from '../splitting/Splitter';
 import * as path from 'path';
-import { LANGUAGE_MAP, CODE_LANGUAGES, STRUCTURED_LANGUAGES } from './constants';
+import { ProcessingStrategySelector } from './coordination/ProcessingStrategySelector';
+import { FileProcessingCoordinator } from './coordination/FileProcessingCoordinator';
+import { IProcessingStrategySelector } from './coordination/interfaces/IProcessingStrategySelector';
+import { IFileProcessingCoordinator } from './coordination/interfaces/IFileProcessingCoordinator';
 
 /**
  * 处理保护器
@@ -16,14 +19,16 @@ import { LANGUAGE_MAP, CODE_LANGUAGES, STRUCTURED_LANGUAGES } from './constants'
  */
 @injectable()
 export class ProcessingGuard {
-  private static instance: ProcessingGuard;
-  private errorThresholdManager: ErrorThresholdManager;
-  private memoryGuard: MemoryGuard;
-  private backupFileProcessor: BackupFileProcessor;
-  private extensionlessFileProcessor: ExtensionlessFileProcessor;
-  private universalTextSplitter: UniversalTextSplitter;
-  private logger?: LoggerService;
-  private isInitialized: boolean = false;
+   private static instance: ProcessingGuard;
+   private errorThresholdManager: ErrorThresholdManager;
+   private memoryGuard: MemoryGuard;
+   private backupFileProcessor: BackupFileProcessor;
+   private extensionlessFileProcessor: ExtensionlessFileProcessor;
+   private universalTextSplitter: UniversalTextSplitter;
+   private processingStrategySelector: IProcessingStrategySelector;
+   private fileProcessingCoordinator: IFileProcessingCoordinator;
+   private logger?: LoggerService;
+   private isInitialized: boolean = false;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
@@ -31,7 +36,9 @@ export class ProcessingGuard {
     @inject(TYPES.MemoryGuard) memoryGuard?: MemoryGuard,
     @inject(TYPES.BackupFileProcessor) backupFileProcessor?: BackupFileProcessor,
     @inject(TYPES.ExtensionlessFileProcessor) extensionlessFileProcessor?: ExtensionlessFileProcessor,
-    @inject(TYPES.UniversalTextSplitter) universalTextSplitter?: UniversalTextSplitter
+    @inject(TYPES.UniversalTextSplitter) universalTextSplitter?: UniversalTextSplitter,
+    @inject(TYPES.ProcessingStrategySelector) processingStrategySelector?: IProcessingStrategySelector,
+    @inject(TYPES.FileProcessingCoordinator) fileProcessingCoordinator?: IFileProcessingCoordinator
   ) {
     this.logger = logger;
 
@@ -70,6 +77,8 @@ export class ProcessingGuard {
     this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
     this.extensionlessFileProcessor = extensionlessFileProcessor || new ExtensionlessFileProcessor(logger);
     this.universalTextSplitter = universalTextSplitter || new UniversalTextSplitter(logger);
+    this.processingStrategySelector = processingStrategySelector || new ProcessingStrategySelector(logger, this.backupFileProcessor, this.extensionlessFileProcessor);
+    this.fileProcessingCoordinator = fileProcessingCoordinator || new FileProcessingCoordinator(logger, this.universalTextSplitter);
   }
 
   /**
@@ -81,7 +90,9 @@ export class ProcessingGuard {
     memoryGuard?: MemoryGuard,
     backupFileProcessor?: BackupFileProcessor,
     extensionlessFileProcessor?: ExtensionlessFileProcessor,
-    universalTextSplitter?: UniversalTextSplitter
+    universalTextSplitter?: UniversalTextSplitter,
+    processingStrategySelector?: IProcessingStrategySelector,
+    fileProcessingCoordinator?: IFileProcessingCoordinator
   ): ProcessingGuard {
     if (!ProcessingGuard.instance) {
       ProcessingGuard.instance = new ProcessingGuard(
@@ -90,7 +101,9 @@ export class ProcessingGuard {
         memoryGuard,
         backupFileProcessor,
         extensionlessFileProcessor,
-        universalTextSplitter
+        universalTextSplitter,
+        processingStrategySelector,
+        fileProcessingCoordinator
       );
     }
     return ProcessingGuard.instance;
@@ -160,7 +173,7 @@ export class ProcessingGuard {
     this.errorThresholdManager.recordError(error, context);
   }
 
-  /**
+ /**
    * 智能文件处理
    */
   async processFile(filePath: string, content: string): Promise<{
@@ -176,272 +189,70 @@ export class ProcessingGuard {
         // 获取内存限制值用于日志
         const memoryLimit = this.memoryGuard.getMemoryStats().limit;
         this.logger?.warn(`Memory limit exceeded before processing: ${memoryStatus.heapUsed} > ${memoryLimit}`);
-        return this.processWithFallback(filePath, content, 'Memory limit exceeded');
+        const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(filePath, content, 'Memory limit exceeded');
+        return {
+          chunks: fallbackResult.chunks,
+          language: 'text',
+          processingStrategy: fallbackResult.fallbackStrategy,
+          fallbackReason: fallbackResult.reason
+        };
       }
 
       // 检查错误阈值
       if (this.errorThresholdManager.shouldUseFallback()) {
         this.logger?.warn('Error threshold reached, using fallback processing');
-        return this.processWithFallback(filePath, content, 'Error threshold exceeded');
+        const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(filePath, content, 'Error threshold exceeded');
+        return {
+          chunks: fallbackResult.chunks,
+          language: 'text',
+          processingStrategy: fallbackResult.fallbackStrategy,
+          fallbackReason: fallbackResult.reason
+        };
       }
 
-      // 智能语言检测
-      const language = await this.detectLanguageIntelligently(filePath, content);
+      // 使用新的策略选择器进行语言检测和策略选择
+      const languageInfo = await this.processingStrategySelector.detectLanguageIntelligently(filePath, content);
+      const strategyContext = {
+        filePath,
+        content,
+        languageInfo,
+        timestamp: new Date()
+      };
+      const strategy = await this.processingStrategySelector.selectProcessingStrategy(strategyContext);
 
-      // 选择处理策略
-      const strategy = this.selectProcessingStrategy(filePath, content, language);
-
-      // 执行处理
-      const chunks = await this.executeProcessingStrategy(strategy, filePath, content, language);
+      // 使用新的文件处理协调器执行处理
+      const context = {
+        filePath,
+        content,
+        strategy,
+        language: languageInfo.language,
+        timestamp: new Date()
+      };
+      const result = await this.fileProcessingCoordinator.processFile(context);
 
       return {
-        chunks,
-        language,
-        processingStrategy: strategy
+        chunks: result.chunks,
+        language: languageInfo.language,
+        processingStrategy: result.processingStrategy,
+        fallbackReason: result.metadata?.fallbackReason
       };
     } catch (error) {
       this.logger?.error(`Error in intelligent file processing: ${error}`);
       this.errorThresholdManager.recordError(error as Error, `processFile: ${filePath}`);
 
-      return this.processWithFallback(filePath, content, `Processing error: ${(error as Error).message}`);
+      const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(filePath, content, `Processing error: ${(error as Error).message}`);
+      return {
+        chunks: fallbackResult.chunks,
+        language: 'text',
+        processingStrategy: fallbackResult.fallbackStrategy,
+        fallbackReason: fallbackResult.reason
+      };
     }
   }
 
-  /**
-   * 智能语言检测
-   */
-  private async detectLanguageIntelligently(filePath: string, content: string): Promise<string> {
-    // 1. 检查是否为备份文件
-    if (this.backupFileProcessor.isBackupFile(filePath)) {
-      const backupInfo = this.backupFileProcessor.inferOriginalType(filePath);
-      return backupInfo.originalLanguage;
-    }
-
-    // 2. 检查文件扩展名
-    const ext = path.extname(filePath).toLowerCase();
-    if (ext) {
-      const languageFromExt = this.detectLanguageByExtension(ext);
-      if (languageFromExt !== 'unknown') {
-        // 对于通用扩展名（如.md），进一步检查内容
-        if (languageFromExt === 'markdown' || languageFromExt === 'text') {
-          const contentDetection = this.extensionlessFileProcessor.detectLanguageByContent(content);
-          if (contentDetection.confidence > 0.3) {
-            return contentDetection.language;
-          }
-        }
-        return languageFromExt;
-      }
-    }
-
-    // 3. 基于内容检测
-    const contentDetection = this.extensionlessFileProcessor.detectLanguageByContent(content);
-    if (contentDetection.language !== 'unknown' && contentDetection.confidence > 0.05) {
-      return contentDetection.language;
-    }
-
-    // 4. 默认返回text
-    return 'text';
-  }
-
-  /**
-   * 根据扩展名检测语言
-   */
-  private detectLanguageByExtension(extension: string): string {
-    return LANGUAGE_MAP[extension] || 'unknown';
-  }
-
-  /**
-   * 选择处理策略
-   */
-  private selectProcessingStrategy(filePath: string, content: string, language: string): string {
-    // 如果是备份文件，使用通用处理
-    if (this.backupFileProcessor.isBackupFile(filePath)) {
-      return 'universal-bracket';
-    }
-
-    // 如果是代码文件，优先使用TreeSitter进行AST解析
-    if (this.isCodeLanguage(language)) {
-      // 检查是否可以使用TreeSitter
-      if (this.canUseTreeSitter(language)) {
-        return 'treesitter-ast';
-      }
-      // 如果不能使用TreeSitter，使用精细的语义分段
-      return 'universal-semantic-fine';
-    }
-
-    // 对于文本类语言（markdown, text等），使用语义分段
-    if (this.isTextLanguage(language)) {
-      return 'universal-semantic';
-    }
-
-    // 对于结构化文件，使用括号平衡分段
-    if (this.isStructuredFile(content, language)) {
-      return 'universal-bracket';
-    }
-
-    // 默认使用行分段
-    return 'universal-line';
-  }
-
-  /**
-   * 检查是否为代码语言
-   */
-  private isCodeLanguage(language: string): boolean {
-    return CODE_LANGUAGES.includes(language);
-  }
-
-  /**
-   * 检查是否为文本类语言（需要智能分段的非代码文件）
-   */
-  private isTextLanguage(language: string): boolean {
-    return ['markdown', 'text', 'log', 'ini', 'cfg', 'conf', 'toml'].includes(language);
-  }
-
-  /**
-   * 检查是否可以使用TreeSitter
-   */
-  private canUseTreeSitter(language: string): boolean {
-    // TreeSitter支持的编程语言
-    const TREESITTER_LANGUAGES = [
-      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-      'go', 'rust', 'php', 'ruby'
-    ];
-    return TREESITTER_LANGUAGES.includes(language);
-  }
-
-  /**
-   * 检查是否为结构化文件
-   */
-  private isStructuredFile(content: string, language: string): boolean {
-    if (STRUCTURED_LANGUAGES.includes(language)) {
-      return true;
-    }
-
-    // 检查内容是否包含大量括号或标签
-    const bracketCount = (content.match(/[{}()\[\]]/g) || []).length;
-    const tagCount = (content.match(/<[^>]+>/g) || []).length;
-    const totalLength = content.length;
-
-    return (bracketCount / totalLength > 0.01) || (tagCount / totalLength > 0.005);
-  }
-
-  /**
-   * 执行处理策略
-   */
-  private async executeProcessingStrategy(
-    strategy: string,
-    filePath: string,
-    content: string,
-    language: string
-  ): Promise<CodeChunk[]> {
-    switch (strategy) {
-      case 'treesitter-ast':
-        // 使用TreeSitter进行AST解析分段
-        return this.chunkByTreeSitter(content, filePath, language);
-
-      case 'universal-semantic-fine':
-        // 使用更精细的语义分段
-        return this.chunkByFineSemantic(content, filePath, language);
-
-      case 'universal-semantic':
-        return this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
-
-      case 'universal-bracket':
-        return this.universalTextSplitter.chunkByBracketsAndLines(content, filePath, language);
-
-      case 'universal-line':
-        return this.universalTextSplitter.chunkByLines(content, filePath, language);
-
-      default:
-        this.logger?.warn(`Unknown processing strategy: ${strategy}, falling back to line-based`);
-        return this.universalTextSplitter.chunkByLines(content, filePath, language);
-    }
-  }
-
-  /**
-   * 使用TreeSitter进行AST解析分段
-   */
-  private async chunkByTreeSitter(content: string, filePath: string, language: string): Promise<CodeChunk[]> {
-    try {
-      // 这里应该调用TreeSitterService进行AST解析
-      // 暂时使用精细的语义分段作为替代
-      this.logger?.info(`Using TreeSitter AST parsing for ${language}`);
-      return this.chunkByFineSemantic(content, filePath, language);
-    } catch (error) {
-      this.logger?.error(`TreeSitter parsing failed: ${error}, falling back to fine semantic`);
-      return this.chunkByFineSemantic(content, filePath, language);
-    }
-  }
-
-  /**
-   * 精细语义分段
-   */
-  private async chunkByFineSemantic(content: string, filePath: string, language: string): Promise<CodeChunk[]> {
-    // 使用更精细的分段参数
-    const originalOptions = this.universalTextSplitter.setOptions;
-
-    // 根据内容大小调整重叠大小，小文件使用更小的重叠
-    const contentLines = content.split('\n').length;
-    const adjustedOverlapSize = Math.min(50, Math.max(20, contentLines * 2)); // 每行约2-50字符重叠
-
-    // 临时设置更精细的分段参数
-    this.universalTextSplitter.setOptions({
-      maxChunkSize: 800,  // 从2000降低到800
-      maxLinesPerChunk: 20, // 从50降低到20
-      overlapSize: adjustedOverlapSize,   // 动态调整重叠大小
-      enableSemanticDetection: true
-    });
-
-    try {
-      const chunks = this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
-
-      // 恢复原始选项
-      this.universalTextSplitter.setOptions({
-        maxChunkSize: 2000,
-        maxLinesPerChunk: 50,
-        overlapSize: 200,
-        enableSemanticDetection: true
-      });
-
-      return chunks;
-    } catch (error) {
-      // 恢复原始选项
-      this.universalTextSplitter.setOptions({
-        maxChunkSize: 2000,
-        maxLinesPerChunk: 50,
-        overlapSize: 200,
-        enableSemanticDetection: true
-      });
-
-      throw error;
-    }
-  }
-
-  /**
-   * 降级处理
-   */
-  private processWithFallback(
-    filePath: string,
-    content: string,
-    reason: string
-  ): {
-    chunks: CodeChunk[];
-    language: string;
-    processingStrategy: string;
-    fallbackReason: string;
-  } {
-    this.logger?.info(`Using fallback processing for ${filePath}: ${reason}`);
-
-    // 使用最简单的分段方法
-    const chunks = this.universalTextSplitter.chunkByLines(content, filePath, 'text');
-
-    return {
-      chunks,
-      language: 'text',
-      processingStrategy: 'fallback-line',
-      fallbackReason: reason
-    };
-  }
+  // 旧的方法已被新模块替代，保留接口兼容性
+  // 语言检测和策略选择逻辑已迁移到ProcessingStrategySelector
+  // 文件处理协调逻辑已迁移到FileProcessingCoordinator
 
   /**
    * 处理内存压力事件
