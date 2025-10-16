@@ -3,7 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { TransactionLogger } from '../transaction/TransactionLogger';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
-import { CacheStats } from '../caching/GraphMappingCache';
+import { GraphCacheStats } from '../caching/GraphMappingCache';
 
 export interface PerformanceMetric {
   timestamp: number;
