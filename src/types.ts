@@ -123,6 +123,10 @@ import { VectorIndexService } from './service/index/VectorIndexService';
 import { CoreStateService } from './service/project/services/CoreStateService';
 import { StorageStateService } from './service/project/services/StorageStateService';
 
+// UnifiedGuardCoordinator 相关类型
+import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
+import { IUnifiedGuardCoordinator } from './service/parser/guard/interfaces/IUnifiedGuardCoordinator';
+
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
   ConfigFactory: Symbol.for('ConfigFactory'),
@@ -330,4 +334,8 @@ export const TYPES = {
 
   // IgnoreRuleManager 符号
   IgnoreRuleManager: Symbol.for('IgnoreRuleManager'),
+
+  // UnifiedGuardCoordinator 相关符号
+  UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
+  IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
 };
