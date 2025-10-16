@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { TransactionLogger } from '../transaction/TransactionLogger';
-import { GraphMappingCache } from '../caching/GraphMappingCache';
+import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
 
 export interface FaultToleranceOptions {
   maxRetries: number;
@@ -18,7 +18,7 @@ export interface CircuitBreakerState {
   state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
   failureCount: number;
   lastFailureTime: number | null;
- nextAttemptTime: number | null;
+  nextAttemptTime: number | null;
 }
 
 export interface OperationResult<T = any> {
@@ -37,7 +37,7 @@ export class FaultToleranceHandler {
   private options: FaultToleranceOptions;
   private circuitBreakers: Map<string, CircuitBreakerState> = new Map();
 
- constructor(
+  constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.TransactionLogger) transactionLogger: TransactionLogger,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
@@ -46,7 +46,7 @@ export class FaultToleranceHandler {
     this.logger = logger;
     this.transactionLogger = transactionLogger;
     this.cache = cache;
-    
+
     this.options = {
       maxRetries: 3,
       retryDelay: 1000,
@@ -79,7 +79,7 @@ export class FaultToleranceHandler {
       if (breakerState.state === 'OPEN') {
         // 断路器打开，尝试使用降级策略
         this.logger.warn('Circuit breaker is open, using fallback', { operationName });
-        
+
         const fallbackResult = await this.getFallbackResult<T>(operationName, context);
         return {
           success: fallbackResult !== undefined,
@@ -117,35 +117,35 @@ export class FaultToleranceHandler {
     while (retries <= this.options.maxRetries) {
       try {
         const result = await operation();
-        
+
         // 操作成功，重置断路器
         if (this.options.circuitBreakerEnabled) {
           this.onSuccess(operationName);
         }
 
-        this.logger.debug('Operation succeeded', { 
-          operationName, 
-          retries, 
-          duration: Date.now() - startTime 
+        this.logger.debug('Operation succeeded', {
+          operationName,
+          retries,
+          duration: Date.now() - startTime
         });
 
         return {
           success: true,
           data: result,
           retries,
-          circuitBreakerState: this.options.circuitBreakerEnabled 
-            ? this.getCircuitBreakerState(operationName) 
+          circuitBreakerState: this.options.circuitBreakerEnabled
+            ? this.getCircuitBreakerState(operationName)
             : undefined
         };
       } catch (error) {
         lastError = error as Error;
         retries++;
-        
-        this.logger.warn('Operation failed, scheduling retry', { 
-          operationName, 
-          retry: retries, 
+
+        this.logger.warn('Operation failed, scheduling retry', {
+          operationName,
+          retry: retries,
           maxRetries: this.options.maxRetries,
-          error: (error as Error).message 
+          error: (error as Error).message
         });
 
         // 记录事务日志
@@ -167,7 +167,7 @@ export class FaultToleranceHandler {
           const delay = this.options.exponentialBackoff
             ? this.options.retryDelay * Math.pow(2, retries - 1)
             : this.options.retryDelay;
-          
+
           await this.delay(delay);
         }
       }
@@ -181,9 +181,9 @@ export class FaultToleranceHandler {
     // 尝试使用降级策略
     const fallbackResult = await this.getFallbackResult<T>(operationName, context);
 
-    this.logger.error('All retry attempts failed', { 
-      operationName, 
-      error: lastError?.message 
+    this.logger.error('All retry attempts failed', {
+      operationName,
+      error: lastError?.message
     });
 
     return {
@@ -191,8 +191,8 @@ export class FaultToleranceHandler {
       error: lastError || new Error('Unknown error'),
       data: fallbackResult,
       retries: this.options.maxRetries,
-      circuitBreakerState: this.options.circuitBreakerEnabled 
-        ? this.getCircuitBreakerState(operationName) 
+      circuitBreakerState: this.options.circuitBreakerEnabled
+        ? this.getCircuitBreakerState(operationName)
         : undefined
     };
   }
@@ -334,8 +334,8 @@ export class FaultToleranceHandler {
     if (state.failureCount >= this.options.circuitBreakerFailureThreshold) {
       state.state = 'OPEN';
       state.nextAttemptTime = Date.now() + this.options.circuitBreakerTimeout;
-      this.logger.warn('Circuit breaker opened due to failures', { 
-        operationName, 
+      this.logger.warn('Circuit breaker opened due to failures', {
+        operationName,
         failureCount: state.failureCount,
         error: error.message
       });
@@ -356,9 +356,9 @@ export class FaultToleranceHandler {
               return cachedResult as T;
             }
           } catch (cacheError) {
-            this.logger.warn('Cache fallback failed', { 
-              operationName, 
-              error: (cacheError as Error).message 
+            this.logger.warn('Cache fallback failed', {
+              operationName,
+              error: (cacheError as Error).message
             });
           }
         }

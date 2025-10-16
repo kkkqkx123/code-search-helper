@@ -2,8 +2,8 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { TransactionLogger } from '../transaction/TransactionLogger';
-import { GraphMappingCache } from '../caching/GraphMappingCache';
-import { GraphCacheStats } from '../caching/GraphMappingCache';
+import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
+import { GraphCacheStats } from '../graph/caching/GraphMappingCache';
 
 export interface PerformanceMetric {
   timestamp: number;
@@ -56,8 +56,8 @@ export interface Alert {
 
 export interface PerformanceTrend {
   metricName: string;
- values: Array<{ timestamp: number; value: number }>;
- trend: 'increasing' | 'decreasing' | 'stable';
+  values: Array<{ timestamp: number; value: number }>;
+  trend: 'increasing' | 'decreasing' | 'stable';
   changeRate: number;
 }
 
@@ -76,7 +76,7 @@ export class PerformanceDashboard {
     'cache.hit_rate': 0.8,        // 80%
     'transaction.error_rate': 0.05 // 5%
   };
-  
+
   private readonly MIN_STATISTICALLY_SIGNIFICANT_ACCESSES = 10; // 最少10次访问才认为统计显著
   private readonly ALERT_CONSECUTIVE_THRESHOLD = 3; // 连续3次低于阈值才触发
   private recentCacheHitRateMetrics: PerformanceMetric[] = [];
@@ -149,7 +149,7 @@ export class PerformanceDashboard {
       value: metric.value,
       tags: metric.tags
     });
- }
+  }
 
   /**
    * 获取仪表板统计数据
@@ -160,7 +160,7 @@ export class PerformanceDashboard {
     const lastMinute = now - 60000; // 1分钟前
 
     // Qdrant相关统计
-    const qdrantOps = this.metrics.filter(m => 
+    const qdrantOps = this.metrics.filter(m =>
       m.metricName.startsWith('qdrant.') && m.timestamp > lastMinute
     );
     this.dashboardStats.qdrant.operationsPerSecond = qdrantOps.length / 60;
@@ -168,19 +168,19 @@ export class PerformanceDashboard {
     const qdrantResponseTimes = qdrantOps
       .filter(m => m.metricName === 'qdrant.response_time')
       .map(m => m.value as number);
-    this.dashboardStats.qdrant.averageResponseTime = 
-      qdrantResponseTimes.length > 0 
-        ? qdrantResponseTimes.reduce((a, b) => a + b, 0) / qdrantResponseTimes.length 
+    this.dashboardStats.qdrant.averageResponseTime =
+      qdrantResponseTimes.length > 0
+        ? qdrantResponseTimes.reduce((a, b) => a + b, 0) / qdrantResponseTimes.length
         : 0;
 
-    const qdrantErrors = qdrantOps.filter(m => 
+    const qdrantErrors = qdrantOps.filter(m =>
       m.metricName === 'qdrant.error' || (typeof m.value === 'string' && m.value === 'error')
     );
-    this.dashboardStats.qdrant.errorRate = 
+    this.dashboardStats.qdrant.errorRate =
       qdrantOps.length > 0 ? qdrantErrors.length / qdrantOps.length : 0;
 
     // Graph相关统计
-    const graphOps = this.metrics.filter(m => 
+    const graphOps = this.metrics.filter(m =>
       m.metricName.startsWith('graph.') && m.timestamp > lastMinute
     );
     this.dashboardStats.graph.operationsPerSecond = graphOps.length / 60;
@@ -188,15 +188,15 @@ export class PerformanceDashboard {
     const graphResponseTimes = graphOps
       .filter(m => m.metricName === 'graph.response_time')
       .map(m => m.value as number);
-    this.dashboardStats.graph.averageResponseTime = 
-      graphResponseTimes.length > 0 
-        ? graphResponseTimes.reduce((a, b) => a + b, 0) / graphResponseTimes.length 
+    this.dashboardStats.graph.averageResponseTime =
+      graphResponseTimes.length > 0
+        ? graphResponseTimes.reduce((a, b) => a + b, 0) / graphResponseTimes.length
         : 0;
 
-    const graphErrors = graphOps.filter(m => 
+    const graphErrors = graphOps.filter(m =>
       m.metricName === 'graph.error' || (typeof m.value === 'string' && m.value === 'error')
     );
-    this.dashboardStats.graph.errorRate = 
+    this.dashboardStats.graph.errorRate =
       graphOps.length > 0 ? graphErrors.length / graphOps.length : 0;
 
     // 缓存相关统计
@@ -208,18 +208,18 @@ export class PerformanceDashboard {
     const transactionLogs = await this.transactionLogger.getTransactionLogs();
     const recentTransactions = transactionLogs.filter(log => log.timestamp > lastMinute);
     const successfulTransactions = recentTransactions.filter(log => log.status === 'committed');
-    this.dashboardStats.transaction.successRate = 
+    this.dashboardStats.transaction.successRate =
       recentTransactions.length > 0 ? successfulTransactions.length / recentTransactions.length : 1;
 
     const transactionDurations = recentTransactions
       .filter(log => log.status === 'committed' || log.status === 'failed')
       .map(log => (log.details.duration || 0) as number);
-    this.dashboardStats.transaction.averageDuration = 
-      transactionDurations.length > 0 
-        ? transactionDurations.reduce((a, b) => a + b, 0) / transactionDurations.length 
+    this.dashboardStats.transaction.averageDuration =
+      transactionDurations.length > 0
+        ? transactionDurations.reduce((a, b) => a + b, 0) / transactionDurations.length
         : 0;
 
-    this.dashboardStats.transaction.activeTransactions = 
+    this.dashboardStats.transaction.activeTransactions =
       transactionLogs.filter(log => log.status === 'pending' || log.status === 'prepared').length;
 
     return this.dashboardStats;
@@ -246,10 +246,10 @@ export class PerformanceDashboard {
     if (values.length >= 2) {
       const firstValue = values[0].value;
       const lastValue = values[values.length - 1].value;
-      
+
       if (firstValue !== 0) {
         changeRate = (lastValue - firstValue) / firstValue;
-        
+
         if (changeRate > 0.1) {
           trend = 'increasing';
         } else if (changeRate < -0.1) {
@@ -276,9 +276,9 @@ export class PerformanceDashboard {
     return [...this.alerts];
   }
 
- /**
-   * 获取指标历史数据
-   */
+  /**
+    * 获取指标历史数据
+    */
   async getMetricHistory(
     metricName: string,
     fromTime: number,
@@ -286,9 +286,9 @@ export class PerformanceDashboard {
     aggregation?: 'avg' | 'sum' | 'min' | 'max'
   ): Promise<Array<{ timestamp: number; value: number }>> {
     const filteredMetrics = this.metrics
-      .filter(m => 
-        m.metricName === metricName && 
-        m.timestamp >= fromTime && 
+      .filter(m =>
+        m.metricName === metricName &&
+        m.timestamp >= fromTime &&
         m.timestamp <= toTime &&
         typeof m.value === 'number'
       )
@@ -453,7 +453,7 @@ export class PerformanceDashboard {
     // 计算整体状态
     const criticalComponents = [qdrantStatus, graphStatus, cacheStatus, transactionStatus]
       .filter(status => status === 'critical').length;
-    
+
     const degradedComponents = [qdrantStatus, graphStatus, cacheStatus, transactionStatus]
       .filter(status => status === 'degraded').length;
 

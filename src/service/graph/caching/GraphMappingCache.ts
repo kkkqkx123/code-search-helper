@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../types';
-import { LoggerService } from '../../utils/LoggerService';
-import { GraphNode, GraphRelationship } from '../graph/mapping/IGraphDataMappingService';
-import { LRUCache, CacheStats } from '../../utils/LRUCache';
+import { TYPES } from '../../../types';
+import { LoggerService } from '../../../utils/LoggerService';
+import { GraphNode, GraphRelationship } from '../mapping/IGraphDataMappingService';
+import { LRUCache, CacheStats } from '../../../utils/LRUCache';
 
 export interface GraphCacheStats extends CacheStats {
   hitRate: number;
@@ -24,7 +24,7 @@ export class GraphMappingCache {
         defaultTTL: this.defaultTTL,
         enableFastAccess: true // 启用快速访问以提高读取性能
       });
-      
+
       this.logger.info('GraphMappingCache initialized with optimized LRU cache', {
         maxSize: 10000,
         defaultTTL: this.defaultTTL,
@@ -230,7 +230,7 @@ export class GraphMappingCache {
    */
   async warmup(commonKeys: string[]): Promise<void> {
     this.logger.info('Starting cache warmup', { keyCount: commonKeys.length });
-    
+
     // 这里可以根据实际需求实现预热逻辑
     // 例如：预加载常用的图结构数据
     for (const key of commonKeys) {
@@ -238,7 +238,7 @@ export class GraphMappingCache {
         this.logger.debug('Warmup: key not found', { key });
       }
     }
-    
+
     this.logger.info('Cache warmup completed');
   }
 
@@ -251,16 +251,16 @@ export class GraphMappingCache {
     size: number;
   }> {
     const stats = await this.getStats();
-    
+
     let status: 'healthy' | 'warning' | 'critical' = 'healthy';
-    
+
     // 基于命中率判断健康状态
     if (stats.hitRate < 0.5 && stats.hits + stats.misses > 100) {
       status = 'critical';
     } else if (stats.hitRate < 0.7 && stats.hits + stats.misses > 50) {
       status = 'warning';
     }
-    
+
     return {
       status,
       hitRate: stats.hitRate,
@@ -289,12 +289,12 @@ export class GraphMappingCache {
    */
   async getBatch<T>(keys: string[]): Promise<Map<string, T | null>> {
     const results = new Map<string, T | null>();
-    
+
     for (const key of keys) {
       const result = this.cache.get(key) as T | undefined;
       results.set(key, result || null);
     }
-    
+
     this.logger.debug('Batch get completed', { keyCount: keys.length, hitCount: Array.from(results.values()).filter(v => v !== null).length });
     return results;
   }

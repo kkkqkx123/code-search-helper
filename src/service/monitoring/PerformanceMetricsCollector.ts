@@ -3,7 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { PerformanceDashboard, PerformanceMetric } from './PerformanceDashboard';
 import { TransactionLogger } from '../transaction/TransactionLogger';
-import { GraphMappingCache } from '../caching/GraphMappingCache';
+import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
 
 export interface CollectionRule {
   metricName: string;

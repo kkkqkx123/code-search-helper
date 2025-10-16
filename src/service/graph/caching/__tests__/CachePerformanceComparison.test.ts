@@ -1,6 +1,6 @@
 import { GraphMappingCache } from '../GraphMappingCache';
-import { LoggerService } from '../../../utils/LoggerService';
-import { GraphNode, GraphNodeType, GraphRelationship, GraphRelationshipType } from '../../graph/mapping/IGraphDataMappingService';
+import { LoggerService } from '../../../../utils/LoggerService';
+import { GraphNode, GraphNodeType, GraphRelationship, GraphRelationshipType } from '../../mapping/IGraphDataMappingService';
 
 // Mock LoggerService
 const mockLogger = {
@@ -19,7 +19,7 @@ class OriginalGraphMappingCache {
   private readonly maxEntries: number = 10000;
   private readonly maxMemory: number = 50 * 1024 * 1024;
 
-  constructor() {}
+  constructor() { }
 
   private getOldestKey(): string | null {
     let oldestKey: string | null = null;
@@ -165,7 +165,7 @@ describe('缓存性能对比测试', () => {
   describe('写入性能对比', () => {
     it('新缓存应该比旧缓存写入更快', async () => {
       const iterations = 1000;
-      
+
       // 测试新缓存
       const newStart = performance.now();
       for (let i = 0; i < iterations; i++) {
@@ -202,7 +202,7 @@ describe('缓存性能对比测试', () => {
 
     it('新缓存应该比旧缓存读取更快', async () => {
       const iterations = 1000;
-      
+
       // 测试新缓存
       const newStart = performance.now();
       for (let i = 0; i < iterations; i++) {
@@ -231,7 +231,7 @@ describe('缓存性能对比测试', () => {
   describe('内存使用对比', () => {
     it('两种实现的内存使用应该相当', async () => {
       const iterations = 1000;
-      
+
       // 填充新缓存
       for (let i = 0; i < iterations; i++) {
         await newCache.cacheNodes(`new-key-${i}`, testNodes.slice(0, 10));
@@ -259,8 +259,8 @@ describe('缓存性能对比测试', () => {
       const largeDataset = Array.from({ length: 15000 }, (_, i) => ({
         id: `large-node-${i}`,
         type: GraphNodeType.FUNCTION,
-        properties: { 
-          name: `function-${i}`, 
+        properties: {
+          name: `function-${i}`,
           data: 'x'.repeat(1000), // 增加内存占用
           complexity: Math.floor(Math.random() * 10)
         }

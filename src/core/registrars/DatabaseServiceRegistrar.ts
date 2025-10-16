@@ -53,7 +53,7 @@ import { SpaceNameUtils, ISpaceNameUtils } from '../../database/nebula/SpaceName
 import { GraphDataMappingService } from '../../service/graph/mapping/GraphDataMappingService';
 import { AsyncTaskQueue } from '../../service/async/AsyncTaskQueue';
 import { DataMappingValidator } from '../../service/validation/DataMappingValidator';
-import { GraphMappingCache } from '../../service/caching/GraphMappingCache';
+import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
 
 export class DatabaseServiceRegistrar {
   static register(container: Container): void {

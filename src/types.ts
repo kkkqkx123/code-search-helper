@@ -95,7 +95,7 @@ import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnec
 
 // 图服务
 // GraphCacheService 从 service/graph/cache 导入
-import { GraphCacheService } from './service/graph/cache/GraphCacheService';
+import { GraphCacheService } from './service/graph/caching/GraphCacheService';
 import { GraphQueryBuilder, IGraphQueryBuilder } from './database/nebula/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
@@ -150,7 +150,7 @@ export const TYPES = {
   NebulaConfigService: Symbol.for('NebulaConfigService'),
   ProjectNamingConfigService: Symbol.for('ProjectNamingConfigService'),
   InfrastructureConfigService: Symbol.for('InfrastructureConfigService'),
-  
+
 
   QdrantService: Symbol.for('QdrantService'),
   LoggerService: Symbol.for('LoggerService'),

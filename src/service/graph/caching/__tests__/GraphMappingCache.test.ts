@@ -1,6 +1,6 @@
 import { GraphMappingCache } from '../GraphMappingCache';
-import { LoggerService } from '../../../utils/LoggerService';
-import { GraphNode, GraphRelationship, GraphNodeType, GraphRelationshipType } from '../../graph/mapping/IGraphDataMappingService';
+import { LoggerService } from '../../../../utils/LoggerService';
+import { GraphNode, GraphRelationship, GraphNodeType, GraphRelationshipType } from '../../mapping/IGraphDataMappingService';
 
 // Mock LoggerService
 const mockLogger = {

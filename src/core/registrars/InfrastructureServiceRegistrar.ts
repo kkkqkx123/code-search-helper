@@ -4,7 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 
 // 图服务基础设施
-import { GraphCacheService } from '../../service/graph/cache/GraphCacheService';
+import { GraphCacheService } from '../../service/graph/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { GraphQueryValidator } from '../../service/graph/validation/GraphQueryValidator';
 
@@ -18,7 +18,7 @@ import { TransactionLogger } from '../../service/transaction/TransactionLogger';
 import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
 import { GraphBatchOptimizer } from '../../service/graph/utils/GraphBatchOptimizer';
-import { GraphMappingCache } from '../../service/caching/GraphMappingCache';
+import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
 
 // 基础设施配置服务
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';

@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
 import { IGraphService } from '../../service/graph/core/IGraphService';
-import { GraphCacheService } from '../../service/graph/cache/GraphCacheService';
+import { GraphCacheService } from '../../service/graph/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../utils/LoggerService';
 

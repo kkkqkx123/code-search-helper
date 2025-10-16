@@ -4,8 +4,8 @@ import { LoggerService } from '../../utils/LoggerService';
 import { PerformanceDashboard } from '../monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../monitoring/PerformanceMetricsCollector';
 import { GraphBatchOptimizer } from '../graph/utils/GraphBatchOptimizer';
-import { GraphMappingCache } from '../caching/GraphMappingCache';
-import { GraphCacheStats } from '../caching/GraphMappingCache';
+import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
+import { GraphCacheStats } from '../graph/caching/GraphMappingCache';
 
 export interface OptimizationRecommendation {
   id: string;

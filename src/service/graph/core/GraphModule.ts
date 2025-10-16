@@ -8,7 +8,7 @@ import { GraphServiceNewAdapter } from './GraphServiceNewAdapter';
 import { IGraphSearchService } from './IGraphSearchService';
 
 // 导入基础设施服务实现
-import { GraphCacheService } from '../../graph/cache/GraphCacheService';
+import { GraphCacheService } from '../caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from '../../graph/performance/GraphBatchOptimizer';
 import { GraphQueryValidator } from '../../graph/validation/GraphQueryValidator';
@@ -17,7 +17,7 @@ import { GraphQueryValidator } from '../../graph/validation/GraphQueryValidator'
 export const GraphModule = new ContainerModule((bindObj: any) => {
   try {
     const bind = bindObj.bind;
-    
+
     // 绑定图分析服务
     bind(TYPES.GraphAnalysisService)
       .to(GraphAnalysisService)
@@ -49,7 +49,7 @@ export const GraphModule = new ContainerModule((bindObj: any) => {
     bind(TYPES.GraphServiceNewAdapter)
       .to(GraphServiceNewAdapter)
       .inSingletonScope();
-    
+
     // 绑定GraphService以解决依赖问题
     bind(TYPES.GraphService)
       .to(GraphServiceNewAdapter)
