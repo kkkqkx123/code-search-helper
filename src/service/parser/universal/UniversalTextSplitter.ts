@@ -3,6 +3,7 @@ import { CodeChunk, CodeChunkMetadata } from '../splitting/Splitter';
 import { LoggerService } from '../../../utils/LoggerService';
 import { DEFAULT_CONFIG, BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD, getDynamicBlockLimits } from './constants';
 import { MarkdownTextSplitter } from './md/MarkdownTextSplitter';
+import { ProtectionInterceptorChain, ProtectionContext } from './protection/ProtectionInterceptor';
 
 /**
  * 通用分段选项
@@ -28,11 +29,20 @@ export class UniversalTextSplitter {
   private options: UniversalChunkingOptions;
   private logger?: LoggerService;
   private markdownSplitter: MarkdownTextSplitter;
+  private protectionChain?: ProtectionInterceptorChain; // 外部保护机制
 
   constructor(logger?: LoggerService) {
     this.logger = logger;
     this.options = { ...DEFAULT_CONFIG.TEXT_SPLITTER_OPTIONS };
     this.markdownSplitter = new MarkdownTextSplitter(logger);
+  }
+
+  /**
+   * 设置保护拦截器链
+   */
+  setProtectionChain(chain: ProtectionInterceptorChain): void {
+    this.protectionChain = chain;
+    this.logger?.debug('Protection interceptor chain set for UniversalTextSplitter');
   }
 
   /**
@@ -47,6 +57,23 @@ export class UniversalTextSplitter {
    */
   getOptions(): UniversalChunkingOptions {
     return { ...this.options };
+  }
+
+  /**
+   * 执行保护检查
+   */
+  private async checkProtection(context: ProtectionContext): Promise<boolean> {
+    if (!this.protectionChain) {
+      return true; // 如果没有保护链，默认允许继续
+    }
+
+    try {
+      const decision = await this.protectionChain.execute(context);
+      return decision.shouldProceed;
+    } catch (error) {
+      this.logger?.error('Error executing protection chain:', error);
+      return true; // 保护检查出错时，默认允许继续执行
+    }
   }
 
   /**
@@ -285,7 +312,7 @@ export class UniversalTextSplitter {
    * 优先在逻辑边界处分段，如函数、类、代码块等
    * 对 Markdown 文件使用专门的分段策略
    */
-  chunkBySemanticBoundaries(content: string, filePath?: string, language?: string): CodeChunk[] {
+  async chunkBySemanticBoundaries(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     // 对小文件直接作为一个块处理，无重叠
     if (this.isSmallFile(content)) {
       return this.chunkSmallFile(content, filePath, language);
@@ -297,6 +324,24 @@ export class UniversalTextSplitter {
       // 为markdown分块添加重叠
       return this.addOverlapToChunks(mdChunks, content, language, filePath);
     }
+    
+    // 执行保护检查
+    const protectionContext: ProtectionContext = {
+      operation: 'semantic_chunk',
+      filePath,
+      content,
+      language,
+      metadata: {
+        contentLength: content.length,
+        lineCount: content.split('\n').length
+      }
+    };
+
+    if (!await this.checkProtection(protectionContext)) {
+      this.logger?.warn('Semantic chunking blocked by protection mechanism, falling back to line-based chunking');
+      return this.chunkByLines(content, filePath, language);
+    }
+
     try {
       const chunks: CodeChunk[] = [];
       const lines = content.split('\n');
@@ -362,10 +407,22 @@ export class UniversalTextSplitter {
 
         currentChunk.push(line);
 
-        // 内存检查
+        // 内存检查 - 现在通过外部保护机制处理
         if (i > 0 && i % 1000 === 0) {
-          if (this.isMemoryLimitExceeded()) {
-            this.logger?.warn(`语义分块过程中内存限制超出，在第 ${i} 行停止`);
+          const memoryProtectionContext: ProtectionContext = {
+            operation: 'semantic_chunk',
+            filePath,
+            content,
+            language,
+            metadata: {
+              currentLine: i,
+              totalLines: lines.length,
+              checkType: 'memory'
+            }
+          };
+
+          if (!await this.checkProtection(memoryProtectionContext)) {
+            this.logger?.warn(`语义分块过程中保护机制触发，在第 ${i} 行停止`);
             break;
           }
         }
@@ -415,6 +472,17 @@ export class UniversalTextSplitter {
       return rebalancedChunks;
     } catch (error) {
       this.logger?.error(`语义分块错误: ${error}`);
+      
+      // 记录错误到错误阈值拦截器
+      if (this.protectionChain) {
+        const errorInterceptor = this.protectionChain.getInterceptors().find(
+          i => i.getName() === 'ErrorThresholdInterceptor'
+        );
+        if (errorInterceptor && 'recordError' in errorInterceptor) {
+          (errorInterceptor as any).recordError('parse_error', String(error), { filePath, language });
+        }
+      }
+      
       return this.chunkByLines(content, filePath, language);
     }
   }
@@ -482,7 +550,24 @@ export class UniversalTextSplitter {
    * 基于括号和行数的智能分段
    * 适用于代码文件，保持代码块的完整性
    */
-  chunkByBracketsAndLines(content: string, filePath?: string, language?: string): CodeChunk[] {
+  async chunkByBracketsAndLines(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
+    // 执行保护检查
+    const protectionContext: ProtectionContext = {
+      operation: 'bracket_chunk',
+      filePath,
+      content,
+      language,
+      metadata: {
+        contentLength: content.length,
+        lineCount: content.split('\n').length
+      }
+    };
+
+    if (!await this.checkProtection(protectionContext)) {
+      this.logger?.warn('Bracket chunking blocked by protection mechanism, falling back to line-based chunking');
+      return this.chunkByLines(content, filePath, language);
+    }
+
     try {
       if (!this.options.enableBracketBalance) {
         return this.chunkByLines(content, filePath, language);
@@ -551,10 +636,22 @@ export class UniversalTextSplitter {
           xmlTagDepth = 0;
         }
 
-        // 内存检查
+        // 内存检查 - 现在通过外部保护机制处理
         if (i > 0 && i % 1000 === 0) {
-          if (this.isMemoryLimitExceeded()) {
-            this.logger?.warn(`括号分块过程中内存限制超出，在第 ${i} 行停止`);
+          const memoryProtectionContext: ProtectionContext = {
+            operation: 'bracket_chunk',
+            filePath,
+            content,
+            language,
+            metadata: {
+              currentLine: i,
+              totalLines: lines.length,
+              checkType: 'memory'
+            }
+          };
+
+          if (!await this.checkProtection(memoryProtectionContext)) {
+            this.logger?.warn(`括号分块过程中保护机制触发，在第 ${i} 行停止`);
             break;
           }
         }
@@ -602,6 +699,17 @@ export class UniversalTextSplitter {
       return rebalancedChunks;
     } catch (error) {
       this.logger?.error(`括号分块错误: ${error}`);
+      
+      // 记录错误到错误阈值拦截器
+      if (this.protectionChain) {
+        const errorInterceptor = this.protectionChain.getInterceptors().find(
+          i => i.getName() === 'ErrorThresholdInterceptor'
+        );
+        if (errorInterceptor && 'recordError' in errorInterceptor) {
+          (errorInterceptor as any).recordError('parse_error', String(error), { filePath, language });
+        }
+      }
+      
       return this.chunkByLines(content, filePath, language);
     }
   }
@@ -610,7 +718,38 @@ export class UniversalTextSplitter {
    * 简单的行数分段
    * 基于行数的简单分段，作为最终的降级方案
    */
-  chunkByLines(content: string, filePath?: string, language?: string): CodeChunk[] {
+  async chunkByLines(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
+    // 执行保护检查
+    const protectionContext: ProtectionContext = {
+      operation: 'line_chunk',
+      filePath,
+      content,
+      language,
+      metadata: {
+        contentLength: content.length,
+        lineCount: content.split('\n').length
+      }
+    };
+
+    if (!await this.checkProtection(protectionContext)) {
+      this.logger?.warn('Line chunking blocked by protection mechanism, returning minimal chunks');
+      // 如果行分段也被阻止，返回一个包含整个内容的最小分块
+      const lines = content.split('\n');
+      const complexity = this.calculateComplexity(content);
+      
+      return [{
+        content: content.substring(0, Math.min(content.length, this.options.maxChunkSize)),
+        metadata: {
+          startLine: 1,
+          endLine: Math.min(lines.length, this.options.maxLinesPerChunk),
+          language: language || 'unknown',
+          filePath,
+          type: 'line',
+          complexity
+        }
+      }];
+    }
+
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
     let currentChunk: string[] = [];
@@ -663,10 +802,22 @@ export class UniversalTextSplitter {
         }
       }
 
-      // 内存检查
+      // 内存检查 - 现在通过外部保护机制处理
       if (i > 0 && i % 1000 === 0) {
-        if (this.isMemoryLimitExceeded()) {
-          this.logger?.warn(`行数分块过程中内存限制超出，在第 ${i} 行停止`);
+        const memoryProtectionContext: ProtectionContext = {
+          operation: 'line_chunk',
+          filePath,
+          content,
+          language,
+          metadata: {
+            currentLine: i,
+            totalLines: lines.length,
+            checkType: 'memory'
+          }
+        };
+
+        if (!await this.checkProtection(memoryProtectionContext)) {
+          this.logger?.warn(`行数分块过程中保护机制触发，在第 ${i} 行停止`);
           break;
         }
       }
@@ -871,19 +1022,5 @@ export class UniversalTextSplitter {
     complexity += Math.log10(lines + 1) * 2;
 
     return Math.round(complexity);
-  }
-
-  /**
-   * 检查内存限制是否超出
-   */
-  private isMemoryLimitExceeded(): boolean {
-    try {
-      const currentMemory = process.memoryUsage();
-      const memoryUsageMB = currentMemory.heapUsed / 1024 / 1024;
-      return memoryUsageMB > this.options.memoryLimitMB;
-    } catch (error) {
-      this.logger?.warn(`检查内存使用失败: ${error}`);
-      return false;
-    }
   }
 }
