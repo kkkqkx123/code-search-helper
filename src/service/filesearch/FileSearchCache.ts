@@ -1,6 +1,6 @@
 import { FileSearchResult, CachedSearchResult, CacheConfig } from './types';
 import { LoggerService } from '../../utils/LoggerService';
-import { LRUCache } from '../parser/utils/LRUCache';
+import { LRUCache } from '../../utils/LRUCache';
 
 /**
  * 文件搜索缓存服务
@@ -21,7 +21,7 @@ export class FileSearchCache {
     };
     this.logger = logger;
     this.cache = new LRUCache(this.config.maxSize);
-    
+
     // 启动定期清理
     this.startCleanupInterval();
   }
@@ -31,17 +31,17 @@ export class FileSearchCache {
    */
   async get(key: string): Promise<FileSearchResult[] | null> {
     const cached = this.cache.get(key);
-    
+
     if (!cached) {
       return null;
     }
-    
+
     // 检查是否过期
     if (Date.now() > cached.expiresAt) {
       this.delete(key);
       return null;
     }
-    
+
     this.logger.debug(`缓存命中: ${key}`);
     return cached.results;
   }
@@ -51,15 +51,15 @@ export class FileSearchCache {
    */
   async set(key: string, results: FileSearchResult[], ttl?: number): Promise<void> {
     const expiresAt = Date.now() + (ttl || this.config.defaultTTL || 5 * 60 * 1000);
-    
+
     const cachedResult: CachedSearchResult = {
       results,
       expiresAt,
       createdAt: Date.now()
     };
-    
+
     this.cache.set(key, cachedResult);
-    
+
     this.logger.debug(`缓存设置: ${key}, 结果数量: ${results.length}`);
   }
 
@@ -116,17 +116,17 @@ export class FileSearchCache {
    */
   has(key: string): boolean {
     const cached = this.cache.get(key);
-    
+
     if (!cached) {
       return false;
     }
-    
+
     // 检查是否过期
     if (Date.now() > cached.expiresAt) {
       this.delete(key);
       return false;
     }
-    
+
     return true;
   }
 
@@ -169,7 +169,7 @@ export class FileSearchCache {
     this.cleanupIntervalId = setInterval(() => {
       this.cleanupExpired();
     }, this.config.cleanupInterval);
-    
+
     this.logger.debug(`定期清理已启动，间隔: ${this.config.cleanupInterval}ms`);
   }
 
@@ -179,7 +179,7 @@ export class FileSearchCache {
   private cleanupExpired(): void {
     const now = Date.now();
     let cleanedCount = 0;
-    
+
     // 获取所有键并检查过期
     const keys = this.cache.keys();
     for (const key of keys) {
@@ -189,7 +189,7 @@ export class FileSearchCache {
         cleanedCount++;
       }
     }
-    
+
     if (cleanedCount > 0) {
       this.logger.debug(`清理过期缓存项: ${cleanedCount}个`);
     }
@@ -202,18 +202,18 @@ export class FileSearchCache {
     if (obj === null || typeof obj !== 'object') {
       return obj;
     }
-    
+
     if (Array.isArray(obj)) {
       return obj.map(item => this.sortObject(item));
     }
-    
+
     const sortedObj: any = {};
     const keys = Object.keys(obj).sort();
-    
+
     for (const key of keys) {
       sortedObj[key] = this.sortObject(obj[key]);
     }
-    
+
     return sortedObj;
   }
 

@@ -21,7 +21,7 @@ describe('LRUCache', () => {
     it('应该使用自定义最大大小初始化', () => {
       const customCache = new LRUCache<string, number>(2);
       expect(customCache.size()).toBe(0);
-      
+
       customCache.set('key1', 1);
       customCache.set('key2', 2);
       expect(customCache.size()).toBe(2);
@@ -42,13 +42,13 @@ describe('LRUCache', () => {
       cache.set('key1', 1);
       cache.set('key2', 2);
       cache.set('key3', 3);
-      
+
       // 访问key1使其成为最近使用的
       expect(cache.get('key1')).toBe(1);
-      
+
       // 添加key4，应该淘汰key2（最久未使用的）
       cache.set('key4', 4);
-      
+
       expect(cache.get('key1')).toBe(1); // key1应该还存在
       expect(cache.get('key2')).toBeUndefined(); // key2应该被淘汰
       expect(cache.get('key3')).toBe(3); // key3应该还存在
@@ -74,13 +74,13 @@ describe('LRUCache', () => {
       cache.set('key1', 1);
       cache.set('key2', 2);
       cache.set('key3', 3);
-      
+
       // 访问key1使其成为最近使用的
       cache.get('key1');
-      
+
       // 添加key4，应该淘汰key2（最久未使用的）
       cache.set('key4', 4);
-      
+
       expect(cache.size()).toBe(3);
       expect(cache.get('key1')).toBe(1); // key1应该还存在
       expect(cache.get('key2')).toBeUndefined(); // key2应该被淘汰
@@ -111,7 +111,7 @@ describe('LRUCache', () => {
     it('应该删除指定的键', () => {
       cache.set('key1', 100);
       expect(cache.has('key1')).toBe(true);
-      
+
       const result = cache.delete('key1');
       expect(result).toBe(true);
       expect(cache.has('key1')).toBe(false);
@@ -129,7 +129,7 @@ describe('LRUCache', () => {
       cache.set('key1', 1);
       cache.set('key2', 2);
       expect(cache.size()).toBe(2);
-      
+
       cache.clear();
       expect(cache.size()).toBe(0);
       expect(cache.get('key1')).toBeUndefined();
@@ -140,16 +140,16 @@ describe('LRUCache', () => {
   describe('size', () => {
     it('应该返回正确的缓存大小', () => {
       expect(cache.size()).toBe(0);
-      
+
       cache.set('key1', 1);
       expect(cache.size()).toBe(1);
-      
+
       cache.set('key2', 2);
       expect(cache.size()).toBe(2);
-      
+
       cache.delete('key1');
       expect(cache.size()).toBe(1);
-      
+
       cache.clear();
       expect(cache.size()).toBe(0);
     });
@@ -160,7 +160,7 @@ describe('LRUCache', () => {
       cache.set('key1', 1);
       cache.set('key2', 2);
       cache.set('key3', 3);
-      
+
       const keys = cache.keys();
       expect(keys).toContain('key1');
       expect(keys).toContain('key2');
@@ -174,7 +174,7 @@ describe('LRUCache', () => {
       cache.set('key1', 1);
       cache.set('key2', 2);
       cache.set('key3', 3);
-      
+
       const values = cache.values();
       expect(values).toContain(1);
       expect(values).toContain(2);
@@ -189,16 +189,16 @@ describe('LRUCache', () => {
       cache.set('key1', 1);
       cache.set('key2', 2);
       cache.set('key3', 3);
-      
+
       // 访问key1使其成为最近使用的
       cache.get('key1');
-      
+
       // 访问key2使其成为第二最近使用的
       cache.get('key2');
-      
+
       // 添加key4，应该淘汰key3（最久未使用的）
       cache.set('key4', 4);
-      
+
       expect(cache.get('key1')).toBe(1);
       expect(cache.get('key2')).toBe(2);
       expect(cache.get('key3')).toBeUndefined();
@@ -209,13 +209,13 @@ describe('LRUCache', () => {
       cache.set('key1', 1);
       cache.set('key2', 2);
       cache.set('key3', 3);
-      
+
       // 更新key1的值，这应该使其成为最近使用的
       cache.set('key1', 100);
-      
+
       // 添加key4，应该淘汰key2（现在是最久未使用的）
       cache.set('key4', 4);
-      
+
       expect(cache.get('key1')).toBe(100);
       expect(cache.get('key2')).toBeUndefined();
       expect(cache.get('key3')).toBe(3);

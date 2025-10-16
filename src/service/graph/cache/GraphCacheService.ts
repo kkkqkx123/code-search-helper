@@ -4,7 +4,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { CacheEntry, GraphAnalysisResult } from '../core/types';
-import { LRUCache } from '../../parser/utils/LRUCache';
+import { LRUCache } from '../../../utils/LRUCache';
 
 export interface IGraphCacheService {
   getFromCache<T>(key: string): T | null;
@@ -40,10 +40,10 @@ class TTLCache<K, V> extends LRUCache<K, CacheEntry<V>> {
   entries(): IterableIterator<[K, CacheEntry<V>]> {
     // 创建一个 Map 来存储键值对
     const entriesMap = new Map<K, CacheEntry<V>>();
-    
+
     // 获取所有键
     const keys = super.keys();
-    
+
     // 为每个键获取值
     for (const key of keys) {
       const value = super.get(key);
@@ -51,7 +51,7 @@ class TTLCache<K, V> extends LRUCache<K, CacheEntry<V>> {
         entriesMap.set(key, value);
       }
     }
-    
+
     return entriesMap.entries();
   }
 }
@@ -74,7 +74,7 @@ export class GraphCacheService implements IGraphCacheService {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
-    
+
     // 延迟初始化缓存，避免在构造函数中访问未初始化的配置服务
     // 缓存将在第一次使用时通过 getCacheConfig() 方法初始化
     this.cache = new TTLCache<string, any>(10000); // 使用默认值
@@ -89,7 +89,7 @@ export class GraphCacheService implements IGraphCacheService {
       if (!this.configService) {
         throw new Error('ConfigService not available');
       }
-      
+
       // 尝试获取配置，如果失败则使用默认值
       try {
         return this.configService.get('caching');
@@ -106,7 +106,7 @@ export class GraphCacheService implements IGraphCacheService {
   getFromCache<T>(key: string): T | null {
     try {
       const entry = this.cache.get(key);
-      
+
       if (!entry) {
         this.misses++;
         return null;
@@ -139,7 +139,7 @@ export class GraphCacheService implements IGraphCacheService {
       const cacheConfig = this.getCacheConfig();
       const defaultTTL = cacheConfig.defaultTTL || 30000; // 5 minutes default
       const cacheTTL = ttl || defaultTTL;
-      
+
       const entry: CacheEntry<T> = {
         data: value,
         timestamp: Date.now(),
@@ -225,7 +225,7 @@ export class GraphCacheService implements IGraphCacheService {
     try {
       const cacheConfig = this.getCacheConfig();
       const defaultTTL = cacheConfig.defaultTTL || 300000; // 5 minutes default
-      
+
       this.graphStatsCache = {
         data: stats,
         timestamp: Date.now(),
@@ -296,9 +296,9 @@ export class GraphCacheService implements IGraphCacheService {
     return usage.percentage > 80;
   }
 
- /**
-   * 当缓存接近容量限制时，删除最旧的条目
-   */
+  /**
+    * 当缓存接近容量限制时，删除最旧的条目
+    */
   evictOldestEntries(ratio: number = 0.2): void {
     try {
       if (!this.isNearCapacity()) {
@@ -339,16 +339,16 @@ export class GraphCacheService implements IGraphCacheService {
       // 检查缓存是否可用
       const testKey = '__health_check__';
       const testValue = { timestamp: Date.now() };
-      
+
       // 设置测试值
       this.setCache(testKey, testValue, 1000);
-      
+
       // 获取测试值
       const retrieved = this.getFromCache<{ timestamp: number }>(testKey);
-      
+
       // 清除测试值
       this.invalidateCache(testKey);
-      
+
       // 检查获取的值是否正确
       return retrieved !== null && retrieved.timestamp === testValue.timestamp;
     } catch (error) {
@@ -364,7 +364,7 @@ export class GraphCacheService implements IGraphCacheService {
     try {
       const usage = this.getCacheUsage();
       const stats = this.getCacheStats();
-      
+
       if (usage.percentage > 90) {
         return 'critical'; // 缓存使用率超过90%
       } else if (usage.percentage > 70) {

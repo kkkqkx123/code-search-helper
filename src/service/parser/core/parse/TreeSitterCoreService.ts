@@ -8,7 +8,7 @@ import Go from 'tree-sitter-go';
 import Rust from 'tree-sitter-rust';
 import Cpp from 'tree-sitter-cpp';
 import { TreeSitterUtils } from '../../utils/TreeSitterUtils';
-import { LRUCache } from '../../utils/LRUCache';
+import { LRUCache } from '../../../../utils/LRUCache';
 import { ConfigService } from '../../../../config/ConfigService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
@@ -532,13 +532,13 @@ export class TreeSitterCoreService {
    */
   getLanguageExtensionMap(): Map<string, string[]> {
     const map = new Map<string, string[]>();
-    
+
     this.parsers.forEach((parser, language) => {
       if (parser.supported) {
         map.set(language, parser.fileExtensions);
       }
     });
-    
+
     return map;
   }
 
