@@ -24,7 +24,7 @@ import { CodeChunk } from '../../parser/splitting/Splitter';
 import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from '../../validation/DataMappingValidator';
 import { GraphMappingCache } from '../../caching/GraphMappingCache';
-import { GraphBatchOptimizer } from '../../batching/GraphBatchOptimizer';
+import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
 
 @injectable()
 export class GraphDataMappingService implements IGraphDataMappingService {

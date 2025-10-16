@@ -3,7 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { PerformanceDashboard } from '../monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../monitoring/PerformanceMetricsCollector';
-import { GraphBatchOptimizer } from '../batching/GraphBatchOptimizer';
+import { GraphBatchOptimizer } from '../graph/utils/GraphBatchOptimizer';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { CacheStats } from '../caching/GraphMappingCache';
 

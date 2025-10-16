@@ -4,7 +4,7 @@ import { BackupFileProcessor } from '../BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
 import { ProcessingGuard } from '../ProcessingGuard';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
-import { MemoryGuard } from '../MemoryGuard';
+import { MemoryGuard } from '../../guard/MemoryGuard';
 import { LoggerService } from '../../../../utils/LoggerService';
 
 // Mock LoggerService
@@ -28,7 +28,7 @@ describe('Universal Processing Performance Tests', () => {
     universalTextSplitter = new UniversalTextSplitter(mockLogger);
     backupFileProcessor = new BackupFileProcessor(mockLogger);
     extensionlessFileProcessor = new ExtensionlessFileProcessor(mockLogger);
-    
+
     const errorThresholdManager = new ErrorThresholdManager(mockLogger);
     // 创建 IMemoryMonitorService 的模拟实现
     const mockMemoryMonitor: any = {
@@ -50,9 +50,9 @@ describe('Universal Processing Performance Tests', () => {
       isWithinLimit: jest.fn().mockReturnValue(true),
       setMemoryLimit: jest.fn()
     };
-    
+
     const memoryGuard = new MemoryGuard(mockMemoryMonitor, 1000, 10000, mockLogger);
-    
+
     processingGuard = new ProcessingGuard(
       mockLogger,
       errorThresholdManager,
@@ -61,7 +61,7 @@ describe('Universal Processing Performance Tests', () => {
       extensionlessFileProcessor,
       universalTextSplitter
     );
-    
+
     processingGuard.initialize();
   });
 
@@ -73,17 +73,17 @@ describe('Universal Processing Performance Tests', () => {
     it('should process large JavaScript files within reasonable time', async () => {
       // Generate a large JavaScript file (approximately 10,000 lines)
       const largeJSCode = generateLargeJavaScriptFile(10000);
-      
+
       const startTime = performance.now();
       const result = await processingGuard.processFile('large.js', largeJSCode);
       const endTime = performance.now();
       const processingTime = endTime - startTime;
-      
+
       // Performance assertions
       expect(processingTime).toBeLessThan(5000); // Should complete within 5 seconds
       expect(result.chunks.length).toBeGreaterThan(0);
       expect(result.language).toBe('javascript');
-      
+
       console.log(`Large JS file processing time: ${processingTime.toFixed(2)}ms`);
       console.log(`Number of chunks: ${result.chunks.length}`);
     });
@@ -91,17 +91,17 @@ describe('Universal Processing Performance Tests', () => {
     it('should process large TypeScript files within reasonable time', async () => {
       // Generate a large TypeScript file (approximately 10,000 lines)
       const largeTSCode = generateLargeTypeScriptFile(10000);
-      
+
       const startTime = performance.now();
       const result = await processingGuard.processFile('large.ts', largeTSCode);
       const endTime = performance.now();
       const processingTime = endTime - startTime;
-      
+
       // Performance assertions
       expect(processingTime).toBeLessThan(5000); // Should complete within 5 seconds
       expect(result.chunks.length).toBeGreaterThan(0);
       expect(result.language).toBe('typescript');
-      
+
       console.log(`Large TS file processing time: ${processingTime.toFixed(2)}ms`);
       console.log(`Number of chunks: ${result.chunks.length}`);
     });
@@ -109,17 +109,17 @@ describe('Universal Processing Performance Tests', () => {
     it('should process large Python files within reasonable time', async () => {
       // Generate a large Python file (approximately 10,000 lines)
       const largePythonCode = generateLargePythonFile(10000);
-      
+
       const startTime = performance.now();
       const result = await processingGuard.processFile('large.py', largePythonCode);
       const endTime = performance.now();
       const processingTime = endTime - startTime;
-      
+
       // Performance assertions
       expect(processingTime).toBeLessThan(5000); // Should complete within 5 seconds
       expect(result.chunks.length).toBeGreaterThan(0);
       expect(result.language).toBe('python');
-      
+
       console.log(`Large Python file processing time: ${processingTime.toFixed(2)}ms`);
       console.log(`Number of chunks: ${result.chunks.length}`);
     });
@@ -129,18 +129,18 @@ describe('Universal Processing Performance Tests', () => {
     it('should not exceed memory limits during processing', async () => {
       // Generate a very large file that could cause memory issues
       const veryLargeCode = generateLargeJavaScriptFile(50000); // 50,000 lines
-      
+
       const initialMemory = process.memoryUsage();
       const result = await processingGuard.processFile('very-large.js', veryLargeCode);
       const finalMemory = process.memoryUsage();
-      
+
       // Check that memory usage is reasonable
       const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
       const memoryIncreaseMB = memoryIncrease / (1024 * 1024);
-      
+
       expect(memoryIncreaseMB).toBeLessThan(200); // Should not increase by more than 200MB
       expect(result.chunks.length).toBeGreaterThan(0);
-      
+
       console.log(`Memory increase: ${memoryIncreaseMB.toFixed(2)}MB`);
       console.log(`Number of chunks: ${result.chunks.length}`);
     });
@@ -170,14 +170,14 @@ describe('Universal Processing Performance Tests', () => {
     while (lineCount < lines) {
       for (const func of functions) {
         if (lineCount >= lines) break;
-        
+
         const funcLines = func.split('\n');
         for (const funcLine of funcLines) {
           if (lineCount >= lines) break;
           result.push(funcLine);
           lineCount++;
         }
-        
+
         if (lineCount < lines) {
           result.push('');
           lineCount++;
@@ -214,14 +214,14 @@ describe('Universal Processing Performance Tests', () => {
     while (lineCount < lines) {
       for (const iface of interfaces) {
         if (lineCount >= lines) break;
-        
+
         const ifaceLines = iface.split('\n');
         for (const ifaceLine of ifaceLines) {
           if (lineCount >= lines) break;
           result.push(ifaceLine);
           lineCount++;
         }
-        
+
         if (lineCount < lines) {
           result.push('');
           lineCount++;
@@ -251,14 +251,14 @@ describe('Universal Processing Performance Tests', () => {
     while (lineCount < lines) {
       for (const func of functions) {
         if (lineCount >= lines) break;
-        
+
         const funcLines = func.split('\n');
         for (const funcLine of funcLines) {
           if (lineCount >= lines) break;
           result.push(funcLine);
           lineCount++;
         }
-        
+
         if (lineCount < lines) {
           result.push('');
           lineCount++;

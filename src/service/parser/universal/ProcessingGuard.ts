@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { ErrorThresholdManager } from './ErrorThresholdManager';
-import { MemoryGuard } from './MemoryGuard';
+import { MemoryGuard } from '../guard/MemoryGuard';
 import { BackupFileProcessor } from './BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
 import { UniversalTextSplitter } from './UniversalTextSplitter';
@@ -34,7 +34,7 @@ export class ProcessingGuard {
     @inject(TYPES.UniversalTextSplitter) universalTextSplitter?: UniversalTextSplitter
   ) {
     this.logger = logger;
-    
+
     // 如果没有提供依赖，创建默认实例
     this.errorThresholdManager = errorThresholdManager || new ErrorThresholdManager(logger);
     // 创建默认的 IMemoryMonitorService 实现
@@ -60,9 +60,9 @@ export class ProcessingGuard {
             global.gc();
           }
         },
-        triggerCleanup: () => {},
+        triggerCleanup: () => { },
         isWithinLimit: () => true,
-        setMemoryLimit: () => {}
+        setMemoryLimit: () => { }
       };
       defaultMemoryGuard = new MemoryGuard(defaultMemoryMonitor, 500, 5000, logger || new LoggerService());
     }
@@ -108,7 +108,7 @@ export class ProcessingGuard {
     try {
       // 启动内存监控
       this.memoryGuard.startMonitoring();
-      
+
       // 监听内存压力事件
       if (typeof process !== 'undefined' && process.on) {
         process.on('memoryPressure', this.handleMemoryPressure.bind(this));
@@ -133,7 +133,7 @@ export class ProcessingGuard {
     try {
       // 停止内存监控
       this.memoryGuard.destroy();
-      
+
       // 移除事件监听器
       if (typeof process !== 'undefined' && process.removeListener) {
         process.removeListener('memoryPressure', this.handleMemoryPressure.bind(this));
@@ -174,8 +174,8 @@ export class ProcessingGuard {
       const memoryStatus = this.memoryGuard.checkMemoryUsage();
       if (!memoryStatus.isWithinLimit) {
         // 获取内存限制值用于日志
-      const memoryLimit = this.memoryGuard.getMemoryStats().limit;
-      this.logger?.warn(`Memory limit exceeded before processing: ${memoryStatus.heapUsed} > ${memoryLimit}`);
+        const memoryLimit = this.memoryGuard.getMemoryStats().limit;
+        this.logger?.warn(`Memory limit exceeded before processing: ${memoryStatus.heapUsed} > ${memoryLimit}`);
         return this.processWithFallback(filePath, content, 'Memory limit exceeded');
       }
 
@@ -187,13 +187,13 @@ export class ProcessingGuard {
 
       // 智能语言检测
       const language = await this.detectLanguageIntelligently(filePath, content);
-      
+
       // 选择处理策略
       const strategy = this.selectProcessingStrategy(filePath, content, language);
-      
+
       // 执行处理
       const chunks = await this.executeProcessingStrategy(strategy, filePath, content, language);
-      
+
       return {
         chunks,
         language,
@@ -202,7 +202,7 @@ export class ProcessingGuard {
     } catch (error) {
       this.logger?.error(`Error in intelligent file processing: ${error}`);
       this.errorThresholdManager.recordError(error as Error, `processFile: ${filePath}`);
-      
+
       return this.processWithFallback(filePath, content, `Processing error: ${(error as Error).message}`);
     }
   }
@@ -268,7 +268,7 @@ export class ProcessingGuard {
       // 如果不能使用TreeSitter，使用精细的语义分段
       return 'universal-semantic-fine';
     }
-    
+
     // 对于文本类语言（markdown, text等），使用语义分段
     if (this.isTextLanguage(language)) {
       return 'universal-semantic';
@@ -289,7 +289,7 @@ export class ProcessingGuard {
   private isCodeLanguage(language: string): boolean {
     return CODE_LANGUAGES.includes(language);
   }
-  
+
   /**
    * 检查是否为文本类语言（需要智能分段的非代码文件）
    */
@@ -338,20 +338,20 @@ export class ProcessingGuard {
       case 'treesitter-ast':
         // 使用TreeSitter进行AST解析分段
         return this.chunkByTreeSitter(content, filePath, language);
-      
+
       case 'universal-semantic-fine':
         // 使用更精细的语义分段
         return this.chunkByFineSemantic(content, filePath, language);
-        
+
       case 'universal-semantic':
         return this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
-      
+
       case 'universal-bracket':
         return this.universalTextSplitter.chunkByBracketsAndLines(content, filePath, language);
-      
+
       case 'universal-line':
         return this.universalTextSplitter.chunkByLines(content, filePath, language);
-      
+
       default:
         this.logger?.warn(`Unknown processing strategy: ${strategy}, falling back to line-based`);
         return this.universalTextSplitter.chunkByLines(content, filePath, language);
@@ -379,11 +379,11 @@ export class ProcessingGuard {
   private async chunkByFineSemantic(content: string, filePath: string, language: string): Promise<CodeChunk[]> {
     // 使用更精细的分段参数
     const originalOptions = this.universalTextSplitter.setOptions;
-    
+
     // 根据内容大小调整重叠大小，小文件使用更小的重叠
     const contentLines = content.split('\n').length;
     const adjustedOverlapSize = Math.min(50, Math.max(20, contentLines * 2)); // 每行约2-50字符重叠
-    
+
     // 临时设置更精细的分段参数
     this.universalTextSplitter.setOptions({
       maxChunkSize: 800,  // 从2000降低到800
@@ -391,10 +391,10 @@ export class ProcessingGuard {
       overlapSize: adjustedOverlapSize,   // 动态调整重叠大小
       enableSemanticDetection: true
     });
-    
+
     try {
       const chunks = this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
-      
+
       // 恢复原始选项
       this.universalTextSplitter.setOptions({
         maxChunkSize: 2000,
@@ -402,7 +402,7 @@ export class ProcessingGuard {
         overlapSize: 200,
         enableSemanticDetection: true
       });
-      
+
       return chunks;
     } catch (error) {
       // 恢复原始选项
@@ -412,7 +412,7 @@ export class ProcessingGuard {
         overlapSize: 200,
         enableSemanticDetection: true
       });
-      
+
       throw error;
     }
   }
@@ -431,10 +431,10 @@ export class ProcessingGuard {
     fallbackReason: string;
   } {
     this.logger?.info(`Using fallback processing for ${filePath}: ${reason}`);
-    
+
     // 使用最简单的分段方法
     const chunks = this.universalTextSplitter.chunkByLines(content, filePath, 'text');
-    
+
     return {
       chunks,
       language: 'text',
@@ -448,10 +448,10 @@ export class ProcessingGuard {
    */
   private handleMemoryPressure(event: any): void {
     this.logger?.warn('Memory pressure detected', event);
-    
+
     // 强制清理
     this.memoryGuard.forceCleanup();
-    
+
     // 记录错误
     this.errorThresholdManager.recordError(
       new Error('Memory pressure detected'),

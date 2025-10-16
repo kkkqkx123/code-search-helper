@@ -2,7 +2,7 @@ import { injectable } from 'inversify';
 import { CodeChunk, CodeChunkMetadata } from '../splitting/Splitter';
 import { LoggerService } from '../../../utils/LoggerService';
 import { DEFAULT_CONFIG, BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD, getDynamicBlockLimits } from './constants';
-import { MarkdownTextSplitter } from './MarkdownTextSplitter';
+import { MarkdownTextSplitter } from './md/MarkdownTextSplitter';
 
 /**
  * 通用分段选项
@@ -162,7 +162,7 @@ export class UniversalTextSplitter {
       'xml', 'yaml', 'sql', 'dockerfile', 'cmake', 'perl', 'r', 'matlab',
       'lua', 'dart', 'elixir', 'erlang', 'haskell', 'ocaml', 'fsharp',
       'visualbasic', 'powershell', 'batch'];
-    
+
     return language ? codeLanguages.includes(language) : false;
   }
 
@@ -213,7 +213,7 @@ export class UniversalTextSplitter {
 
         // 为下一块计算重叠内容
         const overlapLines = this.calculateSmartOverlapLines(currentChunk, maxOverlapSize);
-        
+
         currentChunk = [...overlapLines];
         currentSize = overlapLines.join('\n').length;
         currentLine = chunk.metadata.startLine + i - overlapLines.length + 1;
@@ -421,14 +421,14 @@ export class UniversalTextSplitter {
     }
 
     const overlappedChunks: CodeChunk[] = [];
-    
+
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      
+
       if (i < chunks.length - 1) {
         // 计算重叠内容
         const overlapContent = this.calculateOverlapContent(chunk, chunks[i + 1], originalContent);
-        
+
         if (overlapContent) {
           overlappedChunks.push({
             ...chunk,
@@ -442,7 +442,7 @@ export class UniversalTextSplitter {
         overlappedChunks.push(chunk);
       }
     }
-    
+
     return overlappedChunks;
   }
 
@@ -452,22 +452,22 @@ export class UniversalTextSplitter {
   private calculateOverlapContent(currentChunk: CodeChunk, nextChunk: CodeChunk, originalContent: string): string {
     const currentEndLine = currentChunk.metadata.endLine;
     const nextStartLine = nextChunk.metadata.startLine;
-    
+
     if (currentEndLine >= nextStartLine) {
       return ''; // 已经重叠或相邻
     }
-    
+
     const lines = originalContent.split('\n');
     const overlapLines = [];
     const maxOverlapLines = Math.min(3, Math.floor((currentEndLine - currentChunk.metadata.startLine + 1) * 0.3));
-    
+
     // 从当前分块的末尾获取重叠内容
     for (let i = Math.max(0, currentEndLine - maxOverlapLines); i < currentEndLine; i++) {
       if (i < lines.length) {
         overlapLines.push(lines[i]);
       }
     }
-    
+
     return overlapLines.join('\n');
   }
 

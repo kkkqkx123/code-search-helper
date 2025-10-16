@@ -1,6 +1,6 @@
 import { injectable } from 'inversify';
-import { CodeChunk, CodeChunkMetadata } from '../splitting/Splitter';
-import { LoggerService } from '../../../utils/LoggerService';
+import { CodeChunk, CodeChunkMetadata } from '../../splitting/Splitter';
+import { LoggerService } from '../../../../utils/LoggerService';
 import {
   MarkdownChunkingConfig,
   MarkdownBlockType,
@@ -57,7 +57,7 @@ export class MarkdownTextSplitter {
       const blocks = this.parseMarkdownBlocks(content);
       const mergedBlocks = this.mergeRelatedBlocks(blocks);
       const chunks = this.blocksToChunks(mergedBlocks, filePath);
-      
+
       this.logger?.info(`Markdown chunking completed: ${blocks.length} blocks -> ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
@@ -100,7 +100,7 @@ export class MarkdownTextSplitter {
 
       // 确定块类型
       const blockType = getMarkdownBlockType(line, inCodeBlock);
-      
+
       // 如果是空行，结束当前块（除非是代码块或表格）
       if (blockType === MarkdownBlockType.EMPTY && !inCodeBlock && !inTable) {
         if (currentBlock && currentBlock.lines.length > 0) {
@@ -164,7 +164,7 @@ export class MarkdownTextSplitter {
     if (!currentBlock) return true;
 
     const currentType = currentBlock.type;
-    
+
     // 代码块内部不分割
     if (currentType === MarkdownBlockType.CODE_BLOCK) {
       return !isCodeBlockDelimiter(line, true);
@@ -177,10 +177,10 @@ export class MarkdownTextSplitter {
 
     // 标题级别变化时开始新块
     if (blockType === MarkdownBlockType.HEADING) {
-      const currentLevel = currentType === MarkdownBlockType.HEADING ? 
+      const currentLevel = currentType === MarkdownBlockType.HEADING ?
         getHeadingLevel(currentBlock.lines[0]) : 0;
       const newLevel = getHeadingLevel(line);
-      
+
       // 同级或更高级别的标题开始新块
       return newLevel <= currentLevel;
     }
@@ -189,16 +189,16 @@ export class MarkdownTextSplitter {
     if (blockType !== currentType) {
       // 但段落之间可以合并
       if (blockType === MarkdownBlockType.PARAGRAPH &&
-          currentType === MarkdownBlockType.PARAGRAPH) {
+        currentType === MarkdownBlockType.PARAGRAPH) {
         return false;
       }
-      
+
       // 如果当前块太小，考虑不开始新块，让合并逻辑处理
       const currentLength = currentBlock.lines.join('\n').length;
       if (currentLength < this.config.minChunkSize) {
         return false;
       }
-      
+
       return true;
     }
 
@@ -208,12 +208,12 @@ export class MarkdownTextSplitter {
         // 检查是否到达段落长度限制
         const currentLength = currentBlock.lines.join('\n').length;
         return currentLength > this.config.maxChunkSize * 0.8;
-      
+
       case MarkdownBlockType.LIST:
         // 列表项之间可以合并，但不要太长
         const listLength = currentBlock.lines.join('\n').length;
         return listLength > this.config.maxChunkSize * 0.6;
-      
+
       default:
         return false;
     }
@@ -224,24 +224,24 @@ export class MarkdownTextSplitter {
    */
   private mergeRelatedBlocks(blocks: MarkdownBlock[]): MarkdownBlock[] {
     if (blocks.length === 0) return blocks;
-    
+
     let currentBlocks = [...blocks]; // 创建副本以避免修改原始数组
     let merged = false;
-    
+
     // 迭代合并直到没有更多块可以合并
     do {
       merged = false;
       const newBlocks: MarkdownBlock[] = [];
       let i = 0;
-      
+
       while (i < currentBlocks.length) {
         if (i < currentBlocks.length - 1) {
           const currentBlock = currentBlocks[i];
           const nextBlock = currentBlocks[i + 1];
-          
+
           // 检查是否可以合并当前块和下一个块
           if (this.shouldMergeBlocks(currentBlock, nextBlock,
-              i + 2 < currentBlocks.length ? currentBlocks[i + 2] : null)) {
+            i + 2 < currentBlocks.length ? currentBlocks[i + 2] : null)) {
             // 合并块
             const mergedBlock: MarkdownBlock = {
               type: this.determineMergedBlockType(currentBlock, nextBlock),
@@ -250,7 +250,7 @@ export class MarkdownTextSplitter {
               startLine: currentBlock.startLine,
               endLine: nextBlock.endLine
             };
-            
+
             newBlocks.push(mergedBlock);
             i += 2; // 跳过下一个块，因为它已经被合并
             merged = true;
@@ -264,7 +264,7 @@ export class MarkdownTextSplitter {
           i++;
         }
       }
-      
+
       currentBlocks = newBlocks;
     } while (merged); // 继续合并直到没有更多合并发生
 
@@ -300,7 +300,7 @@ export class MarkdownTextSplitter {
   ): boolean {
     const currentType = currentBlock.type;
     const nextType = nextBlock.type;
-    
+
     const currentSize = currentBlock.content.length;
     const nextSize = nextBlock.content.length;
     const totalSize = currentSize + nextSize;
@@ -316,21 +316,21 @@ export class MarkdownTextSplitter {
 
     // 连续标题合并
     if (this.config.mergeConsecutiveHeadings &&
-        currentType === MarkdownBlockType.HEADING &&
-        nextType === MarkdownBlockType.HEADING) {
+      currentType === MarkdownBlockType.HEADING &&
+      nextType === MarkdownBlockType.HEADING) {
       return true;
     }
 
     // 如果当前块太小，尝试合并不同层级的标题
     if (currentSize < this.config.minChunkSize &&
-        currentType === MarkdownBlockType.HEADING &&
-        nextType === MarkdownBlockType.HEADING) {
+      currentType === MarkdownBlockType.HEADING &&
+      nextType === MarkdownBlockType.HEADING) {
       return true;
     }
 
     // 代码块保持完整，但如果当前块太小则允许合并
     if (this.config.preserveCodeBlocks &&
-        (currentType === MarkdownBlockType.CODE_BLOCK || nextType === MarkdownBlockType.CODE_BLOCK)) {
+      (currentType === MarkdownBlockType.CODE_BLOCK || nextType === MarkdownBlockType.CODE_BLOCK)) {
       // 如果当前块太小，仍然允许合并
       if (currentSize < this.config.minChunkSize) {
         return true;
@@ -340,7 +340,7 @@ export class MarkdownTextSplitter {
 
     // 表格保持完整
     if (this.config.preserveTables &&
-        (currentType === MarkdownBlockType.TABLE || nextType === MarkdownBlockType.TABLE)) {
+      (currentType === MarkdownBlockType.TABLE || nextType === MarkdownBlockType.TABLE)) {
       // 如果当前块太小，仍然允许合并
       if (currentSize < this.config.minChunkSize) {
         return true;
@@ -350,30 +350,30 @@ export class MarkdownTextSplitter {
 
     // 短段落合并
     if (this.config.mergeShortParagraphs &&
-        currentType === MarkdownBlockType.PARAGRAPH &&
-        nextType === MarkdownBlockType.PARAGRAPH &&
-        currentSize < this.config.minChunkSize) {
+      currentType === MarkdownBlockType.PARAGRAPH &&
+      nextType === MarkdownBlockType.PARAGRAPH &&
+      currentSize < this.config.minChunkSize) {
       return true;
     }
 
     // 如果当前块太小，合并标题和段落
     if (currentSize < this.config.minChunkSize &&
-        currentType === MarkdownBlockType.HEADING &&
-        nextType === MarkdownBlockType.PARAGRAPH) {
+      currentType === MarkdownBlockType.HEADING &&
+      nextType === MarkdownBlockType.PARAGRAPH) {
       return true;
     }
 
     // 如果当前块太小，合并段落和标题
     if (currentSize < this.config.minChunkSize &&
-        currentType === MarkdownBlockType.PARAGRAPH &&
-        nextType === MarkdownBlockType.HEADING) {
+      currentType === MarkdownBlockType.PARAGRAPH &&
+      nextType === MarkdownBlockType.HEADING) {
       return true;
     }
 
     // 语义相似性合并
     if (this.config.enableSemanticMerge &&
-        currentType === MarkdownBlockType.PARAGRAPH &&
-        nextType === MarkdownBlockType.PARAGRAPH) {
+      currentType === MarkdownBlockType.PARAGRAPH &&
+      nextType === MarkdownBlockType.PARAGRAPH) {
       const similarity = calculateSemanticSimilarity(currentBlock.content, nextBlock.content);
       return similarity >= this.config.semanticSimilarityThreshold;
     }
@@ -390,10 +390,10 @@ export class MarkdownTextSplitter {
 
     for (const block of blocks) {
       const complexity = this.calculateBlockComplexity(block);
-      
+
       // 将 MarkdownBlockType 映射到 CodeChunkMetadata 的 type
       const chunkType = this.mapMarkdownTypeToChunkType(block.type);
-      
+
       const metadata: CodeChunkMetadata = {
         startLine: block.startLine,
         endLine: block.endLine,
@@ -427,7 +427,7 @@ export class MarkdownTextSplitter {
       [MarkdownBlockType.HTML]: 'code',
       [MarkdownBlockType.EMPTY]: undefined
     };
-    
+
     return typeMap[markdownType] || 'semantic';
   }
 
@@ -436,21 +436,21 @@ export class MarkdownTextSplitter {
    */
   private calculateBlockComplexity(block: MarkdownBlock): number {
     let complexity = MARKDOWN_SEMANTIC_WEIGHTS[block.type] || 1;
-    
+
     // 基于内容长度调整
     const contentLength = block.content.length;
     complexity += Math.log10(contentLength + 1);
-    
+
     // 基于行数调整
     const lineCount = block.lines.length;
     complexity += Math.log10(lineCount + 1) * 2;
-    
+
     // 特殊元素加分
     if (block.type === MarkdownBlockType.HEADING) {
       const level = getHeadingLevel(block.lines[0]);
       complexity += (7 - level) * 2; // H1 最高权重
     }
-    
+
     if (block.type === MarkdownBlockType.CODE_BLOCK) {
       // 代码块按语言类型加权
       const firstLine = block.lines[0].trim();
@@ -459,7 +459,7 @@ export class MarkdownTextSplitter {
         complexity += 5; // 有明确语言的代码块
       }
     }
-    
+
     return Math.round(complexity);
   }
 
@@ -468,7 +468,7 @@ export class MarkdownTextSplitter {
    */
   private fallbackChunking(content: string, filePath?: string): CodeChunk[] {
     this.logger?.warn('Using fallback chunking for markdown');
-    
+
     // 简单的段落分段
     const paragraphs = content.split(/\n\n+/);
     const chunks: CodeChunk[] = [];
@@ -504,21 +504,21 @@ export class MarkdownTextSplitter {
    */
   private calculateFallbackComplexity(content: string): number {
     let complexity = 1;
-    
+
     // 基于长度
     complexity += Math.log10(content.length + 1);
-    
+
     // 基于标题
     const headingMatches = content.match(/^#{1,6}\s+/gm);
     if (headingMatches) {
       complexity += headingMatches.length * 5;
     }
-    
+
     // 基于代码块
     if (content.includes('```')) {
       complexity += 3;
     }
-    
+
     return Math.round(complexity);
   }
 }

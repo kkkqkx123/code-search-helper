@@ -17,7 +17,7 @@ import { PerformanceMetricsCollector } from '../../service/monitoring/Performanc
 import { TransactionLogger } from '../../service/transaction/TransactionLogger';
 import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
-import { GraphBatchOptimizer } from '../../service/batching/GraphBatchOptimizer';
+import { GraphBatchOptimizer } from '../../service/graph/utils/GraphBatchOptimizer';
 import { GraphMappingCache } from '../../service/caching/GraphMappingCache';
 
 // 基础设施配置服务

@@ -1,7 +1,7 @@
 
 import { ProcessingGuard } from '../ProcessingGuard';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
-import { MemoryGuard } from '../MemoryGuard';
+import { MemoryGuard } from '../../guard/MemoryGuard';
 import { BackupFileProcessor } from '../BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
@@ -51,7 +51,7 @@ describe('ProcessingGuard Integration Tests', () => {
       clearHistory: jest.fn(),
       getMemoryHistory: jest.fn().mockReturnValue([])
     };
-    
+
     memoryGuard = new MemoryGuard(mockMemoryMonitor, 500, 1000, mockLogger); // Short interval for testing
     backupFileProcessor = new BackupFileProcessor(mockLogger);
     extensionlessFileProcessor = new ExtensionlessFileProcessor(mockLogger);
@@ -75,7 +75,7 @@ describe('ProcessingGuard Integration Tests', () => {
     it('should initialize and destroy correctly', () => {
       processingGuard.initialize();
       expect(mockLogger.info).toHaveBeenCalledWith('ProcessingGuard initialized successfully');
-      
+
       processingGuard.destroy();
       expect(mockLogger.info).toHaveBeenCalledWith('Memory monitoring stopped');
       expect(mockLogger.info).toHaveBeenCalledWith('ProcessingGuard destroyed');
@@ -101,7 +101,7 @@ describe('ProcessingGuard Integration Tests', () => {
       }
 
       const result = await processingGuard.processFile('test.js', 'const x = 1;');
-      
+
       expect(result.fallbackReason).toContain('Error threshold exceeded');
       expect(result.processingStrategy).toBe('fallback-line');
       expect(result.language).toBe('text');
@@ -118,7 +118,7 @@ describe('ProcessingGuard Integration Tests', () => {
       errorThresholdManager.resetCounter();
 
       const result = await processingGuard.processFile('test.js', 'const x = 1;');
-      
+
       // Should not use fallback since counter was reset
       expect(result.fallbackReason).toBeUndefined();
     });
@@ -141,7 +141,7 @@ function calculateTotal(items) {
       `.trim();
 
       const result = await processingGuard.processFile('script.js.bak', jsCode);
-      
+
       expect(result.language).toBe('javascript');
       expect(result.chunks.length).toBeGreaterThan(0);
     });
@@ -173,7 +173,7 @@ function calculateSum(a, b) {
       `.trim();
 
       const result = await processingGuard.processFile('script', jsCode);
-      
+
       expect(result.language).toBe('javascript');
       expect(result.chunks.length).toBeGreaterThan(0);
     });

@@ -42,7 +42,7 @@ import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVe
 // 通用文件处理服务
 import { UniversalTextSplitter } from '../../service/parser/universal/UniversalTextSplitter';
 import { ErrorThresholdManager } from '../../service/parser/universal/ErrorThresholdManager';
-import { MemoryGuard } from '../../service/parser/universal/MemoryGuard';
+import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../service/parser/universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../../service/parser/universal/ExtensionlessFileProcessor';
 import { ProcessingGuard } from '../../service/parser/universal/ProcessingGuard';
@@ -76,93 +76,93 @@ export class BusinessServiceRegistrar {
     container.bind<HotReloadRestartService>(TYPES.HotReloadRestartService).to(HotReloadRestartService).inSingletonScope();
 
     // 项目管理服务
-      // 项目管理服务
-      container.bind<IndexService>(TYPES.IndexService).to(IndexService).inSingletonScope();
-      container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
-      container.bind<CoreStateService>(TYPES.CoreStateService).to(CoreStateService).inSingletonScope();
-      container.bind<StorageStateService>(TYPES.StorageStateService).to(StorageStateService).inSingletonScope();
-      container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
+    // 项目管理服务
+    container.bind<IndexService>(TYPES.IndexService).to(IndexService).inSingletonScope();
+    container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
+    container.bind<CoreStateService>(TYPES.CoreStateService).to(CoreStateService).inSingletonScope();
+    container.bind<StorageStateService>(TYPES.StorageStateService).to(StorageStateService).inSingletonScope();
+    container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
 
-      // 文件遍历服务
-      container.bind<FileTraversalService>(TYPES.FileTraversalService).to(FileTraversalService).inSingletonScope();
+    // 文件遍历服务
+    container.bind<FileTraversalService>(TYPES.FileTraversalService).to(FileTraversalService).inSingletonScope();
 
-      // 并发服务
-      container.bind<ConcurrencyService>(TYPES.ConcurrencyService).to(ConcurrencyService).inSingletonScope();
+    // 并发服务
+    container.bind<ConcurrencyService>(TYPES.ConcurrencyService).to(ConcurrencyService).inSingletonScope();
 
-      // 新增的索引服务
-      container.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();
-      container.bind<GraphIndexService>(TYPES.GraphIndexService).to(GraphIndexService).inSingletonScope();
-      container.bind<StorageCoordinatorService>(TYPES.StorageCoordinatorService).to(StorageCoordinatorService).inSingletonScope();
+    // 新增的索引服务
+    container.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();
+    container.bind<GraphIndexService>(TYPES.GraphIndexService).to(GraphIndexService).inSingletonScope();
+    container.bind<StorageCoordinatorService>(TYPES.StorageCoordinatorService).to(StorageCoordinatorService).inSingletonScope();
 
-      // 忽略规则管理器 - 使用 toDynamicValue 确保正确注入依赖
-      container.bind<IgnoreRuleManager>(TYPES.IgnoreRuleManager).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return new IgnoreRuleManager(logger);
-      }).inSingletonScope();
+    // 忽略规则管理器 - 使用 toDynamicValue 确保正确注入依赖
+    container.bind<IgnoreRuleManager>(TYPES.IgnoreRuleManager).toDynamicValue(context => {
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      return new IgnoreRuleManager(logger);
+    }).inSingletonScope();
 
-      // 性能优化服务
-      container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        const errorHandler = context.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
-        const configService = context.get<ConfigService>(TYPES.ConfigService);
-        const memoryMonitor = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
-        return new PerformanceOptimizerService(logger, errorHandler, configService, memoryMonitor);
-      }).inSingletonScope();
+    // 性能优化服务
+    container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).toDynamicValue(context => {
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      const errorHandler = context.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
+      const configService = context.get<ConfigService>(TYPES.ConfigService);
+      const memoryMonitor = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
+      return new PerformanceOptimizerService(logger, errorHandler, configService, memoryMonitor);
+    }).inSingletonScope();
 
-      // 解析服务
-      container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
-      container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
-      container.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
-      container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
+    // 解析服务
+    container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
+    container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
+    container.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
+    container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
 
-      // 通用文件处理服务
-      container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return new UniversalTextSplitter(logger);
-      }).inSingletonScope();
-      container.bind<ErrorThresholdManager>(TYPES.ErrorThresholdManager).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        // 从环境变量获取配置，如果没有则使用默认值
-        const maxErrors = parseInt(process.env.UNIVERSAL_MAX_ERRORS || '5', 10);
-        const resetInterval = parseInt(process.env.UNIVERSAL_ERROR_RESET_INTERVAL || '60000', 10);
-        return new ErrorThresholdManager(logger, maxErrors, resetInterval);
-      }).inSingletonScope();
-      container.bind<MemoryGuard>(TYPES.MemoryGuard).toDynamicValue(context => {
-        const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
-        const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
-        const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return new MemoryGuard(memoryMonitorService, memoryLimitMB, memoryCheckIntervalMs, logger);
-      }).inSingletonScope();
-      container.bind<BackupFileProcessor>(TYPES.BackupFileProcessor).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return new BackupFileProcessor(logger);
-      }).inSingletonScope();
-      container.bind<ExtensionlessFileProcessor>(TYPES.ExtensionlessFileProcessor).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return new ExtensionlessFileProcessor(logger);
-      }).inSingletonScope();
-      container.bind<ProcessingGuard>(TYPES.ProcessingGuard).to(ProcessingGuard).inSingletonScope();
+    // 通用文件处理服务
+    container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).toDynamicValue(context => {
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      return new UniversalTextSplitter(logger);
+    }).inSingletonScope();
+    container.bind<ErrorThresholdManager>(TYPES.ErrorThresholdManager).toDynamicValue(context => {
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      // 从环境变量获取配置，如果没有则使用默认值
+      const maxErrors = parseInt(process.env.UNIVERSAL_MAX_ERRORS || '5', 10);
+      const resetInterval = parseInt(process.env.UNIVERSAL_ERROR_RESET_INTERVAL || '60000', 10);
+      return new ErrorThresholdManager(logger, maxErrors, resetInterval);
+    }).inSingletonScope();
+    container.bind<MemoryGuard>(TYPES.MemoryGuard).toDynamicValue(context => {
+      const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
+      const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
+      const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      return new MemoryGuard(memoryMonitorService, memoryLimitMB, memoryCheckIntervalMs, logger);
+    }).inSingletonScope();
+    container.bind<BackupFileProcessor>(TYPES.BackupFileProcessor).toDynamicValue(context => {
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      return new BackupFileProcessor(logger);
+    }).inSingletonScope();
+    container.bind<ExtensionlessFileProcessor>(TYPES.ExtensionlessFileProcessor).toDynamicValue(context => {
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      return new ExtensionlessFileProcessor(logger);
+    }).inSingletonScope();
+    container.bind<ProcessingGuard>(TYPES.ProcessingGuard).to(ProcessingGuard).inSingletonScope();
 
-      // 搜索服务
-      container.bind<FileSearchService>(TYPES.FileSearchService).to(FileSearchService).inSingletonScope();
-      container.bind<FileVectorIndexer>(TYPES.FileVectorIndexer).to(FileVectorIndexer).inSingletonScope();
-      container.bind<FileQueryProcessor>(TYPES.FileQueryProcessor).to(FileQueryProcessor).inSingletonScope();
-      container.bind<FileQueryIntentClassifier>(TYPES.FileQueryIntentClassifier).to(FileQueryIntentClassifier).inSingletonScope();
-      container.bind<FileSearchCache>(TYPES.FileSearchCache).to(FileSearchCache).inSingletonScope();
+    // 搜索服务
+    container.bind<FileSearchService>(TYPES.FileSearchService).to(FileSearchService).inSingletonScope();
+    container.bind<FileVectorIndexer>(TYPES.FileVectorIndexer).to(FileVectorIndexer).inSingletonScope();
+    container.bind<FileQueryProcessor>(TYPES.FileQueryProcessor).to(FileQueryProcessor).inSingletonScope();
+    container.bind<FileQueryIntentClassifier>(TYPES.FileQueryIntentClassifier).to(FileQueryIntentClassifier).inSingletonScope();
+    container.bind<FileSearchCache>(TYPES.FileSearchCache).to(FileSearchCache).inSingletonScope();
 
-      // Nebula监控服务
-      container.bind<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor).to(NebulaConnectionMonitor).inSingletonScope();
+    // Nebula监控服务
+    container.bind<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor).to(NebulaConnectionMonitor).inSingletonScope();
 
-      // 内存监控服务
-      container.bind<MemoryMonitorService>(TYPES.MemoryMonitorService).to(MemoryMonitorService).inSingletonScope();
+    // 内存监控服务
+    container.bind<MemoryMonitorService>(TYPES.MemoryMonitorService).to(MemoryMonitorService).inSingletonScope();
 
-      // MemoryGuard 参数
-      container.bind<number>(TYPES.MemoryLimitMB).toConstantValue(500);
-      container.bind<number>(TYPES.MemoryCheckIntervalMs).toConstantValue(5000);
-    } catch (error: any) {
-      console.error('Error registering business services:', error);
-      console.error('Error stack:', error?.stack);
-      throw error;
-    }
+    // MemoryGuard 参数
+    container.bind<number>(TYPES.MemoryLimitMB).toConstantValue(500);
+    container.bind<number>(TYPES.MemoryCheckIntervalMs).toConstantValue(5000);
+  } catch(error: any) {
+    console.error('Error registering business services:', error);
+    console.error('Error stack:', error?.stack);
+    throw error;
   }
+}

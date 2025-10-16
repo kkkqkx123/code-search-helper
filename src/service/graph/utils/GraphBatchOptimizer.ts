@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../types';
-import { LoggerService } from '../../utils/LoggerService';
-import { GraphNode, GraphRelationship } from '../graph/mapping/IGraphDataMappingService';
+import { TYPES } from '../../../types';
+import { LoggerService } from '../../../utils/LoggerService';
+import { GraphNode, GraphRelationship } from '../mapping/IGraphDataMappingService';
 
 export interface BatchOperation<T> {
   items: T[];

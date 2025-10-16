@@ -3,7 +3,7 @@ import { TreeSitterCoreService } from '../../../service/parser/core/parse/TreeSi
 import { ASTCodeSplitter } from '../../../service/parser/splitting/ASTCodeSplitter';
 import { ProcessingGuard } from '../../../service/parser/universal/ProcessingGuard';
 import { ErrorThresholdManager } from '../../../service/parser/universal/ErrorThresholdManager';
-import { MemoryGuard } from '../../../service/parser/universal/MemoryGuard';
+import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../../service/parser/universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../../../service/parser/universal/ExtensionlessFileProcessor';
 import { UniversalTextSplitter } from '../../../service/parser/universal/UniversalTextSplitter';
@@ -21,13 +21,13 @@ describe('Parser Splitting Integration Test', () => {
     logger = new LoggerService();
     const treeSitterCoreService = new TreeSitterCoreService();
     treeSitterService = new TreeSitterService(treeSitterCoreService);
-    
+
     // 创建ProcessingGuard的依赖
     const errorThresholdManager = new ErrorThresholdManager(logger);
     const backupFileProcessor = new BackupFileProcessor(logger);
     const extensionlessFileProcessor = new ExtensionlessFileProcessor(logger);
     const universalTextSplitter = new UniversalTextSplitter(logger);
-    
+
     // 创建IMemoryMonitorService的简单实现
     const memoryMonitor: any = {
       getMemoryStatus: () => ({
@@ -48,13 +48,13 @@ describe('Parser Splitting Integration Test', () => {
           global.gc();
         }
       },
-      triggerCleanup: () => {},
+      triggerCleanup: () => { },
       isWithinLimit: () => true,
-      setMemoryLimit: () => {}
+      setMemoryLimit: () => { }
     };
-    
+
     const memoryGuard = new MemoryGuard(memoryMonitor, 500, 5000, logger);
-    
+
     // 创建ProcessingGuard
     processingGuard = new ProcessingGuard(
       logger,
@@ -64,10 +64,10 @@ describe('Parser Splitting Integration Test', () => {
       extensionlessFileProcessor,
       universalTextSplitter
     );
-    
+
     // 初始化ProcessingGuard
     processingGuard.initialize();
-    
+
     // 创建ASTCodeSplitter时传入ProcessingGuard
     astCodeSplitter = new ASTCodeSplitter(treeSitterService, logger, processingGuard);
   });
@@ -76,7 +76,7 @@ describe('Parser Splitting Integration Test', () => {
     // 定义源目录和目标目录
     const sourceDir = path.join(process.cwd(), 'test-files');
     const resultDir = path.join(process.cwd(), 'test-data', 'parser-result');
-    
+
     // 确保结果目录存在
     if (!fs.existsSync(resultDir)) {
       fs.mkdirSync(resultDir, { recursive: true });
@@ -84,13 +84,13 @@ describe('Parser Splitting Integration Test', () => {
 
     // 读取源目录中的所有文件
     const files = getAllFiles(sourceDir);
-    
+
     // 遍历处理每个文件
     for (const filePath of files) {
       // 计算相对路径，用于在结果目录中保持相同的结构
       const relativePath = path.relative(sourceDir, filePath);
       const resultFilePath = path.join(resultDir, relativePath + '.result.json');
-      
+
       // 确保结果文件的目录存在
       const resultFileDir = path.dirname(resultFilePath);
       if (!fs.existsSync(resultFileDir)) {
@@ -100,13 +100,13 @@ describe('Parser Splitting Integration Test', () => {
       try {
         // 读取文件内容
         const content = fs.readFileSync(filePath, 'utf-8');
-        
+
         // 使用ProcessingGuard进行智能文件处理
         const processingResult = await processingGuard.processFile(filePath, content);
         const { chunks, language, processingStrategy } = processingResult;
-        
+
         logger.info(`Processing file: ${filePath}, detected language: ${language}, strategy: ${processingStrategy}, chunks: ${chunks.length}`);
-        
+
         // 准备结果数据
         const resultData = {
           filePath,
@@ -120,28 +120,28 @@ describe('Parser Splitting Integration Test', () => {
             length: chunk.content.length
           }))
         };
-        
+
         // 将结果写入文件
         fs.writeFileSync(resultFilePath, JSON.stringify(resultData, null, 2), 'utf-8');
-        
+
         logger.info(`Saved result for ${filePath} to ${resultFilePath} with ${chunks.length} chunks`);
       } catch (error) {
         logger.error(`Error processing file ${filePath}:`, error);
-        
+
         // 即使处理失败，也保存错误信息到结果文件
         const errorResult = {
           filePath,
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : null
         };
-        
+
         fs.writeFileSync(resultFilePath, JSON.stringify(errorResult, null, 2), 'utf-8');
       }
     }
-    
+
     // 验证至少处理了一个文件
     expect(files.length).toBeGreaterThan(0);
-    
+
     logger.info(`Processed ${files.length} files from test-files directory`);
   });
 });
@@ -153,13 +153,13 @@ describe('Parser Splitting Integration Test', () => {
  */
 function getAllFiles(dir: string): string[] {
   const files: string[] = [];
-  
+
   const items = fs.readdirSync(dir);
-  
+
   for (const item of items) {
     const fullPath = path.join(dir, item);
     const stat = fs.statSync(fullPath);
-    
+
     if (stat.isDirectory()) {
       // 如果是目录，递归获取其中的文件
       files.push(...getAllFiles(fullPath));
@@ -168,6 +168,6 @@ function getAllFiles(dir: string): string[] {
       files.push(fullPath);
     }
   }
-  
- return files;
+
+  return files;
 }

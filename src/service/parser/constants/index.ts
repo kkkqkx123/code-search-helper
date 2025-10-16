@@ -195,7 +195,7 @@ export const CHUNKING_CONFIG = {
     LINES: 15      // 15行以下
   },
 
-  // 重叠配置
+  // 重叠配置(仅用于非代码/拆分后的长代码)
   OVERLAP: {
     DEFAULT_SIZE: 200,
     MAX_RATIO: 0.3,  // 最大重叠比例
@@ -210,10 +210,10 @@ export const CHUNKING_CONFIG = {
 export const SIMILARITY_CONFIG = {
   // 默认相似度阈值
   DEFAULT_THRESHOLD: 0.8,
-  
+
   // 最小内容长度（低于此长度的内容不参与相似度比较）
   MIN_CONTENT_LENGTH: 10,
-  
+
   // 哈希相关配置
   HASH: {
     PREFIX_LENGTH: 8,  // 哈希前缀长度（用于快速比较）
@@ -264,10 +264,10 @@ export const BACKUP_FILE_TYPE_MAP = {
 export const ERROR_CONFIG = {
   // 最大错误数量限制
   MAX_ERRORS: 5,
-  
+
   // 错误重置时间间隔（毫秒）
   ERROR_RESET_INTERVAL: 60000, // 1分钟
-  
+
   // 错误阈值管理器配置
   ERROR_THRESHOLD_MAX_ERRORS: 5,
   ERROR_THRESHOLD_RESET_INTERVAL: 60000
@@ -280,10 +280,10 @@ export const ERROR_CONFIG = {
 export const MEMORY_CONFIG = {
   // 默认内存限制（MB）
   MEMORY_LIMIT_MB: 500,
-  
+
   // 内存检查间隔（毫秒）
   MEMORY_CHECK_INTERVAL: 5000, // 5秒
-  
+
   // 内存保护配置
   MEMORY_GUARD_DEFAULT_LIMIT_MB: 500,
   MEMORY_GUARD_CRITICAL_THRESHOLD_PERCENT: 90,  // 90%为临界阈值
@@ -371,12 +371,12 @@ export const getDynamicBlockLimits = (contentLength: number, lineCount: number) 
       MIN_CHUNK_REMAINDER_CHARS: 50
     };
   }
-  
+
   // 中等文件：标准限制
   if (contentLength < 2000 || lineCount < 100) {
     return CHUNKING_CONFIG.BLOCK_SIZE_LIMITS;
   }
-  
+
   // 大文件：严格限制
   return {
     MIN_BLOCK_CHARS: 50,
@@ -439,13 +439,13 @@ export const getExtensionsByLanguage = (language: string): string[] => {
  */
 export const getLanguageFromPath = (filePath: string): string | undefined => {
   if (!filePath) return undefined;
-  
+
   // 提取文件扩展名
   const lastDotIndex = filePath.lastIndexOf('.');
   if (lastDotIndex === -1 || lastDotIndex === filePath.length - 1) {
     return undefined;
   }
-  
+
   const ext = filePath.substring(lastDotIndex);
   return getLanguageByExtension(ext);
 };

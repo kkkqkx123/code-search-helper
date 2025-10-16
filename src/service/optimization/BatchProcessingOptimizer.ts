@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { GraphBatchOptimizer } from '../batching/GraphBatchOptimizer';
+import { GraphBatchOptimizer } from '../graph/utils/GraphBatchOptimizer';
 import { PerformanceDashboard, PerformanceMetric } from '../monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../monitoring/PerformanceMetricsCollector';
 
