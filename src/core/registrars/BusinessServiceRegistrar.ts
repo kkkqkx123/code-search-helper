@@ -47,6 +47,9 @@ import { BackupFileProcessor } from '../../service/parser/universal/BackupFilePr
 import { ExtensionlessFileProcessor } from '../../service/parser/universal/ExtensionlessFileProcessor';
 import { ProcessingGuard } from '../../service/parser/guard/ProcessingGuard';
 import { CleanupManager } from '../../service/parser/universal/cleanup/CleanupManager';
+import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
+import { ProcessingStrategySelector } from '../../service/parser/universal/coordination/ProcessingStrategySelector';
+import { FileProcessingCoordinator } from '../../service/parser/universal/coordination/FileProcessingCoordinator';
 
 // 文件搜索服务
 import { FileSearchService } from '../../service/filesearch/FileSearchService';
@@ -136,6 +139,18 @@ export class BusinessServiceRegistrar {
       return cleanupManager;
     }).inSingletonScope();
 
+    // 处理策略选择器 - 需要在UnifiedGuardCoordinator之前注册
+    container.bind<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector).toDynamicValue(context => {
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      return new ProcessingStrategySelector(logger);
+    }).inSingletonScope();
+    
+    // 文件处理协调器 - 需要在UnifiedGuardCoordinator之前注册
+    container.bind<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator).toDynamicValue(context => {
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      return new FileProcessingCoordinator(logger);
+    }).inSingletonScope();
+
     // 通用文件处理服务
     container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
@@ -166,6 +181,32 @@ export class BusinessServiceRegistrar {
       return new ExtensionlessFileProcessor(logger);
     }).inSingletonScope();
     container.bind<ProcessingGuard>(TYPES.ProcessingGuard).to(ProcessingGuard).inSingletonScope();
+    
+    // UnifiedGuardCoordinator - 新的统一保护机制协调器
+    container.bind<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator).toDynamicValue(context => {
+      const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
+      const errorThresholdManager = context.get<ErrorThresholdManager>(TYPES.ErrorThresholdManager);
+      const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
+      const logger = context.get<LoggerService>(TYPES.LoggerService);
+      
+      // 获取策略选择器和文件处理协调器
+      const processingStrategySelector = context.get<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector);
+      const fileProcessingCoordinator = context.get<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator);
+      
+      const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
+      const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
+      
+      return UnifiedGuardCoordinator.getInstance(
+        memoryMonitorService,
+        errorThresholdManager,
+        cleanupManager,
+        processingStrategySelector,
+        fileProcessingCoordinator,
+        memoryLimitMB,
+        memoryCheckIntervalMs,
+        logger
+      );
+    }).inSingletonScope();
 
     // 搜索服务
     container.bind<FileSearchService>(TYPES.FileSearchService).to(FileSearchService).inSingletonScope();

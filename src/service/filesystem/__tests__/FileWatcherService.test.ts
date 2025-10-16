@@ -3,6 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { FileSystemTraversal, FileInfo } from '../FileSystemTraversal';
 import { GitignoreParser } from '../../ignore/GitignoreParser';
+import { HotReloadRecoveryService } from '../HotReloadRecoveryService';
 import { TYPES } from '../../../types';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -16,6 +17,7 @@ jest.mock('../../../utils/LoggerService');
 jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../FileSystemTraversal');
 jest.mock('../../ignore/GitignoreParser');
+jest.mock('../HotReloadRecoveryService');
 
 const mockedFs = fs as jest.Mocked<typeof fs>;
 const mockedChokidar = chokidar as jest.Mocked<typeof chokidar>;
@@ -23,60 +25,68 @@ const MockedLoggerService = LoggerService as jest.Mocked<typeof LoggerService>;
 const MockedErrorHandlerService = ErrorHandlerService as jest.Mocked<typeof ErrorHandlerService>;
 const MockedFileSystemTraversal = FileSystemTraversal as jest.Mocked<typeof FileSystemTraversal>;
 const mockedGitignoreParser = GitignoreParser as jest.Mocked<typeof GitignoreParser>;
+const MockedHotReloadRecoveryService = HotReloadRecoveryService as jest.Mocked<typeof HotReloadRecoveryService>;
 
 describe('FileWatcherService', () => {
   let fileWatcherService: FileWatcherService;
   let mockLogger: LoggerService;
   let mockErrorHandler: ErrorHandlerService;
   let mockFileSystemTraversal: FileSystemTraversal;
+  let mockHotReloadRecoveryService: HotReloadRecoveryService;
   let container: Container;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    // Mock GitignoreParser methods
-    mockedGitignoreParser.getAllGitignorePatterns.mockResolvedValue([]);
-    mockedGitignoreParser.parseIndexignore.mockResolvedValue([]);
-
-    // Create a container for dependency injection
-    container = new Container();
-
-    // Create mock services with proper mocks
-    mockLogger = {
-      info: jest.fn(),
-      error: jest.fn(),
-      warn: jest.fn(),
-      debug: jest.fn(),
-      getLogFilePath: jest.fn(),
-      markAsNormalExit: jest.fn(),
-    } as any;
-
-    mockErrorHandler = {
-      handleError: jest.fn(),
-      getErrorReport: jest.fn(),
-      getAllErrorReports: jest.fn(),
-      clearErrorReport: jest.fn(),
-      clearAllErrorReports: jest.fn(),
-      getErrorStats: jest.fn(),
-    } as any;
-
-    mockFileSystemTraversal = {
-      traverseDirectory: jest.fn(),
-      getFileContent: jest.fn(),
-      getDirectoryStats: jest.fn(),
-      isBinaryFile: jest.fn(),
-      calculateFileHash: jest.fn(),
-    } as any;
-
-    // Bind services to container
-    container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
-    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandler);
-    container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).toConstantValue(mockFileSystemTraversal);
-    container.bind<FileWatcherService>(TYPES.FileWatcherService).to(FileWatcherService);
-
-    // Create FileWatcherService instance
-    fileWatcherService = container.get<FileWatcherService>(TYPES.FileWatcherService);
-  });
+   beforeEach(() => {
+     jest.clearAllMocks();
+ 
+     // Mock GitignoreParser methods
+     mockedGitignoreParser.getAllGitignorePatterns.mockResolvedValue([]);
+     mockedGitignoreParser.parseIndexignore.mockResolvedValue([]);
+ 
+     // Create a container for dependency injection
+     container = new Container();
+ 
+     // Create mock services with proper mocks
+     mockLogger = {
+       info: jest.fn(),
+       error: jest.fn(),
+       warn: jest.fn(),
+       debug: jest.fn(),
+       getLogFilePath: jest.fn(),
+       markAsNormalExit: jest.fn(),
+     } as any;
+ 
+     mockErrorHandler = {
+       handleError: jest.fn(),
+       getErrorReport: jest.fn(),
+       getAllErrorReports: jest.fn(),
+       clearErrorReport: jest.fn(),
+       clearAllErrorReports: jest.fn(),
+       getErrorStats: jest.fn(),
+     } as any;
+ 
+     mockFileSystemTraversal = {
+       traverseDirectory: jest.fn(),
+       getFileContent: jest.fn(),
+       getDirectoryStats: jest.fn(),
+       isBinaryFile: jest.fn(),
+       calculateFileHash: jest.fn(),
+     } as any;
+ 
+     mockHotReloadRecoveryService = {
+       handleError: jest.fn(),
+       getRecoveryStrategy: jest.fn(),
+     } as any;
+ 
+     // Bind services to container
+     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
+     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandler);
+     container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).toConstantValue(mockFileSystemTraversal);
+     container.bind<HotReloadRecoveryService>(TYPES.HotReloadRecoveryService).toConstantValue(mockHotReloadRecoveryService);
+     container.bind<FileWatcherService>(TYPES.FileWatcherService).to(FileWatcherService);
+ 
+     // Create FileWatcherService instance
+     fileWatcherService = container.get<FileWatcherService>(TYPES.FileWatcherService);
+   });
 
   describe('startWatching', () => {
     it('should start watching specified paths', async () => {

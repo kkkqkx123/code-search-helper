@@ -221,6 +221,9 @@ export class ProjectRoutes {
 
       // 确保从ProjectIdManager中删除映射
       await this.projectIdManager.removeProject(projectPath);
+      
+      // 保存映射更改
+      await this.projectIdManager.saveMapping();
 
       res.status(200).json({
         success: true,

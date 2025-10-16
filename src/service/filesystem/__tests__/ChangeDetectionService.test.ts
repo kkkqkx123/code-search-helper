@@ -3,6 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { FileWatcherService, FileWatcherOptions, FileWatcherCallbacks } from '../FileWatcherService';
 import { FileSystemTraversal, FileInfo, TraversalResult } from '../FileSystemTraversal';
+import { HotReloadRecoveryService } from '../HotReloadRecoveryService';
 import { TYPES } from '../../../types';
 import { Container } from 'inversify';
 import * as path from 'path';
@@ -12,11 +13,13 @@ jest.mock('../../../utils/LoggerService');
 jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../FileWatcherService');
 jest.mock('../FileSystemTraversal');
+jest.mock('../HotReloadRecoveryService');
 
 const MockedLoggerService = LoggerService as jest.Mocked<typeof LoggerService>;
 const MockedErrorHandlerService = ErrorHandlerService as jest.Mocked<typeof ErrorHandlerService>;
 const MockedFileWatcherService = FileWatcherService as jest.Mocked<typeof FileWatcherService>;
 const MockedFileSystemTraversal = FileSystemTraversal as jest.Mocked<typeof FileSystemTraversal>;
+const MockedHotReloadRecoveryService = HotReloadRecoveryService as jest.Mocked<typeof HotReloadRecoveryService>;
 
 describe('ChangeDetectionService', () => {
   let changeDetectionService: ChangeDetectionService;
@@ -24,6 +27,7 @@ describe('ChangeDetectionService', () => {
   let mockErrorHandler: ErrorHandlerService;
   let mockFileWatcherService: FileWatcherService;
   let mockFileSystemTraversal: FileSystemTraversal;
+  let mockHotReloadRecoveryService: HotReloadRecoveryService;
   let container: Container;
 
   beforeEach(() => {
@@ -71,11 +75,17 @@ describe('ChangeDetectionService', () => {
       calculateFileHash: jest.fn(),
     } as any;
 
+    mockHotReloadRecoveryService = {
+      handleError: jest.fn(),
+      getRecoveryStrategy: jest.fn(),
+    } as any;
+
     // Bind services to container
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandler);
     container.bind<FileWatcherService>(TYPES.FileWatcherService).toConstantValue(mockFileWatcherService);
     container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).toConstantValue(mockFileSystemTraversal);
+    container.bind<HotReloadRecoveryService>(TYPES.HotReloadRecoveryService).toConstantValue(mockHotReloadRecoveryService);
     container.bind<ChangeDetectionService>(TYPES.ChangeDetectionService).to(ChangeDetectionService);
 
     // Create ChangeDetectionService instance
