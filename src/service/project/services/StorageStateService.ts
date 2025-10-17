@@ -80,9 +80,14 @@ export class StorageStateService {
     else if (vectorStatus.status === 'error' || graphStatus.status === 'error') {
       state.status = 'error';
     }
-    // 如果两个存储都完成，主状态为 active
-    else if (vectorStatus.status === 'completed' && graphStatus.status === 'completed') {
+    // 如果向量存储完成且图存储完成或禁用，主状态为 active
+    else if (vectorStatus.status === 'completed' && 
+             (graphStatus.status === 'completed' || graphStatus.status === 'disabled')) {
       state.status = 'active';
+    }
+    // 如果向量存储待处理且图存储禁用，主状态为 inactive
+    else if (vectorStatus.status === 'pending' && graphStatus.status === 'disabled') {
+      state.status = 'inactive';
     }
     // 如果两个存储都待处理，主状态为 inactive
     else if (vectorStatus.status === 'pending' && graphStatus.status === 'pending') {
@@ -282,6 +287,22 @@ export class StorageStateService {
     await this.updateGraphStatus(projectStates, projectId, {
       status: 'error',
       error
+    }, storagePath);
+  }
+  /**
+   * 设置图索引为禁用状态
+   */
+  async disableGraphIndexing(
+    projectStates: Map<string, ProjectState>,
+    projectId: string,
+    storagePath?: string
+  ): Promise<void> {
+    await this.updateGraphStatus(projectStates, projectId, {
+      status: 'disabled',
+      progress: 0,
+      processedFiles: 0,
+      failedFiles: 0,
+      error: undefined
     }, storagePath);
   }
 }

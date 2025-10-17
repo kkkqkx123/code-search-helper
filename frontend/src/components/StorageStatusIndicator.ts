@@ -92,6 +92,9 @@ export class StorageStatusIndicator extends HTMLElement {
         .status-partial { 
           background-color: #6f42c1; 
         }
+        .status-disabled { 
+          background-color: #adb5bd; 
+        }
 
         /* 脉冲动画 */
         @keyframes pulse {
@@ -173,6 +176,8 @@ export class StorageStatusIndicator extends HTMLElement {
         return '错误';
       case 'partial':
         return '部分完成';
+      case 'disabled':
+        return '已禁用';
       default:
         return '未知';
     }

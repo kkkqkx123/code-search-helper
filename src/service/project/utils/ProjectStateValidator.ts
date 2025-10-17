@@ -27,7 +27,7 @@ export class ProjectStateValidator {
     }
 
     return {
-      status: ['pending', 'indexing', 'completed', 'error', 'partial'].includes(rawStatus.status)
+      status: ['pending', 'indexing', 'completed', 'error', 'partial', 'disabled'].includes(rawStatus.status)
         ? rawStatus.status
         : 'pending',
       progress: typeof rawStatus.progress === 'number' && rawStatus.progress >= 0 && rawStatus.progress <= 100

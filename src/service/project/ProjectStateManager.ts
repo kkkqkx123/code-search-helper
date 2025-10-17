@@ -46,7 +46,7 @@ export interface ProjectState {
 
 // 新增存储状态接口
 export interface StorageStatus {
-  status: 'pending' | 'indexing' | 'completed' | 'error' | 'partial';
+  status: 'pending' | 'indexing' | 'completed' | 'error' | 'partial' | 'disabled';
   progress: number; // 0-100
   totalFiles?: number;
   processedFiles?: number;
@@ -466,6 +466,13 @@ export class ProjectStateManager {
    */
   async failGraphIndexing(projectId: string, error: string): Promise<void> {
     await this.storageStateService.failGraphIndexing(this.projectStates, projectId, error, this.storagePath);
+    await this.saveProjectStates();
+  }
+  /**
+   * 禁用图索引
+   */
+  async disableGraphIndexing(projectId: string): Promise<void> {
+    await this.storageStateService.disableGraphIndexing(this.projectStates, projectId, this.storagePath);
     await this.saveProjectStates();
   }
 

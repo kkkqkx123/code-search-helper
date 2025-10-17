@@ -105,14 +105,23 @@ options.description !== undefined) state.description = options.description;
         if (options.metadata) state.metadata = { ...state.metadata, ...options.metadata };
       } else {
         // 创建新状态
+        const vectorStatus = ProjectStateValidator.initializeStorageStatus();
+        let graphStatus = ProjectStateValidator.initializeStorageStatus();
+        
+        // 检查NEBULA_ENABLED环境变量，如果禁用则设置图索引状态为"已禁用"
+        const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+        if (!nebulaEnabled) {
+          graphStatus.status = 'disabled';
+        }
+        
         state = {
           projectId,
           projectPath,
           name: options.name || path.basename(projectPath),
           description: options.description,
           status: 'inactive',
-          vectorStatus: ProjectStateValidator.initializeStorageStatus(),
-          graphStatus: ProjectStateValidator.initializeStorageStatus(),
+          vectorStatus,
+          graphStatus,
           createdAt: new Date(),
           updatedAt: new Date(),
           settings: {
