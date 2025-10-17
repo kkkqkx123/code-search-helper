@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
-import { ICleanupStrategy, ICleanupContext, ICleanupResult } from './interfaces/ICleanupStrategy';
+import { LoggerService } from '../../utils/LoggerService';
+import { TYPES } from '../../types/index';
+import { ICleanupStrategy, ICleanupContext, ICleanupResult } from './ICleanupStrategy';
 
 /**
  * 清理管理器
@@ -126,7 +126,7 @@ export class CleanupManager {
     try {
       // 获取适用的策略并按优先级排序
       const applicableStrategies = this.getApplicableStrategies(context);
-      
+
       if (applicableStrategies.length === 0) {
         this.logger?.warn('No applicable cleanup strategies found');
         return this.createEmptyResult(startTime);
@@ -134,16 +134,16 @@ export class CleanupManager {
 
       // 执行策略
       const results = await this.executeStrategies(applicableStrategies, context);
-      
+
       // 聚合结果
       const aggregatedResult = this.aggregateResults(results, startTime);
-      
+
       this.logger?.info(`Cleanup operation completed successfully, freed ${aggregatedResult.memoryFreed} bytes in ${aggregatedResult.duration}ms`);
-      
+
       return aggregatedResult;
     } catch (error) {
       this.logger?.error(`Cleanup operation failed: ${error}`);
-      
+
       return {
         success: false,
         cleanedCaches: [],
@@ -222,7 +222,7 @@ export class CleanupManager {
         this.logger?.info(`Executing cleanup strategy: ${strategy.name}`);
         const result = await strategy.cleanup(context);
         results.push(result);
-        
+
         if (result.success) {
           this.logger?.info(`Strategy ${strategy.name} completed successfully, freed ${result.memoryFreed} bytes`);
         } else {
@@ -319,7 +319,7 @@ export class CleanupManager {
     }
 
     this.logger?.info('Resetting CleanupManager');
-    
+
     // 不清除策略注册，只重置内部状态
     this.logger?.info('CleanupManager reset completed');
   }

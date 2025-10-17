@@ -1,6 +1,6 @@
 import { CleanupManager } from '../CleanupManager';
-import { ICleanupStrategy, ICleanupContext, ICleanupResult } from '../interfaces/ICleanupStrategy';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { ICleanupStrategy, ICleanupContext, ICleanupResult } from '../ICleanupStrategy';
+import { LoggerService } from '../../../utils/LoggerService';
 
 // 模拟清理策略
 class MockCleanupStrategy implements ICleanupStrategy {
@@ -9,7 +9,7 @@ class MockCleanupStrategy implements ICleanupStrategy {
   readonly description = 'Mock cleanup strategy for testing';
 
   constructor(
-    private shouldSucceed: boolean = true, 
+    private shouldSucceed: boolean = true,
     private memoryToFree: number = 1024,
     name: string = 'mock-strategy',
     priority: number = 1
@@ -84,7 +84,7 @@ describe('CleanupManager', () => {
     it('should not register an unavailable strategy', () => {
       const strategy = new MockCleanupStrategy();
       jest.spyOn(strategy, 'isAvailable').mockReturnValue(false);
-      
+
       cleanupManager.registerStrategy(strategy);
 
       const status = cleanupManager.getStatus();
@@ -95,7 +95,7 @@ describe('CleanupManager', () => {
     it('should unregister a strategy successfully', () => {
       const strategy = new MockCleanupStrategy();
       cleanupManager.registerStrategy(strategy);
-      
+
       cleanupManager.unregisterStrategy('mock-strategy');
 
       const status = cleanupManager.getStatus();
@@ -132,7 +132,7 @@ describe('CleanupManager', () => {
     it('should handle cleanup with multiple strategies', async () => {
       const strategy1 = new MockCleanupStrategy(true, 1024, 'mock-strategy-1', 1);
       const strategy2 = new MockCleanupStrategy(true, 2048, 'mock-strategy-2', 2);
-      
+
       cleanupManager.registerStrategy(strategy1);
       cleanupManager.registerStrategy(strategy2);
 
@@ -182,7 +182,7 @@ describe('CleanupManager', () => {
     it('should estimate cleanup impact correctly', () => {
       const strategy1 = new MockCleanupStrategy(true, 1024, 'mock-strategy-1', 1);
       const strategy2 = new MockCleanupStrategy(true, 2048, 'mock-strategy-2', 2);
-      
+
       cleanupManager.registerStrategy(strategy1);
       cleanupManager.registerStrategy(strategy2);
 
@@ -198,7 +198,7 @@ describe('CleanupManager', () => {
 
     it('should return 0 when not initialized', () => {
       cleanupManager.destroy();
-      
+
       const context: ICleanupContext = {
         triggerReason: 'test-cleanup',
         timestamp: new Date()
@@ -215,7 +215,7 @@ describe('CleanupManager', () => {
       cleanupManager.registerStrategy(strategy);
 
       const status = cleanupManager.getStatus();
-      
+
       expect(status.isInitialized).toBe(true);
       expect(status.registeredStrategies).toContain('mock-strategy');
       expect(status.totalStrategies).toBe(1);
@@ -236,9 +236,9 @@ describe('CleanupManager', () => {
   describe('error handling', () => {
     it('should handle uninitialized manager', () => {
       cleanupManager.destroy();
-      
+
       const strategy = new MockCleanupStrategy();
-      
+
       expect(() => {
         cleanupManager.registerStrategy(strategy);
       }).toThrow('CleanupManager is not initialized');

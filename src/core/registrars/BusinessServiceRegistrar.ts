@@ -46,7 +46,7 @@ import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../service/parser/universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../../service/parser/universal/ExtensionlessFileProcessor';
 import { ProcessingGuard } from '../../service/parser/guard/ProcessingGuard';
-import { CleanupManager } from '../../service/parser/universal/cleanup/CleanupManager';
+import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
 import { ProcessingStrategySelector } from '../../service/parser/universal/coordination/ProcessingStrategySelector';
 import { FileProcessingCoordinator } from '../../service/parser/universal/coordination/FileProcessingCoordinator';
@@ -119,37 +119,22 @@ export class BusinessServiceRegistrar {
     container.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
     container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
 
-    // CleanupManager - 需要在ErrorThresholdManager和MemoryGuard之前注册
-    container.bind<CleanupManager>(TYPES.CleanupManager).toDynamicValue(context => {
-      const logger = context.get<LoggerService>(TYPES.LoggerService);
-      const cleanupManager = new CleanupManager(logger);
-
-      // 初始化CleanupManager
-      cleanupManager.initialize();
-
-      // 注册清理策略
-      const { TreeSitterCacheCleanupStrategy } = require('../../service/parser/universal/cleanup/strategies/TreeSitterCacheCleanupStrategy');
-      const { LRUCacheCleanupStrategy } = require('../../service/parser/universal/cleanup/strategies/LRUCacheCleanupStrategy');
-      const { GarbageCollectionStrategy } = require('../../service/parser/universal/cleanup/strategies/GarbageCollectionStrategy');
-
-      cleanupManager.registerStrategy(new TreeSitterCacheCleanupStrategy(logger));
-      cleanupManager.registerStrategy(new LRUCacheCleanupStrategy(logger));
-      cleanupManager.registerStrategy(new GarbageCollectionStrategy(logger));
-
-      return cleanupManager;
-    }).inSingletonScope();
-
     // 处理策略选择器 - 需要在UnifiedGuardCoordinator之前注册
     container.bind<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
       return new ProcessingStrategySelector(logger);
     }).inSingletonScope();
-    
+
     // 文件处理协调器 - 需要在UnifiedGuardCoordinator之前注册
     container.bind<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
       return new FileProcessingCoordinator(logger);
     }).inSingletonScope();
+
+    // CleanupManager 现在在 InfrastructureServiceRegistrar 中注册
+    /* 通过DIContainer.ts的注册顺序保证：
+    InfrastructureServiceRegistrar.register()在BusinessServiceRegistrar.register()之前调用
+    */
 
     // 通用文件处理服务
     container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).toDynamicValue(context => {
@@ -181,21 +166,21 @@ export class BusinessServiceRegistrar {
       return new ExtensionlessFileProcessor(logger);
     }).inSingletonScope();
     container.bind<ProcessingGuard>(TYPES.ProcessingGuard).to(ProcessingGuard).inSingletonScope();
-    
+
     // UnifiedGuardCoordinator - 新的统一保护机制协调器
     container.bind<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator).toDynamicValue(context => {
       const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
       const errorThresholdManager = context.get<ErrorThresholdManager>(TYPES.ErrorThresholdManager);
       const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
       const logger = context.get<LoggerService>(TYPES.LoggerService);
-      
+
       // 获取策略选择器和文件处理协调器
       const processingStrategySelector = context.get<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector);
       const fileProcessingCoordinator = context.get<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator);
-      
+
       const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
       const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
-      
+
       return UnifiedGuardCoordinator.getInstance(
         memoryMonitorService,
         errorThresholdManager,

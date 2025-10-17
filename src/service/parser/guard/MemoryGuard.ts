@@ -2,8 +2,8 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
-import { CleanupManager } from '../universal/cleanup/CleanupManager';
-import { ICleanupContext } from '../universal/cleanup/interfaces/ICleanupStrategy';
+import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
+import { ICleanupContext, ICleanupResult } from '../../../infrastructure/cleanup/ICleanupStrategy';
 
 /**
  * 内存监控和保护机制
@@ -32,7 +32,7 @@ export class MemoryGuard {
     this.checkInterval = checkIntervalMs;
     this.logger = logger;
     this.cleanupManager = cleanupManager;
-    
+
     // 设置内存限制到内存监控服务
     this.memoryMonitor.setMemoryLimit?.(memoryLimitMB);
   }
@@ -152,17 +152,17 @@ export class MemoryGuard {
           timestamp: new Date()
         };
 
-        this.cleanupManager.performCleanup(cleanupContext).then(result => {
+        this.cleanupManager.performCleanup(cleanupContext).then((result: ICleanupResult) => {
           if (result.success) {
             this.logger?.info(`Cleanup completed successfully, freed ${this.formatBytes(result.memoryFreed)} bytes, cleaned caches: ${result.cleanedCaches.join(', ')}`);
-            
+
             // 记录清理后的内存使用情况
             const afterCleanup = this.checkMemoryUsage();
             this.logger?.info(`Memory cleanup completed. Current usage: ${this.formatBytes(afterCleanup.heapUsed)} (${afterCleanup.usagePercent.toFixed(1)}%)`);
           } else {
             this.logger?.error(`Cleanup failed: ${result.error?.message}`);
           }
-        }).catch(error => {
+        }).catch((error: any) => {
           this.logger?.error(`Cleanup execution failed: ${error}`);
         });
       } else {
@@ -207,7 +207,7 @@ export class MemoryGuard {
     const current = process.memoryUsage();
     const usagePercent = (current.heapUsed / this.memoryLimit) * 100;
     const isWithinLimit = current.heapUsed <= this.memoryLimit;
-    
+
     // 使用统一的内存监控服务获取趋势和平均值
     const memoryStatus = this.memoryMonitor.getMemoryStatus();
     const trend = memoryStatus.trend;

@@ -1,5 +1,5 @@
-import { ICleanupStrategy, ICleanupContext, ICleanupResult } from '../interfaces/ICleanupStrategy';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { ICleanupStrategy, ICleanupContext, ICleanupResult } from '../ICleanupStrategy';
+import { LoggerService } from '../../../utils/LoggerService';
 
 /**
  * LRU缓存清理策略
@@ -9,7 +9,7 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
   public readonly name = 'LRUCacheCleanup';
   public readonly priority = 2; // 中等优先级
   public readonly description = '清理LRU缓存，释放内存';
-  
+
   private logger?: LoggerService;
 
   constructor(logger?: LoggerService) {
@@ -21,14 +21,14 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
    */
   isApplicable(context: ICleanupContext): boolean {
     // 适用于内存压力较大或需要清理缓存的情况
-    const memoryPressure = context.memoryUsage && 
-      context.memoryUsage.heapUsed > 0 && 
+    const memoryPressure = context.memoryUsage &&
+      context.memoryUsage.heapUsed > 0 &&
       context.memoryUsage.heapTotal > 0 &&
       (context.memoryUsage.heapUsed / context.memoryUsage.heapTotal) > 0.6;
 
-    const cacheRelated = context.triggerReason.includes('cache') || 
-                        context.triggerReason.includes('memory') ||
-                        context.triggerReason.includes('cleanup');
+    const cacheRelated = context.triggerReason.includes('cache') ||
+      context.triggerReason.includes('memory') ||
+      context.triggerReason.includes('cleanup');
 
     return memoryPressure || cacheRelated;
   }
@@ -53,14 +53,14 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
     try {
       // 基础估算LRU缓存大小
       const baseEstimate = 20 * 1024 * 1024; // 基础估算20MB
-      
+
       // 根据内存使用情况调整估算
       if (context.memoryUsage && context.memoryUsage.heapUsed > 0) {
         const memoryRatio = context.memoryUsage.heapUsed / context.memoryUsage.heapTotal;
         // LRU缓存通常占用总内存的5-15%
         return Math.floor(baseEstimate * Math.min(memoryRatio * 0.1, 1.0));
       }
-      
+
       return baseEstimate;
     } catch (error) {
       this.logger?.warn(`Failed to estimate LRU cache impact: ${error}`);
@@ -78,10 +78,10 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
     try {
       // 获取清理前的内存状态
       const beforeCleanup = process.memoryUsage();
-      
+
       // 清理LRU缓存
       const cleanupResults = await this.performLRUCacheCleanup();
-      
+
       if (cleanupResults.length === 0) {
         this.logger?.warn('No LRU caches found to clean');
         return {
@@ -101,7 +101,7 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
       const memoryFreed = Math.max(0, beforeCleanup.heapUsed - afterCleanup.heapUsed);
 
       const duration = Date.now() - startTime;
-      
+
       this.logger?.info(`LRU cache cleanup completed, cleaned ${cleanupResults.length} caches, freed ${this.formatBytes(memoryFreed)} in ${duration}ms`);
 
       return {
@@ -120,7 +120,7 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
     } catch (error) {
       const duration = Date.now() - startTime;
       this.logger?.error(`LRU cache cleanup failed: ${error}`);
-      
+
       return {
         success: false,
         cleanedCaches: [],
@@ -140,7 +140,7 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
    */
   private async performLRUCacheCleanup(): Promise<string[]> {
     const cleanedCaches: string[] = [];
-    
+
     try {
       // 清理全局LRU缓存
       if (this.clearGlobalLRUCache()) {
@@ -197,7 +197,7 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
     try {
       if (typeof global !== 'undefined' && (global as any).LRUCache) {
         const globalCache = (global as any).LRUCache;
-        
+
         if (typeof globalCache.clearAll === 'function') {
           globalCache.clearAll();
           this.logger?.debug('Global LRU cache cleared');
@@ -224,11 +224,11 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
    */
   private clearModuleLRUCaches(): string[] {
     const cleanedModules: string[] = [];
-    
+
     try {
       // 尝试清理常见的LRU缓存实例
       const cacheInstances = this.findLRUCacheInstances();
-      
+
       for (const [name, cache] of cacheInstances) {
         try {
           if (typeof cache.clear === 'function') {
@@ -248,7 +248,7 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
           this.logger?.debug(`Could not clear ${name} cache: ${(error as Error).message}`);
         }
       }
-      
+
       return cleanedModules;
     } catch (error) {
       this.logger?.debug(`Module LRU cache cleanup error: ${(error as Error).message}`);
@@ -261,11 +261,11 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
    */
   private findLRUCacheInstances(): Map<string, any> {
     const instances = new Map<string, any>();
-    
+
     try {
       // 这里可以扩展以查找更多的LRU缓存实例
       // 例如从require.cache中查找，或者从全局对象中查找
-      
+
       // 检查require.cache中的缓存实例
       if (typeof require !== 'undefined' && require.cache) {
         for (const [path, module] of Object.entries(require.cache)) {
@@ -275,7 +275,7 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
           }
         }
       }
-      
+
       return instances;
     } catch (error) {
       this.logger?.debug(`Error finding LRU cache instances: ${(error as Error).message}`);
@@ -292,13 +292,13 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
       if (moduleExport && typeof moduleExport === 'object') {
         // 检查是否有常见的LRU缓存方法
         const lruMethods = ['clear', 'reset', 'clearAll', 'purgeStale'];
-        
+
         for (const method of lruMethods) {
           if (typeof moduleExport[method] === 'function') {
             // 进一步检查是否有LRU特征属性
             const lruProperties = ['max', 'maxAge', 'length', 'itemCount'];
             const hasLruProperty = lruProperties.some(prop => moduleExport.hasOwnProperty(prop));
-            
+
             if (hasLruProperty) {
               const cacheName = this.extractModuleName(modulePath);
               instances.set(cacheName, moduleExport);
@@ -320,7 +320,7 @@ export class LRUCacheCleanupStrategy implements ICleanupStrategy {
       const path = require('path');
       const baseName = path.basename(modulePath, '.js');
       const dirName = path.basename(path.dirname(modulePath));
-      
+
       return `${dirName}/${baseName}`;
     } catch (error) {
       return 'unknown';

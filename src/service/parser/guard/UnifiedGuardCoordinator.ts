@@ -3,10 +3,10 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
 import { ErrorThresholdManager } from '../universal/ErrorThresholdManager';
-import { CleanupManager } from '../universal/cleanup/CleanupManager';
+import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
 import { IProcessingStrategySelector } from '../universal/coordination/interfaces/IProcessingStrategySelector';
 import { IFileProcessingCoordinator } from '../universal/coordination/interfaces/IFileProcessingCoordinator';
-import { 
+import {
   IUnifiedGuardCoordinator,
   MemoryStatus,
   MemoryStats,
@@ -14,7 +14,7 @@ import {
   FileProcessingResult,
   GuardStatus
 } from './interfaces/IUnifiedGuardCoordinator';
-import { ICleanupContext } from '../universal/cleanup/interfaces/ICleanupStrategy';
+import { ICleanupContext } from '../../../infrastructure/cleanup/ICleanupStrategy';
 
 /**
  * 统一的保护机制协调器
@@ -23,14 +23,14 @@ import { ICleanupContext } from '../universal/cleanup/interfaces/ICleanupStrateg
 @injectable()
 export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
   private static instance: UnifiedGuardCoordinator;
-  
+
   // 核心依赖组件
   private memoryMonitor: IMemoryMonitorService;
   private errorThresholdManager: ErrorThresholdManager;
   private cleanupManager: CleanupManager;
   private processingStrategySelector: IProcessingStrategySelector;
   private fileProcessingCoordinator: IFileProcessingCoordinator;
-  
+
   // 配置参数
   private memoryLimitMB: number;
   private memoryCheckIntervalMs: number;
@@ -99,10 +99,10 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
   private initializeInternal(): void {
     // 设置内存限制
     this.memoryMonitor.setMemoryLimit?.(this.memoryLimitMB);
-    
+
     // 设置事件处理器
     this.setupEventHandlers();
-    
+
     this.logger?.info('UnifiedGuardCoordinator initialized successfully');
   }
 
@@ -121,12 +121,12 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
    */
   private handleMemoryPressure(event: any): void {
     this.logger?.warn('Memory pressure detected', event);
-    
+
     // 统一清理逻辑
     this.forceCleanup().catch(error => {
       this.logger?.error(`Failed to handle memory pressure: ${error}`);
     });
-    
+
     // 记录错误
     this.recordError(
       new Error('Memory pressure detected'),
@@ -226,7 +226,7 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
       // 内存超限处理
       if (!isWithinLimit) {
         this.logger?.warn(`Memory usage exceeds limit: ${this.formatBytes(heapUsed)} > ${this.formatBytes(memoryLimitBytes)} (${usagePercent.toFixed(1)}%)`);
-        
+
         // 触发统一清理
         this.forceCleanup().catch(error => {
           this.logger?.error(`Cleanup failed during memory check: ${error}`);
@@ -272,10 +272,10 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
         };
 
         const result = await this.cleanupManager.performCleanup(cleanupContext);
-        
+
         if (result.success) {
           this.logger?.info(`Cleanup completed successfully, freed ${this.formatBytes(result.memoryFreed)} bytes, cleaned caches: ${result.cleanedCaches.join(', ')}`);
-          
+
           // 记录清理后的内存使用情况
           const afterCleanup = this.checkMemoryUsage();
           this.logger?.info(`Memory cleanup completed. Current usage: ${this.formatBytes(afterCleanup.heapUsed)} (${afterCleanup.usagePercent.toFixed(1)}%)`);
@@ -312,7 +312,7 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
     const memoryLimitBytes = this.memoryLimitMB * 1024 * 1024;
     const usagePercent = (current.heapUsed / memoryLimitBytes) * 100;
     const isWithinLimit = current.heapUsed <= memoryLimitBytes;
-    
+
     // 使用统一的内存监控服务获取趋势和平均值
     const memoryStatus = this.memoryMonitor.getMemoryStatus();
     const trend = memoryStatus.trend;
@@ -379,13 +379,13 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
       if (!memoryStatus.isWithinLimit) {
         const memoryLimitBytes = this.memoryLimitMB * 1024 * 1024;
         this.logger?.warn(`Memory limit exceeded before processing: ${memoryStatus.heapUsed} > ${memoryLimitBytes}`);
-        
+
         const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(
-          filePath, 
-          content, 
+          filePath,
+          content,
           'Memory limit exceeded'
         );
-        
+
         return {
           chunks: fallbackResult.chunks,
           language: 'text',
@@ -397,13 +397,13 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
       // 2. 检查错误阈值
       if (this.errorThresholdManager.shouldUseFallback()) {
         this.logger?.warn('Error threshold reached, using fallback processing');
-        
+
         const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(
-          filePath, 
-          content, 
+          filePath,
+          content,
           'Error threshold exceeded'
         );
-        
+
         return {
           chunks: fallbackResult.chunks,
           language: 'text',
@@ -420,7 +420,7 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
         languageInfo,
         timestamp: new Date()
       };
-      
+
       const strategy = await this.processingStrategySelector.selectProcessingStrategy(strategyContext);
 
       // 4. 使用专门的文件处理协调器执行处理
@@ -431,7 +431,7 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
         language: languageInfo.language,
         timestamp: new Date()
       };
-      
+
       const result = await this.fileProcessingCoordinator.processFile(context);
 
       return {
@@ -445,11 +445,11 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
       this.errorThresholdManager.recordError(error as Error, `processFile: ${filePath}`);
 
       const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(
-        filePath, 
-        content, 
+        filePath,
+        content,
         `Processing error: ${(error as Error).message}`
       );
-      
+
       return {
         chunks: fallbackResult.chunks,
         language: 'text',

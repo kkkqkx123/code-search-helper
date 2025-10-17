@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
-import { CleanupManager } from './cleanup/CleanupManager';
-import { ICleanupContext } from './cleanup/interfaces/ICleanupStrategy';
+import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
+import { ICleanupContext } from '../../../infrastructure/cleanup/ICleanupStrategy';
 
 /**
  * 错误阈值管理器
@@ -21,7 +21,7 @@ export class ErrorThresholdManager {
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.CleanupManager) cleanupManager?: CleanupManager,
-    maxErrors: number = 5, 
+    maxErrors: number = 5,
     resetInterval: number = 60000
   ) {
     this.logger = logger;
@@ -35,12 +35,12 @@ export class ErrorThresholdManager {
    */
   shouldUseFallback(): boolean {
     const now = Date.now();
-    
+
     // 重置计数器（超过重置间隔时间且无错误）
     if (now - this.lastErrorTime > this.resetInterval) {
       this.resetCounter();
     }
-    
+
     return this.errorCount >= this.maxErrors;
   }
 
@@ -50,7 +50,7 @@ export class ErrorThresholdManager {
   recordError(error: Error, context?: string): void {
     this.errorCount++;
     this.lastErrorTime = Date.now();
-    
+
     // 记录日志
     this.logger?.warn(`Processing error #${this.errorCount}: ${error.message}`, {
       context,
@@ -58,7 +58,7 @@ export class ErrorThresholdManager {
       errorCount: this.errorCount,
       maxErrors: this.maxErrors
     });
-    
+
     // 如果达到阈值，执行清理
     if (this.errorCount >= this.maxErrors) {
       this.logger?.warn(`Error threshold reached (${this.errorCount}/${this.maxErrors}), triggering cleanup`);
@@ -127,7 +127,7 @@ export class ErrorThresholdManager {
   } {
     const now = Date.now();
     const timeUntilReset = Math.max(0, this.resetInterval - (now - this.lastErrorTime));
-    
+
     return {
       errorCount: this.errorCount,
       maxErrors: this.maxErrors,
@@ -163,14 +163,14 @@ export class ErrorThresholdManager {
   getErrorRate(): number {
     const now = Date.now();
     const timeDiff = now - this.lastErrorTime;
-    
+
     if (timeDiff === 0) {
       return 0;
     }
-    
+
     // 计算每分钟的错误数
     const minutesDiff = timeDiff / 60000;
-    return this.errorCount / Math.max(minutesDiff, 1/60); // 避免除以零
+    return this.errorCount / Math.max(minutesDiff, 1 / 60); // 避免除以零
   }
 
   /**

@@ -27,6 +27,12 @@ import { InfrastructureConfigService } from '../../infrastructure/config/Infrast
 // 向量批处理优化器
 import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
 
+// Cleanup基础设施服务
+import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
+import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
+import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
+import { GarbageCollectionStrategy } from '../../infrastructure/cleanup/strategies/GarbageCollectionStrategy';
+
 export class InfrastructureServiceRegistrar {
   static register(container: Container): void {
     try {
@@ -117,6 +123,22 @@ export class InfrastructureServiceRegistrar {
       // 向量批处理优化器
       container.bind<VectorBatchOptimizer>(TYPES.VectorBatchOptimizer)
         .to(VectorBatchOptimizer).inSingletonScope();
+
+      // CleanupManager - 注册为基础设施服务
+      container.bind<CleanupManager>(TYPES.CleanupManager).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        const cleanupManager = new CleanupManager(logger);
+
+        // 初始化CleanupManager
+        cleanupManager.initialize();
+
+        // 注册清理策略
+        cleanupManager.registerStrategy(new TreeSitterCacheCleanupStrategy(logger));
+        cleanupManager.registerStrategy(new LRUCacheCleanupStrategy(logger));
+        cleanupManager.registerStrategy(new GarbageCollectionStrategy(logger));
+
+        return cleanupManager;
+      }).inSingletonScope();
     } catch (error: any) {
       console.error('Error registering infrastructure services:', error);
       console.error('Error stack:', error?.stack);

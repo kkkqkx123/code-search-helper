@@ -1,5 +1,5 @@
-import { ICleanupStrategy, ICleanupContext, ICleanupResult } from '../interfaces/ICleanupStrategy';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { ICleanupStrategy, ICleanupContext, ICleanupResult } from '../ICleanupStrategy';
+import { LoggerService } from '../../../utils/LoggerService';
 
 /**
  * 垃圾回收策略
@@ -9,7 +9,7 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
   public readonly name = 'GarbageCollection';
   public readonly priority = 3; // 低优先级，最后执行
   public readonly description = '触发垃圾回收，释放未使用的内存';
-  
+
   private logger?: LoggerService;
 
   constructor(logger?: LoggerService) {
@@ -21,14 +21,14 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
    */
   isApplicable(context: ICleanupContext): boolean {
     // 适用于内存压力较大或需要深度清理的情况
-    const memoryPressure = context.memoryUsage && 
-      context.memoryUsage.heapUsed > 0 && 
+    const memoryPressure = context.memoryUsage &&
+      context.memoryUsage.heapUsed > 0 &&
       context.memoryUsage.heapTotal > 0 &&
       (context.memoryUsage.heapUsed / context.memoryUsage.heapTotal) > 0.75;
 
-    const deepCleanup = context.triggerReason.includes('deep') || 
-                       context.triggerReason.includes('force') ||
-                       context.triggerReason.includes('gc');
+    const deepCleanup = context.triggerReason.includes('deep') ||
+      context.triggerReason.includes('force') ||
+      context.triggerReason.includes('gc');
 
     return memoryPressure || deepCleanup;
   }
@@ -53,18 +53,18 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
     try {
       // 基础估算垃圾回收效果
       const baseEstimate = 30 * 1024 * 1024; // 基础估算30MB
-      
+
       // 根据内存使用情况调整估算
       if (context.memoryUsage && context.memoryUsage.heapUsed > 0 && context.memoryUsage.heapTotal > 0) {
         const heapUsed = context.memoryUsage.heapUsed;
         const heapTotal = context.memoryUsage.heapTotal;
         const memoryRatio = heapUsed / heapTotal;
-        
+
         // 估算可回收的内存（通常为已使用内存的10-20%）
         const reclaimableRatio = Math.min(memoryRatio * 0.15, 0.2);
         return Math.floor(heapUsed * reclaimableRatio);
       }
-      
+
       return baseEstimate;
     } catch (error) {
       this.logger?.warn(`Failed to estimate garbage collection impact: ${error}`);
@@ -82,10 +82,10 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
     try {
       // 获取清理前的内存状态
       const beforeCleanup = process.memoryUsage();
-      
+
       // 执行垃圾回收
       const gcSuccess = await this.performGarbageCollection();
-      
+
       if (!gcSuccess) {
         throw new Error('Garbage collection failed or not available');
       }
@@ -98,7 +98,7 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
       const memoryFreed = Math.max(0, beforeCleanup.heapUsed - afterCleanup.heapUsed);
 
       const duration = Date.now() - startTime;
-      
+
       this.logger?.info(`Garbage collection completed, freed ${this.formatBytes(memoryFreed)} in ${duration}ms`);
 
       return {
@@ -119,7 +119,7 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
     } catch (error) {
       const duration = Date.now() - startTime;
       this.logger?.error(`Garbage collection failed: ${error}`);
-      
+
       return {
         success: false,
         cleanedCaches: [],
@@ -140,7 +140,7 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
   private async performGarbageCollection(): Promise<boolean> {
     try {
       // 尝试多种垃圾回收方式
-      
+
       // 1. 强制垃圾回收（如果可用）
       if (typeof global !== 'undefined' && typeof (global as any).gc === 'function') {
         (global as any).gc();
@@ -150,7 +150,7 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
 
       // 2. 尝试通过内存压力触发垃圾回收
       await this.triggerGCByMemoryPressure();
-      
+
       return true;
     } catch (error) {
       this.logger?.warn(`Garbage collection error: ${(error as Error).message}`);
@@ -165,18 +165,18 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
     try {
       // 创建临时对象来触发垃圾回收
       const tempArrays: any[] = [];
-      
+
       // 分配一些内存来触发GC
       for (let i = 0; i < 10; i++) {
         tempArrays.push(new Array(1024 * 1024).fill(0)); // 1MB数组
       }
-      
+
       // 清除引用
       tempArrays.length = 0;
-      
+
       // 等待GC执行
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       this.logger?.debug('Garbage collection triggered by memory pressure');
     } catch (error) {
       this.logger?.debug(`Memory pressure GC trigger failed: ${(error as Error).message}`);
@@ -190,7 +190,7 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
     try {
       if (typeof process !== 'undefined' && (process as any).memoryUsage) {
         const memUsage = (process as any).memoryUsage();
-        
+
         // 尝试获取V8的垃圾回收统计（如果可用）
         if ((process as any).getV8GCStatistics) {
           return {
@@ -198,12 +198,12 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
             v8GCStats: (process as any).getV8GCStatistics()
           };
         }
-        
+
         return {
           memoryUsage: memUsage
         };
       }
-      
+
       return null;
     } catch (error) {
       this.logger?.debug(`Failed to get GC stats: ${(error as Error).message}`);
@@ -236,7 +236,7 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
     v8StatsAvailable: boolean;
   } {
     const available = this.isAvailable();
-    
+
     return {
       available,
       gcEnabled: available && typeof (global as any).gc === 'function',
