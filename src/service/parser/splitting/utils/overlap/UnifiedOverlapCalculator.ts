@@ -1,4 +1,3 @@
-
 import { CodeChunk, ASTNode, OverlapCalculator } from '../../types';
 import { ASTNodeTracker } from '../ASTNodeTracker';
 import { SemanticBoundaryAnalyzer } from '../SemanticBoundaryAnalyzer';
@@ -820,9 +819,38 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         return availableLines.join('\n');
       },
 
-      // 策略3：使用语义边界（简化实现）
+      // 策略3：使用语义边界（增强实现）
       () => {
-        // 查找语义边界，如函数结束、类结束等
+        // 增强的语义边界检测，支持更多边界模式
+        const boundaryPatterns = [
+          /^\s*}\s*$/,           // 闭合花括号
+          /^\s*\)\s*$/,          // 闭合圆括号
+          /^\s*\]\s*$/,          // 闭合方括号
+          /^\s*return\b/,        // return语句
+          /^\s*break\b/,         // break语句
+          /^\s*continue\b/,      // continue语句
+          /^\s*throw\b/,         // throw语句
+          /^\s*$/,               // 空行
+          /^\s*\/\/\s*---/,      // 分隔注释
+          /^\s*#\s*---/,         // 分隔注释（其他语言）
+          /^\s*\/\*\s*---/,      // 块注释分隔
+          /^\s*end\s*$/,         // Ruby/Basic结束
+          /^\s*endif\s*$/,       // Basic条件结束
+          /^\s*endfunction\s*$/, // Basic函数结束
+        ];
+
+        // 扩大搜索范围到12行，提高找到合适边界的概率
+        const searchRange = Math.min(12, currentEndLine - currentChunk.metadata.startLine);
+
+        for (let i = currentEndLine - 1; i >= Math.max(0, currentEndLine - searchRange); i--) {
+          const line = lines[i];
+          if (boundaryPatterns.some(pattern => pattern.test(line))) {
+            const overlapLines = lines.slice(i, currentEndLine);
+            return overlapLines.join('\n');
+          }
+        }
+
+        // 回退到原始简化逻辑
         for (let i = currentEndLine - 1; i >= Math.max(0, currentEndLine - 5); i--) {
           const line = lines[i];
           if (line.includes('}') || line.includes('return') || line.trim() === '') {
