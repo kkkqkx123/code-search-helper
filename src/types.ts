@@ -125,7 +125,7 @@ import { StorageStateService } from './service/project/services/StorageStateServ
 
 // UnifiedGuardCoordinator 相关类型
 import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
-import { IUnifiedGuardCoordinator } from './service/parser/guard/interfaces/IUnifiedGuardCoordinator';
+import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';
 
 export const TYPES = {
   ConfigService: Symbol.for('ConfigService'),
@@ -309,7 +309,7 @@ export const TYPES = {
   FaultToleranceHandler: Symbol.for('FaultToleranceHandler'),
   MappingRuleEngine: Symbol.for('MappingRuleEngine'),
   MappingCacheManager: Symbol.for('MappingCacheManager'),
-  
+
 
   // 性能监控和优化相关服务
   PerformanceDashboard: Symbol.for('PerformanceDashboard'),

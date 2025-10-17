@@ -13,7 +13,7 @@ import {
   MemoryHistory,
   FileProcessingResult,
   GuardStatus
-} from './interfaces/IUnifiedGuardCoordinator';
+} from './IUnifiedGuardCoordinator';
 import { ICleanupContext } from '../../../infrastructure/cleanup/ICleanupStrategy';
 
 /**

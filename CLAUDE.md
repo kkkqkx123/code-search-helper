@@ -15,7 +15,6 @@ This is a comprehensive codebase indexing and analysis system built with TypeScr
 - **Frontend**: Vanilla TypeScript + Vite (no frameworks)
 - **AI Integration**: Multiple embedding providers (OpenAI, Ollama, Gemini, Mistral, SiliconFlow)
 - **Code Analysis**: Tree-sitter parsing, LSP integration, Semgrep static analysis
-- **Python Algorithm Service**: FastAPI microservice for advanced graph search and vector batch optimization algorithms
 
 ## Development Commands
 
@@ -94,32 +93,6 @@ npm run test
 npm run test:watch
 ```
 
-### Python Algorithm Service Development
-
-```bash
-cd py-service
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Development server (port 8000)
-uvicorn src.main:app --reload --port 8000
-
-# Production with Docker Compose
-docker-compose up -d
-
-# Run Python tests
-pytest tests/unit/
-pytest tests/integration/
-pytest tests/performance/
-
-# Code formatting and linting
-black src/
-isort src/
-mypy src/
-flake8 src/
-```
-
 ## Architecture Overview
 
 ### Backend Architecture
@@ -149,23 +122,6 @@ src/
 │   └── project/               # Project state management
 ├── config/                    # Configuration management system
 └── utils/                     # Utilities (logging, error handling, path utils)
-
-py-service/                    # Python Algorithm Microservice
-├── src/
-│   ├── main.py                # FastAPI application entry point
-│   ├── api/routes/            # REST API endpoints
-│   ├── core/                  # Core algorithm implementations
-│   │   ├── fuzzy_match/       # Fuzzy matching algorithms
-│   │   ├── graph_index/       # Graph indexing algorithms
-│   │   ├── query_optimizer/   # Query optimization algorithms
-│   │   └── batch_optimization/ # Vector batch optimization
-│   ├── models/                # Pydantic data models
-│   ├── services/              # Business logic services
-│   ├── utils/                 # Utility functions
-│   └── typescript-client/     # Generated TypeScript client
-├── requirements.txt           # Python dependencies
-├── docker-compose.yml         # Container orchestration
-└── README.md                  # Python service documentation
 ```
 
 ### Key Backend Components
@@ -178,19 +134,11 @@ py-service/                    # Python Algorithm Microservice
    - `QdrantService`: Vector database for semantic search (collections, embeddings, similarity search)
    - `NebulaService`: Graph database for code relationships (nodes, edges, traversals)
 
-4. **Python Algorithm Service** (`py-service/`):
-   - **FastAPI Microservice**: High-performance algorithm service running on port 8000
-   - **Fuzzy Matching**: Advanced string matching algorithms for code search with similarity scoring
-   - **Graph Search Optimization**: Query optimization and graph indexing algorithms
-   - **Vector Batch Processing**: Intelligent batch size optimization for vector operations
-   - **TypeScript Client**: Auto-generated client for seamless integration with main TypeScript backend
-   - **Docker Support**: Containerized deployment with health checks and monitoring
-
-5. **Code Parsing Pipeline**:
+4. **Code Parsing Pipeline**:
    - Tree-sitter based parsing with multiple chunking strategies (function, class, module, hierarchical)
    - Support for multiple languages (JavaScript, TypeScript, Python, Go, Rust, Java, C++)
 
-6. **Embedding System**: Factory pattern supporting multiple providers with caching and fallback mechanisms
+5. **Embedding System**: Factory pattern supporting multiple providers with caching and fallback mechanisms
 
 ### Frontend Architecture
 
@@ -251,94 +199,6 @@ The system uses a sophisticated project management approach:
 - **State Management**: Tracking of project indexing status, update times, and metadata
 - **Multi-Database Coordination**: Synchronized operations across vector and graph databases
 
-## Python Algorithm Service
-
-The Python microservice provides advanced algorithmic capabilities for graph search and vector operations:
-
-### Core Services
-
-1. **Fuzzy Match Service** (`py-service/src/core/fuzzy_match/`):
-   - Advanced string matching algorithms for code search
-   - Levenshtein distance, Jaro-Winkler, and custom similarity metrics
-   - Configurable thresholds and result ranking
-
-2. **Graph Index Service** (`py-service/src/core/graph_index/`):
-   - Hierarchical graph indexing for faster traversals
-   - Compressed graph representations for memory efficiency
-   - Incremental index updates for dynamic graphs
-
-3. **Query Optimizer Service** (`py-service/src/core/query_optimizer/`):
-   - Query plan optimization for graph traversals
-   - Cost-based optimization using statistics
-   - Parallel query execution strategies
-
-4. **Batch Optimization Service** (`py-service/src/core/batch_optimization/`):
-   - Intelligent batch size calculation for vector operations
-   - Memory-aware processing based on system resources
-   - Performance optimization for large-scale embeddings
-
-### API Endpoints
-
-```bash
-# Fuzzy matching search
-POST /api/v1/fuzzy-match/search
-{
-  "query": "functionName",
-  "threshold": 0.8,
-  "maxResults": 10
-}
-
-# Graph search with optimization
-POST /api/v1/graph-search/query
-{
-  "query": "MATCH (n)-[r]->(m) WHERE n.type = 'function' RETURN n, r, m",
-  "optimizationLevel": "high"
-}
-
-# Vector batch optimization
-POST /api/v1/batch-optimization/calculate-size
-{
-  "item_count": 1000,
-  "vector_dimension": 1536,
-  "database_type": "qdrant"
-}
-
-# Health check
-GET /health
-```
-
-### TypeScript Integration
-
-The service includes a generated TypeScript client (`py-service/src/typescript-client/GraphSearchPythonClient.ts`) for seamless integration:
-
-```typescript
-import { GraphSearchPythonClient } from './py-service/src/typescript-client/GraphSearchPythonClient';
-
-// Usage in services
-const pythonClient = new GraphSearchPythonClient();
-const searchResults = await pythonClient.fuzzySearch({
-  query: "functionName",
-  threshold: 0.8
-});
-```
-
-### Dependencies and Requirements
-
-- **Python 3.11+**: Required for modern type annotations and performance
-- **FastAPI**: High-performance async web framework
-- **NetworkX**: Graph algorithms and network analysis
-- **scikit-learn**: Machine learning algorithms for similarity matching
-- **NumPy/Pandas**: Data processing and numerical operations
-- **Torch/Transformers**: Optional ML models for advanced embeddings
-- **Redis**: Optional caching layer for performance
-
-### Monitoring and Metrics
-
-- **Prometheus Integration**: Performance metrics at `http://localhost:8000/metrics`
-- **Health Checks**: Comprehensive service health monitoring
-- **Performance Tracking**: Query execution time and algorithm performance
-- **Resource Monitoring**: Memory and CPU usage tracking
-
 ## Configuration System
 
 The configuration system uses a factory pattern with service-specific config managers:
@@ -370,11 +230,9 @@ The configuration system uses a factory pattern with service-specific config man
 
 ### API Integration
 - **Backend API**: `http://localhost:3010` (REST endpoints)
-- **Python Algorithm Service**: `http://localhost:8000` (FastAPI algorithms service)
 - **Frontend Dev**: `http://localhost:3011` (Vite dev server)
 - **MCP Protocol**: Stdio-based communication with AI assistants
 - **Caching**: Intelligent caching in frontend API client with TTL
-- **Python Service**: Auto-generated TypeScript client for seamless integration
 
 ### File Watching and Indexing
 - **Change Detection**: Automatic file system monitoring with Chokidar
@@ -384,11 +242,9 @@ The configuration system uses a factory pattern with service-specific config man
 ## Environment Requirements
 
 - **Node.js**: 18.0+ (required for TypeScript and modern features)
-- **Python**: 3.10+ (required for Python Algorithm Service)
 - **Databases**: Qdrant and Nebula Graph running in Docker
 - **Memory**: Minimum 2GB RAM for development, 4GB for production workloads
 - **Development**: Modern IDE with TypeScript and ESLint support
-- **Python Tools**: pip, pytest, black, mypy for Python development
 
 ## Common Development Workflows
 
