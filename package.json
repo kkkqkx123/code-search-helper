@@ -50,6 +50,7 @@
     "@types/uuid": "^11.0.0",
     "axios": "^1.12.2",
     "babel-jest": "^30.2.0",
+    "better-sqlite3": "^11.10.0",
     "cache-manager": "7.2.4",
     "cache-manager-ioredis": "^2.1.0",
     "chokidar": "^4.0.3",
@@ -78,6 +79,7 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/cache-manager": "^5.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
