@@ -3,6 +3,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { BackupFileProcessor } from '../BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
+import { UniversalProcessingConfig } from '../UniversalProcessingConfig';
 import {
   IProcessingStrategySelector,
  ILanguageDetectionInfo,
@@ -22,17 +23,20 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
   private logger?: LoggerService;
   private backupFileProcessor: BackupFileProcessor;
   private extensionlessFileProcessor: ExtensionlessFileProcessor;
+  private config: UniversalProcessingConfig;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.BackupFileProcessor) backupFileProcessor?: BackupFileProcessor,
-    @inject(TYPES.ExtensionlessFileProcessor) extensionlessFileProcessor?: ExtensionlessFileProcessor
+    @inject(TYPES.ExtensionlessFileProcessor) extensionlessFileProcessor?: ExtensionlessFileProcessor,
+    @inject(TYPES.UniversalProcessingConfig) config?: UniversalProcessingConfig
   ) {
     this.logger = logger;
     
     // 如果没有提供依赖，创建默认实例
     this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
     this.extensionlessFileProcessor = extensionlessFileProcessor || new ExtensionlessFileProcessor(logger);
+    this.config = config || new UniversalProcessingConfig(logger);
   }
 
   get name(): string {
@@ -53,15 +57,25 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
       // 1. 检查是否为备份文件
       if (this.backupFileProcessor.isBackupFile(filePath)) {
         const backupInfo = this.backupFileProcessor.inferOriginalType(filePath);
-        this.logger?.info(`Detected backup file, original language: ${backupInfo.originalLanguage}`);
-        return {
-          language: backupInfo.originalLanguage,
-          confidence: 0.9,
-          detectionMethod: 'backup',
-          metadata: {
-            originalExtension: backupInfo.originalExtension
-          }
-        };
+        const confidenceThreshold = this.config.getBackupFileConfidenceThreshold();
+        
+        this.logger?.info(`Detected backup file, original language: ${backupInfo.originalLanguage}, confidence: ${backupInfo.confidence}, threshold: ${confidenceThreshold}`);
+        
+        // 只有当置信度超过阈值时才采纳备份文件的推断结果
+        if (backupInfo.confidence >= confidenceThreshold) {
+          return {
+            language: backupInfo.originalLanguage,
+            confidence: backupInfo.confidence,
+            detectionMethod: 'backup',
+            metadata: {
+              originalExtension: backupInfo.originalExtension
+            }
+          };
+        } else {
+          this.logger?.info(`Backup file confidence ${backupInfo.confidence} below threshold ${confidenceThreshold}, treating as regular file`);
+          // 如果置信度低于阈值，继续使用其他检测方法
+          // 不返回，继续执行下面的检测逻辑
+        }
       }
 
       // 2. 检查文件扩展名

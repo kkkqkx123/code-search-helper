@@ -1,4 +1,3 @@
-
 # BackupFileProcessor 置信度使用分析
 
 ## 概述
@@ -12,11 +11,8 @@
 | 备份文件类型 | 置信度 | 说明 |
 |-------------|--------|------|
 | 特殊复合模式 (如 *.py.bak，扩展名有效) | 0.95 | 高置信度，因为模式明确且扩展名有效 |
-| Vim 交换文件 (.filename.swp) | 0.9 | 特征明显，模式明确 |
-| Vim 临时文件 (#filename#) | 0.9 | Vim 编辑器生成的临时文件，模式明确 |
 | 标准备份后缀 (.bak, .backup 等) | 0.8 | 常见的备份文件模式 |
-| 隐藏的备份文件 | 0.8 | 以点开头的隐藏备份文件 |
-| Emacs 风格备份文件 (~结尾) | 0.7 | Emacs 编辑器生成的备份文件 |
+| .bak.md 和 .bak.txt 模式 | 0.8 | 与 .bak 文件同等对待。*.py.bak.md则与*.py.bak同等对待 |
 | 扩展名模式匹配 | 0.6 | 通过正则表达式匹配扩展名模式 |
 | 默认置信度 | 0.5 | 无法确定时的默认值 |
 
@@ -38,13 +34,20 @@ return {
 
 ### 2. 实际决策未考虑 confidence
 
-在调用 `BackupFileProcessor` 的 `ProcessingGuard.detectLanguageIntelligently()` 方法中，当检测到备份文件时，它直接获取并返回 `originalLanguage`，完全忽略了 `confidence` 值：
+在调用 `BackupFileProcessor` 的 `ProcessingStrategySelector.detectLanguageIntelligently()` 方法中，当检测到备份文件时，它直接获取并返回 `originalLanguage`，完全忽略了 `confidence` 值：
 
 ```typescript
-// ProcessingGuard.detectLanguageIntelligently() 中的问题代码
+// ProcessingStrategySelector.detectLanguageIntelligently() 中的问题代码
 if (this.backupFileProcessor.isBackupFile(filePath)) {
   const backupInfo = this.backupFileProcessor.inferOriginalType(filePath);
-  return backupInfo.originalLanguage; // 只用了 language，没用 confidence
+  return {
+    language: backupInfo.originalLanguage,
+    confidence: 0.9,  // 硬编码的置信度，没有使用backupInfo.confidence
+    detectionMethod: 'backup',
+    metadata: {
+      originalExtension: backupInfo.originalExtension
+    }
+  };
 }
 ```
 
@@ -66,14 +69,19 @@ for (const detector of detectors) {
 }
 ```
 
-#### ProcessingGuard 中的置信度阈值检查
+#### ProcessingStrategySelector 中的置信度阈值检查
 
 ```typescript
-// ProcessingGuard 中处理无扩展名文件时检查置信度阈值
+// ProcessingStrategySelector 中处理无扩展名文件时检查置信度阈值
 if (languageFromExt === 'markdown' || languageFromExt === 'text') {
   const contentDetection = this.extensionlessFileProcessor.detectLanguageByContent(content);
-  if (contentDetection.confidence > 0.7) {  // 高置信度阈值
-    return contentDetection.language;
+  if (contentDetection.confidence > 0.3) {  // 置信度阈值
+    return {
+      language: contentDetection.language,
+      confidence: contentDetection.confidence,
+      detectionMethod: 'content',
+      // ...
+    };
   }
 }
 ```
@@ -90,24 +98,24 @@ if (languageFromExt === 'markdown' || languageFromExt === 'text') {
 
 ## 改进建议
 
-为了使系统更加健壮和一致，建议修改 `ProcessingGuard` 中的逻辑，使其在决定是否采纳 `BackupFileProcessor` 的结果时，也考虑其 `confidence` 值。
+为了使系统更加健壮和一致，建议修改 `ProcessingStrategySelector` 中的逻辑，使其在决定是否采纳 `BackupFileProcessor` 的结果时，也考虑其 `confidence` 值。
 
 ### 方案一：引入置信度阈值
 
 ```typescript
-// 修改 ProcessingGuard.detectLanguageIntelligently()
-if (this.backupFileProcessor.isBackupFile(filePath)) {
-  const backupInfo = this.backupFileProcessor.in
-
-### 方案一：引入置信度阈值
-
-```typescript
-// 修改 ProcessingGuard.detectLanguageIntelligently()
+// 修改 ProcessingStrategySelector.detectLanguageIntelligently()
 if (this.backupFileProcessor.isBackupFile(filePath)) {
   const backupInfo = this.backupFileProcessor.inferOriginalType(filePath);
   // 只有当置信度超过某个阈值（例如0.7）时才采纳
   if (backupInfo.confidence > 0.7) {
-    return backupInfo.originalLanguage;
+    return {
+      language: backupInfo.originalLanguage,
+      confidence: backupInfo.confidence,  // 使用实际的置信度
+      detectionMethod: 'backup',
+      metadata: {
+        originalExtension: backupInfo.originalExtension
+      }
+    };
   }
   // 如果置信度低，则视为普通文件继续处理
 }
@@ -116,19 +124,33 @@ if (this.backupFileProcessor.isBackupFile(filePath)) {
 ### 方案二：多级置信度处理
 
 ```typescript
-// 修改 ProcessingGuard.detectLanguageIntelligently()
+// 修改 ProcessingStrategySelector.detectLanguageIntelligently()
 if (this.backupFileProcessor.isBackupFile(filePath)) {
   const backupInfo = this.backupFileProcessor.inferOriginalType(filePath);
   
   // 根据置信度级别采用不同策略
   if (backupInfo.confidence >= 0.9) {
     // 高置信度：直接接受
-    return backupInfo.originalLanguage;
+    return {
+      language: backupInfo.originalLanguage,
+      confidence: backupInfo.confidence,
+      detectionMethod: 'backup',
+      metadata: {
+        originalExtension: backupInfo.originalExtension
+      }
+    };
   } else if (backupInfo.confidence >= 0.7) {
     // 中等置信度：进行内容验证
     const contentDetection = this.extensionlessFileProcessor.detectLanguageByContent(content);
     if (contentDetection.language === backupInfo.originalLanguage) {
-      return backupInfo.originalLanguage;
+      return {
+        language: backupInfo.originalLanguage,
+        confidence: backupInfo.confidence,
+        detectionMethod: 'backup',
+        metadata: {
+          originalExtension: backupInfo.originalExtension
+        }
+      };
     }
   } 
   // 低置信度：视为普通文件处理
@@ -138,7 +160,7 @@ if (this.backupFileProcessor.isBackupFile(filePath)) {
 ### 方案三：置信度加权决策
 
 ```typescript
-// 修改 ProcessingGuard.detectLanguageIntelligently()
+// 修改 ProcessingStrategySelector.detectLanguageIntelligently()
 if (this.backupFileProcessor.isBackupFile(filePath)) {
   const backupInfo = this.backupFileProcessor.inferOriginalType(filePath);
   
@@ -148,17 +170,39 @@ if (this.backupFileProcessor.isBackupFile(filePath)) {
   
   // 如果两者一致，提高置信度
   if (languageFromExt === backupInfo.originalLanguage && backupInfo.confidence > 0.6) {
-    return backupInfo.originalLanguage;
+    return {
+      language: backupInfo.originalLanguage,
+      confidence: backupInfo.confidence,
+      detectionMethod: 'backup',
+      metadata: {
+        originalExtension: backupInfo.originalExtension
+      }
+    };
   }
   
   // 如果不一致，进行内容检测作为仲裁
   const contentDetection = this.extensionlessFileProcessor.detectLanguageByContent(content);
   if (contentDetection.confidence > 0.7) {
-    return contentDetection.language;
+    return {
+      language: contentDetection.language,
+      confidence: contentDetection.confidence,
+      detectionMethod: 'content',
+      metadata: {
+        indicators: contentDetection.indicators,
+        backupOverride: false
+      }
+    };
   }
   
   // 回退到扩展名检测
-  return languageFromExt !== 'unknown' ? languageFromExt : backupInfo.originalLanguage;
+  return {
+    language: languageFromExt !== 'unknown' ? languageFromExt : backupInfo.originalLanguage,
+    confidence: languageFromExt !== 'unknown' ? 0.8 : backupInfo.confidence,
+    detectionMethod: languageFromExt !== 'unknown' ? 'extension' : 'backup',
+    metadata: {
+      originalExtension: backupInfo.originalExtension
+    }
+  };
 }
 ```
 
@@ -199,30 +243,29 @@ if (process.env.UNIVERSAL_BACKUP_CONFIDENCE_THRESHOLD) {
 
 ```typescript
 // 在 BackupFileProcessor.test.ts 中添加
-describe('confidence usage in ProcessingGuard', () => {
+describe('confidence usage in ProcessingStrategySelector', () => {
   it('should reject low confidence backup file detection', () => {
     // 模拟低置信度的备份文件
     const lowConfidenceBackup = 'unknown.invalid.bak';
-    const result = processingGuard.detectLanguageIntelligently(lowConfidenceBackup, 'some content');
+    const result = processingStrategySelector.detectLanguageIntelligently(lowConfidenceBackup, 'some content');
     // 验证是否拒绝了低置信度的结果
-    expect(result).not.toBe('unknown');
+    expect(result.language).not.toBe('unknown');
   });
 
   it('should accept high confidence backup file detection', () => {
     // 模拟高置信度的备份文件
     const highConfidenceBackup = 'script.py.bak';
-    const result = processingGuard.detectLanguageIntelligently(highConfidenceBackup, 'python code here');
+    const result = processingStrategySelector.detectLanguageIntelligently(highConfidenceBackup, 'python code here');
     // 验证是否接受了高置信度的结果
-    expect(result).toBe('python');
+    expect(result.language).toBe('python');
   });
 
   it('should use content detection for medium confidence backup files', () => {
     // 模拟中等置信度的备份文件
-    const mediumConfidenceBackup = 'file.js~';
-    const result = processingGuard.detectLanguageIntelligently(mediumConfidenceBackup, 'def python_function(): pass');
-    // 验证
+    const mediumConfidenceBackup = 'file.js.bak';
+    const result = processingStrategySelector.detectLanguageIntelligently(mediumConfidenceBackup, 'def python_function(): pass');
     // 验证是否使用了内容检测来覆盖中等置信度的结果
-    expect(result).toBe('python');
+    expect(result.language).toBe('python');
   });
 });
 ```

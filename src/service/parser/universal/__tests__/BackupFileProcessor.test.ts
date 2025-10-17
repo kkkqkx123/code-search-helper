@@ -41,18 +41,6 @@ describe('BackupFileProcessor', () => {
       expect(processor.isBackupFile('config.json.tmp')).toBe(true);
     });
 
-    it('should identify Vim swap files as backup files', () => {
-      expect(processor.isBackupFile('.test.js.swp')).toBe(true);
-      expect(processor.isBackupFile('.test.js.swo')).toBe(true);
-    });
-
-    it('should identify Emacs backup files', () => {
-      expect(processor.isBackupFile('test.js~')).toBe(true);
-    });
-
-    it('should identify temporary files with # markers', () => {
-      expect(processor.isBackupFile('#test.js#')).toBe(true);
-    });
 
     it('should not identify regular files as backup files', () => {
       expect(processor.isBackupFile('test.js')).toBe(false);
@@ -68,7 +56,7 @@ describe('BackupFileProcessor', () => {
       expect(result.originalExtension).toBe('.js');
       expect(result.originalLanguage).toBe('javascript');
       expect(result.originalFileName).toBe('test.js');
-      expect(result.confidence).toBeGreaterThan(0.7);
+      expect(result.confidence).toBe(0.95); // High confidence for special pattern
     });
 
     it('should infer TypeScript from .ts.backup files', () => {
@@ -87,29 +75,6 @@ describe('BackupFileProcessor', () => {
       expect(result.originalFileName).toBe('script.py');
     });
 
-    it('should handle Vim swap files correctly', () => {
-      const result = processor.inferOriginalType('.test.js.swp');
-      
-      expect(result.originalExtension).toBe('.js');
-      expect(result.originalLanguage).toBe('javascript');
-      expect(result.originalFileName).toBe('test.js');
-    });
-
-    it('should handle Emacs backup files correctly', () => {
-      const result = processor.inferOriginalType('test.ts~');
-      
-      expect(result.originalExtension).toBe('.ts');
-      expect(result.originalLanguage).toBe('typescript');
-      expect(result.originalFileName).toBe('test.ts');
-    });
-
-    it('should handle temporary files with # markers', () => {
-      const result = processor.inferOriginalType('#config.json#');
-      
-      expect(result.originalExtension).toBe('.json');
-      expect(result.originalLanguage).toBe('json');
-      expect(result.originalFileName).toBe('config.json');
-    });
 
     it('should infer language with high confidence for files with extension.backup pattern', () => {
       const result = processor.inferOriginalType('script.py.bak');
@@ -118,6 +83,24 @@ describe('BackupFileProcessor', () => {
       expect(result.originalLanguage).toBe('python');
       expect(result.originalFileName).toBe('script.py');
       expect(result.confidence).toBe(0.95); // High confidence for this pattern
+    });
+    
+    it('should infer language with high confidence for standard backup files', () => {
+      const result = processor.inferOriginalType('script.py.backup');
+      
+      expect(result.originalExtension).toBe('.py');
+      expect(result.originalLanguage).toBe('python');
+      expect(result.originalFileName).toBe('script.py');
+      expect(result.confidence).toBe(0.95); // High confidence for special pattern
+    });
+    
+    it('should infer language with high confidence for files with extension only', () => {
+      const result = processor.inferOriginalType('unknown.py.temp');
+      
+      expect(result.originalExtension).toBe('.py');
+      expect(result.originalLanguage).toBe('python');
+      expect(result.originalFileName).toBe('unknown.py');
+      expect(result.confidence).toBe(0.95); // High confidence for special pattern
     });
 
     it('should infer language with high confidence for files with extension.backup pattern - multiple examples', () => {
@@ -146,6 +129,16 @@ describe('BackupFileProcessor', () => {
       expect(result.originalLanguage).toBe('unknown');
       expect(result.originalFileName).toBe('readme.invalid.bak');
       expect(result.confidence).toBe(0.5); // Default confidence
+    });
+    
+    it('should infer language with low confidence for standard backup files without extension pattern', () => {
+      // 创建一个不匹配特殊模式的备份文件
+      const result = processor.inferOriginalType('data.bak');
+      
+      expect(result.originalExtension).toBe('.bak'); // From extension pattern matching
+      expect(result.originalLanguage).toBe('unknown'); // .bak is not a valid language extension
+      expect(result.originalFileName).toBe('data');
+      expect(result.confidence).toBe(0.6); // Low confidence from extension pattern matching
     });
   });
 

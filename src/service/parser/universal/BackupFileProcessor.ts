@@ -73,16 +73,17 @@ export class BackupFileProcessor {
         }
       }
       
-      // 特别处理 .bak.md 和 .bak.txt 等模式，将其与 .bak 等同对待
+      // 使用 0.95 置信度，与 py.bak 等模式保持一致，额外添加 .txt/.md 是为了阻止 LSP 尝试解析
       if (!originalExtension && baseName.endsWith('.bak.md')) {
         originalFileName = baseName.slice(0, -7); // 移除 .bak.md
         originalExtension = '.md';
-        confidence = 0.8;
+        confidence = 0.95;
       } else if (!originalExtension && baseName.endsWith('.bak.txt')) {
         originalFileName = baseName.slice(0, -8); // 移除 .bak.txt
         originalExtension = '.txt';
-        confidence = 0.8;
+        confidence = 0.95;
       }
+      
       
       // 如果没有找到原始扩展名，尝试其他方法
       if (!originalExtension) {

@@ -26,6 +26,7 @@ export class UniversalProcessingConfig {
 
   // 备份文件处理配置
   private backupFilePatterns: string[] = [...DEFAULT_CONFIG.BACKUP_FILE_PATTERNS];
+  private backupFileConfidenceThreshold: number = 0.7; // 默认置信度阈值
 
   constructor(logger?: LoggerService) {
     this.logger = logger;
@@ -71,6 +72,11 @@ export class UniversalProcessingConfig {
       // 备份文件处理配置
       if (process.env.UNIVERSAL_BACKUP_PATTERNS) {
         this.backupFilePatterns = process.env.UNIVERSAL_BACKUP_PATTERNS.split(',').map(p => p.trim());
+      }
+      
+      // 备份文件置信度阈值配置
+      if (process.env.UNIVERSAL_BACKUP_CONFIDENCE_THRESHOLD) {
+        this.backupFileConfidenceThreshold = parseFloat(process.env.UNIVERSAL_BACKUP_CONFIDENCE_THRESHOLD);
       }
 
       this.logger?.info('Universal processing configuration loaded from environment variables');
@@ -125,9 +131,11 @@ export class UniversalProcessingConfig {
    */
   getBackupFileConfig(): {
     backupFilePatterns: string[];
+    backupFileConfidenceThreshold: number;
   } {
     return {
-      backupFilePatterns: [...this.backupFilePatterns]
+      backupFilePatterns: [...this.backupFilePatterns],
+      backupFileConfidenceThreshold: this.backupFileConfidenceThreshold
     };
   }
 
@@ -166,6 +174,23 @@ export class UniversalProcessingConfig {
     this.backupFilePatterns = [...backupFilePatterns];
     this.logger?.info(`Backup file config updated: patterns=${backupFilePatterns.join(', ')}`);
   }
+  
+  /**
+   * 获取备份文件置信度阈值
+   */
+  getBackupFileConfidenceThreshold(): number {
+    return this.backupFileConfidenceThreshold;
+  }
+  
+  /**
+   * 设置备份文件置信度阈值
+   */
+  setBackupFileConfidenceThreshold(threshold: number): void {
+    if (threshold >= 0 && threshold <= 1) {
+      this.backupFileConfidenceThreshold = threshold;
+      this.logger?.info(`Backup file confidence threshold set to ${threshold}`);
+    }
+  }
 
   /**
    * 获取所有配置
@@ -174,7 +199,7 @@ export class UniversalProcessingConfig {
     error: { maxErrors: number; errorResetInterval: number };
     memory: { memoryLimitMB: number; memoryCheckInterval: number };
     chunking: { maxChunkSize: number; chunkOverlap: number; maxLinesPerChunk: number };
-    backup: { backupFilePatterns: string[] };
+    backup: { backupFilePatterns: string[]; backupFileConfidenceThreshold: number };
   } {
     return {
       error: this.getErrorConfig(),
@@ -196,6 +221,7 @@ export class UniversalProcessingConfig {
     this.chunkOverlap = 200;
     this.maxLinesPerChunk = 50;
     this.backupFilePatterns = ['.bak', '.backup', '.old', '.tmp'];
+    this.backupFileConfidenceThreshold = 0.7;
     
     this.logger?.info('Universal processing configuration reset to defaults');
   }
@@ -244,6 +270,11 @@ export class UniversalProcessingConfig {
     // 验证备份文件处理配置
     if (this.backupFilePatterns.length === 0) {
       errors.push('backupFilePatterns cannot be empty');
+    }
+    
+    // 验证备份文件置信度阈值
+    if (this.backupFileConfidenceThreshold < 0 || this.backupFileConfidenceThreshold > 1) {
+      errors.push('backupFileConfidenceThreshold must be between 0 and 1');
     }
 
     return {

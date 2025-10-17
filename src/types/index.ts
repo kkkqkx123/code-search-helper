@@ -70,6 +70,8 @@ export const TYPES = {
   BackupFileProcessor: Symbol.for('BackupFileProcessor'),
   ExtensionlessFileProcessor: Symbol.for('ExtensionlessFileProcessor'),
   ProcessingGuard: Symbol.for('ProcessingGuard'),
+  ProcessingStrategySelector: Symbol.for('ProcessingStrategySelector'),
+  UniversalProcessingConfig: Symbol.for('UniversalProcessingConfig'),
   
   // 新增的索引服务
   VectorIndexService: Symbol.for('VectorIndexService'),

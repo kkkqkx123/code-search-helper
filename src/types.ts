@@ -328,6 +328,7 @@ export const TYPES = {
   ProcessingGuard: Symbol.for('ProcessingGuard'),
   ProcessingStrategySelector: Symbol.for('ProcessingStrategySelector'),
   CleanupManager: Symbol.for('CleanupManager'),
+  UniversalProcessingConfig: Symbol.for('UniversalProcessingConfig'),
   FileProcessingCoordinator: Symbol.for('FileProcessingCoordinator'),
 
   // MemoryGuard 参数

@@ -1,4 +1,3 @@
-
 # 通用文件处理模块中的置信度与降级操作分析
 
 ## 概述
@@ -13,22 +12,83 @@
 
 | 备份文件类型 | 置信度 | 说明 |
 |-------------|--------|------|
+| 特殊复合模式 (如 *.py.bak，扩展名有效) | 0.95 | 高置信度，因为模式明确且扩展名有效 |
 | 标准备份后缀 (.bak, .backup 等) | 0.8 | 常见的备份文件模式 |
-| Emacs 风格备份文件 (~结尾) | 0.7 | Emacs 编辑器生成的备份文件 |
-| Vim 风格临时文件 (#filename#) | 0.9 | Vim 编辑器生成的临时文件，模式明确 |
-| Vim 交换文件 (.filename.swp) | 0.9 | Vim 交换文件，特征明显 |
-| 隐藏的备份文件 | 0.8 | 以点开头的隐藏备份文件 |
+| .bak.md 和 .bak.txt 模式 | 0.8 | 与 .bak 文件同等对待 |
 | 扩展名模式匹配 | 0.6 | 通过正则表达式匹配扩展名模式 |
 | 默认置信度 | 0.5 | 无法确定时的默认值 |
 
 ```typescript
-// 示例：Vim 风格临时文件的高置信度处理
-if (baseName.startsWith('#') && baseName.endsWith('#') && baseName.length > 2) {
-  originalFileName = baseName.slice(1, -1);
-  originalExtension = path.extname(originalFileName);
-  confidence = 0.9;  // 高置信度，因为模式非常明确
+// 备份文件置信度计算示例
+inferOriginalType(filePath: string): {
+  originalExtension: string;
+  originalLanguage: string;
+  originalFileName: string;
+  confidence: number;
+} {
+  const baseName = path.basename(filePath);
+  
+  // 尝试各种备份文件模式
+  let originalFileName = baseName;
+  let originalExtension = '';
+  let confidence = 0.5; // 默认置信度
+  
+  // 检查特殊模式：文件名中包含原始文件类型（如 *.py.bak, *.js.backup 等）
+  const specialPatternMatch = baseName.match(/^(.+?)\.([a-z0-9]+)\.(?:bak|backup|old|tmp|temp|orig|save|swo)$/i);
+  if (specialPatternMatch) {
+    // 提取原始文件名和扩展名
+    const originalNameWithoutExt = specialPatternMatch[1];
+    const detectedOriginalExt = '.' + specialPatternMatch[2].toLowerCase();
+    
+    // 验证检测到的扩展名是否为有效编程语言扩展名
+    if (this.isValidLanguageExtension(detectedOriginalExt)) {
+      originalFileName = originalNameWithoutExt + detectedOriginalExt;
+      originalExtension = detectedOriginalExt;
+      confidence = 0.95; // 高置信度，因为模式明确且扩展名有效
+    }
+  } else {
+    // 处理标准备份后缀
+    for (const pattern of this.backupPatterns) {
+      if (baseName.endsWith(pattern)) {
+        originalFileName = baseName.slice(0, -pattern.length);
+        originalExtension = path.extname(originalFileName);
+        confidence = 0.8;
+        break;
+      }
+    }
+    
+    // 特别处理 .bak.md 和 .bak.txt 等模式，将其与 .bak 等同对待
+    if (!originalExtension && baseName.endsWith('.bak.md')) {
+      originalFileName = baseName.slice(0, -7); // 移除 .bak.md
+      originalExtension = '.md';
+      confidence = 0.8;
+    } else if (!originalExtension && baseName.endsWith('.bak.txt')) {
+      originalFileName = baseName.slice(0, -8); // 移除 .bak.txt
+      originalExtension = '.txt';
+      confidence = 0.8;
+    }
+    
+    // 如果没有找到原始扩展名，尝试其他方法
+    if (!originalExtension) {
+      // 检查文件名中是否包含扩展名模式
+      const extensionMatch = baseName.match(/\.([a-z0-9]+)(?:\.(?:bak|backup|old|tmp|temp))?$/i);
+      if (extensionMatch) {
+        originalExtension = '.' + extensionMatch[1].toLowerCase();
+        confidence = 0.6;
+      }
+    }
+  }
+  
+  return {
+    originalExtension,
+    originalLanguage: this.detectLanguageByExtension(originalExtension),
+    originalFileName,
+    confidence
+  };
 }
 ```
+
+需要注意的是，虽然 `BackupFileProcessor` 计算了置信度，但在 `ProcessingStrategySelector` 中并未有效使用该置信度进行决策，这会导致置信度计算与使用脱节的问题。
 
 ### 2. ExtensionlessFileProcessor 中的置信度处理
 
@@ -89,17 +149,21 @@ for (const detector of detectors) {
 }
 ```
 
-### 3. ProcessingGuard 中的置信度处理
+### 3. ProcessingStrategySelector 中的置信度处理
 
-[`ProcessingGuard`](src/service/parser/universal/ProcessingGuard.ts) 实现了智能的语言检测置信度处理：
+[`ProcessingStrategySelector`](src/service/parser/universal/coordination/ProcessingStrategySelector.ts) 实现了智能的语言检测置信度处理：
 
 ```typescript
 // 对于通用扩展名，使用内容检测进行二次判断
 if (languageFromExt === 'markdown' || languageFromExt === 'text') {
   const contentDetection = this.extensionlessFileProcessor.detectLanguageByContent(content);
-  if (contentDetection.confidence > 0.7) {  // 高置信度
-阈值
-    return contentDetection.language;
+  if (contentDetection.confidence > 0.3) {  // 置信度阈值
+    return {
+      language: contentDetection.language,
+      confidence: contentDetection.confidence,
+      detectionMethod: 'content',
+      // ...
+    };
   }
 }
 ```
@@ -239,12 +303,11 @@ checkMemoryUsage(): {
   
   return {
     isWithinLimit,
-    usagePercent: (heapUsed / this.memoryLimit) * 100
-,
+    usagePercent: (heapUsed / this.memoryLimit) * 100,
     heapUsed,
-    heapTotal,
-    external,
-    arrayBuffers
+    heapTotal: memUsage.heapTotal,
+    external: memUsage.external,
+    arrayBuffers: memUsage.arrayBuffers
   };
 }
 ```
@@ -272,7 +335,7 @@ gracefulDegradation(): void {
 
 ### 3. ProcessingGuard 中的降级操作
 
-[`ProcessingGuard`](src/service/parser/universal/ProcessingGuard.ts) 实现了综合的降级处理机制：
+[`ProcessingGuard`](src/service/parser/guard/ProcessingGuard.ts) 实现了综合的降级处理机制：
 
 #### 多维降级触发条件
 系统检查多个条件来决定是否使用降级处理：
@@ -380,8 +443,7 @@ chunkBySemanticBoundaries(content: string, filePath?: string, language?: string)
 
 // 括号分段降级到行数分段
 chunkByBracketsAndLines(content: string, filePath?: string, language?: string): CodeChunk[] {
-  try
- {
+  try {
     if (!this.options.enableBracketBalance) {
       return this.chunkByLines(content, filePath, language);  // 降级到行数分段
     }
@@ -411,7 +473,7 @@ if (i > 0 && i % 1000 === 0) {
 
 ### 1. 组件间协作
 
-各组件通过 [`ProcessingGuard`](src/service/parser/universal/ProcessingGuard.ts) 实现统一协调：
+各组件通过 [`ProcessingGuard`](src/service/parser/guard/ProcessingGuard.ts) 实现统一协调：
 
 ```typescript
 constructor(
@@ -467,6 +529,9 @@ private memoryCheckInterval: number = 5000;
 private maxChunkSize: number = 2000;
 private chunkOverlap: number = 200;
 private maxLinesPerChunk: number = 50;
+
+// 备份文件处理配置
+private backupFilePatterns: string[] = [...DEFAULT_CONFIG.BACKUP_FILE_PATTERNS];
 ```
 
 ## 最佳实践与建议
@@ -503,10 +568,38 @@ config.setErrorConfig(3, 120000);  // 更低的错误阈值，更长的重置间
 config.setMemoryConfig(256, 10000);  // 更小的内存限制，较长的检查间隔
 ```
 
+## 问题分析与改进建议
+
+### 1. BackupFileProcessor 置信度使用问题
+
+如在 `backup-file-processor-confidence-analysis.md` 文档中所述，`BackupFileProcessor` 计算的置信度在 `ProcessingStrategySelector` 中未被有效使用，这是一个设计缺陷。
+
+#### 当前问题
+```typescript
+// ProcessingStrategySelector.detectLanguageIntelligently() 中的问题代码
+if (this.backupFileProcessor.isBackupFile(filePath)) {
+  const backupInfo = this.backupFileProcessor.inferOriginalType(filePath);
+  return {
+    language: backupInfo.originalLanguage,
+    confidence: 0.9,  // 硬编码的置信度，没有使用backupInfo.confidence
+    detectionMethod: 'backup',
+    metadata: {
+      originalExtension: backupInfo.originalExtension
+    }
+  };
+}
+```
+
+#### 改进建议
+应该使用 `backupInfo.confidence` 而不是硬编码的置信度，并根据置信度值决定是否采纳备份文件的推断结果。
+
+### 2. 临时文件处理变更
+
+根据最新的代码变更，Vim交换文件(.filename.swp)、Vim临时文件(#filename#)、隐藏的备份文件和Emacs风格备份文件(~结尾)现在由默认忽略模式处理，而不是由备份文件处理器处理。这简化了备份文件处理器的逻辑，使其专注于用户手动设置的后备文件模式。
+
 ## 总结
 
-`src/service/parser/universal` 模块通过多层次的置信度评估和降
-级处理机制，确保了系统在各种异常情况下的稳定性和可靠性。关键特点包括：
+`src/service/parser/universal` 模块通过多层次的置信度评估和降级处理机制，确保了系统在各种异常情况下的稳定性和可靠性。关键特点包括：
 
 1. **多层次置信度评估**: 从文件名模式到内容特征的全方位评估
 2. **智能降级策略**: 从复杂到简单的渐进式降级路径
@@ -522,6 +615,7 @@ config.setMemoryConfig(256, 10000);  // 更小的内存限制，较长的检查�
 - [`ErrorThresholdManager.ts`](src/service/parser/universal/ErrorThresholdManager.ts) - 错误阈值管理和降级触发
 - [`ExtensionlessFileProcessor.ts`](src/service/parser/universal/ExtensionlessFileProcessor.ts) - 无扩展名文件的语言检测
 - [`MemoryGuard.ts`](src/service/parser/universal/MemoryGuard.ts) - 内存监控和降级处理
-- [`ProcessingGuard.ts`](src/service/parser/universal/ProcessingGuard.ts) - 统一处理入口和降级协调
+- [`ProcessingGuard.ts`](src/service/parser/guard/ProcessingGuard.ts) - 统一处理入口和降级协调
+- [`ProcessingStrategySelector.ts`](src/service/parser/universal/coordination/ProcessingStrategySelector.ts) - 处理策略选择和语言检测
 - [`UniversalTextSplitter.ts`](src/service/parser/universal/UniversalTextSplitter.ts) - 多策略文本分段
 - [`UniversalProcessingConfig.ts`](src/service/parser/universal/UniversalProcessingConfig.ts) - 配置管理
