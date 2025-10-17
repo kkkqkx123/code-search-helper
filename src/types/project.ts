@@ -62,11 +62,11 @@ export interface Project {
     respectGitignore?: boolean;
   };
   vectorStatus?: {
-    status: 'pending' | 'indexing' | 'completed' | 'error' | 'partial';
+    status: 'pending' | 'indexing' | 'completed' | 'error' | 'partial' | 'disabled';
     progress: number;
   };
   graphStatus?: {
-    status: 'pending' | 'indexing' | 'completed' | 'error' | 'partial';
+    status: 'pending' | 'indexing' | 'completed' | 'error' | 'partial' | 'disabled';
     progress: number;
   };
 }
