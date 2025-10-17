@@ -1,6 +1,6 @@
 import { strategyFactory } from '../core/SplitStrategyFactory';
 import { ensureStrategyProvidersRegistered } from '../core/StrategyProviderRegistration';
-import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '..';
 
 // 确保在测试开始前注册所有策略提供者
 beforeAll(() => {
@@ -139,7 +139,7 @@ describe('Strategy Pattern Tests', () => {
   describe('Strategy Compatibility', () => {
     it('should support legacy registerStrategy method', () => {
       const initialCount = strategyFactory.getAvailableStrategies().length;
-      
+
       // 创建一个新的策略类
       class TestStrategy {
         getName() { return 'TestStrategy'; }
@@ -147,14 +147,14 @@ describe('Strategy Pattern Tests', () => {
         getPriority() { return 1; }
         async split() { return []; }
       }
-      
+
       // 使用兼容方法注册
       strategyFactory.registerStrategy('TestStrategy', TestStrategy as any);
-      
+
       const newCount = strategyFactory.getAvailableStrategies().length;
       expect(newCount).toBe(initialCount + 1);
       expect(strategyFactory.supportsStrategy('TestStrategy')).toBe(true);
-      
+
       // 清理
       strategyFactory.unregisterStrategy('TestStrategy');
     });
@@ -170,13 +170,13 @@ describe('Strategy Pattern Tests', () => {
         },
         getDependencies: () => []
       };
-      
+
       strategyFactory.registerProvider(errorProvider);
-      
+
       expect(() => {
         strategyFactory.create('ErrorStrategy');
       }).toThrow('Failed to create strategy ErrorStrategy: Error: Creation failed');
-      
+
       // 清理
       strategyFactory.unregisterStrategy('ErrorStrategy');
     });
@@ -185,17 +185,17 @@ describe('Strategy Pattern Tests', () => {
   describe('Strategy Service Integration', () => {
     it('should handle strategies with dynamic service setting', () => {
       const strategy = strategyFactory.create('SyntaxAwareSplitter');
-      
+
       // 验证策略可以通过工厂获取其他策略
       expect(strategy).toBeDefined();
       expect(strategy.getName()).toBe('SyntaxAwareSplitter');
-      
+
       // SyntaxAwareSplitter应该能够通过工厂获取其他策略
       // 这验证了我们重构的正确性 - 不再直接导入其他策略
       const functionSplitter = strategyFactory.create('FunctionSplitter');
       const classSplitter = strategyFactory.create('ClassSplitter');
       const importSplitter = strategyFactory.create('ImportSplitter');
-      
+
       expect(functionSplitter).toBeDefined();
       expect(classSplitter).toBeDefined();
       expect(importSplitter).toBeDefined();

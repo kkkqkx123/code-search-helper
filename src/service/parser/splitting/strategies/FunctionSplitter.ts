@@ -1,5 +1,5 @@
 import { BaseSplitStrategy } from './base/BaseSplitStrategy';
-import { CodeChunk, ChunkingOptions, ASTNode } from '../types';
+import { CodeChunk, ChunkingOptions, ASTNode } from '..';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
@@ -45,7 +45,7 @@ export class FunctionSplitter extends BaseSplitStrategy {
     try {
       // 根据文件大小动态调整参数
       const adjustedOptions = this.adjustOptionsForFileSize(content, options);
-      
+
       // 使用传入的AST或重新解析
       let parseResult = ast;
       if (!parseResult) {
@@ -68,10 +68,10 @@ export class FunctionSplitter extends BaseSplitStrategy {
   private adjustOptionsForFileSize(content: string, originalOptions?: ChunkingOptions): ChunkingOptions {
     const lines = content.split('\n');
     const lineCount = lines.length;
-    
+
     // 基础配置
     const baseOptions = originalOptions || {};
-    
+
     // 小文件特殊处理
     if (lineCount <= 20) {
       return {
@@ -88,7 +88,7 @@ export class FunctionSplitter extends BaseSplitStrategy {
         maxChunkSize: Math.max(100, lineCount * 3) // 调整最大块大小
       };
     }
-    
+
     // 中等文件
     if (lineCount <= 100) {
       return {
@@ -103,7 +103,7 @@ export class FunctionSplitter extends BaseSplitStrategy {
         }
       };
     }
-    
+
     // 大文件使用默认配置
     return baseOptions;
   }
@@ -216,7 +216,7 @@ export class FunctionSplitter extends BaseSplitStrategy {
    */
   private createASTNode(node: any, content: string, type: string, customId?: string): ASTNode {
     const nodeId = customId || `${node.startIndex}-${node.endIndex}-${type}`;
-    
+
     return {
       id: ContentHashIDGenerator.generateNodeId({
         id: nodeId,
@@ -242,7 +242,7 @@ export class FunctionSplitter extends BaseSplitStrategy {
       this.logger?.warn('ASTNodeExtractor not initialized');
       return [];
     }
-    
+
     return this.astNodeExtractor.extractNodesFromChunk(chunk, ast, 'function');
   }
 

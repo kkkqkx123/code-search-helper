@@ -1,4 +1,4 @@
-import { PerformanceMonitor as PerformanceMonitorInterface, PerformanceStats } from '../../types';
+import { PerformanceMonitor as PerformanceMonitorInterface, PerformanceStats } from '../..';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { BasePerformanceTracker } from '../base/BasePerformanceTracker';
 

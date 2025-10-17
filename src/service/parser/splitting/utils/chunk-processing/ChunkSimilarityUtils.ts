@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../types';
+import { CodeChunk } from '../..';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 import { BaseSimilarityCalculator } from '../base/BaseSimilarityCalculator';

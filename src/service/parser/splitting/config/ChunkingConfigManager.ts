@@ -1,4 +1,4 @@
-import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '..';
 
 /**
  * 分层配置管理器
@@ -193,7 +193,7 @@ export class ChunkingConfigManager {
     try {
       const fs = await import('fs');
       const configData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      
+
       if (configData.global) {
         this.updateGlobalConfig(configData.global);
       }
@@ -225,7 +225,7 @@ export class ChunkingConfigManager {
         language: Object.fromEntries(this.config.language),
         strategy: Object.fromEntries(this.config.strategy)
       };
-      
+
       fs.writeFileSync(filePath, JSON.stringify(configData, null, 2));
     } catch (error) {
       throw new Error(`Failed to save config to ${filePath}: ${error}`);

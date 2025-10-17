@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { CodeChunk, CodeChunkMetadata } from '../splitting/types';
+import { CodeChunk, CodeChunkMetadata } from '../splitting';
 import { LoggerService } from '../../../utils/LoggerService';
 import { DEFAULT_CONFIG, BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD, getDynamicBlockLimits } from './constants';
 import { MarkdownTextSplitter } from './md/MarkdownTextSplitter';

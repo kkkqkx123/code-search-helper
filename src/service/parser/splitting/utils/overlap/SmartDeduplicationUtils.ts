@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../types';
+import { CodeChunk } from '../..';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { ChunkSimilarityUtils } from '../chunk-processing/ChunkSimilarityUtils';
 
@@ -22,7 +22,7 @@ export class SmartDeduplicationUtils {
     // 1. 内容哈希快速检测
     const chunk1Hash = ContentHashIDGenerator.getContentHashPrefix(chunk.content);
     const chunk2Hash = ContentHashIDGenerator.getContentHashPrefix(nextChunk.content);
-    
+
     if (chunk1Hash === chunk2Hash) {
       return true; // 内容完全相同，跳过
     }
@@ -89,11 +89,11 @@ export class SmartDeduplicationUtils {
     }
 
     const currentHash = ContentHashIDGenerator.getContentHashPrefix(overlapContent);
-    
+
     // 检查最近3次重叠是否有重复
     const recentHistory = history.slice(-3);
     const repeatCount = recentHistory.filter(hash => hash === currentHash).length;
-    
+
     // 如果最近3次中有2次以上重复，认为是过度重复
     return repeatCount >= 2;
   }

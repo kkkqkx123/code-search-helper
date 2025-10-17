@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { Splitter, CodeChunk } from './types';
+import { Splitter, CodeChunk } from '.';
 import { TYPES } from '../../../types';
 import { TreeSitterService } from '../core/parse/TreeSitterService';
 import { LoggerService } from '../../../utils/LoggerService';
@@ -9,7 +9,7 @@ import { SplitStrategyFactory } from './core/SplitStrategyFactory';
 import { ensureStrategyProvidersRegistered } from './core/StrategyProviderRegistration';
 import { ChunkingCoordinator } from './utils/ChunkingCoordinator';
 import { UnifiedOverlapCalculator } from './utils/overlap/UnifiedOverlapCalculator';
-import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from './types';
+import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '.';
 import { PerformanceOptimizer } from './utils/performance/PerformanceOptimizer';
 import { IPerformanceMonitoringSystem } from './utils/performance/IPerformanceMonitoringSystem';
 import { UnifiedPerformanceMonitoringSystem } from './utils/performance/UnifiedPerformanceMonitoringSystem';

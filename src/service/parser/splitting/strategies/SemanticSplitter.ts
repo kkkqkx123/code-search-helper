@@ -1,5 +1,5 @@
 import { SemanticSplitter as SemanticSplitterInterface } from './index';
-import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '..';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 import { LoggerService } from '../../../../utils/LoggerService';
 

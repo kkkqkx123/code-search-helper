@@ -1,5 +1,5 @@
 import { ContextAwareOverlapOptimizer } from '../overlap/ContextAwareOverlapOptimizer';
-import { CodeChunk, CodeChunkMetadata } from '../../types';
+import { CodeChunk, CodeChunkMetadata } from '../..';
 
 describe('ContextAwareOverlapOptimizer', () => {
   let optimizer: ContextAwareOverlapOptimizer;

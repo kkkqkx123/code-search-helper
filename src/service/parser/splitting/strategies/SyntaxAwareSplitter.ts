@@ -1,5 +1,5 @@
 import { SyntaxAwareSplitter as SyntaxAwareSplitterInterface } from './index';
-import { SplitStrategy, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types';
+import { SplitStrategy, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '..';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';

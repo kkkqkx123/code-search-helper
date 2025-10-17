@@ -1,6 +1,6 @@
 import { IStrategyProvider } from '../interfaces/IStrategyProvider';
 import { ISplitStrategy } from '../interfaces/ISplitStrategy';
-import { ChunkingOptions } from '../types';
+import { ChunkingOptions } from '..';
 import { IntelligentSplitter } from '../strategies/IntelligentSplitter';
 
 /**

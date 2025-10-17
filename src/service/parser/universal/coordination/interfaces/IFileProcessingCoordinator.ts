@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../../splitting/types';
+import { CodeChunk } from '../../../splitting';
 import { IStrategySelectionResult } from './IProcessingStrategySelector';
 
 /**

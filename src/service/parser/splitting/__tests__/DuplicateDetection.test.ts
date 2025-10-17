@@ -2,7 +2,7 @@ import { SimilarityDetector } from '../utils/similarity/SimilarityDetector';
 import { UnifiedOverlapCalculator } from '../utils/overlap/UnifiedOverlapCalculator';
 import { ASTNodeTracker } from '../utils/ASTNodeTracker';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
-import { CodeChunk } from '../types';
+import { CodeChunk } from '..';
 
 describe('Duplicate Detection and Overlap Control', () => {
   let similarityDetector: SimilarityDetector;

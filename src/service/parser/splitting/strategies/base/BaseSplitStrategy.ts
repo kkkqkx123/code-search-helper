@@ -1,6 +1,6 @@
 import { ISplitStrategy } from '../../interfaces/ISplitStrategy';
-import { CodeChunk } from '../../types';
-import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../../types';
+import { CodeChunk } from '../..';
+import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../..';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../../utils/LoggerService';
 

@@ -1,4 +1,4 @@
-import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../../types';
+import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../..';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
 export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizerInterface {
@@ -22,10 +22,10 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
 
     for (let i = 1; i < chunks.length; i++) {
       const nextChunk = chunks[i];
-      
+
       // 检查是否应该合并
       const shouldMerge = this.shouldMerge(currentChunk, nextChunk);
-      
+
       if (shouldMerge) {
         // 合并chunks
         currentChunk = this.merge(currentChunk, nextChunk);
@@ -46,7 +46,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
 
     return optimizedChunks;
   }
-  
+
   /**
    * 检查是否应该合并两个块
    * @param chunk1 第一个块
@@ -54,7 +54,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
    */
   shouldMerge(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
     const totalSize = chunk1.content.length + chunk2.content.length;
-    
+
     // 大小检查
     if (totalSize > this.options.maxChunkSize) {
       return false;
@@ -68,12 +68,12 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
         ['class', 'generic'],
         ['import', 'generic']
       ];
-      
+
       const typePair = [chunk1.metadata.type, chunk2.metadata.type].sort();
-      const isCompatible = compatibleTypes.some(pair => 
+      const isCompatible = compatibleTypes.some(pair =>
         pair[0] === typePair[0] && pair[1] === typePair[1]
       );
-      
+
       if (!isCompatible) {
         return false;
       }
@@ -92,7 +92,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
 
     return true;
   }
-  
+
   /**
    * 合并两个代码块
    * @param chunk1 第一个块
@@ -102,7 +102,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
     // 使用基类的合并方法
     return BaseChunkProcessor.mergeTwoChunks(chunk1, chunk2);
   }
-  
+
   /**
    * 为代码块添加重叠内容
    * @param chunks 代码块数组
@@ -120,7 +120,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
       if (i < chunks.length - 1) {
         const nextChunk = chunks[i + 1];
         const overlapContent = this.extractOverlapContent(chunk, nextChunk, originalCode);
-        
+
         if (overlapContent) {
           overlappedChunks.push({
             ...chunk,
@@ -136,7 +136,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
 
     return overlappedChunks;
   }
-  
+
   /**
    * 提取重叠内容
    * @param currentChunk 当前块
@@ -151,10 +151,10 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
       const linesUntilNextChunk = lines.slice(0, nextChunk.metadata.startLine - 1);
       // Calculate the character position where next chunk starts (subtract 1 for the newline that's not at the end)
       const charsUntilNextChunk = linesUntilNextChunk.join('\n').length + (linesUntilNextChunk.length > 0 ? 1 : 0) - 1;
-      
+
       // Calculate the starting position for overlap in the original code
       const overlapStartPosition = Math.max(0, charsUntilNextChunk - this.options.overlapSize);
-      
+
       // Find which line this overlap position corresponds to
       let currentPos = 0;
       let overlapStartLine = 1;
@@ -166,10 +166,10 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
         }
         currentPos = lineEndPos;
       }
-      
+
       // Ensure overlapStartLine is within valid range
       overlapStartLine = Math.max(1, Math.min(overlapStartLine, nextChunk.metadata.startLine));
-      
+
       if (overlapStartLine < nextChunk.metadata.startLine) {
         const overlapLines = lines.slice(overlapStartLine - 1, nextChunk.metadata.startLine - 1);
         return overlapLines.join('\n');
@@ -177,7 +177,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
     } catch (error) {
       console.warn(`Failed to extract overlap content: ${error}`);
     }
-    
+
     return '';
   }
 }

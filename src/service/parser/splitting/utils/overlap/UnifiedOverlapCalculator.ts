@@ -1,4 +1,4 @@
-import { CodeChunk, ASTNode, OverlapCalculator } from '../../types';
+import { CodeChunk, ASTNode, OverlapCalculator } from '../..';
 import { ASTNodeTracker } from '../ASTNodeTracker';
 import { SemanticBoundaryAnalyzer } from '../SemanticBoundaryAnalyzer';
 import { BalancedChunker } from '../../BalancedChunker';

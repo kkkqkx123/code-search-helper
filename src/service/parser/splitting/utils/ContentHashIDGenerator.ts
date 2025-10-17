@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { ASTNode } from '../types';
+import { ASTNode } from '..';
 
 /**
  * 内容哈希ID生成器 - 基于代码内容生成唯一ID
@@ -16,7 +16,7 @@ export class ContentHashIDGenerator {
   static generateNodeId(node: ASTNode): string {
     const normalizedContent = this.normalizeContent(node.text);
     const contentHash = this.generateContentHash(normalizedContent);
-    
+
     // 结合内容哈希、位置信息和类型生成唯一ID
     return `${contentHash}-${node.startByte}-${node.endByte}-${node.type}`;
   }
@@ -27,7 +27,7 @@ export class ContentHashIDGenerator {
   static generateChunkId(content: string, startLine: number, endLine: number, type?: string): string {
     const normalizedContent = this.normalizeContent(content);
     const contentHash = this.generateContentHash(normalizedContent);
-    
+
     return `${contentHash}-${startLine}-${endLine}-${type || 'chunk'}`;
   }
 
@@ -95,10 +95,10 @@ export class ContentHashIDGenerator {
   static isPotentiallySimilar(content1: string, content2: string): boolean {
     const normalized1 = this.normalizeContent(content1);
     const normalized2 = this.normalizeContent(content2);
-    
+
     const hash1 = this.generateContentHash(normalized1);
     const hash2 = this.generateContentHash(normalized2);
-    
+
     return hash1 === hash2;
   }
 

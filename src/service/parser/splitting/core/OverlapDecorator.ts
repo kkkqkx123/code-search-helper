@@ -1,5 +1,5 @@
 import { ISplitStrategy } from '../interfaces/ISplitStrategy';
-import { CodeChunk, ChunkingOptions } from '../types';
+import { CodeChunk, ChunkingOptions } from '..';
 import { IOverlapCalculator } from '../interfaces/IOverlapCalculator';
 
 /**
@@ -9,7 +9,7 @@ export class OverlapDecorator implements ISplitStrategy {
   constructor(
     private strategy: ISplitStrategy,
     private overlapCalculator: IOverlapCalculator
-  ) {}
+  ) { }
 
   async split(
     content: string,
@@ -21,7 +21,7 @@ export class OverlapDecorator implements ISplitStrategy {
   ): Promise<CodeChunk[]> {
     // 首先执行基础分割策略
     const chunks = await this.strategy.split(content, language, filePath, options, nodeTracker, ast);
-    
+
     // 如果没有块或只有一个块，不需要重叠
     if (chunks.length <= 1) {
       return chunks;
@@ -29,7 +29,7 @@ export class OverlapDecorator implements ISplitStrategy {
 
     // 检查是否为代码文件（非markdown）
     const isCodeFile = this.isCodeFile(language, filePath);
-    
+
     // 代码文件：只有在块大小超过限制时才使用重叠
     if (isCodeFile) {
       // 检查是否有块超过最大大小限制
@@ -37,12 +37,12 @@ export class OverlapDecorator implements ISplitStrategy {
         const maxSize = options?.maxChunkSize || 2000;
         return chunk.content.length > maxSize;
       });
-      
+
       // 如果有超大块，需要应用重叠策略进行重新处理
       if (hasOversizedChunks) {
         return this.overlapCalculator.addOverlap(chunks, content);
       }
-      
+
       // 否则返回原始块（无重叠）
       return chunks;
     }
@@ -91,7 +91,7 @@ export class OverlapDecorator implements ISplitStrategy {
       'xml', 'yaml', 'sql', 'dockerfile', 'cmake', 'perl', 'r', 'matlab',
       'lua', 'dart', 'elixir', 'erlang', 'haskell', 'ocaml', 'fsharp',
       'visualbasic', 'powershell', 'batch'];
-    
+
     return language ? codeLanguages.includes(language) : false;
   }
 }
@@ -107,7 +107,7 @@ export class PerformanceMonitorDecorator implements ISplitStrategy {
   constructor(
     private strategy: ISplitStrategy,
     private logger?: any
-  ) {}
+  ) { }
 
   async split(
     content: string,
@@ -122,7 +122,7 @@ export class PerformanceMonitorDecorator implements ISplitStrategy {
 
     try {
       const chunks = await this.strategy.split(content, language, filePath, options, nodeTracker, ast);
-      
+
       const endTime = Date.now();
       const duration = endTime - startTime;
       this.totalTime += duration;
@@ -134,7 +134,7 @@ export class PerformanceMonitorDecorator implements ISplitStrategy {
     } catch (error) {
       const endTime = Date.now();
       const duration = endTime - startTime;
-      
+
       this.logger?.error(`Strategy ${this.strategy.getName()} failed after ${duration}ms:`, error);
       throw error;
     }
@@ -203,7 +203,7 @@ export class CacheDecorator implements ISplitStrategy {
     private strategy: ISplitStrategy,
     private maxCacheSize = 100,
     private ttl = 300000 // 5分钟
-  ) {}
+  ) { }
 
   async split(
     content: string,
@@ -282,7 +282,7 @@ export class CacheDecorator implements ISplitStrategy {
   ): string {
     const contentHash = this.hashContent(content);
     const optionsHash = this.hashOptions(options);
-    
+
     return `${contentHash}_${language}_${filePath || ''}_${optionsHash}`;
   }
 

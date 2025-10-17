@@ -1,5 +1,5 @@
 import { ISplitStrategy } from './ISplitStrategy';
-import { ChunkingOptions } from '../types';
+import { ChunkingOptions } from '..';
 
 /**
  * 策略提供者接口

@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../types';
+import { CodeChunk } from '../..';
 import { BaseSimilarityCalculator } from '../base/BaseSimilarityCalculator';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 

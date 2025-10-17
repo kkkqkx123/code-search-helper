@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../types';
+import { CodeChunk } from '../..';
 
 export type OverlapStrategy = 'semantic' | 'syntactic' | 'size-based' | 'hybrid' | 'ast-boundary' | 'node-aware' | 'smart-deduplication';
 

@@ -1,4 +1,4 @@
-import { CodeChunk, ChunkingOptions, ASTNode, SplitStrategy } from '../types';
+import { CodeChunk, ChunkingOptions, ASTNode, SplitStrategy } from '..';
 import { ASTNodeTracker } from './ASTNodeTracker';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
 import { SimilarityDetector } from './similarity/SimilarityDetector';

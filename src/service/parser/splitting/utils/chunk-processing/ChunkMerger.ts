@@ -1,4 +1,4 @@
-import { CodeChunk, CodeChunkMetadata, EnhancedChunkingOptions } from '../../types';
+import { CodeChunk, CodeChunkMetadata, EnhancedChunkingOptions } from '../..';
 import { ASTNode, ASTNodeTracker } from '../ASTNodeTracker';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
@@ -76,12 +76,12 @@ export class ChunkMerger extends BaseChunkProcessor {
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       const contentHash = this.calculateContentHash(chunk.content);
-      
+
       if (contentHashes.has(contentHash)) {
         const existingIndex = contentHashes.get(contentHash)!;
         const duplicateKey = `${existingIndex}-${i}`;
         const similarity = this.calculateContentSimilarity(chunks[existingIndex], chunk);
-        
+
         if (similarity > this.options.deduplicationThreshold) {
           duplicateMap.set(duplicateKey, similarity);
         }
@@ -100,7 +100,7 @@ export class ChunkMerger extends BaseChunkProcessor {
     const contentSim = this.calculateContentSimilarity(chunk1, chunk2);
     const astSim = this.calculateASTSimilarity(chunk1, chunk2);
     const proximity = this.calculateProximity(chunk1.metadata, chunk2.metadata);
-    
+
     const overall = (contentSim * 0.6) + (astSim * 0.3) + (proximity * 0.1);
 
     return {
@@ -129,7 +129,7 @@ export class ChunkMerger extends BaseChunkProcessor {
    */
   private decideMerge(chunk1: CodeChunk, chunk2: CodeChunk): MergeDecision {
     const similarity = this.calculateChunkSimilarity(chunk1, chunk2);
-    
+
     // 高相似度：直接替换
     if (similarity.overall > 0.9) {
       return {
@@ -139,7 +139,7 @@ export class ChunkMerger extends BaseChunkProcessor {
         reason: 'Very high similarity'
       };
     }
-    
+
     // 中等相似度：合并内容
     if (similarity.overall > 0.7) {
       return {
@@ -149,7 +149,7 @@ export class ChunkMerger extends BaseChunkProcessor {
         reason: 'High similarity'
       };
     }
-    
+
     // 检查是否相邻且有部分重叠
     if (this.areAdjacentAndOverlapping(chunk1, chunk2) && similarity.overall > 0.5) {
       return {
@@ -159,7 +159,7 @@ export class ChunkMerger extends BaseChunkProcessor {
         reason: 'Adjacent and overlapping'
       };
     }
-    
+
     return {
       shouldMerge: false,
       mergeStrategy: 'combine', // 或者 'replace'，因为 shouldMerge 是 false，这个值不会被使用
@@ -176,7 +176,7 @@ export class ChunkMerger extends BaseChunkProcessor {
       // 如果内容高度相似，选择质量更高的块
       return chunk1.content.length > chunk2.content.length ? chunk1 : chunk2;
     }
-    
+
     // 合并策略：连接两个块的内容
     const mergedContent = chunk1.content + '\n' + chunk2.content;
     const mergedMetadata: CodeChunkMetadata = {
@@ -184,7 +184,7 @@ export class ChunkMerger extends BaseChunkProcessor {
       endLine: chunk2.metadata.endLine,
       complexity: (chunk1.metadata.complexity || 0) + (chunk2.metadata.complexity || 0)
     };
-    
+
     return {
       content: mergedContent,
       metadata: mergedMetadata
@@ -197,16 +197,16 @@ export class ChunkMerger extends BaseChunkProcessor {
   private calculateContentSimilarity(chunk1: CodeChunk, chunk2: CodeChunk): number {
     const content1 = chunk1.content.trim();
     const content2 = chunk2.content.trim();
-    
+
     if (content1 === content2) return 1.0;
-    
+
     // 使用简单的文本相似度算法（Jaccard相似度）
     const words1 = new Set(content1.split(/\s+/));
     const words2 = new Set(content2.split(/\s+/));
-    
+
     const intersection = new Set([...words1].filter(x => words2.has(x)));
     const union = new Set([...words1, ...words2]);
-    
+
     return intersection.size / union.size;
   }
 
@@ -215,25 +215,25 @@ export class ChunkMerger extends BaseChunkProcessor {
    */
   private calculateASTSimilarity(chunk1: CodeChunk, chunk2: CodeChunk): number {
     if (!this.nodeTracker) return 0.5; // 如果没有节点跟踪器，返回中性值
-    
+
     const nodes1 = this.nodeTracker.getUsedNodes().filter(node =>
       node.startLine >= chunk1.metadata.startLine &&
       node.endLine <= chunk1.metadata.endLine
     );
-    
+
     const nodes2 = this.nodeTracker.getUsedNodes().filter(node =>
       node.startLine >= chunk2.metadata.startLine &&
       node.endLine <= chunk2.metadata.endLine
     );
-    
+
     if (nodes1.length === 0 && nodes2.length === 0) return 0.5;
-    
+
     const nodeTypes1 = nodes1.map(n => n.type);
     const nodeTypes2 = nodes2.map(n => n.type);
-    
+
     const intersection = nodeTypes1.filter(type => nodeTypes2.includes(type));
     const union = [...new Set([...nodeTypes1, ...nodeTypes2])];
-    
+
     return union.length > 0 ? intersection.length / union.length : 0;
   }
 
@@ -252,18 +252,18 @@ export class ChunkMerger extends BaseChunkProcessor {
   private areAdjacentAndOverlapping(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
     // 检查行号连续性
     const isAdjacent = chunk1.metadata.endLine + 1 >= chunk2.metadata.startLine;
-    
+
     // 检查内容重叠
     const lines1 = chunk1.content.split('\n');
     const lines2 = chunk2.content.split('\n');
-    
+
     const overlapThreshold = 0.3; // 30%重叠
     const maxOverlapLines = Math.min(lines1.length, lines2.length) * overlapThreshold;
-    
+
     // 检查开头和结尾的重叠
     const startOverlap = this.countOverlappingLines(lines1.slice(-5), lines2.slice(0, 5));
     const endOverlap = this.countOverlappingLines(lines2.slice(-5), lines1.slice(0, 5));
-    
+
     return isAdjacent && (startOverlap > maxOverlapLines || endOverlap > maxOverlapLines);
   }
 

@@ -3,10 +3,10 @@ import { SyntaxValidator } from '../utils/SyntaxValidator';
 import { ChunkOptimizer } from '../utils/chunk-processing';
 import { PerformanceMonitor } from '../utils/performance';
 import { BalancedChunker } from '../BalancedChunker';
-import { CodeChunk } from '../types';
+import { CodeChunk } from '..';
 
 describe('Utils', () => {
- describe('ComplexityCalculator', () => {
+  describe('ComplexityCalculator', () => {
     let calculator: ComplexityCalculator;
 
     beforeEach(() => {
@@ -38,7 +38,7 @@ describe('Utils', () => {
       const score = calculator.calculateSemanticScore(line);
       expect(score).toBeGreaterThan(0);
     });
- });
+  });
 
   describe('SyntaxValidator', () => {
     let balancedChunker: BalancedChunker;
@@ -96,7 +96,7 @@ describe('Utils', () => {
           metadata: { startLine: 2, endLine: 2, language: 'javascript', type: 'generic', complexity: 1 }
         }
       ];
-      
+
       const optimized = optimizer.optimize(chunks, chunks.map(c => c.content).join('\n'));
       expect(Array.isArray(optimized)).toBe(true);
     });
@@ -110,7 +110,7 @@ describe('Utils', () => {
         content: 'console.log(2);',
         metadata: { startLine: 2, endLine: 2, language: 'javascript', type: 'generic', complexity: 1 }
       };
-      
+
       const shouldMerge = optimizer.shouldMerge(chunk1, chunk2);
       expect(typeof shouldMerge).toBe('boolean');
     });

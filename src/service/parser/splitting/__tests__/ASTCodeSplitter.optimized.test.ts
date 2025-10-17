@@ -2,7 +2,6 @@
 import { ASTCodeSplitter } from '../ASTCodeSplitter';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { CodeChunk } from '../types';
 
 // Mock TreeSitterService
 const mockTreeSitterService: Partial<TreeSitterService> = {

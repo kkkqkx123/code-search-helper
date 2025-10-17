@@ -7,7 +7,7 @@ export type { ParserLanguage, ParseResult };
 // import { SnippetExtractionService } from '../../treesitter-rule/SnippetExtractionService';
 // import { SnippetChunk } from '../../types';
 import { TYPES } from '../../../../types';
-import { CodeChunk } from '../../splitting/types';
+import { CodeChunk } from '../../types';
 
 export interface SnippetChunk extends CodeChunk {
   snippetType?: string;

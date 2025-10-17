@@ -20,7 +20,7 @@ import {
   FileMetadata,
   PropertyInfo
 } from './IGraphDataMappingService';
-import { CodeChunk } from '../../parser/splitting/types';
+import { CodeChunk } from '../../parser/types';
 import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from '../../validation/DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';

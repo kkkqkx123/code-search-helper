@@ -1,4 +1,4 @@
-import { PerformanceStats } from '../../types';
+import { PerformanceStats } from '../..';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 /**
@@ -26,16 +26,16 @@ export abstract class BasePerformanceTracker {
     const endTime = Date.now();
     const processingTime = endTime - startTime;
     const timePerLine = processingTime / linesProcessed;
-    
+
     this.totalLines += linesProcessed;
     this.totalTime += processingTime;
     this.totalRequests++;
     if (cacheHit) {
       this.cacheHits++;
     }
-    
+
     this.logger?.debug(`Performance metrics: ${linesProcessed} lines processed in ${processingTime}ms (${timePerLine.toFixed(3)}ms per line), cache hit: ${cacheHit}`);
-    
+
     // 如果处理时间过长，记录警告
     if (timePerLine > 1.0) {
       this.logger?.warn(`Slow processing detected: ${timePerLine.toFixed(3)}ms per line`);
@@ -72,7 +72,7 @@ export abstract class BasePerformanceTracker {
     const endTime = Date.now();
     const processingTime = endTime - startTime;
     const timePerLine = processingTime / linesProcessed;
-    
+
     return {
       processingTime,
       linesProcessed,

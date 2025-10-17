@@ -1,5 +1,5 @@
 import { BaseSplitStrategy } from './base/BaseSplitStrategy';
-import { CodeChunk, ChunkingOptions, ASTNode } from '../types';
+import { CodeChunk, ChunkingOptions, ASTNode } from '..';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
@@ -234,7 +234,7 @@ export class ClassSplitter extends BaseSplitStrategy {
    */
   private createASTNode(node: any, content: string, type: string, customId?: string): ASTNode {
     const nodeId = customId || `${node.startIndex}-${node.endIndex}-${type}`;
-    
+
     return {
       id: ContentHashIDGenerator.generateNodeId({
         id: nodeId,
@@ -260,7 +260,7 @@ export class ClassSplitter extends BaseSplitStrategy {
       this.logger?.warn('ASTNodeExtractor not initialized');
       return [];
     }
-    
+
     return this.astNodeExtractor.extractNodesFromChunk(chunk, ast, 'class');
   }
 

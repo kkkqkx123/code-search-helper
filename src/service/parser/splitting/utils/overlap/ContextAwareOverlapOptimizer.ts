@@ -1,4 +1,4 @@
-import { CodeChunk, CodeChunkMetadata } from '../../types';
+import { CodeChunk, CodeChunkMetadata } from '../..';
 
 export interface OverlapResult {
   content: string;

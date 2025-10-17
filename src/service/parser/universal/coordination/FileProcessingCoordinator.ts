@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { CodeChunk } from '../../splitting/types';
+import { CodeChunk } from '../../splitting';
 import {
   IFileProcessingCoordinator,
   IFileProcessingContext,

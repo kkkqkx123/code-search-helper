@@ -1,7 +1,7 @@
 import { ISplitStrategyFactory } from '../interfaces/ISplitStrategyFactory';
 import { ISplitStrategy } from '../interfaces/ISplitStrategy';
 import { IStrategyProvider } from '../interfaces/IStrategyProvider';
-import { ChunkingOptions } from '../types';
+import { ChunkingOptions } from '..';
 import { BaseSplitStrategy } from '../strategies/base/BaseSplitStrategy';
 
 /**
@@ -20,7 +20,7 @@ export class SplitStrategyFactory implements ISplitStrategyFactory {
    */
   create(strategyType: string, options?: ChunkingOptions): ISplitStrategy {
     const provider = this.providers.get(strategyType);
-    
+
     if (!provider) {
       throw new Error(`Unknown strategy type: ${strategyType}`);
     }
@@ -36,7 +36,7 @@ export class SplitStrategyFactory implements ISplitStrategyFactory {
    * 注册新的策略类型（兼容旧接口）
    */
   registerStrategy(
-    strategyType: string, 
+    strategyType: string,
     strategyClass: new (options?: ChunkingOptions) => ISplitStrategy
   ): void {
     // 创建兼容提供者
@@ -45,7 +45,7 @@ export class SplitStrategyFactory implements ISplitStrategyFactory {
       createStrategy: (options?: ChunkingOptions) => new strategyClass(options),
       getDependencies: () => this.inferDependencies(strategyClass)
     };
-    
+
     this.registerProvider(compatibilityProvider);
   }
 
@@ -54,7 +54,7 @@ export class SplitStrategyFactory implements ISplitStrategyFactory {
    */
   registerProvider(provider: IStrategyProvider): void {
     const strategyType = provider.getName();
-    
+
     if (!strategyType || strategyType.trim() === '') {
       throw new Error('Strategy type cannot be empty');
     }
@@ -103,13 +103,13 @@ export class SplitStrategyFactory implements ISplitStrategyFactory {
 
     // 创建临时实例进行验证
     const tempStrategy = provider.createStrategy();
-    
+
     // 检查是否是基础策略类的子类
     const isBaseStrategy = tempStrategy instanceof BaseSplitStrategy;
-    
+
     // 检查是否需要TreeSitter服务
     const requiresTreeSitter = this.requiresTreeSitterService(tempStrategy);
-    
+
     // 检查是否需要日志服务
     const requiresLogger = this.requiresLoggerService(tempStrategy);
 
@@ -160,18 +160,18 @@ export class SplitStrategyFactory implements ISplitStrategyFactory {
    */
   private inferDependencies(strategyClass: new (options?: ChunkingOptions) => ISplitStrategy): string[] {
     const dependencies: string[] = [];
-    
+
     try {
       const tempInstance = new strategyClass();
-      
+
       if (typeof (tempInstance as any).setTreeSitterService === 'function') {
         dependencies.push('TreeSitterService');
       }
-      
+
       if (typeof (tempInstance as any).setLogger === 'function') {
         dependencies.push('LoggerService');
       }
-      
+
       // 根据类名推断其他依赖
       const className = strategyClass.name.toLowerCase();
       if (className.includes('syntax') || className.includes('semantic')) {
@@ -183,7 +183,7 @@ export class SplitStrategyFactory implements ISplitStrategyFactory {
       // 如果无法创建实例，返回基本依赖
       dependencies.push('TreeSitterService', 'LoggerService');
     }
-    
+
     return dependencies;
   }
 
@@ -197,10 +197,10 @@ export class SplitStrategyFactory implements ISplitStrategyFactory {
     }
 
     // 检查策略提供者声明的依赖
-    const provider = Array.from(this.providers.values()).find(p => 
+    const provider = Array.from(this.providers.values()).find(p =>
       p.createStrategy() === strategy || p.createStrategy().constructor === strategy.constructor
     );
-    
+
     if (provider) {
       return provider.getDependencies().includes('TreeSitterService');
     }
@@ -218,10 +218,10 @@ export class SplitStrategyFactory implements ISplitStrategyFactory {
     }
 
     // 检查策略提供者声明的依赖
-    const provider = Array.from(this.providers.values()).find(p => 
+    const provider = Array.from(this.providers.values()).find(p =>
       p.createStrategy() === strategy || p.createStrategy().constructor === strategy.constructor
     );
-    
+
     if (provider) {
       return provider.getDependencies().includes('LoggerService');
     }

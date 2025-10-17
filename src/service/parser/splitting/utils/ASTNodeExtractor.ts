@@ -1,10 +1,10 @@
-import { ASTNode } from '../types';
-import { CodeChunk } from '../types';
+import { ASTNode } from '..';
+import { CodeChunk } from '..';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
 
 export class ASTNodeExtractor {
-    constructor(private treeSitterService: TreeSitterService) {}
+    constructor(private treeSitterService: TreeSitterService) { }
 
     /**
      * 从 CodeChunk 中提取对应的 ASTNode 数组
@@ -19,7 +19,7 @@ export class ASTNodeExtractor {
         }
 
         const nodes: ASTNode[] = [];
-        
+
         for (const nodeId of chunk.metadata.nodeIds) {
             const node = this.findNodeById(ast, nodeId);
             if (node) {
@@ -28,7 +28,7 @@ export class ASTNodeExtractor {
                 nodes.push(astNode);
             }
         }
-        
+
         return nodes;
     }
 
@@ -46,8 +46,8 @@ export class ASTNodeExtractor {
         }
 
         const traverse = (node: any): any | null => {
-            if (node.startIndex === startIndex && 
-                node.endIndex === endIndex && 
+            if (node.startIndex === startIndex &&
+                node.endIndex === endIndex &&
                 node.type === expectedType) {
                 return node;
             }
@@ -58,7 +58,7 @@ export class ASTNodeExtractor {
                     if (found) return found;
                 }
             }
-            
+
             return null;
         };
 

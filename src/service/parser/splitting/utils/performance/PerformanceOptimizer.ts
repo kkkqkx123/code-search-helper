@@ -1,4 +1,4 @@
-import { CodeChunk, EnhancedChunkingOptions } from '../../types';
+import { CodeChunk, EnhancedChunkingOptions } from '../..';
 import { ASTNodeTracker } from '../ASTNodeTracker';
 import { BasePerformanceTracker } from '../base/BasePerformanceTracker';
 
@@ -88,13 +88,13 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
   private optimizeMemoryUsage(chunks: CodeChunk[], nodeTracker: ASTNodeTracker): CodeChunk[] {
     // 清理不再需要的AST节点引用
     const stats = nodeTracker.getStats();
-    
+
     // 如果使用率过低，考虑清理部分缓存
     if (stats.usedNodes / stats.totalNodes < 0.1 && stats.totalNodes > 1000) {
       // 保留最近使用的节点，清理旧的节点
       const usedNodes = nodeTracker.getUsedNodes();
       const recentNodes = usedNodes.slice(-500); // 保留最近500个使用的节点
-      
+
       nodeTracker.clear();
       recentNodes.forEach(node => nodeTracker.markUsed(node));
     }
@@ -112,7 +112,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
   private applyCacheOptimization(chunks: CodeChunk[]): CodeChunk[] {
     return chunks.map(chunk => {
       const cacheKey = this.generateCacheKey(chunk);
-      
+
       if (this.cache.has(cacheKey)) {
         this.cacheHits++;
         return this.cache.get(cacheKey) || chunk;
@@ -136,15 +136,15 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
     if (chunks.length > 100) {
       const batchSize = 50;
       const optimizedBatches: CodeChunk[][] = [];
-      
+
       for (let i = 0; i < chunks.length; i += batchSize) {
         const batch = chunks.slice(i, i + batchSize);
         optimizedBatches.push(this.processBatch(batch, options));
       }
-      
+
       return optimizedBatches.flat();
     }
-    
+
     return chunks;
   }
 
@@ -159,7 +159,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
         .split('\n')
         .filter(line => line.trim() !== '' || batch.length <= 10)
         .join('\n');
-      
+
       return {
         ...chunk,
         content: optimizedContent
@@ -206,7 +206,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
       // 简单的LRU策略：删除最早的条目
       const keys = Array.from(this.cache.keys());
       const keysToRemove = keys.slice(0, keys.length - this.maxCacheSize);
-      
+
       for (const key of keysToRemove) {
         this.cache.delete(key);
       }

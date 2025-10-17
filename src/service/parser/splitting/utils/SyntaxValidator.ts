@@ -1,4 +1,4 @@
-import { SyntaxValidator as SyntaxValidatorInterface } from '../types';
+import { SyntaxValidator as SyntaxValidatorInterface } from '..';
 import { BalancedChunker } from '../BalancedChunker';
 
 export class SyntaxValidator implements SyntaxValidatorInterface {
@@ -24,18 +24,18 @@ export class SyntaxValidator implements SyntaxValidatorInterface {
       if (language === 'javascript' || language === 'typescript') {
         const bracketBalance = this.checkBracketBalance(content);
         const braceBalance = this.checkBraceBalance(content);
-        
+
         if (bracketBalance !== 0 || braceBalance !== 0) {
           return false;
         }
       }
-      
+
       return true;
     } catch (error) {
       return false;
     }
   }
-  
+
   /**
    * 检查括号平衡
    * @param content 代码内容
@@ -48,7 +48,7 @@ export class SyntaxValidator implements SyntaxValidatorInterface {
     }
     return balance;
   }
-  
+
   /**
    * 检查花括号平衡
    * @param content 代码内容
@@ -61,7 +61,7 @@ export class SyntaxValidator implements SyntaxValidatorInterface {
     }
     return balance;
   }
-  
+
   /**
    * 检查符号平衡（使用BalancedChunker）
    * @param content 代码内容

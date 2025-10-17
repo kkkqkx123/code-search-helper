@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../parser/splitting/types';
+import { CodeChunk } from '../../parser/types';
 
 // 图节点类型枚举
 export enum GraphNodeType {

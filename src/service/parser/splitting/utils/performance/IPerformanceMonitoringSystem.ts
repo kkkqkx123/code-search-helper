@@ -1,4 +1,4 @@
-import { PerformanceStats } from '../../types';
+import { PerformanceStats } from '../..';
 
 /**
  * 操作指标接口
