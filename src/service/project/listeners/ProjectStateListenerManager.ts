@@ -87,15 +87,28 @@ export class ProjectStateListenerManager {
   private async handleIndexingProgress(projectId: string, progress: number): Promise<void> {
     try {
       await this.updateProjectIndexingProgress(projectId, progress);
-      // 同时更新向量和图的状态，以反映索引进度
-      await this.updateVectorStatus(projectId, {
-        status: 'indexing',
-        progress: progress
-      });
-      await this.updateGraphStatus(projectId, {
-        status: 'indexing',
-        progress: progress
-      });
+      
+      // 获取当前项目状态以确定哪些存储类型正在索引
+      const projectState = this.projectStates.get(projectId);
+      if (!projectState) {
+        this.logger.warn(`Project state not found for indexing progress: ${projectId}`);
+        return;
+      }
+
+      // 只更新实际正在进行的索引状态
+      if (projectState.vectorStatus.status === 'indexing') {
+        await this.updateVectorStatus(projectId, {
+          status: 'indexing',
+          progress: progress
+        });
+      }
+      
+      if (projectState.graphStatus.status === 'indexing') {
+        await this.updateGraphStatus(projectId, {
+          status: 'indexing',
+          progress: progress
+        });
+      }
     } catch (error) {
       this.logger.error('Failed to update project indexing progress', { projectId, progress, error });
     }

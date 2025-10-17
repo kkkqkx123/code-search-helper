@@ -6,8 +6,6 @@
 export class StorageStatusIndicator extends HTMLElement {
   private vectorStatus: string = 'pending';
   private graphStatus: string = 'pending';
-  private vectorProgress: number = 0;
-  private graphProgress: number = 0;
 
   constructor() {
     super();
@@ -15,7 +13,7 @@ export class StorageStatusIndicator extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ['vector-status', 'graph-status', 'vector-progress', 'graph-progress'];
+    return ['vector-status', 'graph-status'];
   }
 
   connectedCallback() {
@@ -30,12 +28,6 @@ export class StorageStatusIndicator extends HTMLElement {
           break;
         case 'graph-status':
           this.graphStatus = newValue;
-          break;
-        case 'vector-progress':
-          this.vectorProgress = parseFloat(newValue) || 0;
-          break;
-        case 'graph-progress':
-          this.graphProgress = parseFloat(newValue) || 0;
           break;
       }
       this.render();
@@ -76,19 +68,11 @@ export class StorageStatusIndicator extends HTMLElement {
           color: #495057;
         }
 
-        .progress-bar {
-          width: 40px;
-          height: 4px;
-          background-color: #e9ecef;
-          border-radius: 2px;
-          overflow: hidden;
-          flex-shrink: 0;
-        }
-
-        .progress-fill {
-          height: 100%;
-          transition: width 0.3s ease;
-          border-radius: 2px;
+        .status-text {
+          font-size: 11px;
+          color: #6c757d;
+          min-width: 60px;
+          text-align: right;
         }
 
         /* 状态颜色 */
@@ -108,13 +92,6 @@ export class StorageStatusIndicator extends HTMLElement {
         .status-partial { 
           background-color: #6f42c1; 
         }
-
-        /* 进度条颜色 */
-        .progress-pending { background-color: #6c757d; }
-        .progress-indexing { background-color: #fd7e14; }
-        .progress-completed { background-color: #198754; }
-        .progress-error { background-color: #dc3545; }
-        .progress-partial { background-color: #6f42c1; }
 
         /* 脉冲动画 */
         @keyframes pulse {
@@ -141,21 +118,13 @@ export class StorageStatusIndicator extends HTMLElement {
         <div class="status-item">
           <span class="status-dot status-${this.vectorStatus}"></span>
           <span class="status-label">向量</span>
-          <div class="progress-bar">
-            <div class="progress-fill progress-${this.vectorStatus}" 
-                 style="width: ${this.vectorProgress}%"></div>
-          </div>
-          <span class="progress-text">${Math.round(this.vectorProgress)}%</span>
+          <span class="status-text">${this.getStatusText(this.vectorStatus)}</span>
         </div>
         
         <div class="status-item">
           <span class="status-dot status-${this.graphStatus}"></span>
           <span class="status-label">图</span>
-          <div class="progress-bar">
-            <div class="progress-fill progress-${this.graphStatus}"
-                 style="width: ${this.graphProgress}%"></div>
-          </div>
-          <span class="progress-text">${Math.round(this.graphProgress)}%</span>
+          <span class="status-text">${this.getStatusText(this.graphStatus)}</span>
         </div>
       </div>
     `;
@@ -164,33 +133,48 @@ export class StorageStatusIndicator extends HTMLElement {
   /**
    * 设置向量状态
    */
-  setVectorStatus(status: string, progress: number = 0) {
+  setVectorStatus(status: string) {
     this.vectorStatus = status;
-    this.vectorProgress = Math.min(100, Math.max(0, progress));
     this.setAttribute('vector-status', status);
-    this.setAttribute('vector-progress', this.vectorProgress.toString());
   }
 
   /**
    * 设置图状态
    */
-  setGraphStatus(status: string, progress: number = 0) {
+  setGraphStatus(status: string) {
     this.graphStatus = status;
-    this.graphProgress = Math.min(100, Math.max(0, progress));
     this.setAttribute('graph-status', status);
-    this.setAttribute('graph-progress', this.graphProgress.toString());
   }
 
   /**
    * 批量更新状态
    */
-  updateStatus(vectorStatus?: { status: string; progress?: number },
-                     graphStatus?: { status: string; progress?: number }) {
+  updateStatus(vectorStatus?: { status: string }, graphStatus?: { status: string }) {
     if (vectorStatus) {
-      this.setVectorStatus(vectorStatus.status, vectorStatus.progress || 0);
+      this.setVectorStatus(vectorStatus.status);
     }
     if (graphStatus) {
-      this.setGraphStatus(graphStatus.status, graphStatus.progress || 0);
+      this.setGraphStatus(graphStatus.status);
+    }
+  }
+
+  /**
+   * 获取状态文本
+   */
+  private getStatusText(status: string): string {
+    switch (status) {
+      case 'pending':
+        return '待处理';
+      case 'indexing':
+        return '索引中';
+      case 'completed':
+        return '已完成';
+      case 'error':
+        return '错误';
+      case 'partial':
+        return '部分完成';
+      default:
+        return '未知';
     }
   }
 
@@ -200,12 +184,10 @@ export class StorageStatusIndicator extends HTMLElement {
   getStatus() {
     return {
       vector: {
-        status: this.vectorStatus,
-        progress: this.vectorProgress
+        status: this.vectorStatus
       },
       graph: {
-        status: this.graphStatus,
-        progress: this.graphProgress
+        status: this.graphStatus
       }
     };
   }

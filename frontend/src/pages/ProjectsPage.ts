@@ -134,9 +134,7 @@ export class ProjectsPage {
                     <storage-status-indicator
                         project-id="${project.id}"
                         vector-status="${project.vectorStatus?.status || 'pending'}"
-                        graph-status="${project.graphStatus?.status || 'pending'}"
-                        vector-progress="${project.vectorStatus?.progress || 0}"
-                        graph-progress="${project.graphStatus?.progress || 0}">
+                        graph-status="${project.graphStatus?.status || 'pending'}">
                     </storage-status-indicator>
                 </td>
                 <td>
