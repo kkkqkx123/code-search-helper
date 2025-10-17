@@ -25,7 +25,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from '../../validation/DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
-import { IGraphCacheService } from '../caching';
 
 @injectable()
 export class GraphDataMappingService implements IGraphDataMappingService {
@@ -93,7 +92,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       // 尝试从新缓存服务获取结果
       const cacheKey = `mapping_${filePath}_${language}`;
       const cachedResult = await this.unifiedCache.getGraphData(cacheKey);
-      
+
       if (cachedResult) {
         this.logger.debug('Returning cached mapping result', { filePath });
         return {
@@ -126,13 +125,13 @@ export class GraphDataMappingService implements IGraphDataMappingService {
 
       // 执行实际的映射逻辑
       const result = await this.performMapping(filePath, fileContent, language, analysisResult);
-      
+
       // 缓存结果到新缓存服务
       await this.unifiedCache.setGraphData(cacheKey, {
         nodes: result.nodes,
         relationships: result.relationships
       });
-      
+
       return result;
     } catch (error) {
       this.logger.error('Error mapping file to graph nodes', {
@@ -152,7 +151,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     // 实际的映射逻辑保持不变
     const nodes: GraphNode[] = [];
     const relationships: GraphRelationship[] = [];
-    
+
     // 创建文件节点
     const fileNode: GraphFileNode = {
       id: uuidv4(),
@@ -165,9 +164,9 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       projectId: 'default',
       properties: {}
     };
-    
+
     nodes.push(fileNode);
-    
+
     // 处理函数
     if (analysisResult.functions) {
       for (const func of analysisResult.functions) {
@@ -182,9 +181,9 @@ export class GraphDataMappingService implements IGraphDataMappingService {
           parentFileId: fileNode.id,
           properties: {}
         };
-        
+
         nodes.push(functionNode);
-        
+
         // 创建文件到函数的关系
         const fileToFunctionRel: GraphRelationship = {
           id: uuidv4(),
@@ -193,11 +192,11 @@ export class GraphDataMappingService implements IGraphDataMappingService {
           toNodeId: functionNode.id,
           properties: {}
         };
-        
+
         relationships.push(fileToFunctionRel);
       }
     }
-    
+
     // 处理类
     if (analysisResult.classes) {
       for (const cls of analysisResult.classes) {
@@ -209,9 +208,9 @@ export class GraphDataMappingService implements IGraphDataMappingService {
           properties: cls.properties.map(p => p.name),
           parentFileId: fileNode.id
         };
-        
+
         nodes.push(classNode);
-        
+
         // 创建文件到类的关系
         const fileToClassRel: GraphRelationship = {
           id: uuidv4(),
@@ -220,11 +219,11 @@ export class GraphDataMappingService implements IGraphDataMappingService {
           toNodeId: classNode.id,
           properties: {}
         };
-        
+
         relationships.push(fileToClassRel);
       }
     }
-    
+
     return {
       nodes,
       relationships,
@@ -246,7 +245,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       // 尝试从新缓存服务获取结果
       const cacheKey = `chunk_mapping_${chunk.id}_${filePath}`;
       const cachedResult = await this.unifiedCache.getGraphData(cacheKey);
-      
+
       if (cachedResult) {
         this.logger.debug('Returning cached chunk mapping result', { chunkId: chunk.id });
         return {
@@ -268,10 +267,10 @@ export class GraphDataMappingService implements IGraphDataMappingService {
 
       // 执行实际的映射逻辑
       const result = await this.performChunkMapping(chunk, filePath, language);
-      
+
       // 缓存结果到新缓存服务
       await this.unifiedCache.setGraphData(cacheKey, result);
-      
+
       return result;
     } catch (error) {
       this.logger.error('Error mapping chunk to graph nodes', {
@@ -291,7 +290,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     // 实际的块映射逻辑保持不变
     const nodes: GraphNode[] = [];
     const relationships: GraphRelationship[] = [];
-    
+
     // 创建块节点
     const chunkNode: GraphNode = {
       id: chunk.id || uuidv4(),
@@ -305,9 +304,9 @@ export class GraphDataMappingService implements IGraphDataMappingService {
         endPosition: chunk.metadata?.endLine
       }
     };
-    
+
     nodes.push(chunkNode);
-    
+
     return {
       nodes,
       relationships,
@@ -322,10 +321,10 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     try {
       // 清除新缓存服务
       await this.unifiedCache.clearGraphCache();
-      
+
       // 清除旧缓存服务
       await this.cache.clear();
-      
+
       this.logger.info('Cleared graph mapping cache');
     } catch (error) {
       this.logger.error('Error clearing graph mapping cache', {
@@ -339,10 +338,10 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     try {
       // 获取新缓存服务统计
       const newStats = await this.unifiedCache.getGraphCacheStats();
-      
+
       // 获取旧缓存服务统计
       const oldStats = await this.cache.getStats();
-      
+
       return {
         newCache: newStats,
         oldCache: oldStats
@@ -362,7 +361,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     // 简单实现，实际项目中可能需要更复杂的逻辑
     const nodes: GraphNode[] = [];
     const relationships: GraphRelationship[] = [];
-    
+
     return {
       nodes,
       relationships,

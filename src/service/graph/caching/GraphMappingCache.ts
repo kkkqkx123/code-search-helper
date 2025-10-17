@@ -18,18 +18,16 @@ export class GraphMappingCache {
   constructor(@inject(TYPES.LoggerService) logger: LoggerService) {
     try {
       this.logger = logger;
-      // 使用优化的LRU缓存，启用快速访问以提高读取性能
+      // 使用优化的LRU缓存
       this.cache = new LRUCache<string, any>(10000, {
         enableStats: true,
-        defaultTTL: this.defaultTTL,
-        enableFastAccess: true // 启用快速访问以提高读取性能
+        defaultTTL: this.defaultTTL
       });
 
       this.logger.info('GraphMappingCache initialized with optimized LRU cache', {
         maxSize: 10000,
         defaultTTL: this.defaultTTL,
         optimizations: {
-          fastAccess: true,
           stats: true
         }
       });
