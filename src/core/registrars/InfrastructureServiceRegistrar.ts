@@ -20,6 +20,7 @@ import { BatchProcessingOptimizer } from '../../service/optimization/BatchProces
 import { GraphBatchOptimizer } from '../../service/graph/utils/GraphBatchOptimizer';
 import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
 import { MappingCacheManager } from '../../service/graph/caching/MappingCacheManager';
+import { GraphCacheConfigService } from '../../config/service/GraphCacheConfigService';
 
 // 基础设施配置服务
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
@@ -45,6 +46,12 @@ export class InfrastructureServiceRegistrar {
       container.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
       container.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
       container.bind<MappingCacheManager>(TYPES.MappingCacheManager).to(MappingCacheManager).inSingletonScope();
+      
+      // 绑定CacheConfig，从GraphCacheConfigService获取配置
+      container.bind<any>(TYPES.CacheConfig).toDynamicValue(context => {
+        const graphCacheConfigService = context.get<GraphCacheConfigService>(TYPES.GraphCacheConfigService);
+        return graphCacheConfigService.getConfig();
+      }).inSingletonScope();
 
       // 高级映射服务
       container.bind<SemanticRelationshipExtractor>(TYPES.AdvancedMappingService).to(SemanticRelationshipExtractor).inSingletonScope();

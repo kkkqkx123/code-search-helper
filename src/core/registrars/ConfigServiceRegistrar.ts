@@ -19,6 +19,7 @@ import {
   ProjectNamingConfigService,
   NebulaConfigService,
   EmbeddingBatchConfigService,
+  GraphCacheConfigService,
 } from '../../config/service';
 
 export class ConfigServiceRegistrar {
@@ -42,6 +43,7 @@ export class ConfigServiceRegistrar {
       container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
       container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
       container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
+      container.bind<GraphCacheConfigService>(TYPES.GraphCacheConfigService).to(GraphCacheConfigService).inSingletonScope();
 
       // 主配置服务
       container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();

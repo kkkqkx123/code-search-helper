@@ -1,4 +1,4 @@
-import { injectable, inject } from 'inversify';
+import { injectable, inject, unmanaged } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { GraphNode, GraphRelationship } from '../mapping/IGraphDataMappingService';
@@ -49,7 +49,7 @@ export class MappingCacheManager {
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    config?: Partial<MultiLevelCacheConfig>
+    @unmanaged() config?: Partial<MultiLevelCacheConfig>
   ) {
     this.logger = logger;
 

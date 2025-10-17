@@ -1,58 +1,34 @@
 [
   {
-    "projectId": "62148df65f9d3abb",
-    "projectPath": "D:\\项目\\agent\\my-coding-agent",
-    "name": "D:\\项目\\agent\\my-coding-agent",
+    "projectId": "f6d3dbaf3ca54985",
+    "projectPath": "D:\\ide\\tool\\code-search-helper\\test-files",
+    "name": "D:\\ide\\tool\\code-search-helper\\test-files",
     "status": "active",
     "vectorStatus": {
       "status": "completed",
       "progress": 100,
-      "lastUpdated": "2025-10-12T10:20:53.969Z"
+      "lastUpdated": "2025-10-17T10:19:34.060Z",
+      "totalFiles": 8,
+      "processedFiles": 8,
+      "failedFiles": 0,
+      "lastCompleted": "2025-10-17T10:19:34.060Z"
     },
     "graphStatus": {
       "status": "completed",
       "progress": 100,
-      "lastUpdated": "2025-10-12T10:20:53.970Z"
+      "lastUpdated": "2025-10-17T10:18:49.841Z"
     },
-    "createdAt": "2025-10-12T10:20:49.706Z",
-    "updatedAt": "2025-10-12T10:20:53.970Z",
-    "lastIndexedAt": "2025-10-12T10:20:53.968Z",
-    "indexingProgress": 100,
-    "totalFiles": 25,
-    "indexedFiles": 25,
-    "failedFiles": 0,
+    "createdAt": "2025-10-17T10:18:45.415Z",
+    "updatedAt": "2025-10-17T10:19:34.060Z",
     "settings": {
       "autoIndex": true,
       "watchChanges": true
     },
-    "metadata": {}
-  },
-  {
-    "projectId": "040721e25ac919a0",
-    "projectPath": "D:\\ide\\tool\\code-search-helper\\test-files\\dataStructure",
-    "name": "D:\\ide\\tool\\code-search-helper\\test-files\\dataStructure",
-    "status": "active",
-    "vectorStatus": {
-      "status": "completed",
-      "progress": 100,
-      "lastUpdated": "2025-10-13T13:02:58.574Z"
-    },
-    "graphStatus": {
-      "status": "completed",
-      "progress": 100,
-      "lastUpdated": "2025-10-13T13:02:58.575Z"
-    },
-    "createdAt": "2025-10-13T13:02:53.360Z",
-    "updatedAt": "2025-10-13T13:02:58.575Z",
-    "lastIndexedAt": "2025-10-13T13:02:58.572Z",
+    "metadata": {},
     "indexingProgress": 100,
-    "totalFiles": 4,
-    "indexedFiles": 4,
-    "failedFiles": 0,
-    "settings": {
-      "autoIndex": true,
-      "watchChanges": true
-    },
-    "metadata": {}
+    "lastIndexedAt": "2025-10-17T10:18:49.831Z",
+    "totalFiles": 8,
+    "indexedFiles": 8,
+    "failedFiles": 0
   }
 ]

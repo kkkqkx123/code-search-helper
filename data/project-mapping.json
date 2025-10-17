@@ -1,53 +1,19 @@
 [
   {
     "projectIdMap": {
-      "D:/项目/agent/my-coding-agent": "62148df65f9d3abb"
+      "D:/ide/tool/code-search-helper/test-files": "f6d3dbaf3ca54985"
     },
     "collectionMap": {
-      "62148df65f9d3abb": "project-62148df65f9d3abb"
+      "f6d3dbaf3ca54985": "project-f6d3dbaf3ca54985"
     },
     "spaceMap": {
-      "62148df65f9d3abb": "project_62148df65f9d3abb"
+      "f6d3dbaf3ca54985": "project_f6d3dbaf3ca54985"
     },
     "pathToProjectMap": {
-      "62148df65f9d3abb": "D:/项目/agent/my-coding-agent"
+      "f6d3dbaf3ca54985": "D:/ide/tool/code-search-helper/test-files"
     },
     "projectUpdateTimes": {
-      "62148df65f9d3abb": "2025-10-12T10:20:49.846Z"
-    }
-  },
-  {
-    "projectIdMap": {
-      "D:/ide/tool/code-search-helper/test-files/dataStructure": "040721e25ac919a0"
-    },
-    "collectionMap": {
-      "040721e25ac919a0": "project-040721e25ac919a0"
-    },
-    "spaceMap": {
-      "040721e25ac919a0": "project_040721e25ac919a0"
-    },
-    "pathToProjectMap": {
-      "040721e25ac919a0": "D:/ide/tool/code-search-helper/test-files/dataStructure"
-    },
-    "projectUpdateTimes": {
-      "040721e25ac919a0": "2025-10-13T13:02:53.481Z"
-    }
-  },
-  {
-    "projectIdMap": {
-      "D:/ide/tool/code-search-helper": "443cee618172c9d8"
-    },
-    "collectionMap": {
-      "443cee618172c9d8": "project-443cee618172c9d8"
-    },
-    "spaceMap": {
-      "443cee618172c9d8": "project_443cee618172c9d8"
-    },
-    "pathToProjectMap": {
-      "443cee618172c9d8": "D:/ide/tool/code-search-helper"
-    },
-    "projectUpdateTimes": {
-      "443cee618172c9d8": "2025-10-15T12:56:52.204Z"
+      "f6d3dbaf3ca54985": "2025-10-17T10:18:45.514Z"
     }
   }
 ]
