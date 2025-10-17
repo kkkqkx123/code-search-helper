@@ -29,16 +29,6 @@ export class BackupFileProcessor {
       }
     }
     
-    // 检查临时文件模式（如 #filename#）
-    if (fileName.startsWith('#') && fileName.endsWith('#')) {
-      return true;
-    }
-    
-    // 检查隐藏的临时文件（如 .filename.swp）
-    if (fileName.startsWith('.') && fileName.includes('.swp')) {
-      return true;
-    }
-    
     return false;
   }
 
@@ -57,68 +47,20 @@ export class BackupFileProcessor {
     let originalFileName = baseName;
     let originalExtension = '';
     let confidence = 0.5; // 默认置信度
-    // 优先处理特定格式的备份文件，避免与特殊模式冲突
-    // 处理Vim交换文件 (.filename.swp)
-    if (baseName.startsWith('.') && baseName.endsWith('.swp')) {
-      originalFileName = baseName.slice(1, -4);
-      originalExtension = path.extname(originalFileName);
-      confidence = 0.9;
-    }
-    // 处理Vim风格的临时文件 (#filename#)
-    else if (baseName.startsWith('#') && baseName.endsWith('#') && baseName.length > 2) {
-      originalFileName = baseName.slice(1, -1);
-      originalExtension = path.extname(originalFileName);
-      confidence = 0.9;
-    }
-    // 处理Emacs风格的备份文件 (~结尾)
-    else if (baseName.endsWith('~') && !baseName.endsWith('.bak~')) {
-      originalFileName = baseName.slice(0, -1);
-      originalExtension = path.extname(originalFileName);
-      confidence = 0.7;
-    }
+    
     // 检查特殊模式：文件名中包含原始文件类型（如 *.py.bak, *.js.backup 等）
     // 这种模式下，文件名格式为：originalName.originalExt.backupExt
-    // 注意：排除以 . 开头的文件，以避免与Vim交换文件冲突
-    else if (!baseName.startsWith('.')) {
-      const specialPatternMatch = baseName.match(/^(.+?)\.([a-z0-9]+)\.(?:bak|backup|old|tmp|temp|orig|save|swo)$/i);
-      if (specialPatternMatch) {
-        // 提取原始文件名和扩展名
-        const originalNameWithoutExt = specialPatternMatch[1];
-        const detectedOriginalExt = '.' + specialPatternMatch[2].toLowerCase();
-        
-        // 验证检测到的扩展名是否为有效编程语言扩展名
-        if (this.isValidLanguageExtension(detectedOriginalExt)) {
-          originalFileName = originalNameWithoutExt + detectedOriginalExt;
-          originalExtension = detectedOriginalExt;
-          confidence = 0.95; // 高置信度，因为模式明确且扩展名有效
-        }
-      } else {
-        // 处理标准备份后缀
-        for (const pattern of this.backupPatterns) {
-          if (baseName.endsWith(pattern)) {
-            originalFileName = baseName.slice(0, -pattern.length);
-            originalExtension = path.extname(originalFileName);
-            confidence = 0.8;
-            break;
-          }
-        }
-        
-        // 处理隐藏的备份文件
-        if (baseName.startsWith('.') && baseName.includes('.bak')) {
-          originalFileName = baseName.replace('.bak', '');
-          originalExtension = path.extname(originalFileName);
-          confidence = 0.8;
-        }
-        
-        // 如果没有找到原始扩展名，尝试其他方法
-        if (!originalExtension) {
-          // 检查文件名中是否包含扩展名模式
-          const extensionMatch = baseName.match(/\.([a-z0-9]+)(?:\.(?:bak|backup|old|tmp|temp))?$/i);
-          if (extensionMatch) {
-            originalExtension = '.' + extensionMatch[1].toLowerCase();
-            confidence = 0.6;
-          }
-        }
+    const specialPatternMatch = baseName.match(/^(.+?)\.([a-z0-9]+)\.(?:bak|backup|old|tmp|temp|orig|save|swo)$/i);
+    if (specialPatternMatch) {
+      // 提取原始文件名和扩展名
+      const originalNameWithoutExt = specialPatternMatch[1];
+      const detectedOriginalExt = '.' + specialPatternMatch[2].toLowerCase();
+      
+      // 验证检测到的扩展名是否为有效编程语言扩展名
+      if (this.isValidLanguageExtension(detectedOriginalExt)) {
+        originalFileName = originalNameWithoutExt + detectedOriginalExt;
+        originalExtension = detectedOriginalExt;
+        confidence = 0.95; // 高置信度，因为模式明确且扩展名有效
       }
     } else {
       // 处理标准备份后缀
@@ -131,10 +73,14 @@ export class BackupFileProcessor {
         }
       }
       
-      // 处理隐藏的备份文件
-      if (baseName.startsWith('.') && baseName.includes('.bak')) {
-        originalFileName = baseName.replace('.bak', '');
-        originalExtension = path.extname(originalFileName);
+      // 特别处理 .bak.md 和 .bak.txt 等模式，将其与 .bak 等同对待
+      if (!originalExtension && baseName.endsWith('.bak.md')) {
+        originalFileName = baseName.slice(0, -7); // 移除 .bak.md
+        originalExtension = '.md';
+        confidence = 0.8;
+      } else if (!originalExtension && baseName.endsWith('.bak.txt')) {
+        originalFileName = baseName.slice(0, -8); // 移除 .bak.txt
+        originalExtension = '.txt';
         confidence = 0.8;
       }
       
@@ -253,10 +199,6 @@ export class BackupFileProcessor {
     if (fileName.endsWith('.tmp') || fileName.endsWith('.temp')) return 'temporary';
     if (fileName.endsWith('.orig')) return 'original';
     if (fileName.endsWith('.save')) return 'saved';
-    if (fileName.endsWith('~')) return 'emacs-backup';
-    if (fileName.startsWith('#') && fileName.endsWith('#')) return 'vim-temporary';
-    if (fileName.includes('.swp')) return 'vim-swap';
-    if (fileName.startsWith('.')) return 'hidden-backup';
     
     return 'unknown-backup';
   }

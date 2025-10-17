@@ -11,9 +11,6 @@ export const BACKUP_FILE_PATTERNS = [
   '.temp',
   '.orig',
   '.save',
-  '.swp', // Vim swap files
-  '.swo', // Vim swap files
-  '~',    // Emacs backup files
   '.bak$', // Regex pattern for .bak at end
   '.backup$',
   '.old$',
@@ -29,11 +26,7 @@ export const BACKUP_FILE_TYPE_MAP = {
   '.tmp': 'temporary',
   '.temp': 'temporary',
   '.orig': 'original',
-  '.save': 'saved',
-  '~': 'emacs-backup',
-  '#filename#': 'vim-temporary', // 特殊模式
-  '.swp': 'vim-swap',
-  '.hidden': 'hidden-backup'
+  '.save': 'saved'
 } as const;
 
 // 语言映射常量
@@ -182,7 +175,7 @@ export const DEFAULT_CONFIG = {
   },
   
   // 备份文件模式
-  BACKUP_FILE_PATTERNS: ['.bak', '.backup', '.old', '.tmp']
+  BACKUP_FILE_PATTERNS: ['.bak', '.backup', '.old', '.tmp', '.temp', '.orig', '.save']
 } as const;
 
 // Shebang模式常量

@@ -96,6 +96,11 @@ export const DEFAULT_IGNORE_PATTERNS: string[] = [
   '**/*.swo',
   '**/*.swn',
   '**/*.bak',
+  '**/.#*',     // Emacs风格的锁文件
+  '**/#*#',     // Emacs风格的备份文件
+  '**/.*.sw[pon]', // Vim交换文件变体
+  '**/.*.un~',  // Emacs备份文件变体
+  '**/.*.bak',  // 隐藏的备份文件
 
   // Build outputs
   'build/**',
