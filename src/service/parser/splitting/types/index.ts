@@ -55,7 +55,6 @@ export interface ChunkingOptions {
   astNodeTracking?: boolean;
   chunkMergeStrategy?: 'aggressive' | 'conservative';
   minChunkSimilarity?: number;
-
   // 新增：协调机制配置
   enableChunkingCoordination?: boolean;
   strategyExecutionOrder?: string[];
@@ -63,6 +62,10 @@ export interface ChunkingOptions {
   enablePerformanceOptimization?: boolean;
   enablePerformanceMonitoring?: boolean;
   enableNodeTracking?: boolean;
+  // 新增：智能去重和重叠合并策略
+  enableSmartDeduplication?: boolean;
+  similarityThreshold?: number;
+  overlapMergeStrategy?: 'aggressive' | 'conservative';
 }
 
 // 增强的分段选项，用于解决片段重复问题
@@ -75,6 +78,9 @@ export interface EnhancedChunkingOptions extends ChunkingOptions {
   enableChunkDeduplication: boolean; // 启用块去重
   maxOverlapLines: number;           // 最大重叠行数限制
   minChunkSimilarity: number;        // 最小块相似度阈值
+  enableSmartDeduplication: boolean; // 启用智能去重
+  similarityThreshold: number;       // 相似度阈值
+  overlapMergeStrategy: 'aggressive' | 'conservative'; // 重叠合并策略
 }
 
 // 默认配置
@@ -131,7 +137,11 @@ export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
   // 新增：协调机制配置
   enableChunkingCoordination: false,
   strategyExecutionOrder: ['ImportSplitter', 'ClassSplitter', 'FunctionSplitter', 'SyntaxAwareSplitter', 'IntelligentSplitter'],
-  enableNodeTracking: false
+  enableNodeTracking: false,
+  // 新增：智能去重和重叠合并策略
+  enableSmartDeduplication: false,
+  similarityThreshold: 0.8,
+  overlapMergeStrategy: 'conservative'
 };
 
 // 增强配置的默认值
@@ -144,7 +154,10 @@ export const DEFAULT_ENHANCED_CHUNKING_OPTIONS: Required<EnhancedChunkingOptions
   chunkMergeStrategy: 'conservative',
   enableChunkDeduplication: true,
   maxOverlapLines: 50,
-  minChunkSimilarity: 0.6
+  minChunkSimilarity: 0.6,
+  enableSmartDeduplication: true,
+  similarityThreshold: 0.8,
+  overlapMergeStrategy: 'conservative'
 };
 
 export interface CodeChunkMetadata {
