@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { CodeChunk } from '../../splitting/Splitter';
+import { CodeChunk } from '../../splitting/types';
 import {
   IFileProcessingCoordinator,
   IFileProcessingContext,
@@ -28,7 +28,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
     @inject(TYPES.TreeSitterService) treeSitterService?: TreeSitterService
   ) {
     this.logger = logger;
-    
+
     // 如果没有提供依赖，创建默认实例
     this.universalTextSplitter = universalTextSplitter || new UniversalTextSplitter(logger);
     this.treeSitterService = treeSitterService;
@@ -56,12 +56,12 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
       if (strategy.shouldFallback) {
         this.logger?.warn(`Strategy indicates fallback needed: ${strategy.fallbackReason}`);
         const fallbackResult = await this.processWithFallback(
-          filePath, 
-          content, 
+          filePath,
+          content,
           strategy.fallbackReason || 'Strategy selection indicated fallback',
           undefined
         );
-        
+
         return {
           chunks: fallbackResult.chunks,
           processingStrategy: fallbackResult.fallbackStrategy,
@@ -76,7 +76,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
 
       // 执行处理策略
       const chunks = await this.executeProcessingStrategy(strategy, filePath, content, language);
-      
+
       const duration = Date.now() - startTime;
       this.logger?.info(`File processing completed in ${duration}ms, generated ${chunks.length} chunks`);
 
@@ -94,7 +94,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
     } catch (error) {
       const duration = Date.now() - startTime;
       this.logger?.error(`File processing failed: ${error}`);
-      
+
       // 尝试降级处理
       try {
         const fallbackResult = await this.processWithFallback(
@@ -117,7 +117,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
         };
       } catch (fallbackError) {
         this.logger?.error(`Fallback processing also failed: ${fallbackError}`);
-        
+
         return {
           chunks: [],
           processingStrategy: strategy.strategy,
@@ -195,7 +195,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
       };
     } catch (fallbackError) {
       this.logger?.error(`Fallback processing failed: ${fallbackError}`);
-      
+
       // 如果连降级处理都失败，返回一个包含整个内容的单一块
       const fallbackChunk: CodeChunk = {
         content: content,
@@ -240,7 +240,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
 
       // 使用TreeSitter解析代码
       const parseResult = await this.treeSitterService.parseCode(content, detectedLanguage.name);
-      
+
       if (!parseResult.success || !parseResult.ast) {
         this.logger?.warn(`TreeSitter parsing failed for ${filePath}, falling back to fine semantic`);
         return await this.chunkByFineSemantic(content, filePath, language);
@@ -259,7 +259,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
       for (const func of functions) {
         const location = this.treeSitterService.getNodeLocation(func);
         const funcText = this.treeSitterService.getNodeText(func, content);
-        
+
         chunks.push({
           content: funcText,
           metadata: {
@@ -277,7 +277,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
       for (const cls of classes) {
         const location = this.treeSitterService.getNodeLocation(cls);
         const clsText = this.treeSitterService.getNodeText(cls, content);
-        
+
         chunks.push({
           content: clsText,
           metadata: {
@@ -302,7 +302,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
 
     } catch (error) {
       this.logger?.error(`TreeSitter parsing failed: ${error}, falling back to fine semantic`);
-      
+
       // TreeSitter失败时降级到精细语义分段
       return await this.chunkByFineSemantic(content, filePath, language);
     }

@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../../splitting/Splitter';
+import { CodeChunk } from '../../../splitting/types';
 import { IStrategySelectionResult } from './IProcessingStrategySelector';
 
 /**
@@ -68,17 +68,17 @@ export interface IFallbackResult {
 export interface IFileProcessingCoordinator {
   /** 协调器名称 */
   readonly name: string;
-  
+
   /** 协调器描述 */
   readonly description: string;
-  
+
   /**
    * 执行文件处理
    * @param context 文件处理上下文
    * @returns 文件处理结果
    */
   processFile(context: IFileProcessingContext): Promise<IFileProcessingResult>;
-  
+
   /**
    * 执行处理策略
    * @param strategy 处理策略
@@ -93,7 +93,7 @@ export interface IFileProcessingCoordinator {
     content: string,
     language: string
   ): Promise<CodeChunk[]>;
-  
+
   /**
    * 执行降级处理
    * @param filePath 文件路径
@@ -108,7 +108,7 @@ export interface IFileProcessingCoordinator {
     reason: string,
     originalError?: Error
   ): Promise<IFallbackResult>;
-  
+
   /**
    * 使用TreeSitter进行AST解析分段
    * @param content 文件内容
@@ -117,7 +117,7 @@ export interface IFileProcessingCoordinator {
    * @returns 分块结果
    */
   chunkByTreeSitter(content: string, filePath: string, language: string): Promise<CodeChunk[]>;
-  
+
   /**
    * 使用精细语义分段
    * @param content 文件内容

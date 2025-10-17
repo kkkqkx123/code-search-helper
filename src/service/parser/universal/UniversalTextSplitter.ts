@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { CodeChunk, CodeChunkMetadata } from '../splitting/Splitter';
+import { CodeChunk, CodeChunkMetadata } from '../splitting/types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { DEFAULT_CONFIG, BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD, getDynamicBlockLimits } from './constants';
 import { MarkdownTextSplitter } from './md/MarkdownTextSplitter';
@@ -324,7 +324,7 @@ export class UniversalTextSplitter {
       // 为markdown分块添加重叠
       return this.addOverlapToChunks(mdChunks, content, language, filePath);
     }
-    
+
     // 执行保护检查
     const protectionContext: ProtectionContext = {
       operation: 'semantic_chunk',
@@ -472,7 +472,7 @@ export class UniversalTextSplitter {
       return rebalancedChunks;
     } catch (error) {
       this.logger?.error(`语义分块错误: ${error}`);
-      
+
       // 记录错误到错误阈值拦截器
       if (this.protectionChain) {
         const errorInterceptor = this.protectionChain.getInterceptors().find(
@@ -482,7 +482,7 @@ export class UniversalTextSplitter {
           (errorInterceptor as any).recordError('parse_error', String(error), { filePath, language });
         }
       }
-      
+
       return this.chunkByLines(content, filePath, language);
     }
   }
@@ -699,7 +699,7 @@ export class UniversalTextSplitter {
       return rebalancedChunks;
     } catch (error) {
       this.logger?.error(`括号分块错误: ${error}`);
-      
+
       // 记录错误到错误阈值拦截器
       if (this.protectionChain) {
         const errorInterceptor = this.protectionChain.getInterceptors().find(
@@ -709,7 +709,7 @@ export class UniversalTextSplitter {
           (errorInterceptor as any).recordError('parse_error', String(error), { filePath, language });
         }
       }
-      
+
       return this.chunkByLines(content, filePath, language);
     }
   }
@@ -736,7 +736,7 @@ export class UniversalTextSplitter {
       // 如果行分段也被阻止，返回一个包含整个内容的最小分块
       const lines = content.split('\n');
       const complexity = this.calculateComplexity(content);
-      
+
       return [{
         content: content.substring(0, Math.min(content.length, this.options.maxChunkSize)),
         metadata: {

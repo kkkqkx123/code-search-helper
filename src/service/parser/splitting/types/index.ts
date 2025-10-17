@@ -1,3 +1,9 @@
+export interface Splitter {
+  split(code: string, language: string, filePath?: string): Promise<CodeChunk[]>;
+  setChunkSize(chunkSize: number): void;
+  setChunkOverlap(chunkOverlap: number): void;
+}
+
 export interface ChunkingOptions {
   maxChunkSize?: number;
   overlapSize?: number;

@@ -1,5 +1,5 @@
 import { ISplitStrategy } from '../../interfaces/ISplitStrategy';
-import { CodeChunk } from '../../Splitter';
+import { CodeChunk } from '../../types';
 import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../../utils/LoggerService';
@@ -57,7 +57,7 @@ export abstract class BaseSplitStrategy implements ISplitStrategy {
    * 创建代码块
    */
   protected createChunk(
-    content: string, 
+    content: string,
     metadata: Partial<CodeChunk['metadata']>
   ): CodeChunk {
     return {

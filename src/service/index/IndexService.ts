@@ -14,7 +14,6 @@ import { VectorPoint } from '../../database/qdrant/IVectorStore';
 import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 // Tree-sitter AST分段支持
 import { ASTCodeSplitter } from '../parser/splitting/ASTCodeSplitter';
-import { CodeChunk } from '../parser/splitting/Splitter';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
 import { IndexingLogicService } from './IndexingLogicService';
 import { NebulaService, INebulaService } from '../../database/nebula/NebulaService';
@@ -895,7 +894,7 @@ export class IndexService {
                   autoRecovery: true
                 }
               };
-              
+
               await this.projectHotReloadService.enableForProject(projectPath, projectConfig);
               this.logger.info(`Hot reload enabled for project through ProjectHotReloadService: ${projectPath}`);
             } catch (hotReloadError) {

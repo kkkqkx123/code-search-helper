@@ -8,7 +8,6 @@ import {
   GraphRelationshipType,
   FileAnalysisResult
 } from './IGraphDataMappingService';
-import { CodeChunk } from '../../parser/splitting/Splitter';
 
 export interface MappingRule {
   id: string;

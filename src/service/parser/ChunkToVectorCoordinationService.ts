@@ -8,7 +8,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { VectorPoint } from '../../database/qdrant/IVectorStore';
 import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
-import { CodeChunk } from './splitting/Splitter';
+import { CodeChunk } from './splitting/types';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ProcessingGuard } from './guard/ProcessingGuard';

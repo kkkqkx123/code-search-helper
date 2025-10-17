@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { Splitter, CodeChunk } from './Splitter';
+import { Splitter, CodeChunk } from './types';
 import { TYPES } from '../../../types';
 import { TreeSitterService } from '../core/parse/TreeSitterService';
 import { LoggerService } from '../../../utils/LoggerService';

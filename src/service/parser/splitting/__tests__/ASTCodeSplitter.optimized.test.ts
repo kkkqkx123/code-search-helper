@@ -2,7 +2,7 @@
 import { ASTCodeSplitter } from '../ASTCodeSplitter';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { CodeChunk } from '../Splitter';
+import { CodeChunk } from '../types';
 
 // Mock TreeSitterService
 const mockTreeSitterService: Partial<TreeSitterService> = {
@@ -137,9 +137,9 @@ describe('ASTCodeSplitter (Optimized)', () => {
 
       // Mock TreeSitterService to simulate parsing failure
       (mockTreeSitterService.parseCode as jest.Mock).mockResolvedValue({
-          success: false,
-          error: 'Parse error'
-        });
+        success: false,
+        error: 'Parse error'
+      });
 
       const chunks = await splitter.split(code, 'typescript');
 
