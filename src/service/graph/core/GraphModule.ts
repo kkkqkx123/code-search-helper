@@ -8,7 +8,7 @@ import { GraphServiceNewAdapter } from './GraphServiceNewAdapter';
 import { IGraphSearchService } from './IGraphSearchService';
 
 // 导入基础设施服务实现
-import { GraphCacheService } from '../caching/GraphCacheService';
+import { GraphCacheService } from '../../../infrastructure/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from '../../graph/performance/GraphBatchOptimizer';
 import { GraphQueryValidator } from '../../graph/validation/GraphQueryValidator';

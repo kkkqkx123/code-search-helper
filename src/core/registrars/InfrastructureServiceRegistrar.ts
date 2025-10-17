@@ -4,7 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 
 // 图服务基础设施
-import { GraphCacheService } from '../../service/graph/caching/GraphCacheService';
+import { GraphCacheService } from '../../infrastructure/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { GraphQueryValidator } from '../../service/graph/validation/GraphQueryValidator';
 

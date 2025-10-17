@@ -2,7 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { GraphStatsRoutes } from '../GraphStatsRoutes';
 import { IGraphService } from '../../../service/graph/core/IGraphService';
-import { GraphCacheService } from '../../../service/graph/caching/GraphCacheService';
+import { GraphCacheService } from '../../../infrastructure/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../../utils/LoggerService';
 import { Container } from 'inversify';
@@ -11,19 +11,19 @@ import { TYPES } from '../../../types';
 // Mock implementations
 const createMockGraphService = () => ({
   getGraphStats: jest.fn(),
-  isHealthy: jest.fn(),
+  isGraphCacheHealthy: jest.fn(),
   getStatus: jest.fn()
 });
 
 const createMockGraphCacheService = () => ({
-  getCacheStats: jest.fn(),
-  isHealthy: jest.fn(),
+  getGraphCacheStats: jest.fn(),
+  isGraphCacheHealthy: jest.fn(),
   getStatus: jest.fn()
 });
 
 const createMockPerformanceMonitor = () => ({
   getMetrics: jest.fn(),
-  isHealthy: jest.fn(),
+  isGraphCacheHealthy: jest.fn(),
   getStatus: jest.fn(),
   recordQueryExecution: jest.fn()
 });

@@ -3,7 +3,7 @@
  * 测试新的简化图缓存服务
  */
 
-import { GraphCacheService } from '../GraphCacheService';
+import { GraphCacheService } from '../../../../infrastructure/caching/GraphCacheService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { GraphData, CacheOptions } from '../types';
 
@@ -38,7 +38,7 @@ describe('GraphCacheService', () => {
   afterEach(() => {
     // 清理缓存
     if (service) {
-      service.clear();
+      service.clearGraphCache();
     }
   });
 
@@ -51,15 +51,15 @@ describe('GraphCacheService', () => {
         relationships: []
       };
 
-      const result = await service.set('test-key', testData);
+      const result = await service.setGraphData('test-key', testData);
       expect(result).toBe(true);
 
-      const cached = await service.get('test-key');
+      const cached = await service.getGraphData('test-key');
       expect(cached).toEqual(testData);
     });
 
     it('应该正确处理缓存未命中', async () => {
-      const cached = await service.get('non-existent-key');
+      const cached = await service.getGraphData('non-existent-key');
       expect(cached).toBeNull();
     });
 
@@ -73,7 +73,7 @@ describe('GraphCacheService', () => {
       const deleteResult = await service.delete('test-key');
       expect(deleteResult).toBe(true);
 
-      const cached = await service.get('test-key');
+      const cached = await service.getGraphData('test-key');
       expect(cached).toBeNull();
     });
   });
@@ -91,11 +91,11 @@ describe('GraphCacheService', () => {
         }
       ];
 
-      const count = await service.setBatch(items);
+      const count = await service.setGraphBatch(items);
       expect(count).toBe(2);
 
-      const cached1 = await service.get('key1');
-      const cached2 = await service.get('key2');
+      const cached1 = await service.getGraphData('key1');
+      const cached2 = await service.getGraphData('key2');
       expect(cached1).toBeTruthy();
       expect(cached2).toBeTruthy();
     });
@@ -107,7 +107,7 @@ describe('GraphCacheService', () => {
       await service.set('key1', testData1);
       await service.set('key2', testData2);
 
-      const results = await service.getBatch(['key1', 'key2', 'non-existent']);
+      const results = await service.getGraphBatch(['key1', 'key2', 'non-existent']);
       expect(results.get('key1')).toEqual(testData1);
       expect(results.get('key2')).toEqual(testData2);
       expect(results.get('non-existent')).toBeNull();
@@ -119,11 +119,11 @@ describe('GraphCacheService', () => {
       const testData: GraphData = { nodes: [], relationships: [] };
       await service.set('test-key', testData);
       
-      await service.clear();
+      await service.clearGraphCache();
       
-      const cached = await service.get('test-key');
+      const cached = await service.getGraphData('test-key');
       expect(cached).toBeNull();
-      expect(service.size()).toBe(0);
+      expect(service.getGraphCacheSize()).toBe(0);
     });
 
     it('应该正确返回缓存大小', async () => {
@@ -131,7 +131,7 @@ describe('GraphCacheService', () => {
       await service.set('key1', testData);
       await service.set('key2', testData);
       
-      expect(service.size()).toBe(2);
+      expect(service.getGraphCacheSize()).toBe(2);
     });
 
     it('应该正确返回缓存键', async () => {
@@ -139,7 +139,7 @@ describe('GraphCacheService', () => {
       await service.set('key1', testData);
       await service.set('key2', testData);
       
-      const keys = service.keys();
+      const keys = service.getGraphCacheKeys();
       expect(keys).toContain('key1');
       expect(keys).toContain('key2');
     });
@@ -149,10 +149,10 @@ describe('GraphCacheService', () => {
     it('应该正确返回统计信息', async () => {
       const testData: GraphData = { nodes: [], relationships: [] };
       await service.set('test-key', testData);
-      await service.get('test-key'); // 命中
-      await service.get('non-existent'); // 未命中
+      await service.getGraphData('test-key'); // 命中
+      await service.getGraphData('non-existent'); // 未命中
 
-      const stats = service.getStats();
+      const stats = service.getGraphCacheStats();
       expect(stats.size).toBe(1);
       expect(stats.hits).toBe(1);
       expect(stats.misses).toBe(1);
@@ -160,7 +160,7 @@ describe('GraphCacheService', () => {
     });
 
     it('应该正确检查健康状态', () => {
-      const isHealthy = service.isHealthy();
+      const isHealthy = service.isGraphCacheHealthy();
       expect(typeof isHealthy).toBe('boolean');
     });
   });
@@ -170,12 +170,12 @@ describe('GraphCacheService', () => {
       const testData: GraphData = { nodes: [], relationships: [] };
       const options: CacheOptions = { ttl: 100 }; // 100ms
       
-      await service.set('test-key', testData, options);
+      await service.setGraphData('test-key', testData, options);
       
       // 等待过期
       await new Promise(resolve => setTimeout(resolve, 150));
       
-      const cached = await service.get('test-key');
+      const cached = await service.getGraphData('test-key');
       expect(cached).toBeNull();
     });
   });
@@ -183,12 +183,12 @@ describe('GraphCacheService', () => {
   describe('错误处理', () => {
     it('应该优雅处理缓存错误', async () => {
       // 模拟错误情况
-      const result = await service.set('', {} as GraphData);
+      const result = await service.setGraphData('', {} as GraphData);
       expect(result).toBe(false);
     });
 
     it('应该优雅处理获取错误', async () => {
-      const cached = await service.get('');
+      const cached = await service.getGraphData('');
       expect(cached).toBeNull();
     });
   });

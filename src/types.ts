@@ -95,7 +95,7 @@ import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnec
 
 // 图服务
 // GraphCacheService 从 service/graph/cache 导入
-import { GraphCacheService } from './service/graph/caching/GraphCacheService';
+import { GraphCacheService } from './infrastructure/caching/GraphCacheService';
 import { GraphQueryBuilder, IGraphQueryBuilder } from './database/nebula/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
@@ -309,7 +309,7 @@ export const TYPES = {
   FaultToleranceHandler: Symbol.for('FaultToleranceHandler'),
   MappingRuleEngine: Symbol.for('MappingRuleEngine'),
   MappingCacheManager: Symbol.for('MappingCacheManager'),
-  IGraphCacheService: Symbol.for('IGraphCacheService'),
+  
 
   // 性能监控和优化相关服务
   PerformanceDashboard: Symbol.for('PerformanceDashboard'),

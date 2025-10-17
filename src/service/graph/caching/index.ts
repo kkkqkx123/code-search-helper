@@ -4,7 +4,7 @@
  */
 
 // 接口定义
-export { IGraphCacheService } from './IGraphCacheService';
+export { IGraphCacheService } from './types';
 
 // 类型定义
 export {
@@ -21,4 +21,4 @@ export {
   PROD_CACHE_CONFIG
 } from './types';
 
-export { GraphCacheService } from './GraphCacheService';
+

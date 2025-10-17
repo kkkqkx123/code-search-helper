@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
 import { IGraphService } from '../../service/graph/core/IGraphService';
-import { GraphCacheService } from '../../service/graph/caching/GraphCacheService';
+import { GraphCacheService } from '../../infrastructure/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../utils/LoggerService';
 
@@ -78,7 +78,7 @@ export class GraphStatsRoutes {
   private async getCacheStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const startTime = Date.now();
-      const result = this.graphCacheService.getStats();
+      const result = this.graphCacheService.getGraphCacheStats();
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
@@ -124,7 +124,7 @@ export class GraphStatsRoutes {
 
       // 检查各种服务的健康状态
       const graphServiceHealthy = await this.graphService.isHealthy();
-      const cacheHealthy = this.graphCacheService.isHealthy();
+      const cacheHealthy = this.graphCacheService.isGraphCacheHealthy();
       const performanceMonitorHealthy = this.performanceMonitor.isHealthy();
 
       const executionTime = Date.now() - startTime;
@@ -158,7 +158,7 @@ export class GraphStatsRoutes {
 
       // 获取各种服务的状态
       const graphServiceStatus = await this.graphService.getStatus();
-      const cacheStatus = this.graphCacheService.getStats();
+      const cacheStatus = this.graphCacheService.getGraphCacheStats();
       const performanceStatus = this.performanceMonitor.getStatus();
 
       const executionTime = Date.now() - startTime;
