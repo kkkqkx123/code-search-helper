@@ -38,8 +38,8 @@ export class ProjectsPage {
                             <th>项目名称</th>
                             <th>路径</th>
                             <th>文件数</th>
-                            <th>向量状态</th>
-                            <th>图状态</th>
+                            <th>索引状态</th>
+                            <th>单独执行</th>
                             <th>操作</th>
                         </tr>
                     </thead>
