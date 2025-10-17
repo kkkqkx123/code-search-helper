@@ -175,6 +175,23 @@ export interface CachingConfig {
   cleanupInterval: number;
 }
 
+export interface GraphCacheConfig {
+  /** 最大缓存条目数 */
+  maxSize: number;
+  /** 默认TTL（秒） */
+  defaultTTL: number;
+  /** 最大内存使用（字节） */
+  maxMemory: number;
+  /** 是否启用压缩 */
+  enableCompression: boolean;
+  /** 压缩阈值（字节） */
+  compressionThreshold: number;
+  /** 是否启用统计 */
+  enableStats: boolean;
+  /** 压缩级别（1-9） */
+  compressionLevel: number;
+}
+
 export interface IndexingConfig {
   batchSize: number;
   maxConcurrency: number;
@@ -278,8 +295,9 @@ export interface AppConfig {
    treeSitter?: TreeSitterConfig;
    embeddingBatch: EmbeddingBatchConfig;
    hotReload: HotReloadConfig;
+   graphCache?: GraphCacheConfig;
  }
- 
+  
 // 导出工具类类型
 export { EnvironmentUtils } from './utils/EnvironmentUtils';
 export { ValidationUtils } from './utils/ValidationUtils';

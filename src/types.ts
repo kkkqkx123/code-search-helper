@@ -150,6 +150,7 @@ export const TYPES = {
   NebulaConfigService: Symbol.for('NebulaConfigService'),
   ProjectNamingConfigService: Symbol.for('ProjectNamingConfigService'),
   InfrastructureConfigService: Symbol.for('InfrastructureConfigService'),
+  GraphCacheConfigService: Symbol.for('GraphCacheConfigService'),
 
 
   QdrantService: Symbol.for('QdrantService'),
@@ -292,7 +293,6 @@ export const TYPES = {
 
   // 缓存服务
   GraphMappingCache: Symbol.for('GraphMappingCache'),
-  UnifiedGraphCacheService: Symbol.for('UnifiedGraphCacheService'),
 
   // 批处理优化服务
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),

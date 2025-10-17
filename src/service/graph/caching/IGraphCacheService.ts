@@ -1,72 +1,78 @@
-import { GraphNode, GraphRelationship } from '../mapping/IGraphDataMappingService';
-import { GraphAnalysisResult } from '../core/types';
-import { GraphCacheStats, GraphMappingResult, CacheUsage, CacheHealthStatus } from './types';
+/**
+ * 图缓存服务接口
+ * 简化的图缓存服务接口定义
+ */
+
+import { GraphData, CacheOptions, CacheItem, CacheStats } from './types';
 
 /**
- * 统一的图缓存服务接口
- * 整合了 GraphMappingCache 和 GraphCacheService 的功能
+ * 图缓存服务接口
+ * 提供图数据的缓存功能
  */
 export interface IGraphCacheService {
-  // ===== 图节点缓存 =====
-  cacheNodes(key: string, nodes: GraphNode[], ttl?: number): Promise<boolean>;
-  getNodes(key: string): Promise<GraphNode[] | null>;
+  /**
+   * 缓存图数据
+   * @param key 缓存键
+   * @param data 图数据
+   * @param options 缓存选项
+   * @returns 是否成功
+   */
+  set(key: string, data: GraphData, options?: CacheOptions): Promise<boolean>;
 
-  // ===== 图关系缓存 =====
-  cacheRelationships(key: string, relationships: GraphRelationship[], ttl?: number): Promise<boolean>;
-  getRelationships(key: string): Promise<GraphRelationship[] | null>;
+  /**
+   * 获取图数据
+   * @param key 缓存键
+   * @returns 图数据或null
+   */
+  get(key: string): Promise<GraphData | null>;
 
-  // ===== 图映射结果缓存 =====
-  cacheMappingResult(key: string, nodes: GraphNode[], relationships: GraphRelationship[], ttl?: number): Promise<boolean>;
-  getMappingResult(key: string): Promise<GraphMappingResult | null>;
-
-  // ===== 图分析结果缓存 =====
-  getGraphStatsCache(): GraphAnalysisResult | null;
-  setGraphStatsCache(stats: GraphAnalysisResult): void;
-
-  // ===== 文件分析缓存 =====
-  cacheFileAnalysis(key: string, analysis: any, ttl?: number): Promise<boolean>;
-  getFileAnalysis(key: string): Promise<any | null>;
-
-  // ===== 通用缓存功能 =====
-  getFromCache<T>(key: string): T | null;
-  setCache<T>(key: string, value: T, ttl?: number): void;
-  invalidateCache(key: string): void;
-  clearAllCache(): void;
-
-  // ===== 批量操作 =====
-  cacheBatch<T>(items: Array<{ key: string; value: T; ttl?: number }>): Promise<boolean>;
-  getBatch<T>(keys: string[]): Promise<Map<string, T | null>>;
-
-  // ===== 统计和监控 =====
-  getCacheStats(): GraphCacheStats;
-  getCacheUsage(): CacheUsage;
-  isHealthy(): boolean;
-  getStatus(): string;
-  cleanupExpired(): void;
-  isNearCapacity(): boolean;
-  evictOldestEntries(ratio?: number): void;
-
-  // ===== 缓存管理 =====
-  clear(): Promise<void>;
-  getKeys(): Promise<string[]>;
-  has(key: string): Promise<boolean>;
-  size(): number;
-  warmup(commonKeys: string[]): Promise<void>;
-  getHealthStatus(): Promise<CacheHealthStatus>;
-}
-
-/**
- * 多级缓存管理器接口
- */
-export interface IMultiLevelCacheManager {
-  get<T>(key: string): Promise<T | null>;
-  set<T>(key: string, data: T, ttl?: number): Promise<boolean>;
+  /**
+   * 删除缓存
+   * @param key 缓存键
+   * @returns 是否成功
+   */
   delete(key: string): Promise<boolean>;
-  getMany<T>(keys: string[]): Promise<Map<string, T | null>>;
-  setMany<T>(entries: Array<{ key: string; data: T; ttl?: number }>): Promise<number>;
-  clearLevel(levelName: string): Promise<void>;
-  clearAll(): Promise<void>;
-  getStats(): Promise<GraphCacheStats>;
-  getKeys(): Promise<string[]>;
-  has(key: string): Promise<boolean>;
+
+  /**
+   * 批量缓存图数据
+   * @param items 缓存项列表
+   * @returns 成功缓存的数量
+   */
+  setBatch(items: CacheItem[]): Promise<number>;
+
+  /**
+   * 批量获取图数据
+   * @param keys 缓存键列表
+   * @returns 键值映射
+   */
+  getBatch(keys: string[]): Promise<Map<string, GraphData | null>>;
+
+  /**
+   * 清空所有缓存
+   */
+  clear(): Promise<void>;
+
+  /**
+   * 获取缓存大小
+   * @returns 缓存条目数量
+   */
+  size(): number;
+
+  /**
+   * 获取所有缓存键
+   * @returns 缓存键列表
+   */
+  keys(): string[];
+
+  /**
+   * 获取缓存统计信息
+   * @returns 统计信息
+   */
+  getStats(): CacheStats;
+
+  /**
+   * 检查缓存是否健康
+   * @returns 是否健康
+   */
+  isHealthy(): boolean;
 }

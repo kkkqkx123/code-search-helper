@@ -19,7 +19,6 @@ import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimiza
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
 import { GraphBatchOptimizer } from '../../service/graph/utils/GraphBatchOptimizer';
 import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
-import { UnifiedGraphCacheService } from '../../service/graph/caching/UnifiedGraphCacheService';
 import { MappingCacheManager } from '../../service/graph/caching/MappingCacheManager';
 
 // 基础设施配置服务
@@ -37,7 +36,6 @@ export class InfrastructureServiceRegistrar {
 
       // 图服务基础设施
       container.bind<GraphCacheService>(TYPES.GraphCacheService).to(GraphCacheService).inSingletonScope();
-      container.bind<UnifiedGraphCacheService>(TYPES.UnifiedGraphCacheService).to(UnifiedGraphCacheService).inSingletonScope();
       container.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
       container.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
       container.bind<MappingCacheManager>(TYPES.MappingCacheManager).to(MappingCacheManager).inSingletonScope();

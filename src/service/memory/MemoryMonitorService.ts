@@ -70,7 +70,7 @@ export class MemoryMonitorService implements IMemoryMonitorService {
    */
   private initializeConfig(): void {
     try {
-      const config = this.configService.getMemoryMonitorConfig();
+      const config = this.configService.get('memoryMonitor');
       
       // 从 ConfigService 获取配置参数
       this.enabled = config.enabled;
@@ -576,7 +576,7 @@ export class MemoryMonitorService implements IMemoryMonitorService {
   getConfig(): IMemoryMonitorConfig {
     try {
       // 尝试从 ConfigService 获取最新配置
-      return this.configService.getMemoryMonitorConfig();
+      return this.configService.get('memoryMonitor');
     } catch (error) {
       this.logger.debug('Unable to get config from ConfigService, returning local config', error);
       // 回退到本地配置

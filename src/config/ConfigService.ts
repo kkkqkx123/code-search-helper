@@ -18,6 +18,7 @@ import {
   TreeSitterConfigService,
   ProjectNamingConfigService,
   EmbeddingBatchConfigService,
+  GraphCacheConfigService,
 } from './service';
 import { TYPES } from '../types';
 
@@ -46,8 +47,10 @@ export class ConfigService {
     @inject(TYPES.TreeSitterConfigService) private treeSitterConfigService: TreeSitterConfigService,
     @inject(TYPES.ProjectNamingConfigService) private projectNamingConfigService: ProjectNamingConfigService,
     @inject(TYPES.EmbeddingBatchConfigService) private embeddingBatchConfigService: EmbeddingBatchConfigService,
+    @inject(TYPES.GraphCacheConfigService) private graphCacheConfigService: GraphCacheConfigService,
   ) { }
   
+
   async initialize(): Promise<void> {
     try {
       // 获取各子配置
@@ -67,6 +70,7 @@ export class ConfigService {
       const treeSitter = this.treeSitterConfigService.getConfig();
       const projectNaming = this.projectNamingConfigService.getConfig();
       const embeddingBatch = this.embeddingBatchConfigService.getConfig();
+      const graphCache = this.graphCacheConfigService.getConfig();
       // 提供默认的热重载配置
       const hotReload = this.getDefaultHotReloadConfig();
 
@@ -112,6 +116,8 @@ export class ConfigService {
           recencyWeight: 0.05,
           popularityWeight: 0.05,
         },
+        project,
+        graphCache, // 添加图缓存配置
       };
     } catch (error) {
       throw new Error(`Failed to initialize configuration: ${error}`);
@@ -146,34 +152,4 @@ export class ConfigService {
     }
     return { ...this.config };
   }
-
-  /**
-   * 专门用于获取Qdrant配置的方法
-   */
-  getQdrantConfig() {
-    return this.get('qdrant');
-  }
-
-  /**
-   * 专门用于获取环境配置的方法
-   */
-  getEnvironmentConfig() {
-    return this.get('environment');
-  }
-
-  /**
-   * 专门用于获取嵌入器配置的方法
-   */
-  getEmbeddingConfig() {
-    return this.get('embedding');
-  }
-
-  /**
-   * 专门用于获取内存监控配置的方法
-   */
-  getMemoryMonitorConfig() {
-    return this.get('memoryMonitor');
-  }
-
-
 }

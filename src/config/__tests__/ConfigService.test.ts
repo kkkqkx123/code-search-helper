@@ -229,6 +229,7 @@ describe('ConfigService', () => {
       mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
       mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
       mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+      mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
     );
   });
 
@@ -337,6 +338,7 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const config = newConfigService.getAll();
@@ -387,6 +389,7 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
 
       // 现在initialize()方法应该抛出错误，因为getConfig()会抛出错误
@@ -434,27 +437,27 @@ describe('ConfigService', () => {
   describe('专用配置获取方法', () => {
     it('应该返回Qdrant配置', async () => {
       await configService.initialize();
-      const qdrantConfig = configService.getQdrantConfig();
+      const qdrantConfig = configService.get('qdrant');
       expect(qdrantConfig.host).toBe('127.0.0.1');
       expect(qdrantConfig.port).toBe(6333);
     });
 
     it('应该返回环境配置', async () => {
       await configService.initialize();
-      const envConfig = configService.getEnvironmentConfig();
+      const envConfig = configService.get('environment');
       expect(envConfig.nodeEnv).toBe('test');
       expect(envConfig.port).toBe(3010);
     });
 
     it('应该返回端口配置', async () => {
       await configService.initialize();
-      const envConfig = configService.getEnvironmentConfig();
+      const envConfig = configService.get('environment');
       expect(envConfig.port).toBe(3010);
     });
 
     it('应该返回嵌入器配置', async () => {
       await configService.initialize();
-      const embeddingConfig = configService.getEmbeddingConfig();
+      const embeddingConfig = configService.get('embedding');
       expect(embeddingConfig.provider).toBe('siliconflow');
     });
   });
@@ -523,6 +526,7 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -571,6 +575,7 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -620,6 +625,7 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -659,7 +665,7 @@ describe('ConfigService', () => {
         // 保持其他服务的原始模拟实现
         return originalMockImplementation ? originalMockImplementation(serviceIdentifier) : { getConfig: () => ({}) };
       });
-      
+
       // 创建新的ConfigService实例
       const newConfigService = new ConfigService(
         mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
@@ -678,8 +684,9 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
-      
+
       await newConfigService.initialize();
       const batchConfig = newConfigService.get('batchProcessing');
 
@@ -734,8 +741,9 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
-      
+
       // 创建新的ConfigService实例
       const newConfigService = new ConfigService(
         mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
@@ -743,6 +751,7 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
         mockContainer.get({ name: 'LoggingConfigService' }) as any,
         mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+        mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
         mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
         mockContainer.get({ name: 'RedisConfigService' }) as any,
@@ -752,10 +761,10 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'CodeSearchConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
-      
+
       await semgrepConfigServiceInstance.initialize();
       const semgrepConfig = semgrepConfigServiceInstance.get('semgrep');
 

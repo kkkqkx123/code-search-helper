@@ -3,7 +3,6 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
 import { MappingCacheManager } from '../graph/caching/MappingCacheManager';
-import { UnifiedGraphCacheService } from '../graph/caching/UnifiedGraphCacheService';
 import { PerformanceDashboard, PerformanceMetric } from './PerformanceDashboard';
 
 export interface CachePerformanceStats {
@@ -47,7 +46,7 @@ export class CachePerformanceMonitor {
   private logger: LoggerService;
   private cache: GraphMappingCache;
   private multiLevelCache?: MappingCacheManager;
-  private unifiedCache?: UnifiedGraphCacheService;
+  private unifiedCache?: any;
   private dashboard: PerformanceDashboard;
   private config: CacheMonitoringConfig;
   private performanceHistory: CachePerformanceStats[] = [];
@@ -63,7 +62,7 @@ export class CachePerformanceMonitor {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     @inject(TYPES.MappingCacheManager) multiLevelCache?: MappingCacheManager,
-    @inject(TYPES.UnifiedGraphCacheService) unifiedCache?: UnifiedGraphCacheService,
+    unifiedCache?: any,
     @inject(TYPES.PerformanceDashboard) dashboard?: PerformanceDashboard,
     config?: Partial<CacheMonitoringConfig>
   ) {

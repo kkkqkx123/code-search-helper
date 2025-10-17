@@ -25,7 +25,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from '../../validation/DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
-import { UnifiedGraphCacheService } from '../caching/UnifiedGraphCacheService';
 import { IGraphCacheService } from '../caching/IGraphCacheService';
 
 @injectable()
@@ -40,7 +39,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.DataMappingValidator) validator: DataMappingValidator,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
-    @inject(TYPES.UnifiedGraphCacheService) unifiedCache: IGraphCacheService,
+    @inject(TYPES.GraphCacheService) unifiedCache: IGraphCacheService,
     @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer
   ) {
     this.logger = logger;
@@ -93,7 +92,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       const language = this.inferLanguageFromFile(filePath);
       // 尝试从新缓存服务获取结果
       const cacheKey = `mapping_${filePath}_${language}`;
-      const cachedResult = await this.unifiedCache.getMappingResult(cacheKey);
+      const cachedResult = await this.unifiedCache.get(cacheKey);
       
       if (cachedResult) {
         this.logger.debug('Returning cached mapping result', { filePath });
@@ -129,11 +128,10 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       const result = await this.performMapping(filePath, fileContent, language, analysisResult);
       
       // 缓存结果到新缓存服务
-      await this.unifiedCache.cacheMappingResult(
-        cacheKey,
-        result.nodes,
-        result.relationships
-      );
+      await this.unifiedCache.set(cacheKey, {
+        nodes: result.nodes,
+        relationships: result.relationships
+      });
       
       return result;
     } catch (error) {
@@ -247,11 +245,18 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     try {
       // 尝试从新缓存服务获取结果
       const cacheKey = `chunk_mapping_${chunk.id}_${filePath}`;
-      const cachedResult = await this.unifiedCache.getFromCache<ChunkNodeMappingResult>(cacheKey);
+      const cachedResult = await this.unifiedCache.get(cacheKey);
       
       if (cachedResult) {
         this.logger.debug('Returning cached chunk mapping result', { chunkId: chunk.id });
-        return cachedResult;
+        return {
+          nodes: cachedResult.nodes,
+          relationships: cachedResult.relationships,
+          stats: {
+            chunkNodes: cachedResult.nodes.length,
+            relationships: cachedResult.relationships.length,
+          }
+        };
       }
 
       // 如果新缓存中没有，则使用旧缓存
@@ -265,7 +270,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       const result = await this.performChunkMapping(chunk, filePath, language);
       
       // 缓存结果到新缓存服务
-      await this.unifiedCache.setCache(cacheKey, result);
+      await this.unifiedCache.set(cacheKey, result);
       
       return result;
     } catch (error) {
@@ -333,7 +338,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   async getCacheStats() {
     try {
       // 获取新缓存服务统计
-      const newStats = await this.unifiedCache.getCacheStats();
+      const newStats = await this.unifiedCache.getStats();
       
       // 获取旧缓存服务统计
       const oldStats = await this.cache.getStats();
