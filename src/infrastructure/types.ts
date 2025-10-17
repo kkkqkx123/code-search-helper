@@ -2,7 +2,8 @@ export enum DatabaseType {
   QDRANT = 'qdrant',
   NEBULA = 'nebula',
   VECTOR = 'vector',
-  GRAPH = 'graph'
+  GRAPH = 'graph',
+  SQLITE = 'sqlite'
 }
 
 export interface DatabaseConnection {

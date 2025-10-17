@@ -114,6 +114,21 @@ export interface VectorSpecificConfig {
   };
 }
 
+// SQLite特定配置
+export interface SqliteSpecificConfig {
+  databasePath: string;
+  backupPath?: string;
+  backupInterval?: number;
+  maxConnections?: number;
+  queryTimeout?: number;
+  journalMode?: 'WAL' | 'DELETE' | 'TRUNCATE' | 'PERSIST' | 'MEMORY' | 'OFF';
+  synchronous?: 'OFF' | 'NORMAL' | 'FULL' | 'EXTRA';
+  cacheSize?: number;
+  tempStore?: 'DEFAULT' | 'FILE' | 'MEMORY';
+  autoVacuum?: 'NONE' | 'FULL' | 'INCREMENTAL';
+  busyTimeout?: number;
+}
+
 // 数据库特定配置
 export interface DatabaseSpecificConfig {
   qdrant: {
@@ -143,6 +158,13 @@ export interface DatabaseSpecificConfig {
     batch: BatchConfig;
     connection: ConnectionConfig;
     graph: GraphSpecificConfig;
+  };
+  sqlite?: {
+    cache: CacheConfig;
+    performance: PerformanceConfig;
+    batch: BatchConfig;
+    connection: ConnectionConfig;
+    database: SqliteSpecificConfig;
   };
 }
 
@@ -198,6 +220,13 @@ export interface InfrastructureConfig {
     batch: BatchConfig;
     connection: ConnectionConfig;
     graph: GraphSpecificConfig;
+  };
+  sqlite?: {
+    cache: CacheConfig;
+    performance: PerformanceConfig;
+    batch: BatchConfig;
+    connection: ConnectionConfig;
+    database: SqliteSpecificConfig;
   };
   transaction: TransactionConfig;
 }

@@ -233,6 +233,7 @@ export class SqliteDatabaseService {
     projectStatus: number;
     changeHistory: number;
     databaseSize: number;
+    tableSizes?: Record<string, number>;
   } {
     const db = this.getDatabase();
     
@@ -249,13 +250,47 @@ export class SqliteDatabaseService {
       console.warn('无法获取数据库文件大小:', error);
     }
 
+    // 获取表大小信息
+    const tableSizes: Record<string, number> = {};
+    try {
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[];
+      for (const table of tables) {
+        const count = db.prepare(`SELECT COUNT(*) as count FROM ${table.name}`).get() as { count: number };
+        tableSizes[table.name] = count.count;
+      }
+    } catch (error) {
+      console.warn('无法获取表大小信息:', error);
+    }
+
     return {
       projects: projects.count,
       fileStates: fileStates.count,
       projectStatus: projectStatus.count,
       changeHistory: changeHistory.count,
-      databaseSize
+      databaseSize,
+      tableSizes
     };
+  }
+
+  /**
+   * 初始化数据库服务
+   */
+  async initialize(): Promise<void> {
+    if (this.isConnected()) {
+      return;
+    }
+    
+    this.connect();
+    this.initializeTables();
+  }
+
+  /**
+   * 执行查询
+   */
+  async executeQuery(query: string, params?: any[]): Promise<any> {
+    const db = this.getDatabase();
+    const stmt = db.prepare(query);
+    return params ? stmt.run(...params) : stmt.run();
   }
 }
 

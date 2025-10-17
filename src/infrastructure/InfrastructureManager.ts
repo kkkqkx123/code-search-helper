@@ -10,6 +10,7 @@ import { TransactionCoordinator } from './transaction/TransactionCoordinator';
 import { DatabaseConnectionPool } from './connection/DatabaseConnectionPool';
 import { QdrantInfrastructure } from './implementations/QdrantInfrastructure';
 import { NebulaInfrastructure } from './implementations/NebulaInfrastructure';
+import { SqliteInfrastructure } from './implementations/SqliteInfrastructure';
 import { InfrastructureConfig as TypedInfrastructureConfig } from './config/types';
 import { ConfigValidator } from './config/ConfigValidator';
 import { InfrastructureConfigService } from './config/InfrastructureConfigService';
@@ -192,7 +193,7 @@ export class InfrastructureManager {
               vidType: 'FIXED_STRING' as const
             },
             queryOptions: {
-              timeout: 3000,
+              timeout: 30000,
               retryAttempts: 3
             },
             schemaManagement: {
@@ -321,6 +322,63 @@ export class InfrastructureManager {
             }
           }
         },
+        sqlite: {
+          cache: {
+            defaultTTL: 300000,
+            maxEntries: 10000,
+            cleanupInterval: 60000,
+            enableStats: true,
+            databaseSpecific: {}
+          },
+          performance: {
+            monitoringInterval: 30000,
+            metricsRetentionPeriod: 86400000,
+            enableDetailedLogging: true,
+            performanceThresholds: {
+              queryExecutionTime: 1000,
+              memoryUsage: 80,
+              responseTime: 500
+            },
+            databaseSpecific: {}
+          },
+          batch: {
+            maxConcurrentOperations: 5,
+            defaultBatchSize: 50,
+            maxBatchSize: 500,
+            minBatchSize: 10,
+            memoryThreshold: 80,
+            processingTimeout: 300000,
+            retryAttempts: 3,
+            retryDelay: 1000,
+            adaptiveBatchingEnabled: true,
+            performanceThreshold: 1000,
+            adjustmentFactor: 0.1,
+            databaseSpecific: {}
+          },
+          connection: {
+            maxConnections: 10,
+            minConnections: 2,
+            connectionTimeout: 30000,
+            idleTimeout: 300000,
+            acquireTimeout: 10000,
+            validationInterval: 60000,
+            enableConnectionPooling: true,
+            databaseSpecific: {}
+          },
+          database: {
+            databasePath: 'data/code-search-helper.db',
+            backupPath: 'data/backups',
+            backupInterval: 86400000,
+            maxConnections: 10,
+            queryTimeout: 30000,
+            journalMode: 'WAL',
+            synchronous: 'NORMAL',
+            cacheSize: 10000,
+            tempStore: 'MEMORY',
+            autoVacuum: 'INCREMENTAL',
+            busyTimeout: 5000
+          }
+        },
         transaction: {
           timeout: 30000,
           retryAttempts: 3,
@@ -383,9 +441,22 @@ export class InfrastructureManager {
     );
     this.databaseInfrastructures.set(DatabaseType.NEBULA, nebulaInfrastructure);
 
+    // 创建 SQLite 基础设施
+    const sqliteInfrastructure = new SqliteInfrastructure(
+      this.logger,
+      cacheService,
+      performanceMonitor,
+      batchOptimizer,
+      healthChecker,
+      databaseConnectionPool,
+      null as any // sqliteService - 将在DI容器中注入
+    );
+    this.databaseInfrastructures.set(DatabaseType.SQLITE, sqliteInfrastructure);
+
     this.logger.info('Database infrastructure instances created', {
       qdrant: !!qdrantInfrastructure,
-      nebula: !!nebulaInfrastructure
+      nebula: !!nebulaInfrastructure,
+      sqlite: !!sqliteInfrastructure
     });
   }
 
@@ -795,7 +866,7 @@ export class InfrastructureManager {
     configurationHealth: 'valid' | 'invalid' | 'warnings';
   } {
     const databaseTypes = Object.keys(this.config).filter(key =>
-      ['qdrant', 'nebula', 'vector', 'graph'].includes(key) && this.config[key as keyof typeof this.config] !== undefined
+      ['qdrant', 'nebula', 'vector', 'graph', 'sqlite'].includes(key) && this.config[key as keyof typeof this.config] !== undefined
     );
 
     const enabledFeatures = [];
@@ -861,6 +932,15 @@ export class InfrastructureManager {
           return {
             isValid: false,
             errors: [`Configuration for ${databaseType} (using Nebula) not found`],
+            warnings: []
+          };
+        }
+        break;
+      case DatabaseType.SQLITE:
+        if (!this.config.sqlite) {
+          return {
+            isValid: false,
+            errors: [`Configuration for ${databaseType} not found`],
             warnings: []
           };
         }

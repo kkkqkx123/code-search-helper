@@ -340,5 +340,10 @@ export const TYPES = {
 
   // UnifiedGuardCoordinator 相关符号
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
+  // SQLite服务
+  SqliteDatabaseService: Symbol.for('SqliteDatabaseService'),
+  SqliteConnectionManager: Symbol.for('SqliteConnectionManager'),
+  SqliteProjectManager: Symbol.for('SqliteProjectManager'),
+  SqliteInfrastructure: Symbol.for('SqliteInfrastructure'),
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
 };
