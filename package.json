@@ -6,6 +6,11 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/main.js",
+    "migrate": "tsx src/database/splite/migration/run-migration.ts",
+    "migrate:backup": "tsx src/database/splite/migration/run-migration.ts --backup-only",
+    "migrate:validate": "tsx src/database/splite/migration/run-migration.ts --validate-only",
+    "migrate:dry-run": "tsx src/database/splite/migration/run-migration.ts --dry-run",
+    "migrate:force": "tsx src/database/splite/migration/run-migration.ts --force",
     "dev": "tsx src/main.ts",
     "dev:memory": "node --max-old-space-size=2048 --expose-gc node_modules/ts-node/dist/bin.js src/main.ts",
     "start:memory": "node --max-old-space-size=4096 dist/main.js",

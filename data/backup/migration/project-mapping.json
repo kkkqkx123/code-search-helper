@@ -1,0 +1,36 @@
+[
+  {
+    "projectIdMap": {
+      "D:/code/Go/dataStructure": "86b62e2ebce0231b"
+    },
+    "collectionMap": {
+      "86b62e2ebce0231b": "project-86b62e2ebce0231b"
+    },
+    "spaceMap": {
+      "86b62e2ebce0231b": "project_86b62e2ebce0231b"
+    },
+    "pathToProjectMap": {
+      "86b62e2ebce0231b": "D:/code/Go/dataStructure"
+    },
+    "projectUpdateTimes": {
+      "86b62e2ebce0231b": "2025-10-17T10:33:27.355Z"
+    }
+  },
+  {
+    "projectIdMap": {
+      "D:/ide/tool/code-search-helper": "d44e2ff16a046d3b"
+    },
+    "collectionMap": {
+      "d44e2ff16a046d3b": "project-d44e2ff16a046d3b"
+    },
+    "spaceMap": {
+      "d44e2ff16a046d3b": "project_d44e2ff16a046d3b"
+    },
+    "pathToProjectMap": {
+      "d44e2ff16a046d3b": "D:/ide/tool/code-search-helper"
+    },
+    "projectUpdateTimes": {
+      "d44e2ff16a046d3b": "2025-10-17T10:34:54.650Z"
+    }
+  }
+]

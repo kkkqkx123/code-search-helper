@@ -1,0 +1,30 @@
+[
+  {
+    "projectId": "86b62e2ebce0231b",
+    "projectPath": "D:\\code\\Go\\dataStructure",
+    "name": "D:\\code\\Go\\dataStructure",
+    "status": "active",
+    "vectorStatus": {
+      "status": "completed",
+      "progress": 100,
+      "lastUpdated": "2025-10-17T10:33:31.140Z"
+    },
+    "graphStatus": {
+      "status": "completed",
+      "progress": 100,
+      "lastUpdated": "2025-10-17T10:33:31.145Z"
+    },
+    "createdAt": "2025-10-17T10:33:27.228Z",
+    "updatedAt": "2025-10-17T10:33:31.145Z",
+    "settings": {
+      "autoIndex": true,
+      "watchChanges": true
+    },
+    "metadata": {},
+    "indexingProgress": 100,
+    "lastIndexedAt": "2025-10-17T10:33:31.134Z",
+    "totalFiles": 4,
+    "indexedFiles": 4,
+    "failedFiles": 0
+  }
+]

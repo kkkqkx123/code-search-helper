@@ -246,11 +246,10 @@ export const TYPES = {
   GraphSearchService: Symbol.for('GraphSearchService'),
   IGraphSearchService: Symbol.for('IGraphSearchService'),
   GraphPersistenceService: Symbol.for('GraphPersistenceService'),
-  // GraphCacheService 符号已定义在前面
   GraphQueryBuilder: Symbol.for('GraphQueryBuilder'),
   IGraphQueryBuilder: Symbol.for('IGraphQueryBuilder'),
   GraphPerformanceMonitor: Symbol.for('GraphPerformanceMonitor'),
-  // GraphBatchOptimizer 符号已定义在前面
+  GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
   GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
   TransactionManager: Symbol.for('TransactionManager'),
@@ -296,7 +295,6 @@ export const TYPES = {
   GraphMappingCache: Symbol.for('GraphMappingCache'),
 
   // 批处理优化服务
-  GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
   VectorBatchOptimizer: Symbol.for('VectorBatchOptimizer'),
 
   // 事务相关服务
@@ -310,7 +308,6 @@ export const TYPES = {
   FaultToleranceHandler: Symbol.for('FaultToleranceHandler'),
   MappingRuleEngine: Symbol.for('MappingRuleEngine'),
   MappingCacheManager: Symbol.for('MappingCacheManager'),
-
 
   // 性能监控和优化相关服务
   PerformanceDashboard: Symbol.for('PerformanceDashboard'),
@@ -341,10 +338,15 @@ export const TYPES = {
 
   // UnifiedGuardCoordinator 相关符号
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
+  IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
+  
   // SQLite服务
   SqliteDatabaseService: Symbol.for('SqliteDatabaseService'),
   SqliteConnectionManager: Symbol.for('SqliteConnectionManager'),
   SqliteProjectManager: Symbol.for('SqliteProjectManager'),
   SqliteInfrastructure: Symbol.for('SqliteInfrastructure'),
-  IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
+  
+  // SQLite迁移服务
+  JsonToSqliteMigrator: Symbol.for('JsonToSqliteMigrator'),
+  MigrationOrchestrator: Symbol.for('MigrationOrchestrator'),
 };
