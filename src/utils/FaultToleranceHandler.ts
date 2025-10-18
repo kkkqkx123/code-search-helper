@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../types';
-import { LoggerService } from '../../utils/LoggerService';
-import { TransactionLogger } from '../transaction/TransactionLogger';
-import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
+import { TYPES } from '../types';
+import { LoggerService } from './LoggerService';
+import { TransactionLogger } from '../service/transaction/TransactionLogger';
+import { GraphMappingCache } from '../service/graph/caching/GraphMappingCache';
 
 export interface FaultToleranceOptions {
   maxRetries: number;
