@@ -264,8 +264,7 @@ export class IgnoreRuleManager extends EventEmitter {
    * 获取默认忽略规则
    */
   private getDefaultIgnorePatterns(): string[] {
-    // 返回完整的默认忽略规则列表
-    // 参考 docs/plan/defaultIgnore.md
+    // 返回统一的默认忽略规则列表
     return DEFAULT_IGNORE_PATTERNS;
   }
 

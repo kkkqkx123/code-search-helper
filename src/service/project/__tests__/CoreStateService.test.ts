@@ -8,6 +8,7 @@ import { IndexService } from '../../index/IndexService';
 import { ProjectState, ProjectStats, StorageStatus } from '../ProjectStateManager';
 import { ProjectStateStorageUtils } from '../utils/ProjectStateStorageUtils';
 import { ProjectStateValidator } from '../utils/ProjectStateValidator';
+import { HotReloadConfigService } from '../../filesystem/HotReloadConfigService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
@@ -18,6 +19,7 @@ jest.mock('../../../database/nebula/NebulaService');
 jest.mock('../../index/IndexService');
 jest.mock('../utils/ProjectStateStorageUtils');
 jest.mock('../utils/ProjectStateValidator');
+jest.mock('../../filesystem/HotReloadConfigService');
 
 describe('CoreStateService', () => {
   let coreStateService: CoreStateService;
@@ -27,6 +29,7 @@ describe('CoreStateService', () => {
   let qdrantService: jest.Mocked<QdrantService>;
   let nebulaService: jest.Mocked<NebulaService>;
   let indexService: jest.Mocked<IndexService>;
+  let hotReloadConfigService: jest.Mocked<HotReloadConfigService>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -53,6 +56,37 @@ describe('CoreStateService', () => {
     indexService = {
       getIndexStatus: jest.fn()
     } as unknown as jest.Mocked<IndexService>;
+    
+    hotReloadConfigService = {
+      getGlobalConfig: jest.fn().mockReturnValue({
+        enabled: true,
+        defaultDebounceInterval: 500,
+        defaultWatchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java,css,html,scss}'],
+        defaultIgnorePatterns: [
+          '**/node_modules/**',
+          '**/.git/**',
+          '**/dist/**',
+          '**/build/**',
+          '**/target/**',
+          '**/venv/**',
+          '**/.vscode/**',
+          '**/.idea/**',
+          '**/logs/**',
+          '**/*.log',
+          '**/coverage/**',
+          '**/tmp/**',
+          '**/temp/**'
+        ],
+        defaultMaxFileSize: 10 * 1024 * 1024,
+        defaultErrorHandling: {
+          maxRetries: 3,
+          alertThreshold: 5,
+          autoRecovery: true
+        },
+        enableDetailedLogging: false,
+        maxConcurrentProjects: 5
+      })
+    } as unknown as jest.Mocked<HotReloadConfigService>;
 
     // Create service instance
     coreStateService = new CoreStateService(
@@ -61,7 +95,8 @@ describe('CoreStateService', () => {
       projectIdManager,
       indexService,
       qdrantService,
-      nebulaService
+      nebulaService,
+      hotReloadConfigService
     );
   });
 
@@ -91,6 +126,14 @@ describe('CoreStateService', () => {
       indexedFiles: overrides.indexedFiles,
       failedFiles: overrides.failedFiles,
       collectionInfo: overrides.collectionInfo,
+      hotReload: overrides.hotReload || {
+        enabled: false,
+        config: {
+          debounceInterval: 500,
+          watchPatterns: ['**/*.ts', '**/*.js', '**/*.tsx', '**/*.jsx'],
+          ignorePatterns: ['node_modules/**', 'dist/**', 'build/**']
+        }
+      },
       settings: {
         autoIndex: overrides.settings?.autoIndex ?? true,
         watchChanges: overrides.settings?.watchChanges ?? true,

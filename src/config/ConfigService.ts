@@ -21,6 +21,7 @@ import {
   GraphCacheConfigService,
 } from './service';
 import { TYPES } from '../types';
+import { HotReloadConfigFactory } from './factories/HotReloadConfigFactory';
 
 dotenv.config();
 
@@ -125,17 +126,17 @@ export class ConfigService {
   }
 
   private getDefaultHotReloadConfig(): HotReloadConfig {
+    // 使用配置工厂获取默认配置，避免硬编码
+    const globalConfig = HotReloadConfigFactory.createDefaultGlobalConfig();
+    
+    // 转换为HotReloadConfig格式
     return {
-      enabled: true,
-      debounceInterval: 500,
-      maxFileSize: 10 * 1024 * 1024, // 10MB
-      maxConcurrentProjects: 5,
-      enableDetailedLogging: false,
-      errorHandling: {
-        maxRetries: 3,
-        alertThreshold: 5,
-        autoRecovery: true
-      }
+      enabled: globalConfig.enabled,
+      debounceInterval: globalConfig.defaultDebounceInterval,
+      maxFileSize: globalConfig.defaultMaxFileSize,
+      maxConcurrentProjects: globalConfig.maxConcurrentProjects,
+      enableDetailedLogging: globalConfig.enableDetailedLogging,
+      errorHandling: globalConfig.defaultErrorHandling
     };
   }
 

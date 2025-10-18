@@ -1,7 +1,20 @@
 /**
- * 默认忽略规则常量
- * 定义了项目中默认需要忽略的文件和目录模式
- * 参考 docs/plan/defaultIgnore.md
+ * 统一的默认忽略规则常量
+ * 合并了原有的 defaultIgnorePatterns.ts 和 filesystem/defaultIgnorePatterns.ts
+ * 作为项目中唯一的默认忽略规则源
+ * 
+ * 规则分类：
+ * - 版本控制
+ * - 依赖目录
+ * - 日志文件
+ * - 运行时数据
+ * - 测试覆盖率
+ * - 构建工具缓存
+ * - 编译输出
+ * - 操作系统生成文件
+ * - 编辑器文件
+ * - 临时文件
+ * - 语言特定文件
  */
 
 export const DEFAULT_IGNORE_PATTERNS: string[] = [
@@ -102,6 +115,11 @@ export const DEFAULT_IGNORE_PATTERNS: string[] = [
   '**/*.swo',
   '**/*.swn',
   '**/*.bak',
+  '**/.#*',     // Emacs风格的锁文件
+  '**/#*#',     // Emacs风格的备份文件
+  '**/.*.sw[pon]', // Vim交换文件变体
+  '**/.*.un~',  // Emacs备份文件变体
+  '**/.*.bak',  // 隐藏的备份文件
 
   // Build outputs
   'build/**',

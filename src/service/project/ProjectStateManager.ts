@@ -42,6 +42,24 @@ export interface ProjectState {
     chunkSize?: number;
     chunkOverlap?: number;
   };
+  hotReload: {
+    enabled: boolean;
+    config: {
+      debounceInterval?: number;
+      watchPatterns?: string[];
+      ignorePatterns?: string[];
+      maxFileSize?: number;
+      errorHandling?: {
+        maxRetries?: number;
+        alertThreshold?: number;
+        autoRecovery?: boolean;
+      };
+    };
+    lastEnabled?: Date;
+    lastDisabled?: Date;
+    changesDetected?: number;
+    errorsCount?: number;
+  };
   metadata?: Record<string, any>;
 }
 
@@ -152,8 +170,14 @@ export class ProjectStateManager {
         await this.loadProjectStatesFromJson();
       }
     } catch (error) {
-      this.logger.error('Failed to load project states', error);
-      this.projectStates = new Map();
+      // 只有在文件不存在的情况下才忽略错误，其他错误需要继续抛出
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        this.logger.info('Project states file does not exist, initializing empty states');
+        this.projectStates = new Map();
+      } else {
+        this.logger.error('Failed to load project states', error);
+        throw error; // 其他错误继续抛出
+      }
     }
   }
 
@@ -181,12 +205,20 @@ export class ProjectStateManager {
           totalFiles: state.totalFiles,
           indexedFiles: state.indexedFiles,
           failedFiles: state.failedFiles,
+          hotReload: {
+            enabled: false,
+            config: {
+              debounceInterval: this.coreStateService['hotReloadConfigService'].getGlobalConfig().defaultDebounceInterval,
+              watchPatterns: this.coreStateService['hotReloadConfigService'].getGlobalConfig().defaultWatchPatterns,
+              ignorePatterns: this.coreStateService['hotReloadConfigService'].getGlobalConfig().defaultIgnorePatterns
+            }
+          },
           settings: {
             autoIndex: true,
             watchChanges: true
           }
         };
-        
+
         this.projectStates.set(state.projectId, projectState);
       }
       
@@ -273,6 +305,7 @@ export class ProjectStateManager {
       name?: string;
       description?: string;
       settings?: Partial<ProjectState['settings']>;
+      hotReload?: Partial<ProjectState['hotReload']>;
       metadata?: Record<string, any>;
       allowReindex?: boolean;
     } = {}
@@ -283,6 +316,24 @@ export class ProjectStateManager {
       this.storagePath,
       options
     );
+
+    // 确保热更新配置有默认值（如果还没有的话）
+    if (state && !state.hotReload) {
+      // 使用 HotReloadConfigService 提供的默认配置
+      const hotReloadConfig = this.coreStateService['hotReloadConfigService'].getGlobalConfig();
+      state.hotReload = {
+        enabled: false,
+        config: {
+          debounceInterval: hotReloadConfig.defaultDebounceInterval,
+          watchPatterns: hotReloadConfig.defaultWatchPatterns,
+          ignorePatterns: hotReloadConfig.defaultIgnorePatterns,
+          maxFileSize: hotReloadConfig.defaultMaxFileSize,
+          errorHandling: hotReloadConfig.defaultErrorHandling
+        },
+        changesDetected: 0,
+        errorsCount: 0
+      };
+    }
 
     // 保存状态到SQLite和JSON
     await this.saveProjectStates();

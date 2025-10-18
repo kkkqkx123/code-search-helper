@@ -435,7 +435,12 @@ describe('ProjectStateManager', () => {
       configService,
       coreStateService,
       storageStateService,
-      {} as any // Mock SqliteStateManager
+      {
+        batchSaveProjectStates: jest.fn().mockResolvedValue(true),
+        getAllProjectStates: jest.fn().mockResolvedValue([]),
+        deleteProjectState: jest.fn().mockResolvedValue(true),
+        updateProjectStateFields: jest.fn().mockResolvedValue(true)
+      } as any // Mock SqliteStateManager
     );
   });
 
@@ -459,6 +464,14 @@ describe('ProjectStateManager', () => {
       },
       createdAt: overrides.createdAt || new Date(),
       updatedAt: overrides.updatedAt || new Date(),
+      hotReload: overrides.hotReload || {
+        enabled: false,
+        config: {
+          debounceInterval: 500,
+          watchPatterns: ['**/*.ts', '**/*.js', '**/*.tsx', '**/*.jsx'],
+          ignorePatterns: ['node_modules/**', 'dist/**', 'build/**']
+        }
+      },
       settings: {
         autoIndex: overrides.settings?.autoIndex ?? true,
         watchChanges: overrides.settings?.watchChanges ?? true,

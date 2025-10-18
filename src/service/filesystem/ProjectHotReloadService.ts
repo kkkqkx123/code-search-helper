@@ -8,6 +8,7 @@ import { FileChangeEvent } from './ChangeDetectionService';
 import { HotReloadMonitoringService } from './HotReloadMonitoringService';
 import { HotReloadErrorPersistenceService } from './HotReloadErrorPersistenceService';
 import { HotReloadConfigService } from './HotReloadConfigService';
+import { HotReloadConfigFactory } from '../../config/factories/HotReloadConfigFactory';
 
 export interface ProjectHotReloadConfig {
   enabled: boolean;
@@ -143,18 +144,9 @@ export class ProjectHotReloadService {
   
   async enableForProject(projectPath: string, config?: Partial<ProjectHotReloadConfig>): Promise<void> {
     try {
-      const defaultConfig: ProjectHotReloadConfig = {
-        enabled: true,
-        debounceInterval: 500,
-        watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md}'],
-        ignorePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**'],
-        maxFileSize: 10 * 1024 * 1024, // 10MB
-        errorHandling: {
-          maxRetries: 3,
-          alertThreshold: 5,
-          autoRecovery: true
-        }
-      };
+      // 使用配置工厂获取默认配置，避免硬编码
+      const globalConfig = this.configService.getGlobalConfig();
+      const defaultConfig = HotReloadConfigFactory.createDefaultProjectConfig(globalConfig);
       
       const finalConfig: ProjectHotReloadConfig = {
         ...defaultConfig,
@@ -261,18 +253,12 @@ export class ProjectHotReloadService {
   getProjectConfig(projectPath: string): ProjectHotReloadConfig {
     const config = this.projectConfigs.get(projectPath);
     if (!config) {
-      // 返回默认配置
+      // 使用配置工厂获取默认配置，避免硬编码
+      const globalConfig = this.configService.getGlobalConfig();
+      const defaultConfig = HotReloadConfigFactory.createDefaultProjectConfig(globalConfig);
       return {
-        enabled: false,
-        debounceInterval: 500,
-        watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md}'],
-        ignorePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**'],
-        maxFileSize: 10 * 1024 * 1024,
-        errorHandling: {
-          maxRetries: 3,
-          alertThreshold: 5,
-          autoRecovery: true
-        }
+        ...defaultConfig,
+        enabled: false // 默认情况下项目配置是禁用的
       };
     }
     return config;

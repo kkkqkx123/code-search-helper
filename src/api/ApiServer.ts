@@ -9,6 +9,8 @@ import { FileSearchRoutes } from './routes/FileSearchRoutes';
 import { GraphRoutes } from './routes/GraphRoutes';
 import { GraphQueryRoutes } from './routes/GraphQueryRoutes';
 import { GraphAnalysisRoutes } from './routes/GraphAnalysisRoutes';
+import { HotReloadRoutes } from './routes/HotReloadRoutes';
+import { HotReloadConfigService } from '../service/filesystem/HotReloadConfigService';
 import { GraphStatsRoutes } from './routes/GraphStatsRoutes';
 import { ProjectIdManager } from '../database/ProjectIdManager';
 import { QdrantConfigService } from '../config/service/QdrantConfigService';
@@ -34,6 +36,7 @@ export class ApiServer {
   private graphRoutes: GraphRoutes;
   private graphQueryRoutes: GraphQueryRoutes;
   private graphAnalysisRoutes: GraphAnalysisRoutes;
+  private hotReloadRoutes: HotReloadRoutes;
   private graphStatsRoutes: GraphStatsRoutes;
   private indexSyncService: IndexService;
   private embedderFactory: EmbedderFactory;
@@ -67,7 +70,10 @@ export class ApiServer {
     this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     const vectorIndexService = diContainer.get<any>(TYPES.VectorIndexService);
     const graphIndexService = diContainer.get<any>(TYPES.GraphIndexService);
-    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService, vectorIndexService, graphIndexService);
+    
+    // 初始化热更新配置服务
+    const hotReloadConfigService = diContainer.get<HotReloadConfigService>(TYPES.HotReloadConfigService);
+    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService, vectorIndexService, graphIndexService, hotReloadConfigService);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
 
     // 从依赖注入容器获取文件搜索服务
@@ -87,6 +93,8 @@ export class ApiServer {
     this.graphRoutes = new GraphRoutes(graphService, this.projectLookupService, graphQueryValidator, graphPerformanceMonitor, graphLoggerService);
     this.graphQueryRoutes = new GraphQueryRoutes(graphService, graphQueryValidator, graphPerformanceMonitor, graphLoggerService);
     this.graphAnalysisRoutes = new GraphAnalysisRoutes(graphService, graphSearchService, graphPerformanceMonitor, graphLoggerService);
+    // 初始化热更新路由
+    this.hotReloadRoutes = new HotReloadRoutes(hotReloadConfigService, logger);
     this.graphStatsRoutes = new GraphStatsRoutes(graphService, graphCacheService, graphPerformanceMonitor, graphLoggerService);
 
     this.setupMiddleware();
@@ -322,6 +330,8 @@ export class ApiServer {
     this.app.use('/api/v1/graph', this.graphRoutes.getRouter());
     this.app.use('/api/v1/graph', this.graphQueryRoutes.getRouter());
     this.app.use('/api/v1/graph', this.graphAnalysisRoutes.getRouter());
+    // 热更新路由
+    this.app.use('/api/v1/hot-reload', this.hotReloadRoutes.getRouter());
     this.app.use('/api/v1/graph', this.graphStatsRoutes.getRouter());
 
     // 404处理

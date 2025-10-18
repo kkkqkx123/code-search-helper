@@ -89,7 +89,8 @@ describe('ProjectRoutes', () => {
       mockProjectStateManager as ProjectStateManager,
       mockProjectLookupService.indexSyncService as IndexService,
       mockVectorIndexService as VectorIndexService,
-      mockGraphIndexService as GraphIndexService
+      mockGraphIndexService as GraphIndexService,
+      {} as any // Mock hotReloadConfigService
     );
 
     // Create express app and use the router

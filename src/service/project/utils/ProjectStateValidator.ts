@@ -1,73 +1,43 @@
-
 import { ProjectState, StorageStatus } from '../ProjectStateManager';
 import { ProjectStateStorageUtils } from './ProjectStateStorageUtils';
+import { LoggerService } from '../../../utils/LoggerService';
+import { TYPES } from '../../../types';
+import { injectable, inject } from 'inversify';
 
 /**
- * 项目状态验证工具类
- * 职责：状态验证、数据规范化、类型检查
+ * 项目状态验证器
+ * 职责：验证和规范化项目状态数据
  */
+@injectable()
 export class ProjectStateValidator {
-  /**
-   * 初始化存储状态
-   */
-  static initializeStorageStatus(): StorageStatus {
-    return {
-      status: 'pending',
-      progress: 0,
-      lastUpdated: new Date(),
-    };
-  }
+  constructor(
+    @inject(TYPES.LoggerService) private logger: LoggerService
+  ) {}
 
   /**
-   * 规范化存储状态
-   */
-  static normalizeStorageStatus(rawStatus: any): StorageStatus {
-    if (!rawStatus) {
-      return ProjectStateValidator.initializeStorageStatus();
-    }
-
-    return {
-      status: ['pending', 'indexing', 'completed', 'error', 'partial', 'disabled'].includes(rawStatus.status)
-        ? rawStatus.status
-        : 'pending',
-      progress: typeof rawStatus.progress === 'number' && rawStatus.progress >= 0 && rawStatus.progress <= 100
-        ? rawStatus.progress
-        : 0,
-      totalFiles: typeof rawStatus.totalFiles === 'number' ? rawStatus.totalFiles : undefined,
-      processedFiles: typeof rawStatus.processedFiles === 'number' ? rawStatus.processedFiles : undefined,
-      failedFiles: typeof rawStatus.failedFiles === 'number' ? rawStatus.failedFiles : undefined,
-      lastUpdated: rawStatus.lastUpdated ? ProjectStateStorageUtils.parseDate(rawStatus.lastUpdated) : new Date(),
-      lastCompleted: rawStatus.lastCompleted ? ProjectStateStorageUtils.parseDate(rawStatus.lastCompleted) : undefined,
-      error: typeof rawStatus.error === 'string' ? rawStatus.error : undefined,
-    };
-  }
-
-  /**
-   * 验证和规范化项目状态数据
+   * 验证并规范化项目状态
    */
   static validateAndNormalizeProjectState(rawState: any): ProjectState {
+    if (!rawState) {
+      throw new Error('Project state is required');
+    }
+
     // 验证必需字段
     if (!rawState.projectId || typeof rawState.projectId !== 'string') {
       throw new Error('Invalid or missing projectId');
     }
-
     if (!rawState.projectPath || typeof rawState.projectPath !== 'string') {
       throw new Error('Invalid or missing projectPath');
     }
-
-    // 验证 projectPath 是非空字符串且不是仅包含空格
-    if (rawState.projectPath.trim().length === 0) {
+    if (rawState.projectPath.trim() === '') {
       throw new Error('projectPath cannot be empty or contain only whitespace');
     }
-
     if (!rawState.name || typeof rawState.name !== 'string') {
       throw new Error('Invalid or missing name');
     }
-
-    if (!rawState.status || !['active', 'inactive', 'indexing', 'error'].includes(rawState.status)) {
+    if (!['active', 'inactive', 'indexing', 'error'].includes(rawState.status)) {
       throw new Error('Invalid or missing status');
     }
-
     if (!rawState.createdAt || !rawState.updatedAt) {
       throw new Error('Missing timestamp fields');
     }
@@ -107,6 +77,71 @@ export class ProjectStateValidator {
         chunkSize: typeof rawState.settings.chunkSize === 'number' ? rawState.settings.chunkSize : undefined,
         chunkOverlap: typeof rawState.settings.chunkOverlap === 'number' ? rawState.settings.chunkOverlap : undefined,
       },
+      hotReload: rawState.hotReload ? {
+        enabled: typeof rawState.hotReload.enabled === 'boolean' ? rawState.hotReload.enabled : false,
+        config: {
+          debounceInterval: typeof rawState.hotReload.config?.debounceInterval === 'number' ? rawState.hotReload.config.debounceInterval : 500,
+          watchPatterns: Array.isArray(rawState.hotReload.config?.watchPatterns) ? rawState.hotReload.config.watchPatterns : ['**/*.{js,ts,jsx,tsx,json,md,py,go,java,css,html,scss}'],
+          ignorePatterns: Array.isArray(rawState.hotReload.config?.ignorePatterns) ? rawState.hotReload.config.ignorePatterns : [
+            '**/node_modules/**',
+            '**/.git/**',
+            '**/dist/**',
+            '**/build/**',
+            '**/target/**',
+            '**/venv/**',
+            '**/.vscode/**',
+            '**/.idea/**',
+            '**/logs/**',
+            '**/*.log',
+            '**/coverage/**',
+            '**/tmp/**',
+            '**/temp/**'
+          ],
+          maxFileSize: typeof rawState.hotReload.config?.maxFileSize === 'number' ? rawState.hotReload.config.maxFileSize : 10 * 1024 * 1024,
+          errorHandling: rawState.hotReload.config?.errorHandling ? {
+            maxRetries: typeof rawState.hotReload.config.errorHandling.maxRetries === 'number' ? rawState.hotReload.config.errorHandling.maxRetries : 3,
+            alertThreshold: typeof rawState.hotReload.config.errorHandling.alertThreshold === 'number' ? rawState.hotReload.config.errorHandling.alertThreshold : 5,
+            autoRecovery: typeof rawState.hotReload.config.errorHandling.autoRecovery === 'boolean' ? rawState.hotReload.config.errorHandling.autoRecovery : true
+          } : {
+            maxRetries: 3,
+            alertThreshold: 5,
+            autoRecovery: true
+          }
+        },
+        lastEnabled: rawState.hotReload.lastEnabled ? ProjectStateStorageUtils.parseDate(rawState.hotReload.lastEnabled) : undefined,
+        lastDisabled: rawState.hotReload.lastDisabled ? ProjectStateStorageUtils.parseDate(rawState.hotReload.lastDisabled) : undefined,
+        changesDetected: typeof rawState.hotReload.changesDetected === 'number' ? rawState.hotReload.changesDetected : 0,
+        errorsCount: typeof rawState.hotReload.errorsCount === 'number' ? rawState.hotReload.errorsCount : 0
+      } : {
+        enabled: false,
+        config: {
+          debounceInterval: 500,
+          watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java,css,html,scss}'],
+          ignorePatterns: [
+            '**/node_modules/**',
+            '**/.git/**',
+            '**/dist/**',
+            '**/build/**',
+            '**/target/**',
+            '**/venv/**',
+            '**/.vscode/**',
+            '**/.idea/**',
+            '**/logs/**',
+            '**/*.log',
+            '**/coverage/**',
+            '**/tmp/**',
+            '**/temp/**'
+          ],
+          maxFileSize: 10 * 1024 * 1024, // 10MB
+          errorHandling: {
+            maxRetries: 3,
+            alertThreshold: 5,
+            autoRecovery: true
+          }
+        },
+        changesDetected: 0,
+        errorsCount: 0
+      },
       metadata: rawState.metadata && typeof rawState.metadata === 'object' ? rawState.metadata : {}
     };
 
@@ -126,5 +161,37 @@ export class ProjectStateValidator {
       // 路径不存在，状态无效
       return false;
     }
+  }
+
+  /**
+   * 初始化存储状态
+   */
+  static initializeStorageStatus(): StorageStatus {
+    return {
+      status: 'pending',
+      progress: 0,
+      lastUpdated: new Date()
+    };
+  }
+
+  /**
+   * 规范化存储状态
+   */
+  static normalizeStorageStatus(rawStatus: any): StorageStatus {
+    // 处理null或undefined输入
+    if (rawStatus === null || rawStatus === undefined) {
+      return ProjectStateValidator.initializeStorageStatus();
+    }
+    
+    return {
+      status: ['pending', 'indexing', 'completed', 'error', 'partial', 'disabled'].includes(rawStatus.status) ? rawStatus.status : 'pending',
+      progress: typeof rawStatus.progress === 'number' ? (rawStatus.progress > 100 ? 0 : Math.max(0, Math.min(100, rawStatus.progress))) : 0,
+      totalFiles: typeof rawStatus.totalFiles === 'number' ? rawStatus.totalFiles : undefined,
+      processedFiles: typeof rawStatus.processedFiles === 'number' ? rawStatus.processedFiles : undefined,
+      failedFiles: typeof rawStatus.failedFiles === 'number' ? rawStatus.failedFiles : undefined,
+      lastUpdated: rawStatus.lastUpdated ? ProjectStateStorageUtils.parseDate(rawStatus.lastUpdated) : new Date(),
+      lastCompleted: rawStatus.lastCompleted ? ProjectStateStorageUtils.parseDate(rawStatus.lastCompleted) : undefined,
+      error: typeof rawStatus.error === 'string' ? rawStatus.error : undefined
+    };
   }
 }

@@ -6,15 +6,15 @@ import { createHash } from 'crypto';
 import { GitignoreParser } from '../ignore/GitignoreParser';
 import { LoggerService } from '../../utils/LoggerService';
 import { TYPES } from '../../types';
-import { DEFAULT_IGNORE_PATTERNS } from './defaultIgnorePatterns';
+import { DEFAULT_IGNORE_PATTERNS } from '../ignore/defaultIgnorePatterns';
 
 export interface FileInfo {
   path: string;
   relativePath: string;
   name: string;
   extension: string;
- size: number;
- hash: string;
+  size: number;
+  hash: string;
   lastModified: Date;
   language: string;
   isBinary: boolean;
@@ -96,7 +96,7 @@ export class FileSystemTraversal {
    * Refreshes the ignore patterns for a specific root path
    * This allows for hot updates to ignore rules (e.g., when .gitignore or .indexignore files change)
    */
- async refreshIgnoreRules(rootPath: string, options?: TraversalOptions): Promise<void> {
+  async refreshIgnoreRules(rootPath: string, options?: TraversalOptions): Promise<void> {
     const traversalOptions = { ...this.defaultOptions, ...options };
     const allIgnorePatterns: string[] = [];
 
@@ -145,15 +145,15 @@ export class FileSystemTraversal {
 
   async traverseDirectory(rootPath: string, options?: TraversalOptions): Promise<TraversalResult> {
     const startTime = Date.now();
-    
+
     // Refresh ignore rules for this path before traversal
     await this.refreshIgnoreRules(rootPath, options);
-    
+
     const traversalOptions = { ...this.defaultOptions, ...options };
-    
+
     // Get the ignore patterns for this path
     const allIgnorePatterns = this.getIgnorePatternsForPath(rootPath);
-    
+
     // Update traversal options with the latest ignore patterns
     const updatedOptions = {
       ...traversalOptions,
@@ -526,7 +526,7 @@ export class FileSystemTraversal {
 
     const language = languageMap[extension];
     return language && supportedExtensions.includes(extension) ? language : null;
- }
+  }
 
   private async isBinaryFile(filePath: string): Promise<boolean> {
     try {
@@ -561,11 +561,11 @@ export class FileSystemTraversal {
     }
   }
 
- async findChangedFiles(
+  async findChangedFiles(
     rootPath: string,
     previousHashes: Map<string, string>,
     options?: TraversalOptions
- ): Promise<FileInfo[]> {
+  ): Promise<FileInfo[]> {
     const result = await this.traverseDirectory(rootPath, options);
     const changedFiles: FileInfo[] = [];
 
@@ -595,7 +595,7 @@ export class FileSystemTraversal {
    * @returns Array of default ignore patterns
    */
   private getDefaultIgnorePatterns(): string[] {
-    // Reference the complete list in docs/plan/defaultIgnore.md
+    // Use the unified default ignore patterns
     return DEFAULT_IGNORE_PATTERNS;
   }
 

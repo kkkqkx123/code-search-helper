@@ -18,6 +18,7 @@ import { ProjectState } from '../../service/project/ProjectStateManager';
 import { IndexService } from '../../service/index/IndexService';
 import { VectorIndexService } from '../../service/index/VectorIndexService';
 import { GraphIndexService } from '../../service/index/GraphIndexService';
+import { HotReloadConfigService } from '../../service/filesystem/HotReloadConfigService';
 
 export interface ProjectCreateBody {
   projectPath: string;
@@ -64,6 +65,7 @@ export class ProjectRoutes {
   private indexSyncService: IndexService;
   private vectorIndexService: VectorIndexService;
   private graphIndexService: GraphIndexService;
+  private hotReloadConfigService: HotReloadConfigService;
 
   constructor(
     projectIdManager: ProjectIdManager,
@@ -72,7 +74,8 @@ export class ProjectRoutes {
     projectStateManager: ProjectStateManager,
     indexSyncService: IndexService,
     vectorIndexService: VectorIndexService,
-    graphIndexService: GraphIndexService
+    graphIndexService: GraphIndexService,
+    hotReloadConfigService: HotReloadConfigService
   ) {
     this.projectIdManager = projectIdManager;
     this.projectLookupService = projectLookupService;
@@ -81,6 +84,7 @@ export class ProjectRoutes {
     this.indexSyncService = indexSyncService;
     this.vectorIndexService = vectorIndexService;
     this.graphIndexService = graphIndexService;
+    this.hotReloadConfigService = hotReloadConfigService;
     this.router = Router();
     this.setupRoutes();
   }
@@ -128,6 +132,11 @@ export class ProjectRoutes {
     // 批量操作端点
     this.router.post('/batch-index-vectors', this.batchIndexVectors.bind(this));
     this.router.post('/batch-index-graph', this.batchIndexGraph.bind(this));
+
+    // 热更新配置端点
+    this.router.get('/:projectId/hot-reload', this.getProjectHotReloadConfig.bind(this));
+    this.router.put('/:projectId/hot-reload', this.updateProjectHotReloadConfig.bind(this));
+    this.router.post('/:projectId/hot-reload/toggle', this.toggleProjectHotReload.bind(this));
   }
 
   private async getProjects(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -528,6 +537,167 @@ export class ProjectRoutes {
         respectGitignore: true,
       },
     };
+  }
+
+  /**
+   * 获取项目热更新配置
+   */
+  private async getProjectHotReloadConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      // 获取项目状态
+      const projectState = this.projectStateManager.getProjectState(projectId);
+      if (!projectState) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found',
+        });
+        return;
+      }
+
+      // 从项目状态获取热更新配置
+      const hotReloadConfig = this.hotReloadConfigService.getProjectConfigFromState(projectState);
+      const hotReloadStatus = this.hotReloadConfigService.getProjectHotReloadStatus(projectState);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          config: hotReloadConfig,
+          status: hotReloadStatus,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 更新项目热更新配置
+   */
+  private async updateProjectHotReloadConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+      const configUpdate = req.body;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      // 获取项目状态
+      const projectState = this.projectStateManager.getProjectState(projectId);
+      if (!projectState) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found',
+        });
+        return;
+      }
+
+      // 验证配置
+      const validation = this.hotReloadConfigService.validateProjectStateConfig(configUpdate);
+      if (!validation.isValid) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid configuration',
+          details: validation.errors,
+        });
+        return;
+      }
+
+      // 更新项目状态中的热更新配置
+      this.hotReloadConfigService.updateProjectStateConfig(projectState, configUpdate);
+
+      // 保存项目状态
+      await this.projectStateManager.createOrUpdateProjectState(projectState.projectPath, {
+        hotReload: projectState.hotReload,
+      });
+
+      // 获取更新后的配置
+      const updatedConfig = this.hotReloadConfigService.getProjectConfigFromState(projectState);
+      const updatedStatus = this.hotReloadConfigService.getProjectHotReloadStatus(projectState);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          config: updatedConfig,
+          status: updatedStatus,
+        },
+        message: 'Hot reload configuration updated successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 切换项目热更新状态
+   */
+  private async toggleProjectHotReload(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+      const { enabled } = req.body;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      if (typeof enabled !== 'boolean') {
+        res.status(400).json({
+          success: false,
+          error: 'enabled must be a boolean value',
+        });
+        return;
+      }
+
+      // 获取项目状态
+      const projectState = this.projectStateManager.getProjectState(projectId);
+      if (!projectState) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found',
+        });
+        return;
+      }
+
+      // 更新热更新启用状态
+      this.hotReloadConfigService.updateProjectStateConfig(projectState, { enabled });
+
+      // 保存项目状态
+      await this.projectStateManager.createOrUpdateProjectState(projectState.projectPath, {
+        hotReload: projectState.hotReload,
+      });
+
+      // 获取更新后的状态
+      const updatedStatus = this.hotReloadConfigService.getProjectHotReloadStatus(projectState);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          enabled: updatedStatus.enabled,
+          status: updatedStatus,
+        },
+        message: `Hot reload ${enabled ? 'enabled' : 'disabled'} successfully`,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 
   getRouter(): Router {

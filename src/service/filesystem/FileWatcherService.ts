@@ -7,14 +7,14 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { HotReloadRecoveryService } from './HotReloadRecoveryService';
 import { HotReloadError, HotReloadErrorCode } from './HotReloadError';
 import { GitignoreParser } from '../ignore/GitignoreParser';
-import { DEFAULT_IGNORE_PATTERNS } from './defaultIgnorePatterns';
+import { DEFAULT_IGNORE_PATTERNS } from '../ignore/defaultIgnorePatterns';
 import { LANGUAGE_MAP, DEFAULT_SUPPORTED_EXTENSIONS } from './languageConstants';
 
 // 定义错误上下文接口
 interface ErrorContext {
   component: string;
   operation: string;
- metadata?: Record<string, any>;
+  metadata?: Record<string, any>;
 }
 
 // 定义 CodebaseIndexError 类
@@ -38,7 +38,7 @@ export interface FileWatcherOptions {
   binaryInterval?: number;
   alwaysStat?: boolean;
   depth?: number;
- awaitWriteFinish?: boolean;
+  awaitWriteFinish?: boolean;
   awaitWriteFinishOptions?: {
     stabilityThreshold?: number;
     pollInterval?: number;
@@ -52,10 +52,10 @@ export interface FileChangeEvent {
 }
 
 export interface FileWatcherCallbacks {
- onFileAdded?: (fileInfo: FileInfo) => void;
- onFileChanged?: (fileInfo: FileInfo) => void;
- onFileDeleted?: (filePath: string) => void;
- onDirectoryAdded?: (dirPath: string) => void;
+  onFileAdded?: (fileInfo: FileInfo) => void;
+  onFileChanged?: (fileInfo: FileInfo) => void;
+  onFileDeleted?: (filePath: string) => void;
+  onDirectoryAdded?: (dirPath: string) => void;
   onDirectoryDeleted?: (dirPath: string) => void;
   onError?: (error: Error) => void;
   onReady?: () => void;
@@ -66,14 +66,14 @@ export class FileWatcherService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private fileSystemTraversal: FileSystemTraversal;
- private watchers: Map<string, FSWatcher> = new Map();
+  private watchers: Map<string, FSWatcher> = new Map();
   private callbacks: FileWatcherCallbacks = {};
   private isWatching: boolean = false;
   private traversalOptions: TraversalOptions;
   private eventQueue: Map<string, FileChangeEvent[]> = new Map();
- private processingQueue: boolean = false;
- private eventProcessingTimer: NodeJS.Timeout | null = null;
- private retryAttempts: Map<string, number> = new Map();
+  private processingQueue: boolean = false;
+  private eventProcessingTimer: NodeJS.Timeout | null = null;
+  private retryAttempts: Map<string, number> = new Map();
   private maxRetries: number = 3;
   private retryDelay: number = 50;
   private testMode: boolean = false;
@@ -105,15 +105,15 @@ export class FileWatcherService {
     this.initializeIgnorePatterns();
   }
 
- private async initializeIgnorePatterns(): Promise<void> {
+  private async initializeIgnorePatterns(): Promise<void> {
     // Initialize with default patterns
     this.allIgnorePatterns = [...DEFAULT_IGNORE_PATTERNS];
-    
+
     // Add custom exclude patterns from traversal options
     if (this.traversalOptions.excludePatterns) {
       this.allIgnorePatterns.push(...this.traversalOptions.excludePatterns);
     }
- }
+  }
 
   async refreshIgnoreRules(watchPath: string): Promise<void> {
     try {
@@ -160,7 +160,7 @@ export class FileWatcherService {
     } catch (error) {
       this.logger.error('Error refreshing ignore rules', error);
     }
- }
+  }
 
   setCallbacks(callbacks: FileWatcherCallbacks): void {
     this.callbacks = { ...this.callbacks, ...callbacks };
@@ -229,12 +229,12 @@ export class FileWatcherService {
         ...(options.awaitWriteFinish !== undefined && {
           awaitWriteFinish: options.awaitWriteFinish
             ? {
-                stabilityThreshold:
-                  options.awaitWriteFinishOptions?.stabilityThreshold ??
-                  (this.testMode ? 100 : 200),
-                pollInterval:
-                  options.awaitWriteFinishOptions?.pollInterval ?? (this.testMode ? 25 : 100),
-              }
+              stabilityThreshold:
+                options.awaitWriteFinishOptions?.stabilityThreshold ??
+                (this.testMode ? 100 : 200),
+              pollInterval:
+                options.awaitWriteFinishOptions?.pollInterval ?? (this.testMode ? 25 : 100),
+            }
             : false,
         }),
       };
@@ -368,7 +368,7 @@ export class FileWatcherService {
     }
   }
 
- private handleWatcherError(error: Error, watchPath: string): void {
+  private handleWatcherError(error: Error, watchPath: string): void {
     const errorContext: ErrorContext = {
       component: 'FileWatcherService',
       operation: 'watcher',
@@ -532,7 +532,7 @@ export class FileWatcherService {
     }
 
     return false;
- }
+  }
 
   // Helper method for test environments
   async flushEventQueue(): Promise<void> {
@@ -551,7 +551,7 @@ export class FileWatcherService {
     return this.testMode;
   }
 
- private async getFileInfo(filePath: string, watchPath: string): Promise<FileInfo | null> {
+  private async getFileInfo(filePath: string, watchPath: string): Promise<FileInfo | null> {
     try {
       const rootPath = path.resolve(watchPath);
       const fullPath = path.resolve(filePath);
@@ -624,13 +624,13 @@ export class FileWatcherService {
     }
 
     return false;
- }
-private detectLanguage(extension: string): string | null {
-  const supportedExtensions = this.traversalOptions.supportedExtensions || DEFAULT_SUPPORTED_EXTENSIONS;
+  }
+  private detectLanguage(extension: string): string | null {
+    const supportedExtensions = this.traversalOptions.supportedExtensions || DEFAULT_SUPPORTED_EXTENSIONS;
 
-  const language = LANGUAGE_MAP[extension];
-  return language && supportedExtensions.includes(extension) ? language : null;
-}
+    const language = LANGUAGE_MAP[extension];
+    return language && supportedExtensions.includes(extension) ? language : null;
+  }
 
 
   async stopWatching(): Promise<void> {

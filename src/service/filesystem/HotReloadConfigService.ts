@@ -4,6 +4,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { ProjectHotReloadConfig } from './ProjectHotReloadService';
 import { HotReloadConfig as GlobalHotReloadConfig } from '../../config/ConfigTypes';
+import { HotReloadConfigFactory } from '../../config/factories/HotReloadConfigFactory';
 
 export interface HotReloadGlobalConfig {
   enabled: boolean;
@@ -35,35 +36,8 @@ export class HotReloadConfigService {
   }
   
   private getDefaultGlobalConfig(): HotReloadGlobalConfig {
-    // 直接使用硬编码的默认值，避免循环依赖
-    return {
-      enabled: true,
-      defaultDebounceInterval: 500,
-      defaultWatchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java,css,html,scss}'],
-      defaultIgnorePatterns: [
-        '**/node_modules/**',
-        '**/.git/**',
-        '**/dist/**',
-        '**/build/**',
-        '**/target/**',
-        '**/venv/**',
-        '**/.vscode/**',
-        '**/.idea/**',
-        '**/logs/**',
-        '**/*.log',
-        '**/coverage/**',
-        '**/tmp/**',
-        '**/temp/**'
-      ],
-      defaultMaxFileSize: 10 * 1024 * 1024, // 10MB
-      defaultErrorHandling: {
-        maxRetries: 3,
-        alertThreshold: 5,
-        autoRecovery: true
-      },
-      enableDetailedLogging: false,
-      maxConcurrentProjects: 5
-    };
+    // 使用配置工厂获取默认配置，避免硬编码和循环依赖
+    return HotReloadConfigFactory.createDefaultGlobalConfig();
   }
   
   /**
@@ -107,6 +81,82 @@ export class HotReloadConfigService {
         ...(projectSpecificConfig.errorHandling || {})
       }
     };
+  }
+
+  /**
+   * 从项目状态获取热更新配置
+   */
+  getProjectConfigFromState(projectState: any): ProjectHotReloadConfig {
+    if (!projectState?.hotReload) {
+      return this.getProjectConfig(projectState?.projectPath || '');
+    }
+
+    const hotReload = projectState.hotReload;
+    return {
+      enabled: hotReload.enabled ?? this.globalConfig.enabled,
+      debounceInterval: hotReload.config?.debounceInterval ?? this.globalConfig.defaultDebounceInterval,
+      watchPatterns: hotReload.config?.watchPatterns ?? this.globalConfig.defaultWatchPatterns,
+      ignorePatterns: hotReload.config?.ignorePatterns ?? this.globalConfig.defaultIgnorePatterns,
+      maxFileSize: hotReload.config?.maxFileSize ?? this.globalConfig.defaultMaxFileSize,
+      errorHandling: {
+        ...this.globalConfig.defaultErrorHandling,
+        ...(hotReload.config?.errorHandling || {})
+      }
+    };
+  }
+
+  /**
+   * 更新项目状态中的热更新配置
+   */
+  updateProjectStateConfig(projectState: any, config: Partial<ProjectHotReloadConfig>): void {
+    if (!projectState) return;
+
+    if (!projectState.hotReload) {
+      projectState.hotReload = {
+        enabled: false,
+        config: {},
+        changesDetected: 0,
+        errorsCount: 0
+      };
+    }
+
+    // 更新配置
+    if (config.enabled !== undefined) {
+      const oldEnabled = projectState.hotReload.enabled;
+      projectState.hotReload.enabled = config.enabled;
+      
+      // 记录启用/禁用时间
+      if (oldEnabled !== config.enabled) {
+        if (config.enabled === true) {
+          projectState.hotReload.lastEnabled = new Date();
+        } else if (config.enabled === false) {
+          projectState.hotReload.lastDisabled = new Date();
+        }
+      }
+    }
+
+    if (config.debounceInterval !== undefined) {
+      projectState.hotReload.config.debounceInterval = config.debounceInterval;
+    }
+
+    if (config.watchPatterns !== undefined) {
+      projectState.hotReload.config.watchPatterns = config.watchPatterns;
+    }
+
+    if (config.ignorePatterns !== undefined) {
+      projectState.hotReload.config.ignorePatterns = config.ignorePatterns;
+    }
+
+    if (config.maxFileSize !== undefined) {
+      projectState.hotReload.config.maxFileSize = config.maxFileSize;
+    }
+
+    if (config.errorHandling !== undefined) {
+      projectState.hotReload.config.errorHandling = {
+        ...projectState.hotReload.config.errorHandling,
+        ...config.errorHandling
+      };
+    }
   }
   
   /**
@@ -172,6 +222,79 @@ export class HotReloadConfigService {
       isValid: errors.length === 0,
       errors
     };
+  }
+
+  /**
+   * 验证项目状态热更新配置
+   */
+  validateProjectStateConfig(config: any): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    if (config.enabled !== undefined && typeof config.enabled !== 'boolean') {
+      errors.push('Enabled must be a boolean');
+    }
+    
+    if (config.config?.debounceInterval !== undefined && (config.config.debounceInterval < 50 || config.config.debounceInterval > 10000)) {
+      errors.push('Debounce interval must be between 50ms and 10000ms');
+    }
+    
+    if (config.config?.maxFileSize !== undefined && (config.config.maxFileSize <= 0 || config.config.maxFileSize > 100 * 1024 * 1024)) {
+      errors.push('Max file size must be between 1 byte and 100MB');
+    }
+    
+    if (config.config?.errorHandling?.maxRetries !== undefined && config.config.errorHandling.maxRetries < 0) {
+      errors.push('Max retries must be non-negative');
+    }
+    
+    if (config.config?.watchPatterns !== undefined && !Array.isArray(config.config.watchPatterns)) {
+      errors.push('Watch patterns must be an array');
+    }
+    
+    if (config.config?.ignorePatterns !== undefined && !Array.isArray(config.config.ignorePatterns)) {
+      errors.push('Ignore patterns must be an array');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * 获取项目热更新状态信息
+   */
+  getProjectHotReloadStatus(projectState: any): {
+    enabled: boolean;
+    lastEnabled?: Date;
+    lastDisabled?: Date;
+    changesDetected: number;
+    errorsCount: number;
+  } {
+    if (!projectState?.hotReload) {
+      return {
+        enabled: false,
+        changesDetected: 0,
+        errorsCount: 0
+      };
+    }
+
+    return {
+      enabled: projectState.hotReload.enabled,
+      lastEnabled: projectState.hotReload.lastEnabled,
+      lastDisabled: projectState.hotReload.lastDisabled,
+      changesDetected: projectState.hotReload.changesDetected || 0,
+      errorsCount: projectState.hotReload.errorsCount || 0
+    };
+  }
+
+  /**
+   * 重置项目热更新统计信息
+   */
+  resetProjectStats(projectState: any): void {
+    if (projectState?.hotReload) {
+      projectState.hotReload.changesDetected = 0;
+      projectState.hotReload.errorsCount = 0;
+    }
   }
   
   /**

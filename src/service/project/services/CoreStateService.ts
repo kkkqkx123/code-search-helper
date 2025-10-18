@@ -10,6 +10,7 @@ import { IndexService } from '../../index/IndexService';
 import { ProjectState, ProjectStats, StorageStatus } from '../ProjectStateManager';
 import { ProjectStateStorageUtils } from '../utils/ProjectStateStorageUtils';
 import { ProjectStateValidator } from '../utils/ProjectStateValidator';
+import { HotReloadConfigService } from '../../filesystem/HotReloadConfigService';
 import * as path from 'path';
 
 /**
@@ -24,7 +25,8 @@ export class CoreStateService {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
-    @inject(TYPES.NebulaService) private nebulaService: NebulaService
+    @inject(TYPES.NebulaService) private nebulaService: NebulaService,
+    @inject(TYPES.HotReloadConfigService) private hotReloadConfigService: HotReloadConfigService
   ) {}
 
   /**
@@ -38,6 +40,7 @@ export class CoreStateService {
       name?: string;
       description?: string;
       settings?: Partial<ProjectState['settings']>;
+      hotReload?: Partial<ProjectState['hotReload']>;
       metadata?: Record<string, any>;
       allowReindex?: boolean;
     } = {}
@@ -102,6 +105,22 @@ export class CoreStateService {
 
 options.description !== undefined) state.description = options.description;
         if (options.settings) state.settings = { ...state.settings, ...options.settings };
+        if (options.hotReload) {
+          // 处理热更新配置的变更
+          const oldEnabled = state.hotReload?.enabled;
+          const newEnabled = options.hotReload.enabled;
+          
+          state.hotReload = { ...state.hotReload, ...options.hotReload };
+          
+          // 记录启用/禁用时间
+          if (oldEnabled !== newEnabled) {
+            if (newEnabled === true) {
+              state.hotReload.lastEnabled = new Date();
+            } else if (newEnabled === false) {
+              state.hotReload.lastDisabled = new Date();
+            }
+          }
+        }
         if (options.metadata) state.metadata = { ...state.metadata, ...options.metadata };
       } else {
         // 创建新状态
@@ -129,6 +148,18 @@ options.description !== undefined) state.description = options.description;
             watchChanges: true,
             ...options.settings
           },
+          hotReload: {
+            enabled: false,
+            config: {
+              debounceInterval: this.hotReloadConfigService.getGlobalConfig().defaultDebounceInterval,
+              watchPatterns: this.hotReloadConfigService.getGlobalConfig().defaultWatchPatterns,
+              ignorePatterns: this.hotReloadConfigService.getGlobalConfig().defaultIgnorePatterns,
+              maxFileSize: this.hotReloadConfigService.getGlobalConfig().defaultMaxFileSize,
+              errorHandling: this.hotReloadConfigService.getGlobalConfig().defaultErrorHandling
+            },
+            changesDetected: 0,
+            errorsCount: 0
+          },
           metadata: options.metadata || {}
         };
       }
@@ -140,6 +171,10 @@ options.description !== undefined) state.description = options.description;
       state = projectStates.get(projectId) || state;
 
       // 保存状态
+      if (!state) {
+        throw new Error(`Failed to create or update project state for ${projectId}`);
+      }
+      
       projectStates.set(projectId, state);
 
       this.logger.info(`Project state ${state ? 'updated' : 'created'} for ${projectId}`, {

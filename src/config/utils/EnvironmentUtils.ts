@@ -157,4 +157,31 @@ export class EnvironmentUtils {
     const parsed = parseInt(value, 10);
     return isNaN(parsed) || parsed < 1 || parsed > 65535 ? defaultValue : parsed;
   }
+
+  /**
+   * 解析数组类型的环境变量
+   * @param key 环境变量键名
+   * @param defaultValue 默认值
+   * @param separator 分隔符，默认为逗号
+   * @returns 解析后的数组值
+   */
+  static parseArray(key: string, defaultValue: string[], separator: string = ','): string[] {
+    const value = process.env[key];
+    if (!value) {
+      return defaultValue;
+    }
+    
+    try {
+      // 尝试解析为JSON数组
+      if (value.trim().startsWith('[') && value.trim().endsWith(']')) {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : defaultValue;
+      }
+      
+      // 否则按分隔符分割
+      return value.split(separator).map(item => item.trim()).filter(item => item.length > 0);
+    } catch (error) {
+      return defaultValue;
+    }
+  }
 }

@@ -3,6 +3,7 @@ import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
 import { EnvironmentUtils } from '../utils/EnvironmentUtils';
 import { ValidationUtils } from '../utils/ValidationUtils';
+import { HotReloadConfigFactory } from '../factories/HotReloadConfigFactory';
 
 export interface HotReloadConfig {
   enabled: boolean;
@@ -56,17 +57,17 @@ export class HotReloadConfigService extends BaseConfigService<HotReloadConfig> {
   }
 
   getDefaultConfig(): HotReloadConfig {
+    // 使用配置工厂获取默认配置，避免硬编码
+    const globalConfig = HotReloadConfigFactory.createDefaultGlobalConfig();
+    
+    // 转换为HotReloadConfig格式
     return {
-      enabled: true,
-      debounceInterval: 500,
-      maxFileSize: 10 * 1024 * 1024, // 10MB
-      maxConcurrentProjects: 5,
-      enableDetailedLogging: false,
-      errorHandling: {
-        maxRetries: 3,
-        alertThreshold: 5,
-        autoRecovery: true,
-      }
+      enabled: globalConfig.enabled,
+      debounceInterval: globalConfig.defaultDebounceInterval,
+      maxFileSize: globalConfig.defaultMaxFileSize,
+      maxConcurrentProjects: globalConfig.maxConcurrentProjects,
+      enableDetailedLogging: globalConfig.enableDetailedLogging,
+      errorHandling: globalConfig.defaultErrorHandling
     };
   }
 }
