@@ -15,6 +15,7 @@ import { HotReloadConfigService } from '../../service/filesystem/HotReloadConfig
 import { HotReloadMonitoringService } from '../../service/filesystem/HotReloadMonitoringService';
 import { HotReloadErrorPersistenceService } from '../../service/filesystem/HotReloadErrorPersistenceService';
 import { HotReloadRestartService } from '../../service/filesystem/HotReloadRestartService';
+import { FileHashManager, FileHashManagerImpl } from '../../service/filesystem/FileHashManager';
 
 // 项目管理服务
 import { IndexService } from '../../service/index/IndexService';
@@ -70,6 +71,7 @@ export class BusinessServiceRegistrar {
   static register(container: Container): void {
     // 文件系统服务
     container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).to(FileSystemTraversal).inSingletonScope();
+    container.bind<FileHashManager>(TYPES.FileHashManager).to(FileHashManagerImpl).inSingletonScope();
     container.bind<FileWatcherService>(TYPES.FileWatcherService).to(FileWatcherService).inSingletonScope();
     container.bind<ChangeDetectionService>(TYPES.ChangeDetectionService).to(ChangeDetectionService).inSingletonScope();
     container.bind<HotReloadRecoveryService>(TYPES.HotReloadRecoveryService).to(HotReloadRecoveryService).inSingletonScope();

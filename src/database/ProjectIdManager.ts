@@ -8,6 +8,7 @@ import { QdrantConfigService } from '../config/service/QdrantConfigService';
 import { NebulaConfigService } from '../config/service/NebulaConfigService';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
+import { SqliteProjectManager } from './splite/SqliteProjectManager';
 
 // 项目映射信息的接口定义（保留用于兼容旧格式）
 export interface ProjectMappingInfo {
@@ -40,7 +41,8 @@ export class ProjectIdManager {
     @inject(TYPES.QdrantConfigService) private qdrantConfigService: QdrantConfigService,
     @inject(TYPES.NebulaConfigService) private nebulaConfigService: NebulaConfigService,
     @inject(TYPES.LoggerService) private logger: LoggerService,
-    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService
+    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
+    @inject(TYPES.SqliteProjectManager) private sqliteProjectManager: SqliteProjectManager
   ) {
     // 检查是否在测试环境中
     const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
@@ -87,6 +89,10 @@ export class ProjectIdManager {
       if (existingProjectId) {
         // Update timestamp for existing project
         this.projectUpdateTimes.set(existingProjectId, new Date());
+        
+        // 同步到SQLite
+        await this.syncProjectToSQLite(existingProjectId, normalizedPath);
+        
         return existingProjectId;
       }
 
@@ -109,6 +115,9 @@ export class ProjectIdManager {
 
       this.logger.info(`Generated project ID: ${projectId} for path: ${projectPath}`);
       this.logger.info(`Collection name: ${collectionName}, Space name: ${spaceName}`);
+
+      // 保存到SQLite
+      await this.createProjectInSQLite(projectId, normalizedPath, collectionName, spaceName);
 
       return projectId;
     } catch (error) {
@@ -230,6 +239,9 @@ export class ProjectIdManager {
         await fs.writeFile(tempPath, jsonData);
         await fs.rename(tempPath, storagePath);
 
+        // 同步到SQLite
+        await this.syncAllProjectsToSQLite();
+
         // 成功则退出重试循环
         return;
       } catch (error) {
@@ -265,76 +277,12 @@ export class ProjectIdManager {
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        const storagePath = this.configService.get('project')?.mappingPath || './data/project-mapping.json';
+        // 首先从SQLite加载
+        await this.loadMappingFromSQLite();
         
-        // 检查文件是否存在，如果不存在则创建空文件
-        try {
-          await fs.access(storagePath);
-        } catch (accessError) {
-          // 文件不存在，创建空的JSON文件
-          this.logger.warn(`Project mapping file does not exist at ${storagePath}, creating empty file...`);
-          const dir = path.dirname(storagePath);
-          await fs.mkdir(dir, { recursive: true });
-          await fs.writeFile(storagePath, '[]', 'utf8');
-        }
-        
-        const data = await fs.readFile(storagePath, 'utf8');
-        const rawMapping = JSON.parse(data);
-
-        // 检查是否是旧格式（对象格式）或新格式（数组格式）
-        if (Array.isArray(rawMapping)) {
-          // 新格式：数组格式，每个元素包含完整的映射信息
-          this.initializeEmptyMapping();
-
-          for (const mappingInfo of rawMapping) {
-            // 检查是否是用户期望的格式（包含projectIdMap, collectionMap等）
-            if (mappingInfo.projectIdMap && mappingInfo.collectionMap && mappingInfo.spaceMap &&
-                mappingInfo.pathToProjectMap && mappingInfo.projectUpdateTimes) {
-              // 用户期望的格式
-              for (const [projectPath, projectId] of Object.entries(mappingInfo.projectIdMap)) {
-                const normalizedPath = HashUtils.normalizePath(projectPath as string);
-                const actualProjectId = projectId as string;
-
-                // 添加到各个映射中
-                this.projectIdMap.set(normalizedPath, actualProjectId);
-                this.pathToProjectMap.set(actualProjectId, normalizedPath);
-                this.collectionMap.set(actualProjectId, mappingInfo.collectionMap[actualProjectId]);
-                this.spaceMap.set(actualProjectId, mappingInfo.spaceMap[actualProjectId]);
-                this.projectUpdateTimes.set(actualProjectId, this.parseDate(mappingInfo.projectUpdateTimes[actualProjectId]));
-              }
-            } else {
-              // 原来的数组格式
-              const normalizedPath = HashUtils.normalizePath(mappingInfo.projectPath);
-              this.projectIdMap.set(normalizedPath, mappingInfo.projectId);
-              this.pathToProjectMap.set(mappingInfo.projectId, normalizedPath);
-              this.collectionMap.set(mappingInfo.projectId, mappingInfo.collectionName);
-              this.spaceMap.set(mappingInfo.projectId, mappingInfo.spaceName);
-              this.projectUpdateTimes.set(mappingInfo.projectId, mappingInfo.lastUpdateTime);
-            }
-          }
-        } else {
-          // 旧格式：对象格式，需要转换
-          this.logger.info('Detected old format project mapping, converting to new format');
-          this.initializeEmptyMapping();
-
-          // 从旧格式加载
-          const projectIdMap = rawMapping.projectIdMap || {};
-          const collectionMap = rawMapping.collectionMap || {};
-          const spaceMap = rawMapping.spaceMap || {};
-          const pathToProjectMap = rawMapping.pathToProjectMap || {};
-          const projectUpdateTimes = rawMapping.projectUpdateTimes || {};
-
-          for (const [projectPath, projectId] of Object.entries(projectIdMap)) {
-            const normalizedPath = HashUtils.normalizePath(projectPath as string);
-            const actualProjectId = projectId as string;
-
-            // 添加到各个映射中
-            this.projectIdMap.set(normalizedPath, actualProjectId);
-            this.pathToProjectMap.set(actualProjectId, normalizedPath);
-            this.collectionMap.set(actualProjectId, collectionMap[actualProjectId]);
-            this.spaceMap.set(actualProjectId, spaceMap[actualProjectId]);
-            this.projectUpdateTimes.set(actualProjectId, this.parseDate(projectUpdateTimes[actualProjectId] || new Date().toISOString()));
-          }
+        // 如果SQLite中没有数据，再从JSON文件加载（向后兼容）
+        if (this.projectIdMap.size === 0) {
+          await this.loadMappingFromJson();
         }
 
         // 成功则退出重试循环
@@ -366,6 +314,109 @@ export class ProjectIdManager {
   }
 
   /**
+   * 从SQLite加载映射
+   */
+  private async loadMappingFromSQLite(): Promise<void> {
+    try {
+      const projects = await this.sqliteProjectManager.listProjectSpaces();
+      
+      this.initializeEmptyMapping();
+      
+      for (const project of projects) {
+        const normalizedPath = HashUtils.normalizePath(project.path);
+        
+        this.projectIdMap.set(normalizedPath, project.id);
+        this.pathToProjectMap.set(project.id, normalizedPath);
+        this.collectionMap.set(project.id, project.collection_name || this.qdrantConfigService.getCollectionNameForProject(project.id));
+        this.spaceMap.set(project.id, project.space_name || this.nebulaConfigService.getSpaceNameForProject(project.id));
+        this.projectUpdateTimes.set(project.id, new Date(project.updated_at));
+      }
+      
+      this.logger.info(`Loaded ${projects.length} project mappings from SQLite`);
+    } catch (error) {
+      this.logger.warn('Failed to load project mappings from SQLite', error);
+      // 不抛出错误，让调用者尝试从JSON加载
+    }
+  }
+
+  /**
+   * 从JSON文件加载映射（向后兼容）
+   */
+  private async loadMappingFromJson(): Promise<void> {
+    const storagePath = this.configService.get('project')?.mappingPath || './data/project-mapping.json';
+    
+    // 检查文件是否存在，如果不存在则创建空文件
+    try {
+      await fs.access(storagePath);
+    } catch (accessError) {
+      // 文件不存在，创建空的JSON文件
+      this.logger.warn(`Project mapping file does not exist at ${storagePath}, creating empty file...`);
+      const dir = path.dirname(storagePath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(storagePath, '[]', 'utf8');
+    }
+    
+    const data = await fs.readFile(storagePath, 'utf8');
+    const rawMapping = JSON.parse(data);
+
+    // 检查是否是旧格式（对象格式）或新格式（数组格式）
+    if (Array.isArray(rawMapping)) {
+      // 新格式：数组格式，每个元素包含完整的映射信息
+      this.initializeEmptyMapping();
+
+      for (const mappingInfo of rawMapping) {
+        // 检查是否是用户期望的格式（包含projectIdMap, collectionMap等）
+        if (mappingInfo.projectIdMap && mappingInfo.collectionMap && mappingInfo.spaceMap &&
+            mappingInfo.pathToProjectMap && mappingInfo.projectUpdateTimes) {
+          // 用户期望的格式
+          for (const [projectPath, projectId] of Object.entries(mappingInfo.projectIdMap)) {
+            const normalizedPath = HashUtils.normalizePath(projectPath as string);
+            const actualProjectId = projectId as string;
+
+            // 添加到各个映射中
+            this.projectIdMap.set(normalizedPath, actualProjectId);
+            this.pathToProjectMap.set(actualProjectId, normalizedPath);
+            this.collectionMap.set(actualProjectId, mappingInfo.collectionMap[actualProjectId]);
+            this.spaceMap.set(actualProjectId, mappingInfo.spaceMap[actualProjectId]);
+            this.projectUpdateTimes.set(actualProjectId, this.parseDate(mappingInfo.projectUpdateTimes[actualProjectId]));
+          }
+        } else {
+          // 原来的数组格式
+          const normalizedPath = HashUtils.normalizePath(mappingInfo.projectPath);
+          this.projectIdMap.set(normalizedPath, mappingInfo.projectId);
+          this.pathToProjectMap.set(mappingInfo.projectId, normalizedPath);
+          this.collectionMap.set(mappingInfo.projectId, mappingInfo.collectionName);
+          this.spaceMap.set(mappingInfo.projectId, mappingInfo.spaceName);
+          this.projectUpdateTimes.set(mappingInfo.projectId, mappingInfo.lastUpdateTime);
+        }
+      }
+    } else {
+      // 旧格式：对象格式，需要转换
+      this.logger.info('Detected old format project mapping, converting to new format');
+      this.initializeEmptyMapping();
+
+      // 从旧格式加载
+      const projectIdMap = rawMapping.projectIdMap || {};
+      const collectionMap = rawMapping.collectionMap || {};
+      const spaceMap = rawMapping.spaceMap || {};
+      const pathToProjectMap = rawMapping.pathToProjectMap || {};
+      const projectUpdateTimes = rawMapping.projectUpdateTimes || {};
+
+      for (const [projectPath, projectId] of Object.entries(projectIdMap)) {
+        const normalizedPath = HashUtils.normalizePath(projectPath as string);
+        const actualProjectId = projectId as string;
+
+        // 添加到各个映射中
+        this.projectIdMap.set(normalizedPath, actualProjectId);
+        this.pathToProjectMap.set(actualProjectId, normalizedPath);
+        this.collectionMap.set(actualProjectId, collectionMap[actualProjectId]);
+        this.spaceMap.set(actualProjectId, spaceMap[actualProjectId]);
+        this.projectUpdateTimes.set(actualProjectId, this.parseDate(projectUpdateTimes[actualProjectId] || new Date().toISOString()));
+      }
+    }
+  }
+
+  /**
    * 初始化空映射
    */
   private initializeEmptyMapping(): void {
@@ -374,6 +425,75 @@ export class ProjectIdManager {
     this.spaceMap = new Map();
     this.pathToProjectMap = new Map();
     this.projectUpdateTimes = new Map();
+  }
+
+  /**
+   * 同步项目到SQLite
+   */
+  private async syncProjectToSQLite(projectId: string, projectPath: string): Promise<void> {
+    try {
+      const collectionName = this.collectionMap.get(projectId) || this.qdrantConfigService.getCollectionNameForProject(projectId);
+      const spaceName = this.spaceMap.get(projectId) || this.nebulaConfigService.getSpaceNameForProject(projectId);
+      const updateTime = this.projectUpdateTimes.get(projectId) || new Date();
+
+      const project = {
+        id: projectId,
+        path: projectPath,
+        name: this.extractProjectName(projectPath),
+        collection_name: collectionName,
+        space_name: spaceName,
+        created_at: updateTime,
+        updated_at: updateTime,
+        status: 'active' as const
+      };
+
+      await this.sqliteProjectManager.createProjectSpace(projectPath, project);
+    } catch (error) {
+      this.logger.warn(`Failed to sync project to SQLite: ${projectId}`, error);
+    }
+  }
+
+  /**
+   * 同步所有项目到SQLite
+   */
+  private async syncAllProjectsToSQLite(): Promise<void> {
+    try {
+      for (const [projectPath, projectId] of this.projectIdMap.entries()) {
+        await this.syncProjectToSQLite(projectId, projectPath);
+      }
+      this.logger.info(`Synced ${this.projectIdMap.size} projects to SQLite`);
+    } catch (error) {
+      this.logger.warn('Failed to sync projects to SQLite', error);
+    }
+  }
+
+  /**
+   * 在SQLite中创建项目
+   */
+  private async createProjectInSQLite(projectId: string, projectPath: string, collectionName: string, spaceName: string): Promise<void> {
+    try {
+      const project = {
+        id: projectId,
+        path: projectPath,
+        name: this.extractProjectName(projectPath),
+        collection_name: collectionName,
+        space_name: spaceName,
+        created_at: new Date(),
+        updated_at: new Date(),
+        status: 'active' as const
+      };
+
+      await this.sqliteProjectManager.createProjectSpace(projectPath, project);
+    } catch (error) {
+      this.logger.warn(`Failed to create project in SQLite: ${projectId}`, error);
+    }
+  }
+
+  /**
+   * 提取项目名称
+   */
+  private extractProjectName(projectPath: string): string {
+    return projectPath.split(/[/\\]/).pop() || 'unknown';
   }
 
 
@@ -469,6 +589,13 @@ export class ProjectIdManager {
     this.pathToProjectMap.delete(projectId);
     this.projectUpdateTimes.delete(projectId);
 
+    // 从SQLite中删除项目
+    try {
+      await this.sqliteProjectManager.deleteProjectSpace(projectPath);
+    } catch (error) {
+      this.logger.warn(`Failed to delete project from SQLite: ${projectPath}`, error);
+    }
+
     // 自动保存映射到文件
     await this.saveMapping();
 
@@ -516,6 +643,15 @@ export class ProjectIdManager {
       removed = true;
     }
 
+    // 从SQLite中删除项目
+    if (projectPath) {
+      try {
+        await this.sqliteProjectManager.deleteProjectSpace(projectPath);
+      } catch (error) {
+        this.logger.warn(`Failed to delete project from SQLite: ${projectPath}`, error);
+      }
+    }
+
     // 如果删除了任何映射，则保存到文件
     if (removed) {
       await this.saveMapping();
@@ -558,6 +694,13 @@ export class ProjectIdManager {
           validProjectUpdateTimes.set(projectId, this.projectUpdateTimes.get(projectId) || new Date());
         } else {
           this.logger.warn(`Removing invalid project mapping: ${projectId} at ${projectPath}`);
+          
+          // 从SQLite中删除无效项目
+          try {
+            await this.sqliteProjectManager.deleteProjectSpace(projectPath);
+          } catch (error) {
+            this.logger.warn(`Failed to delete invalid project from SQLite: ${projectPath}`, error);
+          }
         }
       }
 

@@ -9,6 +9,7 @@ import { ProjectStateValidator } from './utils/ProjectStateValidator';
 import { ProjectStateListenerManager } from './listeners/ProjectStateListenerManager';
 import { CoreStateService } from './services/CoreStateService';
 import { StorageStateService } from './services/StorageStateService';
+import { SqliteStateManager } from '../../database/splite/SqliteStateManager';
 
 export interface ProjectState {
   projectId: string;
@@ -77,7 +78,8 @@ export class ProjectStateManager {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) private configService: ConfigService,
     @inject(TYPES.CoreStateService) private coreStateService: CoreStateService,
-    @inject(TYPES.StorageStateService) private storageStateService: StorageStateService
+    @inject(TYPES.StorageStateService) private storageStateService: StorageStateService,
+    @inject(TYPES.SqliteStateManager) private sqliteStateManager: SqliteStateManager
   ) {
     // 存储路径将在initialize方法中设置
     this.storagePath = './data/project-states.json'; // 默认路径
@@ -130,9 +132,7 @@ export class ProjectStateManager {
       });
     } catch (error) {
       this.errorHandler.handleError(
-        new Error(`Failed to initialize project state
-
- manager: ${error instanceof Error ? error.message : String(error)}`),
+        new Error(`Failed to initialize project state manager: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'ProjectStateManager', operation: 'initialize' }
       );
       throw error;
@@ -143,6 +143,63 @@ export class ProjectStateManager {
    * 加载项目状态
    */
   private async loadProjectStates(): Promise<void> {
+    try {
+      // 首先从SQLite加载
+      await this.loadProjectStatesFromSQLite();
+      
+      // 如果SQLite中没有数据，再从JSON文件加载（向后兼容）
+      if (this.projectStates.size === 0) {
+        await this.loadProjectStatesFromJson();
+      }
+    } catch (error) {
+      this.logger.error('Failed to load project states', error);
+      this.projectStates = new Map();
+    }
+  }
+
+  /**
+   * 从SQLite加载项目状态
+   */
+  private async loadProjectStatesFromSQLite(): Promise<void> {
+    try {
+      const states = await this.sqliteStateManager.getAllProjectStates();
+      
+      this.projectStates = new Map();
+      
+      for (const state of states) {
+        const projectState: ProjectState = {
+          projectId: state.projectId,
+          projectPath: '', // 将在后续步骤中填充
+          name: state.projectId,
+          status: 'active',
+          vectorStatus: state.vectorStatus,
+          graphStatus: state.graphStatus,
+          createdAt: state.lastUpdated,
+          updatedAt: state.lastUpdated,
+          lastIndexedAt: state.lastUpdated,
+          indexingProgress: state.indexingProgress,
+          totalFiles: state.totalFiles,
+          indexedFiles: state.indexedFiles,
+          failedFiles: state.failedFiles,
+          settings: {
+            autoIndex: true,
+            watchChanges: true
+          }
+        };
+        
+        this.projectStates.set(state.projectId, projectState);
+      }
+      
+      this.logger.info(`Loaded ${states.length} project states from SQLite`);
+    } catch (error) {
+      this.logger.warn('Failed to load project states from SQLite', error);
+    }
+  }
+
+  /**
+   * 从JSON文件加载项目状态（向后兼容）
+   */
+  private async loadProjectStatesFromJson(): Promise<void> {
     this.projectStates = await ProjectStateStorageUtils.loadProjectStates(
       this.storagePath,
       this.logger,
@@ -154,6 +211,51 @@ export class ProjectStateManager {
    * 保存项目状态
    */
   private async saveProjectStates(): Promise<void> {
+    try {
+      // 保存到SQLite
+      await this.saveProjectStatesToSQLite();
+      
+      // 同时保存到JSON文件作为备份（向后兼容）
+      await this.saveProjectStatesToJson();
+    } catch (error) {
+      this.logger.error('Failed to save project states', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 保存项目状态到SQLite
+   */
+  private async saveProjectStatesToSQLite(): Promise<void> {
+    try {
+      const states = Array.from(this.projectStates.values()).map(state => ({
+        projectId: state.projectId,
+        vectorStatus: state.vectorStatus,
+        graphStatus: state.graphStatus,
+        indexingProgress: state.indexingProgress || 0,
+        totalFiles: state.totalFiles || 0,
+        indexedFiles: state.indexedFiles || 0,
+        failedFiles: state.failedFiles || 0,
+        lastUpdated: state.updatedAt
+      }));
+      
+      const success = await this.sqliteStateManager.batchSaveProjectStates(states);
+      
+      if (success) {
+        this.logger.info(`Saved ${states.length} project states to SQLite`);
+      } else {
+        this.logger.warn('Failed to save project states to SQLite');
+      }
+    } catch (error) {
+      this.logger.error('Failed to save project states to SQLite', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 保存项目状态到JSON文件（向后兼容）
+   */
+  private async saveProjectStatesToJson(): Promise<void> {
     await ProjectStateStorageUtils.saveProjectStates(
       this.projectStates,
       this.storagePath,
@@ -182,7 +284,7 @@ export class ProjectStateManager {
       options
     );
 
-    // 保存状态
+    // 保存状态到SQLite和JSON
     await this.saveProjectStates();
 
     // 更新监听器管理器的项目状态引用
@@ -219,7 +321,17 @@ export class ProjectStateManager {
    */
   private async updateProjectStatus(projectId: string, status: ProjectState['status']): Promise<void> {
     await this.coreStateService.updateProjectStatus(this.projectStates, projectId, status, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    const state = this.projectStates.get(projectId);
+    if (state) {
+      await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+        vectorStatus: { ...state.vectorStatus, status },
+        graphStatus: { ...state.graphStatus, status }
+      });
+    }
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -227,7 +339,14 @@ export class ProjectStateManager {
    */
   private async updateProjectIndexingProgress(projectId: string, progress: number): Promise<void> {
     await this.coreStateService.updateProjectIndexingProgress(this.projectStates, projectId, progress, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    const state = this.projectStates.get(projectId);
+    if (state) {
+      await this.sqliteStateManager.updateProjectStateFields(projectId, { indexingProgress: progress });
+    }
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -235,7 +354,12 @@ export class ProjectStateManager {
    */
   private async updateProjectLastIndexed(projectId: string): Promise<void> {
     await this.coreStateService.updateProjectLastIndexed(this.projectStates, projectId, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    const now = new Date();
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { lastUpdated: now });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -252,7 +376,11 @@ export class ProjectStateManager {
   async deleteProjectState(projectId: string): Promise<boolean> {
     const result = await this.coreStateService.deleteProjectState(this.projectStates, projectId, this.storagePath);
     if (result) {
-      await this.saveProjectStates();
+      // 从SQLite中删除
+      await this.sqliteStateManager.deleteProjectState(projectId);
+      
+      await this.saveProjectStatesToJson(); // 保持JSON备份
+      
       // 更新监听器管理器的项目状态引用
       if (this.listenerManager) {
         this.listenerManager.updateProjectStatesReference(this.projectStates);
@@ -288,7 +416,6 @@ export class ProjectStateManager {
       return false;
     }
   }
-
 
 
 
@@ -364,7 +491,16 @@ export class ProjectStateManager {
    */
   async updateVectorStatus(projectId: string, status: Partial<StorageStatus>): Promise<void> {
     await this.storageStateService.updateVectorStatus(this.projectStates, projectId, status, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    const state = this.projectStates.get(projectId);
+    if (state) {
+      await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+        vectorStatus: { ...state.vectorStatus, ...status }
+      });
+    }
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -372,7 +508,16 @@ export class ProjectStateManager {
    */
   async updateGraphStatus(projectId: string, status: Partial<StorageStatus>): Promise<void> {
     await this.storageStateService.updateGraphStatus(this.projectStates, projectId, status, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    const state = this.projectStates.get(projectId);
+    if (state) {
+      await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+        graphStatus: { ...state.graphStatus, ...status }
+      });
+    }
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -394,7 +539,13 @@ export class ProjectStateManager {
    */
   async resetVectorStatus(projectId: string): Promise<void> {
     await this.storageStateService.resetVectorStatus(this.projectStates, projectId, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步重置到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      vectorStatus: { status: 'pending', progress: 0, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -402,7 +553,13 @@ export class ProjectStateManager {
    */
   async resetGraphStatus(projectId: string): Promise<void> {
     await this.storageStateService.resetGraphStatus(this.projectStates, projectId, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步重置到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      graphStatus: { status: 'pending', progress: 0, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -410,7 +567,13 @@ export class ProjectStateManager {
    */
   async startVectorIndexing(projectId: string, totalFiles?: number): Promise<void> {
     await this.storageStateService.startVectorIndexing(this.projectStates, projectId, totalFiles, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      vectorStatus: { status: 'indexing', progress: 0, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -418,7 +581,13 @@ export class ProjectStateManager {
    */
   async startGraphIndexing(projectId: string, totalFiles?: number): Promise<void> {
     await this.storageStateService.startGraphIndexing(this.projectStates, projectId, totalFiles, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      graphStatus: { status: 'indexing', progress: 0, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -426,7 +595,13 @@ export class ProjectStateManager {
    */
   async updateVectorIndexingProgress(projectId: string, progress: number, processedFiles?: number, failedFiles?: number): Promise<void> {
     await this.storageStateService.updateVectorIndexingProgress(this.projectStates, projectId, progress, processedFiles, failedFiles, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      vectorStatus: { progress, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -434,7 +609,13 @@ export class ProjectStateManager {
    */
   async updateGraphIndexingProgress(projectId: string, progress: number, processedFiles?: number, failedFiles?: number): Promise<void> {
     await this.storageStateService.updateGraphIndexingProgress(this.projectStates, projectId, progress, processedFiles, failedFiles, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      graphStatus: { progress, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -442,7 +623,13 @@ export class ProjectStateManager {
    */
   async completeVectorIndexing(projectId: string): Promise<void> {
     await this.storageStateService.completeVectorIndexing(this.projectStates, projectId, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      vectorStatus: { status: 'completed', progress: 100, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -450,7 +637,13 @@ export class ProjectStateManager {
    */
   async completeGraphIndexing(projectId: string): Promise<void> {
     await this.storageStateService.completeGraphIndexing(this.projectStates, projectId, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      graphStatus: { status: 'completed', progress: 100, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -458,7 +651,13 @@ export class ProjectStateManager {
    */
   async failVectorIndexing(projectId: string, error: string): Promise<void> {
     await this.storageStateService.failVectorIndexing(this.projectStates, projectId, error, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      vectorStatus: { status: 'error', error, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**
@@ -466,14 +665,26 @@ export class ProjectStateManager {
    */
   async failGraphIndexing(projectId: string, error: string): Promise<void> {
     await this.storageStateService.failGraphIndexing(this.projectStates, projectId, error, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      graphStatus: { status: 'error', error, lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
   /**
    * 禁用图索引
    */
   async disableGraphIndexing(projectId: string): Promise<void> {
     await this.storageStateService.disableGraphIndexing(this.projectStates, projectId, this.storagePath);
-    await this.saveProjectStates();
+    
+    // 同步更新到SQLite
+    await this.sqliteStateManager.updateProjectStateFields(projectId, { 
+      graphStatus: { status: 'disabled', lastUpdated: new Date() }
+    });
+    
+    await this.saveProjectStatesToJson(); // 保持JSON备份
   }
 
   /**

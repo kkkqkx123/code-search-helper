@@ -349,4 +349,10 @@ export const TYPES = {
   // SQLite迁移服务
   JsonToSqliteMigrator: Symbol.for('JsonToSqliteMigrator'),
   MigrationOrchestrator: Symbol.for('MigrationOrchestrator'),
+  
+  // SQLite状态管理服务
+  SqliteStateManager: Symbol.for('SqliteStateManager'),
+  
+  // 文件哈希管理服务
+  FileHashManager: Symbol.for('FileHashManager'),
 };

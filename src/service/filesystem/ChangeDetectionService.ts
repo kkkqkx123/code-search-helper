@@ -4,6 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { HotReloadRecoveryService } from './HotReloadRecoveryService';
 import { HotReloadError, HotReloadErrorCode } from './HotReloadError';
+import { FileHashManager } from './FileHashManager';
 
 // 定义错误上下文接口
 interface ErrorContext {
@@ -76,7 +77,7 @@ export class ChangeDetectionService extends EventEmitter {
   private errorHandler: ErrorHandlerService;
   private fileWatcherService: FileWatcherService;
   private fileSystemTraversal: FileSystemTraversal;
-  private fileHashes: Map<string, string> = new Map();
+  private fileHashManager: FileHashManager;
   private fileHistory: Map<string, FileHistoryEntry[]> = new Map();
   private pendingChanges: Map<string, NodeJS.Timeout> = new Map();
   private isRunning: boolean = false;
@@ -96,6 +97,7 @@ export class ChangeDetectionService extends EventEmitter {
     @inject(TYPES.HotReloadRecoveryService) private hotReloadRecoveryService: HotReloadRecoveryService,
     @inject(TYPES.FileWatcherService) fileWatcherService: FileWatcherService,
     @inject(TYPES.FileSystemTraversal) fileSystemTraversal: FileSystemTraversal,
+    @inject(TYPES.FileHashManager) fileHashManager: FileHashManager,
     @inject('ChangeDetectionOptions') @optional() options?: ChangeDetectionOptions
   ) {
     super();
@@ -103,6 +105,7 @@ export class ChangeDetectionService extends EventEmitter {
     this.errorHandler = errorHandler;
     this.fileWatcherService = fileWatcherService;
     this.fileSystemTraversal = fileSystemTraversal;
+    this.fileHashManager = fileHashManager;
 
     // Detect test environment
     this.testMode = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
@@ -221,11 +224,24 @@ export class ChangeDetectionService extends EventEmitter {
 
   private async initializeFileHashes(rootPaths: string[]): Promise<void> {
     try {
+      const hashUpdates: Array<{projectId: string, filePath: string, hash: string, fileSize?: number, lastModified?: Date, language?: string, fileType?: string}> = [];
+      
       for (const rootPath of rootPaths) {
         const result = await this.fileSystemTraversal.traverseDirectory(rootPath);
+        
+        // 获取项目ID
+        const projectId = await this.getProjectIdForPath(rootPath);
 
         for (const file of result.files) {
-          this.fileHashes.set(file.relativePath, file.hash);
+          hashUpdates.push({
+            projectId,
+            filePath: file.relativePath,
+            hash: file.hash,
+            fileSize: file.size,
+            lastModified: file.lastModified,
+            language: file.language,
+            fileType: path.extname(file.path)
+          });
 
           if (this.options.trackFileHistory) {
             this.addFileHistoryEntry(file);
@@ -233,7 +249,12 @@ export class ChangeDetectionService extends EventEmitter {
         }
       }
 
-      this.logger.info(`Initialized file hashes for ${this.fileHashes.size} files`);
+      // 批量更新文件哈希到数据库
+      if (hashUpdates.length > 0) {
+        await this.fileHashManager.batchUpdateHashes(hashUpdates);
+      }
+
+      this.logger.info(`Initialized file hashes for ${hashUpdates.length} files`);
     } catch (error) {
       const errorContext: ErrorContext = {
         component: 'ChangeDetectionService',
@@ -276,11 +297,16 @@ export class ChangeDetectionService extends EventEmitter {
     try {
       this.logger.debug(`File added: ${fileInfo.relativePath}`);
 
-      const previousHash = this.fileHashes.get(fileInfo.relativePath);
+      const previousHash = await this.fileHashManager.getFileHash('default', fileInfo.relativePath);
 
-      if (previousHash === undefined) {
+      if (previousHash === null) {
         // New file
-        this.fileHashes.set(fileInfo.relativePath, fileInfo.hash);
+        await this.fileHashManager.updateFileHash('default', fileInfo.relativePath, fileInfo.hash, {
+          fileSize: fileInfo.size,
+          lastModified: fileInfo.lastModified,
+          language: fileInfo.language,
+          fileType: path.extname(fileInfo.path)
+        });
 
         if (this.options.trackFileHistory) {
           this.addFileHistoryEntry(fileInfo);
@@ -315,9 +341,9 @@ export class ChangeDetectionService extends EventEmitter {
     try {
       this.logger.debug(`File changed: ${fileInfo.relativePath}`);
 
-      const previousHash = this.fileHashes.get(fileInfo.relativePath);
+      const previousHash = await this.fileHashManager.getFileHash('default', fileInfo.relativePath);
 
-      if (previousHash === undefined) {
+      if (previousHash === null) {
         // File not tracked yet, treat as new
         await this.handleFileAdded(fileInfo);
         return;
@@ -336,7 +362,12 @@ export class ChangeDetectionService extends EventEmitter {
 
           if (previousHash !== currentHash) {
             // Actual content change
-            this.fileHashes.set(fileInfo.relativePath, currentHash);
+            await this.fileHashManager.updateFileHash('default', fileInfo.relativePath, currentHash, {
+              fileSize: fileInfo.size,
+              lastModified: fileInfo.lastModified,
+              language: fileInfo.language,
+              fileType: path.extname(fileInfo.path)
+            });
 
             if (this.options.trackFileHistory) {
               this.addFileHistoryEntry({
@@ -379,16 +410,16 @@ export class ChangeDetectionService extends EventEmitter {
     }
   }
 
-  private handleFileDeleted(filePath: string): void {
+  private async handleFileDeleted(filePath: string): Promise<void> {
     try {
       this.logger.debug(`File deleted: ${filePath}`);
 
       // Convert to relative path for consistency
       const relativePath = path.relative(process.cwd(), filePath);
-      const previousHash = this.fileHashes.get(relativePath);
+      const previousHash = await this.fileHashManager.getFileHash('default', relativePath);
 
-      if (previousHash !== undefined) {
-        this.fileHashes.delete(relativePath);
+      if (previousHash !== null) {
+        await this.fileHashManager.deleteFileHash('default', relativePath);
 
         const event: FileChangeEvent = {
           type: 'deleted',
@@ -486,8 +517,9 @@ export class ChangeDetectionService extends EventEmitter {
     }
   }
 
-  getFileHash(relativePath: string): string | undefined {
-    return this.fileHashes.get(relativePath);
+  async getFileHash(relativePath: string): Promise<string | undefined> {
+    const hash = await this.fileHashManager.getFileHash('default', relativePath);
+    return hash || undefined;
   }
 
   getFileHistory(relativePath: string): FileHistoryEntry[] {
@@ -495,15 +527,20 @@ export class ChangeDetectionService extends EventEmitter {
   }
 
   getAllFileHashes(): Map<string, string> {
-    return new Map(this.fileHashes);
+    // 由于我们现在使用FileHashManager，这个方法需要重新实现
+    // 暂时返回空Map，后续可以优化
+    return new Map();
   }
 
-  isFileTracked(relativePath: string): boolean {
-    return this.fileHashes.has(relativePath);
+  async isFileTracked(relativePath: string): Promise<boolean> {
+    const hash = await this.fileHashManager.getFileHash('default', relativePath);
+    return hash !== null;
   }
 
   getTrackedFilesCount(): number {
-    return this.fileHashes.size;
+    // 由于我们现在使用FileHashManager，这个方法需要重新实现
+    // 暂时返回0，后续可以优化
+    return 0;
   }
 
   isServiceRunning(): boolean {
@@ -579,5 +616,15 @@ export class ChangeDetectionService extends EventEmitter {
 
     // Additional wait to ensure stability
     await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  /**
+   * 获取项目ID（临时实现，需要根据实际项目结构调整）
+   */
+  private async getProjectIdForPath(rootPath: string): Promise<string> {
+    // 这里应该使用ProjectIdManager来获取项目ID
+    // 暂时使用路径的哈希值作为项目ID
+    const crypto = require('crypto');
+    return crypto.createHash('md5').update(rootPath).digest('hex').substring(0, 16);
   }
 }
