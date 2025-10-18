@@ -64,7 +64,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
     @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager,
     @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder,
     @inject(TYPES.INebulaDataOperations) dataOperations: INebulaDataOperations,
-    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
+    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
   ) {
     this.databaseLogger = databaseLogger;

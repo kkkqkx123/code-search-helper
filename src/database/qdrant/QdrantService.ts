@@ -58,7 +58,7 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
     @inject(TYPES.IQdrantQueryUtils) queryUtils: IQdrantQueryUtils,
     @inject(TYPES.IQdrantProjectManager) projectManager: IQdrantProjectManager,
     @inject(TYPES.DatabaseLoggerService) private databaseLogger: DatabaseLoggerService,
-    @inject(TYPES.PerformanceMonitor) private performanceMonitor: PerformanceMonitor
+    @inject(TYPES.DatabasePerformanceMonitor) private performanceMonitor: PerformanceMonitor
   ) {
     // 调用父类构造函数，提供必要的依赖
     super(

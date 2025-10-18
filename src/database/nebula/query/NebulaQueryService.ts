@@ -31,7 +31,7 @@ export class NebulaQueryService implements INebulaQueryService {
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
+    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.NebulaConfigService) configService: NebulaConfigService,
     @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager
   ) {

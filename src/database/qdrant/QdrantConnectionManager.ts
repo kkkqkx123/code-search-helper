@@ -56,7 +56,7 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
-    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
+    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;

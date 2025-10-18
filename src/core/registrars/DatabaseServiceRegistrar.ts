@@ -17,7 +17,7 @@ import { QdrantProjectManager } from '../../database/qdrant/QdrantProjectManager
 // 数据库日志和监控服务
 import { DatabaseLoggerService } from '../../database/common/DatabaseLoggerService';
 import { EventToLogBridge } from '../../database/common/EventToLogBridge';
-
+import { PerformanceMonitor } from '../../database/common/PerformanceMonitor';
 
 // 图数据库服务
 import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService';
@@ -69,7 +69,8 @@ export class DatabaseServiceRegistrar {
       // 数据库日志和监控服务
       container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
       container.bind<EventToLogBridge>(TYPES.EventToLogBridge).to(EventToLogBridge).inSingletonScope();
-      // PerformanceMonitor 已在 InfrastructureServiceRegistrar 中绑定，避免重复绑定
+      // 数据库层的PerformanceMonitor，使用独立的符号避免与基础设施层冲突
+      container.bind<PerformanceMonitor>(TYPES.DatabasePerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
 
       // Qdrant 向量数据库服务
       container.bind<QdrantConnectionManager>(TYPES.IQdrantConnectionManager).to(QdrantConnectionManager).inSingletonScope();
@@ -91,6 +92,7 @@ export class DatabaseServiceRegistrar {
       container.bind<NebulaConnectionManager>(TYPES.NebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
       container.bind<INebulaConnectionManager>(TYPES.INebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
       container.bind<NebulaSpaceManager>(TYPES.INebulaSpaceManager).to(NebulaSpaceManager).inSingletonScope();
+      container.bind<INebulaSpaceManager>(TYPES.INebulaSpaceManager).to(NebulaSpaceManager).inSingletonScope();
       container.bind<NebulaQueryBuilder>(TYPES.NebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
       container.bind<INebulaQueryBuilder>(TYPES.INebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
       container.bind<NebulaGraphOperations>(TYPES.INebulaGraphOperations).to(NebulaGraphOperations).inSingletonScope();

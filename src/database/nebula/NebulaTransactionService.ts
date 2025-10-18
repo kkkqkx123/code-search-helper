@@ -28,7 +28,7 @@ export class NebulaTransactionService implements INebulaTransactionService {
     @inject(TYPES.NebulaQueryService) queryService: INebulaQueryService,
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
+    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.queryService = queryService;
     this.databaseLogger = databaseLogger;

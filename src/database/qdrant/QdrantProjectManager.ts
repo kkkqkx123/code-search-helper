@@ -72,7 +72,7 @@ export class QdrantProjectManager implements IQdrantProjectManager {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
-    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
+    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
     @inject(TYPES.IQdrantCollectionManager) collectionManager: IQdrantCollectionManager,
     @inject(TYPES.IQdrantVectorOperations) vectorOperations: IQdrantVectorOperations,

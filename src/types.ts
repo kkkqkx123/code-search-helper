@@ -268,6 +268,7 @@ export const TYPES = {
   DatabaseLoggerService: Symbol.for('DatabaseLoggerService'),
   EventToLogBridge: Symbol.for('EventToLogBridge'),
   PerformanceMonitor: Symbol.for('PerformanceMonitor'),
+  DatabasePerformanceMonitor: Symbol.for('DatabasePerformanceMonitor'),
 
   // 基础设施服务
   CacheService: Symbol.for('CacheService'),
