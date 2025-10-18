@@ -327,8 +327,30 @@ export class ProjectIdManager {
         
         this.projectIdMap.set(normalizedPath, project.id);
         this.pathToProjectMap.set(project.id, normalizedPath);
-        this.collectionMap.set(project.id, project.collection_name || this.qdrantConfigService.getCollectionNameForProject(project.id));
-        this.spaceMap.set(project.id, project.space_name || this.nebulaConfigService.getSpaceNameForProject(project.id));
+        
+        // 使用默认值如果collection_name或space_name为空
+        let collectionName = project.collection_name;
+        if (!collectionName) {
+          try {
+            collectionName = this.qdrantConfigService.getCollectionNameForProject(project.id);
+          } catch (error) {
+            this.logger.warn(`Failed to generate collection name for project ${project.id}, using default`);
+            collectionName = `project_${project.id}`;
+          }
+        }
+        
+        let spaceName = project.space_name;
+        if (!spaceName) {
+          try {
+            spaceName = this.nebulaConfigService.getSpaceNameForProject(project.id);
+          } catch (error) {
+            this.logger.warn(`Failed to generate space name for project ${project.id}, using default`);
+            spaceName = `project_${project.id}`;
+          }
+        }
+        
+        this.collectionMap.set(project.id, collectionName);
+        this.spaceMap.set(project.id, spaceName);
         this.projectUpdateTimes.set(project.id, new Date(project.updated_at));
       }
       
@@ -472,18 +494,13 @@ export class ProjectIdManager {
    */
   private async createProjectInSQLite(projectId: string, projectPath: string, collectionName: string, spaceName: string): Promise<void> {
     try {
-      const project = {
-        id: projectId,
-        path: projectPath,
+      const config = {
         name: this.extractProjectName(projectPath),
-        collection_name: collectionName,
-        space_name: spaceName,
-        created_at: new Date(),
-        updated_at: new Date(),
-        status: 'active' as const
+        collectionName: collectionName,
+        spaceName: spaceName
       };
 
-      await this.sqliteProjectManager.createProjectSpace(projectPath, project);
+      await this.sqliteProjectManager.createProjectSpace(projectPath, config);
     } catch (error) {
       this.logger.warn(`Failed to create project in SQLite: ${projectId}`, error);
     }

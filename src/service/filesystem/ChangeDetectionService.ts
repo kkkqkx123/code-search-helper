@@ -14,6 +14,7 @@ interface ErrorContext {
 }
 import { FileWatcherService, FileWatcherCallbacks } from './FileWatcherService';
 import { FileSystemTraversal, FileInfo } from './FileSystemTraversal';
+import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { TYPES } from '../../types';
 import * as path from 'path';
 
@@ -98,6 +99,7 @@ export class ChangeDetectionService extends EventEmitter {
     @inject(TYPES.FileWatcherService) fileWatcherService: FileWatcherService,
     @inject(TYPES.FileSystemTraversal) fileSystemTraversal: FileSystemTraversal,
     @inject(TYPES.FileHashManager) fileHashManager: FileHashManager,
+    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject('ChangeDetectionOptions') @optional() options?: ChangeDetectionOptions
   ) {
     super();
@@ -146,6 +148,9 @@ export class ChangeDetectionService extends EventEmitter {
 
     try {
       this.logger.info('Initializing ChangeDetectionService', { rootPaths, options: this.options });
+
+      // 等待ProjectIdManager完成加载
+      await this.waitForProjectIdManager();
 
       // Initialize file hashes for existing files
       await this.initializeFileHashes(rootPaths);
@@ -547,6 +552,15 @@ export class ChangeDetectionService extends EventEmitter {
     return this.isRunning;
   }
 
+  /**
+   * 等待ProjectIdManager完成加载
+   */
+  private async waitForProjectIdManager(): Promise<void> {
+    // 简单的等待实现，实际项目中可能需要更复杂的同步机制
+    // 这里我们只是等待一段时间确保ProjectIdManager完成初始化
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
   getStats() {
     return { ...this.stats };
   }
@@ -619,12 +633,17 @@ export class ChangeDetectionService extends EventEmitter {
   }
 
   /**
-   * 获取项目ID（临时实现，需要根据实际项目结构调整）
+   * 获取项目ID
    */
   private async getProjectIdForPath(rootPath: string): Promise<string> {
-    // 这里应该使用ProjectIdManager来获取项目ID
-    // 暂时使用路径的哈希值作为项目ID
-    const crypto = require('crypto');
-    return crypto.createHash('md5').update(rootPath).digest('hex').substring(0, 16);
+    // 使用ProjectIdManager来获取项目ID
+    let projectId = this.projectIdManager.getProjectId(rootPath);
+    
+    // 如果项目ID不存在，创建一个新的
+    if (!projectId) {
+      projectId = await this.projectIdManager.generateProjectId(rootPath);
+    }
+    
+    return projectId;
   }
 }

@@ -13,3 +13,4 @@ ref
 **/repomix-output.xml
 test-data
 **/*.db
+**/*.db-*

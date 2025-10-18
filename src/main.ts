@@ -20,6 +20,7 @@ import { NebulaService } from './database/nebula/NebulaService';
 import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
 import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
+import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
 
 // 添加详细的错误处理
 process.on('uncaughtException', (error) => {
@@ -95,7 +96,8 @@ class Application {
     @inject(TYPES.NebulaConnectionMonitor) private nebulaConnectionMonitor: NebulaConnectionMonitor,
     @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.HotReloadRestartService) private hotReloadRestartService: HotReloadRestartService
+    @inject(TYPES.HotReloadRestartService) private hotReloadRestartService: HotReloadRestartService,
+    @inject(TYPES.SqliteDatabaseService) private sqliteService: SqliteDatabaseService
   ) {
     // 创建一个 Logger 实例，用于整个应用
     this.logger = new Logger('code-search-helper');
@@ -142,6 +144,11 @@ class Application {
       await this.projectStateManager.initialize();
 
       // 初始化数据库服务
+      // 初始化SQLite数据库服务
+      await this.loggerService.info('Initializing SQLite database service...');
+      await this.sqliteService.initialize();
+      await this.loggerService.info('SQLite database service initialized successfully');
+
       await this.loggerService.info('Initializing database services...');
       const dbConnected = await this.qdrantService.initialize();
       if (dbConnected) {
@@ -191,7 +198,7 @@ class Application {
 
       // Initialize hot reload services with restart recovery
       await this.loggerService.info('Initializing hot reload services with restart recovery...');
-      
+
       // 首先处理重启恢复逻辑
       try {
         await this.hotReloadRestartService.handleApplicationRestart();
@@ -200,7 +207,7 @@ class Application {
         await this.loggerService.error('Failed to handle hot reload restart recovery:', error);
         // 继续执行，因为这不应该阻止应用启动
       }
-      
+
       // Check if hot reload is enabled via configuration
       // 直接启用热重载，因为目前没有专门的配置项
       const hotReloadEnabled = true;
@@ -208,23 +215,23 @@ class Application {
         try {
           // 获取项目根路径（使用当前工作目录作为项目路径）
           const projectPath = process.cwd();
-          
+
           // 检查项目是否已索引，如果未索引则启动索引
           const projectId = this.projectIdManager.getProjectId(projectPath);
           if (!projectId) {
             await this.loggerService.info('Project not indexed, starting indexing process...');
-            
+
             // 初始化变更检测服务
             await this.changeDetectionService.initialize([projectPath]);
             await this.loggerService.info('Change Detection Service initialized successfully');
-            
+
             // 开始索引项目（这将自动启用热更新，如果配置了enableHotReload）
             await this.indexService.startIndexing(projectPath, { enableHotReload: true });
             await this.loggerService.info('Project indexing started with hot reload enabled');
           } else {
             // 项目已存在，但可能没有激活热更新，检查是否需要激活
             await this.loggerService.info('Project already indexed, checking hot reload status...');
-            
+
             // 尝试为已索引的项目启用热更新
             await this.indexService.startProjectWatching(projectPath);
             await this.loggerService.info('Project watching started for hot reload');
@@ -312,24 +319,24 @@ class Application {
 
       // 关闭MCP服务器
       await this.mcpServer.stop();
-// 保存热更新重启状态
-try {
-  await this.hotReloadRestartService.saveCurrentState();
-  await this.loggerService.info('Hot reload restart state saved');
-} catch (error) {
-  await this.loggerService.error('Error saving hot reload restart state:', error);
-}
+      // 保存热更新重启状态
+      try {
+        await this.hotReloadRestartService.saveCurrentState();
+        await this.loggerService.info('Hot reload restart state saved');
+      } catch (error) {
+        await this.loggerService.error('Error saving hot reload restart state:', error);
+      }
 
-// 关闭变更检测服务
-try {
-  if (this.changeDetectionService.isServiceRunning()) {
-    await this.loggerService.info('Stopping Change Detection Service...');
-    await this.changeDetectionService.stop();
-    await this.loggerService.info('Change Detection Service stopped');
-  }
-} catch (error) {
-  await this.loggerService.error('Error stopping Change Detection Service:', error);
-}
+      // 关闭变更检测服务
+      try {
+        if (this.changeDetectionService.isServiceRunning()) {
+          await this.loggerService.info('Stopping Change Detection Service...');
+          await this.changeDetectionService.stop();
+          await this.loggerService.info('Change Detection Service stopped');
+        }
+      } catch (error) {
+        await this.loggerService.error('Error stopping Change Detection Service:', error);
+      }
 
 
       this.currentPhase = ApplicationLifecyclePhase.STOPPED;
@@ -376,6 +383,7 @@ class ApplicationFactory {
     const changeDetectionService = diContainer.get<ChangeDetectionService>(TYPES.ChangeDetectionService);
     const projectIdManager = diContainer.get<ProjectIdManager>(TYPES.ProjectIdManager);
     const hotReloadRestartService = diContainer.get<HotReloadRestartService>(TYPES.HotReloadRestartService);
+    const sqliteService = diContainer.get<SqliteDatabaseService>(TYPES.SqliteDatabaseService);
 
     return new Application(
       configService,
@@ -391,7 +399,8 @@ class ApplicationFactory {
       nebulaConnectionMonitor,
       changeDetectionService,
       projectIdManager,
-      hotReloadRestartService
+      hotReloadRestartService,
+      sqliteService
     );
   }
 }
