@@ -1,16 +1,26 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { injectable, inject, unmanaged } from 'inversify';
+import { TYPES } from '../../types';
+import { LoggerService } from '../../utils/LoggerService';
 
 /**
  * SQLite数据库服务类
  * 提供数据库连接管理和基本操作
  */
+@injectable()
 export class SqliteDatabaseService {
   private db: Database.Database | null = null;
   private dbPath: string;
+  private logger: LoggerService;
 
-  constructor(dbPath?: string) {
+  constructor(
+    @inject(TYPES.LoggerService) logger: LoggerService,
+  @unmanaged() 
+    dbPath?: string
+  ) {
+    this.logger = logger;
     this.dbPath = dbPath || path.join(process.cwd(), 'data', 'code-search-helper.db');
     this.ensureDataDirectory();
   }
@@ -37,9 +47,9 @@ export class SqliteDatabaseService {
       this.db = new Database(this.dbPath);
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('foreign_keys = ON');
-      console.log(`SQLite数据库连接成功: ${this.dbPath}`);
+      this.logger.info(`SQLite数据库连接成功: ${this.dbPath}`);
     } catch (error) {
-      console.error('SQLite数据库连接失败:', error);
+      this.logger.error('SQLite数据库连接失败:', error);
       throw error;
     }
   }
@@ -51,7 +61,7 @@ export class SqliteDatabaseService {
     if (this.db) {
       this.db.close();
       this.db = null;
-      console.log('SQLite数据库连接已关闭');
+      this.logger.info('SQLite数据库连接已关闭');
     }
   }
 
@@ -157,7 +167,7 @@ export class SqliteDatabaseService {
     db.exec('CREATE INDEX IF NOT EXISTS idx_change_history_project ON file_change_history(project_id, timestamp)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_change_history_file ON file_change_history(file_path, timestamp)');
 
-    console.log('数据库表结构初始化完成');
+    this.logger.info('数据库表结构初始化完成');
   }
 
   /**
@@ -206,17 +216,17 @@ export class SqliteDatabaseService {
     if (!this.isConnected()) {
       throw new Error('数据库未连接，无法执行备份');
     }
-    
+
     // 先关闭数据库连接以避免文件锁定
     const db = this.db;
     this.db = null;
-    
+
     try {
       // 使用文件复制进行备份
       fs.copyFileSync(this.dbPath, backupPath);
-      console.log(`数据库备份完成: ${backupPath}`);
+      this.logger.info(`数据库备份完成: ${backupPath}`);
     } catch (error) {
-      console.error('数据库备份失败:', error);
+      this.logger.error('数据库备份失败:', error);
       throw error;
     } finally {
       // 恢复数据库连接
@@ -236,18 +246,18 @@ export class SqliteDatabaseService {
     tableSizes?: Record<string, number>;
   } {
     const db = this.getDatabase();
-    
+
     const projects = db.prepare('SELECT COUNT(*) as count FROM projects').get() as { count: number };
     const fileStates = db.prepare('SELECT COUNT(*) as count FROM file_index_states').get() as { count: number };
     const projectStatus = db.prepare('SELECT COUNT(*) as count FROM project_status').get() as { count: number };
     const changeHistory = db.prepare('SELECT COUNT(*) as count FROM file_change_history').get() as { count: number };
-    
+
     let databaseSize = 0;
     try {
       const stats = fs.statSync(this.dbPath);
       databaseSize = stats.size;
     } catch (error) {
-      console.warn('无法获取数据库文件大小:', error);
+      this.logger.warn('无法获取数据库文件大小:', error);
     }
 
     // 获取表大小信息
@@ -259,7 +269,7 @@ export class SqliteDatabaseService {
         tableSizes[table.name] = count.count;
       }
     } catch (error) {
-      console.warn('无法获取表大小信息:', error);
+      this.logger.warn('无法获取表大小信息:', error);
     }
 
     return {
@@ -279,7 +289,7 @@ export class SqliteDatabaseService {
     if (this.isConnected()) {
       return;
     }
-    
+
     this.connect();
     this.initializeTables();
   }
@@ -294,5 +304,5 @@ export class SqliteDatabaseService {
   }
 }
 
-// 创建单例实例
-export const sqliteDatabaseService = new SqliteDatabaseService();
+// 注意：单例实例已移除，请使用DI容器获取实例
+// export const sqliteDatabaseService = new SqliteDatabaseService();

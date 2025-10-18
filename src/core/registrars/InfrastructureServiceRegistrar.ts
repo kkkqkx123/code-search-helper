@@ -28,11 +28,25 @@ import { InfrastructureConfigService } from '../../infrastructure/config/Infrast
 // 向量批处理优化器
 import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
 
+// SQLite基础设施
+import { SqliteInfrastructure } from '../../infrastructure/implementations/SqliteInfrastructure';
+
 // Cleanup基础设施服务
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
+
+// 基础设施服务
+import { CacheService } from '../../infrastructure/caching/CacheService';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
+import { BatchOptimizer } from '../../infrastructure/batching/BatchOptimizer';
+import { DatabaseHealthChecker } from '../../infrastructure/monitoring/DatabaseHealthChecker';
+import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
+import { TransactionCoordinator } from '../../infrastructure/transaction/TransactionCoordinator';
 import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
 import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
 import { GarbageCollectionStrategy } from '../../infrastructure/cleanup/strategies/GarbageCollectionStrategy';
+
+// 基础设施管理器
+import { InfrastructureManager } from '../../infrastructure/InfrastructureManager';
 
 export class InfrastructureServiceRegistrar {
   static register(container: Container): void {
@@ -46,7 +60,7 @@ export class InfrastructureServiceRegistrar {
       container.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
       container.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
       container.bind<MappingCacheManager>(TYPES.MappingCacheManager).to(MappingCacheManager).inSingletonScope();
-      
+
       // 绑定CacheConfig，从GraphCacheConfigService获取配置
       container.bind<any>(TYPES.CacheConfig).toDynamicValue(context => {
         const graphCacheConfigService = context.get<GraphCacheConfigService>(TYPES.GraphCacheConfigService);
@@ -146,6 +160,44 @@ export class InfrastructureServiceRegistrar {
 
         return cleanupManager;
       }).inSingletonScope();
+
+      // 基础设施核心服务（在CleanupManager外部注册，确保正确的依赖顺序）
+      container.bind<CacheService>(TYPES.CacheService).to(CacheService).inSingletonScope();
+      container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
+      container.bind<BatchOptimizer>(TYPES.BatchOptimizer).to(BatchOptimizer).inSingletonScope();
+      container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
+      container.bind<DatabaseConnectionPool>(TYPES.DatabaseConnectionPool).to(DatabaseConnectionPool).inSingletonScope();
+      container.bind<TransactionCoordinator>(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
+
+      // 基础设施管理器 - 使用动态绑定确保正确的初始化顺序
+      container.bind<InfrastructureManager>(TYPES.InfrastructureManager).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        const cacheService = context.get<CacheService>(TYPES.CacheService);
+        const performanceMonitor = context.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
+        const batchOptimizer = context.get<BatchOptimizer>(TYPES.BatchOptimizer);
+        const transactionCoordinator = context.get<TransactionCoordinator>(TYPES.TransactionCoordinator);
+        const databaseConnectionPool = context.get<DatabaseConnectionPool>(TYPES.DatabaseConnectionPool);
+        const infrastructureConfigService = context.get<InfrastructureConfigService>(TYPES.InfrastructureConfigService);
+
+        const infrastructureManager = new InfrastructureManager(
+          logger,
+          cacheService,
+          performanceMonitor,
+          batchOptimizer,
+          transactionCoordinator,
+          databaseConnectionPool,
+          infrastructureConfigService
+        );
+
+        // 获取健康检查器并注册基础设施的健康检查器
+        const healthChecker = context.get<DatabaseHealthChecker>(TYPES.HealthChecker);
+        infrastructureManager.registerHealthCheckers(healthChecker);
+
+        return infrastructureManager;
+      }).inSingletonScope();
+
+      // SQLite基础设施
+      container.bind<SqliteInfrastructure>(TYPES.SqliteInfrastructure).to(SqliteInfrastructure).inSingletonScope();
     } catch (error: any) {
       console.error('Error registering infrastructure services:', error);
       console.error('Error stack:', error?.stack);

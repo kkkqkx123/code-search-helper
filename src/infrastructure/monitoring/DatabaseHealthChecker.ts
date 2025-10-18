@@ -2,58 +2,97 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { DatabaseType } from '../types';
-import { IDatabaseHealthChecker, HealthStatus, AggregateHealthStatus } from './IDatabaseHealthChecker';
-import { InfrastructureManager } from '../InfrastructureManager';
-import { IDatabaseInfrastructure } from '../InfrastructureManager';
+import { IHealthChecker } from './types';
+import { HealthStatus, AggregateHealthStatus } from './IDatabaseHealthChecker';
 
+export interface IHealthCheckerRegistry {
+  registerHealthChecker(databaseType: DatabaseType, healthChecker: IHealthChecker): void;
+  unregisterHealthChecker(databaseType: DatabaseType): void;
+  getHealthChecker(databaseType: DatabaseType): IHealthChecker | null;
+  getAllHealthCheckers(): Map<DatabaseType, IHealthChecker>;
+}
+
+/**
+ * DatabaseHealthChecker 实现了 IHealthChecker 接口以兼容基础设施类
+ * 同时提供了多数据库健康检查功能
+ */
 @injectable()
-export class DatabaseHealthChecker implements IDatabaseHealthChecker {
+export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegistry {
   private logger: LoggerService;
-  private infrastructureManager: InfrastructureManager;
+  private healthCheckers: Map<DatabaseType, IHealthChecker> = new Map();
   private checkInterval: number = 30000; // 默认30秒检查一次
   private monitoringInterval: NodeJS.Timeout | null = null;
   private healthStatuses: Map<DatabaseType, HealthStatus> = new Map();
-  private healthUpdateCallbacks: Array<(status: any) => void> = []; // 添加回调函数数组
+  private healthUpdateCallbacks: Array<(status: HealthStatus) => void> = [];
 
   constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.InfrastructureManager) infrastructureManager: InfrastructureManager
+    @inject(TYPES.LoggerService) logger: LoggerService
   ) {
     this.logger = logger;
-    this.infrastructureManager = infrastructureManager;
   }
 
+  // IHealthChecker 接口实现 - 单数据库健康检查（默认行为）
   async checkHealth(): Promise<any> {
-    // 这个方法是为了满足 IHealthChecker 接口要求而实现的
-    // 返回一个默认的健康状态
-    return {
-      status: 'healthy',
-      responseTime: 0,
-      connectionPoolStatus: { active: 0, idle: 0, total: 0 },
-      timestamp: Date.now()
-    };
+    // 返回兼容IHealthChecker接口的健康状态
+    const healthStatus = await this.getCompatibleHealthStatus();
+    return healthStatus;
   }
-  
+
+  // IHealthChecker 接口实现 - 获取健康状态
   getHealthStatus(): any {
-    // 返回一个默认的健康状态
-    return {
-      status: 'healthy',
-      responseTime: 0,
-      connectionPoolStatus: { active: 0, idle: 0, total: 0 },
-      timestamp: Date.now()
-    };
+    // 返回兼容IHealthChecker接口的健康状态
+    return this.getCompatibleHealthStatus();
   }
-  
+
+  // IHealthChecker 接口实现 - 订阅健康状态更新
+  subscribeToHealthUpdates(callback: (status: any) => void): void {
+    // 适配回调函数
+    const adaptedCallback = (status: HealthStatus) => {
+      const compatibleStatus = this.convertToCompatibleStatus(status);
+      callback(compatibleStatus);
+    };
+    this.healthUpdateCallbacks.push(adaptedCallback);
+  }
+
+  // IHealthCheckerRegistry 接口实现
+  registerHealthChecker(databaseType: DatabaseType, healthChecker: IHealthChecker): void {
+    if (this.healthCheckers.has(databaseType)) {
+      this.logger.warn(`Health checker for ${databaseType} already registered, replacing with new one`);
+    }
+    this.healthCheckers.set(databaseType, healthChecker);
+    this.logger.info(`Health checker registered for ${databaseType}`);
+  }
+
+  unregisterHealthChecker(databaseType: DatabaseType): void {
+    if (this.healthCheckers.has(databaseType)) {
+      this.healthCheckers.delete(databaseType);
+      this.logger.info(`Health checker unregistered for ${databaseType}`);
+    } else {
+      this.logger.warn(`No health checker found for ${databaseType} to unregister`);
+    }
+  }
+
+  getHealthChecker(databaseType: DatabaseType): IHealthChecker | null {
+    return this.healthCheckers.get(databaseType) || null;
+  }
+
+  getAllHealthCheckers(): Map<DatabaseType, IHealthChecker> {
+    return new Map(this.healthCheckers);
+  }
+
+  // 扩展功能：多数据库健康检查
   async checkHealthByDatabase(databaseType: DatabaseType): Promise<HealthStatus> {
     const startTime = Date.now();
     
     try {
-      // 获取数据库基础设施
-      const infrastructure = this.infrastructureManager.getInfrastructure(databaseType);
-      const healthChecker = infrastructure.getHealthChecker();
+      // 从注册表中获取健康检查器
+      const healthChecker = this.healthCheckers.get(databaseType);
+      if (!healthChecker) {
+        throw new Error(`No health checker registered for database type: ${databaseType}`);
+      }
       
       // 执行健康检查
-      const status = await healthChecker.getHealthStatus();
+      const status = await healthChecker.checkHealth();
       
       const responseTime = Date.now() - startTime;
       const healthStatus: HealthStatus = {
@@ -61,7 +100,8 @@ export class DatabaseHealthChecker implements IDatabaseHealthChecker {
         details: {
           ...status,
           responseTime,
-          lastChecked: new Date().toISOString()
+          lastChecked: new Date().toISOString(),
+          databaseType
         },
         timestamp: Date.now(),
         responseTime
@@ -86,7 +126,8 @@ export class DatabaseHealthChecker implements IDatabaseHealthChecker {
         details: {
           error: (error as Error).message,
           responseTime,
-          lastChecked: new Date().toISOString()
+          lastChecked: new Date().toISOString(),
+          databaseType
         },
         timestamp: Date.now(),
         responseTime
@@ -107,14 +148,17 @@ export class DatabaseHealthChecker implements IDatabaseHealthChecker {
     }
   }
 
- async checkAllHealth(): Promise<AggregateHealthStatus> {
-    const databaseTypes = Object.values(DatabaseType);
+  async checkAllHealth(): Promise<AggregateHealthStatus> {
+    const databaseTypes = Array.from(this.healthCheckers.keys());
     const healthChecks = databaseTypes.map(dbType =>
      this.checkHealthByDatabase(dbType).catch(error => {
        // 如果单个数据库检查失败，返回错误状态而不是抛出异常
        const errorStatus: HealthStatus = {
          status: 'error',
-         details: { error: (error as Error).message },
+         details: { 
+           error: (error as Error).message,
+           databaseType: dbType
+         },
          timestamp: Date.now()
        };
        this.healthStatuses.set(dbType, errorStatus);
@@ -173,7 +217,7 @@ export class DatabaseHealthChecker implements IDatabaseHealthChecker {
     return aggregateStatus;
   }
 
- async getHealthStatusByDatabase(databaseType: DatabaseType): Promise<HealthStatus | null> {
+  async getHealthStatusByDatabase(databaseType: DatabaseType): Promise<HealthStatus | null> {
     return this.healthStatuses.get(databaseType) || null;
   }
 
@@ -198,9 +242,7 @@ export class DatabaseHealthChecker implements IDatabaseHealthChecker {
       try {
         await this.checkAllHealth();
       } catch (error) {
-        this.logger.error('Error during periodic health check', {
-          error: (error as Error).message
-        });
+        this.logger.error('Error during health monitoring', { error: (error as Error).message });
       }
     }, this.checkInterval);
   }
@@ -209,7 +251,7 @@ export class DatabaseHealthChecker implements IDatabaseHealthChecker {
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
-      this.logger.info('Stopped health monitoring');
+      this.logger.info('Health monitoring stopped');
     }
   }
 
@@ -228,29 +270,78 @@ export class DatabaseHealthChecker implements IDatabaseHealthChecker {
     }
   }
 
- getCheckInterval(): number {
-   return this.checkInterval;
- }
+  getCheckInterval(): number {
+    return this.checkInterval;
+  }
 
- /**
-  * 订阅健康状态更新
-  */
- subscribeToHealthUpdates(callback: (status: any) => void): void {
-   this.healthUpdateCallbacks.push(callback);
- }
+  // 取消订阅健康状态更新
+  unsubscribeFromHealthUpdates(callback: (status: any) => void): void {
+    // 需要实现取消订阅逻辑
+    const index = this.healthUpdateCallbacks.indexOf(callback);
+    if (index > -1) {
+      this.healthUpdateCallbacks.splice(index, 1);
+    }
+  }
 
- /**
-  * 通知所有订阅者健康状态更新
-  */
- private notifyHealthUpdateSubscribers(status: any): void {
-   for (const callback of this.healthUpdateCallbacks) {
-     try {
-       callback(status);
-     } catch (error) {
-       this.logger.error('Error in health update callback', {
-         error: (error as Error).message
-       });
-     }
-   }
- }
+  private notifyHealthUpdateSubscribers(status: HealthStatus): void {
+    this.healthUpdateCallbacks.forEach(callback => {
+      try {
+        callback(status);
+      } catch (error) {
+        this.logger.error('Error in health update callback', { error: (error as Error).message });
+      }
+    });
+  }
+
+  private getCompatibleHealthStatus(): any {
+    // 返回兼容IHealthChecker接口的健康状态
+    if (this.healthStatuses.size === 0) {
+      return {
+        databaseType: DatabaseType.QDRANT,
+        status: 'healthy',
+        responseTime: 0,
+        connectionPoolStatus: {
+          activeConnections: 0,
+          idleConnections: 0,
+          pendingRequests: 0,
+          maxConnections: 0
+        },
+        timestamp: Date.now()
+      };
+    }
+    
+    const firstStatus = this.healthStatuses.values().next().value;
+    if (firstStatus) {
+      return this.convertToCompatibleStatus(firstStatus);
+    }
+    
+    // 备用方案
+    return {
+      databaseType: DatabaseType.QDRANT,
+      status: 'healthy',
+      responseTime: 0,
+      connectionPoolStatus: {
+        activeConnections: 0,
+        idleConnections: 0,
+        pendingRequests: 0,
+        maxConnections: 0
+      },
+      timestamp: Date.now()
+    };
+  }
+
+  private convertToCompatibleStatus(status: HealthStatus): any {
+    return {
+      databaseType: status.details?.databaseType || DatabaseType.QDRANT,
+      status: status.status,
+      responseTime: status.responseTime || 0,
+      connectionPoolStatus: {
+        activeConnections: 0,
+        idleConnections: 0,
+        pendingRequests: 0,
+        maxConnections: 0
+      },
+      timestamp: status.timestamp
+    };
+  }
 }

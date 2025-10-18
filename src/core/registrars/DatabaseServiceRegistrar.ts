@@ -17,7 +17,7 @@ import { QdrantProjectManager } from '../../database/qdrant/QdrantProjectManager
 // 数据库日志和监控服务
 import { DatabaseLoggerService } from '../../database/common/DatabaseLoggerService';
 import { EventToLogBridge } from '../../database/common/EventToLogBridge';
-import { PerformanceMonitor } from '../../database/common/PerformanceMonitor';
+
 
 // 图数据库服务
 import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService';
@@ -36,7 +36,6 @@ import { INebulaQueryBuilder } from '../../database/nebula/query/NebulaQueryBuil
 import { NebulaGraphOperations } from '../../database/nebula/operation/NebulaGraphOperations';
 import { INebulaGraphOperations } from '../../database/nebula/operation/NebulaGraphOperations';
 import { ConnectionStateManager } from '../../database/nebula/ConnectionStateManager';
-// 新增的Nebula服务
 import { NebulaDataService, INebulaDataService } from '../../database/nebula/data/NebulaDataService';
 import { NebulaSpaceService, INebulaSpaceService } from '../../database/nebula/space/NebulaSpaceService';
 import { NebulaQueryUtils } from '../../database/nebula/query/NebulaQueryUtils';
@@ -48,6 +47,10 @@ import { NebulaDataOperations, INebulaDataOperations } from '../../database/nebu
 import { NebulaSchemaManager, INebulaSchemaManager } from '../../database/nebula/NebulaSchemaManager';
 import { NebulaIndexManager, INebulaIndexManager } from '../../database/nebula/NebulaIndexManager';
 import { SpaceNameUtils, ISpaceNameUtils } from '../../database/nebula/SpaceNameUtils';
+// SQLite数据库服务
+import { SqliteDatabaseService } from '../../database/splite/SqliteDatabaseService';
+import { SqliteConnectionManager } from '../../database/splite/SqliteConnectionManager';
+import { SqliteProjectManager } from '../../database/splite/SqliteProjectManager';
 
 // 图数据映射和验证服务
 import { GraphDataMappingService } from '../../service/graph/mapping/GraphDataMappingService';
@@ -66,7 +69,7 @@ export class DatabaseServiceRegistrar {
       // 数据库日志和监控服务
       container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
       container.bind<EventToLogBridge>(TYPES.EventToLogBridge).to(EventToLogBridge).inSingletonScope();
-      container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
+      // PerformanceMonitor 已在 InfrastructureServiceRegistrar 中绑定，避免重复绑定
 
       // Qdrant 向量数据库服务
       container.bind<QdrantConnectionManager>(TYPES.IQdrantConnectionManager).to(QdrantConnectionManager).inSingletonScope();
@@ -115,6 +118,10 @@ export class DatabaseServiceRegistrar {
       container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
 
       // 图数据映射和验证服务
+      // SQLite数据库服务
+      container.bind<SqliteDatabaseService>(TYPES.SqliteDatabaseService).to(SqliteDatabaseService).inSingletonScope();
+      container.bind<SqliteConnectionManager>(TYPES.SqliteConnectionManager).to(SqliteConnectionManager).inSingletonScope();
+      container.bind<SqliteProjectManager>(TYPES.SqliteProjectManager).to(SqliteProjectManager).inSingletonScope();
       container.bind<GraphDataMappingService>(TYPES.GraphDataMappingService).to(GraphDataMappingService).inSingletonScope();
       container.bind<AsyncTaskQueue>(TYPES.AsyncTaskQueue).to(AsyncTaskQueue).inSingletonScope();
       container.bind<DataMappingValidator>(TYPES.DataMappingValidator).to(DataMappingValidator).inSingletonScope();

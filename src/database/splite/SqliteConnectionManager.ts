@@ -1,6 +1,7 @@
-import { injectable } from 'inversify';
+import { injectable, inject } from 'inversify';
 import { IConnectionManager } from '../common/IDatabaseService';
 import { EventListener } from '../../types';
+import { TYPES } from '../../types';
 import { SqliteDatabaseService } from './SqliteDatabaseService';
 
 @injectable()
@@ -9,8 +10,19 @@ export class SqliteConnectionManager implements IConnectionManager {
   private eventListeners: Map<string, EventListener[]> = new Map();
   private connected = false;
 
-  constructor(sqliteService: SqliteDatabaseService) {
+  constructor(@inject(TYPES.SqliteDatabaseService) sqliteService: SqliteDatabaseService) {
     this.sqliteService = sqliteService;
+  }
+
+  /**
+   * 初始化连接管理器
+   */
+  async initialize(): Promise<void> {
+    // 检查SQLite服务是否已经连接
+    if (this.sqliteService.isConnected()) {
+      this.connected = true;
+      this.emitEvent('connected', { timestamp: new Date() });
+    }
   }
 
   async connect(): Promise<boolean> {

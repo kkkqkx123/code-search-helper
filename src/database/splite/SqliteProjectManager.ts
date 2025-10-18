@@ -1,6 +1,7 @@
-import { injectable } from 'inversify';
+import { injectable, inject } from 'inversify';
 import { IProjectManager } from '../common/IDatabaseService';
 import { EventListener } from '../../types';
+import { TYPES } from '../../types';
 import { SqliteDatabaseService } from './SqliteDatabaseService';
 
 export interface Project {
@@ -55,7 +56,7 @@ export class SqliteProjectManager implements IProjectManager {
   private sqliteService: SqliteDatabaseService;
   private eventListeners: Map<string, EventListener[]> = new Map();
 
-  constructor(sqliteService: SqliteDatabaseService) {
+  constructor(@inject(TYPES.SqliteDatabaseService) sqliteService: SqliteDatabaseService) {
     this.sqliteService = sqliteService;
   }
 

@@ -9,6 +9,7 @@ import { IBatchOptimizer } from '../batching/types';
 import { IHealthChecker } from '../monitoring/types';
 import { DatabaseConnectionPool } from '../connection/DatabaseConnectionPool';
 import { SqliteDatabaseService } from '../../database/splite/SqliteDatabaseService';
+import { SqliteConnectionManager } from '../../database/splite/SqliteConnectionManager';
 
 @injectable()
 export class SqliteInfrastructure implements IDatabaseInfrastructure {
@@ -21,6 +22,7 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
   private healthChecker: IHealthChecker;
   private connectionManager: DatabaseConnectionPool;
   private sqliteService: SqliteDatabaseService;
+  private sqliteConnectionManager: SqliteConnectionManager;
   private initialized = false;
 
   constructor(
@@ -30,7 +32,8 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     @inject(TYPES.BatchOptimizer) batchOptimizer: IBatchOptimizer,
     @inject(TYPES.HealthChecker) healthChecker: IHealthChecker,
     @inject(TYPES.DatabaseConnectionPool) connectionManager: DatabaseConnectionPool,
-    @inject(TYPES.SqliteDatabaseService) sqliteService: SqliteDatabaseService
+    @inject(TYPES.SqliteDatabaseService) sqliteService: SqliteDatabaseService,
+    @inject(TYPES.SqliteConnectionManager) sqliteConnectionManager: SqliteConnectionManager
   ) {
     this.logger = logger;
     this.cacheService = cacheService;
@@ -39,6 +42,7 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     this.healthChecker = healthChecker;
     this.connectionManager = connectionManager;
     this.sqliteService = sqliteService;
+    this.sqliteConnectionManager = sqliteConnectionManager;
     
     this.logger.info('Sqlite infrastructure created');
   }
@@ -79,6 +83,9 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     try {
       // 初始化SQLite数据库服务
       await this.sqliteService.initialize();
+      
+      // 初始化SQLite连接管理器
+      await this.sqliteConnectionManager.initialize();
       
       // 启动性能监控
       this.performanceMonitor.startPeriodicMonitoring(30000);
@@ -161,7 +168,15 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
 
   async getDatabaseStats(): Promise<DatabaseStats> {
     this.ensureInitialized();
-    return this.sqliteService.getStats();
+    const stats = this.sqliteService.getStats();
+    return {
+      projects: stats.projects,
+      fileStates: stats.fileStates,
+      projectStatus: stats.projectStatus,
+      changeHistory: stats.changeHistory,
+      databaseSize: stats.databaseSize,
+      tableSizes: stats.tableSizes || {}
+    };
   }
 
   async recordSqlOperation(

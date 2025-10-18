@@ -12,3 +12,4 @@ ref
 *.rar
 **/repomix-output.xml
 test-data
+**/*.db

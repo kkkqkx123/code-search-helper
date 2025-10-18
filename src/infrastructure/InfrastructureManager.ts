@@ -14,6 +14,7 @@ import { SqliteInfrastructure } from './implementations/SqliteInfrastructure';
 import { InfrastructureConfig as TypedInfrastructureConfig } from './config/types';
 import { ConfigValidator } from './config/ConfigValidator';
 import { InfrastructureConfigService } from './config/InfrastructureConfigService';
+import { IHealthCheckerRegistry } from './monitoring/DatabaseHealthChecker';
 
 export interface IDatabaseInfrastructure {
   readonly databaseType: DatabaseType;
@@ -49,7 +50,6 @@ export class InfrastructureManager {
     @inject(TYPES.CacheService) cacheService: any,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: any,
     @inject(TYPES.BatchOptimizer) batchOptimizer: any,
-    @inject(TYPES.HealthChecker) healthChecker: any,
     @inject(TYPES.TransactionCoordinator) transactionCoordinator: TransactionCoordinator,
     @inject(TYPES.DatabaseConnectionPool) databaseConnectionPool: DatabaseConnectionPool,
     @inject(TYPES.InfrastructureConfigService) private infrastructureConfigService: InfrastructureConfigService
@@ -400,7 +400,6 @@ export class InfrastructureManager {
       cacheService,
       performanceMonitor,
       batchOptimizer,
-      healthChecker,
       databaseConnectionPool
     );
 
@@ -416,7 +415,6 @@ export class InfrastructureManager {
     cacheService: any,
     performanceMonitor: any,
     batchOptimizer: any,
-    healthChecker: any,
     databaseConnectionPool: DatabaseConnectionPool
   ): void {
     // 创建 Qdrant 基础设施
@@ -425,7 +423,7 @@ export class InfrastructureManager {
       cacheService,
       performanceMonitor,
       batchOptimizer,
-      healthChecker,
+      null as any, // healthChecker - 将通过注册表模式设置
       databaseConnectionPool
     );
     this.databaseInfrastructures.set(DatabaseType.QDRANT, qdrantInfrastructure);
@@ -436,7 +434,7 @@ export class InfrastructureManager {
       cacheService,
       performanceMonitor,
       batchOptimizer,
-      healthChecker,
+      null as any, // healthChecker - 将通过注册表模式设置
       databaseConnectionPool
     );
     this.databaseInfrastructures.set(DatabaseType.NEBULA, nebulaInfrastructure);
@@ -447,9 +445,10 @@ export class InfrastructureManager {
       cacheService,
       performanceMonitor,
       batchOptimizer,
-      healthChecker,
+      null as any, // healthChecker - 将通过注册表模式设置
       databaseConnectionPool,
-      null as any // sqliteService - 将在DI容器中注入
+      null as any, // sqliteService - 将在DI容器中注入
+      null as any  // sqliteConnectionManager - 将在DI容器中注入
     );
     this.databaseInfrastructures.set(DatabaseType.SQLITE, sqliteInfrastructure);
 
@@ -619,6 +618,24 @@ export class InfrastructureManager {
       throw new Error(`Infrastructure not found for database type: ${databaseType}`);
     }
     return infrastructure;
+  }
+  /**
+   * 注册健康检查器到健康检查注册表
+   */
+  registerHealthCheckers(healthCheckerRegistry: IHealthCheckerRegistry): void {
+    this.logger.info('Registering health checkers to registry');
+    
+    for (const [databaseType, infrastructure] of this.databaseInfrastructures) {
+      try {
+        const healthChecker = infrastructure.getHealthChecker();
+        healthCheckerRegistry.registerHealthChecker(databaseType, healthChecker);
+        this.logger.debug(`Registered health checker for ${databaseType}`);
+      } catch (error) {
+        this.logger.warn(`Failed to get health checker for ${databaseType}`, {
+          error: (error as Error).message
+        });
+      }
+    }
   }
 
   getTransactionCoordinator(): TransactionCoordinator {
