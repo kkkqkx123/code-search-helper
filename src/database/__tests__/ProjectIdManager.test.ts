@@ -99,7 +99,8 @@ describe('ProjectIdManager', () => {
       mockQdrantConfigService,
       mockNebulaConfigService,
       mockLoggerService,
-      mockErrorHandlerService
+      mockErrorHandlerService,
+      {} as any // Mock SqliteProjectManager
     );
   });
   

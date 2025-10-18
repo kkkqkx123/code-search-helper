@@ -11,7 +11,7 @@ if (fs.existsSync(dbPath)) {
   console.log('已删除旧的测试数据库文件');
 }
 
-const dbService = new SqliteDatabaseService();
+const dbService = new SqliteDatabaseService({} as any); // Mock LoggerService
 
 try {
   // 测试1: 连接数据库

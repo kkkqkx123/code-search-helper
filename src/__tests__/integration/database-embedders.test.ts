@@ -8,6 +8,7 @@ import { ConfigService } from '../../config/ConfigService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { QdrantConfigService } from '../../config/service/QdrantConfigService';
 import { NebulaConfigService } from '../../config/service/NebulaConfigService';
+import { SqliteProjectManager } from '../../database/splite/SqliteProjectManager';
 import { IQdrantConnectionManager } from '../../database/qdrant/QdrantConnectionManager';
 import { IQdrantCollectionManager } from '../../database/qdrant/QdrantCollectionManager';
 import { IQdrantVectorOperations } from '../../database/qdrant/QdrantVectorOperations';
@@ -72,11 +73,15 @@ describe('Database and Embedders Integration', () => {
       checkConfigurationConflict: jest.fn().mockReturnValue(false)
     } as unknown as jest.Mocked<NebulaConfigService>;
 
-    // Create a mock ProjectIdManager
-    mockProjectIdManager = new ProjectIdManager(mockConfigService, mockQdrantConfigService, mockNebulaConfigService, logger, errorHandler);
+    // Create mock SqliteProjectManager
+    const mockSqliteProjectManager = {
+      listProjectSpaces: jest.fn().mockResolvedValue([]),
+      createProjectSpace: jest.fn().mockResolvedValue(undefined),
+      deleteProjectSpace: jest.fn().mockResolvedValue(undefined)
+    } as unknown as jest.Mocked<SqliteProjectManager>;
 
     // Create a mock ProjectIdManager
-    mockProjectIdManager = new ProjectIdManager(mockConfigService, mockQdrantConfigService, mockNebulaConfigService, logger, errorHandler);
+    mockProjectIdManager = new ProjectIdManager(mockConfigService, mockQdrantConfigService, mockNebulaConfigService, logger, errorHandler, mockSqliteProjectManager);
 
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {

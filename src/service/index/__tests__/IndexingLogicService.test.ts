@@ -67,7 +67,8 @@ describe('IndexingLogicService', () => {
       {} as any,
       {} as any,
       loggerService,
-      errorHandlerService
+      errorHandlerService,
+      {} as any // Mock SqliteProjectManager
     ) as jest.Mocked<ProjectIdManager>;
     
     // Create a mock ConfigService for testing

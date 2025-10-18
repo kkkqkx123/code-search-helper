@@ -261,15 +261,18 @@ export class SqliteDatabaseService {
     }
 
     // 获取表大小信息
-    const tableSizes: Record<string, number> = {};
+    let tableSizes: Record<string, number> | undefined;
     try {
+      const tableSizesTemp: Record<string, number> = {};
       const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[];
       for (const table of tables) {
         const count = db.prepare(`SELECT COUNT(*) as count FROM ${table.name}`).get() as { count: number };
-        tableSizes[table.name] = count.count;
+        tableSizesTemp[table.name] = count.count;
       }
+      tableSizes = tableSizesTemp;
     } catch (error) {
       this.logger.warn('无法获取表大小信息:', error);
+      tableSizes = undefined;
     }
 
     return {

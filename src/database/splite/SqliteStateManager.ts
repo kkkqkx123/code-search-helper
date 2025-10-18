@@ -165,24 +165,19 @@ export class SqliteStateManager {
    * 更新项目状态的部分字段
    */
   async updateProjectStateFields(projectId: string, updates: Partial<ProjectState>): Promise<boolean> {
-    try {
-      const existingState = await this.getProjectState(projectId);
-      if (!existingState) {
-        return false;
-      }
-      
-      const updatedState: ProjectState = {
-        ...existingState,
-        ...updates,
-        projectId,
-        lastUpdated: new Date()
-      };
-      
-      return await this.saveProjectState(updatedState);
-    } catch (error) {
-      this.logger.error(`Failed to update project state fields: ${projectId}`, error);
+    const existingState = await this.getProjectState(projectId);
+    if (!existingState) {
       return false;
     }
+    
+    const updatedState: ProjectState = {
+      ...existingState,
+      ...updates,
+      projectId,
+      lastUpdated: new Date()
+    };
+    
+    return await this.saveProjectState(updatedState);
   }
 
   /**

@@ -276,7 +276,7 @@ export class SqliteProjectManager implements IProjectManager {
 
   async getFileIndexStates(projectId: string): Promise<FileIndexState[]> {
     const stmt = this.sqliteService.prepare('SELECT * FROM file_index_states WHERE project_id = ? ORDER BY file_path');
-    return stmt.all() as FileIndexState[];
+    return stmt.all(projectId) as FileIndexState[];
   }
 
   private async getProjectByPath(projectPath: string): Promise<Project | null> {

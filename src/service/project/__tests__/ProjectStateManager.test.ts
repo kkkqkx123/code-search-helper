@@ -82,7 +82,8 @@ describe('ProjectStateManager', () => {
       mockQdrantConfigService,
       mockNebulaConfigService,
       loggerService,
-      errorHandlerService
+      errorHandlerService,
+      {} as any // Mock SqliteProjectManager
     ) as jest.Mocked<ProjectIdManager>;
     // Create mock file system traversal
     const mockFileSystemTraversal = {
@@ -433,7 +434,8 @@ describe('ProjectStateManager', () => {
       errorHandlerService,
       configService,
       coreStateService,
-      storageStateService
+      storageStateService,
+      {} as any // Mock SqliteStateManager
     );
   });
 

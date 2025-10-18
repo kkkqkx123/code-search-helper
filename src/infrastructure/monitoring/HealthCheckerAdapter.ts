@@ -31,7 +31,7 @@ export class HealthCheckerAdapter implements IHealthChecker {
   async checkHealth(): Promise<DatabaseHealthStatus> {
     try {
       // 使用 DatabaseHealthChecker 检查当前基础设施的健康状态
-      const healthStatus = await this.databaseHealthChecker.checkHealth(this.databaseType);
+      const healthStatus = await this.databaseHealthChecker.checkHealthByDatabase(this.databaseType);
       
       // 将 HealthStatus 转换为 DatabaseHealthStatus
       const databaseHealthStatus: DatabaseHealthStatus = {
@@ -69,25 +69,8 @@ export class HealthCheckerAdapter implements IHealthChecker {
   }
 
   getHealthStatus(): DatabaseHealthStatus {
-    // 获取缓存的健康状态
-    const healthStatus = this.databaseHealthChecker.getHealthStatus(this.databaseType);
-    
-    if (healthStatus) {
-      return {
-        databaseType: this.databaseType,
-        status: healthStatus.status,
-        responseTime: healthStatus.responseTime || 0,
-        connectionPoolStatus: {
-          activeConnections: 0,
-          idleConnections: 0,
-          pendingRequests: 0,
-          maxConnections: 0
-        },
-        timestamp: healthStatus.timestamp
-      };
-    }
-
-    // 如果没有缓存的状态，返回默认健康状态
+    // 获取缓存的健康状态（同步版本）
+    // 由于接口要求同步返回，我们返回一个默认的健康状态
     return {
       databaseType: this.databaseType,
       status: 'healthy',

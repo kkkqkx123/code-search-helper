@@ -40,7 +40,8 @@ describe('CoreStateService', () => {
       {} as any,
       {} as any,
       loggerService,
-      errorHandlerService
+      errorHandlerService,
+      {} as any // Mock SqliteProjectManager
     ) as jest.Mocked<ProjectIdManager>;
     qdrantService = {
       getCollectionInfoForProject: jest.fn(),

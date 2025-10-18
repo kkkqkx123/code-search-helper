@@ -4,6 +4,7 @@ import { QdrantConfigService } from '../../config/service/QdrantConfigService';
 import { NebulaConfigService } from '../../config/service/NebulaConfigService';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { SqliteProjectManager } from '../../database/splite/SqliteProjectManager';
 
 // Mock ConfigService
 jest.mock('../../config/ConfigService', () => ({
@@ -42,6 +43,15 @@ jest.mock('../../utils/ErrorHandlerService', () => ({
   }))
 }));
 
+// Mock SqliteProjectManager
+jest.mock('../../database/splite/SqliteProjectManager', () => ({
+  SqliteProjectManager: jest.fn().mockImplementation(() => ({
+    listProjectSpaces: jest.fn().mockResolvedValue([]),
+    createProjectSpace: jest.fn().mockResolvedValue(undefined),
+    deleteProjectSpace: jest.fn().mockResolvedValue(undefined)
+  }))
+}));
+
 // Mock HashUtils to avoid file system operations
 jest.mock('../../utils/HashUtils', () => ({
   HashUtils: {
@@ -63,6 +73,7 @@ describe('Naming Convention Integration Test', () => {
   let mockConfigService: jest.Mocked<ConfigService>;
   let mockQdrantConfigService: jest.Mocked<QdrantConfigService>;
   let mockNebulaConfigService: jest.Mocked<NebulaConfigService>;
+  let mockSqliteProjectManager: jest.Mocked<SqliteProjectManager>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -78,6 +89,12 @@ describe('Naming Convention Integration Test', () => {
     mockNebulaConfigService = {
       getSpaceNameForProject: jest.fn().mockImplementation((projectId: string) => `project-${projectId}`)
     } as unknown as jest.Mocked<NebulaConfigService>;
+
+    mockSqliteProjectManager = {
+      listProjectSpaces: jest.fn().mockResolvedValue([]),
+      createProjectSpace: jest.fn().mockResolvedValue(undefined),
+      deleteProjectSpace: jest.fn().mockResolvedValue(undefined)
+    } as unknown as jest.Mocked<SqliteProjectManager>;
     
     const mockLoggerService = {
       info: jest.fn(),
@@ -94,7 +111,8 @@ describe('Naming Convention Integration Test', () => {
       mockQdrantConfigService,
       mockNebulaConfigService,
       mockLoggerService,
-      mockErrorHandlerService
+      mockErrorHandlerService,
+      mockSqliteProjectManager
     );
   });
 
@@ -145,13 +163,20 @@ describe('Naming Convention Integration Test', () => {
       const mockErrorHandlerService = {
         handleError: jest.fn(),
       } as unknown as jest.Mocked<ErrorHandlerService>;
+
+      const mockSqliteProjectManager = {
+        listProjectSpaces: jest.fn().mockResolvedValue([]),
+        createProjectSpace: jest.fn().mockResolvedValue(undefined),
+        deleteProjectSpace: jest.fn().mockResolvedValue(undefined)
+      } as unknown as jest.Mocked<SqliteProjectManager>;
       
       const overrideProjectIdManager = new ProjectIdManager(
         mockConfigService,
         mockQdrantConfigServiceWithOverride,
         mockNebulaConfigServiceWithOverride,
         mockLoggerService,
-        mockErrorHandlerService
+        mockErrorHandlerService,
+        mockSqliteProjectManager
       );
       
       const projectPath = '/test/explicit-project';

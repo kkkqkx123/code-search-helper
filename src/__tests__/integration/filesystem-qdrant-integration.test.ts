@@ -719,7 +719,8 @@ describe('Filesystem-Qdrant Integration', () => {
         errorHandlerService,
         configService,
         mockCoreStateService,
-        mockStorageStateService
+        mockStorageStateService,
+        {} as any // Mock SqliteStateManager
       );
 
       // Initialize the new manager to load persisted data

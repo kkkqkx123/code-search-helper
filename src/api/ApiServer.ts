@@ -57,7 +57,8 @@ export class ApiServer {
       diContainer.get(TYPES.QdrantConfigService),
       diContainer.get(TYPES.NebulaConfigService),
       diContainer.get(TYPES.LoggerService),
-      diContainer.get(TYPES.ErrorHandlerService)
+      diContainer.get(TYPES.ErrorHandlerService),
+      diContainer.get(TYPES.SqliteProjectManager)
     );
     // 创建一个简单的错误处理器实例
     const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
