@@ -82,7 +82,6 @@ export class BusinessServiceRegistrar {
     container.bind<HotReloadRestartService>(TYPES.HotReloadRestartService).to(HotReloadRestartService).inSingletonScope();
 
     // 项目管理服务
-    // 项目管理服务
     container.bind<IndexService>(TYPES.IndexService).to(IndexService).inSingletonScope();
     container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
     container.bind<CoreStateService>(TYPES.CoreStateService).to(CoreStateService).inSingletonScope();
@@ -107,13 +106,7 @@ export class BusinessServiceRegistrar {
     }).inSingletonScope();
 
     // 性能优化服务
-    container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).toDynamicValue(context => {
-      const logger = context.get<LoggerService>(TYPES.LoggerService);
-      const errorHandler = context.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
-      const configService = context.get<ConfigService>(TYPES.ConfigService);
-      const memoryMonitor = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
-      return new PerformanceOptimizerService(logger, errorHandler, configService, memoryMonitor);
-    }).inSingletonScope();
+    container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).to(PerformanceOptimizerService).inSingletonScope();
 
     // 解析服务
     container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();

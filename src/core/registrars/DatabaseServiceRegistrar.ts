@@ -1,4 +1,6 @@
 import { Container } from 'inversify';
+import { LoggerService } from '../../utils/LoggerService';
+
 import { TYPES } from '../../types';
 import { TransactionManager } from '../../database/core/TransactionManager';
 
@@ -55,6 +57,8 @@ import { SqliteProjectManager } from '../../database/splite/SqliteProjectManager
 // 图数据映射和验证服务
 import { GraphDataMappingService } from '../../service/graph/mapping/GraphDataMappingService';
 import { AsyncTaskQueue } from '../../infrastructure/batching/AsyncTaskQueue';
+import { DataConsistencyChecker } from '../../database/common/DataConsistencyChecker';
+import { IGraphService } from '../../service/graph/core/IGraphService';
 import { DataMappingValidator } from '../../service/graph/mapping/DataMappingValidator';
 import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
 
@@ -119,12 +123,26 @@ export class DatabaseServiceRegistrar {
       container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
 
       // 图数据映射和验证服务
+      // 注册 DataConsistencyChecker
+      console.log('Binding DataConsistencyChecker...');
+      container.bind<DataConsistencyChecker>(TYPES.DataConsistencyChecker)
+        .toDynamicValue(context => {
+          const logger = context.get<LoggerService>(TYPES.LoggerService);
+          const qdrantService = context.get<QdrantService>(TYPES.QdrantService);
+          const graphService = context.get<IGraphService>(TYPES.GraphService);
+          
+          return new DataConsistencyChecker(
+            logger,
+            qdrantService,
+            graphService
+          );
+        }).inSingletonScope();
+
       // SQLite数据库服务
       container.bind<SqliteDatabaseService>(TYPES.SqliteDatabaseService).to(SqliteDatabaseService).inSingletonScope();
       container.bind<SqliteConnectionManager>(TYPES.SqliteConnectionManager).to(SqliteConnectionManager).inSingletonScope();
       container.bind<SqliteProjectManager>(TYPES.SqliteProjectManager).to(SqliteProjectManager).inSingletonScope();
       container.bind<GraphDataMappingService>(TYPES.GraphDataMappingService).to(GraphDataMappingService).inSingletonScope();
-      container.bind<AsyncTaskQueue>(TYPES.AsyncTaskQueue).to(AsyncTaskQueue).inSingletonScope();
       container.bind<DataMappingValidator>(TYPES.DataMappingValidator).to(DataMappingValidator).inSingletonScope();
       // GraphMappingCache 已在 InfrastructureServiceRegistrar 中注册，不需要重复注册
     } catch (error: any) {

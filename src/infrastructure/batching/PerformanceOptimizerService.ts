@@ -3,14 +3,16 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
+import { AsyncTaskQueue } from './AsyncTaskQueue';
+
 import { IMemoryMonitorService } from '../../service/memory/interfaces/IMemoryMonitorService';
 
 export interface PerformanceMetrics {
   operation: string;
   duration: number;
- success: boolean;
- timestamp: Date;
- metadata?: Record<string, any>;
+  success: boolean;
+  timestamp: Date;
+  metadata?: Record<string, any>;
 }
 
 export interface RetryOptions {
@@ -22,7 +24,7 @@ export interface RetryOptions {
 }
 
 export interface BatchOptions {
- initialSize: number;
+  initialSize: number;
   maxSize: number;
   minSize: number;
   adjustmentFactor: number;
@@ -32,8 +34,8 @@ export interface BatchOptions {
 export interface MemoryUsage {
   used: number;
   total: number;
- percentage: number;
- timestamp: Date;
+  percentage: number;
+  timestamp: Date;
 }
 
 @injectable()
@@ -48,8 +50,10 @@ export class PerformanceOptimizerService {
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) private configService: ConfigService,
-    @inject(TYPES.MemoryMonitorService) private memoryMonitor: IMemoryMonitorService
+    @inject(TYPES.MemoryMonitorService) private memoryMonitor: IMemoryMonitorService,
+    @inject(TYPES.AsyncTaskQueue) private taskQueue: AsyncTaskQueue
   ) {
+
     // 在测试环境中，使用默认值以避免配置服务未初始化的问题
     let batchConfig;
     try {
@@ -72,7 +76,7 @@ export class PerformanceOptimizerService {
         throw error;
       }
     }
-    
+
     this.retryOptions = {
       maxAttempts: batchConfig.retryAttempts,
       baseDelay: batchConfig.retryDelay,
@@ -102,7 +106,7 @@ export class PerformanceOptimizerService {
   /**
    * 执行带有重试逻辑的操作
    */
- async executeWithRetry<T>(
+  async executeWithRetry<T>(
     operation: () => Promise<T>,
     operationName: string,
     options?: Partial<RetryOptions>
@@ -243,6 +247,109 @@ export class PerformanceOptimizerService {
   }
 
   /**
+   * 使用异步任务队列处理批处理任务
+   */
+  async processBatchesWithQueue<T, R>(
+    items: T[],
+    processBatch: (batch: T[]) => Promise<R[]>,
+    operationName: string
+  ): Promise<R[]> {
+    const results: R[] = [];
+
+    // 将大任务分解为小批次任务
+    const batchTasks = [];
+    let batchIndex = 0;
+
+    while (batchIndex < items.length) {
+      const batchSize = Math.min(this.currentBatchSize, items.length - batchIndex);
+      const batch = items.slice(batchIndex, batchIndex + batchSize);
+
+      // 创建异步任务
+      const task = async () => {
+        const batchStartTime = Date.now();
+
+        try {
+          const batchResults = await this.executeWithRetry(
+            () => processBatch(batch),
+            `${operationName}-batch-${batchIndex / this.currentBatchSize}`
+          );
+
+          // 记录成功的性能指标
+          this.recordPerformanceMetric({
+            operation: `${operationName}-queue-batch`,
+            duration: Date.now() - batchStartTime,
+            success: true,
+            timestamp: new Date(),
+            metadata: {
+              batchSize,
+              batchIndex: batchIndex / this.currentBatchSize,
+              queueProcessing: true
+            }
+          });
+
+          return batchResults;
+        } catch (error) {
+          this.logger.error(`Queue batch processing failed`, {
+            operation: operationName,
+            batchIndex: batchIndex / this.currentBatchSize,
+            batchSize,
+            error: (error as Error).message
+          });
+          throw error;
+        }
+      };
+
+      // 添加任务到队列
+      const taskId = await this.taskQueue.addTask(task, {
+        priority: 1,
+        maxRetries: this.retryOptions.maxAttempts,
+        timeout: 60000
+      });
+
+      batchTasks.push({ taskId, batchIndex });
+      batchIndex += batchSize;
+    }
+
+    // 等待所有任务完成，设置合理的超时时间
+    const completedTasks = await this.taskQueue.waitForCompletion(30000); // 30秒超时
+
+    // 检查是否所有任务都完成了
+    const allTasksCompleted = batchTasks.every(({ taskId }) => completedTasks.has(taskId));
+    
+    if (!allTasksCompleted) {
+      this.logger.warn('Not all tasks completed within timeout', {
+        operation: operationName,
+        totalItems: items.length,
+        totalBatches: batchTasks.length,
+        completedTasks: completedTasks.size
+      });
+    }
+
+    // 收集结果
+    for (const { taskId } of batchTasks) {
+      const result = this.taskQueue.getTaskResult(taskId);
+      if (result && result.success && result.result) {
+        results.push(...result.result);
+      } else if (result) {
+        this.logger.error(`Task failed in queue`, {
+          taskId,
+          error: result?.error?.message
+        });
+      }
+      // 如果result为undefined，说明任务未完成，已在上面记录警告
+    }
+
+    this.logger.info('Batch processing with queue completed', {
+      operation: operationName,
+      totalItems: items.length,
+      totalBatches: batchTasks.length,
+      processedResults: results.length
+    });
+
+    return results;
+  }
+
+  /**
    * 计算重试延迟
    */
   private calculateDelay(attempt: number, options: RetryOptions): number {
@@ -320,7 +427,7 @@ export class PerformanceOptimizerService {
     if (this.performanceMetrics.length > 100) {
       this.performanceMetrics = this.performanceMetrics.slice(-1000);
     }
- }
+  }
 
   /**
    * 获取性能统计信息

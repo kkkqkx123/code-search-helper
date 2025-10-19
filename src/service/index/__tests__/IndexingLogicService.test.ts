@@ -132,7 +132,8 @@ describe('IndexingLogicService', () => {
       loggerService,
       errorHandlerService,
       {} as any,
-      mockMemoryMonitor
+      mockMemoryMonitor,
+      {} as any
     ) as jest.Mocked<PerformanceOptimizerService>;
     astSplitter = {} as jest.Mocked<ASTCodeSplitter>;
     coordinationService = {

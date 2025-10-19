@@ -29,6 +29,10 @@ import { GraphConfigService } from '../../config/service/GraphConfigService';
 // 向量批处理优化器
 import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
 
+// 异步任务队列和冲突解决服务
+import { AsyncTaskQueue } from '../../infrastructure/batching/AsyncTaskQueue';
+import { ConflictResolver } from '../../infrastructure/transaction/ConflictResolver';
+
 // SQLite基础设施
 import { SqliteInfrastructure } from '../../infrastructure/implementations/SqliteInfrastructure';
 import { SqliteStateManager } from '../../database/splite/SqliteStateManager';
@@ -168,6 +172,32 @@ export class InfrastructureServiceRegistrar {
       // 向量批处理优化器
       container.bind<VectorBatchOptimizer>(TYPES.VectorBatchOptimizer)
         .to(VectorBatchOptimizer).inSingletonScope();
+
+      // 注册 AsyncTaskQueue
+      console.log('Binding AsyncTaskQueue...');
+      container.bind<AsyncTaskQueue>(TYPES.AsyncTaskQueue)
+        .toDynamicValue(context => {
+          const logger = context.get<LoggerService>(TYPES.LoggerService);
+
+          return new AsyncTaskQueue(
+            logger,
+            {
+              maxConcurrency: 5,
+              defaultMaxRetries: 3,
+              defaultTimeout: 30000,
+              autoStart: true
+            }
+          );
+        }).inSingletonScope();
+
+      // 注册 ConflictResolver
+      console.log('Binding ConflictResolver...');
+      container.bind<ConflictResolver>(TYPES.ConflictResolver)
+        .toDynamicValue(context => {
+          const logger = context.get<LoggerService>(TYPES.LoggerService);
+
+          return new ConflictResolver(logger);
+        }).inSingletonScope();
 
       // CleanupManager - 注册为基础设施服务
       container.bind<CleanupManager>(TYPES.CleanupManager).toDynamicValue(context => {

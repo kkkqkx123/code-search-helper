@@ -507,4 +507,12 @@ export class GraphCacheService implements ICacheService {
     }
     this.logger.info('GraphCacheService disposed');
   }
+  
+ stopCleanup(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.logger.info('GraphCacheService cleanup stopped');
+  }
 }

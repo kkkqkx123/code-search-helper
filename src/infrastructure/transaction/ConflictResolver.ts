@@ -1,9 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { QdrantService } from '../../database/qdrant/QdrantService';
-import { IGraphService } from '../../service/graph/core/IGraphService';
-import { GraphPersistenceResult } from '../../service/graph/core/types';
 
 export interface ConflictResolutionStrategy {
   name: string;
@@ -15,14 +12,15 @@ export interface Conflict {
   id: string;
   type: 'data_conflict' | 'reference_conflict' | 'schema_conflict' | 'concurrency_conflict';
   entities: Array<{
-    database: 'qdrant' | 'graph';
+    source: string; // 数据源标识，如 'database1', 'database2', 'cache' 等
     id: string;
     data: any;
     timestamp: number;
+    version?: string;
   }>;
   context: {
     operation: string;
-    projectPath: string;
+    projectPath?: string;
     [key: string]: any;
   };
 }
@@ -30,35 +28,36 @@ export interface Conflict {
 export interface ResolutionResult {
   success: boolean;
   resolvedData: any;
-  appliedTo: ('qdrant' | 'graph')[];
+  appliedTo: string[]; // 应用到的数据源
   conflictsResolved: number;
   errors: string[];
+  strategy?: string; // 使用的策略名称
 }
 
 export interface ConflictResolutionOptions {
   strategy?: 'latest_wins' | 'merge' | 'custom' | 'rollback';
   maxRetries?: number;
   timeout?: number;
+  fallbackStrategy?: string; // 回退策略
+}
+
+export interface ConflictResolverDelegate {
+  resolveConflict: (conflict: Conflict, options?: ConflictResolutionOptions) => Promise<ResolutionResult>;
+  applyResolution: (data: any, target: string) => Promise<boolean>;
 }
 
 @injectable()
 export class ConflictResolver {
   private logger: LoggerService;
-  private qdrantService: QdrantService;
-  private graphService: IGraphService;
   private strategies: Map<string, ConflictResolutionStrategy> = new Map();
+  private delegates: Map<string, ConflictResolverDelegate> = new Map();
 
   constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.QdrantService) qdrantService: QdrantService,
-    @inject(TYPES.GraphService) graphService: IGraphService
+    @inject(TYPES.LoggerService) logger: LoggerService
   ) {
     this.logger = logger;
-    this.qdrantService = qdrantService;
-    this.graphService = graphService;
-
     this.logger.info('ConflictResolver initialized');
-
+    
     // 注册默认策略
     this.registerDefaultStrategies();
   }
@@ -72,6 +71,14 @@ export class ConflictResolver {
   }
 
   /**
+   * 注册冲突解决委托
+   */
+  registerDelegate(name: string, delegate: ConflictResolverDelegate): void {
+    this.delegates.set(name, delegate);
+    this.logger.debug('Registered conflict resolution delegate', { delegateName: name });
+  }
+
+  /**
    * 解决冲突
    */
   async resolveConflict(
@@ -82,13 +89,15 @@ export class ConflictResolver {
       strategy: 'latest_wins',
       maxRetries: 3,
       timeout: 30000,
+      fallbackStrategy: 'rollback',
       ...options
     };
 
     this.logger.info('Resolving conflict', {
       conflictId: conflict.id,
       conflictType: conflict.type,
-      strategy: opts.strategy
+      strategy: opts.strategy,
+      entities: conflict.entities.length
     });
 
     let retries = 0;
@@ -121,7 +130,8 @@ export class ConflictResolver {
 
         this.logger.info('Conflict resolved successfully', {
           conflictId: conflict.id,
-          appliedTo: result.appliedTo
+          appliedTo: result.appliedTo,
+          strategy: strategy.name
         });
 
         return result;
@@ -141,7 +151,29 @@ export class ConflictResolver {
       }
     }
 
-    // 所有重试都失败了
+    // 所有重试都失败了，尝试回退策略
+    if (opts.fallbackStrategy) {
+      this.logger.info('Trying fallback strategy', {
+        conflictId: conflict.id,
+        fallbackStrategy: opts.fallbackStrategy
+      });
+
+      const fallbackStrategy = this.strategies.get(opts.fallbackStrategy);
+      if (fallbackStrategy) {
+        try {
+          const result = await fallbackStrategy.resolve(conflict);
+          result.strategy = opts.fallbackStrategy;
+          return result;
+        } catch (error) {
+          this.logger.error('Fallback strategy also failed', {
+            conflictId: conflict.id,
+            error: (error as Error).message
+          });
+        }
+      }
+    }
+
+    // 所有重试和回退策略都失败了
     this.logger.error('All conflict resolution attempts failed', {
       conflictId: conflict.id,
       error: lastError?.message
@@ -185,6 +217,27 @@ export class ConflictResolver {
   }
 
   /**
+   * 应用冲突解决结果
+   */
+  async applyResolution(result: ResolutionResult, target: string): Promise<boolean> {
+    const delegate = this.delegates.get(target);
+    if (!delegate) {
+      this.logger.error('No delegate found for target', { target });
+      return false;
+    }
+
+    try {
+      return await delegate.applyResolution(result.resolvedData, target);
+    } catch (error) {
+      this.logger.error('Failed to apply resolution', {
+        target,
+        error: (error as Error).message
+      });
+      return false;
+    }
+  }
+
+  /**
    * 检测冲突
    */
   async detectConflicts(projectPath: string, operationContext?: any): Promise<Conflict[]> {
@@ -193,11 +246,8 @@ export class ConflictResolver {
     this.logger.debug('Detecting conflicts', { projectPath });
 
     // 这里应该实现实际的冲突检测逻辑
-    // 例如：检查相同ID的数据在不同数据库中的差异
+    // 例如：检查相同ID的数据在不同数据源中的差异
     // 检查引用完整性等
-
-    // 为了示例，返回空数组
-    // 实际实现中需要根据具体情况检测冲突
 
     return conflicts;
   }
@@ -207,6 +257,13 @@ export class ConflictResolver {
    */
   getAvailableStrategies(): string[] {
     return Array.from(this.strategies.keys());
+  }
+
+  /**
+   * 获取已注册的委托
+   */
+  getRegisteredDelegates(): string[] {
+    return Array.from(this.delegates.keys());
   }
 
   private registerDefaultStrategies(): void {
@@ -220,34 +277,13 @@ export class ConflictResolver {
           prev.timestamp > current.timestamp ? prev : current
         );
 
-        // 应用到所有数据库
-        const appliedTo: ('qdrant' | 'graph')[] = [];
-        const errors: string[] = [];
-
-        for (const entity of conflict.entities) {
-          if (entity.database !== latestEntity.database) {
-            try {
-              if (entity.database === 'qdrant') {
-                // 更新Qdrant数据库
-                // 实际实现中需要调用相应的更新方法
-                appliedTo.push('qdrant');
-              } else if (entity.database === 'graph') {
-                // 更新Graph数据库
-                // 实际实现中需要调用相应的更新方法
-                appliedTo.push('graph');
-              }
-            } catch (error) {
-              errors.push(`Failed to update ${entity.database}: ${(error as Error).message}`);
-            }
-          }
-        }
-
         return {
-          success: errors.length === 0,
+          success: true,
           resolvedData: latestEntity.data,
-          appliedTo,
+          appliedTo: [latestEntity.source],
           conflictsResolved: 1,
-          errors
+          errors: [],
+          strategy: 'latest_wins'
         };
       }
     });
@@ -255,41 +291,25 @@ export class ConflictResolver {
     // 合并策略
     this.registerStrategy({
       name: 'merge',
-      description: '合并不同数据库中的数据',
+      description: '合并不同数据源中的数据',
       resolve: async (conflict) => {
         // 简单的合并策略 - 合并所有数据字段
         const mergedData: any = {};
-        const appliedTo: ('qdrant' | 'graph')[] = [];
-        const errors: string[] = [];
+        const sources: string[] = [];
 
         // 合并所有实体的数据
         for (const entity of conflict.entities) {
           Object.assign(mergedData, entity.data);
-        }
-
-        // 应用合并后的数据到所有数据库
-        for (const entity of conflict.entities) {
-          try {
-            if (entity.database === 'qdrant') {
-              // 更新Qdrant数据库
-              // 实际实现中需要调用相应的更新方法
-              appliedTo.push('qdrant');
-            } else if (entity.database === 'graph') {
-              // 更新Graph数据库
-              // 实际实现中需要调用相应的更新方法
-              appliedTo.push('graph');
-            }
-          } catch (error) {
-            errors.push(`Failed to update ${entity.database}: ${(error as Error).message}`);
-          }
+          sources.push(entity.source);
         }
 
         return {
-          success: errors.length === 0,
+          success: true,
           resolvedData: mergedData,
-          appliedTo,
+          appliedTo: sources,
           conflictsResolved: 1,
-          errors
+          errors: [],
+          strategy: 'merge'
         };
       }
     });
@@ -299,19 +319,46 @@ export class ConflictResolver {
       name: 'rollback',
       description: '回滚到之前的一致状态',
       resolve: async (conflict) => {
-        // 回滚策略 - 这里需要实现具体的回滚逻辑
-        // 可能需要使用事务日志来恢复到一致状态
-        const appliedTo: ('qdrant' | 'graph')[] = [];
-        const errors: string[] = [];
+        // 回滚策略 - 选择最旧的版本作为回退
+        const oldestEntity = conflict.entities.reduce((prev, current) =>
+          prev.timestamp < current.timestamp ? prev : current
+        );
 
-        // 实际实现中需要根据事务日志回滚更改
-        // 暂时返回成功但没有实际操作
         return {
           success: true,
-          resolvedData: null,
-          appliedTo,
+          resolvedData: oldestEntity.data,
+          appliedTo: [oldestEntity.source],
           conflictsResolved: 1,
-          errors
+          errors: [],
+          strategy: 'rollback'
+        };
+      }
+    });
+
+    // 优先级策略
+    this.registerStrategy({
+      name: 'priority_based',
+      description: '根据数据源优先级选择',
+      resolve: async (conflict) => {
+        // 定义数据源优先级
+        const priorityOrder = ['primary_database', 'cache', 'secondary_database'];
+        
+        // 按优先级排序
+        const sortedEntities = conflict.entities.sort((a, b) => {
+          const aPriority = priorityOrder.indexOf(a.source);
+          const bPriority = priorityOrder.indexOf(b.source);
+          return aPriority - bPriority;
+        });
+
+        const selectedEntity = sortedEntities[0];
+
+        return {
+          success: true,
+          resolvedData: selectedEntity.data,
+          appliedTo: [selectedEntity.source],
+          conflictsResolved: 1,
+          errors: [],
+          strategy: 'priority_based'
         };
       }
     });
@@ -322,12 +369,22 @@ export class ConflictResolver {
     timeout: number,
     errorMessage: string
   ): Promise<T> {
-    return Promise.race([
-      promise,
-      new Promise<T>((_, reject) =>
-        setTimeout(() => reject(new Error(errorMessage)), timeout)
-      )
-    ]);
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeout);
+    });
+    
+    try {
+      return await Promise.race([
+        promise,
+        timeoutPromise
+      ]);
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    }
   }
 
   private delay(ms: number): Promise<void> {

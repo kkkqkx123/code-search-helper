@@ -10,7 +10,7 @@ export interface Task<T = any> {
   maxRetries?: number;
   timeout?: number;
   createdAt: Date;
- startedAt?: Date;
+  startedAt?: Date;
   completedAt?: Date;
   error?: Error;
 }
@@ -35,7 +35,7 @@ export interface TaskResult<T = any> {
 export class AsyncTaskQueue {
   private logger: LoggerService;
   private tasks: Map<string, Task> = new Map();
- private pendingTasks: Task[] = [];
+  private pendingTasks: Task[] = [];
   private runningTasks: Map<string, Task> = new Map();
   private completedTasks: Map<string, TaskResult> = new Map();
   private options: QueueOptions;
@@ -84,8 +84,14 @@ export class AsyncTaskQueue {
     
     // 按优先级排序
     this.sortPendingTasks();
-    
     this.logger.debug('Added task to queue', { taskId, priority: task.priority });
+    
+    // 如果队列未启动，启动它
+    if (!this.isRunning) {
+      this.start();
+    }
+    // 即使队列已经在运行，我们不需要做额外的事情，因为processQueue会持续处理任务
+    // 任务已经被添加到pendingTasks中，会在下一次循环中被处理
     
     return taskId;
   }
@@ -111,23 +117,52 @@ export class AsyncTaskQueue {
    */
   stop(): void {
     this.isRunning = false;
+    // 清理所有待处理的任务
+    this.pendingTasks = [];
+    // 清理所有正在进行的任务
+    this.runningTasks.clear();
+    this.activeWorkers = 0;
     this.logger.info('Stopped async task queue');
   }
 
   /**
    * 等待所有任务完成
    */
-  async waitForCompletion(): Promise<Map<string, TaskResult>> {
-    while (this.pendingTasks.length > 0 || this.activeWorkers > 0) {
-      await this.delay(100);
+  async waitForCompletion(timeoutMs: number = 30000): Promise<Map<string, TaskResult>> {
+    // 添加超时机制以避免无限等待
+    const startTime = Date.now();
+    
+    // 确保队列正在运行
+    if (!this.isRunning && (this.pendingTasks.length > 0 || this.runningTasks.size > 0)) {
+      this.start();
     }
+    
+    while ((this.pendingTasks.length > 0 || this.runningTasks.size > 0) && (Date.now() - startTime < timeoutMs)) {
+      // 如果有待处理任务但没有活跃工作线程，可能需要重新启动处理
+      if (this.pendingTasks.length > 0 && this.activeWorkers === 0 && this.isRunning) {
+        this.processQueue();
+      }
+      
+      await this.delay(100); // 增加延迟时间以减少CPU使用
+    }
+    
+    if (Date.now() - startTime >= timeoutMs) {
+      this.logger.warn('Wait for completion timed out', {
+        pendingTasks: this.pendingTasks.length,
+        runningTasks: this.runningTasks.size,
+        completedTasks: this.completedTasks.size,
+        activeWorkers: this.activeWorkers,
+        isRunning: this.isRunning
+      });
+    }
+    
     return this.completedTasks;
   }
 
   /**
    * 获取任务结果
    */
- getTaskResult(taskId: string): TaskResult | undefined {
+  getTaskResult(taskId: string): TaskResult | undefined {
     return this.completedTasks.get(taskId);
   }
 
@@ -155,33 +190,47 @@ export class AsyncTaskQueue {
       return;
     }
 
-    while (this.isRunning && (this.pendingTasks.length > 0 || this.activeWorkers > 0)) {
+    while (this.isRunning) {
+      let hasWork = false;
+      
       // 启动新的工作线程直到达到最大并发数
-      while (this.activeWorkers < this.maxConcurrency && this.pendingTasks.length > 0) {
+      while (this.isRunning && this.activeWorkers < this.maxConcurrency && this.pendingTasks.length > 0) {
         const task = this.pendingTasks.shift();
         if (task) {
           this.activeWorkers++;
           this.runningTasks.set(task.id, task);
+          hasWork = true;
           
           // 执行任务
           this.executeTask(task)
-            .then(() => {
+            .finally(() => {
               this.activeWorkers--;
               this.runningTasks.delete(task.id);
-            })
-            .catch(error => {
-              this.logger.error('Error in task execution', { 
-                taskId: task.id, 
-                error: error.message 
-              });
-              this.activeWorkers--;
-              this.runningTasks.delete(task.id);
+              // 任务完成后，如果队列仍在运行且有新任务，继续处理
+              if (this.isRunning && this.pendingTasks.length > 0) {
+                // 使用 setImmediate 避免阻塞
+                setTimeout(() => this.processQueue(), 0);
+              }
             });
+        }
+      }
+
+      // 如果没有待处理的任务且没有正在运行的任务，可以退出循环
+      // 但如果有正在运行的任务，需要继续等待它们完成
+      if (!hasWork && this.activeWorkers === 0 && this.pendingTasks.length === 0) {
+        // 只有在没有任务且没有工作线程时才退出
+        if (this.pendingTasks.length === 0) {
+          break;
         }
       }
 
       // 等待一小段时间再检查
       await this.delay(50);
+      
+      // 检查是否应该停止
+      if (!this.isRunning) {
+        break;
+      }
     }
   }
 
@@ -206,9 +255,9 @@ export class AsyncTaskQueue {
         executionTime: Date.now() - startTime
       };
       
-      this.logger.debug('Task completed successfully', { 
-        taskId: task.id, 
-        executionTime: result.executionTime 
+      this.logger.debug('Task completed successfully', {
+        taskId: task.id,
+        executionTime: result.executionTime
       });
     } catch (error) {
       // 检查是否可以重试
@@ -216,10 +265,10 @@ export class AsyncTaskQueue {
         // 递增重试次数
         task.retries = (task.retries || 0) + 1;
         
-        this.logger.warn('Task failed, scheduling retry', { 
-          taskId: task.id, 
+        this.logger.warn('Task failed, scheduling retry', {
+          taskId: task.id,
           retryCount: task.retries,
-          error: (error as Error).message 
+          error: (error as Error).message
         });
         
         // 将任务放回队列前端以供重试
@@ -234,10 +283,10 @@ export class AsyncTaskQueue {
           executionTime: Date.now() - startTime
         };
         
-        this.logger.error('Task failed after all retries', { 
-          taskId: task.id, 
+        this.logger.error('Task failed after all retries', {
+          taskId: task.id,
           retries: result.retries,
-          error: (error as Error).message 
+          error: (error as Error).message
         });
       }
     }
@@ -247,12 +296,22 @@ export class AsyncTaskQueue {
   }
 
   private async executeWithTimeout<T>(promise: Promise<T>, timeout: number): Promise<T> {
-    return Promise.race([
-      promise,
-      new Promise<T>((_, reject) => 
-        setTimeout(() => reject(new Error(`Task timeout after ${timeout}ms`)), timeout)
-      )
-    ]);
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(`Task timeout after ${timeout}ms`)), timeout);
+    });
+    
+    try {
+      return await Promise.race([
+        promise,
+        timeoutPromise
+      ]);
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    }
   }
 
   private sortPendingTasks(): void {

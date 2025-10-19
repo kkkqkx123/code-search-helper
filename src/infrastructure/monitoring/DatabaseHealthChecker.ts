@@ -4,6 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { DatabaseType } from '../types';
 import { IHealthChecker } from './types';
 import { HealthStatus, AggregateHealthStatus } from './IDatabaseHealthChecker';
+import { DataConsistencyChecker } from '../../database/common/DataConsistencyChecker';
 
 export interface IHealthCheckerRegistry {
   registerHealthChecker(databaseType: DatabaseType, healthChecker: IHealthChecker): void;
@@ -26,7 +27,8 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
   private healthUpdateCallbacks: Array<(status: HealthStatus) => void> = [];
 
   constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService
+    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.DataConsistencyChecker) private consistencyChecker: DataConsistencyChecker
   ) {
     this.logger = logger;
   }
@@ -83,17 +85,17 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
   // 扩展功能：多数据库健康检查
   async checkHealthByDatabase(databaseType: DatabaseType): Promise<HealthStatus> {
     const startTime = Date.now();
-    
+
     try {
       // 从注册表中获取健康检查器
       const healthChecker = this.healthCheckers.get(databaseType);
       if (!healthChecker) {
         throw new Error(`No health checker registered for database type: ${databaseType}`);
       }
-      
+
       // 执行健康检查
       const status = await healthChecker.checkHealth();
-      
+
       const responseTime = Date.now() - startTime;
       const healthStatus: HealthStatus = {
         status: status.status as 'healthy' | 'degraded' | 'error',
@@ -108,10 +110,10 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
       };
 
       this.healthStatuses.set(databaseType, healthStatus);
-      
+
       // 通知订阅者健康状态更新
       this.notifyHealthUpdateSubscribers(healthStatus);
-      
+
       this.logger.debug('Database health check completed', {
         databaseType,
         status: healthStatus.status,
@@ -134,10 +136,10 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
       };
 
       this.healthStatuses.set(databaseType, healthStatus);
-      
+
       // 通知订阅者健康状态更新
       this.notifyHealthUpdateSubscribers(healthStatus);
-      
+
       this.logger.error('Database health check failed', {
         databaseType,
         error: (error as Error).message,
@@ -151,24 +153,24 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
   async checkAllHealth(): Promise<AggregateHealthStatus> {
     const databaseTypes = Array.from(this.healthCheckers.keys());
     const healthChecks = databaseTypes.map(dbType =>
-     this.checkHealthByDatabase(dbType).catch(error => {
-       // 如果单个数据库检查失败，返回错误状态而不是抛出异常
-       const errorStatus: HealthStatus = {
-         status: 'error',
-         details: { 
-           error: (error as Error).message,
-           databaseType: dbType
-         },
-         timestamp: Date.now()
-       };
-       this.healthStatuses.set(dbType, errorStatus);
-       return errorStatus;
-     })
-   );
+      this.checkHealthByDatabase(dbType).catch(error => {
+        // 如果单个数据库检查失败，返回错误状态而不是抛出异常
+        const errorStatus: HealthStatus = {
+          status: 'error',
+          details: {
+            error: (error as Error).message,
+            databaseType: dbType
+          },
+          timestamp: Date.now()
+        };
+        this.healthStatuses.set(dbType, errorStatus);
+        return errorStatus;
+      })
+    );
 
     const results = await Promise.all(healthChecks);
     const databaseStatuses = new Map<DatabaseType, HealthStatus>();
-    
+
     let healthyCount = 0;
     let degradedCount = 0;
     let errorCount = 0;
@@ -176,7 +178,7 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
     for (let i = 0; i < databaseTypes.length; i++) {
       const dbType = databaseTypes[i];
       databaseStatuses.set(dbType, results[i]);
-      
+
       switch (results[i].status) {
         case 'healthy':
           healthyCount++;
@@ -217,6 +219,120 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
     return aggregateStatus;
   }
 
+  /**
+   * 执行数据一致性检查
+   */
+  async checkDataConsistency(projectPath: string): Promise<HealthStatus> {
+    const startTime = Date.now();
+
+    try {
+      this.logger.info('Starting data consistency check', { projectPath });
+
+      const consistencyResult = await this.consistencyChecker.checkConsistency(projectPath, {
+        checkMissingReferences: true,
+        checkDataIntegrity: true,
+        checkReferenceIntegrity: true,
+        batchSize: 100,
+        maxResults: 1000
+      });
+
+      const responseTime = Date.now() - startTime;
+      const healthStatus: HealthStatus = {
+        status: consistencyResult.isConsistent ? 'healthy' : 'degraded',
+        details: {
+          consistencyCheck: {
+            isConsistent: consistencyResult.isConsistent,
+            inconsistencies: consistencyResult.inconsistencies.length,
+            summary: consistencyResult.summary,
+            projectPath
+          },
+          responseTime,
+          lastChecked: new Date().toISOString(),
+          databaseType: 'consistency_check' as any
+        },
+        timestamp: Date.now(),
+        responseTime
+      };
+
+      if (consistencyResult.isConsistent) {
+        this.logger.info('Data consistency check passed', {
+          projectPath,
+          checkTime: consistencyResult.summary.checkTime
+        });
+      } else {
+        this.logger.warn('Data consistency check failed', {
+          projectPath,
+          inconsistencyCount: consistencyResult.inconsistencies.length,
+          checkTime: consistencyResult.summary.checkTime
+        });
+      }
+
+      return healthStatus;
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      const healthStatus: HealthStatus = {
+        status: 'error',
+        details: {
+          error: (error as Error).message,
+          responseTime,
+          lastChecked: new Date().toISOString(),
+          databaseType: 'consistency_check' as any,
+          projectPath
+        },
+        timestamp: Date.now(),
+        responseTime
+      };
+
+      this.logger.error('Data consistency check failed', {
+        projectPath,
+        error: (error as Error).message,
+        responseTime
+      });
+
+      return healthStatus;
+    }
+  }
+
+  /**
+   * 执行完整的健康检查，包括数据一致性
+   */
+  async performComprehensiveHealthCheck(projectPath: string): Promise<AggregateHealthStatus> {
+    this.logger.info('Starting comprehensive health check', { projectPath });
+
+    // 执行常规健康检查
+    const regularHealthStatus = await this.checkAllHealth();
+
+    // 执行数据一致性检查
+    const consistencyHealthStatus = await this.checkDataConsistency(projectPath);
+
+    // 合并结果
+    const databaseStatuses = new Map(regularHealthStatus.databaseStatuses);
+    databaseStatuses.set('consistency_check' as any, consistencyHealthStatus);
+
+    // 重新计算总体状态
+    let overallStatus: 'healthy' | 'degraded' | 'error' = 'healthy';
+    if (regularHealthStatus.overallStatus === 'error' || consistencyHealthStatus.status === 'error') {
+      overallStatus = 'error';
+    } else if (regularHealthStatus.overallStatus === 'degraded' || consistencyHealthStatus.status === 'degraded') {
+      overallStatus = 'degraded';
+    }
+
+    const comprehensiveStatus: AggregateHealthStatus = {
+      overallStatus,
+      databaseStatuses,
+      timestamp: Date.now(),
+      summary: regularHealthStatus.summary
+    };
+
+    this.logger.info('Comprehensive health check completed', {
+      projectPath,
+      overallStatus,
+      consistencyStatus: consistencyHealthStatus.status
+    });
+
+    return comprehensiveStatus;
+  }
+
   async getHealthStatusByDatabase(databaseType: DatabaseType): Promise<HealthStatus | null> {
     return this.healthStatuses.get(databaseType) || null;
   }
@@ -226,7 +342,7 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
     if (this.healthStatuses.size === 0) {
       await this.checkAllHealth();
     }
-    
+
     return new Map(this.healthStatuses);
   }
 
@@ -259,10 +375,10 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
     if (interval < 1000) { // 最小1秒间隔
       throw new Error('Health check interval must be at least 1000ms');
     }
-    
+
     this.checkInterval = interval;
     this.logger.info('Health check interval updated', { interval });
-    
+
     // 如果监控已在运行，重启它以应用新间隔
     if (this.monitoringInterval) {
       this.stopMonitoring();
@@ -309,12 +425,12 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
         timestamp: Date.now()
       };
     }
-    
+
     const firstStatus = this.healthStatuses.values().next().value;
     if (firstStatus) {
       return this.convertToCompatibleStatus(firstStatus);
     }
-    
+
     // 备用方案
     return {
       databaseType: DatabaseType.QDRANT,

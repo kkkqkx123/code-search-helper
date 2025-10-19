@@ -3,6 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { DatabaseType } from '../types';
 import { ITransactionCoordinator, TransactionParticipant, TransactionStatus } from './ITransactionCoordinator';
+import { ConflictResolver } from './ConflictResolver';
 
 @injectable()
 export class TransactionCoordinator implements ITransactionCoordinator {
@@ -12,7 +13,10 @@ export class TransactionCoordinator implements ITransactionCoordinator {
   private monitoringInterval: NodeJS.Timeout | null = null;
   private readonly defaultTimeout = 30000; // 30秒默认超时
 
-  constructor(@inject(TYPES.LoggerService) logger: LoggerService) {
+  constructor(
+    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.ConflictResolver) private conflictResolver: ConflictResolver
+  ) {
     this.logger = logger;
   }
 
@@ -36,7 +40,7 @@ export class TransactionCoordinator implements ITransactionCoordinator {
     return transactionId;
   }
 
- async registerParticipant(transactionId: string, participant: TransactionParticipant): Promise<void> {
+  async registerParticipant(transactionId: string, participant: TransactionParticipant): Promise<void> {
     const transaction = this.transactions.get(transactionId);
     if (!transaction) {
       throw new Error(`Transaction not found: ${transactionId}`);
@@ -58,7 +62,7 @@ export class TransactionCoordinator implements ITransactionCoordinator {
       transactionId,
       databaseType: participant.databaseType
     });
- }
+  }
 
   async preparePhase(transactionId: string): Promise<boolean> {
     const transaction = this.transactions.get(transactionId);
@@ -252,7 +256,7 @@ export class TransactionCoordinator implements ITransactionCoordinator {
     return this.transactions.get(transactionId) || null;
   }
 
- async cleanupTransaction(transactionId: string): Promise<void> {
+  async cleanupTransaction(transactionId: string): Promise<void> {
     this.transactions.delete(transactionId);
     this.participants.delete(transactionId);
     
@@ -280,15 +284,73 @@ export class TransactionCoordinator implements ITransactionCoordinator {
     }
   }
 
- private generateTransactionId(): string {
+  /**
+   * 使用冲突解决器处理事务冲突
+   */
+  async resolveTransactionConflict(
+    transactionId: string,
+    conflictData: any
+  ): Promise<boolean> {
+    this.logger.info('Resolving transaction conflict', { transactionId });
+
+    try {
+      // 创建冲突对象
+      const conflict = {
+        id: `conflict_${transactionId}`,
+        type: 'concurrency_conflict' as const,
+        entities: conflictData.entities || [],
+        context: {
+          operation: 'transaction_conflict',
+          transactionId,
+          ...conflictData.context
+        }
+      };
+
+      // 使用冲突解决器解决冲突
+      const resolution = await this.conflictResolver.resolveConflict(conflict, {
+        strategy: 'latest_wins',
+        maxRetries: 3,
+        timeout: 30000
+      });
+
+      if (resolution.success) {
+        this.logger.info('Transaction conflict resolved successfully', {
+          transactionId,
+          strategy: resolution.strategy,
+          appliedTo: resolution.appliedTo
+        });
+
+        // 应用解决方案到相关参与者
+        for (const target of resolution.appliedTo) {
+          await this.conflictResolver.applyResolution(resolution, target);
+        }
+
+        return true;
+      } else {
+        this.logger.error('Failed to resolve transaction conflict', {
+          transactionId,
+          errors: resolution.errors
+        });
+        return false;
+      }
+    } catch (error) {
+      this.logger.error('Error resolving transaction conflict', {
+        transactionId,
+        error: (error as Error).message
+      });
+      return false;
+    }
+  }
+
+  private generateTransactionId(): string {
     return `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
- private async executeWithTimeout<T>(
+  private async executeWithTimeout<T>(
     promise: Promise<T>, 
     timeout: number, 
     errorMessage: string
- ): Promise<T> {
+  ): Promise<T> {
     return Promise.race([
       promise,
       new Promise<T>((_, reject) => 
@@ -297,7 +359,7 @@ export class TransactionCoordinator implements ITransactionCoordinator {
     ]);
   }
 
- private checkForTimedOutTransactions(): void {
+  private checkForTimedOutTransactions(): void {
     const now = Date.now();
     for (const [transactionId, transaction] of this.transactions) {
       if (now - transaction.timestamp > (transaction.timeout || this.defaultTimeout)) {
