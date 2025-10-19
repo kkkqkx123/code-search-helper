@@ -254,51 +254,51 @@ export class ProjectsPage {
             </tr>
         `).join('');
 
-        // 为操作按钮添加事件监听器
-        container.querySelectorAll('.action-button').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const target = e.target as HTMLButtonElement;
-                const projectId = target.dataset.projectId;
-                const action = target.dataset.action;
+        // 使用事件委托处理操作按钮点击事件
+        container.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('action-button')) {
+                const button = target as HTMLButtonElement;
+                const projectId = button.dataset.projectId;
+                const action = button.dataset.action;
 
                 if (projectId && action) {
+                    e.stopPropagation(); // 防止事件冒泡
                     if (action === 'update') {
                         this.handleManualUpdate(projectId);
                     } else if (action === 'reindex') {
                         this.reindexProject(projectId);
                     } else if (action === 'delete') {
-                        this.deleteProject(projectId, target);
+                        this.deleteProject(projectId, button);
                     } else if (action === 'configure-hot-reload') {
                         this.configureHotReload(projectId);
                     } else if (action === 'toggle-hot-reload') {
-                        this.toggleHotReload(projectId, target);
+                        this.toggleHotReload(projectId, button);
                     } else if (action === 'index-vectors') {
                         this.indexVectors(projectId);
                     } else if (action === 'index-graph') {
                         this.indexGraph(projectId);
                     } else if (action === 'toggle-menu') {
-                        this.toggleDropdown(target);
+                        this.toggleDropdown(button);
                     }
                 }
-            });
+            }
         });
 
-        // 为存储操作按钮添加事件监听器
-        container.querySelectorAll('storage-action-buttons').forEach((element: Element) => {
-            (element as HTMLElement).addEventListener('storage-action', async (e: any) => {
-                const { projectId, action } = e.detail;
-                if (action === 'index-vectors') {
-                    await this.indexVectors(projectId);
-                } else if (action === 'index-graph') {
-                    await this.indexGraph(projectId);
-                }
-            });
+        // 为存储操作按钮添加事件监听器（使用事件委托）
+        container.addEventListener('storage-action', async (e: any) => {
+            const { projectId, action } = e.detail;
+            if (action === 'index-vectors') {
+                await this.indexVectors(projectId);
+            } else if (action === 'index-graph') {
+                await this.indexGraph(projectId);
+            }
         });
 
-        // 为项目复选框添加事件监听器
-        container.querySelectorAll('.project-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const target = e.target as HTMLInputElement;
+        // 为项目复选框添加事件监听器（使用事件委托）
+        container.addEventListener('change', (e) => {
+            const target = e.target as HTMLInputElement;
+            if (target.classList.contains('project-checkbox')) {
                 const projectId = target.dataset.projectId;
                 if (projectId) {
                     document.dispatchEvent(new CustomEvent('project-selected', {
@@ -308,7 +308,7 @@ export class ProjectsPage {
                         }
                     }));
                 }
-            });
+            }
         });
 
         // 为全选复选框添加事件监听器
