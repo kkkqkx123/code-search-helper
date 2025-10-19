@@ -646,4 +646,143 @@ export class ChangeDetectionService extends EventEmitter {
     
     return projectId;
   }
+
+  /**
+   * 检测文件变化（用于手动更新）
+   */
+  async detectChangesForUpdate(projectPath: string, options?: { enableHashComparison?: boolean }): Promise<{
+    added: string[];
+    modified: string[];
+    deleted: string[];
+    unchanged: string[];
+  }> {
+    const enableHashComparison = options?.enableHashComparison ?? true;
+    
+    try {
+      this.logger.info(`Detecting file changes for manual update: ${projectPath}`);
+      
+      // 1. 获取当前文件系统状态
+      const currentFiles = await this.fileSystemTraversal.traverseDirectory(projectPath);
+      const currentFilePaths = currentFiles.files.map(file => file.path);
+      
+      // 2. 获取已索引的文件列表
+      const projectId = this.projectIdManager.getProjectId(projectPath);
+      if (!projectId) {
+        throw new Error(`Project ID not found for path: ${projectPath}`);
+      }
+      
+      // 从IndexingLogicService获取已索引的文件列表
+      // 这里我们需要通过依赖注入获取IndexingLogicService
+      // 由于ChangeDetectionService没有直接注入IndexingLogicService，我们需要通过其他方式获取
+      // 暂时使用一个简化的方法，通过FileHashManager获取已跟踪的文件
+      const indexedFiles = await this.getIndexedFilesFromHashManager(projectId);
+      
+      // 3. 检测文件变化
+      const changes = {
+        added: [] as string[],
+        modified: [] as string[],
+        deleted: [] as string[],
+        unchanged: [] as string[]
+      };
+
+      // 检测新增文件
+      for (const file of currentFilePaths) {
+        if (!indexedFiles.includes(file)) {
+          changes.added.push(file);
+        }
+      }
+
+      // 检测删除文件
+      for (const file of indexedFiles) {
+        if (!currentFilePaths.includes(file)) {
+          changes.deleted.push(file);
+        }
+      }
+
+      // 检测修改文件
+      const existingFiles = currentFilePaths.filter(file => indexedFiles.includes(file));
+      for (const file of existingFiles) {
+        if (enableHashComparison) {
+          const hasChanged = await this.hasFileChangedForUpdate(projectId, file);
+          if (hasChanged) {
+            changes.modified.push(file);
+          } else {
+            changes.unchanged.push(file);
+          }
+        } else {
+          // 如果不启用哈希比较，则所有现有文件都视为已修改
+          changes.modified.push(file);
+        }
+      }
+
+      this.logger.info(`File changes detected for project ${projectPath}`, {
+        added: changes.added.length,
+        modified: changes.modified.length,
+        deleted: changes.deleted.length,
+        unchanged: changes.unchanged.length
+      });
+
+      return changes;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to detect file changes for update: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'ChangeDetectionService', operation: 'detectChangesForUpdate', projectPath }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 检查文件是否发生变化（用于手动更新）
+   */
+  private async hasFileChangedForUpdate(projectId: string, filePath: string): Promise<boolean> {
+    try {
+      // 获取当前文件哈希
+      const currentHash = await this.fileSystemTraversal['calculateFileHash'](filePath);
+      
+      // 从FileHashManager获取缓存的哈希
+      const cachedHash = await this.fileHashManager.getFileHash(projectId, filePath);
+      
+      if (cachedHash === null) {
+        // 新文件，需要索引
+        await this.fileHashManager.updateFileHash(projectId, filePath, currentHash);
+        return true;
+      }
+      
+      const hasChanged = currentHash !== cachedHash;
+      if (hasChanged) {
+        await this.fileHashManager.updateFileHash(projectId, filePath, currentHash);
+      }
+      
+      return hasChanged;
+    } catch (error) {
+      this.logger.warn(`Failed to check file change for ${filePath}:`, error);
+      // 如果无法计算哈希，则视为文件已变化
+      return true;
+    }
+  }
+
+  /**
+   * 从FileHashManager获取已索引的文件列表
+   */
+  private async getIndexedFilesFromHashManager(projectId: string): Promise<string[]> {
+    try {
+      // 这里我们需要一个方法来获取所有已索引的文件
+      // 由于FileHashManager没有直接提供这个方法，我们需要通过查询数据库获取
+      // 暂时返回空数组，实际实现需要扩展FileHashManager
+      // 通过类型断言访问sqliteService，这在实际实现中需要更好的方式
+      const fileHashManagerImpl = this.fileHashManager as any;
+      const stmt = fileHashManagerImpl.sqliteService?.prepare(`
+        SELECT DISTINCT file_path
+        FROM file_index_states 
+        WHERE project_id = ? AND status = 'indexed'
+      `);
+      
+      const results = stmt.all(projectId) as any[];
+      return results.map(row => row.file_path);
+    } catch (error) {
+      this.logger.error(`Failed to get indexed files from hash manager: ${projectId}`, error);
+      return [];
+    }
+  }
 }

@@ -1,4 +1,5 @@
 import { ApiClient } from '../services/api.js';
+import { UpdateProgressModal } from '../components/UpdateProgressModal.js';
 
 /**
  * 已索引项目页面组件
@@ -8,10 +9,13 @@ export class ProjectsPage {
     private container: HTMLElement;
     private onProjectActionComplete?: (action: string, result: any) => void;
     private refreshInterval: number | null = null;
+    private updateProgressModal: UpdateProgressModal;
 
     constructor(container: HTMLElement, apiClient: ApiClient) {
         this.container = container;
         this.apiClient = apiClient;
+        this.updateProgressModal = new UpdateProgressModal();
+        this.updateProgressModal.setApiClient(apiClient);
         this.render();
         this.setupEventListeners();
         this.loadProjectsList();
@@ -47,9 +51,7 @@ export class ProjectsPage {
                     <tbody id="projects-list">
                         <!-- 动态填充 -->
                     </tbody>
-                </table></search>
-</search_and_replace>
-                
+                </table>
                 <div id="projects-loading" class="loading" style="display: none; padding: 20px;">加载中...</div>
                 <div id="projects-error" class="error" style="display: none; margin: 20px;"></div>
             </div>
@@ -169,6 +171,7 @@ export class ProjectsPage {
                             ⚙️ 配置
                         </button>
                     </div>
+                    <button class="action-button update" data-project-id="${project.id}" data-action="update">🔄 更新</button>
                     <button class="action-button reindex" data-project-id="${project.id}" data-action="reindex">重新索引</button>
                     <button class="action-button delete" data-project-id="${project.id}" data-action="delete">删除</button>
                 </td>
@@ -183,7 +186,9 @@ export class ProjectsPage {
                 const action = target.dataset.action;
 
                 if (projectId && action) {
-                    if (action === 'reindex') {
+                    if (action === 'update') {
+                        this.handleManualUpdate(projectId);
+                    } else if (action === 'reindex') {
                         this.reindexProject(projectId);
                     } else if (action === 'delete') {
                         this.deleteProject(projectId, target);
@@ -435,6 +440,91 @@ export class ProjectsPage {
         } catch (error: any) {
             alert('配置热重载时发生错误: ' + error.message);
         }
+    }
+
+    /**
+     * 处理手动更新
+     */
+    private async handleManualUpdate(projectId: string): Promise<void> {
+        try {
+            // 显示确认对话框
+            const confirmed = confirm('确定要手动更新此项目的索引吗？这将只更新发生变化的文件。');
+            if (!confirmed) return;
+
+            // 获取项目信息
+            const projectsResult = await this.apiClient.getProjects();
+            if (!projectsResult.success || !projectsResult.data) {
+                alert('无法获取项目信息');
+                return;
+            }
+
+            const project = projectsResult.data.find((p: { id: string; }) => p.id === projectId);
+            if (!project) {
+                alert('找不到指定项目');
+                return;
+            }
+
+            // 开始更新
+            const response = await this.apiClient.updateProjectIndex(projectId);
+
+            if (response.success) {
+                // 显示进度模态框
+                this.updateProgressModal.show(
+                    projectId,
+                    project.name || projectId,
+                    (cancelProjectId) => this.handleCancelUpdate(cancelProjectId)
+                );
+
+                // 显示成功消息
+                this.showNotification('手动更新已开始', 'success');
+            } else {
+                this.showNotification(`更新失败: ${response.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Manual update failed:', error);
+            this.showNotification('手动更新失败', 'error');
+        }
+    }
+
+    /**
+     * 处理取消更新
+     */
+    private async handleCancelUpdate(projectId: string): Promise<void> {
+        try {
+            await this.apiClient.cancelUpdate(projectId);
+            this.showNotification('更新操作已取消', 'warning');
+        } catch (error) {
+            console.error('Cancel update failed:', error);
+            this.showNotification('取消更新失败', 'error');
+        }
+    }
+
+    /**
+     * 显示通知消息
+     */
+    private showNotification(message: string, type: 'success' | 'error' | 'warning'): void {
+        // 实现通知显示逻辑
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            z-index: 1000;
+            ${type === 'success' ? 'background-color: #10b981;' : ''}
+            ${type === 'error' ? 'background-color: #ef4444;' : ''}
+            ${type === 'warning' ? 'background-color: #f59e0b;' : ''}
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 3000);
     }
 
     /**

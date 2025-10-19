@@ -63,7 +63,7 @@ export class ApiClient {
         const cacheKey = this.generateSearchCacheKey(query, projectId, options);
         const now = Date.now();
         const useCache = options?.useCache !== false; // 默认使用缓存
-        
+
         // 检查缓存
         if (useCache && this.searchCache[cacheKey]) {
             const cached = this.searchCache[cacheKey];
@@ -73,7 +73,7 @@ export class ApiClient {
                 return cached.data;
             }
         }
-        
+
         try {
             const response = await fetch(`${this.apiBaseUrl}/api/search`, {
                 method: 'POST',
@@ -90,7 +90,7 @@ export class ApiClient {
                 })
             });
             const result = await response.json();
-            
+
             // 缓存结果
             if (useCache && result.success) {
                 this.searchCache[cacheKey] = {
@@ -99,17 +99,17 @@ export class ApiClient {
                 };
                 console.debug('搜索结果已缓存');
             }
-            
+
             return result;
         } catch (error) {
             console.error('搜索失败:', error);
-            
+
             // 如果有缓存数据，即使请求失败也返回缓存数据
             if (useCache && this.searchCache[cacheKey]) {
                 console.warn('搜索API请求失败，返回缓存数据');
                 return this.searchCache[cacheKey].data;
             }
-            
+
             throw error;
         }
     }
@@ -163,7 +163,7 @@ export class ApiClient {
      */
     async getProjects(forceRefresh: boolean = false) {
         const now = Date.now();
-        
+
         // 如果缓存存在且未过期，并且不强制刷新，则返回缓存数据
         if (!forceRefresh &&
             this.projectsCache.data &&
@@ -172,29 +172,29 @@ export class ApiClient {
             console.debug('使用缓存的项目数据');
             return { success: true, data: this.projectsCache.data };
         }
-        
+
         try {
             console.debug('从后端获取项目数据');
             const response = await fetch(`${this.apiBaseUrl}/api/v1/projects`);
             const result = await response.json();
-            
+
             // 更新缓存
             if (result.success && result.data) {
                 this.projectsCache.data = result.data;
                 this.projectsCache.lastUpdated = now;
                 console.debug('项目数据已缓存');
             }
-            
+
             return result;
         } catch (error) {
             console.error('获取项目列表失败:', error);
-            
+
             // 如果有缓存数据，即使请求失败也返回缓存数据
             if (this.projectsCache.data) {
                 console.warn('项目API请求失败，返回缓存数据');
                 return { success: true, data: this.projectsCache.data };
             }
-            
+
             throw error;
         }
     }
@@ -236,7 +236,7 @@ export class ApiClient {
      */
     async getAvailableEmbedders(forceRefresh: boolean = false) {
         const now = Date.now();
-        
+
         // 如果缓存存在且未过期，并且不强制刷新，则返回缓存数据
         if (!forceRefresh &&
             this.embeddersCache.data &&
@@ -245,7 +245,7 @@ export class ApiClient {
             console.debug('使用缓存的嵌入器数据');
             return { success: true, data: this.embeddersCache.data };
         }
-        
+
         try {
             console.debug('从后端获取嵌入器数据');
             const response = await fetch(`${this.apiBaseUrl}/api/v1/indexing/embedders`, {
@@ -253,24 +253,24 @@ export class ApiClient {
                 headers: { 'Content-Type': 'application/json' }
             });
             const result = await response.json();
-            
+
             // 更新缓存
             if (result.success && result.data) {
                 this.embeddersCache.data = result.data;
                 this.embeddersCache.lastUpdated = now;
                 console.debug('嵌入器数据已缓存');
             }
-            
+
             return result;
         } catch (error) {
             console.error('获取可用嵌入器失败:', error);
-            
+
             // 如果有缓存数据，即使请求失败也返回缓存数据
             if (this.embeddersCache.data) {
                 console.warn('嵌入器API请求失败，返回缓存数据');
                 return { success: true, data: this.embeddersCache.data };
             }
-            
+
             throw error;
         }
     }
@@ -448,6 +448,51 @@ export class ApiClient {
             return await response.json();
         } catch (error) {
             console.error('切换项目热重载状态失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 手动更新项目索引
+     */
+    async updateProjectIndex(projectId: string, options?: any): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/indexing/${projectId}/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ options })
+            });
+            return await response.json();
+        }
+        catch (error) {
+            console.error('手动更新项目索引失败:', error);
+            throw error;
+        }
+    }
+    /**
+     * 获取更新进度
+     */
+    async getUpdateProgress(projectId: string): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/indexing/${projectId}/update/progress`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取更新进度失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 取消更新操作
+     */
+    async cancelUpdate(projectId: string): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/indexing/${projectId}/update`, {
+                method: 'DELETE'
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('取消更新操作失败:', error);
             throw error;
         }
     }

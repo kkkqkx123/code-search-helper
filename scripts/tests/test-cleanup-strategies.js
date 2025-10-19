@@ -27,23 +27,23 @@ async function testCleanupStrategies() {
 
   try {
     // 使用编译后的JavaScript文件
-    const { CleanupManager } = require('../dist/service/parser/universal/cleanup/CleanupManager');
-    const { TreeSitterCacheCleanupStrategy } = require('../dist/service/parser/universal/cleanup/strategies/TreeSitterCacheCleanupStrategy');
-    const { LRUCacheCleanupStrategy } = require('../dist/service/parser/universal/cleanup/strategies/LRUCacheCleanupStrategy');
-    const { GarbageCollectionStrategy } = require('../dist/service/parser/universal/cleanup/strategies/GarbageCollectionStrategy');
-    
+    const { CleanupManager } = require('../../dist/service/parser/universal/cleanup/CleanupManager');
+    const { TreeSitterCacheCleanupStrategy } = require('../../dist/service/parser/universal/cleanup/strategies/TreeSitterCacheCleanupStrategy');
+    const { LRUCacheCleanupStrategy } = require('../../dist/service/parser/universal/cleanup/strategies/LRUCacheCleanupStrategy');
+    const { GarbageCollectionStrategy } = require('../../dist/service/parser/universal/cleanup/strategies/GarbageCollectionStrategy');
+
     // 创建清理管理器
     const cleanupManager = new CleanupManager();
     cleanupManager.initialize();
-    
+
     // 注册清理策略
     cleanupManager.registerStrategy(new TreeSitterCacheCleanupStrategy());
     cleanupManager.registerStrategy(new LRUCacheCleanupStrategy());
     cleanupManager.registerStrategy(new GarbageCollectionStrategy());
-    
+
     console.log('✅ 清理管理器初始化完成');
     console.log(`📋 已注册策略数量: ${cleanupManager.getRegisteredStrategies().length}`);
-    
+
     // 测试清理策略
     const cleanupContext = {
       triggerReason: 'test_cleanup',
@@ -54,10 +54,10 @@ async function testCleanupStrategies() {
       },
       timestamp: new Date()
     };
-    
+
     console.log('\n🔄 执行清理操作...');
     const result = await cleanupManager.performCleanup(cleanupContext);
-    
+
     if (result.success) {
       console.log(`✅ 清理成功！`);
       console.log(`💾 释放内存: ${formatBytes(result.memoryFreed)}`);
@@ -66,14 +66,14 @@ async function testCleanupStrategies() {
     } else {
       console.log(`❌ 清理失败: ${result.error?.message}`);
     }
-    
+
     // 测试估算功能
     console.log('\n📊 估算清理影响...');
     const estimatedImpact = cleanupManager.estimateCleanupImpact(cleanupContext);
     console.log(`💡 预估可释放内存: ${formatBytes(estimatedImpact)}`);
-    
+
     console.log('\n🎉 清理策略测试完成！');
-    
+
   } catch (error) {
     console.error('❌ 测试失败:', error.message);
     console.error(error.stack);

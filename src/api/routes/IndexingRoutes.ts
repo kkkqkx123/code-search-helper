@@ -130,6 +130,30 @@ export class IndexingRoutes {
      * @desc Get available embedder providers
      * @returns {object} 200 - Available embedders list
      */
+    /**
+     * @route POST /api/v1/indexing/:projectId/update
+     * @desc Manually update project index (incremental)
+     * @param {string} params.projectId - Project ID
+     * @param {object} body - Update options
+     * @returns {object} 200 - Update result
+     */
+    this.router.post('/:projectId/update', this.updateIndex.bind(this));
+
+    /**
+     * @route GET /api/v1/indexing/:projectId/update/progress
+     * @desc Get update progress
+     * @param {string} params.projectId - Project ID
+     * @returns {object} 200 - Update progress
+     */
+    this.router.get('/:projectId/update/progress', this.getUpdateProgress.bind(this));
+
+    /**
+     * @route DELETE /api/v1/indexing/:projectId/update
+     * @desc Cancel update operation
+     * @param {string} params.projectId - Project ID
+     * @returns {object} 200 - Cancel result
+     */
+    this.router.delete('/:projectId/update', this.cancelUpdate.bind(this));
     this.router.get('/embedders', this.getAvailableEmbedders.bind(this));
   }
 
@@ -325,7 +349,7 @@ export class IndexingRoutes {
 
       // 在删除项目状态之前，先获取项目路径信息
       let projectPath = this.projectIdManager.getProjectPath(projectId);
-      
+
       // 如果无法从ProjectIdManager获取，尝试从ProjectStateManager获取
       if (!projectPath) {
         const projectState = this.projectStateManager.getProjectState(projectId);
@@ -346,7 +370,7 @@ export class IndexingRoutes {
       } else {
         // 如果两种方式都无法获取项目路径，尝试通过遍历所有映射来删除
         this.logger.warn(`Project path not found for projectId: ${projectId}, attempting to remove mapping by iteration`);
-        
+
         // 直接使用removeProjectById方法，这是最可靠的方式
         const directRemovalResult = this.projectIdManager.removeProjectById(projectId);
         if (directRemovalResult) {
@@ -355,7 +379,7 @@ export class IndexingRoutes {
         } else {
           this.logger.warn(`Failed to remove mapping for projectId ${projectId} using removeProjectById`);
         }
-        
+
       }
 
       res.status(200).json({
@@ -369,7 +393,7 @@ export class IndexingRoutes {
       this.logger.error('Failed to remove index:', { error, projectId: req.params.projectId });
       next(error);
     }
- }
+  }
 
   private async search(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -574,6 +598,122 @@ export class IndexingRoutes {
   private requiresApiKey(provider: string): boolean {
     const keyRequiredProviders = ['openai', 'siliconflow', 'gemini', 'mistral'];
     return keyRequiredProviders.includes(provider);
+  }
+
+  /**
+   * 手动更新项目索引
+   */
+  private async updateIndex(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+      const { options } = req.body;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      const projectPath = this.projectIdManager.getProjectPath(projectId);
+      if (!projectPath) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found',
+        });
+        return;
+      }
+
+      // 开始手动更新
+      const result = await this.indexSyncService.updateIndex(projectPath, options);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already in progress')) {
+        res.status(409).json({
+          success: false,
+          error: 'Update operation already in progress',
+        });
+      } else {
+        this.logger.error('Failed to update index:', { error, projectId: req.params.projectId });
+        next(error);
+      }
+    }
+  }
+
+  /**
+   * 获取更新进度
+   */
+  private async getUpdateProgress(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      const progress = this.indexSyncService.getUpdateProgress(projectId);
+      if (!progress) {
+        res.status(404).json({
+          success: false,
+          error: 'No active update operation found',
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: progress,
+      });
+    } catch (error) {
+      this.logger.error('Failed to get update progress:', { error, projectId: req.params.projectId });
+      next(error);
+    }
+  }
+
+  /**
+   * 取消更新操作
+   */
+  private async cancelUpdate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      const cancelled = await this.indexSyncService.cancelUpdate(projectId);
+      if (!cancelled) {
+        res.status(404).json({
+          success: false,
+          error: 'No active update operation found',
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          projectId,
+          message: 'Update operation cancelled successfully'
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to cancel update:', { error, projectId: req.params.projectId });
+      next(error);
+    }
   }
 
   /**

@@ -1,9 +1,9 @@
-const { SqliteDatabaseService } = require('../../dist/database/splite/SqliteDatabaseService');
-const { SqliteProjectManager } = require('../../dist/database/splite/SqliteProjectManager');
-const { SqliteStateManager } = require('../../dist/database/splite/SqliteStateManager');
-const { FileHashManagerImpl } = require('../../dist/service/filesystem/FileHashManager');
-const { JsonToSqliteMigrator } = require('../../dist/database/splite/migration/JsonToSqliteMigrator');
-const { LoggerService } = require('../../dist/utils/LoggerService');
+const { SqliteDatabaseService } = require('../../../dist/database/splite/SqliteDatabaseService');
+const { SqliteProjectManager } = require('../../../dist/database/splite/SqliteProjectManager');
+const { SqliteStateManager } = require('../../../dist/database/splite/SqliteStateManager');
+const { FileHashManagerImpl } = require('../../../dist/service/filesystem/FileHashManager');
+const { JsonToSqliteMigrator } = require('../../../dist/database/splite/migration/JsonToSqliteMigrator');
+const { LoggerService } = require('../../../dist/utils/LoggerService');
 
 async function testSQLiteMigration() {
   console.log('🚀 Starting SQLite Migration Test...\n');

@@ -34,10 +34,92 @@ export interface IndexSyncOptions {
   enableHotReload?: boolean; // 新增热更新启用选项
 }
 
+export interface UpdateIndexOptions {
+  batchSize?: number;
+  maxConcurrency?: number;
+  enableHashComparison?: boolean;
+  forceUpdate?: boolean;
+  includePatterns?: string[];
+  excludePatterns?: string[];
+}
+
+export interface UpdateIndexResult {
+  projectId: string;
+  projectPath: string;
+  updateId: string;
+  status: 'started' | 'completed' | 'failed' | 'cancelled';
+  totalFiles: number;
+  updatedFiles: number;
+  deletedFiles: number;
+  unchangedFiles: number;
+  errors: Array<{
+    filePath: string;
+    error: string;
+    timestamp: string;
+  }>;
+  processingTime: number;
+  startTime: string;
+  estimatedCompletionTime?: string;
+}
+
+export interface UpdateProgress {
+  projectId: string;
+  updateId: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  progress: {
+    percentage: number;
+    currentFile: string;
+    filesProcessed: number;
+    filesTotal: number;
+    estimatedTimeRemaining: number;
+  };
+  statistics: {
+    totalFiles: number;
+    updatedFiles: number;
+    deletedFiles: number;
+    unchangedFiles: number;
+    errorCount: number;
+  };
+  startTime: string;
+  lastUpdated: string;
+  currentOperation?: string;
+}
+
+interface UpdateOperation {
+  id: string;
+  projectId: string;
+  projectPath: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  startTime: Date;
+  endTime?: Date;
+  progress: {
+    percentage: number;
+    currentFile: string;
+    filesProcessed: number;
+    filesTotal: number;
+    estimatedTimeRemaining: number;
+  };
+  statistics: {
+    totalFiles: number;
+    updatedFiles: number;
+    deletedFiles: number;
+    unchangedFiles: number;
+    errorCount: number;
+  };
+  currentOperation?: string;
+  error?: string;
+  processingTime?: number;
+}
+
 export interface IndexSyncStatus {
   projectId: string;
   projectPath: string;
   isIndexing: boolean;
+  on?(event: 'updateStarted', listener: (projectId: string, updateId: string) => Promise<void>): void;
+  on?(event: 'updateProgress', listener: (projectId: string, progress: UpdateProgress) => Promise<void>): void;
+  on?(event: 'updateCompleted', listener: (projectId: string, result: UpdateIndexResult) => Promise<void>): void;
+  on?(event: 'updateError', listener: (projectId: string, error: Error) => Promise<void>): void;
+  on?(event: 'updateCancelled', listener: (projectId: string, updateId: string) => Promise<void>): void;
   lastIndexed: Date | null;
   totalFiles: number;
   indexedFiles: number;
@@ -102,6 +184,11 @@ export class IndexService {
   private async emit(event: 'indexingError', projectId: string, error: Error): Promise<void>;
   private async emit(event: 'indexingMetrics', projectId: string, filePath: string, metrics: IndexingMetrics): Promise<void>;
   private async emit(event: 'memoryWarning', projectId: string, memoryUsage: MemoryUsage, threshold: number): Promise<void>;
+  private async emit(event: 'updateStarted', projectId: string, updateId: string): Promise<void>;
+  private async emit(event: 'updateProgress', projectId: string, progress: UpdateProgress): Promise<void>;
+  private async emit(event: 'updateCompleted', projectId: string, result: UpdateIndexResult): Promise<void>;
+  private async emit(event: 'updateError', projectId: string, error: Error): Promise<void>;
+  private async emit(event: 'updateCancelled', projectId: string, updateId: string): Promise<void>;
   private async emit(event: string, ...args: any[]): Promise<void> {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
@@ -116,6 +203,7 @@ export class IndexService {
   }
 
   private indexingProjects: Map<string, IndexSyncStatus> = new Map();
+  private updateOperations: Map<string, UpdateOperation> = new Map();
   private completedProjects: Map<string, IndexSyncStatus> = new Map(); // 存储已完成的项目状态
   private indexingQueue: Array<{ projectPath: string; options?: IndexSyncOptions }> = [];
   private isProcessingQueue: boolean = false;
@@ -851,6 +939,279 @@ export class IndexService {
     return false;
   }
 
+
+  /**
+   * 手动更新项目索引（增量更新）
+   */
+  async updateIndex(projectPath: string, options?: UpdateIndexOptions): Promise<UpdateIndexResult> {
+    const startTime = Date.now();
+    const projectId = this.projectIdManager.getProjectId(projectPath);
+    
+    if (!projectId) {
+      throw new Error(`Project not found: ${projectPath}`);
+    }
+
+    // 检查是否已有进行中的更新操作
+    const existingOperation = this.updateOperations.get(projectId);
+    if (existingOperation && existingOperation.status === 'running') {
+      throw new Error(`Update operation already in progress for project: ${projectId}`);
+    }
+
+    const updateId = this.generateUpdateId();
+    const updateOperation: UpdateOperation = {
+      id: updateId,
+      projectId,
+      projectPath,
+      status: 'running',
+      startTime: new Date(),
+      progress: {
+        percentage: 0,
+        currentFile: '',
+        filesProcessed: 0,
+        filesTotal: 0,
+        estimatedTimeRemaining: 0
+      },
+      statistics: {
+        totalFiles: 0,
+        updatedFiles: 0,
+        deletedFiles: 0,
+        unchangedFiles: 0,
+        errorCount: 0
+      }
+    };
+
+    this.updateOperations.set(projectId, updateOperation);
+
+    try {
+      // 触发更新开始事件
+      await this.emit('updateStarted', projectId, updateId);
+
+      // 执行增量更新
+      const result = await this.performIncrementalUpdate(projectPath, options, updateOperation);
+
+      // 更新操作状态
+      updateOperation.status = 'completed';
+      updateOperation.endTime = new Date();
+      updateOperation.processingTime = Date.now() - startTime;
+
+      // 触发更新完成事件
+      await this.emit('updateCompleted', projectId, result);
+
+      return result;
+    } catch (error) {
+      // 更新操作失败
+      updateOperation.status = 'failed';
+      updateOperation.endTime = new Date();
+      updateOperation.error = error instanceof Error ? error.message : String(error);
+
+      // 触发更新错误事件
+      await this.emit('updateError', projectId, error instanceof Error ? error : new Error(String(error)));
+
+      throw error;
+    } finally {
+      // 清理操作状态（保留一段时间用于查询）
+      setTimeout(() => {
+        this.updateOperations.delete(projectId);
+      }, 5 * 60 * 1000); // 5分钟后清理
+    }
+  }
+
+  /**
+   * 执行增量更新
+   */
+  private async performIncrementalUpdate(
+    projectPath: string, 
+    options: UpdateIndexOptions = {}, 
+    operation: UpdateOperation
+  ): Promise<UpdateIndexResult> {
+    const startTime = Date.now();
+    const projectId = this.projectIdManager.getProjectId(projectPath)!;
+
+    try {
+      // 1. 检测文件变化
+      operation.currentOperation = 'Detecting file changes';
+      await this.updateProgress(projectId, operation);
+
+      const changes = await this.changeDetectionService.detectChangesForUpdate(projectPath, {
+        enableHashComparison: options.enableHashComparison ?? true
+      });
+
+      operation.statistics.totalFiles = changes.added.length + changes.modified.length + changes.deleted.length + changes.unchanged.length;
+      operation.progress.filesTotal = operation.statistics.totalFiles;
+
+      // 2. 处理变化的文件
+      operation.currentOperation = 'Processing file changes';
+      await this.updateProgress(projectId, operation);
+
+      const updateResults = await this.processFileChanges(projectPath, changes, options, operation);
+
+      // 3. 返回结果
+      return {
+        projectId,
+        projectPath,
+        updateId: operation.id,
+        status: 'completed',
+        totalFiles: operation.statistics.totalFiles,
+        updatedFiles: updateResults.updatedFiles,
+        deletedFiles: updateResults.deletedFiles,
+        unchangedFiles: updateResults.unchangedFiles,
+        errors: updateResults.errors,
+        processingTime: Date.now() - startTime,
+        startTime: operation.startTime.toISOString(),
+        estimatedCompletionTime: new Date(Date.now() + operation.progress.estimatedTimeRemaining * 1000).toISOString()
+      };
+    } catch (error) {
+      throw new Error(`Incremental update failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * 处理文件变化
+   */
+  private async processFileChanges(
+    projectPath: string,
+    changes: {
+      added: string[];
+      modified: string[];
+      deleted: string[];
+      unchanged: string[];
+    },
+    options: UpdateIndexOptions,
+    operation: UpdateOperation
+  ): Promise<{ updatedFiles: number; deletedFiles: number; unchangedFiles: number; errors: Array<{ filePath: string; error: string; timestamp: string }> }> {
+    const results = {
+      updatedFiles: 0,
+      deletedFiles: 0,
+      unchangedFiles: changes.unchanged.length,
+      errors: [] as Array<{ filePath: string; error: string; timestamp: string }>
+    };
+
+    const filesToUpdate = [...changes.added, ...changes.modified];
+    const batchSize = options.batchSize || 100;
+    const maxConcurrency = options.maxConcurrency || 3;
+
+    // 处理新增和修改的文件
+    if (filesToUpdate.length > 0) {
+      const batchResults = await this.performanceOptimizer.processBatches(
+        filesToUpdate,
+        async (batch) => {
+          const promises = batch.map(async (file) => {
+            operation.progress.currentFile = file;
+            operation.progress.filesProcessed++;
+            operation.progress.percentage = Math.round((operation.progress.filesProcessed / operation.progress.filesTotal) * 100);
+            
+            // 更新预计剩余时间
+            const elapsedTime = Date.now() - operation.startTime.getTime();
+            const filesPerSecond = operation.progress.filesProcessed / (elapsedTime / 1000);
+            operation.progress.estimatedTimeRemaining = filesPerSecond > 0 
+              ? Math.round((operation.progress.filesTotal - operation.progress.filesProcessed) / filesPerSecond)
+              : 0;
+
+            await this.updateProgress(operation.projectId, operation);
+
+            try {
+              await this.performanceOptimizer.executeWithRetry(
+                () => this.indexFile(projectPath, file),
+                `updateFile:${file}`
+              );
+              results.updatedFiles++;
+            } catch (error) {
+              results.errors.push({
+                filePath: file,
+                error: error instanceof Error ? error.message : String(error),
+                timestamp: new Date().toISOString()
+              });
+              operation.statistics.errorCount++;
+            }
+          });
+
+          await this.concurrencyService.processWithConcurrency(promises, maxConcurrency);
+          return batch.map(file => ({ filePath: file, success: true }));
+        },
+        'incrementalUpdate'
+      );
+    }
+
+    // 处理删除的文件
+    for (const file of changes.deleted) {
+      try {
+        await this.removeFileFromIndex(projectPath, file);
+        results.deletedFiles++;
+        operation.statistics.deletedFiles++;
+      } catch (error) {
+        results.errors.push({
+          filePath: file,
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date().toISOString()
+        });
+        operation.statistics.errorCount++;
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * 获取更新进度
+   */
+  getUpdateProgress(projectId: string): UpdateProgress | null {
+    const operation = this.updateOperations.get(projectId);
+    if (!operation) {
+      return null;
+    }
+
+    return {
+      projectId: operation.projectId,
+      updateId: operation.id,
+      status: operation.status,
+      progress: { ...operation.progress },
+      statistics: { ...operation.statistics },
+      startTime: operation.startTime.toISOString(),
+      lastUpdated: new Date().toISOString(),
+      currentOperation: operation.currentOperation
+    };
+  }
+
+  /**
+   * 取消更新操作
+   */
+  async cancelUpdate(projectId: string): Promise<boolean> {
+    const operation = this.updateOperations.get(projectId);
+    if (!operation || operation.status !== 'running') {
+      return false;
+    }
+
+    operation.status = 'cancelled';
+    operation.endTime = new Date();
+
+    // 触发取消事件
+    await this.emit('updateCancelled', projectId, operation.id);
+
+    return true;
+  }
+
+  /**
+   * 生成更新ID
+   */
+  private generateUpdateId(): string {
+    return `update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * 更新进度
+   */
+  private async updateProgress(projectId: string, operation: UpdateOperation): Promise<void> {
+    await this.emit('updateProgress', projectId, {
+      projectId: operation.projectId,
+      updateId: operation.id,
+      status: operation.status,
+      progress: { ...operation.progress },
+      statistics: { ...operation.statistics },
+      startTime: operation.startTime.toISOString(),
+      lastUpdated: new Date().toISOString(),
+      currentOperation: operation.currentOperation
+    });
+  }
   /**
    * 重启后恢复所有已索引项目的监听
    */
