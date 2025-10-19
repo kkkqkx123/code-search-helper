@@ -32,6 +32,7 @@ export interface RuleEngineOptions {
   enableCaching: boolean;
   cacheTTL: number; // 毫秒
   maxRules: number;
+  registerDefaultRules: boolean;
 }
 
 @injectable()
@@ -51,13 +52,16 @@ export class MappingRuleEngine {
       enableCaching: true,
       cacheTTL: 300000, // 5分钟
       maxRules: 100,
+      registerDefaultRules: true,
       ...options
     };
 
     this.logger.info('MappingRuleEngine initialized', { options: this.options });
 
     // 注册默认规则
-    this.registerDefaultRules();
+    if (this.options.registerDefaultRules) {
+      this.registerDefaultRules();
+    }
   }
 
   /**
@@ -69,8 +73,9 @@ export class MappingRuleEngine {
       return;
     }
 
-    // 按优先级插入规则
-    const insertIndex = this.rules.findIndex(r => r.priority > rule.priority);
+    // 按优先级插入规则（数字越小优先级越高）
+    // 当优先级相同时，新规则插入到相同优先级规则之前
+    const insertIndex = this.rules.findIndex(r => r.priority >= rule.priority);
     if (insertIndex === -1) {
       this.rules.push(rule);
     } else {

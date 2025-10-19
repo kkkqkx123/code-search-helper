@@ -2,7 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { GraphQueryRoutes } from '../GraphQueryRoutes';
 import { GraphServiceNewAdapter } from '../../../service/graph/core/GraphServiceNewAdapter';
-import { GraphQueryValidator } from '../../../service/graph/validation/GraphQueryValidator';
+import { GraphQueryValidator } from '../../../service/graph/query/GraphQueryValidator';
 import { GraphPerformanceMonitor } from '../../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../../utils/LoggerService';
 

@@ -31,9 +31,22 @@ export class GraphQueryValidator {
     }
 
     // 基本语法检查 - 检查是否有匹配的括号
-    const openParenCount = (query.match(/\(/g) || []).length;
-    const closeParenCount = (query.match(/\)/g) || []).length;
-    if (openParenCount !== closeParenCount) {
+    let parenStack = 0;
+    for (let i = 0; i < query.length; i++) {
+      if (query[i] === '(') {
+        parenStack++;
+      } else if (query[i] === ')') {
+        parenStack--;
+        if (parenStack < 0) {
+          return {
+            valid: false,
+            error: 'Unmatched parentheses in query'
+          };
+        }
+      }
+    }
+    
+    if (parenStack !== 0) {
       return {
         valid: false,
         error: 'Unmatched parentheses in query'
@@ -44,18 +57,19 @@ export class GraphQueryValidator {
   }
 
   validateProjectId(projectId: string): ValidationResult {
+    // 先检查长度
+    if (projectId.length < 1 || projectId.length > 50) {
+      return {
+        valid: false,
+        error: 'Project ID must be between 1 and 50 characters long.'
+      };
+    }
+
     // 检查项目ID格式 - 只允许字母、数字、连字符和下划线
     if (!/^[a-zA-Z0-9-_]+$/.test(projectId)) {
       return {
         valid: false,
         error: 'Invalid project ID format. Only letters, numbers, hyphens, and underscores are allowed.'
-      };
-    }
-
-    if (projectId.length < 3 || projectId.length > 50) {
-      return {
-        valid: false,
-        error: 'Project ID must be between 3 and 50 characters long.'
       };
     }
 

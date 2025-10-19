@@ -3,7 +3,7 @@ import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
 import { IGraphService } from '../../service/graph/core/IGraphService';
 import { ProjectLookupService } from '../../database/ProjectLookupService';
-import { GraphQueryValidator } from '../../service/graph/validation/GraphQueryValidator';
+import { GraphQueryValidator } from '../../service/graph/query/GraphQueryValidator';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../utils/LoggerService';
 

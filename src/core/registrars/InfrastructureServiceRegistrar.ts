@@ -6,7 +6,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 // 图服务基础设施
 import { GraphCacheService } from '../../infrastructure/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
-import { GraphQueryValidator } from '../../service/graph/validation/GraphQueryValidator';
+import { GraphQueryValidator } from '../../service/graph/query/GraphQueryValidator';
 
 // 高级映射服务
 import { AdvancedMappingService as SemanticRelationshipExtractor } from '../../service/graph/mapping/SemanticRelationshipExtractor';
@@ -66,9 +66,9 @@ export class InfrastructureServiceRegistrar {
         const transactionLogger = context.get<TransactionLogger>(TYPES.TransactionLogger);
         const cache = context.get<GraphMappingCache>(TYPES.GraphMappingCache);
         const graphConfigService = context.get<GraphConfigService>(TYPES.GraphConfigService);
-        
+
         const options = graphConfigService.getFaultToleranceOptions();
-        
+
         return new FaultToleranceHandler(
           logger,
           transactionLogger,
@@ -223,7 +223,7 @@ export class InfrastructureServiceRegistrar {
       // SQLite基础设施
       container.bind<SqliteInfrastructure>(TYPES.SqliteInfrastructure).to(SqliteInfrastructure).inSingletonScope();
       container.bind<SqliteStateManager>(TYPES.SqliteStateManager).to(SqliteStateManager).inSingletonScope();
-      
+
       // 数据库迁移管理
       container.bind<MigrationManager>(TYPES.MigrationManager).to(MigrationManager).inSingletonScope();
       container.bind<DatabaseMigrationRunner>(TYPES.DatabaseMigrationRunner).to(DatabaseMigrationRunner).inSingletonScope();

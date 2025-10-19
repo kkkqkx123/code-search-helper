@@ -211,7 +211,7 @@ export class GraphQueryBuilder implements IGraphQueryBuilder {
    * 构建代码分析查询
    */
   buildCodeAnalysisQuery(projectId: string, options: any = {}): { nGQL: string; parameters: Record<string, any> } {
-    const { depth = 3, focus = 'dependencies' } = options;
+    const { depth = 3, focus = 'all' } = options;
 
     let edgeTypes: string[];
     switch (focus) {

@@ -99,7 +99,7 @@ import { GraphCacheService } from './infrastructure/caching/GraphCacheService';
 import { GraphQueryBuilder, IGraphQueryBuilder } from './database/nebula/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
-import { GraphQueryValidator } from './service/graph/validation/GraphQueryValidator';
+import { GraphQueryValidator } from './service/graph/query/GraphQueryValidator';
 import { IGraphSearchService } from './service/graph/core/IGraphSearchService';
 import { GraphAnalysisService } from './service/graph/core/GraphAnalysisService';
 import { GraphDataService } from './service/graph/core/GraphDataService';
@@ -347,24 +347,24 @@ export const TYPES = {
   // UnifiedGuardCoordinator 相关符号
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
-  
+
   // SQLite服务
   SqliteDatabaseService: Symbol.for('SqliteDatabaseService'),
   SqliteConnectionManager: Symbol.for('SqliteConnectionManager'),
   SqliteProjectManager: Symbol.for('SqliteProjectManager'),
   SqliteInfrastructure: Symbol.for('SqliteInfrastructure'),
-  
+
   // SQLite迁移服务
   JsonToSqliteMigrator: Symbol.for('JsonToSqliteMigrator'),
   MigrationOrchestrator: Symbol.for('MigrationOrchestrator'),
-  
+
   // SQLite状态管理服务
   SqliteStateManager: Symbol.for('SqliteStateManager'),
 
   // 数据库迁移管理
   MigrationManager: Symbol.for('MigrationManager'),
   DatabaseMigrationRunner: Symbol.for('DatabaseMigrationRunner'),
-  
+
   // 文件哈希管理服务
   FileHashManager: Symbol.for('FileHashManager'),
 };

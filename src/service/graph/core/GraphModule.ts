@@ -11,7 +11,7 @@ import { IGraphSearchService } from './IGraphSearchService';
 import { GraphCacheService } from '../../../infrastructure/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from '../../graph/performance/GraphBatchOptimizer';
-import { GraphQueryValidator } from '../../graph/validation/GraphQueryValidator';
+import { GraphQueryValidator } from '../query/GraphQueryValidator';
 
 // 创建图服务模块
 export const GraphModule = new ContainerModule((bindObj: any) => {
