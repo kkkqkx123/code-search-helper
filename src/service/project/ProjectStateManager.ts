@@ -205,7 +205,18 @@ export class ProjectStateManager {
           totalFiles: state.totalFiles,
           indexedFiles: state.indexedFiles,
           failedFiles: state.failedFiles,
-          hotReload: {
+          hotReload: state.hotReload ? {
+            enabled: state.hotReload.enabled,
+            config: state.hotReload.config || {
+              debounceInterval: this.coreStateService['hotReloadConfigService'].getGlobalConfig().defaultDebounceInterval,
+              watchPatterns: this.coreStateService['hotReloadConfigService'].getGlobalConfig().defaultWatchPatterns,
+              ignorePatterns: this.coreStateService['hotReloadConfigService'].getGlobalConfig().defaultIgnorePatterns
+            },
+            lastEnabled: state.hotReload.lastEnabled,
+            lastDisabled: state.hotReload.lastDisabled,
+            changesDetected: state.hotReload.changesDetected,
+            errorsCount: state.hotReload.errorsCount
+          } : {
             enabled: false,
             config: {
               debounceInterval: this.coreStateService['hotReloadConfigService'].getGlobalConfig().defaultDebounceInterval,
@@ -268,7 +279,8 @@ export class ProjectStateManager {
         totalFiles: state.totalFiles || 0,
         indexedFiles: state.indexedFiles || 0,
         failedFiles: state.failedFiles || 0,
-        lastUpdated: state.updatedAt
+        lastUpdated: state.updatedAt,
+        hotReload: state.hotReload
       }));
       
       const success = await this.sqliteStateManager.batchSaveProjectStates(states);

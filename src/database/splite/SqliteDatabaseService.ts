@@ -76,6 +76,59 @@ export class SqliteDatabaseService {
   }
 
   /**
+   * 检查并添加热重载字段（用于现有数据库的迁移）
+   */
+  private addHotReloadColumnsIfNeeded(): void {
+    const db = this.getDatabase();
+    
+    try {
+      // 检查是否已存在热重载字段
+      const columns = db.prepare("PRAGMA table_info(project_status)").all() as any[];
+      const columnNames = columns.map(col => col.name);
+      
+      // 添加缺失的热重载字段
+      if (!columnNames.includes('hot_reload_enabled')) {
+        db.exec('ALTER TABLE project_status ADD COLUMN hot_reload_enabled BOOLEAN DEFAULT FALSE');
+        this.logger.info('Added hot_reload_enabled column to project_status table');
+      }
+      
+      if (!columnNames.includes('hot_reload_config')) {
+        db.exec('ALTER TABLE project_status ADD COLUMN hot_reload_config JSON');
+        this.logger.info('Added hot_reload_config column to project_status table');
+      }
+      
+      if (!columnNames.includes('hot_reload_last_enabled')) {
+        db.exec('ALTER TABLE project_status ADD COLUMN hot_reload_last_enabled DATETIME');
+        this.logger.info('Added hot_reload_last_enabled column to project_status table');
+      }
+      
+      if (!columnNames.includes('hot_reload_last_disabled')) {
+        db.exec('ALTER TABLE project_status ADD COLUMN hot_reload_last_disabled DATETIME');
+        this.logger.info('Added hot_reload_last_disabled column to project_status table');
+      }
+      
+      if (!columnNames.includes('hot_reload_changes_detected')) {
+        db.exec('ALTER TABLE project_status ADD COLUMN hot_reload_changes_detected INTEGER DEFAULT 0');
+        this.logger.info('Added hot_reload_changes_detected column to project_status table');
+      }
+      
+      if (!columnNames.includes('hot_reload_errors_count')) {
+        db.exec('ALTER TABLE project_status ADD COLUMN hot_reload_errors_count INTEGER DEFAULT 0');
+        this.logger.info('Added hot_reload_errors_count column to project_status table');
+      }
+      
+      // 创建热重载相关索引（如果不存在）
+      db.exec('CREATE INDEX IF NOT EXISTS idx_project_status_hot_reload_enabled ON project_status(hot_reload_enabled)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_project_status_hot_reload_updated ON project_status(hot_reload_last_enabled, hot_reload_last_disabled)');
+      
+      this.logger.info('Hot reload columns migration completed');
+    } catch (error) {
+      this.logger.error('Failed to add hot reload columns', error);
+      throw error;
+    }
+  }
+
+  /**
    * 初始化数据库表结构
    */
   initializeTables(): void {
@@ -137,6 +190,12 @@ export class SqliteDatabaseService {
           indexed_files INTEGER DEFAULT 0,
           failed_files INTEGER DEFAULT 0,
           last_updated DATETIME NOT NULL,
+          hot_reload_enabled BOOLEAN DEFAULT FALSE,
+          hot_reload_config JSON,
+          hot_reload_last_enabled DATETIME,
+          hot_reload_last_disabled DATETIME,
+          hot_reload_changes_detected INTEGER DEFAULT 0,
+          hot_reload_errors_count INTEGER DEFAULT 0,
           
           FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
       )
@@ -166,6 +225,13 @@ export class SqliteDatabaseService {
     db.exec('CREATE INDEX IF NOT EXISTS idx_file_states_modified ON file_index_states(last_modified)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_change_history_project ON file_change_history(project_id, timestamp)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_change_history_file ON file_change_history(file_path, timestamp)');
+    
+    // 创建热重载相关索引
+    db.exec('CREATE INDEX IF NOT EXISTS idx_project_status_hot_reload_enabled ON project_status(hot_reload_enabled)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_project_status_hot_reload_updated ON project_status(hot_reload_last_enabled, hot_reload_last_disabled)');
+
+    // 检查并添加热重载字段（用于现有数据库的迁移）
+    this.addHotReloadColumnsIfNeeded();
 
     this.logger.info('数据库表结构初始化完成');
   }

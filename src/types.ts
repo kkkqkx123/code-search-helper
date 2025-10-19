@@ -122,6 +122,13 @@ import { VectorIndexService } from './service/index/VectorIndexService';
 // 项目状态管理服务
 import { CoreStateService } from './service/project/services/CoreStateService';
 import { StorageStateService } from './service/project/services/StorageStateService';
+// SQLite数据库服务
+import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
+import { SqliteStateManager } from './database/splite/SqliteStateManager';
+
+// 数据库迁移管理
+import { MigrationManager } from './database/splite/migrations/MigrationManager';
+import { DatabaseMigrationRunner } from './database/splite/migrations/DatabaseMigrationRunner';
 
 // UnifiedGuardCoordinator 相关类型
 import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
@@ -353,6 +360,10 @@ export const TYPES = {
   
   // SQLite状态管理服务
   SqliteStateManager: Symbol.for('SqliteStateManager'),
+
+  // 数据库迁移管理
+  MigrationManager: Symbol.for('MigrationManager'),
+  DatabaseMigrationRunner: Symbol.for('DatabaseMigrationRunner'),
   
   // 文件哈希管理服务
   FileHashManager: Symbol.for('FileHashManager'),

@@ -33,6 +33,10 @@ import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchO
 import { SqliteInfrastructure } from '../../infrastructure/implementations/SqliteInfrastructure';
 import { SqliteStateManager } from '../../database/splite/SqliteStateManager';
 
+// 数据库迁移管理
+import { MigrationManager } from '../../database/splite/migrations/MigrationManager';
+import { DatabaseMigrationRunner } from '../../database/splite/migrations/DatabaseMigrationRunner';
+
 // Cleanup基础设施服务
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 
@@ -219,6 +223,10 @@ export class InfrastructureServiceRegistrar {
       // SQLite基础设施
       container.bind<SqliteInfrastructure>(TYPES.SqliteInfrastructure).to(SqliteInfrastructure).inSingletonScope();
       container.bind<SqliteStateManager>(TYPES.SqliteStateManager).to(SqliteStateManager).inSingletonScope();
+      
+      // 数据库迁移管理
+      container.bind<MigrationManager>(TYPES.MigrationManager).to(MigrationManager).inSingletonScope();
+      container.bind<DatabaseMigrationRunner>(TYPES.DatabaseMigrationRunner).to(DatabaseMigrationRunner).inSingletonScope();
     } catch (error: any) {
       console.error('Error registering infrastructure services:', error);
       console.error('Error stack:', error?.stack);

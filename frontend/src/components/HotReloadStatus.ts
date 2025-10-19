@@ -3,7 +3,6 @@
  * 显示项目的热重载状态和统计信息
  */
 export class HotReloadStatus extends HTMLElement {
-    private projectId: string = '';
     private enabled: boolean = false;
     private changesDetected: number = 0;
     private errorsCount: number = 0;
@@ -12,10 +11,9 @@ export class HotReloadStatus extends HTMLElement {
         return ['project-id', 'enabled', 'changes-detected', 'errors-count'];
     }
 
-    attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+    attributeChangedCallback(name: string, newValue: string) {
         switch (name) {
             case 'project-id':
-                this.projectId = newValue;
                 break;
             case 'enabled':
                 this.enabled = newValue === 'true';
@@ -45,6 +43,3 @@ export class HotReloadStatus extends HTMLElement {
         `;
     }
 }
-
-// 注册自定义元素
-customElements.define('hot-reload-status', HotReloadStatus);

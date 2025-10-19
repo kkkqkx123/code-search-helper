@@ -236,6 +236,3 @@ export class HotReloadConfigModal extends HTMLElement {
         this.remove();
     }
 }
-
-// 注册自定义元素
-customElements.define('hot-reload-config-modal', HotReloadConfigModal);
