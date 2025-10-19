@@ -404,4 +404,94 @@ export class ApiClient {
             throw error;
         }
     }
+
+    /**
+     * 获取项目热重载配置
+     */
+    async getProjectHotReloadConfig(projectId: string): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/hot-reload`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取项目热重载配置失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 更新项目热重载配置
+     */
+    async updateProjectHotReloadConfig(projectId: string, config: any): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/hot-reload`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('更新项目热重载配置失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 切换项目热重载状态
+     */
+    async toggleProjectHotReload(projectId: string, enabled: boolean): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/hot-reload/toggle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('切换项目热重载状态失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取全局热重载配置
+     */
+    async getGlobalHotReloadConfig(): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/hot-reload/global`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取全局热重载配置失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 更新全局热重载配置
+     */
+    async updateGlobalHotReloadConfig(config: any): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/hot-reload/global`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('更新全局热重载配置失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取所有项目的热重载配置
+     */
+    async getAllProjectHotReloadConfigs(): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/hot-reload/projects`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取所有项目热重载配置失败:', error);
+            throw error;
+        }
+    }
 }

@@ -414,6 +414,103 @@ h2 {
     margin: 10px 0;
 }
 
+/* 热重载状态样式 */
+.hot-reload-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.hot-reload-status.enabled {
+    background-color: #f0f9ff;
+    border: 1px solid #bae6fd;
+}
+
+.hot-reload-status.disabled {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    color: #6c757d;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator.active {
+    background-color: #22c55e;
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.inactive {
+    background-color: #6b7280;
+}
+
+.stats {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.changes {
+    color: #3b82f6;
+}
+
+.errors {
+    color: #ef4444;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* 热重载操作按钮样式 */
+.hot-reload-actions {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 5px;
+}
+
+.action-button.toggle {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+
+.action-button.toggle:hover {
+    background: #fde68a;
+}
+
+.action-button.toggle.enabled {
+    background: #dcfce7;
+    border-color: #22c55e;
+    color: #166534;
+}
+
+.action-button.configure {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1e40af;
+}
+
+.action-button.configure:hover {
+    background: #dbeafe;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .container {
@@ -437,5 +534,25 @@ h2 {
         padding: 5px 8px;
         font-size: 12px;
         min-width: 32px;
+    }
+
+    .hot-reload-status {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .stats {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .hot-reload-actions {
+        flex-direction: column;
+    }
+
+    .action-button {
+        width: 100%;
+        text-align: center;
     }
 }

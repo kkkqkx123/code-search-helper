@@ -31,13 +31,14 @@ export class ProjectsPage {
                 
                 <batch-operations-panel id="batch-operations"></batch-operations-panel>
                 
-                <table class="projects-table">
+                                <table class="projects-table">
                     <thead>
                         <tr>
                             <th><input type="checkbox" id="select-all-projects" title="选择所有项目"></th>
                             <th>项目名称</th>
                             <th>路径</th>
                             <th>文件数</th>
+                            <th>热重载</th>
                             <th>索引状态</th>
                             <th>单独执行</th>
                             <th>操作</th>
@@ -46,7 +47,8 @@ export class ProjectsPage {
                     <tbody id="projects-list">
                         <!-- 动态填充 -->
                     </tbody>
-                </table>
+                </table></search>
+</search_and_replace>
                 
                 <div id="projects-loading" class="loading" style="display: none; padding: 20px;">加载中...</div>
                 <div id="projects-error" class="error" style="display: none; margin: 20px;"></div>
@@ -59,7 +61,7 @@ export class ProjectsPage {
      */
     private setupEventListeners() {
         const refreshProjectsButton = this.container.querySelector('#refresh-projects') as HTMLButtonElement;
-        
+
         refreshProjectsButton?.addEventListener('click', () => {
             // 强制刷新项目列表，清除缓存
             this.loadProjectsList(true);
@@ -131,6 +133,14 @@ export class ProjectsPage {
                 <td>${this.escapeHtml(project.path || 'N/A')}</td>
                 <td>${project.fileCount || 0}</td>
                 <td>
+                    <hot-reload-status 
+                        project-id="${project.id}"
+                        enabled="${project.hotReload?.enabled || false}"
+                        changes-detected="${project.hotReload?.changesDetected || 0}"
+                        errors-count="${project.hotReload?.errorsCount || 0}">
+                    </hot-reload-status>
+                </td>
+                <td>
                     <storage-status-indicator
                         project-id="${project.id}"
                         vector-status="${project.vectorStatus?.status || 'pending'}"
@@ -145,6 +155,20 @@ export class ProjectsPage {
                     </storage-action-buttons>
                 </td>
                 <td>
+                    <div class="hot-reload-actions">
+                        <button class="action-button toggle" 
+                                data-project-id="${project.id}" 
+                                data-enabled="${project.hotReload?.enabled || false}"
+                                title="${project.hotReload?.enabled ? '禁用热重载' : '启用热重载'}">
+                            ${project.hotReload?.enabled ? '🔴 禁用' : '🟢 启用'}
+                        </button>
+                        <button class="action-button configure" 
+                                data-project-id="${project.id}" 
+                                data-action="configure-hot-reload"
+                                title="配置热重载">
+                            ⚙️ 配置
+                        </button>
+                    </div>
                     <button class="action-button reindex" data-project-id="${project.id}" data-action="reindex">重新索引</button>
                     <button class="action-button delete" data-project-id="${project.id}" data-action="delete">删除</button>
                 </td>
@@ -157,12 +181,16 @@ export class ProjectsPage {
                 const target = e.target as HTMLButtonElement;
                 const projectId = target.dataset.projectId;
                 const action = target.dataset.action;
-                
+
                 if (projectId && action) {
                     if (action === 'reindex') {
                         this.reindexProject(projectId);
                     } else if (action === 'delete') {
                         this.deleteProject(projectId, target);
+                    } else if (action === 'configure-hot-reload') {
+                        this.configureHotReload(projectId);
+                    } else if (target.classList.contains('toggle')) {
+                        this.toggleHotReload(projectId, target);
                     }
                 }
             });
@@ -224,7 +252,7 @@ export class ProjectsPage {
 
         try {
             const result = await this.apiClient.reindexProject(projectId);
-            
+
             if (result.success) {
                 alert('重新索引已启动');
                 // 清除相关缓存
@@ -232,7 +260,7 @@ export class ProjectsPage {
                 this.apiClient.clearSearchCache();
                 // 刷新项目列表
                 this.loadProjectsList(true);
-                
+
                 if (this.onProjectActionComplete) {
                     this.onProjectActionComplete('reindex', result);
                 }
@@ -252,7 +280,7 @@ export class ProjectsPage {
 
         try {
             const result = await this.apiClient.deleteProject(projectId);
-            
+
             if (result.success) {
                 // 清除相关缓存
                 this.apiClient.clearProjectsCache();
@@ -260,7 +288,7 @@ export class ProjectsPage {
                 // 从界面移除该项目
                 element.closest('tr')?.remove();
                 alert('项目已删除');
-                
+
                 if (this.onProjectActionComplete) {
                     this.onProjectActionComplete('delete', result);
                 }
@@ -278,14 +306,14 @@ export class ProjectsPage {
     async indexVectors(projectId: string) {
         try {
             const result = await this.apiClient.indexVectors(projectId);
-            
+
             if (result.success) {
                 alert('向量索引已启动');
                 // 清除相关缓存
                 this.apiClient.clearProjectsCache();
                 // 刷新项目列表
                 this.loadProjectsList(true);
-                
+
                 if (this.onProjectActionComplete) {
                     this.onProjectActionComplete('indexVectors', result);
                 }
@@ -298,19 +326,19 @@ export class ProjectsPage {
     }
 
     /**
-     * 执行图索引
-     */
+ * 执行图索引
+ */
     async indexGraph(projectId: string) {
         try {
             const result = await this.apiClient.indexGraph(projectId);
-            
+
             if (result.success) {
                 alert('图索引已启动');
                 // 清除相关缓存
                 this.apiClient.clearProjectsCache();
                 // 刷新项目列表
                 this.loadProjectsList(true);
-                
+
                 if (this.onProjectActionComplete) {
                     this.onProjectActionComplete('indexGraph', result);
                 }
@@ -323,13 +351,100 @@ export class ProjectsPage {
     }
 
     /**
+     * 切换热重载状态
+     */
+    async toggleHotReload(projectId: string, button: HTMLButtonElement) {
+        const currentEnabled = button.dataset.enabled === 'true';
+        const newEnabled = !currentEnabled;
+
+        try {
+            const result = await this.apiClient.toggleProjectHotReload(projectId, newEnabled);
+
+            if (result.success) {
+                // 更新按钮状态
+                button.dataset.enabled = newEnabled.toString();
+                button.title = newEnabled ? '禁用热重载' : '启用热重载';
+                button.textContent = newEnabled ? '🔴 禁用' : '🟢 启用';
+
+                // 更新状态指示器
+                const statusIndicator = this.container.querySelector(`hot-reload-status[project-id="${projectId}"]`) as HTMLElement;
+                if (statusIndicator) {
+                    statusIndicator.setAttribute('enabled', newEnabled.toString());
+                }
+
+                alert(newEnabled ? '热重载已启用' : '热重载已禁用');
+
+                // 清除缓存并刷新
+                this.apiClient.clearProjectsCache();
+                this.loadProjectsList(true);
+            } else {
+                alert('切换热重载状态失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error: any) {
+            alert('切换热重载状态时发生错误: ' + error.message);
+        }
+    }
+
+    /**
+     * 配置热重载
+     */
+    async configureHotReload(projectId: string) {
+        try {
+            // 获取项目信息
+            const projectsResult = await this.apiClient.getProjects();
+            if (!projectsResult.success || !projectsResult.data) {
+                alert('无法获取项目信息');
+                return;
+            }
+
+            const project = projectsResult.data.find((p: { id: string; }) => p.id === projectId);
+            if (!project) {
+                alert('找不到指定项目');
+                return;
+            }
+
+            // 获取当前热重载配置
+            const configResult = await this.apiClient.getProjectHotReloadConfig(projectId);
+            if (!configResult.success) {
+                alert('无法获取热重载配置: ' + (configResult.error || '未知错误'));
+                return;
+            }
+
+            // 创建并显示配置模态框
+            const modal = document.createElement('hot-reload-config-modal') as any;
+            modal.setProjectInfo(projectId, project.name || projectId, configResult.data);
+
+            // 监听配置保存事件
+            modal.addEventListener('config-saved', (event: any) => {
+                const { projectId: savedProjectId, config } = event.detail;
+                console.log('热重载配置已保存:', savedProjectId, config);
+
+                // 清除缓存并刷新项目列表
+                this.apiClient.clearProjectsCache();
+                this.loadProjectsList(true);
+
+                alert('热重载配置已保存');
+            });
+
+            // 监听模态框关闭事件
+            modal.addEventListener('modal-closed', () => {
+                modal.remove();
+            });
+
+            document.body.appendChild(modal);
+        } catch (error: any) {
+            alert('配置热重载时发生错误: ' + error.message);
+        }
+    }
+
+    /**
      * 启用自动刷新
      */
     enableAutoRefresh(intervalMs: number = 5000) {
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
         }
-        
+
         this.refreshInterval = window.setInterval(() => {
             this.loadProjectsList(true);
         }, intervalMs);
@@ -363,8 +478,8 @@ export class ProjectsPage {
             '"': '"',
             "'": '&#039;'
         };
-        
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+
+        return text.replace(/[&<>"']/g, function (m) { return map[m]; });
     }
 
     /**

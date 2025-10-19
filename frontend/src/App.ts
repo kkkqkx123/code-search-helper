@@ -11,11 +11,15 @@ import { GraphManagementPage } from './pages/GraphManagementPage.js';
 import { StorageStatusIndicator } from './components/StorageStatusIndicator.js';
 import { StorageActionButtons } from './components/StorageActionButtons.js';
 import { BatchOperationsPanel } from './components/BatchOperationsPanel.js';
+import { HotReloadStatus } from './components/HotReloadStatus.js';
+import { HotReloadConfigModal } from './components/HotReloadConfigModal.js';
 
 // 注册自定义元素
 customElements.define('storage-status-indicator', StorageStatusIndicator);
 customElements.define('storage-action-buttons', StorageActionButtons);
 customElements.define('batch-operations-panel', BatchOperationsPanel);
+customElements.define('hot-reload-status', HotReloadStatus);
+customElements.define('hot-reload-config-modal', HotReloadConfigModal);
 
 /**
  * 主应用类
@@ -36,7 +40,10 @@ export class CodebaseSearchApp {
         this.apiClient = new ApiClient(apiBaseUrl);
         this.statusElement = document.getElementById('status');
         this.versionElement = document.getElementById('version');
-        
+
+        // 设置全局apiClient供组件使用
+        (window as any).apiClient = this.apiClient;
+
         this.initialize();
     }
 
@@ -46,13 +53,13 @@ export class CodebaseSearchApp {
     private initialize() {
         // 首先设置页面
         this.setupPages();
-        
+
         // 然后设置导航，确保DOM元素已存在
         this.setupNavigation();
-        
+
         // 最后设置路由，确保导航和页面都已准备好
         this.setupRouter();
-        
+
         // 更新状态
         this.updateStatus();
     }
@@ -102,14 +109,14 @@ export class CodebaseSearchApp {
     private setupNavigation() {
         // 为导航按钮添加事件监听器
         const navButtons = document.querySelectorAll('.nav-button');
-        
+
         if (navButtons.length === 0) {
             console.warn('导航按钮未找到，延迟重试');
             // 如果导航按钮未找到，延迟重试
             setTimeout(() => this.setupNavigation(), 100);
             return;
         }
-        
+
         navButtons.forEach(button => {
             // 移除已存在的事件监听器，避免重复绑定
             button.removeEventListener('click', this.handleNavigationClick as any);
@@ -117,14 +124,14 @@ export class CodebaseSearchApp {
             button.addEventListener('click', this.handleNavigationClick as any);
         });
     }
-    
+
     /**
      * 处理导航按钮点击事件
      */
     private handleNavigationClick = (e: Event) => {
         const target = e.target as HTMLElement;
         const pageId = target.getAttribute('data-page') as PageId;
-        
+
         if (pageId) {
             router.navigateTo(pageId);
         }
@@ -187,11 +194,11 @@ export class CodebaseSearchApp {
     private async updateStatus() {
         try {
             const status = await this.apiClient.getStatus();
-            
+
             if (this.statusElement) {
                 this.statusElement.textContent = `状态: ${status.status} ${status.mockMode ? '(模拟模式)' : ''}`;
             }
-            
+
             if (this.versionElement) {
                 this.versionElement.textContent = `版本: ${status.version || '1.0.0'}`;
             }
