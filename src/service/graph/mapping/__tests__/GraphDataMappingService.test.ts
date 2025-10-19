@@ -1,6 +1,6 @@
 import { GraphDataMappingService } from '../GraphDataMappingService';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { DataMappingValidator } from '../../../validation/DataMappingValidator';
+import { DataMappingValidator } from '../DataMappingValidator';
 import { GraphMappingCache } from '../../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../../utils/GraphBatchOptimizer';
 import { FaultToleranceHandler } from '../../../../utils/FaultToleranceHandler';
@@ -47,7 +47,7 @@ const mockFaultToleranceHandler = {
     } catch (error) {
       return { success: false, error };
     }
- }),
+  }),
 };
 
 const mockTransactionLogger = {
@@ -68,7 +68,7 @@ describe('GraphDataMappingService', () => {
       mockFaultToleranceHandler as unknown as FaultToleranceHandler,
       mockTransactionLogger as unknown as TransactionLogger
     );
- });
+  });
 
   describe('inferLanguageFromFile', () => {
     it('should correctly infer language from file extension', () => {

@@ -1,12 +1,12 @@
 import { injectable, inject } from 'inversify';
-import { TYPES } from '../../types';
-import { LoggerService } from '../../utils/LoggerService';
+import { TYPES } from '../../../types';
+import { LoggerService } from '../../../utils/LoggerService';
 import {
   GraphNode,
   GraphRelationship,
   GraphNodeType,
   GraphRelationshipType
-} from '../graph/mapping/IGraphDataMappingService';
+} from './IGraphDataMappingService';
 
 export interface ValidationResult {
   isValid: boolean;

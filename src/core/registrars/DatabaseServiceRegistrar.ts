@@ -54,8 +54,8 @@ import { SqliteProjectManager } from '../../database/splite/SqliteProjectManager
 
 // 图数据映射和验证服务
 import { GraphDataMappingService } from '../../service/graph/mapping/GraphDataMappingService';
-import { AsyncTaskQueue } from '../../service/async/AsyncTaskQueue';
-import { DataMappingValidator } from '../../service/validation/DataMappingValidator';
+import { AsyncTaskQueue } from '../../infrastructure/batching/AsyncTaskQueue';
+import { DataMappingValidator } from '../../service/graph/mapping/DataMappingValidator';
 import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
 
 export class DatabaseServiceRegistrar {

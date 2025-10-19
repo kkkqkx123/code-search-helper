@@ -2,13 +2,13 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { QdrantService } from '../../database/qdrant/QdrantService';
-import { IGraphService } from '../graph/core/IGraphService';
-import { GraphPersistenceResult } from '../graph/core/types';
+import { IGraphService } from '../../service/graph/core/IGraphService';
+import { GraphPersistenceResult } from '../../service/graph/core/types';
 
 export interface ConflictResolutionStrategy {
   name: string;
   description: string;
- resolve: (conflict: Conflict) => Promise<ResolutionResult>;
+  resolve: (conflict: Conflict) => Promise<ResolutionResult>;
 }
 
 export interface Conflict {
@@ -30,7 +30,7 @@ export interface Conflict {
 export interface ResolutionResult {
   success: boolean;
   resolvedData: any;
- appliedTo: ('qdrant' | 'graph')[];
+  appliedTo: ('qdrant' | 'graph')[];
   conflictsResolved: number;
   errors: string[];
 }
@@ -56,9 +56,9 @@ export class ConflictResolver {
     this.logger = logger;
     this.qdrantService = qdrantService;
     this.graphService = graphService;
-    
+
     this.logger.info('ConflictResolver initialized');
-    
+
     // 注册默认策略
     this.registerDefaultStrategies();
   }
@@ -85,8 +85,8 @@ export class ConflictResolver {
       ...options
     };
 
-    this.logger.info('Resolving conflict', { 
-      conflictId: conflict.id, 
+    this.logger.info('Resolving conflict', {
+      conflictId: conflict.id,
       conflictType: conflict.type,
       strategy: opts.strategy
     });
@@ -119,19 +119,19 @@ export class ConflictResolver {
           `Conflict resolution timeout after ${(opts.timeout || 30000)}ms`
         );
 
-        this.logger.info('Conflict resolved successfully', { 
-          conflictId: conflict.id, 
-          appliedTo: result.appliedTo 
+        this.logger.info('Conflict resolved successfully', {
+          conflictId: conflict.id,
+          appliedTo: result.appliedTo
         });
 
         return result;
       } catch (error) {
         lastError = error as Error;
         retries++;
-        this.logger.warn('Conflict resolution attempt failed', { 
-          conflictId: conflict.id, 
-          retry: retries, 
-          error: (error as Error).message 
+        this.logger.warn('Conflict resolution attempt failed', {
+          conflictId: conflict.id,
+          retry: retries,
+          error: (error as Error).message
         });
 
         if (retries < (opts.maxRetries || 3)) {
@@ -142,9 +142,9 @@ export class ConflictResolver {
     }
 
     // 所有重试都失败了
-    this.logger.error('All conflict resolution attempts failed', { 
-      conflictId: conflict.id, 
-      error: lastError?.message 
+    this.logger.error('All conflict resolution attempts failed', {
+      conflictId: conflict.id,
+      error: lastError?.message
     });
 
     return {
@@ -216,7 +216,7 @@ export class ConflictResolver {
       description: '选择时间戳最新的数据',
       resolve: async (conflict) => {
         // 选择时间戳最新的数据
-        const latestEntity = conflict.entities.reduce((prev, current) => 
+        const latestEntity = conflict.entities.reduce((prev, current) =>
           prev.timestamp > current.timestamp ? prev : current
         );
 

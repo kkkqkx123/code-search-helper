@@ -1,6 +1,6 @@
 import { AdvancedMappingService, AdvancedMappingOptions } from '../SemanticRelationshipExtractor';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { DataMappingValidator } from '../../../validation/DataMappingValidator';
+import { DataMappingValidator } from '../DataMappingValidator';
 import { GraphMappingCache } from '../../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../../utils/GraphBatchOptimizer';
 import { TreeSitterService } from '../../../parser/core/parse/TreeSitterService';
@@ -104,7 +104,7 @@ describe('AdvancedMappingService', () => {
         relationships: []
       };
 
-      const options: AdvancedMappingOptions = { 
+      const options: AdvancedMappingOptions = {
         includeInheritance: true,
         includeMethodCalls: false,
         includePropertyAccesses: false,
@@ -112,7 +112,7 @@ describe('AdvancedMappingService', () => {
         includeDependencies: false
       };
       const cacheKey = `advanced_mapping_${'test.js'}_${JSON.stringify(options)}`;
-      
+
       (mockGraphMappingCache.getMappingResult as jest.Mock).mockResolvedValueOnce(cachedResult);
 
       const result = await advancedMappingService.mapWithAdvancedFeatures(
@@ -170,7 +170,7 @@ describe('AdvancedMappingService', () => {
     });
   });
 
- describe('extractInheritanceRelationships', () => {
+  describe('extractInheritanceRelationships', () => {
     it('should extract inheritance relationships', async () => {
       const analysisResult: FileAnalysisResult = {
         filePath: 'test.js',
@@ -240,7 +240,7 @@ describe('AdvancedMappingService', () => {
 
       // Mock TreeSitterService to return call expressions
       (mockTreeSitterService.findNodeByType as jest.Mock).mockReturnValueOnce([
-        { 
+        {
           type: 'call_expression',
           children: [
             { type: 'identifier', startPosition: { row: 1, column: 0 }, endPosition: { row: 1, column: 10 } }
@@ -280,7 +280,7 @@ describe('AdvancedMappingService', () => {
     });
   });
 
- describe('extractPropertyAccessRelationships', () => {
+  describe('extractPropertyAccessRelationships', () => {
     it('should extract property access relationships', async () => {
       const analysisResult: FileAnalysisResult = {
         filePath: 'test.js',
@@ -308,7 +308,7 @@ describe('AdvancedMappingService', () => {
 
       // Mock TreeSitterService to return member expressions
       (mockTreeSitterService.findNodeByType as jest.Mock).mockReturnValueOnce([
-        { 
+        {
           type: 'member_expression',
           children: [
             { type: 'identifier', startPosition: { row: 1, column: 0 }, endPosition: { row: 1, column: 5 } },
@@ -325,7 +325,7 @@ describe('AdvancedMappingService', () => {
     });
   });
 
- describe('extractInterfaceImplementationRelationships', () => {
+  describe('extractInterfaceImplementationRelationships', () => {
     it('should extract interface implementation relationships', async () => {
       const analysisResult: FileAnalysisResult = {
         filePath: 'test.js',
@@ -377,11 +377,11 @@ describe('AdvancedMappingService', () => {
       const name = 'TestClass';
       const type = GraphNodeType.CLASS;
       const filePath = 'test.js';
-      
+
       // Using private method access for testing purposes
       const id1 = (advancedMappingService as any).computeNodeId(name, type, filePath);
       const id2 = (advancedMappingService as any).computeNodeId(name, type, filePath);
-      
+
       expect(id1).toBe(id2);
     });
   });
@@ -389,11 +389,11 @@ describe('AdvancedMappingService', () => {
   describe('simpleHash', () => {
     it('should compute consistent hashes', () => {
       const str = 'test string';
-      
+
       // Using private method access for testing purposes
       const hash1 = (advancedMappingService as any).simpleHash(str);
       const hash2 = (advancedMappingService as any).simpleHash(str);
-      
+
       expect(hash1).toBe(hash2);
     });
   });

@@ -22,7 +22,7 @@ import {
 } from './IGraphDataMappingService';
 import { CodeChunk } from '../../parser/types';
 import { v4 as uuidv4 } from 'uuid';
-import { DataMappingValidator } from '../../validation/DataMappingValidator';
+import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
 import { FaultToleranceHandler } from '../../../utils/FaultToleranceHandler';
@@ -54,7 +54,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     this.batchOptimizer = batchOptimizer;
     this.faultToleranceHandler = faultToleranceHandler;
     this.transactionLogger = transactionLogger;
-    
+
     this.logger.info('GraphDataMappingService initialized with fault tolerance');
   }
 
@@ -148,7 +148,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       'mapFileToGraphNodes',
       { cacheKey: `mapping_${filePath}`, analysisResult }
     );
-    
+
     if (result.success) {
       return result.data!;
     } else {
@@ -291,7 +291,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       'mapChunkToGraphNodes',
       { parentFileId: filePath }
     );
-    
+
     if (result.success) {
       return result.data!;
     } else {
@@ -348,7 +348,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       'clearCache',
       {}
     );
-    
+
     if (!result.success) {
       throw result.error || new Error('Failed to clear cache');
     }
@@ -395,7 +395,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       'mapChunksToGraphNodes',
       { parentFileId }
     );
-    
+
     if (result.success) {
       return result.data!;
     } else {

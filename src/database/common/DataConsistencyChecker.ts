@@ -1,13 +1,13 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { QdrantService } from '../../database/qdrant/QdrantService';
-import { IGraphService } from '../graph/core/IGraphService';
-import { GraphPersistenceResult } from '../graph/core/types';
+import { QdrantService } from '../qdrant/QdrantService';
+import { IGraphService } from '../../service/graph/core/IGraphService';
+import { GraphPersistenceResult } from '../../service/graph/core/types';
 
 export interface ConsistencyCheckResult {
   isConsistent: boolean;
- inconsistencies: InconsistencyReport[];
+  inconsistencies: InconsistencyReport[];
   summary: {
     totalChecks: number;
     failedChecks: number;
@@ -38,7 +38,7 @@ export interface ConsistencyCheckOptions {
 export class DataConsistencyChecker {
   private logger: LoggerService;
   private qdrantService: QdrantService;
- private graphService: IGraphService;
+  private graphService: IGraphService;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -48,7 +48,7 @@ export class DataConsistencyChecker {
     this.logger = logger;
     this.qdrantService = qdrantService;
     this.graphService = graphService;
-    
+
     this.logger.info('DataConsistencyChecker initialized');
   }
 
@@ -72,7 +72,7 @@ export class DataConsistencyChecker {
     this.logger.info('Starting data consistency check', { projectPath, options: opts });
 
     const inconsistencies: InconsistencyReport[] = [];
-    
+
     // 检查缺失的引用
     if (opts.checkMissingReferences) {
       const missingRefs = await this.checkMissingReferences(projectPath, opts);
@@ -106,10 +106,10 @@ export class DataConsistencyChecker {
     if (result.isConsistent) {
       this.logger.info('Data consistency check passed', { projectPath, checkTime });
     } else {
-      this.logger.warn('Data consistency check failed', { 
-        projectPath, 
-        checkTime, 
-        inconsistencyCount: inconsistencies.length 
+      this.logger.warn('Data consistency check failed', {
+        projectPath,
+        checkTime,
+        inconsistencyCount: inconsistencies.length
       });
     }
 
@@ -129,16 +129,16 @@ export class DataConsistencyChecker {
     try {
       // 获取项目中的文件列表
       const projectFiles = await this.getProjectFiles(projectPath);
-      
+
       for (let i = 0; i < projectFiles.length; i += batchSize) {
         const batch = projectFiles.slice(i, i + batchSize);
-        
+
         for (const file of batch) {
           // 检查文件在向量数据库中的存在性
           const vectorExists = await this.checkFileInVectorDB(file.path, projectPath);
           // 检查文件在图数据库中的存在性
           const graphExists = await this.checkFileInGraphDB(file.path);
-          
+
           if (vectorExists && !graphExists) {
             reports.push({
               id: `missing_graph_${file.path}`,
@@ -167,9 +167,9 @@ export class DataConsistencyChecker {
         }
       }
     } catch (error) {
-      this.logger.error('Error during missing references check', { 
-        projectPath, 
-        error: (error as Error).message 
+      this.logger.error('Error during missing references check', {
+        projectPath,
+        error: (error as Error).message
       });
       reports.push({
         id: `error_missing_refs_${Date.now()}`,
@@ -198,15 +198,15 @@ export class DataConsistencyChecker {
     try {
       // 获取项目中的文件列表
       const projectFiles = await this.getProjectFiles(projectPath);
-      
+
       for (let i = 0; i < projectFiles.length; i += batchSize) {
         const batch = projectFiles.slice(i, i + batchSize);
-        
+
         for (const file of batch) {
           // 比较向量数据库和图数据库中的文件元数据
           const vectorMetadata = await this.getFileMetadataFromVectorDB(file.path, projectPath);
           const graphMetadata = await this.getFileMetadataFromGraphDB(file.path);
-          
+
           if (vectorMetadata && graphMetadata) {
             // 比较关键字段
             if (vectorMetadata.size !== graphMetadata.size) {
@@ -222,7 +222,7 @@ export class DataConsistencyChecker {
                 }
               });
             }
-            
+
             if (vectorMetadata.lastModified !== graphMetadata.lastModified) {
               reports.push({
                 id: `modified_mismatch_${file.path}`,
@@ -240,9 +240,9 @@ export class DataConsistencyChecker {
         }
       }
     } catch (error) {
-      this.logger.error('Error during data integrity check', { 
-        projectPath, 
-        error: (error as Error).message 
+      this.logger.error('Error during data integrity check', {
+        projectPath,
+        error: (error as Error).message
       });
       reports.push({
         id: `error_data_integrity_${Date.now()}`,
@@ -271,14 +271,14 @@ export class DataConsistencyChecker {
     try {
       // 获取项目中的文件列表
       const projectFiles = await this.getProjectFiles(projectPath);
-      
+
       for (let i = 0; i < projectFiles.length; i += batchSize) {
         const batch = projectFiles.slice(i, i + batchSize);
-        
+
         for (const file of batch) {
           // 检查图数据库中的引用完整性
           const danglingRefs = await this.findDanglingReferences(file.path);
-          
+
           if (danglingRefs.length > 0) {
             reports.push({
               id: `dangling_refs_${file.path}`,
@@ -294,9 +294,9 @@ export class DataConsistencyChecker {
         }
       }
     } catch (error) {
-      this.logger.error('Error during reference integrity check', { 
-        projectPath, 
-        error: (error as Error).message 
+      this.logger.error('Error during reference integrity check', {
+        projectPath,
+        error: (error as Error).message
       });
       reports.push({
         id: `error_ref_integrity_${Date.now()}`,
@@ -350,9 +350,9 @@ export class DataConsistencyChecker {
             failed++;
         }
       } catch (error) {
-        this.logger.error('Failed to fix inconsistency', { 
-          issueId: issue.id, 
-          error: (error as Error).message 
+        this.logger.error('Failed to fix inconsistency', {
+          issueId: issue.id,
+          error: (error as Error).message
         });
         failed++;
       }

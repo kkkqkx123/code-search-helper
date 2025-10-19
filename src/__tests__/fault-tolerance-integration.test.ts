@@ -6,7 +6,7 @@ import { GraphDataMappingService } from '../service/graph/mapping/GraphDataMappi
 import { LoggerService } from '../utils/LoggerService';
 import { TransactionLogger } from '../service/transaction/TransactionLogger';
 import { GraphMappingCache } from '../service/graph/caching/GraphMappingCache';
-import { DataMappingValidator } from '../service/validation/DataMappingValidator';
+import { DataMappingValidator } from '../service/graph/mapping/DataMappingValidator';
 import { GraphBatchOptimizer } from '../service/graph/utils/GraphBatchOptimizer';
 import { GraphConfigService } from '../config/service/GraphConfigService';
 import { ConfigService } from '../config/ConfigService';
@@ -18,7 +18,7 @@ describe('FaultTolerance Integration', () => {
 
   beforeEach(() => {
     container = new Container();
-    
+
     // Mock services
     const mockLogger = {
       info: jest.fn(),
@@ -26,22 +26,22 @@ describe('FaultTolerance Integration', () => {
       error: jest.fn(),
       debug: jest.fn()
     } as any;
-    
+
     const mockTransactionLogger = {
       logTransaction: jest.fn()
     } as any;
-    
+
     const mockCache = {
       getMappingResult: jest.fn(),
       getFileAnalysis: jest.fn(),
       clear: jest.fn(),
       getStats: jest.fn()
     } as any;
-    
+
     const mockValidator = {} as any;
-    
+
     const mockBatchOptimizer = {} as any;
-    
+
     const mockConfigService = {
       get: jest.fn().mockReturnValue({
         maxRetries: 2,
@@ -53,7 +53,7 @@ describe('FaultTolerance Integration', () => {
         fallbackStrategy: 'cache'
       })
     } as any;
-    
+
     const faultToleranceOptions = {
       maxRetries: 2,
       retryDelay: 100,
@@ -63,7 +63,7 @@ describe('FaultTolerance Integration', () => {
       circuitBreakerTimeout: 1000,
       fallbackStrategy: 'cache' as 'cache' | 'default' | 'error'
     };
-    
+
     const mockGraphCacheService = {
       getGraphData: jest.fn(),
       setGraphData: jest.fn(),
@@ -86,7 +86,7 @@ describe('FaultTolerance Integration', () => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
       const transactionLogger = context.get<TransactionLogger>(TYPES.TransactionLogger);
       const cache = context.get<GraphMappingCache>(TYPES.GraphMappingCache);
-      
+
       return new FaultToleranceHandler(
         logger,
         transactionLogger,
@@ -114,7 +114,7 @@ describe('FaultTolerance Integration', () => {
 
   it('should execute operation with fault tolerance', async () => {
     const mockOperation = jest.fn().mockResolvedValue('success');
-    
+
     const result = await faultToleranceHandler.executeWithFaultTolerance(
       mockOperation,
       'testOperation',
@@ -171,7 +171,7 @@ describe('FaultTolerance Integration', () => {
     // Mock successful mapping
     const mockCache = container.get<GraphMappingCache>(TYPES.GraphMappingCache);
     (mockCache.getMappingResult as jest.Mock).mockResolvedValue(null);
-    
+
     const mockGraphCacheService = container.get<any>(TYPES.GraphCacheService);
     (mockGraphCacheService.getGraphData as jest.Mock).mockResolvedValue(null);
     (mockGraphCacheService.setGraphData as jest.Mock).mockResolvedValue(undefined);

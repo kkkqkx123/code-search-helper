@@ -11,7 +11,7 @@ import {
   ClassInfo
 } from './IGraphDataMappingService';
 import { v4 as uuidv4 } from 'uuid';
-import { DataMappingValidator } from '../../validation/DataMappingValidator';
+import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
 import { TreeSitterService } from '../../parser/core/parse/TreeSitterService';
