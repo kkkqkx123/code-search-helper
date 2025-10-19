@@ -1,13 +1,13 @@
 import { createClient } from '@nebula-contrib/nebula-nodejs';
-import { NebulaConnectionManager } from '../../src/database/nebula/NebulaConnectionManager';
-import { NebulaConfigService } from '../../src/config/service/NebulaConfigService';
-import { LoggerService } from '../../src/utils/LoggerService';
-import { ErrorHandlerService } from '../../src/utils/ErrorHandlerService';
-import { DatabaseLoggerService } from '../../src/database/common/DatabaseLoggerService';
-import { ConnectionStateManager } from '../../src/database/nebula/ConnectionStateManager';
-import { NebulaEventManager } from '../../src/database/nebula/NebulaEventManager';
+import { NebulaConnectionManager } from '../../../src/database/nebula/NebulaConnectionManager';
+import { NebulaConfigService } from '../../../src/config/service/NebulaConfigService';
+import { LoggerService } from '../../../src/utils/LoggerService';
+import { ErrorHandlerService } from '../../../src/utils/ErrorHandlerService';
+import { DatabaseLoggerService } from '../../../src/database/common/DatabaseLoggerService';
+import { ConnectionStateManager } from '../../../src/database/nebula/ConnectionStateManager';
+import { NebulaEventManager } from '../../../src/database/nebula/NebulaEventManager';
 import { Container } from 'inversify';
-import { TYPES } from '../../src/types';
+import { TYPES } from '../../../src/types';
 
 /**
  * 测试 Nebula Graph 连接和空间切换功能

@@ -1,9 +1,9 @@
-const { SqliteDatabaseService } = require('../dist/database/splite/SqliteDatabaseService');
-const { SqliteProjectManager } = require('../dist/database/splite/SqliteProjectManager');
-const { SqliteStateManager } = require('../dist/database/splite/SqliteStateManager');
-const { FileHashManagerImpl } = require('../dist/service/filesystem/FileHashManager');
-const { JsonToSqliteMigrator } = require('../dist/database/splite/migration/JsonToSqliteMigrator');
-const { LoggerService } = require('../dist/utils/LoggerService');
+const { SqliteDatabaseService } = require('../../dist/database/splite/SqliteDatabaseService');
+const { SqliteProjectManager } = require('../../dist/database/splite/SqliteProjectManager');
+const { SqliteStateManager } = require('../../dist/database/splite/SqliteStateManager');
+const { FileHashManagerImpl } = require('../../dist/service/filesystem/FileHashManager');
+const { JsonToSqliteMigrator } = require('../../dist/database/splite/migration/JsonToSqliteMigrator');
+const { LoggerService } = require('../../dist/utils/LoggerService');
 
 async function testSQLiteMigration() {
   console.log('🚀 Starting SQLite Migration Test...\n');
@@ -21,7 +21,7 @@ async function testSQLiteMigration() {
     console.log('📊 Testing database connection and table structure...');
     sqliteService.connect();
     sqliteService.initializeTables();
-    
+
     const stats = sqliteService.getStats();
     console.log('✅ Database stats:', JSON.stringify(stats, null, 2));
 
@@ -32,7 +32,7 @@ async function testSQLiteMigration() {
 
     // 3. 测试ProjectIdManager功能（通过SqliteProjectManager）
     console.log('\n🏗️ Testing project management...');
-    
+
     // 创建测试项目
     const testProjectPath = '/test/project/path';
     const projectCreated = await sqliteProjectManager.createProjectSpace(testProjectPath, {
@@ -41,7 +41,7 @@ async function testSQLiteMigration() {
       collectionName: 'test-collection',
       spaceName: 'test-space'
     });
-    
+
     console.log('✅ Project created:', projectCreated);
 
     // 获取项目信息
@@ -50,7 +50,7 @@ async function testSQLiteMigration() {
 
     // 4. 测试ProjectStateManager功能（通过SqliteStateManager）
     console.log('\n📊 Testing project state management...');
-    
+
     const testState = {
       projectId: projectInfo.project.id,
       vectorStatus: { status: 'completed', progress: 100, lastUpdated: new Date() },
@@ -70,7 +70,7 @@ async function testSQLiteMigration() {
 
     // 5. 测试FileHashManager功能
     console.log('\n🔑 Testing file hash management...');
-    
+
     // 批量更新文件哈希
     const hashUpdates = [
       {
@@ -110,7 +110,7 @@ async function testSQLiteMigration() {
 
     // 6. 测试ChangeDetectionService的集成（通过FileHashManager）
     console.log('\n🔍 Testing change detection integration...');
-    
+
     // 模拟文件变更
     await fileHashManager.updateFileHash(testState.projectId, '/test/file3.ts', 'hash3', {
       fileSize: 3072,
@@ -127,7 +127,7 @@ async function testSQLiteMigration() {
 
     // 7. 验证数据一致性
     console.log('\n✅ Verifying data consistency...');
-    
+
     const finalStats = sqliteService.getStats();
     console.log('Final database stats:', JSON.stringify(finalStats, null, 2));
 

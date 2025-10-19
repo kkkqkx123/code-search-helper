@@ -1,5 +1,5 @@
 import { createClient } from '@nebula-contrib/nebula-nodejs';
-import { NebulaConfigService } from '../../src/config/service/NebulaConfigService';
+import { NebulaConfigService } from '../../../src/config/service/NebulaConfigService';
 
 /**
  * 验证 Nebula Graph 连接修复效果
