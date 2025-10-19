@@ -24,6 +24,7 @@ import { GraphCacheConfigService } from '../../config/service/GraphCacheConfigSe
 
 // 基础设施配置服务
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
+import { GraphConfigService } from '../../config/service/GraphConfigService';
 
 // 向量批处理优化器
 import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
@@ -45,6 +46,7 @@ import { TransactionCoordinator } from '../../infrastructure/transaction/Transac
 import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
 import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
 import { GarbageCollectionStrategy } from '../../infrastructure/cleanup/strategies/GarbageCollectionStrategy';
+import { FaultToleranceHandler } from '../../utils/FaultToleranceHandler';
 
 // 基础设施管理器
 import { InfrastructureManager } from '../../infrastructure/InfrastructureManager';
@@ -55,6 +57,21 @@ export class InfrastructureServiceRegistrar {
       // 基础设施服务
       container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
       container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
+      container.bind<FaultToleranceHandler>(TYPES.FaultToleranceHandler).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        const transactionLogger = context.get<TransactionLogger>(TYPES.TransactionLogger);
+        const cache = context.get<GraphMappingCache>(TYPES.GraphMappingCache);
+        const graphConfigService = context.get<GraphConfigService>(TYPES.GraphConfigService);
+        
+        const options = graphConfigService.getFaultToleranceOptions();
+        
+        return new FaultToleranceHandler(
+          logger,
+          transactionLogger,
+          cache,
+          options
+        );
+      }).inSingletonScope();
 
       // 图服务基础设施
       container.bind<GraphCacheService>(TYPES.GraphCacheService).to(GraphCacheService).inSingletonScope();
@@ -141,6 +158,8 @@ export class InfrastructureServiceRegistrar {
       // 基础设施配置服务
       container.bind<InfrastructureConfigService>(TYPES.InfrastructureConfigService)
         .to(InfrastructureConfigService).inSingletonScope();
+      container.bind<GraphConfigService>(TYPES.GraphConfigService)
+        .to(GraphConfigService).inSingletonScope();
 
       // 向量批处理优化器
       container.bind<VectorBatchOptimizer>(TYPES.VectorBatchOptimizer)

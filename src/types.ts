@@ -280,6 +280,7 @@ export const TYPES = {
   InfrastructureManager: Symbol.for('InfrastructureManager'),
   DatabaseHealthChecker: Symbol.for('DatabaseHealthChecker'),
   GraphCacheService: Symbol.for('GraphCacheService'),
+  GraphConfigService: Symbol.for('GraphConfigService'),
   CacheConfig: Symbol.for('CacheConfig'),
 
   // 图数据映射服务

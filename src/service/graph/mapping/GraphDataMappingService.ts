@@ -25,6 +25,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from '../../validation/DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
+import { FaultToleranceHandler } from '../../../utils/FaultToleranceHandler';
+import { TransactionLogger } from '../../../service/transaction/TransactionLogger';
 
 @injectable()
 export class GraphDataMappingService implements IGraphDataMappingService {
@@ -33,19 +35,27 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   private cache: GraphMappingCache; // 保持旧的缓存引用以确保向后兼容
   private unifiedCache: any; // 新的统一缓存服务
   private batchOptimizer: GraphBatchOptimizer;
+  private faultToleranceHandler: FaultToleranceHandler;
+  private transactionLogger: TransactionLogger;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.DataMappingValidator) validator: DataMappingValidator,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     @inject(TYPES.GraphCacheService) unifiedCache: any,
-    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer
+    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
+    @inject(TYPES.FaultToleranceHandler) faultToleranceHandler: FaultToleranceHandler,
+    @inject(TYPES.TransactionLogger) transactionLogger: TransactionLogger
   ) {
     this.logger = logger;
     this.validator = validator;
     this.cache = cache;
     this.unifiedCache = unifiedCache;
     this.batchOptimizer = batchOptimizer;
+    this.faultToleranceHandler = faultToleranceHandler;
+    this.transactionLogger = transactionLogger;
+    
+    this.logger.info('GraphDataMappingService initialized with fault tolerance');
   }
 
   private inferLanguageFromFile(filePath: string): string {
@@ -86,59 +96,63 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     fileContent: string,
     analysisResult: FileAnalysisResult
   ): Promise<GraphNodeMappingResult> {
-    try {
-      // 从文件扩展名推断语言
-      const language = this.inferLanguageFromFile(filePath);
-      // 尝试从新缓存服务获取结果
-      const cacheKey = `mapping_${filePath}_${language}`;
-      const cachedResult = await this.unifiedCache.getGraphData(cacheKey);
+    const result = await this.faultToleranceHandler.executeWithFaultTolerance(
+      async () => {
+        // 从文件扩展名推断语言
+        const language = this.inferLanguageFromFile(filePath);
+        // 尝试从新缓存服务获取结果
+        const cacheKey = `mapping_${filePath}_${language}`;
+        const cachedResult = await this.unifiedCache.getGraphData(cacheKey);
 
-      if (cachedResult) {
-        this.logger.debug('Returning cached mapping result', { filePath });
-        return {
-          nodes: cachedResult.nodes,
-          relationships: cachedResult.relationships,
-          stats: {
-            fileNodes: 1,
-            functionNodes: 0,
-            classNodes: 0,
-            relationships: 0
-          }
-        };
-      }
+        if (cachedResult) {
+          this.logger.debug('Returning cached mapping result', { filePath });
+          return {
+            nodes: cachedResult.nodes,
+            relationships: cachedResult.relationships,
+            stats: {
+              fileNodes: 1,
+              functionNodes: 0,
+              classNodes: 0,
+              relationships: 0
+            }
+          };
+        }
 
-      // 如果新缓存中没有，则使用旧缓存
-      const oldCachedResult = await this.cache.getMappingResult(cacheKey);
-      if (oldCachedResult) {
-        this.logger.debug('Returning cached mapping result from old cache', { filePath });
-        return {
-          nodes: oldCachedResult.nodes,
-          relationships: oldCachedResult.relationships,
-          stats: {
-            fileNodes: 1,
-            functionNodes: 0,
-            classNodes: 0,
-            relationships: 0
-          }
-        };
-      }
+        // 如果新缓存中没有，则使用旧缓存
+        const oldCachedResult = await this.cache.getMappingResult(cacheKey);
+        if (oldCachedResult) {
+          this.logger.debug('Returning cached mapping result from old cache', { filePath });
+          return {
+            nodes: oldCachedResult.nodes,
+            relationships: oldCachedResult.relationships,
+            stats: {
+              fileNodes: 1,
+              functionNodes: 0,
+              classNodes: 0,
+              relationships: 0
+            }
+          };
+        }
 
-      // 执行实际的映射逻辑
-      const result = await this.performMapping(filePath, fileContent, language, analysisResult);
+        // 执行实际的映射逻辑
+        const mappingResult = await this.performMapping(filePath, fileContent, language, analysisResult);
 
-      // 缓存结果到新缓存服务
-      await this.unifiedCache.setGraphData(cacheKey, {
-        nodes: result.nodes,
-        relationships: result.relationships
-      });
+        // 缓存结果到新缓存服务
+        await this.unifiedCache.setGraphData(cacheKey, {
+          nodes: mappingResult.nodes,
+          relationships: mappingResult.relationships
+        });
 
-      return result;
-    } catch (error) {
-      this.logger.error('Error mapping file to graph nodes', {
-        filePath,
-        error: (error as Error).message
-      });
-      throw error;
+        return mappingResult;
+      },
+      'mapFileToGraphNodes',
+      { cacheKey: `mapping_${filePath}`, analysisResult }
+    );
+    
+    if (result.success) {
+      return result.data!;
+    } else {
+      throw result.error || new Error('Failed to map file to graph nodes');
     }
   }
 
@@ -241,44 +255,47 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     filePath: string,
     language: string
   ): Promise<ChunkNodeMappingResult> {
-    try {
-      // 尝试从新缓存服务获取结果
-      const cacheKey = `chunk_mapping_${chunk.id}_${filePath}`;
-      const cachedResult = await this.unifiedCache.getGraphData(cacheKey);
+    const result = await this.faultToleranceHandler.executeWithFaultTolerance(
+      async () => {
+        // 尝试从新缓存服务获取结果
+        const cacheKey = `chunk_mapping_${chunk.id}_${filePath}`;
+        const cachedResult = await this.unifiedCache.getGraphData(cacheKey);
 
-      if (cachedResult) {
-        this.logger.debug('Returning cached chunk mapping result', { chunkId: chunk.id });
-        return {
-          nodes: cachedResult.nodes,
-          relationships: cachedResult.relationships,
-          stats: {
-            chunkNodes: cachedResult.nodes.length,
-            relationships: cachedResult.relationships.length,
-          }
-        };
-      }
+        if (cachedResult) {
+          this.logger.debug('Returning cached chunk mapping result', { chunkId: chunk.id });
+          return {
+            nodes: cachedResult.nodes,
+            relationships: cachedResult.relationships,
+            stats: {
+              chunkNodes: cachedResult.nodes.length,
+              relationships: cachedResult.relationships.length,
+            }
+          };
+        }
 
-      // 如果新缓存中没有，则使用旧缓存
-      const oldCachedResult = await this.cache.getFileAnalysis(cacheKey);
-      if (oldCachedResult) {
-        this.logger.debug('Returning cached chunk mapping result from old cache', { chunkId: chunk.id });
-        return oldCachedResult as ChunkNodeMappingResult;
-      }
+        // 如果新缓存中没有，则使用旧缓存
+        const oldCachedResult = await this.cache.getFileAnalysis(cacheKey);
+        if (oldCachedResult) {
+          this.logger.debug('Returning cached chunk mapping result from old cache', { chunkId: chunk.id });
+          return oldCachedResult as ChunkNodeMappingResult;
+        }
 
-      // 执行实际的映射逻辑
-      const result = await this.performChunkMapping(chunk, filePath, language);
+        // 执行实际的映射逻辑
+        const chunkResult = await this.performChunkMapping(chunk, filePath, language);
 
-      // 缓存结果到新缓存服务
-      await this.unifiedCache.setGraphData(cacheKey, result);
+        // 缓存结果到新缓存服务
+        await this.unifiedCache.setGraphData(cacheKey, chunkResult);
 
-      return result;
-    } catch (error) {
-      this.logger.error('Error mapping chunk to graph nodes', {
-        chunkId: chunk.id,
-        filePath,
-        error: (error as Error).message
-      });
-      throw error;
+        return chunkResult;
+      },
+      'mapChunkToGraphNodes',
+      { parentFileId: filePath }
+    );
+    
+    if (result.success) {
+      return result.data!;
+    } else {
+      throw result.error || new Error('Failed to map chunk to graph nodes');
     }
   }
 
@@ -318,58 +335,72 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   }
 
   async clearCache(): Promise<void> {
-    try {
-      // 清除新缓存服务
-      await this.unifiedCache.clearGraphCache();
+    const result = await this.faultToleranceHandler.executeWithFaultTolerance(
+      async () => {
+        // 清除新缓存服务
+        await this.unifiedCache.clearGraphCache();
 
-      // 清除旧缓存服务
-      await this.cache.clear();
+        // 清除旧缓存服务
+        await this.cache.clear();
 
-      this.logger.info('Cleared graph mapping cache');
-    } catch (error) {
-      this.logger.error('Error clearing graph mapping cache', {
-        error: (error as Error).message
-      });
-      throw error;
+        this.logger.info('Cleared graph mapping cache');
+      },
+      'clearCache',
+      {}
+    );
+    
+    if (!result.success) {
+      throw result.error || new Error('Failed to clear cache');
     }
   }
 
   async getCacheStats() {
-    try {
-      // 获取新缓存服务统计
-      const newStats = await this.unifiedCache.getGraphCacheStats();
+    return this.faultToleranceHandler.executeWithFaultTolerance(
+      async () => {
+        // 获取新缓存服务统计
+        const newStats = await this.unifiedCache.getGraphCacheStats();
 
-      // 获取旧缓存服务统计
-      const oldStats = await this.cache.getStats();
+        // 获取旧缓存服务统计
+        const oldStats = await this.cache.getStats();
 
-      return {
-        newCache: newStats,
-        oldCache: oldStats
-      };
-    } catch (error) {
-      this.logger.error('Error getting cache stats', {
-        error: (error as Error).message
-      });
-      throw error;
-    }
+        return {
+          newCache: newStats,
+          oldCache: oldStats
+        };
+      },
+      'getCacheStats',
+      {}
+    );
   }
 
   async mapChunksToGraphNodes(
     chunks: CodeChunk[],
     parentFileId: string
   ): Promise<ChunkNodeMappingResult> {
-    // 简单实现，实际项目中可能需要更复杂的逻辑
-    const nodes: GraphNode[] = [];
-    const relationships: GraphRelationship[] = [];
+    const result = await this.faultToleranceHandler.executeWithFaultTolerance(
+      async () => {
+        // 简单实现，实际项目中可能需要更复杂的逻辑
+        const nodes: GraphNode[] = [];
+        const relationships: GraphRelationship[] = [];
 
-    return {
-      nodes,
-      relationships,
-      stats: {
-        chunkNodes: chunks.length,
-        relationships: 0
-      }
-    };
+        return {
+          nodes,
+          relationships,
+          stats: {
+            chunkNodes: chunks.length,
+            relationships: 0
+          }
+        };
+      },
+      'mapChunksToGraphNodes',
+      { parentFileId }
+    );
+    
+    if (result.success) {
+      return result.data!;
+    } else {
+      throw result.error || new Error('Failed to map chunks to graph nodes');
+    }
   }
 
   createFileNode(
