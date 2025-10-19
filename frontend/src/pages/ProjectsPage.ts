@@ -8,8 +8,17 @@ export class ProjectsPage {
     private apiClient: ApiClient;
     private container: HTMLElement;
     private onProjectActionComplete?: (action: string, result: any) => void;
-    private refreshInterval: number | null = null;
     private updateProgressModal: UpdateProgressModal;
+
+    // 分页相关属性
+    private currentPage: number = 1;
+    private pageSize: number = 20;
+    private totalItems: number = 0;
+    private totalPages: number = 0;
+    private searchQuery: string = '';
+    private statusFilter: string = '';
+    private sortBy: string = 'name';
+    private sortOrder: string = 'asc';
 
     constructor(container: HTMLElement, apiClient: ApiClient) {
         this.container = container;
@@ -18,6 +27,7 @@ export class ProjectsPage {
         this.updateProgressModal.setApiClient(apiClient);
         this.render();
         this.setupEventListeners();
+        this.setupSearchAndFilterListeners();
         this.loadProjectsList();
         this.setupBatchOperations();
     }
@@ -35,16 +45,52 @@ export class ProjectsPage {
                 
                 <batch-operations-panel id="batch-operations"></batch-operations-panel>
                 
-                                <table class="projects-table">
+                <!-- 搜索和过滤控件 -->
+                <div class="projects-controls">
+                    <div class="search-section">
+                        <input type="text" id="project-search" class="search-input" placeholder="搜索项目名称或路径..." value="${this.escapeHtml(this.searchQuery)}">
+                        <select id="status-filter" class="status-filter">
+                            <option value="">所有状态</option>
+                            <option value="completed" ${this.statusFilter === 'completed' ? 'selected' : ''}>已完成</option>
+                            <option value="indexing" ${this.statusFilter === 'indexing' ? 'selected' : ''}>索引中</option>
+                            <option value="pending" ${this.statusFilter === 'pending' ? 'selected' : ''}>待处理</option>
+                            <option value="error" ${this.statusFilter === 'error' ? 'selected' : ''}>错误</option>
+                        </select>
+                        <select id="sort-select" class="sort-select">
+                            <option value="name" ${this.sortBy === 'name' ? 'selected' : ''}>按名称排序</option>
+                            <option value="path" ${this.sortBy === 'path' ? 'selected' : ''}>按路径排序</option>
+                            <option value="fileCount" ${this.sortBy === 'fileCount' ? 'selected' : ''}>按文件数排序</option>
+                            <option value="lastIndexed" ${this.sortBy === 'lastIndexed' ? 'selected' : ''}>按最后索引时间排序</option>
+                            <option value="status" ${this.sortBy === 'status' ? 'selected' : ''}>按状态排序</option>
+                        </select>
+                        <select id="sort-order" class="sort-order">
+                            <option value="asc" ${this.sortOrder === 'asc' ? 'selected' : ''}>升序</option>
+                            <option value="desc" ${this.sortOrder === 'desc' ? 'selected' : ''}>降序</option>
+                        </select>
+                        <button id="apply-filters" class="search-button">应用过滤</button>
+                    </div>
+                    <div class="view-controls">
+                        <select id="page-size" class="page-size">
+                            <option value="10" ${this.pageSize === 10 ? 'selected' : ''}>10条/页</option>
+                            <option value="20" ${this.pageSize === 20 ? 'selected' : ''}>20条/页</option>
+                            <option value="50" ${this.pageSize === 50 ? 'selected' : ''}>50条/页</option>
+                            <option value="100" ${this.pageSize === 100 ? 'selected' : ''}>100条/页</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- 项目统计信息 -->
+                <div class="projects-stats">
+                    <span>总共 <strong id="total-items">${this.totalItems}</strong> 个项目</span>
+                    <span>第 <strong id="current-page">${this.currentPage}</strong> 页，共 <strong id="total-pages">${this.totalPages}</strong> 页</span>
+                </div>
+                
+                <table class="projects-table">
                     <thead>
                         <tr>
                             <th><input type="checkbox" id="select-all-projects" title="选择所有项目"></th>
-                            <th>项目名称</th>
-                            <th>路径</th>
-                            <th>文件数</th>
-                            <th>热重载</th>
-                            <th>索引状态</th>
-                            <th>单独执行</th>
+                            <th>项目信息</th>
+                            <th>状态</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -52,6 +98,10 @@ export class ProjectsPage {
                         <!-- 动态填充 -->
                     </tbody>
                 </table>
+                
+                <!-- 分页控件 -->
+                <div id="pagination-container" class="pagination-container"></div>
+                
                 <div id="projects-loading" class="loading" style="display: none; padding: 20px;">加载中...</div>
                 <div id="projects-error" class="error" style="display: none; margin: 20px;"></div>
             </div>
@@ -95,16 +145,36 @@ export class ProjectsPage {
         projectsList.innerHTML = '';
 
         try {
-            const result = await this.apiClient.getProjects(forceRefresh);
+            const result = await this.apiClient.getProjects(forceRefresh, {
+                page: this.currentPage,
+                pageSize: this.pageSize,
+                search: this.searchQuery,
+                status: this.statusFilter,
+                sortBy: this.sortBy,
+                sortOrder: this.sortOrder
+            });
 
             if (result.success && result.data) {
+                // 更新分页信息
+                if (result.pagination) {
+                    this.totalItems = result.pagination.totalItems;
+                    this.totalPages = result.pagination.totalPages;
+                    this.currentPage = result.pagination.page;
+                }
+
+                // 更新统计信息显示
+                this.updateStatsDisplay();
+
+                // 渲染分页控件
+                this.renderPagination();
+
                 if (result.data.length > 0) {
                     this.renderProjectsList(result.data, projectsList);
                 } else {
                     // 项目列表为空，显示友好提示
                     projectsList.innerHTML = `
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: 20px; color: #6b7280;">
+                            <td colspan="4" style="text-align: center; padding: 20px; color: #6b7280;">
                                 暂无已索引项目，请先创建项目索引
                             </td>
                         </tr>
@@ -131,49 +201,55 @@ export class ProjectsPage {
         container.innerHTML = projects.map(project => `
             <tr>
                 <td><input type="checkbox" class="project-checkbox" data-project-id="${project.id}" title="选择项目"></td>
-                <td>${this.escapeHtml(project.name || project.id)}</td>
-                <td>${this.escapeHtml(project.path || 'N/A')}</td>
-                <td>${project.fileCount || 0}</td>
-                <td>
-                    <hot-reload-status 
-                        project-id="${project.id}"
-                        enabled="${project.hotReload?.enabled || false}"
-                        changes-detected="${project.hotReload?.changesDetected || 0}"
-                        errors-count="${project.hotReload?.errorsCount || 0}">
-                    </hot-reload-status>
-                </td>
-                <td>
-                    <storage-status-indicator
-                        project-id="${project.id}"
-                        vector-status="${project.vectorStatus?.status || 'pending'}"
-                        graph-status="${project.graphStatus?.status || 'pending'}">
-                    </storage-status-indicator>
-                </td>
-                <td>
-                    <storage-action-buttons
-                        project-id="${project.id}"
-                        vector-status="${project.vectorStatus?.status || 'pending'}"
-                        graph-status="${project.graphStatus?.status || 'pending'}">
-                    </storage-action-buttons>
-                </td>
-                <td>
-                    <div class="hot-reload-actions">
-                        <button class="action-button toggle" 
-                                data-project-id="${project.id}" 
-                                data-enabled="${project.hotReload?.enabled || false}"
-                                title="${project.hotReload?.enabled ? '禁用热重载' : '启用热重载'}">
-                            ${project.hotReload?.enabled ? '🔴 禁用' : '🟢 启用'}
-                        </button>
-                        <button class="action-button configure" 
-                                data-project-id="${project.id}" 
-                                data-action="configure-hot-reload"
-                                title="配置热重载">
-                            ⚙️ 配置
-                        </button>
+                <td class="project-info-cell">
+                    <div class="project-name">${this.escapeHtml(project.name || project.id)}</div>
+                    <div class="project-path">${this.escapeHtml(project.path || 'N/A')}</div>
+                    <div class="project-meta">
+                        <span class="file-count">📁 ${project.fileCount || 0} 文件</span>
+                        <span class="last-indexed">🕒 ${this.formatDate(project.lastIndexed)}</span>
                     </div>
-                    <button class="action-button update" data-project-id="${project.id}" data-action="update">🔄 更新</button>
-                    <button class="action-button reindex" data-project-id="${project.id}" data-action="reindex">重新索引</button>
-                    <button class="action-button delete" data-project-id="${project.id}" data-action="delete">删除</button>
+                </td>
+                <td class="status-cell">
+                    <div class="status-indicators">
+                        <div class="project-status status-${project.status}">
+                            ${this.getStatusText(project.status)}
+                        </div>
+                        <div class="hot-reload-status">
+                            <hot-reload-status 
+                                project-id="${project.id}"
+                                enabled="${project.hotReload?.enabled || false}"
+                                changes-detected="${project.hotReload?.changesDetected || 0}"
+                                errors-count="${project.hotReload?.errorsCount || 0}">
+                            </hot-reload-status>
+                        </div>
+                        <div class="storage-status">
+                            <storage-status-indicator
+                                project-id="${project.id}"
+                                vector-status="${project.vectorStatus?.status || 'pending'}"
+                                graph-status="${project.graphStatus?.status || 'pending'}">
+                            </storage-status-indicator>
+                        </div>
+                    </div>
+                </td>
+                <td class="actions-cell">
+                    <div class="action-menu">
+                        <button class="action-button primary" data-project-id="${project.id}" data-action="update">🔄 更新</button>
+                        <button class="action-button secondary" data-project-id="${project.id}" data-action="reindex">📊 重新索引</button>
+                        <div class="dropdown">
+                            <button class="action-button dropdown-toggle" data-project-id="${project.id}" data-action="toggle-menu">⚙️</button>
+                            <div class="dropdown-menu">
+                                <button class="dropdown-item" data-project-id="${project.id}" data-action="toggle-hot-reload">
+                                    ${project.hotReload?.enabled ? '🔴 禁用热重载' : '🟢 启用热重载'}
+                                </button>
+                                <button class="dropdown-item" data-project-id="${project.id}" data-action="configure-hot-reload">⚙️ 配置热重载</button>
+                                <div class="dropdown-divider"></div>
+                                <button class="dropdown-item storage" data-project-id="${project.id}" data-action="index-vectors">🔍 索引向量</button>
+                                <button class="dropdown-item storage" data-project-id="${project.id}" data-action="index-graph">🕸️ 索引图</button>
+                                <div class="dropdown-divider"></div>
+                                <button class="dropdown-item danger" data-project-id="${project.id}" data-action="delete">🗑️ 删除</button>
+                            </div>
+                        </div>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -194,8 +270,14 @@ export class ProjectsPage {
                         this.deleteProject(projectId, target);
                     } else if (action === 'configure-hot-reload') {
                         this.configureHotReload(projectId);
-                    } else if (target.classList.contains('toggle')) {
+                    } else if (action === 'toggle-hot-reload') {
                         this.toggleHotReload(projectId, target);
+                    } else if (action === 'index-vectors') {
+                        this.indexVectors(projectId);
+                    } else if (action === 'index-graph') {
+                        this.indexGraph(projectId);
+                    } else if (action === 'toggle-menu') {
+                        this.toggleDropdown(target);
                     }
                 }
             });
@@ -248,10 +330,231 @@ export class ProjectsPage {
         }
     }
 
+    /**
+     * 切换下拉菜单
+     */
+    private toggleDropdown(button: HTMLButtonElement) {
+        const dropdown = button.nextElementSibling as HTMLElement;
+        if (dropdown && dropdown.classList.contains('dropdown-menu')) {
+            dropdown.classList.toggle('show');
+
+            // 点击其他地方关闭下拉菜单
+            const closeDropdown = (e: MouseEvent) => {
+                if (!button.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
+                    dropdown.classList.remove('show');
+                    document.removeEventListener('click', closeDropdown);
+                }
+            };
+            document.addEventListener('click', closeDropdown);
+        }
+    }
 
     /**
-     * 重新索引项目
+     * 更新统计信息显示
      */
+    private updateStatsDisplay(): void {
+        const totalItemsElement = this.container.querySelector('#total-items') as HTMLElement;
+        const currentPageElement = this.container.querySelector('#current-page') as HTMLElement;
+        const totalPagesElement = this.container.querySelector('#total-pages') as HTMLElement;
+
+        if (totalItemsElement) totalItemsElement.textContent = this.totalItems.toString();
+        if (currentPageElement) currentPageElement.textContent = this.currentPage.toString();
+        if (totalPagesElement) totalPagesElement.textContent = this.totalPages.toString();
+    }
+
+    /**
+     * 渲染分页控件
+     */
+    private renderPagination(): void {
+        const paginationContainer = this.container.querySelector('#pagination-container') as HTMLElement;
+        if (!paginationContainer) return;
+
+        if (this.totalPages <= 1) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+
+        let paginationHtml = '<div class="pagination-controls">';
+
+        // 上一页按钮
+        const prevDisabled = this.currentPage <= 1 ? 'disabled' : '';
+        paginationHtml += `<button class="pagination-button" data-page="prev" ${prevDisabled}>上一页</button>`;
+
+        // 页码按钮
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(this.totalPages, startPage + maxVisiblePages - 1);
+
+        if (endPage - startPage < maxVisiblePages - 1) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        if (startPage > 1) {
+            paginationHtml += `<button class="pagination-button" data-page="1">1</button>`;
+            if (startPage > 2) {
+                paginationHtml += `<span class="pagination-ellipsis">...</span>`;
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const active = i === this.currentPage ? 'active' : '';
+            paginationHtml += `<button class="pagination-button ${active}" data-page="${i}">${i}</button>`;
+        }
+
+        if (endPage < this.totalPages) {
+            if (endPage < this.totalPages - 1) {
+                paginationHtml += `<span class="pagination-ellipsis">...</span>`;
+            }
+            paginationHtml += `<button class="pagination-button" data-page="${this.totalPages}">${this.totalPages}</button>`;
+        }
+
+        // 下一页按钮
+        const nextDisabled = this.currentPage >= this.totalPages ? 'disabled' : '';
+        paginationHtml += `<button class="pagination-button" data-page="next" ${nextDisabled}>下一页</button>`;
+
+        paginationHtml += '</div>';
+        paginationContainer.innerHTML = paginationHtml;
+
+        // 添加分页事件监听器
+        paginationContainer.querySelectorAll('.pagination-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const target = e.target as HTMLButtonElement;
+                const page = target.dataset.page;
+
+                if (page === 'prev') {
+                    this.goToPage(this.currentPage - 1);
+                } else if (page === 'next') {
+                    this.goToPage(this.currentPage + 1);
+                } else {
+                    this.goToPage(parseInt(page || '0'));
+                }
+            });
+        });
+    }
+
+    /**
+     * 跳转到指定页面
+     */
+    private goToPage(page: number): void {
+        if (page < 1 || page > this.totalPages || page === this.currentPage) return;
+
+        this.currentPage = page;
+        this.loadProjectsList();
+    }
+
+    /**
+     * 设置搜索和过滤事件监听器
+     */
+    private setupSearchAndFilterListeners(): void {
+        // 搜索框
+        const searchInput = this.container.querySelector('#project-search') as HTMLInputElement;
+        if (searchInput) {
+            let searchTimeout: number;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = window.setTimeout(() => {
+                    this.searchQuery = (e.target as HTMLInputElement).value;
+                    this.currentPage = 1; // 重置到第一页
+                    this.loadProjectsList();
+                }, 500); // 500ms防抖
+            });
+        }
+
+        // 状态过滤
+        const statusFilter = this.container.querySelector('#status-filter') as HTMLSelectElement;
+        if (statusFilter) {
+            statusFilter.addEventListener('change', (e) => {
+                this.statusFilter = (e.target as HTMLSelectElement).value;
+                this.currentPage = 1;
+                this.loadProjectsList();
+            });
+        }
+
+        // 排序选择
+        const sortSelect = this.container.querySelector('#sort-select') as HTMLSelectElement;
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                this.sortBy = (e.target as HTMLSelectElement).value;
+                this.currentPage = 1;
+                this.loadProjectsList();
+            });
+        }
+
+        // 排序顺序
+        const sortOrder = this.container.querySelector('#sort-order') as HTMLSelectElement;
+        if (sortOrder) {
+            sortOrder.addEventListener('change', (e) => {
+                this.sortOrder = (e.target as HTMLSelectElement).value;
+                this.currentPage = 1;
+                this.loadProjectsList();
+            });
+        }
+
+        // 应用过滤按钮
+        const applyFiltersButton = this.container.querySelector('#apply-filters') as HTMLButtonElement;
+        if (applyFiltersButton) {
+            applyFiltersButton.addEventListener('click', () => {
+                this.currentPage = 1;
+                this.loadProjectsList();
+            });
+        }
+
+        // 页面大小选择
+        const pageSizeSelect = this.container.querySelector('#page-size') as HTMLSelectElement;
+        if (pageSizeSelect) {
+            pageSizeSelect.addEventListener('change', (e) => {
+                this.pageSize = parseInt((e.target as HTMLSelectElement).value);
+                this.currentPage = 1;
+                this.loadProjectsList();
+            });
+        }
+    }
+
+    /**
+     * 格式化日期
+     */
+    private formatDate(date: Date | string): string {
+        if (!date) return '未知';
+
+        const d = typeof date === 'string' ? new Date(date) : date;
+        if (isNaN(d.getTime())) return '无效日期';
+
+        const now = new Date();
+        const diffMs = now.getTime() - d.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) {
+            return '今天';
+        } else if (diffDays === 1) {
+            return '昨天';
+        } else if (diffDays < 7) {
+            return `${diffDays}天前`;
+        } else if (diffDays < 30) {
+            const weeks = Math.floor(diffDays / 7);
+            return `${weeks}周前`;
+        } else if (diffDays < 365) {
+            const months = Math.floor(diffDays / 30);
+            return `${months}个月前`;
+        } else {
+            const years = Math.floor(diffDays / 365);
+            return `${years}年前`;
+        }
+    }
+
+    /**
+     * 获取状态文本
+     */
+    private getStatusText(status: string): string {
+        switch (status) {
+            case 'completed': return '✅ 已完成';
+            case 'indexing': return '🔄 索引中';
+            case 'pending': return '⏳ 待处理';
+            case 'error': return '❌ 错误';
+            default: return status;
+        }
+    }
+
+    // 保留原有的方法，但为了节省空间，这里只包含必要的几个
     async reindexProject(projectId: string) {
         if (!confirm('确定要重新索引该项目吗？')) return;
 
@@ -260,10 +563,8 @@ export class ProjectsPage {
 
             if (result.success) {
                 alert('重新索引已启动');
-                // 清除相关缓存
                 this.apiClient.clearProjectsCache();
                 this.apiClient.clearSearchCache();
-                // 刷新项目列表
                 this.loadProjectsList(true);
 
                 if (this.onProjectActionComplete) {
@@ -277,9 +578,6 @@ export class ProjectsPage {
         }
     }
 
-    /**
-     * 删除项目
-     */
     async deleteProject(projectId: string, element: HTMLElement) {
         if (!confirm('确定要删除该项目的索引吗？此操作不可撤销。')) return;
 
@@ -287,10 +585,8 @@ export class ProjectsPage {
             const result = await this.apiClient.deleteProject(projectId);
 
             if (result.success) {
-                // 清除相关缓存
                 this.apiClient.clearProjectsCache();
                 this.apiClient.clearSearchCache();
-                // 从界面移除该项目
                 element.closest('tr')?.remove();
                 alert('项目已删除');
 
@@ -305,18 +601,13 @@ export class ProjectsPage {
         }
     }
 
-    /**
-     * 执行向量索引
-     */
     async indexVectors(projectId: string) {
         try {
             const result = await this.apiClient.indexVectors(projectId);
 
             if (result.success) {
                 alert('向量索引已启动');
-                // 清除相关缓存
                 this.apiClient.clearProjectsCache();
-                // 刷新项目列表
                 this.loadProjectsList(true);
 
                 if (this.onProjectActionComplete) {
@@ -330,18 +621,13 @@ export class ProjectsPage {
         }
     }
 
-    /**
- * 执行图索引
- */
     async indexGraph(projectId: string) {
         try {
             const result = await this.apiClient.indexGraph(projectId);
 
             if (result.success) {
                 alert('图索引已启动');
-                // 清除相关缓存
                 this.apiClient.clearProjectsCache();
-                // 刷新项目列表
                 this.loadProjectsList(true);
 
                 if (this.onProjectActionComplete) {
@@ -355,9 +641,6 @@ export class ProjectsPage {
         }
     }
 
-    /**
-     * 切换热重载状态
-     */
     async toggleHotReload(projectId: string, button: HTMLButtonElement) {
         const currentEnabled = button.dataset.enabled === 'true';
         const newEnabled = !currentEnabled;
@@ -366,12 +649,10 @@ export class ProjectsPage {
             const result = await this.apiClient.toggleProjectHotReload(projectId, newEnabled);
 
             if (result.success) {
-                // 更新按钮状态
                 button.dataset.enabled = newEnabled.toString();
                 button.title = newEnabled ? '禁用热重载' : '启用热重载';
                 button.textContent = newEnabled ? '🔴 禁用' : '🟢 启用';
 
-                // 更新状态指示器
                 const statusIndicator = this.container.querySelector(`hot-reload-status[project-id="${projectId}"]`) as HTMLElement;
                 if (statusIndicator) {
                     statusIndicator.setAttribute('enabled', newEnabled.toString());
@@ -379,7 +660,6 @@ export class ProjectsPage {
 
                 alert(newEnabled ? '热重载已启用' : '热重载已禁用');
 
-                // 清除缓存并刷新
                 this.apiClient.clearProjectsCache();
                 this.loadProjectsList(true);
             } else {
@@ -390,12 +670,8 @@ export class ProjectsPage {
         }
     }
 
-    /**
-     * 配置热重载
-     */
     async configureHotReload(projectId: string) {
         try {
-            // 获取项目信息
             const projectsResult = await this.apiClient.getProjects();
             if (!projectsResult.success || !projectsResult.data) {
                 alert('无法获取项目信息');
@@ -408,30 +684,25 @@ export class ProjectsPage {
                 return;
             }
 
-            // 获取当前热重载配置
             const configResult = await this.apiClient.getProjectHotReloadConfig(projectId);
             if (!configResult.success) {
                 alert('无法获取热重载配置: ' + (configResult.error || '未知错误'));
                 return;
             }
 
-            // 创建并显示配置模态框
             const modal = document.createElement('hot-reload-config-modal') as any;
             modal.setProjectInfo(projectId, project.name || projectId, configResult.data);
 
-            // 监听配置保存事件
             modal.addEventListener('config-saved', (event: any) => {
                 const { projectId: savedProjectId, config } = event.detail;
                 console.log('热重载配置已保存:', savedProjectId, config);
 
-                // 清除缓存并刷新项目列表
                 this.apiClient.clearProjectsCache();
                 this.loadProjectsList(true);
 
                 alert('热重载配置已保存');
             });
 
-            // 监听模态框关闭事件
             modal.addEventListener('modal-closed', () => {
                 modal.remove();
             });
@@ -442,16 +713,11 @@ export class ProjectsPage {
         }
     }
 
-    /**
-     * 处理手动更新
-     */
     private async handleManualUpdate(projectId: string): Promise<void> {
         try {
-            // 显示确认对话框
             const confirmed = confirm('确定要手动更新此项目的索引吗？这将只更新发生变化的文件。');
             if (!confirmed) return;
 
-            // 获取项目信息
             const projectsResult = await this.apiClient.getProjects();
             if (!projectsResult.success || !projectsResult.data) {
                 alert('无法获取项目信息');
@@ -464,18 +730,15 @@ export class ProjectsPage {
                 return;
             }
 
-            // 开始更新
             const response = await this.apiClient.updateProjectIndex(projectId);
 
             if (response.success) {
-                // 显示进度模态框
                 this.updateProgressModal.show(
                     projectId,
                     project.name || projectId,
                     (cancelProjectId) => this.handleCancelUpdate(cancelProjectId)
                 );
 
-                // 显示成功消息
                 this.showNotification('手动更新已开始', 'success');
             } else {
                 this.showNotification(`更新失败: ${response.error}`, 'error');
@@ -486,9 +749,6 @@ export class ProjectsPage {
         }
     }
 
-    /**
-     * 处理取消更新
-     */
     private async handleCancelUpdate(projectId: string): Promise<void> {
         try {
             await this.apiClient.cancelUpdate(projectId);
@@ -499,11 +759,7 @@ export class ProjectsPage {
         }
     }
 
-    /**
-     * 显示通知消息
-     */
     private showNotification(message: string, type: 'success' | 'error' | 'warning'): void {
-        // 实现通知显示逻辑
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.textContent = message;
@@ -525,36 +781,6 @@ export class ProjectsPage {
         setTimeout(() => {
             document.body.removeChild(notification);
         }, 3000);
-    }
-
-    /**
-     * 启用自动刷新
-     */
-    enableAutoRefresh(intervalMs: number = 5000) {
-        if (this.refreshInterval) {
-            clearInterval(this.refreshInterval);
-        }
-
-        this.refreshInterval = window.setInterval(() => {
-            this.loadProjectsList(true);
-        }, intervalMs);
-    }
-
-    /**
-     * 禁用自动刷新
-     */
-    disableAutoRefresh() {
-        if (this.refreshInterval) {
-            clearInterval(this.refreshInterval);
-            this.refreshInterval = null;
-        }
-    }
-
-    /**
-     * 销毁页面实例
-     */
-    destroy() {
-        this.disableAutoRefresh();
     }
 
     /**

@@ -141,13 +141,39 @@ export class ProjectRoutes {
 
   private async getProjects(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      // Extract pagination parameters
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
+      const search = req.query.search as string || '';
+      const status = req.query.status as string || '';
+      const sortBy = req.query.sortBy as string || 'name';
+      const sortOrder = req.query.sortOrder as string || 'asc';
+
+      // Validate pagination parameters
+      if (page < 1) {
+        res.status(400).json({
+          success: false,
+          error: 'Page must be greater than 0',
+        });
+        return;
+      }
+
+      if (pageSize < 1 || pageSize > 100) {
+        res.status(400).json({
+          success: false,
+          error: 'Page size must be between 1 and 100',
+        });
+        return;
+      }
+
       // Refresh mapping from persistent storage to ensure we have the latest projects
       await this.projectIdManager.refreshMapping();
 
       // Get all project IDs from ProjectIdManager
       const projectIds = this.projectIdManager.listAllProjects();
-      const projects: Project[] = [];
+      let projects: Project[] = [];
 
+      // Build all projects first (we'll optimize this later if needed)
       for (const projectId of projectIds) {
         const projectPath = this.projectIdManager.getProjectPath(projectId);
         if (projectPath) {
@@ -156,8 +182,62 @@ export class ProjectRoutes {
         }
       }
 
+      // Apply search filter
+      if (search) {
+        projects = projects.filter(project => 
+          project.name.toLowerCase().includes(search.toLowerCase()) ||
+          project.path.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+
+      // Apply status filter
+      if (status) {
+        projects = projects.filter(project => project.status === status);
+      }
+
+      // Apply sorting
+      projects.sort((a, b) => {
+        let aValue: any = a[sortBy as keyof Project];
+        let bValue: any = b[sortBy as keyof Project];
+
+        // Handle nested properties
+        if (sortBy === 'vectorStatus') {
+          aValue = a.vectorStatus?.status || '';
+          bValue = b.vectorStatus?.status || '';
+        } else if (sortBy === 'graphStatus') {
+          aValue = a.graphStatus?.status || '';
+          bValue = b.graphStatus?.status || '';
+        }
+
+        if (typeof aValue === 'string') {
+          aValue = aValue.toLowerCase();
+          bValue = (bValue as string).toLowerCase();
+        }
+
+        if (sortOrder === 'desc') {
+          return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+        } else {
+          return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        }
+      });
+
+      // Calculate pagination
+      const totalItems = projects.length;
+      const totalPages = Math.ceil(totalItems / pageSize);
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedProjects = projects.slice(startIndex, endIndex);
+
       this.logger.debug('Retrieved projects list', {
-        projectCount: projects.length,
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+        search,
+        status,
+        sortBy,
+        sortOrder,
+        projectCount: paginatedProjects.length,
         projectIds: projectIds.slice(0, 5), // 只记录前5个项目ID以避免日志过长
         hasPendingProjects: projects.some(p => p.status === 'pending'),
         hasCompletedProjects: projects.some(p => p.status === 'completed')
@@ -165,7 +245,15 @@ export class ProjectRoutes {
 
       res.status(200).json({
         success: true,
-        data: projects,
+        data: paginatedProjects,
+        pagination: {
+          page,
+          pageSize,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
       });
     } catch (error) {
       next(error);

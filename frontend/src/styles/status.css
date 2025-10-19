@@ -1,0 +1,130 @@
+/* 状态栏样式 */
+.status-bar {
+    background-color: var(--card-color);
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 通用状态样式 */
+.no-results {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--secondary-color);
+}
+
+.no-results::before {
+    content: '📭';
+    display: block;
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.error {
+    border-left: 4px solid var(--error-color);
+    background-color: #fef2f2;
+    color: var(--error-color);
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px;
+    border: 1px solid #fecaca;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--secondary-color);
+}
+
+.loading::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e2e8f0;
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* 热重载状态样式 */
+.hot-reload-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.hot-reload-status.enabled {
+    background-color: #f0f9ff;
+    border: 1px solid #bae6fd;
+}
+
+.hot-reload-status.disabled {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    color: #6c757d;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.status-indicator.active {
+    background-color: var(--success-color);
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.inactive {
+    background-color: var(--secondary-color);
+}
+
+.stats {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.changes {
+    color: #3b82f6;
+}
+
+.errors {
+    color: #ef4444;
+
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 热重载操作按钮样式 */
+.hot-reload-actions {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 5px;
+}

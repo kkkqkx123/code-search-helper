@@ -16,10 +16,12 @@ export class ApiClient {
         };
     };
     private projectsCache: {
-        data: any[] | null;
-        lastUpdated: number | null;
-        cacheTTL: number; // 10分钟缓存
-    };
+        [key: string]: {
+            data: any;
+            lastUpdated: number | null;
+        };
+    } = {};
+    private cacheTTL: number = 10 * 60 * 1000; // 10分钟缓存
 
     constructor(apiBaseUrl: string = 'http://localhost:3010') {
         this.apiBaseUrl = apiBaseUrl;
@@ -29,11 +31,8 @@ export class ApiClient {
             cacheTTL: 5 * 60 * 1000 // 5分钟
         };
         this.searchCache = {};
-        this.projectsCache = {
-            data: null,
-            lastUpdated: null,
-            cacheTTL: 10 * 60 * 1000 // 10分钟
-        };
+        this.projectsCache = {};
+        this.cacheTTL = 10 * 60 * 1000; // 10分钟
     }
 
     /**
@@ -161,27 +160,61 @@ export class ApiClient {
     /**
      * 获取项目列表
      */
-    async getProjects(forceRefresh: boolean = false) {
+    async getProjects(forceRefresh: boolean = false, options?: {
+        page?: number;
+        pageSize?: number;
+        search?: string;
+        status?: string;
+        sortBy?: string;
+        sortOrder?: string;
+    }) {
         const now = Date.now();
+        const {
+            page = 1,
+            pageSize = 20,
+            search = '',
+            status = '',
+            sortBy = 'name',
+            sortOrder = 'asc'
+        } = options || {};
+
+        // 构建查询字符串
+        const queryParams = new URLSearchParams({
+            page: page.toString(),
+            pageSize: pageSize.toString(),
+            search,
+            status,
+            sortBy,
+            sortOrder
+        });
+
+        const cacheKey = `projects_${queryParams.toString()}`;
+        const cacheData = this.projectsCache[cacheKey];
 
         // 如果缓存存在且未过期，并且不强制刷新，则返回缓存数据
         if (!forceRefresh &&
-            this.projectsCache.data &&
-            this.projectsCache.lastUpdated &&
-            (now - this.projectsCache.lastUpdated < this.projectsCache.cacheTTL)) {
+            cacheData &&
+            cacheData.data &&
+            cacheData.lastUpdated &&
+            (now - cacheData.lastUpdated < this.cacheTTL)) {
             console.debug('使用缓存的项目数据');
-            return { success: true, data: this.projectsCache.data };
+            return { success: true, ...cacheData.data };
         }
 
         try {
             console.debug('从后端获取项目数据');
-            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects`);
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects?${queryParams.toString()}`);
             const result = await response.json();
 
             // 更新缓存
-            if (result.success && result.data) {
-                this.projectsCache.data = result.data;
-                this.projectsCache.lastUpdated = now;
+            if (result.success) {
+                if (!this.projectsCache) {
+                    this.projectsCache = {};
+                }
+                this.projectsCache[cacheKey] = {
+                    data: result,
+                    lastUpdated: now
+                };
                 console.debug('项目数据已缓存');
             }
 
@@ -190,9 +223,9 @@ export class ApiClient {
             console.error('获取项目列表失败:', error);
 
             // 如果有缓存数据，即使请求失败也返回缓存数据
-            if (this.projectsCache.data) {
+            if (cacheData && cacheData.data) {
                 console.warn('项目API请求失败，返回缓存数据');
-                return { success: true, data: this.projectsCache.data };
+                return { success: true, ...cacheData.data };
             }
 
             throw error;
@@ -296,8 +329,7 @@ export class ApiClient {
      * 清除项目缓存
      */
     clearProjectsCache() {
-        this.projectsCache.data = null;
-        this.projectsCache.lastUpdated = null;
+        this.projectsCache = {};
         console.debug('项目缓存已清除');
     }
 

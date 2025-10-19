@@ -1,0 +1,45 @@
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+
+    .search-form {
+        flex-direction: column;
+    }
+
+    .search-button {
+        width: 100%;
+    }
+
+    .pagination-container {
+        flex-wrap: wrap;
+        gap: 3px;
+    }
+
+    .pagination-button {
+        padding: 5px 8px;
+        font-size: 12px;
+        min-width: 32px;
+    }
+
+    .hot-reload-status {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .stats {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .hot-reload-actions {
+        flex-direction: column;
+    }
+
+    .action-button {
+        width: 100%;
+        text-align: center;
+    }
+}
