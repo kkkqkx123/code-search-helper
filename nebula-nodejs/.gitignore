@@ -2,3 +2,4 @@ build
 dist
 native
 thrift
+node_modules
