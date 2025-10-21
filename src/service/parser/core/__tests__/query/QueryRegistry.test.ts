@@ -81,9 +81,11 @@ describe('QueryRegistry (重构后)', () => {
     expect(allTypes).toContain('exports');
   });
 
-  test('should clear cache', () => {
+  test('should clear cache', async () => {
     QueryRegistryImpl.clearCache();
-    // 清除后应该仍然能够获取查询
+    // 清除后需要重新初始化
+    await QueryRegistryImpl.initialize();
+    // 现在应该能够获取查询
     const functionQuery = QueryRegistryImpl.getPatternSync('javascript', 'functions');
     expect(functionQuery).toBeTruthy();
   });

@@ -220,6 +220,7 @@ export class QueryRegistryImpl {
     this.patterns.clear();
     QueryLoader.clearAllQueries();
     QueryTransformer.clearCache();
+    this.initialized = false;
     this.logger.info('QueryRegistry 缓存已清除');
   }
 

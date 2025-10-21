@@ -13,6 +13,10 @@ function testFunction() {
   return "hello";
 }
 
+const arrowFunction = () => {
+  return "arrow";
+};
+
 class TestClass {
   method() {
     return "method";
@@ -74,6 +78,14 @@ export function namedFunction() {
 interface TestInterface {
   method(): string;
 }
+
+function testFunction(): string {
+  return "test";
+}
+
+const arrowFunction = (): string => {
+  return "arrow";
+};
 
 class TestClass implements TestInterface {
   private property: string;

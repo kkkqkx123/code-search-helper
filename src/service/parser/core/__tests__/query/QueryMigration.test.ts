@@ -41,11 +41,11 @@ const functionExpression = function() {
 
       // 使用查询语言模式
       treeSitterService.enableQueryLanguage();
-      const queryResults = treeSitterService.extractFunctions(parseResult.ast, 'python');
+      const queryResults = await treeSitterService.extractFunctions(parseResult.ast, 'python');
 
       // 使用硬编码模式
       treeSitterService.disableQueryLanguage();
-      const legacyResults = treeSitterService.extractFunctions(parseResult.ast);
+      const legacyResults = await treeSitterService.extractFunctions(parseResult.ast);
 
       // 比较结果数量
       expect(queryResults.length).toBe(legacyResults.length);
@@ -64,11 +64,11 @@ const functionExpression = function() {
 
       // 使用查询语言模式
       treeSitterService.enableQueryLanguage();
-      const queryResults = treeSitterService.extractClasses(parseResult.ast, 'python');
+      const queryResults = await treeSitterService.extractClasses(parseResult.ast, 'python');
 
       // 使用硬编码模式
       treeSitterService.disableQueryLanguage();
-      const legacyResults = treeSitterService.extractClasses(parseResult.ast);
+      const legacyResults = await treeSitterService.extractClasses(parseResult.ast);
 
       // 比较结果数量
       expect(queryResults.length).toBe(legacyResults.length);
@@ -129,11 +129,11 @@ function genericFunction<T>(param: T): T {
 
       // 使用查询语言模式
       treeSitterService.enableQueryLanguage();
-      const queryResults = treeSitterService.extractFunctions(parseResult.ast, 'python');
+      const queryResults = await treeSitterService.extractFunctions(parseResult.ast, 'python');
 
       // 使用硬编码模式
       treeSitterService.disableQueryLanguage();
-      const legacyResults = treeSitterService.extractFunctions(parseResult.ast);
+      const legacyResults = await treeSitterService.extractFunctions(parseResult.ast);
 
       // 比较结果数量
       expect(queryResults.length).toBeGreaterThan(0);
@@ -153,11 +153,11 @@ function genericFunction<T>(param: T): T {
 
       // 使用查询语言模式
       treeSitterService.enableQueryLanguage();
-      const queryResults = treeSitterService.extractClasses(parseResult.ast, 'python');
+      const queryResults = await treeSitterService.extractClasses(parseResult.ast, 'python');
 
       // 使用硬编码模式
       treeSitterService.disableQueryLanguage();
-      const legacyResults = treeSitterService.extractClasses(parseResult.ast);
+      const legacyResults = await treeSitterService.extractClasses(parseResult.ast);
 
       // 比较结果数量
       expect(queryResults.length).toBeGreaterThan(0);
@@ -209,11 +209,11 @@ def generator_function():
 
       // 使用查询语言模式
       treeSitterService.enableQueryLanguage();
-      const queryResults = treeSitterService.extractFunctions(parseResult.ast, 'python');
+      const queryResults = await treeSitterService.extractFunctions(parseResult.ast, 'python');
 
       // 使用硬编码模式
       treeSitterService.disableQueryLanguage();
-      const legacyResults = treeSitterService.extractFunctions(parseResult.ast);
+      const legacyResults = await treeSitterService.extractFunctions(parseResult.ast);
 
       // 比较结果数量
       expect(queryResults.length).toBeGreaterThan(0);
@@ -232,11 +232,11 @@ def generator_function():
 
       // 使用查询语言模式
       treeSitterService.enableQueryLanguage();
-      const queryResults = treeSitterService.extractClasses(parseResult.ast, 'python');
+      const queryResults = await treeSitterService.extractClasses(parseResult.ast, 'python');
 
       // 使用硬编码模式
       treeSitterService.disableQueryLanguage();
-      const legacyResults = treeSitterService.extractClasses(parseResult.ast);
+      const legacyResults = await treeSitterService.extractClasses(parseResult.ast);
 
       // 比较结果数量
       expect(queryResults.length).toBe(legacyResults.length);
@@ -271,11 +271,11 @@ export * from "./module";
 
       // 使用查询语言模式
       treeSitterService.enableQueryLanguage();
-      const queryResults = treeSitterService.extractExports(parseResult.ast, jsExportCode, 'javascript');
+      const queryResults = await treeSitterService.extractExports(parseResult.ast, jsExportCode, 'javascript');
 
       // 使用硬编码模式
       treeSitterService.disableQueryLanguage();
-      const legacyResults = treeSitterService.extractExports(parseResult.ast, jsExportCode);
+      const legacyResults = await treeSitterService.extractExports(parseResult.ast, jsExportCode);
 
       // 比较结果数量
       expect(queryResults.length).toBe(legacyResults.length);
@@ -311,13 +311,13 @@ class Class${i} {
       // 测试查询语言模式性能
       treeSitterService.enableQueryLanguage();
       const queryStart = performance.now();
-      const queryResults = treeSitterService.extractFunctions(parseResult.ast);
+      const queryResults = await treeSitterService.extractFunctions(parseResult.ast);
       const queryTime = performance.now() - queryStart;
 
       // 测试硬编码模式性能
       treeSitterService.disableQueryLanguage();
       const legacyStart = performance.now();
-      const legacyResults = treeSitterService.extractFunctions(parseResult.ast);
+      const legacyResults = await treeSitterService.extractFunctions(parseResult.ast);
       const legacyTime = performance.now() - legacyStart;
 
       // 验证结果一致性
@@ -346,7 +346,7 @@ class Class${i} {
       });
 
       // 应该回退到硬编码实现
-      const results = treeSitterService.extractFunctions(parseResult.ast);
+      const results = await treeSitterService.extractFunctions(parseResult.ast);
       expect(results.length).toBeGreaterThan(0);
 
       // 恢复原始方法

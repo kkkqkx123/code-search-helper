@@ -18,8 +18,10 @@ const mockSyntaxNode = {
 describe('TreeSitterQueryEngine', () => {
   let queryEngine: TreeSitterQueryEngine;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     queryEngine = new TreeSitterQueryEngine();
+    // 等待初始化完成
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   describe('Constructor', () => {
@@ -28,10 +30,10 @@ describe('TreeSitterQueryEngine', () => {
       
       const patterns = queryEngine.getSupportedPatterns();
       expect(patterns.length).toBeGreaterThan(0);
-      expect(patterns.some(p => p.name === 'function_declaration')).toBe(true);
-      expect(patterns.some(p => p.name === 'class_declaration')).toBe(true);
-      expect(patterns.some(p => p.name === 'python_function')).toBe(true);
-      expect(patterns.some(p => p.name === 'python_class')).toBe(true);
+      expect(patterns.some(p => p.name === 'typescript_functions')).toBe(true);
+      expect(patterns.some(p => p.name === 'typescript_classes')).toBe(true);
+      expect(patterns.some(p => p.name === 'javascript_functions')).toBe(true);
+      expect(patterns.some(p => p.name === 'python_classes')).toBe(true);
     });
   });
 
@@ -56,7 +58,7 @@ describe('TreeSitterQueryEngine', () => {
     it('should execute a query successfully', async () => {
       const result = await queryEngine.executeQuery(
         mockSyntaxNode,
-        'function_declaration',
+        'functions',
         'typescript'
       );
 
@@ -88,21 +90,21 @@ describe('TreeSitterQueryEngine', () => {
 
       expect(result).toHaveProperty('success', false);
       expect(result).toHaveProperty('error');
-      expect(result.error).toContain('does not support language');
+      expect(result.error).toContain('not found');
     });
 
     it('should cache query results', async () => {
       // First execution
       const result1 = await queryEngine.executeQuery(
         mockSyntaxNode,
-        'function_declaration',
+        'functions',
         'typescript'
       );
 
       // Second execution with same parameters should potentially use cache
       const result2 = await queryEngine.executeQuery(
         mockSyntaxNode,
-        'function_declaration',
+        'functions',
         'typescript'
       );
 
@@ -115,26 +117,26 @@ describe('TreeSitterQueryEngine', () => {
     it('should execute multiple queries', async () => {
       const result = await queryEngine.executeMultipleQueries(
         mockSyntaxNode,
-        ['function_declaration', 'class_declaration'],
+        ['functions', 'classes'],
         'typescript'
       );
 
       expect(result).toBeInstanceOf(Map);
       expect(result.size).toBe(2);
-      expect(result.has('function_declaration')).toBe(true);
-      expect(result.has('class_declaration')).toBe(true);
+      expect(result.has('functions')).toBe(true);
+      expect(result.has('classes')).toBe(true);
     });
 
     it('should return results for mixed valid and invalid patterns', async () => {
       const result = await queryEngine.executeMultipleQueries(
         mockSyntaxNode,
-        ['function_declaration', 'non_existent_pattern'],
+        ['functions', 'non_existent_pattern'],
         'typescript'
       );
 
       expect(result).toBeInstanceOf(Map);
       expect(result.size).toBe(2);
-      expect(result.has('function_declaration')).toBe(true);
+      expect(result.has('functions')).toBe(true);
       expect(result.has('non_existent_pattern')).toBe(true);
       
       const invalidResult = result.get('non_existent_pattern');
@@ -172,7 +174,7 @@ describe('TreeSitterQueryEngine', () => {
       // Execute a query to populate cache
       const result = queryEngine.executeQuery(
         mockSyntaxNode,
-        'function_declaration',
+        'functions',
         'typescript'
       );
 
