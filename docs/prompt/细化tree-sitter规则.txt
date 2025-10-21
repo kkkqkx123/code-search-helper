@@ -1,0 +1,5 @@
+src\service\parser\constants\queries\
+完善该文件中各语言的匹配规则
+使用context7 mcp确定可以添加哪些规则。一次只需要更新一个文件，更新完再检查下一个
+
+现在只需要更新

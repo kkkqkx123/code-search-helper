@@ -32,7 +32,7 @@ export { tomlQuery } from "./queries/toml"
 export { default as systemrdlQuery } from "./queries/systemrdl"
 export { default as tlaPlusQuery } from "./queries/tlaplus"
 export { zigQuery } from "./queries/zig"
-export { default as embeddedTemplateQuery } from "./queries/embedded_template"
+export { default as embeddedTemplateQuery } from "./embedded_template"
 export { elispQuery } from "./queries/elisp"
 export { scalaQuery } from "./queries/scala"
 
