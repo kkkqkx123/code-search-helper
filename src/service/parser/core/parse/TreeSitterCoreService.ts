@@ -1,12 +1,5 @@
 import { injectable, inject } from 'inversify';
 import Parser from 'tree-sitter';
-import TypeScript from 'tree-sitter-typescript';
-import JavaScript from 'tree-sitter-javascript';
-import Python from 'tree-sitter-python';
-import Java from 'tree-sitter-java';
-import Go from 'tree-sitter-go';
-import Rust from 'tree-sitter-rust';
-import Cpp from 'tree-sitter-cpp';
 import { TreeSitterUtils } from '../../utils/TreeSitterUtils';
 import { LRUCache } from '../../../../utils/LRUCache';
 import { ConfigService } from '../../../../config/ConfigService';
@@ -17,10 +10,11 @@ import { TreeSitterLanguageDetector } from '../language-detection/TreeSitterLang
 import { languageExtensionMap } from '../../utils';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
+import { DynamicParserManager, DynamicParserLanguage, DynamicParseResult } from './DynamicParserManager';
 
 export interface ParserLanguage {
   name: string;
-  parser: any;
+  parser?: any;
   fileExtensions: string[];
   supported: boolean;
 }
@@ -34,12 +28,14 @@ export interface ParseResult {
   fromCache?: boolean;
 }
 
+/**
+ * Tree-sitter 核心服务 - 重构版本
+ * 使用 DynamicParserManager 实现按需加载，移除硬编码语言解析器依赖
+ */
 @injectable()
 export class TreeSitterCoreService {
-  private parsers: Map<string, ParserLanguage> = new Map();
+  private dynamicManager: DynamicParserManager;
   private initialized: boolean = false;
-  private astCache: LRUCache<string, Parser.Tree> = new LRUCache(500);
-  private nodeCache: LRUCache<string, Parser.SyntaxNode[]> = new LRUCache(1000);
   private cacheStats = {
     hits: 0,
     misses: 0,
@@ -57,176 +53,120 @@ export class TreeSitterCoreService {
   private useQueryLanguage: boolean = true; // 混合模式开关
   private queryRegistry = QueryRegistryImpl;
   private querySystemInitialized = false;
+  private logger = new LoggerService();
+  private errorHandler: ErrorHandlerService;
 
   constructor() {
     this.languageDetector = new TreeSitterLanguageDetector();
-    this.initializeParsers();
+    this.dynamicManager = new DynamicParserManager();
+    this.errorHandler = new ErrorHandlerService(this.logger);
     this.initializeQueryManager();
     // 异步初始化查询系统
     this.initializeQuerySystem();
+    
+    // 等待动态管理器初始化
+    this.waitForInitialization();
   }
 
-  private initializeParsers(): void {
-    try {
-      // 使用公共的扩展名映射来获取支持的扩展名
-      const supportedExtensions = this.extensionMap.getAllSupportedLanguages();
-
-      // Initialize TypeScript parser
-      const tsParser = new Parser();
-      tsParser.setLanguage(TypeScript.typescript as any);
-      this.parsers.set('typescript', {
-        name: 'TypeScript',
-        parser: tsParser,
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('typescript'),
-        supported: true,
-      });
-
-      // Initialize JavaScript parser
-      const jsParser = new Parser();
-      jsParser.setLanguage(JavaScript as any);
-      this.parsers.set('javascript', {
-        name: 'JavaScript',
-        parser: jsParser,
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('javascript'),
-        supported: true,
-      });
-
-      // Initialize Python parser
-      const pythonParser = new Parser();
-      pythonParser.setLanguage(Python as any);
-      this.parsers.set('python', {
-        name: 'Python',
-        parser: pythonParser,
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('python'),
-        supported: true,
-      });
-
-      // Initialize Java parser
-      const javaParser = new Parser();
-      javaParser.setLanguage(Java as any);
-      this.parsers.set('java', {
-        name: 'Java',
-        parser: javaParser,
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('java'),
-        supported: true,
-      });
-
-      // Initialize Go parser
-      const goParser = new Parser();
-      goParser.setLanguage(Go as any);
-      this.parsers.set('go', {
-        name: 'Go',
-        parser: goParser,
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('go'),
-        supported: true,
-      });
-
-      // Initialize Rust parser
-      const rustParser = new Parser();
-      rustParser.setLanguage(Rust as any);
-      this.parsers.set('rust', {
-        name: 'Rust',
-        parser: rustParser,
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('rust'),
-        supported: true,
-      });
-
-      // Initialize C++ parser
-      const cppParser = new Parser();
-      cppParser.setLanguage(Cpp as any);
-      this.parsers.set('cpp', {
-        name: 'C++',
-        parser: cppParser,
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('cpp'),
-        supported: true,
-      });
-
-      // Initialize C parser
-      const cParser = new Parser();
-      cParser.setLanguage(Cpp as any); // C parser is part of C++ grammar
-      this.parsers.set('c', {
-        name: 'C',
-        parser: cParser,
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('c'),
-        supported: true,
-      });
-
-      // Add C# support
-      this.parsers.set('csharp', {
-        name: 'C#',
-        parser: null, // Will be implemented later
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('csharp'),
-        supported: false,
-      });
-
-      // Add Scala support
-      this.parsers.set('scala', {
-        name: 'Scala',
-        parser: null, // Will be implemented later
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('scala'),
-        supported: false,
-      });
-
+  /**
+   * 等待初始化完成
+   */
+  private async waitForInitialization(): Promise<void> {
+    const maxWaitTime = 10000; // 10秒超时
+    const startTime = Date.now();
+    
+    while (!this.dynamicManager.isInitialized() && Date.now() - startTime < maxWaitTime) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    if (this.dynamicManager.isInitialized()) {
       this.initialized = true;
-      console.log('Tree-sitter parsers initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize Tree-sitter parsers:', error);
+      this.logger.info('TreeSitterCoreService 初始化完成');
+    } else {
+      this.logger.error('TreeSitterCoreService 初始化超时');
       this.initialized = false;
     }
   }
 
+  /**
+   * 获取支持的语言列表
+   */
   getSupportedLanguages(): ParserLanguage[] {
-    return this.languageDetector.getSupportedLanguages(this.parsers);
+    const dynamicLanguages = this.dynamicManager.getSupportedLanguages();
+    
+    // 转换为旧的接口格式以保持向后兼容
+    return dynamicLanguages.map(lang => ({
+      name: lang.name,
+      parser: lang.parser,
+      fileExtensions: lang.fileExtensions,
+      supported: lang.supported,
+    }));
   }
 
+  /**
+   * 检测语言
+   */
   detectLanguage(filePath: string, content?: string): ParserLanguage | null {
-    return this.languageDetector.detectLanguageByParserConfig(filePath, this.parsers, content);
+    // 首先尝试使用动态管理器检测
+    const detectedLanguage = this.dynamicManager.detectLanguage(filePath, content);
+    if (detectedLanguage) {
+      const supportedLanguages = this.getSupportedLanguages();
+      return supportedLanguages.find(lang => lang.name.toLowerCase() === detectedLanguage) || null;
+    }
+    
+    // 回退到基于扩展名的检测方法
+    const extension = filePath.split('.').pop()?.toLowerCase();
+    if (!extension) {
+      return null;
+    }
+    
+    const supportedLanguages = this.getSupportedLanguages();
+    for (const lang of supportedLanguages) {
+      if (lang.fileExtensions.includes(`.${extension}`)) {
+        return lang;
+      }
+    }
+    
+    return null;
   }
 
+  /**
+   * 解析代码
+   */
   async parseCode(code: string, language: string): Promise<ParseResult> {
     const startTime = Date.now();
 
     try {
-      const parserLang = this.parsers.get(language.toLowerCase());
-      if (!parserLang || !parserLang.supported) {
-        throw new Error(`Unsupported language: ${language}`);
-      }
-
-      // Generate cache key
-      const cacheKey = `${language.toLowerCase()}:${this.hashCode(code)}`;
-
-      // Check AST cache
-      let tree = this.astCache.get(cacheKey);
-      let fromCache = false;
-
-      if (tree) {
-        this.cacheStats.hits++;
-        fromCache = true;
-      } else {
-        this.cacheStats.misses++;
-        const parser = parserLang.parser;
-        tree = parser.parse(code);
-        if (!tree) {
-          throw new Error('Failed to parse code - parser returned undefined');
-        }
-        this.astCache.set(cacheKey, tree);
-      }
-
-      return {
-        ast: tree.rootNode,
-        language: parserLang,
-        parseTime: Date.now() - startTime,
-        success: true,
-        fromCache,
+      // 使用动态管理器解析
+      const dynamicResult = await this.dynamicManager.parseCode(code, language);
+      
+      // 转换为旧的接口格式
+      const result: ParseResult = {
+        ast: dynamicResult.ast,
+        language: {
+          name: dynamicResult.language.name,
+          parser: dynamicResult.language.parser,
+          fileExtensions: dynamicResult.language.fileExtensions,
+          supported: dynamicResult.language.supported,
+        },
+        parseTime: dynamicResult.parseTime,
+        success: dynamicResult.success,
+        error: dynamicResult.error,
+        fromCache: dynamicResult.fromCache,
       };
+
+      // 更新性能统计
+      this.updatePerformanceStats(result.parseTime);
+      
+      return result;
     } catch (error) {
-      console.error(`Failed to parse ${language} code:`, error);
+      this.logger.error(`解析 ${language} 代码失败:`, error);
+      
       return {
         ast: {} as Parser.SyntaxNode,
-        language: this.parsers.get(language.toLowerCase()) || {
+        language: {
           name: language,
-          parser: new Parser(),
-          fileExtensions: [],
+          fileExtensions: this.extensionMap.getExtensionsByLanguage(language),
           supported: false,
         },
         parseTime: Date.now() - startTime,
@@ -237,23 +177,35 @@ export class TreeSitterCoreService {
     }
   }
 
+  /**
+   * 解析文件
+   */
   async parseFile(filePath: string, content: string): Promise<ParseResult> {
-    const language = this.detectLanguage(filePath);
+    const language = this.detectLanguage(filePath, content);
     if (!language) {
-      throw new Error(`Unsupported file type: ${filePath}`);
+      throw new Error(`不支持的文件类型: ${filePath}`);
     }
 
     return this.parseCode(content, language.name.toLowerCase());
   }
 
+  /**
+   * 检查是否已初始化
+   */
   isInitialized(): boolean {
-    return this.initialized;
+    return this.initialized && this.dynamicManager.isInitialized();
   }
 
+  /**
+   * 获取节点文本
+   */
   getNodeText(node: Parser.SyntaxNode, sourceCode: string): string {
     return TreeSitterUtils.getNodeText(node, sourceCode);
   }
 
+  /**
+   * 获取节点位置
+   */
   getNodeLocation(node: Parser.SyntaxNode): {
     startLine: number;
     endLine: number;
@@ -263,51 +215,55 @@ export class TreeSitterCoreService {
     return TreeSitterUtils.getNodeLocation(node);
   }
 
+  /**
+   * 按类型查找节点
+   */
   findNodeByType(ast: Parser.SyntaxNode, type: string): Parser.SyntaxNode[] {
-    // Generate cache key for this query
+    // 生成缓存键
     const cacheKey = `${this.getNodeHash(ast)}:${type}`;
 
-    // Check node cache
-    let cachedNodes = this.nodeCache.get(cacheKey);
-    if (cachedNodes) {
+    // 使用动态管理器的缓存机制
+    const result = this.dynamicManager['nodeCache']?.get(cacheKey);
+    if (result) {
       this.cacheStats.hits++;
-      return cachedNodes;
+      return result;
     }
 
     this.cacheStats.misses++;
     const nodes = TreeSitterUtils.findNodeByType(ast, type);
-    this.nodeCache.set(cacheKey, nodes);
+    
+    // 缓存结果
+    if (this.dynamicManager['nodeCache']) {
+      this.dynamicManager['nodeCache'].set(cacheKey, nodes);
+    }
+    
     return nodes;
   }
 
   /**
-   * Query the syntax tree using a tree-sitter query pattern
-   * @param ast The syntax tree to query
-   * @param pattern The query pattern in S-expression format
-   * @returns Array of query matches
+   * 查询语法树
    */
   queryTree(
     ast: Parser.SyntaxNode,
     pattern: string
   ): Array<{ captures: Array<{ name: string; node: Parser.SyntaxNode }> }> {
     try {
-      // Get the tree from the AST node
+      // 获取树和语言信息
       const tree = (ast as any).tree;
       if (!tree) {
-        throw new Error('Cannot determine tree from AST node');
+        throw new Error('无法从AST节点确定树');
       }
 
-      // Get the language from the tree
       const language = tree.language;
       if (!language) {
-        throw new Error('Cannot determine language from tree');
+        throw new Error('无法从树确定语言');
       }
 
-      // Create a query from the pattern and language
+      // 创建查询
       const query = new Parser.Query(language, pattern);
       const matches = query.matches(ast);
 
-      // Transform matches to the expected format
+      // 转换结果格式
       return matches.map(match => ({
         captures: match.captures.map(capture => ({
           name: capture.name,
@@ -315,17 +271,19 @@ export class TreeSitterCoreService {
         }))
       }));
     } catch (error) {
-      console.error('Failed to query tree:', error);
+      this.logger.error('查询树失败:', error);
       return [];
     }
   }
 
-  // 批量节点查询优化
+  /**
+   * 批量节点查询优化
+   */
   findNodesByTypes(ast: Parser.SyntaxNode, types: string[]): Parser.SyntaxNode[] {
     const cacheKey = `${this.getNodeHash(ast)}:${types.join(',')}`;
 
-    // Check node cache
-    let cachedNodes = this.nodeCache.get(cacheKey);
+    // 检查缓存
+    const cachedNodes = this.dynamicManager['nodeCache']?.get(cacheKey);
     if (cachedNodes) {
       this.cacheStats.hits++;
       return cachedNodes;
@@ -349,130 +307,142 @@ export class TreeSitterCoreService {
     };
 
     traverse(ast);
-    this.nodeCache.set(cacheKey, results);
+    
+    // 缓存结果
+    if (this.dynamicManager['nodeCache']) {
+      this.dynamicManager['nodeCache'].set(cacheKey, results);
+    }
+    
     return results;
   }
 
-  // 获取缓存统计信息
-  getCacheStats() {
-    const total = this.cacheStats.hits + this.cacheStats.misses;
-    const hitRate = total > 0 ? ((this.cacheStats.hits / total) * 100).toFixed(2) : 0;
-
-    return {
-      ...this.cacheStats,
-      totalRequests: total,
-      hitRate: `${hitRate}%`,
-      astCacheSize: this.astCache.size(),
-      nodeCacheSize: this.nodeCache.size(),
-    };
-  }
-
-  // 获取性能统计信息
-  getPerformanceStats() {
-    return {
-      ...this.performanceStats,
-      cacheStats: this.getCacheStats()
-    };
-  }
-
-  // 清除缓存
-  clearCache(): void {
-    this.astCache.clear();
-    this.nodeCache.clear();
-    this.cacheStats = { hits: 0, misses: 0, evictions: 0 };
-  }
-
-  // 计算代码哈希值
-  private hashCode(code: string): string {
-    let hash = 0;
-    for (let i = 0; i < code.length; i++) {
-      const char = code.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash).toString(36);
-  }
-
-  // 计算节点哈希值
-  private getNodeHash(node: Parser.SyntaxNode): string {
-    return `${node.type}:${node.startIndex}:${node.endIndex}`;
-  }
-
+  /**
+   * 提取函数
+   */
   async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    const lang = language || 'javascript';
-    
     try {
-      // 等待查询系统初始化
-      if (!this.querySystemInitialized) {
-        await this.waitForQuerySystem();
-      }
-      
-      const functionQuery = await this.queryRegistry.getPattern(lang, 'functions');
-      if (!functionQuery) {
-        console.warn(`未找到 ${lang} 语言的函数查询模式，使用回退机制`);
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用回退机制');
         return this.legacyExtractFunctions(ast);
       }
-      
-      const results = this.queryTree(ast, functionQuery);
-      const functions = results.flatMap(r => r.captures)
-        .filter(c => c.name.includes('function') || c.name.includes('method'))
-        .map(c => c.node);
-      
-      console.debug(`提取到 ${functions.length} 个函数节点`);
-      return functions;
-      
+
+      // 使用动态管理器提取
+      return await this.dynamicManager.extractFunctions(ast, lang);
     } catch (error) {
-      console.error('函数提取失败:', error);
+      this.logger.error('函数提取失败:', error);
       return this.legacyExtractFunctions(ast);
     }
   }
 
   /**
-   * 使用查询语言提取函数
-   * @param ast AST节点
-   * @param language 语言名称
-   * @param queryType 查询类型
-   * @returns 函数节点数组
+   * 提取类
    */
-  private extractWithQuery(ast: Parser.SyntaxNode, queryType: string, language?: string): Parser.SyntaxNode[] {
-    // 如果没有提供语言，尝试从AST中获取
-    const detectedLanguage = language || this.detectLanguageFromAST(ast);
-    if (!detectedLanguage) {
-      throw new Error('无法从AST中检测语言');
-    }
-
-    // 获取对应的解析器
-    const parserLang = this.parsers.get(detectedLanguage.toLowerCase());
-    if (!parserLang || !parserLang.supported) {
-      throw new Error(`不支持的语言: ${detectedLanguage}`);
-    }
-
-    // 使用QueryManager执行查询
-    const results = QueryManager.executeQuery(ast, detectedLanguage.toLowerCase(), queryType, parserLang.parser);
-    
-    // 提取函数节点
-    const functions: Parser.SyntaxNode[] = [];
-    for (const match of results) {
-      for (const capture of match.captures) {
-        if (capture.name.includes('function') || capture.name.includes('method')) {
-          functions.push(capture.node);
-        }
+  async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用回退机制');
+        return this.legacyExtractClasses(ast);
       }
-    }
 
-    return functions;
+      // 使用动态管理器提取
+      return await this.dynamicManager.extractClasses(ast, lang);
+    } catch (error) {
+      this.logger.error('类提取失败:', error);
+      return this.legacyExtractClasses(ast);
+    }
   }
 
   /**
-   * 从AST中检测语言
-   * @param ast AST节点
-   * @returns 语言名称
+   * 提取导入
+   */
+  extractImports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
+    return TreeSitterUtils.extractImports(ast, sourceCode);
+  }
+
+  /**
+   * 获取节点名称
+   */
+  getNodeName(node: Parser.SyntaxNode): string {
+    return TreeSitterUtils.getNodeName(node);
+  }
+
+  /**
+   * 提取导入节点
+   */
+  extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    return TreeSitterUtils.extractImportNodes(ast);
+  }
+
+  /**
+   * 提取导出
+   */
+  async extractExports(ast: Parser.SyntaxNode, sourceCode?: string, language?: string): Promise<string[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用回退机制');
+        return this.legacyExtractExports(ast, sourceCode);
+      }
+
+      // 使用动态管理器提取
+      return await this.dynamicManager.extractExports(ast, sourceCode, lang);
+    } catch (error) {
+      this.logger.error('导出提取失败:', error);
+      return this.legacyExtractExports(ast, sourceCode);
+    }
+  }
+
+  /**
+   * 获取语言扩展名映射
+   */
+  getLanguageExtensionMap(): Map<string, string[]> {
+    const map = new Map<string, string[]>();
+    const supportedLanguages = this.getSupportedLanguages();
+
+    supportedLanguages.forEach(lang => {
+      if (lang.supported) {
+        map.set(lang.name.toLowerCase(), lang.fileExtensions);
+      }
+    });
+
+    return map;
+  }
+
+  /**
+   * 初始化查询管理器
+   */
+  private async initializeQueryManager(): Promise<void> {
+    try {
+      await QueryManager.initialize();
+      this.logger.info('QueryManager初始化成功');
+    } catch (error) {
+      this.logger.warn('QueryManager初始化失败，将使用硬编码实现:', error);
+      this.useQueryLanguage = false;
+    }
+  }
+
+  /**
+   * 异步初始化查询系统
+   */
+  private async initializeQuerySystem(): Promise<void> {
+    try {
+      await this.queryRegistry.initialize();
+      this.querySystemInitialized = true;
+      this.logger.info('查询系统初始化完成');
+    } catch (error) {
+      this.logger.error('查询系统初始化失败:', error);
+      // 即使初始化失败，服务仍可运行（使用回退机制）
+    }
+  }
+
+  /**
+   * 从AST检测语言
    */
   private detectLanguageFromAST(ast: Parser.SyntaxNode): string | null {
-    // 尝试从AST的tree属性中获取语言信息
     const tree = (ast as any).tree;
     if (tree && tree.language && tree.language.name) {
-      // 根据语言名称映射到我们的语言标识
       const languageName = tree.language.name;
       const languageMap: Record<string, string> = {
         'typescript': 'typescript',
@@ -494,22 +464,14 @@ export class TreeSitterCoreService {
       return languageMap[languageName] || languageName;
     }
     
-    // 如果无法从AST获取语言信息，尝试通过解析器映射查找
-    for (const [lang, parserLang] of this.parsers.entries()) {
-      if (parserLang.parser && ast.tree && ast.tree === parserLang.parser) {
-        return lang;
-      }
-    }
-    
     return null;
- }
+  }
 
   /**
-   * 旧的硬编码函数提取方法（作为回退方案）
-   * @param ast AST节点
-   * @returns 函数节点数组
+   * 回退机制：函数提取
    */
   private legacyExtractFunctions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    this.logger.warn('使用回退机制提取函数');
     const functions: Parser.SyntaxNode[] = [];
 
     const functionTypes = new Set([
@@ -521,17 +483,10 @@ export class TreeSitterCoreService {
       'generator_function',
       'generator_function_declaration',
       'method_signature',
-      // C# specific function types
       'method_declaration',
       'constructor_declaration',
       'destructor_declaration',
       'operator_declaration',
-      'conversion_operator_declaration',
-      // Scala specific function types
-      'function_definition',
-      'function_declaration',
-      'method_definition',
-      'anonymous_function'
     ]);
 
     const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
@@ -552,84 +507,11 @@ export class TreeSitterCoreService {
     return functions;
   }
 
-  async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    const lang = language || 'javascript';
-    
-    try {
-      // 等待查询系统初始化
-      if (!this.querySystemInitialized) {
-        await this.waitForQuerySystem();
-      }
-      
-      const classQuery = await this.queryRegistry.getPattern(lang, 'classes');
-      if (!classQuery) {
-        console.warn(`未找到 ${lang} 语言的类查询模式，使用回退机制`);
-        return this.legacyExtractClasses(ast);
-      }
-      
-      const results = this.queryTree(ast, classQuery);
-      const classes = results.flatMap(r => r.captures)
-        .filter(c => c.name.includes('class') || 
-                    c.name.includes('interface') || 
-                    c.name.includes('struct') ||
-                    c.name.includes('trait') ||
-                    c.name.includes('object'))
-        .map(c => c.node);
-      
-      console.debug(`提取到 ${classes.length} 个类节点`);
-      return classes;
-      
-    } catch (error) {
-      console.error('类提取失败:', error);
-      return this.legacyExtractClasses(ast);
-    }
- }
-
   /**
-   * 使用查询语言提取类
-   * @param ast AST节点
-   * @param language 语言名称
-   * @returns 类节点数组
-   */
-  private extractClassesWithQuery(ast: Parser.SyntaxNode, language?: string): Parser.SyntaxNode[] {
-    // 如果没有提供语言，尝试从AST中获取
-    const detectedLanguage = language || this.detectLanguageFromAST(ast);
-    if (!detectedLanguage) {
-      throw new Error('无法从AST中检测语言');
-    }
-
-    // 获取对应的解析器
-    const parserLang = this.parsers.get(detectedLanguage.toLowerCase());
-    if (!parserLang || !parserLang.supported) {
-      throw new Error(`不支持的语言: ${detectedLanguage}`);
-    }
-
-    // 使用QueryManager执行查询
-    const results = QueryManager.executeQuery(ast, detectedLanguage.toLowerCase(), 'classes', parserLang.parser);
-    
-    // 提取类节点
-    const classes: Parser.SyntaxNode[] = [];
-    for (const match of results) {
-      for (const capture of match.captures) {
-        if (capture.name.includes('class') || 
-            capture.name.includes('interface') || 
-            capture.name.includes('struct') ||
-            capture.name.includes('trait') ||
-            capture.name.includes('object')) {
-          classes.push(capture.node);
-        }
-      }
-    }
-
-    return classes;
-  }
-
-  /**
-   * 旧的硬编码类提取方法（作为回退方案）
-   * @param ast AST节点
-   * @returns 类节点数组
+   * 回退机制：类提取
    */
   private legacyExtractClasses(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    this.logger.warn('使用回退机制提取类');
     const classes: Parser.SyntaxNode[] = [];
 
     const classTypes = new Set([
@@ -641,17 +523,8 @@ export class TreeSitterCoreService {
       'struct_definition',
       'enum_declaration',
       'type_alias_declaration',
-      // C# specific class types
-      'class_declaration',
-      'interface_declaration',
-      'struct_declaration',
-      'enum_declaration',
-      'delegate_declaration',
-      // Scala specific class types
-      'class_definition',
       'trait_definition',
       'object_definition',
-      'case_class_definition'
     ]);
 
     const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
@@ -672,101 +545,11 @@ export class TreeSitterCoreService {
     return classes;
   }
 
-  extractImports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
-    return TreeSitterUtils.extractImports(ast, sourceCode);
-  }
-
-  getNodeName(node: Parser.SyntaxNode): string {
-    return TreeSitterUtils.getNodeName(node);
-  }
-
-  extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    return TreeSitterUtils.extractImportNodes(ast);
-  }
-
-  async extractExports(ast: Parser.SyntaxNode, sourceCode?: string, language?: string): Promise<string[]> {
-    const lang = language || 'javascript';
-    
-    if (!sourceCode) {
-      return [];
-    }
-    
-    try {
-      // 等待查询系统初始化
-      if (!this.querySystemInitialized) {
-        await this.waitForQuerySystem();
-      }
-      
-      const exportQuery = await this.queryRegistry.getPattern(lang, 'exports');
-      if (!exportQuery) {
-        console.warn(`未找到 ${lang} 语言的导出查询模式，使用回退机制`);
-        return this.legacyExtractExports(ast, sourceCode);
-      }
-      
-      const results = this.queryTree(ast, exportQuery);
-      const exports = results.flatMap(r => r.captures)
-        .filter(c => c.name.includes('export'))
-        .map(c => this.getNodeText(c.node, sourceCode))
-        .filter(text => text.trim().length > 0);
-      
-      console.debug(`提取到 ${exports.length} 个导出`);
-      return exports;
-      
-    } catch (error) {
-      console.error('导出提取失败:', error);
-      return this.legacyExtractExports(ast, sourceCode);
-    }
- }
-
   /**
-   * 使用查询语言提取导出
-   * @param ast AST节点
-   * @param sourceCode 源代码
-   * @returns 导出字符串数组
-   */
-  private extractExportsWithQuery(ast: Parser.SyntaxNode, sourceCode?: string, language?: string): string[] {
-    if (!sourceCode) {
-      return [];
-    }
-
-    // 如果没有提供语言，尝试从AST中获取
-    const detectedLanguage = language || this.detectLanguageFromAST(ast);
-    if (!detectedLanguage) {
-      throw new Error('无法从AST中检测语言');
-    }
-
-    // 获取对应的解析器
-    const parserLang = this.parsers.get(detectedLanguage.toLowerCase());
-    if (!parserLang || !parserLang.supported) {
-      throw new Error(`不支持的语言: ${detectedLanguage}`);
-    }
-
-    // 使用QueryManager执行查询
-    const results = QueryManager.executeQuery(ast, detectedLanguage.toLowerCase(), 'exports', parserLang.parser);
-    
-    // 提取导出文本
-    const exports: string[] = [];
-    for (const match of results) {
-      for (const capture of match.captures) {
-        if (capture.name.includes('export')) {
-          const exportText = this.getNodeText(capture.node, sourceCode);
-          if (exportText.trim().length > 0) {
-            exports.push(exportText);
-          }
-        }
-      }
-    }
-
-    return exports;
-  }
-
-  /**
-   * 旧的硬编码导出提取方法（作为回退方案）
-   * @param ast AST节点
-   * @param sourceCode 源代码
-   * @returns 导出字符串数组
+   * 回退机制：导出提取
    */
   private legacyExtractExports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
+    this.logger.warn('使用回退机制提取导出');
     const exports: string[] = [];
 
     if (!sourceCode) {
@@ -805,70 +588,66 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 获取支持的语言扩展名映射
-   * @returns 语言到扩展名的映射
+   * 获取缓存统计信息
    */
-  getLanguageExtensionMap(): Map<string, string[]> {
-    const map = new Map<string, string[]>();
+  getCacheStats() {
+    const dynamicStats = this.dynamicManager.getCacheStats();
+    const total = this.cacheStats.hits + this.cacheStats.misses;
+    const hitRate = total > 0 ? ((this.cacheStats.hits / total) * 100).toFixed(2) : 0;
 
-    this.parsers.forEach((parser, language) => {
-      if (parser.supported) {
-        map.set(language, parser.fileExtensions);
-      }
-    });
-
-    return map;
+    return {
+      ...this.cacheStats,
+      totalRequests: total,
+      hitRate: `${hitRate}%`,
+      dynamicManagerStats: dynamicStats,
+    };
   }
 
   /**
-   * 初始化查询管理器
+   * 获取性能统计信息
    */
-  private async initializeQueryManager(): Promise<void> {
-    try {
-      await QueryManager.initialize();
-      console.log('QueryManager初始化成功');
-    } catch (error) {
-      console.warn('QueryManager初始化失败，将使用硬编码实现:', error);
-      this.useQueryLanguage = false;
-    }
-  }
-
-  /**
-   * 异步初始化查询系统
-   */
-  private async initializeQuerySystem(): Promise<void> {
-    try {
-      await this.queryRegistry.initialize();
-      this.querySystemInitialized = true;
-      console.log('查询系统初始化完成');
-    } catch (error) {
-      console.error('查询系统初始化失败:', error);
-      // 即使初始化失败，服务仍可运行（使用回退机制）
-    }
-  }
-
-  /**
-   * 等待查询系统初始化
-   */
-  private async waitForQuerySystem(timeout = 5000): Promise<void> {
-    const startTime = Date.now();
+  getPerformanceStats() {
+    const dynamicStats = this.dynamicManager.getPerformanceStats();
     
-    while (!this.querySystemInitialized && Date.now() - startTime < timeout) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    if (!this.querySystemInitialized) {
-      throw new Error('查询系统初始化超时');
-    }
+    return {
+      ...this.performanceStats,
+      cacheStats: this.getCacheStats(),
+      dynamicManagerStats: dynamicStats,
+    };
+  }
+
+  /**
+   * 清除缓存
+   */
+  clearCache(): void {
+    this.dynamicManager.clearCache();
+    this.cacheStats = { hits: 0, misses: 0, evictions: 0 };
+    this.logger.info('TreeSitterCoreService 缓存已清除');
+  }
+
+  /**
+   * 更新性能统计
+   */
+  private updatePerformanceStats(parseTime: number): void {
+    this.performanceStats.totalParseTime += parseTime;
+    this.performanceStats.totalParseCount++;
+    this.performanceStats.averageParseTime = this.performanceStats.totalParseTime / this.performanceStats.totalParseCount;
+    this.performanceStats.maxParseTime = Math.max(this.performanceStats.maxParseTime, parseTime);
+    this.performanceStats.minParseTime = Math.min(this.performanceStats.minParseTime, parseTime);
+  }
+
+  /**
+   * 计算节点哈希值
+   */
+  private getNodeHash(node: Parser.SyntaxNode): string {
+    return `${node.type}:${node.startIndex}:${node.endIndex}`;
   }
 
   /**
    * 检查语言是否支持
-   * @param language 语言名称
-   * @returns 是否支持
    */
   isLanguageSupported(language: string): boolean {
-    return this.languageDetector.isLanguageSupported(language, this.parsers);
+    return this.dynamicManager.isLanguageSupported(language);
   }
 
   /**
@@ -887,7 +666,6 @@ export class TreeSitterCoreService {
 
   /**
    * 获取当前模式状态
-   * @returns 是否使用查询语言
    */
   isUsingQueryLanguage(): boolean {
     return this.useQueryLanguage;
@@ -895,7 +673,6 @@ export class TreeSitterCoreService {
 
   /**
    * 获取查询缓存统计信息
-   * @returns 缓存统计
    */
   getQueryCacheStats() {
     return QueryManager.getCacheStats();
@@ -910,9 +687,6 @@ export class TreeSitterCoreService {
 
   /**
    * 检查查询语言是否支持指定语言的指定查询类型
-   * @param language 语言名称
-   * @param queryType 查询类型
-   * @returns 是否支持
    */
   isQuerySupported(language: string, queryType: string): boolean {
     return QueryManager.isSupported(language.toLowerCase(), queryType);
@@ -920,7 +694,6 @@ export class TreeSitterCoreService {
 
   /**
    * 获取支持查询语言的语言列表
-   * @returns 支持的语言列表
    */
   getQuerySupportedLanguages(): string[] {
     return QueryManager.getSupportedLanguages();
@@ -932,7 +705,8 @@ export class TreeSitterCoreService {
   getQuerySystemStatus() {
     return {
       initialized: this.querySystemInitialized,
-      stats: this.queryRegistry.getStats()
+      stats: this.queryRegistry.getStats(),
+      dynamicManagerStatus: this.dynamicManager.getQuerySystemStatus()
     };
   }
 
@@ -945,26 +719,9 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 回退机制：函数提取
+   * 获取动态管理器实例（用于高级操作）
    */
-  private fallbackExtractFunctions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    console.warn('使用回退机制提取函数');
-    return this.legacyExtractFunctions(ast);
-  }
-
-  /**
-   * 回退机制：类提取
-   */
-  private fallbackExtractClasses(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    console.warn('使用回退机制提取类');
-    return this.legacyExtractClasses(ast);
-  }
-
-  /**
-   * 回退机制：导出提取
-   */
-  private fallbackExtractExports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
-    console.warn('使用回退机制提取导出');
-    return this.legacyExtractExports(ast, sourceCode);
+  getDynamicManager(): DynamicParserManager {
+    return this.dynamicManager;
   }
 }
