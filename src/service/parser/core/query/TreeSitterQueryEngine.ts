@@ -2,6 +2,8 @@ import Parser from 'tree-sitter';
 import { CodeChunk } from '../types';
 import { QueryRegistryImpl } from './QueryRegistry';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { QueryCache } from './QueryCache';
+import { QueryPerformanceMonitor } from './QueryPerformanceMonitor';
 
 /**
  * Tree-sitter查询模式定义
@@ -74,7 +76,8 @@ export interface QueryMatch {
 }
 
 /**
- * Tree-sitter查询引擎
+ * Tree-sitter查询引擎 - 优化版本
+ * 使用原生tree-sitter Query API，集成缓存和性能监控
  */
 export class TreeSitterQueryEngine {
   private patterns: Map<string, QueryPattern> = new Map();
@@ -179,9 +182,12 @@ export class TreeSitterQueryEngine {
       const fullPatternName = `${language}_${patternName}`;
       return await this.executeQueryInternal(ast, fullPatternName, language);
     } catch (error) {
+      const executionTime = Date.now() - startTime;
+      QueryPerformanceMonitor.recordQuery(`${language}_${patternName}_error`, executionTime);
+      
       return {
         matches: [],
-        executionTime: Date.now() - startTime,
+        executionTime,
         success: false,
         error: error instanceof Error ? error.message : String(error)
       };
@@ -212,15 +218,21 @@ export class TreeSitterQueryEngine {
       const cacheKey = this.generateCacheKey(ast, patternName, language);
       const cached = this.cache.get(cacheKey);
       if (cached) {
+        QueryPerformanceMonitor.recordCacheHit(true);
         return cached;
       }
 
-      // 执行查询
+      QueryPerformanceMonitor.recordCacheHit(false);
+
+      // 执行查询 - 使用原生tree-sitter Query API
       const matches = this.executeQueryPattern(ast, pattern);
+
+      const executionTime = Date.now() - startTime;
+      QueryPerformanceMonitor.recordQuery(`${language}_${patternName}`, executionTime);
 
       const result: QueryResult = {
         matches,
-        executionTime: Date.now() - startTime,
+        executionTime,
         success: true
       };
 
@@ -229,9 +241,12 @@ export class TreeSitterQueryEngine {
 
       return result;
     } catch (error) {
+      const executionTime = Date.now() - startTime;
+      QueryPerformanceMonitor.recordQuery(`${language}_${patternName}_error`, executionTime);
+      
       return {
         matches: [],
-        executionTime: Date.now() - startTime,
+        executionTime,
         success: false,
         error: error instanceof Error ? error.message : String(error)
       };
@@ -274,6 +289,20 @@ export class TreeSitterQueryEngine {
    */
   clearCache(): void {
     this.cache.clear();
+    QueryCache.clearCache();
+  }
+
+  /**
+   * 获取性能统计信息
+   */
+  getPerformanceStats() {
+    return {
+      queryMetrics: QueryPerformanceMonitor.getMetrics(),
+      querySummary: QueryPerformanceMonitor.getSummary(),
+      systemMetrics: QueryPerformanceMonitor.getSystemMetrics(),
+      cacheStats: QueryCache.getStats(),
+      engineCacheSize: this.cache.size
+    };
   }
 
   /**
@@ -285,78 +314,27 @@ export class TreeSitterQueryEngine {
   }
 
   /**
-   * 执行查询模式（模拟实现）
+   * 执行查询模式（使用原生tree-sitter Query API）
    */
   private executeQueryPattern(ast: Parser.SyntaxNode, pattern: QueryPattern): QueryMatch[] {
-    // 这里应该使用真正的tree-sitter Query API
-    // 目前使用模拟实现
-
-    const matches: QueryMatch[] = [];
-
-    // 简化的模式匹配逻辑
-    const targetTypes = this.extractTargetTypesFromPattern(pattern.pattern);
-
-    // 遍历AST查找匹配的节点
-    this.traverseAST(ast, (node) => {
-      if (targetTypes.has(node.type)) {
-        const captures = this.extractCaptures(node, pattern);
-        const location = this.getNodeLocation(node);
-
-        matches.push({
-          node,
-          captures,
-          location
-        });
-      }
-    });
-
-    return matches;
-  }
-
-  /**
-   * 从查询模式中抽取目标类型
-   */
-  private extractTargetTypesFromPattern(pattern: string): Set<string> {
-    const types = new Set<string>();
-
-    // 简化的类型抽取
-    const typeRegex = /\((\w+(?:\.[\w-]+)*)\s+/g;
-    let match;
-
-    while ((match = typeRegex.exec(pattern)) !== null) {
-      types.add(match[1]);
+    try {
+      // 获取语言对象，假设从AST的tree属性中获取
+      const language = (ast.tree as any).language;
+      const query = QueryCache.getQuery(language, pattern.pattern);
+      const matches = query.matches(ast);
+      
+      return matches.map(match => ({
+        node: match.captures[0]?.node,
+        captures: match.captures.reduce((acc, capture) => {
+          acc[capture.name] = capture.node;
+          return acc;
+        }, {} as Record<string, Parser.SyntaxNode>),
+        location: this.getNodeLocation(match.captures[0]?.node)
+      }));
+    } catch (error) {
+      this.logger.error('查询执行失败:', error);
+      return [];
     }
-
-    return types;
-  }
-
-  /**
-   * 遍历AST
-   */
-  private traverseAST(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
-    callback(node);
-
-    if (node.children && Array.isArray(node.children)) {
-      for (const child of node.children) {
-        this.traverseAST(child, callback);
-      }
-    }
-  }
-
-  /**
-   * 抽取捕获
-   */
-  private extractCaptures(node: Parser.SyntaxNode, pattern: QueryPattern): Record<string, Parser.SyntaxNode> {
-    const captures: Record<string, Parser.SyntaxNode> = {};
-
-    // 简化的捕获抽取逻辑
-    for (const [captureName, description] of Object.entries(pattern.captures)) {
-      if (captureName !== pattern.name) {
-        captures[captureName] = node;
-      }
-    }
-
-    return captures;
   }
 
   /**

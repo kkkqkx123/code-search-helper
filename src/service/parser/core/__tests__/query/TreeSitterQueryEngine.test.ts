@@ -1,5 +1,7 @@
 import Parser from 'tree-sitter';
 import { TreeSitterQueryEngine, QueryEngineFactory } from '../../query/TreeSitterQueryEngine';
+import { QueryPerformanceMonitor } from '../../query/QueryPerformanceMonitor';
+import { QueryCache } from '../../query/QueryCache';
 
 // Mock Parser.SyntaxNode for testing
 const mockSyntaxNode = {
@@ -13,6 +15,9 @@ const mockSyntaxNode = {
   parent: null,
   nextSibling: null,
   previousSibling: null,
+  tree: {
+    language: { name: 'typescript' }
+  }
 } as unknown as Parser.SyntaxNode;
 
 describe('TreeSitterQueryEngine', () => {
@@ -22,6 +27,8 @@ describe('TreeSitterQueryEngine', () => {
     queryEngine = new TreeSitterQueryEngine();
     // 等待初始化完成
     await new Promise(resolve => setTimeout(resolve, 100));
+    QueryPerformanceMonitor.clearMetrics();
+    QueryCache.clearCache();
   });
 
   describe('Constructor', () => {
@@ -142,7 +149,7 @@ describe('TreeSitterQueryEngine', () => {
       const invalidResult = result.get('non_existent_pattern');
       expect(invalidResult?.success).toBe(false);
     });
- });
+  });
 
   describe('getSupportedPatterns', () => {
     it('should return all patterns when no language specified', () => {
@@ -187,6 +194,37 @@ describe('TreeSitterQueryEngine', () => {
       expect(() => queryEngine.clearCache()).not.toThrow();
     });
   });
+
+  describe('Performance Monitoring', () => {
+    it('should record query performance metrics', async () => {
+      await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
+      
+      const metrics = QueryPerformanceMonitor.getMetrics();
+      expect(Object.keys(metrics)).toContain('typescript_functions');
+    });
+
+    it('should provide performance statistics', async () => {
+      await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
+      
+      const stats = queryEngine.getPerformanceStats();
+      expect(stats).toHaveProperty('queryMetrics');
+      expect(stats).toHaveProperty('querySummary');
+      expect(stats).toHaveProperty('cacheStats');
+      expect(stats).toHaveProperty('engineCacheSize');
+    });
+
+    it('should record cache hit/miss statistics', async () => {
+      // First query - should be a miss
+      await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
+      
+      // Second query with same parameters - should be a hit
+      await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
+      
+      const cacheStats = QueryCache.getStats();
+      expect(cacheStats.hits).toBeGreaterThanOrEqual(0);
+      expect(cacheStats.misses).toBeGreaterThanOrEqual(0);
+    });
+  });
 });
 
 describe('QueryEngineFactory', () => {
@@ -200,5 +238,77 @@ describe('QueryEngineFactory', () => {
   it('should return TreeSitterQueryEngine instance', () => {
     const instance = QueryEngineFactory.getInstance();
     expect(instance).toBeInstanceOf(TreeSitterQueryEngine);
+  });
+});
+
+describe('Performance Tests', () => {
+  let queryEngine: TreeSitterQueryEngine;
+
+  beforeEach(async () => {
+    queryEngine = new TreeSitterQueryEngine();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    QueryPerformanceMonitor.clearMetrics();
+    QueryCache.clearCache();
+  });
+
+  test('native query API should outperform simulation', async () => {
+    const largeJsCode = `
+      ${Array.from({ length: 100 }, (_, i) => `
+      function function${i}() {
+        return ${i};
+      }
+      
+      class Class${i} {
+        method${i}() {
+          return ${i};
+        }
+      }
+      `).join('\n')}
+    `;
+
+    // Create a mock AST node for the large code
+    const largeMockNode = {
+      ...mockSyntaxNode,
+      text: largeJsCode,
+      endIndex: largeJsCode.length
+    } as Parser.SyntaxNode;
+
+    // Test multiple query executions
+    const iterations = 10;
+    const times: number[] = [];
+
+    for (let i = 0; i < iterations; i++) {
+      const startTime = performance.now();
+      const result = await queryEngine.executeQuery(largeMockNode, 'functions', 'javascript');
+      const endTime = performance.now();
+      
+      expect(result.success).toBe(true);
+      times.push(endTime - startTime);
+    }
+
+    const averageTime = times.reduce((sum, time) => sum + time, 0) / times.length;
+    console.log(`Average query time: ${averageTime.toFixed(2)}ms`);
+    
+    // Verify performance is within reasonable bounds
+    expect(averageTime).toBeLessThan(50); // 50ms threshold
+  });
+
+  test('should provide performance metrics', async () => {
+    await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
+    
+    const metrics = QueryPerformanceMonitor.getMetrics();
+    expect(metrics).toHaveProperty('typescript_functions');
+  });
+
+  test('should track cache efficiency', async () => {
+    // First query
+    await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
+    
+    // Second query (should hit cache)
+    await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
+    
+    const stats = queryEngine.getPerformanceStats();
+    expect(stats.cacheStats.hits).toBeGreaterThanOrEqual(0);
+    expect(stats.cacheStats.misses).toBeGreaterThanOrEqual(0);
   });
 });

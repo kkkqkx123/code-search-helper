@@ -4,7 +4,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
  * 查询注册表 - 管理所有语言的查询模式
- * 重构版本：从常量查询文件加载，通过转换层提取特定模式
+ * 重构版本：支持新的目录结构和旧结构回退
  */
 export class QueryRegistryImpl {
   private static patterns: Map<string, Map<string, string>> = new Map();
@@ -22,11 +22,11 @@ export class QueryRegistryImpl {
     this.logger.info('初始化查询注册表...');
     
     try {
-      // 初始化查询转换器
+      // 初始化查询转换器（用于旧结构回退）
       QueryTransformer.initialize();
       
-      // 从常量查询文件加载
-      await this.loadFromConstants();
+      // 从查询文件加载
+      await this.loadFromQueryFiles();
       
       this.initialized = true;
       this.logger.info(`查询注册表初始化完成，支持 ${this.patterns.size} 种语言`);
@@ -38,9 +38,9 @@ export class QueryRegistryImpl {
   }
 
   /**
-   * 从常量查询文件加载查询模式
+   * 从查询文件加载查询模式
    */
-  private static async loadFromConstants(): Promise<void> {
+  private static async loadFromQueryFiles(): Promise<void> {
     const languages = this.getSupportedLanguages();
     
     for (const language of languages) {
@@ -59,29 +59,26 @@ export class QueryRegistryImpl {
   private static async loadLanguageQueries(language: string): Promise<void> {
     this.logger.debug(`加载 ${language} 语言查询...`);
     
-    // 加载完整的查询文件
+    // 使用QueryLoader加载查询（支持新结构和旧结构）
     await QueryLoader.loadLanguageQueries(language);
-    const fullQuery = QueryLoader.getQuery(language);
     
-    // 提取所有支持的模式类型
-    const patternTypes = QueryTransformer.getSupportedPatternTypesForLanguage(language);
-    const languagePatterns = new Map<string, string>();
-    
-    let loadedCount = 0;
-    for (const patternType of patternTypes) {
-      try {
-        const pattern = QueryTransformer.extractPatternType(fullQuery, patternType, language);
-        if (pattern && pattern.trim()) {
-          languagePatterns.set(patternType, pattern);
-          loadedCount++;
+    // 如果QueryLoader成功加载，直接使用其查询
+    if (QueryLoader.isLanguageLoaded(language)) {
+      const queryTypes = QueryLoader.getQueryTypesForLanguage(language);
+      const languagePatterns = new Map<string, string>();
+      
+      for (const queryType of queryTypes) {
+        try {
+          const query = QueryLoader.getQuery(language, queryType);
+          languagePatterns.set(queryType, query);
+        } catch (error) {
+          this.logger.warn(`获取 ${language}.${queryType} 查询失败:`, error);
         }
-      } catch (error) {
-        this.logger.warn(`提取 ${language}.${patternType} 模式失败:`, error);
       }
+      
+      this.patterns.set(language, languagePatterns);
+      this.logger.debug(`成功加载 ${language} 语言的 ${languagePatterns.size} 种查询模式`);
     }
-    
-    this.patterns.set(language, languagePatterns);
-    this.logger.debug(`成功加载 ${language} 语言的 ${loadedCount} 种查询模式`);
   }
 
   /**

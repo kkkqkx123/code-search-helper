@@ -1,10 +1,10 @@
 import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
- * 查询加载器 - 负责动态加载和管理查询文件
+ * 查询加载器 - 支持新的目录结构
  */
 export class QueryLoader {
-  private static queries = new Map<string, string>();
+  private static queries = new Map<string, Map<string, string>>();
   private static logger = new LoggerService();
   private static loadedLanguages = new Set<string>();
 
@@ -21,14 +21,57 @@ export class QueryLoader {
     try {
       this.logger.info(`加载${language}语言的查询文件...`);
 
-      // 动态导入查询文件
-      const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}`);
+      // 尝试加载新的目录结构
+      const languageQueries = new Map<string, string>();
+      
+      try {
+        const queryTypes = ['functions', 'classes', 'imports', 'exports', 'methods', 'interfaces', 'types', 'properties', 'variables'];
+        
+        for (const queryType of queryTypes) {
+          try {
+            const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}/${queryType}.ts`);
+            const query = queryModule.default;
+            if (query) {
+              languageQueries.set(queryType, query);
+            }
+          } catch (error) {
+            // 如果特定类型不存在，跳过
+            this.logger.debug(`跳过 ${language}.${queryType}: ${error}`);
+          }
+        }
+        
+        if (languageQueries.size > 0) {
+          this.queries.set(language.toLowerCase(), languageQueries);
+          this.loadedLanguages.add(language.toLowerCase());
+          this.logger.info(`${language}语言查询加载成功，共${languageQueries.size}种类型`);
+          return;
+        }
+      } catch (error) {
+        this.logger.debug(`新结构加载失败，尝试旧结构: ${error}`);
+      }
+
+      // 回退到旧的单一文件结构
+      const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}.ts`);
       const query = queryModule.default || queryModule[`${language}Query`];
 
       if (query) {
-        this.queries.set(language.toLowerCase(), query);
+        // 使用QueryTransformer分解查询
+        const { QueryTransformer } = await import('./QueryTransformer');
+        QueryTransformer.initialize();
+        
+        const queryTypes = QueryTransformer.getSupportedPatternTypes();
+        const languageQueriesMap = new Map<string, string>();
+        
+        for (const queryType of queryTypes) {
+          const pattern = QueryTransformer.extractPatternType(query, queryType, language);
+          if (pattern && pattern.trim()) {
+            languageQueriesMap.set(queryType, pattern);
+          }
+        }
+        
+        this.queries.set(language.toLowerCase(), languageQueriesMap);
         this.loadedLanguages.add(language.toLowerCase());
-        this.logger.info(`${language}语言查询加载成功`);
+        this.logger.info(`${language}语言查询加载成功（旧结构），共${languageQueriesMap.size}种类型`);
       } else {
         throw new Error(`未找到${language}语言的查询模式`);
       }
@@ -50,14 +93,32 @@ export class QueryLoader {
   /**
    * 获取指定语言的查询字符串
    * @param language 语言名称
+   * @param queryType 查询类型
    * @returns 查询字符串
    */
-  static getQuery(language: string): string {
-    const query = this.queries.get(language.toLowerCase());
-    if (!query) {
+  static getQuery(language: string, queryType: string): string {
+    const languageQueries = this.queries.get(language.toLowerCase());
+    if (!languageQueries) {
       throw new Error(`${language}语言的查询未加载`);
     }
+    
+    const query = languageQueries.get(queryType);
+    if (!query) {
+      throw new Error(`${language}语言的${queryType}查询未找到`);
+    }
+    
     return query;
+  }
+
+  /**
+   * 检查特定查询类型是否存在
+   * @param language 语言名称
+   * @param queryType 查询类型
+   * @returns 是否存在
+   */
+  static hasQueryType(language: string, queryType: string): boolean {
+    const languageQueries = this.queries.get(language.toLowerCase());
+    return languageQueries ? languageQueries.has(queryType) : false;
   }
 
   /**
@@ -75,6 +136,16 @@ export class QueryLoader {
    */
   static getLoadedLanguages(): string[] {
     return Array.from(this.loadedLanguages);
+  }
+
+  /**
+   * 获取指定语言支持的所有查询类型
+   * @param language 语言名称
+   * @returns 查询类型列表
+   */
+  static getQueryTypesForLanguage(language: string): string[] {
+    const languageQueries = this.queries.get(language.toLowerCase());
+    return languageQueries ? Array.from(languageQueries.keys()) : [];
   }
 
   /**
@@ -120,10 +191,16 @@ export class QueryLoader {
    * 获取查询统计信息
    */
   static getStats() {
+    const languageStats: Record<string, number> = {};
+    for (const [language, queries] of this.queries) {
+      languageStats[language] = queries.size;
+    }
+
     return {
       loadedLanguages: this.loadedLanguages.size,
-      totalQueries: this.queries.size,
-      languages: Array.from(this.loadedLanguages)
+      totalQueries: Array.from(this.queries.values()).reduce((sum, queries) => sum + queries.size, 0),
+      languages: Array.from(this.loadedLanguages),
+      languageStats
     };
   }
 
@@ -228,83 +305,5 @@ export class QueryLoader {
     };
 
     return fileMap[language.toLowerCase()] || language.toLowerCase();
-  }
-
-  /**
-   * 从查询中提取特定的模式类型
-   * @param language 语言名称
-   * @param patternType 模式类型（functions, classes等）
-   * @returns 提取的查询模式
-   */
-  static extractPatternType(language: string, patternType: string): string {
-    const fullQuery = this.getQuery(language);
-
-    // 定义模式类型的关键词
-    const patternKeywords: Record<string, string[]> = {
-      functions: [
-        'function_declaration', 'function_definition', 'function_signature',
-        'arrow_function', 'function_expression', 'method_definition'
-      ],
-      classes: [
-        'class_declaration', 'class_definition', 'interface_declaration',
-        'struct_definition', 'abstract_class_declaration'
-      ],
-      imports: [
-        'import_statement', 'import_from_statement', 'import_declaration'
-      ],
-      exports: [
-        'export_statement', 'export_declaration', 'export_default_declaration'
-      ],
-      methods: [
-        'method_definition', 'method_signature', 'abstract_method_signature'
-      ]
-    };
-
-    const keywords = patternKeywords[patternType] || [];
-    const lines = fullQuery.split('\n');
-    const result: string[] = [];
-    let currentPattern: string[] = [];
-    let inPattern = false;
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-
-      // 检查是否包含目标关键词
-      const hasKeyword = keywords.some(keyword => trimmedLine.includes(keyword));
-
-      if (hasKeyword || inPattern) {
-        currentPattern.push(line);
-        inPattern = true;
-
-        // 如果行以右括号结束，可能是一个完整的模式
-        if (trimmedLine.endsWith(')') && this.isBalancedParentheses(currentPattern.join('\n'))) {
-          result.push(currentPattern.join('\n'));
-          currentPattern = [];
-          inPattern = false;
-        }
-      }
-    }
-
-    // 添加未完成的模式
-    if (currentPattern.length > 0) {
-      result.push(currentPattern.join('\n'));
-    }
-
-    return result.join('\n\n');
-  }
-
-  /**
-   * 检查括号是否平衡
-   * @param text 文本
-   * @returns 是否平衡
-   */
-  private static isBalancedParentheses(text: string): boolean {
-    let balance = 0;
-    for (const char of text) {
-      if (char === '(') balance++;
-      if (char === ')') balance--;
-      if (balance < 0) return false;
-    }
-    return balance === 0;
   }
 }

@@ -2,10 +2,11 @@ import Parser from 'tree-sitter';
 import { LRUCache } from '../../../../utils/LRUCache';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { QueryRegistry, QueryRegistryImpl } from './QueryRegistry';
-import { QueryTransformer } from './QueryTransformer';
+import { QueryLoader } from './QueryLoader';
 
 /**
- * 查询管理器 - 负责加载、缓存和执行Tree-sitter查询
+ * 查询管理器 - 简化版本
+ * 直接从QueryLoader获取特定查询，减少转换层
  */
 export class QueryManager {
   private static queryCache = new LRUCache<string, Parser.Query>(100);
@@ -76,26 +77,23 @@ export class QueryManager {
   }
 
   /**
-   * 获取查询字符串（异步）
+   * 获取查询字符串（异步）- 简化版本
    */
   static async getQueryString(language: string, queryType: string): Promise<string> {
     if (!this.initialized) {
       await this.initialize();
     }
 
-    const query = await this.queryRegistry.getPattern(language, queryType);
-    if (!query) {
-      throw new Error(`未找到 ${language}.${queryType} 的查询模式`);
+    try {
+      return QueryLoader.getQuery(language, queryType);
+    } catch (error) {
+      this.logger.error(`获取查询失败: ${language}.${queryType}`, error);
+      throw error;
     }
-
-    return query;
   }
 
   /**
-   * 获取查询模式字符串
-   * @param language 语言名称
-   * @param queryType 查询类型
-   * @returns 查询模式字符串
+   * 获取查询模式字符串 - 简化版本
    */
   static getQueryPattern(language: string, queryType: string): string | null {
     const cacheKey = `${language}:${queryType}`;
@@ -105,13 +103,14 @@ export class QueryManager {
       return this.patternCache.get(cacheKey)!;
     }
 
-    // 从注册表获取模式
-    const pattern = this.queryRegistry.getPatternSync(language, queryType);
-    if (pattern) {
-      this.patternCache.set(cacheKey, pattern);
+    try {
+      const query = QueryLoader.getQuery(language, queryType);
+      this.patternCache.set(cacheKey, query);
+      return query;
+    } catch (error) {
+      this.logger.warn(`获取查询模式失败: ${language}.${queryType}`, error);
+      return null;
     }
-
-    return pattern;
   }
 
   /**
@@ -215,30 +214,19 @@ export class QueryManager {
   }
 
   /**
-   * 检查查询是否支持
-   */
-  static async isQuerySupported(language: string, queryType: string): Promise<boolean> {
-    if (!this.initialized) {
-      await this.initialize();
-    }
-
-    return this.queryRegistry.isSupported(language, queryType);
-  }
-
-  /**
-   * 检查是否支持指定语言的查询
-   * @param language 语言名称
-   * @param queryType 查询类型
-   * @returns 是否支持
+   * 检查查询是否支持 - 简化版本
    */
   static isSupported(language: string, queryType?: string): boolean {
-    if (queryType) {
-      const pattern = this.getQueryPattern(language, queryType);
-      return pattern !== null;
+    if (!this.initialized) {
+      this.logger.warn('QueryManager未初始化');
+      return false;
     }
 
-    const patterns = this.queryRegistry.getPatternsForLanguage(language);
-    return Object.keys(patterns).length > 0;
+    if (queryType) {
+      return QueryLoader.hasQueryType(language, queryType);
+    }
+
+    return QueryLoader.isLanguageLoaded(language);
   }
 
   /**
@@ -252,7 +240,7 @@ export class QueryManager {
    * 获取指定语言支持的查询类型
    */
   static getQueryTypesForLanguage(language: string): string[] {
-    return this.queryRegistry.getQueryTypesForLanguage(language);
+    return QueryLoader.getQueryTypesForLanguage(language);
   }
 
   /**
@@ -270,10 +258,10 @@ export class QueryManager {
   }
 
   /**
-   * 获取转换器统计信息
+   * 获取加载器统计信息
    */
-  static getTransformerStats() {
-    return QueryTransformer.getCacheStats();
+  static getLoaderStats() {
+    return QueryLoader.getStats();
   }
 
   /**
@@ -283,7 +271,6 @@ export class QueryManager {
     this.queryCache.clear();
     this.patternCache.clear();
     this.queryRegistry.clearCache();
-    QueryTransformer.clearCache();
     this.logger.info('所有查询缓存已清除');
   }
 }

@@ -173,6 +173,15 @@ code-search-helper/
 - 使用Prettier格式化代码
 - 前端保持轻量级，无框架依赖
 
+### 模块复用
+src\utils\cache\
+src\utils\LRUCache.ts
+src\infrastructure\caching\
+这是当前项目已有的cache模块，cache应该尽可能复用现有的实现
+
+src\infrastructure\monitoring
+这是当前项目已有的监控模块，监控应该尽可能复用现有的实现
+
 ### 前端开发
 
 前端采用模块化架构设计，基于原生TypeScript和Vite构建工具实现。详细架构说明请参考 [前端架构设计文档](docs/architecture/frontend-architecture.md)。
