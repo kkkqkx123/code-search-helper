@@ -1,6 +1,8 @@
 # Nebula Nodejs SDK
 
-This repository provides Nebula client API in Nodejs.
+This repository provides Nebula client API in Nodejs. I edit it for frequently switching spaces.
+Replace @nebula-contrib by this. There's no need to edit node_modules.
+
 
 ## Features
 
