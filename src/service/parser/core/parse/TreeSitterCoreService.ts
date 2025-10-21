@@ -16,6 +16,7 @@ import { TYPES } from '../../../../types';
 import { TreeSitterLanguageDetector } from '../language-detection/TreeSitterLanguageDetector';
 import { languageExtensionMap } from '../../utils';
 import { QueryManager } from '../query/QueryManager';
+import { QueryRegistryImpl } from '../query/QueryRegistry';
 
 export interface ParserLanguage {
   name: string;
@@ -54,11 +55,15 @@ export class TreeSitterCoreService {
   private languageDetector: TreeSitterLanguageDetector;
   private extensionMap = languageExtensionMap;
   private useQueryLanguage: boolean = true; // 混合模式开关
+  private queryRegistry = QueryRegistryImpl;
+  private querySystemInitialized = false;
 
   constructor() {
     this.languageDetector = new TreeSitterLanguageDetector();
     this.initializeParsers();
     this.initializeQueryManager();
+    // 异步初始化查询系统
+    this.initializeQuerySystem();
   }
 
   private initializeParsers(): void {
@@ -393,16 +398,31 @@ export class TreeSitterCoreService {
     return `${node.type}:${node.startIndex}:${node.endIndex}`;
   }
 
-  extractFunctions(ast: Parser.SyntaxNode, language?: string): Parser.SyntaxNode[] {
-    if (this.useQueryLanguage) {
-      try {
-        return this.extractWithQuery(ast, 'functions', language);
-      } catch (error) {
-        console.warn('查询语言提取函数失败，回退到硬编码实现:', error);
-        this.useQueryLanguage = false;
+  async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    const lang = language || 'javascript';
+    
+    try {
+      // 等待查询系统初始化
+      if (!this.querySystemInitialized) {
+        await this.waitForQuerySystem();
+      }
+      
+      const functionQuery = await this.queryRegistry.getPattern(lang, 'functions');
+      if (!functionQuery) {
+        console.warn(`未找到 ${lang} 语言的函数查询模式，使用回退机制`);
         return this.legacyExtractFunctions(ast);
       }
-    } else {
+      
+      const results = this.queryTree(ast, functionQuery);
+      const functions = results.flatMap(r => r.captures)
+        .filter(c => c.name.includes('function') || c.name.includes('method'))
+        .map(c => c.node);
+      
+      console.debug(`提取到 ${functions.length} 个函数节点`);
+      return functions;
+      
+    } catch (error) {
+      console.error('函数提取失败:', error);
       return this.legacyExtractFunctions(ast);
     }
   }
@@ -532,16 +552,35 @@ export class TreeSitterCoreService {
     return functions;
   }
 
-  extractClasses(ast: Parser.SyntaxNode, language?: string): Parser.SyntaxNode[] {
-    if (this.useQueryLanguage) {
-      try {
-        return this.extractClassesWithQuery(ast, language);
-      } catch (error) {
-        console.warn('查询语言提取类失败，回退到硬编码实现:', error);
-        this.useQueryLanguage = false;
+  async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    const lang = language || 'javascript';
+    
+    try {
+      // 等待查询系统初始化
+      if (!this.querySystemInitialized) {
+        await this.waitForQuerySystem();
+      }
+      
+      const classQuery = await this.queryRegistry.getPattern(lang, 'classes');
+      if (!classQuery) {
+        console.warn(`未找到 ${lang} 语言的类查询模式，使用回退机制`);
         return this.legacyExtractClasses(ast);
       }
-    } else {
+      
+      const results = this.queryTree(ast, classQuery);
+      const classes = results.flatMap(r => r.captures)
+        .filter(c => c.name.includes('class') || 
+                    c.name.includes('interface') || 
+                    c.name.includes('struct') ||
+                    c.name.includes('trait') ||
+                    c.name.includes('object'))
+        .map(c => c.node);
+      
+      console.debug(`提取到 ${classes.length} 个类节点`);
+      return classes;
+      
+    } catch (error) {
+      console.error('类提取失败:', error);
       return this.legacyExtractClasses(ast);
     }
  }
@@ -645,16 +684,36 @@ export class TreeSitterCoreService {
     return TreeSitterUtils.extractImportNodes(ast);
   }
 
-  extractExports(ast: Parser.SyntaxNode, sourceCode?: string, language?: string): string[] {
-    if (this.useQueryLanguage) {
-      try {
-        return this.extractExportsWithQuery(ast, sourceCode, language);
-      } catch (error) {
-        console.warn('查询语言提取导出失败，回退到硬编码实现:', error);
-        this.useQueryLanguage = false;
+  async extractExports(ast: Parser.SyntaxNode, sourceCode?: string, language?: string): Promise<string[]> {
+    const lang = language || 'javascript';
+    
+    if (!sourceCode) {
+      return [];
+    }
+    
+    try {
+      // 等待查询系统初始化
+      if (!this.querySystemInitialized) {
+        await this.waitForQuerySystem();
+      }
+      
+      const exportQuery = await this.queryRegistry.getPattern(lang, 'exports');
+      if (!exportQuery) {
+        console.warn(`未找到 ${lang} 语言的导出查询模式，使用回退机制`);
         return this.legacyExtractExports(ast, sourceCode);
       }
-    } else {
+      
+      const results = this.queryTree(ast, exportQuery);
+      const exports = results.flatMap(r => r.captures)
+        .filter(c => c.name.includes('export'))
+        .map(c => this.getNodeText(c.node, sourceCode))
+        .filter(text => text.trim().length > 0);
+      
+      console.debug(`提取到 ${exports.length} 个导出`);
+      return exports;
+      
+    } catch (error) {
+      console.error('导出提取失败:', error);
       return this.legacyExtractExports(ast, sourceCode);
     }
  }
@@ -775,6 +834,35 @@ export class TreeSitterCoreService {
   }
 
   /**
+   * 异步初始化查询系统
+   */
+  private async initializeQuerySystem(): Promise<void> {
+    try {
+      await this.queryRegistry.initialize();
+      this.querySystemInitialized = true;
+      console.log('查询系统初始化完成');
+    } catch (error) {
+      console.error('查询系统初始化失败:', error);
+      // 即使初始化失败，服务仍可运行（使用回退机制）
+    }
+  }
+
+  /**
+   * 等待查询系统初始化
+   */
+  private async waitForQuerySystem(timeout = 5000): Promise<void> {
+    const startTime = Date.now();
+    
+    while (!this.querySystemInitialized && Date.now() - startTime < timeout) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    if (!this.querySystemInitialized) {
+      throw new Error('查询系统初始化超时');
+    }
+  }
+
+  /**
    * 检查语言是否支持
    * @param language 语言名称
    * @returns 是否支持
@@ -836,5 +924,47 @@ export class TreeSitterCoreService {
    */
   getQuerySupportedLanguages(): string[] {
     return QueryManager.getSupportedLanguages();
+  }
+
+  /**
+   * 获取查询系统状态
+   */
+  getQuerySystemStatus() {
+    return {
+      initialized: this.querySystemInitialized,
+      stats: this.queryRegistry.getStats()
+    };
+  }
+
+  /**
+   * 重新初始化查询系统
+   */
+  async reinitializeQuerySystem(): Promise<void> {
+    this.querySystemInitialized = false;
+    await this.initializeQuerySystem();
+  }
+
+  /**
+   * 回退机制：函数提取
+   */
+  private fallbackExtractFunctions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    console.warn('使用回退机制提取函数');
+    return this.legacyExtractFunctions(ast);
+  }
+
+  /**
+   * 回退机制：类提取
+   */
+  private fallbackExtractClasses(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    console.warn('使用回退机制提取类');
+    return this.legacyExtractClasses(ast);
+  }
+
+  /**
+   * 回退机制：导出提取
+   */
+  private fallbackExtractExports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
+    console.warn('使用回退机制提取导出');
+    return this.legacyExtractExports(ast, sourceCode);
   }
 }

@@ -22,7 +22,7 @@ export class QueryLoader {
       this.logger.info(`加载${language}语言的查询文件...`);
 
       // 动态导入查询文件
-      const queryModule = await import(`../../../constants/queries/${this.getQueryFileName(language)}`);
+      const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}`);
       const query = queryModule.default || queryModule[`${language}Query`];
 
       if (query) {

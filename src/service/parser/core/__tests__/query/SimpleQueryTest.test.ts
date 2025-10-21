@@ -1,14 +1,16 @@
 import { TreeSitterCoreService } from '../../parse/TreeSitterCoreService';
 import { QueryRegistry } from '../../query/QueryRegistry';
 
-describe('Simple Query Test', () => {
+describe('Simple Query Test (重构后)', () => {
   let treeSitterService: TreeSitterCoreService;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     treeSitterService = new TreeSitterCoreService();
+    // 确保查询注册表已初始化
+    await QueryRegistry.initialize();
   });
 
-  test('should test JavaScript simple queries', async () => {
+  test('should test JavaScript queries from constants', async () => {
     const jsCode = `
 function testFunction() {
   return "hello";
@@ -33,8 +35,8 @@ export function namedFunction() {
     const parseResult = await treeSitterService.parseCode(jsCode, 'javascript');
     expect(parseResult.success).toBe(true);
 
-    // 测试函数查询
-    const functionQuery = QueryRegistry.getPattern('javascript', 'functions');
+    // 使用新的查询系统
+    const functionQuery = await QueryRegistry.getPatternAsync('javascript', 'functions');
     console.log('JavaScript function query:', functionQuery);
     
     if (!functionQuery) {
@@ -48,7 +50,7 @@ export function namedFunction() {
     console.log('Function captures count:', functionCaptures.length);
     
     // 测试类查询
-    const classQuery = QueryRegistry.getPattern('javascript', 'classes');
+    const classQuery = await QueryRegistry.getPatternAsync('javascript', 'classes');
     console.log('JavaScript class query:', classQuery);
     
     if (!classQuery) {
@@ -62,7 +64,7 @@ export function namedFunction() {
     console.log('Class captures count:', classCaptures.length);
     
     // 测试导出查询
-    const exportQuery = QueryRegistry.getPattern('javascript', 'exports');
+    const exportQuery = await QueryRegistry.getPatternAsync('javascript', 'exports');
     console.log('JavaScript export query:', exportQuery);
     
     if (!exportQuery) {
@@ -80,7 +82,7 @@ export function namedFunction() {
     expect(exportCaptures.length).toBeGreaterThan(0);
   });
 
-  test('should test TypeScript simple queries', async () => {
+  test('should test TypeScript queries from constants', async () => {
     const tsCode = `
 interface TestInterface {
   method(): string;
@@ -125,7 +127,7 @@ function genericFunction<T>(param: T): T {
     expect(parseResult.success).toBe(true);
 
     // 测试函数查询
-    const functionQuery = QueryRegistry.getPattern('typescript', 'functions');
+    const functionQuery = await QueryRegistry.getPatternAsync('typescript', 'functions');
     console.log('TypeScript function query:', functionQuery);
     
     if (!functionQuery) {
@@ -139,7 +141,7 @@ function genericFunction<T>(param: T): T {
     console.log('Function captures count:', functionCaptures.length);
     
     // 测试类查询
-    const classQuery = QueryRegistry.getPattern('typescript', 'classes');
+    const classQuery = await QueryRegistry.getPatternAsync('typescript', 'classes');
     console.log('TypeScript class query:', classQuery);
     
     if (!classQuery) {
@@ -156,5 +158,35 @@ function genericFunction<T>(param: T): T {
     
     expect(functionCaptures.length).toBeGreaterThan(0);
     expect(classCaptures.length).toBeGreaterThan(0);
+  });
+
+  // 添加新的测试：验证查询转换的正确性
+  test('should validate query transformation correctness', async () => {
+    const jsCode = `function test() { return "test"; }`;
+    const parseResult = await treeSitterService.parseCode(jsCode, 'javascript');
+    
+    // 使用新的查询系统
+    const newFunctionQuery = await QueryRegistry.getPatternAsync('javascript', 'functions');
+    const newResults = treeSitterService.queryTree(parseResult.ast, newFunctionQuery!);
+    
+    // 验证结果包含预期的捕获
+    const functionCaptures = newResults.flatMap(r => r.captures).filter(c => c.name === 'function');
+    expect(functionCaptures.length).toBe(1);
+    
+    // 验证捕获的节点类型正确
+    const functionNode = functionCaptures[0].node;
+    expect(functionNode.type).toBe('function_declaration');
+  });
+
+  // 测试向后兼容性
+  test('should maintain backward compatibility', async () => {
+    const jsCode = `function test() { return "test"; }`;
+    
+    // 使用同步接口应该仍然工作
+    const syncQuery = QueryRegistry.getPattern('javascript', 'functions');
+    expect(syncQuery).toBeTruthy();
+    
+    // 验证同步查询包含预期的内容
+    expect(syncQuery).toContain('function_declaration');
   });
 });

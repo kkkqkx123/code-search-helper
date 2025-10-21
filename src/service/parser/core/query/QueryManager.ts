@@ -1,7 +1,8 @@
 import Parser from 'tree-sitter';
 import { LRUCache } from '../../../../utils/LRUCache';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { QueryRegistry } from './QueryRegistry';
+import { QueryRegistry, QueryRegistryImpl } from './QueryRegistry';
+import { QueryTransformer } from './QueryTransformer';
 
 /**
  * 查询管理器 - 负责加载、缓存和执行Tree-sitter查询
@@ -15,27 +16,23 @@ export class QueryManager {
     evictions: 0,
   };
   private static logger = new LoggerService();
+  private static queryRegistry = QueryRegistryImpl;
+  private static initialized = false;
 
   /**
-   * 初始化查询管理器，预加载主要语言的查询
+   * 异步初始化
    */
   static async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
     try {
-      this.logger.info('初始化QueryManager...');
-
-      // 预加载主要语言的查询模式到缓存
-      const mainLanguages = ['javascript', 'typescript', 'python', 'java', 'go', 'rust', 'cpp'];
-
-      for (const language of mainLanguages) {
-        const patterns = QueryRegistry.getPatternsForLanguage(language);
-        for (const [queryType, pattern] of Object.entries(patterns)) {
-          this.patternCache.set(`${language}:${queryType}`, pattern);
-        }
-      }
-
-      this.logger.info(`QueryManager初始化完成，预加载了${mainLanguages.length}种语言的查询模式`);
+      await this.queryRegistry.initialize();
+      this.initialized = true;
+      this.logger.info('QueryManager 初始化完成');
     } catch (error) {
-      this.logger.error('QueryManager初始化失败:', error);
+      this.logger.error('QueryManager 初始化失败:', error);
       throw error;
     }
   }
@@ -79,6 +76,22 @@ export class QueryManager {
   }
 
   /**
+   * 获取查询字符串（异步）
+   */
+  static async getQueryString(language: string, queryType: string): Promise<string> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    const query = await this.queryRegistry.getPattern(language, queryType);
+    if (!query) {
+      throw new Error(`未找到 ${language}.${queryType} 的查询模式`);
+    }
+
+    return query;
+  }
+
+  /**
    * 获取查询模式字符串
    * @param language 语言名称
    * @param queryType 查询类型
@@ -93,7 +106,7 @@ export class QueryManager {
     }
 
     // 从注册表获取模式
-    const pattern = QueryRegistry.getPattern(language, queryType);
+    const pattern = this.queryRegistry.getPatternSync(language, queryType);
     if (pattern) {
       this.patternCache.set(cacheKey, pattern);
     }
@@ -202,6 +215,17 @@ export class QueryManager {
   }
 
   /**
+   * 检查查询是否支持
+   */
+  static async isQuerySupported(language: string, queryType: string): Promise<boolean> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    return this.queryRegistry.isSupported(language, queryType);
+  }
+
+  /**
    * 检查是否支持指定语言的查询
    * @param language 语言名称
    * @param queryType 查询类型
@@ -213,24 +237,53 @@ export class QueryManager {
       return pattern !== null;
     }
 
-    const patterns = QueryRegistry.getPatternsForLanguage(language);
+    const patterns = this.queryRegistry.getPatternsForLanguage(language);
     return Object.keys(patterns).length > 0;
   }
 
   /**
-   * 获取支持的所有语言
-   * @returns 支持的语言列表
+   * 获取支持的语言列表
    */
   static getSupportedLanguages(): string[] {
-    return QueryRegistry.getSupportedLanguages();
+    return this.queryRegistry.getSupportedLanguages();
   }
 
   /**
-   * 获取指定语言支持的所有查询类型
-   * @param language 语言名称
-   * @returns 查询类型列表
+   * 获取指定语言支持的查询类型
    */
-  static getSupportedQueryTypes(language: string): string[] {
-    return QueryRegistry.getQueryTypesForLanguage(language);
+  static getQueryTypesForLanguage(language: string): string[] {
+    return this.queryRegistry.getQueryTypesForLanguage(language);
+  }
+
+  /**
+   * 重新加载语言查询
+   */
+  static async reloadLanguageQueries(language: string): Promise<void> {
+    await this.queryRegistry.reloadLanguageQueries(language);
+  }
+
+  /**
+   * 获取查询统计信息
+   */
+  static getQueryStats() {
+    return this.queryRegistry.getStats();
+  }
+
+  /**
+   * 获取转换器统计信息
+   */
+  static getTransformerStats() {
+    return QueryTransformer.getCacheStats();
+  }
+
+  /**
+   * 清除所有缓存
+   */
+  static clearAllCaches(): void {
+    this.queryCache.clear();
+    this.patternCache.clear();
+    this.queryRegistry.clearCache();
+    QueryTransformer.clearCache();
+    this.logger.info('所有查询缓存已清除');
   }
 }

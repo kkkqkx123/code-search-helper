@@ -1,5 +1,7 @@
 import Parser from 'tree-sitter';
 import { CodeChunk } from '../types';
+import { QueryRegistryImpl } from './QueryRegistry';
+import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
  * Tree-sitter查询模式定义
@@ -77,123 +79,79 @@ export interface QueryMatch {
 export class TreeSitterQueryEngine {
   private patterns: Map<string, QueryPattern> = new Map();
   private cache: Map<string, QueryResult> = new Map();
+  private queryRegistry = QueryRegistryImpl;
+  private logger = new LoggerService();
+  private initialized = false;
 
   constructor() {
-    this.initializeDefaultPatterns();
+    this.initialize();
   }
 
   /**
-   * 初始化默认查询模式
+   * 异步初始化
    */
-  private initializeDefaultPatterns(): void {
-    // TypeScript/JavaScript 函数查询
-    this.addPattern({
-      name: 'function_declaration',
-      description: 'Find function declarations',
-      pattern: `(function_declaration
-        name: (identifier) @function.name
-        body: (block) @function.body
-      ) @function`,
-      languages: ['typescript', 'javascript'],
-      captures: {
-        'function': '整个函数',
-        'function.name': '函数名称',
-        'function.body': '函数体'
-      }
-    });
+  private async initialize(): Promise<void> {
+    try {
+      await this.queryRegistry.initialize();
+      await this.loadPatternsFromRegistry();
+      this.initialized = true;
+      this.logger.info('TreeSitterQueryEngine 初始化完成');
+    } catch (error) {
+      this.logger.error('TreeSitterQueryEngine 初始化失败:', error);
+    }
+  }
 
-    // TypeScript/JavaScript 类查询
-    this.addPattern({
-      name: 'class_declaration',
-      description: 'Find class declarations',
-      pattern: `(class_declaration
-        name: (identifier) @class.name
-        body: (class_body) @class.body
-      ) @class`,
-      languages: ['typescript', 'javascript'],
-      captures: {
-        'class': '整个类',
-        'class.name': '类名称',
-        'class.body': '类体'
+  /**
+   * 从注册表加载模式
+   */
+  private async loadPatternsFromRegistry(): Promise<void> {
+    const languages = this.queryRegistry.getSupportedLanguages();
+    
+    for (const language of languages) {
+      const patternTypes = this.queryRegistry.getQueryTypesForLanguage(language);
+      
+      for (const patternType of patternTypes) {
+        try {
+          const patternString = await this.queryRegistry.getPattern(language, patternType);
+          if (patternString) {
+            this.addPatternFromString(patternType, patternString, language);
+          }
+        } catch (error) {
+          this.logger.warn(`加载模式 ${language}.${patternType} 失败:`, error);
+        }
       }
-    });
+    }
+  }
 
-    // Python 函数查询
-    this.addPattern({
-      name: 'python_function',
-      description: 'Find Python function definitions',
-      pattern: `(function_definition
-        name: (identifier) @function.name
-        body: (block) @function.body
-      ) @function`,
-      languages: ['python'],
-      captures: {
-        'function': '整个函数',
-        'function.name': '函数名称',
-        'function.body': '函数体'
-      }
-    });
+  /**
+   * 从字符串添加模式
+   */
+  private addPatternFromString(name: string, patternString: string, language: string): void {
+    const pattern: QueryPattern = {
+      name: `${language}_${name}`,
+      description: `Auto-generated pattern for ${language}.${name}`,
+      pattern: patternString,
+      languages: [language],
+      captures: this.extractCapturesFromPattern(patternString)
+    };
 
-    // Python 类查询
-    this.addPattern({
-      name: 'python_class',
-      description: 'Find Python class definitions',
-      pattern: `(class_definition
-        name: (identifier) @class.name
-        body: (block) @class.body
-      ) @class`,
-      languages: ['python'],
-      captures: {
-        'class': '整个类',
-        'class.name': '类名称',
-        'class.body': '类体'
-      }
-    });
+    this.patterns.set(pattern.name, pattern);
+  }
 
-    // 控制结构查询
-    this.addPattern({
-      name: 'control_structures',
-      description: 'Find control structures',
-      pattern: `[
-        (if_statement) @if
-        (for_statement) @for
-        (while_statement) @while
-        (switch_statement) @switch
-      ]`,
-      languages: ['typescript', 'javascript', 'java', 'c', 'cpp'],
-      captures: {
-        'if': 'if语句',
-        'for': 'for循环',
-        'while': 'while循环',
-        'switch': 'switch语句'
-      }
-    });
+  /**
+   * 从模式字符串中提取捕获
+   */
+  private extractCapturesFromPattern(pattern: string): Record<string, string> {
+    const captures: Record<string, string> = {};
+    const captureRegex = /@([\w\.]+)/g;
+    let match;
 
-    // 错误处理查询
-    this.addPattern({
-      name: 'error_handling',
-      description: 'Find error handling structures',
-      pattern: `(try_statement
-        body: (block) @try.body
-        (catch_clause
-          parameter: (catch_parameter) @catch.param
-          body: (block) @catch.body
-        )? @catch
-        (finally_clause
-          body: (block) @finally.body
-        )? @finally
-      ) @try`,
-      languages: ['typescript', 'javascript', 'java', 'c', 'cpp'],
-      captures: {
-        'try': 'try语句',
-        'try.body': 'try块',
-        'catch': 'catch子句',
-        'catch.param': 'catch参数',
-        'catch.body': 'catch块',
-        'finally': 'finally子句',
-        'finally.body': 'finally块'
-      }
-    });
+    while ((match = captureRegex.exec(pattern)) !== null) {
+      const captureName = match[1];
+      captures[captureName] = captureName.replace(/\./g, ' ');
+    }
+
+    return captures;
   }
 
   /**
@@ -207,6 +165,33 @@ export class TreeSitterQueryEngine {
    * 执行查询
    */
   async executeQuery(
+    ast: Parser.SyntaxNode,
+    patternName: string,
+    language: string
+  ): Promise<QueryResult> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    const startTime = Date.now();
+
+    try {
+      const fullPatternName = `${language}_${patternName}`;
+      return await this.executeQueryInternal(ast, fullPatternName, language);
+    } catch (error) {
+      return {
+        matches: [],
+        executionTime: Date.now() - startTime,
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * 内部查询执行
+   */
+  private async executeQueryInternal(
     ast: Parser.SyntaxNode,
     patternName: string,
     language: string
@@ -230,7 +215,7 @@ export class TreeSitterQueryEngine {
         return cached;
       }
 
-      // 执行查询（这里使用模拟实现，实际应该使用tree-sitter的Query API）
+      // 执行查询
       const matches = this.executeQueryPattern(ast, pattern);
 
       const result: QueryResult = {

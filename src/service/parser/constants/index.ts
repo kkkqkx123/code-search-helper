@@ -6,6 +6,36 @@
  * 提供一个中心化的常量管理方案。
  */
 
+// ==================== 导出查询模式 ====================
+export { solidityQuery } from "./queries/solidity"
+export { default as phpQuery } from "./queries/php"
+export { vueQuery } from "./queries/vue"
+export { default as typescriptQuery } from "./queries/typescript"
+export { default as tsxQuery } from "./queries/tsx"
+export { default as pythonQuery } from "./queries/python"
+export { default as javascriptQuery } from "./queries/javascript"
+export { default as javaQuery } from "./queries/java"
+export { default as rustQuery } from "./queries/rust"
+export { default as rubyQuery } from "./queries/ruby"
+export { default as cppQuery } from "./queries/cpp"
+export { default as cQuery } from "./queries/c"
+export { default as csharpQuery } from "./queries/c-sharp"
+export { default as goQuery } from "./queries/go"
+export { default as swiftQuery } from "./queries/swift"
+export { default as kotlinQuery } from "./queries/kotlin"
+export { default as cssQuery } from "./queries/css"
+export { default as elixirQuery } from "./queries/elixir"
+export { default as htmlQuery } from "./queries/html"
+export { default as luaQuery } from "./queries/lua"
+export { ocamlQuery } from "./queries/ocaml"
+export { tomlQuery } from "./queries/toml"
+export { default as systemrdlQuery } from "./queries/systemrdl"
+export { default as tlaPlusQuery } from "./queries/tlaplus"
+export { zigQuery } from "./queries/zig"
+export { default as embeddedTemplateQuery } from "./queries/embedded_template"
+export { elispQuery } from "./queries/elisp"
+export { scalaQuery } from "./queries/scala"
+
 // ==================== 语言映射常量 ====================
 export const LANGUAGE_MAPPINGS = {
   // 扩展名到语言的映射
