@@ -155,7 +155,8 @@ export class QueryLoader {
       'go',
       'rust',
       'cpp',
-      'c'
+      'c',
+      'embedded-template'
     ];
 
     this.logger.info('预加载常用语言查询...');
@@ -296,7 +297,8 @@ export class QueryLoader {
       'c#': 'c-sharp',
       'ts': 'typescript',
       'js': 'javascript',
-      'py': 'python'
+      'py': 'python',
+      'embedded-template': 'embedded_template'
     };
 
     return fileMap[language.toLowerCase()] || language.toLowerCase();

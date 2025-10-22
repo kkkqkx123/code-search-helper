@@ -130,7 +130,7 @@ export class QueryRegistryImpl {
   static getSupportedLanguages(): string[] {
     return [
       'javascript', 'typescript', 'python', 'java', 'go', 'rust',
-      'cpp', 'c', 'csharp', 'swift', 'kotlin', 'ruby', 'php', 'scala'
+      'cpp', 'c', 'csharp', 'swift', 'kotlin', 'ruby', 'php', 'scala', 'embedded-template'
     ];
   }
 
