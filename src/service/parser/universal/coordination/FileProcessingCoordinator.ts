@@ -250,13 +250,13 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
       const functions = this.treeSitterService.extractFunctions(parseResult.ast);
       const classes = this.treeSitterService.extractClasses(parseResult.ast);
 
-      this.logger?.debug(`TreeSitter extracted ${functions.length} functions and ${classes.length} classes`);
+      this.logger?.debug(`TreeSitter extracted ${(await functions).length} functions and ${(await classes).length} classes`);
 
       // 将AST节点转换为CodeChunk
       const chunks: CodeChunk[] = [];
 
       // 处理函数定义
-      for (const func of functions) {
+      for (const func of await functions) {
         const location = this.treeSitterService.getNodeLocation(func);
         const funcText = this.treeSitterService.getNodeText(func, content);
 
@@ -274,7 +274,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
       }
 
       // 处理类定义
-      for (const cls of classes) {
+      for (const cls of await classes) {
         const location = this.treeSitterService.getNodeLocation(cls);
         const clsText = this.treeSitterService.getNodeText(cls, content);
 

@@ -44,7 +44,7 @@ describe('Debug Go AST Analysis', () => {
       traverse(parseResult.ast);
       
       // 提取函数并显示详细信息
-      const functions = treeSitterService.extractFunctions(parseResult.ast);
+      const functions = await treeSitterService.extractFunctions(parseResult.ast);
       logger.info(`Found ${functions.length} functions:`);
       
       for (const func of functions) {

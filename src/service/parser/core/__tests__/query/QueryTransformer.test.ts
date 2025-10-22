@@ -13,7 +13,8 @@ describe('QueryTransformer', () => {
   });
 
   test('should extract function patterns from JavaScript query', async () => {
-    const fullQuery = QueryLoader.getQuery('javascript');
+    await QueryLoader.loadLanguageQueries('javascript');
+    const fullQuery = QueryLoader.getQuery('javascript', 'functions');
     const functionPattern = QueryTransformer.extractPatternType(fullQuery, 'functions', 'javascript');
     
     expect(functionPattern).toBeTruthy();
@@ -22,18 +23,19 @@ describe('QueryTransformer', () => {
     expect(functionPattern).toContain('function_expression');
     expect(functionPattern).not.toContain('class_declaration');
   });
-
-  test('should extract class patterns from JavaScript query', async () => {
-    const fullQuery = QueryLoader.getQuery('javascript');
-    const classPattern = QueryTransformer.extractPatternType(fullQuery, 'classes', 'javascript');
-    
-    expect(classPattern).toBeTruthy();
-    expect(classPattern).toContain('class_declaration');
-    expect(classPattern).not.toContain('function_declaration');
-  });
+test('should extract class patterns from JavaScript query', async () => {
+  await QueryLoader.loadLanguageQueries('javascript');
+  const fullQuery = QueryLoader.getQuery('javascript', 'classes');
+  const classPattern = QueryTransformer.extractPatternType(fullQuery, 'classes', 'javascript');
+  
+  expect(classPattern).toBeTruthy();
+  expect(classPattern).toContain('class_declaration');
+  expect(classPattern).not.toContain('function_declaration');
+});
 
   test('should cache extracted patterns', async () => {
-    const fullQuery = QueryLoader.getQuery('javascript');
+    await QueryLoader.loadLanguageQueries('javascript');
+    const fullQuery = QueryLoader.getQuery('javascript', 'functions');
     
     const result1 = QueryTransformer.extractPatternType(fullQuery, 'functions', 'javascript');
     const result2 = QueryTransformer.extractPatternType(fullQuery, 'functions', 'javascript');
@@ -46,7 +48,8 @@ describe('QueryTransformer', () => {
   });
 
   test('should return empty string for unsupported pattern type', async () => {
-    const fullQuery = QueryLoader.getQuery('javascript');
+    await QueryLoader.loadLanguageQueries('javascript');
+    const fullQuery = QueryLoader.getQuery('javascript', 'functions');
     const result = QueryTransformer.extractPatternType(fullQuery, 'nonexistent', 'javascript');
     
     expect(result).toBe('');
@@ -62,7 +65,8 @@ describe('QueryTransformer', () => {
   });
 
   test('should clear cache correctly', async () => {
-    const fullQuery = QueryLoader.getQuery('javascript');
+    await QueryLoader.loadLanguageQueries('javascript');
+    const fullQuery = QueryLoader.getQuery('javascript', 'functions');
     
     QueryTransformer.extractPatternType(fullQuery, 'functions', 'javascript');
     
@@ -91,7 +95,7 @@ describe('QueryTransformer', () => {
 
   test('should handle TypeScript queries', async () => {
     await QueryLoader.loadLanguageQueries('typescript');
-    const fullQuery = QueryLoader.getQuery('typescript');
+    const fullQuery = QueryLoader.getQuery('typescript', 'functions');
     
     const functionPattern = QueryTransformer.extractPatternType(fullQuery, 'functions', 'typescript');
     expect(functionPattern).toBeTruthy();
@@ -105,7 +109,7 @@ describe('QueryTransformer', () => {
 
   test('should handle Python queries', async () => {
     await QueryLoader.loadLanguageQueries('python');
-    const fullQuery = QueryLoader.getQuery('python');
+    const fullQuery = QueryLoader.getQuery('python', 'functions');
     
     const functionPattern = QueryTransformer.extractPatternType(fullQuery, 'functions', 'python');
     expect(functionPattern).toBeTruthy();

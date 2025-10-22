@@ -21,7 +21,7 @@ describe('TreeSitterCoreService', () => {
       const supportedLanguages = treeSitterService.getSupportedLanguages();
       expect(Array.isArray(supportedLanguages)).toBe(true);
       expect(supportedLanguages.length).toBeGreaterThan(0);
-      
+
       // Check that some expected languages are included
       const languageNames = supportedLanguages.map(lang => lang.name.toLowerCase());
       expect(languageNames).toContain('typescript');
@@ -90,7 +90,7 @@ describe('TreeSitterCoreService', () => {
     it('should parse TypeScript code successfully', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('ast');
       expect(result).toHaveProperty('parseTime');
@@ -101,7 +101,7 @@ describe('TreeSitterCoreService', () => {
     it('should parse JavaScript code successfully', async () => {
       const code = `function hello() { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'javascript');
-      
+
       expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('ast');
       expect(result).toHaveProperty('parseTime');
@@ -112,7 +112,7 @@ describe('TreeSitterCoreService', () => {
     it('should parse Python code successfully', async () => {
       const code = `def hello():\n    return "Hello, World!"`;
       const result = await treeSitterService.parseCode(code, 'python');
-      
+
       expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('ast');
       expect(result).toHaveProperty('parseTime');
@@ -123,7 +123,7 @@ describe('TreeSitterCoreService', () => {
     it('should return error for unsupported language', async () => {
       const code = `function hello() { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'unsupported');
-      
+
       expect(result).toHaveProperty('success', false);
       expect(result).toHaveProperty('error');
       expect(result.error).toContain('Unsupported language');
@@ -132,7 +132,7 @@ describe('TreeSitterCoreService', () => {
     it('should return error for invalid code', async () => {
       const code = `function hello() { return "Hello, World!"; // Missing closing brace`;
       const result = await treeSitterService.parseCode(code, 'javascript');
-      
+
       // Even with invalid code, Tree-sitter might still produce an AST with errors
       // The important thing is that it doesn't throw an exception
       expect(result).toHaveProperty('success');
@@ -141,11 +141,11 @@ describe('TreeSitterCoreService', () => {
 
     it('should cache parsed results', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
-      
+
       // First parse
       const result1 = await treeSitterService.parseCode(code, 'typescript');
       expect(result1.fromCache).toBe(false); // Should not be from cache initially
-      
+
       // Second parse of the same code
       const result2 = await treeSitterService.parseCode(code, 'typescript');
       expect(result2.fromCache).toBe(true); // Should be from cache
@@ -156,7 +156,7 @@ describe('TreeSitterCoreService', () => {
     it('should parse TypeScript file successfully', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseFile('test.ts', code);
-      
+
       expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('ast');
       expect(result).toHaveProperty('parseTime');
@@ -167,7 +167,7 @@ describe('TreeSitterCoreService', () => {
     it('should parse JavaScript file successfully', async () => {
       const code = `function hello() { return "Hello, World!"; }`;
       const result = await treeSitterService.parseFile('test.js', code);
-      
+
       expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('ast');
       expect(result).toHaveProperty('parseTime');
@@ -177,7 +177,7 @@ describe('TreeSitterCoreService', () => {
 
     it('should return error for unsupported file type', async () => {
       const code = `function hello() { return "Hello, World!"; }`;
-      
+
       await expect(treeSitterService.parseFile('test.unsupported', code))
         .rejects
         .toThrow('Unsupported file type: test.unsupported');
@@ -194,7 +194,7 @@ describe('TreeSitterCoreService', () => {
     it('should extract text from a node', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
         const nodeText = treeSitterService.getNodeText(result.ast, code);
         expect(nodeText).toContain('function hello()');
@@ -206,7 +206,7 @@ describe('TreeSitterCoreService', () => {
     it('should return location information for a node', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
         const location = treeSitterService.getNodeLocation(result.ast);
         expect(location).toHaveProperty('startLine');
@@ -225,7 +225,7 @@ describe('TreeSitterCoreService', () => {
     it('should find nodes of a specific type', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
         const functionNodes = treeSitterService.findNodeByType(result.ast, 'function_declaration');
         expect(Array.isArray(functionNodes)).toBe(true);
@@ -236,7 +236,7 @@ describe('TreeSitterCoreService', () => {
     it('should return empty array for non-existent node type', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
         const nonExistentNodes = treeSitterService.findNodeByType(result.ast, 'non_existent_type');
         expect(Array.isArray(nonExistentNodes)).toBe(true);
@@ -249,7 +249,7 @@ describe('TreeSitterCoreService', () => {
     it('should execute tree-sitter query pattern', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
         // This test might need adjustment based on actual query implementation
         const matches = treeSitterService.queryTree(result.ast, '(function_declaration) @function');
@@ -262,7 +262,7 @@ describe('TreeSitterCoreService', () => {
     it('should find nodes of multiple types', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
         const nodes = treeSitterService.findNodesByTypes(result.ast, ['function_declaration', 'return_statement']);
         expect(Array.isArray(nodes)).toBe(true);
@@ -279,15 +279,14 @@ describe('TreeSitterCoreService', () => {
       expect(stats).toHaveProperty('evictions');
       expect(stats).toHaveProperty('totalRequests');
       expect(stats).toHaveProperty('hitRate');
-      expect(stats).toHaveProperty('astCacheSize');
-      expect(stats).toHaveProperty('nodeCacheSize');
+      expect(stats).toHaveProperty('dynamicManagerStats');
       expect(typeof stats.hits).toBe('number');
       expect(typeof stats.misses).toBe('number');
       expect(typeof stats.evictions).toBe('number');
       expect(typeof stats.totalRequests).toBe('number');
       expect(typeof stats.hitRate).toBe('string');
-      expect(typeof stats.astCacheSize).toBe('number');
-      expect(typeof stats.nodeCacheSize).toBe('number');
+      expect(typeof stats.dynamicManagerStats.astCacheSize).toBe('number');
+      expect(typeof stats.dynamicManagerStats.nodeCacheSize).toBe('number');
     });
   });
 
@@ -298,25 +297,25 @@ describe('TreeSitterCoreService', () => {
       expect(stats.cacheStats).toHaveProperty('hits');
       expect(stats.cacheStats).toHaveProperty('misses');
     });
- });
+  });
 
   describe('clearCache', () => {
     it('should clear the cache', async () => {
       // First, populate the cache with a parse operation
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       // Check that cache has some entries
       const statsBefore = treeSitterService.getCacheStats();
-      const hasCacheEntries = statsBefore.astCacheSize > 0 || statsBefore.nodeCacheSize > 0;
-      
+      const hasCacheEntries = statsBefore.dynamicManagerStats.astCacheSize > 0 || statsBefore.dynamicManagerStats.nodeCacheSize > 0;
+
       // Clear the cache
       treeSitterService.clearCache();
-      
+
       // Check that cache is empty
       const statsAfter = treeSitterService.getCacheStats();
-      expect(statsAfter.astCacheSize).toBe(0);
-      expect(statsAfter.nodeCacheSize).toBe(0);
+      expect(statsAfter.dynamicManagerStats.astCacheSize).toBe(0);
+      expect(statsAfter.dynamicManagerStats.nodeCacheSize).toBe(0);
     });
   });
 
@@ -324,9 +323,9 @@ describe('TreeSitterCoreService', () => {
     it('should extract function nodes from AST', async () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
-        const functions = treeSitterService.extractFunctions(result.ast);
+        const functions = await treeSitterService.extractFunctions(result.ast);
         expect(Array.isArray(functions)).toBe(true);
         expect(functions.length).toBeGreaterThanOrEqual(0);
       }
@@ -338,9 +337,9 @@ describe('TreeSitterCoreService', () => {
         function world(): string { return "World"; }
       `;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
-        const functions = treeSitterService.extractFunctions(result.ast);
+        const functions = await treeSitterService.extractFunctions(result.ast);
         expect(Array.isArray(functions)).toBe(true);
         expect(functions.length).toBeGreaterThanOrEqual(2);
       }
@@ -351,9 +350,9 @@ describe('TreeSitterCoreService', () => {
     it('should extract class nodes from AST', async () => {
       const code = `class TestClass { method() { return "test"; } }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
-        const classes = treeSitterService.extractClasses(result.ast);
+        const classes = await treeSitterService.extractClasses(result.ast);
         expect(Array.isArray(classes)).toBe(true);
         expect(classes.length).toBeGreaterThanOrEqual(0);
       }
@@ -365,9 +364,9 @@ describe('TreeSitterCoreService', () => {
         class ClassB { }
       `;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
-        const classes = treeSitterService.extractClasses(result.ast);
+        const classes = await treeSitterService.extractClasses(result.ast);
         expect(Array.isArray(classes)).toBe(true);
         expect(classes.length).toBeGreaterThanOrEqual(2);
       }
@@ -378,9 +377,9 @@ describe('TreeSitterCoreService', () => {
     it('should extract import statements from AST', async () => {
       const code = `import { Component } from 'react';`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
-        const imports = treeSitterService.extractImports(result.ast, code);
+        const imports = await treeSitterService.extractImports(result.ast);
         expect(Array.isArray(imports)).toBe(true);
         expect(imports.length).toBeGreaterThanOrEqual(0);
       }
@@ -389,9 +388,9 @@ describe('TreeSitterCoreService', () => {
     it('should return empty array if no source code provided', async () => {
       const code = `import { Component } from 'react';`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
-        const imports = treeSitterService.extractImports(result.ast);
+        const imports = await treeSitterService.extractImports(result.ast);
         expect(Array.isArray(imports)).toBe(true);
         expect(imports.length).toBe(0);
       }
@@ -402,9 +401,9 @@ describe('TreeSitterCoreService', () => {
     it('should extract export statements from AST', async () => {
       const code = `export { Component };`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
-        const exports = treeSitterService.extractExports(result.ast, code);
+        const exports = await treeSitterService.extractExports(result.ast);
         expect(Array.isArray(exports)).toBe(true);
         expect(exports.length).toBeGreaterThanOrEqual(0);
       }
@@ -413,12 +412,12 @@ describe('TreeSitterCoreService', () => {
     it('should return empty array if no source code provided', async () => {
       const code = `export { Component };`;
       const result = await treeSitterService.parseCode(code, 'typescript');
-      
+
       if (result.success) {
-        const exports = treeSitterService.extractExports(result.ast);
+        const exports = await treeSitterService.extractExports(result.ast);
         expect(Array.isArray(exports)).toBe(true);
         expect(exports.length).toBe(0);
       }
     });
- });
+  });
 });

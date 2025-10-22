@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { TreeSitterQueryEngine, QueryEngineFactory } from '../../query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryEngine';
 import { SimpleQueryEngine } from '../../query/SimpleQueryEngine';
 import { TestDataGenerator } from './TestDataGenerator';
 
@@ -11,7 +11,7 @@ export class PerformanceBenchmark {
   private queryEngine: TreeSitterQueryEngine;
   
   constructor() {
-    this.queryEngine = QueryEngineFactory.getInstance();
+    this.queryEngine = new TreeSitterQueryEngine();
   }
 
   /**

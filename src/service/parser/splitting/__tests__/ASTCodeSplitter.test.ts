@@ -24,11 +24,11 @@ class MockTreeSitterService implements Partial<TreeSitterService> {
     };
   }
 
-  extractFunctions(ast: any) {
+  async extractFunctions(ast: any) {
     return [];
   }
 
-  extractClasses(ast: any) {
+  async extractClasses(ast: any) {
     return [];
   }
 

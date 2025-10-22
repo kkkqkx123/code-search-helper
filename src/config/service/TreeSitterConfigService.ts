@@ -7,6 +7,7 @@ export interface TreeSitterConfig {
   cacheSize: number;
   timeout: number;
   supportedLanguages: string[];
+  useOptimizedQueries: boolean;
 }
 
 @injectable()
@@ -19,6 +20,7 @@ export class TreeSitterConfigService extends BaseConfigService<TreeSitterConfig>
       supportedLanguages: process.env.TREE_SITTER_SUPPORTED_LANGUAGES 
         ? process.env.TREE_SITTER_SUPPORTED_LANGUAGES.split(',')
         : ['typescript', 'javascript', 'python', 'java', 'go', 'rust', 'cpp', 'c'],
+      useOptimizedQueries: process.env.USE_OPTIMIZED_QUERIES !== 'false',
     };
 
     return this.validateConfig(rawConfig);
@@ -40,7 +42,8 @@ export class TreeSitterConfigService extends BaseConfigService<TreeSitterConfig>
           'rust',
           'cpp',
           'c'
-        ])
+        ]),
+      useOptimizedQueries: Joi.boolean().default(true)
     });
 
     const { error, value } = schema.validate(config);
@@ -66,6 +69,7 @@ export class TreeSitterConfigService extends BaseConfigService<TreeSitterConfig>
         'cpp',
         'c'
       ],
+      useOptimizedQueries: true,
     };
   }
 }

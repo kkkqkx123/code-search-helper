@@ -109,7 +109,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
       expect(result.success).toBe(true);
 
-      const functions = treeSitterService.extractFunctions(result.ast);
+      const functions = await treeSitterService.extractFunctions(result.ast);
       expect(functions.length).toBe(2);
     });
   });
@@ -129,7 +129,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
       expect(result.success).toBe(true);
 
-      const classes = treeSitterService.extractClasses(result.ast);
+      const classes = await treeSitterService.extractClasses(result.ast);
       expect(classes.length).toBe(1);
     });
   });

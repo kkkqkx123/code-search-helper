@@ -40,11 +40,11 @@ export class TreeSitterService {
     return this.coreService.parseFile(filePath, content);
   }
 
-  extractFunctions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+  async extractFunctions(ast: Parser.SyntaxNode): Promise<Parser.SyntaxNode[]> {
     return this.coreService.extractFunctions(ast);
   }
 
-  extractClasses(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+  async extractClasses(ast: Parser.SyntaxNode): Promise<Parser.SyntaxNode[]> {
     return this.coreService.extractClasses(ast);
   }
 
@@ -56,7 +56,7 @@ export class TreeSitterService {
     return this.coreService.extractImportNodes(ast);
   }
 
-  extractExports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
+  async extractExports(ast: Parser.SyntaxNode, sourceCode?: string): Promise<Parser.SyntaxNode[]> {
     return this.coreService.extractExports(ast, sourceCode);
   }
 

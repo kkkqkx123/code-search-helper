@@ -1,6 +1,8 @@
 import Parser from 'tree-sitter';
-import { TreeSitterQueryEngine, QueryEngineFactory } from './TreeSitterQueryEngine';
+import { TreeSitterQueryEngine, QueryResult } from './TreeSitterQueryEngine';
+import { QueryEngineFactory } from './QueryEngineFactory';
 import { QueryCache } from './QueryCache';
+import { CacheKeyGenerator } from './CacheKeyGenerator';
 
 /**
  * 简化查询引擎
@@ -17,39 +19,17 @@ export class SimpleQueryEngine {
    * 生成缓存键
    */
   private static generateCacheKey(ast: Parser.SyntaxNode, queryType: string, language: string): string {
-    // 如果AST有稳定标识符，优先使用
-    let contentHash: string;
-    if ((ast as any)._stableId) {
-      contentHash = (ast as any)._stableId;
-    } else {
-      const text = ast.text || '';
-      contentHash = this.hashContent(`${ast.type}:${text.length}:${queryType}:${language}`);
-    }
-    return `${contentHash}:${queryType}:${language}`;
+    return CacheKeyGenerator.forSimpleQuery(ast, queryType, language);
   }
 
   /**
    * 生成批量查询缓存键
    */
   private static generateBatchCacheKey(ast: Parser.SyntaxNode, types: string[], language: string): string {
-    const text = ast.text || '';
-    const typesKey = types.sort().join(',');
-    const contentHash = this.hashContent(`${ast.type}:${text.length}:${typesKey}:${language}`);
-    return `${contentHash}:batch:${language}`;
+    return CacheKeyGenerator.forBatchQuery(ast, types, language);
   }
 
-  /**
-   * 内容哈希函数
-   */
-  private static hashContent(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString();
-  }
+  
 
   /**
    * 通用优化查询方法 - 减少重复代码和对象创建
@@ -258,5 +238,100 @@ export class SimpleQueryEngine {
     );
     
     await Promise.all(warmupPromises);
+  }
+
+  /**
+   * 执行详细查询 - 返回完整的QueryResult对象
+   * @param ast AST节点
+   * @param queryType 查询类型
+   * @param language 语言
+   * @returns 完整的QueryResult对象
+   */
+  static async executeQueryDetailed(
+    ast: Parser.SyntaxNode, 
+    queryType: string, 
+    language: string
+  ): Promise<QueryResult> {
+    const cacheKey = this.CACHE_PREFIX + this.generateCacheKey(ast, queryType, language);
+    
+    // 检查缓存
+    const cached = QueryCache.getResult(cacheKey);
+    if (cached && typeof cached === 'object' && 'matches' in cached) {
+      return cached as QueryResult;
+    }
+
+    // 使用底层查询引擎执行查询
+    const result = await this.queryEngine.executeQuery(ast, queryType, language);
+    
+    // 缓存完整结果
+    QueryCache.setResult(cacheKey, result);
+    
+    return result;
+  }
+
+  /**
+   * 批量详细查询 - 返回完整的QueryResult对象映射
+   * @param ast AST节点
+   * @param language 语言
+   * @param types 查询类型数组
+   * @returns QueryResult对象映射
+   */
+  static async executeMultipleDetailed(
+    ast: Parser.SyntaxNode,
+    language: string,
+    types: string[]
+  ): Promise<Map<string, QueryResult>> {
+    const batchCacheKey = this.BATCH_CACHE_PREFIX + this.generateBatchCacheKey(ast, types, language);
+    
+    // 检查批量缓存
+    const batchCached = QueryCache.getResult(batchCacheKey);
+    if (batchCached) {
+      return batchCached;
+    }
+
+    const resultMap = new Map<string, QueryResult>();
+    
+    // 使用并行查询提升性能
+    const queryPromises = types.map(async (type) => {
+      // 首先检查单个查询缓存
+      const singleCacheKey = this.CACHE_PREFIX + this.generateCacheKey(ast, type, language);
+      const singleCached = QueryCache.getResult(singleCacheKey);
+      
+      if (singleCached && typeof singleCached === 'object' && 'matches' in singleCached) {
+        return { type, result: singleCached as QueryResult };
+      }
+      
+      try {
+        const result = await this.queryEngine.executeQuery(ast, type, language);
+        
+        // 缓存单个查询结果
+        QueryCache.setResult(singleCacheKey, result);
+        
+        return { type, result };
+      } catch (error) {
+        // 如果某个类型不支持，返回空结果
+        return { 
+          type, 
+          result: {
+            matches: [],
+            executionTime: 0,
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          }
+        };
+      }
+    });
+    
+    const queryResults = await Promise.all(queryPromises);
+    
+    // 填充Map
+    for (const { type, result } of queryResults) {
+      resultMap.set(type, result);
+    }
+    
+    // 缓存批量查询结果
+    QueryCache.setResult(batchCacheKey, resultMap);
+    
+    return resultMap;
   }
 }

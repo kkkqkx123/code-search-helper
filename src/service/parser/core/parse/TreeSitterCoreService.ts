@@ -11,7 +11,8 @@ import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { DynamicParserManager, DynamicParserLanguage, DynamicParseResult } from './DynamicParserManager';
 import { SimpleQueryEngine } from '../query/SimpleQueryEngine';
-import { TreeSitterQueryEngine, QueryEngineFactory } from '../query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from '../query/TreeSitterQueryEngine';
+import { QueryEngineFactory } from '../query/QueryEngineFactory';
 
 export interface ParserLanguage {
   name: string;

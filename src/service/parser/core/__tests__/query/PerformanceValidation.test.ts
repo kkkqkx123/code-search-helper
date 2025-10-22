@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { TreeSitterQueryEngine, QueryEngineFactory } from '../../query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryEngine';
 import { SimpleQueryEngine } from '../../query/SimpleQueryEngine';
 import { QueryPerformanceMonitor } from '../../query/QueryPerformanceMonitor';
 import { QueryCache } from '../../query/QueryCache';
@@ -50,7 +50,7 @@ describe('Performance Validation Tests', () => {
   let queryEngine: TreeSitterQueryEngine;
 
   beforeEach(async () => {
-    queryEngine = QueryEngineFactory.getInstance();
+    queryEngine = new TreeSitterQueryEngine();
     await new Promise(resolve => setTimeout(resolve, 100)); // Wait for initialization
     QueryPerformanceMonitor.clearMetrics();
     QueryCache.clearCache();

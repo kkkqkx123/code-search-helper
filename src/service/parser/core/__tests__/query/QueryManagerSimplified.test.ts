@@ -84,8 +84,32 @@ describe('QueryManager Simplified', () => {
     test('should execute query successfully', () => {
       const mockAST = {
         type: 'program',
-        children: []
-      } as Parser.SyntaxNode;
+        children: [],
+        tree: null as any,
+        id: 0,
+        typeId: 0,
+        grammarId: 0,
+        isNamed: true,
+        hasChanges: false,
+        hasError: false,
+        isError: false,
+        isMissing: false,
+        text: '',
+        startPosition: { row: 0, column: 0 },
+        endPosition: { row: 0, column: 0 },
+        startIndex: 0,
+        endIndex: 0,
+        parent: null as any,
+        namedChildren: [],
+        firstChild: null as any,
+        firstNamedChild: null as any,
+        lastChild: null as any,
+        lastNamedChild: null as any,
+        nextSibling: null as any,
+        nextNamedSibling: null as any,
+        prevSibling: null as any,
+        prevNamedSibling: null as any
+      } as unknown as Parser.SyntaxNode;
 
       const results = QueryManager.executeQuery(mockAST, 'typescript', 'functions', mockParser);
       expect(Array.isArray(results)).toBe(true);
@@ -95,8 +119,32 @@ describe('QueryManager Simplified', () => {
     test('should handle query execution errors gracefully', () => {
       const mockAST = {
         type: 'program',
-        children: []
-      } as Parser.SyntaxNode;
+        children: [],
+        tree: null as any,
+        id: 0,
+        typeId: 0,
+        grammarId: 0,
+        isNamed: true,
+        hasChanges: false,
+        hasError: false,
+        isError: false,
+        isMissing: false,
+        text: '',
+        startPosition: { row: 0, column: 0 },
+        endPosition: { row: 0, column: 0 },
+        startIndex: 0,
+        endIndex: 0,
+        parent: null as any,
+        namedChildren: [],
+        firstChild: null as any,
+        firstNamedChild: null as any,
+        lastChild: null as any,
+        lastNamedChild: null as any,
+        nextSibling: null as any,
+        nextNamedSibling: null as any,
+        prevSibling: null as any,
+        prevNamedSibling: null as any
+      } as unknown as Parser.SyntaxNode;
 
       // Mock Query to throw error
       (Parser.Query as jest.Mock).mockImplementationOnce(() => {
@@ -110,8 +158,32 @@ describe('QueryManager Simplified', () => {
     test('should execute batch queries', () => {
       const mockAST = {
         type: 'program',
-        children: []
-      } as Parser.SyntaxNode;
+        children: [],
+        tree: null as any,
+        id: 0,
+        typeId: 0,
+        grammarId: 0,
+        isNamed: true,
+        hasChanges: false,
+        hasError: false,
+        isError: false,
+        isMissing: false,
+        text: '',
+        startPosition: { row: 0, column: 0 },
+        endPosition: { row: 0, column: 0 },
+        startIndex: 0,
+        endIndex: 0,
+        parent: null as any,
+        namedChildren: [],
+        firstChild: null as any,
+        firstNamedChild: null as any,
+        lastChild: null as any,
+        lastNamedChild: null as any,
+        nextSibling: null as any,
+        nextNamedSibling: null as any,
+        prevSibling: null as any,
+        prevNamedSibling: null as any
+      } as unknown as Parser.SyntaxNode;
 
       const results = QueryManager.executeBatchQueries(
         mockAST, 

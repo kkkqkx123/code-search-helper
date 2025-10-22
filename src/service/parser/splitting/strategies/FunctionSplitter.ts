@@ -123,25 +123,25 @@ export class FunctionSplitter extends BaseSplitStrategy {
   /**
    * 提取函数块 - 改为public以便测试
    */
-  extractFunctions(
+  async extractFunctions(
     content: string,
     ast: any,
     language: string,
     filePath?: string,
     nodeTracker?: any
-  ): CodeChunk[] {
+  ): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
 
     try {
       const functions = this.treeSitterService!.extractFunctions(ast);
 
-      if (!functions || functions.length === 0) {
+      if (!functions || (await functions).length === 0) {
         return chunks;
       }
 
-      this.logger?.debug(`Found ${functions.length} functions to process`);
+      this.logger?.debug(`Found ${(await functions).length} functions to process`);
 
-      for (const functionNode of functions) {
+      for (const functionNode of await functions) {
         const functionChunks = this.processFunctionNode(functionNode, content, language, filePath, nodeTracker);
         chunks.push(...functionChunks);
       }

@@ -76,25 +76,25 @@ export class ClassSplitter extends BaseSplitStrategy {
   /**
    * 提取类块 - 改为public以便测试
    */
-  extractClasses(
+  async extractClasses(
     content: string,
     ast: any,
     language: string,
     filePath?: string,
     nodeTracker?: any
-  ): CodeChunk[] {
+  ): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
 
     try {
       const classes = this.treeSitterService!.extractClasses(ast);
 
-      if (!classes || classes.length === 0) {
+      if (!classes || (await classes).length === 0) {
         return chunks;
       }
 
-      this.logger?.debug(`Found ${classes.length} classes to process`);
+      this.logger?.debug(`Found ${(await classes).length} classes to process`);
 
-      for (const classNode of classes) {
+      for (const classNode of await classes) {
         const classChunks = this.processClassNode(classNode, content, language, filePath, nodeTracker);
         chunks.push(...classChunks);
       }

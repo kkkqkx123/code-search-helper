@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { TreeSitterQueryEngine, QueryEngineFactory } from '../../query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryEngine';
 import { SimpleQueryEngine } from '../../query/SimpleQueryEngine';
 import { TestDataGenerator } from './TestDataGenerator';
 
@@ -11,7 +11,7 @@ describe('Edge Case Tests', () => {
   let queryEngine: TreeSitterQueryEngine;
 
   beforeAll(async () => {
-    queryEngine = QueryEngineFactory.getInstance();
+    queryEngine = new TreeSitterQueryEngine();
     // 等待初始化完成
     await new Promise(resolve => setTimeout(resolve, 200));
   });
