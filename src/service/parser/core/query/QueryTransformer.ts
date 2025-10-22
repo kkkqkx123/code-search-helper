@@ -1,5 +1,6 @@
 import { LoggerService } from '../../../../utils/LoggerService';
 
+//已经不再使用，等待验证完成后就可以移除
 /**
  * 查询转换器 - 负责将完整的查询语句转换为特定类型的简化查询模式
  */
@@ -16,7 +17,7 @@ export class QueryTransformer {
     if (this.initialized) {
       return;
     }
-    
+
     this.initializePatternMappings();
     this.initialized = true;
     this.logger.info('QueryTransformer 初始化完成');
@@ -35,7 +36,7 @@ export class QueryTransformer {
     }
 
     const cacheKey = `${language}:${patternType}`;
-    
+
     // 检查缓存
     if (this.queryCache.has(language) && this.queryCache.get(language)!.has(patternType)) {
       return this.queryCache.get(language)!.get(patternType)!;
@@ -62,7 +63,7 @@ export class QueryTransformer {
     if (!this.initialized) {
       this.initialize();
     }
-    
+
     return Array.from(this.patternTypeMappings.keys());
   }
 
@@ -75,7 +76,7 @@ export class QueryTransformer {
     if (!this.initialized) {
       this.initialize();
     }
-    
+
     // 基于语言类型返回通用支持的模式类型
     const languageBasedTypes: Record<string, string[]> = {
       'javascript': ['functions', 'classes', 'imports', 'exports', 'methods', 'variables'],
@@ -87,7 +88,7 @@ export class QueryTransformer {
       'cpp': ['functions', 'classes', 'methods', 'types', 'variables'],
       'c': ['functions', 'types', 'variables'],
     };
-    
+
     // 检查是否为特定语言，否则返回所有支持的类型
     if (languageBasedTypes[language]) {
       // 验证这些类型确实存在于映射中
@@ -134,7 +135,7 @@ export class QueryTransformer {
     // 函数相关模式
     this.patternTypeMappings.set('functions', [
       'function_declaration',
-      'function_definition', 
+      'function_definition',
       'function_signature',
       'method_definition',
       'method_signature',
@@ -236,15 +237,15 @@ export class QueryTransformer {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmedLine = line.trim();
-      
+
       // 跳过空行和注释
       if (!trimmedLine || trimmedLine.startsWith(';')) {
         continue;
       }
 
       // 检查是否包含目标关键词
-      const hasKeyword = targetKeywords.some(keyword => 
-        trimmedLine.includes(`(${keyword}`) || 
+      const hasKeyword = targetKeywords.some(keyword =>
+        trimmedLine.includes(`(${keyword}`) ||
         trimmedLine.includes(`[${keyword}`) ||
         trimmedLine.includes(` ${keyword} `) ||
         trimmedLine.includes(`@${keyword}`)
@@ -298,26 +299,26 @@ export class QueryTransformer {
   private static fallbackExtractPatterns(fullQuery: string, patternType: string, targetKeywords: string[]): string[] {
     const patterns: string[] = [];
     const lines = fullQuery.split('\n');
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmedLine = line.trim();
-      
+
       // 检查是否包含目标关键词
-      const hasKeyword = targetKeywords.some(keyword => 
+      const hasKeyword = targetKeywords.some(keyword =>
         trimmedLine.includes(keyword)
       );
 
       if (hasKeyword) {
         // 尝试构建简单的模式
         let pattern = line;
-        
+
         // 如果行以括号开始，可能是一个完整的模式
         if (trimmedLine.startsWith('(')) {
           // 查找匹配的右括号
           let parenDepth = 1;
           let j = i + 1;
-          
+
           while (j < lines.length && parenDepth > 0) {
             const nextLine = lines[j];
             parenDepth += this.countChar(nextLine, '(');
@@ -325,14 +326,14 @@ export class QueryTransformer {
             pattern += '\n' + nextLine;
             j++;
           }
-          
+
           if (parenDepth === 0) {
             patterns.push(pattern);
           }
         }
       }
     }
-    
+
     return patterns;
   }
 
@@ -355,7 +356,7 @@ export class QueryTransformer {
     // 基本验证：检查括号平衡和基本结构
     const openParens = (pattern.match(/\(/g) || []).length;
     const closeParens = (pattern.match(/\)/g) || []).length;
-    
+
     if (openParens !== closeParens) {
       return false;
     }

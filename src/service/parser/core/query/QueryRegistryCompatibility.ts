@@ -4,6 +4,7 @@ import { QueryRegistryImpl } from './QueryRegistry';
  * 向后兼容性包装器
  * 确保现有代码无需修改即可继续工作
  */
+//等待重构完成后即可移除
 export class QueryRegistryCompatibility {
   /**
    * 静态初始化（保持与旧版本相同的API）

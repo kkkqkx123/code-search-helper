@@ -1,0 +1,17 @@
+更新
+src\service\parser\constants\queries\css.ts
+src\service\parser\constants\queries\cpp.ts
+src\service\parser\constants\queries\c.ts
+src\service\parser\constants\queries\c-sharp.ts
+src\service\parser\constants\queries\javascript
+src\service\parser\constants\queries\python
+src\service\parser\constants\queries\go.ts
+src\service\parser\constants\queries\html.ts
+src\service\parser\constants\queries\java.ts
+src\service\parser\constants\queries\javascript.ts
+src\service\parser\constants\queries\python.ts
+src\service\parser\constants\queries\rust.ts
+src\service\parser\constants\queries\tsx.ts
+src\service\parser\constants\queries\vue.ts
+
+添加yaml解析规则
