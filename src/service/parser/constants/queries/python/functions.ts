@@ -12,12 +12,14 @@ export default `
     name: (identifier) @name.definition.function)) @definition.function
 
 ; Async function definitions
-(async_function_definition
+(function_definition
+  "async"
   name: (identifier) @name.definition.async_function) @definition.async_function
 
 ; Decorated async functions
 (decorated_definition
-  definition: (async_function_definition
+  definition: (function_definition
+    "async"
     name: (identifier) @name.definition.async_function)) @definition.async_function
 
 ; Lambda expressions
@@ -31,7 +33,8 @@ export default `
       (yield)))) @definition.generator
 
 ; Async generator functions
-(async_function_definition
+(function_definition
+  "async"
   name: (identifier) @name.definition.async_generator
   body: (block
     (expression_statement
@@ -42,4 +45,15 @@ export default `
   body: (block
     (function_definition
       name: (identifier) @name.definition.method))) @definition.method
+
+; Functions with return type annotations
+(function_definition
+  name: (identifier) @name.definition.typed_function
+  return_type: (type)) @definition.typed_function
+
+; Async functions with return type annotations
+(function_definition
+  "async"
+  name: (identifier) @name.definition.typed_async_function
+  return_type: (type)) @definition.typed_async_function
 `;

@@ -31,6 +31,7 @@ export class StructureAwareSplittingExample {
     this.treeSitterService = new TreeSitterCoreService();
 
     // 设置依赖关系
+    this.normalizer.setTreeSitterService(this.treeSitterService);
     this.splitter.setQueryNormalizer(this.normalizer);
     this.splitter.setTreeSitterService(this.treeSitterService);
   }

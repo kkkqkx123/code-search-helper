@@ -9,7 +9,9 @@ export default `
 
 ; Type hints and annotations
 (type) @name.definition.type_hint
-(type_alias) @name.definition.type_alias
+
+; Type alias statements (Python 3.12+)
+(type_alias_statement) @name.definition.type_alias
 
 ; Parameter declarations
 (parameters) @name.definition.parameters
@@ -25,45 +27,45 @@ export default `
   body: (block
     (decorated_definition
       definition: (function_definition
-        name: (identifier) @name.definition.property
-        (#match? @name.definition.property "^(property|.*property.*)$")))) @definition.property
+        name: (identifier) @name.definition.property)))) @definition.property
 
 ; Static methods
 (class_definition
   body: (block
     (decorated_definition
       definition: (function_definition
-        name: (identifier) @name.definition.static_method
-        (#match? @name.definition.static_method "^(staticmethod|.*static.*)$")))) @definition.static_method
+        name: (identifier) @name.definition.static_method)))) @definition.static_method
 
 ; Class methods
 (class_definition
   body: (block
     (decorated_definition
       definition: (function_definition
-        name: (identifier) @name.definition.class_method
-        (#match? @name.definition.class_method "^(classmethod|.*class.*)$")))) @definition.class_method
+        name: (identifier) @name.definition.class_method)))) @definition.class_method
 
 ; Test functions
 (function_definition
-  name: (identifier) @name.definition.test
-  (#match? @name.definition.test "^test_.*$"))
+  name: (identifier) @name.definition.test) @definition.test_function
 
 ; Dunder methods (magic methods)
 (function_definition
-  name: (identifier) @name.definition.dunder_method
-  (#match? @name.definition.dunder_method "^__.*__$"))
+  name: (identifier) @name.definition.dunder_method) @definition.dunder_method
 
 ; Private methods (name mangling)
 (function_definition
-  name: (identifier) @name.definition.private_method
-  (#match? @name.definition.private_method "^_.*$"))
+  name: (identifier) @name.definition.private_method) @definition.private_method
 
 ; Comments for documentation
 (comment) @name.definition.comment
 
 ; String literals that might be docstrings
 (expression_statement
-  (string) @name.definition.docstring
-  (#match? @name.definition.docstring "^[\"']{3}.*[\"']{3}$"))
+  (string) @name.definition.docstring) @definition.docstring
+
+; Generic types
+(generic_type
+  (identifier) @name.definition.generic_type_name) @definition.generic_type
+
+; Union types
+(union_type) @name.definition.union_type
 `;

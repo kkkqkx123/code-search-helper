@@ -3,26 +3,41 @@ TypeScript Import-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Import statements - important for understanding dependencies
+; Import statements with source
 (import_statement
-  source: (string) @source.import) @definition.import
+  "from"
+  (string) @source.import) @definition.import
 
-; Named imports - important for understanding specific dependencies
-(import_statement
-  (import_specifier
-    name: (identifier) @name.import)) @definition.import
-
-; Namespace imports - important for understanding module usage
-(import_statement
-  (namespace_import
-    name: (identifier) @name.namespace)) @definition.import
-
-; Default imports - important for understanding main exports
+; Named imports within import_clause
 (import_statement
   (import_clause
-    name: (identifier) @name.default)) @definition.import
+    (named_imports
+      (import_specifier
+        (identifier) @name.import)))) @definition.import
 
-; Dynamic imports - important for understanding code splitting
-(import_expression
-  source: (string) @source.dynamic) @definition.dynamic_import
+; Namespace imports
+(import_statement
+  (import_clause
+    (namespace_import
+      "*"
+      "as"
+      (identifier) @name.namespace))) @definition.import
+
+; Default imports
+(import_statement
+  (import_clause
+    (identifier) @name.default)
+  "from"
+  (string) @source.import) @definition.import
+
+; Mixed imports (default + named)
+(import_statement
+  (import_clause
+    (identifier) @name.default
+    ","
+    (named_imports
+      (import_specifier
+        (identifier) @name.import)))
+  "from"
+  (string) @source.import) @definition.import
 `;

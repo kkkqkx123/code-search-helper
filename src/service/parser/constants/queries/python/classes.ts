@@ -2,10 +2,11 @@
 Python Class-specific Tree-Sitter Query Patterns
 */
 export default `
-; Class definitions (including decorated)
+; Class definitions
 (class_definition
   name: (identifier) @name.definition.class) @definition.class
 
+; Decorated class definitions
 (decorated_definition
   definition: (class_definition
     name: (identifier) @name.definition.class)) @definition.class
@@ -26,7 +27,8 @@ export default `
 ; Async method definitions
 (class_definition
   body: (block
-    (async_function_definition
+    (function_definition
+      "async"
       name: (identifier) @name.definition.async_method))) @definition.async_method
 
 ; Class inheritance

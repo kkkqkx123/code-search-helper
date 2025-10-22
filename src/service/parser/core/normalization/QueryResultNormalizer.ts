@@ -5,6 +5,7 @@ import { QueryManager } from '../query/QueryManager';
 import { QueryLoader } from '../query/QueryLoader';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/LRUCache';
+import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 
 /**
  * 查询结果标准化器
@@ -15,6 +16,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
   private options: Required<NormalizationOptions>;
   private cache: LRUCache<string, StandardizedQueryResult[]>;
   private stats: NormalizationStats;
+  private treeSitterService?: TreeSitterCoreService;
 
   constructor(options: NormalizationOptions = {}) {
     this.logger = new LoggerService();
@@ -35,6 +37,13 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       cacheHitRate: 0,
       typeStats: {}
     };
+  }
+
+  /**
+   * 设置Tree-sitter服务
+   */
+  setTreeSitterService(service: TreeSitterCoreService): void {
+    this.treeSitterService = service;
   }
 
   async normalize(
@@ -215,12 +224,18 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
   }
 
   private async getParserForLanguage(language: string): Promise<Parser> {
-    // 这里应该从TreeSitterCoreService获取解析器实例
-    // 为了简化，我们假设有一个全局的解析器管理器
-    // 在实际实现中，需要注入TreeSitterCoreService依赖
+    if (!this.treeSitterService) {
+      throw new Error('TreeSitterCoreService not set. Please call setTreeSitterService() first.');
+    }
     
-    // 临时实现 - 在实际使用中需要正确注入依赖
-    throw new Error('Parser injection not implemented. Please inject TreeSitterCoreService dependency.');
+    const dynamicManager = this.treeSitterService.getDynamicManager();
+    const parser = await dynamicManager.getParser(language);
+    
+    if (!parser) {
+      throw new Error(`Failed to get parser for language: ${language}`);
+    }
+    
+    return parser;
   }
 
   private generateCacheKey(

@@ -1,11 +1,13 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { ProcessEventManager } from './ProcessEventManager';
 
 export class Logger {
   private logFilePath: string;
   private isNormalExit: boolean = false;
   private hasLogged: boolean = false; // 标记是否已写入日志
   private logLevel: string;
+  private eventManager: ProcessEventManager;
 
   constructor(serviceName: string, logLevel?: string) {
     // 设置日志级别，默认为 'info'
@@ -15,6 +17,9 @@ export class Logger {
     const timestamp = Logger.getStartTimeString().replace(/[:]/g, '-').replace(/\+08-00$/, ''); // 替换冒号为连字符并移除时区后缀
     const logFileName = `${serviceName}-${timestamp}.log`;
     this.logFilePath = path.join(process.cwd(), 'logs', logFileName);
+
+    // 获取事件管理器实例
+    this.eventManager = ProcessEventManager.getInstance();
 
     // 检查是否在测试环境中
     if (process.env.NODE_ENV === 'test') {
@@ -79,39 +84,46 @@ export class Logger {
 
   private setupExitHandlers(): void {
     // 正常退出处理
-    process.on('exit', (code) => {
+    const exitHandler = (code: number) => {
       // 尽可能释放资源，但不执行异步操作
       if (this.isNormalExit && this.hasLogged) {
         // 在同步上下文中，我们不能执行异步操作，所以只记录状态
       }
-    });
+    };
 
     // 异常退出处理
-    process.on('SIGINT', async () => {
+    const sigintHandler = async () => {
       this.isNormalExit = true;
       await this.cleanup(true);
       process.exit(0);
-    });
+    };
 
-    process.on('SIGTERM', async () => {
+    const sigtermHandler = async () => {
       this.isNormalExit = true;
       await this.cleanup(true);
       process.exit(0);
-    });
+    };
 
-    process.on('uncaughtException', async (error) => {
+    const uncaughtExceptionHandler = async (error: Error) => {
       await this.error('Uncaught Exception:', error);
       this.isNormalExit = false;
       await this.cleanup(false);
       process.exit(1);
-    });
+    };
 
-    process.on('unhandledRejection', async (reason, promise) => {
+    const unhandledRejectionHandler = async (reason: any, promise: Promise<any>) => {
       await this.error('Unhandled Rejection at:', promise, 'reason:', reason);
       this.isNormalExit = false;
       await this.cleanup(false);
       process.exit(1);
-    });
+    };
+
+    // 使用事件管理器注册监听器，避免重复注册
+    this.eventManager.addListener('exit', exitHandler);
+    this.eventManager.addListener('SIGINT', sigintHandler);
+    this.eventManager.addListener('SIGTERM', sigtermHandler);
+    this.eventManager.addListener('uncaughtException', uncaughtExceptionHandler);
+    this.eventManager.addListener('unhandledRejection', unhandledRejectionHandler);
   }
 
   private async cleanup(isNormalExit: boolean): Promise<void> {

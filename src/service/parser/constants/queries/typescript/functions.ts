@@ -16,8 +16,8 @@ export default `
 
 ; Async functions - important for understanding async flow
 (function_declaration
-  name: (identifier) @name.definition.async_function
-  (#match? @name.definition.async_function "^(async|test|it|describe|before|after|beforeEach|afterEach).*$")) @definition.async_function
+  "async"
+  name: (identifier) @name.definition.async_function) @definition.async_function
 
 ; Generic function declarations - important for type understanding
 (function_declaration
@@ -26,10 +26,10 @@ export default `
 ; Test functions - important for test code segmentation
 (function_declaration
   name: (identifier) @name.definition.test
-  (#match? @name.definition.test "^(test|it|describe|before|after|beforeEach|afterEach).*$"))
+  (#match? @name.definition.test "^(test|it|describe|before|after|beforeEach|afterEach).*$")) @definition.test
 
 ; React Hook functions - important for React component structure
 (function_declaration
   name: (identifier) @name.definition.hook
-  (#match? @name.definition.hook "^use[A-Z].*$"))
+  (#match? @name.definition.hook "^use[A-Z].*$")) @definition.hook
 `;

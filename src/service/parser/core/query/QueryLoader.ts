@@ -30,7 +30,7 @@ export class QueryLoader {
 
         for (const queryType of queryTypes) {
           try {
-            const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}/${queryType}.ts`);
+            const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}/${queryType}`);
             const query = queryModule.default;
             if (query) {
               languageQueries.set(queryType, query);
@@ -54,8 +54,8 @@ export class QueryLoader {
 
       // 尝试回退到旧的单一文件结构（用于简单语言）
       try {
-        const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}.ts`);
-        const query = queryModule.default || queryModule[`${language}Query`];
+        const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}`);
+        const query = queryModule.default || queryModule[`${this.getQueryFileName(language)}Query`];
 
         if (query) {
           // 对于简单语言，使用智能分类
@@ -198,6 +198,9 @@ export class QueryLoader {
       
       const queryDirPath = path.join(__dirname, queryDir);
       
+      // 添加调试信息
+      this.logger.debug(`Checking query directory for ${language}: ${queryDirPath}`);
+      
       // 检查目录是否存在
       if (!fs.existsSync(queryDirPath)) {
         this.logger.debug(`Query directory not found for ${language}: ${queryDirPath}`);
@@ -206,6 +209,7 @@ export class QueryLoader {
 
       // 读取目录内容
       const files = fs.readdirSync(queryDirPath);
+      this.logger.debug(`Found files in ${queryDirPath}:`, files);
       
       // 过滤出TypeScript查询文件
       const queryFiles = files
@@ -327,14 +331,44 @@ export class QueryLoader {
         errors.push('字符串未闭合');
       }
 
-      // 检查查询模式
+      // 检查查询模式 - 修复跨行查询验证
+      let currentQuery = '';
+      let parenBalance = 0;
+      
       for (const line of lines) {
         const trimmed = line.trim();
-        if (trimmed && !trimmed.startsWith(';') && !trimmed.includes('@')) {
-          // 检查是否包含有效的节点类型
-          if (!trimmed.includes('(') || !trimmed.includes(')')) {
-            errors.push(`无效的查询模式: ${trimmed}`);
+        
+        if (!trimmed || trimmed.startsWith(';')) {
+          // 跳过空行和注释
+          if (currentQuery.trim() && parenBalance === 0) {
+            // 检查完整的查询模式
+            if (!currentQuery.includes('(') || !currentQuery.includes(')')) {
+              errors.push(`无效的查询模式: ${currentQuery.trim()}`);
+            }
+            currentQuery = '';
           }
+          continue;
+        }
+        
+        currentQuery += (currentQuery ? ' ' : '') + trimmed;
+        
+        // 计算括号平衡
+        parenBalance += (trimmed.match(/\(/g) || []).length;
+        parenBalance -= (trimmed.match(/\)/g) || []).length;
+        
+        // 如果括号平衡，检查查询模式
+        if (parenBalance === 0) {
+          if (!currentQuery.includes('(') || !currentQuery.includes(')')) {
+            errors.push(`无效的查询模式: ${currentQuery.trim()}`);
+          }
+          currentQuery = '';
+        }
+      }
+      
+      // 检查最后一个未完成的查询
+      if (currentQuery.trim() && parenBalance === 0) {
+        if (!currentQuery.includes('(') || !currentQuery.includes(')')) {
+          errors.push(`无效的查询模式: ${currentQuery.trim()}`);
         }
       }
 
@@ -368,6 +402,7 @@ export class QueryLoader {
     const fileMap: Record<string, string> = {
       'c++': 'cpp',
       'c#': 'c-sharp',
+      'csharp': 'c-sharp',
       'ts': 'typescript',
       'js': 'javascript',
       'py': 'python',

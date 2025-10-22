@@ -3,34 +3,40 @@ TypeScript Export-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Export statements - important for understanding public API
+; Export statements with function declarations
 (export_statement
-  declaration: (function_declaration
+  (function_declaration
     name: (identifier) @name.export)) @definition.export
 
+; Export statements with class declarations
 (export_statement
-  declaration: (class_declaration
+  (class_declaration
     name: (type_identifier) @name.export)) @definition.export
 
+; Export statements with interface declarations
 (export_statement
-  declaration: (interface_declaration
+  (interface_declaration
     name: (type_identifier) @name.export)) @definition.export
 
+; Export statements with type alias declarations
 (export_statement
-  declaration: (type_alias_declaration
+  (type_alias_declaration
     name: (type_identifier) @name.export)) @definition.export
 
-; Named exports - important for understanding specific exports
-(export_statement
-  (export_specifier
-    name: (identifier) @name.export)) @definition.export
-
-; Default exports - important for understanding main export
+; Named exports with export_clause
 (export_statement
   (export_clause
-    (identifier) @name.default)) @definition.export
+    (export_specifier
+      (identifier) @name.export))) @definition.export
 
-; Export from - important for understanding re-exports
+; Default exports
 (export_statement
-  source: (string) @source.export) @definition.export
+  "default"
+  (identifier) @name.default) @definition.export
+
+; Export from statements
+(export_statement
+  (export_clause) @export.clause
+  "from"
+  (string) @source.export) @definition.export
 `;

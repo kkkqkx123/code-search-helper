@@ -20,19 +20,13 @@ export default `
 (tuple_pattern) @name.definition.tuple_pattern
 (list_pattern) @name.definition.list_pattern
 (dict_pattern) @name.definition.dict_pattern
-(keyword_pattern) @name.definition.keyword_pattern
-(as_pattern) @name.definition.as_pattern
-(union_pattern) @name.definition.union_pattern
-(splat_pattern) @name.definition.splat_pattern
 
 ; String literals
 (string) @name.definition.string
-(concatenated_string) @name.definition.concatenated_string
 
 ; Numeric literals
 (integer) @name.definition.integer
 (float) @name.definition.float
-(complex) @name.definition.complex
 
 ; Boolean literals
 (true) @name.definition.true
@@ -43,4 +37,17 @@ export default `
 
 ; Ellipsis
 (ellipsis) @name.definition.ellipsis
+
+; Slices
+(slice) @name.definition.slice
+
+; Parenthesized expressions
+(parenthesized_expression) @name.definition.parenthesized_expression
+
+; Expression lists
+(expression_list) @name.definition.expression_list
+
+; Generic types
+(generic_type
+  (identifier) @name.definition.generic_type_name) @definition.generic_type
 `;
