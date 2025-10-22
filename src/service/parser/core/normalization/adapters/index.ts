@@ -5,11 +5,13 @@
 export { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 export { PythonLanguageAdapter } from './PythonLanguageAdapter';
 export { CCommonLanguageAdapter } from './CCommonLanguageAdapter';
+export { RustLanguageAdapter } from './RustLanguageAdapter';
 export { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
 
 import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 import { PythonLanguageAdapter } from './PythonLanguageAdapter';
 import { CCommonLanguageAdapter } from './CCommonLanguageAdapter';
+import { RustLanguageAdapter } from './RustLanguageAdapter';
 import { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
 import { ILanguageAdapter } from '../types';
 
@@ -27,6 +29,7 @@ export class LanguageAdapterFactory {
     ['cpp', () => new CCommonLanguageAdapter()],
     ['csharp', () => new CCommonLanguageAdapter()],
     ['c#', () => new CCommonLanguageAdapter()],
+    ['rust', () => new RustLanguageAdapter()],
   ]);
 
   /**
