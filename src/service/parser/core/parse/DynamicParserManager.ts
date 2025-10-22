@@ -293,6 +293,13 @@ export class DynamicParserManager {
         /let\s+mut\s+\w+/,
         /use\s+std::/,
       ],
+      vue: [
+        /<template>/,
+        /<script/,
+        /<style/,
+        /export\s+default\s*{/,
+        /v-[\w-]+=/,  // Vue指令
+      ],
     };
 
     for (const [language, regexes] of Object.entries(patterns)) {

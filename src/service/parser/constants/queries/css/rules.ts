@@ -4,8 +4,7 @@ Optimized for code chunking and vector embedding
 */
 export default `
 ; Media queries - important for responsive design
-(media_statement
-  (keyword_query) @name.definition.media_type) @definition.media
+(media_statement) @definition.media
 
 ; Keyframe animations - important for animations
 (keyframes_statement
@@ -21,6 +20,9 @@ export default `
 
 ; Supports statements - important for feature detection
 (supports_statement) @definition.supports
+
+; Namespace statements - important for XML namespaces
+(namespace_statement) @definition.namespace
 
 ; At-rules - important for special CSS features
 (at_rule

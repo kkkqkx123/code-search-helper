@@ -17,7 +17,7 @@ export default `
 (declaration
   (string_value) @definition.string_value)
 (declaration
-  (unit) @definition.unit)
+  (plain_value) @definition.plain_value)
 
 ; CSS variables (custom properties) - important for theming
 (declaration
@@ -31,4 +31,15 @@ export default `
 ; Function calls in values - important for dynamic styling
 (call_expression
   (function_name) @name.definition.function) @definition.function_call
+
+; Binary expressions in values - important for calculations
+(declaration
+  (binary_expression) @definition.binary_expression)
+
+; Unit values - important for understanding dimensions
+(integer_value
+  (unit) @name.definition.unit) @definition.unit_value
+
+(float_value
+  (unit) @name.definition.unit) @definition.unit_value
 `;

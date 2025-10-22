@@ -48,13 +48,6 @@ export default `
 ; Namespace selectors - important for XML/SVG styling
 (namespace_selector) @definition.namespace_selector
 
-; Ruleset with multiple selectors - important for shared styling
-(rule_set
-  (selectors
-    (_) @name.definition.multiple_selector)) @definition.multiple_selector_ruleset
-
-; Nested rulesets (CSS nesting) - important for component styling
-(rule_set
-  (selectors
-    (nesting_selector)) @definition.nested_ruleset)
+; Nesting selector - important for CSS nesting
+(nesting_selector) @definition.nesting_selector
 `;

@@ -12,7 +12,7 @@ export default `
 ; Structured bindings (C++17) - important for unpacking
 (declaration
   (structured_binding_declarator
-    (identifier) @name.definition.binding))) @definition.binding
+    (identifier) @name.definition.binding)) @definition.binding
 
 ; Parameter pack expansions - important for variadic templates
 (parameter_pack_expansion) @definition.parameter_pack

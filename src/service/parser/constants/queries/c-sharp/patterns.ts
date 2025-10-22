@@ -14,7 +14,7 @@ export default `
 (constant_pattern) @definition.constant_pattern
 (relational_pattern) @definition.relational_pattern
 (var_pattern
-  name: (identifier) @name) @definition.var_pattern
+  name: (identifier) @name.definition.var_pattern) @definition.var_pattern
 (discard_pattern) @definition.discard_pattern
 (binary_pattern) @definition.binary_pattern
 (unary_pattern) @definition.unary_pattern

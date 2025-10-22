@@ -41,5 +41,5 @@ export default `
 
 ; Subscript access - important for array element access
 (subscript_expression
-  (identifier) @name.definition.subscript) @name.definition.subscript
+  argument: (identifier) @name.definition.subscript) @definition.subscript
 `;

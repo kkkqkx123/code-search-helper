@@ -5,13 +5,17 @@ Optimized for code chunking and vector embedding
 export default `
 ; Global variables - primary code structure
 (declaration
-  (storage_class_specifier)?
+  type: (_)
+  declarator: (identifier) @name.definition.variable) @definition.variable
+
+; Variable declarations with storage class specifiers
+(declaration
+  (storage_class_specifier)
   type: (_)
   declarator: (identifier) @name.definition.variable) @definition.variable
 
 ; Variable declarations with initialization - important for initialization
 (declaration
-  (storage_class_specifier)?
   type: (_)
   declarator: (init_declarator
     declarator: (identifier) @name.definition.variable)) @definition.variable

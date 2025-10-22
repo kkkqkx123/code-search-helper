@@ -7,12 +7,16 @@ export { PythonLanguageAdapter } from './PythonLanguageAdapter';
 export { CCommonLanguageAdapter } from './CCommonLanguageAdapter';
 export { RustLanguageAdapter } from './RustLanguageAdapter';
 export { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
+export { HtmlLanguageAdapter } from './HtmlLanguageAdapter';
+export { VueLanguageAdapter } from './VueLanguageAdapter';
 
 import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 import { PythonLanguageAdapter } from './PythonLanguageAdapter';
 import { CCommonLanguageAdapter } from './CCommonLanguageAdapter';
 import { RustLanguageAdapter } from './RustLanguageAdapter';
 import { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
+import { HtmlLanguageAdapter } from './HtmlLanguageAdapter';
+import { VueLanguageAdapter } from './VueLanguageAdapter';
 import { ILanguageAdapter } from '../types';
 
 /**
@@ -30,6 +34,9 @@ export class LanguageAdapterFactory {
     ['csharp', () => new CCommonLanguageAdapter()],
     ['c#', () => new CCommonLanguageAdapter()],
     ['rust', () => new RustLanguageAdapter()],
+    ['html', () => new HtmlLanguageAdapter()],
+    ['vue', () => new VueLanguageAdapter()],
+    ['vue3', () => new VueLanguageAdapter()],
   ]);
 
   /**

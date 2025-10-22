@@ -1,0 +1,3 @@
+src\service\parser\core\parse\DynamicParserManager.ts
+
+应当使用universal模块

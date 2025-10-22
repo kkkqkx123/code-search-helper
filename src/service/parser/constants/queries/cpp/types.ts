@@ -28,9 +28,9 @@ export default `
 
 ; Template instantiations - important for template usage
 (template_function
-  (identifier) @name.definition.template.instantiation)) @definition.template
+  (identifier) @name.definition.template.instantiation) @definition.template
 (template_type
-  (type_identifier) @name.definition.template.instantiation)) @definition.template
+  (type_identifier) @name.definition.template.instantiation) @definition.template
 
 ; Auto type deduction - important for type inference
 (declaration

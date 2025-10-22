@@ -10,15 +10,15 @@ export default `
 
 ; Function declarations (prototypes) - important for interfaces
 (declaration
-  type: (_)?
+  type: (_)
   declarator: (function_declarator
     declarator: (identifier) @name.definition.function
-    parameters: (parameter_list)?)?) @definition.function
+    parameters: (parameter_list))) @definition.function
 
 ; Function declarators - important for function signatures
 (function_declarator
   declarator: (identifier) @name.definition.function
-  parameters: (parameter_list)?) @definition.function
+  parameters: (parameter_list)) @definition.function
 
 ; Parameters in function declarations - important for function interfaces
 (parameter_declaration

@@ -6,3 +6,7 @@ src\service\parser\constants\queries\cpp创建一个共同的转换器文件
 
 参考 @/docs/parser/query/query-result-normalization-solution.md 和src\service\parser\core\normalization\adapters\目录的适配器，
 为__创建一个转换器文件
+
+java
+kotlin
+css

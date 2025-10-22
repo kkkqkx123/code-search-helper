@@ -27,26 +27,30 @@ export default `
 ; Channel types and operations
 (channel_type) @name.definition.channel
 (send_statement) @name.definition.send
-(receive_statement) @name.definition.receive
+
+; Channel receive operations (using unary_expression with <-)
+(unary_expression
+  ["<-"] @name.definition.receive)
 
 ; Control flow statements
 (if_statement) @name.definition.if
 (for_statement) @name.definition.for
 (range_clause) @name.definition.range
-(switch_statement) @name.definition.switch
 (select_statement) @name.definition.select
 
 ; Expression switch cases
 (expression_case) @name.definition.case
 (default_case) @name.definition.default_case
 
+; Type switch statements
+(type_switch_statement) @name.definition.type_switch
+
+; Type switch cases
+(type_case) @name.definition.type_case
+
 ; Error handling
 (return_statement) @name.definition.return
-(panic_statement) @name.definition.panic
 (defer_statement) @name.definition.defer
-
-; Error values
-(error) @name.definition.error
 
 ; Go routines
 (go_statement) @name.definition.goroutine
@@ -56,6 +60,10 @@ export default `
 
 ; Unary expressions
 (unary_expression) @name.definition.unary
+
+; Increment and decrement statements
+(inc_statement) @name.definition.inc
+(dec_statement) @name.definition.dec
 
 ; Literals
 (int_literal) @name.definition.int_literal
@@ -80,21 +88,18 @@ export default `
 ; Pointer types
 (pointer_type) @name.definition.pointer_type
 
+; Function types
+(function_type) @name.definition.function_type
+
 ; Labeled statements
 (labeled_statement) @name.definition.label
 
-; Break and continue with labels
+; Break and continue statements
 (break_statement) @name.definition.break
 (continue_statement) @name.definition.continue
 
 ; Fallthrough statements
 (fallthrough_statement) @name.definition.fallthrough
-
-; Type switch statements
-(type_switch_statement) @name.definition.type_switch
-
-; Type switch cases
-(type_case) @name.definition.type_case
 
 ; Empty statements (blocks)
 (block) @name.definition.block
@@ -105,23 +110,31 @@ export default `
 ; Parenthesized expressions
 (parenthesized_expression) @name.definition.parenthesized
 
-; Built-in functions
+; Built-in functions - simplified pattern
 (call_expression
-  function: (identifier) @name.definition.builtin
-  (#match? @name.definition.builtin "^(append|cap|close|complex|copy|delete|imag|len|make|new|panic|print|println|real|recover)$"))
+  (identifier) @name.definition.builtin)
 
-; Test functions
-(function_declaration
-  name: (identifier) @name.definition.test
-  (#match? @name.definition.test "^Test.*$"))
+; Generic function calls
+(type_conversion_expression) @name.definition.generic_call
 
-; Benchmark functions
-(function_declaration
-  name: (identifier) @name.definition.benchmark
-  (#match? @name.definition.benchmark "^Benchmark.*$"))
+; Variadic arguments
+(variadic_argument) @name.definition.variadic_argument
 
-; Example functions
-(function_declaration
-  name: (identifier) @name.definition.example
-  (#match? @name.definition.example "^Example.*$"))
+; Argument lists
+(argument_list) @name.definition.argument_list
+
+; Expression lists
+(expression_list) @name.definition.expression_list
+
+; Literal values
+(literal_value) @name.definition.literal_value
+
+; Keyed elements in literals
+(keyed_element) @name.definition.keyed_element
+
+; Literal elements
+(literal_element) @name.definition.literal_element
+
+; Escape sequences
+(escape_sequence) @name.definition.escape_sequence
 `;
