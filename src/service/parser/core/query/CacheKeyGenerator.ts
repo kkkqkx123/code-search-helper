@@ -53,6 +53,11 @@ export class CacheKeyGenerator {
    * @returns 内容哈希
    */
   private static generateContentHash(ast: Parser.SyntaxNode): string {
+    // 检查AST是否有效
+    if (!ast) {
+      return 'invalid-ast';
+    }
+    
     // 如果AST有稳定标识符，优先使用
     if ((ast as any)._stableId) {
       return (ast as any)._stableId;

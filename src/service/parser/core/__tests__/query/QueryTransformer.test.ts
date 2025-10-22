@@ -100,9 +100,12 @@ test('should extract class patterns from JavaScript query', async () => {
     const functionPattern = QueryTransformer.extractPatternType(fullQuery, 'functions', 'typescript');
     expect(functionPattern).toBeTruthy();
     expect(functionPattern).toContain('function_declaration');
-    expect(functionPattern).toContain('function_signature');
+    expect(functionPattern).toContain('method_definition');
+    expect(functionPattern).toContain('arrow_function');
     
-    const interfacePattern = QueryTransformer.extractPatternType(fullQuery, 'interfaces', 'typescript');
+    // 测试接口查询
+    const interfaceQuery = QueryLoader.getQuery('typescript', 'interfaces');
+    const interfacePattern = QueryTransformer.extractPatternType(interfaceQuery, 'interfaces', 'typescript');
     expect(interfacePattern).toBeTruthy();
     expect(interfacePattern).toContain('interface_declaration');
   });

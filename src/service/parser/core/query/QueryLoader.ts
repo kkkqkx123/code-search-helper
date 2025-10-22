@@ -47,34 +47,12 @@ export class QueryLoader {
           return;
         }
       } catch (error) {
-        this.logger.debug(`新结构加载失败，尝试旧结构: ${error}`);
+        this.logger.error(`新结构加载失败: ${error}`);
+        throw error;
       }
 
-      // 回退到旧的单一文件结构
-      const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}.ts`);
-      const query = queryModule.default || queryModule[`${language}Query`];
-
-      if (query) {
-        // 使用QueryTransformer分解查询
-        const { QueryTransformer } = await import('./QueryTransformer');
-        QueryTransformer.initialize();
-        
-        const queryTypes = QueryTransformer.getSupportedPatternTypes();
-        const languageQueriesMap = new Map<string, string>();
-        
-        for (const queryType of queryTypes) {
-          const pattern = QueryTransformer.extractPatternType(query, queryType, language);
-          if (pattern && pattern.trim()) {
-            languageQueriesMap.set(queryType, pattern);
-          }
-        }
-        
-        this.queries.set(language.toLowerCase(), languageQueriesMap);
-        this.loadedLanguages.add(language.toLowerCase());
-        this.logger.info(`${language}语言查询加载成功（旧结构），共${languageQueriesMap.size}种类型`);
-      } else {
-        throw new Error(`未找到${language}语言的查询模式`);
-      }
+      // 新结构是唯一支持的方式，不再回退到旧结构
+      throw new Error(`未找到${language}语言的查询文件，请确保新结构目录存在`);
     } catch (error) {
       this.logger.error(`加载${language}语言查询失败:`, error);
       throw error;

@@ -1,5 +1,5 @@
 import { QueryLoader } from './QueryLoader';
-import { QueryTransformer } from './QueryTransformer';
+
 import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
@@ -22,8 +22,7 @@ export class QueryRegistryImpl {
     this.logger.info('初始化查询注册表...');
     
     try {
-      // 初始化查询转换器（用于旧结构回退）
-      QueryTransformer.initialize();
+      
       
       // 从查询文件加载
       await this.loadFromQueryFiles();
@@ -216,16 +215,16 @@ export class QueryRegistryImpl {
   static clearCache(): void {
     this.patterns.clear();
     QueryLoader.clearAllQueries();
-    QueryTransformer.clearCache();
+    
     this.initialized = false;
     this.logger.info('QueryRegistry 缓存已清除');
   }
 
   /**
-   * 获取转换器统计信息
+   * 获取转换器统计信息（已弃用）
    */
   static getTransformerStats() {
-    return QueryTransformer.getCacheStats();
+    return { message: 'QueryTransformer已弃用，使用新结构' };
   }
 
   /**

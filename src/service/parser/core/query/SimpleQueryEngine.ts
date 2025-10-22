@@ -30,15 +30,19 @@ export class SimpleQueryEngine {
   }
 
   
-
   /**
    * 通用优化查询方法 - 减少重复代码和对象创建
    */
   private static async optimizedQuery(
-    ast: Parser.SyntaxNode, 
-    queryType: string, 
+    ast: Parser.SyntaxNode,
+    queryType: string,
     language: string
   ): Promise<Parser.SyntaxNode[]> {
+    // 检查AST是否有效
+    if (!ast) {
+      return [];
+    }
+    
     const cacheKey = this.CACHE_PREFIX + this.generateCacheKey(ast, queryType, language);
     
     // 检查缓存
@@ -47,18 +51,23 @@ export class SimpleQueryEngine {
       return cached;
     }
 
-    const result = await this.queryEngine.executeQuery(ast, queryType, language);
-    
-    // 直接提取节点，避免创建中间数组
-    const nodes: Parser.SyntaxNode[] = new Array(result.matches.length);
-    for (let i = 0; i < result.matches.length; i++) {
-      nodes[i] = result.matches[i].node;
+    try {
+      const result = await this.queryEngine.executeQuery(ast, queryType, language);
+      
+      // 直接提取节点，避免创建中间数组
+      const nodes: Parser.SyntaxNode[] = new Array(result.matches.length);
+      for (let i = 0; i < result.matches.length; i++) {
+        nodes[i] = result.matches[i].node;
+      }
+      
+      // 预缓存结果
+      QueryCache.setResult(cacheKey, nodes);
+      
+      return nodes;
+    } catch (error) {
+      // 如果查询执行失败，返回空数组
+      return [];
     }
-    
-    // 预缓存结果
-    QueryCache.setResult(cacheKey, nodes);
-    
-    return nodes;
   }
 
   /**
@@ -127,11 +136,21 @@ export class SimpleQueryEngine {
   /**
    * 批量查找多种类型的节点 - 优化版本，使用轻量级数据结构
    */
-  static async findMultiple(
-    ast: Parser.SyntaxNode, 
-    language: string, 
+ static async findMultiple(
+    ast: Parser.SyntaxNode,
+    language: string,
     types: string[]
   ): Promise<Map<string, Parser.SyntaxNode[]>> {
+    // 检查AST是否有效
+    if (!ast) {
+      // 返回一个包含所有请求类型但都为空数组的Map
+      const resultMap = new Map<string, Parser.SyntaxNode[]>();
+      for (const type of types) {
+        resultMap.set(type, []);
+      }
+      return resultMap;
+    }
+    
     const batchCacheKey = this.BATCH_CACHE_PREFIX + this.generateBatchCacheKey(ast, types, language);
     
     // 检查批量缓存
@@ -184,17 +203,27 @@ export class SimpleQueryEngine {
     QueryCache.setResult(batchCacheKey, resultMap);
     
     return resultMap;
-  }
+ }
 
   /**
    * 查找所有主要结构（函数、类、导入、导出）
    */
-  static async findAllMainStructures(ast: Parser.SyntaxNode, language: string): Promise<{
+ static async findAllMainStructures(ast: Parser.SyntaxNode, language: string): Promise<{
     functions: Parser.SyntaxNode[];
     classes: Parser.SyntaxNode[];
     imports: Parser.SyntaxNode[];
     exports: Parser.SyntaxNode[];
   }> {
+    // 检查AST是否有效
+    if (!ast) {
+      return {
+        functions: [],
+        classes: [],
+        imports: [],
+        exports: []
+      };
+    }
+    
     const results = await this.findMultiple(ast, language, ['functions', 'classes', 'imports', 'exports']);
     
     return {
@@ -203,7 +232,7 @@ export class SimpleQueryEngine {
       imports: results.get('imports') || [],
       exports: results.get('exports') || []
     };
-  }
+ }
 
   /**
    * 获取性能统计信息
@@ -229,16 +258,21 @@ export class SimpleQueryEngine {
   /**
    * 预热缓存 - 为常见的查询类型预加载结果
    */
-  static async warmupCache(ast: Parser.SyntaxNode, language: string): Promise<void> {
+ static async warmupCache(ast: Parser.SyntaxNode, language: string): Promise<void> {
+    // 检查AST是否有效
+    if (!ast) {
+      return; // 如果AST无效，直接返回，无需预热缓存
+    }
+    
     const commonTypes = ['functions', 'classes', 'imports', 'exports'];
     
     // 并行预热所有常见查询类型
-    const warmupPromises = commonTypes.map(type => 
+    const warmupPromises = commonTypes.map(type =>
       this.findMultiple(ast, language, [type])
     );
     
     await Promise.all(warmupPromises);
-  }
+ }
 
   /**
    * 执行详细查询 - 返回完整的QueryResult对象
@@ -247,11 +281,21 @@ export class SimpleQueryEngine {
    * @param language 语言
    * @returns 完整的QueryResult对象
    */
-  static async executeQueryDetailed(
-    ast: Parser.SyntaxNode, 
-    queryType: string, 
+ static async executeQueryDetailed(
+    ast: Parser.SyntaxNode,
+    queryType: string,
     language: string
-  ): Promise<QueryResult> {
+ ): Promise<QueryResult> {
+    // 检查AST是否有效
+    if (!ast) {
+      return {
+        matches: [],
+        executionTime: 0,
+        success: false,
+        error: 'Invalid AST provided'
+      };
+    }
+    
     const cacheKey = this.CACHE_PREFIX + this.generateCacheKey(ast, queryType, language);
     
     // 检查缓存
@@ -267,7 +311,7 @@ export class SimpleQueryEngine {
     QueryCache.setResult(cacheKey, result);
     
     return result;
-  }
+ }
 
   /**
    * 批量详细查询 - 返回完整的QueryResult对象映射
@@ -276,11 +320,26 @@ export class SimpleQueryEngine {
    * @param types 查询类型数组
    * @returns QueryResult对象映射
    */
-  static async executeMultipleDetailed(
+ static async executeMultipleDetailed(
     ast: Parser.SyntaxNode,
     language: string,
     types: string[]
   ): Promise<Map<string, QueryResult>> {
+    // 检查AST是否有效
+    if (!ast) {
+      // 返回一个包含所有请求类型但都为错误结果的Map
+      const resultMap = new Map<string, QueryResult>();
+      for (const type of types) {
+        resultMap.set(type, {
+          matches: [],
+          executionTime: 0,
+          success: false,
+          error: 'Invalid AST provided'
+        });
+      }
+      return resultMap;
+    }
+    
     const batchCacheKey = this.BATCH_CACHE_PREFIX + this.generateBatchCacheKey(ast, types, language);
     
     // 检查批量缓存
@@ -310,8 +369,8 @@ export class SimpleQueryEngine {
         return { type, result };
       } catch (error) {
         // 如果某个类型不支持，返回空结果
-        return { 
-          type, 
+        return {
+          type,
           result: {
             matches: [],
             executionTime: 0,
@@ -333,5 +392,5 @@ export class SimpleQueryEngine {
     QueryCache.setResult(batchCacheKey, resultMap);
     
     return resultMap;
-  }
+ }
 }
