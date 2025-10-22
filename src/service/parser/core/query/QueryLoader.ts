@@ -156,7 +156,6 @@ export class QueryLoader {
       'rust',
       'cpp',
       'c',
-      'embedded-template'
     ];
 
     this.logger.info('预加载常用语言查询...');
