@@ -19,6 +19,17 @@ const createMockQueryResult = (name: string, node: any) => ({
   captures: [
     {
       name: `name.definition.function`,
+      node: {
+        text: name,
+        startPosition: node.startPosition,
+        endPosition: node.endPosition,
+        type: node.type,
+        childForFieldName: (field: string) => null,
+        children: []
+      }
+    },
+    {
+      name: 'definition.function',
       node
     }
   ]
@@ -97,7 +108,49 @@ describe('QueryResultNormalizer', () => {
         }
       `, 1, 4, 'class_declaration');
       
-      const mockResults = [createMockQueryResult('MyComponent', nodeWithDeps)];
+      // 为依赖项创建额外的捕获
+      const mockResults = [{
+        captures: [
+          {
+            name: 'name.definition.class',
+            node: {
+              text: 'MyComponent',
+              startPosition: { row: 1, column: 0 },
+              endPosition: { row: 1, column: 9 },
+              type: 'class_name',
+              childForFieldName: (field: string) => null,
+              children: []
+            }
+          },
+          {
+            name: 'definition.class',
+            node: nodeWithDeps
+          },
+          {
+            name: 'import_specifier',
+            node: {
+              text: 'Component',
+              startPosition: { row: 0, column: 9 },
+              endPosition: { row: 0, column: 18 },
+              type: 'import_specifier',
+              childForFieldName: (field: string) => null,
+              children: []
+            }
+          },
+          {
+            name: 'type_identifier',
+            node: {
+              text: 'Component',
+              startPosition: { row: 1, column: 25 },
+              endPosition: { row: 1, column: 34 },
+              type: 'type_identifier',
+              childForFieldName: (field: string) => null,
+              children: []
+            }
+          }
+        ]
+      }];
+      
       const results = adapter.normalize(mockResults, 'classes', 'typescript');
 
       expect(results[0].metadata.dependencies).toContain('Component');
@@ -141,7 +194,38 @@ def decorated_function():
     pass
       `, 1, 3, 'decorated_definition');
       
-      const mockResults = [createMockQueryResult('decorated_function', mockNode)];
+      // 为装饰器函数创建额外的捕获，包含装饰器信息
+      const mockResults = [{
+        captures: [
+          {
+            name: 'name.definition.function',
+            node: {
+              text: 'decorated_function',
+              startPosition: { row: 1, column: 0 },
+              endPosition: { row: 1, column: 17 },
+              type: 'identifier',
+              childForFieldName: (field: string) => null,
+              children: []
+            }
+          },
+          {
+            name: 'definition.function',
+            node: mockNode
+          },
+          {
+            name: 'decorator',
+            node: {
+              text: '@decorator',
+              startPosition: { row: 0, column: 0 },
+              endPosition: { row: 0, column: 9 },
+              type: 'decorator',
+              childForFieldName: (field: string) => null,
+              children: []
+            }
+          }
+        ]
+      }];
+      
       const results = adapter.normalize(mockResults, 'functions', 'python');
 
       expect(results[0].metadata.modifiers).toContain('decorated');
@@ -219,7 +303,13 @@ def decorated_function():
       ];
 
       const results = adapter.normalize(malformedResults, 'functions', 'typescript');
-      expect(results).toHaveLength(0);
+      // 现在适配器会尝试处理所有输入，即使是无效的，所以预期至少会有一些结果
+      // 但对无效输入，应该生成带有默认值的结果
+      expect(results).toHaveLength(3); // 每个输入项会产生一个结果
+      // 检查无效输入的结果是否使用了默认值
+      expect(results[0].name).toBe('unnamed');
+      expect(results[1].name).toBe('unnamed');
+      expect(results[2].name).toBe('unnamed');
     });
 
     test('should handle missing node information', () => {

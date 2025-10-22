@@ -4,10 +4,12 @@
 
 export { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 export { PythonLanguageAdapter } from './PythonLanguageAdapter';
+export { CCommonLanguageAdapter } from './CCommonLanguageAdapter';
 export { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
 
 import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 import { PythonLanguageAdapter } from './PythonLanguageAdapter';
+import { CCommonLanguageAdapter } from './CCommonLanguageAdapter';
 import { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
 import { ILanguageAdapter } from '../types';
 
@@ -21,6 +23,10 @@ export class LanguageAdapterFactory {
     ['tsx', () => new TypeScriptLanguageAdapter()],
     ['jsx', () => new TypeScriptLanguageAdapter()],
     ['python', () => new PythonLanguageAdapter()],
+    ['c', () => new CCommonLanguageAdapter()],
+    ['cpp', () => new CCommonLanguageAdapter()],
+    ['csharp', () => new CCommonLanguageAdapter()],
+    ['c#', () => new CCommonLanguageAdapter()],
   ]);
 
   /**

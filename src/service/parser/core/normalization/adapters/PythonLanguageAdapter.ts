@@ -185,8 +185,9 @@ export class PythonLanguageAdapter implements ILanguageAdapter {
       return modifiers;
     }
 
-    // 检查装饰器
-    if (this.hasDecorators(mainNode)) {
+    // 检查装饰器 - 检查捕获中是否有装饰器
+    const hasDecoratorCapture = result.captures?.some((capture: any) => capture.name === 'decorator' || capture.node?.type === 'decorator');
+    if (hasDecoratorCapture || this.hasDecorators(mainNode)) {
       modifiers.push('decorated');
     }
 
@@ -225,10 +226,16 @@ export class PythonLanguageAdapter implements ILanguageAdapter {
       return extra;
     }
 
-    // 提取装饰器信息
-    const decorators = this.extractDecorators(mainNode);
-    if (decorators.length > 0) {
-      extra.decorators = decorators;
+    // 提取装饰器信息 - 检查捕获中的装饰器
+    const capturedDecorators = result.captures?.filter((capture: any) =>
+      capture.name === 'decorator' && capture.node?.text
+    ).map((capture: any) => capture.node.text) || [];
+    
+    const nodeDecorators = this.extractDecorators(mainNode);
+    const allDecorators = [...new Set([...capturedDecorators, ...nodeDecorators])]; // 合并并去重
+    
+    if (allDecorators.length > 0) {
+      extra.decorators = allDecorators;
     }
 
     // 提取参数信息（对于函数）

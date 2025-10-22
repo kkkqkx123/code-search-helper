@@ -160,6 +160,21 @@ export class TypeScriptLanguageAdapter implements ILanguageAdapter {
       return dependencies;
     }
 
+    // 首先检查捕获中的依赖项
+    if (result.captures && Array.isArray(result.captures)) {
+      for (const capture of result.captures) {
+        if (capture.name && capture.name.includes('import') && capture.node?.text) {
+          // 提取导入的标识符
+          const importText = capture.node.text;
+          // 例如从 "Component" 提取标识符
+          const identifierMatch = importText.match(/[A-Za-z_][A-Za-z0-9_]*/g);
+          if (identifierMatch) {
+            dependencies.push(...identifierMatch);
+          }
+        }
+      }
+    }
+
     // 查找类型引用
     this.findTypeReferences(mainNode, dependencies);
     
@@ -287,8 +302,14 @@ export class TypeScriptLanguageAdapter implements ILanguageAdapter {
 
     for (const child of node.children) {
       // 查找导入引用
-      if (child.type === 'identifier') {
+      if (child.type === 'identifier' && child.text) {
         dependencies.push(child.text);
+      } else if (child.type === 'import_specifier') {
+        // 处理import { Component } from 'react'这类导入
+        const importedName = child.childForFieldName('name');
+        if (importedName && importedName.text) {
+          dependencies.push(importedName.text);
+        }
       }
       
       this.findImportReferences(child, dependencies);
