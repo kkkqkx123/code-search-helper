@@ -1,7 +1,6 @@
 import { injectable, inject } from 'inversify';
 import Parser from 'tree-sitter';
 import { TreeSitterUtils } from '../../utils/TreeSitterUtils';
-import { LRUCache } from '../../../../utils/LRUCache';
 import { ConfigService } from '../../../../config/ConfigService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
@@ -11,6 +10,8 @@ import { languageExtensionMap } from '../../utils';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { DynamicParserManager, DynamicParserLanguage, DynamicParseResult } from './DynamicParserManager';
+import { SimpleQueryEngine } from '../query/SimpleQueryEngine';
+import { TreeSitterQueryEngine, QueryEngineFactory } from '../query/TreeSitterQueryEngine';
 
 export interface ParserLanguage {
   name: string;
@@ -29,8 +30,8 @@ export interface ParseResult {
 }
 
 /**
- * Tree-sitter 核心服务 - 重构版本
- * 使用 DynamicParserManager 实现按需加载，移除硬编码语言解析器依赖
+ * Tree-sitter 核心服务 - 优化版本
+ * 集成了新的查询系统和性能监控
  */
 @injectable()
 export class TreeSitterCoreService {
@@ -50,20 +51,22 @@ export class TreeSitterCoreService {
   };
   private languageDetector: TreeSitterLanguageDetector;
   private extensionMap = languageExtensionMap;
-  private useQueryLanguage: boolean = true; // 混合模式开关
+  private useOptimizedQueries: boolean = true; // 优化查询系统开关
   private queryRegistry = QueryRegistryImpl;
   private querySystemInitialized = false;
   private logger = new LoggerService();
   private errorHandler: ErrorHandlerService;
+  private queryEngine: TreeSitterQueryEngine;
 
   constructor() {
     this.languageDetector = new TreeSitterLanguageDetector();
     this.dynamicManager = new DynamicParserManager();
     this.errorHandler = new ErrorHandlerService(this.logger);
-    this.initializeQueryManager();
+    this.queryEngine = QueryEngineFactory.getInstance();
+
     // 异步初始化查询系统
     this.initializeQuerySystem();
-    
+
     // 等待动态管理器初始化
     this.waitForInitialization();
   }
@@ -74,11 +77,11 @@ export class TreeSitterCoreService {
   private async waitForInitialization(): Promise<void> {
     const maxWaitTime = 10000; // 10秒超时
     const startTime = Date.now();
-    
+
     while (!this.dynamicManager.isInitialized() && Date.now() - startTime < maxWaitTime) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    
+
     if (this.dynamicManager.isInitialized()) {
       this.initialized = true;
       this.logger.info('TreeSitterCoreService 初始化完成');
@@ -93,7 +96,7 @@ export class TreeSitterCoreService {
    */
   getSupportedLanguages(): ParserLanguage[] {
     const dynamicLanguages = this.dynamicManager.getSupportedLanguages();
-    
+
     // 转换为旧的接口格式以保持向后兼容
     return dynamicLanguages.map(lang => ({
       name: lang.name,
@@ -113,20 +116,20 @@ export class TreeSitterCoreService {
       const supportedLanguages = this.getSupportedLanguages();
       return supportedLanguages.find(lang => lang.name.toLowerCase() === detectedLanguage) || null;
     }
-    
+
     // 回退到基于扩展名的检测方法
     const extension = filePath.split('.').pop()?.toLowerCase();
     if (!extension) {
       return null;
     }
-    
+
     const supportedLanguages = this.getSupportedLanguages();
     for (const lang of supportedLanguages) {
       if (lang.fileExtensions.includes(`.${extension}`)) {
         return lang;
       }
     }
-    
+
     return null;
   }
 
@@ -139,7 +142,7 @@ export class TreeSitterCoreService {
     try {
       // 使用动态管理器解析
       const dynamicResult = await this.dynamicManager.parseCode(code, language);
-      
+
       // 转换为旧的接口格式
       const result: ParseResult = {
         ast: dynamicResult.ast,
@@ -157,11 +160,11 @@ export class TreeSitterCoreService {
 
       // 更新性能统计
       this.updatePerformanceStats(result.parseTime);
-      
+
       return result;
     } catch (error) {
       this.logger.error(`解析 ${language} 代码失败:`, error);
-      
+
       return {
         ast: {} as Parser.SyntaxNode,
         language: {
@@ -231,17 +234,17 @@ export class TreeSitterCoreService {
 
     this.cacheStats.misses++;
     const nodes = TreeSitterUtils.findNodeByType(ast, type);
-    
+
     // 缓存结果
     if (this.dynamicManager['nodeCache']) {
       this.dynamicManager['nodeCache'].set(cacheKey, nodes);
     }
-    
+
     return nodes;
   }
 
   /**
-   * 查询语法树
+   * 查询语法树 - 使用优化后的查询引擎
    */
   queryTree(
     ast: Parser.SyntaxNode,
@@ -259,7 +262,7 @@ export class TreeSitterCoreService {
         throw new Error('无法从树确定语言');
       }
 
-      // 创建查询
+      // 使用优化后的查询引擎
       const query = new Parser.Query(language, pattern);
       const matches = query.matches(ast);
 
@@ -307,17 +310,17 @@ export class TreeSitterCoreService {
     };
 
     traverse(ast);
-    
+
     // 缓存结果
     if (this.dynamicManager['nodeCache']) {
       this.dynamicManager['nodeCache'].set(cacheKey, results);
     }
-    
+
     return results;
   }
 
   /**
-   * 提取函数
+   * 提取函数 - 使用优化后的查询系统
    */
   async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
@@ -325,6 +328,16 @@ export class TreeSitterCoreService {
       if (!lang) {
         this.logger.warn('无法检测语言，使用回退机制');
         return this.legacyExtractFunctions(ast);
+      }
+
+      // 使用优化后的查询系统
+      if (this.useOptimizedQueries && this.querySystemInitialized) {
+        try {
+          return await SimpleQueryEngine.findFunctions(ast, lang);
+        } catch (error) {
+          this.logger.warn('优化查询系统失败，回退到动态管理器:', error);
+          return await this.dynamicManager.extractFunctions(ast, lang);
+        }
       }
 
       // 使用动态管理器提取
@@ -336,7 +349,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 提取类
+   * 提取类 - 使用优化后的查询系统
    */
   async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
@@ -344,6 +357,16 @@ export class TreeSitterCoreService {
       if (!lang) {
         this.logger.warn('无法检测语言，使用回退机制');
         return this.legacyExtractClasses(ast);
+      }
+
+      // 使用优化后的查询系统
+      if (this.useOptimizedQueries && this.querySystemInitialized) {
+        try {
+          return await SimpleQueryEngine.findClasses(ast, lang);
+        } catch (error) {
+          this.logger.warn('优化查询系统失败，回退到动态管理器:', error);
+          return await this.dynamicManager.extractClasses(ast, lang);
+        }
       }
 
       // 使用动态管理器提取
@@ -355,10 +378,100 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 提取导入
+   * 提取导入 - 使用优化后的查询系统
    */
-  extractImports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
-    return TreeSitterUtils.extractImports(ast, sourceCode);
+  async extractImports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用回退机制');
+        return TreeSitterUtils.extractImportNodes(ast);
+      }
+
+      // 使用优化后的查询系统
+      if (this.useOptimizedQueries && this.querySystemInitialized) {
+        try {
+          return await SimpleQueryEngine.findImports(ast, lang);
+        } catch (error) {
+          this.logger.warn('优化查询系统失败，回退到工具方法:', error);
+          return TreeSitterUtils.extractImportNodes(ast);
+        }
+      }
+
+      return TreeSitterUtils.extractImportNodes(ast);
+    } catch (error) {
+      this.logger.error('导入提取失败:', error);
+      return TreeSitterUtils.extractImportNodes(ast);
+    }
+  }
+
+  /**
+   * 提取导出 - 使用优化后的查询系统
+   */
+  async extractExports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用回退机制');
+        return this.legacyExtractExports(ast);
+      }
+
+      // 使用优化后的查询系统
+      if (this.useOptimizedQueries && this.querySystemInitialized) {
+        try {
+          return await SimpleQueryEngine.findExports(ast, lang);
+        } catch (error) {
+          this.logger.warn('优化查询系统失败，回退到动态管理器:', error);
+          // 转换动态管理器的字符串结果为节点数组
+          const exportStrings = await this.dynamicManager.extractExports(ast, '', lang);
+          return this.convertExportStringsToNodes(exportStrings, ast);
+        }
+      }
+
+      // 使用动态管理器提取并转换结果
+      const exportStrings = await this.dynamicManager.extractExports(ast, '', lang);
+      return this.convertExportStringsToNodes(exportStrings, ast);
+    } catch (error) {
+      this.logger.error('导出提取失败:', error);
+      return this.legacyExtractExports(ast);
+    }
+  }
+
+  /**
+   * 将导出字符串转换为节点数组
+   */
+  private convertExportStringsToNodes(exportStrings: string[], ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    const exportNodes: Parser.SyntaxNode[] = [];
+
+    const exportTypes = new Set([
+      'export_statement',
+      'export_clause',
+      'export_specifier',
+      'export_default_declaration',
+      'export_named_declaration',
+      'export_all_declaration',
+      'export_as_clause',
+    ]);
+
+    const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
+      if (depth > 100) return;
+
+      if (exportTypes.has(node.type)) {
+        const nodeText = this.getNodeText(node, '');
+        if (exportStrings.some(exportStr => nodeText.includes(exportStr))) {
+          exportNodes.push(node);
+        }
+      }
+
+      if (node.children && Array.isArray(node.children)) {
+        for (const child of node.children) {
+          traverse(child, depth + 1);
+        }
+      }
+    };
+
+    traverse(ast);
+    return exportNodes;
   }
 
   /**
@@ -373,25 +486,6 @@ export class TreeSitterCoreService {
    */
   extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     return TreeSitterUtils.extractImportNodes(ast);
-  }
-
-  /**
-   * 提取导出
-   */
-  async extractExports(ast: Parser.SyntaxNode, sourceCode?: string, language?: string): Promise<string[]> {
-    try {
-      const lang = language || this.detectLanguageFromAST(ast);
-      if (!lang) {
-        this.logger.warn('无法检测语言，使用回退机制');
-        return this.legacyExtractExports(ast, sourceCode);
-      }
-
-      // 使用动态管理器提取
-      return await this.dynamicManager.extractExports(ast, sourceCode, lang);
-    } catch (error) {
-      this.logger.error('导出提取失败:', error);
-      return this.legacyExtractExports(ast, sourceCode);
-    }
   }
 
   /**
@@ -411,29 +505,18 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 初始化查询管理器
-   */
-  private async initializeQueryManager(): Promise<void> {
-    try {
-      await QueryManager.initialize();
-      this.logger.info('QueryManager初始化成功');
-    } catch (error) {
-      this.logger.warn('QueryManager初始化失败，将使用硬编码实现:', error);
-      this.useQueryLanguage = false;
-    }
-  }
-
-  /**
    * 异步初始化查询系统
    */
   private async initializeQuerySystem(): Promise<void> {
     try {
       await this.queryRegistry.initialize();
+      await QueryManager.initialize();
       this.querySystemInitialized = true;
       this.logger.info('查询系统初始化完成');
     } catch (error) {
       this.logger.error('查询系统初始化失败:', error);
       // 即使初始化失败，服务仍可运行（使用回退机制）
+      this.useOptimizedQueries = false;
     }
   }
 
@@ -460,10 +543,10 @@ export class TreeSitterCoreService {
         'php': 'php',
         'scala': 'scala'
       };
-      
+
       return languageMap[languageName] || languageName;
     }
-    
+
     return null;
   }
 
@@ -548,13 +631,9 @@ export class TreeSitterCoreService {
   /**
    * 回退机制：导出提取
    */
-  private legacyExtractExports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
+  private legacyExtractExports(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     this.logger.warn('使用回退机制提取导出');
-    const exports: string[] = [];
-
-    if (!sourceCode) {
-      return exports;
-    }
+    const exports: Parser.SyntaxNode[] = [];
 
     const exportTypes = new Set([
       'export_statement',
@@ -570,10 +649,7 @@ export class TreeSitterCoreService {
       if (depth > 100) return;
 
       if (exportTypes.has(node.type)) {
-        const exportText = this.getNodeText(node, sourceCode);
-        if (exportText.trim().length > 0) {
-          exports.push(exportText);
-        }
+        exports.push(node);
       }
 
       if (node.children && Array.isArray(node.children)) {
@@ -604,15 +680,23 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 获取性能统计信息
+   * 获取性能统计信息 - 包含优化查询系统的统计
    */
   getPerformanceStats() {
     const dynamicStats = this.dynamicManager.getPerformanceStats();
-    
+    let queryEngineStats = null;
+
+    if (this.useOptimizedQueries && this.querySystemInitialized) {
+      queryEngineStats = this.queryEngine.getPerformanceStats();
+    }
+
     return {
       ...this.performanceStats,
       cacheStats: this.getCacheStats(),
       dynamicManagerStats: dynamicStats,
+      queryEngineStats,
+      useOptimizedQueries: this.useOptimizedQueries,
+      querySystemInitialized: this.querySystemInitialized,
     };
   }
 
@@ -621,6 +705,9 @@ export class TreeSitterCoreService {
    */
   clearCache(): void {
     this.dynamicManager.clearCache();
+    if (this.useOptimizedQueries && this.querySystemInitialized) {
+      this.queryEngine.clearCache();
+    }
     this.cacheStats = { hits: 0, misses: 0, evictions: 0 };
     this.logger.info('TreeSitterCoreService 缓存已清除');
   }
@@ -651,52 +738,56 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 启用查询语言模式
+   * 启用优化查询系统
    */
-  enableQueryLanguage(): void {
-    this.useQueryLanguage = true;
+  enableOptimizedQueries(): void {
+    this.useOptimizedQueries = true;
+    this.logger.info('优化查询系统已启用');
   }
 
   /**
-   * 禁用查询语言模式（回退到硬编码实现）
+   * 禁用优化查询系统（回退到动态管理器）
    */
-  disableQueryLanguage(): void {
-    this.useQueryLanguage = false;
+  disableOptimizedQueries(): void {
+    this.useOptimizedQueries = false;
+    this.logger.info('优化查询系统已禁用，使用动态管理器');
   }
 
   /**
-   * 获取当前模式状态
+   * 获取当前查询系统状态
    */
-  isUsingQueryLanguage(): boolean {
-    return this.useQueryLanguage;
+  isUsingOptimizedQueries(): boolean {
+    return this.useOptimizedQueries && this.querySystemInitialized;
   }
 
   /**
    * 获取查询缓存统计信息
    */
   getQueryCacheStats() {
+    if (this.useOptimizedQueries && this.querySystemInitialized) {
+      return this.queryEngine.getPerformanceStats();
+    }
     return QueryManager.getCacheStats();
   }
 
   /**
-   * 清除查询缓存
-   */
-  clearQueryCache(): void {
-    QueryManager.clearCache();
-  }
-
-  /**
-   * 检查查询语言是否支持指定语言的指定查询类型
+   * 检查优化查询系统是否支持指定语言的指定查询类型
    */
   isQuerySupported(language: string, queryType: string): boolean {
-    return QueryManager.isSupported(language.toLowerCase(), queryType);
+    if (this.useOptimizedQueries && this.querySystemInitialized) {
+      return QueryManager.isSupported(language.toLowerCase(), queryType);
+    }
+    return false;
   }
 
   /**
-   * 获取支持查询语言的语言列表
+   * 获取支持优化查询系统的语言列表
    */
   getQuerySupportedLanguages(): string[] {
-    return QueryManager.getSupportedLanguages();
+    if (this.useOptimizedQueries && this.querySystemInitialized) {
+      return QueryManager.getSupportedLanguages();
+    }
+    return [];
   }
 
   /**
@@ -705,8 +796,10 @@ export class TreeSitterCoreService {
   getQuerySystemStatus() {
     return {
       initialized: this.querySystemInitialized,
+      useOptimizedQueries: this.useOptimizedQueries,
       stats: this.queryRegistry.getStats(),
-      dynamicManagerStatus: this.dynamicManager.getQuerySystemStatus()
+      dynamicManagerStatus: this.dynamicManager.getQuerySystemStatus(),
+      queryEngineStats: this.useOptimizedQueries ? this.queryEngine.getPerformanceStats() : null
     };
   }
 
@@ -723,5 +816,12 @@ export class TreeSitterCoreService {
    */
   getDynamicManager(): DynamicParserManager {
     return this.dynamicManager;
+  }
+
+  /**
+   * 获取查询引擎实例（用于高级操作）
+   */
+  getQueryEngine(): TreeSitterQueryEngine {
+    return this.queryEngine;
   }
 }

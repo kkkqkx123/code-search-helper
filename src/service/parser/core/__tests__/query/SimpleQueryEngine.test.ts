@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { SimpleQueryEngine } from '../../query/MockQueryEngine';
+import { SimpleQueryEngine } from '../../query/SimpleQueryEngine';
 
 // Mock Parser.SyntaxNode for testing
 const mockSyntaxNode = {
