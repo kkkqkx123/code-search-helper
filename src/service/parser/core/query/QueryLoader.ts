@@ -25,8 +25,8 @@ export class QueryLoader {
       const languageQueries = new Map<string, string>();
 
       try {
-        const queryTypes = ['functions', 'classes', 'control-flow', 'imports', 'exports', 'expressions',
-          'methods', 'modern-features', 'namespace', 'interfaces', 'types', 'patterns', 'properties', 'variables'];
+        // 使用动态发现的查询类型，如果没有发现则使用默认类型
+        const queryTypes = await this.discoverQueryTypes(language);
 
         for (const queryType of queryTypes) {
           try {
@@ -181,6 +181,79 @@ export class QueryLoader {
     this.queries.clear();
     this.loadedLanguages.clear();
     this.logger.info('所有查询已清除');
+  }
+
+  /**
+   * 动态发现查询类型
+   * @param language 语言名称
+   * @returns 查询类型数组
+   */
+  static async discoverQueryTypes(language: string): Promise<string[]> {
+    const queryDir = `../../constants/queries/${this.getQueryFileName(language)}`;
+    
+    try {
+      // 尝试动态读取目录结构
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const queryDirPath = path.join(__dirname, queryDir);
+      
+      // 检查目录是否存在
+      if (!fs.existsSync(queryDirPath)) {
+        this.logger.debug(`Query directory not found for ${language}: ${queryDirPath}`);
+        return this.getDefaultQueryTypes();
+      }
+
+      // 读取目录内容
+      const files = fs.readdirSync(queryDirPath);
+      
+      // 过滤出TypeScript查询文件
+      const queryFiles = files
+        .filter(file => file.endsWith('.ts') && file !== 'index.ts')
+        .map(file => file.replace('.ts', ''));
+
+      if (queryFiles.length > 0) {
+        this.logger.debug(`Discovered ${queryFiles.length} query types for ${language}:`, queryFiles);
+        return queryFiles;
+      }
+
+      this.logger.debug(`No query files found in directory for ${language}`);
+      return this.getDefaultQueryTypes();
+      
+    } catch (error) {
+      this.logger.warn(`Failed to discover query types for ${language}:`, error);
+      return this.getDefaultQueryTypes();
+    }
+  }
+
+  /**
+   * 获取默认查询类型
+   * @returns 默认查询类型数组
+   */
+  private static getDefaultQueryTypes(): string[] {
+    return ['functions', 'classes', 'methods', 'imports', 'variables'];
+  }
+
+  /**
+   * 检查查询类型是否存在
+   * @param language 语言名称
+   * @param queryType 查询类型
+   * @returns 是否存在
+   */
+  static async queryTypeExists(language: string, queryType: string): Promise<boolean> {
+    try {
+      // 首先检查是否已经加载
+      if (this.isLanguageLoaded(language)) {
+        return this.hasQueryType(language, queryType);
+      }
+
+      // 尝试动态发现
+      const discoveredTypes = await this.discoverQueryTypes(language);
+      return discoveredTypes.includes(queryType);
+    } catch (error) {
+      this.logger.warn(`Failed to check if query type exists for ${language}.${queryType}:`, error);
+      return false;
+    }
   }
 
   /**

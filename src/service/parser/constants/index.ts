@@ -9,7 +9,7 @@
 // ==================== 导出查询模式 ====================
 export { solidityQuery } from "./queries/solidity"
 export { default as phpQuery } from "./queries/php"
-export { vueQuery } from "./queries/vue"
+export { default as vueQuery } from "./queries/vue"
 export { default as typescriptQuery } from "./queries/typescript"
 export { default as tsxQuery } from "./queries/tsx"
 export { default as pythonQuery } from "./queries/python"

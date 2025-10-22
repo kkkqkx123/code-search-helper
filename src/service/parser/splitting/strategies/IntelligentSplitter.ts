@@ -12,7 +12,7 @@ import { ChunkingPerformanceOptimizer } from '../utils/performance/ChunkingPerfo
 export class IntelligentSplitter implements IntelligentSplitterInterface {
   private options: Required<ChunkingOptions>;
   private balancedChunker?: BalancedChunker;
-  private logger?: LoggerService;
+  protected logger?: LoggerService;
   private optimizationLevel: 'low' | 'medium' | 'high' = 'medium';
   private complexityCalculator: ComplexityCalculator;
   private syntaxValidator: SyntaxValidator;
