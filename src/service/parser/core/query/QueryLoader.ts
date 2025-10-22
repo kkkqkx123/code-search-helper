@@ -25,7 +25,8 @@ export class QueryLoader {
       const languageQueries = new Map<string, string>();
 
       try {
-        const queryTypes = ['functions', 'classes', 'imports', 'exports', 'methods', 'interfaces', 'types', 'properties', 'variables'];
+        const queryTypes = ['functions', 'classes', 'control-flow', 'imports', 'exports', 'expressions',
+          'methods', 'modern-features', 'namespace', 'interfaces', 'types', 'patterns', 'properties', 'variables'];
 
         for (const queryType of queryTypes) {
           try {

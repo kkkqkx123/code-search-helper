@@ -185,9 +185,28 @@ export class TreeSitterCoreService {
    * 解析文件
    */
   async parseFile(filePath: string, content: string): Promise<ParseResult> {
+    // 首先检查文件扩展名是否受支持
+    const extension = filePath.split('.').pop()?.toLowerCase();
+    if (!extension) {
+      throw new Error(`Unsupported file type: ${filePath}`);
+    }
+
+    const supportedLanguages = this.getSupportedLanguages();
+    let isExtensionSupported = false;
+    for (const lang of supportedLanguages) {
+      if (lang.fileExtensions.includes(`.${extension}`)) {
+        isExtensionSupported = true;
+        break;
+      }
+    }
+
+    if (!isExtensionSupported) {
+      throw new Error(`Unsupported file type: ${filePath}`);
+    }
+
     const language = this.detectLanguage(filePath, content);
     if (!language) {
-      throw new Error(`不支持的文件类型: ${filePath}`);
+      throw new Error(`Unsupported file type: ${filePath}`);
     }
 
     return this.parseCode(content, language.name.toLowerCase());

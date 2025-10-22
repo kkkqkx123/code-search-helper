@@ -13,11 +13,11 @@ jest.mock('../../parse/TreeSitterCoreService', () => {
       detectLanguage: jest.fn(() => null),
       parseCode: jest.fn(() => Promise.resolve({ ast: {}, success: true, parseTime: 0 })),
       parseFile: jest.fn(() => Promise.resolve({ ast: {}, success: true, parseTime: 0 })),
-      extractFunctions: jest.fn(() => []),
-      extractClasses: jest.fn(() => []),
+      extractFunctions: jest.fn(() => Promise.resolve([])),
+      extractClasses: jest.fn(() => Promise.resolve([])),
       extractImports: jest.fn(() => []),
       extractImportNodes: jest.fn(() => []),
-      extractExports: jest.fn(() => []),
+      extractExports: jest.fn(() => Promise.resolve([])),
       isInitialized: jest.fn(() => true),
       getNodeText: jest.fn(() => ''),
       getNodeLocation: jest.fn(() => ({ startLine: 1, endLine: 1, startColumn: 1, endColumn: 1 })),
@@ -90,22 +90,22 @@ describe('TreeSitterService', () => {
   });
 
   describe('extractFunctions', () => {
-    it('should delegate to core service', () => {
+    it('should delegate to core service', async () => {
       const mockNodes = [{} as Parser.SyntaxNode];
-      (mockCoreService.extractFunctions as jest.Mock).mockReturnValue(mockNodes);
+      (mockCoreService.extractFunctions as jest.Mock).mockResolvedValue(mockNodes);
 
-      const result = treeSitterService.extractFunctions({} as Parser.SyntaxNode);
+      const result = await treeSitterService.extractFunctions({} as Parser.SyntaxNode);
       expect(mockCoreService.extractFunctions).toHaveBeenCalledWith({} as Parser.SyntaxNode);
       expect(result).toEqual(mockNodes);
     });
   });
 
   describe('extractClasses', () => {
-    it('should delegate to core service', () => {
+    it('should delegate to core service', async () => {
       const mockNodes = [{} as Parser.SyntaxNode];
-      (mockCoreService.extractClasses as jest.Mock).mockReturnValue(mockNodes);
+      (mockCoreService.extractClasses as jest.Mock).mockResolvedValue(mockNodes);
 
-      const result = treeSitterService.extractClasses({} as Parser.SyntaxNode);
+      const result = await treeSitterService.extractClasses({} as Parser.SyntaxNode);
       expect(mockCoreService.extractClasses).toHaveBeenCalledWith({} as Parser.SyntaxNode);
       expect(result).toEqual(mockNodes);
     });
@@ -132,20 +132,20 @@ describe('TreeSitterService', () => {
   });
 
   describe('extractExports', () => {
-    it('should delegate to core service', () => {
+    it('should delegate to core service', async () => {
       const mockExports = ['export { test };'];
-      (mockCoreService.extractExports as jest.Mock).mockReturnValue(mockExports);
+      (mockCoreService.extractExports as jest.Mock).mockResolvedValue(mockExports);
 
-      const result = treeSitterService.extractExports({} as Parser.SyntaxNode, 'source code');
+      const result = await treeSitterService.extractExports({} as Parser.SyntaxNode, 'source code');
       expect(mockCoreService.extractExports).toHaveBeenCalledWith({} as Parser.SyntaxNode, 'source code');
       expect(result).toEqual(mockExports);
     });
 
-    it('should work without source code', () => {
+    it('should work without source code', async () => {
       const mockExports: any[] = [];
-      (mockCoreService.extractExports as jest.Mock).mockReturnValue(mockExports);
+      (mockCoreService.extractExports as jest.Mock).mockResolvedValue(mockExports);
 
-      const result = treeSitterService.extractExports({} as Parser.SyntaxNode);
+      const result = await treeSitterService.extractExports({} as Parser.SyntaxNode);
       expect(mockCoreService.extractExports).toHaveBeenCalledWith({} as Parser.SyntaxNode, undefined);
       expect(result).toEqual(mockExports);
     });

@@ -116,7 +116,7 @@ export class DynamicParserManager {
    */
   async getParser(language: string): Promise<Parser | null> {
     const normalizedLanguage = language.toLowerCase();
-    
+
     // 检查缓存
     if (this.parserCache.has(normalizedLanguage)) {
       this.cacheStats.hits++;
@@ -134,16 +134,16 @@ export class DynamicParserManager {
     try {
       this.logger.debug(`动态加载 ${language} 解析器...`);
       const languageModule = await langConfig.loader();
-      
+
       const parser = new Parser();
       parser.setLanguage(languageModule);
-      
+
       // 缓存解析器
       this.parserCache.set(normalizedLanguage, parser);
-      
+
       // 更新配置
       langConfig.parser = parser;
-      
+
       this.logger.debug(`${language} 解析器加载成功`);
       return parser;
     } catch (error) {
@@ -162,7 +162,7 @@ export class DynamicParserManager {
     try {
       const parser = await this.getParser(normalizedLanguage);
       if (!parser) {
-        throw new Error(`无法加载 ${language} 解析器`);
+        throw new Error(`Unsupported language: ${language}`);
       }
 
       const langConfig = this.parsers.get(normalizedLanguage);
@@ -202,7 +202,7 @@ export class DynamicParserManager {
       };
     } catch (error) {
       this.logger.error(`解析 ${language} 代码失败:`, error);
-      
+
       return {
         ast: {} as Parser.SyntaxNode,
         language: this.parsers.get(normalizedLanguage) || {
@@ -373,11 +373,11 @@ export class DynamicParserManager {
 
       const results = QueryManager.executeQuery(ast, lang, 'classes', parser);
       const classes = results.flatMap(r => r.captures)
-        .filter(c => c.name.includes('class') || 
-                    c.name.includes('interface') || 
-                    c.name.includes('struct') ||
-                    c.name.includes('trait') ||
-                    c.name.includes('object'))
+        .filter(c => c.name.includes('class') ||
+          c.name.includes('interface') ||
+          c.name.includes('struct') ||
+          c.name.includes('trait') ||
+          c.name.includes('object'))
         .map(c => c.node);
 
       this.logger.debug(`提取到 ${classes.length} 个类节点`);
@@ -444,10 +444,10 @@ export class DynamicParserManager {
         'cpp': 'cpp',
         'c': 'c',
       };
-      
+
       return languageMap[languageName] || languageName;
     }
-    
+
     return null;
   }
 
@@ -456,11 +456,11 @@ export class DynamicParserManager {
    */
   private async waitForQuerySystem(timeout = 5000): Promise<void> {
     const startTime = Date.now();
-    
+
     while (!this.querySystemInitialized && Date.now() - startTime < timeout) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    
+
     if (!this.querySystemInitialized) {
       throw new Error('查询系统初始化超时');
     }
@@ -673,7 +673,7 @@ export class DynamicParserManager {
       php: 'PHP',
       scala: 'Scala',
     };
-    
+
     return displayNames[language] || language;
   }
 
