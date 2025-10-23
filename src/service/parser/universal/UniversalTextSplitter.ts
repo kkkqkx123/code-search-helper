@@ -4,6 +4,8 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { DEFAULT_CONFIG, BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD, getDynamicBlockLimits } from './constants';
 import { MarkdownTextSplitter } from './md/MarkdownTextSplitter';
 import { ProtectionInterceptorChain, ProtectionContext } from './protection/ProtectionInterceptor';
+import { IQueryResultNormalizer, StandardizedQueryResult } from '../core/normalization/types';
+import { TreeSitterService } from '../core/parse/TreeSitterCoreService';
 
 /**
  * 通用分段选项
@@ -18,11 +20,14 @@ export interface UniversalChunkingOptions {
   enableSemanticDetection: boolean; // 启用语义检测
   enableCodeOverlap?: boolean; // 是否为代码文件启用重叠（新增）
   maxOverlapRatio?: number;    // 最大重叠比例（新增）
+  enableStandardization?: boolean; // 启用标准化集成
+  standardizationFallback?: boolean; // 标准化失败时是否降级
 }
 
 /**
  * 通用文本分段器
  * 提供多种分段策略，适用于各种文件类型和内容
+ * 集成了QueryResultNormalizer以提供更精确的语义分段
  */
 @injectable()
 export class UniversalTextSplitter {
@@ -30,11 +35,29 @@ export class UniversalTextSplitter {
   private logger?: LoggerService;
   private markdownSplitter: MarkdownTextSplitter;
   private protectionChain?: ProtectionInterceptorChain; // 外部保护机制
+  private queryNormalizer?: IQueryResultNormalizer;
+  private treeSitterService?: TreeSitterService;
+  private standardizationStats: {
+    attempts: number;
+    successes: number;
+    failures: number;
+    fallbacks: number;
+  };
 
   constructor(logger?: LoggerService) {
     this.logger = logger;
-    this.options = { ...DEFAULT_CONFIG.TEXT_SPLITTER_OPTIONS };
+    this.options = { 
+      ...DEFAULT_CONFIG.TEXT_SPLITTER_OPTIONS,
+      enableStandardization: true,
+      standardizationFallback: true
+    };
     this.markdownSplitter = new MarkdownTextSplitter(logger);
+    this.standardizationStats = {
+      attempts: 0,
+      successes: 0,
+      failures: 0,
+      fallbacks: 0
+    };
   }
 
   /**
@@ -43,6 +66,22 @@ export class UniversalTextSplitter {
   setProtectionChain(chain: ProtectionInterceptorChain): void {
     this.protectionChain = chain;
     this.logger?.debug('Protection interceptor chain set for UniversalTextSplitter');
+  }
+
+  /**
+   * 设置查询标准化器
+   */
+  setQueryNormalizer(normalizer: IQueryResultNormalizer): void {
+    this.queryNormalizer = normalizer;
+    this.logger?.debug('Query normalizer set for UniversalTextSplitter');
+  }
+
+  /**
+   * 设置Tree-sitter服务
+   */
+  setTreeSitterService(service: TreeSitterService): void {
+    this.treeSitterService = service;
+    this.logger?.debug('Tree-sitter service set for UniversalTextSplitter');
   }
 
   /**
@@ -57,6 +96,25 @@ export class UniversalTextSplitter {
    */
   getOptions(): UniversalChunkingOptions {
     return { ...this.options };
+  }
+
+  /**
+   * 获取标准化统计信息
+   */
+  getStandardizationStats(): any {
+    return { ...this.standardizationStats };
+  }
+
+  /**
+   * 重置标准化统计信息
+   */
+  resetStandardizationStats(): void {
+    this.standardizationStats = {
+      attempts: 0,
+      successes: 0,
+      failures: 0,
+      fallbacks: 0
+    };
   }
 
   /**
@@ -308,15 +366,17 @@ export class UniversalTextSplitter {
   }
 
   /**
-   * 基于语义边界的分段
+   * 基于语义边界的分段（增强版）
    * 优先在逻辑边界处分段，如函数、类、代码块等
    * 对 Markdown 文件使用专门的分段策略
+   * 集成了QueryResultNormalizer以提供更精确的语义分段
    */
   async chunkBySemanticBoundaries(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     // 对小文件直接作为一个块处理，无重叠
     if (this.isSmallFile(content)) {
       return this.chunkSmallFile(content, filePath, language);
     }
+    
     // 对 Markdown 文件使用专门的分段器
     if (language === 'markdown' || (filePath && filePath.endsWith('.md'))) {
       this.logger?.info(`使用专门的markdown分块策略处理 ${filePath}`);
@@ -325,6 +385,106 @@ export class UniversalTextSplitter {
       return this.addOverlapToChunks(mdChunks, content, language, filePath);
     }
 
+    // 尝试使用标准化结果（如果可用）
+    if (this.options.enableStandardization && this.queryNormalizer && this.treeSitterService && language) {
+      try {
+        this.standardizationStats.attempts++;
+        const chunks = await this.chunkByStandardization(content, filePath, language);
+        if (chunks.length > 0) {
+          this.standardizationStats.successes++;
+          this.logger?.debug(`Successfully used standardization for ${language} file: ${chunks.length} chunks`);
+          return chunks;
+        }
+      } catch (error) {
+        this.standardizationStats.failures++;
+        this.logger?.warn('Standardization failed, falling back to text-based chunking:', error);
+        
+        if (!this.options.standardizationFallback) {
+          throw error;
+        }
+        this.standardizationStats.fallbacks++;
+      }
+    }
+
+    // 回退到原有的文本分段逻辑
+    return this.chunkByTextAnalysis(content, filePath, language);
+  }
+
+  /**
+   * 基于标准化结果的分段
+   */
+  private async chunkByStandardization(
+    content: string, 
+    filePath?: string, 
+    language?: string
+  ): Promise<CodeChunk[]> {
+    if (!this.queryNormalizer || !this.treeSitterService || !language) {
+      throw new Error('Required services not available for standardization');
+    }
+
+    try {
+      // 解析代码
+      const parseResult = await this.treeSitterService.parseCode(content, language);
+      if (!parseResult.success || !parseResult.ast) {
+        throw new Error('Failed to parse code for standardization');
+      }
+
+      // 标准化查询结果
+      const standardizedResults = await this.queryNormalizer.normalize(parseResult.ast, language);
+      if (standardizedResults.length === 0) {
+        this.logger?.debug('No standardized results found, falling back to text analysis');
+        return [];
+      }
+
+      // 基于标准化结果创建分块
+      return this.chunkByStandardizedResults(standardizedResults, content, language, filePath);
+    } catch (error) {
+      this.logger?.error('Error in standardization-based chunking:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 基于标准化结果的分段
+   */
+  private chunkByStandardizedResults(
+    standardizedResults: StandardizedQueryResult[],
+    content: string,
+    language: string,
+    filePath?: string
+  ): CodeChunk[] {
+    const chunks: CodeChunk[] = [];
+    const lines = content.split('\n');
+    
+    for (const result of standardizedResults) {
+      const chunkContent = lines.slice(result.startLine - 1, result.endLine).join('\n');
+      
+      chunks.push({
+        content: chunkContent,
+        metadata: {
+          startLine: result.startLine,
+          endLine: result.endLine,
+          language: language || 'unknown',
+          filePath,
+          type: result.type,
+          complexity: result.metadata.complexity,
+          functionName: result.type === 'function' ? result.name : undefined,
+          className: result.type === 'class' ? result.name : undefined,
+          // 添加标准化元数据
+          standardized: true,
+          dependencies: result.metadata.dependencies,
+          modifiers: result.metadata.modifiers
+        }
+      });
+    }
+    
+    return this.postProcessChunks(chunks, content);
+  }
+
+  /**
+   * 基于文本分析的分段（原有逻辑）
+   */
+  private async chunkByTextAnalysis(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     // 执行保护检查
     const protectionContext: ProtectionContext = {
       operation: 'semantic_chunk',
@@ -379,7 +539,8 @@ export class UniversalTextSplitter {
             language: language || 'unknown',
             filePath,
             type: 'semantic',
-            complexity
+            complexity,
+            standardized: false
           };
 
           chunks.push({
@@ -439,7 +600,8 @@ export class UniversalTextSplitter {
           language: language || 'unknown',
           filePath,
           type: 'semantic',
-          complexity
+          complexity,
+          standardized: false
         };
 
         chunks.push({
@@ -485,6 +647,36 @@ export class UniversalTextSplitter {
 
       return this.chunkByLines(content, filePath, language);
     }
+  }
+
+  /**
+   * 后处理分块
+   */
+  private postProcessChunks(chunks: CodeChunk[], content: string): CodeChunk[] {
+    // 应用过滤和再平衡逻辑
+    const filteredChunks = this.filterSmallChunks(chunks);
+    const rebalancedChunks = this.rebalanceChunks(filteredChunks);
+    
+    // 对代码文件进行智能处理：检查是否需要重叠拆分
+    const language = chunks[0]?.metadata.language;
+    const filePath = chunks[0]?.metadata.filePath;
+    
+    if (this.isCodeFile(language, filePath)) {
+      const finalChunks: CodeChunk[] = [];
+      for (const chunk of rebalancedChunks) {
+        // 检查块是否过大需要重叠拆分
+        if (chunk.content.length > this.options.maxChunkSize) {
+          const overlappedChunks = this.splitLargeChunkWithOverlap(chunk, this.options.maxChunkSize, this.options.overlapSize);
+          finalChunks.push(...overlappedChunks);
+        } else {
+          finalChunks.push(chunk);
+        }
+      }
+      this.logger?.info(`标准化分块优化: ${chunks.length} -> ${finalChunks.length} 分块`);
+      return finalChunks;
+    }
+
+    return rebalancedChunks;
   }
 
   /**
@@ -610,7 +802,8 @@ export class UniversalTextSplitter {
             language: language || 'unknown',
             filePath,
             type: 'bracket',
-            complexity
+            complexity,
+            standardized: false
           };
 
           chunks.push({
@@ -668,7 +861,8 @@ export class UniversalTextSplitter {
           language: language || 'unknown',
           filePath,
           type: 'bracket',
-          complexity
+          complexity,
+          standardized: false
         };
 
         chunks.push({
@@ -745,7 +939,8 @@ export class UniversalTextSplitter {
           language: language || 'unknown',
           filePath,
           type: 'line',
-          complexity
+          complexity,
+          standardized: false
         }
       }];
     }
@@ -778,7 +973,8 @@ export class UniversalTextSplitter {
           language: language || 'unknown',
           filePath,
           type: 'line',
-          complexity
+          complexity,
+          standardized: false
         };
 
         chunks.push({
@@ -827,14 +1023,14 @@ export class UniversalTextSplitter {
     if (currentChunk.length > 0) {
       const chunkContent = currentChunk.join('\n');
       const complexity = this.calculateComplexity(chunkContent);
-
       const metadata: CodeChunkMetadata = {
         startLine: currentLine,
         endLine: currentLine + currentChunk.length - 1,
         language: language || 'unknown',
         filePath,
         type: 'line',
-        complexity
+        complexity,
+        standardized: false
       };
 
       chunks.push({
@@ -1024,3 +1220,52 @@ export class UniversalTextSplitter {
     return Math.round(complexity);
   }
 }
+
+      const metadata: CodeChunkMetadata = {
+        startLine: currentLine,
+        endLine: currentLine + currentChunk.length - 1,
+        language: language || 'unknown',
+        filePath,
+        type: 'line',
+        complexity,
+        standardized: false
+      };
+
+      chunks.push({
+        content: chunkContent,
+        metadata
+      });
+    }
+
+    // 应用过滤和再平衡逻辑
+    const filteredChunks = this.filterSmallChunks(chunks);
+    const rebalancedChunks = this.rebalanceChunks(filteredChunks);
+
+    // 对代码文件进行智能处理
+    if (this.isCodeFile(language, filePath)) {
+      const finalChunks: CodeChunk[] = [];
+      for (const chunk of rebalancedChunks) {
+        // 检查块是否过大需要重叠拆分
+        if (chunk.content.length > this.options.maxChunkSize) {
+          const overlappedChunks = this.splitLargeChunkWithOverlap(chunk, this.options.maxChunkSize, this.options.overlapSize);
+          finalChunks.push(...overlappedChunks);
+        } else {
+          finalChunks.push(chunk);
+        }
+      }
+      return finalChunks;
+    }
+
+    return rebalancedChunks;
+  }
+
+  /**
+   * 计算语义分数
+   */
+  private calculateSemanticScore(line: string, language?: string): number {
+    let score = line.length; // 基础分数
+
+    // 语言特定的关键字权重
+    if (language === 'typescript' || language === 'javascript') {
+      if (line.match(/\b(function|class|interface|const|let|var|import|export)\b/)) score += 10;
+      if (line.match(/\b(if

@@ -3,13 +3,16 @@ import { IQueryResultNormalizer, StandardizedQueryResult, NormalizationOptions, 
 import { LanguageAdapterFactory } from './adapters';
 import { QueryManager } from '../query/QueryManager';
 import { QueryLoader } from '../query/QueryLoader';
+import { QueryTypeMapper } from './QueryTypeMappings';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/LRUCache';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
+import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 
 /**
- * 查询结果标准化器
+ * 增强的查询结果标准化器
  * 将不同语言的tree-sitter查询结果转换为统一格式
+ * 集成了缓存、性能监控、错误处理和降级机制
  */
 export class QueryResultNormalizer implements IQueryResultNormalizer {
   private logger: LoggerService;
@@ -17,6 +20,10 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
   private cache: LRUCache<string, StandardizedQueryResult[]>;
   private stats: NormalizationStats;
   private treeSitterService?: TreeSitterCoreService;
+  private performanceMonitor?: PerformanceMonitor;
+  private errorCount: number = 0;
+  private maxErrors: number = 10;
+  private fallbackEnabled: boolean = true;
 
   constructor(options: NormalizationOptions = {}) {
     this.logger = new LoggerService();
@@ -28,7 +35,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       debug: options.debug ?? false
     };
 
-    this.cache = new LRUCache(this.options.cacheSize);
+    this.cache = new LRUCache(this.options.cacheSize, { enableStats: true });
     this.stats = {
       totalNodes: 0,
       successfulNormalizations: 0,
@@ -37,6 +44,10 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       cacheHitRate: 0,
       typeStats: {}
     };
+
+    if (this.options.enablePerformanceMonitoring) {
+      this.performanceMonitor = new PerformanceMonitor(this.logger);
+    }
   }
 
   /**
@@ -46,12 +57,34 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     this.treeSitterService = service;
   }
 
+  /**
+   * 设置性能监控器
+   */
+  setPerformanceMonitor(monitor: PerformanceMonitor): void {
+    this.performanceMonitor = monitor;
+  }
+
+  /**
+   * 设置错误阈值
+   */
+  setErrorThreshold(maxErrors: number): void {
+    this.maxErrors = maxErrors;
+  }
+
+  /**
+   * 启用/禁用降级机制
+   */
+  setFallbackEnabled(enabled: boolean): void {
+    this.fallbackEnabled = enabled;
+  }
+
   async normalize(
     ast: Parser.SyntaxNode, 
     language: string, 
     queryTypes?: string[]
   ): Promise<StandardizedQueryResult[]> {
     const startTime = Date.now();
+    const operationId = this.performanceMonitor?.startOperation('normalize', { language, queryTypes });
     
     try {
       // 生成缓存键
@@ -59,12 +92,13 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       
       // 检查缓存
       if (this.options.enableCache && this.cache.has(cacheKey)) {
-        this.stats.cacheHitRate = (this.stats.cacheHitRate * this.stats.totalNodes + 1) / (this.stats.totalNodes + 1);
+        this.updateCacheHitRate();
+        this.performanceMonitor?.endOperation(operationId, { cacheHit: true });
         return this.cache.get(cacheKey)!;
       }
 
-      // 获取查询类型
-      const typesToQuery = queryTypes || await this.getSupportedQueryTypes(language);
+      // 获取查询类型（使用统一映射）
+      const typesToQuery = await this.getSupportedQueryTypesWithMapping(language, queryTypes);
       
       if (this.options.debug) {
         this.logger.debug(`Normalizing ${language} AST with query types:`, typesToQuery);
@@ -82,8 +116,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
           // 更新统计信息
           this.stats.typeStats[queryType] = (this.stats.typeStats[queryType] || 0) + normalized.length;
         } catch (error) {
-          this.logger.warn(`Failed to normalize query type ${queryType} for ${language}:`, error);
-          this.stats.failedNormalizations++;
+          this.handleQueryError(error, language, queryType);
         }
       }
 
@@ -103,7 +136,21 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
         this.logger.debug(`Normalized ${results.length} structures for ${language}`);
       }
 
+      this.performanceMonitor?.endOperation(operationId, { 
+        resultCount: results.length,
+        cacheHit: false 
+      });
+
       return results;
+    } catch (error) {
+      this.performanceMonitor?.endOperation(operationId, { error: String(error) });
+      
+      if (this.fallbackEnabled) {
+        this.logger.warn(`Using fallback normalization for ${language}:`, error);
+        return this.fallbackNormalization(ast, language, queryTypes);
+      }
+      
+      throw error;
     } finally {
       const endTime = Date.now();
       this.stats.processingTime += endTime - startTime;
@@ -116,7 +163,8 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       const discoveredTypes = await QueryLoader.discoverQueryTypes(language);
       
       if (discoveredTypes.length > 0) {
-        return discoveredTypes;
+        // 使用统一映射转换查询类型
+        return QueryTypeMapper.getMappedQueryTypes(language, discoveredTypes);
       }
 
       // 如果动态发现失败，使用语言适配器的默认查询类型
@@ -130,9 +178,31 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     }
   }
 
+  /**
+   * 获取支持查询类型（带映射）
+   */
+  private async getSupportedQueryTypesWithMapping(language: string, queryTypes?: string[]): Promise<string[]> {
+    if (queryTypes) {
+      // 验证查询类型
+      if (QueryTypeMapper.validateQueryTypes(language, queryTypes)) {
+        return queryTypes;
+      }
+      
+      // 如果验证失败，尝试映射
+      return QueryTypeMapper.getMappedQueryTypes(language, queryTypes);
+    }
+    
+    return await this.getSupportedQueryTypes(language);
+  }
+
   mapNodeType(nodeType: string, language: string): string {
-    const adapter = LanguageAdapterFactory.getAdapter(language);
-    return adapter.mapNodeType(nodeType);
+    try {
+      const adapter = LanguageAdapterFactory.getAdapter(language);
+      return adapter.mapNodeType(nodeType);
+    } catch (error) {
+      this.logger.warn(`Failed to map node type ${nodeType} for ${language}:`, error);
+      return nodeType; // 返回原始类型作为降级
+    }
   }
 
   /**
@@ -140,6 +210,20 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
    */
   getStats(): NormalizationStats {
     return { ...this.stats };
+  }
+
+  /**
+   * 获取详细性能统计
+   */
+  getPerformanceStats(): any {
+    const cacheStats = this.cache.getStats();
+    return {
+      normalization: this.stats,
+      cache: cacheStats,
+      errorCount: this.errorCount,
+      errorRate: this.stats.totalNodes > 0 ? (this.errorCount / this.stats.totalNodes) : 0,
+      averageProcessingTime: this.stats.totalNodes > 0 ? (this.stats.processingTime / this.stats.totalNodes) : 0
+    };
   }
 
   /**
@@ -154,6 +238,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       cacheHitRate: 0,
       typeStats: {}
     };
+    this.errorCount = 0;
   }
 
   /**
@@ -172,7 +257,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     // 如果缓存大小发生变化，重新创建缓存
     if (options.cacheSize !== undefined && options.cacheSize !== this.cache.size()) {
       const oldCache = this.cache;
-      this.cache = new LRUCache(this.options.cacheSize);
+      this.cache = new LRUCache(this.options.cacheSize, { enableStats: true });
       
       // 将旧缓存中的数据迁移到新缓存
       for (const key of oldCache.keys()) {
@@ -182,6 +267,141 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
         }
       }
     }
+
+    // 更新性能监控
+    if (options.enablePerformanceMonitoring !== undefined && !this.performanceMonitor && options.enablePerformanceMonitoring) {
+      this.performanceMonitor = new PerformanceMonitor(this.logger);
+    }
+  }
+
+  /**
+   * 处理查询错误
+   */
+  private handleQueryError(error: any, language: string, queryType: string): void {
+    this.logger.warn(`Failed to normalize query type ${queryType} for ${language}:`, error);
+    this.stats.failedNormalizations++;
+    this.errorCount++;
+
+    // 检查错误阈值
+    if (this.errorCount >= this.maxErrors) {
+      this.logger.error(`Error threshold exceeded (${this.errorCount}/${this.maxErrors}), disabling further processing`);
+      throw new Error(`Error threshold exceeded: ${this.errorCount} errors`);
+    }
+  }
+
+  /**
+   * 更新缓存命中率
+   */
+  private updateCacheHitRate(): void {
+    const totalRequests = this.stats.totalNodes + 1;
+    const currentHits = this.stats.cacheHitRate * this.stats.totalNodes;
+    this.stats.cacheHitRate = (currentHits + 1) / totalRequests;
+  }
+
+  /**
+   * 降级标准化
+   */
+  private fallbackNormalization(
+    ast: Parser.SyntaxNode, 
+    language: string, 
+    queryTypes?: string[]
+  ): StandardizedQueryResult[] {
+    this.logger.warn(`Using fallback normalization for ${language}`);
+    
+    const results: StandardizedQueryResult[] = [];
+    const visited = new Set<string>();
+    
+    // 简单遍历AST，提取基本结构
+    this.extractBasicStructures(ast, language, results, visited);
+    
+    return results;
+  }
+
+  /**
+   * 提取基本结构（降级方法）
+   */
+  private extractBasicStructures(
+    node: Parser.SyntaxNode, 
+    language: string, 
+    results: StandardizedQueryResult[], 
+    visited: Set<string>
+  ): void {
+    if (!node || visited.has(node.id)) {
+      return;
+    }
+    
+    visited.add(node.id);
+    
+    // 基本结构识别
+    const structureType = this.identifyBasicStructure(node, language);
+    if (structureType) {
+      const result: StandardizedQueryResult = {
+        type: structureType,
+        name: this.extractBasicName(node),
+        startLine: node.startPosition.row + 1,
+        endLine: node.endPosition.row + 1,
+        content: node.text || '',
+        metadata: {
+          language,
+          complexity: 1,
+          dependencies: [],
+          modifiers: []
+        }
+      };
+      
+      results.push(result);
+    }
+    
+    // 递归处理子节点
+    if (node.children) {
+      for (const child of node.children) {
+        this.extractBasicStructures(child, language, results, visited);
+      }
+    }
+  }
+
+  /**
+   * 识别基本结构类型
+   */
+  private identifyBasicStructure(node: Parser.SyntaxNode, language: string): string | null {
+    const nodeType = node.type.toLowerCase();
+    
+    // 通用结构识别
+    if (nodeType.includes('function') || nodeType.includes('method')) {
+      return 'function';
+    }
+    if (nodeType.includes('class') || nodeType.includes('struct') || nodeType.includes('interface')) {
+      return 'class';
+    }
+    if (nodeType.includes('import') || nodeType.includes('include')) {
+      return 'import';
+    }
+    if (nodeType.includes('variable') || nodeType.includes('declaration')) {
+      return 'variable';
+    }
+    
+    return null;
+  }
+
+  /**
+   * 提取基本名称
+   */
+  private extractBasicName(node: Parser.SyntaxNode): string {
+    // 尝试从节点文本中提取名称
+    const text = node.text || '';
+    const lines = text.split('\n');
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      
+      // 查找函数/类/变量名
+      const match = trimmed.match(/(?:function|class|var|let|const|def)\s+([a-zA-Z_][a-zA-Z0-9_]*)/);
+      if (match) {
+        return match[1];
+      }
+    }
+    
+    return `unnamed_${node.type}`;
   }
 
   private async executeQueryForType(
@@ -216,7 +436,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     const adapter = LanguageAdapterFactory.getAdapter(language);
     
     try {
-      return adapter.normalize(queryResults, queryType, language);
+      return await adapter.normalize(queryResults, queryType, language);
     } catch (error) {
       this.logger.error(`Failed to normalize results for ${language}.${queryType}:`, error);
       throw error;
@@ -250,11 +470,11 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
   }
 
   private hashAST(ast: Parser.SyntaxNode): string {
-    // 简单的AST哈希实现
-    // 在实际使用中，可能需要更复杂的哈希算法
+    // 改进的AST哈希实现
     const content = ast.text || '';
     const position = `${ast.startPosition.row}:${ast.startPosition.column}`;
-    return this.simpleHash(content + position);
+    const nodeType = ast.type || '';
+    return this.simpleHash(content + position + nodeType);
   }
 
   private simpleHash(str: string): string {

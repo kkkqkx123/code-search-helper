@@ -367,4 +367,20 @@ export const TYPES = {
 
   // 文件哈希管理服务
   FileHashManager: Symbol.for('FileHashManager'),
+  // 文件哈希管理服务
+  FileHashManager: Symbol.for('FileHashManager'),
+
+  // 查询结果标准化服务
+  QueryResultNormalizer: Symbol.for('QueryResultNormalizer'),
+  NormalizationIntegrationService: Symbol.for('NormalizationIntegrationService'),
+
+  // 统一缓存管理器
+  UnifiedCacheManager: Symbol.for('UnifiedCacheManager'),
+
+  // 错误处理管理器
+  ErrorHandlingManager: Symbol.for('ErrorHandlingManager'),
+
+  // Tree-sitter服务（统一类型）
+  TreeSitterService: Symbol.for('TreeSitterService'),
+};
 };
