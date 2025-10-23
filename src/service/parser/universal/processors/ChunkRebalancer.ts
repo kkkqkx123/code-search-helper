@@ -155,7 +155,7 @@ export class ChunkRebalancer implements ISegmentationProcessor {
     }
     
     // 类型兼容性检查
-    if (!this.areTypesCompatible(chunk1.metadata.type, chunk2.metadata.type)) {
+    if (!this.areTypesCompatible(chunk1.metadata.type || '', chunk2.metadata.type || '')) {
       return false;
     }
     

@@ -1,13 +1,25 @@
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { ConfigurationManager } from '../../universal/config/ConfigurationManager';
+import { ProtectionCoordinator } from '../../universal/protection/ProtectionCoordinator';
 
 // Mock LoggerService
 jest.mock('../../../../utils/LoggerService');
 const MockLoggerService = LoggerService as jest.MockedClass<typeof LoggerService>;
 
+// Mock ConfigurationManager
+jest.mock('../../universal/config/ConfigurationManager');
+const MockConfigurationManager = ConfigurationManager as jest.MockedClass<typeof ConfigurationManager>;
+
+// Mock ProtectionCoordinator
+jest.mock('../../universal/protection/ProtectionCoordinator');
+const MockProtectionCoordinator = ProtectionCoordinator as jest.MockedClass<typeof ProtectionCoordinator>;
+
 describe('UniversalTextSplitter', () => {
   let splitter: UniversalTextSplitter;
   let mockLogger: jest.Mocked<LoggerService>;
+  let mockConfigManager: jest.Mocked<ConfigurationManager>;
+  let mockProtectionCoordinator: jest.Mocked<ProtectionCoordinator>;
 
   beforeEach(() => {
     mockLogger = new MockLoggerService() as jest.Mocked<LoggerService>;
@@ -15,8 +27,51 @@ describe('UniversalTextSplitter', () => {
     mockLogger.warn = jest.fn();
     mockLogger.error = jest.fn();
     mockLogger.info = jest.fn();
-    
-    splitter = new UniversalTextSplitter(mockLogger);
+
+    mockConfigManager = new MockConfigurationManager() as jest.Mocked<ConfigurationManager>;
+    mockConfigManager.getDefaultOptions = jest.fn().mockReturnValue({
+      maxChunkSize: 2000,
+      overlapSize: 200,
+      maxLinesPerChunk: 100,
+      enableBracketBalance: true,
+      enableSemanticDetection: true,
+      enableCodeOverlap: false,
+      enableStandardization: true,
+      standardizationFallback: true,
+      maxOverlapRatio: 0.3,
+      errorThreshold: 5,
+      memoryLimitMB: 100,
+      strategyPriorities: {
+        'markdown': 1,
+        'standardization': 2,
+        'semantic': 3,
+        'bracket': 4,
+        'line': 5
+      },
+      filterConfig: {
+        enableSmallChunkFilter: true,
+        enableChunkRebalancing: true,
+        minChunkSize: 50,
+        maxChunkSize: 3000
+      },
+      protectionConfig: {
+        enableProtection: true,
+        protectionLevel: 'medium'
+      }
+    });
+    mockConfigManager.validateOptions = jest.fn().mockReturnValue(true);
+    mockConfigManager.mergeOptions = jest.fn().mockImplementation((base, override) => ({ ...base, ...override }));
+
+    mockProtectionCoordinator = new MockProtectionCoordinator() as jest.Mocked<ProtectionCoordinator>;
+    mockProtectionCoordinator.setProtectionChain = jest.fn();
+    mockProtectionCoordinator.checkProtection = jest.fn().mockResolvedValue(true);
+    mockProtectionCoordinator.createProtectionContext = jest.fn().mockImplementation((operation, context, additionalMetadata) => ({
+      operation,
+      ...context,
+      ...additionalMetadata
+    }));
+
+    splitter = new UniversalTextSplitter(mockLogger, mockConfigManager, mockProtectionCoordinator);
   });
 
   describe('chunkBySemanticBoundaries', () => {
@@ -45,7 +100,7 @@ export class TestComponent {
       `.trim();
 
       const chunks = await splitter.chunkBySemanticBoundaries(tsCode, 'test.ts', 'typescript');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.language).toBe('typescript');
       expect(chunks[0].metadata.type).toBe('semantic');
@@ -84,7 +139,7 @@ if __name__ == "__main__":
       `.trim();
 
       const chunks = await splitter.chunkBySemanticBoundaries(pythonCode, 'test.py', 'python');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.language).toBe('python');
       expect(chunks[0].metadata.type).toBe('semantic');
@@ -93,9 +148,9 @@ if __name__ == "__main__":
     it('should handle large files with memory protection', async () => {
       // Create a large content that would normally cause memory issues
       const largeContent = 'const x = 1;\n'.repeat(20000); // 20,000 lines
-      
+
       const chunks = await splitter.chunkBySemanticBoundaries(largeContent, 'large.js', 'javascript');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       // Should have limited the number of lines processed due to memory protection
       expect(chunks[0].metadata.endLine).toBeLessThanOrEqual(10000);
@@ -133,7 +188,7 @@ class ShoppingCart {
       `.trim();
 
       const chunks = await splitter.chunkByBracketsAndLines(jsCode, 'cart.js', 'javascript');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.language).toBe('javascript');
       expect(chunks[0].metadata.type).toBe('bracket');
@@ -155,7 +210,7 @@ class ShoppingCart {
       `.trim();
 
       const chunks = await splitter.chunkByBracketsAndLines(xmlContent, 'test.xml', 'xml');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.language).toBe('xml');
     });

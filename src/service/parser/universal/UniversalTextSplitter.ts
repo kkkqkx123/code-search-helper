@@ -322,10 +322,30 @@ export class UniversalTextSplitter implements ITextSplitter {
   }
   
   /**
+   * 获取标准化统计信息（与分段统计信息相同，保持兼容性）
+   */
+  getStandardizationStats(): {
+    totalSegmentations: number;
+    averageChunkCount: number;
+    strategyUsage: Record<string, number>;
+    processorUsage: Record<string, number>;
+  } {
+    // 为了兼容性，返回分段统计信息
+    return this.getSegmentationStats();
+  }
+  
+  /**
    * 重置统计信息
    */
   resetSegmentationStats(): void {
     this.logger?.debug('Segmentation statistics reset');
+  }
+  
+  /**
+   * 重置标准化统计信息（与分段统计信息相同，保持兼容性）
+   */
+  resetStandardizationStats(): void {
+    this.resetSegmentationStats();
   }
   
   /**

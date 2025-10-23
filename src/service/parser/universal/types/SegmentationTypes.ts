@@ -1,5 +1,8 @@
 import { CodeChunk, CodeChunkMetadata } from '../../splitting';
-import { ProtectionContext } from '../protection/ProtectionInterceptor';
+import { ProtectionContext, ProtectionDecision } from '../protection/ProtectionInterceptor';
+import { IProtectionInterceptor } from '../protection/interfaces/IProtectionInterceptor';
+export { ProtectionContext, ProtectionDecision };
+export type { IProtectionInterceptor };
 
 /**
  * 分段上下文，包含分段所需的所有信息
@@ -254,6 +257,46 @@ export interface IConfigurationManager {
 }
 
 /**
+ * 块过滤器接口
+ */
+export interface IChunkFilter {
+  /**
+   * 过滤块
+   */
+  filter(context: ChunkFilterContext): Promise<FilterResult>;
+  
+  /**
+   * 检查是否应该应用此过滤器
+   */
+  shouldApply(chunks: CodeChunk[], context: ChunkFilterContext): boolean;
+  
+  /**
+   * 获取过滤器名称
+   */
+  getName(): string;
+}
+
+/**
+ * 块重新平衡器接口
+ */
+export interface IChunkRebalancer {
+  /**
+   * 重新平衡块
+   */
+  rebalance(context: ChunkRebalancerContext): Promise<RebalancerResult>;
+  
+  /**
+   * 检查是否应该应用此重新平衡器
+   */
+  shouldApply(chunks: CodeChunk[], context: ChunkRebalancerContext): boolean;
+  
+  /**
+   * 获取重新平衡器名称
+   */
+  getName(): string;
+}
+
+/**
  * 保护拦截器链接口
  */
 export interface ProtectionInterceptorChain {
@@ -269,4 +312,68 @@ export interface ProtectionInterceptorChain {
    * 获取所有拦截器
    */
   getInterceptors(): any[];
+}
+
+/**
+ * 块过滤器上下文
+ */
+export interface ChunkFilterContext {
+  chunks: CodeChunk[];
+  options: {
+    enableSmallChunkFilter: boolean;
+    enableChunkRebalancing: boolean;
+    minChunkSize: number;
+    maxChunkSize: number;
+  };
+  metadata: {
+    totalChunks: number;
+    averageChunkSize: number;
+    [key: string]: any;
+  };
+}
+
+/**
+ * 块重新平衡器上下文
+ */
+export interface ChunkRebalancerContext {
+  chunks: CodeChunk[];
+  options: {
+    enableSmallChunkFilter: boolean;
+    enableChunkRebalancing: boolean;
+    minChunkSize: number;
+    maxChunkSize: number;
+  };
+  metadata: {
+    totalChunks: number;
+    averageChunkSize: number;
+    [key: string]: any;
+  };
+}
+
+/**
+ * 过滤结果
+ */
+export interface FilterResult {
+  chunks: CodeChunk[];
+  filtered: number;
+  metadata?: {
+    filterReason?: string;
+    originalSize?: number;
+    filteredSize?: number;
+    [key: string]: any;
+  };
+}
+
+/**
+ * 重新平衡结果
+ */
+export interface RebalancerResult {
+  chunks: CodeChunk[];
+  rebalanced: number;
+  metadata?: {
+    rebalanceReason?: string;
+    originalSize?: number;
+    rebalancedSize?: number;
+    [key: string]: any;
+  };
 }

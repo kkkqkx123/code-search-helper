@@ -359,8 +359,8 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       context.operation,
       context.filePath || 'no-file',
       context.language || 'no-language',
-      context.metadata.contentLength.toString(),
-      context.metadata.lineCount.toString()
+      context.metadata?.contentLength?.toString() || '0',
+      context.metadata?.lineCount?.toString() || '0'
     ];
     
     return keyParts.join(':');
