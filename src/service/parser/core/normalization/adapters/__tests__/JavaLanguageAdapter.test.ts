@@ -9,7 +9,7 @@ describe('JavaLanguageAdapter', () => {
   });
 
   describe('normalize', () => {
-    it('should normalize class query results', () => {
+    it('should normalize class query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -24,7 +24,7 @@ describe('JavaLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'classes', 'java');
+      const results = await adapter.normalize([mockResult], 'classes', 'java');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('class');
@@ -35,7 +35,7 @@ describe('JavaLanguageAdapter', () => {
       expect(results[0].metadata.language).toBe('java');
     });
 
-    it('should normalize method query results', () => {
+    it('should normalize method query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -50,7 +50,7 @@ describe('JavaLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'methods', 'java');
+      const results = await adapter.normalize([mockResult], 'methods', 'java');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('method');
@@ -59,7 +59,7 @@ describe('JavaLanguageAdapter', () => {
       expect(results[0].endLine).toBe(13);
     });
 
-    it('should normalize interface query results', () => {
+    it('should normalize interface query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -74,14 +74,14 @@ describe('JavaLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'interfaces', 'java');
+      const results = await adapter.normalize([mockResult], 'interfaces', 'java');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('interface');
       expect(results[0].name).toBe('TestInterface');
     });
 
-    it('should normalize import query results', () => {
+    it('should normalize import query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -96,14 +96,14 @@ describe('JavaLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'imports', 'java');
+      const results = await adapter.normalize([mockResult], 'imports', 'java');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('import');
       expect(results[0].name).toBe('java.util.List');
     });
 
-    it('should normalize enum query results', () => {
+    it('should normalize enum query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -118,14 +118,14 @@ describe('JavaLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'enums', 'java');
+      const results = await adapter.normalize([mockResult], 'enums', 'java');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('type');
       expect(results[0].name).toBe('TestEnum');
     });
 
-    it('should normalize variable query results', () => {
+    it('should normalize variable query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -140,14 +140,14 @@ describe('JavaLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'variables', 'java');
+      const results = await adapter.normalize([mockResult], 'variables', 'java');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('variable');
       expect(results[0].name).toBe('testField');
     });
 
-    it('should handle complex Java code with modifiers and annotations', () => {
+    it('should handle complex Java code with modifiers and annotations', async () => {
       const mockResult = {
         captures: [
           {
@@ -165,7 +165,7 @@ describe('JavaLanguageAdapter', () => {
       // Mock the extractContent method to return the full method text
       jest.spyOn(adapter, 'extractContent').mockReturnValue('@Override\n  public synchronized final void complexMethod() throws IOException {\n    // method body\n  }');
 
-      const results = adapter.normalize([mockResult], 'methods', 'java');
+      const results = await adapter.normalize([mockResult], 'methods', 'java');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('method');
@@ -180,7 +180,7 @@ describe('JavaLanguageAdapter', () => {
       jest.restoreAllMocks();
     });
 
-    it('should handle generic types', () => {
+    it('should handle generic types', async () => {
       const mockResult = {
         captures: [
           {
@@ -198,7 +198,7 @@ describe('JavaLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'classes', 'java');
+      const results = await adapter.normalize([mockResult], 'classes', 'java');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('class');
@@ -206,7 +206,7 @@ describe('JavaLanguageAdapter', () => {
       expect(results[0].metadata.extra?.hasGenerics).toBe(true);
     });
 
-    it('should filter out null results', () => {
+    it('should filter out null results', async () => {
       const mockResults = [
         {
           captures: [
@@ -223,7 +223,7 @@ describe('JavaLanguageAdapter', () => {
         }
       ];
 
-      const results = adapter.normalize(mockResults, 'classes', 'java');
+      const results = await adapter.normalize(mockResults, 'classes', 'java');
       
       expect(results).toHaveLength(1);
       expect(results[0].name).toBe('ValidClass');

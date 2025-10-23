@@ -55,6 +55,7 @@ import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/str
 import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
 import { GarbageCollectionStrategy } from '../../infrastructure/cleanup/strategies/GarbageCollectionStrategy';
 import { FaultToleranceHandler } from '../../utils/FaultToleranceHandler';
+import { InfrastructureErrorHandler } from '../../infrastructure/error/InfrastructureErrorHandler';
 
 // 基础设施管理器
 import { InfrastructureManager } from '../../infrastructure/InfrastructureManager';
@@ -78,6 +79,23 @@ export class InfrastructureServiceRegistrar {
           transactionLogger,
           cache,
           options
+        );
+      }).inSingletonScope();
+
+      // 基础设施错误处理器
+      container.bind<InfrastructureErrorHandler>(TYPES.InfrastructureErrorHandler).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        const performanceMonitor = context.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
+        
+        // 创建一个简单的警报管理器实现
+        const alertManager = {
+          sendAlert: jest.fn() // 在实际环境中应该实现真实的警报管理器
+        };
+        
+        return new InfrastructureErrorHandler(
+          logger,
+          alertManager as any,
+          performanceMonitor
         );
       }).inSingletonScope();
 

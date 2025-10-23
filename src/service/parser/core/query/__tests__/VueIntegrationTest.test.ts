@@ -104,7 +104,7 @@ export default {
 
     // 使用Vue适配器的标准化功能
     const analysis = await vueAdapter.analyzeVueFile(vueCode);
-    const normalizedResults = vueAdapter.normalize([{ analysis }], 'vue-file', 'vue');
+    const normalizedResults = await vueAdapter.normalize([{ analysis }], 'vue-file', 'vue');
     
     expect(Array.isArray(normalizedResults)).toBe(true);
     expect(normalizedResults.length).toBeGreaterThan(0);

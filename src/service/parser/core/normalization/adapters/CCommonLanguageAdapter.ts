@@ -12,7 +12,7 @@ export class CCommonLanguageAdapter implements ILanguageAdapter {
     this.logger = new LoggerService();
   }
 
-   normalize(queryResults: any[], queryType: string, language: string): StandardizedQueryResult[] {
+   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
      const results: (StandardizedQueryResult | null)[] = [];
      
      for (const result of queryResults) {

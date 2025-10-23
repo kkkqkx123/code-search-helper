@@ -5,7 +5,7 @@ import { QueryResultNormalizer } from './QueryResultNormalizer';
 import { UniversalTextSplitter } from '../../universal/UniversalTextSplitter';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { LRUCache } from '../../../../utils/LRUCache';
-import { ErrorHandlingManager, ErrorType } from '../../../../infrastructure/error-handling/ErrorHandlingManager';
+import { ErrorHandlingManager, ErrorType } from './ErrorHandlingManager';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { StandardizedQueryResult } from './types';
 import { CodeChunk } from '../../splitting';
@@ -15,9 +15,9 @@ import { NormalizationPerformanceAdapter } from './PerformanceAdapter';
  * 集成服务配置
  */
 export interface IntegrationServiceConfig {
- enableCaching: boolean;
- enablePerformanceMonitoring: boolean;
- enableErrorHandling: boolean;
+  enableCaching: boolean;
+  enablePerformanceMonitoring: boolean;
+  enableErrorHandling: boolean;
   cacheConfig?: {
     maxSize: number;
     ttl: number;
@@ -33,7 +33,7 @@ export interface IntegrationServiceConfig {
  */
 export interface ProcessingResult {
   success: boolean;
- chunks?: CodeChunk[];
+  chunks?: CodeChunk[];
   normalizedResults?: StandardizedQueryResult[];
   error?: string;
   metrics?: {
@@ -73,7 +73,7 @@ export class NormalizationIntegrationService {
     this.performanceMonitor = performanceMonitor;
     this.errorHandlingManager = errorHandlingManager;
     this.treeSitterService = treeSitterService;
-    
+
     this.config = {
       enableCaching: true,
       enablePerformanceMonitoring: true,
@@ -91,7 +91,7 @@ export class NormalizationIntegrationService {
     // 创建适配器实例
     this.normalizationPerformanceAdapter = new NormalizationPerformanceAdapter();
     this.cache = new LRUCache<string, any>(this.config.cacheConfig!.maxSize);
-    
+
     this.initializeServices();
   }
 
@@ -120,20 +120,20 @@ export class NormalizationIntegrationService {
    */
   updateConfig(config: Partial<IntegrationServiceConfig>): void {
     this.config = { ...this.config, ...config };
-    
+
     // 更新子服务配置
     if (config.cacheConfig && this.cache) {
       // 重新创建缓存实例以应用新配置
       this.cache = new LRUCache<string, any>(config.cacheConfig.maxSize);
     }
-    
+
     if (config.errorHandlingConfig && this.errorHandlingManager) {
       this.errorHandlingManager.updateConfig({
         maxRetries: config.errorHandlingConfig.maxRetries,
         enableFallback: config.errorHandlingConfig.enableFallback
       });
     }
-    
+
     this.logger.debug('Integration service config updated', config);
   }
 
@@ -157,13 +157,13 @@ export class NormalizationIntegrationService {
       if (this.config.enableCaching && this.cache) {
         const cacheKey = this.generateCacheKey(content, language, filePath, options);
         const cachedResult = this.cache.get(cacheKey);
-        
+
         if (cachedResult) {
-          this.logger.debug('Processing result retrieved from cache', { 
-            language, 
-            filePath 
+          this.logger.debug('Processing result retrieved from cache', {
+            language,
+            filePath
           });
-          
+
           return {
             ...cachedResult,
             metrics: {
@@ -204,7 +204,7 @@ export class NormalizationIntegrationService {
         // 直接执行处理
         result = await this.executeProcessingInternal(content, language, filePath, options);
       }
-      
+
       // 缓存结果
       if (this.config.enableCaching && this.cache && result.success) {
         const cacheKey = this.generateCacheKey(content, language, filePath, options);
@@ -212,7 +212,7 @@ export class NormalizationIntegrationService {
       }
 
       const processingTime = Date.now() - startTime;
-      
+
       return {
         ...result,
         metrics: {
@@ -287,7 +287,7 @@ export class NormalizationIntegrationService {
 
     // 直接执行处理
     return await this.executeProcessingInternal(content, language, filePath, options);
- }
+  }
 
   /**
    * 内部处理逻辑
@@ -308,7 +308,7 @@ export class NormalizationIntegrationService {
     try {
       // 第一步：分段
       let chunks: CodeChunk[];
-      
+
       switch (chunkingStrategy) {
         case 'semantic':
           chunks = await this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
@@ -325,14 +325,14 @@ export class NormalizationIntegrationService {
 
       // 第二步：标准化（如果启用）
       let normalizedResults: StandardizedQueryResult[] = [];
-      
+
       if (enableNormalization && this.treeSitterService) {
         try {
           const parseResult = await this.treeSitterService.parseCode(content, language);
           if (parseResult.success && parseResult.ast) {
             normalizedResults = await this.queryNormalizer.normalize(
-              parseResult.ast, 
-              language, 
+              parseResult.ast,
+              language,
               options?.queryTypes
             );
           }
@@ -404,7 +404,7 @@ export class NormalizationIntegrationService {
    */
   private hashOptions(options?: any): string {
     if (!options) return 'default';
-    
+
     try {
       const optionsStr = JSON.stringify(options);
       let hash = 0;
@@ -428,7 +428,7 @@ export class NormalizationIntegrationService {
     cache?: any;
     performance?: any;
     errorHandling?: any;
- } {
+  } {
     const stats: any = {};
 
     // 标准化统计
@@ -500,9 +500,9 @@ export class NormalizationIntegrationService {
     }
   }
 
- /**
-   * 重置熔断器
-   */
+  /**
+    * 重置熔断器
+    */
   resetCircuitBreakers(): void {
     if (this.errorHandlingManager) {
       this.errorHandlingManager.resetCircuitBreakers();
@@ -510,9 +510,9 @@ export class NormalizationIntegrationService {
     }
   }
 
- /**
-   * 健康检查
-   */
+  /**
+    * 健康检查
+    */
   async healthCheck(): Promise<{
     status: 'healthy' | 'degraded' | 'unhealthy';
     services: Record<string, boolean>;
@@ -576,7 +576,7 @@ export class NormalizationIntegrationService {
         const circuitBreakerStates = this.errorHandlingManager.getCircuitBreakerStates();
         const openBreakers = Object.entries(circuitBreakerStates)
           .filter(([_, state]) => (state as any).state === 'open');
-        
+
         if (openBreakers.length > 0) {
           issues.push(`${openBreakers.length} circuit breakers are open`);
         }
@@ -589,7 +589,7 @@ export class NormalizationIntegrationService {
     // 确定整体状态
     const serviceCount = Object.keys(services).length;
     const healthyServiceCount = Object.values(services).filter(Boolean).length;
-    
+
     let status: 'healthy' | 'degraded' | 'unhealthy';
     if (healthyServiceCount === serviceCount && issues.length === 0) {
       status = 'healthy';

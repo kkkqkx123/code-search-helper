@@ -53,7 +53,7 @@ export class VueLanguageAdapter implements ILanguageAdapter {
     /**
      * 标准化Vue文件查询结果
      */
-    normalize(queryResults: any[], queryType: string, language: string): StandardizedQueryResult[] {
+    async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
         // 对于Vue文件，我们需要根据查询类型分别处理不同部分
         const results: StandardizedQueryResult[] = [];
 

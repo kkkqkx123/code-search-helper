@@ -159,7 +159,7 @@ describe('CCommonLanguageAdapter', () => {
   });
 
   describe('normalize', () => {
-    it('should normalize query results for C language', () => {
+    it('should normalize query results for C language', async () => {
       const mockQueryResult = {
         captures: [
           {
@@ -174,7 +174,7 @@ describe('CCommonLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockQueryResult], 'functions', 'c');
+      const results = await adapter.normalize([mockQueryResult], 'functions', 'c');
       
       expect(results).toHaveLength(1);
       expect(results[0]).toEqual({

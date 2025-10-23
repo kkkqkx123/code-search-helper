@@ -4,7 +4,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { QueryResultNormalizer } from '../QueryResultNormalizer';
 import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
 import { PerformanceMonitor } from '../../../../../infrastructure/monitoring/PerformanceMonitor';
-import { ErrorHandlingManager } from '../../../../../infrastructure/error-handling/ErrorHandlingManager';
+import { ErrorHandlingManager } from '../ErrorHandlingManager';
 import { TreeSitterCoreService } from '../../parse/TreeSitterCoreService';
 import { NormalizationIntegrationService } from '../NormalizationIntegrationService';
 import { CodeChunk } from '../../../splitting';
@@ -15,7 +15,7 @@ describe('NormalizationIntegrationService', () => {
 
   beforeEach(() => {
     container = new Container();
-    
+
     // 绑定依赖
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).to(QueryResultNormalizer).inSingletonScope();
@@ -33,7 +33,7 @@ describe('NormalizationIntegrationService', () => {
       container.get<ErrorHandlingManager>(TYPES.ErrorHandlingManager),
       container.get<TreeSitterCoreService>(TYPES.TreeSitterService)
     );
- });
+  });
 
   describe('processContent', () => {
     it('should process content successfully with semantic chunking', async () => {
@@ -53,7 +53,7 @@ class TestClass {
   }
 }
       `;
-      
+
       const result = await service.processContent(content, 'javascript', 'test.js', {
         chunkingStrategy: 'semantic'
       });
@@ -84,7 +84,7 @@ if (true) {
   console.log('Conditional block');
 }
       `;
-      
+
       const result = await service.processContent(content, 'javascript', 'test.js', {
         chunkingStrategy: 'bracket'
       });
@@ -110,7 +110,7 @@ class TestClass {
   }
 }
       `;
-      
+
       const result = await service.processContent(content, 'javascript', 'test.js', {
         chunkingStrategy: 'line'
       });
@@ -128,7 +128,7 @@ class TestClass {
 
     it('should handle invalid language', async () => {
       const content = 'console.log("test");';
-      
+
       const result = await service.processContent(content, 'invalid-language', 'test.js');
 
       expect(result.success).toBe(true); // Should still succeed but with basic processing
@@ -137,11 +137,11 @@ class TestClass {
 
     it('should cache results when caching is enabled', async () => {
       const content = 'function test() { return 42; }';
-      
+
       // First call
       const result1 = await service.processContent(content, 'javascript', 'test.js');
       expect(result1.success).toBe(true);
-      
+
       // Second call with same parameters should potentially hit cache
       const result2 = await service.processContent(content, 'javascript', 'test.js');
       expect(result2.success).toBe(true);
@@ -155,7 +155,7 @@ class TestClass {
 
       const content = 'function test() { return 42; }';
       const result = await service.processContent(content, 'javascript', 'test.js');
-      
+
       expect(result.success).toBe(true);
     });
   });
@@ -163,7 +163,7 @@ class TestClass {
   describe('getServiceStats', () => {
     it('should return service statistics', () => {
       const stats = service.getServiceStats();
-      
+
       expect(stats).toBeDefined();
       expect(stats.normalization).toBeDefined();
       expect(stats.chunking).toBeDefined();
@@ -177,13 +177,13 @@ class TestClass {
     it('should reset all statistics', () => {
       // Get initial stats
       const initialStats = service.getServiceStats();
-      
+
       // Reset stats
       service.resetStats();
-      
+
       // Get stats after reset
       const postResetStats = service.getServiceStats();
-      
+
       // Verify reset occurred (some values should be 0 or empty)
       expect(postResetStats).toBeDefined();
     });
@@ -201,7 +201,7 @@ class TestClass {
   describe('healthCheck', () => {
     it('should return health status', async () => {
       const health = await service.healthCheck();
-      
+
       expect(health).toBeDefined();
       expect(health.status).toBeDefined();
       expect(['healthy', 'degraded', 'unhealthy']).toContain(health.status);
@@ -215,9 +215,9 @@ class TestClass {
     it('should handle errors gracefully', async () => {
       // Test with invalid content that might cause errors
       const result = await service.processContent(null as any, 'javascript', 'test.js');
-      
+
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
     });
- });
+  });
 });

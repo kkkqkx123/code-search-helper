@@ -9,7 +9,7 @@ describe('KotlinLanguageAdapter', () => {
   });
 
   describe('normalize', () => {
-    it('should normalize class query results', () => {
+    it('should normalize class query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -24,7 +24,7 @@ describe('KotlinLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'classes', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'classes', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('class');
@@ -35,7 +35,7 @@ describe('KotlinLanguageAdapter', () => {
       expect(results[0].metadata.language).toBe('kotlin');
     });
 
-    it('should normalize data class query results', () => {
+    it('should normalize data class query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -53,7 +53,7 @@ describe('KotlinLanguageAdapter', () => {
       // Mock the extractContent method to return the full class text
       jest.spyOn(adapter, 'extractContent').mockReturnValue('data class DataClass(val value: String)');
 
-      const results = adapter.normalize([mockResult], 'classes', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'classes', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('class');
@@ -64,7 +64,7 @@ describe('KotlinLanguageAdapter', () => {
       jest.restoreAllMocks();
     });
 
-    it('should normalize function query results', () => {
+    it('should normalize function query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -79,7 +79,7 @@ describe('KotlinLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'functions', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'functions', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('function');
@@ -88,7 +88,7 @@ describe('KotlinLanguageAdapter', () => {
       expect(results[0].endLine).toBe(13);
     });
 
-    it('should normalize suspend function query results', () => {
+    it('should normalize suspend function query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -103,7 +103,7 @@ describe('KotlinLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'functions', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'functions', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('function');
@@ -111,7 +111,7 @@ describe('KotlinLanguageAdapter', () => {
       expect(results[0].metadata.modifiers).toContain('suspend');
     });
 
-    it('should normalize extension function query results', () => {
+    it('should normalize extension function query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -126,14 +126,14 @@ describe('KotlinLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'extensions', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'extensions', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('function');
       expect(results[0].name).toBe('extensionFunction');
     });
 
-    it('should normalize object declaration query results', () => {
+    it('should normalize object declaration query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -148,14 +148,14 @@ describe('KotlinLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'objects', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'objects', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('class');
       expect(results[0].name).toBe('SingletonObject');
     });
 
-    it('should normalize property query results', () => {
+    it('should normalize property query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -170,14 +170,14 @@ describe('KotlinLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'properties', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'properties', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('variable');
       expect(results[0].name).toBe('testProperty');
     });
 
-    it('should normalize constructor property query results', () => {
+    it('should normalize constructor property query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -192,14 +192,14 @@ describe('KotlinLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'constructors-properties', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'constructors-properties', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('method');
       expect(results[0].name).toBe('constructorProperty');
     });
 
-    it('should handle complex Kotlin code with modifiers and annotations', () => {
+    it('should handle complex Kotlin code with modifiers and annotations', async () => {
       const mockResult = {
         captures: [
           {
@@ -217,7 +217,7 @@ describe('KotlinLanguageAdapter', () => {
       // Mock the extractContent method to return the full function text
       jest.spyOn(adapter, 'extractContent').mockReturnValue('@Override\n  suspend inline fun complexFunction(): String {\n    // function body\n  }');
 
-      const results = adapter.normalize([mockResult], 'functions', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'functions', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('function');
@@ -231,7 +231,7 @@ describe('KotlinLanguageAdapter', () => {
       jest.restoreAllMocks();
     });
 
-    it('should handle generic types', () => {
+    it('should handle generic types', async () => {
       const mockResult = {
         captures: [
           {
@@ -249,7 +249,7 @@ describe('KotlinLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'classes', 'kotlin');
+      const results = await adapter.normalize([mockResult], 'classes', 'kotlin');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('class');
