@@ -195,6 +195,7 @@ export interface NormalizationStats {
   
   /** 按类型分组的统计 */
   typeStats: Record<string, number>;
+}
 /**
  * 适配器选项接口
  */
@@ -273,5 +274,4 @@ export interface CacheStats {
     language: string;
     count: number;
   }>;
-}
 }

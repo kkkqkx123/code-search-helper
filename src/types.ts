@@ -139,7 +139,7 @@ export const TYPES = {
   ConfigFactory: Symbol.for('ConfigFactory'),
 
   // 配置服务
-  EnvironmentConfigService: Symbol.for('EnvironmentConfigService'),
+ EnvironmentConfigService: Symbol.for('EnvironmentConfigService'),
   QdrantConfigService: Symbol.for('QdrantConfigService'),
   EmbeddingConfigService: Symbol.for('EmbeddingConfigService'),
   EmbeddingBatchConfigService: Symbol.for('EmbeddingBatchConfigService'),
@@ -192,7 +192,7 @@ export const TYPES = {
   FileTraversalService: Symbol.for('FileTraversalService'),
   ConcurrencyService: Symbol.for('ConcurrencyService'),
   // 项目状态管理服务
-  ProjectStateManager: Symbol.for('ProjectStateManager'),
+ ProjectStateManager: Symbol.for('ProjectStateManager'),
   CoreStateService: Symbol.for('CoreStateService'),
   StorageStateService: Symbol.for('StorageStateService'),
   // 性能优化器服务
@@ -224,7 +224,7 @@ export const TYPES = {
   INebulaQueryBuilder: Symbol.for('INebulaQueryBuilder'),
   INebulaProjectManager: Symbol.for('INebulaProjectManager'),
   // Nebula 数据和空间服务
-  NebulaDataService: Symbol.for('NebulaDataService'),
+ NebulaDataService: Symbol.for('NebulaDataService'),
   INebulaDataService: Symbol.for('INebulaDataService'),
   NebulaSpaceService: Symbol.for('NebulaSpaceService'),
   INebulaSpaceService: Symbol.for('INebulaSpaceService'),
@@ -245,7 +245,7 @@ export const TYPES = {
   NebulaEventManager: Symbol.for('NebulaEventManager'),
 
   // Nebula 监控服务
-  NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
+ NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
   ConnectionStateManager: Symbol.for('ConnectionStateManager'),
 
   // 图服务
@@ -265,7 +265,7 @@ export const TYPES = {
   GraphDataService: Symbol.for('GraphDataService'),
   GraphTransactionService: Symbol.for('GraphTransactionService'),
   GraphSearchServiceNew: Symbol.for('GraphSearchServiceNew'),
-  GraphServiceNewAdapter: Symbol.for('GraphServiceNewAdapter'),
+ GraphServiceNewAdapter: Symbol.for('GraphServiceNewAdapter'),
 
   // 项目查询服务
   ProjectLookupService: Symbol.for('ProjectLookupService'),
@@ -300,19 +300,19 @@ export const TYPES = {
   DataMappingValidator: Symbol.for('DataMappingValidator'),
 
   // 缓存服务
-  GraphMappingCache: Symbol.for('GraphMappingCache'),
+ GraphMappingCache: Symbol.for('GraphMappingCache'),
 
   // 批处理优化服务
   VectorBatchOptimizer: Symbol.for('VectorBatchOptimizer'),
 
   // 事务相关服务
-  TransactionLogger: Symbol.for('TransactionLogger'),
+ TransactionLogger: Symbol.for('TransactionLogger'),
   DataConsistencyChecker: Symbol.for('DataConsistencyChecker'),
   ConflictResolver: Symbol.for('ConflictResolver'),
   TransactionPerformanceOptimizer: Symbol.for('TransactionPerformanceOptimizer'),
 
   // 高级映射相关服务
-  AdvancedMappingService: Symbol.for('AdvancedMappingService'),
+ AdvancedMappingService: Symbol.for('AdvancedMappingService'),
   FaultToleranceHandler: Symbol.for('FaultToleranceHandler'),
   MappingRuleEngine: Symbol.for('MappingRuleEngine'),
   MappingCacheManager: Symbol.for('MappingCacheManager'),
@@ -349,7 +349,7 @@ export const TYPES = {
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
 
   // SQLite服务
-  SqliteDatabaseService: Symbol.for('SqliteDatabaseService'),
+ SqliteDatabaseService: Symbol.for('SqliteDatabaseService'),
   SqliteConnectionManager: Symbol.for('SqliteConnectionManager'),
   SqliteProjectManager: Symbol.for('SqliteProjectManager'),
   SqliteInfrastructure: Symbol.for('SqliteInfrastructure'),
@@ -367,11 +367,9 @@ export const TYPES = {
 
   // 文件哈希管理服务
   FileHashManager: Symbol.for('FileHashManager'),
-  // 文件哈希管理服务
-  FileHashManager: Symbol.for('FileHashManager'),
 
   // 查询结果标准化服务
-  QueryResultNormalizer: Symbol.for('QueryResultNormalizer'),
+ QueryResultNormalizer: Symbol.for('QueryResultNormalizer'),
   NormalizationIntegrationService: Symbol.for('NormalizationIntegrationService'),
 
   // 统一缓存管理器
@@ -379,8 +377,4 @@ export const TYPES = {
 
   // 错误处理管理器
   ErrorHandlingManager: Symbol.for('ErrorHandlingManager'),
-
-  // Tree-sitter服务（统一类型）
-  TreeSitterService: Symbol.for('TreeSitterService'),
-};
 };

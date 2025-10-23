@@ -4,19 +4,20 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { QueryResultNormalizer } from './QueryResultNormalizer';
 import { UniversalTextSplitter } from '../../universal/UniversalTextSplitter';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
-import { UnifiedCacheManager } from '../../../../infrastructure/caching/UnifiedCacheManager';
+import { LRUCache } from '../../../../utils/LRUCache';
 import { ErrorHandlingManager, ErrorType } from '../../../../infrastructure/error-handling/ErrorHandlingManager';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { StandardizedQueryResult } from './types';
 import { CodeChunk } from '../../splitting';
+import { NormalizationPerformanceAdapter } from './PerformanceAdapter';
 
 /**
  * 集成服务配置
  */
 export interface IntegrationServiceConfig {
-  enableCaching: boolean;
-  enablePerformanceMonitoring: boolean;
-  enableErrorHandling: boolean;
+ enableCaching: boolean;
+ enablePerformanceMonitoring: boolean;
+ enableErrorHandling: boolean;
   cacheConfig?: {
     maxSize: number;
     ttl: number;
@@ -32,7 +33,7 @@ export interface IntegrationServiceConfig {
  */
 export interface ProcessingResult {
   success: boolean;
-  chunks?: CodeChunk[];
+ chunks?: CodeChunk[];
   normalizedResults?: StandardizedQueryResult[];
   error?: string;
   metrics?: {
@@ -52,7 +53,8 @@ export class NormalizationIntegrationService {
   private queryNormalizer: QueryResultNormalizer;
   private universalTextSplitter: UniversalTextSplitter;
   private performanceMonitor?: PerformanceMonitor;
-  private cacheManager?: UnifiedCacheManager;
+  private normalizationPerformanceAdapter?: NormalizationPerformanceAdapter;
+  private cache?: LRUCache<string, any>;
   private errorHandlingManager?: ErrorHandlingManager;
   private treeSitterService?: TreeSitterCoreService;
   private config: IntegrationServiceConfig;
@@ -62,7 +64,6 @@ export class NormalizationIntegrationService {
     @inject(TYPES.QueryResultNormalizer) queryNormalizer: QueryResultNormalizer,
     @inject(TYPES.UniversalTextSplitter) universalTextSplitter: UniversalTextSplitter,
     @inject(TYPES.PerformanceMonitor) performanceMonitor?: PerformanceMonitor,
-    @inject(TYPES.UnifiedCacheManager) cacheManager?: UnifiedCacheManager,
     @inject(TYPES.ErrorHandlingManager) errorHandlingManager?: ErrorHandlingManager,
     @inject(TYPES.TreeSitterService) treeSitterService?: TreeSitterCoreService
   ) {
@@ -70,7 +71,6 @@ export class NormalizationIntegrationService {
     this.queryNormalizer = queryNormalizer;
     this.universalTextSplitter = universalTextSplitter;
     this.performanceMonitor = performanceMonitor;
-    this.cacheManager = cacheManager;
     this.errorHandlingManager = errorHandlingManager;
     this.treeSitterService = treeSitterService;
     
@@ -79,8 +79,8 @@ export class NormalizationIntegrationService {
       enablePerformanceMonitoring: true,
       enableErrorHandling: true,
       cacheConfig: {
-        maxSize: 1000,
-        ttl: 300000 // 5分钟
+        maxSize: 100,
+        ttl: 3000 // 5分钟
       },
       errorHandlingConfig: {
         maxRetries: 3,
@@ -88,6 +88,10 @@ export class NormalizationIntegrationService {
       }
     };
 
+    // 创建适配器实例
+    this.normalizationPerformanceAdapter = new NormalizationPerformanceAdapter();
+    this.cache = new LRUCache<string, any>(this.config.cacheConfig!.maxSize);
+    
     this.initializeServices();
   }
 
@@ -101,8 +105,9 @@ export class NormalizationIntegrationService {
       this.universalTextSplitter.setTreeSitterService(this.treeSitterService);
     }
 
-    if (this.performanceMonitor) {
-      this.queryNormalizer.setPerformanceMonitor(this.performanceMonitor);
+    // 使用适配器设置性能监控
+    if (this.normalizationPerformanceAdapter) {
+      this.queryNormalizer.setPerformanceAdapter(this.normalizationPerformanceAdapter);
     }
 
     this.universalTextSplitter.setQueryNormalizer(this.queryNormalizer);
@@ -117,8 +122,9 @@ export class NormalizationIntegrationService {
     this.config = { ...this.config, ...config };
     
     // 更新子服务配置
-    if (config.cacheConfig && this.cacheManager) {
-      // 更新缓存配置
+    if (config.cacheConfig && this.cache) {
+      // 重新创建缓存实例以应用新配置
+      this.cache = new LRUCache<string, any>(config.cacheConfig.maxSize);
     }
     
     if (config.errorHandlingConfig && this.errorHandlingManager) {
@@ -145,24 +151,14 @@ export class NormalizationIntegrationService {
     }
   ): Promise<ProcessingResult> {
     const startTime = Date.now();
-    const operationId = this.performanceMonitor?.startOperation('process_content', {
-      language,
-      filePath,
-      contentLength: content.length
-    });
 
     try {
       // 检查缓存
-      if (this.config.enableCaching && this.cacheManager) {
+      if (this.config.enableCaching && this.cache) {
         const cacheKey = this.generateCacheKey(content, language, filePath, options);
-        const cachedResult = this.cacheManager.get<ProcessingResult>('processing', cacheKey);
+        const cachedResult = this.cache.get(cacheKey);
         
         if (cachedResult) {
-          this.performanceMonitor?.endOperation(operationId, { 
-            cacheHit: true,
-            success: true 
-          });
-          
           this.logger.debug('Processing result retrieved from cache', { 
             language, 
             filePath 
@@ -179,23 +175,44 @@ export class NormalizationIntegrationService {
       }
 
       // 执行处理
-      const result = await this.executeProcessing(content, language, filePath, options);
+      let result: ProcessingResult;
+      if (this.config.enableErrorHandling && this.errorHandlingManager) {
+        // 使用错误处理管理器执行处理
+        result = await this.errorHandlingManager.executeWithFallback(
+          'process_content',
+          () => this.executeProcessingInternal(content, language, filePath, options),
+          // 降级函数：返回基本处理结果
+          (error: Error) => {
+            this.logger.warn('Using fallback processing due to error', {
+              error: error.message,
+              language,
+              filePath
+            });
+            return Promise.resolve({
+              success: true,
+              chunks: [{ content, metadata: { startLine: 1, endLine: content.split('\n').length, language: language || 'unknown', filePath } }],
+              normalizedResults: [],
+              metrics: {
+                processingTime: 0,
+                cacheHit: false,
+                fallbackUsed: true
+              }
+            });
+          }
+        );
+      } else {
+        // 直接执行处理
+        result = await this.executeProcessingInternal(content, language, filePath, options);
+      }
       
       // 缓存结果
-      if (this.config.enableCaching && this.cacheManager && result.success) {
+      if (this.config.enableCaching && this.cache && result.success) {
         const cacheKey = this.generateCacheKey(content, language, filePath, options);
-        this.cacheManager.set('processing', cacheKey, result, this.config.cacheConfig?.ttl);
+        this.cache.set(cacheKey, result);
       }
 
       const processingTime = Date.now() - startTime;
       
-      this.performanceMonitor?.endOperation(operationId, { 
-        success: result.success,
-        processingTime,
-        cacheHit: false,
-        fallbackUsed: result.metrics?.fallbackUsed || false
-      });
-
       return {
         ...result,
         metrics: {
@@ -206,12 +223,6 @@ export class NormalizationIntegrationService {
       };
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      
-      this.performanceMonitor?.endOperation(operationId, { 
-        success: false,
-        error: String(error),
-        processingTime
-      });
 
       this.logger.error('Content processing failed', {
         language,
@@ -251,15 +262,32 @@ export class NormalizationIntegrationService {
     // 如果启用了错误处理，使用错误处理管理器
     if (this.config.enableErrorHandling && this.errorHandlingManager) {
       return await this.errorHandlingManager.executeWithFallback(
-        'process_content',
+        'execute_processing',
         () => this.executeProcessingInternal(content, language, filePath, options),
-        { content, language, filePath, options }
+        // 降级函数
+        (error: Error) => {
+          this.logger.warn('Using fallback for executeProcessing', {
+            error: error.message,
+            language,
+            filePath
+          });
+          return Promise.resolve({
+            success: true,
+            chunks: [],
+            normalizedResults: [],
+            metrics: {
+              processingTime: 0,
+              cacheHit: false,
+              fallbackUsed: true
+            }
+          });
+        }
       );
     }
 
     // 直接执行处理
     return await this.executeProcessingInternal(content, language, filePath, options);
-  }
+ }
 
   /**
    * 内部处理逻辑
@@ -400,7 +428,7 @@ export class NormalizationIntegrationService {
     cache?: any;
     performance?: any;
     errorHandling?: any;
-  } {
+ } {
     const stats: any = {};
 
     // 标准化统计
@@ -414,13 +442,17 @@ export class NormalizationIntegrationService {
     }
 
     // 缓存统计
-    if (this.cacheManager) {
-      stats.cache = this.cacheManager.getGlobalStats();
+    if (this.cache) {
+      stats.cache = {
+        size: this.cache.size(),
+        hits: 0, // 由于LRUCache没有内置命中统计，这里返回0
+        total: 0
+      };
     }
 
     // 性能统计
     if (this.performanceMonitor) {
-      stats.performance = this.performanceMonitor.getOperationStats();
+      stats.performance = this.performanceMonitor.getMetrics();
     }
 
     // 错误处理统计
@@ -443,8 +475,8 @@ export class NormalizationIntegrationService {
       this.universalTextSplitter.resetStandardizationStats();
     }
 
-    if (this.cacheManager) {
-      this.cacheManager.resetStats();
+    if (this.cache) {
+      this.cache.clear();
     }
 
     if (this.performanceMonitor) {
@@ -462,13 +494,13 @@ export class NormalizationIntegrationService {
    * 清除所有缓存
    */
   clearCache(): void {
-    if (this.cacheManager) {
-      this.cacheManager.clearAll();
+    if (this.cache) {
+      this.cache.clear();
       this.logger.info('All caches cleared');
     }
   }
 
-  /**
+ /**
    * 重置熔断器
    */
   resetCircuitBreakers(): void {
@@ -478,7 +510,7 @@ export class NormalizationIntegrationService {
     }
   }
 
-  /**
+ /**
    * 健康检查
    */
   async healthCheck(): Promise<{
@@ -504,9 +536,9 @@ export class NormalizationIntegrationService {
       }
 
       // 检查缓存服务
-      if (this.cacheManager) {
-        const cacheStats = this.cacheManager.getGlobalStats();
-        services.cache = cacheStats.totalCaches >= 0;
+      if (this.cache) {
+        const size = this.cache.size();
+        services.cache = size >= 0;
         if (!services.cache) {
           issues.push('Cache service not responding');
         }
@@ -543,7 +575,7 @@ export class NormalizationIntegrationService {
       if (this.errorHandlingManager) {
         const circuitBreakerStates = this.errorHandlingManager.getCircuitBreakerStates();
         const openBreakers = Object.entries(circuitBreakerStates)
-          .filter(([_, state]) => state.state === 'open');
+          .filter(([_, state]) => (state as any).state === 'open');
         
         if (openBreakers.length > 0) {
           issues.push(`${openBreakers.length} circuit breakers are open`);

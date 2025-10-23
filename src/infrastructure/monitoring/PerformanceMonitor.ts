@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { DatabaseType } from '../types';
-import { IPerformanceMonitor, PerformanceMetrics, GraphDatabaseMetric, VectorOperationMetric } from './types';
+import { IPerformanceMonitor, PerformanceMetrics, GraphDatabaseMetric, VectorOperationMetric, ParsingOperationMetric, NormalizationOperationMetric, ChunkingOperationMetric, OperationContext, OperationResult } from './types';
 
 @injectable()
 export class PerformanceMonitor implements IPerformanceMonitor {
@@ -18,6 +18,11 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   // 添加数据库特定的指标
   private nebulaOperationMetrics: GraphDatabaseMetric[] = [];
   private vectorOperationMetrics: VectorOperationMetric[] = [];
+  // 添加解析和标准化操作监控相关属性
+  private operationContexts: Map<string, OperationContext> = new Map();
+  private parsingOperationMetrics: ParsingOperationMetric[] = [];
+  private normalizationOperationMetrics: NormalizationOperationMetric[] = [];
+  private chunkingOperationMetrics: ChunkingOperationMetric[] = [];
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService
@@ -371,5 +376,159 @@ export class PerformanceMonitor implements IPerformanceMonitor {
       duration,
       vectorCount
     });
+  }
+
+  startOperation(operationType: string, metadata?: Record<string, any>): string {
+    const operationId = `${operationType}_${Date.now()}_${Math.random()}`;
+    const context: OperationContext = {
+      operationId,
+      operationType,
+      startTime: Date.now(),
+      metadata
+    };
+
+    this.operationContexts.set(operationId, context);
+    this.logger.debug('Started operation', { operationId, operationType, metadata });
+
+    return operationId;
+  }
+
+  endOperation(operationId: string, result?: Partial<OperationResult>): void {
+    const context = this.operationContexts.get(operationId);
+    if (!context) {
+      this.logger.warn('Attempted to end non-existent operation', { operationId });
+      return;
+    }
+
+    const duration = Date.now() - context.startTime;
+    const operationResult: OperationResult = {
+      operationId,
+      duration,
+      success: result?.success ?? true,
+      resultCount: result?.resultCount,
+      error: result?.error,
+      metadata: result?.metadata
+    };
+
+    this.operationContexts.delete(operationId);
+    this.logger.debug('Ended operation', { ...operationResult, duration });
+
+    // 可以根据需要记录到特定的指标数组
+  }
+
+  async recordParsingOperation(metric: ParsingOperationMetric): Promise<void> {
+    // 保留最近的1000个指标
+    if (this.parsingOperationMetrics.length >= 1000) {
+      this.parsingOperationMetrics = this.parsingOperationMetrics.slice(-500); // 保留一半
+    }
+
+    this.parsingOperationMetrics.push(metric);
+    this.logger.debug('Recorded parsing operation', {
+      operation: metric.operation,
+      language: metric.language,
+      duration: metric.duration,
+      success: metric.success
+    });
+  }
+
+  async recordNormalizationOperation(metric: NormalizationOperationMetric): Promise<void> {
+    // 保留最近的1000个指标
+    if (this.normalizationOperationMetrics.length >= 1000) {
+      this.normalizationOperationMetrics = this.normalizationOperationMetrics.slice(-500); // 保留一半
+    }
+
+    this.normalizationOperationMetrics.push(metric);
+    this.logger.debug('Recorded normalization operation', {
+      operation: metric.operation,
+      language: metric.language,
+      queryType: metric.queryType,
+      duration: metric.duration,
+      success: metric.success
+    });
+  }
+
+  async recordChunkingOperation(metric: ChunkingOperationMetric): Promise<void> {
+    // 保留最近的1000个指标
+    if (this.chunkingOperationMetrics.length >= 1000) {
+      this.chunkingOperationMetrics = this.chunkingOperationMetrics.slice(-500); // 保留一半
+    }
+
+    this.chunkingOperationMetrics.push(metric);
+    this.logger.debug('Recorded chunking operation', {
+      operation: metric.operation,
+      language: metric.language,
+      duration: metric.duration,
+      success: metric.success
+    });
+  }
+
+  getOperationMetrics(): {
+    parsing: ParsingOperationMetric[];
+    normalization: NormalizationOperationMetric[];
+    chunking: ChunkingOperationMetric[];
+  } {
+    return {
+      parsing: [...this.parsingOperationMetrics],
+      normalization: [...this.normalizationOperationMetrics],
+      chunking: [...this.chunkingOperationMetrics]
+    };
+  }
+
+  getOperationStats(): {
+    totalOperations: number;
+    successRate: number;
+    averageDuration: number;
+    operationsByType: Record<string, number>;
+    operationsByLanguage: Record<string, number>;
+  } {
+    // 合并所有操作指标
+    const allMetrics = [
+      ...this.parsingOperationMetrics.map(m => ({ ...m, type: 'parsing' })),
+      ...this.normalizationOperationMetrics.map(m => ({ ...m, type: 'normalization' })),
+      ...this.chunkingOperationMetrics.map(m => ({ ...m, type: 'chunking' }))
+    ];
+
+    if (allMetrics.length === 0) {
+      return {
+        totalOperations: 0,
+        successRate: 0,
+        averageDuration: 0,
+        operationsByType: {},
+        operationsByLanguage: {}
+      };
+    }
+
+    // 计算总操作数
+    const totalOperations = allMetrics.length;
+
+    // 计算成功率
+    const successfulOperations = allMetrics.filter(m => m.success).length;
+    const successRate = totalOperations > 0 ? successfulOperations / totalOperations : 0;
+
+    // 计算平均耗时
+    const totalDuration = allMetrics.reduce((sum, m) => sum + m.duration, 0);
+    const averageDuration = totalOperations > 0 ? totalDuration / totalOperations : 0;
+
+    // 按类型统计
+    const operationsByType: Record<string, number> = {};
+    allMetrics.forEach(m => {
+      operationsByType[m.type] = (operationsByType[m.type] || 0) + 1;
+    });
+
+    // 按语言统计
+    const operationsByLanguage: Record<string, number> = {};
+    allMetrics.forEach(m => {
+      if (m.language) {
+        operationsByLanguage[m.language] = (operationsByLanguage[m.language] || 0) + 1;
+      }
+    });
+
+    return {
+      totalOperations,
+      successRate,
+      averageDuration,
+      operationsByType,
+      operationsByLanguage
+    };
   }
 }

@@ -5,7 +5,7 @@ import { DEFAULT_CONFIG, BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD, getDynamicBloc
 import { MarkdownTextSplitter } from './md/MarkdownTextSplitter';
 import { ProtectionInterceptorChain, ProtectionContext } from './protection/ProtectionInterceptor';
 import { IQueryResultNormalizer, StandardizedQueryResult } from '../core/normalization/types';
-import { TreeSitterService } from '../core/parse/TreeSitterCoreService';
+import { TreeSitterCoreService } from '../core/parse/TreeSitterCoreService';
 
 /**
  * 通用分段选项
@@ -36,7 +36,7 @@ export class UniversalTextSplitter {
   private markdownSplitter: MarkdownTextSplitter;
   private protectionChain?: ProtectionInterceptorChain; // 外部保护机制
   private queryNormalizer?: IQueryResultNormalizer;
-  private treeSitterService?: TreeSitterService;
+  private treeSitterService?: TreeSitterCoreService;
   private standardizationStats: {
     attempts: number;
     successes: number;
@@ -46,7 +46,7 @@ export class UniversalTextSplitter {
 
   constructor(logger?: LoggerService) {
     this.logger = logger;
-    this.options = { 
+    this.options = {
       ...DEFAULT_CONFIG.TEXT_SPLITTER_OPTIONS,
       enableStandardization: true,
       standardizationFallback: true
@@ -79,7 +79,7 @@ export class UniversalTextSplitter {
   /**
    * 设置Tree-sitter服务
    */
-  setTreeSitterService(service: TreeSitterService): void {
+  setTreeSitterService(service: TreeSitterCoreService): void {
     this.treeSitterService = service;
     this.logger?.debug('Tree-sitter service set for UniversalTextSplitter');
   }
@@ -366,17 +366,17 @@ export class UniversalTextSplitter {
   }
 
   /**
-   * 基于语义边界的分段（增强版）
-   * 优先在逻辑边界处分段，如函数、类、代码块等
-   * 对 Markdown 文件使用专门的分段策略
-   * 集成了QueryResultNormalizer以提供更精确的语义分段
-   */
+    * 基于语义边界的分段（增强版）
+    * 优先在逻辑边界处分段，如函数、类、代码块等
+    * 对 Markdown 文件使用专门的分段策略
+    * 集成了QueryResultNormalizer以提供更精确的语义分段
+    */
   async chunkBySemanticBoundaries(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     // 对小文件直接作为一个块处理，无重叠
     if (this.isSmallFile(content)) {
       return this.chunkSmallFile(content, filePath, language);
     }
-    
+
     // 对 Markdown 文件使用专门的分段器
     if (language === 'markdown' || (filePath && filePath.endsWith('.md'))) {
       this.logger?.info(`使用专门的markdown分块策略处理 ${filePath}`);
@@ -398,7 +398,7 @@ export class UniversalTextSplitter {
       } catch (error) {
         this.standardizationStats.failures++;
         this.logger?.warn('Standardization failed, falling back to text-based chunking:', error);
-        
+
         if (!this.options.standardizationFallback) {
           throw error;
         }
@@ -414,8 +414,8 @@ export class UniversalTextSplitter {
    * 基于标准化结果的分段
    */
   private async chunkByStandardization(
-    content: string, 
-    filePath?: string, 
+    content: string,
+    filePath?: string,
     language?: string
   ): Promise<CodeChunk[]> {
     if (!this.queryNormalizer || !this.treeSitterService || !language) {
@@ -455,10 +455,10 @@ export class UniversalTextSplitter {
   ): CodeChunk[] {
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
-    
+
     for (const result of standardizedResults) {
       const chunkContent = lines.slice(result.startLine - 1, result.endLine).join('\n');
-      
+
       chunks.push({
         content: chunkContent,
         metadata: {
@@ -466,7 +466,7 @@ export class UniversalTextSplitter {
           endLine: result.endLine,
           language: language || 'unknown',
           filePath,
-          type: result.type,
+          type: this.mapStandardizedTypeToChunkType(result.type),
           complexity: result.metadata.complexity,
           functionName: result.type === 'function' ? result.name : undefined,
           className: result.type === 'class' ? result.name : undefined,
@@ -477,8 +477,28 @@ export class UniversalTextSplitter {
         }
       });
     }
-    
+
     return this.postProcessChunks(chunks, content);
+  }
+
+  /**
+   * 将标准化结果类型映射到分块类型
+   */
+  private mapStandardizedTypeToChunkType(standardizedType: StandardizedQueryResult['type']): CodeChunkMetadata['type'] {
+    const typeMap: Record<StandardizedQueryResult['type'], CodeChunkMetadata['type']> = {
+      'function': 'function',
+      'class': 'class',
+      'method': 'method',
+      'import': 'import',
+      'variable': 'code',
+      'interface': 'interface',
+      'type': 'code',
+      'export': 'import',
+      'control-flow': 'code',
+      'expression': 'code'
+    };
+
+    return typeMap[standardizedType] || 'semantic';
   }
 
   /**
@@ -510,7 +530,7 @@ export class UniversalTextSplitter {
       let semanticScore = 0;
 
       // 内存保护：限制处理的行数
-      const maxLines = Math.min(lines.length, 10000);
+      const maxLines = Math.min(lines.length, 100);
 
       for (let i = 0; i < maxLines; i++) {
         const line = lines[i];
@@ -656,11 +676,11 @@ export class UniversalTextSplitter {
     // 应用过滤和再平衡逻辑
     const filteredChunks = this.filterSmallChunks(chunks);
     const rebalancedChunks = this.rebalanceChunks(filteredChunks);
-    
+
     // 对代码文件进行智能处理：检查是否需要重叠拆分
     const language = chunks[0]?.metadata.language;
     const filePath = chunks[0]?.metadata.filePath;
-    
+
     if (this.isCodeFile(language, filePath)) {
       const finalChunks: CodeChunk[] = [];
       for (const chunk of rebalancedChunks) {
@@ -951,7 +971,7 @@ export class UniversalTextSplitter {
     let currentLine = 1;
 
     // 内存保护：限制处理的行数
-    const maxLines = Math.min(lines.length, 10000);
+    const maxLines = Math.min(lines.length, 1000);
 
     for (let i = 0; i < maxLines; i++) {
       const line = lines[i];
@@ -999,7 +1019,7 @@ export class UniversalTextSplitter {
       }
 
       // 内存检查 - 现在通过外部保护机制处理
-      if (i > 0 && i % 1000 === 0) {
+      if (i > 0 && i % 100 === 0) {
         const memoryProtectionContext: ProtectionContext = {
           operation: 'line_chunk',
           filePath,
@@ -1126,7 +1146,7 @@ export class UniversalTextSplitter {
     }
 
     // 注释行作为分割点
-    if (trimmedLine.match(/^\s*\/\//) || trimmedLine.match(/^\s*\/\*/) ||
+    if (trimmedLine.match(/^\s*\//) || trimmedLine.match(/^\s*\/\*/) ||
       trimmedLine.match(/^\s*\*/) || trimmedLine.match(/^\s*#/)) {
       return currentChunk.length > 3;
     }
@@ -1202,8 +1222,8 @@ export class UniversalTextSplitter {
   }
 
   /**
-   * 计算代码复杂度
-   */
+    * 计算代码复杂度
+    */
   private calculateComplexity(content: string): number {
     let complexity = 0;
 
@@ -1220,52 +1240,3 @@ export class UniversalTextSplitter {
     return Math.round(complexity);
   }
 }
-
-      const metadata: CodeChunkMetadata = {
-        startLine: currentLine,
-        endLine: currentLine + currentChunk.length - 1,
-        language: language || 'unknown',
-        filePath,
-        type: 'line',
-        complexity,
-        standardized: false
-      };
-
-      chunks.push({
-        content: chunkContent,
-        metadata
-      });
-    }
-
-    // 应用过滤和再平衡逻辑
-    const filteredChunks = this.filterSmallChunks(chunks);
-    const rebalancedChunks = this.rebalanceChunks(filteredChunks);
-
-    // 对代码文件进行智能处理
-    if (this.isCodeFile(language, filePath)) {
-      const finalChunks: CodeChunk[] = [];
-      for (const chunk of rebalancedChunks) {
-        // 检查块是否过大需要重叠拆分
-        if (chunk.content.length > this.options.maxChunkSize) {
-          const overlappedChunks = this.splitLargeChunkWithOverlap(chunk, this.options.maxChunkSize, this.options.overlapSize);
-          finalChunks.push(...overlappedChunks);
-        } else {
-          finalChunks.push(chunk);
-        }
-      }
-      return finalChunks;
-    }
-
-    return rebalancedChunks;
-  }
-
-  /**
-   * 计算语义分数
-   */
-  private calculateSemanticScore(line: string, language?: string): number {
-    let score = line.length; // 基础分数
-
-    // 语言特定的关键字权重
-    if (language === 'typescript' || language === 'javascript') {
-      if (line.match(/\b(function|class|interface|const|let|var|import|export)\b/)) score += 10;
-      if (line.match(/\b(if

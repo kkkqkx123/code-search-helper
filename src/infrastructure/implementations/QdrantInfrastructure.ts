@@ -28,7 +28,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.CacheService) cacheService: CacheService,
-    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: IPerformanceMonitor,
     @inject(TYPES.BatchOptimizer) batchOptimizer: BatchOptimizer,
     @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker,
     @inject(TYPES.DatabaseConnectionPool) connectionManager: DatabaseConnectionPool
@@ -152,7 +152,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     duration: number,
     success: boolean
   ): Promise<void> {
-    await (this.performanceMonitor as PerformanceMonitor).recordVectorOperation(
+    await this.performanceMonitor.recordVectorOperation(
       operation,
       collectionName,
       vectorCount,
