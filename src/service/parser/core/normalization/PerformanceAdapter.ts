@@ -1,4 +1,6 @@
-import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
+import { NormalizationOperationMetric } from '../../../../infrastructure/monitoring/types';
+import { LoggerService } from '../../../../utils/LoggerService';
 
 export interface OperationTimer {
   startTime: number;
@@ -10,84 +12,102 @@ export interface OperationTimer {
 export class NormalizationPerformanceAdapter {
   private monitor: PerformanceMonitor;
   private operationTimers: Map<string, OperationTimer>;
-  
+  private customMetrics: Map<string, any>;
+
   constructor() {
-    this.monitor = new PerformanceMonitor();
+    // 创建一个简单的 logger 实例
+    const logger = new LoggerService();
+    this.monitor = new PerformanceMonitor(logger);
     this.operationTimers = new Map();
+    this.customMetrics = new Map();
   }
-  
+
+  // 自定义指标存储方法
+  private setMetric(key: string, value: any): void {
+    this.customMetrics.set(key, value);
+  }
+
+  private getMetric(key: string): any {
+    return this.customMetrics.get(key);
+  }
+
+  private incrementMetric(key: string, increment: number = 1): void {
+    const current = this.getMetric(key) || 0;
+    this.setMetric(key, current + increment);
+  }
+
   startOperation(operation: string, language?: string, queryType?: string): string {
     const key = `${operation}:${language || 'unknown'}:${queryType || 'unknown'}:${Date.now()}`;
     const startTime = Date.now();
     this.operationTimers.set(key, { startTime, operation, language, queryType });
     return key;
- }
-  
+  }
+
   endOperation(timerKey: string): number | null {
     const timer = this.operationTimers.get(timerKey);
     if (!timer) {
       return null;
     }
-    
+
     const endTime = Date.now();
     const duration = endTime - timer.startTime;
-    
+
     // 记录特定于查询标准化的指标
-    const metricPrefix = `normalization.${timer.operation}`;
-    this.monitor.recordMetric(`${metricPrefix}.duration`, duration);
-    this.monitor.recordMetric(`${metricPrefix}.timestamp`, endTime);
+    const metric: NormalizationOperationMetric = {
+      operation: 'normalize' as const,
+      language: timer.language || 'unknown',
+      queryType: timer.queryType || 'unknown',
+      duration,
+      success: true,
+      timestamp: endTime,
+      metadata: {
+        resultCount: 1,
+        adapterType: 'NormalizationPerformanceAdapter'
+      }
+    };
     
-    if (timer.language) {
-      this.monitor.recordMetric(`${metricPrefix}.${timer.language}.duration`, duration);
-    }
-    
-    if (timer.queryType) {
-      this.monitor.recordMetric(`${metricPrefix}.${timer.queryType}.duration`, duration);
-    }
-    
+    this.monitor.recordNormalizationOperation(metric);
+
     this.operationTimers.delete(timerKey);
     return duration;
   }
-  
+
   recordCacheHit(queryType: string): void {
     const key = `normalization.cache.hits.${queryType}`;
-    const current = this.monitor.getMetric(key) || 0;
-    this.monitor.recordMetric(key, current + 1);
+    this.incrementMetric(key);
   }
-  
+
   recordOperation(operation: string, count: number, duration: number, language?: string): void {
     const metricPrefix = `normalization.${operation}`;
-    this.monitor.recordMetric(`${metricPrefix}.count`, count);
-    this.monitor.recordMetric(`${metricPrefix}.duration`, duration);
-    
+    this.setMetric(`${metricPrefix}.count`, count);
+    this.setMetric(`${metricPrefix}.duration`, duration);
+
     if (language) {
-      this.monitor.recordMetric(`${metricPrefix}.${language}.count`, count);
-      this.monitor.recordMetric(`${metricPrefix}.${language}.duration`, duration);
+      this.setMetric(`${metricPrefix}.${language}.count`, count);
+      this.setMetric(`${metricPrefix}.${language}.duration`, duration);
     }
   }
-  
+
   recordError(operation: string, error: Error, language?: string): void {
     const metricPrefix = `normalization.${operation}.errors`;
-    const current = this.monitor.getMetric(metricPrefix) || 0;
-    this.monitor.recordMetric(metricPrefix, current + 1);
-    
+    this.incrementMetric(metricPrefix);
+
     if (language) {
       const langSpecificKey = `normalization.${operation}.${language}.errors`;
-      const currentLang = this.monitor.getMetric(langSpecificKey) || 0;
-      this.monitor.recordMetric(langSpecificKey, currentLang + 1);
+      this.incrementMetric(langSpecificKey);
     }
   }
-  
+
   getMetrics(): any {
     return this.monitor.getMetrics();
   }
-  
+
   getOperationCount(operation: string): number {
-    return this.monitor.getMetric(`normalization.${operation}.count`) || 0;
+    return this.getMetric(`normalization.${operation}.count`) || 0;
   }
-  
+
   getAverageDuration(operation: string): number {
-    const durations = this.monitor.getMetric(`normalization.${operation}.duration`) || [];
+    const durations = this.getMetric(`normalization.${operation}.duration`) || [];
     if (Array.isArray(durations) && durations.length > 0) {
       return durations.reduce((sum, duration) => sum + duration, 0) / durations.length;
     }

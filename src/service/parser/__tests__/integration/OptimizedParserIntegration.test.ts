@@ -44,7 +44,7 @@ describe('Optimized Parser Integration Tests', () => {
       }
     });
 
-    test('语言检测功能验证', () => {
+    test('语言检测功能验证', async () => {
       const testCases = [
         { filePath: 'test.js', expected: 'javascript' },
         { filePath: 'test.ts', expected: 'typescript' },
@@ -55,7 +55,7 @@ describe('Optimized Parser Integration Tests', () => {
       ];
 
       for (const testCase of testCases) {
-        const detected = coreService.detectLanguage(testCase.filePath);
+        const detected = await coreService.detectLanguage(testCase.filePath);
         expect(detected).toBeTruthy();
         expect(detected!.name.toLowerCase()).toBe(testCase.expected);
       }

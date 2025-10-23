@@ -10,7 +10,7 @@ jest.mock('../../parse/TreeSitterCoreService', () => {
     ...originalModule,
     TreeSitterCoreService: jest.fn(() => ({
       getSupportedLanguages: jest.fn(() => []),
-      detectLanguage: jest.fn(() => null),
+      detectLanguage: jest.fn(() => Promise.resolve(null)),
       parseCode: jest.fn(() => Promise.resolve({ ast: {}, success: true, parseTime: 0 })),
       parseFile: jest.fn(() => Promise.resolve({ ast: {}, success: true, parseTime: 0 })),
       extractFunctions: jest.fn(() => Promise.resolve([])),
@@ -57,11 +57,11 @@ describe('TreeSitterService', () => {
   });
 
   describe('detectLanguage', () => {
-    it('should delegate to core service', () => {
+    it('should delegate to core service', async () => {
       const mockLanguage = { name: 'TypeScript', supported: true, fileExtensions: ['.ts'], parser: {} };
-      (mockCoreService.detectLanguage as jest.Mock).mockReturnValue(mockLanguage);
+      (mockCoreService.detectLanguage as jest.Mock).mockResolvedValue(mockLanguage);
 
-      const result = treeSitterService.detectLanguage('test.ts');
+      const result = await treeSitterService.detectLanguage('test.ts');
       expect(mockCoreService.detectLanguage).toHaveBeenCalledWith('test.ts');
       expect(result).toEqual(mockLanguage);
     });

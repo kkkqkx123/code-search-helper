@@ -40,9 +40,7 @@ export class VectorPerformanceMonitor implements IPerformanceMonitor {
     this.logger = logger;
     this.metrics = this.initializeMetrics();
   }
-  recordNebulaOperation(operation: string, spaceName: string, duration: number, success: boolean): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
+  
 
   private initializeMetrics(): PerformanceMetrics {
     return {

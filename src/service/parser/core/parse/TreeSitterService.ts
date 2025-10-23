@@ -28,8 +28,8 @@ export class TreeSitterService {
     return this.coreService.getSupportedLanguages();
   }
 
-  detectLanguage(filePath: string): ParserLanguage | null {
-    return this.coreService.detectLanguage(filePath);
+  async detectLanguage(filePath: string): Promise<ParserLanguage | null> {
+    return await this.coreService.detectLanguage(filePath);
   }
 
   async parseCode(code: string, language: string): Promise<ParseResult> {

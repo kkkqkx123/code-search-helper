@@ -230,7 +230,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
       }
 
       // 检测语言支持
-      const detectedLanguage = this.treeSitterService.detectLanguage(filePath);
+      const detectedLanguage = await this.treeSitterService.detectLanguage(filePath);
       if (!detectedLanguage) {
         this.logger?.warn(`Language not supported by TreeSitter for ${filePath}, falling back to fine semantic`);
         return await this.chunkByFineSemantic(content, filePath, language);

@@ -33,55 +33,55 @@ describe('TreeSitterCoreService', () => {
   });
 
   describe('detectLanguage', () => {
-    it('should detect TypeScript language from file extension', () => {
-      const language = treeSitterService.detectLanguage('test.ts');
+    it('should detect TypeScript language from file extension', async () => {
+      const language = await treeSitterService.detectLanguage('test.ts');
       expect(language).not.toBeNull();
       expect(language!.name).toBe('TypeScript');
     });
 
-    it('should detect TypeScript JSX language from file extension', () => {
-      const language = treeSitterService.detectLanguage('test.tsx');
+    it('should detect TypeScript JSX language from file extension', async () => {
+      const language = await treeSitterService.detectLanguage('test.tsx');
       expect(language).not.toBeNull();
       expect(language!.name).toBe('TypeScript');
     });
 
-    it('should detect JavaScript language from file extension', () => {
-      const language = treeSitterService.detectLanguage('test.js');
+    it('should detect JavaScript language from file extension', async () => {
+      const language = await treeSitterService.detectLanguage('test.js');
       expect(language).not.toBeNull();
       expect(language!.name).toBe('JavaScript');
     });
 
-    it('should detect JavaScript JSX language from file extension', () => {
-      const language = treeSitterService.detectLanguage('test.jsx');
+    it('should detect JavaScript JSX language from file extension', async () => {
+      const language = await treeSitterService.detectLanguage('test.jsx');
       expect(language).not.toBeNull();
       expect(language!.name).toBe('JavaScript');
     });
 
-    it('should detect Python language from file extension', () => {
-      const language = treeSitterService.detectLanguage('test.py');
+    it('should detect Python language from file extension', async () => {
+      const language = await treeSitterService.detectLanguage('test.py');
       expect(language).not.toBeNull();
       expect(language!.name).toBe('Python');
     });
 
-    it('should detect Java language from file extension', () => {
-      const language = treeSitterService.detectLanguage('test.java');
+    it('should detect Java language from file extension', async () => {
+      const language = await treeSitterService.detectLanguage('test.java');
       expect(language).not.toBeNull();
       expect(language!.name).toBe('Java');
     });
 
-    it('should detect Go language from file extension', () => {
-      const language = treeSitterService.detectLanguage('test.go');
+    it('should detect Go language from file extension', async () => {
+      const language = await treeSitterService.detectLanguage('test.go');
       expect(language).not.toBeNull();
       expect(language!.name).toBe('Go');
     });
 
-    it('should return null for unsupported file extension', () => {
-      const language = treeSitterService.detectLanguage('test.unsupported');
+    it('should return null for unsupported file extension', async () => {
+      const language = await treeSitterService.detectLanguage('test.unsupported');
       expect(language).toBeNull();
     });
 
-    it('should return null for file without extension', () => {
-      const language = treeSitterService.detectLanguage('test');
+    it('should return null for file without extension', async () => {
+      const language = await treeSitterService.detectLanguage('test');
       expect(language).toBeNull();
     });
   });

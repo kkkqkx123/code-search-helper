@@ -110,9 +110,9 @@ export class TreeSitterCoreService {
   /**
    * 检测语言
    */
-  detectLanguage(filePath: string, content?: string): ParserLanguage | null {
+  async detectLanguage(filePath: string, content?: string): Promise<ParserLanguage | null> {
     // 首先尝试使用动态管理器检测
-    const detectedLanguage = this.dynamicManager.detectLanguage(filePath, content);
+    const detectedLanguage = await this.dynamicManager.detectLanguage(filePath, content);
     if (detectedLanguage) {
       const supportedLanguages = this.getSupportedLanguages();
       return supportedLanguages.find(lang => lang.name.toLowerCase() === detectedLanguage) || null;
@@ -204,7 +204,7 @@ export class TreeSitterCoreService {
       throw new Error(`Unsupported file type: ${filePath}`);
     }
 
-    const language = this.detectLanguage(filePath, content);
+    const language = await this.detectLanguage(filePath, content);
     if (!language) {
       throw new Error(`Unsupported file type: ${filePath}`);
     }
