@@ -73,6 +73,11 @@ export class DynamicParserManager {
       go: () => import('tree-sitter-go').then(m => m.default),
       rust: () => import('tree-sitter-rust').then(m => m.default),
       cpp: () => import('tree-sitter-cpp').then(m => m.default),
+      c: () => import('tree-sitter-c').then(m => m.default),
+      css: () => import('tree-sitter-css').then(m => m.default),
+      html: () => import('tree-sitter-html').then(m => m.default),
+      vue: () => import('tree-sitter-vue').then(m => m.default),
+      tsx: () => import('tree-sitter-typescript').then(m => m.tsx),
     };
 
     // 初始化语言配置
