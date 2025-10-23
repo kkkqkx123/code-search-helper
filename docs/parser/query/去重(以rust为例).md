@@ -74,41 +74,7 @@ private deduplicateResults(results: StandardizedQueryResult[]): StandardizedQuer
 }
 ```
 
-#### 1.2 修复查询类型映射
-
-**目标**：确保查询文件与适配器类型匹配
-
-**实现方案**：
-
-**方案A：重命名查询文件**
-```
-functions-structs.ts → functions.ts + classes.ts
-modules-imports.ts → imports.ts + modules.ts
-variables-expressions.ts → variables.ts + expressions.ts
-types-macros.ts → types.ts + macros.ts
-control-flow.ts → control-flow.ts (保持不变)
-```
-
-**方案B：增强QueryLoader映射**
-```typescript
-// 在QueryLoader中添加Rust特定的映射
-private static getRustQueryTypeMapping(): Record<string, string[]> {
-  return {
-    'functions-structs': ['functions', 'classes'],
-    'modules-imports': ['imports', 'modules'],
-    'variables-expressions': ['variables', 'expressions'],
-    'types-macros': ['types', 'macros'],
-    'control-flow': ['control-flow']
-  };
-}
-```
-
-**推荐方案B**，因为：
-- 保持现有文件结构
-- 更灵活的映射机制
-- 易于维护和扩展
-
-#### 1.3 增强集成机制
+#### 1.2 增强集成机制
 
 **目标**：改善与universal模块的集成
 
@@ -162,18 +128,6 @@ async chunkBySemanticBoundaries(content: string, filePath?: string, language?: s
 - 集成测试通过
 - 性能指标改善
 - 错误处理完善
-
-#### 阶段3：测试和文档（1天）
-
-**任务清单**：
-- [ ] 编写集成测试
-- [ ] 性能基准测试
-- [ ] 更新文档
-
-**验收标准**：
-- 测试覆盖率 > 90%
-- 性能提升 > 20%
-- 文档完整
 
 ### 3. 技术实现细节
 
@@ -315,55 +269,3 @@ class PerformanceOptimizedRustAdapter extends RustLanguageAdapter {
   }
 }
 ```
-
-### 4. 风险评估与缓解
-
-#### 4.1 技术风险
-
-| 风险 | 影响 | 概率 | 缓解措施 |
-|------|------|------|----------|
-| 性能回归 | 中 | 低 | 性能基准测试，渐进式优化 |
-| 兼容性问题 | 高 | 中 | 完整的向后兼容性测试 |
-| 内存泄漏 | 中 | 低 | 内存监控，资源管理 |
-
-#### 4.2 实施风险
-
-| 风险 | 影响 | 概率 | 缓解措施 |
-|------|------|------|----------|
-| 开发时间超期 | 中 | 中 | 分阶段实施，MVP优先 |
-| 测试覆盖不足 | 高 | 低 | 强制测试覆盖率要求 |
-| 文档不完整 | 低 | 中 | 文档驱动开发 |
-
-### 5. 成功指标
-
-#### 5.1 质量指标
-- 去重准确率 > 95%
-- 查询类型映射覆盖率 = 100%
-- 测试覆盖率 > 90%
-
-#### 5.2 性能指标
-- 处理速度提升 > 20%
-- 内存使用减少 > 15%
-- 缓存命中率 > 80%
-
-#### 5.3 可维护性指标
-- 代码复杂度降低 > 10%
-- 文档完整性 = 100%
-- 新功能开发时间减少 > 30%
-
-### 6. 后续优化方向
-
-1. **机器学习增强**：使用ML模型优化去重和分类
-2. **多语言统一**：将优化方案扩展到其他语言
-3. **实时优化**：基于使用模式的动态优化
-4. **可视化工具**：开发查询结果分析和调试工具
-
-## 总结
-
-本优化方案通过实现智能去重机制、修复查询类型映射、增强集成策略，将显著提升Rust代码解析和分割的质量。方案采用分阶段实施策略，确保稳定性和可维护性，同时为未来的扩展奠定基础。
-
-通过这些改进，系统将能够：
-- 更准确地识别和处理Rust代码结构
-- 更高效地处理大型代码库
-- 更好地与其他模块集成
-- 提供更一致的用户体验
