@@ -11,6 +11,8 @@ import methods from './methods';
 import properties from './properties';
 import types from './types';
 import variables from './variables';
+import controlFlow from './control-flow';
+import expressions from './expressions';
 
 export default `
 ${classes}
@@ -30,4 +32,8 @@ ${properties}
 ${types}
 
 ${variables}
+
+${controlFlow}
+
+${expressions}
 `;

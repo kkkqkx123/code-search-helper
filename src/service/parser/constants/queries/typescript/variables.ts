@@ -25,9 +25,7 @@ export default `
   (variable_declarator
     name: (identifier) @name.definition.let_variable)) @definition.variable
 
-; Public field definitions - important for class properties
-(public_field_definition
-  (property_identifier) @name.definition.property) @definition.property
+
 
 ; Assignment expressions - important for understanding state changes
 (assignment_expression
