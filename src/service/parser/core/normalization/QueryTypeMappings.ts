@@ -38,18 +38,19 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'types': ['types'],
     'variables': ['variables'],
     'control-flow': ['control-flow'],
-    'expressions': ['expressions']
+    'expressions': ['expressions'],
+    'properties': ['variables']
   },
-  'python': {
-    'functions': ['functions'],
-    'classes': ['classes'],
-    'methods': ['methods'],
-    'imports': ['imports'],
-    'variables': ['variables'],
-    'control-flow': ['control-flow'],
-    'data-structures': ['classes'],
-    'types-decorators': ['types']
-  },
+   'python': {
+     'functions': ['functions'],
+     'classes': ['classes'],
+     'methods': ['methods'],
+     'imports': ['imports'],
+     'variables': ['variables'],
+     'control-flow': ['control-flow'],
+     'data-structures': ['classes'],
+     'types-decorators': ['types']
+   },
   'java': {
     'classes-interfaces': ['classes', 'interfaces'],
     'methods-variables': ['methods', 'variables'],
@@ -65,7 +66,7 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'enums': ['types'],
     'records': ['classes'],
     'annotations': ['types']
-  },
+ },
   'cpp': {
     'functions': ['functions'],
     'classes': ['classes'],
@@ -73,9 +74,15 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'imports': ['imports'],
     'variables': ['variables'],
     'control-flow': ['control-flow'],
-    'types': ['types']
+    'types': ['types'],
+    'namespaces': ['modules'],
+    'preprocessor': ['imports'],
+    'modern-features': ['types']
   },
   'go': {
+    'functions-types': ['functions', 'classes'],
+    'variables-imports': ['variables', 'imports'],
+    'expressions-control-flow': ['expressions', 'control-flow'],
     'functions': ['functions'],
     'types': ['classes'],
     'methods': ['methods'],
@@ -91,16 +98,24 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'types': ['types']
   },
   'csharp': {
-    'functions': ['functions'],
     'classes': ['classes'],
     'methods': ['methods'],
+    'properties': ['variables'],
+    'functions': ['functions'],
     'imports': ['imports'],
     'variables': ['variables'],
     'control-flow': ['control-flow'],
     'types': ['types'],
-    'interfaces': ['interfaces']
+    'interfaces': ['interfaces'],
+    'linq': ['expressions'],
+    'patterns': ['control-flow'],
+    'expressions': ['expressions']
   },
   'kotlin': {
+    'classes-functions': ['classes', 'functions'],
+    'constructors-properties': ['methods', 'variables'],
+    'methods-variables': ['methods', 'variables'],
+    'control-flow-patterns': ['control-flow'],
     'functions': ['functions'],
     'classes': ['classes'],
     'methods': ['methods'],
@@ -119,6 +134,47 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'control-flow': ['control-flow'],
     'types': ['types'],
     'protocols': ['interfaces']
+  },
+  'css': {
+    'selectors': ['classes'],
+    'properties': ['variables'],
+    'rules': ['functions']
+  },
+  'html': {
+    'elements': ['classes'],
+    'attributes-content': ['variables']
+  },
+  'javascript': {
+    'functions': ['functions'],
+    'classes': ['classes'],
+    'methods': ['methods'],
+    'imports': ['imports'],
+    'exports': ['exports'],
+    'interfaces': ['interfaces'],
+    'types': ['types'],
+    'variables': ['variables'],
+    'control-flow': ['control-flow'],
+    'expressions': ['expressions'],
+    'properties': ['variables']
+  },
+  'tsx': {
+    'functions': ['functions'],
+    'classes': ['classes'],
+    'methods': ['methods'],
+    'imports': ['imports'],
+    'exports': ['exports'],
+    'interfaces': ['interfaces'],
+    'types': ['types'],
+    'variables': ['variables'],
+    'control-flow': ['control-flow'],
+    'expressions': ['expressions'],
+    'components': ['classes'],
+    'jsx': ['expressions'],
+    'types-hooks': ['types', 'functions']
+  },
+  'vue': {
+    'components': ['classes'],
+    'template-directives': ['functions']
   }
 };
 

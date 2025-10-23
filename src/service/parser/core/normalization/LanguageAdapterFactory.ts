@@ -16,6 +16,9 @@ import { CppLanguageAdapter } from './adapters/CppLanguageAdapter';
 import { CLanguageAdapter } from './adapters/CLanguageAdapter';
 import { CSharpLanguageAdapter } from './adapters/CSharpLanguageAdapter';
 import { KotlinLanguageAdapter } from './adapters/KotlinLanguageAdapter';
+import { CssLanguageAdapter } from './adapters/CssLanguageAdapter';
+import { HtmlLanguageAdapter } from './adapters/HtmlLanguageAdapter';
+import { VueLanguageAdapter } from './adapters/VueLanguageAdapter';
 import { DefaultLanguageAdapter } from './adapters/DefaultLanguageAdapter';
 import { LoggerService } from '../../../../utils/LoggerService';
 
@@ -98,6 +101,15 @@ export class LanguageAdapterFactory {
         case 'kt':
         case 'kts':
           return new KotlinLanguageAdapter(options);
+        case 'css':
+          return new CssLanguageAdapter();
+        case 'html':
+          return new HtmlLanguageAdapter();
+        case 'vue':
+          return new VueLanguageAdapter();
+        case 'tsx':
+          // TSX uses the same adapter as TypeScript since it extends TypeScript functionality
+          return new TypeScriptLanguageAdapter(options);
         default:
           this.logger.warn(`Unsupported language: ${language}, using default adapter`);
           return new DefaultLanguageAdapter(options);
@@ -180,7 +192,7 @@ export class LanguageAdapterFactory {
   static getSupportedLanguages(): string[] {
     return [
       'rust', 'typescript', 'javascript', 'python', 'java',
-      'cpp', 'c', 'csharp', 'kotlin'
+      'cpp', 'c', 'csharp', 'kotlin', 'css', 'html', 'vue', 'tsx'
     ];
   }
 
