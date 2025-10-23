@@ -212,16 +212,15 @@ export class VueLanguageAdapter implements ILanguageAdapter {
      */
     getSupportedQueryTypes(): string[] {
         return [
-            'components',
-            'functions',
-            'classes',
-            'methods',
-            'imports',
-            'exports',
             'template-elements',
             'template-directives',
-            'style-rules',
-            'variables'
+            'component-definitions',
+            'script-definitions',
+            'style-definitions',
+            'vue-exports',
+            'vue-lifecycle',
+            'vue-slots',
+            'vue-interpolations'
         ];
     }
 
@@ -262,7 +261,17 @@ export class VueLanguageAdapter implements ILanguageAdapter {
             'name.definition.class',
             'name.definition.component',
             'name.definition.directive',
-            'name.definition.tag'
+            'name.definition.tag',
+            'name.definition.component_name',
+            'name.definition.event_handler',
+            'name.definition.property_binding',
+            'name.definition.slot_name',
+            'name.definition.ref',
+            'name.definition.key',
+            'name.definition.v_model',
+            'name.definition.show_hide',
+            'name.definition.conditional',
+            'name.definition.for_loop'
         ];
 
         for (const captureName of nameCaptures) {
@@ -639,16 +648,15 @@ export class VueLanguageAdapter implements ILanguageAdapter {
 
     private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
         const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-            'components': 'variable',
-            'functions': 'function',
-            'classes': 'class',
-            'methods': 'method',
-            'imports': 'import',
-            'exports': 'export',
             'template-elements': 'variable',
             'template-directives': 'variable',
-            'style-rules': 'variable',
-            'variables': 'variable'
+            'component-definitions': 'class',
+            'script-definitions': 'function',
+            'style-definitions': 'variable',
+            'vue-exports': 'export',
+            'vue-lifecycle': 'method',
+            'vue-slots': 'variable',
+            'vue-interpolations': 'expression'
         };
 
         return mapping[queryType] || 'expression';

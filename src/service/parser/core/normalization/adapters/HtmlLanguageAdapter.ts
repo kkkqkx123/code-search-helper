@@ -42,25 +42,52 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
 
   getSupportedQueryTypes(): string[] {
     return [
-      'elements',
-      'tags',
-      'attributes',
-      'comments',
+      'document',
+      'element',
+      'script',
+      'style',
+      'start_tag',
+      'end_tag',
+      'self_closing_tag',
+      'doctype',
+      'nested_elements',
+      'custom_element',
+      'form_element',
+      'table_element',
+      'list_element',
+      'semantic_element',
+      'anchor_element',
+      'image_element',
+      'meta_element',
+      'link_element',
+      'title_element',
+      'heading_element',
+      'section_element',
+      'void_element',
+      'attribute',
+      'attribute_value',
+      'comment',
       'text',
-      'ids',
-      'classes'
+      'raw_text',
+      'entity'
     ];
   }
 
   mapNodeType(nodeType: string): string {
     const typeMapping: Record<string, string> = {
+      'document': 'document',
       'element': 'element',
+      'script_element': 'script',
+      'style_element': 'style',
       'start_tag': 'tag',
       'end_tag': 'tag',
+      'self_closing_tag': 'tag',
+      'doctype': 'doctype',
       'attribute': 'attribute',
       'comment': 'comment',
       'text': 'text',
-      'doctype': 'doctype',
+      'raw_text': 'text',
+      'entity': 'entity',
       'erroneous_end_tag': 'error'
     };
     
@@ -73,8 +100,24 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
       'name.definition.tag',
       'name.definition.element',
       'name.definition.attribute',
-      'name.definition.id',
-      'name.definition.class'
+      'name.definition.script',
+      'name.definition.style',
+      'name.definition.start_tag',
+      'name.definition.end_tag',
+      'name.definition.self_closing_tag',
+      'name.definition.custom_element',
+      'name.definition.form_element',
+      'name.definition.table_element',
+      'name.definition.list_element',
+      'name.definition.semantic_element',
+      'name.definition.anchor_element',
+      'name.definition.image_element',
+      'name.definition.meta_element',
+      'name.definition.link_element',
+      'name.definition.title_element',
+      'name.definition.heading_element',
+      'name.definition.section_element',
+      'name.definition.void_element'
     ];
 
     for (const captureName of nameCaptures) {
@@ -92,6 +135,17 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
     // 尝试从tag_name提取
     if (result.captures?.[0]?.node?.childForFieldName('tag_name')?.text) {
       return result.captures[0].node.childForFieldName('tag_name').text;
+    }
+
+    // 尝试从attribute_name提取
+    if (result.captures?.[0]?.node?.childForFieldName('attribute_name')?.text) {
+      return result.captures[0].node.childForFieldName('attribute_name').text;
+    }
+
+    // 对于没有特定名称的类型，返回类型名称
+    const queryType = result.type || 'unknown';
+    if (['document', 'doctype', 'comment', 'text', 'raw_text', 'entity', 'nested_elements'].includes(queryType)) {
+      return queryType;
     }
 
     return 'unnamed';
@@ -224,13 +278,34 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
 
   private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
     const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'elements': 'variable',
-      'tags': 'variable',
-      'attributes': 'variable',
-      'comments': 'expression',
+      'document': 'expression',
+      'element': 'variable',
+      'script': 'expression',
+      'style': 'expression',
+      'start_tag': 'variable',
+      'end_tag': 'variable',
+      'self_closing_tag': 'variable',
+      'doctype': 'expression',
+      'nested_elements': 'expression',
+      'custom_element': 'variable',
+      'form_element': 'variable',
+      'table_element': 'variable',
+      'list_element': 'variable',
+      'semantic_element': 'variable',
+      'anchor_element': 'variable',
+      'image_element': 'variable',
+      'meta_element': 'variable',
+      'link_element': 'variable',
+      'title_element': 'variable',
+      'heading_element': 'variable',
+      'section_element': 'variable',
+      'void_element': 'variable',
+      'attribute': 'variable',
+      'attribute_value': 'expression',
+      'comment': 'expression',
       'text': 'expression',
-      'ids': 'variable',
-      'classes': 'variable'
+      'raw_text': 'expression',
+      'entity': 'expression'
     };
     
     return mapping[queryType] || 'expression';
@@ -254,7 +329,13 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
   }
 
   private isBlockNode(node: any): boolean {
-    const blockTypes = ['element', 'script_element', 'style_element'];
+    const blockTypes = [
+      'element', 
+      'script_element', 
+      'style_element',
+      'document',
+      'nested_elements'
+    ];
     return blockTypes.includes(node.type);
   }
 

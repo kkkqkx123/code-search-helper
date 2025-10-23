@@ -55,35 +55,201 @@ export class PythonLanguageAdapter implements ILanguageAdapter {
 
   mapNodeType(nodeType: string): string {
     const typeMapping: Record<string, string> = {
+      // 函数相关
       'function_definition': 'function',
       'async_function_definition': 'function',
       'decorated_definition': 'function', // 默认为函数，后续会根据内容调整
-      'class_definition': 'class',
       'method_definition': 'method',
+      'lambda': 'function',
+      
+      // 类相关
+      'class_definition': 'class',
+      'class_pattern': 'class',
+      
+      // 导入相关
       'import_statement': 'import',
       'import_from_statement': 'import',
+      'relative_import': 'import',
+      'wildcard_import': 'import',
+      'dotted_name': 'expression',
+      
+      // 变量相关
       'assignment': 'variable',
       'annotated_assignment': 'variable',
+      'augmented_assignment': 'variable',
+      'named_expression': 'expression',
+      
+      // 控制流相关
       'for_statement': 'control-flow',
       'while_statement': 'control-flow',
       'if_statement': 'control-flow',
       'try_statement': 'control-flow',
-      'with_statement': 'control-flow'
+      'with_statement': 'control-flow',
+      'break_statement': 'control-flow',
+      'continue_statement': 'control-flow',
+      'return_statement': 'control-flow',
+      'raise_statement': 'control-flow',
+      'assert_statement': 'control-flow',
+      'expression_statement': 'control-flow',
+      'type_alias_statement': 'control-flow',
+      'global_statement': 'control-flow',
+      'nonlocal_statement': 'control-flow',
+      
+      // 表达式相关
+      'call': 'expression',
+      'attribute': 'expression',
+      'subscript': 'expression',
+      'binary_operator': 'expression',
+      'yield': 'expression',
+      'type': 'expression',
+      'parameters': 'expression',
+      'default_parameter': 'expression',
+      'typed_parameter': 'expression',
+      'typed_default_parameter': 'expression',
+      'decorator': 'expression',
+      'comment': 'expression',
+      'string': 'expression',
+      'integer': 'expression',
+      'float': 'expression',
+      'true': 'expression',
+      'false': 'expression',
+      'none': 'expression',
+      'ellipsis': 'expression',
+      'list': 'expression',
+      'tuple': 'expression',
+      'set': 'expression',
+      'dictionary': 'expression',
+      'list_comprehension': 'expression',
+      'dictionary_comprehension': 'expression',
+      'set_comprehension': 'expression',
+      'generator_expression': 'expression',
+      'parenthesized_expression': 'expression',
+      'expression_list': 'expression',
+      'slice': 'expression',
+      'tuple_pattern': 'expression',
+      'list_pattern': 'expression',
+      'dict_pattern': 'expression',
+      'union_type': 'expression',
+      'generic_type': 'expression',
+      'argument_list': 'expression',
+      
+      // 其他
+      'identifier': 'expression',
+      'block': 'expression'
     };
     
-    return typeMapping[nodeType] || nodeType;
+    return typeMapping[nodeType] || 'expression';
   }
 
   extractName(result: any): string {
     // 尝试从不同的捕获中提取名称
     const nameCaptures = [
+      // 基础捕获
       'name.definition.function',
-      'name.definition.async_function',
       'name.definition.class',
+      'name.definition.variable',
+      'name.definition.import',
+      'name.definition.if',
+      'name.definition.binary_operator',
+      'name.definition.list_comprehension',
+      'name.definition.type_annotation',
+      
+      // 函数相关
+      'name.definition.async_function',
       'name.definition.method',
       'name.definition.async_method',
+      'name.definition.lambda',
+      'name.definition.generator',
+      'name.definition.async_generator',
+      'name.definition.typed_function',
+      'name.definition.typed_async_function',
+      'name.definition.test',
+      'name.definition.dunder_method',
+      'name.definition.private_method',
+      
+      // 类相关
+      'name.definition.class',
+      'name.definition.superclass',
+      'name.definition.property',
+      'name.definition.static_method',
+      'name.definition.class_method',
+      
+      // 变量相关
       'name.definition.variable',
-      'name.definition.property'
+      'name.definition.constant',
+      'name.definition.typed_variable',
+      'name.definition.augmented_assignment',
+      'name.definition.named_expression',
+      'name.definition.pattern_variable',
+      'name.definition.attribute_variable',
+      'name.definition.subscript_variable',
+      'name.definition.tuple_variable',
+      'name.definition.list_variable',
+      
+      // 导入相关
+      'name.definition.import',
+      'name.definition.import_from',
+      'name.definition.wildcard_import',
+      'name.definition.relative_import',
+      'name.definition.global',
+      'name.definition.nonlocal',
+      'name.definition.imported_module',
+      'name.definition.imported_name',
+      
+      // 控制流相关
+      'name.definition.if',
+      'name.definition.for',
+      'name.definition.while',
+      'name.definition.break',
+      'name.definition.continue',
+      'name.definition.return',
+      'name.definition.raise',
+      'name.definition.assert',
+      'name.definition.expression',
+      
+      // 表达式相关
+      'name.definition.binary_operator',
+      'name.definition.call',
+      'name.definition.attribute',
+      'name.definition.subscript',
+      
+      // 数据结构相关
+      'name.definition.list_comprehension',
+      'name.definition.dict_comprehension',
+      'name.definition.set_comprehension',
+      'name.definition.generator_expression',
+      'name.definition.list',
+      'name.definition.tuple',
+      'name.definition.set',
+      'name.definition.dictionary',
+      'name.definition.class_pattern',
+      'name.definition.tuple_pattern',
+      'name.definition.list_pattern',
+      'name.definition.dict_pattern',
+      'name.definition.string',
+      'name.definition.integer',
+      'name.definition.float',
+      'name.definition.true',
+      'name.definition.false',
+      'name.definition.none',
+      'name.definition.ellipsis',
+      'name.definition.slice',
+      'name.definition.parenthesized_expression',
+      'name.definition.expression_list',
+      'name.definition.generic_type_name',
+      
+      // 类型相关
+      'name.definition.type_annotation',
+      'name.definition.type_hint',
+      'name.definition.type_alias',
+      'name.definition.parameters',
+      'name.definition.default_parameter',
+      'name.definition.typed_parameter',
+      'name.definition.typed_default_parameter',
+      'name.definition.decorator',
+      'name.definition.union_type',
+      'name.definition.comment',
+      'name.definition.docstring'
     ];
 
     for (const captureName of nameCaptures) {

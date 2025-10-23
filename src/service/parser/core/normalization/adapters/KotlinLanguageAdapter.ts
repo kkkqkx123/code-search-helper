@@ -44,17 +44,8 @@ export class KotlinLanguageAdapter implements ILanguageAdapter {
     return [
       'classes-functions',
       'constructors-properties',
-      'functions',
-      'classes',
-      'methods',
-      'properties',
-      'variables',
-      'types',
-      'interfaces',
-      'enums',
-      'objects',
-      'constructors',
-      'extensions'
+      'methods-variables',
+      'control-flow-patterns'
     ];
   }
 
@@ -122,12 +113,37 @@ export class KotlinLanguageAdapter implements ILanguageAdapter {
       'name.definition.function',
       'name.definition.suspend_function',
       'name.definition.extension_function',
+      'name.definition.inline_function',
+      'name.definition.infix_function',
+      'name.definition.operator_function',
+      'name.definition.tailrec_function',
+      'name.definition.external_function',
+      'name.definition.expect_function',
+      'name.definition.actual_function',
       'name.definition.object',
       'name.definition.property',
-      'name.definition.constructor_property',
+      'name.definition.val_property',
+      'name.definition.var_property',
+      'name.definition.lateinit_property',
+      'name.definition.const_property',
+      'name.definition.override_property',
       'name.definition.type_alias',
-      'name.definition.simple_identifier',
-      'name.definition.type_identifier'
+      'name.definition.generic_class',
+      'name.definition.generic_function',
+      'name.definition.generic_interface',
+      'name.definition.generic_property',
+      'name.definition.generic_type_alias',
+      'name.definition.enum_entry',
+      'name.definition.parameter',
+      'name.definition.lambda_parameter',
+      'name.definition.class_parameter',
+      'name.definition.variable',
+      'name.definition.multi_variable',
+      'name.definition.destructuring_variable',
+      'name.definition.type_parameter',
+      'name.definition.type_constraint',
+      'name.definition.import_header',
+      'name.definition.package_header'
     ];
 
     for (const captureName of nameCaptures) {
@@ -137,26 +153,38 @@ export class KotlinLanguageAdapter implements ILanguageAdapter {
       }
     }
 
-    // 如果没有找到名称捕获，尝试从主节点提取
-    if (result.captures?.[0]?.node?.childForFieldName?.('name')?.text) {
-      return result.captures[0].node.childForFieldName('name').text;
-    }
-    
-    // 对于Kotlin，尝试从特定字段提取名称
+    // 特殊处理没有名称捕获的查询类型
     const mainNode = result.captures?.[0]?.node;
     if (mainNode) {
+      // 处理companion_object - 尝试从父类获取名称
+      if (mainNode.type === 'companion_object') {
+        const parentClass = mainNode.parent;
+        if (parentClass?.childForFieldName?.('name')?.text) {
+          return `${parentClass.childForFieldName('name').text}.Companion`;
+        }
+        return 'Companion';
+      }
+      
+      // 处理primary_constructor - 尝试从父类获取名称
+      if (mainNode.type === 'primary_constructor') {
+        const parentClass = mainNode.parent;
+        if (parentClass?.childForFieldName?.('name')?.text) {
+          return `${parentClass.childForFieldName('name').text}.constructor`;
+        }
+        return 'constructor';
+      }
+      
+      // 如果没有找到名称捕获，尝试从主节点提取
+      if (mainNode.childForFieldName?.('name')?.text) {
+        return mainNode.childForFieldName('name').text;
+      }
+      
       // 尝试获取标识符
       const identifier = mainNode.childForFieldName?.('identifier') ||
                         mainNode.childForFieldName?.('type_identifier') ||
                         mainNode.childForFieldName?.('simple_identifier');
       if (identifier?.text) {
         return identifier.text;
-      }
-      
-      // 尝试获取name字段
-      const nameNode = mainNode.childForFieldName?.('name');
-      if (nameNode?.text) {
-        return nameNode.text;
       }
     }
 
@@ -421,17 +449,8 @@ export class KotlinLanguageAdapter implements ILanguageAdapter {
     const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
       'classes-functions': 'class',
       'constructors-properties': 'method',
-      'functions': 'function',
-      'classes': 'class',
-      'methods': 'method',
-      'properties': 'variable',
-      'variables': 'variable',
-      'types': 'type',
-      'interfaces': 'interface',
-      'enums': 'type',
-      'objects': 'class',
-      'constructors': 'method',
-      'extensions': 'function'
+      'methods-variables': 'function',
+      'control-flow-patterns': 'control-flow'
     };
     
     return mapping[queryType] || 'expression';
