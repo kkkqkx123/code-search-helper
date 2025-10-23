@@ -5,9 +5,323 @@ import { QueryResultNormalizer } from '../QueryResultNormalizer';
 import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
 import { PerformanceMonitor } from '../../../../../infrastructure/monitoring/PerformanceMonitor';
 import { ErrorHandlingManager } from '../ErrorHandlingManager';
-import { TreeSitterCoreService } from '../../parse/TreeSitterCoreService';
+import { TreeSitterCoreService, ParserLanguage } from '../../parse/TreeSitterCoreService';
 import { NormalizationIntegrationService } from '../NormalizationIntegrationService';
 import { CodeChunk } from '../../../splitting';
+
+// 创建模拟实现，避免依赖注入问题
+class MockLoggerService extends LoggerService {
+  constructor() {
+    super();
+  }
+}
+
+class MockUniversalTextSplitter extends UniversalTextSplitter {
+  constructor() {
+    super();
+  }
+
+  async chunkBySemanticBoundaries(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
+    const lines = content.split('\n');
+    return [{
+      content,
+      metadata: {
+        startLine: 1,
+        endLine: lines.length,
+        language: language || 'unknown',
+        filePath
+      }
+    }];
+  }
+
+  async chunkByBracketsAndLines(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
+    const lines = content.split('\n');
+    return [{
+      content,
+      metadata: {
+        startLine: 1,
+        endLine: lines.length,
+        language: language || 'unknown',
+        filePath
+      }
+    }];
+  }
+
+  async chunkByLines(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
+    const lines = content.split('\n');
+    return lines.map((line, index) => ({
+      content: line,
+      metadata: {
+        startLine: index + 1,
+        endLine: index + 1,
+        language: language || 'unknown',
+        filePath
+      }
+    }));
+  }
+
+  setTreeSitterService(service: TreeSitterCoreService): void {
+    // Mock implementation
+  }
+
+  setQueryNormalizer(normalizer: QueryResultNormalizer): void {
+    // Mock implementation
+  }
+
+  getStandardizationStats(): any {
+    return {
+      totalChunks: 0,
+      successfulSplits: 0,
+      failedSplits: 0
+    };
+  }
+
+  resetStandardizationStats(): void {
+    // Mock implementation
+  }
+}
+
+class MockTreeSitterCoreService extends TreeSitterCoreService {
+  constructor() {
+    super();
+  }
+
+  async parseCode(content: string, language: string): Promise<any> {
+    return {
+      success: true,
+      ast: {
+        text: content,
+        startPosition: { row: 0, column: 0 },
+        endPosition: { row: content.split('\n').length - 1, column: 0 },
+        type: 'program',
+        childForFieldName: (field: string) => null,
+        children: []
+      }
+    };
+  }
+
+  getSupportedLanguages(): ParserLanguage[] {
+    return [
+      { name: 'javascript', fileExtensions: ['.js'], supported: true },
+      { name: 'typescript', fileExtensions: ['.ts'], supported: true },
+      { name: 'python', fileExtensions: ['.py'], supported: true }
+    ];
+  }
+
+  getDynamicManager(): any {
+    return {
+      getParser: async (language: string) => ({
+        parse: () => ({})
+      })
+    };
+  }
+}
+
+class MockPerformanceMonitor extends PerformanceMonitor {
+  constructor() {
+    super(new MockLoggerService());
+  }
+
+  getMetrics(): any {
+    return {
+      timestamp: Date.now(),
+      operationCount: 0,
+      averageExecutionTime: 0
+    };
+  }
+
+  resetMetrics(): void {
+    // Mock implementation
+  }
+}
+
+// 创建模拟的InfrastructureErrorHandler
+class MockInfrastructureErrorHandler {
+  private logger: LoggerService;
+  private alertManager: any;
+  private performanceMonitor: any;
+
+  constructor(logger: LoggerService) {
+    this.logger = logger;
+    this.alertManager = {
+      sendAlert: async (alert: any) => {
+        // Mock implementation
+      }
+    };
+    this.performanceMonitor = new MockPerformanceMonitor();
+  }
+
+  async handleDatabaseError(
+    error: Error,
+    databaseType: any,
+    operation: string,
+    context: Record<string, any>
+  ): Promise<void> {
+    // Mock implementation
+  }
+
+  async handleInfrastructureError(
+    error: Error,
+    component: string,
+    operation: string,
+    context?: Record<string, any>
+  ): Promise<void> {
+    // Mock implementation
+  }
+
+  async handleCacheError(
+    error: Error,
+    operation: string,
+    context?: Record<string, any>
+  ): Promise<void> {
+    // Mock implementation
+  }
+
+  async handlePerformanceError(
+    error: Error,
+    operation: string,
+    metrics: Record<string, any>,
+    context?: Record<string, any>
+  ): Promise<void> {
+    // Mock implementation
+  }
+
+  async handleBatchOperationError(
+    error: Error,
+    databaseType: any,
+    batchSize: number,
+    operation: string
+  ): Promise<void> {
+    // Mock implementation
+  }
+
+  async executeWithErrorHandling<T>(
+    operation: () => Promise<T>,
+    databaseType: any,
+    operationName: string,
+    context: Record<string, any> = {}
+  ): Promise<T | null> {
+    try {
+      return await operation();
+    } catch (error) {
+      await this.handleDatabaseError(
+        error instanceof Error ? error : new Error(String(error)),
+        databaseType,
+        operationName,
+        context
+      );
+      return null;
+    }
+  }
+
+  async executeInfrastructureOperation<T>(
+    operation: () => Promise<T>,
+    component: string,
+    operationName: string,
+    context: Record<string, any> = {}
+  ): Promise<T | null> {
+    try {
+      return await operation();
+    } catch (error) {
+      await this.handleInfrastructureError(
+        error instanceof Error ? error : new Error(String(error)),
+        component,
+        operationName,
+        context
+      );
+      return null;
+    }
+  }
+
+  private categorizeError(error: Error, databaseType: any): any {
+    return { category: 'UNKNOWN', severity: 'MEDIUM' };
+  }
+
+  private async recordErrorMetric(databaseType: any, operation: string): Promise<void> {
+    // Mock implementation
+  }
+
+  private categorizeInfrastructureError(error: Error, component: string): any {
+    return { category: 'INFRASTRUCTURE_UNKNOWN', severity: 'MEDIUM' };
+  }
+
+  private async recordInfrastructureErrorMetric(component: string, operation: string): Promise<void> {
+    // Mock implementation
+  }
+
+  private shouldAdjustBatchSize(error: Error): boolean {
+    return false;
+  }
+
+  private async recordBatchErrorMetric(
+    databaseType: any,
+    batchSize: number,
+    operation: string
+  ): Promise<void> {
+    // Mock implementation
+  }
+}
+
+// 创建模拟的FaultToleranceHandler
+class MockFaultToleranceHandler {
+  constructor() {
+    // Mock implementation
+  }
+
+  async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    options?: any
+  ): Promise<T> {
+    return await operation();
+  }
+}
+
+class MockErrorHandlingManager extends ErrorHandlingManager {
+  constructor() {
+    // 由于ErrorHandlingManager需要三个依赖，我们需要创建它们
+    const logger = new MockLoggerService();
+    const infrastructureErrorHandler = new MockInfrastructureErrorHandler(logger);
+    const faultToleranceHandler = new MockFaultToleranceHandler();
+    
+    // 使用类型断言来绕过类型检查
+    super(logger, infrastructureErrorHandler as any, faultToleranceHandler as any);
+  }
+
+  async executeWithFallback(
+    operationName: string,
+    operation: () => Promise<any>,
+    fallback: (error: Error) => Promise<any>
+  ): Promise<any> {
+    try {
+      return await operation();
+    } catch (error) {
+      return await fallback(error as Error);
+    }
+  }
+
+  getErrorStats(): any {
+    return {
+      totalErrors: 0,
+      errorRate: 0
+    };
+  }
+
+  resetErrorHistory(): void {
+    // Mock implementation
+  }
+
+  resetCircuitBreakers(): void {
+    // Mock implementation
+  }
+
+  getCircuitBreakerStates(): any {
+    return {};
+  }
+
+  updateConfig(config: any): void {
+    // Mock implementation
+  }
+}
 
 describe('NormalizationIntegrationService', () => {
   let container: Container;
@@ -16,13 +330,15 @@ describe('NormalizationIntegrationService', () => {
   beforeEach(() => {
     container = new Container();
 
-    // 绑定依赖
-    container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
-    container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).to(QueryResultNormalizer).inSingletonScope();
-    container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).to(UniversalTextSplitter).inSingletonScope();
-    container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
-    container.bind<ErrorHandlingManager>(TYPES.ErrorHandlingManager).to(ErrorHandlingManager).inSingletonScope();
-    container.bind<TreeSitterCoreService>(TYPES.TreeSitterService).to(TreeSitterCoreService).inSingletonScope();
+    // 绑定模拟实现
+    container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(new MockLoggerService());
+    container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).toConstantValue(
+      new QueryResultNormalizer({ enableCache: false, debug: false })
+    );
+    container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).toConstantValue(new MockUniversalTextSplitter());
+    container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).toConstantValue(new MockPerformanceMonitor());
+    container.bind<ErrorHandlingManager>(TYPES.ErrorHandlingManager).toConstantValue(new MockErrorHandlingManager());
+    container.bind<TreeSitterCoreService>(TYPES.TreeSitterService).toConstantValue(new MockTreeSitterCoreService());
 
     // 创建服务实例
     service = new NormalizationIntegrationService(
