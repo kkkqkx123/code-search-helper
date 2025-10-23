@@ -5,6 +5,7 @@ import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageExtensionMap } from '../../utils';
+import { LanguageDetector } from '../language-detection/LanguageDetector';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -48,9 +49,11 @@ export class DynamicParserManager {
   private logger = new LoggerService();
   private errorHandler: ErrorHandlerService;
   private querySystemInitialized = false;
+  private languageDetector: LanguageDetector;
 
   constructor() {
     this.errorHandler = new ErrorHandlerService(this.logger);
+    this.languageDetector = new LanguageDetector();
     this.initializeLanguageLoaders();
     this.initializeQuerySystem();
   }
@@ -222,7 +225,7 @@ export class DynamicParserManager {
    * 解析文件
    */
   async parseFile(filePath: string, content: string): Promise<DynamicParseResult> {
-    const language = this.detectLanguage(filePath, content);
+    const language = await this.detectLanguage(filePath, content);
     if (!language) {
       throw new Error(`不支持的文件类型: ${filePath}`);
     }
@@ -233,22 +236,11 @@ export class DynamicParserManager {
   /**
    * 检测语言
    */
-  detectLanguage(filePath: string, content?: string): string | null {
-    // 从文件扩展名检测
-    const extension = filePath.split('.').pop()?.toLowerCase();
-    if (!extension) {
-      return null;
-    }
-
-    for (const [language, config] of this.parsers) {
-      if (config.fileExtensions.includes(`.${extension}`)) {
-        return language;
-      }
-    }
-
-    // 如果扩展名检测失败，尝试内容检测
-    if (content) {
-      return this.detectLanguageFromContent(content);
+async detectLanguage(filePath: string, content?: string): Promise<string | null> {
+    // 使用语言检测器进行智能检测
+    const detectionResult = await this.languageDetector.detectLanguage(filePath, content);
+    if (detectionResult.language) {
+      return detectionResult.language;
     }
 
     return null;
@@ -257,57 +249,11 @@ export class DynamicParserManager {
   /**
    * 从内容检测语言
    */
-  private detectLanguageFromContent(content: string): string | null {
-    // 简单的内容启发式检测
-    const patterns: Record<string, RegExp[]> = {
-      javascript: [
-        /function\s+\w+\s*\(/,
-        /const\s+\w+\s*=/,
-        /let\s+\w+\s*=/,
-        /=>\s*{/,
-      ],
-      typescript: [
-        /interface\s+\w+/,
-        /type\s+\w+\s*=/,
-        /:\s*\w+\[\]/,
-        /as\s+\w+/,
-      ],
-      python: [
-        /def\s+\w+\s*\(/,
-        /class\s+\w+\s*:/,
-        /import\s+\w+/,
-        /from\s+\w+\s+import/,
-      ],
-      java: [
-        /public\s+class\s+\w+/,
-        /private\s+\w+\s+\w+/,
-        /public\s+static\s+void\s+main/,
-      ],
-      go: [
-        /func\s+\w+\s*\(/,
-        /package\s+\w+/,
-        /import\s+\(/,
-      ],
-      rust: [
-        /fn\s+\w+\s*\(/,
-        /let\s+mut\s+\w+/,
-        /use\s+std::/,
-      ],
-      vue: [
-        /<template>/,
-        /<script/,
-        /<style/,
-        /export\s+default\s*{/,
-        /v-[\w-]+=/,  // Vue指令
-      ],
-    };
-
-    for (const [language, regexes] of Object.entries(patterns)) {
-      for (const regex of regexes) {
-        if (regex.test(content)) {
-          return language;
-        }
-      }
+  private detectLanguageFromContent(content: string, filePath?: string): string | null {
+    // 使用语言检测器进行内容检测
+    const detectionResult = this.languageDetector.detectLanguageByContent(content);
+    if (detectionResult.language && detectionResult.confidence > 0.5) {
+      return detectionResult.language;
     }
 
     return null;

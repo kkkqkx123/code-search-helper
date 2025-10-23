@@ -1,5 +1,7 @@
 import { LanguageDetectionResult } from './types';
 import { languageFeatureDetector, languageExtensionMap, fileUtils } from '../../utils';
+import { ExtensionlessFileProcessor } from '../../../parser/universal/ExtensionlessFileProcessor';
+import { BackupFileProcessor } from '../../../parser/universal/BackupFileProcessor';
 
 /**
  * 语言特征检测器
@@ -11,6 +13,13 @@ export class LanguageDetector {
   private featureDetector = languageFeatureDetector;
   private extensionMap = languageExtensionMap;
   private fileUtils = fileUtils;
+  private extensionlessProcessor: ExtensionlessFileProcessor;
+  private backupProcessor: BackupFileProcessor;
+
+  constructor() {
+    this.extensionlessProcessor = new ExtensionlessFileProcessor();
+    this.backupProcessor = new BackupFileProcessor();
+  }
 
   /**
    * 智能语言检测 - 根据文件路径和内容推断语言
@@ -19,7 +28,42 @@ export class LanguageDetector {
    * @returns 语言检测结果
    */
   async detectLanguage(filePath: string, content?: string): Promise<LanguageDetectionResult> {
-    return this.featureDetector.detectLanguage(filePath, content);
+    // 首先检查是否为备份文件
+    const backupMetadata = this.backupProcessor.getBackupFileMetadata(filePath);
+    if (backupMetadata.isBackup && backupMetadata.originalInfo) {
+      const language = backupMetadata.originalInfo.language;
+      if (language && language !== 'unknown') {
+        return {
+          language,
+          confidence: backupMetadata.originalInfo.confidence,
+          method: 'extension'
+        };
+      }
+    }
+
+    // 尝试通过扩展名检测
+const extensionResult = await this.featureDetector.detectLanguage(filePath, content);
+    if (extensionResult.language) {
+      return extensionResult;
+    }
+
+    // 如果扩展名检测失败，尝试内容检测
+    if (content) {
+      const contentDetection = this.extensionlessProcessor.detectLanguageByContent(content);
+      if (contentDetection.confidence > 0.5) {
+        return {
+          language: contentDetection.language,
+          confidence: contentDetection.confidence,
+          method: 'content'
+        };
+      }
+    }
+
+    return {
+      language: undefined,
+      confidence: 0.0,
+      method: 'fallback'
+    };
   }
 
   /**
@@ -73,6 +117,14 @@ export class LanguageDetector {
    * @returns 语言检测结果
    */
   detectLanguageByContent(content: string): LanguageDetectionResult {
+    const detection = this.extensionlessProcessor.detectLanguageByContent(content);
+    if (detection.confidence > 0.5) {
+      return {
+        language: detection.language,
+        confidence: detection.confidence,
+        method: 'content'
+      };
+    }
     return this.featureDetector.detectLanguageByContent(content);
   }
 

@@ -5,7 +5,7 @@
 
 export class ProcessEventManager {
   private static instance: ProcessEventManager;
-  private registeredListeners: Map<string, Set<Function>> = new Map();
+  private registeredListeners: Map<string, Set<(...args: any[]) => void>> = new Map();
   private maxListeners: number = 10;
 
   private constructor() {
@@ -23,7 +23,7 @@ export class ProcessEventManager {
   /**
    * 注册事件监听器，避免重复注册
    */
-  public addListener(event: string, listener: Function): void {
+  public addListener(event: string, listener: (...args: any[]) => void): void {
     if (!this.registeredListeners.has(event)) {
       this.registeredListeners.set(event, new Set());
     }
@@ -40,7 +40,7 @@ export class ProcessEventManager {
   /**
    * 移除事件监听器
    */
-  public removeListener(event: string, listener: Function): void {
+  public removeListener(event: string, listener: (...args: any[]) => void): void {
     const listeners = this.registeredListeners.get(event);
     if (listeners) {
       process.removeListener(event, listener);
@@ -90,7 +90,7 @@ export class ProcessEventManager {
   /**
    * 检查监听器是否已注册
    */
-  public hasListener(event: string, listener: Function): boolean {
+  public hasListener(event: string, listener: (...args: any[]) => void): boolean {
     const listeners = this.registeredListeners.get(event);
     return listeners ? listeners.has(listener) : false;
   }

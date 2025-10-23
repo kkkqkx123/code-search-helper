@@ -1,6 +1,8 @@
 import { ParserLanguage } from '../parse/TreeSitterCoreService';
 import { LanguageDetectionResult } from './types';
 import { languageExtensionMap, fileUtils, languageFeatureDetector } from '../../utils';
+import { ExtensionlessFileProcessor } from '../../../parser/universal/ExtensionlessFileProcessor';
+import { BackupFileProcessor } from '../../../parser/universal/BackupFileProcessor';
 
 /**
  * TreeSitter专用的语言检测器
@@ -12,6 +14,13 @@ export class TreeSitterLanguageDetector {
   private extensionMap = languageExtensionMap;
   private fileUtils = fileUtils;
   private featureDetector = languageFeatureDetector;
+  private extensionlessProcessor: ExtensionlessFileProcessor;
+  private backupProcessor: BackupFileProcessor;
+
+  constructor() {
+    this.extensionlessProcessor = new ExtensionlessFileProcessor();
+    this.backupProcessor = new BackupFileProcessor();
+  }
 
   /**
    * 基于TreeSitter解析器配置的语言检测
@@ -21,14 +30,32 @@ export class TreeSitterLanguageDetector {
    * @returns 解析器语言或null
    */
   detectLanguageByParserConfig(
-    filePath: string, 
+    filePath: string,
     parsers: Map<string, ParserLanguage>,
     content?: string
   ): ParserLanguage | null {
     try {
+      // 首先检查是否为备份文件
+      const backupMetadata = this.backupProcessor.getBackupFileMetadata(filePath);
+      if (backupMetadata.isBackup && backupMetadata.originalInfo) {
+        const language = backupMetadata.originalInfo.language;
+        if (language && language !== 'unknown') {
+          const parser = parsers.get(language);
+          return parser && parser.supported ? parser : null;
+        }
+      }
+
       // 1. 安全提取文件扩展名
       const ext = this.extractFileExtension(filePath);
       if (!ext) {
+        // 如果没有扩展名，尝试内容检测
+        if (content) {
+          const contentDetection = this.extensionlessProcessor.detectLanguageByContent(content);
+          if (contentDetection.confidence > 0.5) {
+            const parser = parsers.get(contentDetection.language);
+            return parser && parser.supported ? parser : null;
+          }
+        }
         return null;
       }
 
@@ -108,10 +135,8 @@ export class TreeSitterLanguageDetector {
    */
   private detectLanguageByContentFeatures(content: string, parsers: Map<string, ParserLanguage>): ParserLanguage | null {
     try {
-      const contentLower = content.trim().toLowerCase();
-
-      // 使用公共的特征检测器进行检测
-      const detectionResult = this.featureDetector.detectLanguageByContent(contentLower);
+      // 使用扩展名处理器进行内容检测
+      const detectionResult = this.extensionlessProcessor.detectLanguageByContent(content);
       
       if (detectionResult.language && detectionResult.confidence > 0.5) {
         return parsers.get(detectionResult.language) || null;

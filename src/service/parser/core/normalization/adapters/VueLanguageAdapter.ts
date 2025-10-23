@@ -100,7 +100,7 @@ export class VueLanguageAdapter implements ILanguageAdapter {
                 if (analysis.template.ast) {
                     // 如果有AST，创建HTML相关结果
                     results.push({
-                        type: 'element',
+                        type: 'variable',
                         name: 'template',
                         startLine: 1,
                         endLine: analysis.template.statistics?.childCount ? analysis.template.statistics.childCount : 1,
@@ -116,7 +116,7 @@ export class VueLanguageAdapter implements ILanguageAdapter {
                     // 如果只有内容，创建内容结果
                     const lines = analysis.template.content.split('\n').length;
                     results.push({
-                        type: 'element',
+                        type: 'variable',
                         name: 'template',
                         startLine: 1,
                         endLine: lines,
@@ -172,7 +172,7 @@ export class VueLanguageAdapter implements ILanguageAdapter {
                 analysis.style.forEach((style: any, index: number) => {
                     if (style.ast) {
                         results.push({
-                            type: 'element',
+                            type: 'variable',
                             name: `style-${index}${style.scoped ? '-scoped' : ''}`,
                             startLine: 1,
                             endLine: style.statistics?.childCount ? style.statistics.childCount : 1,
@@ -187,7 +187,7 @@ export class VueLanguageAdapter implements ILanguageAdapter {
                     } else if (style.content) {
                         const lines = style.content.split('\n').length;
                         results.push({
-                            type: 'element',
+                            type: 'variable',
                             name: `style-${index}${style.scoped ? '-scoped' : ''}`,
                             startLine: 1,
                             endLine: lines,
@@ -556,8 +556,8 @@ export class VueLanguageAdapter implements ILanguageAdapter {
                         functionCount: functions.length,
                         variableCount: variables.length,
                         typeAliasCount: typeAliases.length,
-                        interfaces: interfaces.map(n => n.childForFieldName('name')?.text).filter(Boolean) || [],
-                        functions: functions.map(n => n.childForFieldName('name')?.text).filter(Boolean) || []
+                        interfaces: interfaces.map(n => n.childForFieldName('name')?.text).filter((text): text is string => text !== undefined) || [],
+                        functions: functions.map(n => n.childForFieldName('name')?.text).filter((text): text is string => text !== undefined) || []
                     };
                 }
 
@@ -575,6 +575,7 @@ export class VueLanguageAdapter implements ILanguageAdapter {
                 scoped: style.scoped,
                 ast: null,
                 statistics: null,
+                cssInfo: null,
                 error: null
             };
 
