@@ -9,10 +9,6 @@ export default `
 ; When entry
 (when_entry) @name.definition.when_entry
 
-; When condition
-(when_entry
-  (expression) @name.definition.when_condition) @name.definition.when_with_condition
-
 ; Try expressions
 (try_expression) @name.definition.try_expression
 
@@ -22,10 +18,6 @@ export default `
 
 ; Catch blocks
 (catch_block) @name.definition.catch_block
-
-; Catch parameter
-(catch_block
-  (simple_identifier) @name.definition.exception_variable) @name.definition.catch_parameter
 
 ; Finally block
 (finally_block) @name.definition.finally_block
@@ -37,10 +29,6 @@ export default `
 (for_statement
   (variable_declaration
     (simple_identifier) @name.definition.for_variable)) @name.definition.for_with_variable
-
-; For iterable
-(for_statement
-  (expression) @name.definition.for_iterable) @name.definition.for_with_iterable
 
 ; While statements
 (while_statement) @name.definition.while_statement
@@ -104,16 +92,8 @@ export default `
 ; Value arguments
 (value_arguments) @name.definition.value_arguments
 
-; Value argument
-(value_argument
-  (expression) @name.definition.value_argument) @name.definition.value_argument_with_expression
-
 ; Type arguments
 (type_arguments) @name.definition.type_arguments
-
-; Type argument
-(type_argument
-  (type) @name.definition.type_argument) @name.definition.type_argument_with_type
 
 ; Indexing suffix
 (indexing_suffix) @name.definition.indexing_suffix
@@ -147,12 +127,6 @@ export default `
 
 ; String literals
 (string_literal) @name.definition.string_literal
-
-; Line string literals
-(line_string_literal) @name.definition.line_string_literal
-
-; Multi line string literals
-(multi_line_string_literal) @name.definition.multi_line_string_literal
 
 ; Character literals
 (character_literal) @name.definition.character_literal
@@ -214,9 +188,6 @@ export default `
 ; Annotations
 (annotation) @name.definition.annotation
 
-; Annotation use site targets
-(annotation_use_site_target) @name.definition.annotation_use_site_target
-
 ; Modifiers
 (modifiers) @name.definition.modifiers
 
@@ -265,9 +236,6 @@ export default `
 
 ; Import lists
 (import_list) @name.definition.import_list
-
-; Import alias
-(import_alias) @name.definition.import_alias
 
 ; Source file
 (source_file) @name.definition.source_file

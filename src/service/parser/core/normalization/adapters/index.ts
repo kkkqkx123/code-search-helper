@@ -13,6 +13,7 @@ export { HtmlLanguageAdapter } from './HtmlLanguageAdapter';
 export { VueLanguageAdapter } from './VueLanguageAdapter';
 export { JavaLanguageAdapter } from './JavaLanguageAdapter';
 export { KotlinLanguageAdapter } from './KotlinLanguageAdapter';
+export { CssLanguageAdapter } from './CssLanguageAdapter';
 
 import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 import { PythonLanguageAdapter } from './PythonLanguageAdapter';
@@ -25,6 +26,7 @@ import { HtmlLanguageAdapter } from './HtmlLanguageAdapter';
 import { VueLanguageAdapter } from './VueLanguageAdapter';
 import { JavaLanguageAdapter } from './JavaLanguageAdapter';
 import { KotlinLanguageAdapter } from './KotlinLanguageAdapter';
+import { CssLanguageAdapter } from './CssLanguageAdapter';
 import { ILanguageAdapter } from '../types';
 
 /**
@@ -49,6 +51,7 @@ export class LanguageAdapterFactory {
     ['kotlin', () => new KotlinLanguageAdapter()],
     ['kt', () => new KotlinLanguageAdapter()], // Kotlin文件扩展名
     ['kts', () => new KotlinLanguageAdapter()], // Kotlin脚本文件扩展名
+    ['css', () => new CssLanguageAdapter()],
   ]);
 
   /**
