@@ -86,7 +86,7 @@ export interface ILanguageAdapter {
    * @param language 编程语言
    * @returns 标准化的查询结果数组
    */
-  normalize(queryResults: any[], queryType: string, language: string): StandardizedQueryResult[];
+  normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]>;
   
   /**
    * 获取支持的查询类型
@@ -195,4 +195,83 @@ export interface NormalizationStats {
   
   /** 按类型分组的统计 */
   typeStats: Record<string, number>;
+/**
+ * 适配器选项接口
+ */
+export interface AdapterOptions {
+  /** 是否启用去重 */
+  enableDeduplication?: boolean;
+  /** 是否启用性能监控 */
+  enablePerformanceMonitoring?: boolean;
+  /** 是否启用错误恢复 */
+  enableErrorRecovery?: boolean;
+  /** 是否启用缓存 */
+  enableCaching?: boolean;
+  /** 缓存大小 */
+  cacheSize?: number;
+  /** 自定义类型映射 */
+  customTypeMappings?: Record<string, string>;
+}
+
+/**
+ * 查询结果元数据接口
+ */
+export interface QueryResultMetadata {
+  /** 编程语言 */
+  language: string;
+  /** 复杂度评分 */
+  complexity: number;
+  /** 依赖项列表 */
+  dependencies: string[];
+  /** 修饰符列表 */
+  modifiers: string[];
+  /** 额外的语言特定信息 */
+  [key: string]: any;
+}
+
+/**
+ * 语言查询映射接口
+ */
+export interface LanguageQueryMapping {
+  [queryFile: string]: string[];
+}
+
+/**
+ * 语言映射接口
+ */
+export interface LanguageMappings {
+  [language: string]: LanguageQueryMapping;
+}
+
+/**
+ * 适配器性能统计接口
+ */
+export interface AdapterPerformanceStats {
+  /** 缓存大小 */
+  cacheSize: number;
+  /** 支持的语言数量 */
+  supportedLanguages: number;
+  /** 已配置的语言数量 */
+  configuredLanguages: number;
+  /** 按语言分组的统计 */
+  languageStats: Record<string, {
+    count: number;
+    adapters: string[];
+  }>;
+}
+
+/**
+ * 缓存统计接口
+ */
+export interface CacheStats {
+  /** 缓存大小 */
+  size: number;
+  /** 缓存中的语言列表 */
+  languages: string[];
+  /** 缓存条目详情 */
+  entries: Array<{
+    language: string;
+    count: number;
+  }>;
+}
 }

@@ -8,12 +8,17 @@ export * from './types';
 // 核心组件
 export { QueryResultNormalizer } from './QueryResultNormalizer';
 
+// 基础架构
+export { BaseLanguageAdapter } from './BaseLanguageAdapter';
+export { LanguageAdapterFactory } from './LanguageAdapterFactory';
+export { QueryTypeMapper } from './QueryTypeMappings';
+
 // 语言适配器
 export * from './adapters';
 
 // 便捷导出
 import { QueryResultNormalizer } from './QueryResultNormalizer';
-import { LanguageAdapterFactory } from './adapters';
+import { LanguageAdapterFactory } from './LanguageAdapterFactory';
 
 /**
  * 创建标准化器实例的便捷函数
@@ -36,7 +41,7 @@ export function registerLanguageAdapter(
   language: string, 
   adapterFactory: () => import('./types').ILanguageAdapter
 ) {
-  LanguageAdapterFactory.registerAdapter(language, adapterFactory);
+  console.warn('registerLanguageAdapter is deprecated, please use LanguageAdapterFactory.registerCustomAdapter');
 }
 
 /**

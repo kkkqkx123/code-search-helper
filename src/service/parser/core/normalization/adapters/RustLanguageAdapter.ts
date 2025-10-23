@@ -12,7 +12,7 @@ export class RustLanguageAdapter implements ILanguageAdapter {
     this.logger = new LoggerService();
   }
 
-  normalize(queryResults: any[], queryType: string, language: string): StandardizedQueryResult[] {
+  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const results: StandardizedQueryResult[] = [];
     
     for (const result of queryResults) {

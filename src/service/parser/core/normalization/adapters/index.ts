@@ -28,70 +28,50 @@ import { JavaLanguageAdapter } from './JavaLanguageAdapter';
 import { KotlinLanguageAdapter } from './KotlinLanguageAdapter';
 import { CssLanguageAdapter } from './CssLanguageAdapter';
 import { ILanguageAdapter } from '../types';
+import { LanguageAdapterFactory } from '../LanguageAdapterFactory';
 
 /**
- * 语言适配器工厂
+ * 重新导出增强的语言适配器工厂
+ * 保持向后兼容性
  */
-export class LanguageAdapterFactory {
-  private static adapters: Map<string, () => ILanguageAdapter> = new Map<string, () => ILanguageAdapter>([
-    ['typescript', () => new TypeScriptLanguageAdapter()],
-    ['javascript', () => new TypeScriptLanguageAdapter()], // JavaScript使用TypeScript适配器
-    ['tsx', () => new TypeScriptLanguageAdapter()],
-    ['jsx', () => new TypeScriptLanguageAdapter()],
-    ['python', () => new PythonLanguageAdapter()],
-    ['c', () => new CLanguageAdapter()],
-    ['cpp', () => new CppLanguageAdapter()],
-    ['csharp', () => new CSharpLanguageAdapter()],
-    ['c#', () => new CSharpLanguageAdapter()],
-    ['rust', () => new RustLanguageAdapter()],
-    ['html', () => new HtmlLanguageAdapter()],
-    ['vue', () => new VueLanguageAdapter()],
-    ['vue3', () => new VueLanguageAdapter()],
-    ['java', () => new JavaLanguageAdapter()],
-    ['kotlin', () => new KotlinLanguageAdapter()],
-    ['kt', () => new KotlinLanguageAdapter()], // Kotlin文件扩展名
-    ['kts', () => new KotlinLanguageAdapter()], // Kotlin脚本文件扩展名
-    ['css', () => new CssLanguageAdapter()],
-  ]);
+export { LanguageAdapterFactory } from '../LanguageAdapterFactory';
 
-  /**
-   * 获取指定语言的适配器
-   * @param language 编程语言
-   * @returns 语言适配器实例
-   */
-  static getAdapter(language: string): ILanguageAdapter {
-    const adapterFactory = this.adapters.get(language.toLowerCase());
-    if (adapterFactory) {
-      return adapterFactory();
-    }
+/**
+ * @deprecated 请使用新的 LanguageAdapterFactory.getAdapter() 方法
+ * 获取指定语言的适配器
+ * @param language 编程语言
+ * @returns 语言适配器实例
+ */
+export function getAdapter(language: string): ILanguageAdapter {
+  return LanguageAdapterFactory.getAdapter(language);
+}
 
-    // 返回默认适配器
-    return new DefaultLanguageAdapter();
-  }
+/**
+ * @deprecated 请使用新的 LanguageAdapterFactory.registerAdapter() 方法
+ * 注册新的语言适配器
+ * @param language 编程语言
+ * @param adapterFactory 适配器工厂函数
+ */
+export function registerAdapter(language: string, adapterFactory: () => ILanguageAdapter): void {
+  // 注意：新工厂不支持这种注册方式，这里仅保持兼容性
+  console.warn('registerAdapter is deprecated, please use LanguageAdapterFactory.registerCustomAdapter');
+}
 
-  /**
-   * 注册新的语言适配器
-   * @param language 编程语言
-   * @param adapterFactory 适配器工厂函数
-   */
-  static registerAdapter(language: string, adapterFactory: () => ILanguageAdapter): void {
-    this.adapters.set(language.toLowerCase(), adapterFactory);
-  }
+/**
+ * @deprecated 请使用新的 LanguageAdapterFactory.getSupportedLanguages() 方法
+ * 获取所有支持的语言
+ * @returns 支持的语言列表
+ */
+export function getSupportedLanguages(): string[] {
+  return LanguageAdapterFactory.getSupportedLanguages();
+}
 
-  /**
-   * 获取所有支持的语言
-   * @returns 支持的语言列表
-   */
-  static getSupportedLanguages(): string[] {
-    return Array.from(this.adapters.keys());
-  }
-
-  /**
-   * 检查是否支持指定语言
-   * @param language 编程语言
-   * @returns 是否支持
-   */
-  static isSupported(language: string): boolean {
-    return this.adapters.has(language.toLowerCase());
-  }
+/**
+ * @deprecated 请使用新的 LanguageAdapterFactory.isLanguageSupported() 方法
+ * 检查是否支持指定语言
+ * @param language 编程语言
+ * @returns 是否支持
+ */
+export function isSupported(language: string): boolean {
+  return LanguageAdapterFactory.isLanguageSupported(language);
 }
