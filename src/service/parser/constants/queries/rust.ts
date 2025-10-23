@@ -19,7 +19,9 @@ export const rustQueryTypeMappings = {
     'unit_struct_item',
     'tuple_struct_item',
     'enum_item',
-    'union_item',
+    'union_item'
+  ],
+  interfaces: [  // Rust traits
     'trait_item'
   ],
  methods: [  // functions inside impl blocks
@@ -50,7 +52,8 @@ export const rustQueryTypeMappings = {
     'type_item',
     'type_parameter',
     'associated_type',
-    'associated_constant'
+    'associated_constant',
+    'attribute_item'
   ],
   expressions: [
     'call_expression',
@@ -68,6 +71,7 @@ export const rustQueryTypeMappings = {
     'break_expression',
     'try_expression',
     'reference_expression',
+    'literal',
     'integer_literal',
     'float_literal',
     'string_literal',

@@ -1,0 +1,3 @@
+验证rust的适配器 @/src/service/parser/core/normalization/adapters/RustLanguageAdapter.ts 
+与 @/src/service/parser/constants/queries/rust.ts 中导出的类型是否一致，并调整适配器。
+修改后使用js脚本验证映射是否一致

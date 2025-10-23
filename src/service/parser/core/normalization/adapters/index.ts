@@ -4,19 +4,27 @@
 
 export { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 export { PythonLanguageAdapter } from './PythonLanguageAdapter';
-export { CCommonLanguageAdapter } from './CCommonLanguageAdapter';
+export { CLanguageAdapter } from './CLanguageAdapter';
+export { CppLanguageAdapter } from './CppLanguageAdapter';
+export { CSharpLanguageAdapter } from './CSharpLanguageAdapter';
 export { RustLanguageAdapter } from './RustLanguageAdapter';
 export { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
 export { HtmlLanguageAdapter } from './HtmlLanguageAdapter';
 export { VueLanguageAdapter } from './VueLanguageAdapter';
+export { JavaLanguageAdapter } from './JavaLanguageAdapter';
+export { KotlinLanguageAdapter } from './KotlinLanguageAdapter';
 
 import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 import { PythonLanguageAdapter } from './PythonLanguageAdapter';
-import { CCommonLanguageAdapter } from './CCommonLanguageAdapter';
+import { CLanguageAdapter } from './CLanguageAdapter';
+import { CppLanguageAdapter } from './CppLanguageAdapter';
+import { CSharpLanguageAdapter } from './CSharpLanguageAdapter';
 import { RustLanguageAdapter } from './RustLanguageAdapter';
 import { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
 import { HtmlLanguageAdapter } from './HtmlLanguageAdapter';
 import { VueLanguageAdapter } from './VueLanguageAdapter';
+import { JavaLanguageAdapter } from './JavaLanguageAdapter';
+import { KotlinLanguageAdapter } from './KotlinLanguageAdapter';
 import { ILanguageAdapter } from '../types';
 
 /**
@@ -29,14 +37,18 @@ export class LanguageAdapterFactory {
     ['tsx', () => new TypeScriptLanguageAdapter()],
     ['jsx', () => new TypeScriptLanguageAdapter()],
     ['python', () => new PythonLanguageAdapter()],
-    ['c', () => new CCommonLanguageAdapter()],
-    ['cpp', () => new CCommonLanguageAdapter()],
-    ['csharp', () => new CCommonLanguageAdapter()],
-    ['c#', () => new CCommonLanguageAdapter()],
+    ['c', () => new CLanguageAdapter()],
+    ['cpp', () => new CppLanguageAdapter()],
+    ['csharp', () => new CSharpLanguageAdapter()],
+    ['c#', () => new CSharpLanguageAdapter()],
     ['rust', () => new RustLanguageAdapter()],
     ['html', () => new HtmlLanguageAdapter()],
     ['vue', () => new VueLanguageAdapter()],
     ['vue3', () => new VueLanguageAdapter()],
+    ['java', () => new JavaLanguageAdapter()],
+    ['kotlin', () => new KotlinLanguageAdapter()],
+    ['kt', () => new KotlinLanguageAdapter()], // Kotlin文件扩展名
+    ['kts', () => new KotlinLanguageAdapter()], // Kotlin脚本文件扩展名
   ]);
 
   /**

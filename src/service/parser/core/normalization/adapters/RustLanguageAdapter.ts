@@ -46,11 +46,12 @@ export class RustLanguageAdapter implements ILanguageAdapter {
     return [
       'functions',
       'classes',        // 对应Rust的struct、enum、union
+      'interfaces',     // 对应Rust的trait
       'methods',        // 对应impl块中的函数
       'imports',        // 对应use声明和extern crate
       'variables',      // 对应变量声明、常量、静态变量
       'control-flow',   // 对应match、if、loop等控制流
-      'types',          // 对应类型别名、trait、类型参数
+      'types',          // 对应类型别名、类型参数
       'expressions',    // 对应各种表达式
       'macros',         // 对应宏定义和宏调用
       'modules'         // 对应模块定义
@@ -74,10 +75,11 @@ export class RustLanguageAdapter implements ILanguageAdapter {
       'trait_item': 'interface',
       
       // Implementation blocks
-      'impl_item': 'class', // 代表impl块，通常与struct/enum相关
+      'impl_item': 'method', // impl块包含方法实现
       
       // Methods (inside impl blocks)
-      'method_definition': 'method', // 这个可能需要根据tree-sitter输出调整
+      // 注意：Rust 中方法实际上是 impl_item 内部的 function_item
+      // 不需要单独的 method_definition 映射
       
       // Module and import statements
       'mod_item': 'import',
@@ -96,11 +98,11 @@ export class RustLanguageAdapter implements ILanguageAdapter {
       'type_item': 'type',
       'type_parameter': 'type',
       'associated_type': 'type',
-      'associated_constant': 'variable',
+      'associated_constant': 'type',
       
       // Macros
       'macro_definition': 'function', // 宏定义类似函数
-      'macro_invocation': 'expression', // 宏调用是表达式
+      'macro_invocation': 'function', // 宏调用类似函数调用
       
       // Control flow
       'match_expression': 'control-flow',
@@ -432,11 +434,12 @@ export class RustLanguageAdapter implements ILanguageAdapter {
     const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
       'functions': 'function',
       'classes': 'class',         // 对应struct、enum、union
+      'interfaces': 'interface',  // 对应trait
       'methods': 'method',
       'imports': 'import',        // 对应use、extern crate等
       'variables': 'variable',    // 对应const、static、let等
       'control-flow': 'control-flow',
-      'types': 'type',            // 对应type alias、trait等
+      'types': 'type',            // 对应type alias、类型参数
       'expressions': 'expression',
       'macros': 'function',       // 宏类似函数
       'modules': 'import',        // 模块导入

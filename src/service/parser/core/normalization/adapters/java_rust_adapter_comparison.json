@@ -1,0 +1,77 @@
+{
+  "timestamp": "2025-10-23T01:55:11.339Z",
+  "basicStructure": {
+    "javaLines": 571,
+    "rustLines": 624
+  },
+  "errorHandling": {
+    "javaTryCatch": 1,
+    "rustTryCatch": 9
+  },
+  "privateMethods": {
+    "java": [
+      "mapQueryTypeToStandardType",
+      "calculateNestingDepth",
+      "isBlockNode",
+      "findTypeReferences",
+      "findMethodCalls"
+    ],
+    "rust": [
+      "mapQueryTypeToStandardType",
+      "calculateNestingDepth",
+      "isBlockNode",
+      "findTypeReferences",
+      "findFunctionCalls",
+      "findPathReferences",
+      "findGenericParameters",
+      "findTraitBounds",
+      "findLifetimes",
+      "findReturnType",
+      "findVisibility"
+    ]
+  },
+  "languageSpecificFeatures": {
+    "javaComplexity": [
+      "abstract",
+      "synchronized",
+      "native",
+      "volatile",
+      "transient",
+      "strictfp",
+      "stream",
+      "lambda"
+    ],
+    "rustComplexity": [
+      "unsafe",
+      "async",
+      "await",
+      "where",
+      "impl",
+      "trait",
+      "match"
+    ],
+    "javaModifiers": [
+      "public",
+      "private",
+      "protected",
+      "static",
+      "final",
+      "abstract",
+      "synchronized",
+      "volatile",
+      "transient",
+      "native"
+    ],
+    "rustModifiers": [
+      "unsafe",
+      "async",
+      "const",
+      "static",
+      "extern",
+      "pub",
+      "mut",
+      "ref",
+      "move"
+    ]
+  }
+}
