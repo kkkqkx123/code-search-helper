@@ -18,7 +18,11 @@ class MockLoggerService extends LoggerService {
 
 class MockUniversalTextSplitter extends UniversalTextSplitter {
   constructor() {
-    super();
+    super(
+      new MockLoggerService(),
+      { get: () => ({}) } as any,
+      { shouldProtect: () => false } as any
+    );
   }
 
   async chunkBySemanticBoundaries(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {

@@ -29,8 +29,11 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
   ) {
     this.logger = logger;
 
-    // 如果没有提供依赖，创建默认实例
-    this.universalTextSplitter = universalTextSplitter || new UniversalTextSplitter(logger);
+    // UniversalTextSplitter 应该始终通过 DI 容器提供
+    if (!universalTextSplitter) {
+      throw new Error('UniversalTextSplitter is required and must be provided through DI container');
+    }
+    this.universalTextSplitter = universalTextSplitter;
     this.treeSitterService = treeSitterService;
   }
 

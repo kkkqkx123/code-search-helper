@@ -39,6 +39,7 @@ import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterSer
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
 import { ASTCodeSplitter } from '../../service/parser/splitting/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
+import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
 
 // 通用文件处理服务
 import { UniversalTextSplitter } from '../../service/parser/universal/UniversalTextSplitter';
@@ -51,6 +52,20 @@ import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
 import { ProcessingStrategySelector } from '../../service/parser/universal/coordination/ProcessingStrategySelector';
 import { FileProcessingCoordinator } from '../../service/parser/universal/coordination/FileProcessingCoordinator';
+
+// 分段器模块服务
+import { SegmentationContextManager } from '../../service/parser/universal/context/SegmentationContextManager';
+import { ConfigurationManager } from '../../service/parser/universal/config/ConfigurationManager';
+import { ProtectionCoordinator } from '../../service/parser/universal/protection/ProtectionCoordinator';
+import { ComplexityCalculator } from '../../service/parser/universal/processors/ComplexityCalculator';
+import { OverlapProcessor } from '../../service/parser/universal/processors/OverlapProcessor';
+import { ChunkFilter } from '../../service/parser/universal/processors/ChunkFilter';
+import { ChunkRebalancer } from '../../service/parser/universal/processors/ChunkRebalancer';
+import { SemanticSegmentationStrategy } from '../../service/parser/universal/strategies/SemanticSegmentationStrategy';
+import { BracketSegmentationStrategy } from '../../service/parser/universal/strategies/BracketSegmentationStrategy';
+import { LineSegmentationStrategy } from '../../service/parser/universal/strategies/LineSegmentationStrategy';
+import { MarkdownSegmentationStrategy } from '../../service/parser/universal/strategies/MarkdownSegmentationStrategy';
+import { StandardizationSegmentationStrategy } from '../../service/parser/universal/strategies/StandardizationSegmentationStrategy';
 
 // 文件搜索服务
 import { FileSearchService } from '../../service/filesearch/FileSearchService';
@@ -69,6 +84,10 @@ import { MemoryMonitorService } from '../../service/memory/MemoryMonitorService'
 
 export class BusinessServiceRegistrar {
   static register(container: Container): void {
+    const logger = container.get<LoggerService>(TYPES.LoggerService);
+    
+    try {
+      logger?.info('Registering business services...');
     // 文件系统服务
     container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).to(FileSystemTraversal).inSingletonScope();
     container.bind<FileHashManager>(TYPES.FileHashManager).to(FileHashManagerImpl).inSingletonScope();
@@ -113,6 +132,9 @@ export class BusinessServiceRegistrar {
     container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
     container.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
     container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
+    
+    // 标准化服务
+    container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).to(QueryResultNormalizer).inSingletonScope();
 
     // 处理策略选择器 - 需要在UnifiedGuardCoordinator之前注册
     container.bind<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector).toDynamicValue(context => {
@@ -123,7 +145,9 @@ export class BusinessServiceRegistrar {
     // 文件处理协调器 - 需要在UnifiedGuardCoordinator之前注册
     container.bind<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
-      return new FileProcessingCoordinator(logger);
+      const universalTextSplitter = context.get<UniversalTextSplitter>(TYPES.UniversalTextSplitter);
+      const treeSitterService = context.get<TreeSitterService>(TYPES.TreeSitterService);
+      return new FileProcessingCoordinator(logger, universalTextSplitter, treeSitterService);
     }).inSingletonScope();
 
     // CleanupManager 现在在 InfrastructureServiceRegistrar 中注册
@@ -131,11 +155,34 @@ export class BusinessServiceRegistrar {
     InfrastructureServiceRegistrar.register()在BusinessServiceRegistrar.register()之前调用
     */
 
-    // 通用文件处理服务
-    container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).toDynamicValue(context => {
-      const logger = context.get<LoggerService>(TYPES.LoggerService);
-      return new UniversalTextSplitter(logger);
-    }).inSingletonScope();
+    // 分段器模块服务 - 统一在这里管理
+    // 核心类
+    container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).to(UniversalTextSplitter).inSingletonScope();
+    container.bind<SegmentationContextManager>(TYPES.SegmentationContextManager).to(SegmentationContextManager).inSingletonScope();
+    
+    // 配置和保护
+    container.bind<ConfigurationManager>(TYPES.ConfigurationManager).to(ConfigurationManager).inSingletonScope();
+    container.bind<ProtectionCoordinator>(TYPES.ProtectionCoordinator).to(ProtectionCoordinator).inSingletonScope();
+    
+    // 复杂度计算器
+    container.bind<ComplexityCalculator>(TYPES.ComplexityCalculator).to(ComplexityCalculator).inSingletonScope();
+    
+    // 策略
+    container.bind<SemanticSegmentationStrategy>(TYPES.SemanticSegmentationStrategy).to(SemanticSegmentationStrategy).inSingletonScope();
+    container.bind<BracketSegmentationStrategy>(TYPES.BracketSegmentationStrategy).to(BracketSegmentationStrategy).inSingletonScope();
+    container.bind<LineSegmentationStrategy>(TYPES.LineSegmentationStrategy).to(LineSegmentationStrategy).inSingletonScope();
+    container.bind<MarkdownSegmentationStrategy>(TYPES.MarkdownSegmentationStrategy).to(MarkdownSegmentationStrategy).inSingletonScope();
+    container.bind<StandardizationSegmentationStrategy>(TYPES.StandardizationSegmentationStrategy).to(StandardizationSegmentationStrategy).inSingletonScope();
+    
+    // 处理器
+    container.bind<OverlapProcessor>(TYPES.OverlapProcessor).to(OverlapProcessor).inSingletonScope();
+    container.bind<ChunkFilter>(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();
+    container.bind<ChunkRebalancer>(TYPES.ChunkRebalancer).to(ChunkRebalancer).inSingletonScope();
+
+    // 初始化分段器模块 - 设置策略和处理器
+    BusinessServiceRegistrar.initializeSegmentationServices(container);
+
+    // 通用文件处理服务 - 使用新的模块化分段器
     container.bind<ErrorThresholdManager>(TYPES.ErrorThresholdManager).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
       const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
@@ -204,9 +251,72 @@ export class BusinessServiceRegistrar {
     // MemoryGuard 参数
     container.bind<number>(TYPES.MemoryLimitMB).toConstantValue(500);
     container.bind<number>(TYPES.MemoryCheckIntervalMs).toConstantValue(5000);
-  } catch(error: any) {
-    console.error('Error registering business services:', error);
-    console.error('Error stack:', error?.stack);
-    throw error;
+    
+    logger?.info('Business services registered successfully');
+    } catch (error) {
+      logger?.error('Failed to register business services:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 初始化分段器服务 - 设置策略和处理器
+   */
+  private static initializeSegmentationServices(container: Container): void {
+    const logger = container.get<LoggerService>(TYPES.LoggerService);
+    
+    try {
+      logger?.info('Initializing segmentation services...');
+      
+      // 设置策略到上下文管理器
+      const contextManager = container.get<SegmentationContextManager>(TYPES.SegmentationContextManager);
+      logger?.debug('SegmentationContextManager retrieved from container');
+      
+      // 添加所有策略
+      const strategies = [
+        { name: 'SemanticSegmentationStrategy', type: TYPES.SemanticSegmentationStrategy },
+        { name: 'BracketSegmentationStrategy', type: TYPES.BracketSegmentationStrategy },
+        { name: 'LineSegmentationStrategy', type: TYPES.LineSegmentationStrategy },
+        { name: 'MarkdownSegmentationStrategy', type: TYPES.MarkdownSegmentationStrategy },
+        { name: 'StandardizationSegmentationStrategy', type: TYPES.StandardizationSegmentationStrategy }
+      ];
+      
+      for (const strategy of strategies) {
+        try {
+          const strategyInstance = container.get<any>(strategy.type);
+          contextManager.addStrategy(strategyInstance);
+          logger?.debug(`Added segmentation strategy: ${strategy.name}`);
+        } catch (error) {
+          logger?.error(`Failed to add segmentation strategy ${strategy.name}:`, error);
+          throw error;
+        }
+      }
+      
+      // 设置处理器到UniversalTextSplitter
+      const universalTextSplitter = container.get<UniversalTextSplitter>(TYPES.UniversalTextSplitter);
+      logger?.debug('UniversalTextSplitter retrieved from container');
+      
+      const processors = [
+        { name: 'OverlapProcessor', type: TYPES.OverlapProcessor },
+        { name: 'ChunkFilter', type: TYPES.ChunkFilter },
+        { name: 'ChunkRebalancer', type: TYPES.ChunkRebalancer }
+      ];
+      
+      for (const processor of processors) {
+        try {
+          const processorInstance = container.get<any>(processor.type);
+          universalTextSplitter.addProcessor(processorInstance);
+          logger?.debug(`Added segmentation processor: ${processor.name}`);
+        } catch (error) {
+          logger?.error(`Failed to add segmentation processor ${processor.name}:`, error);
+          throw error;
+        }
+      }
+      
+      logger?.info('Segmentation services initialized successfully');
+    } catch (error) {
+      logger?.error('Failed to initialize segmentation services:', error);
+      throw error;
+    }
   }
 }

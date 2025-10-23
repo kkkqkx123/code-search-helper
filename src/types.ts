@@ -360,4 +360,18 @@ export const TYPES = {
   
   // 35. 错误处理管理器
   ErrorHandlingManager: Symbol.for('ErrorHandlingManager'),
+  
+  // 36. 分段器相关服务
+  SegmentationContextManager: Symbol.for('SegmentationContextManager'),
+  ConfigurationManager: Symbol.for('ConfigurationManager'),
+  ProtectionCoordinator: Symbol.for('ProtectionCoordinator'),
+  ComplexityCalculator: Symbol.for('ComplexityCalculator'),
+  SemanticSegmentationStrategy: Symbol.for('SemanticSegmentationStrategy'),
+  BracketSegmentationStrategy: Symbol.for('BracketSegmentationStrategy'),
+  LineSegmentationStrategy: Symbol.for('LineSegmentationStrategy'),
+  MarkdownSegmentationStrategy: Symbol.for('MarkdownSegmentationStrategy'),
+  StandardizationSegmentationStrategy: Symbol.for('StandardizationSegmentationStrategy'),
+  OverlapProcessor: Symbol.for('OverlapProcessor'),
+  ChunkFilter: Symbol.for('ChunkFilter'),
+  ChunkRebalancer: Symbol.for('ChunkRebalancer'),
 };
