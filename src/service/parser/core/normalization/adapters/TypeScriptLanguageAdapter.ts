@@ -1,43 +1,13 @@
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { StandardizedQueryResult } from '../types';
 
 /**
  * TypeScript语言适配器
  * 处理TypeScript特定的查询结果标准化
  */
-export class TypeScriptLanguageAdapter implements ILanguageAdapter {
-  private logger: LoggerService;
-
-  constructor() {
-    this.logger = new LoggerService();
-  }
-
-  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
-    const results: (StandardizedQueryResult | null)[] = [];
-    
-    for (const result of queryResults) {
-      try {
-        const extraInfo = this.extractExtraInfo(result);
-        results.push({
-          type: this.mapQueryTypeToStandardType(queryType),
-          name: this.extractName(result),
-          startLine: this.extractStartLine(result),
-          endLine: this.extractEndLine(result),
-          content: this.extractContent(result),
-          metadata: {
-            language,
-            complexity: this.calculateComplexity(result),
-            dependencies: this.extractDependencies(result),
-            modifiers: this.extractModifiers(result),
-            extra: Object.keys(extraInfo).length > 0 ? extraInfo : undefined
-          }
-        });
-      } catch (error) {
-        this.logger.warn(`Failed to normalize TypeScript result for ${queryType}:`, error);
-      }
-    }
-    
-    return results.filter((result): result is StandardizedQueryResult => result !== null);
+export class TypeScriptLanguageAdapter extends BaseLanguageAdapter {
+  constructor(options: AdapterOptions = {}) {
+    super(options);
   }
 
   getSupportedQueryTypes(): string[] {
@@ -223,35 +193,69 @@ export class TypeScriptLanguageAdapter implements ILanguageAdapter {
     return 'unnamed';
   }
 
-  extractContent(result: any): string {
+  extractLanguageSpecificMetadata(result: any): Record<string, any> {
+    const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return '';
-    }
     
-    return mainNode.text || '';
+    if (!mainNode) {
+      return extra;
+    }
+
+    // 提取泛型信息
+    const typeParameters = mainNode.childForFieldName('type_parameters');
+    if (typeParameters) {
+      extra.hasGenerics = true;
+      extra.typeParameters = typeParameters.text;
+    }
+
+    // 提取继承信息
+    const heritageClause = mainNode.childForFieldName('heritage_clause');
+    if (heritageClause) {
+      extra.hasInheritance = true;
+      extra.extends = heritageClause.text;
+    }
+
+    // 提取参数信息（对于函数）
+    const parameters = mainNode.childForFieldName('parameters');
+    if (parameters) {
+      extra.parameterCount = parameters.childCount;
+    }
+
+    // 提取装饰器信息
+    const decorators = this.extractDecorators(mainNode);
+    if (decorators.length > 0) {
+      extra.decorators = decorators;
+    }
+
+    // 提取JSX相关信息
+    if (this.isJSXElement(mainNode)) {
+      extra.isJSX = true;
+      extra.jsxType = mainNode.type;
+    }
+
+    return extra;
   }
 
-  extractStartLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+      'functions': 'function',
+      'classes': 'class',
+      'methods': 'method',
+      'imports': 'import',
+      'exports': 'export',
+      'interfaces': 'interface',
+      'types': 'type',
+      'properties': 'variable',  // 将properties映射到variable，因为StandardizedQueryResult不支持property类型
+      'variables': 'variable',
+      'control-flow': 'control-flow',
+      'expressions': 'expression'
+    };
     
-    return (mainNode.startPosition?.row || 0) + 1; // 转换为1-based
-  }
-
-  extractEndLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
-    
-    return (mainNode.endPosition?.row || 0) + 1; // 转换为1-based
+    return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
-    let complexity = 1; // 基础复杂度
+    let complexity = this.calculateBaseComplexity(result);
     
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
@@ -265,13 +269,15 @@ export class TypeScriptLanguageAdapter implements ILanguageAdapter {
     if (nodeType.includes('interface')) complexity += 1;
     if (nodeType.includes('generic')) complexity += 1;
 
-    // 基于代码行数增加复杂度
-    const lineCount = this.extractEndLine(result) - this.extractStartLine(result) + 1;
-    complexity += Math.floor(lineCount / 10);
-
-    // 基于嵌套深度增加复杂度
-    const nestingDepth = this.calculateNestingDepth(mainNode);
-    complexity += nestingDepth;
+    // TypeScript特有的复杂度因素
+    const text = mainNode.text || '';
+    if (text.includes('async')) complexity += 1; // 异步函数
+    if (text.includes('await')) complexity += 1; // 异步等待
+    if (text.includes('decorator') || text.includes('@')) complexity += 1; // 装饰器
+    if (text.includes('extends')) complexity += 1; // 继承
+    if (text.includes('implements')) complexity += 1; // 接口实现
+    if (text.includes('generic') || text.includes('<')) complexity += 1; // 泛型
+    if (text.includes('JSX') || text.includes('jsx')) complexity += 1; // JSX
 
     return complexity;
   }
@@ -329,96 +335,48 @@ export class TypeScriptLanguageAdapter implements ILanguageAdapter {
     if (text.includes('readonly')) modifiers.push('readonly');
     if (text.includes('abstract')) modifiers.push('abstract');
 
+    // 检查装饰器
+    if (text.includes('@')) {
+      modifiers.push('decorated');
+    }
+
     return modifiers;
   }
 
-  extractExtraInfo(result: any): Record<string, any> {
-    const extra: Record<string, any> = {};
-    const mainNode = result.captures?.[0]?.node;
+  // TypeScript特定的辅助方法
+
+  private extractDecorators(node: any): string[] {
+    const decorators: string[] = [];
     
-    if (!mainNode) {
-      return extra;
-    }
-
-    // 提取泛型信息
-    const typeParameters = mainNode.childForFieldName('type_parameters');
-    if (typeParameters) {
-      extra.hasGenerics = true;
-      extra.typeParameters = typeParameters.text;
-    }
-
-    // 提取继承信息
-    const heritageClause = mainNode.childForFieldName('heritage_clause');
-    if (heritageClause) {
-      extra.hasInheritance = true;
-      extra.extends = heritageClause.text;
-    }
-
-    // 提取参数信息（对于函数）
-    const parameters = mainNode.childForFieldName('parameters');
-    if (parameters) {
-      extra.parameterCount = parameters.childCount;
-    }
-
-    return extra;
-  }
-
-  private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'functions': 'function',
-      'classes': 'class',
-      'methods': 'method',
-      'imports': 'import',
-      'exports': 'export',
-      'interfaces': 'interface',
-      'types': 'type',
-      'properties': 'variable',  // 将properties映射到variable，因为StandardizedQueryResult不支持property类型
-      'variables': 'variable',
-      'control-flow': 'control-flow',
-      'expressions': 'expression'
-    };
-    
-    return mapping[queryType] || 'expression';
-  }
-
-  private calculateNestingDepth(node: any, currentDepth: number = 0): number {
     if (!node || !node.children) {
-      return currentDepth;
-    }
-
-    let maxDepth = currentDepth;
-    
-    for (const child of node.children) {
-      if (this.isBlockNode(child)) {
-        const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
-        maxDepth = Math.max(maxDepth, childDepth);
-      }
-    }
-
-    return maxDepth;
-  }
-
-  private isBlockNode(node: any): boolean {
-    const blockTypes = ['block', 'statement_block', 'class_body', 'interface_body'];
-    return blockTypes.includes(node.type);
-  }
-
-  private findTypeReferences(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
+      return decorators;
     }
 
     for (const child of node.children) {
-      // 查找类型引用模式
-      if (child.type === 'type_identifier' || child.type === 'identifier') {
-        const text = child.text;
-        if (text && text[0] === text[0].toUpperCase()) {
-          dependencies.push(text);
-        }
+      if (child.type === 'decorator' && child.text) {
+        decorators.push(child.text.trim());
       }
-      
-      this.findTypeReferences(child, dependencies);
+      decorators.push(...this.extractDecorators(child));
     }
+
+    return decorators;
+  }
+
+  private isJSXElement(node: any): boolean {
+    if (!node) {
+      return false;
+    }
+
+    const jsxTypes = [
+      'jsx_element',
+      'jsx_self_closing_element',
+      'jsx_fragment',
+      'jsx_opening_element',
+      'jsx_closing_element',
+      'jsx_attribute'
+    ];
+
+    return jsxTypes.includes(node.type);
   }
 
   private findImportReferences(node: any, dependencies: string[]): void {
@@ -440,5 +398,11 @@ export class TypeScriptLanguageAdapter implements ILanguageAdapter {
       
       this.findImportReferences(child, dependencies);
     }
+  }
+
+  // 重写isBlockNode方法以支持TypeScript特定的块节点类型
+  protected isBlockNode(node: any): boolean {
+    const tsBlockTypes = ['block', 'statement_block', 'class_body', 'interface_body', 'object'];
+    return tsBlockTypes.includes(node.type) || super.isBlockNode(node);
   }
 }

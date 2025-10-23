@@ -9,7 +9,7 @@ describe('RustLanguageAdapter', () => {
   });
 
   describe('normalize', () => {
-    it('should normalize function query results', () => {
+    it('should normalize function query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -23,7 +23,7 @@ describe('RustLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'functions', 'rust');
+      const results = await adapter.normalize([mockResult], 'functions', 'rust');
       
       expect(results).toHaveLength(1);
       expect(results[0]).toEqual({
@@ -41,7 +41,7 @@ describe('RustLanguageAdapter', () => {
       });
     });
 
-    it('should normalize struct query results', () => {
+    it('should normalize struct query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -55,14 +55,14 @@ describe('RustLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'classes', 'rust');
+      const results = await adapter.normalize([mockResult], 'classes', 'rust');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('class');
       expect(results[0].name).toBe('MyStruct');
     });
 
-    it('should normalize use declaration query results', () => {
+    it('should normalize use declaration query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -76,14 +76,14 @@ describe('RustLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'imports', 'rust');
+      const results = await adapter.normalize([mockResult], 'imports', 'rust');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('import');
       expect(results[0].content).toBe('use std::collections::HashMap;');
     });
 
-    it('should normalize variable declaration query results', () => {
+    it('should normalize variable declaration query results', async () => {
       const mockResult = {
         captures: [
           {
@@ -97,13 +97,36 @@ describe('RustLanguageAdapter', () => {
         ]
       };
 
-      const results = adapter.normalize([mockResult], 'variables', 'rust');
+      const results = await adapter.normalize([mockResult], 'variables', 'rust');
       
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('variable');
       expect(results[0].name).toBe('my_var');
     });
- });
+
+    it('should handle options parameter', async () => {
+      const adapterWithOptions = new RustLanguageAdapter({
+        enableDeduplication: false,
+        enableCaching: false
+      });
+
+      const mockResult = {
+        captures: [
+          {
+            name: 'name.definition.function',
+            node: {
+              text: 'test_function',
+              startPosition: { row: 1, column: 0 },
+              endPosition: { row: 3, column: 0 }
+            }
+          }
+        ]
+      };
+
+      const results = await adapterWithOptions.normalize([mockResult], 'functions', 'rust');
+      expect(results).toHaveLength(1);
+    });
+  });
 
   describe('getSupportedQueryTypes', () => {
     it('should return correct query types for Rust', () => {
@@ -188,7 +211,7 @@ describe('RustLanguageAdapter', () => {
     });
   });
 
- describe('extractContent', () => {
+  describe('extractContent', () => {
     it('should extract content from main node', () => {
       const result = {
         captures: [
@@ -210,11 +233,13 @@ describe('RustLanguageAdapter', () => {
   });
 
   describe('extractStartLine and extractEndLine', () => {
-    it('should convert 0-based positions to 1-based lines', () => {
+    it('should convert 0-based positions to 1-based lines', async () => {
       const result = {
         captures: [
           {
+            name: 'name.definition.function',
             node: {
+              text: 'test_function',
               startPosition: { row: 5, column: 0 },
               endPosition: { row: 10, column: 5 }
             }
@@ -222,20 +247,28 @@ describe('RustLanguageAdapter', () => {
         ]
       };
 
-      const startLine = adapter.extractStartLine(result);
-      const endLine = adapter.extractEndLine(result);
+      const normalizedResults = await adapter.normalize([result], 'functions', 'rust');
       
-      expect(startLine).toBe(6); // 5 + 1
-      expect(endLine).toBe(11); // 10 + 1
+      expect(normalizedResults[0].startLine).toBe(6); // 5 + 1
+      expect(normalizedResults[0].endLine).toBe(11); // 10 + 1
     });
 
-    it('should return 1 if no position data', () => {
-      const result = { captures: [] };
-      const startLine = adapter.extractStartLine(result);
-      const endLine = adapter.extractEndLine(result);
+    it('should return 1 if no position data', async () => {
+      const result = {
+        captures: [
+          {
+            name: 'name.definition.function',
+            node: {
+              text: 'test_function'
+            }
+          }
+        ]
+      };
+
+      const normalizedResults = await adapter.normalize([result], 'functions', 'rust');
       
-      expect(startLine).toBe(1);
-      expect(endLine).toBe(1);
+      expect(normalizedResults[0].startLine).toBe(1);
+      expect(normalizedResults[0].endLine).toBe(1);
     });
   });
 
@@ -257,7 +290,7 @@ describe('RustLanguageAdapter', () => {
       const complexity = adapter.calculateComplexity(result);
       expect(complexity).toBeGreaterThanOrEqual(1);
     });
- });
+  });
 
   describe('extractModifiers', () => {
     it('should identify unsafe modifier', () => {
@@ -297,6 +330,64 @@ describe('RustLanguageAdapter', () => {
 
       const modifiers = adapter.extractModifiers(result);
       expect(modifiers).toContain('public');
+    });
+  });
+
+  describe('BaseLanguageAdapter integration', () => {
+    it('should inherit BaseLanguageAdapter functionality', async () => {
+      // 测试继承自BaseLanguageAdapter的功能
+      const mockResult = {
+        captures: [
+          {
+            name: 'name.definition.function',
+            node: {
+              text: 'test_function',
+              startPosition: { row: 1, column: 0 },
+              endPosition: { row: 3, column: 0 }
+            }
+          }
+        ]
+      };
+
+      // 测试去重功能
+      const duplicateResults = await adapter.normalize([mockResult, mockResult], 'functions', 'rust');
+      expect(duplicateResults).toHaveLength(1);
+
+      // 测试排序功能
+      const mockResult2 = {
+        captures: [
+          {
+            name: 'name.definition.function',
+            node: {
+              text: 'second_function',
+              startPosition: { row: 5, column: 0 },
+              endPosition: { row: 7, column: 0 }
+            }
+          }
+        ]
+      };
+
+      const sortedResults = await adapter.normalize([mockResult2, mockResult], 'functions', 'rust');
+      expect(sortedResults[0].startLine).toBeLessThan(sortedResults[1].startLine);
+    });
+
+    it('should handle error recovery when enabled', async () => {
+      const adapterWithErrorRecovery = new RustLanguageAdapter({
+        enableErrorRecovery: true
+      });
+
+      const invalidResult = {
+        captures: [
+          {
+            name: 'name.definition.function',
+            node: null // 故意提供无效节点
+          }
+        ]
+      };
+
+      const results = await adapterWithErrorRecovery.normalize([invalidResult], 'functions', 'rust');
+      // 应该返回fallback结果而不是抛出错误
+      expect(results).toBeDefined();
     });
   });
 });

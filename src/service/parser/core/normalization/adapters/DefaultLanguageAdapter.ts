@@ -1,43 +1,13 @@
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { StandardizedQueryResult } from '../types';
 
 /**
  * 默认语言适配器
  * 处理没有特定适配器的语言的查询结果标准化
  */
-export class DefaultLanguageAdapter implements ILanguageAdapter {
-  private logger: LoggerService;
-
-  constructor() {
-    this.logger = new LoggerService();
-  }
-
-  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
-    const results: (StandardizedQueryResult | null)[] = [];
-    
-    for (const result of queryResults) {
-      try {
-        const extraInfo = this.extractExtraInfo(result);
-        results.push({
-          type: this.mapQueryTypeToStandardType(queryType),
-          name: this.extractName(result),
-          startLine: this.extractStartLine(result),
-          endLine: this.extractEndLine(result),
-          content: this.extractContent(result),
-          metadata: {
-            language,
-            complexity: this.calculateComplexity(result),
-            dependencies: this.extractDependencies(result),
-            modifiers: this.extractModifiers(result),
-            extra: Object.keys(extraInfo).length > 0 ? extraInfo : undefined
-          }
-        });
-      } catch (error) {
-        this.logger.warn(`Failed to normalize ${language} result for ${queryType}:`, error);
-      }
-    }
-    
-    return results.filter((result): result is StandardizedQueryResult => result !== null);
+export class DefaultLanguageAdapter extends BaseLanguageAdapter {
+  constructor(options: AdapterOptions = {}) {
+    super(options);
   }
 
   getSupportedQueryTypes(): string[] {
@@ -115,35 +85,57 @@ export class DefaultLanguageAdapter implements ILanguageAdapter {
     return 'unnamed';
   }
 
-  extractContent(result: any): string {
+  extractLanguageSpecificMetadata(result: any): Record<string, any> {
+    const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return '';
-    }
     
-    return mainNode.text || '';
+    if (!mainNode) {
+      return extra;
+    }
+
+    // 提取参数信息（对于函数）
+    const parameters = mainNode.childForFieldName('parameters');
+    if (parameters) {
+      extra.parameterCount = parameters.childCount;
+    }
+
+    // 提取继承信息
+    const heritageClause = mainNode.childForFieldName('heritage_clause') ||
+                          mainNode.childForFieldName('superclasses') ||
+                          mainNode.childForFieldName('base_class');
+    if (heritageClause) {
+      extra.hasInheritance = true;
+      extra.inheritance = heritageClause.text;
+    }
+
+    // 提取泛型信息
+    const typeParameters = mainNode.childForFieldName('type_parameters');
+    if (typeParameters) {
+      extra.hasGenerics = true;
+      extra.typeParameters = typeParameters.text;
+    }
+
+    return extra;
   }
 
-  extractStartLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+      'functions': 'function',
+      'classes': 'class',
+      'methods': 'method',
+      'imports': 'import',
+      'variables': 'variable',
+      'exports': 'export',
+      'interfaces': 'interface',
+      'types': 'type',
+      'properties': 'variable'  // 将properties映射到variable，因为StandardizedQueryResult不支持property类型
+    };
     
-    return (mainNode.startPosition?.row || 0) + 1; // 转换为1-based
-  }
-
-  extractEndLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
-    
-    return (mainNode.endPosition?.row || 0) + 1; // 转换为1-based
+    return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
-    let complexity = 1; // 基础复杂度
+    let complexity = this.calculateBaseComplexity(result);
     
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
@@ -158,14 +150,6 @@ export class DefaultLanguageAdapter implements ILanguageAdapter {
     if (nodeType.includes('struct')) complexity += 1;
     if (nodeType.includes('union')) complexity += 1;
     if (nodeType.includes('enum')) complexity += 1;
-
-    // 基于代码行数增加复杂度
-    const lineCount = this.extractEndLine(result) - this.extractStartLine(result) + 1;
-    complexity += Math.floor(lineCount / 10);
-
-    // 基于嵌套深度增加复杂度
-    const nestingDepth = this.calculateNestingDepth(mainNode);
-    complexity += nestingDepth;
 
     // 基于关键字增加复杂度
     const text = mainNode.text || '';
@@ -222,79 +206,7 @@ export class DefaultLanguageAdapter implements ILanguageAdapter {
     return modifiers;
   }
 
-  extractExtraInfo(result: any): Record<string, any> {
-    const extra: Record<string, any> = {};
-    const mainNode = result.captures?.[0]?.node;
-    
-    if (!mainNode) {
-      return extra;
-    }
-
-    // 提取参数信息（对于函数）
-    const parameters = mainNode.childForFieldName('parameters');
-    if (parameters) {
-      extra.parameterCount = parameters.childCount;
-    }
-
-    // 提取继承信息
-    const heritageClause = mainNode.childForFieldName('heritage_clause') ||
-                          mainNode.childForFieldName('superclasses') ||
-                          mainNode.childForFieldName('base_class');
-    if (heritageClause) {
-      extra.hasInheritance = true;
-      extra.inheritance = heritageClause.text;
-    }
-
-    // 提取泛型信息
-    const typeParameters = mainNode.childForFieldName('type_parameters');
-    if (typeParameters) {
-      extra.hasGenerics = true;
-      extra.typeParameters = typeParameters.text;
-    }
-
-    return extra;
-  }
-
-  private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'functions': 'function',
-      'classes': 'class',
-      'methods': 'method',
-      'imports': 'import',
-      'variables': 'variable',
-      'exports': 'export',
-      'interfaces': 'interface',
-      'types': 'type',
-      'properties': 'variable'  // 将properties映射到variable，因为StandardizedQueryResult不支持property类型
-    };
-    
-    return mapping[queryType] || 'expression';
-  }
-
-  private calculateNestingDepth(node: any, currentDepth: number = 0): number {
-    if (!node || !node.children) {
-      return currentDepth;
-    }
-
-    let maxDepth = currentDepth;
-    
-    for (const child of node.children) {
-      if (this.isBlockNode(child)) {
-        const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
-        maxDepth = Math.max(maxDepth, childDepth);
-      }
-    }
-
-    return maxDepth;
-  }
-
-  private isBlockNode(node: any): boolean {
-    const blockTypes = [
-      'block', 'statement_block', 'class_body', 'interface_body',
-      'compound_statement', 'function_body', 'suite'
-    ];
-    return blockTypes.includes(node.type);
-  }
+  // 默认适配器特定的辅助方法
 
   private findFirstIdentifier(node: any): string | null {
     if (!node) {
@@ -317,7 +229,7 @@ export class DefaultLanguageAdapter implements ILanguageAdapter {
     return null;
   }
 
-  private findIdentifiers(node: any, dependencies: string[]): void {
+  protected findIdentifiers(node: any, dependencies: string[]): void {
     if (!node || !node.children) {
       return;
     }
@@ -331,7 +243,7 @@ export class DefaultLanguageAdapter implements ILanguageAdapter {
     }
   }
 
-  private findTypeReferences(node: any, dependencies: string[]): void {
+  protected findTypeReferences(node: any, dependencies: string[]): void {
     if (!node || !node.children) {
       return;
     }

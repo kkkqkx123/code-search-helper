@@ -1,43 +1,13 @@
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { StandardizedQueryResult } from '../types';
 
 /**
  * C 语言适配器
  * 专门处理C语言的查询结果标准化
  */
-export class CLanguageAdapter implements ILanguageAdapter {
-  private logger: LoggerService;
-
-  constructor() {
-    this.logger = new LoggerService();
-  }
-
-  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
-    const results: (StandardizedQueryResult | null)[] = [];
-
-    for (const result of queryResults) {
-      try {
-        const extraInfo = this.extractExtraInfo(result);
-        results.push({
-          type: this.mapQueryTypeToStandardType(queryType),
-          name: this.extractName(result),
-          startLine: this.extractStartLine(result),
-          endLine: this.extractEndLine(result),
-          content: this.extractContent(result),
-          metadata: {
-            language,
-            complexity: this.calculateComplexity(result),
-            dependencies: this.extractDependencies(result),
-            modifiers: this.extractModifiers(result),
-            extra: Object.keys(extraInfo).length > 0 ? extraInfo : undefined
-          }
-        });
-      } catch (error) {
-        this.logger.warn(`Failed to normalize C result for ${queryType}:`, error);
-      }
-    }
-
-    return results.filter((result): result is StandardizedQueryResult => result !== null);
+export class CLanguageAdapter extends BaseLanguageAdapter {
+  constructor(options: AdapterOptions = {}) {
+    super(options);
   }
 
   getSupportedQueryTypes(): string[] {
@@ -191,35 +161,66 @@ export class CLanguageAdapter implements ILanguageAdapter {
     return 'unnamed';
   }
 
-  extractContent(result: any): string {
+  extractLanguageSpecificMetadata(result: any): Record<string, any> {
+    const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
+
     if (!mainNode) {
-      return '';
+      return extra;
     }
 
-    return mainNode.text || '';
+    // 提取参数信息（对于函数）
+    const parameters = mainNode.childForFieldName?.('parameters');
+    if (parameters) {
+      extra.parameterCount = parameters.childCount;
+    }
+
+    // 提取返回类型
+    const returnType = mainNode.childForFieldName?.('type');
+    if (returnType) {
+      extra.returnType = returnType.text;
+    }
+
+    // 提取存储类说明符
+    const storageClass = mainNode.childForFieldName?.('storage_class_specifier');
+    if (storageClass) {
+      extra.storageClass = storageClass.text;
+    }
+
+    // 提取类型限定符
+    const typeQualifier = mainNode.childForFieldName?.('type_qualifier');
+    if (typeQualifier) {
+      extra.typeQualifier = typeQualifier.text;
+    }
+
+    // 检查是否是宏定义
+    if (mainNode.type === 'preproc_def' || mainNode.type === 'preproc_function_def') {
+      extra.isMacro = true;
+    }
+
+    // 检查是否是指针
+    const text = mainNode.text || '';
+    if (text.includes('*')) {
+      extra.isPointer = true;
+    }
+
+    return extra;
   }
 
-  extractStartLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+      'functions': 'function',
+      'structs': 'class',  // 结构体映射为类
+      'variables': 'variable',
+      'preprocessor': 'expression',  // 预处理器映射为表达式
+      'control-flow': 'control-flow'
+    };
 
-    return (mainNode.startPosition?.row || 0) + 1; // 转换为1-based
-  }
-
-  extractEndLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
-
-    return (mainNode.endPosition?.row || 0) + 1; // 转换为1-based
+    return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
-    let complexity = 1; // 基础复杂度
+    let complexity = this.calculateBaseComplexity(result);
 
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
@@ -230,14 +231,6 @@ export class CLanguageAdapter implements ILanguageAdapter {
     const nodeType = mainNode.type;
     if (nodeType.includes('function')) complexity += 1;
     if (nodeType.includes('struct') || nodeType.includes('union') || nodeType.includes('enum')) complexity += 1;
-
-    // 基于代码行数增加复杂度
-    const lineCount = this.extractEndLine(result) - this.extractStartLine(result) + 1;
-    complexity += Math.floor(lineCount / 10);
-
-    // 基于嵌套深度增加复杂度
-    const nestingDepth = this.calculateNestingDepth(mainNode);
-    complexity += nestingDepth;
 
     // C语言特定的复杂度因素
     const text = mainNode.text || '';
@@ -292,96 +285,7 @@ export class CLanguageAdapter implements ILanguageAdapter {
     return modifiers;
   }
 
-  extractExtraInfo(result: any): Record<string, any> {
-    const extra: Record<string, any> = {};
-    const mainNode = result.captures?.[0]?.node;
-
-    if (!mainNode) {
-      return extra;
-    }
-
-    // 提取参数信息（对于函数）
-    const parameters = mainNode.childForFieldName?.('parameters');
-    if (parameters) {
-      extra.parameterCount = parameters.childCount;
-    }
-
-    // 提取返回类型
-    const returnType = mainNode.childForFieldName?.('type');
-    if (returnType) {
-      extra.returnType = returnType.text;
-    }
-
-    // 提取存储类说明符
-    const storageClass = mainNode.childForFieldName?.('storage_class_specifier');
-    if (storageClass) {
-      extra.storageClass = storageClass.text;
-    }
-
-    // 提取类型限定符
-    const typeQualifier = mainNode.childForFieldName?.('type_qualifier');
-    if (typeQualifier) {
-      extra.typeQualifier = typeQualifier.text;
-    }
-
-    return extra;
-  }
-
-  private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'functions': 'function',
-      'structs': 'class',  // 结构体映射为类
-      'variables': 'variable',
-      'preprocessor': 'expression',  // 预处理器映射为表达式
-      'control-flow': 'control-flow'
-    };
-
-    return mapping[queryType] || 'expression';
-  }
-
-  private calculateNestingDepth(node: any, currentDepth: number = 0): number {
-    if (!node || !node.children) {
-      return currentDepth;
-    }
-
-    let maxDepth = currentDepth;
-
-    for (const child of node.children) {
-      if (this.isBlockNode(child)) {
-        const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
-        maxDepth = Math.max(maxDepth, childDepth);
-      }
-    }
-
-    return maxDepth;
-  }
-
-  private isBlockNode(node: any): boolean {
-    const blockTypes = [
-      'compound_statement', 'function_definition', 'if_statement', 'for_statement',
-      'while_statement', 'do_statement', 'switch_statement', 'struct_specifier', 'union_specifier'
-    ];
-    return blockTypes.includes(node.type);
-  }
-
-  private findTypeReferences(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找类型引用模式
-      if (child.type === 'type_identifier' || child.type === 'identifier') {
-        const text = child.text;
-        if (text && text[0] === text[0].toUpperCase()) {
-          // 仅当名称以大写字母开头时才添加到依赖项（通常表示类型名）
-          dependencies.push(text);
-        }
-      }
-
-      this.findTypeReferences(child, dependencies);
-    }
-  }
+  // C语言特定的辅助方法
 
   private findFunctionCalls(node: any, dependencies: string[]): void {
     if (!node || !node.children) {
@@ -399,5 +303,14 @@ export class CLanguageAdapter implements ILanguageAdapter {
 
       this.findFunctionCalls(child, dependencies);
     }
+  }
+
+  // 重写isBlockNode方法以支持C语言特定的块节点类型
+  protected isBlockNode(node: any): boolean {
+    const cBlockTypes = [
+      'compound_statement', 'function_definition', 'if_statement', 'for_statement',
+      'while_statement', 'do_statement', 'switch_statement', 'struct_specifier', 'union_specifier'
+    ];
+    return cBlockTypes.includes(node.type) || super.isBlockNode(node);
   }
 }

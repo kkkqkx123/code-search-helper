@@ -44,26 +44,26 @@ export class LanguageAdapterFactory {
    */
   static getAdapter(language: string, options?: AdapterOptions): ILanguageAdapter {
     const normalizedLanguage = language.toLowerCase();
-    const mergedOptions = { 
-      ...this.defaultOptions, 
-      ...this.adapterConfigs.get(normalizedLanguage), 
-      ...options 
+    const mergedOptions = {
+      ...this.defaultOptions,
+      ...this.adapterConfigs.get(normalizedLanguage),
+      ...options
     };
     const cacheKey = `${normalizedLanguage}:${JSON.stringify(mergedOptions)}`;
-    
+
     if (this.adapterCache.has(cacheKey)) {
       return this.adapterCache.get(cacheKey)!;
     }
-    
+
     const adapter = this.createAdapter(normalizedLanguage, mergedOptions);
     this.adapterCache.set(cacheKey, adapter);
-    
+
     this.logger.debug(`Created new adapter for language: ${language}`, {
       language: normalizedLanguage,
       cacheKey,
       adapterType: adapter.constructor.name
     });
-    
+
     return adapter;
   }
 
@@ -77,35 +77,34 @@ export class LanguageAdapterFactory {
     try {
       switch (language) {
         case 'rust':
-          // 临时解决方案：现有适配器不支持options参数
-          return new RustLanguageAdapter() as any;
+          return new RustLanguageAdapter(options);
         case 'typescript':
         case 'javascript':
-          return new TypeScriptLanguageAdapter() as any;
+          return new TypeScriptLanguageAdapter(options);
         case 'python':
         case 'py':
-          return new PythonLanguageAdapter() as any;
+          return new PythonLanguageAdapter(options);
         case 'java':
-          return new JavaLanguageAdapter() as any;
+          return new JavaLanguageAdapter(options);
         case 'cpp':
         case 'c++':
-          return new CppLanguageAdapter() as any;
+          return new CppLanguageAdapter(options);
         case 'c':
-          return new CLanguageAdapter() as any;
+          return new CLanguageAdapter(options);
         case 'csharp':
         case 'c#':
-          return new CSharpLanguageAdapter() as any;
+          return new CSharpLanguageAdapter(options);
         case 'kotlin':
         case 'kt':
         case 'kts':
-          return new KotlinLanguageAdapter() as any;
+          return new KotlinLanguageAdapter(options);
         default:
           this.logger.warn(`Unsupported language: ${language}, using default adapter`);
-          return new DefaultLanguageAdapter() as any;
+          return new DefaultLanguageAdapter(options);
       }
     } catch (error) {
       this.logger.error(`Failed to create adapter for language: ${language}`, error);
-      return new DefaultLanguageAdapter() as any;
+      return new DefaultLanguageAdapter(options);
     }
   }
 
@@ -163,13 +162,13 @@ export class LanguageAdapterFactory {
   static clearLanguageCache(language: string): void {
     const normalizedLanguage = language.toLowerCase();
     const keysToDelete: string[] = [];
-    
+
     for (const key of this.adapterCache.keys()) {
       if (key.startsWith(`${normalizedLanguage}:`)) {
         keysToDelete.push(key);
       }
     }
-    
+
     keysToDelete.forEach(key => this.adapterCache.delete(key));
     this.logger.debug(`Cleared cache for language: ${language}, removed ${keysToDelete.length} entries`);
   }
@@ -180,7 +179,7 @@ export class LanguageAdapterFactory {
    */
   static getSupportedLanguages(): string[] {
     return [
-      'rust', 'typescript', 'javascript', 'python', 'java', 
+      'rust', 'typescript', 'javascript', 'python', 'java',
       'cpp', 'c', 'csharp', 'kotlin'
     ];
   }
@@ -198,19 +197,19 @@ export class LanguageAdapterFactory {
    * 获取缓存统计信息
    * @returns 缓存统计信息
    */
-  static getCacheStats(): { size: number; languages: string[]; entries: Array<{language: string, count: number}> } {
+  static getCacheStats(): { size: number; languages: string[]; entries: Array<{ language: string, count: number }> } {
     const languageCounts = new Map<string, number>();
-    
+
     for (const key of this.adapterCache.keys()) {
       const language = key.split(':')[0];
       languageCounts.set(language, (languageCounts.get(language) || 0) + 1);
     }
-    
+
     const entries = Array.from(languageCounts.entries()).map(([language, count]) => ({
       language,
       count
     }));
-    
+
     return {
       size: this.adapterCache.size,
       languages: [...new Set(Array.from(this.adapterCache.keys()).map(key => key.split(':')[0]))],
@@ -224,15 +223,15 @@ export class LanguageAdapterFactory {
    */
   static warmupCache(languages?: string[]): void {
     const targetLanguages = languages || this.getSupportedLanguages();
-    
+
     this.logger.info('Warming up adapter cache', { languages: targetLanguages });
-    
+
     for (const language of targetLanguages) {
       if (this.isLanguageSupported(language)) {
         this.getAdapter(language);
       }
     }
-    
+
     this.logger.info('Adapter cache warmup completed');
   }
 
@@ -278,20 +277,20 @@ export class LanguageAdapterFactory {
    * @param options 适配器选项
    */
   static registerCustomAdapter(
-    language: string, 
+    language: string,
     adapterClass: new (options: AdapterOptions) => ILanguageAdapter,
     options?: AdapterOptions
   ): void {
     const normalizedLanguage = language.toLowerCase();
     const mergedOptions = { ...this.defaultOptions, ...options };
-    
+
     // 创建适配器实例
     const adapter = new adapterClass(mergedOptions);
-    
+
     // 缓存适配器
     const cacheKey = `${normalizedLanguage}:${JSON.stringify(mergedOptions)}`;
     this.adapterCache.set(cacheKey, adapter);
-    
+
     this.logger.info(`Registered custom adapter for language: ${language}`, {
       language: normalizedLanguage,
       adapterClass: adapterClass.name
@@ -308,7 +307,7 @@ export class LanguageAdapterFactory {
       supportedLanguages: this.getSupportedLanguages().length,
       configuredLanguages: this.adapterConfigs.size
     };
-    
+
     // 按语言分组统计
     const languageStats: Record<string, any> = {};
     for (const [key, adapter] of this.adapterCache.entries()) {
@@ -322,7 +321,7 @@ export class LanguageAdapterFactory {
       languageStats[language].count++;
       languageStats[language].adapters.push(adapter.constructor.name);
     }
-    
+
     stats.languageStats = languageStats;
     return stats;
   }

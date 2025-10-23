@@ -1,48 +1,16 @@
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { StandardizedQueryResult } from '../types';
 
 /**
  * Rust语言适配器
  * 处理Rust特定的查询结果标准化
  */
-export class RustLanguageAdapter implements ILanguageAdapter {
-  private logger: LoggerService;
-
-  constructor() {
-    this.logger = new LoggerService();
+export class RustLanguageAdapter extends BaseLanguageAdapter {
+  constructor(options: AdapterOptions = {}) {
+    super(options);
   }
 
-  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
-    const results: StandardizedQueryResult[] = [];
-    
-    for (const result of queryResults) {
-      try {
-        const extraInfo = this.extractExtraInfo(result);
-        const normalizedResult: StandardizedQueryResult = {
-          type: this.mapQueryTypeToStandardType(queryType),
-          name: this.extractName(result),
-          startLine: this.extractStartLine(result),
-          endLine: this.extractEndLine(result),
-          content: this.extractContent(result),
-          metadata: {
-            language,
-            complexity: this.calculateComplexity(result),
-            dependencies: this.extractDependencies(result),
-            modifiers: this.extractModifiers(result),
-            extra: Object.keys(extraInfo).length > 0 ? extraInfo : undefined
-          }
-        };
-        results.push(normalizedResult);
-      } catch (error) {
-        this.logger.warn(`Failed to normalize Rust result for ${queryType}:`, error);
-        // 即使有错误，我们也记录警告但不添加null结果
-      }
-    }
-    
-    return results;
-  }
-
- getSupportedQueryTypes(): string[] {
+  getSupportedQueryTypes(): string[] {
     return [
       'functions',
       'classes',        // 对应Rust的struct、enum、union
@@ -222,51 +190,80 @@ export class RustLanguageAdapter implements ILanguageAdapter {
     }
   }
 
-  extractContent(result: any): string {
-    try {
-      const mainNode = result.captures?.[0]?.node;
-      if (!mainNode) {
-        return '';
-      }
-      
-      return mainNode.text || '';
-    } catch (error) {
-      this.logger.warn('Error in extractContent:', error);
-      return '';
+  extractLanguageSpecificMetadata(result: any): Record<string, any> {
+    const extra: Record<string, any> = {};
+    const mainNode = result.captures?.[0]?.node;
+    
+    if (!mainNode) {
+      return extra;
     }
+
+    // 提取泛型参数信息
+    const genericParameters = this.findGenericParameters(mainNode);
+    if (genericParameters.length > 0) {
+      extra.hasGenerics = true;
+      extra.genericParameters = genericParameters;
+    }
+
+    // 提取trait约束信息
+    const traitBounds = this.findTraitBounds(mainNode);
+    if (traitBounds.length > 0) {
+      extra.hasTraitBounds = true;
+      extra.traitBounds = traitBounds;
+    }
+
+    // 提取生命周期信息
+    const lifetimes = this.findLifetimes(mainNode);
+    if (lifetimes.length > 0) {
+      extra.hasLifetimes = true;
+      extra.lifetimes = lifetimes;
+    }
+
+    // 提取参数信息（对于函数）
+    if (mainNode.childForFieldName) {
+      const parameters = mainNode.childForFieldName('parameters');
+      if (parameters && typeof parameters === 'object' && parameters.childCount !== undefined) {
+        extra.parameterCount = parameters.childCount;
+      }
+    }
+
+    // 提取返回类型
+    const returnType = this.findReturnType(mainNode);
+    if (returnType) {
+      extra.returnType = returnType;
+    }
+
+    // 提取可见性
+    const visibility = this.findVisibility(mainNode);
+    if (visibility) {
+      extra.visibility = visibility;
+    }
+
+    return extra;
   }
 
- extractStartLine(result: any): number {
-    try {
-      const mainNode = result.captures?.[0]?.node;
-      if (!mainNode) {
-        return 1;
-      }
-      
-      return (mainNode.startPosition?.row || 0) + 1; // 转换为1-based
-    } catch (error) {
-      this.logger.warn('Error in extractStartLine:', error);
-      return 1;
-    }
-  }
-
- extractEndLine(result: any): number {
-    try {
-      const mainNode = result.captures?.[0]?.node;
-      if (!mainNode) {
-        return 1;
-      }
-      
-      return (mainNode.endPosition?.row || 0) + 1; // 转换为1-based
-    } catch (error) {
-      this.logger.warn('Error in extractEndLine:', error);
-      return 1;
-    }
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+      'functions': 'function',
+      'classes': 'class',         // 对应struct、enum、union
+      'interfaces': 'interface',  // 对应trait
+      'methods': 'method',
+      'imports': 'import',        // 对应use、extern crate等
+      'variables': 'variable',    // 对应const、static、let等
+      'control-flow': 'control-flow',
+      'types': 'type',            // 对应type alias、类型参数
+      'expressions': 'expression',
+      'macros': 'function',       // 宏类似函数
+      'modules': 'import',        // 模块导入
+      'patterns': 'expression',   // 模式匹配
+    };
+    
+    return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
     try {
-      let complexity = 1; // 基础复杂度
+      let complexity = this.calculateBaseComplexity(result);
       
       const mainNode = result.captures?.[0]?.node;
       if (!mainNode) {
@@ -280,14 +277,6 @@ export class RustLanguageAdapter implements ILanguageAdapter {
       if (nodeType.includes('impl')) complexity += 1;
       if (nodeType.includes('macro')) complexity += 2; // 宏通常更复杂
       if (nodeType.includes('match')) complexity += 1; // match表达式可能很复杂
-
-      // 基于代码行数增加复杂度
-      const lineCount = this.extractEndLine(result) - this.extractStartLine(result) + 1;
-      complexity += Math.floor(lineCount / 10);
-
-      // 基于嵌套深度增加复杂度
-      const nestingDepth = this.calculateNestingDepth(mainNode);
-      complexity += nestingDepth;
 
       // Rust特有的复杂度因素
       const text = mainNode.text || '';
@@ -329,7 +318,7 @@ export class RustLanguageAdapter implements ILanguageAdapter {
     }
   }
 
- extractModifiers(result: any): string[] {
+  extractModifiers(result: any): string[] {
     try {
       const modifiers: string[] = [];
       const mainNode = result.captures?.[0]?.node;
@@ -371,175 +360,9 @@ export class RustLanguageAdapter implements ILanguageAdapter {
       this.logger.warn('Error in extractModifiers:', error);
       return [];
     }
- }
-
-  extractExtraInfo(result: any): Record<string, any> {
-    try {
-      const extra: Record<string, any> = {};
-      const mainNode = result.captures?.[0]?.node;
-      
-      if (!mainNode) {
-        return extra;
-      }
-
-      // 提取泛型参数信息
-      const genericParameters = this.findGenericParameters(mainNode);
-      if (genericParameters.length > 0) {
-        extra.hasGenerics = true;
-        extra.genericParameters = genericParameters;
-      }
-
-      // 提取trait约束信息
-      const traitBounds = this.findTraitBounds(mainNode);
-      if (traitBounds.length > 0) {
-        extra.hasTraitBounds = true;
-        extra.traitBounds = traitBounds;
-      }
-
-      // 提取生命周期信息
-      const lifetimes = this.findLifetimes(mainNode);
-      if (lifetimes.length > 0) {
-        extra.hasLifetimes = true;
-        extra.lifetimes = lifetimes;
-      }
-
-      // 提取参数信息（对于函数）
-      if (mainNode.childForFieldName) {
-        const parameters = mainNode.childForFieldName('parameters');
-        if (parameters && typeof parameters === 'object' && parameters.childCount !== undefined) {
-          extra.parameterCount = parameters.childCount;
-        }
-      }
-
-      // 提取返回类型
-      const returnType = this.findReturnType(mainNode);
-      if (returnType) {
-        extra.returnType = returnType;
-      }
-
-      // 提取可见性
-      const visibility = this.findVisibility(mainNode);
-      if (visibility) {
-        extra.visibility = visibility;
-      }
-
-      return extra;
-    } catch (error) {
-      this.logger.warn('Error in extractExtraInfo:', error);
-      return {};
-    }
   }
 
-  private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'functions': 'function',
-      'classes': 'class',         // 对应struct、enum、union
-      'interfaces': 'interface',  // 对应trait
-      'methods': 'method',
-      'imports': 'import',        // 对应use、extern crate等
-      'variables': 'variable',    // 对应const、static、let等
-      'control-flow': 'control-flow',
-      'types': 'type',            // 对应type alias、类型参数
-      'expressions': 'expression',
-      'macros': 'function',       // 宏类似函数
-      'modules': 'import',        // 模块导入
-      'patterns': 'expression',   // 模式匹配
-    };
-    
-    return mapping[queryType] || 'expression';
-  }
-
-  private calculateNestingDepth(node: any, currentDepth: number = 0): number {
-    if (!node || !node.children) {
-      return currentDepth;
-    }
-
-    let maxDepth = currentDepth;
-    
-    for (const child of node.children) {
-      if (this.isBlockNode(child)) {
-        const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
-        maxDepth = Math.max(maxDepth, childDepth);
-      }
-    }
-
-    return maxDepth;
-  }
-
-  private isBlockNode(node: any): boolean {
-    const blockTypes = [
-      'block', 'function_body', 'match_arm', 'match_block', 
-      'loop_expression', 'while_expression', 'for_expression',
-      'if_expression', 'unsafe_block', 'const_block', 'async_block'
-    ];
-    return blockTypes.includes(node.type);
-  }
-
-  private findTypeReferences(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找类型引用模式
-      if (child.type === 'type_identifier' || child.type === 'identifier') {
-        const text = child.text;
-        if (text && text[0] === text[0].toUpperCase()) {
-          // 仅当名称以大写字母开头时才添加到依赖项（通常表示类型名）
-          dependencies.push(text);
-        } else if (text && text !== 'self' && text !== 'Self' && text !== 'super' && text !== 'crate') {
-          // 添加其他标识符，但排除关键字
-          dependencies.push(text);
-        }
-      } else if (child.type === 'scoped_identifier' || child.type === 'field_identifier') {
-        // 处理命名空间或类名引用
-        const text = child.text;
-        if (text) {
-          dependencies.push(text);
-        }
-      }
-      
-      this.findTypeReferences(child, dependencies);
-    }
-  }
-
-  private findFunctionCalls(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找函数调用
-      if (child.type === 'call_expression' || child.type === 'macro_invocation') {
-        const functionNode = child.childForFieldName('function') ||
-                            child.childForFieldName('name') ||
-                            child.childForFieldName('path');
-        if (functionNode?.text) {
-          dependencies.push(functionNode.text);
-        }
-      }
-      
-      this.findFunctionCalls(child, dependencies);
-    }
-  }
-
-  private findPathReferences(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找路径引用
-      if (child.type === 'scoped_identifier' || child.type === 'use_path' || child.type === 'path_segment') {
-        const text = child.text;
-        if (text) {
-          dependencies.push(text);
-        }
-      }
-      
-      this.findPathReferences(child, dependencies);
-    }
-  }
+  // Rust特定的辅助方法
 
   private findGenericParameters(node: any): string[] {
     const generics: string[] = [];
@@ -607,7 +430,7 @@ export class RustLanguageAdapter implements ILanguageAdapter {
     return null;
   }
 
- private findVisibility(node: any): string | null {
+  private findVisibility(node: any): string | null {
     if (!node || !node.children) {
       return null;
     }
@@ -620,5 +443,53 @@ export class RustLanguageAdapter implements ILanguageAdapter {
     }
 
     return null;
- }
+  }
+
+  private findFunctionCalls(node: any, dependencies: string[]): void {
+    if (!node || !node.children) {
+      return;
+    }
+
+    for (const child of node.children) {
+      // 查找函数调用
+      if (child.type === 'call_expression' || child.type === 'macro_invocation') {
+        const functionNode = child.childForFieldName('function') ||
+                            child.childForFieldName('name') ||
+                            child.childForFieldName('path');
+        if (functionNode?.text) {
+          dependencies.push(functionNode.text);
+        }
+      }
+      
+      this.findFunctionCalls(child, dependencies);
+    }
+  }
+
+  private findPathReferences(node: any, dependencies: string[]): void {
+    if (!node || !node.children) {
+      return;
+    }
+
+    for (const child of node.children) {
+      // 查找路径引用
+      if (child.type === 'scoped_identifier' || child.type === 'use_path' || child.type === 'path_segment') {
+        const text = child.text;
+        if (text) {
+          dependencies.push(text);
+        }
+      }
+      
+      this.findPathReferences(child, dependencies);
+    }
+  }
+
+  // 重写isBlockNode方法以支持Rust特定的块节点类型
+  protected isBlockNode(node: any): boolean {
+    const rustBlockTypes = [
+      'block', 'function_body', 'match_arm', 'match_block', 
+      'loop_expression', 'while_expression', 'for_expression',
+      'if_expression', 'unsafe_block', 'const_block', 'async_block'
+    ];
+    return rustBlockTypes.includes(node.type) || super.isBlockNode(node);
+  }
 }

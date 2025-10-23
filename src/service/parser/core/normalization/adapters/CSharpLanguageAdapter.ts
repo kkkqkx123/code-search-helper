@@ -1,43 +1,13 @@
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { StandardizedQueryResult } from '../types';
 
 /**
  * C# 语言适配器
  * 专门处理C#语言的查询结果标准化
  */
-export class CSharpLanguageAdapter implements ILanguageAdapter {
-  private logger: LoggerService;
-
-  constructor() {
-    this.logger = new LoggerService();
-  }
-
-  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
-    const results: (StandardizedQueryResult | null)[] = [];
-
-    for (const result of queryResults) {
-      try {
-        const extraInfo = this.extractExtraInfo(result);
-        results.push({
-          type: this.mapQueryTypeToStandardType(queryType),
-          name: this.extractName(result),
-          startLine: this.extractStartLine(result),
-          endLine: this.extractEndLine(result),
-          content: this.extractContent(result),
-          metadata: {
-            language,
-            complexity: this.calculateComplexity(result),
-            dependencies: this.extractDependencies(result),
-            modifiers: this.extractModifiers(result),
-            extra: Object.keys(extraInfo).length > 0 ? extraInfo : undefined
-          }
-        });
-      } catch (error) {
-        this.logger.warn(`Failed to normalize C# result for ${queryType}:`, error);
-      }
-    }
-
-    return results.filter((result): result is StandardizedQueryResult => result !== null);
+export class CSharpLanguageAdapter extends BaseLanguageAdapter {
+  constructor(options: AdapterOptions = {}) {
+    super(options);
   }
 
   getSupportedQueryTypes(): string[] {
@@ -263,35 +233,86 @@ export class CSharpLanguageAdapter implements ILanguageAdapter {
     return 'unnamed';
   }
 
-  extractContent(result: any): string {
+  extractLanguageSpecificMetadata(result: any): Record<string, any> {
+    const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
+
     if (!mainNode) {
-      return '';
+      return extra;
     }
 
-    return mainNode.text || '';
+    // 提取泛型参数
+    const typeParameters = mainNode.childForFieldName?.('type_parameters');
+    if (typeParameters) {
+      extra.hasGenerics = true;
+      extra.typeParameters = typeParameters.text;
+    }
+
+    // 提取继承信息
+    const baseList = mainNode.childForFieldName?.('base_list');
+    if (baseList) {
+      extra.hasInheritance = true;
+      extra.baseTypes = baseList.text;
+    }
+
+    // 提取参数信息（对于方法）
+    const parameters = mainNode.childForFieldName?.('parameters');
+    if (parameters) {
+      extra.parameterCount = parameters.childCount;
+    }
+
+    // 提取返回类型
+    const returnType = mainNode.childForFieldName?.('type');
+    if (returnType) {
+      extra.returnType = returnType.text;
+    }
+
+    // 提取约束信息
+    const constraints = mainNode.childForFieldName?.('type_parameter_constraints_clause');
+    if (constraints) {
+      extra.constraints = constraints.text;
+    }
+
+    // 提取属性信息
+    const attributeLists = mainNode.childForFieldName?.('attribute_list');
+    if (attributeLists) {
+      extra.hasAttributes = true;
+      extra.attributes = attributeLists.text;
+    }
+
+    // 提取异步信息
+    if (mainNode.text.includes('async')) {
+      extra.isAsync = true;
+    }
+
+    // 检查是否是LINQ表达式
+    if (mainNode.type === 'query_expression') {
+      extra.isLinq = true;
+    }
+
+    // 检查是否是模式匹配
+    if (mainNode.type === 'switch_expression' || mainNode.type === 'is_pattern_expression') {
+      extra.isPatternMatching = true;
+    }
+
+    return extra;
   }
 
-  extractStartLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+      'classes': 'class',
+      'methods': 'method',
+      'properties': 'variable',  // 属性映射为变量
+      'linq': 'expression',  // LINQ映射为表达式
+      'patterns': 'expression',  // 模式匹配映射为表达式
+      'expressions': 'expression'
+    };
 
-    return (mainNode.startPosition?.row || 0) + 1; // 转换为1-based
-  }
-
-  extractEndLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
-
-    return (mainNode.endPosition?.row || 0) + 1; // 转换为1-based
+    return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
-    let complexity = 1; // 基础复杂度
+    let complexity = this.calculateBaseComplexity(result);
 
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
@@ -306,14 +327,6 @@ export class CSharpLanguageAdapter implements ILanguageAdapter {
     if (nodeType.includes('operator')) complexity += 1;
     if (nodeType.includes('linq') || nodeType.includes('query')) complexity += 2;
     if (nodeType.includes('pattern')) complexity += 1;
-
-    // 基于代码行数增加复杂度
-    const lineCount = this.extractEndLine(result) - this.extractStartLine(result) + 1;
-    complexity += Math.floor(lineCount / 10);
-
-    // 基于嵌套深度增加复杂度
-    const nestingDepth = this.calculateNestingDepth(mainNode);
-    complexity += nestingDepth;
 
     // C#特定的复杂度因素
     const text = mainNode.text || '';
@@ -387,125 +400,7 @@ export class CSharpLanguageAdapter implements ILanguageAdapter {
     return modifiers;
   }
 
-  extractExtraInfo(result: any): Record<string, any> {
-    const extra: Record<string, any> = {};
-    const mainNode = result.captures?.[0]?.node;
-
-    if (!mainNode) {
-      return extra;
-    }
-
-    // 提取泛型参数
-    const typeParameters = mainNode.childForFieldName?.('type_parameters');
-    if (typeParameters) {
-      extra.hasGenerics = true;
-      extra.typeParameters = typeParameters.text;
-    }
-
-    // 提取继承信息
-    const baseList = mainNode.childForFieldName?.('base_list');
-    if (baseList) {
-      extra.hasInheritance = true;
-      extra.baseTypes = baseList.text;
-    }
-
-    // 提取参数信息（对于方法）
-    const parameters = mainNode.childForFieldName?.('parameters');
-    if (parameters) {
-      extra.parameterCount = parameters.childCount;
-    }
-
-    // 提取返回类型
-    const returnType = mainNode.childForFieldName?.('type');
-    if (returnType) {
-      extra.returnType = returnType.text;
-    }
-
-    // 提取约束信息
-    const constraints = mainNode.childForFieldName?.('type_parameter_constraints_clause');
-    if (constraints) {
-      extra.constraints = constraints.text;
-    }
-
-    // 提取属性信息
-    const attributeLists = mainNode.childForFieldName?.('attribute_list');
-    if (attributeLists) {
-      extra.hasAttributes = true;
-      extra.attributes = attributeLists.text;
-    }
-
-    // 提取异步信息
-    if (mainNode.text.includes('async')) {
-      extra.isAsync = true;
-    }
-
-    return extra;
-  }
-
-  private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'classes': 'class',
-      'methods': 'method',
-      'properties': 'variable',  // 属性映射为变量
-      'linq': 'expression',  // LINQ映射为表达式
-      'patterns': 'expression',  // 模式匹配映射为表达式
-      'expressions': 'expression'
-    };
-
-    return mapping[queryType] || 'expression';
-  }
-
-  private calculateNestingDepth(node: any, currentDepth: number = 0): number {
-    if (!node || !node.children) {
-      return currentDepth;
-    }
-
-    let maxDepth = currentDepth;
-
-    for (const child of node.children) {
-      if (this.isBlockNode(child)) {
-        const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
-        maxDepth = Math.max(maxDepth, childDepth);
-      }
-    }
-
-    return maxDepth;
-  }
-
-  private isBlockNode(node: any): boolean {
-    const blockTypes = [
-      'class_declaration', 'struct_declaration', 'interface_declaration', 'method_declaration',
-      'constructor_declaration', 'property_declaration', 'namespace_declaration', 'block',
-      'if_statement', 'for_statement', 'while_statement', 'do_statement', 'switch_statement',
-      'try_statement', 'catch_clause', 'finally_clause', 'lambda_expression', 'query_expression'
-    ];
-    return blockTypes.includes(node.type);
-  }
-
-  private findTypeReferences(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找类型引用模式
-      if (child.type === 'identifier') {
-        const text = child.text;
-        if (text && text[0] === text[0].toUpperCase()) {
-          // 仅当名称以大写字母开头时才添加到依赖项（通常表示类型名）
-          dependencies.push(text);
-        }
-      } else if (child.type === 'qualified_name') {
-        // 处理命名空间或类名引用
-        const text = child.text;
-        if (text) {
-          dependencies.push(text);
-        }
-      }
-
-      this.findTypeReferences(child, dependencies);
-    }
-  }
+  // C#特定的辅助方法
 
   private findMethodCalls(node: any, dependencies: string[]): void {
     if (!node || !node.children) {
@@ -548,5 +443,16 @@ export class CSharpLanguageAdapter implements ILanguageAdapter {
 
       this.findLinqDependencies(child, dependencies);
     }
+  }
+
+  // 重写isBlockNode方法以支持C#特定的块节点类型
+  protected isBlockNode(node: any): boolean {
+    const csharpBlockTypes = [
+      'class_declaration', 'struct_declaration', 'interface_declaration', 'method_declaration',
+      'constructor_declaration', 'property_declaration', 'namespace_declaration', 'block',
+      'if_statement', 'for_statement', 'while_statement', 'do_statement', 'switch_statement',
+      'try_statement', 'catch_clause', 'finally_clause', 'lambda_expression', 'query_expression'
+    ];
+    return csharpBlockTypes.includes(node.type) || super.isBlockNode(node);
   }
 }

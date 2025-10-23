@@ -1,43 +1,13 @@
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { StandardizedQueryResult } from '../types';
 
 /**
  * Java语言适配器
  * 处理Java特定的查询结果标准化
  */
-export class JavaLanguageAdapter implements ILanguageAdapter {
-  private logger: LoggerService;
-
-  constructor() {
-    this.logger = new LoggerService();
-  }
-
-  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
-    const results: (StandardizedQueryResult | null)[] = [];
-    
-    for (const result of queryResults) {
-      try {
-        const extraInfo = this.extractExtraInfo(result);
-        results.push({
-          type: this.mapQueryTypeToStandardType(queryType),
-          name: this.extractName(result),
-          startLine: this.extractStartLine(result),
-          endLine: this.extractEndLine(result),
-          content: this.extractContent(result),
-          metadata: {
-            language,
-            complexity: this.calculateComplexity(result),
-            dependencies: this.extractDependencies(result),
-            modifiers: this.extractModifiers(result),
-            extra: Object.keys(extraInfo).length > 0 ? extraInfo : undefined
-          }
-        });
-      } catch (error) {
-        this.logger.warn(`Failed to normalize Java result for ${queryType}:`, error);
-      }
-    }
-    
-    return results.filter((result): result is StandardizedQueryResult => result !== null);
+export class JavaLanguageAdapter extends BaseLanguageAdapter {
+  constructor(options: AdapterOptions = {}) {
+    super(options);
   }
 
   getSupportedQueryTypes(): string[] {
@@ -283,35 +253,109 @@ export class JavaLanguageAdapter implements ILanguageAdapter {
     return 'unnamed';
   }
 
-  extractContent(result: any): string {
+  extractLanguageSpecificMetadata(result: any): Record<string, any> {
+    const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return '';
-    }
     
-    return mainNode.text || '';
+    if (!mainNode) {
+      return extra;
+    }
+
+    // 提取泛型信息
+    if (typeof mainNode.childForFieldName === 'function') {
+      const typeParameters = mainNode.childForFieldName('type_parameters');
+      if (typeParameters) {
+        extra.hasGenerics = true;
+        extra.typeParameters = typeParameters.text;
+      }
+
+      // 提取继承信息
+      const superClass = mainNode.childForFieldName('superclass');
+      if (superClass) {
+        extra.hasSuperclass = true;
+        extra.superclass = superClass.text;
+      }
+
+      const superInterfaces = mainNode.childForFieldName('super_interfaces');
+      if (superInterfaces) {
+        extra.hasInterfaces = true;
+        extra.interfaces = superInterfaces.text;
+      }
+
+      // 提取参数信息（对于方法）
+      const parameters = mainNode.childForFieldName('parameters');
+      if (parameters) {
+        extra.parameterCount = parameters.childCount;
+      }
+
+      // 提取返回类型
+      const returnType = mainNode.childForFieldName('type');
+      if (returnType) {
+        extra.returnType = returnType.text;
+      }
+
+      // 提取异常声明
+      const throws = mainNode.childForFieldName('throws');
+      if (throws) {
+        extra.hasThrows = true;
+        extra.throws = throws.text;
+      }
+
+      // 提取包信息
+      const packageNode = mainNode.childForFieldName('package');
+      if (packageNode) {
+        extra.package = packageNode.text;
+      }
+
+      // 提取模块信息
+      const moduleName = mainNode.childForFieldName('name');
+      if (moduleName && mainNode.type === 'module_declaration') {
+        extra.moduleName = moduleName.text;
+      }
+    }
+
+    // 提取注解信息
+    const annotations = this.extractAnnotations(mainNode);
+    if (annotations.length > 0) {
+      extra.annotations = annotations;
+    }
+
+    // 检查是否是Lambda表达式
+    if (mainNode.type === 'lambda_expression') {
+      extra.isLambda = true;
+    }
+
+    // 检查是否是记录类型
+    if (mainNode.type === 'record_declaration') {
+      extra.isRecord = true;
+    }
+
+    return extra;
   }
 
-  extractStartLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+      'classes-interfaces': 'class',
+      'methods-variables': 'method',
+      'control-flow-patterns': 'control-flow',
+      'functions': 'function',
+      'classes': 'class',
+      'methods': 'method',
+      'imports': 'import',
+      'variables': 'variable',
+      'control-flow': 'control-flow',
+      'types': 'type',
+      'interfaces': 'interface',
+      'enums': 'type',
+      'records': 'class',
+      'annotations': 'type'
+    };
     
-    return (mainNode.startPosition?.row || 0) + 1; // 转换为1-based
-  }
-
-  extractEndLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
-    
-    return (mainNode.endPosition?.row || 0) + 1; // 转换为1-based
+    return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
-    let complexity = 1; // 基础复杂度
+    let complexity = this.calculateBaseComplexity(result);
     
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
@@ -324,14 +368,6 @@ export class JavaLanguageAdapter implements ILanguageAdapter {
     if (nodeType.includes('method') || nodeType.includes('constructor')) complexity += 1;
     if (nodeType.includes('lambda')) complexity += 1;
     if (nodeType.includes('generic')) complexity += 1;
-
-    // 基于代码行数增加复杂度
-    const lineCount = this.extractEndLine(result) - this.extractStartLine(result) + 1;
-    complexity += Math.floor(lineCount / 10);
-
-    // 基于嵌套深度增加复杂度
-    const nestingDepth = this.calculateNestingDepth(mainNode);
-    complexity += nestingDepth;
 
     // Java特定复杂度因素
     const text = this.extractContent(result);
@@ -411,144 +447,23 @@ export class JavaLanguageAdapter implements ILanguageAdapter {
     return modifiers;
   }
 
-  extractExtraInfo(result: any): Record<string, any> {
-    const extra: Record<string, any> = {};
-    const mainNode = result.captures?.[0]?.node;
+  // Java特定的辅助方法
+
+  private extractAnnotations(node: any): string[] {
+    const annotations: string[] = [];
     
-    if (!mainNode) {
-      return extra;
-    }
-
-    // 提取泛型信息
-    if (typeof mainNode.childForFieldName === 'function') {
-      const typeParameters = mainNode.childForFieldName('type_parameters');
-      if (typeParameters) {
-        extra.hasGenerics = true;
-        extra.typeParameters = typeParameters.text;
-      }
-
-      // 提取继承信息
-      const superClass = mainNode.childForFieldName('superclass');
-      if (superClass) {
-        extra.hasSuperclass = true;
-        extra.superclass = superClass.text;
-      }
-
-      const superInterfaces = mainNode.childForFieldName('super_interfaces');
-      if (superInterfaces) {
-        extra.hasInterfaces = true;
-        extra.interfaces = superInterfaces.text;
-      }
-
-      // 提取参数信息（对于方法）
-      const parameters = mainNode.childForFieldName('parameters');
-      if (parameters) {
-        extra.parameterCount = parameters.childCount;
-      }
-
-      // 提取返回类型
-      const returnType = mainNode.childForFieldName('type');
-      if (returnType) {
-        extra.returnType = returnType.text;
-      }
-
-      // 提取异常声明
-      const throws = mainNode.childForFieldName('throws');
-      if (throws) {
-        extra.hasThrows = true;
-        extra.throws = throws.text;
-      }
-
-      // 提取包信息
-      const packageNode = mainNode.childForFieldName('package');
-      if (packageNode) {
-        extra.package = packageNode.text;
-      }
-
-      // 提取模块信息
-      const moduleName = mainNode.childForFieldName('name');
-      if (moduleName && mainNode.type === 'module_declaration') {
-        extra.moduleName = moduleName.text;
-      }
-    }
-
-    return extra;
-  }
-
-  private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'classes-interfaces': 'class',
-      'methods-variables': 'method',
-      'control-flow-patterns': 'control-flow',
-      'functions': 'function',
-      'classes': 'class',
-      'methods': 'method',
-      'imports': 'import',
-      'variables': 'variable',
-      'control-flow': 'control-flow',
-      'types': 'type',
-      'interfaces': 'interface',
-      'enums': 'type',
-      'records': 'class',
-      'annotations': 'type'
-    };
-    
-    return mapping[queryType] || 'expression';
-  }
-
-  private calculateNestingDepth(node: any, currentDepth: number = 0): number {
     if (!node || !node.children) {
-      return currentDepth;
+      return annotations;
     }
 
-    let maxDepth = currentDepth;
-    
     for (const child of node.children) {
-      if (this.isBlockNode(child)) {
-        const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
-        maxDepth = Math.max(maxDepth, childDepth);
+      if (child.type === 'annotation' || child.type === 'marker_annotation') {
+        annotations.push(child.text);
       }
+      annotations.push(...this.extractAnnotations(child));
     }
 
-    return maxDepth;
-  }
-
-  private isBlockNode(node: any): boolean {
-    const blockTypes = [
-      'block', 'class_body', 'interface_body', 'enum_body', 'annotation_type_body',
-      'method_declaration', 'constructor_declaration', 'for_statement', 'enhanced_for_statement',
-      'while_statement', 'do_statement', 'if_statement', 'switch_statement', 'switch_expression',
-      'try_statement', 'catch_clause', 'finally_clause', 'synchronized_statement'
-    ];
-    return blockTypes.includes(node.type);
-  }
-
-  private findTypeReferences(node: any, dependencies: string[]): void {
-    if (!node) {
-      return;
-    }
-
-    // 检查当前节点是否是类型引用
-    if (node.type === 'type_identifier' || node.type === 'identifier') {
-      const text = node.text;
-      if (text && text[0] === text[0].toUpperCase()) {
-        // 仅当名称以大写字母开头时才添加到依赖项（通常表示类型名）
-        dependencies.push(text);
-      }
-    } else if (node.type === 'scoped_identifier' || node.type === 'scoped_type_identifier') {
-      // 处理包名或类名引用
-      const text = node.text;
-      if (text) {
-        dependencies.push(text);
-      }
-    }
-
-    // 递归检查子节点
-    if (node.children) {
-      for (const child of node.children) {
-        this.findTypeReferences(child, dependencies);
-      }
-    }
+    return annotations;
   }
 
   private findMethodCalls(node: any, dependencies: string[]): void {
@@ -567,5 +482,16 @@ export class JavaLanguageAdapter implements ILanguageAdapter {
       
       this.findMethodCalls(child, dependencies);
     }
+  }
+
+  // 重写isBlockNode方法以支持Java特定的块节点类型
+  protected isBlockNode(node: any): boolean {
+    const javaBlockTypes = [
+      'block', 'class_body', 'interface_body', 'enum_body', 'annotation_type_body',
+      'method_declaration', 'constructor_declaration', 'for_statement', 'enhanced_for_statement',
+      'while_statement', 'do_statement', 'if_statement', 'switch_statement', 'switch_expression',
+      'try_statement', 'catch_clause', 'finally_clause', 'synchronized_statement'
+    ];
+    return javaBlockTypes.includes(node.type) || super.isBlockNode(node);
   }
 }

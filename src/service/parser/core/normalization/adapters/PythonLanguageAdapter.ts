@@ -1,43 +1,13 @@
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { StandardizedQueryResult } from '../types';
 
 /**
  * Python语言适配器
  * 处理Python特定的查询结果标准化
  */
-export class PythonLanguageAdapter implements ILanguageAdapter {
-  private logger: LoggerService;
-
-  constructor() {
-    this.logger = new LoggerService();
-  }
-
-  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
-    const results: (StandardizedQueryResult | null)[] = [];
-    
-    for (const result of queryResults) {
-      try {
-        const extraInfo = this.extractExtraInfo(result);
-        results.push({
-          type: this.mapQueryTypeToStandardType(queryType),
-          name: this.extractName(result),
-          startLine: this.extractStartLine(result),
-          endLine: this.extractEndLine(result),
-          content: this.extractContent(result),
-          metadata: {
-            language,
-            complexity: this.calculateComplexity(result),
-            dependencies: this.extractDependencies(result),
-            modifiers: this.extractModifiers(result),
-            extra: Object.keys(extraInfo).length > 0 ? extraInfo : undefined
-          }
-        });
-      } catch (error) {
-        this.logger.warn(`Failed to normalize Python result for ${queryType}:`, error);
-      }
-    }
-    
-    return results.filter((result): result is StandardizedQueryResult => result !== null);
+export class PythonLanguageAdapter extends BaseLanguageAdapter {
+  constructor(options: AdapterOptions = {}) {
+    super(options);
   }
 
   getSupportedQueryTypes(): string[] {
@@ -267,35 +237,79 @@ export class PythonLanguageAdapter implements ILanguageAdapter {
     return 'unnamed';
   }
 
-  extractContent(result: any): string {
+  extractLanguageSpecificMetadata(result: any): Record<string, any> {
+    const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return '';
-    }
     
-    return mainNode.text || '';
+    if (!mainNode) {
+      return extra;
+    }
+
+    // 提取装饰器信息 - 检查捕获中的装饰器
+    const capturedDecorators = result.captures?.filter((capture: any) =>
+      capture.name === 'decorator' && capture.node?.text
+    ).map((capture: any) => capture.node.text) || [];
+    
+    const nodeDecorators = this.extractDecorators(mainNode);
+    const allDecorators = [...new Set([...capturedDecorators, ...nodeDecorators])]; // 合并并去重
+    
+    if (allDecorators.length > 0) {
+      extra.decorators = allDecorators;
+    }
+
+    // 提取参数信息（对于函数）
+    const parameters = mainNode.childForFieldName('parameters');
+    if (parameters) {
+      extra.parameterCount = parameters.childCount;
+      extra.hasTypeHints = this.hasTypeHints(parameters);
+    }
+
+    // 提取返回类型信息
+    const returnType = mainNode.childForFieldName('return_type');
+    if (returnType) {
+      extra.hasReturnType = true;
+      extra.returnType = returnType.text;
+    }
+
+    // 提取继承信息（对于类）
+    const superclasses = mainNode.childForFieldName('superclasses');
+    if (superclasses) {
+      extra.hasInheritance = true;
+      extra.superclasses = this.extractSuperclassNames(superclasses);
+    }
+
+    // 检查是否是异步函数
+    if (mainNode.type === 'async_function_definition' || 
+        mainNode.type === 'async_method_definition' ||
+        (mainNode.text && mainNode.text.includes('async'))) {
+      extra.isAsync = true;
+    }
+
+    // 检查是否是生成器函数
+    if (mainNode.text && mainNode.text.includes('yield')) {
+      extra.isGenerator = true;
+    }
+
+    return extra;
   }
 
-  extractStartLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+      'functions': 'function',
+      'classes': 'class',
+      'methods': 'method',
+      'imports': 'import',
+      'variables': 'variable',
+      'control-flow': 'control-flow',
+      'data-structures': 'class', // Python的数据结构通常映射为类
+      'types-decorators': 'type'
+    };
     
-    return (mainNode.startPosition?.row || 0) + 1; // 转换为1-based
-  }
-
-  extractEndLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
-    
-    return (mainNode.endPosition?.row || 0) + 1; // 转换为1-based
+    return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
-    let complexity = 1; // 基础复杂度
+    let complexity = this.calculateBaseComplexity(result);
     
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
@@ -309,19 +323,12 @@ export class PythonLanguageAdapter implements ILanguageAdapter {
     if (nodeType.includes('async')) complexity += 1;
     if (nodeType.includes('decorated')) complexity += 1;
 
-    // 基于代码行数增加复杂度
-    const lineCount = this.extractEndLine(result) - this.extractStartLine(result) + 1;
-    complexity += Math.floor(lineCount / 10);
-
-    // 基于嵌套深度增加复杂度
-    const nestingDepth = this.calculateNestingDepth(mainNode);
-    complexity += nestingDepth;
-
     // Python特有的复杂度因素
     const text = mainNode.text || '';
     if (text.includes('yield')) complexity += 1; // 生成器
     if (text.includes('await')) complexity += 1; // 异步等待
     if (text.includes('lambda')) complexity += 1; // Lambda表达式
+    if (text.includes('@')) complexity += 1; // 装饰器
 
     return complexity;
   }
@@ -384,123 +391,7 @@ export class PythonLanguageAdapter implements ILanguageAdapter {
     return modifiers;
   }
 
-  extractExtraInfo(result: any): Record<string, any> {
-    const extra: Record<string, any> = {};
-    const mainNode = result.captures?.[0]?.node;
-    
-    if (!mainNode) {
-      return extra;
-    }
-
-    // 提取装饰器信息 - 检查捕获中的装饰器
-    const capturedDecorators = result.captures?.filter((capture: any) =>
-      capture.name === 'decorator' && capture.node?.text
-    ).map((capture: any) => capture.node.text) || [];
-    
-    const nodeDecorators = this.extractDecorators(mainNode);
-    const allDecorators = [...new Set([...capturedDecorators, ...nodeDecorators])]; // 合并并去重
-    
-    if (allDecorators.length > 0) {
-      extra.decorators = allDecorators;
-    }
-
-    // 提取参数信息（对于函数）
-    const parameters = mainNode.childForFieldName('parameters');
-    if (parameters) {
-      extra.parameterCount = parameters.childCount;
-      extra.hasTypeHints = this.hasTypeHints(parameters);
-    }
-
-    // 提取返回类型信息
-    const returnType = mainNode.childForFieldName('return_type');
-    if (returnType) {
-      extra.hasReturnType = true;
-      extra.returnType = returnType.text;
-    }
-
-    // 提取继承信息（对于类）
-    const superclasses = mainNode.childForFieldName('superclasses');
-    if (superclasses) {
-      extra.hasInheritance = true;
-      extra.superclasses = this.extractSuperclassNames(superclasses);
-    }
-
-    return extra;
-  }
-
-  private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'functions': 'function',
-      'classes': 'class',
-      'methods': 'method',
-      'imports': 'import',
-      'variables': 'variable',
-      'control-flow': 'control-flow',
-      'data-structures': 'class', // Python的数据结构通常映射为类
-      'types-decorators': 'type'
-    };
-    
-    return mapping[queryType] || 'expression';
-  }
-
-  private calculateNestingDepth(node: any, currentDepth: number = 0): number {
-    if (!node || !node.children) {
-      return currentDepth;
-    }
-
-    let maxDepth = currentDepth;
-    
-    for (const child of node.children) {
-      if (this.isBlockNode(child)) {
-        const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
-        maxDepth = Math.max(maxDepth, childDepth);
-      }
-    }
-
-    return maxDepth;
-  }
-
-  private isBlockNode(node: any): boolean {
-    const blockTypes = ['block', 'suite'];
-    return blockTypes.includes(node.type);
-  }
-
-  private findImportReferences(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找导入引用
-      if (child.type === 'identifier' || child.type === 'dotted_name') {
-        dependencies.push(child.text);
-      }
-      
-      this.findImportReferences(child, dependencies);
-    }
-  }
-
-  private findFunctionCalls(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找函数调用
-      if (child.type === 'call') {
-        const functionNode = child.childForFieldName('function');
-        if (functionNode?.text) {
-          dependencies.push(functionNode.text);
-        }
-      }
-      
-      this.findFunctionCalls(child, dependencies);
-    }
-  }
-
-  private hasDecorators(node: any): boolean {
-    return node.children?.some((child: any) => child.type === 'decorators') || false;
-  }
+  // Python特定的辅助方法
 
   private extractDecorators(node: any): string[] {
     const decorators: string[] = [];
@@ -515,6 +406,10 @@ export class PythonLanguageAdapter implements ILanguageAdapter {
     }
     
     return decorators;
+  }
+
+  private hasDecorators(node: any): boolean {
+    return node.children?.some((child: any) => child.type === 'decorators') || false;
   }
 
   private isClassMethod(node: any): boolean {
@@ -561,5 +456,44 @@ export class PythonLanguageAdapter implements ILanguageAdapter {
     }
     
     return names;
+  }
+
+  private findImportReferences(node: any, dependencies: string[]): void {
+    if (!node || !node.children) {
+      return;
+    }
+
+    for (const child of node.children) {
+      // 查找导入引用
+      if (child.type === 'identifier' || child.type === 'dotted_name') {
+        dependencies.push(child.text);
+      }
+      
+      this.findImportReferences(child, dependencies);
+    }
+  }
+
+  private findFunctionCalls(node: any, dependencies: string[]): void {
+    if (!node || !node.children) {
+      return;
+    }
+
+    for (const child of node.children) {
+      // 查找函数调用
+      if (child.type === 'call') {
+        const functionNode = child.childForFieldName('function');
+        if (functionNode?.text) {
+          dependencies.push(functionNode.text);
+        }
+      }
+      
+      this.findFunctionCalls(child, dependencies);
+    }
+  }
+
+  // 重写isBlockNode方法以支持Python特定的块节点类型
+  protected isBlockNode(node: any): boolean {
+    const pythonBlockTypes = ['block', 'suite'];
+    return pythonBlockTypes.includes(node.type) || super.isBlockNode(node);
   }
 }

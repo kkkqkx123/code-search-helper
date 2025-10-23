@@ -1,43 +1,13 @@
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { StandardizedQueryResult } from '../types';
 
 /**
  * Kotlin语言适配器
  * 处理Kotlin特定的查询结果标准化
  */
-export class KotlinLanguageAdapter implements ILanguageAdapter {
-  private logger: LoggerService;
-
-  constructor() {
-    this.logger = new LoggerService();
-  }
-
-  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
-    const results: (StandardizedQueryResult | null)[] = [];
-    
-    for (const result of queryResults) {
-      try {
-        const extraInfo = this.extractExtraInfo(result);
-        results.push({
-          type: this.mapQueryTypeToStandardType(queryType),
-          name: this.extractName(result),
-          startLine: this.extractStartLine(result),
-          endLine: this.extractEndLine(result),
-          content: this.extractContent(result),
-          metadata: {
-            language,
-            complexity: this.calculateComplexity(result),
-            dependencies: this.extractDependencies(result),
-            modifiers: this.extractModifiers(result),
-            extra: Object.keys(extraInfo).length > 0 ? extraInfo : undefined
-          }
-        });
-      } catch (error) {
-        this.logger.warn(`Failed to normalize Kotlin result for ${queryType}:`, error);
-      }
-    }
-    
-    return results.filter((result): result is StandardizedQueryResult => result !== null);
+export class KotlinLanguageAdapter extends BaseLanguageAdapter {
+  constructor(options: AdapterOptions = {}) {
+    super(options);
   }
 
   getSupportedQueryTypes(): string[] {
@@ -174,35 +144,111 @@ export class KotlinLanguageAdapter implements ILanguageAdapter {
     return 'unnamed';
   }
 
-  extractContent(result: any): string {
+  extractLanguageSpecificMetadata(result: any): Record<string, any> {
+    const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return '';
-    }
     
-    return mainNode.text || '';
+    if (!mainNode) {
+      return extra;
+    }
+
+    // 提取泛型信息
+    if (typeof mainNode.childForFieldName === 'function') {
+      const typeParameters = mainNode.childForFieldName('type_parameters');
+      if (typeParameters) {
+        extra.hasGenerics = true;
+        extra.typeParameters = typeParameters.text;
+      }
+
+      // 提取继承信息
+      const superClass = mainNode.childForFieldName('superclass');
+      if (superClass) {
+        extra.hasSuperclass = true;
+        extra.superclass = superClass.text;
+      }
+
+      const superInterfaces = mainNode.childForFieldName('super_interfaces');
+      if (superInterfaces) {
+        extra.hasInterfaces = true;
+        extra.interfaces = superInterfaces.text;
+      }
+
+      // 提取参数信息（对于函数）
+      const parameters = mainNode.childForFieldName('parameters');
+      if (parameters) {
+        extra.parameterCount = parameters.childCount;
+      }
+
+      // 提取返回类型
+      const returnType = mainNode.childForFieldName('type');
+      if (returnType) {
+        extra.returnType = returnType.text;
+      }
+
+      // 提取类型约束
+      const typeConstraints = mainNode.childForFieldName('type_constraints');
+      if (typeConstraints) {
+        extra.hasTypeConstraints = true;
+        extra.typeConstraints = typeConstraints.text;
+      }
+
+      // 提取主构造函数
+      const primaryConstructor = mainNode.childForFieldName('primary_constructor');
+      if (primaryConstructor) {
+        extra.hasPrimaryConstructor = true;
+        extra.primaryConstructor = primaryConstructor.text;
+      }
+
+      // 提取函数体
+      const functionBody = mainNode.childForFieldName('function_body');
+      if (functionBody) {
+        extra.hasFunctionBody = true;
+        extra.functionBody = functionBody.text;
+      }
+
+      // 提取类体
+      const classBody = mainNode.childForFieldName('class_body');
+      if (classBody) {
+        extra.hasClassBody = true;
+        extra.classBody = classBody.text;
+      }
+
+      // 提取枚举类体
+      const enumClassBody = mainNode.childForFieldName('enum_class_body');
+      if (enumClassBody) {
+        extra.hasEnumClassBody = true;
+        extra.enumClassBody = enumClassBody.text;
+      }
+    }
+
+    // 检查是否是挂起函数
+    if (mainNode.type === 'suspend_function' || 
+        (mainNode.text && mainNode.text.includes('suspend'))) {
+      extra.isSuspend = true;
+    }
+
+    // 检查是否是扩展函数
+    if (mainNode.type === 'extension_function' || 
+        (mainNode.text && mainNode.text.includes('extension'))) {
+      extra.isExtension = true;
+    }
+
+    return extra;
   }
 
-  extractStartLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+      'classes-functions': 'class',
+      'constructors-properties': 'method',
+      'methods-variables': 'function',
+      'control-flow-patterns': 'control-flow'
+    };
     
-    return (mainNode.startPosition?.row || 0) + 1; // 转换为1-based
-  }
-
-  extractEndLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return 1;
-    }
-    
-    return (mainNode.endPosition?.row || 0) + 1; // 转换为1-based
+    return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
-    let complexity = 1; // 基础复杂度
+    let complexity = this.calculateBaseComplexity(result);
     
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
@@ -215,14 +261,6 @@ export class KotlinLanguageAdapter implements ILanguageAdapter {
     if (nodeType.includes('function')) complexity += 1;
     if (nodeType.includes('extension')) complexity += 1;
     if (nodeType.includes('generic')) complexity += 1;
-
-    // 基于代码行数增加复杂度
-    const lineCount = this.extractEndLine(result) - this.extractStartLine(result) + 1;
-    complexity += Math.floor(lineCount / 10);
-
-    // 基于嵌套深度增加复杂度
-    const nestingDepth = this.calculateNestingDepth(mainNode);
-    complexity += nestingDepth;
 
     // Kotlin特定复杂度因素
     const text = this.extractContent(result);
@@ -348,150 +386,7 @@ export class KotlinLanguageAdapter implements ILanguageAdapter {
     return modifiers;
   }
 
-  extractExtraInfo(result: any): Record<string, any> {
-    const extra: Record<string, any> = {};
-    const mainNode = result.captures?.[0]?.node;
-    
-    if (!mainNode) {
-      return extra;
-    }
-
-    // 提取泛型信息
-    if (typeof mainNode.childForFieldName === 'function') {
-      const typeParameters = mainNode.childForFieldName('type_parameters');
-      if (typeParameters) {
-        extra.hasGenerics = true;
-        extra.typeParameters = typeParameters.text;
-      }
-
-      // 提取继承信息
-      const superClass = mainNode.childForFieldName('superclass');
-      if (superClass) {
-        extra.hasSuperclass = true;
-        extra.superclass = superClass.text;
-      }
-
-      const superInterfaces = mainNode.childForFieldName('super_interfaces');
-      if (superInterfaces) {
-        extra.hasInterfaces = true;
-        extra.interfaces = superInterfaces.text;
-      }
-
-      // 提取参数信息（对于函数）
-      const parameters = mainNode.childForFieldName('parameters');
-      if (parameters) {
-        extra.parameterCount = parameters.childCount;
-      }
-
-      // 提取返回类型
-      const returnType = mainNode.childForFieldName('type');
-      if (returnType) {
-        extra.returnType = returnType.text;
-      }
-
-      // 提取类型约束
-      const typeConstraints = mainNode.childForFieldName('type_constraints');
-      if (typeConstraints) {
-        extra.hasTypeConstraints = true;
-        extra.typeConstraints = typeConstraints.text;
-      }
-
-      // 提取主构造函数
-      const primaryConstructor = mainNode.childForFieldName('primary_constructor');
-      if (primaryConstructor) {
-        extra.hasPrimaryConstructor = true;
-        extra.primaryConstructor = primaryConstructor.text;
-      }
-
-      // 提取函数体
-      const functionBody = mainNode.childForFieldName('function_body');
-      if (functionBody) {
-        extra.hasFunctionBody = true;
-        extra.functionBody = functionBody.text;
-      }
-
-      // 提取类体
-      const classBody = mainNode.childForFieldName('class_body');
-      if (classBody) {
-        extra.hasClassBody = true;
-        extra.classBody = classBody.text;
-      }
-
-      // 提取枚举类体
-      const enumClassBody = mainNode.childForFieldName('enum_class_body');
-      if (enumClassBody) {
-        extra.hasEnumClassBody = true;
-        extra.enumClassBody = enumClassBody.text;
-      }
-    }
-
-    return extra;
-  }
-
-  private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'classes-functions': 'class',
-      'constructors-properties': 'method',
-      'methods-variables': 'function',
-      'control-flow-patterns': 'control-flow'
-    };
-    
-    return mapping[queryType] || 'expression';
-  }
-
-  private calculateNestingDepth(node: any, currentDepth: number = 0): number {
-    if (!node || !node.children) {
-      return currentDepth;
-    }
-
-    let maxDepth = currentDepth;
-    
-    for (const child of node.children) {
-      if (this.isBlockNode(child)) {
-        const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
-        maxDepth = Math.max(maxDepth, childDepth);
-      }
-    }
-
-    return maxDepth;
-  }
-
-  private isBlockNode(node: any): boolean {
-    const blockTypes = [
-      'function_body', 'class_body', 'enum_class_body', 'when_statement', 'when_expression',
-      'if_statement', 'for_statement', 'while_statement', 'do_while_statement', 'try_statement',
-      'catch_clause', 'finally_clause', 'lambda_literal'
-    ];
-    return blockTypes.includes(node.type);
-  }
-
-  private findTypeReferences(node: any, dependencies: string[]): void {
-    if (!node) {
-      return;
-    }
-
-    // 检查当前节点是否是类型引用
-    if (node.type === 'type_identifier' || node.type === 'simple_identifier') {
-      const text = node.text;
-      if (text && text[0] === text[0].toUpperCase()) {
-        // 仅当名称以大写字母开头时才添加到依赖项（通常表示类型名）
-        dependencies.push(text);
-      }
-    } else if (node.type === 'user_type') {
-      // 处理用户定义类型
-      const text = node.text;
-      if (text) {
-        dependencies.push(text);
-      }
-    }
-
-    // 递归检查子节点
-    if (node.children) {
-      for (const child of node.children) {
-        this.findTypeReferences(child, dependencies);
-      }
-    }
-  }
+  // Kotlin特定的辅助方法
 
   private findFunctionCalls(node: any, dependencies: string[]): void {
     if (!node || !node.children) {
@@ -509,5 +404,15 @@ export class KotlinLanguageAdapter implements ILanguageAdapter {
       
       this.findFunctionCalls(child, dependencies);
     }
+  }
+
+  // 重写isBlockNode方法以支持Kotlin特定的块节点类型
+  protected isBlockNode(node: any): boolean {
+    const kotlinBlockTypes = [
+      'function_body', 'class_body', 'enum_class_body', 'when_statement', 'when_expression',
+      'if_statement', 'for_statement', 'while_statement', 'do_while_statement', 'try_statement',
+      'catch_clause', 'finally_clause', 'lambda_literal'
+    ];
+    return kotlinBlockTypes.includes(node.type) || super.isBlockNode(node);
   }
 }
