@@ -72,6 +72,10 @@ export const TYPES = {
   ProcessingGuard: Symbol.for('ProcessingGuard'),
   ProcessingStrategySelector: Symbol.for('ProcessingStrategySelector'),
   UniversalProcessingConfig: Symbol.for('UniversalProcessingConfig'),
+  FileProcessingCoordinator: Symbol.for('FileProcessingCoordinator'),
+  SegmentationContextManager: Symbol.for('SegmentationContextManager'),
+  ConfigurationManager: Symbol.for('ConfigurationManager'),
+  ProtectionCoordinator: Symbol.for('ProtectionCoordinator'),
   
   // 新增的索引服务
   VectorIndexService: Symbol.for('VectorIndexService'),

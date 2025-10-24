@@ -1,10 +1,10 @@
 import { injectable } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
-import { 
-  SHEBANG_PATTERNS, 
-  SYNTAX_PATTERNS, 
-  FILE_STRUCTURE_PATTERNS, 
-  STRONG_FEATURE_LANGUAGES 
+import {
+  SHEBANG_PATTERNS,
+  SYNTAX_PATTERNS,
+  FILE_STRUCTURE_PATTERNS,
+  STRONG_FEATURE_LANGUAGES
 } from './constants';
 
 /**
@@ -20,7 +20,7 @@ export class ExtensionlessFileProcessor {
 
   constructor(logger?: LoggerService) {
     this.logger = logger;
-    
+
     // Shebang模式
     this.shebangPatterns = new Map(SHEBANG_PATTERNS);
 
@@ -74,7 +74,7 @@ export class ExtensionlessFileProcessor {
     indicators: string[];
   } {
     const firstLine = content.split('\n')[0];
-    
+
     for (const [pattern, language] of Array.from(this.shebangPatterns.entries())) {
       if (firstLine.startsWith(pattern)) {
         return {
@@ -84,56 +84,56 @@ export class ExtensionlessFileProcessor {
         };
       }
     }
-    
+
     return { language: 'unknown', confidence: 0, indicators: [] };
   }
+  /** 
+    * 检测语法模式
+    */
+  private detectBySyntaxPatterns(content: string): {
+    language: string;
+    confidence: number;
+    indicators: string[];
+  } {
+    const firstFewLines = content.substring(0, Math.min(500, content.length));
+    let bestMatch = { language: 'unknown', confidence: 0, indicators: [] as string[] };
 
+    // 定义具有强特征的语言，这些语言只需要1个匹配模式即可识别
+    const strongFeatureLanguages = new Set(STRONG_FEATURE_LANGUAGES);
+
+    for (const [language, patterns] of Array.from(this.syntaxPatterns.entries())) {
+      let matches = 0;
+      const indicators: string[] = [];
+
+      for (const pattern of patterns) {
+        if (pattern.test(firstFewLines)) {
+          matches++;
+          indicators.push(pattern.source);
+        }
+      }
+
+      if (matches > 0) { // 只要有一个匹配就继续
+        const totalPatterns = patterns.length;
+        const confidence = Math.min(1.0, matches / Math.max(totalPatterns / 3, 1)); // 调整信心计算
+
+        // 对于具有强特征的语言，只需要1个匹配；其他语言需要至少1个匹配，但有更多匹配时信心更高
+        const minMatchesRequired = strongFeatureLanguages.has(language) ? 1 : 1;
+
+        if (confidence > bestMatch.confidence && matches >= minMatchesRequired) {
+          bestMatch = {
+            language,
+            confidence,
+            indicators: indicators.slice(0, 3) // 最多保留3个指示器
+          };
+        }
+      }
+    }
+
+    return bestMatch;
+  }
   /**
-  * 检测语法模式
+  * 检测文件结构
   */
- private detectBySyntaxPatterns(content: string): {
-   language: string;
-   confidence: number;
-   indicators: string[];
- } {
-   const firstFewLines = content.substring(0, Math.min(500, content.length));
-   let bestMatch = { language: 'unknown', confidence: 0, indicators: [] as string[] };
-
-   // 定义具有强特征的语言，这些语言只需要1个匹配模式即可识别
-   const strongFeatureLanguages = new Set(STRONG_FEATURE_LANGUAGES);
-
-   for (const [language, patterns] of Array.from(this.syntaxPatterns.entries())) {
-     let matches = 0;
-     const indicators: string[] = [];
-
-     for (const pattern of patterns) {
-       if (pattern.test(firstFewLines)) {
-         matches++;
-         indicators.push(pattern.source);
-       }
-     }
-
-     const totalPatterns = patterns.length;
-     const confidence = matches / totalPatterns;
-
-     // 对于具有强特征的语言，只需要1个匹配；其他语言需要至少2个匹配
-     const minMatchesRequired = strongFeatureLanguages.has(language) ? 1 : 2;
-
-     if (confidence > bestMatch.confidence && matches >= minMatchesRequired) {
-       bestMatch = {
-         language,
-         confidence,
-         indicators: indicators.slice(0, 3) // 最多保留3个指示器
-       };
-     }
-   }
-
-   return bestMatch;
- }
-
-  /**
-   * 检测文件结构
-   */
   private detectByFileStructure(content: string): {
     language: string;
     confidence: number;
@@ -147,7 +147,7 @@ export class ExtensionlessFileProcessor {
         return {
           language,
           confidence: 0.7,
-          indicators: [`structure: ${pattern.source}`]
+          indicators: [`structure: ${pattern.toString()}`]
         };
       }
     }

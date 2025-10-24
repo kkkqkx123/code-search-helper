@@ -126,13 +126,16 @@ describe('ErrorThresholdManager', () => {
       );
     });
 
-    it('should handle cleanup execution errors', () => {
+    it('should handle cleanup execution errors', async () => {
       mockCleanupManager.performCleanup.mockRejectedValue(new Error('Cleanup failed'));
 
       // Record 5 errors to reach threshold
       for (let i = 0; i < 5; i++) {
         errorManager.recordError(new Error(`Test error ${i}`));
       }
+
+      // Wait for the async cleanup to complete
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Cleanup execution failed: Error: Cleanup failed'
@@ -255,7 +258,7 @@ describe('ErrorThresholdManager', () => {
   });
 
   describe('formatBytes', () => {
-    it('should format bytes correctly', () => {
+    it('should format bytes correctly', async () => {
       // This is a private method, but we can test its behavior through the cleanup process
       // by checking the logged message
       mockCleanupManager.performCleanup.mockResolvedValue({
@@ -269,6 +272,9 @@ describe('ErrorThresholdManager', () => {
       for (let i = 0; i < 5; i++) {
         errorManager.recordError(new Error(`Test error ${i}`));
       }
+
+      // Wait for async cleanup to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Check if the cleanup completion message includes formatted bytes
       expect(mockLogger.info).toHaveBeenCalledWith(
@@ -308,6 +314,9 @@ describe('ErrorThresholdManager', () => {
         errorManager.recordError(new Error(`Test error ${i}`));
       }
 
+      // Wait for async cleanup to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
       expect(mockLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Cleanup completed successfully')
       );
@@ -326,6 +335,9 @@ describe('ErrorThresholdManager', () => {
       for (let i = 0; i < 5; i++) {
         errorManager.recordError(new Error(`Test error ${i}`));
       }
+
+      // Wait for async cleanup to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Cleanup failed: Cleanup failed'

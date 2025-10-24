@@ -127,12 +127,12 @@ export const getDynamicBlockLimits = (contentLength: number, lineCount: number) 
       MIN_CHUNK_REMAINDER_CHARS: 50
     };
   }
-  
+
   // 中等文件：标准限制
   if (contentLength < 2000 || lineCount < 100) {
     return BLOCK_SIZE_LIMITS;
   }
-  
+
   // 大文件：严格限制
   return {
     MIN_BLOCK_CHARS: 50,
@@ -153,16 +153,16 @@ export const DEFAULT_CONFIG = {
   // 错误处理配置
   MAX_ERRORS: 5,
   ERROR_RESET_INTERVAL: 60000, // 1分钟
-  
+
   // 内存限制配置
   MEMORY_LIMIT_MB: 500,
   MEMORY_CHECK_INTERVAL: 5000, // 5秒
-  
+
   // 分段参数配置
   MAX_CHUNK_SIZE: 2000,
   CHUNK_OVERLAP: 200,
   MAX_LINES_PER_CHUNK: 50,
-  
+
   // 文本分段器配置
   TEXT_SPLITTER_OPTIONS: {
     maxChunkSize: 2000,
@@ -173,7 +173,7 @@ export const DEFAULT_CONFIG = {
     enableBracketBalance: true,
     enableSemanticDetection: true
   },
-  
+
   // 备份文件模式
   BACKUP_FILE_PATTERNS: ['.bak', '.backup', '.old', '.tmp', '.temp', '.orig', '.save']
 } as const;
@@ -268,6 +268,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
   java: [
     /public\s+class\s+\w+/m,
     /private\s+class\s+\w+/m,
+    /class\s+\w+/m,  // 也匹配没有public的类声明
     /package\s+[\w.]+/m,
     /import\s+[\w.]+/m,
     /public\s+static\s+void\s+main/m,
@@ -276,14 +277,16 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /extends\s+\w+/m,
     /implements\s+\w+/m,
     /throws\s+\w+/m,
-    /@\w+/m
+    /@\w+/m, // 注解
+    /extends\s+\w+/m,
+    /implements\s+\w+/m,
   ],
   cpp: [
     /#include\s*<[^>]+>/m,
     /#include\s*"[^"]+"/m,
     /using\s+namespace\s+\w+/m,
     /std::/m,
-    /cout\s*<</m,
+    /cout\s*</m,
     /cin\s*>>/m,
     /template\s*<[^>]*>/m,
     /class\s+\w+/m,

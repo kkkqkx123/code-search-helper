@@ -321,12 +321,13 @@ describe('UniversalProcessingConfig', () => {
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toContain('backupFilePatterns cannot be empty');
       
-      config.setBackupFileConfidenceThreshold(-0.1); // Invalid threshold
+      // 直接设置内部值以测试验证逻辑，而不是通过保护性的setter
+      (config as any).backupFileConfidenceThreshold = -0.1; // Invalid threshold
       validation = config.validateConfig();
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toContain('backupFileConfidenceThreshold must be between 0 and 1');
       
-      config.setBackupFileConfidenceThreshold(1.1); // Invalid threshold
+      (config as any).backupFileConfidenceThreshold = 1.1; // Invalid threshold
       validation = config.validateConfig();
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toContain('backupFileConfidenceThreshold must be between 0 and 1');

@@ -132,7 +132,7 @@ export class SegmentationContextManager implements ISegmentationContextManager {
     // 如果提供了语言，应用语言特定配置
     if (language) {
       const languageConfig = this.configManager.getLanguageSpecificConfig(language);
-      if (Object.keys(languageConfig).length > 0) {
+      if (languageConfig && Object.keys(languageConfig).length > 0) {
         const mergedOptions = this.configManager.mergeOptions(finalOptions, languageConfig);
         return SegmentationContextFactory.create(content, filePath, language, mergedOptions);
       }
