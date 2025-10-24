@@ -1,0 +1,19 @@
+@/src/service/parser/constants/queries/toml.ts 
+分析该文件中定义的查询规则对代码分块来说是否足够，并提出优化方案。
+工具调用指南仅供参考，你可以自由决定是否遵循
+查询规则不是最终作为分段依据的唯一规则，后续会使用专门的适配器来执行转换、去重等操作。
+只需要检查当前toml的查询规则是否足够全面。某些细节模式不需要加入查询规则
+
+@/src/service/parser/constants/queries/toml.ts 
+
+为yaml创建与toml相似复杂度的查询规则。使用context7 mcp验证如何添加正确规则
+
+src\service\parser\constants\queries\toml.ts
+@/src/service/parser/constants/queries/toml.ts 
+docs\parser\query\复杂模式注册.md
+docs\parser\query\下载新的解析器.txt
+为yaml创建与toml同一级别的配置
+
+分析如果要为toml、yaml创建适配器，是否还需要继承现在的适配器
+
+json、xml使用自定义逻辑处理是否更合适？

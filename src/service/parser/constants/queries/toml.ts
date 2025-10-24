@@ -8,11 +8,16 @@ export const tomlQuery = `
 
 ; Key-value pairs - capture the entire pair
 (pair
-  key: (bare_key) @name.definition.key
+  key: [
+    (bare_key)
+    (quoted_key)
+  ] @name.definition.key
   value: (_) @definition.value) @definition.pair
 
 ; Dotted keys - capture dotted key-value pairs
-(dotted_key) @name.definition.dotted_key
+(dotted_key
+  (bare_key) @name.definition.dotted_segment
+  (quoted_key) @name.definition.dotted_segment) @name.definition.dotted_key
 
 ; Arrays and inline tables
 (array) @definition.array
@@ -29,7 +34,10 @@ export const tomlQuery = `
 
 ; Key names for capture
 (pair
-  key: (bare_key) @name.definition) @definition.pair
+  key: [
+    (bare_key)
+    (quoted_key)
+  ] @name.definition) @definition.pair
 
 ; Array values
 (array
@@ -38,7 +46,10 @@ export const tomlQuery = `
 ; Inline table key-value pairs
 (inline_table
   (pair
-    key: (bare_key) @name.definition.inline_key
+    key: [
+      (bare_key)
+      (quoted_key)
+    ] @name.definition.inline_key
     value: (_) @definition.inline_value)) @definition.inline_pair
 
 ; Comments

@@ -1,0 +1,1 @@
+分析是否需要效仿src\service\parser\universal\md，单独处理json和xml

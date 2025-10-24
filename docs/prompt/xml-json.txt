@@ -1,0 +1,165 @@
+经过全面分析JSON和XML的语法特点及分块需求，对比tree-sitter查询规则与自定义逻辑的优劣，制定以下处理策略建议：
+
+## 📊 JSON语法特点与分块需求分析
+
+### JSON语法特征
+- **结构简单**：仅包含对象、数组、字符串、数字、布尔值、null
+- **层次明确**：严格的嵌套结构，无歧义性
+- **标准化**：ECMA-404标准，语法规则固定
+- **无注释**：标准JSON不支持注释（虽有扩展但非标准）
+
+### 分块需求评估
+- **对象分块**：`{"key": "value"}` 整体作为配置块
+- **数组分块**：`[item1, item2]` 可按元素或整体分块
+- **键值对分块**：`"key": "value"` 作为最小语义单元
+- **嵌套结构**：需要保持层次关系
+
+## 📋 XML语法特点与分块需求分析
+
+### XML语法特征
+- **标签结构**：`<element attr="value">content</element>`
+- **属性丰富**：元素可包含多个属性
+- **命名空间**：支持XML命名空间
+- **文档类型**：DTD、XSD等定义
+- **注释处理**：`<!-- comment -->`
+- **CDATA区**：`<![CDATA[content]]>`
+
+### 分块需求评估
+- **元素分块**：整个元素节点作为语义块
+- **属性分块**：属性键值对需要单独处理
+- **文本内容**：元素内容可能需要独立分块
+- **层次结构**：保持XML文档树形结构
+
+## ⚖️ Tree-sitter查询规则 vs 自定义逻辑对比
+
+### Tree-sitter查询规则优势
+| 方面 | 优势 |
+|------|------|
+| **语法准确性** | 官方语法保证100%解析正确性 |
+| **错误处理** | 内置错误恢复机制 |
+| **性能** | 增量解析，大文件处理高效 |
+| **维护性** | 语法更新自动受益 |
+| **一致性** | 与其他语言处理方式统一 |
+
+### Tree-sitter查询规则劣势
+| 方面 | 劣势 |
+|------|------|
+| **依赖复杂** | 需要额外grammar文件和绑定 |
+| **内存开销** | 构建语法树需要额外内存 |
+| **学习成本** | 需要了解tree-sitter查询语法 |
+| **过度工程** | 简单格式可能过于复杂 |
+
+### 自定义逻辑优势
+| 方面 | 优势 |
+|------|------|
+| **轻量级** | 无额外依赖，实现简单 |
+| **可控性** | 完全控制分块逻辑 |
+| **性能** | 针对特定格式优化 |
+| **快速实现** | 开发周期短 |
+
+### 自定义逻辑劣势
+| 方面 | 劣势 |
+|------|------|
+| **错误处理** | 需要自己实现容错机制 |
+| **维护成本** | 语法变化需要手动更新 |
+| **边界情况** | 容易遗漏特殊语法情况 |
+| **一致性** | 与其他格式处理方式不统一 |
+
+## 🎯 处理策略建议
+
+### JSON处理策略：**推荐使用Tree-sitter查询规则**
+
+**理由：**
+1. **标准化程度高**：JSON语法严格固定，tree-sitter支持成熟
+2. **查询规则简单**：JSON的tree-sitter查询规则相对简单
+3. **错误恢复重要**：配置文件常有格式错误，需要良好容错
+4. **统一架构**：与TOML、YAML保持一致的处理方式
+
+**建议实现：**
+```typescript
+// JSON查询规则示例
+export const jsonQuery = `
+; Object and array structures
+(object) @definition.object
+(array) @definition.array
+
+; Key-value pairs
+(pair
+  key: (string) @name.definition.key
+  value: (_) @definition.value) @definition.pair
+
+; Basic values
+(string) @definition.string
+(number) @definition.number
+(true) @definition.boolean
+(false) @definition.boolean
+(null) @definition.null
+`
+```
+
+### XML处理策略：**推荐使用自定义逻辑**
+
+**理由：**
+1. **复杂性高**：XML语法复杂（命名空间、DTD、CDATA等）
+2. **分块需求特殊**：XML的分块逻辑与配置文件需求差异较大
+3. **性能考虑**：XML文件通常较大，自定义解析更可控
+4. **现有生态**：成熟的XML解析库（如fast-xml-parser）可直接使用
+
+**建议实现：**
+```typescript
+// 自定义XML分块逻辑
+interface XMLChunk {
+  type: 'element' | 'attribute' | 'text' | 'comment';
+  name?: string;
+  value?: string;
+  attributes?: Record<string, string>;
+  children?: XMLChunk[];
+}
+
+class XMLChunker {
+  parse(xml: string): XMLChunk[] {
+    // 使用现有XML解析器 + 自定义分块逻辑
+  }
+}
+```
+
+## 📈 实施优先级建议
+
+### 高优先级（立即实施）
+1. **JSON Tree-sitter规则**：与现有TOML/YAML保持一致
+2. **基础XML自定义解析**：处理常见配置文件场景
+
+### 中优先级（后续优化）
+1. **XML高级特性支持**：命名空间、DTD等
+2. **性能优化**：大文件处理和内存优化
+
+### 低优先级（可选）
+1. **XML Tree-sitter规则**：如果后续有复杂XML分析需求
+2. **JSON自定义逻辑**：仅在性能有特殊要求时考虑
+
+## 🔧 技术实现建议
+
+### 统一接口设计
+```typescript
+interface ConfigChunker {
+  parse(content: string): ConfigChunk[];
+  supports(fileExtension: string): boolean;
+}
+
+class TreeSitterChunker implements ConfigChunker {
+  // TOML, YAML, JSON统一实现
+}
+
+class CustomXMLChunker implements ConfigChunker {
+  // XML专用实现
+}
+```
+
+### 分块策略统一
+无论使用tree-sitter还是自定义逻辑，都应遵循统一的分块原则：
+- **语义完整性**：每个分块是完整的语义单元
+- **层次保持**：维护原有的层次关系
+- **类型标识**：明确标识分块类型和用途
+- **位置信息**：保留源码位置便于调试
+
+这种策略既保证了架构的一致性，又针对不同格式的特点选择了最适合的处理方式。
