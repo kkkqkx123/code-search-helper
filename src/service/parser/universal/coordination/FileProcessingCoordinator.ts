@@ -307,7 +307,12 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
       this.logger?.error(`TreeSitter parsing failed: ${error}, falling back to fine semantic`);
 
       // TreeSitter失败时降级到精细语义分段
-      return await this.chunkByFineSemantic(content, filePath, language);
+      try {
+        return await this.chunkByFineSemantic(content, filePath, language);
+      } catch (fineSemanticError) {
+        // 如果精细语义分段也失败，抛出原始错误
+        throw error;
+      }
     }
   }
 

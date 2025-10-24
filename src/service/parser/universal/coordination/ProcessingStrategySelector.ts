@@ -189,6 +189,20 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
           };
         }
         
+        // 检查是否为结构化文件
+        if (this.isStructuredFile(content, language)) {
+          this.logger?.info(`Structured file detected for language: ${language}`);
+          return {
+            strategy: ProcessingStrategyType.UNIVERSAL_BRACKET,
+            reason: `Structured file detected - using bracket-balanced segmentation`,
+            shouldFallback: false,
+            parameters: {
+              language,
+              structuredType: 'detected'
+            }
+          };
+        }
+        
         // 如果不能使用TreeSitter，使用精细的语义分段
         this.logger?.info(`Code language without TreeSitter support: ${language}`);
         return {

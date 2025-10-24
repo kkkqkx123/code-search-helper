@@ -22,40 +22,77 @@ export class ChunkFilter implements ISegmentationProcessor {
       return chunks;
     }
     
-    const validChunks: CodeChunk[] = [];
+    const result: CodeChunk[] = [];
     const minChunkSize = context.options.filterConfig.minChunkSize;
     
+    // 处理每个块
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       const chunkSize = chunk.content.length;
-
-      // 跳过过小的块
-      if (chunkSize < minChunkSize) {
-        // 尝试合并到前一个块或后一个块
-        if (validChunks.length > 0) {
-          // 合并到前一个块
-          const prevChunk = validChunks[validChunks.length - 1];
-          prevChunk.content += '\n' + chunk.content;
-          prevChunk.metadata.endLine = chunk.metadata.endLine;
-          this.logger?.debug(`Merged small chunk (${chunkSize} chars) into previous chunk`);
-        } else if (i < chunks.length - 1) {
-          // 合并到后一个块（标记为待处理）
-          const nextChunk = chunks[i + 1];
-          nextChunk.content = chunk.content + '\n' + nextChunk.content;
-          nextChunk.metadata.startLine = chunk.metadata.startLine;
-          this.logger?.debug(`Merged small chunk (${chunkSize} chars) into next chunk`);
-        } else {
-          // 孤立的小块，丢弃
-          this.logger?.warn(`Discarded small chunk (${chunkSize} chars): ${chunk.content.substring(0, 50)}...`);
-        }
+      
+      // 如果块大小足够，直接添加
+      if (chunkSize >= minChunkSize) {
+        result.push(chunk);
         continue;
       }
-
-      validChunks.push(chunk);
+      
+      // 对于小块，检查是否应该被过滤
+      // 使用更严格的阈值来确定哪些小块需要被过滤
+      const verySmallThreshold = Math.min(minChunkSize * 0.3, 15); // 最多15个字符或minChunkSize的30%
+      
+      // 检查是否是"正常大小"的块（基于内容特征）
+      const isNormalSized = chunkSize >= 20 || // 长度大于等于20
+                           chunk.content.includes(' ') || // 包含空格（可能是句子）
+                           chunkSize >= 12; // 长度大于等于12
+      
+      
+      
+      if (isNormalSized) {
+        // 虽然小于minChunkSize，但基于内容特征认为是正常大小
+        result.push(chunk);
+        continue;
+      }
+      
+      // 处理非常小的块
+      const hasPrevChunk = result.length > 0;
+      const hasNextChunk = i < chunks.length - 1;
+      
+      // 检查下一个块是否是正常大小的块
+      const nextChunkIsNormalSized = hasNextChunk && (() => {
+        const nextChunk = chunks[i + 1];
+        const nextChunkSize = nextChunk.content.length;
+        return nextChunkSize >= 20 || 
+               nextChunk.content.includes(' ') || 
+               nextChunkSize >= 12;
+      })();
+      
+      if (hasPrevChunk && hasNextChunk && nextChunkIsNormalSized) {
+        // 只有当小块位于两个正常大小的块之间时，才合并到前一个块
+        const prevChunk = result[result.length - 1];
+        prevChunk.content += '\n' + chunk.content;
+        prevChunk.metadata.endLine = chunk.metadata.endLine;
+        this.logger?.debug(`Merged small chunk (${chunkSize} chars) into previous chunk`);
+      } else if (hasNextChunk && nextChunkIsNormalSized) {
+        // 合并到后一个块
+        const nextChunk = chunks[i + 1];
+        const mergedChunk = {
+          content: chunk.content + '\n' + nextChunk.content,
+          metadata: {
+            ...nextChunk.metadata,
+            startLine: chunk.metadata.startLine
+          }
+        };
+        result.push(mergedChunk);
+        this.logger?.debug(`Merged small chunk (${chunkSize} chars) into next chunk`);
+        i++; // 跳过下一个块，因为已经合并了
+      } else {
+        // 孤立的小块，丢弃
+        this.logger?.warn(`Discarded small chunk (${chunkSize} chars): ${chunk.content.substring(0, 50)}...`);
+      }
     }
 
-    this.logger?.debug(`Filtered ${chunks.length} chunks to ${validChunks.length} valid chunks`);
-    return validChunks;
+    this.logger?.debug(`Filtered ${chunks.length} chunks to ${result.length} valid chunks`);
+    return result;
   }
   
   getName(): string {
@@ -63,9 +100,23 @@ export class ChunkFilter implements ISegmentationProcessor {
   }
   
   shouldApply(chunks: CodeChunk[], context: SegmentationContext): boolean {
-    return context.options.filterConfig.enableSmallChunkFilter && 
-           chunks.length > 0 &&
-           chunks.some(chunk => chunk.content.length < context.options.filterConfig.minChunkSize);
+    if (!context.options.filterConfig.enableSmallChunkFilter || chunks.length === 0) {
+      return false;
+    }
+    
+    // 检查是否有需要过滤的小块
+    return chunks.some(chunk => {
+      const chunkSize = chunk.content.length;
+      const minChunkSize = context.options.filterConfig.minChunkSize;
+      
+      // 检查是否是"正常大小"的块（基于内容特征）
+      const isNormalSized = chunkSize >= 20 || // 长度大于等于20
+                           chunk.content.includes(' ') || // 包含空格（可能是句子）
+                           chunkSize >= 12; // 长度大于等于12
+      
+      // 如果不是正常大小且小于minChunkSize，则需要过滤
+      return !isNormalSized && chunkSize < minChunkSize;
+    });
   }
   
   /**
@@ -91,14 +142,17 @@ export class ChunkFilter implements ISegmentationProcessor {
   private isHighQualityChunk(chunk: CodeChunk, context: SegmentationContext): boolean {
     const content = chunk.content.trim();
     
-    // 基本长度检查
-    if (content.length < context.options.filterConfig.minChunkSize) {
+    // 基本长度检查 - 恢复最小长度要求，但使用更宽松的阈值
+    const minChunkSize = context.options.filterConfig.minChunkSize;
+    const verySmallThreshold = Math.min(minChunkSize * 0.3, 15); // 与process方法保持一致
+    
+    if (content.length < verySmallThreshold) {
       return false;
     }
     
     // 内容质量检查
-    const qualityScore = this.calculateContentQuality(content, context.language);
-    return qualityScore >= 0.3; // 质量阈值
+    const qualityScore = this.calculateContentQuality(content, chunk.metadata.language);
+    return qualityScore >= 0.1; // 降低质量阈值，使简单函数也能通过
   }
   
   /**

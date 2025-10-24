@@ -1,5 +1,6 @@
 import { SegmentationContext, UniversalChunkingOptions } from '../types/SegmentationTypes';
 import { BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD } from '../constants';
+import { languageExtensionMap } from '../../utils/language/LanguageExtensionMap';
 
 /**
  * 分段上下文工厂类
@@ -38,7 +39,7 @@ export class SegmentationContextFactory {
     existing: SegmentationContext,
     modifications: Partial<SegmentationContext>
   ): SegmentationContext {
-    return {
+    const newContext = {
       ...existing,
       ...modifications,
       metadata: {
@@ -46,6 +47,15 @@ export class SegmentationContextFactory {
         ...(modifications.metadata || {})
       }
     };
+    
+    // 如果内容被修改，重新计算相关的元数据
+    if (modifications.content && modifications.content !== existing.content) {
+      newContext.metadata.contentLength = modifications.content.length;
+      newContext.metadata.lineCount = modifications.content.split('\n').length;
+      newContext.metadata.isSmallFile = this.isSmallFile(modifications.content);
+    }
+    
+    return newContext;
   }
   
   /**
@@ -113,17 +123,28 @@ export class SegmentationContextFactory {
       return false;
     }
     
-    // 检查是否在代码语言列表中
-    const codeLanguages = [
-      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-      'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'shell',
-      'html', 'css', 'scss', 'sass', 'less', 'vue', 'svelte', 'json',
-      'xml', 'yaml', 'sql', 'dockerfile', 'cmake', 'perl', 'r', 'matlab',
-      'lua', 'dart', 'elixir', 'erlang', 'haskell', 'ocaml', 'fsharp',
-      'visualbasic', 'powershell', 'batch'
-    ];
-
-    return language ? codeLanguages.includes(language) : false;
+    // 如果提供了语言，直接检查是否在代码语言列表中
+    if (language) {
+      const codeLanguages = [
+        'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
+        'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'shell',
+        'html', 'css', 'scss', 'sass', 'less', 'vue', 'svelte', 'json',
+        'xml', 'yaml', 'sql', 'dockerfile', 'cmake', 'perl', 'r', 'matlab',
+        'lua', 'dart', 'elixir', 'erlang', 'haskell', 'ocaml', 'fsharp',
+        'visualbasic', 'powershell', 'batch'
+      ];
+      return codeLanguages.includes(language);
+    }
+    
+    // 如果没有提供语言，尝试从文件扩展名推断
+    if (filePath) {
+      const detectedLanguage = languageExtensionMap.getLanguageFromPath(filePath);
+      if (detectedLanguage && detectedLanguage !== 'markdown' && detectedLanguage !== 'text') {
+        return true;
+      }
+    }
+    
+    return false;
   }
   
   /**

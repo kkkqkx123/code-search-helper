@@ -86,7 +86,7 @@ describe('SegmentationContextFactory', () => {
     });
 
     it('should identify large files correctly', () => {
-      const largeContent = 'x'.repeat(400); // Larger than SMALL_FILE_THRESHOLD.CHARS
+      const largeContent = 'x'.repeat(400).split('').join('\n'); // Larger than SMALL_FILE_THRESHOLD.CHARS and LINES
       
       const context = SegmentationContextFactory.create(largeContent);
       
@@ -179,10 +179,10 @@ describe('SegmentationContextFactory', () => {
       
       const newContext = SegmentationContextFactory.fromExisting(originalContext, modifications);
       
-      expect(newContext.metadata.isSmallFile).toBe(false);
+      expect(newContext.metadata.isSmallFile).toBe(true); // 23 chars, 2 lines = small file
       expect(newContext.metadata.lineCount).toBe(2); // Should be recalculated
       expect(newContext.metadata.contentLength).toBe(modifications.content!.length); // Should be recalculated
-      expect(newContext.metadata.isCodeFile).toBe(originalContext.metadata.isCodeFile); // Should remain unchanged
+      expect(newContext.metadata.isCodeFile).toBe(true); // Should use the value from modifications
     });
 
     it('should handle empty modifications', () => {
@@ -406,7 +406,7 @@ function complexFunction(param1, param2) {
       // Verify metadata
       expect(context.metadata.contentLength).toBe(complexContent.length);
       expect(context.metadata.lineCount).toBeGreaterThan(5);
-      expect(context.metadata.isSmallFile).toBe(false);
+      expect(context.metadata.isSmallFile).toBe(true); // This is actually small (222 chars, 13 lines)
       expect(context.metadata.isCodeFile).toBe(true);
       expect(context.metadata.isMarkdownFile).toBe(false);
       

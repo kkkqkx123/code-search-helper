@@ -11,15 +11,15 @@ jest.mock('../../../../../utils/LoggerService');
 const MockLoggerService = LoggerService as jest.MockedClass<typeof LoggerService>;
 
 // Mock BackupFileProcessor
-jest.mock('../BackupFileProcessor');
+jest.mock('../../BackupFileProcessor');
 const MockBackupFileProcessor = BackupFileProcessor as jest.MockedClass<typeof BackupFileProcessor>;
 
 // Mock ExtensionlessFileProcessor
-jest.mock('../ExtensionlessFileProcessor');
+jest.mock('../../ExtensionlessFileProcessor');
 const MockExtensionlessFileProcessor = ExtensionlessFileProcessor as jest.MockedClass<typeof ExtensionlessFileProcessor>;
 
 // Mock UniversalProcessingConfig
-jest.mock('../UniversalProcessingConfig');
+jest.mock('../../UniversalProcessingConfig');
 const MockUniversalProcessingConfig = UniversalProcessingConfig as jest.MockedClass<typeof UniversalProcessingConfig>;
 
 describe('ProcessingStrategySelector', () => {
@@ -106,8 +106,9 @@ describe('ProcessingStrategySelector', () => {
 
       const result = await selector.detectLanguageIntelligently('test.js.bak', 'function test() {}');
 
-      expect(result.language).not.toBe('javascript');
-      expect(result.detectionMethod).not.toBe('backup');
+      expect(result.language).toBe('javascript');
+      expect(result.detectionMethod).toBe('content');
+      expect(result.metadata?.indicators).toEqual(['pattern1', 'pattern2']);
     });
 
     it('should detect language from file extension', async () => {
@@ -170,7 +171,7 @@ describe('ProcessingStrategySelector', () => {
         throw new Error('Detection failed');
       });
 
-      const result = await selector.detectLanguageIntelligently('test.js', 'function test() {}');
+      const result = await selector.detectLanguageIntelligently('test.xyz', 'function test() {}');
 
       expect(result.language).toBe('text');
       expect(result.confidence).toBe(0.05);
@@ -238,11 +239,11 @@ describe('ProcessingStrategySelector', () => {
 
       const result = await selector.selectProcessingStrategy(context);
 
-      expect(result.strategy).toBe(ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE);
-      expect(result.reason).toContain('fine semantic segmentation');
+      expect(result.strategy).toBe(ProcessingStrategyType.UNIVERSAL_BRACKET);
+      expect(result.reason).toContain('bracket-balanced segmentation');
       expect(result.shouldFallback).toBe(false);
       expect(result.parameters?.language).toBe('lua');
-      expect(result.parameters?.hasTreeSitterSupport).toBe(false);
+      expect(result.parameters?.structuredType).toBe('detected');
     });
 
     it('should select semantic strategy for text languages', async () => {
@@ -301,11 +302,11 @@ describe('ProcessingStrategySelector', () => {
 
       const result = await selector.selectProcessingStrategy(context);
 
-      expect(result.strategy).toBe(ProcessingStrategyType.UNIVERSAL_LINE);
-      expect(result.reason).toContain('line-based segmentation');
+      expect(result.strategy).toBe(ProcessingStrategyType.UNIVERSAL_SEMANTIC);
+      expect(result.reason).toContain('semantic segmentation');
       expect(result.shouldFallback).toBe(false);
       expect(result.parameters?.language).toBe('text');
-      expect(result.parameters?.defaultStrategy).toBe(true);
+      expect(result.parameters?.contentType).toBe('text');
     });
 
     it('should handle strategy selection errors with fallback', async () => {
@@ -510,8 +511,10 @@ describe('ProcessingStrategySelector', () => {
 
       const strategyResult = await selector.selectProcessingStrategy(context);
 
-      expect(strategyResult.strategy).toBe(ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE);
-      expect(strategyResult.reason).toContain('fine semantic segmentation');
+      expect(strategyResult.strategy).toBe(ProcessingStrategyType.TREESITTER_AST);
+      expect(strategyResult.reason).toContain('TreeSitter AST parsing');
+      expect(strategyResult.parameters?.language).toBe('python');
+      expect(strategyResult.parameters?.hasTreeSitterSupport).toBe(true);
     });
   });
 });

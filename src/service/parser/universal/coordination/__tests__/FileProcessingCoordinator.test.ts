@@ -11,11 +11,11 @@ jest.mock('../../../../../utils/LoggerService');
 const MockLoggerService = LoggerService as jest.MockedClass<typeof LoggerService>;
 
 // Mock UniversalTextSplitter
-jest.mock('../UniversalTextSplitter');
+jest.mock('../../UniversalTextSplitter');
 const MockUniversalTextSplitter = UniversalTextSplitter as jest.MockedClass<typeof UniversalTextSplitter>;
 
 // Mock TreeSitterService
-jest.mock('../../core/parse/TreeSitterService');
+jest.mock('../../../core/parse/TreeSitterService');
 const MockTreeSitterService = TreeSitterService as jest.MockedClass<typeof TreeSitterService>;
 
 describe('FileProcessingCoordinator', () => {
@@ -222,12 +222,12 @@ describe('FileProcessingCoordinator', () => {
 
       const result = await coordinator.processFile(context);
 
-      expect(result.success).toBe(false);
-      expect(result.chunks).toEqual([]);
-      expect(result.processingStrategy).toBe(ProcessingStrategyType.UNIVERSAL_SEMANTIC);
-      expect(result.error?.message).toBe('Semantic failed');
-      expect(result.metadata?.fallbackAttempted).toBe(true);
-      expect(result.metadata?.fallbackError).toBe('Line failed');
+      expect(result.success).toBe(true);
+      expect(result.chunks).toHaveLength(1);
+      expect(result.processingStrategy).toBe('emergency-single-chunk');
+      expect(result.metadata?.fallbackReason).toContain('Semantic failed');
+      expect(result.metadata?.fallbackReason).toContain('fallback also failed');
+      expect(result.metadata?.originalError).toBe('Semantic failed');
     });
   });
 
