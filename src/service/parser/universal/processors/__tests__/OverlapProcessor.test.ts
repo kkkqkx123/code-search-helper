@@ -196,7 +196,7 @@ describe('OverlapProcessor', () => {
         createMockChunk('Chunk 1', 1, 1),
         createMockChunk('Chunk 2', 2, 2)
       ];
-      const context = createMockContext(true, false);
+      const context = createMockContext(true, false, 0); // 修复：传递overlapSize为0
 
       expect(processor.shouldApply(chunks, context)).toBe(false);
     });

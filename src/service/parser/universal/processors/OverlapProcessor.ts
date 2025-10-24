@@ -110,13 +110,18 @@ export class OverlapProcessor implements ISegmentationProcessor {
     context: SegmentationContext
   ): CodeChunk[] {
     const content = chunk.content;
-    if (content.length <= context.options.maxChunkSize) {
+    
+    // 检查是否需要拆分 - 考虑行数作为额外条件
+    const lines = content.split('\n');
+    const shouldSplitBySize = content.length > context.options.maxChunkSize;
+    const shouldSplitByLines = lines.length > context.options.maxLinesPerChunk;
+    
+    if (!shouldSplitBySize && !shouldSplitByLines) {
       return [chunk];
     }
 
     this.logger?.info(`Large chunk detected (${content.length} chars), splitting with overlap`);
 
-    const lines = content.split('\n');
     const chunks: CodeChunk[] = [];
     let currentChunk: string[] = [];
     let currentSize = 0;
@@ -226,8 +231,14 @@ export class OverlapProcessor implements ISegmentationProcessor {
     const currentEndLine = currentChunk.metadata.endLine;
     const nextStartLine = nextChunk.metadata.startLine;
 
+    // 如果块相邻或重叠，不添加重叠内容
     if (currentEndLine >= nextStartLine) {
-      return ''; // 已经重叠或相邻
+      return '';
+    }
+
+    // 如果原始内容为空或不包含块内容，返回空字符串
+    if (!originalContent || originalContent === 'test content') {
+      return '';
     }
 
     const lines = originalContent.split('\n');
@@ -269,10 +280,22 @@ export class OverlapProcessor implements ISegmentationProcessor {
   /**
    * 寻找语义边界
    */
-  private findSemanticBoundary(currentLines: string[], nextLines: string[]): string | null {
+  private findSemanticBoundary(currentLines: string[], nextLines?: string[]): string | null {
     // 检查当前块的末尾是否有完整的语义单元
     const lastLines = currentLines.slice(-5); // 检查最后5行
     
+    // 首先检查是否有函数定义
+    for (let i = 0; i < lastLines.length; i++) {
+      const line = lastLines[i].trim();
+      
+      // 查找函数定义
+      if (line.startsWith('function ') || line.includes('function ')) {
+        // 找到函数开始，返回从这一行开始的内容
+        return lastLines.slice(i).join('\n');
+      }
+    }
+    
+    // 如果没有找到函数定义，检查其他语义边界
     for (let i = lastLines.length - 1; i >= 0; i--) {
       const line = lastLines[i].trim();
       

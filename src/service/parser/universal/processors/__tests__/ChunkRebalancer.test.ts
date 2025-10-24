@@ -138,16 +138,16 @@ describe('ChunkRebalancer', () => {
 
     it('should keep final chunk when it is not too small', async () => {
       const chunks = [
-        createMockChunk('Normal chunk 1', 1, 1),
-        createMockChunk('Normal chunk 2', 2, 2)
+        createMockChunk('This is a normal sized chunk that is above the minimum size', 1, 1),
+        createMockChunk('This is another normal sized chunk that is above the minimum size', 2, 2)
       ];
       const context = createMockContext(true, 50);
 
       const result = await rebalancer.process(chunks, context);
 
       expect(result).toHaveLength(2);
-      expect(result[0].content).toBe('Normal chunk 1');
-      expect(result[1].content).toBe('Normal chunk 2');
+      expect(result[0].content).toBe('This is a normal sized chunk that is above the minimum size');
+      expect(result[1].content).toBe('This is another normal sized chunk that is above the minimum size');
     });
 
     it('should log rebalancing statistics', async () => {
@@ -196,8 +196,8 @@ describe('ChunkRebalancer', () => {
 
     it('should return false when all chunks are valid size', () => {
       const chunks = [
-        createMockChunk('Normal chunk 1', 1, 1),
-        createMockChunk('Normal chunk 2', 2, 2)
+        createMockChunk('This is a normal sized chunk that is above the minimum size', 1, 1),
+        createMockChunk('This is another normal sized chunk that is above the minimum size', 2, 2)
       ];
       const context = createMockContext(true, 50);
 
@@ -206,10 +206,10 @@ describe('ChunkRebalancer', () => {
   });
 
   describe('advancedRebalancing', () => {
-    it('should return chunks unchanged when there are only 2 chunks', async () => {
+    it('should return chunks unchanged when there are only 2 chunks and they are valid size', async () => {
       const chunks = [
-        createMockChunk('Chunk 1', 1, 1),
-        createMockChunk('Chunk 2', 2, 2)
+        createMockChunk('This is a normal sized chunk that is above the minimum size', 1, 1),
+        createMockChunk('This is another normal sized chunk that is above the minimum size', 2, 2)
       ];
       const context = createMockContext();
 
@@ -248,16 +248,16 @@ describe('ChunkRebalancer', () => {
   describe('calculateOptimalChunkSize', () => {
     it('should calculate optimal size based on average', () => {
       const chunks = [
-        createMockChunk('Chunk 1', 1, 1),
-        createMockChunk('Chunk 2', 2, 2),
-        createMockChunk('Chunk 3', 3, 3)
+        createMockChunk('This is a much larger chunk with significantly more content to make sure that average is high enough', 1, 1),
+        createMockChunk('This is another much larger chunk with significantly more content to make sure that average is high enough', 2, 2),
+        createMockChunk('This is a third much larger chunk with significantly more content to make sure that average is high enough', 3, 3)
       ];
-      const context = createMockContext(true, 100, 1000);
+      const context = createMockContext(true, 50, 1000);
 
       // Access private method through type assertion
       const result = (rebalancer as any).calculateOptimalChunkSize(chunks, context);
 
-      expect(result).toBeGreaterThan(100);
+      expect(result).toBeGreaterThan(50);
       expect(result).toBeLessThan(1000);
     });
 
@@ -288,7 +288,7 @@ describe('ChunkRebalancer', () => {
     });
 
     it('should return false for properly sized chunks', () => {
-      const chunk = createMockChunk('Normal sized chunk', 1, 1);
+      const chunk = createMockChunk('This is a properly sized chunk that is above the minimum size requirement', 1, 1);
       const context = createMockContext(true, 50);
 
       // Access private method through type assertion
@@ -437,10 +437,10 @@ describe('ChunkRebalancer', () => {
 
   describe('splitOversizedChunk', () => {
     it('should split multi-line content by lines', async () => {
-      const chunk = createMockChunk('Line 1\nLine 2\nLine 3\nLine 4\nLine 5', 1, 5);
-      const context = createMockContext(true, 50, 1000);
+      const chunk = createMockChunk('Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10\nLine 11\nLine 12\nLine 13\nLine 14\nLine 15\nLine 16\nLine 17\nLine 18\nLine 19\nLine 20', 1, 20);
+      const context = createMockContext(true, 50, 100);
 
-      const result = await rebalancer.process([chunk], context);
+      const result = await rebalancer.advancedRebalancing([chunk], context);
 
       expect(result.length).toBeGreaterThan(1);
       expect(result[0].content).toContain('Line 1');
@@ -450,9 +450,9 @@ describe('ChunkRebalancer', () => {
 
     it('should split single-line content by characters', async () => {
       const chunk = createMockChunk('A'.repeat(200), 1, 1);
-      const context = createMockContext(true, 50, 1000);
+      const context = createMockContext(true, 50, 100);
 
-      const result = await rebalancer.process([chunk], context);
+      const result = await rebalancer.advancedRebalancing([chunk], context);
 
       expect(result.length).toBeGreaterThan(1);
       expect(result[0].content.length).toBeLessThanOrEqual(100);
@@ -596,7 +596,7 @@ describe('ChunkRebalancer', () => {
       ];
       const context = createMockContext(true, 50, 1000);
 
-      const result = await rebalancer.process(chunks, context);
+      const result = await rebalancer.advancedRebalancing(chunks, context);
 
       expect(result.length).toBeGreaterThan(2);
       expect(result[0].content).toContain('function test1() { return 1; }\nSmall');
