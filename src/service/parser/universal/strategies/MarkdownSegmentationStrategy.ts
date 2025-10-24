@@ -23,11 +23,33 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
   
   canHandle(context: SegmentationContext): boolean {
     // 只处理Markdown文件
-    return context.metadata.isMarkdownFile;
+    const isMarkdownByLanguage = !!(context.language && ['markdown', 'md'].includes(context.language));
+    const isMarkdownByExtension = !!(context.filePath && /\.(md|markdown)$/i.test(context.filePath));
+    
+    // 如果明确标记为非Markdown文件，则不处理
+    if (context.metadata.isMarkdownFile === false) {
+      return false;
+    }
+    
+    // 如果明确标记为Markdown文件，则处理
+    if (context.metadata.isMarkdownFile === true) {
+      return true;
+    }
+    
+    // 否则根据语言或文件扩展名判断
+    return isMarkdownByLanguage || isMarkdownByExtension;
   }
   
   async segment(context: SegmentationContext): Promise<CodeChunk[]> {
     const { content, filePath } = context;
+    
+    // 验证上下文
+    const validationResult = this.validateContext ? this.validateContext(context) : true;
+    if (!validationResult) {
+      this.logger?.warn('Context validation failed for markdown strategy, proceeding anyway');
+    } else {
+      this.logger?.debug('Context validation passed for markdown strategy');
+    }
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
     
@@ -60,7 +82,8 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
         currentChunk,
         inCodeBlock,
         i,
-        lines.length
+        lines.length,
+        context
       );
       
       if (shouldSplit && currentChunk.length > 0) {
@@ -101,6 +124,7 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
     // 处理最后的chunk
     if (currentChunk.length > 0) {
       const chunkContent = currentChunk.join('\n');
+      
       const complexity = this.complexityCalculator.calculate(chunkContent);
       
       chunks.push({
@@ -116,8 +140,24 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
           codeLanguage: codeBlockLang || undefined
         }
       });
+    } else if (content.trim() === '') {
+      // 对于完全空的内容，创建一个空块
+      chunks.push({
+        content: '',
+        metadata: {
+          startLine: 1,
+          endLine: 0,
+          language: 'markdown',
+          filePath,
+          type: 'paragraph',
+          complexity: 0,
+          section: undefined,
+          codeLanguage: undefined
+        }
+      });
     }
     
+    this.logger?.debug(`Starting markdown-based segmentation for ${filePath || 'unknown file'}`);
     this.logger?.debug(`Markdown segmentation created ${chunks.length} chunks`);
     return chunks;
   }
@@ -131,7 +171,7 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
   }
   
   getSupportedLanguages(): string[] {
-    return ['markdown'];
+    return ['markdown', 'md'];
   }
   
   validateContext(context: SegmentationContext): boolean {
@@ -151,7 +191,8 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
     currentChunk: string[],
     inCodeBlock: boolean,
     currentIndex: number,
-    maxLines: number
+    maxLines: number,
+    context: SegmentationContext
   ): boolean {
     // 在代码块内部不分段
     if (inCodeBlock) {
@@ -180,7 +221,9 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
     
     // 大小限制检查
     const chunkContent = currentChunk.join('\n');
-    if (chunkContent.length > 3000) { // Markdown可以有较大的块
+    // 使用上下文中的最大块大小限制，如果没有则使用默认值
+    const maxChunkSize = context.options?.maxChunkSize || 3000;
+    if (chunkContent.length > maxChunkSize) {
       return true;
     }
     

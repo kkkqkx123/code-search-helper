@@ -1,8 +1,8 @@
 import { ProcessingStrategySelector } from '../ProcessingStrategySelector';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { BackupFileProcessor } from '../BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
-import { UniversalProcessingConfig } from '../UniversalProcessingConfig';
+import { BackupFileProcessor } from '../../BackupFileProcessor';
+import { ExtensionlessFileProcessor } from '../../ExtensionlessFileProcessor';
+import { UniversalProcessingConfig } from '../../UniversalProcessingConfig';
 import { IStrategySelectionContext, ILanguageDetectionInfo } from '../interfaces/IProcessingStrategySelector';
 import { ProcessingStrategyType } from '../interfaces/IProcessingStrategySelector';
 

@@ -12,7 +12,7 @@ describe('SemanticSegmentationStrategy', () => {
   let mockLogger: jest.Mocked<LoggerService>;
 
   // Create mock chunks for testing
-  const createMockChunk = (content: string, startLine: number, endLine: number, type: string = 'semantic'): CodeChunk => ({
+  const createMockChunk = (content: string, startLine: number, endLine: number, type: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' = 'semantic'): CodeChunk => ({
     content,
     metadata: {
       startLine,
@@ -73,7 +73,12 @@ describe('SemanticSegmentationStrategy', () => {
     mockLogger.error = jest.fn();
     mockLogger.info = jest.fn();
 
-    strategy = new SemanticSegmentationStrategy(mockLogger);
+    // Create a mock complexity calculator
+    const mockComplexityCalculator = {
+      calculate: jest.fn().mockReturnValue(1)
+    };
+
+    strategy = new SemanticSegmentationStrategy(mockComplexityCalculator, mockLogger);
   });
 
   describe('getName', () => {
@@ -156,7 +161,10 @@ describe('SemanticSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('javascript', true);
-      const chunks = await strategy.segment(content, 'Component.jsx', 'javascript', context);
+      context.content = content;
+      context.filePath = 'Component.jsx';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.type).toBe('semantic');
@@ -201,7 +209,10 @@ describe('SemanticSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('python', true);
-      const chunks = await strategy.segment(content, 'data_processor.py', 'python', context);
+      context.content = content;
+      context.filePath = 'data_processor.py';
+      context.language = 'python';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'semantic')).toBe(true);
@@ -245,7 +256,10 @@ describe('SemanticSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('java', true);
-      const chunks = await strategy.segment(content, 'DataProcessor.java', 'java', context);
+      context.content = content;
+      context.filePath = 'DataProcessor.java';
+      context.language = 'java';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'semantic')).toBe(true);
@@ -295,7 +309,10 @@ describe('SemanticSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('typescript', true);
-      const chunks = await strategy.segment(content, 'data.service.ts', 'typescript', context);
+      context.content = content;
+      context.filePath = 'data.service.ts';
+      context.language = 'typescript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'semantic')).toBe(true);
@@ -316,7 +333,10 @@ describe('SemanticSegmentationStrategy', () => {
       const context = createMockContext('javascript', true);
       context.options.maxChunkSize = 1000;
 
-      const chunks = await strategy.segment(content, 'large.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'large.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(1);
       chunks.forEach(chunk => {
@@ -328,7 +348,10 @@ describe('SemanticSegmentationStrategy', () => {
       const content = '';
       const context = createMockContext('javascript', true);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks).toHaveLength(1);
       expect(chunks[0].content).toBe('');
@@ -340,7 +363,10 @@ describe('SemanticSegmentationStrategy', () => {
       const content = 'console.log("test");';
       const context = createMockContext('javascript', true);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks).toHaveLength(1);
       expect(chunks[0].content).toBe('console.log("test")');
@@ -352,7 +378,10 @@ describe('SemanticSegmentationStrategy', () => {
       const content = 'function test() { return 1; }';
       const context = createMockContext('javascript', true);
 
-      await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      await strategy.segment(context);
 
       expect(mockLogger.debug).toHaveBeenCalledWith('Starting semantic-based segmentation for test.js');
     });
@@ -364,7 +393,10 @@ describe('SemanticSegmentationStrategy', () => {
       // Mock the segment method to throw an error
       (strategy as any).segment = jest.fn().mockRejectedValue(new Error('Segmentation failed'));
 
-      await expect(strategy.segment(content, 'test.js', 'javascript', context)).rejects.toThrow('Segmentation failed');
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      await expect(strategy.segment(context)).rejects.toThrow('Segmentation failed');
     });
 
     it('should validate context when available', async () => {
@@ -374,7 +406,10 @@ describe('SemanticSegmentationStrategy', () => {
       // Mock validateContext method
       (strategy as any).validateContext = jest.fn().mockReturnValue(true);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.debug).toHaveBeenCalledWith('Context validation passed for semantic strategy');
@@ -387,7 +422,10 @@ describe('SemanticSegmentationStrategy', () => {
       // Mock validateContext method to return false
       (strategy as any).validateContext = jest.fn().mockReturnValue(false);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.warn).toHaveBeenCalledWith('Context validation failed for semantic strategy, proceeding anyway');
@@ -554,7 +592,10 @@ describe('SemanticSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('javascript', true);
-      const chunks = await strategy.segment(jsCode, 'DataComponent.jsx', 'javascript', context);
+      context.content = jsCode;
+      context.filePath = 'DataComponent.jsx';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'semantic')).toBe(true);
@@ -744,7 +785,10 @@ describe('SemanticSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('python', true);
-      const chunks = await strategy.segment(pythonCode, 'data_processor.py', 'python', context);
+      context.content = pythonCode;
+      context.filePath = 'data_processor.py';
+      context.language = 'python';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'semantic')).toBe(true);
@@ -753,18 +797,30 @@ describe('SemanticSegmentationStrategy', () => {
 
     it('should handle edge cases', async () => {
       // Empty content
-      const emptyResult = await strategy.segment('', 'test.js', 'javascript', createMockContext('javascript', true));
+      const context = createMockContext('javascript', true);
+      context.content = '';
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const emptyResult = await strategy.segment(context);
       expect(emptyResult).toHaveLength(1);
       expect(emptyResult[0].content).toBe('');
 
       // Single line content
-      const singleLineResult = await strategy.segment('console.log("test");', 'test.js', 'javascript', createMockContext('javascript', true));
+      const singleLineContext = createMockContext('javascript', true);
+      singleLineContext.content = 'console.log("test");';
+      singleLineContext.filePath = 'test.js';
+      singleLineContext.language = 'javascript';
+      const singleLineResult = await strategy.segment(singleLineContext);
       expect(singleLineResult).toHaveLength(1);
       expect(singleLineResult[0].content).toBe('console.log("test")');
 
       // Very large content
       const largeContent = Array.from({ length: 1000 }, (_, i) => `console.log("Line ${i + 1}");`).join('\n');
-      const largeResult = await strategy.segment(largeContent, 'large.js', 'javascript', createMockContext('javascript', true));
+      const largeContext = createMockContext('javascript', true);
+      largeContext.content = largeContent;
+      largeContext.filePath = 'large.js';
+      largeContext.language = 'javascript';
+      const largeResult = await strategy.segment(largeContext);
       expect(largeResult.length).toBeGreaterThan(1);
     });
   });

@@ -33,7 +33,32 @@ describe('SegmentationContextFactory', () => {
       const customOptions: UniversalChunkingOptions = {
         maxChunkSize: 3000,
         overlapSize: 300,
-        maxLinesPerChunk: 150
+        maxLinesPerChunk: 150,
+        enableBracketBalance: true,
+        enableSemanticDetection: true,
+        enableCodeOverlap: false,
+        enableStandardization: true,
+        standardizationFallback: true,
+        maxOverlapRatio: 0.3,
+        errorThreshold: 5,
+        memoryLimitMB: 500,
+        strategyPriorities: {
+          'markdown': 1,
+          'standardization': 2,
+          'semantic': 3,
+          'bracket': 4,
+          'line': 5
+        },
+        filterConfig: {
+          enableSmallChunkFilter: true,
+          enableChunkRebalancing: true,
+          minChunkSize: 50,
+          maxChunkSize: 1000
+        },
+        protectionConfig: {
+          enableProtection: true,
+          protectionLevel: 'medium'
+        }
       };
       
       const context = SegmentationContextFactory.create(content, undefined, undefined, customOptions);
@@ -144,7 +169,11 @@ describe('SegmentationContextFactory', () => {
       const modifications: Partial<SegmentationContext> = {
         content: 'Modified content\nLine 2',
         metadata: {
-          isSmallFile: false // Override this specific property
+          contentLength: 19,
+          lineCount: 2,
+          isSmallFile: false,
+          isCodeFile: true,
+          isMarkdownFile: false
         }
       };
       

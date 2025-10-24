@@ -405,7 +405,33 @@ describe('SegmentationContextManager', () => {
       const content = 'test content';
       const customOptions: UniversalChunkingOptions = {
         maxChunkSize: 3000,
-        overlapSize: 300
+        overlapSize: 300,
+        maxLinesPerChunk: 100,
+        enableBracketBalance: true,
+        enableSemanticDetection: true,
+        enableCodeOverlap: false,
+        enableStandardization: true,
+        standardizationFallback: true,
+        maxOverlapRatio: 0.3,
+        errorThreshold: 5,
+        memoryLimitMB: 500,
+        strategyPriorities: {
+          'markdown': 1,
+          'standardization': 2,
+          'semantic': 3,
+          'bracket': 4,
+          'line': 5
+        },
+        filterConfig: {
+          enableSmallChunkFilter: true,
+          enableChunkRebalancing: true,
+          minChunkSize: 50,
+          maxChunkSize: 1000
+        },
+        protectionConfig: {
+          enableProtection: true,
+          protectionLevel: 'medium'
+        }
       };
       
       const context = contextManager.createSegmentationContext(content, undefined, undefined, customOptions);

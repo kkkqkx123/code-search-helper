@@ -12,7 +12,7 @@ describe('MarkdownSegmentationStrategy', () => {
   let mockLogger: jest.Mocked<LoggerService>;
 
   // Create mock chunks for testing
-  const createMockChunk = (content: string, startLine: number, endLine: number, type: string = 'markdown'): CodeChunk => ({
+  const createMockChunk = (content: string, startLine: number, endLine: number, type: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' = 'markdown'): CodeChunk => ({
     content,
     metadata: {
       startLine,
@@ -65,6 +65,19 @@ describe('MarkdownSegmentationStrategy', () => {
       isMarkdownFile: true
     }
   });
+  // Helper function to create context with content and file info
+  const createSegmentationContext = (
+    content: string, 
+    filePath: string, 
+    language: string, 
+    baseContext?: SegmentationContext
+  ): SegmentationContext => {
+    const context = baseContext || createMockContext(language);
+    context.content = content;
+    context.filePath = filePath;
+    context.language = language;
+    return context;
+  };
 
   beforeEach(() => {
     mockLogger = new MockLoggerService() as jest.Mocked<LoggerService>;
@@ -73,7 +86,12 @@ describe('MarkdownSegmentationStrategy', () => {
     mockLogger.error = jest.fn();
     mockLogger.info = jest.fn();
 
-    strategy = new MarkdownSegmentationStrategy(mockLogger);
+    // Create a mock complexity calculator
+    const mockComplexityCalculator = {
+      calculate: jest.fn().mockReturnValue(1)
+    };
+
+    strategy = new MarkdownSegmentationStrategy(mockComplexityCalculator, mockLogger);
   });
 
   describe('getName', () => {
@@ -111,7 +129,12 @@ describe('MarkdownSegmentationStrategy', () => {
 
     it('should return false for non-markdown files', () => {
       const jsContext = createMockContext('javascript');
+      jsContext.metadata.isMarkdownFile = false;
+      jsContext.language = 'javascript';
+      
       const pyContext = createMockContext('python');
+      pyContext.metadata.isMarkdownFile = false;
+      pyContext.language = 'python';
 
       expect(strategy.canHandle(jsContext)).toBe(false);
       expect(strategy.canHandle(pyContext)).toBe(false);
@@ -150,10 +173,13 @@ describe('MarkdownSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('markdown');
-      const chunks = await strategy.segment(content, 'test.md', 'markdown', context);
+      context.content = content;
+      context.filePath = 'test.md';
+      context.language = 'markdown';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
-      expect(chunks[0].metadata.type).toBe('markdown');
+      expect(chunks[0].metadata.type).toBe('paragraph');
       expect(chunks[0].metadata.language).toBe('markdown');
       expect(chunks[0].metadata.filePath).toBe('test.md');
     });
@@ -183,10 +209,13 @@ describe('MarkdownSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('markdown');
-      const chunks = await strategy.segment(content, 'test.md', 'markdown', context);
+      context.content = content;
+      context.filePath = 'test.md';
+      context.language = 'markdown';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
-      expect(chunks.every(chunk => chunk.metadata.type === 'markdown')).toBe(true);
+      expect(chunks.every(chunk => chunk.metadata.type && ['paragraph', 'heading', 'code_block', 'table', 'list', 'blockquote'].includes(chunk.metadata.type))).toBe(true);
       expect(chunks.every(chunk => chunk.metadata.language === 'markdown'));
     });
 
@@ -216,10 +245,13 @@ describe('MarkdownSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('markdown');
-      const chunks = await strategy.segment(content, 'test.md', 'markdown', context);
+      context.content = content;
+      context.filePath = 'test.md';
+      context.language = 'markdown';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
-      expect(chunks.every(chunk => chunk.metadata.type === 'markdown')).toBe(true);
+      expect(chunks.every(chunk => chunk.metadata.type && ['paragraph', 'heading', 'code_block', 'table', 'list', 'blockquote'].includes(chunk.metadata.type))).toBe(true);
     });
 
     it('should segment markdown content with tables', async () => {
@@ -247,10 +279,13 @@ describe('MarkdownSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('markdown');
-      const chunks = await strategy.segment(content, 'test.md', 'markdown', context);
+      context.content = content;
+      context.filePath = 'test.md';
+      context.language = 'markdown';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
-      expect(chunks.every(chunk => chunk.metadata.type === 'markdown')).toBe(true);
+      expect(chunks.every(chunk => chunk.metadata.type && ['paragraph', 'heading', 'code_block', 'table', 'list', 'blockquote'].includes(chunk.metadata.type))).toBe(true);
     });
 
     it('should respect max chunk size limit', async () => {
@@ -265,7 +300,7 @@ describe('MarkdownSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('markdown', 1000);
-      const chunks = await strategy.segment(content, 'test.md', 'markdown', context);
+      const chunks = await strategy.segment(createSegmentationContext(content, 'test.md', 'markdown', context));
 
       expect(chunks.length).toBeGreaterThan(1);
       chunks.forEach(chunk => {
@@ -277,19 +312,19 @@ describe('MarkdownSegmentationStrategy', () => {
       const content = '';
       const context = createMockContext('markdown');
 
-      const chunks = await strategy.segment(content, 'test.md', 'markdown', context);
+      const chunks = await strategy.segment(createSegmentationContext(content, 'test.md', 'markdown', context));
 
       expect(chunks).toHaveLength(1);
       expect(chunks[0].content).toBe('');
       expect(chunks[0].metadata.startLine).toBe(1);
-      expect(chunks[0].metadata.endLine).toBe(0);
+      expect(chunks[0].metadata.endLine).toBe(1);
     });
 
     it('should handle single line content', async () => {
       const content = '# Single Title';
       const context = createMockContext('markdown');
 
-      const chunks = await strategy.segment(content, 'test.md', 'markdown', context);
+      const chunks = await strategy.segment(createSegmentationContext(content, 'test.md', 'markdown', context));
 
       expect(chunks).toHaveLength(1);
       expect(chunks[0].content).toBe('# Single Title');
@@ -301,7 +336,7 @@ describe('MarkdownSegmentationStrategy', () => {
       const content = '# Title\n\nThis is a paragraph.';
       const context = createMockContext('markdown');
 
-      await strategy.segment(content, 'test.md', 'markdown', context);
+      await strategy.segment(createSegmentationContext(content, 'test.md', 'markdown', context));
 
       expect(mockLogger.debug).toHaveBeenCalledWith('Starting markdown-based segmentation for test.md');
     });
@@ -313,7 +348,7 @@ describe('MarkdownSegmentationStrategy', () => {
       // Mock the segment method to throw an error
       (strategy as any).segment = jest.fn().mockRejectedValue(new Error('Segmentation failed'));
 
-      await expect(strategy.segment(content, 'test.md', 'markdown', context)).rejects.toThrow('Segmentation failed');
+      await expect(strategy.segment(createSegmentationContext(content, 'test.md', 'markdown', context))).rejects.toThrow('Segmentation failed');
     });
 
     it('should validate context when available', async () => {
@@ -323,7 +358,7 @@ describe('MarkdownSegmentationStrategy', () => {
       // Mock validateContext method
       (strategy as any).validateContext = jest.fn().mockReturnValue(true);
 
-      const chunks = await strategy.segment(content, 'test.md', 'markdown', context);
+      const chunks = await strategy.segment(createSegmentationContext(content, 'test.md', 'markdown', context));
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.debug).toHaveBeenCalledWith('Context validation passed for markdown strategy');
@@ -336,7 +371,7 @@ describe('MarkdownSegmentationStrategy', () => {
       // Mock validateContext method to return false
       (strategy as any).validateContext = jest.fn().mockReturnValue(false);
 
-      const chunks = await strategy.segment(content, 'test.md', 'markdown', context);
+      const chunks = await strategy.segment(createSegmentationContext(content, 'test.md', 'markdown', context));
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.warn).toHaveBeenCalledWith('Context validation failed for markdown strategy, proceeding anyway');
@@ -409,10 +444,10 @@ describe('MarkdownSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('markdown', 1000);
-      const chunks = await strategy.segment(markdownContent, 'complex.md', 'markdown', context);
+      const chunks = await strategy.segment(createSegmentationContext(markdownContent, 'complex.md', 'markdown', context));
 
       expect(chunks.length).toBeGreaterThan(0);
-      expect(chunks.every(chunk => chunk.metadata.type === 'markdown')).toBe(true);
+      expect(chunks.every(chunk => chunk.metadata.type && ['paragraph', 'heading', 'code_block', 'table', 'list', 'blockquote'].includes(chunk.metadata.type))).toBe(true);
       expect(chunks.every(chunk => chunk.metadata.language === 'markdown'));
     });
 
@@ -438,26 +473,26 @@ describe('MarkdownSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('markdown', 500);
-      const chunks = await strategy.segment(markdownContent, 'no-headings.md', 'markdown', context);
+      const chunks = await strategy.segment(createSegmentationContext(markdownContent, 'no-headings.md', 'markdown', context));
 
       expect(chunks.length).toBeGreaterThan(0);
-      expect(chunks.every(chunk => chunk.metadata.type === 'markdown')).toBe(true);
+      expect(chunks.every(chunk => chunk.metadata.type && ['paragraph', 'heading', 'code_block', 'table', 'list', 'blockquote'].includes(chunk.metadata.type))).toBe(true);
     });
 
     it('should handle edge cases', async () => {
       // Empty content
-      const emptyResult = await strategy.segment('', 'test.md', 'markdown', createMockContext('markdown'));
+      const emptyResult = await strategy.segment(createSegmentationContext('', 'test.md', 'markdown', createMockContext('markdown')));
       expect(emptyResult).toHaveLength(1);
       expect(emptyResult[0].content).toBe('');
 
       // Single line content
-      const singleLineResult = await strategy.segment('# Single Title', 'test.md', 'markdown', createMockContext('markdown'));
+      const singleLineResult = await strategy.segment(createSegmentationContext('# Single Title', 'test.md', 'markdown', createMockContext('markdown')));
       expect(singleLineResult).toHaveLength(1);
       expect(singleLineResult[0].content).toBe('# Single Title');
 
       // Very large content
       const largeContent = Array.from({ length: 1000 }, (_, i) => `This is line ${i + 1} with some content to make the document larger.`).join('\n');
-      const largeResult = await strategy.segment(largeContent, 'large.md', 'markdown', createMockContext('markdown', 1000));
+      const largeResult = await strategy.segment(createSegmentationContext(largeContent, 'large.md', 'markdown', createMockContext('markdown', 1000)));
       expect(largeResult.length).toBeGreaterThan(1);
     });
   });

@@ -1,9 +1,9 @@
 import { FileProcessingCoordinator } from '../FileProcessingCoordinator';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { UniversalTextSplitter } from '../UniversalTextSplitter';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { IFileProcessingContext, IStrategySelectionResult } from '../interfaces/IFileProcessingCoordinator';
-import { ProcessingStrategyType } from '../interfaces/IProcessingStrategySelector';
+import { UniversalTextSplitter } from '../../UniversalTextSplitter';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
+import { IFileProcessingContext } from '../interfaces/IFileProcessingCoordinator';
+import { IProcessingStrategySelector, IStrategySelectionResult, ProcessingStrategyType } from '../interfaces/IProcessingStrategySelector';
 import { CodeChunk } from '../../../splitting';
 
 // Mock LoggerService
@@ -53,7 +53,11 @@ describe('FileProcessingCoordinator', () => {
     mockLogger.error = jest.fn();
     mockLogger.info = jest.fn();
 
-    mockTextSplitter = new MockUniversalTextSplitter() as jest.Mocked<UniversalTextSplitter>;
+    mockTextSplitter = new MockUniversalTextSplitter(
+      mockLogger,
+      {} as any, // ConfigurationManager
+      {} as any  // ProtectionCoordinator
+    ) as jest.Mocked<UniversalTextSplitter>;
     mockTextSplitter.chunkBySemanticBoundaries = jest.fn().mockResolvedValue(createMockChunks(3));
     mockTextSplitter.chunkByBracketsAndLines = jest.fn().mockResolvedValue(createMockChunks(2));
     mockTextSplitter.chunkByLines = jest.fn().mockResolvedValue(createMockChunks(5));
@@ -64,7 +68,9 @@ describe('FileProcessingCoordinator', () => {
     });
     mockTextSplitter.setOptions = jest.fn();
 
-    mockTreeSitterService = new MockTreeSitterService() as jest.Mocked<TreeSitterService>;
+    mockTreeSitterService = new MockTreeSitterService(
+      {} as any // TreeSitterCoreService
+    ) as jest.Mocked<TreeSitterService>;
     mockTreeSitterService.detectLanguage = jest.fn().mockResolvedValue({ name: 'javascript' });
     mockTreeSitterService.parseCode = jest.fn().mockResolvedValue({
       success: true,
@@ -288,7 +294,9 @@ describe('FileProcessingCoordinator', () => {
     it('should fallback to fine semantic when TreeSitter parsing fails', async () => {
       mockTreeSitterService.parseCode.mockResolvedValue({
         success: false,
-        ast: null
+        ast: null as any,
+        language: 'javascript' as any,
+        parseTime: 0
       });
       const strategy = createMockStrategy(ProcessingStrategyType.TREESITTER_AST);
       const filePath = 'test.js';
@@ -387,16 +395,16 @@ describe('FileProcessingCoordinator', () => {
 
     it('should handle multiple functions and classes', async () => {
       mockTreeSitterService.extractFunctions.mockResolvedValue([
-        { type: 'function_definition', name: 'func1' },
-        { type: 'function_definition', name: 'func2' }
+        { type: 'function_definition' } as any,
+        { type: 'function_definition' } as any
       ]);
       mockTreeSitterService.extractClasses.mockResolvedValue([
-        { type: 'class_definition', name: 'Class1' }
+        { type: 'class_definition' } as any
       ]);
       mockTreeSitterService.getNodeLocation
-        .mockReturnValueOnce({ startLine: 1, endLine: 5 })
-        .mockReturnValueOnce({ startLine: 6, endLine: 10 })
-        .mockReturnValueOnce({ startLine: 11, endLine: 15 });
+        .mockReturnValueOnce({ startLine: 1, endLine: 5, startColumn: 0, endColumn: 10 })
+        .mockReturnValueOnce({ startLine: 6, endLine: 10, startColumn: 0, endColumn: 15 })
+        .mockReturnValueOnce({ startLine: 11, endLine: 15, startColumn: 0, endColumn: 20 });
       mockTreeSitterService.getNodeText
         .mockReturnValueOnce('function func1() {}')
         .mockReturnValueOnce('function func2() {}')
@@ -442,7 +450,7 @@ describe('FileProcessingCoordinator', () => {
 
       // Check that setOptions was called twice: once for fine semantic, once for restoration
       expect(mockTextSplitter.setOptions).toHaveBeenCalledTimes(2);
-      
+
       // First call should be for fine semantic
       expect(mockTextSplitter.setOptions).toHaveBeenNthCalledWith(1, {
         maxChunkSize: 800,
@@ -450,7 +458,7 @@ describe('FileProcessingCoordinator', () => {
         overlapSize: expect.any(Number),
         enableSemanticDetection: true
       });
-      
+
       // Second call should be for restoration
       expect(mockTextSplitter.setOptions).toHaveBeenNthCalledWith(2, {
         maxChunkSize: 2000,
@@ -467,7 +475,7 @@ describe('FileProcessingCoordinator', () => {
       const language = 'javascript';
 
       await expect(coordinator.chunkByFineSemantic(content, filePath, language)).rejects.toThrow('Fine semantic failed');
-      
+
       // Should still restore original options even after error
       expect(mockTextSplitter.setOptions).toHaveBeenCalledTimes(2);
     });

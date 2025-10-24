@@ -24,7 +24,7 @@ describe('StandardizationSegmentationStrategy', () => {
   let mockLogger: jest.Mocked<LoggerService>;
 
   // Create mock chunks for testing
-  const createMockChunk = (content: string, startLine: number, endLine: number, type: string = 'standardization'): CodeChunk => ({
+  const createMockChunk = (content: string, startLine: number, endLine: number, type: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' = 'standardization'): CodeChunk => ({
     content,
     metadata: {
       startLine,
@@ -77,6 +77,19 @@ describe('StandardizationSegmentationStrategy', () => {
       isMarkdownFile: false
     }
   });
+  // Helper function to create context with content and file info
+  const createSegmentationContext = (
+    content: string, 
+    filePath: string, 
+    language: string, 
+    baseContext?: SegmentationContext
+  ): SegmentationContext => {
+    const context = baseContext || createMockContext(language);
+    context.content = content;
+    context.filePath = filePath;
+    context.language = language;
+    return context;
+  };
 
   // Create mock standardized results
   const createMockStandardizedResults = (language: string): StandardizedQueryResult[] => [
@@ -87,6 +100,7 @@ describe('StandardizationSegmentationStrategy', () => {
       endLine: 5,
       content: 'function testFunction() { return "test"; }',
       metadata: {
+        language: 'javascript',
         complexity: 1,
         dependencies: [],
         modifiers: []
@@ -99,6 +113,7 @@ describe('StandardizationSegmentationStrategy', () => {
       endLine: 15,
       content: 'class TestClass { constructor() {} }',
       metadata: {
+        language: 'javascript',
         complexity: 2,
         dependencies: [],
         modifiers: ['export']
@@ -113,10 +128,16 @@ describe('StandardizationSegmentationStrategy', () => {
     mockLogger.error = jest.fn();
     mockLogger.info = jest.fn();
 
+    // Create a mock complexity calculator
+    const mockComplexityCalculator = {
+      calculate: jest.fn().mockReturnValue(1)
+    };
+
     strategy = new StandardizationSegmentationStrategy(
+      mockComplexityCalculator,
       mockLogger,
-      mockTreeSitterService,
-      mockQueryNormalizer
+      mockQueryNormalizer,
+      mockTreeSitterService
     );
 
     // Reset mocks
@@ -203,7 +224,10 @@ describe('StandardizationSegmentationStrategy', () => {
       );
 
       const context = createMockContext('javascript', true);
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.type).toBe('standardization');
@@ -235,7 +259,7 @@ describe('StandardizationSegmentationStrategy', () => {
       );
 
       const context = createMockContext('python', true);
-      const chunks = await strategy.segment(content, 'test.py', 'python', context);
+      const chunks = await strategy.segment(createSegmentationContext(content, 'test.py', 'python', context));
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'standardization')).toBe(true);
@@ -256,7 +280,10 @@ describe('StandardizationSegmentationStrategy', () => {
       const context = createMockContext('javascript', true);
       context.options.standardizationFallback = true;
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       // Should return empty chunks when parsing fails and fallback is enabled
       expect(chunks).toHaveLength(0);
@@ -275,7 +302,7 @@ describe('StandardizationSegmentationStrategy', () => {
       const context = createMockContext('javascript', true);
       context.options.standardizationFallback = false;
 
-      await expect(strategy.segment(content, 'test.js', 'javascript', context)).rejects.toThrow('Parsing failed');
+      await expect(strategy.segment(createSegmentationContext(content, 'test.js', 'javascript', context))).rejects.toThrow('Parsing failed');
     });
 
     it('should handle normalization errors gracefully', async () => {
@@ -295,7 +322,10 @@ describe('StandardizationSegmentationStrategy', () => {
       const context = createMockContext('javascript', true);
       context.options.standardizationFallback = true;
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       // Should return empty chunks when normalization fails and fallback is enabled
       expect(chunks).toHaveLength(0);
@@ -319,7 +349,7 @@ describe('StandardizationSegmentationStrategy', () => {
       const context = createMockContext('javascript', true);
       context.options.standardizationFallback = false;
 
-      await expect(strategy.segment(content, 'test.js', 'javascript', context)).rejects.toThrow('Normalization failed');
+      await expect(strategy.segment(createSegmentationContext(content, 'test.js', 'javascript', context))).rejects.toThrow('Normalization failed');
     });
 
     it('should handle empty standardized results', async () => {
@@ -336,7 +366,10 @@ describe('StandardizationSegmentationStrategy', () => {
 
       const context = createMockContext('javascript', true);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       // Should return empty chunks when no standardized results are found
       expect(chunks).toHaveLength(0);
@@ -347,7 +380,10 @@ describe('StandardizationSegmentationStrategy', () => {
       const content = '';
       const context = createMockContext('javascript', true);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks).toHaveLength(0);
       expect(mockLogger.debug).toHaveBeenCalledWith('Empty content provided for test.js');
@@ -369,7 +405,7 @@ describe('StandardizationSegmentationStrategy', () => {
 
       const context = createMockContext('javascript', true);
 
-      await strategy.segment(content, 'test.js', 'javascript', context);
+      await strategy.segment(createSegmentationContext(content, 'test.js', 'javascript', context));
 
       expect(mockLogger.debug).toHaveBeenCalledWith('Starting standardization-based segmentation for test.js');
     });
@@ -393,7 +429,10 @@ describe('StandardizationSegmentationStrategy', () => {
       // Mock validateContext method
       (strategy as any).validateContext = jest.fn().mockReturnValue(true);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.debug).toHaveBeenCalledWith('Context validation passed for standardization strategy');
@@ -418,7 +457,10 @@ describe('StandardizationSegmentationStrategy', () => {
       // Mock validateContext method to return false
       (strategy as any).validateContext = jest.fn().mockReturnValue(false);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.warn).toHaveBeenCalledWith('Context validation failed for standardization strategy, proceeding anyway');
@@ -500,7 +542,7 @@ describe('StandardizationSegmentationStrategy', () => {
       ]);
 
       const context = createMockContext('javascript', true);
-      const chunks = await strategy.segment(jsCode, 'Component.jsx', 'javascript', context);
+      const chunks = await strategy.segment(createSegmentationContext(jsCode, 'Component.jsx', 'javascript', context));
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'standardization')).toBe(true);
@@ -631,7 +673,7 @@ describe('StandardizationSegmentationStrategy', () => {
       ]);
 
       const context = createMockContext('python', true);
-      const chunks = await strategy.segment(pythonCode, 'data_processor.py', 'python', context);
+      const chunks = await strategy.segment(createSegmentationContext(pythonCode, 'data_processor.py', 'python', context));
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'standardization')).toBe(true);
@@ -642,7 +684,7 @@ describe('StandardizationSegmentationStrategy', () => {
 
     it('should handle edge cases', async () => {
       // Empty content
-      const emptyResult = await strategy.segment('', 'test.js', 'javascript', createMockContext('javascript', true));
+      const emptyResult = await strategy.segment(createSegmentationContext('', 'test.js', 'javascript', createMockContext('javascript', true)));
       expect(emptyResult).toHaveLength(0);
 
       // Single line content
@@ -670,7 +712,7 @@ describe('StandardizationSegmentationStrategy', () => {
         }
       ]);
 
-      const singleLineResult = await strategy.segment(singleLineContent, 'test.js', 'javascript', createMockContext('javascript', true));
+      const singleLineResult = await strategy.segment(createSegmentationContext(singleLineContent, 'test.js', 'javascript', createMockContext('javascript', true)));
       expect(singleLineResult).toHaveLength(1);
       expect(singleLineResult[0].content).toBe('console.log("test")');
     });

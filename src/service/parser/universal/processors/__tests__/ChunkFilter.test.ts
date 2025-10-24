@@ -12,7 +12,7 @@ describe('ChunkFilter', () => {
   let mockLogger: jest.Mocked<LoggerService>;
 
   // Create mock chunks for testing
-  const createMockChunk = (content: string, startLine: number, endLine: number, type: string = 'code'): CodeChunk => ({
+  const createMockChunk = (content: string, startLine: number, endLine: number, type: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' = 'code'): CodeChunk => ({
     content,
     metadata: {
       startLine,

@@ -18,7 +18,7 @@ describe('ChunkRebalancer', () => {
   let mockLogger: jest.Mocked<LoggerService>;
 
   // Create mock chunks for testing
-  const createMockChunk = (content: string, startLine: number, endLine: number, type: string = 'code'): CodeChunk => ({
+  const createMockChunk = (content: string, startLine: number, endLine: number, type: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' = 'code'): CodeChunk => ({
     content,
     metadata: {
       startLine,
@@ -53,8 +53,8 @@ describe('ChunkRebalancer', () => {
         'line': 5
       },
       filterConfig: {
-        enableSmallChunkRebalancing: enableRebalancing,
-        enableChunkRebalancing: true,
+        enableSmallChunkFilter: false,
+        enableChunkRebalancing: enableRebalancing,
         minChunkSize,
         maxChunkSize
       },
@@ -79,7 +79,7 @@ describe('ChunkRebalancer', () => {
     mockLogger.error = jest.fn();
     mockLogger.info = jest.fn();
 
-    mockComplexityCalculator.calculate.mockReturnValue(5);
+    (mockComplexityCalculator.calculate as jest.Mock).mockReturnValue(5);
 
     rebalancer = new ChunkRebalancer(mockComplexityCalculator, mockLogger);
   });
@@ -440,7 +440,7 @@ describe('ChunkRebalancer', () => {
       const chunk = createMockChunk('Line 1\nLine 2\nLine 3\nLine 4\nLine 5', 1, 5);
       const context = createMockContext(true, 50, 1000);
 
-      const result = await rebalancer.splitOversizedChunk(chunk, 100, context);
+      const result = await rebalancer.process([chunk], context);
 
       expect(result.length).toBeGreaterThan(1);
       expect(result[0].content).toContain('Line 1');
@@ -452,7 +452,7 @@ describe('ChunkRebalancer', () => {
       const chunk = createMockChunk('A'.repeat(200), 1, 1);
       const context = createMockContext(true, 50, 1000);
 
-      const result = await rebalancer.splitOversizedChunk(chunk, 100, context);
+      const result = await rebalancer.process([chunk], context);
 
       expect(result.length).toBeGreaterThan(1);
       expect(result[0].content.length).toBeLessThanOrEqual(100);

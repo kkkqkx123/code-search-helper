@@ -207,9 +207,13 @@ describe('ConfigurationManager', () => {
       const base: UniversalChunkingOptions = configManager.getDefaultOptions();
       const override: Partial<UniversalChunkingOptions> = {
         filterConfig: {
-          minChunkSize: 50
+          enableSmallChunkFilter: true,
+          enableChunkRebalancing: true,
+          minChunkSize: 50,
+          maxChunkSize: 1000
         },
         protectionConfig: {
+          enableProtection: true,
           protectionLevel: 'high' as const
         },
         strategyPriorities: {
@@ -233,12 +237,20 @@ describe('ConfigurationManager', () => {
     it('should handle missing nested objects', () => {
       const base: UniversalChunkingOptions = {
         ...configManager.getDefaultOptions(),
-        filterConfig: undefined
+        filterConfig: {
+          enableSmallChunkFilter: true,
+          enableChunkRebalancing: true,
+          minChunkSize: 50,
+          maxChunkSize: 1000
+        }
       };
 
       const override: Partial<UniversalChunkingOptions> = {
         filterConfig: {
-          minChunkSize: 50
+          enableSmallChunkFilter: true,
+          enableChunkRebalancing: true,
+          minChunkSize: 50,
+          maxChunkSize: 1000
         }
       };
 

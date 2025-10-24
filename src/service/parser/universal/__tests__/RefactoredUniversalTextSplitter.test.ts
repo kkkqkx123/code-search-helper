@@ -252,7 +252,7 @@ function test() {
       chunks.forEach(chunk => {
         expect(chunk.content).toBeTruthy();
         expect(chunk.metadata.language).toBe('markdown');
-        expect(chunk.metadata.type).toBe('section' || 'content');
+        expect(chunk.metadata.type).toBe('section');
       });
     });
   });

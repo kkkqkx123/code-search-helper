@@ -12,7 +12,7 @@ describe('LineSegmentationStrategy', () => {
   let mockLogger: jest.Mocked<LoggerService>;
 
   // Create mock chunks for testing
-  const createMockChunk = (content: string, startLine: number, endLine: number, type: string = 'line'): CodeChunk => ({
+  const createMockChunk = (content: string, startLine: number, endLine: number, type: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' = 'line'): CodeChunk => ({
     content,
     metadata: {
       startLine,
@@ -73,7 +73,12 @@ describe('LineSegmentationStrategy', () => {
     mockLogger.error = jest.fn();
     mockLogger.info = jest.fn();
 
-    strategy = new LineSegmentationStrategy(mockLogger);
+    // Create a mock complexity calculator
+    const mockComplexityCalculator = {
+      calculate: jest.fn().mockReturnValue(1)
+    };
+
+    strategy = new LineSegmentationStrategy(mockComplexityCalculator, mockLogger);
   });
 
   describe('getName', () => {
@@ -118,6 +123,7 @@ describe('LineSegmentationStrategy', () => {
     });
 
     it('should return true for small files', () => {
+      const testContext = createMockContext('javascript');
       const context = createMockContext('javascript');
       context.metadata.isSmallFile = true;
 
@@ -125,10 +131,11 @@ describe('LineSegmentationStrategy', () => {
     });
 
     it('should return true for large files', () => {
-      const context = createMockContext('javascript');
-      context.metadata.isSmallFile = false;
+      const testContext = createMockContext('javascript');
+      const context2 = createMockContext('javascript');
+      context2.metadata.isSmallFile = false;
 
-      expect(strategy.canHandle(context)).toBe(true);
+      expect(strategy.canHandle(context2)).toBe(true);
     });
   });
 
@@ -143,7 +150,10 @@ describe('LineSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('javascript', 50, 2000);
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.type).toBe('line');
@@ -155,7 +165,10 @@ describe('LineSegmentationStrategy', () => {
       const content = Array.from({ length: 100 }, (_, i) => `line ${i + 1}`).join('\n');
       const context = createMockContext('javascript', 20, 2000);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(1);
       chunks.forEach(chunk => {
@@ -168,7 +181,10 @@ describe('LineSegmentationStrategy', () => {
       const content = Array.from({ length: 100 }, (_, i) => `line ${i + 1} with some additional text to increase size`).join('\n');
       const context = createMockContext('javascript', 50, 500);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(1);
       chunks.forEach(chunk => {
@@ -178,9 +194,12 @@ describe('LineSegmentationStrategy', () => {
 
     it('should handle empty content', async () => {
       const content = '';
-      const context = createMockContext('javascript');
+      const testContext = createMockContext('javascript');
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      testContext.content = content;
+      testContext.filePath = 'test.js';
+      testContext.language = 'javascript';
+      const chunks = await strategy.segment(testContext);
 
       expect(chunks).toHaveLength(1);
       expect(chunks[0].content).toBe('');
@@ -190,9 +209,12 @@ describe('LineSegmentationStrategy', () => {
 
     it('should handle single line content', async () => {
       const content = 'single line of content';
-      const context = createMockContext('javascript');
+      const testContext = createMockContext('javascript');
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      testContext.content = content;
+      testContext.filePath = 'test.js';
+      testContext.language = 'javascript';
+      const chunks = await strategy.segment(testContext);
 
       expect(chunks).toHaveLength(1);
       expect(chunks[0].content).toBe('single line of content');
@@ -213,7 +235,10 @@ describe('LineSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('javascript', 5, 200);
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      context.content = content;
+      context.filePath = 'test.js';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(1);
       chunks.forEach(chunk => {
@@ -223,31 +248,40 @@ describe('LineSegmentationStrategy', () => {
 
     it('should log segmentation progress', async () => {
       const content = 'line 1\nline 2\nline 3';
-      const context = createMockContext('javascript');
+      const testContext = createMockContext('javascript');
 
-      await strategy.segment(content, 'test.js', 'javascript', context);
+      testContext.content = content;
+      testContext.filePath = 'test.js';
+      testContext.language = 'javascript';
+      await strategy.segment(testContext);
 
       expect(mockLogger.debug).toHaveBeenCalledWith('Starting line-based segmentation for test.js');
     });
 
     it('should handle errors gracefully', async () => {
       const content = 'line 1\nline 2\nline 3';
-      const context = createMockContext('javascript');
+      const testContext = createMockContext('javascript');
 
       // Mock the segment method to throw an error
       (strategy as any).segment = jest.fn().mockRejectedValue(new Error('Segmentation failed'));
 
-      await expect(strategy.segment(content, 'test.js', 'javascript', context)).rejects.toThrow('Segmentation failed');
+      testContext.content = content;
+      testContext.filePath = 'test.js';
+      testContext.language = 'javascript';
+      await expect(strategy.segment(testContext)).rejects.toThrow('Segmentation failed');
     });
 
     it('should validate context when available', async () => {
       const content = 'line 1\nline 2\nline 3';
-      const context = createMockContext('javascript');
+      const testContext = createMockContext('javascript');
 
       // Mock validateContext method
       (strategy as any).validateContext = jest.fn().mockReturnValue(true);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      testContext.content = content;
+      testContext.filePath = 'test.js';
+      testContext.language = 'javascript';
+      const chunks = await strategy.segment(testContext);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.debug).toHaveBeenCalledWith('Context validation passed for line strategy');
@@ -255,12 +289,15 @@ describe('LineSegmentationStrategy', () => {
 
     it('should skip validation when not available', async () => {
       const content = 'line 1\nline 2\nline 3';
-      const context = createMockContext('javascript');
+      const testContext = createMockContext('javascript');
 
       // Mock validateContext method to return false
       (strategy as any).validateContext = jest.fn().mockReturnValue(false);
 
-      const chunks = await strategy.segment(content, 'test.js', 'javascript', context);
+      testContext.content = content;
+      testContext.filePath = 'test.js';
+      testContext.language = 'javascript';
+      const chunks = await strategy.segment(testContext);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.warn).toHaveBeenCalledWith('Context validation failed for line strategy, proceeding anyway');
@@ -293,7 +330,10 @@ describe('LineSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('javascript', 10, 500);
-      const chunks = await strategy.segment(jsCode, 'Component.jsx', 'javascript', context);
+      context.content = jsCode;
+      context.filePath = 'Component.jsx';
+      context.language = 'javascript';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'line')).toBe(true);
@@ -337,7 +377,10 @@ describe('LineSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('python', 10, 500);
-      const chunks = await strategy.segment(pythonCode, 'data_processor.py', 'python', context);
+      context.content = pythonCode;
+      context.filePath = 'data_processor.py';
+      context.language = 'python';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'line')).toBe(true);
@@ -368,7 +411,10 @@ describe('LineSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('markdown', 10, 500);
-      const chunks = await strategy.segment(markdownContent, 'example.md', 'markdown', context);
+      context.content = markdownContent;
+      context.filePath = 'example.md';
+      context.language = 'markdown';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'line')).toBe(true);
@@ -390,7 +436,10 @@ describe('LineSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('text', 5, 200);
-      const chunks = await strategy.segment(textContent, 'example.txt', 'text', context);
+      context.content = textContent;
+      context.filePath = 'example.txt';
+      context.language = 'text';
+      const chunks = await strategy.segment(context);
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'line')).toBe(true);
@@ -399,18 +448,30 @@ describe('LineSegmentationStrategy', () => {
 
     it('should handle edge cases', async () => {
       // Empty content
-      const emptyResult = await strategy.segment('', 'test.js', 'javascript', createMockContext('javascript'));
+      const emptyContext = createMockContext('javascript');
+      emptyContext.content = '';
+      emptyContext.filePath = 'test.js';
+      emptyContext.language = 'javascript';
+      const emptyResult = await strategy.segment(emptyContext);
       expect(emptyResult).toHaveLength(1);
       expect(emptyResult[0].content).toBe('');
 
       // Single line content
-      const singleLineResult = await strategy.segment('console.log("test");', 'test.js', 'javascript', createMockContext('javascript'));
+      const singleLineContext = createMockContext('javascript');
+      singleLineContext.content = 'console.log("test");';
+      singleLineContext.filePath = 'test.js';
+      singleLineContext.language = 'javascript';
+      const singleLineResult = await strategy.segment(singleLineContext);
       expect(singleLineResult).toHaveLength(1);
       expect(singleLineResult[0].content).toBe('console.log("test")');
 
       // Very large content
       const largeContent = Array.from({ length: 1000 }, (_, i) => `line ${i + 1}`).join('\n');
-      const largeResult = await strategy.segment(largeContent, 'test.js', 'javascript', createMockContext('javascript', 50, 2000));
+      const largeContext = createMockContext('javascript', 50, 2000);
+      largeContext.content = largeContent;
+      largeContext.filePath = 'test.js';
+      largeContext.language = 'javascript';
+      const largeResult = await strategy.segment(largeContext);
       expect(largeResult.length).toBeGreaterThan(1);
     });
   });
