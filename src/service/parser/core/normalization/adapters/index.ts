@@ -14,6 +14,9 @@ export { VueLanguageAdapter } from './VueLanguageAdapter';
 export { JavaLanguageAdapter } from './JavaLanguageAdapter';
 export { KotlinLanguageAdapter } from './KotlinLanguageAdapter';
 export { CssLanguageAdapter } from './CssLanguageAdapter';
+export { ConfigLanguageAdapter } from './ConfigLanguageAdapter';
+export { TOMLConfigAdapter } from './TOMLConfigAdapter';
+export { YAMLConfigAdapter } from './YAMLConfigAdapter';
 
 import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 import { PythonLanguageAdapter } from './PythonLanguageAdapter';
@@ -27,6 +30,9 @@ import { VueLanguageAdapter } from './VueLanguageAdapter';
 import { JavaLanguageAdapter } from './JavaLanguageAdapter';
 import { KotlinLanguageAdapter } from './KotlinLanguageAdapter';
 import { CssLanguageAdapter } from './CssLanguageAdapter';
+import { ConfigLanguageAdapter } from './ConfigLanguageAdapter';
+import { TOMLConfigAdapter } from './TOMLConfigAdapter';
+import { YAMLConfigAdapter } from './YAMLConfigAdapter';
 import { ILanguageAdapter } from '../types';
 import { LanguageAdapterFactory } from '../LanguageAdapterFactory';
 

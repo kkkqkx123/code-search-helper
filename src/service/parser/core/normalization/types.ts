@@ -9,7 +9,7 @@ import Parser from 'tree-sitter';
  */
 export interface StandardizedQueryResult {
   /** 结构类型 */
-  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression';
+  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def';
   
   /** 结构名称 */
   name: string;
@@ -274,4 +274,79 @@ export interface CacheStats {
     language: string;
     count: number;
   }>;
+}
+
+/**
+ * 配置语言标准类型
+ */
+export type ConfigStandardType = 
+  | 'config-item'    // 配置项
+  | 'section'        // 配置节
+  | 'key'           // 键
+  | 'value'         // 值
+  | 'array'         // 数组
+  | 'table'         // 表/对象
+  | 'dependency'    // 依赖项
+  | 'type-def';     // 类型定义
+
+/**
+ * 配置语言适配器选项接口
+ */
+export interface ConfigAdapterOptions {
+  /** 是否启用去重 */
+  enableDeduplication?: boolean;
+  /** 是否启用性能监控 */
+  enablePerformanceMonitoring?: boolean;
+  /** 是否启用错误恢复 */
+  enableErrorRecovery?: boolean;
+  /** 是否启用缓存 */
+  enableCaching?: boolean;
+  /** 缓存大小 */
+  cacheSize?: number;
+  /** 自定义类型映射 */
+  customTypeMappings?: Record<string, string>;
+  /** 是否启用配置路径解析 */
+  enableConfigPathParsing?: boolean;
+  /** 是否启用数据类型推断 */
+  enableDataTypeInference?: boolean;
+}
+
+/**
+ * 配置语言特有的元数据接口
+ */
+export interface ConfigMetadata {
+  /** 编程语言 */
+  language: string;
+  /** 复杂度评分 */
+  complexity: number;
+  /** 依赖项列表 */
+  dependencies: string[];
+  /** 修饰符列表 */
+  modifiers: string[];
+  /** 数据类型 */
+  dataType: string;
+  /** 默认值 */
+  defaultValue?: any;
+  /** 验证规则 */
+  validationRules: string[];
+  /** 是否必需 */
+  isRequired: boolean;
+  /** 配置路径 */
+  configPath: string;
+  /** 配置描述 */
+  description?: string;
+  /** 嵌套深度 */
+  nestingDepth: number;
+  /** 额外的语言特定信息 */
+  [key: string]: any;
+}
+
+/**
+ * 配置语言查询结果接口
+ */
+export interface ConfigQueryResult extends StandardizedQueryResult {
+  /** 配置语言特有的类型 */
+  type: ConfigStandardType;
+  /** 配置语言特有的元数据 */
+  metadata: ConfigMetadata;
 }

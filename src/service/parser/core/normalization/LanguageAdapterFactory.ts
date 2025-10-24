@@ -20,6 +20,9 @@ import { CssLanguageAdapter } from './adapters/CssLanguageAdapter';
 import { HtmlLanguageAdapter } from './adapters/HtmlLanguageAdapter';
 import { VueLanguageAdapter } from './adapters/VueLanguageAdapter';
 import { DefaultLanguageAdapter } from './adapters/DefaultLanguageAdapter';
+import { ConfigLanguageAdapter } from './adapters/ConfigLanguageAdapter';
+import { TOMLConfigAdapter } from './adapters/TOMLConfigAdapter';
+import { YAMLConfigAdapter } from './adapters/YAMLConfigAdapter';
 import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
@@ -110,6 +113,13 @@ export class LanguageAdapterFactory {
         case 'tsx':
           // TSX uses the same adapter as TypeScript since it extends TypeScript functionality
           return new TypeScriptLanguageAdapter(options);
+        case 'toml':
+          // TOML configuration files
+          return new TOMLConfigAdapter(options);
+        case 'yaml':
+        case 'yml':
+          // YAML configuration files
+          return new YAMLConfigAdapter(options);
         default:
           this.logger.warn(`Unsupported language: ${language}, using default adapter`);
           return new DefaultLanguageAdapter(options);

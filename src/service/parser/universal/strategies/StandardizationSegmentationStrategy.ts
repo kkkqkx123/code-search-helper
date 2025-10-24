@@ -177,7 +177,16 @@ export class StandardizationSegmentationStrategy implements ISegmentationStrateg
       'type': 'code',
       'export': 'import',
       'control-flow': 'code',
-      'expression': 'code'
+      'expression': 'code',
+      // 配置语言类型映射
+      'config-item': 'code',
+      'section': 'code',
+      'key': 'code',
+      'value': 'code',
+      'array': 'code',
+      'table': 'code',
+      'dependency': 'code',
+      'type-def': 'code'
     };
 
     return typeMap[standardizedType] || 'semantic';

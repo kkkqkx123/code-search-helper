@@ -167,7 +167,16 @@ export class StructureAwareSplitter extends IntelligentSplitter {
       'method': 7,
       'variable': 8,
       'control-flow': 9,
-      'expression': 10
+      'expression': 10,
+      // 配置语言类型
+      'config-item': 11,
+      'section': 12,
+      'key': 13,
+      'value': 14,
+      'array': 15,
+      'table': 16,
+      'dependency': 17,
+      'type-def': 18
     };
 
     return structures.sort((a, b) => {
