@@ -145,6 +145,7 @@ export class ProjectsPage {
         projectsList.innerHTML = '';
 
         try {
+            // 获取项目列表
             const result = await this.apiClient.getProjects(forceRefresh, {
                 page: this.currentPage,
                 pageSize: this.pageSize,
@@ -155,6 +156,25 @@ export class ProjectsPage {
             });
 
             if (result.success && result.data) {
+                // 获取项目名称映射
+                let nameMapping: { [hash: string]: string } = {};
+                try {
+                    const mappingResult = await this.apiClient.getProjectNameMapping(!forceRefresh);
+                    if (mappingResult.success && mappingResult.data) {
+                        nameMapping = mappingResult.data;
+                    }
+                } catch (mappingError) {
+                    console.warn('获取项目名称映射失败，将使用默认显示:', mappingError);
+                }
+
+                // 为每个项目添加真实名称
+                const projectsWithNames = result.data.map((project: any) => {
+                    return {
+                        ...project,
+                        name: nameMapping[project.id] || project.name || project.id
+                    };
+                });
+
                 // 更新分页信息
                 if (result.pagination) {
                     this.totalItems = result.pagination.totalItems;
@@ -168,8 +188,8 @@ export class ProjectsPage {
                 // 渲染分页控件
                 this.renderPagination();
 
-                if (result.data.length > 0) {
-                    this.renderProjectsList(result.data, projectsList);
+                if (projectsWithNames.length > 0) {
+                    this.renderProjectsList(projectsWithNames, projectsList);
                 } else {
                     // 项目列表为空，显示友好提示
                     projectsList.innerHTML = `
@@ -198,11 +218,15 @@ export class ProjectsPage {
     private renderProjectsList(projects: any[], container: HTMLElement) {
         if (!container) return;
 
-        container.innerHTML = projects.map(project => `
+        container.innerHTML = projects.map(project => {
+            // 使用项目名称而非ID显示
+            const displayName = project.name || project.id;
+            
+            return `
             <tr>
                 <td><input type="checkbox" class="project-checkbox" data-project-id="${project.id}" title="选择项目"></td>
                 <td class="project-info-cell">
-                    <div class="project-name">${this.escapeHtml(project.name || project.id)}</div>
+                    <div class="project-name">${this.escapeHtml(displayName)}</div>
                     <div class="project-path">${this.escapeHtml(project.path || 'N/A')}</div>
                     <div class="project-meta">
                         <span class="file-count">📁 ${project.fileCount || 0} 文件</span>
@@ -251,8 +275,8 @@ export class ProjectsPage {
                         </div>
                     </div>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
 
         // 使用事件委托处理操作按钮点击事件
         container.addEventListener('click', (e) => {

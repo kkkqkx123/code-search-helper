@@ -19,6 +19,7 @@ import { IndexService } from '../../service/index/IndexService';
 import { VectorIndexService } from '../../service/index/VectorIndexService';
 import { GraphIndexService } from '../../service/index/GraphIndexService';
 import { HotReloadConfigService } from '../../service/filesystem/HotReloadConfigService';
+import { ProjectPathMappingService } from '../../database/ProjectPathMappingService';
 
 export interface ProjectCreateBody {
   projectPath: string;
@@ -66,6 +67,7 @@ export class ProjectRoutes {
   private vectorIndexService: VectorIndexService;
   private graphIndexService: GraphIndexService;
   private hotReloadConfigService: HotReloadConfigService;
+  private projectPathMappingService: ProjectPathMappingService;
 
   constructor(
     projectIdManager: ProjectIdManager,
@@ -75,7 +77,8 @@ export class ProjectRoutes {
     indexSyncService: IndexService,
     vectorIndexService: VectorIndexService,
     graphIndexService: GraphIndexService,
-    hotReloadConfigService: HotReloadConfigService
+    hotReloadConfigService: HotReloadConfigService,
+    projectPathMappingService: ProjectPathMappingService
   ) {
     this.projectIdManager = projectIdManager;
     this.projectLookupService = projectLookupService;
@@ -85,6 +88,7 @@ export class ProjectRoutes {
     this.vectorIndexService = vectorIndexService;
     this.graphIndexService = graphIndexService;
     this.hotReloadConfigService = hotReloadConfigService;
+    this.projectPathMappingService = projectPathMappingService;
     this.router = Router();
     this.setupRoutes();
   }
@@ -137,6 +141,10 @@ export class ProjectRoutes {
     this.router.get('/:projectId/hot-reload', this.getProjectHotReloadConfig.bind(this));
     this.router.put('/:projectId/hot-reload', this.updateProjectHotReloadConfig.bind(this));
     this.router.post('/:projectId/hot-reload/toggle', this.toggleProjectHotReload.bind(this));
+
+    // 项目名称映射端点
+    this.router.get('/mapping', this.getProjectNameMapping.bind(this));
+    this.router.get('/mapping/:hash', this.getProjectNameByHash.bind(this));
   }
 
   private async getProjects(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -782,6 +790,73 @@ export class ProjectRoutes {
           status: updatedStatus,
         },
         message: `Hot reload ${enabled ? 'enabled' : 'disabled'} successfully`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 获取项目哈希值到名称的映射
+   */
+  private async getProjectNameMapping(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // 获取所有项目的哈希值与名称映射
+      const mappings = await this.projectPathMappingService.getAllMappings();
+      
+      // 转换为哈希值到项目名称的映射
+      const nameMapping: { [hash: string]: string } = {};
+      mappings.forEach(mapping => {
+        // 从原始路径中提取项目名称
+        const projectName = path.basename(mapping.originalPath);
+        nameMapping[mapping.hash] = projectName;
+      });
+      
+      res.status(200).json({
+        success: true,
+        data: nameMapping,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 根据哈希值获取项目名称
+   */
+  private async getProjectNameByHash(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { hash } = req.params;
+      
+      if (!hash) {
+        res.status(400).json({
+          success: false,
+          error: 'Hash is required',
+        });
+        return;
+      }
+      
+      // 获取原始路径
+      const originalPath = await this.projectPathMappingService.getOriginalPath(hash);
+      
+      if (!originalPath) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found',
+        });
+        return;
+      }
+      
+      // 从原始路径中提取项目名称
+      const projectName = path.basename(originalPath);
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          hash,
+          projectName,
+          originalPath,
+        },
       });
     } catch (error) {
       next(error);

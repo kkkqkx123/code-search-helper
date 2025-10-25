@@ -22,6 +22,14 @@ export class ApiClient {
         };
     } = {};
     private cacheTTL: number = 10 * 60 * 1000; // 10分钟缓存
+    private projectNameMappingCache: {
+        data: { [hash: string]: string } | null;
+        lastUpdated: number | null;
+    } = {
+        data: null,
+        lastUpdated: null
+    };
+    private projectNameMappingCacheTTL: number = 5 * 60 * 1000; // 5分钟缓存
 
     constructor(apiBaseUrl: string = 'http://localhost:3010') {
         this.apiBaseUrl = apiBaseUrl;
@@ -340,6 +348,7 @@ export class ApiClient {
         this.clearEmbeddersCache();
         this.clearSearchCache();
         this.clearProjectsCache();
+        this.clearProjectNameMappingCache();
         console.debug('所有缓存已清除');
     }
 
@@ -618,5 +627,67 @@ export class ApiClient {
             console.error('获取Collection数据点失败:', error);
             throw error;
         }
+    }
+
+    /**
+     * 获取项目哈希值到名称的映射
+     */
+    async getProjectNameMapping(useCache: boolean = true): Promise<any> {
+        const now = Date.now();
+        
+        // 检查缓存
+        if (useCache && 
+            this.projectNameMappingCache.data && 
+            this.projectNameMappingCache.lastUpdated &&
+            (now - this.projectNameMappingCache.lastUpdated < this.projectNameMappingCacheTTL)) {
+            console.debug('使用缓存的项目名称映射');
+            return { success: true, data: this.projectNameMappingCache.data };
+        }
+        
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/mapping`);
+            const result = await response.json();
+            
+            // 更新缓存
+            if (result.success && result.data) {
+                this.projectNameMappingCache.data = result.data;
+                this.projectNameMappingCache.lastUpdated = now;
+                console.debug('项目名称映射已缓存');
+            }
+            
+            return result;
+        } catch (error) {
+            console.error('获取项目名称映射失败:', error);
+            
+            // 如果有缓存数据，即使请求失败也返回缓存数据
+            if (this.projectNameMappingCache.data) {
+                console.warn('项目名称映射API请求失败，返回缓存数据');
+                return { success: true, data: this.projectNameMappingCache.data };
+            }
+            
+            throw error;
+        }
+    }
+
+    /**
+     * 根据哈希值获取项目名称
+     */
+    async getProjectNameByHash(hash: string): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/mapping/${hash}`);
+            return await response.json();
+        } catch (error) {
+            console.error('根据哈希值获取项目名称失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 清除项目名称映射缓存
+     */
+    clearProjectNameMappingCache() {
+        this.projectNameMappingCache.data = null;
+        this.projectNameMappingCache.lastUpdated = null;
+        console.debug('项目名称映射缓存已清除');
     }
 }

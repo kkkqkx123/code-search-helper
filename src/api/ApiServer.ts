@@ -76,7 +76,10 @@ export class ApiServer {
 
     // 初始化热更新配置服务
     const hotReloadConfigService = diContainer.get<HotReloadConfigService>(TYPES.HotReloadConfigService);
-    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService, vectorIndexService, graphIndexService, hotReloadConfigService);
+    // 初始化项目映射服务
+    const projectPathMappingService = diContainer.get<any>(TYPES.ProjectPathMappingService);
+    
+    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService, vectorIndexService, graphIndexService, hotReloadConfigService, projectPathMappingService);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
 
     // 从依赖注入容器获取文件搜索服务
@@ -101,8 +104,6 @@ export class ApiServer {
     this.graphStatsRoutes = new GraphStatsRoutes(graphService, graphCacheService, graphPerformanceMonitor, graphLoggerService);
     // 初始化Qdrant Collection视图路由
     this.qdrantCollectionViewRoutes = new QdrantCollectionViewRoutes();
-    // 初始化项目映射服务
-    const projectPathMappingService = diContainer.get<any>(TYPES.ProjectPathMappingService);
 
     this.setupMiddleware();
     this.setupRoutes(projectPathMappingService);
