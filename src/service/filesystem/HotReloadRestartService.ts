@@ -502,6 +502,13 @@ async handleApplicationRestart(): Promise<void> {
   private async loadRestartState(): Promise<RestartStateData | null> {
     try {
       const content = await fs.readFile(this.RESTART_STATE_FILE, 'utf-8');
+      
+      // 检查文件内容是否为空或只包含空白字符
+      if (!content || content.trim() === '') {
+        this.logger.info('Restart state file is empty, starting fresh');
+        return null;
+      }
+      
       const data = JSON.parse(content) as RestartStateData;
       
       // 转换timestamp字符串为Date对象
@@ -513,6 +520,13 @@ async handleApplicationRestart(): Promise<void> {
         // 文件不存在是正常的
         return null;
       }
+      
+      // 处理JSON解析错误
+      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+        this.logger.warn('Invalid JSON in restart state file, starting fresh');
+        return null;
+      }
+      
       this.errorHandler.handleError(
         new Error(`Failed to load restart state: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'HotReloadRestartService', operation: 'loadRestartState' }
