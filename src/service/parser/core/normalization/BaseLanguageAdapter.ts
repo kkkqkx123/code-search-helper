@@ -51,6 +51,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   protected options: Required<AdapterOptions>;
   protected performanceMonitor?: PerformanceMonitor;
   protected cache?: LRUCache<string, StandardizedQueryResult[]>;
+  private complexityCache?: LRUCache<string, number>;
 
   constructor(options: AdapterOptions = {}) {
     this.logger = new LoggerService();
@@ -59,7 +60,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
       enablePerformanceMonitoring: options.enablePerformanceMonitoring ?? false,
       enableErrorRecovery: options.enableErrorRecovery ?? true,
       enableCaching: options.enableCaching ?? true,
-      cacheSize: options.cacheSize ?? 100,
+      cacheSize: options.cacheSize ?? 10,  // 修复：恢复默认缓存大小为100
       customTypeMappings: options.customTypeMappings ?? {},
     };
 
@@ -69,6 +70,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
 
     if (this.options.enableCaching) {
       this.cache = new LRUCache(this.options.cacheSize, { enableStats: true });
+      this.complexityCache = new LRUCache(this.options.cacheSize, { enableStats: true });
     }
   }
 
@@ -289,33 +291,68 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   }
 
   protected calculateBaseComplexity(result: any): number {
-    let complexity = 1;
     const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) return 1;
+
+    // 使用缓存避免重复计算
+    const cacheKey = this.getNodeCacheKey(mainNode);
+    if (this.complexityCache?.has(cacheKey)) {
+      return this.complexityCache.get(cacheKey)!;
+    }
+
+    let complexity = 1;
     
-    if (mainNode) {
-      // 基于代码行数
-      const lineCount = this.extractEndLine(result) - this.extractStartLine(result) + 1;
-      complexity += Math.floor(lineCount / 10);
-      
-      // 基于嵌套深度
-      const nestingDepth = this.calculateNestingDepth(mainNode);
-      complexity += nestingDepth;
+    // 优化的行数计算
+    const lineCount = Math.max(1, this.extractEndLine(result) - this.extractStartLine(result) + 1);
+    complexity += Math.min(Math.floor(lineCount / 15), 5); // 每15行增加1点复杂度，最多5点
+    
+    // 使用迭代而非递归的深度计算
+    const nestingDepth = this.calculateNestingDepthIterative(mainNode);
+    complexity += Math.min(nestingDepth, 8); // 限制最大深度贡献，最多8点
+    
+    // 节点复杂度因素
+    const nodeComplexity = this.calculateNodeComplexity(mainNode);
+    complexity += Math.min(nodeComplexity, 6); // 限制节点复杂度贡献，最多6点
+    
+    // 总体复杂度限制在1-25之间
+    complexity = Math.max(1, Math.min(complexity, 25));
+    
+    // 缓存结果
+    if (this.complexityCache) {
+      this.complexityCache.set(cacheKey, complexity);
     }
     
     return complexity;
   }
 
   protected calculateNestingDepth(node: any, currentDepth: number = 0): number {
-    if (!node || !node.children) {
-      return currentDepth;
+    // 使用新的迭代方法来计算嵌套深度
+    return this.calculateNestingDepthIterative(node);
+  }
+
+  /**
+   * 使用广度优先迭代算法计算嵌套深度
+   * 替代原有的递归实现，避免栈溢出
+   */
+  protected calculateNestingDepthIterative(startNode: any): number {
+    if (!startNode || !startNode.children) {
+      return 0;
     }
 
-    let maxDepth = currentDepth;
-    
-    for (const child of node.children) {
-      if (this.isBlockNode(child)) {
-        const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
-        maxDepth = Math.max(maxDepth, childDepth);
+    let maxDepth = 0;
+    const queue: Array<{ node: any, depth: number }> = [];
+    queue.push({ node: startNode, depth: 0 });
+
+    while (queue.length > 0) {
+      const { node, depth } = queue.shift()!;
+      maxDepth = Math.max(maxDepth, depth);
+
+      if (node.children && depth < 15) { // 设置合理的深度上限
+        for (const child of node.children) {
+          if (this.isBlockNode(child)) {
+            queue.push({ node: child, depth: depth + 1 });
+          }
+        }
       }
     }
 
@@ -323,8 +360,73 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   }
 
   protected isBlockNode(node: any): boolean {
-    const blockTypes = ['block', 'statement_block', 'class_body', 'interface_body', 'suite'];
+    const blockTypes = [
+      'block', 'statement_block', 'class_body', 'interface_body', 'suite',
+      'function_definition', 'method_definition', 'class_definition',
+      'if_statement', 'for_statement', 'while_statement',
+      'switch_statement', 'try_statement', 'catch_clause',
+      'object_expression', 'array_expression'
+    ];
+
     return blockTypes.includes(node.type);
+  }
+
+  /**
+   * 计算节点结构复杂度
+   * 考虑：块节点数量、嵌套模式复杂度
+   */
+  private calculateNodeComplexity(node: any): number {
+    let nodeScore = 0;
+    let blockNodeCount = 0;
+    
+    // 使用迭代方式统计块节点数量
+    const nodeQueue: any[] = [node];
+    const visited = new Set<any>();
+
+    while (nodeQueue.length > 0) {
+      const currentNode = nodeQueue.shift()!;
+      
+      if (visited.has(currentNode)) {
+        continue;
+      }
+      visited.add(currentNode);
+
+      if (this.isBlockNode(currentNode)) {
+        blockNodeCount++;
+      }
+
+      if (currentNode.children) {
+        for (const child of currentNode.children) {
+          if (!visited.has(child)) {
+            nodeQueue.push(child);
+          }
+        }
+      }
+    }
+
+    // 基于块节点数量的复杂度加成
+    if (blockNodeCount > 20) {
+      nodeScore += 3;
+    } else if (blockNodeCount > 10) {
+      nodeScore += 2;
+    } else if (blockNodeCount > 5) {
+      nodeScore += 1;
+    }
+    
+    return nodeScore;
+  }
+
+ /**
+   * 生成节点缓存键
+   */
+  private getNodeCacheKey(node: any): string {
+    if (node.id) {
+      return `${node.type}:${node.id}`;
+    }
+    if (node.startPosition && node.endPosition) {
+      return `${node.type}:${node.startPosition.row}:${node.startPosition.column}-${node.endPosition.row}:${node.endPosition.column}`;
+    }
+    return `${node.type}:${Math.random().toString(36).substr(2, 9)}`;
   }
 
   protected extractBaseDependencies(result: any): string[] {
