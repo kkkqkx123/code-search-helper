@@ -164,6 +164,9 @@ export interface NormalizationOptions {
   /** 缓存大小限制 */
   cacheSize?: number;
   
+  /** 缓存项TTL（毫秒） */
+  cacheTTL?: number;
+  
   /** 是否启用性能监控 */
   enablePerformanceMonitoring?: boolean;
   

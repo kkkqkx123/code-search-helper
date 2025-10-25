@@ -31,13 +31,14 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     this.logger = new LoggerService();
     this.options = {
       enableCache: options.enableCache ?? true,
-      cacheSize: options.cacheSize ?? 100,
+      cacheSize: options.cacheSize ?? 10,
+      cacheTTL: options.cacheTTL ?? 1800000, // 默认30分钟（毫秒）
       enablePerformanceMonitoring: options.enablePerformanceMonitoring ?? false,
       customTypeMappings: options.customTypeMappings ?? [],
       debug: options.debug ?? false
     };
 
-    this.cacheAdapter = new NormalizationCacheAdapter(this.options.cacheSize);
+    this.cacheAdapter = new NormalizationCacheAdapter(this.options.cacheSize, this.options.cacheTTL);
     this.performanceAdapter = new NormalizationPerformanceAdapter();
     this.stats = {
       totalNodes: 0,
@@ -279,9 +280,10 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
   updateOptions(options: Partial<NormalizationOptions>): void {
     this.options = { ...this.options, ...options };
 
-    // 如果缓存大小发生变化，重新创建缓存适配器
-    if (options.cacheSize !== undefined) {
-      this.cacheAdapter = new NormalizationCacheAdapter(this.options.cacheSize);
+    // 如果缓存大小或TTL发生变化，重新创建缓存适配器
+    if (options.cacheSize !== undefined || options.cacheTTL !== undefined) {
+      this.options = { ...this.options, ...options };
+      this.cacheAdapter = new NormalizationCacheAdapter(this.options.cacheSize, this.options.cacheTTL);
     }
   }
 
