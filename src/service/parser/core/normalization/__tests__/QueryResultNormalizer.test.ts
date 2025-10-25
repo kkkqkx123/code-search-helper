@@ -320,4 +320,131 @@ def decorated_function():
       expect(results).toHaveLength(0);
     });
   });
+
+  // 测试辅助类，用于访问私有方法
+  class TestableQueryResultNormalizer extends QueryResultNormalizer {
+    public testHashAST(ast: any): string {
+      return this.hashAST(ast);
+    }
+
+    public testGenerateSegmentHash(segment: any, segmentType: string): string {
+      return this.generateSegmentHash(segment, segmentType);
+    }
+
+    public testGetContentPreview(content: string, maxLength?: number): string {
+      return this.getContentPreview(content, maxLength);
+    }
+  }
+
+  describe('hashAST method', () => {
+    let testableNormalizer: TestableQueryResultNormalizer;
+
+    beforeEach(() => {
+      testableNormalizer = new TestableQueryResultNormalizer({
+        enableCache: false,
+        debug: true
+      });
+    });
+
+    test('不同节点应产生不同哈希', () => {
+      const node1 = {
+        text: 'function test() {}',
+        startPosition: { row: 1, column: 0 },
+        endPosition: { row: 1, column: 16 },
+        type: 'function_declaration',
+        id: '1'
+      };
+      
+      const node2 = {
+        text: 'function test() {}',
+        startPosition: { row: 2, column: 0 },
+        endPosition: { row: 2, column: 16 },
+        type: 'function_declaration',
+        id: '2'
+      };
+      
+      const hash1 = testableNormalizer.testHashAST(node1 as any);
+      const hash2 = testableNormalizer.testHashAST(node2 as any);
+      
+      expect(hash1).not.toEqual(hash2);
+      expect(hash1.length).toBe(64); // SHA-256哈希长度
+      expect(hash2.length).toBe(64);
+    });
+
+    test('相同节点应产生相同哈希', () => {
+      const node = {
+        text: 'const x = 1;',
+        startPosition: { row: 1, column: 0 },
+        endPosition: { row: 1, column: 11 },
+        type: 'variable_declaration',
+        id: '3'
+      };
+      
+      const hash1 = testableNormalizer.testHashAST(node as any);
+      const hash2 = testableNormalizer.testHashAST(node as any);
+      
+      expect(hash1).toEqual(hash2);
+    });
+
+    test('内容变化应产生不同哈希', () => {
+      const node1 = {
+        text: 'const x = 1;',
+        startPosition: { row: 1, column: 0 },
+        endPosition: { row: 1, column: 11 },
+        type: 'variable_declaration',
+        id: '4'
+      };
+      
+      const node2 = {
+        text: 'const y = 2;',
+        startPosition: { row: 1, column: 0 },
+        endPosition: { row: 1, column: 11 },
+        type: 'variable_declaration',
+        id: '5'
+      };
+      
+      const hash1 = testableNormalizer.testHashAST(node1 as any);
+      const hash2 = testableNormalizer.testHashAST(node2 as any);
+      
+      expect(hash1).not.toEqual(hash2);
+    });
+
+    test('generateSegmentHash 应该为不同类型产生不同哈希', () => {
+      const markdownSegment = {
+        content: '# Heading',
+        headingLevel: 1,
+        position: { start: 0, end: 10 }
+      };
+
+      const codeSegment = {
+        content: 'function test() {}',
+        metadata: { language: 'javascript', complexity: 1 },
+        startLine: 1,
+        endLine: 1
+      };
+
+      const markdownHash = testableNormalizer.testGenerateSegmentHash(markdownSegment, 'markdown');
+      const codeHash = testableNormalizer.testGenerateSegmentHash(codeSegment, 'code');
+
+      expect(markdownHash).not.toEqual(codeHash);
+      expect(markdownHash.length).toBe(64);
+      expect(codeHash.length).toBe(64);
+    });
+
+    test('getContentPreview 应该正确处理长内容', () => {
+      const longContent = 'This is a very long content that should be truncated with ellipsis in the middle';
+      const preview = testableNormalizer.testGetContentPreview(longContent, 50);
+      
+      expect(preview).toContain('...');
+      expect(preview.length).toBeLessThanOrEqual(103); // 80 + 3 + 20
+    });
+
+    test('getContentPreview 应该处理短内容', () => {
+      const shortContent = 'Short content';
+      const preview = testableNormalizer.testGetContentPreview(shortContent);
+      
+      expect(preview).toBe(shortContent);
+      expect(preview).not.toContain('...');
+    });
+  });
 });
