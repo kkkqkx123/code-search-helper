@@ -21,9 +21,13 @@ import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnec
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
 import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
 import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
+import { ProcessEventManager } from './utils/ProcessEventManager';
 
-// 添加详细的错误处理
-process.on('uncaughtException', (error) => {
+// 获取事件管理器实例，用于统一管理所有事件监听器
+const eventManager = ProcessEventManager.getInstance();
+
+// 使用事件管理器注册全局错误处理，避免重复注册
+const uncaughtExceptionHandler = async (error: Error) => {
   console.error('Uncaught Exception:', error);
   console.error('Error name:', error.name);
   console.error('Error message:', error.message);
@@ -41,9 +45,9 @@ process.on('uncaughtException', (error) => {
     });
   }
   process.exit(1);
-});
+};
 
-process.on('unhandledRejection', (reason, promise) => {
+const unhandledRejectionHandler = async (reason: any, promise: Promise<any>) => {
   console.error('Unhandled Rejection at:', promise);
   console.error('Reason:', reason);
   if (reason && typeof reason === 'object' && 'kind' in reason) {
@@ -58,7 +62,10 @@ process.on('unhandledRejection', (reason, promise) => {
     });
   }
   process.exit(1);
-});
+};
+
+eventManager.addListener('uncaughtException', uncaughtExceptionHandler);
+eventManager.addListener('unhandledRejection', unhandledRejectionHandler);
 
 /**
  * 应用生命周期阶段枚举
@@ -99,8 +106,10 @@ class Application {
     @inject(TYPES.HotReloadRestartService) private hotReloadRestartService: HotReloadRestartService,
     @inject(TYPES.SqliteDatabaseService) private sqliteService: SqliteDatabaseService
   ) {
-    // 创建一个 Logger 实例，用于整个应用
-    this.logger = new Logger('code-search-helper');
+    // 使用 Logger 单例，避免重复创建实例
+    this.logger = Logger.getInstance('code-search-helper');
+
+    // 创建 MCP 服务器实例
     this.mcpServer = new MCPServer(this.logger);
 
     // API端口配置
@@ -422,8 +431,8 @@ async function bootstrap(): Promise<void> {
     await app.start();
     console.log('Application started successfully');
 
-    // 优雅关闭处理
-    process.on('SIGINT', async () => {
+    // 优雅关闭处理 - 使用事件管理器统一管理
+    const sigintHandler = async () => {
       console.log('\nReceived SIGINT, shutting down gracefully...');
       try {
         await app.stop();
@@ -432,9 +441,9 @@ async function bootstrap(): Promise<void> {
         console.error('Error during shutdown:', error);
         process.exit(1);
       }
-    });
+    };
 
-    process.on('SIGTERM', async () => {
+    const sigtermHandler = async () => {
       console.log('\nReceived SIGTERM, shutting down gracefully...');
       try {
         await app.stop();
@@ -443,7 +452,10 @@ async function bootstrap(): Promise<void> {
         console.error('Error during shutdown:', error);
         process.exit(1);
       }
-    });
+    };
+
+    eventManager.addListener('SIGINT', sigintHandler);
+    eventManager.addListener('SIGTERM', sigtermHandler);
 
   } catch (error) {
     console.error('Failed to bootstrap application:', error);

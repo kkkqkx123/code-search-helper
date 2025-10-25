@@ -3,13 +3,16 @@ import * as path from 'path';
 import { ProcessEventManager } from './ProcessEventManager';
 
 export class Logger {
+  private static instance: Logger;
   private logFilePath: string;
   private isNormalExit: boolean = false;
   private hasLogged: boolean = false; // 标记是否已写入日志
   private logLevel: string;
   private eventManager: ProcessEventManager;
+  private serviceName: string;
 
-  constructor(serviceName: string, logLevel?: string) {
+  private constructor(serviceName: string, logLevel?: string) {
+    this.serviceName = serviceName;
     // 设置日志级别，默认为 'info'
     this.logLevel = logLevel?.toUpperCase() || 'INFO';
 
@@ -31,9 +34,21 @@ export class Logger {
         console.error('Failed to create log directory:', error);
       });
 
-      // 设置进程退出处理
-      this.setupExitHandlers();
+      // 设置进程退出处理 - 只在第一个实例中设置
+      if (!Logger.instance) {
+        this.setupExitHandlers();
+      }
     }
+  }
+
+  /**
+   * 获取 Logger 单例实例
+   */
+  public static getInstance(serviceName: string = 'code-search-helper', logLevel?: string): Logger {
+    if (!Logger.instance) {
+      Logger.instance = new Logger(serviceName, logLevel);
+    }
+    return Logger.instance;
   }
 
   // 静态属性用于存储启动时间，确保整个应用运行期间使用相同的时间戳

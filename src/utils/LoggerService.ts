@@ -13,7 +13,8 @@ export class LoggerService {
     const serviceName = 'code-search-helper';
     // 从环境变量获取日志级别，如果没有设置则使用默认级别
     const logLevel = process.env.LOG_LEVEL || 'info';
-    this.logger = new Logger(serviceName, logLevel);
+    // 使用 Logger 单例
+    this.logger = Logger.getInstance(serviceName, logLevel);
   }
 
   /**

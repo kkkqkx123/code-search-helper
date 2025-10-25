@@ -6,7 +6,7 @@
 export class ProcessEventManager {
   private static instance: ProcessEventManager;
   private registeredListeners: Map<string, Set<(...args: any[]) => void>> = new Map();
-  private maxListeners: number = 10;
+  private maxListeners: number = 20; // 增加到20，避免内存泄漏警告
 
   private constructor() {
     // 增加process的最大监听器数量
