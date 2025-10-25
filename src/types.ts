@@ -149,6 +149,7 @@ export const TYPES = {
   ErrorHandlerService: Symbol.for('ErrorHandlerService'),
   ProjectIdManager: Symbol.for('ProjectIdManager'),
   ProjectPathMappingService: Symbol.for('ProjectPathMappingService'),
+  UnifiedMappingService: Symbol.for('UnifiedMappingService'),
   MemoryMonitorService: Symbol.for('MemoryMonitorService'),
   DatabaseLoggerService: Symbol.for('DatabaseLoggerService'),
   EventToLogBridge: Symbol.for('EventToLogBridge'),
@@ -187,6 +188,7 @@ export const TYPES = {
   ProjectStateManager: Symbol.for('ProjectStateManager'),
   CoreStateService: Symbol.for('CoreStateService'),
   StorageStateService: Symbol.for('StorageStateService'),
+  DataConsistencyService: Symbol.for('DataConsistencyService'),
   
   // 8. 性能优化器服务
   PerformanceOptimizerService: Symbol.for('PerformanceOptimizerService'),

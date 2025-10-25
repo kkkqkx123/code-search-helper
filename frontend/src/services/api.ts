@@ -154,15 +154,21 @@ export class ApiClient {
         page?: number;
         pageSize?: number;
     }): string {
-        const keyParts = [
+        // 按照固定顺序生成缓存键，避免因参数顺序变化导致缓存失效
+        const sortedOptions = {
             query,
-            projectId || '',
-            options?.maxResults?.toString() || '',
-            options?.minScore?.toString() || '',
-            options?.page?.toString() || '1',
-            options?.pageSize?.toString() || '10'
-        ];
-        return keyParts.join('|');
+            projectId: projectId || '',
+            maxResults: options?.maxResults?.toString() || '',
+            minScore: options?.minScore?.toString() || '',
+            page: options?.page?.toString() || '1',
+            pageSize: options?.pageSize?.toString() || '10'
+        };
+        
+        // 按照固定顺序拼接键值对
+        return Object.entries(sortedOptions)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, value]) => `${key}=${value}`)
+            .join('&');
     }
 
     /**

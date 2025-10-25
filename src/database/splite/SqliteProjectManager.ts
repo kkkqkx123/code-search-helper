@@ -286,12 +286,15 @@ export class SqliteProjectManager implements IProjectManager {
   }
 
   private generateProjectId(projectPath: string): string {
-    // 使用路径的哈希值作为项目ID
-    return Buffer.from(projectPath).toString('base64').replace(/[^a-zA-Z0-9]/g, '_');
+    // 使用更安全的哈希算法生成项目ID
+    const crypto = require('crypto');
+    const normalizedPath = projectPath.replace(/\\/g, '/'); // 统一路径分隔符
+    const hash = crypto.createHash('sha256').update(normalizedPath).digest('hex');
+    return hash.substring(0, 16); // 使用前16个字符作为项目ID
   }
 
   private extractProjectName(projectPath: string): string {
-    return projectPath.split(/[/\\]/).pop() || 'unknown';
+    return projectPath.split(/[/\\]/).filter(Boolean).pop() || 'unknown';
   }
 
   private emitEvent(eventType: string, data: any): void {

@@ -70,7 +70,7 @@ export class ProjectIdManager {
   async generateProjectId(projectPath: string): Promise<string> {
     try {
       // Normalize path to ensure consistency across different platforms
-      const normalizedPath = HashUtils.normalizePath(projectPath);
+      const normalizedPath = HashUtils.deepNormalizePath(projectPath);
 
       // Check if project ID already exists for this path
       const existingProjectId = this.projectIdMap.get(normalizedPath);
@@ -119,7 +119,7 @@ export class ProjectIdManager {
   }
 
   getProjectId(projectPath: string): string | undefined {
-    const normalizedPath = HashUtils.normalizePath(projectPath);
+    const normalizedPath = HashUtils.deepNormalizePath(projectPath);
     return this.projectIdMap.get(normalizedPath);
   }
 

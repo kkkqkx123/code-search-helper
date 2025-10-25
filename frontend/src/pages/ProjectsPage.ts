@@ -172,7 +172,7 @@ export class ProjectsPage {
                 const projectsWithNames = result.data.map((project: any) => {
                     return {
                         ...project,
-                        name: nameMapping[project.id] || project.name || project.id
+                        name: nameMapping[project.id] || project.name || this.getProjectDisplayName(project.path) || project.id
                     };
                 });
 
@@ -860,6 +860,15 @@ export class ProjectsPage {
         };
 
         return text.replace(/[&<>"']/g, function (m) { return map[m]; });
+    }
+
+    /**
+     * 获取项目显示名称
+     */
+    private getProjectDisplayName(projectPath: string): string {
+        if (!projectPath) return '';
+        // 从路径中提取项目名称，处理各种路径分隔符
+        return projectPath.split(/[/\\]/).filter(Boolean).pop() || '';
     }
 
     /**

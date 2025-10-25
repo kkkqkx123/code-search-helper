@@ -86,18 +86,64 @@ export class HashUtils {
   static normalizePath(filePath: string): string {
     // 标准化路径，转换反斜杠为正斜杠，并移除尾斜杠（除非是根路径）
     let normalized = path.normalize(filePath).replace(/\\/g, '/');
-
+    
     // 移除尾斜杠，但保留根路径的斜杠
     if (normalized.length > 1 && normalized.endsWith('/')) {
       normalized = normalized.slice(0, -1);
     }
-
+    
     // 处理双斜杠问题（Windows UNC路径）
     if (normalized.startsWith('//') && !normalized.startsWith('///')) {
       normalized = '/' + normalized.substring(2);
     }
-
+    
     return normalized;
+  }
+
+  /**
+   * 深度标准化路径，处理更多边界情况
+   */
+  static deepNormalizePath(filePath: string): string {
+    if (!filePath) return '';
+    
+    // 1. 标准化路径分隔符
+    let normalized = filePath.replace(/\\/g, '/');
+    
+    // 2. 处理相对路径部分
+    normalized = path.normalize(normalized);
+    
+    // 3. 移除尾部斜杠（除非是根路径）
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1);
+    }
+    
+    // 4. 处理Windows UNC路径
+    if (normalized.startsWith('//') && !normalized.startsWith('///')) {
+      normalized = '/' + normalized.substring(2);
+    }
+    
+    // 5. 移除多余的斜杠
+    normalized = normalized.replace(/\/+/g, '/');
+    
+    // 6. 处理当前目录引用
+    normalized = normalized.replace(/\/\.\//g, '/');
+    
+    // 7. 移除开头的"./"
+    if (normalized.startsWith('./')) {
+      normalized = normalized.substring(2);
+    }
+    
+    return normalized;
+  }
+
+  /**
+   * 比较两个路径是否指向同一个位置
+   */
+  static arePathsEqual(path1: string, path2: string): boolean {
+    if (!path1 || !path2) return path1 === path2;
+    
+    // 使用深度标准化进行比较
+    return this.deepNormalizePath(path1) === this.deepNormalizePath(path2);
   }
 
   /**

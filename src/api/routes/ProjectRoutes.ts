@@ -444,6 +444,15 @@ export class ProjectRoutes {
   }
 
   /**
+   * 提取项目名称，处理各种路径分隔符
+   */
+  private extractProjectName(projectPath: string): string {
+    if (!projectPath) return 'unknown';
+    // 处理各种路径分隔符，包括Windows和Unix风格
+    return projectPath.split(/[/\\]/).filter(Boolean).pop() || 'unknown';
+  }
+
+  /**
    * 执行图存储
    */
   private async indexGraph(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -575,9 +584,35 @@ export class ProjectRoutes {
     }
   }
 
+  /**
+   * Maps StorageStatus to Project status
+   * @param storageStatus The status from StorageStatus
+   * @returns The corresponding status for Project
+   */
+  private mapStorageStatusToProjectStatus(
+    storageStatus: StorageStatus['status']
+  ): Project['status'] {
+    switch (storageStatus) {
+      case 'completed':
+        return 'completed';
+      case 'indexing':
+        return 'indexing';
+      case 'pending':
+        return 'pending';
+      case 'error':
+        return 'error';
+      case 'partial':
+        return 'completed'; // Partial completion is still considered completed
+      case 'disabled':
+        return 'pending'; // Disabled is treated as pending
+      default:
+        return 'pending';
+    }
+  }
+
   private async buildProjectResponse(projectId: string, projectPath: string): Promise<Project> {
-    // Extract project name from path
-    const projectName = path.basename(projectPath);
+    // Extract project name from path with better handling
+    const projectName = this.extractProjectName(projectPath);
 
     // Get project state from ProjectStateManager
     const projectState: ProjectState | null = this.projectStateManager.getProjectState(projectId);
