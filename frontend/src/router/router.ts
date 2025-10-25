@@ -2,7 +2,7 @@
  * 路由管理器
  * 处理页面导航和状态管理
  */
-export type PageId = 'search' | 'index-project' | 'projects' | 'graph-explorer' | 'graph-analysis' | 'graph-management';
+export type PageId = 'search' | 'index-project' | 'projects' | 'graph-explorer' | 'graph-analysis' | 'graph-management' | 'qdrant-view';
 
 export class Router {
     private currentPage: PageId = 'search';
@@ -36,7 +36,7 @@ export class Router {
      */
     private getPageFromUrl(): PageId | null {
         const hash = window.location.hash.substring(1);
-        if (['search', 'index-project', 'projects', 'graph-explorer', 'graph-analysis', 'graph-management'].includes(hash)) {
+        if (['search', 'index-project', 'projects', 'graph-explorer', 'graph-analysis', 'graph-management', 'qdrant-view'].includes(hash)) {
             return hash as PageId;
         }
         return null;

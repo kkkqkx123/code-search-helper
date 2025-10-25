@@ -571,4 +571,52 @@ export class ApiClient {
             throw error;
         }
     }
+
+    /**
+     * 获取Qdrant Collection信息
+     */
+    async getCollectionInfo(collectionId: string): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/qdrant/collections/${collectionId}/info`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取Collection信息失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取Qdrant Collection统计
+     */
+    async getCollectionStats(collectionId: string): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/qdrant/collections/${collectionId}/stats`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取Collection统计失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取Qdrant Collection数据点
+     */
+    async getCollectionPoints(collectionId: string, options?: {
+        limit?: number;
+        offset?: string;
+        filter?: any;
+    }): Promise<any> {
+        try {
+            const queryParams = new URLSearchParams();
+            if (options?.limit) queryParams.append('limit', options.limit.toString());
+            if (options?.offset) queryParams.append('offset', options.offset);
+            if (options?.filter) queryParams.append('filter', JSON.stringify(options.filter));
+
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/qdrant/collections/${collectionId}/points?${queryParams.toString()}`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取Collection数据点失败:', error);
+            throw error;
+        }
+    }
 }

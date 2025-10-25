@@ -23,6 +23,7 @@ import { ProjectStateManager } from '../service/project/ProjectStateManager';
 import { diContainer } from '../core/DIContainer';
 import { TYPES } from '../types';
 import { NebulaService } from '../database/nebula/NebulaService';
+import { QdrantCollectionViewRoutes } from './routes/QdrantCollectionViewRoutes';
 
 export class ApiServer {
   private app: express.Application;
@@ -43,6 +44,7 @@ export class ApiServer {
   private qdrantService: QdrantService;
   private nebulaService: NebulaService;
   private projectStateManager: ProjectStateManager;
+  private qdrantCollectionViewRoutes: QdrantCollectionViewRoutes;
 
   constructor(logger: Logger, indexSyncService: IndexService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
     this.logger = logger;
@@ -96,6 +98,8 @@ export class ApiServer {
     // 初始化热更新路由
     this.hotReloadRoutes = new HotReloadRoutes(hotReloadConfigService, logger);
     this.graphStatsRoutes = new GraphStatsRoutes(graphService, graphCacheService, graphPerformanceMonitor, graphLoggerService);
+    // 初始化Qdrant Collection视图路由
+    this.qdrantCollectionViewRoutes = new QdrantCollectionViewRoutes();
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -333,6 +337,8 @@ export class ApiServer {
     // 热更新路由
     this.app.use('/api/v1/hot-reload', this.hotReloadRoutes.getRouter());
     this.app.use('/api/v1/graph', this.graphStatsRoutes.getRouter());
+    // Qdrant Collection视图路由
+    this.app.use('/api/v1/qdrant', this.qdrantCollectionViewRoutes.getRouter());
 
     // 404处理
     this.app.use((req, res) => {

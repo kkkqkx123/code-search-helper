@@ -6,6 +6,7 @@ import { ProjectsPage } from './pages/ProjectsPage.js';
 import { GraphExplorerPage } from './pages/GraphExplorerPage.js';
 import { GraphAnalysisPage } from './pages/GraphAnalysisPage.js';
 import { GraphManagementPage } from './pages/GraphManagementPage.js';
+import { QdrantCollectionViewPage } from './pages/QdrantCollectionViewPage.js';
 
 // 导入新的组件
 import { StorageStatusIndicator } from './components/StorageStatusIndicator.js';
@@ -33,6 +34,7 @@ export class CodebaseSearchApp {
     private graphExplorerPage!: GraphExplorerPage;
     private graphAnalysisPage!: GraphAnalysisPage;
     private graphManagementPage!: GraphManagementPage;
+    private qdrantCollectionViewPage!: QdrantCollectionViewPage;
     private statusElement: HTMLElement | null;
     private versionElement: HTMLElement | null;
 
@@ -74,9 +76,11 @@ export class CodebaseSearchApp {
         const graphExplorerPageContainer = document.getElementById('graph-explorer-page') as HTMLElement;
         const graphAnalysisPageContainer = document.getElementById('graph-analysis-page') as HTMLElement;
         const graphManagementPageContainer = document.getElementById('graph-management-page') as HTMLElement;
+        const qdrantCollectionViewPageContainer = document.getElementById('qdrant-view-page') as HTMLElement;
 
         if (!searchPageContainer || !indexProjectPageContainer || !projectsPageContainer ||
-            !graphExplorerPageContainer || !graphAnalysisPageContainer || !graphManagementPageContainer) {
+            !graphExplorerPageContainer || !graphAnalysisPageContainer || !graphManagementPageContainer ||
+            !qdrantCollectionViewPageContainer) {
             throw new Error('页面容器元素未找到');
         }
 
@@ -86,6 +90,7 @@ export class CodebaseSearchApp {
         this.graphExplorerPage = new GraphExplorerPage(graphExplorerPageContainer);
         this.graphAnalysisPage = new GraphAnalysisPage(graphAnalysisPageContainer);
         this.graphManagementPage = new GraphManagementPage(graphManagementPageContainer);
+        this.qdrantCollectionViewPage = new QdrantCollectionViewPage(qdrantCollectionViewPageContainer, this.apiClient);
 
         // 设置页面回调
         this.indexProjectPage.setOnIndexComplete((_result) => {
@@ -148,6 +153,7 @@ export class CodebaseSearchApp {
         this.graphExplorerPage.hide();
         this.graphAnalysisPage.hide();
         this.graphManagementPage.hide();
+        this.qdrantCollectionViewPage.hide();
 
         // 移除所有导航按钮的active类
         document.querySelectorAll('.nav-button').forEach(button => {
@@ -173,6 +179,9 @@ export class CodebaseSearchApp {
                 break;
             case 'graph-management':
                 this.graphManagementPage.show();
+                break;
+            case 'qdrant-view':
+                this.qdrantCollectionViewPage.show();
                 break;
         }
 
