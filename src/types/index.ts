@@ -52,6 +52,7 @@ export const TYPES = {
   
   // 项目管理
   ProjectIdManager: Symbol.for('ProjectIdManager'),
+  ProjectPathMappingService: Symbol.for('ProjectPathMappingService'),
   
   // Nebula-specific services
   INebulaConnectionManager: Symbol.for('INebulaConnectionManager'),

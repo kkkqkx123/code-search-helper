@@ -7,6 +7,7 @@ import { TYPES } from '../../types';
 import { EnvironmentUtils } from '../utils/EnvironmentUtils';
 import { ValidationUtils } from '../utils/ValidationUtils';
 import { HashUtils } from '../../utils/HashUtils';
+import { ProjectPathMappingService } from '../../database/ProjectPathMappingService';
 
 export interface QdrantConfig {
   host: string;
@@ -21,7 +22,8 @@ export interface QdrantConfig {
 export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
-    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService
+    @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
+    @inject(TYPES.ProjectPathMappingService) private projectPathMappingService?: ProjectPathMappingService
   ) {
     super();
   }
@@ -125,7 +127,13 @@ getCollectionNameForProject(projectId: string): string {
      }
      
      // 2. 使用项目隔离的动态命名，确保符合命名规范
-     const dynamicName = HashUtils.generateSafeProjectName(projectId, 'project');
+     const dynamicName = HashUtils.generateSafeProjectName(
+        projectId, 
+        'project', 
+        63, 
+        true, 
+        this.projectPathMappingService
+      );
      
      // 验证动态生成的命名是否符合规范（应该总是通过，但作为双重检查）
      if (!this.validateNamingConvention(dynamicName)) {

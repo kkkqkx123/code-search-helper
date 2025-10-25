@@ -24,6 +24,7 @@ import { diContainer } from '../core/DIContainer';
 import { TYPES } from '../types';
 import { NebulaService } from '../database/nebula/NebulaService';
 import { QdrantCollectionViewRoutes } from './routes/QdrantCollectionViewRoutes';
+import { createProjectMappingRouter } from './routes/ProjectMappingRoutes';
 
 export class ApiServer {
   private app: express.Application;
@@ -72,7 +73,7 @@ export class ApiServer {
     this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     const vectorIndexService = diContainer.get<any>(TYPES.VectorIndexService);
     const graphIndexService = diContainer.get<any>(TYPES.GraphIndexService);
-    
+
     // 初始化热更新配置服务
     const hotReloadConfigService = diContainer.get<HotReloadConfigService>(TYPES.HotReloadConfigService);
     this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService, vectorIndexService, graphIndexService, hotReloadConfigService);
@@ -100,9 +101,11 @@ export class ApiServer {
     this.graphStatsRoutes = new GraphStatsRoutes(graphService, graphCacheService, graphPerformanceMonitor, graphLoggerService);
     // 初始化Qdrant Collection视图路由
     this.qdrantCollectionViewRoutes = new QdrantCollectionViewRoutes();
+    // 初始化项目映射服务
+    const projectPathMappingService = diContainer.get<any>(TYPES.ProjectPathMappingService);
 
     this.setupMiddleware();
-    this.setupRoutes();
+    this.setupRoutes(projectPathMappingService);
   }
 
   private setupMiddleware(): void {
@@ -190,7 +193,7 @@ export class ApiServer {
     });
   }
 
-  private setupRoutes(): void {
+  private setupRoutes(projectPathMappingService: any): void {
     // 搜索端点
     this.app.post('/api/search', async (req, res) => {
       try {
@@ -339,6 +342,8 @@ export class ApiServer {
     this.app.use('/api/v1/graph', this.graphStatsRoutes.getRouter());
     // Qdrant Collection视图路由
     this.app.use('/api/v1/qdrant', this.qdrantCollectionViewRoutes.getRouter());
+    // 项目映射路由
+    this.app.use('/api/v1/project-mappings', createProjectMappingRouter(projectPathMappingService));
 
     // 404处理
     this.app.use((req, res) => {

@@ -10,6 +10,7 @@ import { LoggerService } from './utils/LoggerService';
 import { ErrorHandlerService } from './utils/ErrorHandlerService';
 import { ProjectIdManager } from './database/ProjectIdManager';
 import { DatabaseLoggerService } from './database/common/DatabaseLoggerService';
+import { ProjectPathMappingService } from './database/ProjectPathMappingService';
 import { EventToLogBridge } from './database/common/EventToLogBridge';
 
 // 4. Qdrant 数据库模块
@@ -147,6 +148,7 @@ export const TYPES = {
   LoggerService: Symbol.for('LoggerService'),
   ErrorHandlerService: Symbol.for('ErrorHandlerService'),
   ProjectIdManager: Symbol.for('ProjectIdManager'),
+  ProjectPathMappingService: Symbol.for('ProjectPathMappingService'),
   MemoryMonitorService: Symbol.for('MemoryMonitorService'),
   DatabaseLoggerService: Symbol.for('DatabaseLoggerService'),
   EventToLogBridge: Symbol.for('EventToLogBridge'),

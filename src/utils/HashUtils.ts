@@ -107,13 +107,28 @@ export class HashUtils {
    * @param projectId 项目ID或路径
    * @param prefix 名称前缀，默认为'project'
    * @param maxLength 最大长度，默认为63（符合大多数数据库命名规范）
+   * @param saveMapping 是否保存映射关系到数据库，默认为false
+   * @param mappingService 映射服务实例，当saveMapping为true时需要提供
    * @returns 符合命名规范的安全名称
    */
-  static generateSafeProjectName(projectId: string, prefix: string = 'project', maxLength: number = 63): string {
+  static generateSafeProjectName(
+    projectId: string, 
+    prefix: string = 'project', 
+    maxLength: number = 63,
+    saveMapping: boolean = false,
+    mappingService?: any
+  ): string {
     try {
       // 1. 首先尝试直接使用项目ID（如果它已经符合规范）
       const directPattern = /^[a-zA-Z0-9_-]{1,63}$/;
       if (directPattern.test(projectId) && !projectId.startsWith('_')) {
+        // 如果需要保存映射关系
+        if (saveMapping && mappingService) {
+          mappingService.saveMapping(projectId, projectId).catch((error: any) => {
+            // 记录错误但不中断主流程
+            console.error('Failed to save project path mapping:', error);
+          });
+        }
         return `${prefix}-${projectId}`;
       }
 
@@ -125,7 +140,17 @@ export class HashUtils {
       const maxHashLength = maxLength - prefixLength;
       const shortHash = hash.substring(0, Math.min(maxHashLength, 16)); // 使用最多16位哈希
 
-      return `${prefix}-${shortHash}`;
+      const safeName = `${prefix}-${shortHash}`;
+
+      // 4. 保存映射关系（如果需要）
+      if (saveMapping && mappingService) {
+        mappingService.saveMapping(shortHash, projectId).catch((error: any) => {
+          // 记录错误但不中断主流程
+          console.error('Failed to save project path mapping:', error);
+        });
+      }
+
+      return safeName;
     } catch (error) {
       // 如果出现任何错误，返回一个基于时间戳的安全名称
       const timestamp = Date.now().toString(36);

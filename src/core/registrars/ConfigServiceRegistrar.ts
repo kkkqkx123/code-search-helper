@@ -21,6 +21,7 @@ import {
   EmbeddingBatchConfigService,
   GraphCacheConfigService,
 } from '../../config/service';
+import { ProjectPathMappingService } from '../../database/ProjectPathMappingService';
 
 export class ConfigServiceRegistrar {
   static register(container: Container): void {
@@ -44,6 +45,9 @@ export class ConfigServiceRegistrar {
       container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
       container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
       container.bind<GraphCacheConfigService>(TYPES.GraphCacheConfigService).to(GraphCacheConfigService).inSingletonScope();
+      
+      // 数据库服务
+      container.bind<ProjectPathMappingService>(TYPES.ProjectPathMappingService).to(ProjectPathMappingService).inSingletonScope();
 
       // 主配置服务
       container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();

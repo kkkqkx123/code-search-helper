@@ -229,6 +229,32 @@ export class SqliteDatabaseService {
     // 创建热重载相关索引
     db.exec('CREATE INDEX IF NOT EXISTS idx_project_status_hot_reload_enabled ON project_status(hot_reload_enabled)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_project_status_hot_reload_updated ON project_status(hot_reload_last_enabled, hot_reload_last_disabled)');
+    // 创建项目路径映射表
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS project_path_mapping (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          hash TEXT UNIQUE NOT NULL,
+          original_path TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 创建项目路径映射表的索引
+    db.exec('CREATE INDEX IF NOT EXISTS idx_project_path_mapping_hash ON project_path_mapping(hash)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_project_path_mapping_original_path ON project_path_mapping(original_path)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_project_path_mapping_created_at ON project_path_mapping(created_at)');
+
+    // 创建项目路径映射表的更新触发器
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS update_project_path_mapping_timestamp 
+      AFTER UPDATE ON project_path_mapping
+      BEGIN
+        UPDATE project_path_mapping 
+        SET updated_at = CURRENT_TIMESTAMP 
+        WHERE id = NEW.id;
+      END
+    `);
 
     // 确保表结构创建完成后再检查热重载字段
     try {
