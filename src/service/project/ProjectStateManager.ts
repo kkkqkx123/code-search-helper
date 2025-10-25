@@ -186,6 +186,13 @@ export class ProjectStateManager {
    */
   private async loadProjectStatesFromSQLite(): Promise<void> {
     try {
+      // 检查数据库是否已连接
+      if (!this.sqliteStateManager['sqliteService'].isConnected()) {
+        this.logger.warn('SQLite database not connected, skipping SQLite load');
+        this.projectStates = new Map();
+        return;
+      }
+      
       const states = await this.sqliteStateManager.getAllProjectStates();
       
       this.projectStates = new Map();
@@ -235,7 +242,9 @@ export class ProjectStateManager {
       
       this.logger.info(`Loaded ${states.length} project states from SQLite`);
     } catch (error) {
-      this.logger.warn('Failed to load project states from SQLite', error);
+      this.logger.warn('Failed to load project states from SQLite, continuing with empty states', error);
+      // 确保在出错时仍然有一个空的映射
+      this.projectStates = new Map();
     }
   }
 

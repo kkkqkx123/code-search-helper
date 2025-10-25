@@ -49,6 +49,12 @@ export class SqliteStateManager {
    */
   private async checkHotReloadColumns(): Promise<boolean> {
     try {
+      // 检查数据库是否已连接
+      if (!this.sqliteService.isConnected()) {
+        this.logger.warn('Database not connected, cannot check hot reload columns');
+        return false;
+      }
+      
       const stmt = this.sqliteService.prepare(`
         PRAGMA table_info(project_status)
       `);
@@ -63,12 +69,13 @@ export class SqliteStateManager {
         'hot_reload_errors_count'
       ];
       
-      return hotReloadColumns.every(col => 
+      return hotReloadColumns.every(col =>
         columns.some(column => column.name === col)
       );
     } catch (error) {
-      this.logger.error('Failed to check hot reload columns', error);
-      return false;
+      this.logger.warn('Failed to check hot reload columns, will assume columns exist', error);
+      // 在出现错误时，默认返回true，避免因为临时性问题导致功能不可用
+      return true;
     }
   }
 

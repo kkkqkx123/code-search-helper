@@ -230,8 +230,12 @@ export class SqliteDatabaseService {
     db.exec('CREATE INDEX IF NOT EXISTS idx_project_status_hot_reload_enabled ON project_status(hot_reload_enabled)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_project_status_hot_reload_updated ON project_status(hot_reload_last_enabled, hot_reload_last_disabled)');
 
-    // 检查并添加热重载字段（用于现有数据库的迁移）
-    this.addHotReloadColumnsIfNeeded();
+    // 确保表结构创建完成后再检查热重载字段
+    try {
+      this.addHotReloadColumnsIfNeeded();
+    } catch (error) {
+      this.logger.warn('Failed to add hot reload columns during initialization, will retry on demand', error);
+    }
 
     this.logger.info('数据库表结构初始化完成');
   }

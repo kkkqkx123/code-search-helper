@@ -47,21 +47,9 @@ export class ProjectIdManager {
     // 检查是否在测试环境中
     const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
 
-    if (isTestEnvironment) {
-      // 在测试环境中，延迟加载映射以避免配置服务未初始化的问题
-      setTimeout(() => {
-        this.loadMapping().catch(error => {
-          this.logger.warn('Failed to load project mapping in test environment:', error);
-          this.errorHandler.handleError(error, { component: 'ProjectIdManager', operation: 'loadMapping' });
-        });
-      }, 10);
-    } else {
-      // 在生产环境中立即加载映射
-      this.loadMapping().catch(error => {
-        this.logger.warn('Failed to load project mapping at startup:', error);
-        this.errorHandler.handleError(error, { component: 'ProjectIdManager', operation: 'loadMapping' });
-      });
-    }
+    // 不在构造函数中立即加载映射，而是延迟到数据库初始化完成后再加载
+    // 这样可以避免在数据库服务未初始化时尝试访问数据库
+    this.logger.info('ProjectIdManager initialized, mapping will be loaded after database initialization');
   }
 
   /**
@@ -318,6 +306,13 @@ export class ProjectIdManager {
    */
   private async loadMappingFromSQLite(): Promise<void> {
     try {
+      // 检查数据库是否已连接
+      if (!this.sqliteProjectManager['sqliteService'].isConnected()) {
+        this.logger.warn('SQLite database not connected, skipping SQLite load');
+        this.initializeEmptyMapping();
+        return;
+      }
+      
       const projects = await this.sqliteProjectManager.listProjectSpaces();
       
       this.initializeEmptyMapping();
@@ -356,8 +351,10 @@ export class ProjectIdManager {
       
       this.logger.info(`Loaded ${projects.length} project mappings from SQLite`);
     } catch (error) {
-      this.logger.warn('Failed to load project mappings from SQLite', error);
-      // 不抛出错误，让调用者尝试从JSON加载
+      this.logger.warn('Failed to load project mappings from SQLite, continuing with empty mapping', error);
+      // 确保在出错时仍然有一个空的映射
+      this.initializeEmptyMapping();
+      // 不抛出错误，让调用者继续执行
     }
   }
 
@@ -447,6 +444,23 @@ export class ProjectIdManager {
     this.spaceMap = new Map();
     this.pathToProjectMap = new Map();
     this.projectUpdateTimes = new Map();
+  }
+
+  /**
+   * 在数据库初始化完成后手动加载映射
+   */
+  async loadMappingAfterDatabaseInitialization(): Promise<void> {
+    try {
+      this.logger.info('Loading project mappings after database initialization...');
+      await this.loadMapping();
+      this.logger.info('Project mappings loaded successfully after database initialization');
+    } catch (error) {
+      this.logger.warn('Failed to load project mappings after database initialization:', error);
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)), 
+        { component: 'ProjectIdManager', operation: 'loadMappingAfterDatabaseInitialization' }
+      );
+    }
   }
 
   /**

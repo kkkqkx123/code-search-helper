@@ -148,15 +148,18 @@ class Application {
 
       this.currentPhase = ApplicationLifecyclePhase.SERVICES_INITIALIZING;
 
-      // 初始化项目状态管理器
-      await this.loggerService.info('Initializing project state manager...');
-      await this.projectStateManager.initialize();
-
       // 初始化数据库服务
       // 初始化SQLite数据库服务
       await this.loggerService.info('Initializing SQLite database service...');
       await this.sqliteService.initialize();
       await this.loggerService.info('SQLite database service initialized successfully');
+
+      // 在数据库初始化完成后，手动加载项目映射
+      await this.projectIdManager.loadMappingAfterDatabaseInitialization();
+
+      // 初始化项目状态管理器
+      await this.loggerService.info('Initializing project state manager...');
+      await this.projectStateManager.initialize();
 
       await this.loggerService.info('Initializing database services...');
       const dbConnected = await this.qdrantService.initialize();
