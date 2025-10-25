@@ -6,6 +6,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { EnvironmentUtils } from '../utils/EnvironmentUtils';
 import { ValidationUtils } from '../utils/ValidationUtils';
+import { HashUtils } from '../../utils/HashUtils';
 
 export interface QdrantConfig {
   host: string;
@@ -123,10 +124,10 @@ getCollectionNameForProject(projectId: string): string {
        return explicitName;
      }
      
-     // 2. 使用项目隔离的动态命名
-     const dynamicName = `project-${projectId}`;
+     // 2. 使用项目隔离的动态命名，确保符合命名规范
+     const dynamicName = HashUtils.generateSafeProjectName(projectId, 'project');
      
-     // 验证动态生成的命名是否符合规范
+     // 验证动态生成的命名是否符合规范（应该总是通过，但作为双重检查）
      if (!this.validateNamingConvention(dynamicName)) {
        this.logger.error(`Generated collection name "${dynamicName}" does not follow naming conventions.`);
        throw new Error(`Generated collection name "${dynamicName}" is invalid`);

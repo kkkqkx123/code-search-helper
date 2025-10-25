@@ -4,6 +4,7 @@ import { BaseConfigService } from './BaseConfigService';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
+import { HashUtils } from '../../utils/HashUtils';
 
 export interface NebulaConfig {
   host: string;
@@ -135,10 +136,10 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         return explicitName;
       }
 
-      // 2. 使用项目隔离的动态命名
-      const dynamicName = `project_${projectId}`;
+      // 2. 使用项目隔离的动态命名，确保符合命名规范
+      const dynamicName = HashUtils.generateSafeProjectName(projectId, 'project');
 
-      // 验证动态生成的命名是否符合规范
+      // 验证动态生成的命名是否符合规范（应该总是通过，但作为双重检查）
       if (!this.validateNamingConvention(dynamicName)) {
         this.logger.error(`Generated space name "${dynamicName}" does not follow naming conventions.`);
         throw new Error(`Generated space name "${dynamicName}" is invalid`);
