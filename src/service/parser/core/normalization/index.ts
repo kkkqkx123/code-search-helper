@@ -30,7 +30,7 @@ export function createQueryResultNormalizer(options?: import('./types').Normaliz
 /**
  * 获取语言适配器的便捷函数
  */
-export function getLanguageAdapter(language: string) {
+export async function getLanguageAdapter(language: string) {
   return LanguageAdapterFactory.getAdapter(language);
 }
 

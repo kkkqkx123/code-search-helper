@@ -48,7 +48,7 @@ export { LanguageAdapterFactory } from '../LanguageAdapterFactory';
  * @param language 编程语言
  * @returns 语言适配器实例
  */
-export function getAdapter(language: string): ILanguageAdapter {
+export async function getAdapter(language: string): Promise<ILanguageAdapter> {
   return LanguageAdapterFactory.getAdapter(language);
 }
 

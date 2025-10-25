@@ -48,8 +48,8 @@ The adapter is automatically registered and used when processing Rust code files
 ```typescript
 import { getLanguageAdapter } from '../normalization';
 
-const rustAdapter = getLanguageAdapter('rust');
-const normalizedResults = rustAdapter.normalize(queryResults, 'functions', 'rust');
+const rustAdapter = await getLanguageAdapter('rust');
+const normalizedResults = await rustAdapter.normalize(queryResults, 'functions', 'rust');
 ```
 
 ## Implementation Details

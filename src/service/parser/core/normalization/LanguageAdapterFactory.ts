@@ -40,6 +40,7 @@ export class LanguageAdapterFactory {
     cacheSize: 100,
     customTypeMappings: {}
   };
+  private static adapterLock = new Map<string, Promise<ILanguageAdapter>>();
   private static logger = new LoggerService();
 
   /**
@@ -48,7 +49,7 @@ export class LanguageAdapterFactory {
    * @param options 适配器选项
    * @returns 语言适配器实例
    */
-  static getAdapter(language: string, options?: AdapterOptions): ILanguageAdapter {
+  static async getAdapter(language: string, options?: AdapterOptions): Promise<ILanguageAdapter> {
     const normalizedLanguage = language.toLowerCase();
     const mergedOptions = {
       ...this.defaultOptions,
@@ -57,20 +58,58 @@ export class LanguageAdapterFactory {
     };
     const cacheKey = `${normalizedLanguage}:${JSON.stringify(mergedOptions)}`;
 
+    // 检查是否有正在进行的创建操作
+    if (this.adapterLock.has(cacheKey)) {
+      return await this.adapterLock.get(cacheKey)!;
+    }
+
+    // 检查缓存
     if (this.adapterCache.has(cacheKey)) {
       return this.adapterCache.get(cacheKey)!;
     }
 
-    const adapter = this.createAdapter(normalizedLanguage, mergedOptions);
-    this.adapterCache.set(cacheKey, adapter);
+    // 创建锁定的Promise
+    const createPromise = this.createAdapterWithLock(cacheKey, normalizedLanguage, mergedOptions);
+    this.adapterLock.set(cacheKey, createPromise);
 
-    this.logger.debug(`Created new adapter for language: ${language}`, {
-      language: normalizedLanguage,
-      cacheKey,
-      adapterType: adapter.constructor.name
-    });
+    try {
+      const adapter = await createPromise;
+      this.adapterCache.set(cacheKey, adapter);
+      return adapter;
+    } finally {
+      this.adapterLock.delete(cacheKey);
+    }
+  }
 
-    return adapter;
+  /**
+   * 同步获取语言适配器（仅从缓存）
+   * @param language 编程语言
+   * @param options 适配器选项
+   * @returns 语言适配器实例或null（如果未缓存）
+   */
+  static getAdapterSync(language: string, options?: AdapterOptions): ILanguageAdapter | null {
+    const normalizedLanguage = language.toLowerCase();
+    const mergedOptions = {
+      ...this.defaultOptions,
+      ...this.adapterConfigs.get(normalizedLanguage),
+      ...options
+    };
+    const cacheKey = `${normalizedLanguage}:${JSON.stringify(mergedOptions)}`;
+
+    // 仅从缓存获取，不创建新实例
+    if (this.adapterCache.has(cacheKey)) {
+      return this.adapterCache.get(cacheKey)!;
+    }
+
+    return null;
+  }
+
+  private static async createAdapterWithLock(cacheKey: string, language: string, options: AdapterOptions): Promise<ILanguageAdapter> {
+    // 双重检查缓存
+    if (this.adapterCache.has(cacheKey)) {
+      return this.adapterCache.get(cacheKey)!;
+    }
+    return LanguageAdapterFactory.createAdapter(language, options);
   }
 
   /**
@@ -243,14 +282,14 @@ export class LanguageAdapterFactory {
    * 预热适配器缓存
    * @param languages 要预热的语言列表，如果不提供则预热所有支持的语言
    */
-  static warmupCache(languages?: string[]): void {
+  static async warmupCache(languages?: string[]): Promise<void> {
     const targetLanguages = languages || this.getSupportedLanguages();
 
     this.logger.info('Warming up adapter cache', { languages: targetLanguages });
 
     for (const language of targetLanguages) {
       if (this.isLanguageSupported(language)) {
-        this.getAdapter(language);
+        await this.getAdapter(language);
       }
     }
 
@@ -262,9 +301,9 @@ export class LanguageAdapterFactory {
    * @param language 编程语言
    * @returns 查询类型数组
    */
-  static getSupportedQueryTypes(language: string): string[] {
+  static async getSupportedQueryTypes(language: string): Promise<string[]> {
     try {
-      const adapter = this.getAdapter(language);
+      const adapter = await this.getAdapter(language);
       return adapter.getSupportedQueryTypes();
     } catch (error) {
       this.logger.warn(`Failed to get query types for language: ${language}`, error);

@@ -8,6 +8,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { NormalizationCacheAdapter } from './CacheAdapter';
 import { NormalizationPerformanceAdapter } from './PerformanceAdapter';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
+import { DefaultLanguageAdapter } from './adapters/DefaultLanguageAdapter';
 
 /**
  * 增强的查询结果标准化器
@@ -181,7 +182,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       }
 
       // 如果动态发现失败，使用语言适配器的默认查询类型
-      const adapter = LanguageAdapterFactory.getAdapter(language);
+      const adapter = await LanguageAdapterFactory.getAdapter(language);
       return adapter.getSupportedQueryTypes();
     } catch (error) {
       this.logger.warn(`Failed to get supported query types for ${language}:`, error);
@@ -210,8 +211,16 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
 
   mapNodeType(nodeType: string, language: string): string {
     try {
-      const adapter = LanguageAdapterFactory.getAdapter(language);
-      return adapter.mapNodeType(nodeType);
+      // 由于接口要求同步返回，我们尝试从缓存中获取适配器
+      // 如果适配器已经存在缓存中，则使用它；否则使用默认适配器
+      const cachedAdapter = LanguageAdapterFactory.getAdapterSync(language);
+      if (cachedAdapter) {
+        return cachedAdapter.mapNodeType(nodeType);
+      }
+      
+      // 如果缓存中没有适配器，使用默认适配器
+      const defaultAdapter = new DefaultLanguageAdapter();
+      return defaultAdapter.mapNodeType(nodeType);
     } catch (error) {
       this.logger.warn(`Failed to map node type ${nodeType} for ${language}:`, error);
       return nodeType; // 返回原始类型作为降级
@@ -449,7 +458,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     language: string, 
     queryType: string
   ): Promise<StandardizedQueryResult[]> {
-    const adapter = LanguageAdapterFactory.getAdapter(language);
+    const adapter = await LanguageAdapterFactory.getAdapter(language);
     
     try {
       return await adapter.normalize(queryResults, queryType, language);

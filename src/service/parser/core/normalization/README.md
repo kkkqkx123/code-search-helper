@@ -61,7 +61,7 @@ const normalizer = createQueryResultNormalizer({
 });
 
 // 获取语言适配器
-const adapter = getLanguageAdapter('typescript');
+const adapter = await getLanguageAdapter('typescript');
 
 // 标准化查询结果
 const results = await normalizer.normalize(ast, 'typescript');
