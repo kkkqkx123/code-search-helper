@@ -493,6 +493,52 @@ export class MultiLevelCacheAdapter {
 }
 ```
 
+
+
+---
+经过对当前Normalization模块实现的分析，以下优化方案**部分必要，但需要分阶段实施**：
+
+## 高优先级（立即实施）
+
+1. **增强性能指标**：
+   - 当前已有PerformanceMonitor和NormalizationPerformanceAdapter
+   - 建议添加语言级别的详细统计和错误分析
+   - 实现文档中的NormalizationMetrics接口
+
+2. **改进缓存统计**：
+   - 添加按语言分类的缓存命中率
+   - 监控缓存大小和内存使用情况
+
+## 中等优先级（中期考虑）
+
+1. **解析器池化（ParserPool）**：
+   - 当前通过TreeSitterCoreService管理解析器
+   - 如果性能测试显示解析器创建是瓶颈，建议实现
+   - 可集成到现有的TreeSitterCoreService中
+
+2. **健康检查（HealthChecker）**：
+   - 当前已有错误处理和降级机制
+   - 在系统部署到生产环境时实现
+   - 作为运维监控的一部分
+
+## 低优先级（暂缓实施）
+
+1. **复杂资源监控**：
+   - 当前内存监控已足够
+   - 过度监控可能影响性能
+
+## 实施建议
+
+**立即行动**：
+- 扩展NormalizationPerformanceAdapter，添加语言统计和错误分析
+- 增强CacheAdapter的统计功能
+
+**性能测试后决策**：
+- 如果解析器创建成为瓶颈，实现ParserPool
+- 根据生产环境需求实现HealthChecker
+
+当前系统架构良好，建议先通过性能测试识别真正的瓶颈，再针对性地优化。
+
 ### 3. 资源池化
 ```typescript
 // 解析器池化

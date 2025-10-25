@@ -80,7 +80,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const startTime = Date.now();
     const cacheKey = this.generateCacheKey(queryResults, queryType, language);
-    
+
     // 检查缓存
     if (this.cache?.has(cacheKey)) {
       this.performanceMonitor?.updateCacheHitRate(true);
@@ -90,32 +90,32 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     try {
       // 1. 预处理查询结果
       const preprocessedResults = this.preprocessResults(queryResults);
-      
+
       // 2. 转换为标准化结果
       const standardizedResults = this.convertToStandardizedResults(preprocessedResults, queryType, language);
-      
+
       // 3. 后处理（去重、排序等）
       const finalResults = this.postProcessResults(standardizedResults);
-      
+
       // 4. 缓存结果
       if (this.cache) {
         this.cache.set(cacheKey, finalResults);
       }
-      
+
       // 5. 性能监控
       if (this.performanceMonitor) {
         this.performanceMonitor.recordQueryExecution(Date.now() - startTime);
         this.performanceMonitor.updateCacheHitRate(false);
       }
-      
+
       return finalResults;
     } catch (error) {
       this.logger.error(`Normalization failed for ${language}.${queryType}:`, error);
-      
+
       if (this.options.enableErrorRecovery) {
         return this.fallbackNormalization(queryResults, queryType, language);
       }
-      
+
       throw error;
     }
   }
@@ -124,10 +124,10 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    * 预处理查询结果
    */
   protected preprocessResults(queryResults: any[]): any[] {
-    return queryResults.filter(result => 
-      result && 
-      result.captures && 
-      Array.isArray(result.captures) && 
+    return queryResults.filter(result =>
+      result &&
+      result.captures &&
+      Array.isArray(result.captures) &&
       result.captures.length > 0 &&
       result.captures[0]?.node
     );
@@ -137,13 +137,13 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    * 转换为标准化结果
    */
   protected convertToStandardizedResults(
-    preprocessedResults: any[], 
-    queryType: string, 
+    preprocessedResults: any[],
+    queryType: string,
     language: string
   ): StandardizedQueryResult[] {
     const results: StandardizedQueryResult[] = [];
     let hasErrors = false;
-    
+
     for (const result of preprocessedResults) {
       try {
         const standardizedResult = this.createStandardizedResult(result, queryType, language);
@@ -151,20 +151,20 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
       } catch (error) {
         this.logger.warn(`Failed to convert result for ${queryType}:`, error);
         hasErrors = true;
-        
+
         if (!this.options.enableErrorRecovery) {
           throw error;
         }
       }
     }
-    
+
     // 如果启用了错误恢复且有错误，但没有成功的结果，则使用fallback
     if (hasErrors && results.length === 0 && this.options.enableErrorRecovery) {
       // 这里我们不能直接调用fallbackNormalization，因为它需要原始queryResults
       // 所以我们抛出一个特殊错误，让上层处理
       throw new Error('All conversion attempts failed, fallback needed');
     }
-    
+
     return results;
   }
 
@@ -194,7 +194,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     };
 
     const languageSpecificMetadata = this.extractLanguageSpecificMetadata(result);
-    
+
     return {
       ...baseMetadata,
       ...languageSpecificMetadata
@@ -206,24 +206,24 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    */
   protected postProcessResults(results: StandardizedQueryResult[]): StandardizedQueryResult[] {
     let processedResults = results;
-    
+
     // 1. 去重
     if (this.options.enableDeduplication) {
       processedResults = this.deduplicateResults(processedResults);
     }
-    
+
     // 2. 按行号排序
     processedResults = processedResults.sort((a, b) => a.startLine - b.startLine);
-    
+
     // 3. 过滤无效结果
-    processedResults = processedResults.filter(result => 
-      result && 
-      result.name && 
-      result.name !== 'unnamed' && 
+    processedResults = processedResults.filter(result =>
+      result &&
+      result.name &&
+      result.name !== 'unnamed' &&
       result.startLine > 0 &&
       result.endLine >= result.startLine
     );
-    
+
     return processedResults;
   }
 
@@ -232,17 +232,17 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    */
   protected deduplicateResults(results: StandardizedQueryResult[]): StandardizedQueryResult[] {
     const seen = new Map<string, StandardizedQueryResult>();
-    
+
     for (const result of results) {
       const key = this.generateUniqueKey(result);
-      
+
       if (!seen.has(key)) {
         seen.set(key, result);
       } else {
         this.mergeMetadata(seen.get(key)!, result);
       }
     }
-    
+
     return Array.from(seen.values());
   }
 
@@ -261,15 +261,15 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     const mergedDependencies = [
       ...new Set([...existing.metadata.dependencies, ...newResult.metadata.dependencies])
     ];
-    
+
     // 合并修饰符
     const mergedModifiers = [
       ...new Set([...existing.metadata.modifiers, ...newResult.metadata.modifiers])
     ];
-    
+
     existing.metadata.dependencies = mergedDependencies;
     existing.metadata.modifiers = mergedModifiers;
-    
+
     // 合并语言特定元数据
     Object.assign(existing.metadata, newResult.metadata);
   }
@@ -301,27 +301,27 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     }
 
     let complexity = 1;
-    
+
     // 优化的行数计算
     const lineCount = Math.max(1, this.extractEndLine(result) - this.extractStartLine(result) + 1);
     complexity += Math.min(Math.floor(lineCount / 15), 5); // 每15行增加1点复杂度，最多5点
-    
+
     // 使用迭代而非递归的深度计算
     const nestingDepth = this.calculateNestingDepthIterative(mainNode);
     complexity += Math.min(nestingDepth, 8); // 限制最大深度贡献，最多8点
-    
+
     // 节点复杂度因素
     const nodeComplexity = this.calculateNodeComplexity(mainNode);
     complexity += Math.min(nodeComplexity, 6); // 限制节点复杂度贡献，最多6点
-    
+
     // 总体复杂度限制在1-25之间
     complexity = Math.max(1, Math.min(complexity, 25));
-    
+
     // 缓存结果
     if (this.complexityCache) {
       this.complexityCache.set(cacheKey, complexity);
     }
-    
+
     return complexity;
   }
 
@@ -378,14 +378,14 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   private calculateNodeComplexity(node: any): number {
     let nodeScore = 0;
     let blockNodeCount = 0;
-    
+
     // 使用迭代方式统计块节点数量
     const nodeQueue: any[] = [node];
     const visited = new Set<any>();
 
     while (nodeQueue.length > 0) {
       const currentNode = nodeQueue.shift()!;
-      
+
       if (visited.has(currentNode)) {
         continue;
       }
@@ -412,13 +412,13 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     } else if (blockNodeCount > 5) {
       nodeScore += 1;
     }
-    
+
     return nodeScore;
   }
 
- /**
-   * 生成节点缓存键
-   */
+  /**
+    * 生成节点缓存键
+    */
   private getNodeCacheKey(node: any): string {
     if (node.id) {
       return `${node.type}:${node.id}`;
@@ -432,14 +432,14 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   protected extractBaseDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
 
     // 查找类型引用
     this.findTypeReferences(mainNode, dependencies);
-    
+
     return [...new Set(dependencies)];
   }
 
@@ -455,7 +455,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
           dependencies.push(text);
         }
       }
-      
+
       this.findTypeReferences(child, dependencies);
     }
   }
@@ -479,14 +479,14 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   /**
    * 简单哈希函数
    */
-  protected simpleHash(str: string): string {
+  private simpleHash(str: string): string {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
+      hash = hash >>> 0; // 转为无符号32位整数
     }
-    return Math.abs(hash).toString(36);
+    return hash.toString(36);
   }
 
   /**
@@ -494,7 +494,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    */
   protected fallbackNormalization(queryResults: any[], queryType: string, language: string): StandardizedQueryResult[] {
     this.logger.warn(`Using fallback normalization for ${language}.${queryType}`);
-    
+
     return queryResults.slice(0, 10).map((result, index) => {
       // 确保result不为null或undefined
       const safeResult = result || {};

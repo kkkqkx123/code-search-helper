@@ -114,21 +114,29 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
         this.logger.debug(`Normalizing ${language} AST with query types:`, typesToQuery);
       }
 
-      const results: StandardizedQueryResult[] = [];
-
-      // 对每种查询类型执行查询和标准化
-      for (const queryType of typesToQuery) {
+      // 使用Promise.all并行处理所有查询类型
+      const normalizationPromises = typesToQuery.map(async (queryType) => {
         try {
           const queryResults = await this.executeQueryForType(ast, language, queryType);
           const normalized = await this.normalizeQueryResults(queryResults, language, queryType);
-          results.push(...normalized);
-
-          // 更新统计信息
-          this.stats.typeStats[queryType] = (this.stats.typeStats[queryType] || 0) + normalized.length;
+          
+          // 更新统计信息（在并行处理中需要考虑线程安全）
+          if (this.stats.typeStats[queryType]) {
+            this.stats.typeStats[queryType] += normalized.length;
+          } else {
+            this.stats.typeStats[queryType] = normalized.length;
+          }
+          
+          return normalized;
         } catch (error) {
           this.handleQueryError(error, language, queryType);
+          return [];
         }
-      }
+      });
+
+      // 并行执行所有查询
+      const resultsArrays = await Promise.all(normalizationPromises);
+      const results = resultsArrays.flat();
 
       // 按起始行号排序
       results.sort((a, b) => a.startLine - b.startLine);
