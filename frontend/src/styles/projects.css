@@ -127,6 +127,21 @@
     align-items: center;
     gap: 4px;
 }
+.project-hash-cell {
+    vertical-align: top;
+    padding: 12px 15px !important;
+}
+
+.project-hash {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--secondary-color);
+    background-color: #f8fafc;
+    padding: 4px 8px;
+    border-radius: 4px;
+    word-break: break-all;
+    max-width: 200px;
+}
 
 .status-cell {
     vertical-align: top;
@@ -368,6 +383,10 @@
     }
     
     .projects-table {
+    
+    .project-hash-cell {
+        min-width: 150px;
+    }
         display: block;
         overflow-x: auto;
         white-space: nowrap;

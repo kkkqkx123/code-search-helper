@@ -1,0 +1,1 @@
+sqlite3 data/code-search-helper.db "SELECT project_id FROM project_status WHERE project_id IN ('86b62e2ebce0231b', 'd44e2ff16a046d3b');"

@@ -327,6 +327,14 @@ export class ProjectRoutes {
       // 确保从ProjectIdManager中删除映射
       await this.projectIdManager.removeProject(projectPath);
       
+      // 删除项目名称映射
+      try {
+        await this.projectPathMappingService.deleteMapping(projectId);
+      } catch (mappingError) {
+        this.logger.warn('Failed to delete project name mapping', { projectId, error: mappingError });
+        // 不阻止删除操作，只记录警告
+      }
+      
       // 保存映射更改
       await this.projectIdManager.saveMapping();
 

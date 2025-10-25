@@ -90,6 +90,7 @@ export class ProjectsPage {
                         <tr>
                             <th><input type="checkbox" id="select-all-projects" title="选择所有项目"></th>
                             <th>项目信息</th>
+                            <th>项目Hash</th>
                             <th>状态</th>
                             <th>操作</th>
                         </tr>
@@ -194,7 +195,7 @@ export class ProjectsPage {
                     // 项目列表为空，显示友好提示
                     projectsList.innerHTML = `
                         <tr>
-                            <td colspan="4" style="text-align: center; padding: 20px; color: #6b7280;">
+                            <td colspan="5" style="text-align: center; padding: 20px; color: #6b7280;">
                                 暂无已索引项目，请先创建项目索引
                             </td>
                         </tr>
@@ -232,6 +233,9 @@ export class ProjectsPage {
                         <span class="file-count">📁 ${project.fileCount || 0} 文件</span>
                         <span class="last-indexed">🕒 ${this.formatDate(project.lastIndexed)}</span>
                     </div>
+                </td>
+                <td class="project-hash-cell">
+                    <div class="project-hash">${this.escapeHtml(project.id)}</div>
                 </td>
                 <td class="status-cell">
                     <div class="status-indicators">
@@ -281,6 +285,8 @@ export class ProjectsPage {
         // 使用事件委托处理操作按钮点击事件
         container.addEventListener('click', (e) => {
             const target = e.target as HTMLElement;
+            
+            // 处理操作按钮点击
             if (target.classList.contains('action-button')) {
                 const button = target as HTMLButtonElement;
                 const projectId = button.dataset.projectId;
@@ -304,6 +310,34 @@ export class ProjectsPage {
                         this.indexGraph(projectId);
                     } else if (action === 'toggle-menu') {
                         this.toggleDropdown(button);
+                    }
+                }
+            }
+            
+            // 处理下拉菜单项点击
+            if (target.classList.contains('dropdown-item')) {
+                const button = target as HTMLButtonElement;
+                const projectId = button.dataset.projectId;
+                const action = button.dataset.action;
+
+                if (projectId && action) {
+                    e.stopPropagation(); // 防止事件冒泡
+                    // 关闭下拉菜单
+                    const dropdownMenu = button.closest('.dropdown-menu');
+                    if (dropdownMenu) {
+                        dropdownMenu.classList.remove('show');
+                    }
+                    
+                    if (action === 'delete') {
+                        this.deleteProject(projectId, button);
+                    } else if (action === 'configure-hot-reload') {
+                        this.configureHotReload(projectId);
+                    } else if (action === 'toggle-hot-reload') {
+                        this.toggleHotReload(projectId, button);
+                    } else if (action === 'index-vectors') {
+                        this.indexVectors(projectId);
+                    } else if (action === 'index-graph') {
+                        this.indexGraph(projectId);
                     }
                 }
             }
@@ -589,6 +623,7 @@ export class ProjectsPage {
                 alert('重新索引已启动');
                 this.apiClient.clearProjectsCache();
                 this.apiClient.clearSearchCache();
+                this.apiClient.clearProjectNameMappingCache();
                 this.loadProjectsList(true);
 
                 if (this.onProjectActionComplete) {
@@ -611,6 +646,7 @@ export class ProjectsPage {
             if (result.success) {
                 this.apiClient.clearProjectsCache();
                 this.apiClient.clearSearchCache();
+                this.apiClient.clearProjectNameMappingCache();
                 element.closest('tr')?.remove();
                 alert('项目已删除');
 
@@ -632,6 +668,7 @@ export class ProjectsPage {
             if (result.success) {
                 alert('向量索引已启动');
                 this.apiClient.clearProjectsCache();
+                this.apiClient.clearProjectNameMappingCache();
                 this.loadProjectsList(true);
 
                 if (this.onProjectActionComplete) {
@@ -652,6 +689,7 @@ export class ProjectsPage {
             if (result.success) {
                 alert('图索引已启动');
                 this.apiClient.clearProjectsCache();
+                this.apiClient.clearProjectNameMappingCache();
                 this.loadProjectsList(true);
 
                 if (this.onProjectActionComplete) {
@@ -685,6 +723,7 @@ export class ProjectsPage {
                 alert(newEnabled ? '热重载已启用' : '热重载已禁用');
 
                 this.apiClient.clearProjectsCache();
+                this.apiClient.clearProjectNameMappingCache();
                 this.loadProjectsList(true);
             } else {
                 alert('切换热重载状态失败: ' + (result.error || '未知错误'));
@@ -722,6 +761,7 @@ export class ProjectsPage {
                 console.log('热重载配置已保存:', savedProjectId, config);
 
                 this.apiClient.clearProjectsCache();
+                this.apiClient.clearProjectNameMappingCache();
                 this.loadProjectsList(true);
 
                 alert('热重载配置已保存');
