@@ -1,6 +1,16 @@
 import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
+ * 查询发现错误类
+ */
+class QueryDiscoveryError extends Error {
+  constructor(message: string, public context: any) {
+    super(message);
+    this.name = 'QueryDiscoveryError';
+  }
+}
+
+/**
  * 查询加载器 - 支持新的目录结构
  */
 export class QueryLoader {
@@ -225,8 +235,23 @@ export class QueryLoader {
       return this.getDefaultQueryTypes();
       
     } catch (error) {
-      this.logger.warn(`Failed to discover query types for ${language}:`, error);
-      return this.getDefaultQueryTypes();
+      const errorContext = {
+        language,
+        queryDir,
+        errorType: error instanceof Error ? error.name : 'Unknown',
+        errorMessage: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      };
+      
+      // 记录详细错误信息到安全日志
+      this.logger.error('Query type discovery failed', errorContext);
+      
+      // 向用户返回友好的错误信息
+      throw new QueryDiscoveryError(
+        `无法发现 ${language} 语言的查询类型，将使用默认查询类型`,
+        errorContext
+      );
     }
   }
 
@@ -255,7 +280,19 @@ export class QueryLoader {
       const discoveredTypes = await this.discoverQueryTypes(language);
       return discoveredTypes.includes(queryType);
     } catch (error) {
-      this.logger.warn(`Failed to check if query type exists for ${language}.${queryType}:`, error);
+      const errorContext = {
+        language,
+        queryType,
+        errorType: error instanceof Error ? error.name : 'Unknown',
+        errorMessage: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      };
+      
+      // 记录详细错误信息到安全日志
+      this.logger.error('Query type existence check failed', errorContext);
+      
+      // 返回false而不是抛出错误，保持方法的行为一致
       return false;
     }
   }

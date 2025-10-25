@@ -333,7 +333,7 @@ export class NormalizationCacheAdapter {
 }
 ```
 
-### 6. 安全漏洞
+### 6. 安全漏洞【暂不考虑】
 
 #### 问题描述
 **QueryLoader** 的文件系统访问存在安全风险：
@@ -457,7 +457,7 @@ async normalize(ast: Parser.SyntaxNode, language: string, queryTypes?: string[])
 }
 ```
 
-### 2. 缓存策略优化
+### 2. 缓存策略优化【暂不考虑】
 ```typescript
 // 实现多级缓存
 export class MultiLevelCacheAdapter {
