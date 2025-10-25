@@ -5,7 +5,7 @@ import { TreeSitterService } from '../core/parse/TreeSitterService';
 import { LoggerService } from '../../../utils/LoggerService';
 import { BalancedChunker } from './BalancedChunker';
 import { ChunkingConfigManager } from './config/ChunkingConfigManager';
-import { SplitStrategyFactory } from './core/SplitStrategyFactory';
+import { SplitStrategyFactory, strategyFactory } from './core/SplitStrategyFactory';
 import { ensureStrategyProvidersRegistered } from './core/StrategyProviderRegistration';
 import { ChunkingCoordinator } from './utils/ChunkingCoordinator';
 import { UnifiedOverlapCalculator } from './utils/overlap/UnifiedOverlapCalculator';
@@ -43,7 +43,7 @@ export class ASTCodeSplitter implements Splitter {
     this.processingGuard = processingGuard;
     this.balancedChunker = new BalancedChunker(logger);
     this.configManager = new ChunkingConfigManager();
-    this.strategyFactory = new SplitStrategyFactory();
+    this.strategyFactory = strategyFactory;
     this.options = { ...DEFAULT_ENHANCED_CHUNKING_OPTIONS };
 
     // 确保策略提供者已注册

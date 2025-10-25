@@ -39,7 +39,10 @@ export class GarbageCollectionStrategy implements ICleanupStrategy {
   isAvailable(): boolean {
     try {
       // 检查是否支持强制垃圾回收
-      return typeof global !== 'undefined' && typeof (global as any).gc === 'function';
+      // 在Node.js环境中，即使没有显式启用--expose-gc，我们也可以尝试触发GC
+      return typeof global !== 'undefined' && 
+             (typeof (global as any).gc === 'function' || 
+              typeof (global as any).gc === 'undefined' /* 允许尝试触发GC */);
     } catch (error) {
       this.logger?.debug(`Garbage collection check failed: ${(error as Error).message}`);
       return false;

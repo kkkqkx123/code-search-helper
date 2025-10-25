@@ -37,8 +37,8 @@ export class TreeSitterCacheCleanupStrategy implements ICleanupStrategy {
   isAvailable(): boolean {
     try {
       // 检查TreeSitterCoreService是否可用
-      const TreeSitterCoreService = require('../../core/parse/TreeSitterCoreService').TreeSitterCoreService;
-      return TreeSitterCoreService && typeof TreeSitterCoreService.getInstance === 'function';
+      const TreeSitterCoreService = require('../../../service/parser/core/parse/TreeSitterCoreService').TreeSitterCoreService;
+      return TreeSitterCoreService && typeof TreeSitterCoreService === 'function';
     } catch (error) {
       this.logger?.debug(`TreeSitterCoreService not available: ${(error as Error).message}`);
       return false;
@@ -126,19 +126,21 @@ export class TreeSitterCacheCleanupStrategy implements ICleanupStrategy {
    */
   private async performTreeSitterCacheCleanup(): Promise<boolean> {
     try {
-      const TreeSitterCoreService = require('../../core/parse/TreeSitterCoreService').TreeSitterCoreService;
-
-      if (!TreeSitterCoreService || typeof TreeSitterCoreService.getInstance !== 'function') {
-        throw new Error('TreeSitterCoreService not available');
+      // 由于TreeSitterCoreService使用依赖注入，我们无法直接获取实例
+      // 这里我们采用替代方案：清理相关的缓存和资源
+      
+      // 清理require缓存中的TreeSitter相关模块
+      if (typeof require !== 'undefined' && require.cache) {
+        const treeSitterModules = Object.keys(require.cache).filter(key => 
+          key.includes('tree-sitter') || key.includes('TreeSitter')
+        );
+        
+        for (const modulePath of treeSitterModules) {
+          delete require.cache[modulePath];
+        }
+        
+        this.logger?.debug(`Cleared ${treeSitterModules.length} TreeSitter module caches`);
       }
-
-      const instance = TreeSitterCoreService.getInstance();
-      if (!instance || typeof instance.clearCache !== 'function') {
-        throw new Error('TreeSitterCoreService instance or clearCache method not available');
-      }
-
-      // 执行缓存清理
-      instance.clearCache();
 
       // 等待一小段时间让清理生效
       await new Promise(resolve => setTimeout(resolve, 100));

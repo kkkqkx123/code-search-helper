@@ -22,6 +22,7 @@ import { ChangeDetectionService } from './service/filesystem/ChangeDetectionServ
 import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
 import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
 import { ProcessEventManager } from './utils/ProcessEventManager';
+import { registerDefaultStrategyProviders } from './service/parser/splitting/core/StrategyProviderRegistration';
 
 // 获取事件管理器实例，用于统一管理所有事件监听器
 const eventManager = ProcessEventManager.getInstance();
@@ -421,6 +422,15 @@ class ApplicationFactory {
 async function bootstrap(): Promise<void> {
   console.log('Starting bootstrap process...');
   try {
+    // 首先注册策略提供者（必须在任何使用ASTCodeSplitter的服务之前）
+    console.log('Registering strategy providers...');
+    try {
+      registerDefaultStrategyProviders();
+      console.log('Strategy providers registered successfully');
+    } catch (error) {
+      console.warn('Failed to register strategy providers:', error);
+    }
+
     console.log('Getting ConfigService from DI container...');
     // 在创建应用实例之前，先初始化配置服务
     const configService = diContainer.get<ConfigService>(TYPES.ConfigService);
