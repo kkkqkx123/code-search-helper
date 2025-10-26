@@ -47,7 +47,7 @@ import { ErrorThresholdManager } from '../../service/parser/universal/ErrorThres
 import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../service/parser/universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../../service/parser/universal/ExtensionlessFileProcessor';
-import { ProcessingGuard } from '../../service/parser/guard/ProcessingGuard';
+// ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名，通过类型定义处理
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
 import { ProcessingStrategySelector } from '../../service/parser/universal/coordination/ProcessingStrategySelector';
@@ -227,7 +227,10 @@ export class BusinessServiceRegistrar {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         return new ExtensionlessFileProcessor(logger);
       }).inSingletonScope();
-      container.bind<ProcessingGuard>(TYPES.ProcessingGuard).to(ProcessingGuard).inSingletonScope();
+      // 将 ProcessingGuard 直接绑定到 UnifiedGuardCoordinator（直接迁移策略）
+      container.bind(TYPES.ProcessingGuard).toDynamicValue(context => {
+        return context.get<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator);
+      }).inSingletonScope();
 
       // 优化的处理保护器
       // container.bind<OptimizedProcessingGuard>(TYPES.OptimizedProcessingGuard).toDynamicValue(context => {
@@ -283,6 +286,11 @@ export class BusinessServiceRegistrar {
         // 获取策略选择器和文件处理协调器
         const processingStrategySelector = context.get<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector);
         const fileProcessingCoordinator = context.get<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator);
+        
+        // 获取 ProcessingGuard 整合的依赖
+        const detectionCenter = context.get<UnifiedDetectionCenter>(TYPES.UnifiedDetectionCenter);
+        const strategyFactory = context.get<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory);
+        const fallbackEngine = context.get<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine);
 
         const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
         const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
@@ -293,6 +301,9 @@ export class BusinessServiceRegistrar {
           cleanupManager,
           processingStrategySelector,
           fileProcessingCoordinator,
+          detectionCenter,
+          strategyFactory,
+          fallbackEngine,
           memoryLimitMB,
           memoryCheckIntervalMs,
           logger

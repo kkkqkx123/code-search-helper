@@ -5,6 +5,8 @@ import { ProcessingGuard } from '../../../service/parser/guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../../../service/parser/universal/ErrorThresholdManager';
 import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
 import { ProcessingStrategyFactory } from '../../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
+import { UnifiedDetectionCenter } from '../../../service/parser/universal/UnifiedDetectionCenter';
+import { IntelligentFallbackEngine } from '../../../service/parser/universal/IntelligentFallbackEngine';
 import { FileProcessingCoordinator } from '../../../service/parser/universal/coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';
@@ -57,7 +59,8 @@ describe('Parser Splitting Integration Test', () => {
       errorThresholdManager,
       memoryGuard,
       new ProcessingStrategyFactory(logger),
-      new FileProcessingCoordinator(logger)
+      new UnifiedDetectionCenter(logger),
+      new IntelligentFallbackEngine(logger)
     );
 
     // 初始化ProcessingGuard

@@ -59,7 +59,8 @@ import { ASTCodeSplitter } from './service/parser/splitting/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from './service/parser/ChunkToVectorCoordinationService';
 import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
 import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';
-import { ProcessingGuard } from './service/parser/guard/ProcessingGuard';
+// ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名
+type ProcessingGuard = UnifiedGuardCoordinator;
 import { UnifiedDetectionCenter } from './service/parser/universal/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from './service/parser/universal/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from './service/parser/processing/strategies/providers/ProcessingStrategyFactory';

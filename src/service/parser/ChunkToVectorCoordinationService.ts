@@ -11,7 +11,7 @@ import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { CodeChunk } from './types';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { ProcessingGuard } from './guard/ProcessingGuard';
+import { UnifiedGuardCoordinator } from './guard/UnifiedGuardCoordinator';
 import { UniversalTextSplitter } from './universal/UniversalTextSplitter';
 import { BackupFileProcessor } from './universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './universal/ExtensionlessFileProcessor';
@@ -45,7 +45,7 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.ProcessingGuard) private processingGuard: ProcessingGuard,
+    @inject(TYPES.ProcessingGuard) private processingGuard: UnifiedGuardCoordinator,
     @inject(TYPES.UniversalTextSplitter) private universalTextSplitter: UniversalTextSplitter,
     @inject(TYPES.BackupFileProcessor) private backupFileProcessor: BackupFileProcessor,
     @inject(TYPES.ExtensionlessFileProcessor) private extensionlessFileProcessor: ExtensionlessFileProcessor,

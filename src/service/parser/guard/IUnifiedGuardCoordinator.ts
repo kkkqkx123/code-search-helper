@@ -38,6 +38,26 @@ export interface FileProcessingResult {
   fallbackReason?: string;
 }
 
+// ProcessingResult 接口（从 ProcessingGuard 迁移）
+export interface ProcessingResult {
+  chunks: any[];
+  language: string;
+  processingStrategy: string;
+  fallbackReason?: string;
+  success: boolean;
+  duration: number;
+  metadata?: any;
+}
+
+// ProcessingStats 接口
+export interface ProcessingStats {
+  totalProcessed: number;
+  successfulProcessed: number;
+  fallbackUsed: number;
+  averageProcessingTime: number;
+  errorRate: number;
+}
+
 // 保护状态
 export interface GuardStatus {
   errorThreshold: {
@@ -78,6 +98,11 @@ export interface IUnifiedGuardCoordinator {
   
   // 文件处理协调
   processFile(filePath: string, content: string): Promise<FileProcessingResult>;
+  
+  // ProcessingGuard 兼容方法
+  processFileWithDetection(filePath: string, content: string): Promise<ProcessingResult>;
+  getProcessingStats(): ProcessingStats;
+  clearDetectionCache(): void;
   
   // 状态查询
   getStatus(): GuardStatus;

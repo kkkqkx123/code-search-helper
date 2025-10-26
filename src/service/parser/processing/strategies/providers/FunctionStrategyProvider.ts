@@ -5,7 +5,7 @@ import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../int
 import { CodeChunk } from '../../../splitting';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import Parser from 'tree-sitter';
-import { FunctionChunkingStrategy } from '../../../core/strategy/FunctionChunkingStrategy';
+import { FunctionChunkingStrategy } from '../FunctionChunkingStrategy';
 
 /**
  * 函数分段策略实现
@@ -38,7 +38,7 @@ export class FunctionSplitStrategy implements ISplitStrategy {
     try {
       // 如果提供了AST，直接使用
       let parseResult = ast ? { success: true, ast } : null;
-      
+
       // 如果没有提供AST，尝试解析
       if (!parseResult) {
         const detectedLanguage = await this.treeSitterService.detectLanguage(filePath || '');
@@ -138,7 +138,7 @@ export class FunctionStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'function_provider';
