@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
-import { IProcessingStrategy } from '../strategies/IProcessingStrategy';
-import { DetectionResult } from '../UnifiedDetectionCenter';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from './IProcessingStrategy';
+import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 
 /**
  * AST策略实现
@@ -14,7 +14,7 @@ export class ASTStrategy implements IProcessingStrategy {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     if (!this.treeSitterService) {

@@ -1,7 +1,7 @@
 import { BracketSegmentationStrategy } from '../BracketSegmentationStrategy';
-import { LoggerService } from '../../../../../utils/LoggerService';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../types/SegmentationTypes';
-import { CodeChunk } from '../../../splitting';
+import { LoggerService } from '../../../../../../utils/LoggerService';
+import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../../../universal/types/SegmentationTypes';
+import { CodeChunk } from '../../../../splitting';
 
 // Mock LoggerService
 jest.mock('../../../../../utils/LoggerService');
@@ -157,7 +157,7 @@ describe('BracketSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('javascript', true);
-      const chunks = await strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'});
+      const chunks = await strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' });
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.type).toBe('bracket');
@@ -180,7 +180,7 @@ describe('BracketSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('xml', true);
-      const chunks = await strategy.segment({...context, content, filePath: 'test.xml', language: 'xml'});
+      const chunks = await strategy.segment({ ...context, content, filePath: 'test.xml', language: 'xml' });
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.type).toBe('bracket');
@@ -203,7 +203,7 @@ describe('BracketSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('javascript', true);
-      const chunks = await strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'});
+      const chunks = await strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' });
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks[0].metadata.type).toBe('bracket');
@@ -222,7 +222,7 @@ describe('BracketSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('javascript', true);
-      const chunks = await strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'});
+      const chunks = await strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' });
 
       expect(chunks.length).toBeGreaterThan(0);
       // Should still create chunks even with unbalanced brackets
@@ -232,7 +232,7 @@ describe('BracketSegmentationStrategy', () => {
       const content = '';
       const context = createMockContext('javascript', true);
 
-      const chunks = await strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'});
+      const chunks = await strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' });
 
       expect(chunks).toHaveLength(1);
       expect(chunks[0].content).toBe('');
@@ -244,7 +244,7 @@ describe('BracketSegmentationStrategy', () => {
       const content = 'function test() { return 1; }';
       const context = createMockContext('javascript', true);
 
-      await strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'});
+      await strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' });
 
       expect(mockLogger.debug).toHaveBeenCalledWith('Starting bracket-based segmentation for test.js');
     });
@@ -256,7 +256,7 @@ describe('BracketSegmentationStrategy', () => {
       // Mock the segment method to throw an error
       (strategy as any).segment = jest.fn().mockRejectedValue(new Error('Segmentation failed'));
 
-      await expect(strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'})).rejects.toThrow('Segmentation failed');
+      await expect(strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' })).rejects.toThrow('Segmentation failed');
     });
 
     it('should validate context when available', async () => {
@@ -266,7 +266,7 @@ describe('BracketSegmentationStrategy', () => {
       // Mock validateContext method
       (strategy as any).validateContext = jest.fn().mockReturnValue(true);
 
-      const chunks = await strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'});
+      const chunks = await strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' });
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.debug).toHaveBeenCalledWith('Context validation passed for bracket strategy');
@@ -279,7 +279,7 @@ describe('BracketSegmentationStrategy', () => {
       // Mock validateContext method to return false
       (strategy as any).validateContext = jest.fn().mockReturnValue(false);
 
-      const chunks = await strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'});
+      const chunks = await strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' });
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(mockLogger.warn).toHaveBeenCalledWith('Context validation failed for bracket strategy, proceeding anyway');
@@ -295,7 +295,7 @@ describe('BracketSegmentationStrategy', () => {
       `;
       const context = createMockContext('javascript', true);
 
-      const chunks = await strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'});
+      const chunks = await strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' });
 
       // Should split into multiple chunks due to line limit
       expect(chunks.length).toBeGreaterThan(1);
@@ -308,7 +308,7 @@ describe('BracketSegmentationStrategy', () => {
       const content = 'A'.repeat(3000);
       const context = createMockContext('javascript', true);
 
-      const chunks = await strategy.segment({...context, content, filePath: 'test.js', language: 'javascript'});
+      const chunks = await strategy.segment({ ...context, content, filePath: 'test.js', language: 'javascript' });
 
       // Should split large content
       expect(chunks.length).toBeGreaterThan(1);
@@ -357,7 +357,7 @@ describe('BracketSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('javascript', true);
-      const chunks = await strategy.segment({...context, content: jsCode, filePath: 'Component.jsx', language: 'typescript'});
+      const chunks = await strategy.segment({ ...context, content: jsCode, filePath: 'Component.jsx', language: 'typescript' });
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'bracket')).toBe(true);
@@ -407,7 +407,7 @@ describe('BracketSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('python', true);
-      const chunks = await strategy.segment({...context, content: pythonCode, filePath: 'data_processor.py', language: 'python'});
+      const chunks = await strategy.segment({ ...context, content: pythonCode, filePath: 'data_processor.py', language: 'python' });
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'bracket')).toBe(true);
@@ -430,7 +430,7 @@ describe('BracketSegmentationStrategy', () => {
       `;
 
       const context = createMockContext('xml', true);
-      const chunks = await strategy.segment({...context, content: xmlContent, filePath: 'data.xml', language: 'xml'});
+      const chunks = await strategy.segment({ ...context, content: xmlContent, filePath: 'data.xml', language: 'xml' });
 
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.every(chunk => chunk.metadata.type === 'bracket')).toBe(true);

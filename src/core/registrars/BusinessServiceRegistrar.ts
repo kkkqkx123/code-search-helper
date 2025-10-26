@@ -55,7 +55,7 @@ import { FileProcessingCoordinator } from '../../service/parser/universal/coordi
 import { OptimizedProcessingGuard } from '../../service/parser/guard/OptimizedProcessingGuard';
 import { UnifiedDetectionCenter } from '../../service/parser/universal/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from '../../service/parser/universal/IntelligentFallbackEngine';
-import { ProcessingStrategyFactory } from '../../service/parser/universal/strategies/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextSplitter } from '../../service/parser/universal/md/MarkdownTextSplitter';
 import { XMLTextSplitter } from '../../service/parser/universal/xml/XMLTextSplitter';
 
@@ -67,11 +67,11 @@ import { ComplexityCalculator } from '../../service/parser/universal/processors/
 import { OverlapProcessor } from '../../service/parser/universal/processors/OverlapProcessor';
 import { ChunkFilter } from '../../service/parser/universal/processors/ChunkFilter';
 import { ChunkRebalancer } from '../../service/parser/universal/processors/ChunkRebalancer';
-import { SemanticSegmentationStrategy } from '../../service/parser/universal/strategies/SemanticSegmentationStrategy';
-import { BracketSegmentationStrategy } from '../../service/parser/universal/strategies/BracketSegmentationStrategy';
-import { LineSegmentationStrategy } from '../../service/parser/universal/strategies/LineSegmentationStrategy';
-import { MarkdownSegmentationStrategy } from '../../service/parser/universal/strategies/MarkdownSegmentationStrategy';
-import { StandardizationSegmentationStrategy } from '../../service/parser/universal/strategies/StandardizationSegmentationStrategy';
+import { SemanticSegmentationStrategy } from '../../service/parser/processing/strategies/providers/SemanticSegmentationStrategy';
+import { BracketSegmentationStrategy } from '../../service/parser/processing/strategies/providers/BracketSegmentationStrategy';
+import { LineSegmentationStrategy } from '../../service/parser/processing/strategies/providers/LineSegmentationStrategy';
+import { MarkdownSegmentationStrategy } from '../../service/parser/processing/strategies/providers/MarkdownSegmentationStrategy';
+import { StandardizationSegmentationStrategy } from '../../service/parser/processing/strategies/providers/StandardizationSegmentationStrategy';
 
 // 文件搜索服务
 import { FileSearchService } from '../../service/filesearch/FileSearchService';

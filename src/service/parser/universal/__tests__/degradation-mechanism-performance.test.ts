@@ -2,7 +2,7 @@ import { ProcessingGuard } from '../../guard/ProcessingGuard';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
 import { MemoryGuard } from '../../guard/MemoryGuard';
-import { ProcessingStrategyFactory } from '../strategies/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../../processing/strategies/providers/ProcessingStrategyFactory';
 import { UnifiedDetectionCenter } from '../UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from '../IntelligentFallbackEngine';
 import { BackupFileProcessor } from '../BackupFileProcessor';

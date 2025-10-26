@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
-import { IProcessingStrategy } from '../strategies/IProcessingStrategy';
-import { DetectionResult } from '../UnifiedDetectionCenter';
-import { UniversalTextSplitter } from '../UniversalTextSplitter';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from './IProcessingStrategy';
+import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
 
 /**
  * 语义策略实现
@@ -14,7 +14,7 @@ export class SemanticStrategy implements IProcessingStrategy {
   constructor(
     @inject(TYPES.UniversalTextSplitter) private universalTextSplitter?: UniversalTextSplitter,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Semantic strategy for ${filePath}`);

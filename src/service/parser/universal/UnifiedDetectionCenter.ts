@@ -18,6 +18,13 @@ export interface DetectionResult {
   processingStrategy?: string;
   contentLength?: number;
   isHighlyStructured?: boolean;
+  metadata?: {
+    originalExtension?: string;
+    overrideReason?: string;
+    fileFeatures?: any;
+    astInfo?: any;
+    processingStrategy?: string;
+  };
 }
 
 export enum ProcessingStrategyType {
@@ -94,7 +101,11 @@ export class UnifiedDetectionCenter {
           confidence: backupInfo.confidence,
           fileType: 'backup',
           originalExtension: backupInfo.originalExtension,
-          processingStrategy: this.determineBackupStrategy(backupInfo)
+          processingStrategy: this.determineBackupStrategy(backupInfo),
+          metadata: {
+            originalExtension: backupInfo.originalExtension,
+            processingStrategy: this.determineBackupStrategy(backupInfo)
+          }
         };
       }
     }
@@ -112,7 +123,10 @@ export class UnifiedDetectionCenter {
           fileType: 'normal',
           extension: ext,
           processingStrategy: this.determineExtensionStrategy(language, content),
-          isHighlyStructured
+          isHighlyStructured,
+          metadata: {
+            processingStrategy: this.determineExtensionStrategy(language, content)
+          }
         };
       }
     }

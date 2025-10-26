@@ -1,10 +1,10 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
-import { CodeChunk, CodeChunkMetadata } from '../../splitting';
-import { IQueryResultNormalizer, StandardizedQueryResult } from '../../core/normalization/types';
-import { TreeSitterCoreService } from '../../core/parse/TreeSitterCoreService';
-import { TYPES } from '../../../../types';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../../universal/types/SegmentationTypes';
+import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
+import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../core/normalization/types';
+import { TreeSitterCoreService } from '../../../core/parse/TreeSitterCoreService';
+import { TYPES } from '../../../../../types';
+import { LoggerService } from '../../../../../utils/LoggerService';
 
 /**
  * 标准化分段策略
@@ -16,7 +16,7 @@ export class StandardizationSegmentationStrategy implements ISegmentationStrateg
   private queryNormalizer?: IQueryResultNormalizer;
   private treeSitterService?: TreeSitterCoreService;
   private logger?: LoggerService;
-  
+
   constructor(
     @inject(TYPES.ComplexityCalculator) complexityCalculator: IComplexityCalculator,
     @inject(TYPES.LoggerService) logger?: LoggerService,
@@ -28,40 +28,40 @@ export class StandardizationSegmentationStrategy implements ISegmentationStrateg
     this.queryNormalizer = queryNormalizer;
     this.treeSitterService = treeSitterService;
   }
-  
+
   canHandle(context: SegmentationContext): boolean {
     // 需要启用标准化集成
     if (!context.options.enableStandardization) {
       return false;
     }
-    
+
     // 需要可用的服务
     if (!this.queryNormalizer || !this.treeSitterService) {
       return false;
     }
-    
+
     // 需要有语言信息
     if (!context.language) {
       return false;
     }
-    
+
     // 小文件不使用标准化分段
     if (context.metadata.isSmallFile) {
       return false;
     }
-    
+
     // Markdown文件不使用标准化分段
     if (context.metadata.isMarkdownFile) {
       return false;
     }
-    
+
     // 检查是否支持该语言
     return this.isLanguageSupported(context.language);
   }
-  
+
   async segment(context: SegmentationContext): Promise<CodeChunk[]> {
     const { content, filePath, language } = context;
-    
+
     if (!this.queryNormalizer || !this.treeSitterService || !language) {
       throw new Error('Required services not available for standardization');
     }
@@ -82,7 +82,7 @@ export class StandardizationSegmentationStrategy implements ISegmentationStrateg
 
       // 基于标准化结果创建分块
       const chunks = this.chunkByStandardizedResults(standardizedResults, content, language, filePath);
-      
+
       this.logger?.debug(`Standardization segmentation created ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
@@ -90,36 +90,36 @@ export class StandardizationSegmentationStrategy implements ISegmentationStrateg
       throw error;
     }
   }
-  
+
   getName(): string {
     return 'standardization';
   }
-  
+
   getPriority(): number {
     return 2; // 高优先级，仅次于Markdown
   }
-  
+
   getSupportedLanguages(): string[] {
     return ['javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp', 'go', 'rust'];
   }
-  
+
   validateContext(context: SegmentationContext): boolean {
     // 验证上下文是否适合标准化分段
     if (!context.content || context.content.trim().length === 0) {
       return false;
     }
-    
+
     if (!context.language) {
       return false;
     }
-    
+
     if (!this.queryNormalizer || !this.treeSitterService) {
       return false;
     }
-    
+
     return this.isLanguageSupported(context.language);
   }
-  
+
   /**
    * 基于标准化结果的分段
    */
@@ -235,7 +235,7 @@ export class StandardizationSegmentationStrategy implements ISegmentationStrateg
 
     // 如果都是小的导入/变量声明，且总大小不大，则合并
     if ((result1.type === 'import' || result1.type === 'variable' || result1.type === 'export') &&
-        (result2.type === 'import' || result2.type === 'variable' || result2.type === 'export')) {
+      (result2.type === 'import' || result2.type === 'variable' || result2.type === 'export')) {
       const totalLines = (result1.endLine - result1.startLine + 1) + (result2.endLine - result2.startLine + 1);
       return totalLines <= 20;
     }

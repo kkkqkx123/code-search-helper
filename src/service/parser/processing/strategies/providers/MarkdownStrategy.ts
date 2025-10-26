@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
-import { IProcessingStrategy } from '../strategies/IProcessingStrategy';
-import { DetectionResult } from '../UnifiedDetectionCenter';
-import { MarkdownTextSplitter } from '../md/MarkdownTextSplitter';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from './IProcessingStrategy';
+import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { MarkdownTextSplitter } from '../../../universal/md/MarkdownTextSplitter';
 
 /**
  * Markdown策略实现
@@ -14,7 +14,7 @@ export class MarkdownStrategy implements IProcessingStrategy {
   constructor(
     @inject(TYPES.MarkdownTextSplitter) private markdownSplitter?: MarkdownTextSplitter,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Markdown strategy for ${filePath}`);

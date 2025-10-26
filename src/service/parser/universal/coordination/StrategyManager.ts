@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
-import { IProcessingStrategy } from '../strategies/IProcessingStrategy';
+import { IProcessingStrategy } from '../../processing/strategies/providers/IProcessingStrategy';
 import { DetectionResult, ProcessingStrategyType } from '../UnifiedDetectionCenter';
 import { ProcessingStrategyFactory } from '../strategy/ProcessingStrategyFactory';
 import { FileFeatureDetector } from '../utils/FileFeatureDetector';
@@ -85,8 +85,8 @@ export class StrategyManager {
     if (this.fileFeatureDetector.isCodeLanguage(detection.language)) {
       // 对于代码文件，如果当前策略不是AST且支持TreeSitter，优先使用AST
       if (detection.processingStrategy !== ProcessingStrategyType.TREESITTER_AST &&
-          this.fileFeatureDetector.canUseTreeSitter(detection.language) &&
-          dependencies?.treeSitterService) {
+        this.fileFeatureDetector.canUseTreeSitter(detection.language) &&
+        dependencies?.treeSitterService) {
         this.logger?.info(`Code language ${detection.language} with TreeSitter support, upgrading to AST strategy`);
         const astDetection = { ...detection, processingStrategy: ProcessingStrategyType.TREESITTER_AST };
         return this.selectOptimalStrategy(astDetection, dependencies);
@@ -150,7 +150,7 @@ export class StrategyManager {
     }
   ): IProcessingStrategy {
     this.logger?.info(`Creating fallback strategy: ${fallbackStrategyType} (original: ${originalDetection.processingStrategy})`);
-    
+
     const fallbackDetection = { ...originalDetection, processingStrategy: fallbackStrategyType };
     return this.selectOptimalStrategy(fallbackDetection, dependencies);
   }
@@ -165,7 +165,7 @@ export class StrategyManager {
     supported: boolean;
   }> {
     const availableTypes = this.strategyFactory.getAvailableStrategyTypes();
-    
+
     return availableTypes.map(type => ({
       type,
       name: type.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),

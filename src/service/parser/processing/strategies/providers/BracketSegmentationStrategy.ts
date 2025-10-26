@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
-import { CodeChunk, CodeChunkMetadata } from '../../splitting';
-import { TYPES } from '../../../../types';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { BLOCK_SIZE_LIMITS } from '../constants';
+import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../../universal/types/SegmentationTypes';
+import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
+import { TYPES } from '../../../../../types';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
 
 /**
  * 括号分段策略
@@ -13,7 +13,7 @@ import { BLOCK_SIZE_LIMITS } from '../constants';
 export class BracketSegmentationStrategy implements ISegmentationStrategy {
   private complexityCalculator: IComplexityCalculator;
   private logger?: LoggerService;
-  
+
   constructor(
     @inject(TYPES.ComplexityCalculator) complexityCalculator: IComplexityCalculator,
     @inject(TYPES.LoggerService) logger?: LoggerService
@@ -21,22 +21,22 @@ export class BracketSegmentationStrategy implements ISegmentationStrategy {
     this.complexityCalculator = complexityCalculator;
     this.logger = logger;
   }
-  
+
   canHandle(context: SegmentationContext): boolean {
     // 小文件不使用括号分段
     if (context.metadata.isSmallFile) {
       return false;
     }
-    
+
     // Markdown文件不使用括号分段
     if (context.metadata.isMarkdownFile) {
       return false;
     }
-    
+
     // 需要启用括号平衡检测
     return context.options.enableBracketBalance;
   }
-  
+
   async segment(context: SegmentationContext): Promise<CodeChunk[]> {
     const { content, filePath, language } = context;
     const chunks: CodeChunk[] = [];
@@ -110,36 +110,36 @@ export class BracketSegmentationStrategy implements ISegmentationStrategy {
     this.logger?.debug(`Bracket segmentation created ${chunks.length} chunks`);
     return chunks;
   }
-  
+
   getName(): string {
     return 'bracket';
   }
-  
+
   getPriority(): number {
     return 4; // 较低优先级
   }
-  
+
   getSupportedLanguages(): string[] {
     return ['javascript', 'typescript', 'java', 'cpp', 'c', 'csharp', 'go', 'rust', 'html', 'xml', 'vue', 'svelte'];
   }
-  
+
   validateContext(context: SegmentationContext): boolean {
     // 验证上下文是否适合括号分段
     if (!context.content || context.content.trim().length === 0) {
       return false;
     }
-    
+
     if (context.metadata.lineCount < 3) {
       return false; // 太短的文件不适合括号分段
     }
-    
+
     // 检查文件是否包含括号或标签
     const hasBrackets = /[{}()\[\]]/.test(context.content);
     const hasXmlTags = /<[^>]+>/.test(context.content);
-    
+
     return hasBrackets || hasXmlTags;
   }
-  
+
   /**
    * 计算开括号数量
    */
@@ -173,7 +173,7 @@ export class BracketSegmentationStrategy implements ISegmentationStrategy {
     const matches = line.match(/<\/[^>]*>/g);
     return matches ? matches.length : 0;
   }
-  
+
   /**
    * 检查括号是否平衡
    */
@@ -181,49 +181,49 @@ export class BracketSegmentationStrategy implements ISegmentationStrategy {
     let bracketDepth = 0;
     let xmlTagDepth = 0;
     const lines = content.split('\n');
-    
+
     for (const line of lines) {
       bracketDepth += this.countOpeningBrackets(line);
       bracketDepth -= this.countClosingBrackets(line);
-      
+
       xmlTagDepth += this.countOpeningXmlTags(line);
       xmlTagDepth -= this.countClosingXmlTags(line);
-      
+
       // 如果深度变为负数，说明括号不匹配
       if (bracketDepth < 0 || xmlTagDepth < 0) {
         return false;
       }
     }
-    
+
     return bracketDepth === 0 && xmlTagDepth === 0;
   }
-  
+
   /**
    * 找到下一个括号平衡点
    */
   private findNextBalancePoint(
-    lines: string[], 
-    startIndex: number, 
+    lines: string[],
+    startIndex: number,
     initialBracketDepth: number,
     initialXmlTagDepth: number
   ): number {
     let bracketDepth = initialBracketDepth;
     let xmlTagDepth = initialXmlTagDepth;
-    
+
     for (let i = startIndex; i < lines.length; i++) {
       const line = lines[i];
-      
+
       bracketDepth += this.countOpeningBrackets(line);
       bracketDepth -= this.countClosingBrackets(line);
-      
+
       xmlTagDepth += this.countOpeningXmlTags(line);
       xmlTagDepth -= this.countClosingXmlTags(line);
-      
+
       if (bracketDepth === 0 && xmlTagDepth === 0) {
         return i;
       }
     }
-    
+
     return -1; // 没有找到平衡点
   }
 }

@@ -1,9 +1,9 @@
 import { StandardizationSegmentationStrategy } from '../StandardizationSegmentationStrategy';
-import { LoggerService } from '../../../../../utils/LoggerService';
-import { ISegmentationStrategy, SegmentationContext } from '../../types/SegmentationTypes';
-import { CodeChunk } from '../../../splitting';
-import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../core/normalization/types';
-import { TreeSitterCoreService } from '../../../core/parse/TreeSitterCoreService';
+import { LoggerService } from '../../../../../../utils/LoggerService';
+import { ISegmentationStrategy, SegmentationContext } from '../../../../universal/types/SegmentationTypes';
+import { CodeChunk } from '../../../../splitting';
+import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../../core/normalization/types';
+import { TreeSitterCoreService } from '../../../../core/parse/TreeSitterCoreService';
 
 // Mock LoggerService
 jest.mock('../../../../../utils/LoggerService');
@@ -79,9 +79,9 @@ describe('StandardizationSegmentationStrategy', () => {
   });
   // Helper function to create context with content and file info
   const createSegmentationContext = (
-    content: string, 
-    filePath: string, 
-    language: string, 
+    content: string,
+    filePath: string,
+    language: string,
     baseContext?: SegmentationContext
   ): SegmentationContext => {
     const context = baseContext || createMockContext(language);
@@ -689,7 +689,7 @@ describe('StandardizationSegmentationStrategy', () => {
 
       // Single line content
       const singleLineContent = 'console.log("test");';
-      
+
       // Mock TreeSitter parsing success
       (mockTreeSitterService.parseCode as jest.Mock).mockResolvedValue({
         success: true,

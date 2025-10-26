@@ -4,7 +4,7 @@ import { UniversalTextSplitter } from '../UniversalTextSplitter';
 import { ProcessingGuard } from '../../guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
 import { MemoryGuard } from '../../guard/MemoryGuard';
-import { ProcessingStrategyFactory } from '../strategies/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../../processing/strategies/providers/ProcessingStrategyFactory';
 import { FileProcessingCoordinator } from '../coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { SegmentationContextManager } from '../context/SegmentationContextManager';

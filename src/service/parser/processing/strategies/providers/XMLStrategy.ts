@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
-import { IProcessingStrategy } from '../strategies/IProcessingStrategy';
-import { DetectionResult } from '../UnifiedDetectionCenter';
-import { XMLTextSplitter } from '../xml/XMLTextSplitter';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from './IProcessingStrategy';
+import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { XMLTextSplitter } from '../../../universal/xml/XMLTextSplitter';
 
 /**
  * XML策略实现
@@ -14,7 +14,7 @@ export class XMLStrategy implements IProcessingStrategy {
   constructor(
     @inject(TYPES.XMLTextSplitter) private xmlSplitter?: XMLTextSplitter,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using XML strategy for ${filePath}`);

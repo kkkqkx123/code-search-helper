@@ -5,10 +5,10 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { ConfigurationManager } from '../config/ConfigurationManager';
 import { ProtectionCoordinator } from '../protection/ProtectionCoordinator';
 import { SegmentationContextManager } from '../context/SegmentationContextManager';
-import { SemanticSegmentationStrategy } from '../strategies/SemanticSegmentationStrategy';
-import { BracketSegmentationStrategy } from '../strategies/BracketSegmentationStrategy';
-import { LineSegmentationStrategy } from '../strategies/LineSegmentationStrategy';
-import { MarkdownSegmentationStrategy } from '../strategies/MarkdownSegmentationStrategy';
+import { SemanticSegmentationStrategy } from '../../processing/strategies/providers/SemanticSegmentationStrategy';
+import { BracketSegmentationStrategy } from '../../processing/strategies/providers/BracketSegmentationStrategy';
+import { LineSegmentationStrategy } from '../../processing/strategies/providers/LineSegmentationStrategy';
+import { MarkdownSegmentationStrategy } from '../../processing/strategies/providers/MarkdownSegmentationStrategy';
 import { OverlapProcessor } from '../processors/OverlapProcessor';
 import { ChunkFilter } from '../processors/ChunkFilter';
 import { ChunkRebalancer } from '../processors/ChunkRebalancer';
@@ -23,37 +23,37 @@ describe('UniversalTextSplitter', () => {
   beforeEach(() => {
     // 创建DI容器
     container = new Container();
-    
+
     // 创建基础服务
     mockLogger = new LoggerService();
     const configManager = new ConfigurationManager(mockLogger);
     const protectionCoordinator = new ProtectionCoordinator(mockLogger);
     const contextManager = new SegmentationContextManager(mockLogger, configManager);
-    
+
     // 绑定服务到容器
     container.bind(TYPES.LoggerService).toConstantValue(mockLogger);
     container.bind(TYPES.ConfigurationManager).toConstantValue(configManager);
     container.bind(TYPES.ProtectionCoordinator).toConstantValue(protectionCoordinator);
     container.bind(TYPES.SegmentationContextManager).toConstantValue(contextManager);
     container.bind(TYPES.ComplexityCalculator).to(ComplexityCalculator).inSingletonScope();
-    
+
     // 绑定策略
     container.bind(TYPES.SemanticSegmentationStrategy).to(SemanticSegmentationStrategy).inSingletonScope();
     container.bind(TYPES.BracketSegmentationStrategy).to(BracketSegmentationStrategy).inSingletonScope();
     container.bind(TYPES.LineSegmentationStrategy).to(LineSegmentationStrategy).inSingletonScope();
     container.bind(TYPES.MarkdownSegmentationStrategy).to(MarkdownSegmentationStrategy).inSingletonScope();
-    
+
     // 绑定处理器
     container.bind(TYPES.OverlapProcessor).to(OverlapProcessor).inSingletonScope();
     container.bind(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();
     container.bind(TYPES.ChunkRebalancer).to(ChunkRebalancer).inSingletonScope();
-    
+
     // 绑定UniversalTextSplitter
     container.bind(TYPES.UniversalTextSplitter).to(UniversalTextSplitter).inSingletonScope();
-    
+
     // 获取UniversalTextSplitter实例
     splitter = container.get<UniversalTextSplitter>(TYPES.UniversalTextSplitter);
-    
+
     // 初始化策略和处理器
     const strategies = [
       container.get<SemanticSegmentationStrategy>(TYPES.SemanticSegmentationStrategy),
@@ -61,22 +61,22 @@ describe('UniversalTextSplitter', () => {
       container.get<LineSegmentationStrategy>(TYPES.LineSegmentationStrategy),
       container.get<MarkdownSegmentationStrategy>(TYPES.MarkdownSegmentationStrategy)
     ];
-    
+
     strategies.forEach(strategy => {
       contextManager.addStrategy(strategy);
     });
-    
+
     const processors = [
       container.get<OverlapProcessor>(TYPES.OverlapProcessor),
       container.get<ChunkFilter>(TYPES.ChunkFilter),
       container.get<ChunkRebalancer>(TYPES.ChunkRebalancer)
     ];
-    
+
     processors.forEach(processor => {
       splitter.addProcessor(processor);
     });
   });
-  
+
   afterEach(() => {
     container.unbindAll();
   });
@@ -101,9 +101,9 @@ class UserService {
   }
 }
       `.trim();
-      
+
       const chunks = await splitter.chunkBySemanticBoundaries(content, 'user.ts', 'typescript');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       chunks.forEach(chunk => {
         expect(chunk.content).toBeTruthy();
@@ -111,7 +111,7 @@ class UserService {
         expect(chunk.metadata.endLine).toBeGreaterThan(0);
       });
     });
-    
+
     test('should chunk Python code correctly', async () => {
       const content = `
 class Calculator:
@@ -126,9 +126,9 @@ class Calculator:
         self.result = x - y
         return self.result
       `.trim();
-      
+
       const chunks = await splitter.chunkBySemanticBoundaries(content, 'calc.py', 'python');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       chunks.forEach(chunk => {
         expect(chunk.content).toBeTruthy();
@@ -136,7 +136,7 @@ class Calculator:
         expect(chunk.metadata.endLine).toBeGreaterThan(0);
       });
     });
-    
+
     test('should handle large files with memory protection', async () => {
       // 创建一个较小的文件内容来测试内存保护
       const content = `
@@ -146,10 +146,10 @@ function test3() { console.log('test3'); }
 function test4() { console.log('test4'); }
 function test5() { console.log('test5'); }
       `.trim();
-      
+
       // 使用基本的分段方法
       const chunks = await splitter.chunkBySemanticBoundaries(content, 'large.js', 'javascript');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       chunks.forEach(chunk => {
         expect(chunk.content).toBeTruthy();
@@ -158,7 +158,7 @@ function test5() { console.log('test5'); }
       });
     });
   });
-  
+
   describe('chunkByBracketsAndLines', () => {
     test('should chunk JavaScript code with bracket balance', async () => {
       const content = `
@@ -175,9 +175,9 @@ function outerFunction() {
 
 const result = outerFunction();
       `.trim();
-      
+
       const chunks = await splitter.chunkByBracketsAndLines(content, 'test.js', 'javascript');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       chunks.forEach(chunk => {
         expect(chunk.content).toBeTruthy();
@@ -185,7 +185,7 @@ const result = outerFunction();
         expect(chunk.metadata.endLine).toBeGreaterThan(0);
       });
     });
-    
+
     test('should chunk XML/HTML with tag balance', async () => {
       const content = `
 <div class="container">
@@ -199,9 +199,9 @@ const result = outerFunction();
   </main>
 </div>
       `.trim();
-      
+
       const chunks = await splitter.chunkByBracketsAndLines(content, 'test.html', 'html');
-      
+
       expect(chunks.length).toBeGreaterThan(0);
       chunks.forEach(chunk => {
         expect(chunk.content).toBeTruthy();

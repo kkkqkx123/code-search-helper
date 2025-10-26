@@ -1,7 +1,7 @@
 import { MarkdownSegmentationStrategy } from '../MarkdownSegmentationStrategy';
-import { LoggerService } from '../../../../../utils/LoggerService';
-import { ISegmentationStrategy, SegmentationContext } from '../../types/SegmentationTypes';
-import { CodeChunk } from '../../../splitting';
+import { LoggerService } from '../../../../../../utils/LoggerService';
+import { ISegmentationStrategy, SegmentationContext } from '../../../../universal/types/SegmentationTypes';
+import { CodeChunk } from '../../../../splitting';
 
 // Mock LoggerService
 jest.mock('../../../../../utils/LoggerService');
@@ -67,9 +67,9 @@ describe('MarkdownSegmentationStrategy', () => {
   });
   // Helper function to create context with content and file info
   const createSegmentationContext = (
-    content: string, 
-    filePath: string, 
-    language: string, 
+    content: string,
+    filePath: string,
+    language: string,
     baseContext?: SegmentationContext
   ): SegmentationContext => {
     const context = baseContext || createMockContext(language);
@@ -131,7 +131,7 @@ describe('MarkdownSegmentationStrategy', () => {
       const jsContext = createMockContext('javascript');
       jsContext.metadata.isMarkdownFile = false;
       jsContext.language = 'javascript';
-      
+
       const pyContext = createMockContext('python');
       pyContext.metadata.isMarkdownFile = false;
       pyContext.language = 'python';

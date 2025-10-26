@@ -3,9 +3,9 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { ErrorThresholdManager } from '../universal/ErrorThresholdManager';
 import { MemoryGuard } from './MemoryGuard';
-import { ProcessingStrategyFactory } from '../universal/strategies/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
 import { UnifiedDetectionCenter, DetectionResult } from '../universal/UnifiedDetectionCenter';
-import { IProcessingStrategy } from '../universal/strategies/IProcessingStrategy';
+import { IProcessingStrategy } from '../processing/strategies/providers/IProcessingStrategy';
 import { IntelligentFallbackEngine } from '../universal/IntelligentFallbackEngine';
 
 export interface ProcessingResult {

@@ -62,9 +62,10 @@ import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCo
 import { ProcessingGuard } from './service/parser/guard/ProcessingGuard';
 import { UnifiedDetectionCenter } from './service/parser/universal/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from './service/parser/universal/IntelligentFallbackEngine';
-import { ProcessingStrategyFactory } from './service/parser/universal/strategies/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from './service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextSplitter } from './service/parser/universal/md/MarkdownTextSplitter';
 import { XMLTextSplitter } from './service/parser/universal/xml/XMLTextSplitter';
+import { UnifiedConfigManager } from './service/parser/config/UnifiedConfigManager';
 
 // 12. 文件搜索模块
 import { FileSearchService } from './service/filesearch/FileSearchService';
@@ -394,4 +395,13 @@ export const TYPES = {
   // 38. 特殊格式文本分割器
   MarkdownTextSplitter: Symbol.for('MarkdownTextSplitter'),
   XMLTextSplitter: Symbol.for('XMLTextSplitter'),
+
+  // 39. 统一配置管理器
+  UnifiedConfigManager: Symbol.for('UnifiedConfigManager'),
+
+  // 40. 统一策略工厂和管理器
+  UnifiedStrategyFactory: Symbol.for('UnifiedStrategyFactory'),
+  UnifiedStrategyManager: Symbol.for('UnifiedStrategyManager'),
+  UnifiedDetectionService: Symbol.for('UnifiedDetectionService'),
+  UnifiedProcessingCoordinator: Symbol.for('UnifiedProcessingCoordinator'),
 };

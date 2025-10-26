@@ -1,12 +1,12 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
 import { IProcessingStrategy } from './IProcessingStrategy';
-import { DetectionResult, ProcessingStrategyType } from '../UnifiedDetectionCenter';
-import { UniversalTextSplitter } from '../UniversalTextSplitter';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { MarkdownTextSplitter } from '../md/MarkdownTextSplitter';
-import { XMLTextSplitter } from '../xml/XMLTextSplitter';
+import { DetectionResult, ProcessingStrategyType } from '../../../universal/UnifiedDetectionCenter';
+import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
+import { MarkdownTextSplitter } from '../../../universal/md/MarkdownTextSplitter';
+import { XMLTextSplitter } from '../../../universal/xml/XMLTextSplitter';
 
 @injectable()
 export class ProcessingStrategyFactory {
