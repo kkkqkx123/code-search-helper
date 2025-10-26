@@ -1,6 +1,8 @@
 import { ISplitStrategy } from './ISplitStrategy';
 import { ChunkingOptions } from '..';
 
+export { ChunkingOptions };
+
 /**
  * 策略提供者接口
  * 用于创建和管理分割策略实例

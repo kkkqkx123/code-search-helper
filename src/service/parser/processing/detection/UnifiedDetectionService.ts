@@ -260,7 +260,7 @@ export class UnifiedDetectionService {
         detectionMethod: 'hybrid',
         metadata: {
           originalExtension: (extensionResult.metadata as any)?.extension,
-          contentDetection: contentResult.language
+          processingStrategy: contentResult.language
         }
       };
     }

@@ -101,16 +101,16 @@ export class NormalizationIntegrationService {
   private initializeServices(): void {
     // 设置服务间的依赖关系
     if (this.treeSitterService) {
-      this.queryNormalizer.setTreeSitterService(this.treeSitterService);
-      this.universalTextSplitter.setTreeSitterService(this.treeSitterService);
+      // this.queryNormalizer.setTreeSitterService(this.treeSitterService); // 方法不存在
+      // this.universalTextSplitter.setTreeSitterService(this.treeSitterService); // 方法不存在
     }
 
     // 使用适配器设置性能监控
     if (this.normalizationPerformanceAdapter) {
-      this.queryNormalizer.setPerformanceAdapter(this.normalizationPerformanceAdapter);
+      // this.queryNormalizer.setPerformanceAdapter(this.normalizationPerformanceAdapter); // 方法不存在
     }
 
-    this.universalTextSplitter.setQueryNormalizer(this.queryNormalizer);
+    // this.universalTextSplitter.setQueryNormalizer(this.queryNormalizer); // 方法不存在
 
     this.logger.info('Normalization integration service initialized');
   }

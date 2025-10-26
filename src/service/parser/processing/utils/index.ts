@@ -7,7 +7,7 @@ import { ProcessingMetrics, ProcessingError } from '../types';
 /**
  * 内容分析工具
  */
-export class ContentAnalyzer {
+class ContentAnalyzer {
   /**
    * 计算内容复杂度
    */
@@ -54,7 +54,7 @@ export class ContentAnalyzer {
     complexity += (content.match(/async\s+|await\s+/g) || []).length * 2;
     
     // 解构赋值
-    complexity += (content.match(/\{[^}*\]\s*=/g) || []).length;
+    complexity += (content.match(/\{[^}]*\}\s*=/g) || []).length;
     
     // 模板字符串
     complexity += (content.match(/`[^`]*`/g) || []).length;
@@ -221,7 +221,7 @@ export class ContentAnalyzer {
 /**
  * 代码块处理工具
  */
-export class ChunkProcessor {
+class ChunkProcessor {
   /**
    * 验证代码块
    */
@@ -295,14 +295,14 @@ export class ChunkProcessor {
   /**
    * 过滤代码块
    */
-  static filterChunks(chunks: CodeChunk, filter: (chunk: CodeChunk) => boolean): CodeChunk[] {
+  static filterChunks(chunks: CodeChunk[], filter: (chunk: CodeChunk) => boolean): CodeChunk[] {
     return chunks.filter(filter);
   }
 
   /**
    * 排序代码块
    */
-  static sortChunks(chunks: Code[], sortBy: 'startLine' | 'size' | 'complexity' = 'startLine'): CodeChunk[] {
+  static sortChunks(chunks: CodeChunk[], sortBy: 'startLine' | 'size' | 'complexity' = 'startLine'): CodeChunk[] {
     return [...chunks].sort((a, b) => {
       switch (sortBy) {
         case 'startLine':
@@ -381,7 +381,7 @@ export class ChunkProcessor {
 /**
  * 性能监控工具
  */
-export class PerformanceMonitor {
+class PerformanceMonitor {
   private static timers: Map<string, number> = new Map();
   private static metrics: Map<string, number[]> = new Map();
 
@@ -505,7 +505,7 @@ export class PerformanceMonitor {
 /**
  * 字符串处理工具
  */
-export class StringUtils {
+class StringUtils {
   /**
    * 安全地截取字符串
    */
@@ -605,7 +605,7 @@ export class StringUtils {
 /**
  * 数组处理工具
  */
-export class ArrayUtils {
+class ArrayUtils {
   /**
    * 批处理数组
    */

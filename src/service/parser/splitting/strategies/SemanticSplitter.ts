@@ -133,4 +133,8 @@ export class SemanticSplitter implements SemanticSplitterInterface {
   getPriority(): number {
     return 5; // 最低优先级（作为最后的后备方案）
   }
+  
+  getDescription(): string {
+    return 'Semantic splitter that uses semantic scoring as a fallback strategy';
+  }
 }

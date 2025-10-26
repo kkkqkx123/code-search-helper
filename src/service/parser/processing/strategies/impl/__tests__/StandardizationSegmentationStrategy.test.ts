@@ -1,4 +1,4 @@
-import { StandardizationSegmentationStrategy } from '../../impl/StandardizationSegmentationStrategy';
+import { StandardizationSegmentationStrategy } from '../StandardizationSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { ISegmentationStrategy, SegmentationContext } from '../../types/SegmentationTypes';
 import { CodeChunk } from '../../../../splitting';
@@ -262,8 +262,8 @@ describe('StandardizationSegmentationStrategy', () => {
       const chunks = await strategy.segment(createSegmentationContext(content, 'test.py', 'python', context));
 
       expect(chunks.length).toBeGreaterThan(0);
-      expect(chunks.every(chunk => chunk.metadata.type === 'standardization')).toBe(true);
-      expect(chunks.every(chunk => chunk.metadata.language === 'python'));
+      expect(chunks.every((chunk: { metadata: { type: string; }; }) => chunk.metadata.type === 'standardization')).toBe(true);
+      expect(chunks.every((chunk: { metadata: { language: string; }; }) => chunk.metadata.language === 'python'));
       expect(mockTreeSitterService.parseCode).toHaveBeenCalledWith(content, 'python');
       expect(mockQueryNormalizer.normalize).toHaveBeenCalled();
     });
@@ -545,8 +545,8 @@ describe('StandardizationSegmentationStrategy', () => {
       const chunks = await strategy.segment(createSegmentationContext(jsCode, 'Component.jsx', 'javascript', context));
 
       expect(chunks.length).toBeGreaterThan(0);
-      expect(chunks.every(chunk => chunk.metadata.type === 'standardization')).toBe(true);
-      expect(chunks.every(chunk => chunk.metadata.language === 'javascript'));
+      expect(chunks.every((chunk: { metadata: { type: string; }; }) => chunk.metadata.type === 'standardization')).toBe(true);
+      expect(chunks.every((chunk: { metadata: { language: string; }; }) => chunk.metadata.language === 'javascript'));
       expect(mockTreeSitterService.parseCode).toHaveBeenCalledWith(jsCode, 'javascript');
       expect(mockQueryNormalizer.normalize).toHaveBeenCalled();
     });
@@ -676,8 +676,8 @@ describe('StandardizationSegmentationStrategy', () => {
       const chunks = await strategy.segment(createSegmentationContext(pythonCode, 'data_processor.py', 'python', context));
 
       expect(chunks.length).toBeGreaterThan(0);
-      expect(chunks.every(chunk => chunk.metadata.type === 'standardization')).toBe(true);
-      expect(chunks.every(chunk => chunk.metadata.language === 'python'));
+      expect(chunks.every((chunk: { metadata: { type: string; }; }) => chunk.metadata.type === 'standardization')).toBe(true);
+      expect(chunks.every((chunk: { metadata: { language: string; }; }) => chunk.metadata.language === 'python'));
       expect(mockTreeSitterService.parseCode).toHaveBeenCalledWith(pythonCode, 'python');
       expect(mockQueryNormalizer.normalize).toHaveBeenCalled();
     });

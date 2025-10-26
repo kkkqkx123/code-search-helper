@@ -1,10 +1,10 @@
-import { BracketSegmentationStrategy } from '../../impl/BracketSegmentationStrategy';
+import { BracketSegmentationStrategy } from '../BracketSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../types/SegmentationTypes';
 import { CodeChunk } from '../../../../splitting';
 
 // Mock LoggerService
-jest.mock('../../../../../utils/LoggerService');
+jest.mock('../../../../../../utils/LoggerService');
 const MockLoggerService = LoggerService as jest.MockedClass<typeof LoggerService>;
 
 // Mock IComplexityCalculator
@@ -299,7 +299,7 @@ describe('BracketSegmentationStrategy', () => {
 
       // Should split into multiple chunks due to line limit
       expect(chunks.length).toBeGreaterThan(1);
-      chunks.forEach(chunk => {
+      chunks.forEach((chunk: { metadata: { endLine: number; startLine: number; }; }) => {
         expect(chunk.metadata.endLine - chunk.metadata.startLine + 1).toBeLessThanOrEqual(50);
       });
     });
@@ -312,7 +312,7 @@ describe('BracketSegmentationStrategy', () => {
 
       // Should split large content
       expect(chunks.length).toBeGreaterThan(1);
-      chunks.forEach(chunk => {
+      chunks.forEach((chunk: { content: string | any[]; }) => {
         expect(chunk.content.length).toBeLessThanOrEqual(2200); // maxChunkSize * 1.1
       });
     });

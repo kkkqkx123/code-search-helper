@@ -1,6 +1,17 @@
 // 统一处理层类型定义
 // 整合了所有相关类型定义
 
+// 导入核心接口
+import {
+  ISplitStrategy,
+  IStrategyProvider,
+  ChunkingOptions,
+  CodeChunk,
+  CodeChunkMetadata,
+  ASTNode,
+  StrategyConfiguration
+} from '../../interfaces/ISplitStrategy';
+
 // 重新导出核心接口
 export {
   ISplitStrategy,
@@ -9,10 +20,7 @@ export {
   CodeChunk,
   CodeChunkMetadata,
   ASTNode,
-  StrategyConfiguration,
-  StrategyManagerConfig,
-  StrategyExecutionContext,
-  StrategyExecutionResult
+  StrategyConfiguration
 } from '../../interfaces/ISplitStrategy';
 
 export {
@@ -34,6 +42,12 @@ export {
 
 // 重新导出处理类型
 export {
+  ProcessingResult,
+  ProcessingContext
+} from '../coordination/UnifiedProcessingCoordinator';
+
+// 导入处理类型以供内部使用
+import {
   ProcessingResult,
   ProcessingContext
 } from '../coordination/UnifiedProcessingCoordinator';

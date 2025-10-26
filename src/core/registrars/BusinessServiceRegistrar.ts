@@ -52,7 +52,7 @@ import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
 import { ProcessingStrategySelector } from '../../service/parser/universal/coordination/ProcessingStrategySelector';
 import { FileProcessingCoordinator } from '../../service/parser/universal/coordination/FileProcessingCoordinator';
-import { OptimizedProcessingGuard } from '../../service/parser/guard/OptimizedProcessingGuard';
+// import { OptimizedProcessingGuard } from '../../service/parser/guard/OptimizedProcessingGuard'; // 暂时注释掉，文件不存在
 import { UnifiedDetectionCenter } from '../../service/parser/universal/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from '../../service/parser/universal/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
@@ -69,9 +69,16 @@ import { ChunkFilter } from '../../service/parser/universal/processors/ChunkFilt
 import { ChunkRebalancer } from '../../service/parser/universal/processors/ChunkRebalancer';
 import { SemanticSegmentationStrategy } from '../../service/parser/processing/strategies/impl/SemanticSegmentationStrategy';
 import { BracketSegmentationStrategy } from '../../service/parser/processing/strategies/impl/BracketSegmentationStrategy';
-import { LineSegmentationStrategy } from '../../service/parser/processing/strategies/providers/LineSegmentationStrategy';
+import { LineStrategyProvider } from '../../service/parser/processing/strategies/providers/LineStrategyProvider';
 import { MarkdownSegmentationStrategy } from '../../service/parser/processing/strategies/impl/MarkdownSegmentationStrategy';
 import { StandardizationSegmentationStrategy } from '../../service/parser/processing/strategies/impl/StandardizationSegmentationStrategy';
+
+// 新增的策略提供者
+import { ImportStrategyProvider } from '../../service/parser/processing/strategies/providers/ImportStrategyProvider';
+import { SyntaxAwareStrategyProvider } from '../../service/parser/processing/strategies/providers/SyntaxAwareStrategyProvider';
+import { IntelligentStrategyProvider } from '../../service/parser/processing/strategies/providers/IntelligentStrategyProvider';
+import { StructureAwareStrategyProvider } from '../../service/parser/processing/strategies/providers/StructureAwareStrategyProvider';
+import { SemanticStrategyProvider } from '../../service/parser/processing/strategies/providers/SemanticStrategyProvider';
 
 // 文件搜索服务
 import { FileSearchService } from '../../service/filesearch/FileSearchService';
@@ -176,9 +183,16 @@ export class BusinessServiceRegistrar {
       // 策略
       container.bind<SemanticSegmentationStrategy>(TYPES.SemanticSegmentationStrategy).to(SemanticSegmentationStrategy).inSingletonScope();
       container.bind<BracketSegmentationStrategy>(TYPES.BracketSegmentationStrategy).to(BracketSegmentationStrategy).inSingletonScope();
-      container.bind<LineSegmentationStrategy>(TYPES.LineSegmentationStrategy).to(LineSegmentationStrategy).inSingletonScope();
+      // container.bind<LineSegmentationStrategy>(TYPES.LineSegmentationStrategy).to(LineSegmentationStrategy).inSingletonScope(); // 暂时注释掉
       container.bind<MarkdownSegmentationStrategy>(TYPES.MarkdownSegmentationStrategy).to(MarkdownSegmentationStrategy).inSingletonScope();
       container.bind<StandardizationSegmentationStrategy>(TYPES.StandardizationSegmentationStrategy).to(StandardizationSegmentationStrategy).inSingletonScope();
+      
+      // 新增的策略提供者
+      container.bind<ImportStrategyProvider>(TYPES.ImportStrategyProvider).to(ImportStrategyProvider).inSingletonScope();
+      container.bind<SyntaxAwareStrategyProvider>(TYPES.SyntaxAwareStrategyProvider).to(SyntaxAwareStrategyProvider).inSingletonScope();
+      container.bind<IntelligentStrategyProvider>(TYPES.IntelligentStrategyProvider).to(IntelligentStrategyProvider).inSingletonScope();
+      container.bind<StructureAwareStrategyProvider>(TYPES.StructureAwareStrategyProvider).to(StructureAwareStrategyProvider).inSingletonScope();
+      container.bind<SemanticStrategyProvider>(TYPES.SemanticStrategyProvider).to(SemanticStrategyProvider).inSingletonScope();
 
       // 处理器
       container.bind<OverlapProcessor>(TYPES.OverlapProcessor).to(OverlapProcessor).inSingletonScope();
@@ -216,22 +230,22 @@ export class BusinessServiceRegistrar {
       container.bind<ProcessingGuard>(TYPES.ProcessingGuard).to(ProcessingGuard).inSingletonScope();
 
       // 优化的处理保护器
-      container.bind<OptimizedProcessingGuard>(TYPES.OptimizedProcessingGuard).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        const errorThresholdManager = context.get<ErrorThresholdManager>(TYPES.ErrorThresholdManager);
-        const memoryGuard = context.get<MemoryGuard>(TYPES.MemoryGuard);
-        const strategyFactory = context.get<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory);
-        const detectionCenter = context.get<UnifiedDetectionCenter>(TYPES.UnifiedDetectionCenter);
-        const fallbackEngine = context.get<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine);
+      // container.bind<OptimizedProcessingGuard>(TYPES.OptimizedProcessingGuard).toDynamicValue(context => {
+      //   const logger = context.get<LoggerService>(TYPES.LoggerService);
+      //   const errorThresholdManager = context.get<ErrorThresholdManager>(TYPES.ErrorThresholdManager);
+      //   const memoryGuard = context.get<MemoryGuard>(TYPES.MemoryGuard);
+      //   const strategyFactory = context.get<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory);
+      //   const detectionCenter = context.get<UnifiedDetectionCenter>(TYPES.UnifiedDetectionCenter);
+      //   const fallbackEngine = context.get<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine);
 
-        return OptimizedProcessingGuard.getInstance(
-          logger,
-          errorThresholdManager,
-          memoryGuard,
-          strategyFactory,
-          detectionCenter
-        );
-      }).inSingletonScope();
+      //   return OptimizedProcessingGuard.getInstance(
+      //     logger,
+      //     errorThresholdManager,
+      //     memoryGuard,
+      //     strategyFactory,
+      //     detectionCenter
+      //   );
+      // }).inSingletonScope(); // 暂时注释掉，类不存在
 
       // 统一检测中心
       container.bind<UnifiedDetectionCenter>(TYPES.UnifiedDetectionCenter).toDynamicValue(context => {
@@ -256,7 +270,7 @@ export class BusinessServiceRegistrar {
         const markdownSplitter = context.get<MarkdownTextSplitter>(TYPES.MarkdownTextSplitter);
         const xmlSplitter = context.get<XMLTextSplitter>(TYPES.XMLTextSplitter);
 
-        return new ProcessingStrategyFactory(logger, universalTextSplitter, treeSitterService, markdownSplitter, xmlSplitter);
+        return new ProcessingStrategyFactory(logger, treeSitterService, markdownSplitter, xmlSplitter);
       }).inSingletonScope();
 
       // UnifiedGuardCoordinator - 新的统一保护机制协调器

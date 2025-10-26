@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { IProcessingStrategy } from '../../processing/strategies/impl/IProcessingStrategy';
 import { DetectionResult, ProcessingStrategyType } from '../UnifiedDetectionCenter';
-import { ProcessingStrategyFactory } from '../strategy/factory/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../../processing/strategies/providers/ProcessingStrategyFactory';
 import { FileFeatureDetector } from '../utils/FileFeatureDetector';
 
 /**
@@ -159,7 +159,7 @@ export class StrategyManager {
    * 获取所有可用策略信息
    */
   getAvailableStrategies(): Array<{
-    type: ProcessingStrategyType;
+    type: string;
     name: string;
     description: string;
     supported: boolean;
@@ -167,10 +167,10 @@ export class StrategyManager {
     const availableTypes = this.strategyFactory.getAvailableStrategyTypes();
 
     return availableTypes.map((type: string) => ({
-      type,
-      name: type.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-      description: this.getStrategyDescription(type),
-      supported: this.strategyFactory.isStrategyTypeSupported(type)
+    type,
+    name: type.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+    description: this.getStrategyDescription(type as ProcessingStrategyType),
+    supported: this.strategyFactory.isStrategyTypeSupported(type)
     }));
   }
 

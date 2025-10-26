@@ -13,14 +13,14 @@ export interface ISplitStrategy {
    * @param nodeTracker AST节点跟踪器（可选）
    * @param ast AST树（可选）
    */
-  split(
+ split(
     content: string,
     language: string,
     filePath?: string,
     options?: ChunkingOptions,
     nodeTracker?: any,
     ast?: any
-  ): Promise<CodeChunk[]>;
+ ): Promise<CodeChunk[]>;
 
   /**
    * 获取策略名称（用于日志和调试）
@@ -39,6 +39,11 @@ export interface ISplitStrategy {
   getPriority(): number;
 
   /**
+   * 获取策略描述
+   */
+  getDescription?(): string;
+
+  /**
    * 提取代码块关联的AST节点
    * @param chunk 代码块
    * @param ast AST树
@@ -53,3 +58,7 @@ export interface ISplitStrategy {
    */
   hasUsedNodes?(chunk: CodeChunk, nodeTracker: any, ast: any): boolean;
 }
+
+// 重新导出接口
+export { IStrategyProvider } from './IStrategyProvider';
+export { ChunkingOptions };

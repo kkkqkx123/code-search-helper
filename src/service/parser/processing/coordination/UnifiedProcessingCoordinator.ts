@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../../utils/LoggerService';
-import { TYPES } from '../../../../../types';
-import { ISplitStrategy, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { LoggerService } from '../../../../utils/LoggerService';
+import { TYPES } from '../../../../types';
+import { ISplitStrategy, ChunkingOptions } from '../../interfaces/ISplitStrategy';
 import { UnifiedStrategyManager } from '../strategies/manager/UnifiedStrategyManager';
 import { UnifiedDetectionService, DetectionResult } from '../detection/UnifiedDetectionService';
 import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';

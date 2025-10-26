@@ -1,4 +1,3 @@
-import { CodeChunk } from '../splitting';
 import Parser from 'tree-sitter';
 
 /**

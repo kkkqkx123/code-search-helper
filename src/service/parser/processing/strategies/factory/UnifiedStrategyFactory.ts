@@ -6,11 +6,14 @@ import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
 import {
   ASTStrategyProvider,
   SemanticStrategyProvider,
-  SemanticFineStrategyProvider,
   LineStrategyProvider,
   MarkdownStrategyProvider,
   XMLStrategyProvider,
-  BracketStrategyProvider
+  BracketStrategyProvider,
+  FunctionStrategyProvider,
+  ClassStrategyProvider,
+  ModuleStrategyProvider,
+  HierarchicalStrategyProvider
 } from '../providers';
 
 /**
@@ -61,8 +64,7 @@ export class UnifiedStrategyFactory {
     this.registerProvider(new ASTStrategyProvider(treeSitterService, this.logger));
     
     // 注册语义策略提供者
-    this.registerProvider(new SemanticStrategyProvider(universalTextSplitter, this.logger));
-    this.registerProvider(new SemanticFineStrategyProvider(universalTextSplitter, this.logger));
+    this.registerProvider(new SemanticStrategyProvider(this.logger));
     
     // 注册行级策略提供者
     this.registerProvider(new LineStrategyProvider(universalTextSplitter, this.logger));
@@ -73,6 +75,12 @@ export class UnifiedStrategyFactory {
     
     // 注册括号策略提供者
     this.registerProvider(new BracketStrategyProvider(universalTextSplitter, this.logger));
+    
+    // 注册AST高级策略提供者
+    this.registerProvider(new FunctionStrategyProvider(treeSitterService, this.logger));
+    this.registerProvider(new ClassStrategyProvider(treeSitterService, this.logger));
+    this.registerProvider(new ModuleStrategyProvider(treeSitterService, this.logger));
+    this.registerProvider(new HierarchicalStrategyProvider(treeSitterService, this.logger));
     
     this.logger?.info(`Registered ${this.providers.size} default strategy providers`);
   }

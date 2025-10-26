@@ -89,4 +89,11 @@ export const TYPES = {
   
   // 适配器服务
   IndexAdapterService: Symbol.for('IndexAdapterService'),
+  
+  // 新增的策略提供者类型
+  ImportStrategyProvider: Symbol.for('ImportStrategyProvider'),
+  SyntaxAwareStrategyProvider: Symbol.for('SyntaxAwareStrategyProvider'),
+  IntelligentStrategyProvider: Symbol.for('IntelligentStrategyProvider'),
+  StructureAwareStrategyProvider: Symbol.for('StructureAwareStrategyProvider'),
+  SemanticStrategyProvider: Symbol.for('SemanticStrategyProvider'),
 };

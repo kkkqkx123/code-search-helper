@@ -54,7 +54,53 @@ export class ProcessingStrategyFactory {
         return new SemanticSegmentationStrategy(this.logger);
 
       case ProcessingStrategyType.UNIVERSAL_BRACKET:
-        return new BracketSegmentationStrategy(this.logger);
+      return new BracketSegmentationStrategy(undefined, this.logger);
+
+      case ProcessingStrategyType.UNIVERSAL_LINE:
+      case ProcessingStrategyType.EMERGENCY_SINGLE_CHUNK:
+      default:
+        return new LineSegmentationStrategy(this.logger);
+    }
+  }
+
+  getAvailableStrategyTypes(): string[] {
+    return Object.values(ProcessingStrategyType);
+  }
+
+  isStrategyTypeSupported(strategyType: string): boolean {
+    return Object.values(ProcessingStrategyType).includes(strategyType as ProcessingStrategyType);
+  }
+
+  createStrategyWithDependencies(
+    detection: DetectionResult,
+    dependencies: {
+      treeSitterService?: any;
+      universalTextSplitter?: any;
+      markdownSplitter?: any;
+      xmlSplitter?: any;
+    }
+  ): IProcessingStrategy {
+    // 创建带有依赖的策略
+    switch (detection.processingStrategy) {
+      case ProcessingStrategyType.TREESITTER_AST:
+        return new ASTStrategy(dependencies.treeSitterService || this.treeSitterService, this.logger);
+
+      case ProcessingStrategyType.MARKDOWN_SPECIALIZED:
+        return new MarkdownSegmentationStrategy(this.logger);
+
+      case ProcessingStrategyType.XML_SPECIALIZED:
+        return new XMLStrategy(dependencies.xmlSplitter || this.xmlSplitter, this.logger);
+
+      case ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE:
+        const fineSemanticStrategy = new SemanticSegmentationStrategy(this.logger);
+        (fineSemanticStrategy as any).fineMode = true;
+        return fineSemanticStrategy;
+
+      case ProcessingStrategyType.UNIVERSAL_SEMANTIC:
+        return new SemanticSegmentationStrategy(this.logger);
+
+      case ProcessingStrategyType.UNIVERSAL_BRACKET:
+        return new BracketSegmentationStrategy(undefined, this.logger);
 
       case ProcessingStrategyType.UNIVERSAL_LINE:
       case ProcessingStrategyType.EMERGENCY_SINGLE_CHUNK:

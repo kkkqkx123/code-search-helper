@@ -9,47 +9,32 @@ export {
   CodeChunk,
   CodeChunkMetadata,
   ASTNode,
-  StrategyConfiguration,
-  StrategyManagerConfig,
-  StrategyExecutionContext,
-  StrategyExecutionResult
+  StrategyConfiguration
 } from '../interfaces/ISplitStrategy';
 
 export {
   IStrategyProvider as IStrategyProviderInterface
 } from '../interfaces/IStrategyProvider';
 
-// 配置管理导出
-export {
-  UnifiedConfigManager,
-  UnifiedConfig,
-  UniversalProcessingConfig
-} from '../config/UnifiedConfigManager';
+// 配置管理导入和导出
+import { UnifiedConfigManager, UnifiedConfig, UniversalProcessingConfig } from '../config/UnifiedConfigManager';
+export { UnifiedConfigManager, UnifiedConfig, UniversalProcessingConfig };
 
-// 策略工厂导出
-export {
-  UnifiedStrategyFactory
-} from './strategies/factory/UnifiedStrategyFactory';
+// 策略工厂导入和导出
+import { UnifiedStrategyFactory } from './strategies/factory/UnifiedStrategyFactory';
+export { UnifiedStrategyFactory };
 
-// 策略管理器导出
-export {
-  UnifiedStrategyManager
-} from './strategies/manager/UnifiedStrategyManager';
+// 策略管理器导入和导出
+import { UnifiedStrategyManager } from './strategies/manager/UnifiedStrategyManager';
+export { UnifiedStrategyManager };
 
-// 检测服务导出
-export {
-  UnifiedDetectionService,
-  DetectionResult,
-  FileFeatures,
-  LanguageDetectionInfo
-} from './detection/UnifiedDetectionService';
+// 检测服务导入和导出
+import { UnifiedDetectionService, DetectionResult, FileFeatures, LanguageDetectionInfo } from './detection/UnifiedDetectionService';
+export { UnifiedDetectionService, DetectionResult, FileFeatures, LanguageDetectionInfo };
 
-// 处理协调器导出
-export {
-  UnifiedProcessingCoordinator,
-  ProcessingResult,
-  ProcessingContext
-} from './coordination/UnifiedProcessingCoordinator';
+// 处理协调器导入和导出
+import { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext } from './coordination/UnifiedProcessingCoordinator';
+export { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext };
 
 // 类型定义导出
 export * from './types';
@@ -74,14 +59,8 @@ export default {
   UnifiedDetectionService,
   UnifiedProcessingCoordinator,
   
-  // 接口
-  ISplitStrategy,
-  IStrategyProvider,
+  // 接口（作为类型导出，不作为值）
   
   // 类型
-  ChunkingOptions,
-  CodeChunk,
-  DetectionResult,
-  ProcessingResult,
-  ProcessingContext
+  // 注意：这些是类型，不能作为值使用
 };

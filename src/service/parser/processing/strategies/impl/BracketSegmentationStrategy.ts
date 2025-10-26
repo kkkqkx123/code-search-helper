@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
+import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
 import { IProcessingStrategy } from './IProcessingStrategy';
 import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
@@ -10,29 +11,42 @@ import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
  * 括号分段策略
  * 职责：基于括号和XML标签平衡的分段
  */
-@injectable()
-export class BracketSegmentationStrategy implements IProcessingStrategy {
+export class BracketSegmentationStrategy implements ISegmentationStrategy, IProcessingStrategy {
   private logger?: LoggerService;
+  private complexityCalculator?: IComplexityCalculator;
 
-  constructor(
-    @inject(TYPES.LoggerService) logger?: LoggerService
-  ) {
+  constructor(complexityCalculator?: IComplexityCalculator, logger?: LoggerService) {
+    this.complexityCalculator = complexityCalculator;
     this.logger = logger;
   }
 
-  async execute(filePath: string, content: string, detection: DetectionResult) {
-    this.logger?.debug(`Using Bracket segmentation strategy for ${filePath}`);
-    
+  canHandle(context: SegmentationContext): boolean {
+    // 如果禁用了括号平衡，则不处理
+    if (!context.options.enableBracketBalance) {
+      return false;
+    }
+
+    // 不处理Markdown文件
+    if (context.metadata.isMarkdownFile) {
+      return false;
+    }
+
+    // 检查是否是代码文件
+    return context.metadata.isCodeFile;
+  }
+
+  async segment(context: SegmentationContext): Promise<CodeChunk[]> {
+    this.logger?.debug(`Starting bracket-based segmentation for ${context.filePath || 'unknown file'}`);
+
     // 验证上下文
-    const validationResult = this.validateContext(content, detection.language);
-    if (!validationResult) {
+    if (this.validateContext && !this.validateContext(context)) {
       this.logger?.warn('Context validation failed for bracket strategy, proceeding anyway');
     } else {
       this.logger?.debug('Context validation passed for bracket strategy');
     }
-    
+
     const chunks: CodeChunk[] = [];
-    const lines = content.split('\n');
+    const lines = context.content.split('\n');
     let currentChunk: string[] = [];
     let currentLine = 1;
     let bracketDepth = 0;
@@ -56,7 +70,8 @@ export class BracketSegmentationStrategy implements IProcessingStrategy {
       // 分段条件：括号平衡且达到最小块大小，同时考虑块大小限制
       const chunkContent = currentChunk.join('\n');
       const shouldSplit = (bracketDepth === 0 && xmlTagDepth === 0 && currentChunk.length >= 5) ||
-        currentChunk.length >= 50 ||
+        currentChunk.length >= context.options.maxLinesPerChunk ||
+        chunkContent.length >= context.options.maxChunkSize ||
         chunkContent.length >= BLOCK_SIZE_LIMITS.MAX_BLOCK_CHARS * BLOCK_SIZE_LIMITS.MAX_CHARS_TOLERANCE_FACTOR;
 
       if (shouldSplit) {
@@ -65,8 +80,8 @@ export class BracketSegmentationStrategy implements IProcessingStrategy {
           metadata: {
             startLine: currentLine,
             endLine: currentLine + currentChunk.length - 1,
-            language: detection.language || 'unknown',
-            filePath,
+            language: context.language || 'unknown',
+            filePath: context.filePath || '',
             type: 'bracket',
             complexity: this.calculateComplexity(chunkContent)
           }
@@ -82,13 +97,14 @@ export class BracketSegmentationStrategy implements IProcessingStrategy {
     // 处理剩余内容
     if (currentChunk.length > 0) {
       const chunkContent = currentChunk.join('\n');
+      const endLine = context.content === '' ? 0 : currentLine + currentChunk.length - 1;
       chunks.push({
         content: chunkContent,
         metadata: {
           startLine: currentLine,
-          endLine: currentLine + currentChunk.length - 1,
-          language: detection.language || 'unknown',
-          filePath,
+          endLine: endLine,
+          language: context.language || 'unknown',
+          filePath: context.filePath || '',
           type: 'bracket',
           complexity: this.calculateComplexity(chunkContent)
         }
@@ -96,34 +112,38 @@ export class BracketSegmentationStrategy implements IProcessingStrategy {
     }
 
     this.logger?.debug(`Bracket segmentation created ${chunks.length} chunks`);
-    return { chunks, metadata: { strategy: 'BracketSegmentationStrategy' } };
+    return chunks;
   }
 
   getName(): string {
-    return 'BracketSegmentationStrategy';
+    return 'bracket';
   }
 
-  getDescription(): string {
-    return 'Uses bracket and XML tag balance for code segmentation';
+  getPriority(): number {
+    return 4;
+  }
+
+  getSupportedLanguages(): string[] {
+    return ['javascript', 'typescript', 'python', 'java', 'cpp', 'go', 'rust', 'xml'];
   }
 
   /**
    * 验证上下文是否适合括号分段
    */
-  private validateContext(content: string, language?: string): boolean {
+  validateContext(context: SegmentationContext): boolean {
     // 验证上下文是否适合括号分段
-    if (!content || content.trim().length === 0) {
+    if (!context.content || context.content.trim().length === 0) {
       return false;
     }
 
-    const lines = content.split('\n');
+    const lines = context.content.split('\n');
     if (lines.length < 3) {
       return false; // 太短的文件不适合括号分段
     }
 
     // 检查文件是否包含括号或标签
-    const hasBrackets = /[{}()\[\]]/.test(content);
-    const hasXmlTags = /<[^>]+>/.test(content);
+    const hasBrackets = /[{}()\[\]]/.test(context.content);
+    const hasXmlTags = /<[^>]+>/.test(context.content);
 
     return hasBrackets || hasXmlTags;
   }
@@ -232,5 +252,62 @@ export class BracketSegmentationStrategy implements IProcessingStrategy {
     complexity += Math.log10(lines + 1) * 2;
 
     return Math.round(complexity);
+  }
+
+  // IProcessingStrategy implementation
+  async execute(filePath: string, content: string, detection: DetectionResult): Promise<{
+    chunks: CodeChunk[];
+    metadata?: any;
+  }> {
+    this.logger?.debug(`Executing bracket segmentation strategy for ${filePath}`);
+
+    // Create segmentation context
+    const context: SegmentationContext = {
+      content,
+      filePath,
+      language: detection.language,
+      options: {
+        maxChunkSize: 2000,
+        overlapSize: 100,
+        maxLinesPerChunk: 50,
+        enableBracketBalance: true,
+        enableSemanticDetection: false,
+        enableCodeOverlap: false,
+        enableStandardization: false,
+        standardizationFallback: false,
+        maxOverlapRatio: 0.1,
+        errorThreshold: 1000,
+        memoryLimitMB: 100,
+        strategyPriorities: {},
+        filterConfig: {
+          enableSmallChunkFilter: false,
+          enableChunkRebalancing: false,
+          minChunkSize: 100,
+          maxChunkSize: 2000,
+        },
+        protectionConfig: {
+          enableProtection: false,
+          protectionLevel: 'low',
+        },
+      },
+      metadata: {
+        contentLength: content.length,
+        lineCount: content.split('\n').length,
+        isSmallFile: content.length < 1000,
+        isCodeFile: true,
+        isMarkdownFile: false,
+      },
+    };
+
+    const chunks = await this.segment(context);
+
+    return {
+      chunks,
+      metadata: { strategy: 'BracketSegmentationStrategy' }
+    };
+  }
+
+  getDescription(): string {
+    return 'Uses bracket and XML tag balancing for code segmentation';
   }
 }
