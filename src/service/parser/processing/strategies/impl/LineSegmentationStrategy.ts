@@ -1,8 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
-import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
-import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from './IProcessingStrategy';
+import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
 
 /**
@@ -10,102 +11,76 @@ import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
  * 职责：基于行数的简单分段，作为最终的降级方案
  */
 @injectable()
-export class LineSegmentationStrategy implements ISegmentationStrategy {
-  private complexityCalculator: IComplexityCalculator;
+export class LineSegmentationStrategy implements IProcessingStrategy {
   private logger?: LoggerService;
 
   constructor(
-    @inject(TYPES.ComplexityCalculator) complexityCalculator: IComplexityCalculator,
     @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
-    this.complexityCalculator = complexityCalculator;
     this.logger = logger;
   }
 
-  canHandle(context: SegmentationContext): boolean {
-    // 行数分段策略总是可以处理，作为最后的降级方案
-    return true;
-  }
-
-  async segment(context: SegmentationContext): Promise<CodeChunk[]> {
-    const { content, filePath, language } = context;
+  async execute(filePath: string, content: string, detection: DetectionResult) {
+    this.logger?.debug(`Using Line segmentation strategy for ${filePath}`);
+    
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
-    let currentChunk: string[] = [];
-    let currentLine = 1;
 
-    // 内存保护：限制处理的行数
-    const maxLines = Math.min(lines.length, 10000);
-
-    for (let i = 0; i < maxLines; i++) {
-      const line = lines[i];
-      currentChunk.push(line);
-
-      // 检查是否应该分段，同时考虑块大小限制
-      const chunkContent = currentChunk.join('\n');
-      const shouldSplit = currentChunk.length >= context.options.maxLinesPerChunk ||
-        chunkContent.length >= context.options.maxChunkSize ||
-        chunkContent.length >= BLOCK_SIZE_LIMITS.MAX_BLOCK_CHARS * BLOCK_SIZE_LIMITS.MAX_CHARS_TOLERANCE_FACTOR ||
-        i === maxLines - 1;
-
-      if (shouldSplit) {
-        const complexity = this.complexityCalculator.calculate(chunkContent);
-
+    // 使用智能行数分段
+    const splitPoints = this.intelligentLineSegmentation(lines, 50, 3000);
+    
+    // 创建分块
+    for (let i = 0; i <= splitPoints.length; i++) {
+      const startLine = i === 0 ? 0 : splitPoints[i - 1] + 1;
+      const endLine = i < splitPoints.length ? splitPoints[i] : lines.length - 1;
+      
+      if (startLine <= endLine) {
+        const chunkLines = lines.slice(startLine, endLine + 1);
+        const chunkContent = chunkLines.join('\n');
+        
         chunks.push({
           content: chunkContent,
           metadata: {
-            startLine: currentLine,
-            endLine: currentLine + currentChunk.length - 1,
-            language: language || 'unknown',
+            startLine: startLine + 1, // 转换为1基索引
+            endLine: endLine + 1,
+            language: detection.language || 'unknown',
             filePath,
             type: 'line',
-            complexity
+            complexity: this.calculateComplexity(chunkContent)
           }
         });
-
-        currentChunk = [];
-        currentLine = i + 2;
       }
     }
 
-    // 处理剩余内容
-    if (currentChunk.length > 0) {
-      const chunkContent = currentChunk.join('\n');
-      const complexity = this.complexityCalculator.calculate(chunkContent);
-
-      chunks.push({
-        content: chunkContent,
-        metadata: {
-          startLine: currentLine,
-          endLine: currentLine + currentChunk.length - 1,
-          language: language || 'unknown',
-          filePath,
-          type: 'line',
-          complexity
-        }
-      });
-    }
-
     this.logger?.debug(`Line segmentation created ${chunks.length} chunks`);
-    return chunks;
+    return { chunks, metadata: { strategy: 'LineSegmentationStrategy' } };
   }
 
   getName(): string {
-    return 'line';
+    return 'LineSegmentationStrategy';
   }
 
-  getPriority(): number {
-    return 5; // 最低优先级，作为降级方案
+  getDescription(): string {
+    return 'Uses intelligent line-based splitting as a fallback segmentation method';
   }
 
-  getSupportedLanguages(): string[] {
-    // 行数分段策略支持所有语言
-    return ['*'];
-  }
+  /**
+   * 计算复杂度
+   */
+  private calculateComplexity(content: string): number {
+    let complexity = 0;
 
-  validateContext(context: SegmentationContext): boolean {
-    // 行数分段策略可以处理任何有效的上下文
-    return !!(context.content && context.content.trim().length > 0);
+    // 基于代码结构计算复杂度
+    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
+    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
+    complexity += (content.match(/[{}]/g) || []).length;
+    complexity += (content.match(/[()]/g) || []).length * 0.5;
+
+    // 基于代码长度调整
+    const lines = content.split('\n').length;
+    complexity += Math.log10(lines + 1) * 2;
+
+    return Math.round(complexity);
   }
 
   /**
@@ -127,6 +102,7 @@ export class LineSegmentationStrategy implements ISegmentationStrategy {
       // 检查是否需要分段
       const needsSplit = linesSinceLastSplit >= maxLinesPerChunk ||
         chunkSize >= maxChunkSize ||
+        chunkSize >= BLOCK_SIZE_LIMITS.MAX_BLOCK_CHARS * BLOCK_SIZE_LIMITS.MAX_CHARS_TOLERANCE_FACTOR ||
         i === lines.length - 1;
 
       if (needsSplit) {
@@ -195,7 +171,7 @@ export class LineSegmentationStrategy implements ISegmentationStrategy {
     const actualStartLine = Math.max(0, startLine - overlapLines);
     const chunkLines = lines.slice(actualStartLine, endLine + 1);
     const chunkContent = chunkLines.join('\n');
-    const complexity = this.complexityCalculator.calculate(chunkContent);
+    const complexity = this.calculateComplexity(chunkContent);
 
     return {
       content: chunkContent,

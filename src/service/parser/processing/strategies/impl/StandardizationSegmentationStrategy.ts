@@ -1,123 +1,91 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from './IProcessingStrategy';
+import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../core/normalization/types';
 import { TreeSitterCoreService } from '../../../core/parse/TreeSitterCoreService';
-import { TYPES } from '../../../../../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
 
 /**
  * 标准化分段策略
  * 职责：基于标准化结果的分段
  */
 @injectable()
-export class StandardizationSegmentationStrategy implements ISegmentationStrategy {
-  private complexityCalculator: IComplexityCalculator;
+export class StandardizationSegmentationStrategy implements IProcessingStrategy {
   private queryNormalizer?: IQueryResultNormalizer;
   private treeSitterService?: TreeSitterCoreService;
   private logger?: LoggerService;
 
   constructor(
-    @inject(TYPES.ComplexityCalculator) complexityCalculator: IComplexityCalculator,
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.QueryResultNormalizer) queryNormalizer?: IQueryResultNormalizer,
     @inject(TYPES.TreeSitterService) treeSitterService?: TreeSitterCoreService
   ) {
-    this.complexityCalculator = complexityCalculator;
     this.logger = logger;
     this.queryNormalizer = queryNormalizer;
     this.treeSitterService = treeSitterService;
   }
 
-  canHandle(context: SegmentationContext): boolean {
-    // 需要启用标准化集成
-    if (!context.options.enableStandardization) {
-      return false;
-    }
+  async execute(filePath: string, content: string, detection: DetectionResult) {
+    this.logger?.debug(`Using Standardization segmentation strategy for ${filePath}`);
 
-    // 需要可用的服务
-    if (!this.queryNormalizer || !this.treeSitterService) {
-      return false;
-    }
-
-    // 需要有语言信息
-    if (!context.language) {
-      return false;
-    }
-
-    // 小文件不使用标准化分段
-    if (context.metadata.isSmallFile) {
-      return false;
-    }
-
-    // Markdown文件不使用标准化分段
-    if (context.metadata.isMarkdownFile) {
-      return false;
-    }
-
-    // 检查是否支持该语言
-    return this.isLanguageSupported(context.language);
-  }
-
-  async segment(context: SegmentationContext): Promise<CodeChunk[]> {
-    const { content, filePath, language } = context;
-
-    if (!this.queryNormalizer || !this.treeSitterService || !language) {
-      throw new Error('Required services not available for standardization');
+    if (!this.queryNormalizer || !this.treeSitterService || !detection.language) {
+      this.logger?.warn('Required services not available for standardization, falling back to simple segmentation');
+      return this.fallbackSegmentation(filePath, content, detection);
     }
 
     try {
       // 解析代码
-      const parseResult = await this.treeSitterService.parseCode(content, language);
+      const parseResult = await this.treeSitterService.parseCode(content, detection.language);
       if (!parseResult.success || !parseResult.ast) {
         throw new Error('Failed to parse code for standardization');
       }
 
       // 标准化查询结果
-      const standardizedResults = await this.queryNormalizer.normalize(parseResult.ast, language);
+      const standardizedResults = await this.queryNormalizer.normalize(parseResult.ast, detection.language);
       if (standardizedResults.length === 0) {
-        this.logger?.debug('No standardized results found, falling back to text analysis');
-        return [];
+        this.logger?.debug('No standardized results found, falling back to simple segmentation');
+        return this.fallbackSegmentation(filePath, content, detection);
       }
 
       // 基于标准化结果创建分块
-      const chunks = this.chunkByStandardizedResults(standardizedResults, content, language, filePath);
+      const chunks = this.chunkByStandardizedResults(standardizedResults, content, detection.language, filePath);
 
       this.logger?.debug(`Standardization segmentation created ${chunks.length} chunks`);
-      return chunks;
+      return { chunks, metadata: { strategy: 'StandardizationSegmentationStrategy' } };
     } catch (error) {
       this.logger?.error('Error in standardization-based chunking:', error);
-      throw error;
+      return this.fallbackSegmentation(filePath, content, detection);
     }
   }
 
   getName(): string {
-    return 'standardization';
+    return 'StandardizationSegmentationStrategy';
   }
 
-  getPriority(): number {
-    return 2; // 高优先级，仅次于Markdown
+  getDescription(): string {
+    return 'Uses standardized query results for code structure-aware segmentation';
   }
 
-  getSupportedLanguages(): string[] {
-    return ['javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp', 'go', 'rust'];
-  }
+  /**
+   * 降级分段方法
+   */
+  private fallbackSegmentation(filePath: string, content: string, detection: DetectionResult) {
+    const chunks: CodeChunk[] = [{
+      content,
+      metadata: {
+        startLine: 1,
+        endLine: content.split('\n').length,
+        language: detection.language || 'unknown',
+        filePath,
+        type: 'code',
+        complexity: this.calculateComplexity(content),
+        fallback: true
+      }
+    }];
 
-  validateContext(context: SegmentationContext): boolean {
-    // 验证上下文是否适合标准化分段
-    if (!context.content || context.content.trim().length === 0) {
-      return false;
-    }
-
-    if (!context.language) {
-      return false;
-    }
-
-    if (!this.queryNormalizer || !this.treeSitterService) {
-      return false;
-    }
-
-    return this.isLanguageSupported(context.language);
+    return { chunks, metadata: { strategy: 'StandardizationSegmentationStrategy', fallback: true } };
   }
 
   /**
@@ -149,7 +117,7 @@ export class StandardizationSegmentationStrategy implements ISegmentationStrateg
           language: language || 'unknown',
           filePath,
           type: this.mapStandardizedTypeToChunkType(result.type),
-          complexity: result.metadata.complexity || this.complexityCalculator.calculate(chunkContent),
+          complexity: result.metadata.complexity || this.calculateComplexity(chunkContent),
           functionName: result.type === 'function' ? result.name : undefined,
           className: result.type === 'class' ? result.name : undefined,
           // 添加标准化元数据
@@ -290,26 +258,21 @@ export class StandardizationSegmentationStrategy implements ISegmentationStrateg
   }
 
   /**
-   * 检查是否支持该语言
+   * 计算复杂度
    */
-  private isLanguageSupported(language: string): boolean {
-    const supportedLanguages = ['javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp', 'go', 'rust'];
-    return supportedLanguages.includes(language);
-  }
+  private calculateComplexity(content: string): number {
+    let complexity = 0;
 
-  /**
-   * 设置查询标准化器
-   */
-  setQueryNormalizer(normalizer: IQueryResultNormalizer): void {
-    this.queryNormalizer = normalizer;
-    this.logger?.debug('Query normalizer set for StandardizationSegmentationStrategy');
-  }
+    // 基于代码结构计算复杂度
+    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
+    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
+    complexity += (content.match(/[{}]/g) || []).length;
+    complexity += (content.match(/[()]/g) || []).length * 0.5;
 
-  /**
-   * 设置Tree-sitter服务
-   */
-  setTreeSitterService(service: TreeSitterCoreService): void {
-    this.treeSitterService = service;
-    this.logger?.debug('Tree-sitter service set for StandardizationSegmentationStrategy');
+    // 基于代码长度调整
+    const lines = content.split('\n').length;
+    complexity += Math.log10(lines + 1) * 2;
+
+    return Math.round(complexity);
   }
 }

@@ -1,8 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
-import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
-import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from './IProcessingStrategy';
+import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
 
 /**
@@ -10,35 +11,26 @@ import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
  * 职责：基于括号和XML标签平衡的分段
  */
 @injectable()
-export class BracketSegmentationStrategy implements ISegmentationStrategy {
-  private complexityCalculator: IComplexityCalculator;
+export class BracketSegmentationStrategy implements IProcessingStrategy {
   private logger?: LoggerService;
 
   constructor(
-    @inject(TYPES.ComplexityCalculator) complexityCalculator: IComplexityCalculator,
     @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
-    this.complexityCalculator = complexityCalculator;
     this.logger = logger;
   }
 
-  canHandle(context: SegmentationContext): boolean {
-    // 小文件不使用括号分段
-    if (context.metadata.isSmallFile) {
-      return false;
+  async execute(filePath: string, content: string, detection: DetectionResult) {
+    this.logger?.debug(`Using Bracket segmentation strategy for ${filePath}`);
+    
+    // 验证上下文
+    const validationResult = this.validateContext(content, detection.language);
+    if (!validationResult) {
+      this.logger?.warn('Context validation failed for bracket strategy, proceeding anyway');
+    } else {
+      this.logger?.debug('Context validation passed for bracket strategy');
     }
-
-    // Markdown文件不使用括号分段
-    if (context.metadata.isMarkdownFile) {
-      return false;
-    }
-
-    // 需要启用括号平衡检测
-    return context.options.enableBracketBalance;
-  }
-
-  async segment(context: SegmentationContext): Promise<CodeChunk[]> {
-    const { content, filePath, language } = context;
+    
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
     let currentChunk: string[] = [];
@@ -64,21 +56,19 @@ export class BracketSegmentationStrategy implements ISegmentationStrategy {
       // 分段条件：括号平衡且达到最小块大小，同时考虑块大小限制
       const chunkContent = currentChunk.join('\n');
       const shouldSplit = (bracketDepth === 0 && xmlTagDepth === 0 && currentChunk.length >= 5) ||
-        currentChunk.length >= context.options.maxLinesPerChunk ||
+        currentChunk.length >= 50 ||
         chunkContent.length >= BLOCK_SIZE_LIMITS.MAX_BLOCK_CHARS * BLOCK_SIZE_LIMITS.MAX_CHARS_TOLERANCE_FACTOR;
 
       if (shouldSplit) {
-        const complexity = this.complexityCalculator.calculate(chunkContent);
-
         chunks.push({
           content: chunkContent,
           metadata: {
             startLine: currentLine,
             endLine: currentLine + currentChunk.length - 1,
-            language: language || 'unknown',
+            language: detection.language || 'unknown',
             filePath,
             type: 'bracket',
-            complexity
+            complexity: this.calculateComplexity(chunkContent)
           }
         });
 
@@ -92,50 +82,48 @@ export class BracketSegmentationStrategy implements ISegmentationStrategy {
     // 处理剩余内容
     if (currentChunk.length > 0) {
       const chunkContent = currentChunk.join('\n');
-      const complexity = this.complexityCalculator.calculate(chunkContent);
-
       chunks.push({
         content: chunkContent,
         metadata: {
           startLine: currentLine,
           endLine: currentLine + currentChunk.length - 1,
-          language: language || 'unknown',
+          language: detection.language || 'unknown',
           filePath,
           type: 'bracket',
-          complexity
+          complexity: this.calculateComplexity(chunkContent)
         }
       });
     }
 
     this.logger?.debug(`Bracket segmentation created ${chunks.length} chunks`);
-    return chunks;
+    return { chunks, metadata: { strategy: 'BracketSegmentationStrategy' } };
   }
 
   getName(): string {
-    return 'bracket';
+    return 'BracketSegmentationStrategy';
   }
 
-  getPriority(): number {
-    return 4; // 较低优先级
+  getDescription(): string {
+    return 'Uses bracket and XML tag balance for code segmentation';
   }
 
-  getSupportedLanguages(): string[] {
-    return ['javascript', 'typescript', 'java', 'cpp', 'c', 'csharp', 'go', 'rust', 'html', 'xml', 'vue', 'svelte'];
-  }
-
-  validateContext(context: SegmentationContext): boolean {
+  /**
+   * 验证上下文是否适合括号分段
+   */
+  private validateContext(content: string, language?: string): boolean {
     // 验证上下文是否适合括号分段
-    if (!context.content || context.content.trim().length === 0) {
+    if (!content || content.trim().length === 0) {
       return false;
     }
 
-    if (context.metadata.lineCount < 3) {
+    const lines = content.split('\n');
+    if (lines.length < 3) {
       return false; // 太短的文件不适合括号分段
     }
 
     // 检查文件是否包含括号或标签
-    const hasBrackets = /[{}()\[\]]/.test(context.content);
-    const hasXmlTags = /<[^>]+>/.test(context.content);
+    const hasBrackets = /[{}()\[\]]/.test(content);
+    const hasXmlTags = /<[^>]+>/.test(content);
 
     return hasBrackets || hasXmlTags;
   }
@@ -225,5 +213,24 @@ export class BracketSegmentationStrategy implements ISegmentationStrategy {
     }
 
     return -1; // 没有找到平衡点
+  }
+
+  /**
+   * 计算复杂度
+   */
+  private calculateComplexity(content: string): number {
+    let complexity = 0;
+
+    // 基于代码结构计算复杂度
+    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
+    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
+    complexity += (content.match(/[{}]/g) || []).length;
+    complexity += (content.match(/[()]/g) || []).length * 0.5;
+
+    // 基于代码长度调整
+    const lines = content.split('\n').length;
+    complexity += Math.log10(lines + 1) * 2;
+
+    return Math.round(complexity);
   }
 }

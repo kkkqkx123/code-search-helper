@@ -1,55 +1,35 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
-import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
-import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from './IProcessingStrategy';
+import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 
 /**
  * Markdown分段策略
  * 职责：Markdown文件的特殊处理
  */
 @injectable()
-export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
-  private complexityCalculator: IComplexityCalculator;
+export class MarkdownSegmentationStrategy implements IProcessingStrategy {
   private logger?: LoggerService;
 
   constructor(
-    @inject(TYPES.ComplexityCalculator) complexityCalculator: IComplexityCalculator,
     @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
-    this.complexityCalculator = complexityCalculator;
     this.logger = logger;
   }
 
-  canHandle(context: SegmentationContext): boolean {
-    // 只处理Markdown文件
-    const isMarkdownByLanguage = !!(context.language && ['markdown', 'md'].includes(context.language));
-    const isMarkdownByExtension = !!(context.filePath && /\.(md|markdown)$/i.test(context.filePath));
-
-    // 如果明确标记为非Markdown文件，则不处理
-    if (context.metadata.isMarkdownFile === false) {
-      return false;
-    }
-
-    // 如果明确标记为Markdown文件，则处理
-    if (context.metadata.isMarkdownFile === true) {
-      return true;
-    }
-
-    // 否则根据语言或文件扩展名判断
-    return isMarkdownByLanguage || isMarkdownByExtension;
-  }
-
-  async segment(context: SegmentationContext): Promise<CodeChunk[]> {
-    const { content, filePath } = context;
-
+  async execute(filePath: string, content: string, detection: DetectionResult) {
+    this.logger?.debug(`Using Markdown segmentation strategy for ${filePath}`);
+    
     // 验证上下文
-    const validationResult = this.validateContext ? this.validateContext(context) : true;
+    const validationResult = this.validateContext(content, detection.language);
     if (!validationResult) {
       this.logger?.warn('Context validation failed for markdown strategy, proceeding anyway');
     } else {
       this.logger?.debug('Context validation passed for markdown strategy');
     }
+    
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
 
@@ -82,14 +62,11 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
         currentChunk,
         inCodeBlock,
         i,
-        lines.length,
-        context
+        lines.length
       );
 
       if (shouldSplit && currentChunk.length > 0) {
         const chunkContent = currentChunk.join('\n');
-        const complexity = this.complexityCalculator.calculate(chunkContent);
-
         chunks.push({
           content: chunkContent,
           metadata: {
@@ -98,7 +75,7 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
             language: 'markdown',
             filePath,
             type: this.getChunkType(currentSection, inCodeBlock),
-            complexity,
+            complexity: this.calculateComplexity(chunkContent),
             section: currentSection || undefined,
             codeLanguage: codeBlockLang || undefined
           }
@@ -124,9 +101,6 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
     // 处理最后的chunk
     if (currentChunk.length > 0) {
       const chunkContent = currentChunk.join('\n');
-
-      const complexity = this.complexityCalculator.calculate(chunkContent);
-
       chunks.push({
         content: chunkContent,
         metadata: {
@@ -135,7 +109,7 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
           language: 'markdown',
           filePath,
           type: this.getChunkType(currentSection, inCodeBlock),
-          complexity,
+          complexity: this.calculateComplexity(chunkContent),
           section: currentSection || undefined,
           codeLanguage: codeBlockLang || undefined
         }
@@ -157,30 +131,52 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
       });
     }
 
-    this.logger?.debug(`Starting markdown-based segmentation for ${filePath || 'unknown file'}`);
-    this.logger?.debug(`Markdown segmentation created ${chunks.length} chunks`);
-    return chunks;
+    // 智能合并相关内容
+    const mergedChunks = this.mergeRelatedChunks(chunks);
+
+    this.logger?.debug(`Markdown segmentation created ${mergedChunks.length} chunks`);
+    return { chunks: mergedChunks, metadata: { strategy: 'MarkdownSegmentationStrategy' } };
   }
 
   getName(): string {
-    return 'markdown';
+    return 'MarkdownSegmentationStrategy';
   }
 
-  getPriority(): number {
-    return 1; // 最高优先级，专门处理Markdown文件
+  getDescription(): string {
+    return 'Uses Markdown-specific segmentation to preserve document structure';
   }
 
-  getSupportedLanguages(): string[] {
-    return ['markdown', 'md'];
-  }
-
-  validateContext(context: SegmentationContext): boolean {
+  /**
+   * 验证上下文是否适合Markdown分段
+   */
+  private validateContext(content: string, language?: string): boolean {
     // 验证上下文是否适合Markdown分段
-    if (!context.content || context.content.trim().length === 0) {
+    if (!content || content.trim().length === 0) {
       return false;
     }
 
-    return context.metadata.isMarkdownFile;
+    // 检查是否为Markdown文件
+    const isMarkdownByLanguage = !!(language && ['markdown', 'md'].includes(language));
+    
+    return isMarkdownByLanguage || this.hasMarkdownStructure(content);
+  }
+
+  /**
+   * 检查内容是否具有Markdown结构
+   */
+  private hasMarkdownStructure(content: string): boolean {
+    const lines = content.split('\n');
+    
+    // 检查是否有Markdown特有的结构
+    return lines.some(line => {
+      const trimmed = line.trim();
+      return /^#{1,6}\s/.test(trimmed) || // 标题
+             /^\s*[-*+]\s/.test(trimmed) || // 列表
+             /^\s*\d+\.\s/.test(trimmed) || // 有序列表
+             /^```/.test(trimmed) || // 代码块
+             /\|/.test(trimmed) || // 表格
+             /^(-{3,}|_{3,}|\*{3,})\s*$/.test(trimmed); // 分割线
+    });
   }
 
   /**
@@ -191,8 +187,7 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
     currentChunk: string[],
     inCodeBlock: boolean,
     currentIndex: number,
-    maxLines: number,
-    context: SegmentationContext
+    maxLines: number
   ): boolean {
     // 在代码块内部不分段
     if (inCodeBlock) {
@@ -221,9 +216,7 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
 
     // 大小限制检查
     const chunkContent = currentChunk.join('\n');
-    // 使用上下文中的最大块大小限制，如果没有则使用默认值
-    const maxChunkSize = context.options?.maxChunkSize || 3000;
-    if (chunkContent.length > maxChunkSize) {
+    if (chunkContent.length > 3000) {
       return true;
     }
 
@@ -307,6 +300,28 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
   }
 
   /**
+   * 计算复杂度
+   */
+  private calculateComplexity(content: string): number {
+    let complexity = 0;
+
+    // 基于内容长度计算基础复杂度
+    complexity += content.length * 0.01;
+
+    // 基于Markdown结构计算复杂度
+    complexity += (content.match(/^#{1,6}\s+/gm) || []).length * 2; // 标题
+    complexity += (content.match(/```/g) || []).length * 3; // 代码块
+    complexity += (content.match(/\|/g) || []).length * 0.5; // 表格
+    complexity += (content.match(/^[-*+]\s+/gm) || []).length * 1; // 列表
+
+    // 基于行数调整
+    const lines = content.split('\n').length;
+    complexity += Math.log10(lines + 1) * 2;
+
+    return Math.round(complexity);
+  }
+
+  /**
    * 智能合并相关内容
    */
   private mergeRelatedChunks(chunks: CodeChunk[]): CodeChunk[] {
@@ -346,7 +361,7 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
    */
   private shouldMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
     // 如果都是代码块，且总大小不太大，则合并
-    if (chunk1.metadata.type === 'code' && chunk2.metadata.type === 'code') {
+    if (chunk1.metadata.type === 'code_block' && chunk2.metadata.type === 'code_block') {
       const combinedSize = chunk1.content.length + chunk2.content.length;
       return combinedSize < 2000;
     }
@@ -369,7 +384,7 @@ export class MarkdownSegmentationStrategy implements ISegmentationStrategy {
     const firstChunk = chunks[0];
     const lastChunk = chunks[chunks.length - 1];
     const mergedContent = chunks.map(c => c.content).join('\n\n');
-    const complexity = this.complexityCalculator.calculate(mergedContent);
+    const complexity = this.calculateComplexity(mergedContent);
 
     return {
       content: mergedContent,

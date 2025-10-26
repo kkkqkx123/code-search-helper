@@ -1,50 +1,51 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
-import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
-import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from './IProcessingStrategy';
+import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 
 /**
  * 语义分段策略
- * 职责：基于语义边界进行分段
+ * 职责：基于语义边界进行分段，支持普通和精细两种模式
  */
 @injectable()
-export class SemanticSegmentationStrategy implements ISegmentationStrategy {
-  private complexityCalculator: IComplexityCalculator;
+export class SemanticSegmentationStrategy implements IProcessingStrategy {
   private logger?: LoggerService;
 
   constructor(
-    @inject(TYPES.ComplexityCalculator) complexityCalculator: IComplexityCalculator,
     @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
-    this.complexityCalculator = complexityCalculator;
     this.logger = logger;
     this.logger?.debug('SemanticSegmentationStrategy initialized');
   }
 
-  canHandle(context: SegmentationContext): boolean {
-    // 小文件不使用语义分段
-    if (context.metadata.isSmallFile) {
-      return false;
+  async execute(filePath: string, content: string, detection: DetectionResult) {
+    this.logger?.debug(`Using Semantic segmentation strategy for ${filePath}`);
+    
+    // 验证上下文
+    const validationResult = this.validateContext(content, detection.language);
+    if (!validationResult) {
+      this.logger?.warn('Context validation failed for semantic strategy, proceeding anyway');
+    } else {
+      this.logger?.debug('Context validation passed for semantic strategy');
     }
-
-    // Markdown文件使用专门的策略
-    if (context.metadata.isMarkdownFile) {
-      return false;
-    }
-
-    // 需要启用语义检测
-    return context.options.enableSemanticDetection;
-  }
-
-  async segment(context: SegmentationContext): Promise<CodeChunk[]> {
-    const { content, filePath, language } = context;
+    
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
 
     let currentChunk: string[] = [];
     let currentLine = 1;
     let semanticScore = 0;
+
+    // 检查是否使用精细模式
+    const isFineMode = this.isFineMode(content, detection.language);
+    
+    // 根据模式设置参数
+    const maxChunkSize = isFineMode ? 800 : 2000;
+    const maxLinesPerChunk = isFineMode ? 20 : 50;
+    const semanticThreshold = isFineMode ? 1000 : 2000;
+    const minChunkLines = isFineMode ? 3 : 5;
 
     // 内存保护：限制处理的行数
     const maxLines = Math.min(lines.length, 10000);
@@ -54,7 +55,7 @@ export class SemanticSegmentationStrategy implements ISegmentationStrategy {
       const trimmedLine = line.trim();
 
       // 计算语义分数
-      const lineScore = this.calculateSemanticScore(trimmedLine, language);
+      const lineScore = this.calculateSemanticScore(trimmedLine, detection.language);
       semanticScore += lineScore;
 
       // 决定是否分段
@@ -63,22 +64,25 @@ export class SemanticSegmentationStrategy implements ISegmentationStrategy {
         currentChunk,
         semanticScore,
         i,
-        maxLines
+        maxLines,
+        maxChunkSize,
+        maxLinesPerChunk,
+        semanticThreshold,
+        minChunkLines
       );
 
       if (shouldSplit && currentChunk.length > 0) {
         const chunkContent = currentChunk.join('\n');
-        const complexity = this.complexityCalculator.calculate(chunkContent);
-
         chunks.push({
           content: chunkContent,
           metadata: {
             startLine: currentLine,
             endLine: currentLine + currentChunk.length - 1,
-            language: language || 'unknown',
+            language: detection.language || 'unknown',
             filePath,
             type: 'semantic',
-            complexity
+            complexity: this.calculateComplexity(chunkContent),
+            fineMode: isFineMode
           }
         });
 
@@ -93,48 +97,56 @@ export class SemanticSegmentationStrategy implements ISegmentationStrategy {
     // 处理最后的chunk
     if (currentChunk.length > 0) {
       const chunkContent = currentChunk.join('\n');
-      const complexity = this.complexityCalculator.calculate(chunkContent);
-
       chunks.push({
         content: chunkContent,
         metadata: {
           startLine: currentLine,
           endLine: currentLine + currentChunk.length - 1,
-          language: language || 'unknown',
+          language: detection.language || 'unknown',
           filePath,
           type: 'semantic',
-          complexity
+          complexity: this.calculateComplexity(chunkContent),
+          fineMode: isFineMode
         }
       });
     }
 
-    this.logger?.debug(`Semantic segmentation created ${chunks.length} chunks`);
-    return chunks;
+    this.logger?.debug(`Semantic segmentation (${isFineMode ? 'fine' : 'normal'} mode) created ${chunks.length} chunks`);
+    return { chunks, metadata: { strategy: 'SemanticSegmentationStrategy', fineMode: isFineMode } };
   }
 
   getName(): string {
-    return 'semantic';
+    return 'SemanticSegmentationStrategy';
   }
 
-  getPriority(): number {
-    return 3; // 中等优先级
+  getDescription(): string {
+    return 'Uses semantic boundary detection for code splitting with fine-grained mode support';
   }
 
-  getSupportedLanguages(): string[] {
-    return ['javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp', 'go', 'rust'];
-  }
-
-  validateContext(context: SegmentationContext): boolean {
+  /**
+   * 验证上下文是否适合语义分段
+   */
+  private validateContext(content: string, language?: string): boolean {
     // 验证上下文是否适合语义分段
-    if (!context.content || context.content.trim().length === 0) {
+    if (!content || content.trim().length === 0) {
       return false;
     }
 
-    if (context.metadata.lineCount < 5) {
+    const lineCount = content.split('\n').length;
+    if (lineCount < 5) {
       return false; // 太短的文件不适合语义分段
     }
 
     return true;
+  }
+
+  /**
+   * 检查是否应该使用精细模式
+   */
+  private isFineMode(content: string, language?: string): boolean {
+    // 根据文件大小自动决定：中等大小文件使用精细模式
+    const lineCount = content.split('\n').length;
+    return lineCount >= 50 && lineCount <= 500;
   }
 
   /**
@@ -176,10 +188,20 @@ export class SemanticSegmentationStrategy implements ISegmentationStrategy {
     currentChunk: string[],
     semanticScore: number,
     currentIndex: number,
-    maxLines: number
+    maxLines: number,
+    maxChunkSize: number,
+    maxLinesPerChunk: number,
+    semanticThreshold: number,
+    minChunkLines: number
   ): boolean {
     // 大小限制检查
-    if (semanticScore > 2000) { // 可配置的阈值
+    if (semanticScore > semanticThreshold) {
+      return true;
+    }
+
+    // 块大小限制检查
+    const chunkContent = currentChunk.join('\n');
+    if (chunkContent.length > maxChunkSize || currentChunk.length > maxLinesPerChunk) {
       return true;
     }
 
@@ -187,24 +209,24 @@ export class SemanticSegmentationStrategy implements ISegmentationStrategy {
     const trimmedLine = line.trim();
 
     // 函数/类定义结束
-    if (trimmedLine.match(/^[}\)]\s*$/) && currentChunk.length > 5) {
+    if (trimmedLine.match(/^[}\)]\s*$/) && currentChunk.length > minChunkLines) {
       return true;
     }
 
     // 控制结构结束
-    if (trimmedLine.match(/^\s*(}|\)|\]|;)\s*$/) && currentChunk.length > 3) {
+    if (trimmedLine.match(/^\s*(}|\)|\]|;)\s*$/) && currentChunk.length > Math.max(3, minChunkLines - 2)) {
       return true;
     }
 
     // 空行作为潜在分割点
-    if (trimmedLine === '' && currentChunk.length > 5) {
+    if (trimmedLine === '' && currentChunk.length > minChunkLines) {
       return true;
     }
 
     // 注释行作为分割点
     if ((trimmedLine.match(/^\s*\//) || trimmedLine.match(/^\s*\/\*/) ||
       trimmedLine.match(/^\s*\*/) || trimmedLine.match(/^\s*#/)) &&
-      currentChunk.length > 3) {
+      currentChunk.length > Math.max(3, minChunkLines - 2)) {
       return true;
     }
 
@@ -214,5 +236,24 @@ export class SemanticSegmentationStrategy implements ISegmentationStrategy {
     }
 
     return false;
+  }
+
+  /**
+   * 计算复杂度
+   */
+  private calculateComplexity(content: string): number {
+    let complexity = 0;
+
+    // 基于代码结构计算复杂度
+    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
+    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
+    complexity += (content.match(/[{}]/g) || []).length;
+    complexity += (content.match(/[()]/g) || []).length * 0.5;
+
+    // 基于代码长度调整
+    const lines = content.split('\n').length;
+    complexity += Math.log10(lines + 1) * 2;
+
+    return Math.round(complexity);
   }
 }

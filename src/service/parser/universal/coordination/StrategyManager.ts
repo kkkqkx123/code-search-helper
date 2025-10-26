@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
-import { IProcessingStrategy } from '../../processing/strategies/providers/IProcessingStrategy';
+import { IProcessingStrategy } from '../../processing/strategies/impl/IProcessingStrategy';
 import { DetectionResult, ProcessingStrategyType } from '../UnifiedDetectionCenter';
-import { ProcessingStrategyFactory } from '../strategy/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../strategy/factory/ProcessingStrategyFactory';
 import { FileFeatureDetector } from '../utils/FileFeatureDetector';
 
 /**
