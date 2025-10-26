@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { IProcessingStrategy } from './IProcessingStrategy';
+import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
 import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 
@@ -21,7 +21,7 @@ export class MarkdownSegmentationStrategy implements IProcessingStrategy {
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Markdown segmentation strategy for ${filePath}`);
-    
+
     // 验证上下文
     const validationResult = this.validateContext(content, detection.language);
     if (!validationResult) {
@@ -29,7 +29,7 @@ export class MarkdownSegmentationStrategy implements IProcessingStrategy {
     } else {
       this.logger?.debug('Context validation passed for markdown strategy');
     }
-    
+
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
 
@@ -157,7 +157,7 @@ export class MarkdownSegmentationStrategy implements IProcessingStrategy {
 
     // 检查是否为Markdown文件
     const isMarkdownByLanguage = !!(language && ['markdown', 'md'].includes(language));
-    
+
     return isMarkdownByLanguage || this.hasMarkdownStructure(content);
   }
 
@@ -166,16 +166,16 @@ export class MarkdownSegmentationStrategy implements IProcessingStrategy {
    */
   private hasMarkdownStructure(content: string): boolean {
     const lines = content.split('\n');
-    
+
     // 检查是否有Markdown特有的结构
     return lines.some(line => {
       const trimmed = line.trim();
       return /^#{1,6}\s/.test(trimmed) || // 标题
-             /^\s*[-*+]\s/.test(trimmed) || // 列表
-             /^\s*\d+\.\s/.test(trimmed) || // 有序列表
-             /^```/.test(trimmed) || // 代码块
-             /\|/.test(trimmed) || // 表格
-             /^(-{3,}|_{3,}|\*{3,})\s*$/.test(trimmed); // 分割线
+        /^\s*[-*+]\s/.test(trimmed) || // 列表
+        /^\s*\d+\.\s/.test(trimmed) || // 有序列表
+        /^```/.test(trimmed) || // 代码块
+        /\|/.test(trimmed) || // 表格
+        /^(-{3,}|_{3,}|\*{3,})\s*$/.test(trimmed); // 分割线
     });
   }
 

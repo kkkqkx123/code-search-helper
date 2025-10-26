@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { IProcessingStrategy } from './IProcessingStrategy';
+import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
 import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 
@@ -22,7 +22,7 @@ export class SemanticSegmentationStrategy implements IProcessingStrategy {
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Semantic segmentation strategy for ${filePath}`);
-    
+
     // 验证上下文
     const validationResult = this.validateContext(content, detection.language);
     if (!validationResult) {
@@ -30,7 +30,7 @@ export class SemanticSegmentationStrategy implements IProcessingStrategy {
     } else {
       this.logger?.debug('Context validation passed for semantic strategy');
     }
-    
+
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
 
@@ -40,7 +40,7 @@ export class SemanticSegmentationStrategy implements IProcessingStrategy {
 
     // 检查是否使用精细模式
     const isFineMode = this.isFineMode(content, detection.language);
-    
+
     // 根据模式设置参数
     const maxChunkSize = isFineMode ? 800 : 2000;
     const maxLinesPerChunk = isFineMode ? 20 : 50;

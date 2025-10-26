@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { IProcessingStrategy } from './IProcessingStrategy';
+import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
 import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
@@ -22,22 +22,22 @@ export class LineSegmentationStrategy implements IProcessingStrategy {
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Line segmentation strategy for ${filePath}`);
-    
+
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
 
     // 使用智能行数分段
     const splitPoints = this.intelligentLineSegmentation(lines, 50, 3000);
-    
+
     // 创建分块
     for (let i = 0; i <= splitPoints.length; i++) {
       const startLine = i === 0 ? 0 : splitPoints[i - 1] + 1;
       const endLine = i < splitPoints.length ? splitPoints[i] : lines.length - 1;
-      
+
       if (startLine <= endLine) {
         const chunkLines = lines.slice(startLine, endLine + 1);
         const chunkContent = chunkLines.join('\n');
-        
+
         chunks.push({
           content: chunkContent,
           metadata: {

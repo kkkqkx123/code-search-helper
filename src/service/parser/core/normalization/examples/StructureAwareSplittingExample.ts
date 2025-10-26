@@ -4,7 +4,7 @@
  */
 
 import { QueryResultNormalizer } from '../QueryResultNormalizer';
-import { StructureAwareSplitter } from '../../../splitting/strategies/StructureAwareSplitter';
+import { StructureAwareSplitter } from '../../../processing/strategies/impl/StructureAwareStrategy';
 import { TreeSitterCoreService } from '../../parse/TreeSitterCoreService';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
@@ -83,9 +83,9 @@ const API_BASE_URL = 'https://api.example.com';
 
     try {
       this.logger.info('Processing TypeScript code with structure-aware splitting...');
-      
+
       const chunks = await this.splitter.split(typescriptCode, 'typescript', 'UserProfile.tsx');
-      
+
       this.logger.info(`Generated ${chunks.length} chunks:`);
       chunks.forEach((chunk, index) => {
         this.logger.info(`Chunk ${index + 1}:`, {
@@ -155,9 +155,9 @@ if __name__ == "__main__":
 
     try {
       this.logger.info('Processing Python code with structure-aware splitting...');
-      
+
       const chunks = await this.splitter.split(pythonCode, 'python', 'user_service.py');
-      
+
       this.logger.info(`Generated ${chunks.length} chunks:`);
       chunks.forEach((chunk, index) => {
         this.logger.info(`Chunk ${index + 1}:`, {
@@ -180,7 +180,7 @@ if __name__ == "__main__":
    */
   showNormalizationStats(): void {
     const stats = this.normalizer.getStats();
-    
+
     this.logger.info('Normalization Statistics:', {
       totalNodes: stats.totalNodes,
       successfulNormalizations: stats.successfulNormalizations,
@@ -196,13 +196,13 @@ if __name__ == "__main__":
    */
   async runAllExamples(): Promise<void> {
     this.logger.info('=== Structure-Aware Splitting Examples ===');
-    
+
     await this.processTypeScriptExample();
     this.logger.info('');
-    
+
     await this.processPythonExample();
     this.logger.info('');
-    
+
     this.showNormalizationStats();
   }
 }

@@ -1,8 +1,8 @@
-import { ISplitStrategy } from '../../interfaces/ISplitStrategy';
-import { CodeChunk } from '../..';
-import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../..';
-import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { ISplitStrategy } from '../../../../splitting/interfaces/ISplitStrategy';
+import { CodeChunk } from '../../../../splitting';
+import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../../../../splitting';
+import { TreeSitterService } from '../../../../core/parse/TreeSitterService';
+import { LoggerService } from '../../../../../../utils/LoggerService';
 
 /**
  * 分割策略基类

@@ -1,21 +1,35 @@
-import { BaseSplitStrategy } from './base/BaseSplitStrategy';
-import { CodeChunk, ChunkingOptions, ASTNode } from '..';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
-import { ComplexityCalculator } from '../utils/ComplexityCalculator';
-import { ASTNodeExtractor } from '../utils/ASTNodeExtractor';
+import { injectable, inject } from 'inversify';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
+import { ContentHashIDGenerator } from '../../../splitting/utils/ContentHashIDGenerator';
+import { ComplexityCalculator } from '../../../splitting/utils/ComplexityCalculator';
+import { ASTNodeExtractor } from '../../../splitting/utils/ASTNodeExtractor';
+import { BaseSplitStrategy } from './base/BaseASTStrategy';
 
 /**
  * 类分割策略
  * 专注于提取和分割类定义
  */
+@injectable()
 export class ClassSplitter extends BaseSplitStrategy {
   private complexityCalculator: ComplexityCalculator;
   private astNodeExtractor?: ASTNodeExtractor;
 
-  constructor(options?: ChunkingOptions) {
-    super(options);
+  constructor(
+    @inject(TYPES.LoggerService) logger?: LoggerService,
+    @inject(TYPES.TreeSitterService) treeSitterService?: TreeSitterService
+  ) {
+    super({ ...DEFAULT_CHUNKING_OPTIONS });
     this.complexityCalculator = new ComplexityCalculator();
+    if (logger) {
+      this.setLogger(logger);
+    }
+    if (treeSitterService) {
+      this.setTreeSitterService(treeSitterService);
+    }
   }
 
   // 设置 TreeSitterService 并初始化 ASTNodeExtractor
@@ -63,6 +77,10 @@ export class ClassSplitter extends BaseSplitStrategy {
 
   getName(): string {
     return 'ClassSplitter';
+  }
+
+  getDescription(): string {
+    return 'Class splitter that extracts class and interface definitions';
   }
 
   supportsLanguage(language: string): boolean {
@@ -271,5 +289,41 @@ export class ClassSplitter extends BaseSplitStrategy {
 
     const nodes = this.extractNodesFromChunk(chunk, ast);
     return nodes.some(node => nodeTracker.isUsed(node));
+  }
+}
+
+/**
+ * 类策略提供者
+ */
+@injectable()
+export class ClassStrategyProvider implements IStrategyProvider {
+  constructor(
+    @inject(TYPES.LoggerService) private logger?: LoggerService,
+    @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService
+  ) { }
+
+  getName(): string {
+    return 'ClassStrategyProvider';
+  }
+
+  createStrategy(options?: ChunkingOptions): ISplitStrategy {
+    return new ClassSplitter(this.logger, this.treeSitterService);
+  }
+
+  getDependencies(): string[] {
+    return ['TreeSitterService'];
+  }
+
+  supportsLanguage(language: string): boolean {
+    const strategy = this.createStrategy();
+    return strategy.supportsLanguage(language);
+  }
+
+  getPriority(): number {
+    return 2; // 中等优先级
+  }
+
+  getDescription(): string {
+    return 'Provides class extraction strategy';
   }
 }

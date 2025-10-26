@@ -25,4 +25,4 @@ export { ModuleSplitStrategy, ModuleStrategyProvider } from './ModuleStrategyPro
 export { HierarchicalSplitStrategy, HierarchicalStrategyProvider } from './HierarchicalStrategyProvider';
 
 // 原有的处理策略接口（保持兼容性）
-export { IProcessingStrategy } from '../impl/IProcessingStrategy';
+export { IProcessingStrategy } from '../impl/base/IProcessingStrategy';

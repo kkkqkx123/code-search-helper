@@ -1,9 +1,11 @@
-import { SemanticSplitter as SemanticSplitterInterface } from './index';
-import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '..';
-import { ComplexityCalculator } from '../utils/ComplexityCalculator';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { injectable, inject } from 'inversify';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { ComplexityCalculator } from '../../../splitting/utils/ComplexityCalculator';
 
-export class SemanticSplitter implements SemanticSplitterInterface {
+export class SemanticSplitter implements ISplitStrategy {
   private options: Required<ChunkingOptions>;
   private complexityCalculator?: ComplexityCalculator;
   private logger?: LoggerService;
@@ -25,7 +27,9 @@ export class SemanticSplitter implements SemanticSplitterInterface {
     content: string,
     language: string,
     filePath?: string,
-    options?: ChunkingOptions
+    options?: ChunkingOptions,
+    nodeTracker?: any,
+    ast?: any
   ): Promise<CodeChunk[]> {
     const mergedOptions = { ...this.options, ...options };
     return this.createSemanticFallbackChunks(content, language, filePath, mergedOptions);
@@ -126,6 +130,10 @@ export class SemanticSplitter implements SemanticSplitterInterface {
     return 'SemanticSplitter';
   }
 
+  getDescription(): string {
+    return 'Semantic splitter that uses semantic scoring as a fallback strategy';
+  }
+
   supportsLanguage(language: string): boolean {
     return true; // 语义分段器支持所有语言
   }
@@ -133,8 +141,39 @@ export class SemanticSplitter implements SemanticSplitterInterface {
   getPriority(): number {
     return 5; // 最低优先级（作为最后的后备方案）
   }
-  
+}
+
+/**
+ * 语义策略提供者
+ */
+@injectable()
+export class SemanticStrategyProvider implements IStrategyProvider {
+  constructor(
+    @inject(TYPES.LoggerService) private logger?: LoggerService
+  ) {}
+
+  getName(): string {
+    return 'SemanticStrategyProvider';
+  }
+
+  createStrategy(options?: ChunkingOptions): ISplitStrategy {
+    return new SemanticSplitter(options);
+  }
+
+  getDependencies(): string[] {
+    return [];
+  }
+
+  supportsLanguage(language: string): boolean {
+    const strategy = this.createStrategy();
+    return strategy.supportsLanguage(language);
+  }
+
+  getPriority(): number {
+    return 5; // 最低优先级
+  }
+
   getDescription(): string {
-    return 'Semantic splitter that uses semantic scoring as a fallback strategy';
+    return 'Provides semantic-based code splitting strategy';
   }
 }

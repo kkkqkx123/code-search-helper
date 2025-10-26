@@ -5,7 +5,7 @@ import { ISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
 import { IStrategyProvider, ChunkingOptions } from '../../../splitting/interfaces/IStrategyProvider';
 import { CodeChunk } from '../../../splitting';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { SyntaxAwareSplitter } from '../../../splitting/strategies/SyntaxAwareSplitter';
+import { SyntaxAwareSplitter } from '../impl/SyntaxAwareStrategy';
 
 /**
  * 语法感知分段策略实现
@@ -18,7 +18,7 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
- ) {
+  ) {
     this.syntaxAwareSplitter = new SyntaxAwareSplitter();
     if (this.treeSitterService) {
       this.syntaxAwareSplitter.setTreeSitterService(this.treeSitterService);
@@ -58,7 +58,7 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
     return 'Uses multiple sub-strategies (function, class, import) for syntax-aware code splitting';
   }
 
- supportsLanguage(language: string): boolean {
+  supportsLanguage(language: string): boolean {
     return this.syntaxAwareSplitter.supportsLanguage(language);
   }
 
@@ -76,7 +76,7 @@ export class SyntaxAwareStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'syntax_aware_provider';
@@ -87,7 +87,7 @@ export class SyntaxAwareStrategyProvider implements IStrategyProvider {
       this.treeSitterService,
       this.logger
     );
-    
+
     // 如果提供了选项，也应用到内部的SyntaxAwareSplitter
     if (options) {
       const syntaxSplitter = (strategy as any).syntaxAwareSplitter as SyntaxAwareSplitter;
@@ -101,7 +101,7 @@ export class SyntaxAwareStrategyProvider implements IStrategyProvider {
       }
       (strategy as any).syntaxAwareSplitter = newSyntaxSplitter;
     }
-    
+
     return strategy;
   }
 

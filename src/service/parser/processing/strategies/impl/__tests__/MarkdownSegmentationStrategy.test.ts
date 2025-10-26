@@ -1,4 +1,4 @@
-import { MarkdownSegmentationStrategy } from '../MarkdownSegmentationStrategy';
+import { MarkdownSegmentationStrategy } from '../../segmentation/MarkdownSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
 

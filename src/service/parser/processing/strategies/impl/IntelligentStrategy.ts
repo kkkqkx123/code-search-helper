@@ -1,18 +1,20 @@
-import { IntelligentSplitter as IntelligentSplitterInterface } from './index';
-import { SplitStrategy, CodeChunk, CodeChunkMetadata, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '..';
-import { BalancedChunker } from '../BalancedChunker';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { ComplexityCalculator } from '../utils/ComplexityCalculator';
-import { SyntaxValidator } from '../utils/SyntaxValidator';
-import { SemanticBoundaryAnalyzer } from '../utils/SemanticBoundaryAnalyzer';
-import { UnifiedOverlapCalculator } from '../utils/overlap/UnifiedOverlapCalculator';
-import { LanguageSpecificConfigManager } from '../config/LanguageSpecificConfigManager';
-import { ChunkingPerformanceOptimizer } from '../utils/performance/ChunkingPerformanceOptimizer';
+import { injectable, inject } from 'inversify';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { BalancedChunker } from '../../../splitting/BalancedChunker';
+import { ComplexityCalculator } from '../../../splitting/utils/ComplexityCalculator';
+import { SyntaxValidator } from '../../../splitting/utils/SyntaxValidator';
+import { SemanticBoundaryAnalyzer } from '../../../splitting/utils/SemanticBoundaryAnalyzer';
+import { UnifiedOverlapCalculator } from '../../../splitting/utils/overlap/UnifiedOverlapCalculator';
+import { LanguageSpecificConfigManager } from '../../../splitting/config/LanguageSpecificConfigManager';
+import { ChunkingPerformanceOptimizer } from '../../../splitting/utils/performance/ChunkingPerformanceOptimizer';
 
-export class IntelligentSplitter implements IntelligentSplitterInterface {
+export class IntelligentSplitter implements ISplitStrategy {
   private options: Required<ChunkingOptions>;
   private balancedChunker?: BalancedChunker;
-  protected logger?: LoggerService;
+  private logger?: LoggerService;
   private optimizationLevel: 'low' | 'medium' | 'high' = 'medium';
   private complexityCalculator: ComplexityCalculator;
   private syntaxValidator: SyntaxValidator;
@@ -67,7 +69,8 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     language: string,
     filePath?: string,
     options?: ChunkingOptions,
-    nodeTracker?: any
+    nodeTracker?: any,
+    ast?: any
   ): Promise<CodeChunk[]> {
     const mergedOptions = { ...this.options, ...options };
     return this.createIntelligentChunks(content, language, filePath, mergedOptions, nodeTracker);
@@ -277,11 +280,54 @@ export class IntelligentSplitter implements IntelligentSplitterInterface {
     return 'IntelligentSplitter';
   }
 
+  getDescription(): string {
+    return 'Intelligent splitter that uses semantic boundary analysis and syntax validation';
+  }
+
   supportsLanguage(language: string): boolean {
     return true; // 智能分段器支持所有语言
   }
 
   getPriority(): number {
     return 4; // 较低优先级（作为后备方案）
+  }
+}
+
+/**
+ * 智能策略提供者
+ */
+@injectable()
+export class IntelligentStrategyProvider implements IStrategyProvider {
+  constructor(
+    @inject(TYPES.LoggerService) private logger?: LoggerService
+  ) {}
+
+  getName(): string {
+    return 'IntelligentStrategyProvider';
+  }
+
+  createStrategy(options?: ChunkingOptions): ISplitStrategy {
+    const strategy = new IntelligentSplitter(options);
+    if (this.logger) {
+      strategy.setLogger(this.logger);
+    }
+    return strategy;
+  }
+
+  getDependencies(): string[] {
+    return [];
+  }
+
+  supportsLanguage(language: string): boolean {
+    const strategy = this.createStrategy();
+    return strategy.supportsLanguage(language);
+  }
+
+  getPriority(): number {
+    return 4; // 较低优先级
+  }
+
+  getDescription(): string {
+    return 'Provides intelligent code splitting strategy with semantic boundary analysis';
   }
 }

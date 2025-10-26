@@ -1,18 +1,20 @@
-import { SyntaxAwareSplitter as SyntaxAwareSplitterInterface } from './index';
-import { SplitStrategy, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '..';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';
-import { strategyFactory } from '../core/SplitStrategyFactory';
-import { ISplitStrategy } from '../interfaces/ISplitStrategy';
+import { injectable, inject } from 'inversify';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
+import { ChunkOptimizer } from '../../../splitting/utils/chunk-processing/ChunkOptimizer';
+import { strategyFactory } from '../../../splitting/core/SplitStrategyFactory';
+import { ISplitStrategy as OldISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
 
-export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
+export class SyntaxAwareSplitter implements ISplitStrategy {
   private options: Required<ChunkingOptions>;
   private treeSitterService?: TreeSitterService;
   private logger?: LoggerService;
-  private functionSplitter?: ISplitStrategy;
-  private classSplitter?: ISplitStrategy;
-  private importSplitter?: ISplitStrategy;
+  private functionSplitter?: OldISplitStrategy;
+  private classSplitter?: OldISplitStrategy;
+  private importSplitter?: OldISplitStrategy;
   private chunkOptimizer?: ChunkOptimizer;
 
   constructor(options?: ChunkingOptions) {
@@ -51,7 +53,9 @@ export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
     content: string,
     language: string,
     filePath?: string,
-    options?: ChunkingOptions
+    options?: ChunkingOptions,
+    nodeTracker?: any,
+    ast?: any
   ): Promise<CodeChunk[]> {
     const mergedOptions = { ...this.options, ...options };
 
@@ -59,11 +63,11 @@ export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
       throw new Error('TreeSitterService is required for SyntaxAwareSplitter');
     }
 
-    const parseResult = await this.treeSitterService.parseCode(content, language);
+    const parseResult = ast || await this.treeSitterService.parseCode(content, language);
 
     if (parseResult.success && parseResult.ast) {
       return await this.createEnhancedSyntaxAwareChunks(
-        content, parseResult, language, filePath, mergedOptions
+        content, parseResult, language, filePath, mergedOptions, nodeTracker
       );
     } else {
       // 如果解析失败，返回空数组或使用备用方案
@@ -76,7 +80,8 @@ export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
     parseResult: any,
     language: string,
     filePath: string | undefined,
-    options: Required<ChunkingOptions>
+    options: Required<ChunkingOptions>,
+    nodeTracker?: any
   ): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
 
@@ -148,6 +153,10 @@ export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
     return 'SyntaxAwareSplitter';
   }
 
+  getDescription(): string {
+    return 'Syntax-aware splitter that combines function, class, and import splitters';
+  }
+
   supportsLanguage(language: string): boolean {
     // 检查TreeSitterService是否支持该语言
     return this.treeSitterService?.detectLanguage(language) !== null || false;
@@ -155,5 +164,48 @@ export class SyntaxAwareSplitter implements SyntaxAwareSplitterInterface {
 
   getPriority(): number {
     return 1; // 高优先级
+  }
+}
+
+/**
+ * 语法感知策略提供者
+ */
+@injectable()
+export class SyntaxAwareStrategyProvider implements IStrategyProvider {
+  constructor(
+    @inject(TYPES.LoggerService) private logger?: LoggerService,
+    @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService
+  ) {}
+
+  getName(): string {
+    return 'SyntaxAwareStrategyProvider';
+  }
+
+  createStrategy(options?: ChunkingOptions): ISplitStrategy {
+    const strategy = new SyntaxAwareSplitter(options);
+    if (this.treeSitterService) {
+      strategy.setTreeSitterService(this.treeSitterService);
+    }
+    if (this.logger) {
+      strategy.setLogger(this.logger);
+    }
+    return strategy;
+  }
+
+  getDependencies(): string[] {
+    return ['TreeSitterService'];
+  }
+
+  supportsLanguage(language: string): boolean {
+    const strategy = this.createStrategy();
+    return strategy.supportsLanguage(language);
+  }
+
+  getPriority(): number {
+    return 1; // 高优先级
+  }
+
+  getDescription(): string {
+    return 'Provides syntax-aware code splitting strategy';
   }
 }

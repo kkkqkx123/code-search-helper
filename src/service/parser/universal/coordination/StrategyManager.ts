@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
-import { IProcessingStrategy } from '../../processing/strategies/impl/IProcessingStrategy';
+import { IProcessingStrategy } from '../../processing/strategies/impl/base/IProcessingStrategy';
 import { DetectionResult, ProcessingStrategyType } from '../UnifiedDetectionCenter';
 import { ProcessingStrategyFactory } from '../../processing/strategies/providers/ProcessingStrategyFactory';
 import { FileFeatureDetector } from '../utils/FileFeatureDetector';
@@ -167,10 +167,10 @@ export class StrategyManager {
     const availableTypes = this.strategyFactory.getAvailableStrategyTypes();
 
     return availableTypes.map((type: string) => ({
-    type,
-    name: type.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-    description: this.getStrategyDescription(type as ProcessingStrategyType),
-    supported: this.strategyFactory.isStrategyTypeSupported(type)
+      type,
+      name: type.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+      description: this.getStrategyDescription(type as ProcessingStrategyType),
+      supported: this.strategyFactory.isStrategyTypeSupported(type)
     }));
   }
 

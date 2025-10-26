@@ -1,16 +1,16 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { IProcessingStrategy } from '../impl/IProcessingStrategy';
+import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
 import { DetectionResult, ProcessingStrategyType } from '../../../universal/UnifiedDetectionCenter';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { MarkdownTextSplitter } from '../../utils/md/MarkdownTextSplitter';
 import { XMLTextSplitter } from '../../utils/xml/XMLTextSplitter';
 import { ASTStrategy } from '../impl/ASTStrategy';
-import { BracketSegmentationStrategy } from '../impl/BracketSegmentationStrategy';
-import { LineSegmentationStrategy } from '../impl/LineSegmentationStrategy';
-import { MarkdownSegmentationStrategy } from '../impl/MarkdownSegmentationStrategy';
-import { SemanticSegmentationStrategy } from '../impl/SemanticSegmentationStrategy';
+import { BracketSegmentationStrategy } from '../segmentation/BracketSegmentationStrategy';
+import { LineSegmentationStrategy } from '../segmentation/LineSegmentationStrategy';
+import { MarkdownSegmentationStrategy } from '../segmentation/MarkdownSegmentationStrategy';
+import { SemanticSegmentationStrategy } from '../segmentation/SemanticSegmentationStrategy';
 import { XMLStrategy } from '../impl/XMLStrategy';
 
 @injectable()
@@ -54,7 +54,7 @@ export class ProcessingStrategyFactory {
         return new SemanticSegmentationStrategy(this.logger);
 
       case ProcessingStrategyType.UNIVERSAL_BRACKET:
-      return new BracketSegmentationStrategy(undefined, this.logger);
+        return new BracketSegmentationStrategy(undefined, this.logger);
 
       case ProcessingStrategyType.UNIVERSAL_LINE:
       case ProcessingStrategyType.EMERGENCY_SINGLE_CHUNK:

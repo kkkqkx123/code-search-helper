@@ -5,7 +5,7 @@ import { ISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
 import { IStrategyProvider, ChunkingOptions } from '../../../splitting/interfaces/IStrategyProvider';
 import { CodeChunk } from '../../../splitting';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { StructureAwareSplitter } from '../../../splitting/strategies/StructureAwareSplitter';
+import { StructureAwareSplitter } from '../impl/StructureAwareStrategy';
 import { IQueryResultNormalizer } from '../../../core/normalization/types';
 
 /**
@@ -52,7 +52,7 @@ export class StructureAwareStrategy implements ISplitStrategy {
     }
   }
 
- getName(): string {
+  getName(): string {
     return 'structure_aware_strategy';
   }
 
@@ -62,7 +62,7 @@ export class StructureAwareStrategy implements ISplitStrategy {
 
   supportsLanguage(language: string): boolean {
     return this.structureAwareSplitter.supportsLanguage(language);
- }
+  }
 
   getPriority(): number {
     return 1; // 最高优先级
@@ -79,7 +79,7 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService,
     @inject(TYPES.QueryResultNormalizer) private queryResultNormalizer?: IQueryResultNormalizer
-  ) {}
+  ) { }
 
   getName(): string {
     return 'structure_aware_provider';
@@ -91,7 +91,7 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
       this.logger,
       this.queryResultNormalizer
     );
-    
+
     // 如果提供了选项，也应用到内部的StructureAwareSplitter
     if (options) {
       const structureSplitter = (strategy as any).structureAwareSplitter as StructureAwareSplitter;
@@ -108,7 +108,7 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
       }
       (strategy as any).structureAwareSplitter = newStructureSplitter;
     }
-    
+
     return strategy;
   }
 
@@ -128,7 +128,7 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
   getDescription(): string {
     return 'Provides structure-aware code splitting using standardized query results';
   }
-  
+
   getSupportedLanguages(): string[] {
     // 支持所有有语言适配器的语言
     return [

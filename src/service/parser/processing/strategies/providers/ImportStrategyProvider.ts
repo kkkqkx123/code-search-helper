@@ -5,7 +5,7 @@ import { ISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
 import { IStrategyProvider, ChunkingOptions } from '../../../splitting/interfaces/IStrategyProvider';
 import { CodeChunk } from '../../../splitting';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { ImportSplitter } from '../../../splitting/strategies/ImportSplitter';
+import { ImportSplitter } from '../impl/ImportStrategy';
 
 /**
  * 导入语句分段策略实现
@@ -28,7 +28,7 @@ export class ImportStrategy implements ISplitStrategy {
     }
   }
 
- async split(
+  async split(
     content: string,
     language: string,
     filePath?: string,
@@ -76,7 +76,7 @@ export class ImportStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'import_provider';
@@ -87,7 +87,7 @@ export class ImportStrategyProvider implements IStrategyProvider {
       this.treeSitterService,
       this.logger
     );
-    
+
     // 如果提供了选项，也应用到内部的ImportSplitter
     if (options) {
       const importSplitter = (strategy as any).importSplitter as ImportSplitter;
@@ -101,7 +101,7 @@ export class ImportStrategyProvider implements IStrategyProvider {
       }
       (strategy as any).importSplitter = newImportSplitter;
     }
-    
+
     return strategy;
   }
 

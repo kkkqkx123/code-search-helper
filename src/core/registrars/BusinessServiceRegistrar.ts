@@ -67,11 +67,11 @@ import { ComplexityCalculator } from '../../service/parser/universal/processors/
 import { OverlapProcessor } from '../../service/parser/universal/processors/OverlapProcessor';
 import { ChunkFilter } from '../../service/parser/universal/processors/ChunkFilter';
 import { ChunkRebalancer } from '../../service/parser/universal/processors/ChunkRebalancer';
-import { SemanticSegmentationStrategy } from '../../service/parser/processing/strategies/impl/SemanticSegmentationStrategy';
-import { BracketSegmentationStrategy } from '../../service/parser/processing/strategies/impl/BracketSegmentationStrategy';
+import { SemanticSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/SemanticSegmentationStrategy';
+import { BracketSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/BracketSegmentationStrategy';
 import { LineStrategyProvider } from '../../service/parser/processing/strategies/providers/LineStrategyProvider';
-import { MarkdownSegmentationStrategy } from '../../service/parser/processing/strategies/impl/MarkdownSegmentationStrategy';
-import { StandardizationSegmentationStrategy } from '../../service/parser/processing/strategies/impl/StandardizationSegmentationStrategy';
+import { MarkdownSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/MarkdownSegmentationStrategy';
+import { StandardizationSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/StandardizationSegmentationStrategy';
 
 // 新增的策略提供者
 import { ImportStrategyProvider } from '../../service/parser/processing/strategies/providers/ImportStrategyProvider';
@@ -186,7 +186,7 @@ export class BusinessServiceRegistrar {
       // container.bind<LineSegmentationStrategy>(TYPES.LineSegmentationStrategy).to(LineSegmentationStrategy).inSingletonScope(); // 暂时注释掉
       container.bind<MarkdownSegmentationStrategy>(TYPES.MarkdownSegmentationStrategy).to(MarkdownSegmentationStrategy).inSingletonScope();
       container.bind<StandardizationSegmentationStrategy>(TYPES.StandardizationSegmentationStrategy).to(StandardizationSegmentationStrategy).inSingletonScope();
-      
+
       // 新增的策略提供者
       container.bind<ImportStrategyProvider>(TYPES.ImportStrategyProvider).to(ImportStrategyProvider).inSingletonScope();
       container.bind<SyntaxAwareStrategyProvider>(TYPES.SyntaxAwareStrategyProvider).to(SyntaxAwareStrategyProvider).inSingletonScope();

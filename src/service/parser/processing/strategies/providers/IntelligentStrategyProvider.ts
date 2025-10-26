@@ -5,7 +5,7 @@ import { ISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
 import { IStrategyProvider, ChunkingOptions } from '../../../splitting/interfaces/IStrategyProvider';
 import { CodeChunk } from '../../../splitting';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { IntelligentSplitter } from '../../../splitting/strategies/IntelligentSplitter';
+import { IntelligentSplitter } from '../impl/IntelligentStrategy';
 import { BalancedChunker } from '../../../splitting/BalancedChunker';
 import { SemanticBoundaryAnalyzer } from '../../../splitting/utils/SemanticBoundaryAnalyzer';
 import { UnifiedOverlapCalculator } from '../../../splitting/utils/overlap/UnifiedOverlapCalculator';
@@ -26,7 +26,7 @@ export class IntelligentStrategy implements ISplitStrategy {
     if (this.logger) {
       this.intelligentSplitter.setLogger(this.logger);
     }
- }
+  }
 
   async split(
     content: string,
@@ -35,7 +35,7 @@ export class IntelligentStrategy implements ISplitStrategy {
     options?: ChunkingOptions,
     nodeTracker?: any,
     ast?: any
- ): Promise<CodeChunk[]> {
+  ): Promise<CodeChunk[]> {
     try {
       // 使用IntelligentSplitter进行分割
       return await this.intelligentSplitter.split(content, language, filePath, options, nodeTracker);
@@ -45,7 +45,7 @@ export class IntelligentStrategy implements ISplitStrategy {
     }
   }
 
- getName(): string {
+  getName(): string {
     return 'intelligent_strategy';
   }
 
@@ -55,7 +55,7 @@ export class IntelligentStrategy implements ISplitStrategy {
 
   supportsLanguage(language: string): boolean {
     return this.intelligentSplitter.supportsLanguage(language);
- }
+  }
 
   getPriority(): number {
     return 4; // 较低优先级（作为后备方案）
@@ -71,18 +71,18 @@ export class IntelligentStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
- getName(): string {
+  getName(): string {
     return 'intelligent_provider';
   }
 
- createStrategy(options?: ChunkingOptions): ISplitStrategy {
+  createStrategy(options?: ChunkingOptions): ISplitStrategy {
     const strategy = new IntelligentStrategy(
       this.treeSitterService,
       this.logger
     );
-    
+
     // 如果提供了选项，也应用到内部的IntelligentSplitter
     if (options) {
       const intelligentSplitter = (strategy as any).intelligentSplitter as IntelligentSplitter;
@@ -103,7 +103,7 @@ export class IntelligentStrategyProvider implements IStrategyProvider {
       }));
       (strategy as any).intelligentSplitter = newIntelligentSplitter;
     }
-    
+
     return strategy;
   }
 
@@ -111,7 +111,7 @@ export class IntelligentStrategyProvider implements IStrategyProvider {
     return ['LoggerService']; // IntelligentSplitter主要依赖内部组件
   }
 
- supportsLanguage(language: string): boolean {
+  supportsLanguage(language: string): boolean {
     const strategy = this.createStrategy();
     return strategy.supportsLanguage(language);
   }

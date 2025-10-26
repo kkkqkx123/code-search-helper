@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { IProcessingStrategy } from './IProcessingStrategy';
+import { IProcessingStrategy } from './base/IProcessingStrategy';
 import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
 import { XMLTextSplitter } from '../../utils/xml/XMLTextSplitter';
 

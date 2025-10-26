@@ -1,20 +1,33 @@
-import { IntelligentSplitter } from './IntelligentSplitter';
-import { CodeChunk, ChunkingOptions } from '..';
-import { IQueryResultNormalizer, StandardizedQueryResult } from '../../core/normalization/types';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TreeSitterCoreService } from '../../core/parse/TreeSitterCoreService';
+import { injectable, inject } from 'inversify';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
+import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../core/normalization/types';
+import { IntelligentSplitter } from './IntelligentStrategy';
 
 /**
  * 结构感知分割器
  * 基于标准化查询结果进行智能分割
  */
-export class StructureAwareSplitter extends IntelligentSplitter {
+@injectable()
+export class StructureAwareSplitter implements ISplitStrategy {
   private queryNormalizer?: IQueryResultNormalizer;
-  private treeSitterService?: TreeSitterCoreService;
+  private treeSitterService?: TreeSitterService;
+  private logger?: LoggerService;
+  private options: Required<ChunkingOptions>;
+  private intelligentSplitter: IntelligentSplitter;
 
-  constructor(options?: ChunkingOptions) {
-    super(options);
-    this.setLogger(new LoggerService());
+  constructor(
+    @inject(TYPES.LoggerService) logger?: LoggerService,
+    @inject(TYPES.TreeSitterService) treeSitterService?: TreeSitterService
+  ) {
+    this.logger = logger;
+    this.treeSitterService = treeSitterService;
+    this.intelligentSplitter = new IntelligentSplitter();
+    // 使用默认选项
+    this.options = { ...DEFAULT_CHUNKING_OPTIONS };
   }
 
   /**
@@ -22,13 +35,6 @@ export class StructureAwareSplitter extends IntelligentSplitter {
    */
   setQueryNormalizer(normalizer: IQueryResultNormalizer): void {
     this.queryNormalizer = normalizer;
-  }
-
-  /**
-   * 设置Tree-sitter服务
-   */
-  setTreeSitterService(service: TreeSitterCoreService): void {
-    this.treeSitterService = service;
   }
 
   async split(
@@ -39,35 +45,38 @@ export class StructureAwareSplitter extends IntelligentSplitter {
     nodeTracker?: any,
     ast?: any
   ): Promise<CodeChunk[]> {
+    // 合并选项
+    const mergedOptions = { ...this.options, ...options };
+    
     // 如果没有设置标准化器，回退到基础分割器
     if (!this.queryNormalizer || !this.treeSitterService) {
-      this.logger?.warn('QueryNormalizer or TreeSitterService not set, falling back to base splitter');
-      return super.split(content, language, filePath, options, nodeTracker);
+      this.logger?.warn('QueryNormalizer or TreeSitterService not set, falling back to intelligent splitter');
+      return this.intelligentSplitter.split(content, language, filePath, mergedOptions, nodeTracker);
     }
 
     try {
       // 1. 获取tree-sitter解析结果
       const parseResult = ast || await this.treeSitterService.parseCode(content, language);
-      
+
       if (!parseResult.success || !parseResult.ast) {
-        this.logger?.warn(`Failed to parse ${language} code, falling back to base splitter`);
-        return super.split(content, language, filePath, options, nodeTracker);
+        this.logger?.warn(`Failed to parse ${language} code, falling back to intelligent splitter`);
+        return this.intelligentSplitter.split(content, language, filePath, mergedOptions, nodeTracker);
       }
 
       // 2. 执行标准化查询
       const standardizedResults = await this.queryNormalizer.normalize(parseResult.ast, language);
-      
+
       if (standardizedResults.length === 0) {
-        this.logger?.debug(`No structures found in ${language} code, falling back to base splitter`);
-        return super.split(content, language, filePath, options, nodeTracker);
+        this.logger?.debug(`No structures found in ${language} code, falling back to intelligent splitter`);
+        return this.intelligentSplitter.split(content, language, filePath, mergedOptions, nodeTracker);
       }
 
       // 3. 基于标准化结果进行智能分割
-      return this.splitByStructure(standardizedResults, content, language, filePath, options);
+      return this.splitByStructure(standardizedResults, content, language, filePath, mergedOptions);
 
     } catch (error) {
       this.logger?.error(`Structure-aware splitting failed for ${language}:`, error);
-      return super.split(content, language, filePath, options, nodeTracker);
+      return this.intelligentSplitter.split(content, language, filePath, mergedOptions, nodeTracker);
     }
   }
 
@@ -75,12 +84,16 @@ export class StructureAwareSplitter extends IntelligentSplitter {
     return 'StructureAwareSplitter';
   }
 
+  getDescription(): string {
+    return 'Structure-aware splitter that uses standardized query results for intelligent code splitting';
+  }
+
   supportsLanguage(language: string): boolean {
     // 检查是否有对应的语言适配器
     if (this.queryNormalizer) {
       return true; // 标准化器会处理语言适配
     }
-    return super.supportsLanguage(language);
+    return this.intelligentSplitter.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -110,10 +123,10 @@ export class StructureAwareSplitter extends IntelligentSplitter {
         const gapContent = lines.slice(currentPosition - 1, structure.startLine - 1).join('\n');
         if (gapContent.trim()) {
           chunks.push(this.createChunk(
-            gapContent, 
-            currentPosition, 
-            structure.startLine - 1, 
-            language, 
+            gapContent,
+            currentPosition,
+            structure.startLine - 1,
+            language,
             filePath,
             'gap'
           ));
@@ -122,10 +135,10 @@ export class StructureAwareSplitter extends IntelligentSplitter {
 
       // 添加结构本身作为代码块
       chunks.push(this.createChunk(
-        structure.content, 
-        structure.startLine, 
-        structure.endLine, 
-        language, 
+        structure.content,
+        structure.startLine,
+        structure.endLine,
+        language,
         filePath,
         structure.type,
         structure
@@ -139,10 +152,10 @@ export class StructureAwareSplitter extends IntelligentSplitter {
       const remainingContent = lines.slice(currentPosition - 1).join('\n');
       if (remainingContent.trim()) {
         chunks.push(this.createChunk(
-          remainingContent, 
-          currentPosition, 
-          lines.length, 
-          language, 
+          remainingContent,
+          currentPosition,
+          lines.length,
+          language,
           filePath,
           'remaining'
         ));
@@ -182,11 +195,11 @@ export class StructureAwareSplitter extends IntelligentSplitter {
     return structures.sort((a, b) => {
       const aImportance = importanceOrder[a.type] || 999;
       const bImportance = importanceOrder[b.type] || 999;
-      
+
       if (aImportance !== bImportance) {
         return aImportance - bImportance;
       }
-      
+
       // 如果重要性相同，按行号排序
       return a.startLine - b.startLine;
     });
@@ -239,7 +252,7 @@ export class StructureAwareSplitter extends IntelligentSplitter {
       currentMerge.push(chunk);
 
       const totalLines = chunk.metadata.endLine - chunk.metadata.startLine + 1;
-      
+
       // 如果当前块足够大，或者是最后一个块，则执行合并
       if (totalLines >= minChunkSize || chunk === chunks[chunks.length - 1]) {
         if (currentMerge.length === 1) {
@@ -272,7 +285,7 @@ export class StructureAwareSplitter extends IntelligentSplitter {
 
     const contents = chunks.map(chunk => chunk.content);
     const mergedContent = contents.join('\n\n');
-    
+
     const firstChunk = chunks[0];
     const lastChunk = chunks[chunks.length - 1];
 
@@ -290,5 +303,41 @@ export class StructureAwareSplitter extends IntelligentSplitter {
       content: mergedContent,
       metadata: mergedMetadata
     };
+  }
+}
+
+/**
+ * 结构感知策略提供者
+ */
+@injectable()
+export class StructureAwareStrategyProvider implements IStrategyProvider {
+  constructor(
+    @inject(TYPES.LoggerService) private logger?: LoggerService,
+    @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService
+  ) {}
+
+  getName(): string {
+    return 'StructureAwareStrategyProvider';
+  }
+
+  createStrategy(options?: ChunkingOptions): ISplitStrategy {
+    return new StructureAwareSplitter(this.logger, this.treeSitterService);
+  }
+
+  getDependencies(): string[] {
+    return ['TreeSitterService', 'QueryResultNormalizer'];
+  }
+
+  supportsLanguage(language: string): boolean {
+    const strategy = this.createStrategy();
+    return strategy.supportsLanguage(language);
+  }
+
+  getPriority(): number {
+    return 1; // 最高优先级
+  }
+
+  getDescription(): string {
+    return 'Provides structure-aware code splitting strategy';
   }
 }
