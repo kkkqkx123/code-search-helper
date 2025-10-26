@@ -11,6 +11,7 @@ import {
   UniversalChunkingOptions 
 } from './types/SegmentationTypes';
 import { MarkdownTextSplitter } from './md/MarkdownTextSplitter';
+import { XMLTextSplitter } from './xml/XMLTextSplitter';
 import { SegmentationContextManager } from './context/SegmentationContextManager';
 import { ConfigurationManager } from './config/ConfigurationManager';
 import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
@@ -31,6 +32,7 @@ export class UniversalTextSplitter implements ITextSplitter {
   private options: UniversalChunkingOptions;
   private logger?: LoggerService;
   private markdownSplitter: MarkdownTextSplitter;
+  private xmlSplitter: XMLTextSplitter;
   private queryNormalizer?: IQueryResultNormalizer;
   private treeSitterService?: TreeSitterCoreService;
   
@@ -45,6 +47,7 @@ export class UniversalTextSplitter implements ITextSplitter {
       this.protectionCoordinator = protectionCoordinator;
       this.options = configManager.getDefaultOptions();
       this.markdownSplitter = new MarkdownTextSplitter(logger);
+      this.xmlSplitter = new XMLTextSplitter(logger);
       this.processors = [];
       
       this.logger?.debug('Initializing UniversalTextSplitter...');
@@ -195,6 +198,14 @@ export class UniversalTextSplitter implements ITextSplitter {
       const mdChunks = this.markdownSplitter.chunkMarkdown(context.content, context.filePath);
       // 为markdown分块应用处理器
       return this.applyProcessors(mdChunks, context);
+    }
+    
+    // 对XML文件使用专门的分段器
+    if (context.language === 'xml') {
+      this.logger?.info(`Using specialized XML splitter for ${context.filePath}`);
+      const xmlChunks = this.xmlSplitter.chunkXML(context.content, context.filePath);
+      // 为XML分块应用处理器
+      return this.applyProcessors(xmlChunks, context);
     }
     
     // 执行保护检查

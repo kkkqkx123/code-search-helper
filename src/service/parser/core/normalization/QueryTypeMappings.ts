@@ -175,6 +175,15 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
   'vue': {
     'components': ['classes'],
     'template-directives': ['functions']
+  },
+  'json': {
+    'objects-arrays': ['tables', 'arrays'],
+    'key-value-pairs': ['config-items'],
+    'values': ['values'],
+    'strings': ['values'],
+    'numbers': ['values'],
+    'booleans': ['values'],
+    'nulls': ['values']
   }
 };
 

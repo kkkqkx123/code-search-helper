@@ -24,6 +24,7 @@ import { ConfigLanguageAdapter } from './adapters/ConfigLanguageAdapter';
 import { TOMLConfigAdapter } from './adapters/TOMLConfigAdapter';
 import { YAMLConfigAdapter } from './adapters/YAMLConfigAdapter';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { JSONConfigAdapter } from './adapters/JSONConfigAdapter';
 
 /**
  * 语言适配器工厂类
@@ -159,6 +160,9 @@ export class LanguageAdapterFactory {
         case 'yml':
           // YAML configuration files
           return new YAMLConfigAdapter(options);
+        case 'json':
+          // JSON configuration files
+          return new JSONConfigAdapter(options);
         default:
           this.logger.warn(`Unsupported language: ${language}, using default adapter`);
           return new DefaultLanguageAdapter(options);
@@ -241,7 +245,8 @@ export class LanguageAdapterFactory {
   static getSupportedLanguages(): string[] {
     return [
       'rust', 'typescript', 'javascript', 'python', 'java',
-      'cpp', 'c', 'csharp', 'kotlin', 'css', 'html', 'vue', 'tsx'
+      'cpp', 'c', 'csharp', 'kotlin', 'css', 'html', 'vue', 'tsx',
+      'json', 'yaml', 'yml', 'toml'
     ];
   }
 

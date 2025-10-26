@@ -78,6 +78,7 @@ export class DynamicParserManager {
       html: () => import('tree-sitter-html').then(m => m.default),
       vue: () => import('tree-sitter-vue').then(m => m.default),
       tsx: () => import('tree-sitter-typescript').then(m => m.tsx),
+      json: () => import('tree-sitter-json').then(m => m.default),
     };
 
     // 初始化语言配置

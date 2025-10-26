@@ -17,6 +17,7 @@ export { CssLanguageAdapter } from './CssLanguageAdapter';
 export { ConfigLanguageAdapter } from './ConfigLanguageAdapter';
 export { TOMLConfigAdapter } from './TOMLConfigAdapter';
 export { YAMLConfigAdapter } from './YAMLConfigAdapter';
+export { JSONConfigAdapter } from './JSONConfigAdapter';
 
 import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
 import { PythonLanguageAdapter } from './PythonLanguageAdapter';
@@ -33,6 +34,7 @@ import { CssLanguageAdapter } from './CssLanguageAdapter';
 import { ConfigLanguageAdapter } from './ConfigLanguageAdapter';
 import { TOMLConfigAdapter } from './TOMLConfigAdapter';
 import { YAMLConfigAdapter } from './YAMLConfigAdapter';
+import { JSONConfigAdapter } from './JSONConfigAdapter';
 import { ILanguageAdapter } from '../types';
 import { LanguageAdapterFactory } from '../LanguageAdapterFactory';
 
