@@ -2,12 +2,12 @@ import { TreeSitterService } from '../../../service/parser/core/parse/TreeSitter
 import { TreeSitterCoreService } from '../../../service/parser/core/parse/TreeSitterCoreService';
 import { ASTCodeSplitter } from '../../../service/parser/splitting/ASTCodeSplitter';
 import { ProcessingGuard } from '../../../service/parser/guard/ProcessingGuard';
-import { ErrorThresholdManager } from '../../../service/parser/universal/ErrorThresholdManager';
+import { ErrorThresholdInterceptor } from '../../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
 import { ProcessingStrategyFactory } from '../../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
-import { UnifiedDetectionCenter } from '../../../service/parser/universal/UnifiedDetectionCenter';
-import { IntelligentFallbackEngine } from '../../../service/parser/universal/IntelligentFallbackEngine';
-import { FileProcessingCoordinator } from '../../../service/parser/universal/coordination/FileProcessingCoordinator';
+import { UnifiedDetectionCenter } from '../../../service/parser/processing/utils/UnifiedDetectionCenter';
+import { IntelligentFallbackEngine } from '../../../service/parser/processing/utils/IntelligentFallbackEngine';
+import { FileProcessingCoordinator } from '../../../service/parser/processing/utils/coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';
 import * as path from 'path';

@@ -1,5 +1,5 @@
 import { ProtectionInterceptor, ProtectionContext, ProtectionDecision } from './ProtectionInterceptor';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { LoggerService } from '../../../../../utils/LoggerService';
 
 /**
  * 内存限制配置

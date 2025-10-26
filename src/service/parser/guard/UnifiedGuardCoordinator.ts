@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
-import { ErrorThresholdManager } from '../universal/ErrorThresholdManager';
+import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
 import { IProcessingStrategySelector } from '../universal/coordination/interfaces/IProcessingStrategySelector';
 import { UnifiedDetectionCenter, DetectionResult } from '../universal/UnifiedDetectionCenter';
@@ -31,7 +31,7 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
 
   // 核心依赖组件
   private memoryMonitor: IMemoryMonitorService;
-  private errorThresholdManager: ErrorThresholdManager;
+  private errorThresholdManager: ErrorThresholdInterceptor;
   private cleanupManager: CleanupManager;
   private processingStrategySelector: IProcessingStrategySelector;
   private fileProcessingCoordinator: IFileProcessingCoordinator;
@@ -54,7 +54,7 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
    */
   private constructor(
     memoryMonitor: IMemoryMonitorService,
-    errorThresholdManager: ErrorThresholdManager,
+    errorThresholdManager: ErrorThresholdInterceptor,
     cleanupManager: CleanupManager,
     processingStrategySelector: IProcessingStrategySelector,
     fileProcessingCoordinator: IFileProcessingCoordinator,
@@ -86,7 +86,7 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
    */
   public static getInstance(
     memoryMonitor: IMemoryMonitorService,
-    errorThresholdManager: ErrorThresholdManager,
+    errorThresholdManager: ErrorThresholdInterceptor,
     cleanupManager: CleanupManager,
     processingStrategySelector: IProcessingStrategySelector,
     fileProcessingCoordinator: IFileProcessingCoordinator,

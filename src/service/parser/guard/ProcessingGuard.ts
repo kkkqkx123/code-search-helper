@@ -1,12 +1,12 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
-import { ErrorThresholdManager } from '../universal/ErrorThresholdManager';
+import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from './MemoryGuard';
 import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
 import { UnifiedDetectionCenter, DetectionResult } from '../universal/UnifiedDetectionCenter';
 import { IProcessingStrategy } from '../processing/strategies/impl/base/IProcessingStrategy';
-import { IntelligentFallbackEngine } from '../universal/IntelligentFallbackEngine';
+import { IntelligentFallbackEngine } from '../processing/utils/IntelligentFallbackEngine';
 
 export interface ProcessingResult {
   chunks: any[];
@@ -21,7 +21,7 @@ export interface ProcessingResult {
 @injectable()
 export class ProcessingGuard {
   private static instance: ProcessingGuard;
-  private errorManager: ErrorThresholdManager;
+  private errorManager: ErrorThresholdInterceptor;
   private memoryGuard: MemoryGuard;
   private strategyFactory: ProcessingStrategyFactory;
   private detectionCenter: UnifiedDetectionCenter;
@@ -31,14 +31,14 @@ export class ProcessingGuard {
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.ErrorThresholdManager) errorManager?: ErrorThresholdManager,
+    @inject(TYPES.ErrorThresholdManager) errorManager?: ErrorThresholdInterceptor,
     @inject(TYPES.MemoryGuard) memoryGuard?: MemoryGuard,
     @inject(TYPES.ProcessingStrategyFactory) strategyFactory?: ProcessingStrategyFactory,
     @inject(TYPES.UnifiedDetectionCenter) detectionCenter?: UnifiedDetectionCenter,
     @inject(TYPES.IntelligentFallbackEngine) fallbackEngine?: IntelligentFallbackEngine
   ) {
     this.logger = logger;
-    this.errorManager = errorManager || new ErrorThresholdManager(logger);
+    this.errorManager = errorManager || new ErrorThresholdInterceptor({ maxErrorCount: 5 }, logger);
     this.memoryGuard = memoryGuard || new MemoryGuard(
       // 创建默认内存监控器
       {
@@ -79,7 +79,7 @@ export class ProcessingGuard {
    */
   static getInstance(
     logger?: LoggerService,
-    errorManager?: ErrorThresholdManager,
+    errorManager?: ErrorThresholdInterceptor,
     memoryGuard?: MemoryGuard,
     strategyFactory?: ProcessingStrategyFactory,
     detectionCenter?: UnifiedDetectionCenter

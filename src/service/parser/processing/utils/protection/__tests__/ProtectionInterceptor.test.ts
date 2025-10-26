@@ -1,22 +1,22 @@
 import { ProtectionInterceptor, ProtectionContext, ProtectionDecision, ProtectionInterceptorChain } from '../ProtectionInterceptor';
 import { MemoryLimitInterceptor, MemoryLimitConfig } from '../MemoryLimitInterceptor';
 import { ErrorThresholdInterceptor, ErrorThresholdConfig } from '../ErrorThresholdInterceptor';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { LoggerService } from '../../../../../../utils/LoggerService';
 
 // 模拟 LoggerService
 class MockLoggerService extends LoggerService {
   async debug(message: string, meta?: any): Promise<void> {
     console.log(`[DEBUG] ${message}`, meta);
   }
-  
+
   async warn(message: string, meta?: any): Promise<void> {
     console.log(`[WARN] ${message}`, meta);
   }
-  
+
   async error(message: string, error?: any): Promise<void> {
     console.log(`[ERROR] ${message}`, error);
   }
-  
+
   async info(message: string, meta?: any): Promise<void> {
     console.log(`[INFO] ${message}`, meta);
   }
@@ -38,7 +38,7 @@ describe('ProtectionInterceptor', () => {
   describe('ProtectionInterceptorChain', () => {
     it('should execute interceptors in priority order', async () => {
       const executionOrder: string[] = [];
-      
+
       const interceptor1: ProtectionInterceptor = {
         getName: () => 'TestInterceptor1',
         getPriority: () => 1,
@@ -73,7 +73,7 @@ describe('ProtectionInterceptor', () => {
 
     it('should stop execution when interceptor blocks', async () => {
       const executionOrder: string[] = [];
-      
+
       const interceptor1: ProtectionInterceptor = {
         getName: () => 'TestInterceptor1',
         getPriority: () => 1,
@@ -274,7 +274,7 @@ describe('ProtectionInterceptor', () => {
     it('should clean expired errors', async () => {
       // 记录一个错误
       errorInterceptor.recordError('parse_error', 'Test error');
-      
+
       // 模拟时间流逝（超过时间窗口）
       jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 70000); // 70秒后
 

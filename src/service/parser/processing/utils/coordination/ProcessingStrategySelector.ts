@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { BackupFileProcessor } from '../../../universal/BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../../../universal/ExtensionlessFileProcessor';
+import { BackupFileProcessor } from '../BackupFileProcessor';
+import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
 import { UniversalProcessingConfig } from '../../../universal/UniversalProcessingConfig';
 import {
   IProcessingStrategySelector,
@@ -12,7 +12,7 @@ import {
   ProcessingStrategyType
 } from '../../../universal/coordination/interfaces/IProcessingStrategySelector';
 import * as path from 'path';
-import { LANGUAGE_MAP } from '../../../universal/constants';
+import { LANGUAGE_MAP } from '../backup-constants';
 import { FileFeatureDetector } from '../../FileFeatureDetector';
 
 /**

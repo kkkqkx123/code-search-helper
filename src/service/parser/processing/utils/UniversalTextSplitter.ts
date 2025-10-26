@@ -10,9 +10,9 @@ import {
   SegmentationContext,
   UniversalChunkingOptions
 } from '../processing/strategies/types/SegmentationTypes';
-import { SegmentationContextManager } from './context/SegmentationContextManager';
+import { SegmentationContextManager } from '../processing/utils/context/SegmentationContextManager';
 import { ConfigurationManager } from '../processing/config/ConfigurationManager';
-import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
+import { ProtectionCoordinator } from '../processing/utils/protection/ProtectionCoordinator';
 import { TYPES } from '../../../types';
 import { FileFeatureDetector } from '../processing/utils/FileFeatureDetector';
 

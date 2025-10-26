@@ -1,11 +1,11 @@
 import { injectable } from 'inversify';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 import {
   SHEBANG_PATTERNS,
   SYNTAX_PATTERNS,
   FILE_STRUCTURE_PATTERNS,
   STRONG_FEATURE_LANGUAGES
-} from './constants';
+} from './backup-constants';
 
 /**
  * 无扩展名文件处理器
@@ -156,8 +156,8 @@ export class ExtensionlessFileProcessor {
   }
 
   /**
-   * 检查文件是否可能包含代码内容
-   */
+    * 检查文件是否可能包含代码内容
+    */
   isLikelyCodeFile(content: string): boolean {
     const detection = this.detectLanguageByContent(content);
     return detection.language !== 'unknown' && detection.confidence > 0.5;

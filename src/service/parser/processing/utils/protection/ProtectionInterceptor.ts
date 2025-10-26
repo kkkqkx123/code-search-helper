@@ -1,4 +1,4 @@
-import { LoggerService } from '../../../../utils/LoggerService';
+import { LoggerService } from '../../../../../utils/LoggerService';
 
 /**
  * 保护拦截器上下文

@@ -1,7 +1,7 @@
 import { LanguageDetectionResult } from './types';
 import { languageFeatureDetector, languageExtensionMap, fileUtils } from '../../utils';
-import { ExtensionlessFileProcessor } from '../../../parser/universal/ExtensionlessFileProcessor';
-import { BackupFileProcessor } from '../../../parser/universal/BackupFileProcessor';
+import { ExtensionlessFileProcessor } from '../../../parser/processing/utils/ExtensionlessFileProcessor';
+import { BackupFileProcessor } from '../../../parser/processing/utils/BackupFileProcessor';
 
 /**
  * 语言特征检测器

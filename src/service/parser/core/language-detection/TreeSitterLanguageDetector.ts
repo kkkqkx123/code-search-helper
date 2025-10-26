@@ -1,8 +1,8 @@
 import { ParserLanguage } from '../parse/TreeSitterCoreService';
 import { LanguageDetectionResult } from './types';
 import { languageExtensionMap, fileUtils, languageFeatureDetector } from '../../utils';
-import { ExtensionlessFileProcessor } from '../../../parser/universal/ExtensionlessFileProcessor';
-import { BackupFileProcessor } from '../../../parser/universal/BackupFileProcessor';
+import { ExtensionlessFileProcessor } from '../../../parser/processing/utils/ExtensionlessFileProcessor';
+import { BackupFileProcessor } from '../../../parser/processing/utils/BackupFileProcessor';
 
 /**
  * TreeSitter专用的语言检测器

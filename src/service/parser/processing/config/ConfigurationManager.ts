@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { IConfigurationManager, UniversalChunkingOptions } from '../strategies/types/SegmentationTypes';
-import { DEFAULT_CONFIG, BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD } from '../../universal/constants';
+import { DEFAULT_CONFIG, BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD } from '../utils/backup-constants';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 

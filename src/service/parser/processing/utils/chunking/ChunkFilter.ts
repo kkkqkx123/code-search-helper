@@ -3,7 +3,7 @@ import { ISegmentationProcessor, SegmentationContext } from '../../strategies/ty
 import { CodeChunk } from '../../../splitting';
 import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
+import { BLOCK_SIZE_LIMITS } from '../backup-constants';
 
 /**
  * 块过滤器

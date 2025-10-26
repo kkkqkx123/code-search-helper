@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { IProtectionCoordinator, SegmentationContext } from '../../processing/strategies/types/SegmentationTypes';
+import { IProtectionCoordinator, SegmentationContext } from '../../strategies/types/SegmentationTypes';
 import { ProtectionInterceptorChain, ProtectionContext } from './ProtectionInterceptor';
-import { TYPES } from '../../../../types';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { SegmentationContextFactory } from '../context/SegmentationContext';
+import { TYPES } from '../../../../../types';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { SegmentationContextFactory } from '../context/SegmentationContextFactory';
 
 /**
  * 保护协调器

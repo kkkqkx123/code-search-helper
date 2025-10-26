@@ -61,8 +61,8 @@ import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoor
 import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';
 // ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名
 type ProcessingGuard = UnifiedGuardCoordinator;
-import { UnifiedDetectionCenter } from './service/parser/universal/UnifiedDetectionCenter';
-import { IntelligentFallbackEngine } from './service/parser/universal/IntelligentFallbackEngine';
+import { UnifiedDetectionCenter } from './service/parser/processing/utils/UnifiedDetectionCenter';
+import { IntelligentFallbackEngine } from './service/parser/processing/utils/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from './service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextSplitter } from './service/parser/processing/utils/md/MarkdownTextSplitter';
 import { XMLTextSplitter } from './service/parser/processing/utils/xml/XMLTextSplitter';

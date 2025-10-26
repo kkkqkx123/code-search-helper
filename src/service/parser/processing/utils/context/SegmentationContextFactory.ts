@@ -1,5 +1,5 @@
 import { SegmentationContext, UniversalChunkingOptions } from '../../strategies/types/SegmentationTypes';
-import { BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD } from '../../../universal/constants';
+import { BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD } from '../backup-constants';
 import { languageExtensionMap } from '../../../universal/utils/language/LanguageExtensionMap';
 
 /**

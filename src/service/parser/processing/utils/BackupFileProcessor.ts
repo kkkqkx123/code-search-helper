@@ -1,7 +1,7 @@
 import { injectable } from 'inversify';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 import * as path from 'path';
-import { BACKUP_FILE_PATTERNS, LANGUAGE_MAP, CODE_LANGUAGES } from './constants';
+import { BACKUP_FILE_PATTERNS, LANGUAGE_MAP, CODE_LANGUAGES } from './backup-constants';
 
 /**
  * 备份文件处理器
@@ -22,13 +22,13 @@ export class BackupFileProcessor {
    */
   isBackupFile(filePath: string): boolean {
     const fileName = path.basename(filePath);
-    
+
     for (const pattern of this.backupPatterns) {
       if (fileName.endsWith(pattern)) {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -42,12 +42,12 @@ export class BackupFileProcessor {
     confidence: number;
   } {
     const baseName = path.basename(filePath);
-    
+
     // 尝试各种备份文件模式
     let originalFileName = baseName;
     let originalExtension = '';
     let confidence = 0.5; // 默认置信度
-    
+
     // 检查特殊模式：文件名中包含原始文件类型（如 *.py.bak, *.js.backup 等）
     // 这种模式下，文件名格式为：originalName.originalExt.backupExt
     const specialPatternMatch = baseName.match(/^(.+?)\.([a-z0-9]+)\.(?:bak|backup|old|tmp|temp|orig|save|swo)$/i);
@@ -55,7 +55,7 @@ export class BackupFileProcessor {
       // 提取原始文件名和扩展名
       const originalNameWithoutExt = specialPatternMatch[1];
       const detectedOriginalExt = '.' + specialPatternMatch[2].toLowerCase();
-      
+
       // 验证检测到的扩展名是否为有效编程语言扩展名
       if (this.isValidLanguageExtension(detectedOriginalExt)) {
         originalFileName = originalNameWithoutExt + detectedOriginalExt;
@@ -72,7 +72,7 @@ export class BackupFileProcessor {
           break;
         }
       }
-      
+
       // 使用 0.95 置信度，与 py.bak 等模式保持一致，额外添加 .txt/.md 是为了阻止 LSP 尝试解析
       if (!originalExtension && baseName.endsWith('.bak.md')) {
         originalFileName = baseName.slice(0, -7); // 移除 .bak.md
@@ -83,8 +83,8 @@ export class BackupFileProcessor {
         originalExtension = '.txt';
         confidence = 0.95;
       }
-      
-      
+
+
       // 如果没有找到原始扩展名，尝试其他方法
       if (!originalExtension) {
         // 检查文件名中是否包含扩展名模式
@@ -95,16 +95,16 @@ export class BackupFileProcessor {
         }
       }
     }
-    
+
     const originalLanguage = this.detectLanguageByExtension(originalExtension);
-    
+
     this.logger?.debug(`Inferred original type for backup file: ${filePath}`, {
       originalFileName,
       originalExtension,
       originalLanguage,
       confidence
     });
-    
+
     return {
       originalExtension,
       originalLanguage,
@@ -133,7 +133,7 @@ export class BackupFileProcessor {
   getOriginalFilePath(backupFilePath: string): string {
     const dir = path.dirname(backupFilePath);
     const inferred = this.inferOriginalType(backupFilePath);
-    
+
     return path.join(dir, inferred.originalFileName);
   }
 
@@ -146,8 +146,8 @@ export class BackupFileProcessor {
   }
 
   /**
-   * 获取备份文件的元数据
-   */
+    * 获取备份文件的元数据
+    */
   getBackupFileMetadata(filePath: string): {
     isBackup: boolean;
     backupType?: string;
@@ -160,7 +160,7 @@ export class BackupFileProcessor {
     isLikelyCode: boolean;
   } {
     const isBackup = this.isBackupFile(filePath);
-    
+
     if (!isBackup) {
       return {
         isBackup: false,
@@ -193,14 +193,14 @@ export class BackupFileProcessor {
    */
   private detectBackupType(filePath: string): string {
     const fileName = path.basename(filePath);
-    
+
     if (fileName.endsWith('.bak')) return 'standard-backup';
     if (fileName.endsWith('.backup')) return 'full-backup';
     if (fileName.endsWith('.old')) return 'old-version';
     if (fileName.endsWith('.tmp') || fileName.endsWith('.temp')) return 'temporary';
     if (fileName.endsWith('.orig')) return 'original';
     if (fileName.endsWith('.save')) return 'saved';
-    
+
     return 'unknown-backup';
   }
 

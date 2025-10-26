@@ -45,28 +45,29 @@ import { QueryResultNormalizer } from '../../service/parser/core/normalization/Q
 import { UniversalTextSplitter } from '../../service/parser/universal/UniversalTextSplitter';
 import { ErrorThresholdManager } from '../../service/parser/universal/ErrorThresholdManager';
 import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
-import { BackupFileProcessor } from '../../service/parser/universal/BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../../service/parser/universal/ExtensionlessFileProcessor';
+import { BackupFileProcessor } from '../../service/parser/processing/utils/BackupFileProcessor';
+import { ExtensionlessFileProcessor } from '../../service/parser/processing/utils/ExtensionlessFileProcessor';
+import { ErrorThresholdInterceptor } from '../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 // ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名，通过类型定义处理
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
-import { ProcessingStrategySelector } from '../../service/parser/universal/coordination/ProcessingStrategySelector';
-import { FileProcessingCoordinator } from '../../service/parser/universal/coordination/FileProcessingCoordinator';
+import { ProcessingStrategySelector } from '../../service/parser/processing/utils/coordination/ProcessingStrategySelector';
+import { FileProcessingCoordinator } from '../../service/parser/processing/utils/coordination/FileProcessingCoordinator';
 // import { OptimizedProcessingGuard } from '../../service/parser/guard/OptimizedProcessingGuard'; // 暂时注释掉，文件不存在
-import { UnifiedDetectionCenter } from '../../service/parser/universal/UnifiedDetectionCenter';
-import { IntelligentFallbackEngine } from '../../service/parser/universal/IntelligentFallbackEngine';
+import { UnifiedDetectionCenter } from '../../service/parser/processing/utils/UnifiedDetectionCenter';
+import { IntelligentFallbackEngine } from '../../service/parser/processing/utils/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextSplitter } from '../../service/parser/processing/utils/md/MarkdownTextSplitter';
 import { XMLTextSplitter } from '../../service/parser/processing/utils/xml/XMLTextSplitter';
 
 // 分段器模块服务
-import { SegmentationContextManager } from '../../service/parser/universal/context/SegmentationContextManager';
+import { SegmentationContextManager } from '../../service/parser/processing/utils/context/SegmentationContextManager';
 import { ConfigurationManager } from '../../service/parser/processing/config/ConfigurationManager';
-import { ProtectionCoordinator } from '../../service/parser/universal/protection/ProtectionCoordinator';
-import { ComplexityCalculator } from '../../service/parser/universal/processors/ComplexityCalculator';
-import { OverlapProcessor } from '../../service/parser/universal/processors/OverlapProcessor';
-import { ChunkFilter } from '../../service/parser/universal/processors/ChunkFilter';
-import { ChunkRebalancer } from '../../service/parser/universal/processors/ChunkRebalancer';
+import { ProtectionCoordinator } from '../../service/parser/processing/utils/protection/ProtectionCoordinator';
+import { ComplexityCalculator } from '../../service/parser/processing/utils/calculation/ComplexityCalculator';
+import { OverlapProcessor } from '../../service/parser/processing/utils/chunking/OverlapProcessor';
+import { ChunkFilter } from '../../service/parser/processing/utils/chunking/ChunkFilter';
+import { ChunkRebalancer } from '../../service/parser/processing/utils/chunking/ChunkRebalancer';
 import { SemanticSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/SemanticSegmentationStrategy';
 import { BracketSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/BracketSegmentationStrategy';
 import { LineStrategyProvider } from '../../service/parser/processing/strategies/providers/LineStrategyProvider';
@@ -203,13 +204,15 @@ export class BusinessServiceRegistrar {
       BusinessServiceRegistrar.initializeSegmentationServices(container);
 
       // 通用文件处理服务 - 使用新的模块化分段器
-      container.bind<ErrorThresholdManager>(TYPES.ErrorThresholdManager).toDynamicValue(context => {
+      container.bind<ErrorThresholdInterceptor>(TYPES.ErrorThresholdManager).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
         // 从环境变量获取配置，如果没有则使用默认值
         const maxErrors = parseInt(process.env.UNIVERSAL_MAX_ERRORS || '5', 10);
         const resetInterval = parseInt(process.env.UNIVERSAL_ERROR_RESET_INTERVAL || '60000', 10);
-        return new ErrorThresholdManager(logger, cleanupManager, maxErrors, resetInterval);
+        const config = { maxErrorCount: maxErrors };
+        const errorThresholdInterceptor = new ErrorThresholdInterceptor(config, logger, cleanupManager, maxErrors, resetInterval);
+        return errorThresholdInterceptor;
       }).inSingletonScope();
       container.bind<MemoryGuard>(TYPES.MemoryGuard).toDynamicValue(context => {
         const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);

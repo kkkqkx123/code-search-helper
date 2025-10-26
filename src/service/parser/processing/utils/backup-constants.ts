@@ -95,8 +95,8 @@ export const LANGUAGE_MAP: Record<string, string> = {
 
 // 代码语言列表常量
 export const CODE_LANGUAGES = [
-  'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-  'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'shell',
+ 'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
+ 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'shell',
   'html', 'css', 'scss', 'sass', 'less', 'vue', 'svelte', 'json',
   'xml', 'yaml', 'sql', 'dockerfile', 'cmake', 'perl', 'r', 'matlab',
   'lua', 'dart', 'elixir', 'erlang', 'haskell', 'ocaml', 'fsharp',
@@ -129,14 +129,14 @@ export const getDynamicBlockLimits = (contentLength: number, lineCount: number) 
   }
 
   // 中等文件：标准限制
-  if (contentLength < 2000 || lineCount < 100) {
+  if (contentLength < 2000 || lineCount < 10) {
     return BLOCK_SIZE_LIMITS;
   }
 
   // 大文件：严格限制
   return {
     MIN_BLOCK_CHARS: 50,
-    MAX_BLOCK_CHARS: 1000,
+    MAX_BLOCK_CHARS: 100,
     MAX_CHARS_TOLERANCE_FACTOR: 1.2,
     MIN_CHUNK_REMAINDER_CHARS: 200
   };
@@ -144,22 +144,22 @@ export const getDynamicBlockLimits = (contentLength: number, lineCount: number) 
 
 // 小文件阈值 - 小于这个大小的文件直接作为一个块处理
 export const SMALL_FILE_THRESHOLD = {
-  CHARS: 300,    // 300字符以下
+  CHARS: 300,    // 30字符以下
   LINES: 15      // 15行以下
 } as const;
 
 // 配置默认值常量
 export const DEFAULT_CONFIG = {
-  // 错误处理配置
+ // 错误处理配置
   MAX_ERRORS: 5,
-  ERROR_RESET_INTERVAL: 60000, // 1分钟
+  ERROR_RESET_INTERVAL: 6000, // 1分钟
 
   // 内存限制配置
   MEMORY_LIMIT_MB: 500,
   MEMORY_CHECK_INTERVAL: 5000, // 5秒
 
   // 分段参数配置
-  MAX_CHUNK_SIZE: 2000,
+ MAX_CHUNK_SIZE: 2000,
   CHUNK_OVERLAP: 200,
   MAX_LINES_PER_CHUNK: 50,
 
@@ -220,7 +220,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /#\s*.*$/m, // Python注释
     /\"\"\"[\s\S]*?\"\"\"/m, // Python多行注释
     /'''[\s\S]*?'''/m
-  ],
+ ],
   javascript: [
     /function\s+\w+\s*\(/m,
     /const\s+\w+\s*=/m,
@@ -318,7 +318,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /range\s+/m,
     /\/\/.*$/m,
     /\/\*[\s\S]*?\*\//m
-  ],
+ ],
   rust: [
     /use\s+[\w:]+/m,
     /fn\s+\w+\s*\(/m,
@@ -411,7 +411,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /margin\s*:/m,
     /padding\s*:/m,
     /\/\*[\s\S]*?\*\//m
-  ],
+ ],
   sql: [
     /SELECT\s+.+\s+FROM\s+/i,
     /INSERT\s+INTO\s+/i,
@@ -427,7 +427,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /JOIN\s+/i,
     /--\s*.*$/m,
     /\/\*[\s\S]*?\*\//m
-  ],
+ ],
   dockerfile: [
     /FROM\s+\w+/i,
     /RUN\s+/i,
@@ -475,7 +475,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /;\s*.*$/m,
     /#\s*.*$/m
   ],
-  makefile: [
+ makefile: [
     /^\w+:\s*$/m,
     /^\w+:\s+.*$/m,
     /^\t\w+/m, // 命令
