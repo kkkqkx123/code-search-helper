@@ -16,7 +16,7 @@ import { UniversalTextSplitter } from './universal/UniversalTextSplitter';
 import { BackupFileProcessor } from './processing/utils/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './processing/utils/ExtensionlessFileProcessor';
 import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
-import { LanguageDetector } from './core/language-detection/LanguageDetector';
+import { LanguageDetectionService } from './processing/detection/LanguageDetectionService';
 import { UnifiedDetectionCenter } from './universal/UnifiedDetectionCenter';
 
 export interface ProcessingOptions {
@@ -36,7 +36,7 @@ export interface ProcessingOptions {
 @injectable()
 export class ChunkToVectorCoordinationService {
   private projectEmbedders: Map<string, string> = new Map(); // 存储项目对应的embedder
-  private languageDetector: LanguageDetector;
+  private languageDetectionService: LanguageDetectionService;
 
   constructor(
     @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
@@ -52,7 +52,7 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer,
     @inject(TYPES.UnifiedDetectionCenter) private detectionCenter: UnifiedDetectionCenter
   ) {
-    this.languageDetector = new LanguageDetector();
+    this.languageDetectionService = new LanguageDetectionService(this.logger);
   }
 
   async processFileForEmbedding(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
@@ -113,7 +113,7 @@ export class ChunkToVectorCoordinationService {
   private async splitWithASTCodeSplitter(content: string, filePath: string, language: string | undefined): Promise<CodeChunk[]> {
     try {
       // 检查语言是否支持AST解析
-      if (!language || !this.languageDetector.isLanguageSupportedForAST(language)) {
+      if (!language || !this.languageDetectionService.isLanguageSupportedForAST(language)) {
         return [];
       }
 
@@ -193,12 +193,12 @@ export class ChunkToVectorCoordinationService {
    * 智能语言检测 - 根据文件内容推断语言
    */
   private async detectLanguageByContent(filePath: string, content: string): Promise<string | undefined> {
-    const detectionResult = await this.languageDetector.detectLanguage(filePath, content);
+    const detectionResult = await this.languageDetectionService.detectLanguage(filePath, content);
     return detectionResult.language;
   }
 
   private detectLanguage(filePath: string): string | undefined {
-    return this.languageDetector.detectLanguageSync(filePath);
+    return this.languageDetectionService.detectLanguageSync(filePath);
   }
 
   private async processWithFallback(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {

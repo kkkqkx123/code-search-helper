@@ -5,7 +5,7 @@ import { ConfigService } from '../../../../config/ConfigService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { TYPES } from '../../../../types';
-import { TreeSitterLanguageDetector } from '../language-detection/TreeSitterLanguageDetector';
+import { LanguageDetectionService } from '../../processing/detection/LanguageDetectionService';
 import { languageExtensionMap } from '../../utils';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
@@ -50,7 +50,7 @@ export class TreeSitterCoreService {
     maxParseTime: 0,
     minParseTime: Number.MAX_VALUE,
   };
-  private languageDetector: TreeSitterLanguageDetector;
+  private languageDetectionService: LanguageDetectionService;
   private extensionMap = languageExtensionMap;
   private useOptimizedQueries: boolean = true; // 优化查询系统开关
   private queryRegistry = QueryRegistryImpl;
@@ -60,7 +60,7 @@ export class TreeSitterCoreService {
   private queryEngine: TreeSitterQueryEngine;
 
   constructor() {
-    this.languageDetector = new TreeSitterLanguageDetector();
+    this.languageDetectionService = new LanguageDetectionService(this.logger);
     this.dynamicManager = new DynamicParserManager();
     this.errorHandler = new ErrorHandlerService(this.logger);
     this.queryEngine = QueryEngineFactory.getInstance();

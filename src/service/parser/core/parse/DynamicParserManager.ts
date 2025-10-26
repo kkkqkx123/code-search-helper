@@ -5,7 +5,7 @@ import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageExtensionMap } from '../../utils';
-import { LanguageDetector } from '../language-detection/LanguageDetector';
+import { LanguageDetectionService } from '../../processing/detection/LanguageDetectionService';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -49,11 +49,11 @@ export class DynamicParserManager {
   private logger = new LoggerService();
   private errorHandler: ErrorHandlerService;
   private querySystemInitialized = false;
-  private languageDetector: LanguageDetector;
+  private languageDetectionService: LanguageDetectionService;
 
   constructor() {
     this.errorHandler = new ErrorHandlerService(this.logger);
-    this.languageDetector = new LanguageDetector();
+    this.languageDetectionService = new LanguageDetectionService(this.logger);
     this.initializeLanguageLoaders();
     this.initializeQuerySystem();
   }
@@ -244,7 +244,7 @@ export class DynamicParserManager {
    */
 async detectLanguage(filePath: string, content?: string): Promise<string | null> {
     // 使用语言检测器进行智能检测
-    const detectionResult = await this.languageDetector.detectLanguage(filePath, content);
+    const detectionResult = await this.languageDetectionService.detectLanguage(filePath, content);
     if (detectionResult.language) {
       return detectionResult.language;
     }
@@ -257,7 +257,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
    */
   private detectLanguageFromContent(content: string, filePath?: string): string | null {
     // 使用语言检测器进行内容检测
-    const detectionResult = this.languageDetector.detectLanguageByContent(content);
+    const detectionResult = this.languageDetectionService.detectLanguageByContent(content);
     if (detectionResult.language && detectionResult.confidence > 0.5) {
       return detectionResult.language;
     }

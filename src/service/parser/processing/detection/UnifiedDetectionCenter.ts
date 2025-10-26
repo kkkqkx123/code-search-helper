@@ -4,7 +4,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { BackupFileProcessor } from '../utils/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
-import { LanguageDetector, LanguageDetectionResult } from '../core/language-detection/LanguageDetector';
+import { LanguageDetectionService, LanguageDetectionResult } from './LanguageDetectionService';
 import { UniversalProcessingConfig } from '../config/UniversalProcessingConfig';
 import { FileFeatureDetector } from './FileFeatureDetector';
 
@@ -43,7 +43,7 @@ export enum ProcessingStrategyType {
 export class UnifiedDetectionCenter {
   private backupProcessor: BackupFileProcessor;
   private extensionlessProcessor: ExtensionlessFileProcessor;
-  private languageDetector: LanguageDetector;
+  private languageDetectionService: LanguageDetectionService;
   private config: UniversalProcessingConfig;
   private fileFeatureDetector: FileFeatureDetector;
   private detectionCache: Map<string, DetectionResult> = new Map();
@@ -54,11 +54,11 @@ export class UnifiedDetectionCenter {
     @inject(TYPES.BackupFileProcessor) backupProcessor?: BackupFileProcessor,
     @inject(TYPES.ExtensionlessFileProcessor) extensionlessProcessor?: ExtensionlessFileProcessor,
     @inject(TYPES.UniversalProcessingConfig) config?: UniversalProcessingConfig,
-    @inject(TYPES.LanguageDetector) languageDetector?: LanguageDetector
+    languageDetectionService?: LanguageDetectionService
   ) {
     this.backupProcessor = backupProcessor || new BackupFileProcessor(logger);
     this.extensionlessProcessor = extensionlessProcessor || new ExtensionlessFileProcessor(logger);
-    this.languageDetector = languageDetector || new LanguageDetector();
+    this.languageDetectionService = languageDetectionService || new LanguageDetectionService(logger);
     this.config = config || new UniversalProcessingConfig(logger);
     this.fileFeatureDetector = new FileFeatureDetector(logger);
   }
@@ -114,7 +114,7 @@ export class UnifiedDetectionCenter {
     }
 
     // 2. 使用LanguageDetector进行语言检测
-    const languageDetection = await this.languageDetector.detectLanguage(filePath, content);
+    const languageDetection = await this.languageDetectionService.detectLanguage(filePath, content);
     if (languageDetection.language && languageDetection.language !== 'unknown') {
       const isHighlyStructured = this.fileFeatureDetector.isHighlyStructured(content, languageDetection.language);
       const ext = path.extname(filePath).toLowerCase();
