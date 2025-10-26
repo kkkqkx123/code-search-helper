@@ -10,7 +10,7 @@ import { CodeChunk } from '../../splitting';
 import { SegmentationContextFactory } from './SegmentationContext';
 import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { FileFeatureDetector } from '../utils/FileFeatureDetector';
+import { FileFeatureDetector } from '../../processing/utils/FileFeatureDetector';
 
 /**
  * 分段上下文管理器

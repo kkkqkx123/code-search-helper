@@ -4,7 +4,7 @@ import { TYPES } from '../../../../types';
 import { IProcessingStrategy } from '../../processing/strategies/impl/base/IProcessingStrategy';
 import { DetectionResult, ProcessingStrategyType } from '../UnifiedDetectionCenter';
 import { ProcessingStrategyFactory } from '../../processing/strategies/providers/ProcessingStrategyFactory';
-import { FileFeatureDetector } from '../utils/FileFeatureDetector';
+import { FileFeatureDetector } from '../../processing/utils/FileFeatureDetector';
 
 /**
  * 策略管理器

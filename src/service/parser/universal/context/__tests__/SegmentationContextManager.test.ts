@@ -1,6 +1,6 @@
 import { SegmentationContextManager } from '../SegmentationContextManager';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { ConfigurationManager } from '../../config/ConfigurationManager';
+import { ConfigurationManager } from '../../../processing/config/ConfigurationManager';
 import { ISegmentationStrategy, SegmentationContext, UniversalChunkingOptions } from '../../../processing/strategies/types/SegmentationTypes';
 import { CodeChunk } from '../../../splitting';
 

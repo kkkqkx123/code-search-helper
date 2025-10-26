@@ -11,10 +11,10 @@ import {
   UniversalChunkingOptions
 } from '../processing/strategies/types/SegmentationTypes';
 import { SegmentationContextManager } from './context/SegmentationContextManager';
-import { ConfigurationManager } from './config/ConfigurationManager';
+import { ConfigurationManager } from '../processing/config/ConfigurationManager';
 import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
 import { TYPES } from '../../../types';
-import { FileFeatureDetector } from './utils/FileFeatureDetector';
+import { FileFeatureDetector } from '../processing/utils/FileFeatureDetector';
 
 /**
  * 通用文本分段器（重构后版本）

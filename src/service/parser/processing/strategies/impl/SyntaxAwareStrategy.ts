@@ -4,7 +4,7 @@ import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
 import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { ChunkOptimizer } from '../../../splitting/utils/chunk-processing/ChunkOptimizer';
+import { ChunkOptimizer } from '../../utils/chunk-processing/ChunkOptimizer';
 import { strategyFactory } from '../../../splitting/core/SplitStrategyFactory';
 import { ISplitStrategy as OldISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
 
@@ -175,7 +175,7 @@ export class SyntaxAwareStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.LoggerService) private logger?: LoggerService,
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'SyntaxAwareStrategyProvider';

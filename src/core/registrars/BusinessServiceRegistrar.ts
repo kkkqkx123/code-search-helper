@@ -61,7 +61,7 @@ import { XMLTextSplitter } from '../../service/parser/processing/utils/xml/XMLTe
 
 // 分段器模块服务
 import { SegmentationContextManager } from '../../service/parser/universal/context/SegmentationContextManager';
-import { ConfigurationManager } from '../../service/parser/universal/config/ConfigurationManager';
+import { ConfigurationManager } from '../../service/parser/processing/config/ConfigurationManager';
 import { ProtectionCoordinator } from '../../service/parser/universal/protection/ProtectionCoordinator';
 import { ComplexityCalculator } from '../../service/parser/universal/processors/ComplexityCalculator';
 import { OverlapProcessor } from '../../service/parser/universal/processors/OverlapProcessor';
@@ -286,7 +286,7 @@ export class BusinessServiceRegistrar {
         // 获取策略选择器和文件处理协调器
         const processingStrategySelector = context.get<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector);
         const fileProcessingCoordinator = context.get<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator);
-        
+
         // 获取 ProcessingGuard 整合的依赖
         const detectionCenter = context.get<UnifiedDetectionCenter>(TYPES.UnifiedDetectionCenter);
         const strategyFactory = context.get<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory);

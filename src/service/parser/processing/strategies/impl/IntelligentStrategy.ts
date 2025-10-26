@@ -4,12 +4,12 @@ import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
 import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
 import { BalancedChunker } from '../../../splitting/BalancedChunker';
-import { ComplexityCalculator } from '../../../splitting/utils/ComplexityCalculator';
-import { SyntaxValidator } from '../../../splitting/utils/SyntaxValidator';
-import { SemanticBoundaryAnalyzer } from '../../../splitting/utils/SemanticBoundaryAnalyzer';
-import { UnifiedOverlapCalculator } from '../../../splitting/utils/overlap/UnifiedOverlapCalculator';
-import { LanguageSpecificConfigManager } from '../../../splitting/config/LanguageSpecificConfigManager';
-import { ChunkingPerformanceOptimizer } from '../../../splitting/utils/performance/ChunkingPerformanceOptimizer';
+import { ComplexityCalculator } from '../../utils/ComplexityCalculator';
+import { SyntaxValidator } from '../../utils/SyntaxValidator';
+import { SemanticBoundaryAnalyzer } from '../../utils/SemanticBoundaryAnalyzer';
+import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
+import { LanguageSpecificConfigManager } from '../../config/LanguageSpecificConfigManager';
+import { ChunkingPerformanceOptimizer } from '../../utils/performance/ChunkingPerformanceOptimizer';
 
 export class IntelligentSplitter implements ISplitStrategy {
   private options: Required<ChunkingOptions>;
@@ -300,7 +300,7 @@ export class IntelligentSplitter implements ISplitStrategy {
 export class IntelligentStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'IntelligentStrategyProvider';

@@ -1,7 +1,7 @@
 import { ComplexityCalculator } from '../utils/ComplexityCalculator';
 import { SyntaxValidator } from '../utils/SyntaxValidator';
-import { ChunkOptimizer } from '../utils/chunk-processing';
-import { PerformanceMonitor } from '../utils/performance';
+import { ChunkOptimizer } from '../../processing/utils/chunk-processing';
+import { PerformanceMonitor } from '../../processing/utils/performance';
 import { BalancedChunker } from '../BalancedChunker';
 import { CodeChunk } from '..';
 

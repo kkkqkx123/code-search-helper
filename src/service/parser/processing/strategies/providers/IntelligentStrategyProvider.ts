@@ -7,8 +7,8 @@ import { CodeChunk } from '../../../splitting';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { IntelligentSplitter } from '../impl/IntelligentStrategy';
 import { BalancedChunker } from '../../../splitting/BalancedChunker';
-import { SemanticBoundaryAnalyzer } from '../../../splitting/utils/SemanticBoundaryAnalyzer';
-import { UnifiedOverlapCalculator } from '../../../splitting/utils/overlap/UnifiedOverlapCalculator';
+import { SemanticBoundaryAnalyzer } from '../../utils/SemanticBoundaryAnalyzer';
+import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
 
 /**
  * 智能分段策略实现

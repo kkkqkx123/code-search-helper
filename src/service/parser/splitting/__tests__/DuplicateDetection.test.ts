@@ -1,5 +1,5 @@
-import { SimilarityDetector } from '../utils/similarity/SimilarityDetector';
-import { UnifiedOverlapCalculator } from '../utils/overlap/UnifiedOverlapCalculator';
+import { SimilarityDetector } from '../../processing/utils/similarity/SimilarityDetector';
+import { UnifiedOverlapCalculator } from '../../processing/utils/overlap/UnifiedOverlapCalculator';
 import { ASTNodeTracker } from '../utils/ASTNodeTracker';
 import { ContentHashIDGenerator } from '../utils/ContentHashIDGenerator';
 import { CodeChunk } from '..';

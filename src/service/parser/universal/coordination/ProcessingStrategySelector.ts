@@ -6,14 +6,14 @@ import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
 import { UniversalProcessingConfig } from '../UniversalProcessingConfig';
 import {
   IProcessingStrategySelector,
- ILanguageDetectionInfo,
+  ILanguageDetectionInfo,
   IStrategySelectionContext,
   IStrategySelectionResult,
   ProcessingStrategyType
 } from './interfaces/IProcessingStrategySelector';
 import * as path from 'path';
 import { LANGUAGE_MAP } from '../constants';
-import { FileFeatureDetector } from '../utils/FileFeatureDetector';
+import { FileFeatureDetector } from '../../processing/utils/FileFeatureDetector';
 
 /**
  * 处理策略选择器
@@ -34,7 +34,7 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
     @inject(TYPES.UniversalProcessingConfig) config?: UniversalProcessingConfig
   ) {
     this.logger = logger;
-    
+
     // 如果没有提供依赖，创建默认实例
     this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
     this.extensionlessFileProcessor = extensionlessFileProcessor || new ExtensionlessFileProcessor(logger);
@@ -61,9 +61,9 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
       if (this.backupFileProcessor.isBackupFile(filePath)) {
         const backupInfo = this.backupFileProcessor.inferOriginalType(filePath);
         const confidenceThreshold = this.config.getBackupFileConfidenceThreshold();
-        
+
         this.logger?.info(`Detected backup file, original language: ${backupInfo.originalLanguage}, confidence: ${backupInfo.confidence}, threshold: ${confidenceThreshold}`);
-        
+
         // 只有当置信度超过阈值时才采纳备份文件的推断结果
         if (backupInfo.confidence >= confidenceThreshold) {
           return {
@@ -102,7 +102,7 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
               };
             }
           }
-          
+
           this.logger?.info(`Extension-based detection: ${languageFromExt}`);
           return {
             language: languageFromExt,
@@ -191,7 +191,7 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
             }
           };
         }
-        
+
         // 检查是否为结构化文件
         if (this.isStructuredFile(content, language)) {
           this.logger?.info(`Structured file detected for language: ${language}`);
@@ -205,7 +205,7 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
             }
           };
         }
-        
+
         // 如果不能使用TreeSitter，使用精细的语义分段
         this.logger?.info(`Code language without TreeSitter support: ${language}`);
         return {
@@ -278,35 +278,35 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
    /**
     * 根据扩展名检测语言
     */
-   private detectLanguageByExtension(extension: string): string {
-     return this.fileFeatureDetector.detectLanguageByExtension(extension, LANGUAGE_MAP);
-   }
- 
-   /**
-    * 检查是否为代码语言
-    */
-   isCodeLanguage(language: string): boolean {
-     return this.fileFeatureDetector.isCodeLanguage(language);
-   }
- 
-   /**
-    * 检查是否为文本类语言（需要智能分段的非代码文件）
-    */
-   isTextLanguage(language: string): boolean {
-     return this.fileFeatureDetector.isTextLanguage(language);
-   }
- 
-   /**
-    * 检查是否可以使用TreeSitter
-    */
-   canUseTreeSitter(language: string): boolean {
-     return this.fileFeatureDetector.canUseTreeSitter(language);
-   }
- 
-   /**
-    * 检查是否为结构化文件
-    */
-   isStructuredFile(content: string, language: string): boolean {
-     return this.fileFeatureDetector.isStructuredFile(content, language);
-   }
+  private detectLanguageByExtension(extension: string): string {
+    return this.fileFeatureDetector.detectLanguageByExtension(extension, LANGUAGE_MAP);
+  }
+
+  /**
+   * 检查是否为代码语言
+   */
+  isCodeLanguage(language: string): boolean {
+    return this.fileFeatureDetector.isCodeLanguage(language);
+  }
+
+  /**
+   * 检查是否为文本类语言（需要智能分段的非代码文件）
+   */
+  isTextLanguage(language: string): boolean {
+    return this.fileFeatureDetector.isTextLanguage(language);
+  }
+
+  /**
+   * 检查是否可以使用TreeSitter
+   */
+  canUseTreeSitter(language: string): boolean {
+    return this.fileFeatureDetector.canUseTreeSitter(language);
+  }
+
+  /**
+   * 检查是否为结构化文件
+   */
+  isStructuredFile(content: string, language: string): boolean {
+    return this.fileFeatureDetector.isStructuredFile(content, language);
+  }
 }

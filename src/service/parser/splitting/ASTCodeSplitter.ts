@@ -4,15 +4,15 @@ import { TYPES } from '../../../types';
 import { TreeSitterService } from '../core/parse/TreeSitterService';
 import { LoggerService } from '../../../utils/LoggerService';
 import { BalancedChunker } from './BalancedChunker';
-import { ChunkingConfigManager } from './config/ChunkingConfigManager';
+import { ChunkingConfigManager } from '../processing/config/ChunkingConfigManager';
 import { SplitStrategyFactory, strategyFactory } from './core/SplitStrategyFactory';
 import { ensureStrategyProvidersRegistered } from './core/StrategyProviderRegistration';
 import { ChunkingCoordinator } from './utils/ChunkingCoordinator';
-import { UnifiedOverlapCalculator } from './utils/overlap/UnifiedOverlapCalculator';
+import { UnifiedOverlapCalculator } from '../processing/utils/overlap/UnifiedOverlapCalculator';
 import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '.';
-import { PerformanceOptimizer } from './utils/performance/PerformanceOptimizer';
-import { IPerformanceMonitoringSystem } from './utils/performance/IPerformanceMonitoringSystem';
-import { UnifiedPerformanceMonitoringSystem } from './utils/performance/UnifiedPerformanceMonitoringSystem';
+import { PerformanceOptimizer } from '../processing/utils/performance/PerformanceOptimizer';
+import { IPerformanceMonitoringSystem } from '../processing/utils/performance/IPerformanceMonitoringSystem';
+import { UnifiedPerformanceMonitoringSystem } from '../processing/utils/performance/UnifiedPerformanceMonitoringSystem';
 import { ProcessingGuard } from '../guard/ProcessingGuard';
 
 /**

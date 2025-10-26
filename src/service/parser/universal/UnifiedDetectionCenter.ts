@@ -6,7 +6,7 @@ import { BackupFileProcessor } from './BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
 import { LanguageDetector, LanguageDetectionResult } from '../core/language-detection/LanguageDetector';
 import { UniversalProcessingConfig } from './UniversalProcessingConfig';
-import { FileFeatureDetector } from './utils/FileFeatureDetector';
+import { FileFeatureDetector } from '../processing/utils/FileFeatureDetector';
 
 export interface DetectionResult {
   language: string;
