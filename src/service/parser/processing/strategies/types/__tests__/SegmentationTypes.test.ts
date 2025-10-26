@@ -16,7 +16,7 @@ import {
   FilterResult,
   RebalancerResult
 } from '../SegmentationTypes';
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../../../splitting';
 
 describe('SegmentationTypes', () => {
   describe('UniversalChunkingOptions', () => {

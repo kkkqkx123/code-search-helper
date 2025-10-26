@@ -9,7 +9,7 @@ import {
   IConfigurationManager,
   SegmentationContext,
   UniversalChunkingOptions
-} from './types/SegmentationTypes';
+} from '../processing/strategies/types/SegmentationTypes';
 import { SegmentationContextManager } from './context/SegmentationContextManager';
 import { ConfigurationManager } from './config/ConfigurationManager';
 import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
@@ -29,7 +29,7 @@ export class UniversalTextSplitter implements ITextSplitter {
   private options: UniversalChunkingOptions;
   private logger?: LoggerService;
   private fileFeatureDetector: FileFeatureDetector;
-  
+
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ConfigurationManager) configManager: ConfigurationManager,
@@ -42,55 +42,55 @@ export class UniversalTextSplitter implements ITextSplitter {
       this.options = configManager.getDefaultOptions();
       this.processors = [];
       this.fileFeatureDetector = new FileFeatureDetector(logger);
-      
+
       this.logger?.debug('Initializing UniversalTextSplitter...');
-      
+
       // 创建上下文管理器
       this.contextManager = new SegmentationContextManager(logger, configManager);
-      
+
       this.logger?.debug('UniversalTextSplitter initialized successfully');
     } catch (error) {
       this.logger?.error('Failed to initialize UniversalTextSplitter:', error);
       throw error;
     }
   }
-  
+
   /**
    * 基于语义边界的分段
    */
   async chunkBySemanticBoundaries(
-    content: string, 
-    filePath?: string, 
+    content: string,
+    filePath?: string,
     language?: string
   ): Promise<CodeChunk[]> {
     const context = this.createSegmentationContext(content, filePath, language);
     return this.executeSegmentation('semantic', context);
   }
-  
+
   /**
    * 基于括号和行数的分段
    */
   async chunkByBracketsAndLines(
-    content: string, 
-    filePath?: string, 
+    content: string,
+    filePath?: string,
     language?: string
   ): Promise<CodeChunk[]> {
     const context = this.createSegmentationContext(content, filePath, language);
     return this.executeSegmentation('bracket', context);
   }
-  
+
   /**
    * 基于行数的分段
    */
   async chunkByLines(
-    content: string, 
-    filePath?: string, 
+    content: string,
+    filePath?: string,
     language?: string
   ): Promise<CodeChunk[]> {
     const context = this.createSegmentationContext(content, filePath, language);
     return this.executeSegmentation('line', context);
   }
-  
+
   /**
    * 设置分段选项
    */
@@ -98,14 +98,14 @@ export class UniversalTextSplitter implements ITextSplitter {
     this.options = this.configManager.mergeOptions(this.options, options);
     this.logger?.debug('Updated segmentation options', options);
   }
-  
+
   /**
    * 获取当前分段选项
    */
   getOptions(): UniversalChunkingOptions {
     return { ...this.options };
   }
-  
+
   /**
    * 设置保护拦截器链
    */
@@ -113,7 +113,7 @@ export class UniversalTextSplitter implements ITextSplitter {
     this.protectionCoordinator.setProtectionChain(chain);
     this.logger?.debug('Protection interceptor chain set for UniversalTextSplitter');
   }
-  
+
   /**
    * 添加处理器
    */
@@ -121,102 +121,102 @@ export class UniversalTextSplitter implements ITextSplitter {
     this.processors.push(processor);
     this.logger?.debug(`Added processor: ${processor.getName()}`);
   }
-  
+
   /**
    * 移除处理器
    */
   removeProcessor(processorName: string): void {
     const initialLength = this.processors.length;
     this.processors = this.processors.filter(p => p.getName() !== processorName);
-    
+
     if (this.processors.length < initialLength) {
       this.logger?.debug(`Removed processor: ${processorName}`);
     }
   }
-  
+
   /**
    * 获取所有处理器
    */
   getProcessors(): ISegmentationProcessor[] {
     return [...this.processors];
   }
-  
+
   /**
    * 创建分段上下文
    */
   private createSegmentationContext(
-    content: string, 
-    filePath?: string, 
+    content: string,
+    filePath?: string,
     language?: string
   ): SegmentationContext {
     return this.contextManager.createSegmentationContext(
-      content, 
-      filePath, 
-      language, 
+      content,
+      filePath,
+      language,
       this.options
     );
   }
-  
+
   /**
    * 执行分段
    */
   private async executeSegmentation(
-    strategyType: string, 
+    strategyType: string,
     context: SegmentationContext
   ): Promise<CodeChunk[]> {
     // 对小文件直接作为一个块处理
     if (context.metadata.isSmallFile) {
       return this.chunkSmallFile(context);
     }
-    
+
     // 执行保护检查
     if (context.options.protectionConfig.enableProtection) {
       const protectionContext = this.protectionCoordinator.createProtectionContext(
         strategyType + '_chunk',
         context
       );
-      
+
       const isAllowed = await this.protectionCoordinator.checkProtection(protectionContext);
-      
+
       if (!isAllowed) {
         this.logger?.warn(`${strategyType} segmentation blocked by protection mechanism`);
         // 降级到行数分段
         return this.executeSegmentation('line', context);
       }
     }
-    
+
     try {
       // 选择并执行策略
       const strategy = this.contextManager.selectStrategy(context, strategyType);
       let chunks = await this.contextManager.executeStrategy(strategy, context);
-      
+
       // 应用处理器
       chunks = await this.applyProcessors(chunks, context);
-      
+
       this.logger?.info(`${strategyType} segmentation completed: ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
       this.logger?.error(`${strategyType} segmentation failed:`, error);
-      
+
       // 尝试降级到行数分段
       if (strategyType !== 'line') {
         this.logger?.warn('Falling back to line-based segmentation');
         return this.executeSegmentation('line', context);
       }
-      
+
       throw error;
     }
   }
-  
+
   /**
    * 应用处理器到分块结果
    */
   private async applyProcessors(
-    chunks: CodeChunk[], 
+    chunks: CodeChunk[],
     context: SegmentationContext
   ): Promise<CodeChunk[]> {
     let processedChunks = [...chunks];
-    
+
     for (const processor of this.processors) {
       if (processor.shouldApply(processedChunks, context)) {
         try {
@@ -228,17 +228,17 @@ export class UniversalTextSplitter implements ITextSplitter {
         }
       }
     }
-    
+
     return processedChunks;
   }
-  
+
   /**
    * 小文件处理
    */
   private chunkSmallFile(context: SegmentationContext): CodeChunk[] {
     const { content, filePath, language } = context;
     const lines = content.split('\n');
-    
+
     const metadata = {
       startLine: 1,
       endLine: lines.length,
@@ -255,7 +255,7 @@ export class UniversalTextSplitter implements ITextSplitter {
       metadata
     }];
   }
-  
+
   /**
    * 获取分段统计信息
    */
@@ -273,7 +273,7 @@ export class UniversalTextSplitter implements ITextSplitter {
       processorUsage: {}
     };
   }
-  
+
   /**
    * 获取标准化统计信息（与分段统计信息相同，保持兼容性）
    */
@@ -286,21 +286,21 @@ export class UniversalTextSplitter implements ITextSplitter {
     // 为了兼容性，返回分段统计信息
     return this.getSegmentationStats();
   }
-  
+
   /**
    * 重置统计信息
    */
   resetSegmentationStats(): void {
     this.logger?.debug('Segmentation statistics reset');
   }
-  
+
   /**
    * 重置标准化统计信息（与分段统计信息相同，保持兼容性）
    */
   resetStandardizationStats(): void {
     this.resetSegmentationStats();
   }
-  
+
   /**
    * 验证配置
    */
@@ -310,37 +310,37 @@ export class UniversalTextSplitter implements ITextSplitter {
       errors: [] // 可以添加具体的验证逻辑
     };
   }
-  
+
   /**
    * 获取支持的语言列表
    */
   getSupportedLanguages(): string[] {
     const strategies = this.contextManager.getStrategies();
     const supportedLanguages = new Set<string>();
-    
+
     for (const strategy of strategies) {
       if (strategy.getSupportedLanguages) {
         const languages = strategy.getSupportedLanguages();
         languages.forEach(lang => supportedLanguages.add(lang));
       }
     }
-    
+
     return Array.from(supportedLanguages);
   }
-  
+
   /**
    * 获取可用的策略列表
    */
   getAvailableStrategies(): Array<{ name: string; priority: number; supportedLanguages?: string[] }> {
     const strategies = this.contextManager.getStrategies();
-    
+
     return strategies.map(strategy => ({
       name: strategy.getName(),
       priority: strategy.getPriority(),
       supportedLanguages: strategy.getSupportedLanguages ? strategy.getSupportedLanguages() : undefined
     }));
   }
-  
+
   /**
    * 性能测试
    */
@@ -356,18 +356,18 @@ export class UniversalTextSplitter implements ITextSplitter {
   }[]> {
     const strategies = this.contextManager.getStrategies();
     const results = [];
-    
+
     for (const strategy of strategies) {
       if (strategy.canHandle(this.createSegmentationContext(content, filePath, language))) {
         const startTime = Date.now();
         try {
           const chunks = await this.contextManager.executeStrategy(
-            strategy, 
+            strategy,
             this.createSegmentationContext(content, filePath, language)
           );
           const duration = Date.now() - startTime;
           const averageChunkSize = chunks.reduce((sum, chunk) => sum + chunk.content.length, 0) / chunks.length;
-          
+
           results.push({
             strategy: strategy.getName(),
             duration,
@@ -379,10 +379,10 @@ export class UniversalTextSplitter implements ITextSplitter {
         }
       }
     }
-    
+
     return results;
   }
-  
+
   /**
    * 批量分段
    */
@@ -390,7 +390,7 @@ export class UniversalTextSplitter implements ITextSplitter {
     files: Array<{ content: string; filePath?: string; language?: string }>
   ): Promise<Array<{ chunks: CodeChunk[]; error?: Error }>> {
     const results = [];
-    
+
     for (const file of files) {
       try {
         const chunks = await this.chunkBySemanticBoundaries(
@@ -400,16 +400,16 @@ export class UniversalTextSplitter implements ITextSplitter {
         );
         results.push({ chunks });
       } catch (error) {
-        results.push({ 
-          chunks: [], 
+        results.push({
+          chunks: [],
           error: error instanceof Error ? error : new Error(String(error))
         });
       }
     }
-    
+
     return results;
   }
-  
+
   /**
    * 健康检查
    */
@@ -420,7 +420,7 @@ export class UniversalTextSplitter implements ITextSplitter {
   }> {
     const issues: string[] = [];
     const components: Record<string, boolean> = {};
-    
+
     // 检查上下文管理器
     try {
       const strategies = this.contextManager.getStrategies();
@@ -432,7 +432,7 @@ export class UniversalTextSplitter implements ITextSplitter {
       components.contextManager = false;
       issues.push(`Context manager error: ${error}`);
     }
-    
+
     // 检查配置管理器
     try {
       const options = this.configManager.getDefaultOptions();
@@ -444,7 +444,7 @@ export class UniversalTextSplitter implements ITextSplitter {
       components.configManager = false;
       issues.push(`Configuration manager error: ${error}`);
     }
-    
+
     // 检查保护协调器
     try {
       components.protectionCoordinator = !!this.protectionCoordinator;
@@ -452,7 +452,7 @@ export class UniversalTextSplitter implements ITextSplitter {
       components.protectionCoordinator = false;
       issues.push(`Protection coordinator error: ${error}`);
     }
-    
+
     // 检查处理器
     try {
       components.processors = Array.isArray(this.processors);
@@ -460,9 +460,9 @@ export class UniversalTextSplitter implements ITextSplitter {
       components.processors = false;
       issues.push(`Processors error: ${error}`);
     }
-    
+
     const isHealthy = issues.length === 0 && Object.values(components).every(Boolean);
-    
+
     return {
       isHealthy,
       issues,

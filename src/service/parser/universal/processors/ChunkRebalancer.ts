@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationProcessor, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
+import { ISegmentationProcessor, SegmentationContext, IComplexityCalculator } from '../../processing/strategies/types/SegmentationTypes';
 import { CodeChunk } from '../../splitting';
 import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
@@ -80,13 +80,13 @@ export class ChunkRebalancer implements ISegmentationProcessor {
     if (chunks.length === 0) {
       return chunks;
     }
-    
+
     const targetSize = this.calculateOptimalChunkSize(chunks, context);
     const rebalancedChunks: CodeChunk[] = [];
-    
+
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      
+
       if (this.isOverSized(chunk, context)) {
         // 拆分过大的块
         const splitChunks = this.splitOversizedChunk(chunk, targetSize, context);
@@ -106,10 +106,10 @@ export class ChunkRebalancer implements ISegmentationProcessor {
         rebalancedChunks.push(chunk);
       }
     }
-    
+
     return rebalancedChunks;
   }
-  
+
   /**
    * 判断块是否应该与前一个块合并
    */
@@ -117,26 +117,26 @@ export class ChunkRebalancer implements ISegmentationProcessor {
     if (rebalancedChunks.length === 0) {
       return false;
     }
-    
+
     // 如果块不是过小的，不合并
     if (!this.isUnderSized(chunk, context)) {
       return false;
     }
-    
+
     // 检查块类型：某些类型的块即使过小也应该保持独立
     const chunkType = chunk.metadata.type || '';
     const independentTypes = ['function', 'class', 'method', 'interface'];
-    
+
     if (independentTypes.includes(chunkType)) {
       return false;
     }
-    
+
     // 检查内容：如果包含函数定义等，保持独立
     const content = chunk.content.trim();
     if (content.includes('function ') || content.includes('class ') || content.includes('=>')) {
       return false;
     }
-    
+
     return true;
   }
 
@@ -177,22 +177,22 @@ export class ChunkRebalancer implements ISegmentationProcessor {
    */
   private canSafelyMerge(chunk1: CodeChunk, chunk2: CodeChunk, context: SegmentationContext): boolean {
     const combinedSize = chunk1.content.length + chunk2.content.length;
-    
+
     // 大小限制
     if (combinedSize > context.options.filterConfig.maxChunkSize) {
       return false;
     }
-    
+
     // 类型兼容性检查
     if (!this.areTypesCompatible(chunk1.metadata.type || '', chunk2.metadata.type || '')) {
       return false;
     }
-    
+
     // 语言兼容性检查
     if (chunk1.metadata.language !== chunk2.metadata.language) {
       return false;
     }
-    
+
     return true;
   }
 

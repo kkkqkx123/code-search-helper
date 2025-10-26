@@ -166,9 +166,9 @@ export class StrategyManager {
   }> {
     const availableTypes = this.strategyFactory.getAvailableStrategyTypes();
 
-    return availableTypes.map(type => ({
+    return availableTypes.map((type: string) => ({
       type,
-      name: type.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      name: type.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
       description: this.getStrategyDescription(type),
       supported: this.strategyFactory.isStrategyTypeSupported(type)
     }));

@@ -4,7 +4,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { BackupFileProcessor } from './BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
-import { LanguageDetector } from '../core/language-detection/LanguageDetector';
+import { LanguageDetector, LanguageDetectionResult } from '../core/language-detection/LanguageDetector';
 import { UniversalProcessingConfig } from './UniversalProcessingConfig';
 import { FileFeatureDetector } from './utils/FileFeatureDetector';
 
@@ -24,6 +24,7 @@ export interface DetectionResult {
     fileFeatures?: any;
     astInfo?: any;
     processingStrategy?: string;
+    detectionMethod?: string;
   };
 }
 
@@ -52,11 +53,12 @@ export class UnifiedDetectionCenter {
     @inject(TYPES.LoggerService) private logger?: LoggerService,
     @inject(TYPES.BackupFileProcessor) backupProcessor?: BackupFileProcessor,
     @inject(TYPES.ExtensionlessFileProcessor) extensionlessProcessor?: ExtensionlessFileProcessor,
-    @inject(TYPES.UniversalProcessingConfig) config?: UniversalProcessingConfig
+    @inject(TYPES.UniversalProcessingConfig) config?: UniversalProcessingConfig,
+    @inject(TYPES.LanguageDetector) languageDetector?: LanguageDetector
   ) {
     this.backupProcessor = backupProcessor || new BackupFileProcessor(logger);
     this.extensionlessProcessor = extensionlessProcessor || new ExtensionlessFileProcessor(logger);
-    this.languageDetector = new LanguageDetector();
+    this.languageDetector = languageDetector || new LanguageDetector();
     this.config = config || new UniversalProcessingConfig(logger);
     this.fileFeatureDetector = new FileFeatureDetector(logger);
   }
@@ -104,31 +106,30 @@ export class UnifiedDetectionCenter {
           processingStrategy: this.determineBackupStrategy(backupInfo),
           metadata: {
             originalExtension: backupInfo.originalExtension,
-            processingStrategy: this.determineBackupStrategy(backupInfo)
+            processingStrategy: this.determineBackupStrategy(backupInfo),
+            detectionMethod: 'backup'
           }
         };
       }
     }
 
-    // 2. 扩展名检测
-    // 2. 扩展名检测
-    const ext = path.extname(filePath).toLowerCase();
-    if (ext) {
-      const language = this.languageDetector.detectLanguageSync(filePath);
-      if (language && language !== 'unknown') {
-        const isHighlyStructured = this.fileFeatureDetector.isHighlyStructured(content, language);
-        return {
-          language,
-          confidence: 0.8,
-          fileType: 'normal',
-          extension: ext,
-          processingStrategy: this.determineExtensionStrategy(language, content),
-          isHighlyStructured,
-          metadata: {
-            processingStrategy: this.determineExtensionStrategy(language, content)
-          }
-        };
-      }
+    // 2. 使用LanguageDetector进行语言检测
+    const languageDetection = await this.languageDetector.detectLanguage(filePath, content);
+    if (languageDetection.language && languageDetection.language !== 'unknown') {
+      const isHighlyStructured = this.fileFeatureDetector.isHighlyStructured(content, languageDetection.language);
+      const ext = path.extname(filePath).toLowerCase();
+      return {
+        language: languageDetection.language,
+        confidence: languageDetection.confidence,
+        fileType: 'normal',
+        extension: ext,
+        processingStrategy: this.determineExtensionStrategy(languageDetection.language, content),
+        isHighlyStructured,
+        metadata: {
+          processingStrategy: this.determineExtensionStrategy(languageDetection.language, content),
+          detectionMethod: languageDetection.method
+        }
+      };
     }
 
     // 3. 内容检测（无扩展名文件）
@@ -141,7 +142,11 @@ export class UnifiedDetectionCenter {
         fileType: 'extensionless',
         indicators: contentDetection.indicators,
         processingStrategy: this.determineContentStrategy(contentDetection),
-        isHighlyStructured
+        isHighlyStructured,
+        metadata: {
+          processingStrategy: this.determineContentStrategy(contentDetection),
+          detectionMethod: 'content'
+        }
       };
     }
 
@@ -152,7 +157,11 @@ export class UnifiedDetectionCenter {
       confidence: 0.1,
       fileType: 'unknown',
       processingStrategy: ProcessingStrategyType.UNIVERSAL_LINE,
-      isHighlyStructured
+      isHighlyStructured,
+      metadata: {
+        processingStrategy: ProcessingStrategyType.UNIVERSAL_LINE,
+        detectionMethod: 'fallback'
+      }
     };
   }
   private determineBackupStrategy(backupInfo: any): string {

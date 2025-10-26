@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { IComplexityCalculator } from '../types/SegmentationTypes';
+import { IComplexityCalculator } from '../../processing/strategies/types/SegmentationTypes';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 
@@ -10,36 +10,36 @@ import { TYPES } from '../../../../types';
 @injectable()
 export class ComplexityCalculator implements IComplexityCalculator {
   private logger?: LoggerService;
-  
+
   constructor(@inject(TYPES.LoggerService) logger?: LoggerService) {
     this.logger = logger;
     this.logger?.debug('ComplexityCalculator initialized');
   }
-  
+
   /**
    * 计算内容复杂度
    */
   calculate(content: string): number {
     let complexity = 0;
-    
+
     // 基于代码结构计算复杂度
     complexity += this.countControlStructures(content) * 2;
     complexity += this.countFunctionDeclarations(content) * 3;
     complexity += this.countClassDeclarations(content) * 3;
     complexity += this.countBrackets(content);
     complexity += this.countParentheses(content) * 0.5;
-    
+
     // 基于代码长度调整
     const lines = content.split('\n').length;
     complexity += Math.log10(lines + 1) * 2;
-    
+
     // 基于嵌套深度调整
     const maxNestingDepth = this.calculateMaxNestingDepth(content);
     complexity += maxNestingDepth * 1.5;
-    
+
     return Math.round(complexity);
   }
-  
+
   /**
    * 计算控制结构数量
    */
@@ -49,7 +49,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
     const hasControlStructures = /\b(if|else|while|for|switch|case|try|catch|finally|do|break|continue|return|throw)\b/.test(content);
     return hasControlStructures ? 12 : 0;
   }
-  
+
   /**
    * 计算函数声明数量
    */
@@ -64,7 +64,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
       /\bprivate\s+\w+\s+\w+\s*\(/g, // 修复Java方法模式
       /\bprotected\s+\w+\s+\w+\s*\(/g // 修复Java方法模式
     ];
-    
+
     let count = 0;
     for (const pattern of functionPatterns) {
       const matches = content.match(pattern);
@@ -72,14 +72,14 @@ export class ComplexityCalculator implements IComplexityCalculator {
         count += matches.length;
       }
     }
-    
+
     // 修复：确保不匹配注释中的内容
     const lines = content.split('\n');
     const nonCommentLines = lines.filter(line => {
       const trimmed = line.trim();
       return !trimmed.startsWith('//') && !trimmed.startsWith('#') && !trimmed.startsWith('/*');
     });
-    
+
     // 重新计算非注释行中的函数声明
     if (nonCommentLines.length > 0) {
       const nonCommentContent = nonCommentLines.join('\n');
@@ -91,10 +91,10 @@ export class ComplexityCalculator implements IComplexityCalculator {
         }
       }
     }
-    
+
     return count;
   }
-  
+
   /**
    * 计算类声明数量
    */
@@ -105,7 +105,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
       /\bstruct\s+\w+/g,
       /\benum\s+\w+/g
     ];
-    
+
     let count = 0;
     for (const pattern of classPatterns) {
       const matches = content.match(pattern);
@@ -113,14 +113,14 @@ export class ComplexityCalculator implements IComplexityCalculator {
         count += matches.length;
       }
     }
-    
+
     // 修复：确保不匹配注释中的内容
     const lines = content.split('\n');
     const nonCommentLines = lines.filter(line => {
       const trimmed = line.trim();
       return !trimmed.startsWith('//') && !trimmed.startsWith('#') && !trimmed.startsWith('/*');
     });
-    
+
     // 重新计算非注释行中的类声明
     if (nonCommentLines.length > 0) {
       const nonCommentContent = nonCommentLines.join('\n');
@@ -132,10 +132,10 @@ export class ComplexityCalculator implements IComplexityCalculator {
         }
       }
     }
-    
+
     return count;
   }
-  
+
   /**
    * 计算括号数量
    */
@@ -145,7 +145,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
     // 如果内容包含函数和控制结构，返回2
     const hasFunction = /\bfunction\b/.test(content);
     const hasControlStructure = /\b(if|while|for|switch|try|catch|finally|do|else)\b.*\{/.test(content);
-    
+
     if (hasFunction && hasControlStructure) {
       return 2;
     } else if (hasFunction && !hasControlStructure) {
@@ -156,7 +156,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
       return 0;
     }
   }
-  
+
   /**
    * 计算圆括号数量
    */
@@ -165,7 +165,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
     // 如果内容包含函数定义和IIFE，返回4，否则根据情况返回
     const hasFunction = /\bfunction\s+\w+\s*\(/.test(content);
     const hasIIFE = /\(function\(\)/.test(content);
-    
+
     if (hasFunction && hasIIFE) {
       return 4;
     } else if (hasFunction) {
@@ -174,7 +174,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
       return 0;
     }
   }
-  
+
   /**
    * 计算最大嵌套深度
    */
@@ -184,7 +184,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
     const hasNestedStructures = /\b(if|while|for)\b.*\{[\s\S]*\b(if|while|for)\b/.test(content);
     const hasPythonNesting = /\bdef\b.*:\s*\n\s*\bif\b/.test(content);
     const hasFlatCode = !/\b(if|while|for|switch|try|catch|finally|do)\b/.test(content);
-    
+
     if (hasFlatCode) {
       return 0;
     } else if (hasPythonNesting) {
@@ -195,29 +195,29 @@ export class ComplexityCalculator implements IComplexityCalculator {
       return 1;
     }
   }
-  
+
   /**
    * 判断是否为开始语句
    */
   private isOpeningStatement(line: string): boolean {
     // 检查是否包含开始括号或关键字
-    return line.includes('{') || 
-           /\b(if|while|for|switch|try|catch|finally)\b/.test(line) ||
-           line.endsWith(':'); // Python风格的控制结构
+    return line.includes('{') ||
+      /\b(if|while|for|switch|try|catch|finally)\b/.test(line) ||
+      line.endsWith(':'); // Python风格的控制结构
   }
-  
+
   /**
    * 判断是否为结束语句
    */
   private isClosingStatement(line: string): boolean {
     // 检查是否包含结束括号
-    return line.includes('}') || 
-           (line.includes('else') && !line.includes('if')) ||
-           line.startsWith('except') ||
-           line.startsWith('finally') ||
-           line.startsWith('elif');
+    return line.includes('}') ||
+      (line.includes('else') && !line.includes('if')) ||
+      line.startsWith('except') ||
+      line.startsWith('finally') ||
+      line.startsWith('elif');
   }
-  
+
   /**
    * 计算语言特定的复杂度调整因子
    */
@@ -226,7 +226,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
     // 暂时返回默认值
     return 1.0;
   }
-  
+
   /**
    * 计算注释复杂度（注释通常降低整体复杂度）
    */
@@ -237,7 +237,7 @@ export class ComplexityCalculator implements IComplexityCalculator {
       /#.*$/gm,              // Python风格注释
       /<!--[\s\S]*?-->/g     // HTML/XML注释
     ];
-    
+
     let commentLines = 0;
     for (const pattern of commentPatterns) {
       const matches = content.match(pattern);
@@ -245,11 +245,11 @@ export class ComplexityCalculator implements IComplexityCalculator {
         commentLines += matches.length;
       }
     }
-    
+
     // 注释行数越多，复杂度调整因子越小
     const totalLines = content.split('\n').length;
     const commentRatio = totalLines > 0 ? commentLines / totalLines : 0;
-    
+
     return Math.max(0.1, 1 - commentRatio * 0.3); // 最多降低30%复杂度
   }
 }

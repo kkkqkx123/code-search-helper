@@ -1,6 +1,6 @@
 import { SemanticSegmentationStrategy } from '../strategies/SemanticSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
-import { ISegmentationStrategy, SegmentationContext } from '../../../../universal/types/SegmentationTypes';
+import { ISegmentationStrategy, SegmentationContext } from '../../types/SegmentationTypes';
 import { CodeChunk } from '../../../../splitting';
 
 // Mock LoggerService

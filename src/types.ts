@@ -63,8 +63,8 @@ import { ProcessingGuard } from './service/parser/guard/ProcessingGuard';
 import { UnifiedDetectionCenter } from './service/parser/universal/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from './service/parser/universal/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from './service/parser/processing/strategies/providers/ProcessingStrategyFactory';
-import { MarkdownTextSplitter } from './service/parser/universal/md/MarkdownTextSplitter';
-import { XMLTextSplitter } from './service/parser/universal/xml/XMLTextSplitter';
+import { MarkdownTextSplitter } from './service/parser/processing/utils/md/MarkdownTextSplitter';
+import { XMLTextSplitter } from './service/parser/processing/utils/xml/XMLTextSplitter';
 import { UnifiedConfigManager } from './service/parser/config/UnifiedConfigManager';
 
 // 12. 文件搜索模块
@@ -404,4 +404,7 @@ export const TYPES = {
   UnifiedStrategyManager: Symbol.for('UnifiedStrategyManager'),
   UnifiedDetectionService: Symbol.for('UnifiedDetectionService'),
   UnifiedProcessingCoordinator: Symbol.for('UnifiedProcessingCoordinator'),
+
+  // 41. 语言检测器
+  LanguageDetector: Symbol.for('LanguageDetector'),
 };

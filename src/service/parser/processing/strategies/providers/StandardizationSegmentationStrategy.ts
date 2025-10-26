@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../../universal/types/SegmentationTypes';
+import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
 import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../core/normalization/types';
 import { TreeSitterCoreService } from '../../../core/parse/TreeSitterCoreService';

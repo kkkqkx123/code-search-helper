@@ -1,7 +1,7 @@
 import { SegmentationContextManager } from '../SegmentationContextManager';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ConfigurationManager } from '../../config/ConfigurationManager';
-import { ISegmentationStrategy, SegmentationContext, UniversalChunkingOptions } from '../../types/SegmentationTypes';
+import { ISegmentationStrategy, SegmentationContext, UniversalChunkingOptions } from '../../../processing/strategies/types/SegmentationTypes';
 import { CodeChunk } from '../../../splitting';
 
 // Mock LoggerService
@@ -86,9 +86,9 @@ describe('SegmentationContextManager', () => {
   describe('addStrategy', () => {
     it('should add a new strategy', () => {
       const strategy = createMockStrategy('test', 1);
-      
+
       contextManager.addStrategy(strategy);
-      
+
       const strategies = contextManager.getStrategies();
       expect(strategies).toHaveLength(1);
       expect(strategies[0]).toBe(strategy);
@@ -98,10 +98,10 @@ describe('SegmentationContextManager', () => {
     it('should replace existing strategy with same name', () => {
       const strategy1 = createMockStrategy('test', 1);
       const strategy2 = createMockStrategy('test', 2);
-      
+
       contextManager.addStrategy(strategy1);
       contextManager.addStrategy(strategy2);
-      
+
       const strategies = contextManager.getStrategies();
       expect(strategies).toHaveLength(1);
       expect(strategies[0]).toBe(strategy2);
@@ -112,11 +112,11 @@ describe('SegmentationContextManager', () => {
       const strategy1 = createMockStrategy('high', 3);
       const strategy2 = createMockStrategy('low', 1);
       const strategy3 = createMockStrategy('medium', 2);
-      
+
       contextManager.addStrategy(strategy1);
       contextManager.addStrategy(strategy2);
       contextManager.addStrategy(strategy3);
-      
+
       const strategies = contextManager.getStrategies();
       expect(strategies[0].getName()).toBe('low');
       expect(strategies[1].getName()).toBe('medium');
@@ -125,10 +125,10 @@ describe('SegmentationContextManager', () => {
 
     it('should clear cache when adding strategy', () => {
       const strategy = createMockStrategy('test', 1);
-      
+
       // Add a strategy to populate cache
       contextManager.addStrategy(strategy);
-      
+
       // Get cache stats to verify cache is cleared
       const stats = contextManager.getCacheStats();
       expect(stats.size).toBe(0);
@@ -138,10 +138,10 @@ describe('SegmentationContextManager', () => {
   describe('removeStrategy', () => {
     it('should remove an existing strategy', () => {
       const strategy = createMockStrategy('test', 1);
-      
+
       contextManager.addStrategy(strategy);
       expect(contextManager.getStrategies()).toHaveLength(1);
-      
+
       contextManager.removeStrategy('test');
       expect(contextManager.getStrategies()).toHaveLength(0);
       expect(mockLogger.debug).toHaveBeenCalledWith('Removed strategy: test');
@@ -154,10 +154,10 @@ describe('SegmentationContextManager', () => {
 
     it('should clear cache when removing strategy', () => {
       const strategy = createMockStrategy('test', 1);
-      
+
       contextManager.addStrategy(strategy);
       contextManager.removeStrategy('test');
-      
+
       const stats = contextManager.getCacheStats();
       expect(stats.size).toBe(0);
     });
@@ -167,10 +167,10 @@ describe('SegmentationContextManager', () => {
     it('should return all strategies', () => {
       const strategy1 = createMockStrategy('test1', 1);
       const strategy2 = createMockStrategy('test2', 2);
-      
+
       contextManager.addStrategy(strategy1);
       contextManager.addStrategy(strategy2);
-      
+
       const strategies = contextManager.getStrategies();
       expect(strategies).toHaveLength(2);
       expect(strategies[0]).toBe(strategy1);
@@ -179,9 +179,9 @@ describe('SegmentationContextManager', () => {
 
     it('should return strategy information', () => {
       const strategy = createMockStrategy('test', 1);
-      
+
       contextManager.addStrategy(strategy);
-      
+
       const info = contextManager.getStrategyInfo();
       expect(info).toHaveLength(1);
       expect(info[0].name).toBe('test');
@@ -194,10 +194,10 @@ describe('SegmentationContextManager', () => {
     it('should select strategy by priority', () => {
       const strategy1 = createMockStrategy('low', 2);
       const strategy2 = createMockStrategy('high', 1);
-      
+
       contextManager.addStrategy(strategy1);
       contextManager.addStrategy(strategy2);
-      
+
       const context: SegmentationContext = {
         content: 'test',
         options: mockConfigManager.getDefaultOptions(),
@@ -209,7 +209,7 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: false
         }
       };
-      
+
       const selectedStrategy = contextManager.selectStrategy(context);
       expect(selectedStrategy.getName()).toBe('high');
     });
@@ -217,10 +217,10 @@ describe('SegmentationContextManager', () => {
     it('should select preferred strategy if available', () => {
       const strategy1 = createMockStrategy('preferred', 2);
       const strategy2 = createMockStrategy('other', 1);
-      
+
       contextManager.addStrategy(strategy1);
       contextManager.addStrategy(strategy2);
-      
+
       const context: SegmentationContext = {
         content: 'test',
         options: mockConfigManager.getDefaultOptions(),
@@ -232,16 +232,16 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: false
         }
       };
-      
+
       const selectedStrategy = contextManager.selectStrategy(context, 'preferred');
       expect(selectedStrategy.getName()).toBe('preferred');
     });
 
     it('should use cached strategy when available', () => {
       const strategy = createMockStrategy('test', 1);
-      
+
       contextManager.addStrategy(strategy);
-      
+
       const context: SegmentationContext = {
         content: 'test',
         options: mockConfigManager.getDefaultOptions(),
@@ -253,24 +253,24 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: false
         }
       };
-      
+
       // First call should cache the strategy
       const selected1 = contextManager.selectStrategy(context);
       expect(selected1.getName()).toBe('test');
-      
+
       // Second call should use cached strategy
       const selected2 = contextManager.selectStrategy(context);
       expect(selected2.getName()).toBe('test');
-      
+
       // Verify canHandle was called twice (once for initial selection, once for cache validation)
       expect(strategy.canHandle).toHaveBeenCalledTimes(2);
     });
 
     it('should throw error when no suitable strategy found', () => {
       const strategy = createMockStrategy('test', 1, false); // Cannot handle
-      
+
       contextManager.addStrategy(strategy);
-      
+
       const context: SegmentationContext = {
         content: 'test',
         options: mockConfigManager.getDefaultOptions(),
@@ -282,7 +282,7 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: false
         }
       };
-      
+
       expect(() => contextManager.selectStrategy(context)).toThrow('No suitable segmentation strategy found');
     });
   });
@@ -294,9 +294,9 @@ describe('SegmentationContextManager', () => {
       ];
       const strategy = createMockStrategy('test', 1);
       strategy.segment = jest.fn().mockResolvedValue(chunks);
-      
+
       contextManager.addStrategy(strategy);
-      
+
       const context: SegmentationContext = {
         content: 'test',
         options: mockConfigManager.getDefaultOptions(),
@@ -308,9 +308,9 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: false
         }
       };
-      
+
       const result = await contextManager.executeStrategy(strategy, context);
-      
+
       expect(result).toEqual(chunks);
       expect(strategy.segment).toHaveBeenCalledWith(context);
       expect(mockLogger.debug).toHaveBeenCalledWith('Executing strategy: test');
@@ -319,15 +319,15 @@ describe('SegmentationContextManager', () => {
     it('should handle strategy execution error with fallback', async () => {
       const errorStrategy = createMockStrategy('error', 1);
       errorStrategy.segment = jest.fn().mockRejectedValue(new Error('Strategy failed'));
-      
+
       const fallbackStrategy = createMockStrategy('line', 5);
       fallbackStrategy.segment = jest.fn().mockResolvedValue([
         { content: 'fallback', metadata: { startLine: 1, endLine: 1, language: 'javascript', type: 'line', complexity: 1 } }
       ]);
-      
+
       contextManager.addStrategy(errorStrategy);
       contextManager.addStrategy(fallbackStrategy);
-      
+
       const context: SegmentationContext = {
         content: 'test',
         options: mockConfigManager.getDefaultOptions(),
@@ -339,9 +339,9 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: false
         }
       };
-      
+
       const result = await contextManager.executeStrategy(errorStrategy, context);
-      
+
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe('fallback');
       expect(mockLogger.warn).toHaveBeenCalledWith('Falling back to line-based segmentation');
@@ -350,9 +350,9 @@ describe('SegmentationContextManager', () => {
     it('should throw error when no fallback available', async () => {
       const errorStrategy = createMockStrategy('error', 1);
       errorStrategy.segment = jest.fn().mockRejectedValue(new Error('Strategy failed'));
-      
+
       contextManager.addStrategy(errorStrategy);
-      
+
       const context: SegmentationContext = {
         content: 'test',
         options: mockConfigManager.getDefaultOptions(),
@@ -364,16 +364,16 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: false
         }
       };
-      
+
       await expect(contextManager.executeStrategy(errorStrategy, context)).rejects.toThrow('Strategy failed');
     });
 
     it('should validate context if strategy supports it', async () => {
       const strategy = createMockStrategy('test', 1);
       strategy.validateContext = jest.fn().mockReturnValue(false);
-      
+
       contextManager.addStrategy(strategy);
-      
+
       const context: SegmentationContext = {
         content: 'test',
         options: mockConfigManager.getDefaultOptions(),
@@ -385,7 +385,7 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: false
         }
       };
-      
+
       await expect(contextManager.executeStrategy(strategy, context)).rejects.toThrow('Context validation failed for strategy: test');
     });
   });
@@ -393,9 +393,9 @@ describe('SegmentationContextManager', () => {
   describe('createSegmentationContext', () => {
     it('should create context with default options', () => {
       const content = 'test content';
-      
+
       const context = contextManager.createSegmentationContext(content);
-      
+
       expect(context.content).toBe(content);
       expect(context.options).toEqual(mockConfigManager.getDefaultOptions());
       expect(mockConfigManager.getDefaultOptions).toHaveBeenCalled();
@@ -433,9 +433,9 @@ describe('SegmentationContextManager', () => {
           protectionLevel: 'medium'
         }
       };
-      
+
       const context = contextManager.createSegmentationContext(content, undefined, undefined, customOptions);
-      
+
       expect(context.content).toBe(content);
       expect(context.options.maxChunkSize).toBe(3000);
       expect(context.options.overlapSize).toBe(300);
@@ -444,15 +444,15 @@ describe('SegmentationContextManager', () => {
     it('should apply language-specific configuration', () => {
       const content = 'test content';
       const languageConfig = { maxChunkSize: 2500 };
-      
+
       mockConfigManager.getLanguageSpecificConfig.mockReturnValue(languageConfig);
       mockConfigManager.mergeOptions.mockReturnValue({
         ...mockConfigManager.getDefaultOptions(),
         ...languageConfig
       });
-      
+
       const context = contextManager.createSegmentationContext(content, undefined, 'javascript');
-      
+
       expect(mockConfigManager.getLanguageSpecificConfig).toHaveBeenCalledWith('javascript');
       expect(mockConfigManager.mergeOptions).toHaveBeenCalled();
       expect(context.options.maxChunkSize).toBe(2500);
@@ -460,11 +460,11 @@ describe('SegmentationContextManager', () => {
 
     it('should not apply language config if empty', () => {
       const content = 'test content';
-      
+
       mockConfigManager.getLanguageSpecificConfig.mockReturnValue({});
-      
+
       const context = contextManager.createSegmentationContext(content, undefined, 'javascript');
-      
+
       expect(mockConfigManager.getLanguageSpecificConfig).toHaveBeenCalledWith('javascript');
       expect(mockConfigManager.mergeOptions).not.toHaveBeenCalled();
       expect(context.options).toEqual(mockConfigManager.getDefaultOptions());
@@ -476,11 +476,11 @@ describe('SegmentationContextManager', () => {
       const markdownStrategy = createMockStrategy('markdown', 1);
       const semanticStrategy = createMockStrategy('semantic', 2);
       const lineStrategy = createMockStrategy('line', 3);
-      
+
       contextManager.addStrategy(markdownStrategy);
       contextManager.addStrategy(semanticStrategy);
       contextManager.addStrategy(lineStrategy);
-      
+
       const markdownContext: SegmentationContext = {
         content: '# Title\n\nContent',
         options: mockConfigManager.getDefaultOptions(),
@@ -492,7 +492,7 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: true
         }
       };
-      
+
       const selectedStrategy = contextManager.selectStrategyWithHeuristics(markdownContext);
       expect(selectedStrategy.getName()).toBe('markdown');
     });
@@ -500,10 +500,10 @@ describe('SegmentationContextManager', () => {
     it('should select line strategy for small files', () => {
       const semanticStrategy = createMockStrategy('semantic', 1);
       const lineStrategy = createMockStrategy('line', 2);
-      
+
       contextManager.addStrategy(semanticStrategy);
       contextManager.addStrategy(lineStrategy);
-      
+
       const smallFileContext: SegmentationContext = {
         content: 'small content',
         options: mockConfigManager.getDefaultOptions(),
@@ -515,7 +515,7 @@ describe('SegmentationContextManager', () => {
           isMarkdownFile: false
         }
       };
-      
+
       const selectedStrategy = contextManager.selectStrategyWithHeuristics(smallFileContext);
       expect(selectedStrategy.getName()).toBe('line');
     });
@@ -523,10 +523,10 @@ describe('SegmentationContextManager', () => {
     it('should select semantic strategy for complex code', () => {
       const semanticStrategy = createMockStrategy('semantic', 1);
       const bracketStrategy = createMockStrategy('bracket', 2);
-      
+
       contextManager.addStrategy(semanticStrategy);
       contextManager.addStrategy(bracketStrategy);
-      
+
       const complexCodeContext: SegmentationContext = {
         content: `
 function complexFunction() {
@@ -548,7 +548,7 @@ function complexFunction() {
           isMarkdownFile: false
         }
       };
-      
+
       const selectedStrategy = contextManager.selectStrategyWithHeuristics(complexCodeContext);
       expect(selectedStrategy.getName()).toBe('semantic');
     });
@@ -556,10 +556,10 @@ function complexFunction() {
     it('should select bracket strategy for simple code', () => {
       const semanticStrategy = createMockStrategy('semantic', 1);
       const bracketStrategy = createMockStrategy('bracket', 2);
-      
+
       contextManager.addStrategy(semanticStrategy);
       contextManager.addStrategy(bracketStrategy);
-      
+
       const simpleCodeContext: SegmentationContext = {
         content: 'const x = 1;',
         options: mockConfigManager.getDefaultOptions(),
@@ -571,16 +571,16 @@ function complexFunction() {
           isMarkdownFile: false
         }
       };
-      
+
       const selectedStrategy = contextManager.selectStrategyWithHeuristics(simpleCodeContext);
       expect(selectedStrategy.getName()).toBe('bracket');
     });
 
     it('should throw error when no suitable strategy found', () => {
       const strategy = createMockStrategy('test', 1, false);
-      
+
       contextManager.addStrategy(strategy);
-      
+
       const context: SegmentationContext = {
         content: 'test',
         options: mockConfigManager.getDefaultOptions(),
@@ -592,7 +592,7 @@ function complexFunction() {
           isMarkdownFile: false
         }
       };
-      
+
       expect(() => contextManager.selectStrategyWithHeuristics(context)).toThrow('No suitable segmentation strategy found');
     });
   });
@@ -600,9 +600,9 @@ function complexFunction() {
   describe('Cache Management', () => {
     it('should clear cache', () => {
       const strategy = createMockStrategy('test', 1);
-      
+
       contextManager.addStrategy(strategy);
-      
+
       // Select a strategy to populate cache
       const context: SegmentationContext = {
         content: 'test',
@@ -615,16 +615,16 @@ function complexFunction() {
           isMarkdownFile: false
         }
       };
-      
+
       contextManager.selectStrategy(context);
-      
+
       // Verify cache has entries
       let stats = contextManager.getCacheStats();
       expect(stats.size).toBeGreaterThan(0);
-      
+
       // Clear cache
       contextManager.clearCache();
-      
+
       // Verify cache is empty
       stats = contextManager.getCacheStats();
       expect(stats.size).toBe(0);
@@ -634,10 +634,10 @@ function complexFunction() {
     it('should get cache stats', () => {
       const strategy1 = createMockStrategy('test1', 1);
       const strategy2 = createMockStrategy('test2', 2);
-      
+
       contextManager.addStrategy(strategy1);
       contextManager.addStrategy(strategy2);
-      
+
       // Select strategies to populate cache
       const context1: SegmentationContext = {
         content: 'test1',
@@ -651,7 +651,7 @@ function complexFunction() {
           isMarkdownFile: false
         }
       };
-      
+
       const context2: SegmentationContext = {
         content: 'test2',
         language: 'python',
@@ -664,10 +664,10 @@ function complexFunction() {
           isMarkdownFile: false
         }
       };
-      
+
       contextManager.selectStrategy(context1);
       contextManager.selectStrategy(context2);
-      
+
       const stats = contextManager.getCacheStats();
       expect(stats.size).toBe(2);
       expect(stats.keys).toContain('javascript:code:small:plain:auto');
@@ -681,18 +681,18 @@ function complexFunction() {
         { content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'javascript', type: 'code', complexity: 1 } },
         { content: 'chunk2', metadata: { startLine: 2, endLine: 2, language: 'javascript', type: 'code', complexity: 1 } }
       ];
-      
+
       const strategy = createMockStrategy('test', 1);
       strategy.segment = jest.fn().mockResolvedValue(chunks);
-      
+
       contextManager.addStrategy(strategy);
-      
+
       const content = 'function test() { return 1; }';
       const context = contextManager.createSegmentationContext(content, 'test.js', 'javascript');
-      
+
       const selectedStrategy = contextManager.selectStrategy(context);
       const result = await contextManager.executeStrategy(selectedStrategy, context);
-      
+
       expect(result).toEqual(chunks);
       expect(selectedStrategy.getName()).toBe('test');
       expect(strategy.segment).toHaveBeenCalledWith(context);
@@ -705,9 +705,9 @@ function complexFunction() {
         createMockStrategy('bracket', 3),
         createMockStrategy('line', 4)
       ];
-      
+
       strategies.forEach(strategy => contextManager.addStrategy(strategy));
-      
+
       // Test different content types
       const testCases = [
         {
@@ -726,14 +726,14 @@ function complexFunction() {
           expectedStrategy: 'line' // Based on priority
         }
       ];
-      
+
       testCases.forEach(testCase => {
         const context = contextManager.createSegmentationContext(
           testCase.content,
           `test.${testCase.language === 'markdown' ? 'md' : testCase.language}`,
           testCase.language
         );
-        
+
         const selectedStrategy = contextManager.selectStrategyWithHeuristics(context);
         expect(selectedStrategy.getName()).toBe(testCase.expectedStrategy);
       });

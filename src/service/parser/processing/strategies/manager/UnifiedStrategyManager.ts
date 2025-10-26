@@ -1,9 +1,28 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, StrategyExecutionResult, StrategyExecutionContext } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
 import { UnifiedStrategyFactory } from '../factory/UnifiedStrategyFactory';
 import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
+import { CodeChunk } from '../../../splitting';
+
+// 定义本地类型
+interface StrategyExecutionResult {
+  strategyName: string;
+  chunks: CodeChunk[];
+  executionTime: number;
+  success: boolean;
+  error?: string;
+  metadata?: any;
+}
+
+interface StrategyExecutionContext {
+  language: string;
+  sourceCode: string;
+  filePath?: string;
+  ast?: any;
+  customParams?: any;
+}
 
 /**
  * 统一策略管理器
@@ -16,6 +35,14 @@ export class UnifiedStrategyManager {
   private logger?: LoggerService;
   private executionCache: Map<string, StrategyExecutionResult> = new Map();
   private performanceStats: Map<string, { count: number; totalTime: number; errors: number }> = new Map();
+  private strategies: Map<string, ISplitStrategy> = new Map();
+  private config: {
+    enablePerformanceMonitoring: boolean;
+    enableCaching: boolean;
+    cacheSize: number;
+    maxExecutionTime: number;
+    enableParallel: boolean;
+  };
 
   constructor(
     @inject(TYPES.UnifiedStrategyFactory) factory: UnifiedStrategyFactory,
@@ -25,6 +52,16 @@ export class UnifiedStrategyManager {
     this.factory = factory;
     this.configManager = configManager;
     this.logger = logger;
+    
+    // 初始化配置
+    this.config = {
+      enablePerformanceMonitoring: true,
+      enableCaching: true,
+      cacheSize: 1000,
+      maxExecutionTime: 10000,
+      enableParallel: true
+    };
+    
     this.logger?.debug('UnifiedStrategyManager initialized');
   }
 
@@ -470,5 +507,149 @@ export class UnifiedStrategyManager {
   clearPerformanceStats(): void {
     this.performanceStats.clear();
     this.logger?.debug('Performance stats cleared');
+  }
+
+  // ========== ChunkingStrategyManager 集成方法 ==========
+
+  /**
+   * 注册策略（来自ChunkingStrategyManager）
+   */
+  registerStrategy(strategy: ISplitStrategy): void {
+    this.strategies.set(strategy.getName(), strategy);
+    this.logger?.debug(`Registered strategy: ${strategy.getName()}`);
+  }
+
+  /**
+   * 注销策略（来自ChunkingStrategyManager）
+   */
+  unregisterStrategy(strategyName: string): void {
+    this.strategies.delete(strategyName);
+    this.logger?.debug(`Unregistered strategy: ${strategyName}`);
+  }
+
+  /**
+   * 获取策略（来自ChunkingStrategyManager）
+   */
+  getStrategy(strategyName: string): ISplitStrategy | undefined {
+    return this.strategies.get(strategyName);
+  }
+
+  /**
+   * 获取所有策略（来自ChunkingStrategyManager）
+   */
+  getAllStrategies(): ISplitStrategy[] {
+    return Array.from(this.strategies.values());
+  }
+
+  /**
+   * 获取适用于特定语言的策略（来自ChunkingStrategyManager）
+   */
+  getStrategiesForLanguage(language: string): ISplitStrategy[] {
+    return Array.from(this.strategies.values()).filter(
+      strategy => strategy.supportsLanguage(language)
+    );
+  }
+
+  /**
+   * 执行分层分段策略（来自ChunkingStrategyManager）
+   */
+  async executeHierarchicalStrategy(context: StrategyExecutionContext): Promise<CodeChunk[]> {
+    const applicableStrategies = this.getStrategiesForLanguage(context.language);
+
+    // 按优先级排序
+    applicableStrategies.sort((a, b) => a.getPriority() - b.getPriority());
+
+    const allChunks: CodeChunk[] = [];
+
+    for (const strategy of applicableStrategies) {
+      const result = await this.executeStrategy(strategy, context);
+      if (result.success) {
+        allChunks.push(...result.chunks);
+      }
+    }
+
+    // 合并和优化分段
+    return this.mergeAndOptimizeChunks(allChunks, context);
+  }
+
+  /**
+   * 获取配置（来自ChunkingStrategyManager）
+   */
+  getConfig(): any {
+    return { ...this.config };
+  }
+
+  /**
+   * 更新配置（来自ChunkingStrategyManager）
+   */
+  updateConfig(updates: any): void {
+    this.config = { ...this.config, ...updates };
+    this.logger?.debug('Strategy manager config updated');
+  }
+
+  /**
+   * 合并和优化分段（来自ChunkingStrategyManager）
+   */
+  private mergeAndOptimizeChunks(chunks: CodeChunk[], context: StrategyExecutionContext): CodeChunk[] {
+    // 按开始位置排序
+    chunks.sort((a, b) => a.metadata.startLine - b.metadata.startLine);
+
+    const optimizedChunks: CodeChunk[] = [];
+    let currentChunk: CodeChunk | null = null;
+
+    for (const chunk of chunks) {
+      if (!currentChunk) {
+        currentChunk = chunk;
+      } else {
+        // 检查是否可以合并
+        if (this.canMergeChunks(currentChunk, chunk, context)) {
+          currentChunk = this.mergeChunks(currentChunk, chunk);
+        } else {
+          optimizedChunks.push(currentChunk);
+          currentChunk = chunk;
+        }
+      }
+    }
+
+    if (currentChunk) {
+      optimizedChunks.push(currentChunk);
+    }
+
+    return optimizedChunks;
+  }
+
+  /**
+   * 检查是否可以合并分段（来自ChunkingStrategyManager）
+   */
+  private canMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk, context: StrategyExecutionContext): boolean {
+    const mergedSize = chunk1.content.length + chunk2.content.length;
+    const maxChunkSize = context.customParams?.maxChunkSize || 2000;
+
+    // 检查大小限制
+    if (mergedSize > maxChunkSize) {
+      return false;
+    }
+
+    // 检查是否相邻
+    const lineGap = chunk2.metadata.startLine - chunk1.metadata.endLine;
+    if (lineGap > 5) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 合并分段（来自ChunkingStrategyManager）
+   */
+  private mergeChunks(chunk1: CodeChunk, chunk2: CodeChunk): CodeChunk {
+    return {
+      content: chunk1.content + '\n' + chunk2.content,
+      metadata: {
+        ...chunk1.metadata,
+        endLine: chunk2.metadata.endLine,
+        complexity: Math.max(chunk1.metadata.complexity || 0, chunk2.metadata.complexity || 0)
+      }
+    };
   }
 }

@@ -1,6 +1,6 @@
 import { injectable } from 'inversify';
-import { CodeChunk, CodeChunkMetadata } from '../../splitting';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
+import { LoggerService } from '../../../../../utils/LoggerService';
 import {
   XMLChunkingConfig,
   XMLBlockType,
@@ -270,7 +270,7 @@ export class XMLTextSplitter {
               elementName: currentBlock.elementName || nextBlock.elementName,
               isSelfClosing: currentBlock.isSelfClosing && nextBlock.isSelfClosing,
               attributes: { ...currentBlock.attributes, ...nextBlock.attributes },
-              elementStack: currentBlock.elementStack.length > nextBlock.elementStack.length ? 
+              elementStack: currentBlock.elementStack.length > nextBlock.elementStack.length ?
                 currentBlock.elementStack : nextBlock.elementStack
             };
 
@@ -328,30 +328,30 @@ export class XMLTextSplitter {
 
     // 大小限制检查
     if (totalSize > this.config.maxChunkSize) return false;
-    if (currentBlock.endLine - currentBlock.startLine + 1 + 
-        nextBlock.endLine - nextBlock.startLine + 1 > this.config.maxLinesPerChunk) return false;
+    if (currentBlock.endLine - currentBlock.startLine + 1 +
+      nextBlock.endLine - nextBlock.startLine + 1 > this.config.maxLinesPerChunk) return false;
 
     // 短元素合并
     if (this.config.mergeShortElements &&
-        currentType === XMLBlockType.ELEMENT &&
-        nextType === XMLBlockType.ELEMENT &&
-        currentSize < this.config.minChunkSize) {
+      currentType === XMLBlockType.ELEMENT &&
+      nextType === XMLBlockType.ELEMENT &&
+      currentSize < this.config.minChunkSize) {
       return true;
     }
 
     // 兄弟元素合并
     if (this.config.mergeSiblingElements &&
-        currentType === XMLBlockType.ELEMENT &&
-        nextType === XMLBlockType.ELEMENT &&
-        this.areSiblingElements(currentBlock, nextBlock)) {
+      currentType === XMLBlockType.ELEMENT &&
+      nextType === XMLBlockType.ELEMENT &&
+      this.areSiblingElements(currentBlock, nextBlock)) {
       return true;
     }
 
     // 嵌套元素合并
     if (this.config.mergeNestedElements &&
-        currentType === XMLBlockType.ELEMENT &&
-        nextType === XMLBlockType.ELEMENT &&
-        this.areNestedElements(currentBlock, nextBlock)) {
+      currentType === XMLBlockType.ELEMENT &&
+      nextType === XMLBlockType.ELEMENT &&
+      this.areNestedElements(currentBlock, nextBlock)) {
       return true;
     }
 
@@ -362,8 +362,8 @@ export class XMLTextSplitter {
 
     // 语义相似性合并
     if (this.config.enableSemanticMerge &&
-        currentType === XMLBlockType.ELEMENT &&
-        nextType === XMLBlockType.ELEMENT) {
+      currentType === XMLBlockType.ELEMENT &&
+      nextType === XMLBlockType.ELEMENT) {
       const similarity = calculateXMLSemanticSimilarity(currentBlock.content, nextBlock.content);
       return similarity >= this.config.semanticSimilarityThreshold;
     }
@@ -382,26 +382,26 @@ export class XMLTextSplitter {
   private isComplexElement(block: XMLBlock): boolean {
     // 基于元素内容复杂度判断
     const content = block.content;
-    
+
     // 检查是否有多个子元素
     const openingTags = content.match(XML_PATTERNS.OPENING_TAG);
     const closingTags = content.match(XML_PATTERNS.CLOSING_TAG);
-    
+
     if (openingTags && closingTags && openingTags.length > 2) {
       return true;
     }
-    
+
     // 检查是否有大量属性
     const attributes = content.match(XML_PATTERNS.ATTRIBUTE);
     if (attributes && attributes.length > 5) {
       return true;
     }
-    
+
     // 检查内容长度
     if (content.length > this.config.maxChunkSize * 0.5) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -413,14 +413,14 @@ export class XMLTextSplitter {
     if (block1.elementStack.length !== block2.elementStack.length) {
       return false;
     }
-    
+
     // 检查父元素是否相同
     for (let i = 0; i < block1.elementStack.length; i++) {
       if (block1.elementStack[i] !== block2.elementStack[i]) {
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -432,14 +432,14 @@ export class XMLTextSplitter {
     if (block1.elementStack.length >= block2.elementStack.length) {
       return false;
     }
-    
+
     // 检查 block1 的元素栈是否是 block2 的前缀
     for (let i = 0; i < block1.elementStack.length; i++) {
       if (block1.elementStack[i] !== block2.elementStack[i]) {
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -449,7 +449,7 @@ export class XMLTextSplitter {
   private extractAttributes(element: string): Record<string, string> {
     const attributes: Record<string, string> = {};
     const matches = element.match(XML_PATTERNS.ATTRIBUTE);
-    
+
     if (matches) {
       matches.forEach(attr => {
         const match = attr.match(/\s([a-zA-Z_:][\w:.-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/);
@@ -460,7 +460,7 @@ export class XMLTextSplitter {
         }
       });
     }
-    
+
     return attributes;
   }
 
@@ -555,7 +555,7 @@ export class XMLTextSplitter {
       'header', 'body', 'footer', 'content', 'text', 'value',
       'name', 'id', 'type', 'class', 'style', 'href', 'src'
     ];
-    
+
     return commonElements.includes(elementName.toLowerCase());
   }
 
@@ -604,16 +604,16 @@ export class XMLTextSplitter {
 
     for (const line of lines) {
       const trimmedLine = line.trim();
-      
+
       if (isOpeningTag(trimmedLine) && !isSelfClosingTag(trimmedLine)) {
         elementStack++;
         inElement = true;
       }
-      
+
       if (inElement) {
         currentElement += line + '\n';
       }
-      
+
       if (isClosingTag(trimmedLine)) {
         elementStack--;
         if (elementStack === 0) {
@@ -624,7 +624,7 @@ export class XMLTextSplitter {
           currentElement = '';
         }
       }
-      
+
       if (!inElement && trimmedLine && !isOpeningTag(trimmedLine) && !isClosingTag(trimmedLine)) {
         // 非元素内容（如注释、处理指令等）
         if (trimmedLine) {

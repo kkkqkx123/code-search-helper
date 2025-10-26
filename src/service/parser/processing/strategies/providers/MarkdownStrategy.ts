@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { IProcessingStrategy } from './IProcessingStrategy';
 import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
-import { MarkdownTextSplitter } from '../../../universal/md/MarkdownTextSplitter';
+import { MarkdownTextSplitter } from '../../utils/md/MarkdownTextSplitter';
 
 /**
  * Markdown策略实现

@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { IProtectionCoordinator, SegmentationContext } from '../types/SegmentationTypes';
+import { IProtectionCoordinator, SegmentationContext } from '../../processing/strategies/types/SegmentationTypes';
 import { ProtectionInterceptorChain, ProtectionContext } from './ProtectionInterceptor';
 import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
@@ -19,7 +19,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
     allowedOperations: number;
     errors: number;
   };
-  
+
   constructor(@inject(TYPES.LoggerService) logger?: LoggerService) {
     this.logger = logger;
     this.protectionStats = {
@@ -30,7 +30,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
     };
     this.logger?.debug('ProtectionCoordinator initialized');
   }
-  
+
   /**
    * 设置保护拦截器链
    */
@@ -38,13 +38,13 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
     this.protectionChain = chain;
     this.logger?.debug('Protection interceptor chain set for ProtectionCoordinator');
   }
-  
+
   /**
    * 检查操作是否被允许
    */
   async checkProtection(context: ProtectionContext): Promise<boolean> {
     this.protectionStats.totalChecks++;
-    
+
     if (!this.protectionChain) {
       this.protectionStats.allowedOperations++;
       return true; // 如果没有保护链，默认允许继续
@@ -52,7 +52,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
 
     try {
       const decision = await this.protectionChain.execute(context);
-      
+
       if (decision.shouldProceed) {
         this.protectionStats.allowedOperations++;
         this.logger?.debug(`Protection check passed for operation: ${context.operation}`, {
@@ -64,7 +64,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
           reason: decision.reason
         });
       }
-      
+
       return decision.shouldProceed;
     } catch (error) {
       this.protectionStats.errors++;
@@ -73,7 +73,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       return true; // 保护检查出错时，默认允许继续执行
     }
   }
-  
+
   /**
    * 创建保护上下文
    */
@@ -88,7 +88,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       additionalMetadata
     );
   }
-  
+
   /**
    * 执行带保护的操作
    */
@@ -103,34 +103,34 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       segmentationContext,
       { timestamp: Date.now() }
     );
-    
+
     const isAllowed = await this.checkProtection(protectionContext);
-    
+
     if (isAllowed) {
       try {
         return await operationFunc();
       } catch (error) {
         this.logger?.error(`Operation ${operation} failed:`, error);
-        
+
         if (fallbackFunc) {
           this.logger?.info(`Executing fallback for operation: ${operation}`);
           return await fallbackFunc();
         }
-        
+
         throw error;
       }
     } else {
       this.logger?.warn(`Operation ${operation} was blocked by protection mechanism`);
-      
+
       if (fallbackFunc) {
         this.logger?.info(`Executing fallback for blocked operation: ${operation}`);
         return await fallbackFunc();
       }
-      
+
       throw new Error(`Operation ${operation} was blocked by protection mechanism`);
     }
   }
-  
+
   /**
    * 检查内存保护
    */
@@ -147,10 +147,10 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
         checkType: 'memory'
       }
     );
-    
+
     return await this.checkProtection(protectionContext);
   }
-  
+
   /**
    * 检查错误阈值保护
    */
@@ -167,10 +167,10 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
         checkType: 'error_threshold'
       }
     );
-    
+
     return await this.checkProtection(protectionContext);
   }
-  
+
   /**
    * 检查文件大小保护
    */
@@ -185,10 +185,10 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
         checkType: 'file_size'
       }
     );
-    
+
     return await this.checkProtection(protectionContext);
   }
-  
+
   /**
    * 检查操作频率保护
    */
@@ -206,10 +206,10 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
         checkType: 'rate_limit'
       }
     );
-    
+
     return await this.checkProtection(protectionContext);
   }
-  
+
   /**
    * 获取保护统计信息
    */
@@ -221,7 +221,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
     blockRate: number;
   } {
     const { totalChecks, blockedOperations, allowedOperations, errors } = this.protectionStats;
-    
+
     return {
       totalChecks,
       blockedOperations,
@@ -230,7 +230,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       blockRate: totalChecks > 0 ? blockedOperations / totalChecks : 0
     };
   }
-  
+
   /**
    * 重置保护统计信息
    */
@@ -241,10 +241,10 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       allowedOperations: 0,
       errors: 0
     };
-    
+
     this.logger?.debug('Protection statistics reset');
   }
-  
+
   /**
    * 启用/禁用保护机制
    */
@@ -255,17 +255,17 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       this.logger?.info('Protection mechanism enabled');
     }
   }
-  
+
   /**
    * 设置保护级别
    */
   setProtectionLevel(level: 'low' | 'medium' | 'high'): void {
     this.logger?.debug(`Protection level set to: ${level}`);
-    
+
     // 这里可以根据级别调整保护机制的严格程度
     // 例如，可以配置不同的拦截器或参数
   }
-  
+
   /**
    * 创建自定义保护上下文
    */
@@ -276,7 +276,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
   ): ProtectionContext {
     return this.createProtectionContext(operation, segmentationContext, customMetadata);
   }
-  
+
   /**
    * 批量保护检查
    */
@@ -284,15 +284,15 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
     contexts: ProtectionContext[]
   ): Promise<boolean[]> {
     const results: boolean[] = [];
-    
+
     for (const context of contexts) {
       const result = await this.checkProtection(context);
       results.push(result);
     }
-    
+
     return results;
   }
-  
+
   /**
    * 异步保护检查（非阻塞）
    */
@@ -310,7 +310,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       })
     ]);
   }
-  
+
   /**
    * 条件保护检查
    */
@@ -321,36 +321,36 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
     if (!condition()) {
       return true; // 条件不满足时，跳过保护检查
     }
-    
+
     return await this.checkProtection(context);
   }
-  
+
   /**
    * 缓存保护检查结果
    */
   private protectionCache: Map<string, { result: boolean; timestamp: number }> = new Map();
-  
+
   async cachedProtectionCheck(
     context: ProtectionContext,
     cacheTtlMs: number = 60000 // 1分钟缓存
   ): Promise<boolean> {
     const cacheKey = this.generateCacheKey(context);
     const cached = this.protectionCache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < cacheTtlMs) {
       return cached.result;
     }
-    
+
     const result = await this.checkProtection(context);
-    
+
     this.protectionCache.set(cacheKey, {
       result,
       timestamp: Date.now()
     });
-    
+
     return result;
   }
-  
+
   /**
    * 生成缓存键
    */
@@ -362,10 +362,10 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       context.metadata?.contentLength?.toString() || '0',
       context.metadata?.lineCount?.toString() || '0'
     ];
-    
+
     return keyParts.join(':');
   }
-  
+
   /**
    * 清除保护缓存
    */
@@ -373,7 +373,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
     this.protectionCache.clear();
     this.logger?.debug('Protection cache cleared');
   }
-  
+
   /**
    * 获取保护缓存统计
    */

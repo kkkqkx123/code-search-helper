@@ -1,6 +1,6 @@
 import { ConfigurationManager } from '../ConfigurationManager';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { UniversalChunkingOptions } from '../../types/SegmentationTypes';
+import { UniversalChunkingOptions } from '../../../processing/strategies/types/SegmentationTypes';
 
 // Mock LoggerService
 jest.mock('../../../../../utils/LoggerService');
@@ -16,14 +16,14 @@ describe('ConfigurationManager', () => {
     mockLogger.warn = jest.fn();
     mockLogger.error = jest.fn();
     mockLogger.info = jest.fn();
-    
+
     configManager = new ConfigurationManager(mockLogger);
   });
 
   describe('Constructor', () => {
     it('should initialize with default options', () => {
       const defaultOptions = configManager.getDefaultOptions();
-      
+
       expect(defaultOptions.maxChunkSize).toBe(2000);
       expect(defaultOptions.overlapSize).toBe(200);
       expect(defaultOptions.maxLinesPerChunk).toBe(50);
@@ -58,14 +58,14 @@ describe('ConfigurationManager', () => {
     it('should return a copy of default options', () => {
       const options1 = configManager.getDefaultOptions();
       const options2 = configManager.getDefaultOptions();
-      
+
       expect(options1).toEqual(options2);
       expect(options1).not.toBe(options2); // Should be different objects
     });
 
     it('should return complete default configuration', () => {
       const options = configManager.getDefaultOptions();
-      
+
       expect(options).toHaveProperty('maxChunkSize');
       expect(options).toHaveProperty('overlapSize');
       expect(options).toHaveProperty('maxLinesPerChunk');
@@ -226,10 +226,10 @@ describe('ConfigurationManager', () => {
       expect(merged.filterConfig.minChunkSize).toBe(50);
       expect(merged.filterConfig.maxChunkSize).toBe(base.filterConfig.maxChunkSize); // Should remain unchanged
       expect(merged.filterConfig.enableSmallChunkFilter).toBe(base.filterConfig.enableSmallChunkFilter); // Should remain unchanged
-      
+
       expect(merged.protectionConfig.protectionLevel).toBe('high');
       expect(merged.protectionConfig.enableProtection).toBe(base.protectionConfig.enableProtection); // Should remain unchanged
-      
+
       expect(merged.strategyPriorities.semantic).toBe(1);
       expect(merged.strategyPriorities.markdown).toBe(base.strategyPriorities.markdown); // Should remain unchanged
     });
@@ -263,7 +263,7 @@ describe('ConfigurationManager', () => {
   describe('getLanguageSpecificConfig', () => {
     it('should return JavaScript-specific config', () => {
       const jsConfig = configManager.getLanguageSpecificConfig('javascript');
-      
+
       expect(jsConfig.maxChunkSize).toBe(2000);
       expect(jsConfig.maxLinesPerChunk).toBe(100);
       expect(jsConfig.enableSemanticDetection).toBe(true);
@@ -272,7 +272,7 @@ describe('ConfigurationManager', () => {
 
     it('should return TypeScript-specific config', () => {
       const tsConfig = configManager.getLanguageSpecificConfig('typescript');
-      
+
       expect(tsConfig.maxChunkSize).toBe(2000);
       expect(tsConfig.maxLinesPerChunk).toBe(100);
       expect(tsConfig.enableSemanticDetection).toBe(true);
@@ -281,7 +281,7 @@ describe('ConfigurationManager', () => {
 
     it('should return Python-specific config', () => {
       const pythonConfig = configManager.getLanguageSpecificConfig('python');
-      
+
       expect(pythonConfig.maxChunkSize).toBe(1500);
       expect(pythonConfig.maxLinesPerChunk).toBe(80);
       expect(pythonConfig.enableSemanticDetection).toBe(true);
@@ -290,7 +290,7 @@ describe('ConfigurationManager', () => {
 
     it('should return Java-specific config', () => {
       const javaConfig = configManager.getLanguageSpecificConfig('java');
-      
+
       expect(javaConfig.maxChunkSize).toBe(2500);
       expect(javaConfig.maxLinesPerChunk).toBe(120);
       expect(javaConfig.enableSemanticDetection).toBe(true);
@@ -299,7 +299,7 @@ describe('ConfigurationManager', () => {
 
     it('should return C++-specific config', () => {
       const cppConfig = configManager.getLanguageSpecificConfig('cpp');
-      
+
       expect(cppConfig.maxChunkSize).toBe(2000);
       expect(cppConfig.maxLinesPerChunk).toBe(100);
       expect(cppConfig.enableSemanticDetection).toBe(true);
@@ -308,7 +308,7 @@ describe('ConfigurationManager', () => {
 
     it('should return C-specific config', () => {
       const cConfig = configManager.getLanguageSpecificConfig('c');
-      
+
       expect(cConfig.maxChunkSize).toBe(1800);
       expect(cConfig.maxLinesPerChunk).toBe(90);
       expect(cConfig.enableSemanticDetection).toBe(true);
@@ -317,7 +317,7 @@ describe('ConfigurationManager', () => {
 
     it('should return C#-specific config', () => {
       const csharpConfig = configManager.getLanguageSpecificConfig('csharp');
-      
+
       expect(csharpConfig.maxChunkSize).toBe(2200);
       expect(csharpConfig.maxLinesPerChunk).toBe(110);
       expect(csharpConfig.enableSemanticDetection).toBe(true);
@@ -326,7 +326,7 @@ describe('ConfigurationManager', () => {
 
     it('should return Go-specific config', () => {
       const goConfig = configManager.getLanguageSpecificConfig('go');
-      
+
       expect(goConfig.maxChunkSize).toBe(1800);
       expect(goConfig.maxLinesPerChunk).toBe(90);
       expect(goConfig.enableSemanticDetection).toBe(true);
@@ -335,7 +335,7 @@ describe('ConfigurationManager', () => {
 
     it('should return Rust-specific config', () => {
       const rustConfig = configManager.getLanguageSpecificConfig('rust');
-      
+
       expect(rustConfig.maxChunkSize).toBe(2000);
       expect(rustConfig.maxLinesPerChunk).toBe(100);
       expect(rustConfig.enableSemanticDetection).toBe(true);
@@ -344,7 +344,7 @@ describe('ConfigurationManager', () => {
 
     it('should return Markdown-specific config', () => {
       const markdownConfig = configManager.getLanguageSpecificConfig('markdown');
-      
+
       expect(markdownConfig.maxChunkSize).toBe(3000);
       expect(markdownConfig.maxLinesPerChunk).toBe(150);
       expect(markdownConfig.enableSemanticDetection).toBe(false);
@@ -354,7 +354,7 @@ describe('ConfigurationManager', () => {
 
     it('should return empty object for unknown language', () => {
       const unknownConfig = configManager.getLanguageSpecificConfig('unknown-language');
-      
+
       expect(unknownConfig).toEqual({});
     });
   });
@@ -426,19 +426,19 @@ describe('ConfigurationManager', () => {
     it('should work with complex configuration scenarios', () => {
       // Get language-specific config
       const jsConfig = configManager.getLanguageSpecificConfig('javascript');
-      
+
       // Merge with default options
       const baseOptions = configManager.getDefaultOptions();
       const mergedOptions = configManager.mergeOptions(baseOptions, jsConfig);
-      
+
       // Update default options
       configManager.updateDefaultOptions(jsConfig);
-      
+
       // Verify the update
       const updatedOptions = configManager.getDefaultOptions();
       expect(updatedOptions.maxChunkSize).toBe(jsConfig.maxChunkSize);
       expect(updatedOptions.maxLinesPerChunk).toBe(jsConfig.maxLinesPerChunk);
-      
+
       // Reset and verify
       configManager.resetToDefaults();
       const resetOptions = configManager.getDefaultOptions();
@@ -447,7 +447,7 @@ describe('ConfigurationManager', () => {
 
     it('should handle multiple language configurations', () => {
       const languages = ['javascript', 'typescript', 'python', 'java', 'cpp', 'rust'];
-      
+
       languages.forEach(lang => {
         const langConfig = configManager.getLanguageSpecificConfig(lang);
         expect(langConfig).toBeDefined();
@@ -458,10 +458,10 @@ describe('ConfigurationManager', () => {
     it('should maintain configuration consistency', () => {
       // Get default options
       const defaultOptions = configManager.getDefaultOptions();
-      
+
       // Validate default options
       expect(configManager.validateOptions(defaultOptions)).toBe(true);
-      
+
       // Get language-specific configs and validate them
       const languages = ['javascript', 'python', 'markdown'];
       languages.forEach(lang => {

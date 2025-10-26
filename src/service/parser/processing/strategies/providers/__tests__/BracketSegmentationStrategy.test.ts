@@ -1,6 +1,6 @@
 import { BracketSegmentationStrategy } from '../BracketSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
-import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../../../universal/types/SegmentationTypes';
+import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../types/SegmentationTypes';
 import { CodeChunk } from '../../../../splitting';
 
 // Mock LoggerService

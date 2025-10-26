@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { IProcessingStrategy } from './IProcessingStrategy';
 import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
-import { XMLTextSplitter } from '../../../universal/xml/XMLTextSplitter';
+import { XMLTextSplitter } from '../../utils/xml/XMLTextSplitter';
 
 /**
  * XML策略实现

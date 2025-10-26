@@ -3,6 +3,15 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
 import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
+import {
+  ASTStrategyProvider,
+  SemanticStrategyProvider,
+  SemanticFineStrategyProvider,
+  LineStrategyProvider,
+  MarkdownStrategyProvider,
+  XMLStrategyProvider,
+  BracketStrategyProvider
+} from '../providers';
 
 /**
  * 统一策略工厂
@@ -16,10 +25,18 @@ export class UnifiedStrategyFactory {
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.UnifiedConfigManager) configManager?: UnifiedConfigManager
+    @inject(TYPES.UnifiedConfigManager) configManager?: UnifiedConfigManager,
+    @inject(TYPES.TreeSitterService) treeSitterService?: any,
+    @inject(TYPES.UniversalTextSplitter) universalTextSplitter?: any,
+    @inject(TYPES.MarkdownTextSplitter) markdownSplitter?: any,
+    @inject(TYPES.XMLTextSplitter) xmlSplitter?: any
   ) {
     this.logger = logger;
     this.configManager = configManager || new UnifiedConfigManager();
+    
+    // 自动注册所有策略提供者
+    this.registerDefaultProviders(treeSitterService, universalTextSplitter, markdownSplitter, xmlSplitter);
+    
     this.logger?.debug('UnifiedStrategyFactory initialized');
   }
 
@@ -29,6 +46,35 @@ export class UnifiedStrategyFactory {
   registerProvider(provider: IStrategyProvider): void {
     this.providers.set(provider.getName(), provider);
     this.logger?.debug(`Registered strategy provider: ${provider.getName()}`);
+  }
+
+  /**
+   * 注册默认策略提供者
+   */
+  private registerDefaultProviders(
+    treeSitterService?: any,
+    universalTextSplitter?: any,
+    markdownSplitter?: any,
+    xmlSplitter?: any
+  ): void {
+    // 注册AST策略提供者
+    this.registerProvider(new ASTStrategyProvider(treeSitterService, this.logger));
+    
+    // 注册语义策略提供者
+    this.registerProvider(new SemanticStrategyProvider(universalTextSplitter, this.logger));
+    this.registerProvider(new SemanticFineStrategyProvider(universalTextSplitter, this.logger));
+    
+    // 注册行级策略提供者
+    this.registerProvider(new LineStrategyProvider(universalTextSplitter, this.logger));
+    
+    // 注册专门格式策略提供者
+    this.registerProvider(new MarkdownStrategyProvider(markdownSplitter, this.logger));
+    this.registerProvider(new XMLStrategyProvider(xmlSplitter, this.logger));
+    
+    // 注册括号策略提供者
+    this.registerProvider(new BracketStrategyProvider(universalTextSplitter, this.logger));
+    
+    this.logger?.info(`Registered ${this.providers.size} default strategy providers`);
   }
 
   /**

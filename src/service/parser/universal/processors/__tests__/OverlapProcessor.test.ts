@@ -1,7 +1,7 @@
 import { OverlapProcessor } from '../OverlapProcessor';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { IComplexityCalculator } from '../../types/SegmentationTypes';
-import { SegmentationContext } from '../../types/SegmentationTypes';
+import { IComplexityCalculator } from '../../../processing/strategies/types/SegmentationTypes';
+import { SegmentationContext } from '../../../processing/strategies/types/SegmentationTypes';
 import { CodeChunk } from '../../../splitting';
 
 // Mock LoggerService

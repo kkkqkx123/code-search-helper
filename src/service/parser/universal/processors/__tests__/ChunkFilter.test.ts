@@ -1,6 +1,6 @@
 import { ChunkFilter } from '../ChunkFilter';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { SegmentationContext } from '../../types/SegmentationTypes';
+import { SegmentationContext } from '../../../processing/strategies/types/SegmentationTypes';
 import { CodeChunk } from '../../../splitting';
 
 // Mock LoggerService

@@ -167,6 +167,9 @@ export interface ChunkingOptions {
   enableSmartDeduplication?: boolean;
   similarityThreshold?: number;
   overlapMergeStrategy?: 'aggressive' | 'conservative';
+
+  // 自定义依赖项（用于策略提供者）
+  [key: string]: any;
 }
 
 /**
@@ -177,7 +180,7 @@ export interface CodeChunkMetadata {
   endLine: number;
   language: string;
   filePath?: string;
-  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' | 'declaration' | 'doctype' | 'root' | 'element' | 'instruction' | 'comment' | 'cdata' | 'text';
+  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' | 'declaration' | 'doctype' | 'root' | 'element' | 'instruction' | 'comment' | 'cdata' | 'text' | 'fallback' | 'emergency';
   functionName?: string;
   className?: string;
   complexity?: number; // 新增：代码复杂度

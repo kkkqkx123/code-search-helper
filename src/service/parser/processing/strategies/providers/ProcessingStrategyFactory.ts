@@ -5,8 +5,8 @@ import { IProcessingStrategy } from './IProcessingStrategy';
 import { DetectionResult, ProcessingStrategyType } from '../../../universal/UnifiedDetectionCenter';
 import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { MarkdownTextSplitter } from '../../../universal/md/MarkdownTextSplitter';
-import { XMLTextSplitter } from '../../../universal/xml/XMLTextSplitter';
+import { MarkdownTextSplitter } from '../../utils/md/MarkdownTextSplitter';
+import { XMLTextSplitter } from '../../utils/xml/XMLTextSplitter';
 
 @injectable()
 export class ProcessingStrategyFactory {
