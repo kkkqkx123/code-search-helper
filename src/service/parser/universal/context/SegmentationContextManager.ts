@@ -1,15 +1,16 @@
 import { injectable, inject } from 'inversify';
-import { 
-  ISegmentationContextManager, 
-  ISegmentationStrategy, 
-  SegmentationContext, 
+import {
+  ISegmentationContextManager,
+  ISegmentationStrategy,
+  SegmentationContext,
   UniversalChunkingOptions,
-  IConfigurationManager 
+  IConfigurationManager
 } from '../types/SegmentationTypes';
 import { CodeChunk } from '../../splitting';
 import { SegmentationContextFactory } from './SegmentationContext';
 import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { FileFeatureDetector } from '../utils/FileFeatureDetector';
 
 /**
  * 分段上下文管理器
@@ -21,6 +22,7 @@ export class SegmentationContextManager implements ISegmentationContextManager {
   private configManager: IConfigurationManager;
   private logger?: LoggerService;
   private strategyCache: Map<string, ISegmentationStrategy> = new Map();
+  private fileFeatureDetector: FileFeatureDetector;
   
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
@@ -29,6 +31,7 @@ export class SegmentationContextManager implements ISegmentationContextManager {
     this.logger = logger;
     this.configManager = configManager || this.createDefaultConfigManager();
     this.strategies = [];
+    this.fileFeatureDetector = new FileFeatureDetector(logger);
     this.logger?.debug('SegmentationContextManager initialized');
   }
   
@@ -276,65 +279,8 @@ export class SegmentationContextManager implements ISegmentationContextManager {
    * 检查是否有复杂的代码结构
    */
   private hasComplexCodeStructure(content: string, language?: string): boolean {
-    // 检查函数定义
-    const functionCount = (content.match(/\b(function|def|class|interface)\b/g) || []).length;
-    if (functionCount > 2) return true;
-    
-    // 检查控制结构
-    const controlCount = (content.match(/\b(if|else|while|for|switch|case|try|catch)\b/g) || []).length;
-    if (controlCount > 5) return true;
-    
-    // 检查嵌套深度
-    const maxNestingDepth = this.calculateMaxNestingDepth(content);
-    if (maxNestingDepth > 3) return true;
-    
-    return false;
-  }
-  
-  /**
-   * 计算最大嵌套深度
-   */
-  private calculateMaxNestingDepth(content: string): number {
-    const lines = content.split('\n');
-    let maxDepth = 0;
-    let currentDepth = 0;
-    
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      
-      // 增加嵌套深度
-      if (this.isOpeningStatement(trimmedLine)) {
-        currentDepth++;
-        maxDepth = Math.max(maxDepth, currentDepth);
-      }
-      
-      // 减少嵌套深度
-      if (this.isClosingStatement(trimmedLine)) {
-        currentDepth = Math.max(0, currentDepth - 1);
-      }
-    }
-    
-    return maxDepth;
-  }
-  
-  /**
-   * 判断是否为开始语句
-   */
-  private isOpeningStatement(line: string): boolean {
-    return line.includes('{') || 
-           /\b(if|while|for|switch|try)\b/.test(line) ||
-           line.endsWith(':'); // Python风格的控制结构
-  }
-  
-  /**
-   * 判断是否为结束语句
-   */
-  private isClosingStatement(line: string): boolean {
-    return line.includes('}') || 
-           (line.includes('else') && !line.includes('if')) ||
-           line.startsWith('except') ||
-           line.startsWith('finally') ||
-           line.startsWith('elif');
+    const complexity = this.fileFeatureDetector.calculateComplexity(content);
+    return complexity > 20; // 使用复杂度阈值判断
   }
   
   /**

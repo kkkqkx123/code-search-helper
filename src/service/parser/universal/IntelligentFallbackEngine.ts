@@ -2,6 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { DetectionResult, ProcessingStrategyType } from './UnifiedDetectionCenter';
+import { FileFeatureDetector } from './utils/FileFeatureDetector';
 
 export interface FallbackStrategy {
   strategy: string;
@@ -27,11 +28,13 @@ export class IntelligentFallbackEngine {
   private errorHistory: Map<string, ErrorPattern[]> = new Map();
   private performanceMetrics: Map<string, PerformanceMetrics[]> = new Map();
   private logger?: LoggerService;
+  private fileFeatureDetector: FileFeatureDetector;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
     this.logger = logger;
+    this.fileFeatureDetector = new FileFeatureDetector(logger);
   }
 
   /**
@@ -172,25 +175,21 @@ export class IntelligentFallbackEngine {
    * 检查是否为代码语言
    */
   private isCodeLanguage(language: string): boolean {
-    const codeLanguages = [
-      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-      'go', 'rust', 'php', 'ruby', 'css', 'html', 'json', 'yaml', 'xml'
-    ];
-    return codeLanguages.includes(language.toLowerCase());
+    return this.fileFeatureDetector.isCodeLanguage(language);
   }
 
   /**
    * 检查是否为Markdown
    */
   private isMarkdown(language: string): boolean {
-    return ['markdown', 'md'].includes(language.toLowerCase());
+    return this.fileFeatureDetector.isMarkdown(language);
   }
 
   /**
    * 检查是否为XML类语言
    */
   private isXML(language: string): boolean {
-    return ['xml', 'html', 'svg', 'xhtml'].includes(language.toLowerCase());
+    return this.fileFeatureDetector.isXML(language);
   }
 
   /**

@@ -6,11 +6,12 @@ import { BackupFileProcessor } from './BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
 import { LanguageDetector } from '../core/language-detection/LanguageDetector';
 import { UniversalProcessingConfig } from './UniversalProcessingConfig';
+import { FileFeatureDetector } from './utils/FileFeatureDetector';
 
 export interface DetectionResult {
   language: string;
   confidence: number;
- fileType: 'backup' | 'normal' | 'extensionless' | 'unknown';
+  fileType: 'backup' | 'normal' | 'extensionless' | 'unknown';
   extension?: string;
   originalExtension?: string;
   indicators?: string[];
@@ -36,6 +37,7 @@ export class UnifiedDetectionCenter {
   private extensionlessProcessor: ExtensionlessFileProcessor;
   private languageDetector: LanguageDetector;
   private config: UniversalProcessingConfig;
+  private fileFeatureDetector: FileFeatureDetector;
   private detectionCache: Map<string, DetectionResult> = new Map();
   private readonly cacheSizeLimit = 1000; // 限制缓存大小
 
@@ -49,11 +51,12 @@ export class UnifiedDetectionCenter {
     this.extensionlessProcessor = extensionlessProcessor || new ExtensionlessFileProcessor(logger);
     this.languageDetector = new LanguageDetector();
     this.config = config || new UniversalProcessingConfig(logger);
- }
+    this.fileFeatureDetector = new FileFeatureDetector(logger);
+  }
 
   async detectFile(filePath: string, content: string): Promise<DetectionResult> {
     const cacheKey = `${filePath}:${content.length}`;
-    
+
     // 检查缓存
     if (this.detectionCache.has(cacheKey)) {
       this.logger?.debug(`Cache hit for detection: ${filePath}`);
@@ -62,7 +65,7 @@ export class UnifiedDetectionCenter {
 
     // 统一检测流程
     const result = await this.performUnifiedDetection(filePath, content);
-    
+
     // 管理缓存大小
     if (this.detectionCache.size >= this.cacheSizeLimit) {
       // 删除最旧的条目
@@ -71,14 +74,14 @@ export class UnifiedDetectionCenter {
         this.detectionCache.delete(firstKey);
       }
     }
-    
+
     // 缓存结果
     this.detectionCache.set(cacheKey, result);
-    
+
     return result;
   }
 
- private async performUnifiedDetection(filePath: string, content: string): Promise<DetectionResult> {
+  private async performUnifiedDetection(filePath: string, content: string): Promise<DetectionResult> {
     this.logger?.debug(`Performing unified detection for: ${filePath}`);
 
     // 1. 备份文件检测（最高优先级）
@@ -97,11 +100,12 @@ export class UnifiedDetectionCenter {
     }
 
     // 2. 扩展名检测
+    // 2. 扩展名检测
     const ext = path.extname(filePath).toLowerCase();
     if (ext) {
       const language = this.languageDetector.detectLanguageSync(filePath);
       if (language && language !== 'unknown') {
-        const isHighlyStructured = this.isHighlyStructured(content, language);
+        const isHighlyStructured = this.fileFeatureDetector.isHighlyStructured(content, language);
         return {
           language,
           confidence: 0.8,
@@ -116,7 +120,7 @@ export class UnifiedDetectionCenter {
     // 3. 内容检测（无扩展名文件）
     const contentDetection = this.extensionlessProcessor.detectLanguageByContent(content);
     if (contentDetection.language !== 'unknown' && contentDetection.confidence > 0.5) {
-      const isHighlyStructured = this.isHighlyStructured(content, contentDetection.language);
+      const isHighlyStructured = this.fileFeatureDetector.isHighlyStructured(content, contentDetection.language);
       return {
         language: contentDetection.language,
         confidence: contentDetection.confidence,
@@ -128,7 +132,7 @@ export class UnifiedDetectionCenter {
     }
 
     // 4. 默认处理
-    const isHighlyStructured = this.isHighlyStructured(content, 'text');
+    const isHighlyStructured = this.fileFeatureDetector.isHighlyStructured(content, 'text');
     return {
       language: 'text',
       confidence: 0.1,
@@ -137,105 +141,59 @@ export class UnifiedDetectionCenter {
       isHighlyStructured
     };
   }
-
   private determineBackupStrategy(backupInfo: any): string {
     // 备份文件使用括号平衡分段策略以确保安全性
     return ProcessingStrategyType.UNIVERSAL_BRACKET;
   }
 
- private determineExtensionStrategy(language: string, content: string): string {
+  private determineExtensionStrategy(language: string, content: string): string {
     // 根据语言类型确定策略
-    if (this.isMarkdown(language)) {
+    if (this.fileFeatureDetector.isMarkdown(language)) {
       return ProcessingStrategyType.MARKDOWN_SPECIALIZED;
     }
-    
-    if (this.isXML(language)) {
+
+    if (this.fileFeatureDetector.isXML(language)) {
       return ProcessingStrategyType.XML_SPECIALIZED;
     }
-    
-    if (this.isCodeLanguage(language)) {
+
+    if (this.fileFeatureDetector.isCodeLanguage(language)) {
       // 检查是否支持TreeSitter
-      if (this.canUseTreeSitter(language)) {
+      if (this.fileFeatureDetector.canUseTreeSitter(language)) {
         return ProcessingStrategyType.TREESITTER_AST;
       }
-      
+
       // 检查是否为结构化文件
-      if (this.isHighlyStructured(content, language)) {
+      if (this.fileFeatureDetector.isHighlyStructured(content, language)) {
         return ProcessingStrategyType.UNIVERSAL_BRACKET;
       }
-      
+
       return ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE;
     }
-    
+
     return ProcessingStrategyType.UNIVERSAL_SEMANTIC;
   }
 
   private determineContentStrategy(contentDetection: any): string {
     const language = contentDetection.language;
-    
-    if (this.isMarkdown(language)) {
+
+    if (this.fileFeatureDetector.isMarkdown(language)) {
       return ProcessingStrategyType.MARKDOWN_SPECIALIZED;
     }
-    
-    if (this.isXML(language)) {
+
+    if (this.fileFeatureDetector.isXML(language)) {
       return ProcessingStrategyType.XML_SPECIALIZED;
     }
-    
-    if (this.isCodeLanguage(language)) {
+
+    if (this.fileFeatureDetector.isCodeLanguage(language)) {
       // 检查是否支持TreeSitter
-      if (this.canUseTreeSitter(language)) {
+      if (this.fileFeatureDetector.canUseTreeSitter(language)) {
         return ProcessingStrategyType.TREESITTER_AST;
       }
-      
+
       return ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE;
     }
-    
+
     return ProcessingStrategyType.UNIVERSAL_SEMANTIC;
-  }
-
-  private isMarkdown(language: string): boolean {
-    return ['markdown', 'md'].includes(language.toLowerCase());
-  }
-
-  private isXML(language: string): boolean {
-    return ['xml', 'html', 'svg', 'xhtml'].includes(language.toLowerCase());
-  }
-
-  private isCodeLanguage(language: string): boolean {
-    const codeLanguages = [
-      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-      'go', 'rust', 'php', 'ruby', 'css', 'html', 'json', 'yaml', 'xml'
-    ];
-    return codeLanguages.includes(language.toLowerCase());
-  }
-
- private canUseTreeSitter(language: string): boolean {
-    const treeSitterLanguages = [
-      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-      'go', 'rust', 'php', 'ruby'
-    ];
-    return treeSitterLanguages.includes(language.toLowerCase());
-  }
-
-  private isHighlyStructured(content: string, language: string): boolean {
-    // 如果是已知结构化语言，直接返回true
-    const structuredLanguages = ['json', 'xml', 'html', 'yaml', 'css', 'sql'];
-    if (structuredLanguages.includes(language.toLowerCase())) {
-      return true;
-    }
-
-    // 检查内容是否包含大量括号或标签
-    const bracketCount = (content.match(/[{}()\[\]]/g) || []).length;
-    const tagCount = (content.match(/<[^>]+>/g) || []).length;
-    const totalLength = content.length;
-
-    const isStructured = (bracketCount / totalLength > 0.01) || (tagCount / totalLength > 0.005);
-    
-    if (isStructured) {
-      this.logger?.debug(`Detected structured content: brackets=${bracketCount}, tags=${tagCount}, ratio=${(bracketCount / totalLength).toFixed(3)}`);
-    }
-
-    return isStructured;
   }
 
   /**
@@ -243,15 +201,15 @@ export class UnifiedDetectionCenter {
    */
   async batchDetect(filePaths: Array<{ filePath: string; content: string }>): Promise<Map<string, DetectionResult>> {
     const results = new Map<string, DetectionResult>();
-    
+
     // 并行处理检测
     const detectionPromises = filePaths.map(async ({ filePath, content }) => {
       const result = await this.detectFile(filePath, content);
       results.set(filePath, result);
     });
-    
+
     await Promise.all(detectionPromises);
-    
+
     return results;
   }
 

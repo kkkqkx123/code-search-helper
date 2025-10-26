@@ -12,7 +12,8 @@ import {
   ProcessingStrategyType
 } from './interfaces/IProcessingStrategySelector';
 import * as path from 'path';
-import { LANGUAGE_MAP, CODE_LANGUAGES, STRUCTURED_LANGUAGES } from '../constants';
+import { LANGUAGE_MAP } from '../constants';
+import { FileFeatureDetector } from '../utils/FileFeatureDetector';
 
 /**
  * 处理策略选择器
@@ -24,6 +25,7 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
   private backupFileProcessor: BackupFileProcessor;
   private extensionlessFileProcessor: ExtensionlessFileProcessor;
   private config: UniversalProcessingConfig;
+  private fileFeatureDetector: FileFeatureDetector;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
@@ -37,6 +39,7 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
     this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
     this.extensionlessFileProcessor = extensionlessFileProcessor || new ExtensionlessFileProcessor(logger);
     this.config = config || new UniversalProcessingConfig(logger);
+    this.fileFeatureDetector = new FileFeatureDetector(logger);
   }
 
   get name(): string {
@@ -272,56 +275,38 @@ export class ProcessingStrategySelector implements IProcessingStrategySelector {
 
   /**
    * 根据扩展名检测语言
-   */
-  private detectLanguageByExtension(extension: string): string {
-    return LANGUAGE_MAP[extension] || 'unknown';
-  }
-
-  /**
-   * 检查是否为代码语言
-   */
-  isCodeLanguage(language: string): boolean {
-    return (CODE_LANGUAGES as string[]).includes(language);
-  }
-
-  /**
-   * 检查是否为文本类语言（需要智能分段的非代码文件）
-   */
-  isTextLanguage(language: string): boolean {
-    return ['markdown', 'text', 'log', 'ini', 'cfg', 'conf', 'toml'].includes(language);
-  }
-
-  /**
-   * 检查是否可以使用TreeSitter
-   */
-  canUseTreeSitter(language: string): boolean {
-    // TreeSitter支持的编程语言
-    const TREESITTER_LANGUAGES = [
-      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-      'go', 'rust', 'php', 'ruby'
-    ];
-    return TREESITTER_LANGUAGES.includes(language);
-  }
-
-  /**
-   * 检查是否为结构化文件
-   */
-  isStructuredFile(content: string, language: string): boolean {
-    if ((STRUCTURED_LANGUAGES as string[]).includes(language)) {
-      return true;
-    }
-
-    // 检查内容是否包含大量括号或标签
-    const bracketCount = (content.match(/[{}()\[\]]/g) || []).length;
-    const tagCount = (content.match(/<[^>]+>/g) || []).length;
-    const totalLength = content.length;
-
-    const isStructured = (bracketCount / totalLength > 0.01) || (tagCount / totalLength > 0.005);
-    
-    if (isStructured) {
-      this.logger?.debug(`Detected structured file: brackets=${bracketCount}, tags=${tagCount}, ratio=${(bracketCount / totalLength).toFixed(3)}`);
-    }
-
-    return isStructured;
-  }
+   /**
+    * 根据扩展名检测语言
+    */
+   private detectLanguageByExtension(extension: string): string {
+     return this.fileFeatureDetector.detectLanguageByExtension(extension, LANGUAGE_MAP);
+   }
+ 
+   /**
+    * 检查是否为代码语言
+    */
+   isCodeLanguage(language: string): boolean {
+     return this.fileFeatureDetector.isCodeLanguage(language);
+   }
+ 
+   /**
+    * 检查是否为文本类语言（需要智能分段的非代码文件）
+    */
+   isTextLanguage(language: string): boolean {
+     return this.fileFeatureDetector.isTextLanguage(language);
+   }
+ 
+   /**
+    * 检查是否可以使用TreeSitter
+    */
+   canUseTreeSitter(language: string): boolean {
+     return this.fileFeatureDetector.canUseTreeSitter(language);
+   }
+ 
+   /**
+    * 检查是否为结构化文件
+    */
+   isStructuredFile(content: string, language: string): boolean {
+     return this.fileFeatureDetector.isStructuredFile(content, language);
+   }
 }

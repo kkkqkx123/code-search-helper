@@ -1,27 +1,24 @@
 import { injectable, inject } from 'inversify';
 import { CodeChunk } from '../splitting';
 import { LoggerService } from '../../../utils/LoggerService';
-import { 
-  ITextSplitter, 
-  ISegmentationContextManager, 
-  ISegmentationProcessor, 
-  IProtectionCoordinator, 
-  IConfigurationManager, 
-  SegmentationContext, 
-  UniversalChunkingOptions 
+import {
+  ITextSplitter,
+  ISegmentationContextManager,
+  ISegmentationProcessor,
+  IProtectionCoordinator,
+  IConfigurationManager,
+  SegmentationContext,
+  UniversalChunkingOptions
 } from './types/SegmentationTypes';
-import { MarkdownTextSplitter } from './md/MarkdownTextSplitter';
-import { XMLTextSplitter } from './xml/XMLTextSplitter';
 import { SegmentationContextManager } from './context/SegmentationContextManager';
 import { ConfigurationManager } from './config/ConfigurationManager';
 import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
 import { TYPES } from '../../../types';
-import { IQueryResultNormalizer } from '../core/normalization/types';
-import { TreeSitterCoreService } from '../core/parse/TreeSitterCoreService';
+import { FileFeatureDetector } from './utils/FileFeatureDetector';
 
 /**
  * 通用文本分段器（重构后版本）
- * 职责：作为分段服务的入口点，协调各个组件的工作
+ * 职责：专注于核心分段逻辑，不承担其他职责
  */
 @injectable()
 export class UniversalTextSplitter implements ITextSplitter {
@@ -31,10 +28,7 @@ export class UniversalTextSplitter implements ITextSplitter {
   private configManager: IConfigurationManager;
   private options: UniversalChunkingOptions;
   private logger?: LoggerService;
-  private markdownSplitter: MarkdownTextSplitter;
-  private xmlSplitter: XMLTextSplitter;
-  private queryNormalizer?: IQueryResultNormalizer;
-  private treeSitterService?: TreeSitterCoreService;
+  private fileFeatureDetector: FileFeatureDetector;
   
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -46,9 +40,8 @@ export class UniversalTextSplitter implements ITextSplitter {
       this.configManager = configManager;
       this.protectionCoordinator = protectionCoordinator;
       this.options = configManager.getDefaultOptions();
-      this.markdownSplitter = new MarkdownTextSplitter(logger);
-      this.xmlSplitter = new XMLTextSplitter(logger);
       this.processors = [];
+      this.fileFeatureDetector = new FileFeatureDetector(logger);
       
       this.logger?.debug('Initializing UniversalTextSplitter...');
       
@@ -122,22 +115,6 @@ export class UniversalTextSplitter implements ITextSplitter {
   }
   
   /**
-   * 设置查询标准化器
-   */
-  setQueryNormalizer(normalizer: IQueryResultNormalizer): void {
-    this.queryNormalizer = normalizer;
-    this.logger?.debug('Query normalizer set for UniversalTextSplitter');
-  }
-  
-  /**
-   * 设置Tree-sitter服务
-   */
-  setTreeSitterService(service: TreeSitterCoreService): void {
-    this.treeSitterService = service;
-    this.logger?.debug('Tree-sitter service set for UniversalTextSplitter');
-  }
-  
-  /**
    * 添加处理器
    */
   addProcessor(processor: ISegmentationProcessor): void {
@@ -190,22 +167,6 @@ export class UniversalTextSplitter implements ITextSplitter {
     // 对小文件直接作为一个块处理
     if (context.metadata.isSmallFile) {
       return this.chunkSmallFile(context);
-    }
-    
-    // 对Markdown文件使用专门的分段器
-    if (context.metadata.isMarkdownFile) {
-      this.logger?.info(`Using specialized markdown splitter for ${context.filePath}`);
-      const mdChunks = this.markdownSplitter.chunkMarkdown(context.content, context.filePath);
-      // 为markdown分块应用处理器
-      return this.applyProcessors(mdChunks, context);
-    }
-    
-    // 对XML文件使用专门的分段器
-    if (context.language === 'xml') {
-      this.logger?.info(`Using specialized XML splitter for ${context.filePath}`);
-      const xmlChunks = this.xmlSplitter.chunkXML(context.content, context.filePath);
-      // 为XML分块应用处理器
-      return this.applyProcessors(xmlChunks, context);
     }
     
     // 执行保护检查
@@ -284,7 +245,7 @@ export class UniversalTextSplitter implements ITextSplitter {
       language: language || 'unknown',
       filePath,
       type: 'semantic' as const,
-      complexity: this.calculateComplexity(content)
+      complexity: this.fileFeatureDetector.calculateComplexity(content)
     };
 
     this.logger?.info(`Small file detected (${content.length} chars, ${lines.length} lines), using single chunk`);
@@ -293,25 +254,6 @@ export class UniversalTextSplitter implements ITextSplitter {
       content: content,
       metadata
     }];
-  }
-  
-  /**
-   * 计算代码复杂度（简化版本）
-   */
-  private calculateComplexity(content: string): number {
-    let complexity = 0;
-
-    // 基于代码结构计算复杂度
-    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
-    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
-    complexity += (content.match(/[{}]/g) || []).length;
-    complexity += (content.match(/[()]/g) || []).length * 0.5;
-
-    // 基于代码长度调整
-    const lines = content.split('\n').length;
-    complexity += Math.log10(lines + 1) * 2;
-
-    return Math.round(complexity);
   }
   
   /**
