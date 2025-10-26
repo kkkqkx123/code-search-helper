@@ -6,11 +6,11 @@ import {
   UniversalChunkingOptions,
   IConfigurationManager
 } from '../../strategies/types/SegmentationTypes';
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../splitting-types';
 import { SegmentationContextFactory } from './SegmentationContextFactory';
 import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { FileFeatureDetector } from '../FileFeatureDetector';
+import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
 
 /**
  * 分段上下文管理器

@@ -2,3 +2,4 @@
 export { ChunkFilter } from './ChunkFilter';
 export { ChunkRebalancer } from './ChunkRebalancer';
 export { OverlapProcessor } from './OverlapProcessor';
+export { BalancedChunker } from './BalancedChunker';

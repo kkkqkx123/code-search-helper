@@ -1,7 +1,7 @@
 // 统一处理层入口文件
 // 整合了 universal、splitting、core/strategy 的功能
 
-// 接口导出
+// 接口导出 - 从迁移的splitting接口
 export {
   ISplitStrategy,
   IStrategyProvider,
@@ -10,11 +10,24 @@ export {
   CodeChunkMetadata,
   ASTNode,
   StrategyConfiguration
-} from '../interfaces/ISplitStrategy';
+} from './interfaces/ISplitStrategy';
 
 export {
   IStrategyProvider as IStrategyProviderInterface
-} from '../interfaces/IStrategyProvider';
+} from './interfaces/IStrategyProvider';
+
+// 导出splitting相关的核心类型和接口
+export {
+  Splitter,
+  ComplexityCalculator,
+  SyntaxValidator,
+  ChunkOptimizer,
+  OverlapCalculator,
+  PerformanceStats,
+  PerformanceMonitor,
+  DEFAULT_CHUNKING_OPTIONS,
+  DEFAULT_ENHANCED_CHUNKING_OPTIONS
+} from './splitting-types';
 
 // 配置管理导入和导出
 import { UnifiedConfigManager, UnifiedConfig, UniversalProcessingConfig } from '../config/UnifiedConfigManager';
@@ -53,7 +66,7 @@ export type {
   ChunkingOptions as LegacyChunkingOptions,
   CodeChunk as LegacyCodeChunk,
   CodeChunkMetadata as LegacyCodeChunkMetadata
-} from '../splitting';
+} from './splitting-types';
 
 // 默认导出
 export default {

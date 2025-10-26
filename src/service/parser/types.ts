@@ -40,4 +40,4 @@ export {
   PerformanceMonitor,
   DEFAULT_CHUNKING_OPTIONS,
   DEFAULT_ENHANCED_CHUNKING_OPTIONS
-} from './splitting';
+} from './processing/splitting-types';

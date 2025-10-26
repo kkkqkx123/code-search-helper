@@ -55,7 +55,7 @@ import { IgnoreRuleManager } from './service/ignore/IgnoreRuleManager';
 // 11. Tree-sitter 解析模块
 import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from './service/parser/core/parse/TreeSitterCoreService';
-import { ASTCodeSplitter } from './service/parser/splitting/ASTCodeSplitter';
+import { ASTCodeSplitter } from './service/parser/processing/strategies/impl/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from './service/parser/ChunkToVectorCoordinationService';
 import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
 import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';

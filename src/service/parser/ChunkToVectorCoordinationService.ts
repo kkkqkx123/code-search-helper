@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { ASTCodeSplitter } from './splitting/ASTCodeSplitter';
+import { ASTCodeSplitter } from './processing/strategies/impl/ASTCodeSplitter';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { TYPES } from '../../types';
