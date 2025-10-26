@@ -13,8 +13,7 @@ import {
 } from '../../types/project';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { ProjectStateManager } from '../../service/project/ProjectStateManager';
-import { ProjectState } from '../../service/project/ProjectStateManager';
+import { ProjectStateManager, ProjectState, StorageStatus } from '../../service/project/ProjectStateManager';
 import { IndexService } from '../../service/index/IndexService';
 import { VectorIndexService } from '../../service/index/VectorIndexService';
 import { GraphIndexService } from '../../service/index/GraphIndexService';

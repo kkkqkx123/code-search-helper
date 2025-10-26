@@ -90,7 +90,8 @@ describe('ProjectRoutes', () => {
       mockProjectLookupService.indexSyncService as IndexService,
       mockVectorIndexService as VectorIndexService,
       mockGraphIndexService as GraphIndexService,
-      {} as any // Mock hotReloadConfigService
+      {} as any, // Mock hotReloadConfigService
+      {} as any // Mock projectPathMappingService
     );
 
     // Create express app and use the router

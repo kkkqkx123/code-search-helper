@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { ProcessingGuard } from '../../guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
 import { MemoryGuard } from '../../guard/MemoryGuard';
-import { ProcessingStrategySelector } from '../coordination/ProcessingStrategySelector';
+import { ProcessingStrategyFactory } from '../factory/ProcessingStrategyFactory';
 import { FileProcessingCoordinator } from '../coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
@@ -75,7 +75,7 @@ describe('ProcessingGuard Integration Tests', () => {
       mockLogger,
       errorThresholdManager,
       memoryGuard,
-      new ProcessingStrategySelector(mockLogger),
+      new ProcessingStrategyFactory(mockLogger),
       fileProcessingCoordinator
     );
   });

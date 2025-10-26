@@ -4,7 +4,7 @@ import { UniversalTextSplitter } from '../UniversalTextSplitter';
 import { ProcessingGuard } from '../../guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
 import { MemoryGuard } from '../../guard/MemoryGuard';
-import { ProcessingStrategySelector } from '../coordination/ProcessingStrategySelector';
+import { ProcessingStrategyFactory } from '../factory/ProcessingStrategyFactory';
 import { FileProcessingCoordinator } from '../coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { SegmentationContextManager } from '../context/SegmentationContextManager';
@@ -89,9 +89,9 @@ describe('Universal Processing Performance Tests', () => {
     const fileProcessingCoordinator = new FileProcessingCoordinator(mockLogger, universalTextSplitter, treeSitterService);
     container.bind<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator).toConstantValue(fileProcessingCoordinator);
     
-    // 创建并绑定ProcessingStrategySelector
-    const processingStrategySelector = new ProcessingStrategySelector(mockLogger);
-    container.bind<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector).toConstantValue(processingStrategySelector);
+    // 创建并绑定ProcessingStrategyFactory
+    const processingStrategyFactory = new ProcessingStrategyFactory(mockLogger);
+    container.bind<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory).toConstantValue(processingStrategyFactory);
     
     // 创建其他依赖
     const errorThresholdManager = new ErrorThresholdManager(mockLogger);
@@ -101,7 +101,7 @@ describe('Universal Processing Performance Tests', () => {
       mockLogger,
       errorThresholdManager,
       memoryGuard,
-      processingStrategySelector,
+      processingStrategyFactory,
       fileProcessingCoordinator
     );
 

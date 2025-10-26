@@ -57,7 +57,7 @@ describe('Database and Embedders Integration', () => {
     } as unknown as ConfigService;
 
     logger = new LoggerService();
-    loggerInstance = new Logger('test');
+    loggerInstance = Logger.getInstance('test');
     errorHandler = new ErrorHandlerService(logger);
     
     // Create mock config services

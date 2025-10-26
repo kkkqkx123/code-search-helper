@@ -59,6 +59,12 @@ import { ASTCodeSplitter } from './service/parser/splitting/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from './service/parser/ChunkToVectorCoordinationService';
 import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
 import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';
+import { ProcessingGuard } from './service/parser/guard/ProcessingGuard';
+import { UnifiedDetectionCenter } from './service/parser/universal/UnifiedDetectionCenter';
+import { IntelligentFallbackEngine } from './service/parser/universal/IntelligentFallbackEngine';
+import { ProcessingStrategyFactory } from './service/parser/universal/factory/ProcessingStrategyFactory';
+import { MarkdownTextSplitter } from './service/parser/universal/md/MarkdownTextSplitter';
+import { XMLTextSplitter } from './service/parser/universal/xml/XMLTextSplitter';
 
 // 12. 文件搜索模块
 import { FileSearchService } from './service/filesearch/FileSearchService';
@@ -120,7 +126,7 @@ import { DatabaseMigrationRunner } from './database/splite/migrations/DatabaseMi
 export const TYPES = {
   // 1. 工具类型
   EventListener: Symbol.for('EventListener'),
-  
+
   // 2. 配置服务
   ConfigService: Symbol.for('ConfigService'),
   ConfigFactory: Symbol.for('ConfigFactory'),
@@ -143,7 +149,7 @@ export const TYPES = {
   ProjectNamingConfigService: Symbol.for('ProjectNamingConfigService'),
   InfrastructureConfigService: Symbol.for('InfrastructureConfigService'),
   GraphCacheConfigService: Symbol.for('GraphCacheConfigService'),
-  
+
   // 3. 核心服务
   LoggerService: Symbol.for('LoggerService'),
   ErrorHandlerService: Symbol.for('ErrorHandlerService'),
@@ -155,7 +161,7 @@ export const TYPES = {
   EventToLogBridge: Symbol.for('EventToLogBridge'),
   PerformanceMonitor: Symbol.for('PerformanceMonitor'),
   DatabasePerformanceMonitor: Symbol.for('DatabasePerformanceMonitor'),
-  
+
   // 4. Qdrant 服务模块
   QdrantService: Symbol.for('QdrantService'),
   IQdrantConnectionManager: Symbol.for('IQdrantConnectionManager'),
@@ -163,7 +169,7 @@ export const TYPES = {
   IQdrantVectorOperations: Symbol.for('IQdrantVectorOperations'),
   IQdrantQueryUtils: Symbol.for('IQdrantQueryUtils'),
   IQdrantProjectManager: Symbol.for('IQdrantProjectManager'),
-  
+
   // 5. 文件系统服务
   FileSystemTraversal: Symbol.for('FileSystemTraversal'),
   FileWatcherService: Symbol.for('FileWatcherService'),
@@ -174,7 +180,7 @@ export const TYPES = {
   HotReloadMonitoringService: Symbol.for('HotReloadMonitoringService'),
   HotReloadErrorPersistenceService: Symbol.for('HotReloadErrorPersistenceService'),
   HotReloadRestartService: Symbol.for('HotReloadRestartService'),
-  
+
   // 6. 索引服务
   IndexService: Symbol.for('IndexService'),
   IndexingLogicService: Symbol.for('IndexingLogicService'),
@@ -183,23 +189,23 @@ export const TYPES = {
   StorageCoordinatorService: Symbol.for('StorageCoordinatorService'),
   FileTraversalService: Symbol.for('FileTraversalService'),
   ConcurrencyService: Symbol.for('ConcurrencyService'),
-  
+
   // 7. 项目状态管理服务
   ProjectStateManager: Symbol.for('ProjectStateManager'),
   CoreStateService: Symbol.for('CoreStateService'),
   StorageStateService: Symbol.for('StorageStateService'),
   DataConsistencyService: Symbol.for('DataConsistencyService'),
-  
+
   // 8. 性能优化器服务
   PerformanceOptimizerService: Symbol.for('PerformanceOptimizerService'),
-  
+
   // 9. 嵌入器服务
   EmbedderFactory: Symbol.for('EmbedderFactory'),
   EmbeddingCacheService: Symbol.for('EmbeddingCacheService'),
-  
+
   // 10. 忽略规则管理
   IgnoreRuleManager: Symbol.for('IgnoreRuleManager'),
-  
+
   // 11. Tree-sitter 解析服务
   TreeSitterService: Symbol.for('TreeSitterService'),
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
@@ -207,14 +213,14 @@ export const TYPES = {
   ChunkToVectorCoordinationService: Symbol.for('ChunkToVectorCoordinationService'),
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
-  
+
   // 12. 文件搜索服务
   FileSearchService: Symbol.for('FileSearchService'),
   FileVectorIndexer: Symbol.for('FileVectorIndexer'),
   FileQueryProcessor: Symbol.for('FileQueryProcessor'),
   FileQueryIntentClassifier: Symbol.for('FileQueryIntentClassifier'),
   FileSearchCache: Symbol.for('FileSearchCache'),
-  
+
   // 13. Nebula 数据库服务
   NebulaService: Symbol.for('NebulaService'),
   INebulaService: Symbol.for('INebulaService'),
@@ -244,11 +250,11 @@ export const TYPES = {
   NebulaQueryUtils: Symbol.for('NebulaQueryUtils'),
   NebulaResultFormatter: Symbol.for('NebulaResultFormatter'),
   NebulaEventManager: Symbol.for('NebulaEventManager'),
-  
+
   // 14. Nebula 监控服务
   NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
   ConnectionStateManager: Symbol.for('ConnectionStateManager'),
-  
+
   // 15. 图服务
   GraphService: Symbol.for('GraphService'),
   GraphSearchService: Symbol.for('GraphSearchService'),
@@ -267,10 +273,10 @@ export const TYPES = {
   GraphTransactionService: Symbol.for('GraphTransactionService'),
   GraphSearchServiceNew: Symbol.for('GraphSearchServiceNew'),
   GraphServiceNewAdapter: Symbol.for('GraphServiceNewAdapter'),
-  
+
   // 16. 项目查询服务
   ProjectLookupService: Symbol.for('ProjectLookupService'),
-  
+
   // 17. 基础设施服务
   CacheService: Symbol.for('CacheService'),
   BatchOptimizer: Symbol.for('BatchOptimizer'),
@@ -283,34 +289,34 @@ export const TYPES = {
   GraphConfigService: Symbol.for('GraphConfigService'),
   CacheConfig: Symbol.for('CacheConfig'),
   InfrastructureErrorHandler: Symbol.for('InfrastructureErrorHandler'),
-  
+
   // 18. 图数据映射服务
   GraphDataMappingService: Symbol.for('GraphDataMappingService'),
-  
+
   // 19. 异步处理服务
   AsyncTaskQueue: Symbol.for('AsyncTaskQueue'),
-  
+
   // 20. 验证服务
   DataMappingValidator: Symbol.for('DataMappingValidator'),
-  
+
   // 21. 缓存服务
   GraphMappingCache: Symbol.for('GraphMappingCache'),
-  
+
   // 22. 批处理优化服务
   VectorBatchOptimizer: Symbol.for('VectorBatchOptimizer'),
-  
+
   // 23. 事务相关服务
   TransactionLogger: Symbol.for('TransactionLogger'),
   DataConsistencyChecker: Symbol.for('DataConsistencyChecker'),
   ConflictResolver: Symbol.for('ConflictResolver'),
   TransactionPerformanceOptimizer: Symbol.for('TransactionPerformanceOptimizer'),
-  
+
   // 24. 高级映射相关服务
   AdvancedMappingService: Symbol.for('AdvancedMappingService'),
   FaultToleranceHandler: Symbol.for('FaultToleranceHandler'),
   MappingRuleEngine: Symbol.for('MappingRuleEngine'),
   MappingCacheManager: Symbol.for('MappingCacheManager'),
-  
+
   // 25. 性能监控和优化相关服务
   PerformanceDashboard: Symbol.for('PerformanceDashboard'),
   PerformanceMetricsCollector: Symbol.for('PerformanceMetricsCollector'),
@@ -318,7 +324,7 @@ export const TYPES = {
   PerformanceBenchmark: Symbol.for('PerformanceBenchmark'),
   CachePerformanceMonitor: Symbol.for('CachePerformanceMonitor'),
   BatchProcessingOptimizer: Symbol.for('BatchProcessingOptimizer'),
-  
+
   // 26. 通用文件处理服务
   UniversalTextSplitter: Symbol.for('UniversalTextSplitter'),
   ErrorThresholdManager: Symbol.for('ErrorThresholdManager'),
@@ -330,41 +336,41 @@ export const TYPES = {
   CleanupManager: Symbol.for('CleanupManager'),
   UniversalProcessingConfig: Symbol.for('UniversalProcessingConfig'),
   FileProcessingCoordinator: Symbol.for('FileProcessingCoordinator'),
-  
+
   // 27. MemoryGuard 参数
   MemoryLimitMB: Symbol.for('MemoryLimitMB'),
   MemoryCheckIntervalMs: Symbol.for('MemoryCheckIntervalMs'),
-  
+
   // 28. SQLite服务
   SqliteDatabaseService: Symbol.for('SqliteDatabaseService'),
   SqliteConnectionManager: Symbol.for('SqliteConnectionManager'),
   SqliteProjectManager: Symbol.for('SqliteProjectManager'),
   SqliteInfrastructure: Symbol.for('SqliteInfrastructure'),
-  
+
   // 29. SQLite迁移服务
   JsonToSqliteMigrator: Symbol.for('JsonToSqliteMigrator'),
   MigrationOrchestrator: Symbol.for('MigrationOrchestrator'),
-  
+
   // 30. SQLite状态管理服务
   SqliteStateManager: Symbol.for('SqliteStateManager'),
-  
+
   // 31. 数据库迁移管理
   MigrationManager: Symbol.for('MigrationManager'),
   DatabaseMigrationRunner: Symbol.for('DatabaseMigrationRunner'),
-  
+
   // 32. 文件哈希管理服务
   FileHashManager: Symbol.for('FileHashManager'),
-  
+
   // 33. 查询结果标准化服务
   QueryResultNormalizer: Symbol.for('QueryResultNormalizer'),
   NormalizationIntegrationService: Symbol.for('NormalizationIntegrationService'),
-  
+
   // 34. 统一缓存管理器
   UnifiedCacheManager: Symbol.for('UnifiedCacheManager'),
-  
+
   // 35. 错误处理管理器
   ErrorHandlingManager: Symbol.for('ErrorHandlingManager'),
-  
+
   // 36. 分段器相关服务
   SegmentationContextManager: Symbol.for('SegmentationContextManager'),
   ConfigurationManager: Symbol.for('ConfigurationManager'),
@@ -378,4 +384,14 @@ export const TYPES = {
   OverlapProcessor: Symbol.for('OverlapProcessor'),
   ChunkFilter: Symbol.for('ChunkFilter'),
   ChunkRebalancer: Symbol.for('ChunkRebalancer'),
+
+  // 37. 优化的降级处理相关服务
+  OptimizedProcessingGuard: Symbol.for('OptimizedProcessingGuard'),
+  UnifiedDetectionCenter: Symbol.for('UnifiedDetectionCenter'),
+  IntelligentFallbackEngine: Symbol.for('IntelligentFallbackEngine'),
+  ProcessingStrategyFactory: Symbol.for('ProcessingStrategyFactory'),
+
+  // 38. 特殊格式文本分割器
+  MarkdownTextSplitter: Symbol.for('MarkdownTextSplitter'),
+  XMLTextSplitter: Symbol.for('XMLTextSplitter'),
 };

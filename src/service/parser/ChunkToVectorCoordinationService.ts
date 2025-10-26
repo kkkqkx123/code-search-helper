@@ -17,6 +17,7 @@ import { BackupFileProcessor } from './universal/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './universal/ExtensionlessFileProcessor';
 import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
 import { LanguageDetector } from './core/language-detection/LanguageDetector';
+import { UnifiedDetectionCenter } from './universal/UnifiedDetectionCenter';
 
 export interface ProcessingOptions {
   maxChunkSize?: number;
@@ -48,7 +49,8 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.UniversalTextSplitter) private universalTextSplitter: UniversalTextSplitter,
     @inject(TYPES.BackupFileProcessor) private backupFileProcessor: BackupFileProcessor,
     @inject(TYPES.ExtensionlessFileProcessor) private extensionlessFileProcessor: ExtensionlessFileProcessor,
-    @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer
+    @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer,
+    @inject(TYPES.UnifiedDetectionCenter) private detectionCenter: UnifiedDetectionCenter
   ) {
     this.languageDetector = new LanguageDetector();
   }
@@ -64,8 +66,9 @@ export class ChunkToVectorCoordinationService {
       // 1. 读取文件内容
       const content = await fs.readFile(filePath, 'utf-8');
 
-      // 2. 检测语言
-      const language = await this.detectLanguageByContent(filePath, content);
+      // 2. 使用统一检测中心进行语言检测（一次性完成所有检测）
+      const detectionResult = await this.detectionCenter.detectFile(filePath, content);
+      const language = detectionResult.language;
 
       // 3. 优先尝试使用ASTCodeSplitter进行智能分段（防止重复）
       const astChunks = await this.splitWithASTCodeSplitter(content, filePath, language);
@@ -74,7 +77,7 @@ export class ChunkToVectorCoordinationService {
         return await this.convertToVectorPoints(astChunks, projectPath, options);
       }
 
-      // 4. 如果AST分段失败，使用智能处理文件（集成备份文件、无扩展名文件等处理）
+      // 4. 如果AST分段失败，使用优化的处理守卫（集成统一检测、策略选择和智能降级）
       const processingResult = await this.processingGuard.processFile(filePath, content);
 
       // 5. 如果需要降级处理，使用通用分段

@@ -3,68 +3,95 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { ErrorThresholdManager } from '../universal/ErrorThresholdManager';
 import { MemoryGuard } from './MemoryGuard';
-import { ProcessingStrategySelector } from '../universal/coordination/ProcessingStrategySelector';
-import { FileProcessingCoordinator } from '../universal/coordination/FileProcessingCoordinator';
-import { IProcessingStrategySelector } from '../universal/coordination/interfaces/IProcessingStrategySelector';
-import { IFileProcessingCoordinator } from '../universal/coordination/interfaces/IFileProcessingCoordinator';
+import { ProcessingStrategyFactory } from '../universal/factory/ProcessingStrategyFactory';
+import { UnifiedDetectionCenter, DetectionResult } from '../universal/UnifiedDetectionCenter';
+import { IProcessingStrategy } from '../universal/strategies/IProcessingStrategy';
+import { IntelligentFallbackEngine } from '../universal/IntelligentFallbackEngine';
 
-/**
- * 处理保护器
- * 整合所有保护机制，提供统一的文件处理接口
- * 重构后：专注于保护和监控职责，业务逻辑已迁移到专门的协调器模块
- */
+export interface ProcessingResult {
+  chunks: any[];
+  language: string;
+  processingStrategy: string;
+  fallbackReason?: string;
+  success: boolean;
+  duration: number;
+  metadata?: any;
+}
+
 @injectable()
 export class ProcessingGuard {
   private static instance: ProcessingGuard;
-  private errorThresholdManager: ErrorThresholdManager;
-  private memoryGuard: MemoryGuard;
-  private processingStrategySelector: IProcessingStrategySelector;
-  private fileProcessingCoordinator: IFileProcessingCoordinator;
+  private errorManager: ErrorThresholdManager | null = null;
+  private memoryGuard: MemoryGuard | null = null;
+  private strategyFactory: ProcessingStrategyFactory | null = null;
+  private detectionCenter: UnifiedDetectionCenter | null = null;
+  private fallbackEngine: IntelligentFallbackEngine | null = null;
   private logger?: LoggerService;
   private isInitialized: boolean = false;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.ErrorThresholdManager) errorThresholdManager?: ErrorThresholdManager,
+    @inject(TYPES.ErrorThresholdManager) errorManager?: ErrorThresholdManager,
     @inject(TYPES.MemoryGuard) memoryGuard?: MemoryGuard,
-    @inject(TYPES.ProcessingStrategySelector) processingStrategySelector?: IProcessingStrategySelector,
-    @inject(TYPES.FileProcessingCoordinator) fileProcessingCoordinator?: IFileProcessingCoordinator
+    @inject(TYPES.ProcessingStrategyFactory) strategyFactory?: ProcessingStrategyFactory,
+    @inject(TYPES.UnifiedDetectionCenter) detectionCenter?: UnifiedDetectionCenter,
+    @inject(TYPES.IntelligentFallbackEngine) fallbackEngine?: IntelligentFallbackEngine
   ) {
     this.logger = logger;
-    this.errorThresholdManager = errorThresholdManager || new ErrorThresholdManager(logger);
-
-    // 创建默认的内存监控器（简化实现）
-    let defaultMemoryGuard: MemoryGuard;
-    if (!memoryGuard) {
-      const defaultMemoryMonitor: any = {
-        getMemoryStatus: () => ({
-          heapUsed: process.memoryUsage().heapUsed,
-          heapTotal: process.memoryUsage().heapTotal,
-          heapUsedPercent: process.memoryUsage().heapUsed / process.memoryUsage().heapTotal,
-          rss: process.memoryUsage().rss,
-          external: process.memoryUsage().external || 0,
-          isWarning: false,
-          isCritical: false,
-          isEmergency: false,
-          trend: 'stable',
-          averageUsage: process.memoryUsage().heapUsed,
-          timestamp: new Date()
-        }),
-        forceGarbageCollection: () => {
-          if (typeof global !== 'undefined' && global.gc) {
-            global.gc();
-          }
-        },
-        triggerCleanup: () => { },
-        isWithinLimit: () => true,
-        setMemoryLimit: () => { }
-      };
-      defaultMemoryGuard = new MemoryGuard(defaultMemoryMonitor, 500, 5000, logger || new LoggerService());
+    this.errorManager = errorManager || null as unknown as ErrorThresholdManager;
+    this.memoryGuard = memoryGuard || null as unknown as MemoryGuard;
+    this.strategyFactory = strategyFactory || null as unknown as ProcessingStrategyFactory;
+    this.detectionCenter = detectionCenter || null as unknown as UnifiedDetectionCenter;
+    this.fallbackEngine = fallbackEngine || null as unknown as IntelligentFallbackEngine;
+  }
+  
+  /**
+   * 延迟初始化依赖项
+   */
+  private initializeDependenciesIfNeeded(): void {
+    if (!this.errorManager) {
+      this.errorManager = new ErrorThresholdManager(this.logger);
     }
-    this.memoryGuard = memoryGuard || defaultMemoryGuard!;
-
-    this.processingStrategySelector = processingStrategySelector || new ProcessingStrategySelector(logger);
-    this.fileProcessingCoordinator = fileProcessingCoordinator || new FileProcessingCoordinator(logger);
+    if (!this.memoryGuard) {
+      this.memoryGuard = new MemoryGuard(
+        // 创建默认内存监控器
+        {
+          getMemoryStatus: () => ({
+            heapUsed: process.memoryUsage().heapUsed,
+            heapTotal: process.memoryUsage().heapTotal,
+            heapUsedPercent: process.memoryUsage().heapUsed / process.memoryUsage().heapTotal,
+            rss: process.memoryUsage().rss,
+            external: process.memoryUsage().external || 0,
+            isWarning: false,
+            isCritical: false,
+            isEmergency: false,
+            trend: 'stable',
+            averageUsage: process.memoryUsage().heapUsed,
+            timestamp: new Date()
+          }),
+          forceGarbageCollection: () => {
+            if (typeof global !== 'undefined' && global.gc) {
+              global.gc();
+            }
+          },
+          triggerCleanup: () => { },
+          isWithinLimit: () => true,
+          setMemoryLimit: () => { },
+          getMemoryHistory: () => [],
+          clearHistory: () => { }
+        } as any,
+        500, 5000, this.logger || new LoggerService()
+      );
+    }
+    if (!this.strategyFactory) {
+      this.strategyFactory = new ProcessingStrategyFactory(this.logger);
+    }
+    if (!this.detectionCenter) {
+      this.detectionCenter = new UnifiedDetectionCenter(this.logger);
+    }
+    if (!this.fallbackEngine) {
+      this.fallbackEngine = new IntelligentFallbackEngine(this.logger);
+    }
   }
 
   /**
@@ -72,18 +99,18 @@ export class ProcessingGuard {
    */
   static getInstance(
     logger?: LoggerService,
-    errorThresholdManager?: ErrorThresholdManager,
+    errorManager?: ErrorThresholdManager,
     memoryGuard?: MemoryGuard,
-    processingStrategySelector?: IProcessingStrategySelector,
-    fileProcessingCoordinator?: IFileProcessingCoordinator
+    strategyFactory?: ProcessingStrategyFactory,
+    detectionCenter?: UnifiedDetectionCenter
   ): ProcessingGuard {
     if (!ProcessingGuard.instance) {
       ProcessingGuard.instance = new ProcessingGuard(
         logger,
-        errorThresholdManager,
+        errorManager,
         memoryGuard,
-        processingStrategySelector,
-        fileProcessingCoordinator
+        strategyFactory,
+        detectionCenter
       );
     }
     return ProcessingGuard.instance;
@@ -99,8 +126,11 @@ export class ProcessingGuard {
     }
 
     try {
+      // 延迟初始化依赖项
+      this.initializeDependenciesIfNeeded();
+      
       // 启动内存监控
-      this.memoryGuard.startMonitoring();
+      this.memoryGuard!.startMonitoring();
 
       // 监听内存压力事件
       if (typeof process !== 'undefined' && process.on) {
@@ -125,7 +155,7 @@ export class ProcessingGuard {
 
     try {
       // 停止内存监控
-      this.memoryGuard.destroy();
+      this.memoryGuard?.destroy();
 
       // 移除事件监听器
       if (typeof process !== 'undefined' && process.removeListener) {
@@ -143,90 +173,212 @@ export class ProcessingGuard {
    * 检查是否应该使用降级方案
    */
   shouldUseFallback(): boolean {
-    return this.errorThresholdManager.shouldUseFallback();
+    // 延迟初始化依赖项
+    this.initializeDependenciesIfNeeded();
+    return this.errorManager!.shouldUseFallback();
   }
 
   /**
    * 记录错误并清理资源
    */
   recordError(error: Error, context?: string): void {
-    this.errorThresholdManager.recordError(error, context);
+    // 延迟初始化依赖项
+    this.initializeDependenciesIfNeeded();
+    this.errorManager!.recordError(error, context);
   }
 
   /**
-   * 智能文件处理（保护协调入口）
-   * 专注于保护决策，具体业务逻辑委托给专门的协调器
+   * 优化的文件处理方法（使用统一检测中心和策略模式）
    */
-  async processFile(filePath: string, content: string): Promise<{
-    chunks: any[];
-    language: string;
-    processingStrategy: string;
-    fallbackReason?: string;
-  }> {
+  async processFile(filePath: string, content: string): Promise<ProcessingResult> {
+    const startTime = Date.now();
+
+    // 延迟初始化依赖项
+    this.initializeDependenciesIfNeeded();
+    
+    // 1. 快速预检查（内存、错误阈值）
+    if (this.shouldUseImmediateFallback()) {
+      this.logger?.warn('Using immediate fallback due to system constraints');
+      const fallbackResult = await this.executeFallback(filePath, content, 'System constraints');
+      return {
+        ...fallbackResult,
+        success: true,
+        duration: Date.now() - startTime
+      };
+    }
+
+    // 2. 统一检测（一次性完成所有检测）
+    let detection;
     try {
-      // 检查内存状态
-      const memoryStatus = this.memoryGuard.checkMemoryUsage();
-      if (!memoryStatus.isWithinLimit) {
-        // 获取内存限制值用于日志
-        const memoryLimit = this.memoryGuard.getMemoryStats().limit;
-        this.logger?.warn(`Memory limit exceeded before processing: ${memoryStatus.heapUsed} > ${memoryLimit}`);
-        const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(filePath, content, 'Memory limit exceeded');
+      detection = await this.detectionCenter!.detectFile(filePath, content);
+    } catch (detectionError) {
+      // 如果检测失败，直接进入fallback
+      const duration = Date.now() - startTime;
+      this.logger?.error(`Detection failed: ${detectionError}`);
+      this.errorManager!.recordError(detectionError as Error, `detection: ${filePath}`);
+      
+      try {
+        // 不需要再次检测，因为检测已经失败了
+        const fallbackResult = await this.executeFallback(filePath, content, `Detection error: ${(detectionError as Error).message}`);
         return {
-          chunks: fallbackResult.chunks,
+          ...fallbackResult,
+          success: true,
+          duration,
+          metadata: {
+            detectionError: (detectionError as Error).message
+          }
+        };
+      } catch (fallbackError) {
+        this.logger?.error(`Fallback processing also failed: ${fallbackError}`);
+        return {
+          chunks: [],
           language: 'text',
-          processingStrategy: fallbackResult.fallbackStrategy,
-          fallbackReason: fallbackResult.reason
+          processingStrategy: 'none',
+          success: false,
+          duration,
+          metadata: {
+            detectionError: detectionError as Error,
+            fallbackError: fallbackError as Error
+          }
         };
       }
+    }
 
-      // 检查错误阈值
-      if (this.errorThresholdManager.shouldUseFallback()) {
-        this.logger?.warn('Error threshold reached, using fallback processing');
-        const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(filePath, content, 'Error threshold exceeded');
-        return {
-          chunks: fallbackResult.chunks,
-          language: 'text',
-          processingStrategy: fallbackResult.fallbackStrategy,
-          fallbackReason: fallbackResult.reason
-        };
-      }
+    try {
+      // 3. 策略选择（基于检测结果）
+      const strategy = this.strategyFactory!.createStrategy(detection);
 
-      // 使用专门的策略选择器进行语言检测和策略选择
-      const languageInfo = await this.processingStrategySelector.detectLanguageIntelligently(filePath, content);
-      const strategyContext = {
-        filePath,
-        content,
-        languageInfo,
-        timestamp: new Date()
-      };
-      const strategy = await this.processingStrategySelector.selectProcessingStrategy(strategyContext);
+      // 4. 执行处理
+      const result = await strategy.execute(filePath, content, detection);
 
-      // 使用专门的文件处理协调器执行处理
-      const context = {
-        filePath,
-        content,
-        strategy,
-        language: languageInfo.language,
-        timestamp: new Date()
-      };
-      const result = await this.fileProcessingCoordinator.processFile(context);
+      const duration = Date.now() - startTime;
+      this.logger?.info(`File processing completed in ${duration}ms, generated ${result.chunks.length} chunks`);
 
       return {
         chunks: result.chunks,
-        language: languageInfo.language,
-        processingStrategy: result.processingStrategy,
-        fallbackReason: result.metadata?.fallbackReason
+        language: detection.language,
+        processingStrategy: detection.processingStrategy || 'unknown',
+        success: true,
+        duration,
+        metadata: result.metadata
       };
-    } catch (error) {
-      this.logger?.error(`Error in intelligent file processing: ${error}`);
-      this.errorThresholdManager.recordError(error as Error, `processFile: ${filePath}`);
 
-      const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(filePath, content, `Processing error: ${(error as Error).message}`);
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger?.error(`Error in optimized file processing: ${error}`);
+
+      // 统一异常处理
+      this.errorManager!.recordError(error as Error, `processFile: ${filePath}`);
+
+      try {
+        // 使用已检测的结果避免重复检测
+        const fallbackResult = await this.executeFallback(filePath, content, `Processing error: ${(error as Error).message}`, detection);
+        return {
+          ...fallbackResult,
+          success: true,
+          duration,
+          metadata: {
+            originalError: (error as Error).message
+          }
+        };
+      } catch (fallbackError) {
+        this.logger?.error(`Fallback processing also failed: ${fallbackError}`);
+        return {
+          chunks: [],
+          language: 'text',
+          processingStrategy: 'none',
+          success: false,
+          duration,
+          metadata: {
+            error: error as Error,
+            fallbackError: fallbackError as Error
+          }
+        };
+      }
+    }
+  }
+
+  /**
+   * 检查是否需要立即降级
+   */
+  private shouldUseImmediateFallback(): boolean {
+    // 延迟初始化依赖项
+    this.initializeDependenciesIfNeeded();
+    
+    // 检查内存状态
+    const memoryStatus = this.memoryGuard!.checkMemoryUsage();
+    if (!memoryStatus.isWithinLimit) {
+      return true;
+    }
+
+    // 检查错误阈值
+    if (this.errorManager!.shouldUseFallback()) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+    * 执行降级处理
+    */
+  private async executeFallback(filePath: string, content: string, reason: string, cachedDetection?: DetectionResult): Promise<Omit<ProcessingResult, 'success' | 'duration'>> {
+    this.logger?.info(`Executing fallback processing for ${filePath}: ${reason}`);
+
+    try {
+      // 使用智能降级引擎确定最佳降级策略
+      // 如果已经有检测结果，则避免重复检测
+      const detection = cachedDetection || await this.detectionCenter!.detectFile(filePath, content);
+      const fallbackStrategy = await this.fallbackEngine!.determineFallbackStrategy(filePath, new Error(reason), detection);
+
+      this.logger?.info(`Using intelligent fallback strategy: ${fallbackStrategy.strategy} for ${filePath}`);
+
+      // 创建对应策略并执行
+      const strategy = this.strategyFactory!.createStrategy({
+        language: detection.language,
+        confidence: detection.confidence,
+        fileType: detection.fileType,
+        processingStrategy: fallbackStrategy.strategy
+      });
+
+      const result = await strategy.execute(filePath, content, {
+        language: detection.language,
+        confidence: detection.confidence,
+        fileType: detection.fileType,
+        processingStrategy: fallbackStrategy.strategy
+      });
+
       return {
-        chunks: fallbackResult.chunks,
+        chunks: result.chunks,
+        language: detection.language,
+        processingStrategy: fallbackStrategy.strategy,
+        fallbackReason: `${reason} (${fallbackStrategy.reason})`,
+        metadata: {
+          ...result.metadata,
+          intelligentFallback: true,
+          originalReason: reason
+        }
+      };
+    } catch (fallbackError) {
+      this.logger?.error(`Fallback processing failed: ${fallbackError}`);
+
+      // 如果连降级处理都失败，返回一个包含整个内容的单一块
+      return {
+        chunks: [{
+          content: content,
+          metadata: {
+            startLine: 1,
+            endLine: content.split('\n').length,
+            language: 'text',
+            filePath: filePath,
+            fallback: true,
+            reason: reason,
+            error: (fallbackError as Error).message
+          }
+        }],
         language: 'text',
-        processingStrategy: fallbackResult.fallbackStrategy,
-        fallbackReason: fallbackResult.reason
+        processingStrategy: 'emergency-single-chunk',
+        fallbackReason: `${reason} (fallback also failed: ${(fallbackError as Error).message})`
       };
     }
   }
@@ -237,11 +389,14 @@ export class ProcessingGuard {
   private handleMemoryPressure(event: any): void {
     this.logger?.warn('Memory pressure detected', event);
 
+    // 延迟初始化依赖项
+    this.initializeDependenciesIfNeeded();
+    
     // 强制清理
-    this.memoryGuard.forceCleanup();
+    this.memoryGuard!.forceCleanup();
 
     // 记录错误
-    this.errorThresholdManager.recordError(
+    this.errorManager!.recordError(
       new Error('Memory pressure detected'),
       'memory-pressure'
     );
@@ -255,9 +410,12 @@ export class ProcessingGuard {
     memoryGuard: any;
     isInitialized: boolean;
   } {
+    // 延迟初始化依赖项
+    this.initializeDependenciesIfNeeded();
+    
     return {
-      errorThreshold: this.errorThresholdManager.getStatus(),
-      memoryGuard: this.memoryGuard.getMemoryStats(),
+      errorThreshold: this.errorManager!.getStatus(),
+      memoryGuard: this.memoryGuard!.getMemoryStats(),
       isInitialized: this.isInitialized
     };
   }
@@ -266,8 +424,12 @@ export class ProcessingGuard {
    * 重置所有状态
    */
   reset(): void {
-    this.errorThresholdManager.resetCounter();
-    this.memoryGuard.clearHistory();
+    // 延迟初始化依赖项
+    this.initializeDependenciesIfNeeded();
+    
+    this.errorManager!.resetCounter();
+    this.memoryGuard!.clearHistory();
+    this.detectionCenter!.clearCache();
     this.logger?.info('ProcessingGuard reset completed');
   }
 }

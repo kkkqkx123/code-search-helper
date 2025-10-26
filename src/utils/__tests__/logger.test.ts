@@ -8,7 +8,7 @@ describe('Logger', () => {
   beforeEach(() => {
     // 设置测试环境变量
     process.env.NODE_ENV = 'test';
-    logger = new Logger('test-service');
+    logger = Logger.getInstance('test-service');
   });
 
   afterEach(async () => {
@@ -82,13 +82,13 @@ describe('Logger', () => {
 
   test('should respect log level filtering', async () => {
     // 创建一个具有特定日志级别的记录器
-    const debugLogger = new Logger('test-service', 'DEBUG');
+    const debugLogger = Logger.getInstance('test-service', 'DEBUG');
     expect(async () => {
       await debugLogger.debug('Debug message should appear');
     }).not.toThrow();
     
     // 测试错误级别的记录器
-    const errorLogger = new Logger('test-service', 'ERROR');
+    const errorLogger = Logger.getInstance('test-service', 'ERROR');
     expect(async () => {
       await errorLogger.error('Error message should appear');
     }).not.toThrow();

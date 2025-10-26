@@ -277,7 +277,7 @@ describe('ApiServer', () => {
     testContainer.bind(TYPES.GraphPerformanceMonitor).toConstantValue(mockGraphPerformanceMonitor);
     testContainer.bind(TYPES.GraphQueryValidator).toConstantValue(mockGraphQueryValidator);
     
-    const logger = new Logger('ApiServerTest');
+    const logger = Logger.getInstance('ApiServerTest');
     mockIndexSyncService = createMockIndexSyncService();
     
     // Use the mocked EmbedderFactory (jest.mock will handle the constructor)

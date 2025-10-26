@@ -476,10 +476,10 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     return this.simpleHash(content);
   }
 
-  /**
-   * 简单哈希函数
-   */
-  private simpleHash(str: string): string {
+   /**
+    * 简单哈希函数
+    */
+   protected simpleHash(str: string): string {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);

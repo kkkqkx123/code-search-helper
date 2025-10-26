@@ -4,7 +4,7 @@ import { Logger } from '../../utils/logger.js';
 
 export const createProjectMappingRouter = (mappingService: ProjectPathMappingService): Router => {
   const router = Router();
-  const logger = new Logger('ProjectMappingRoutes');
+  const logger = Logger.getInstance('ProjectMappingRoutes');
 
   // 获取所有映射关系
   router.get('/', async (req: Request, res: Response, next: NextFunction) => {

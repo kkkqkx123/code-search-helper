@@ -4,7 +4,7 @@ import { ASTCodeSplitter } from '../../../service/parser/splitting/ASTCodeSplitt
 import { ProcessingGuard } from '../../../service/parser/guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../../../service/parser/universal/ErrorThresholdManager';
 import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
-import { ProcessingStrategySelector } from '../../../service/parser/universal/coordination/ProcessingStrategySelector';
+import { ProcessingStrategyFactory } from '../../../service/parser/universal/factory/ProcessingStrategyFactory';
 import { FileProcessingCoordinator } from '../../../service/parser/universal/coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';
@@ -56,7 +56,7 @@ describe('Parser Splitting Integration Test', () => {
       logger,
       errorThresholdManager,
       memoryGuard,
-      new ProcessingStrategySelector(logger),
+      new ProcessingStrategyFactory(logger),
       new FileProcessingCoordinator(logger)
     );
 

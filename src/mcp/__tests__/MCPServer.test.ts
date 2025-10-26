@@ -20,7 +20,7 @@ describe('MCPServer', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    logger = new Logger('MCPServerTest');
+    logger = Logger.getInstance('MCPServerTest');
     server = new MCPServer(logger);
   });
 
