@@ -3,7 +3,7 @@ import { ISegmentationProcessor, SegmentationContext, IComplexityCalculator } fr
 import { CodeChunk } from '../../../splitting';
 import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { BLOCK_SIZE_LIMITS } from '../backup-constants';
+import { BLOCK_SIZE_LIMITS } from '../constants';
 
 /**
  * 块再平衡器

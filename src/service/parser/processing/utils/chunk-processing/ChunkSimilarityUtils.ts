@@ -1,7 +1,7 @@
 import { CodeChunk } from '../../../splitting';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
-import { BaseSimilarityCalculator } from '../base/BaseSimilarityCalculator';
+import { SimilarityUtils } from '../similarity/SimilarityUtils';
 
 /**
  * 代码块相似性检测工具类
@@ -13,7 +13,7 @@ export class ChunkSimilarityUtils extends BaseChunkProcessor {
    */
   static canMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk, similarityThreshold: number): boolean {
     // 检查相似度
-    if (!BaseSimilarityCalculator.isSimilar(chunk1.content, chunk2.content, similarityThreshold)) {
+    if (!SimilarityUtils.isSimilar(chunk1.content, chunk2.content, similarityThreshold)) {
       return false;
     }
 
@@ -100,7 +100,7 @@ export class ChunkSimilarityUtils extends BaseChunkProcessor {
     newChunk: CodeChunk,
     existingChunks: CodeChunk[],
     similarityThreshold: number
-  ): boolean {
+ ): boolean {
     // 生成新块的内容哈希
     const newChunkHash = ContentHashIDGenerator.getContentHashPrefix(newChunk.content);
 
@@ -114,11 +114,11 @@ export class ChunkSimilarityUtils extends BaseChunkProcessor {
       }
 
       // 检查相似度
-      if (BaseSimilarityCalculator.isSimilar(newChunk.content, existingChunk.content, similarityThreshold)) {
+      if (SimilarityUtils.isSimilar(newChunk.content, existingChunk.content, similarityThreshold)) {
         return false; // 跳过过于相似的重叠块
       }
     }
 
     return true;
-  }
+ }
 }

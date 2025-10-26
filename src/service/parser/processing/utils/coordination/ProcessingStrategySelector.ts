@@ -12,7 +12,7 @@ import {
   ProcessingStrategyType
 } from '../../../universal/coordination/interfaces/IProcessingStrategySelector';
 import * as path from 'path';
-import { LANGUAGE_MAP } from '../backup-constants';
+import { LANGUAGE_MAP } from '../constants';
 import { FileFeatureDetector } from '../../FileFeatureDetector';
 
 /**

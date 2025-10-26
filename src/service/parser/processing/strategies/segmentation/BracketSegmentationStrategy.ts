@@ -3,9 +3,9 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
 import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
-import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { DetectionResult } from '../../utils/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
-import { BLOCK_SIZE_LIMITS } from '../../utils/backup-constants';
+import { BLOCK_SIZE_LIMITS } from '../../utils/constants';
 
 /**
  * 括号分段策略

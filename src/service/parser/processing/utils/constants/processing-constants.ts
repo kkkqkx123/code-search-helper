@@ -1,119 +1,13 @@
 /**
- * 通用文件处理常量定义
+ * 处理参数相关常量定义
  */
-
-// 备份文件模式常量
-export const BACKUP_FILE_PATTERNS = [
-  '.bak',
-  '.backup',
-  '.old',
-  '.tmp',
-  '.temp',
-  '.orig',
-  '.save',
-  '.bak$', // Regex pattern for .bak at end
-  '.backup$',
-  '.old$',
-  '.tmp$',
-  '.temp$'
-];
-
-// 备份文件类型映射
-export const BACKUP_FILE_TYPE_MAP = {
-  '.bak': 'standard-backup',
-  '.backup': 'full-backup',
-  '.old': 'old-version',
-  '.tmp': 'temporary',
-  '.temp': 'temporary',
-  '.orig': 'original',
-  '.save': 'saved'
-} as const;
-
-// 语言映射常量
-export const LANGUAGE_MAP: Record<string, string> = {
-  '.js': 'javascript',
-  '.ts': 'typescript',
-  '.jsx': 'javascript',
-  '.tsx': 'typescript',
-  '.py': 'python',
-  '.java': 'java',
-  '.cpp': 'cpp',
-  '.c': 'c',
-  '.h': 'cpp',
-  '.hpp': 'cpp',
-  '.cs': 'csharp',
-  '.go': 'go',
-  '.rs': 'rust',
-  '.php': 'php',
-  '.rb': 'ruby',
-  '.swift': 'swift',
-  '.kt': 'kotlin',
-  '.scala': 'scala',
-  '.md': 'markdown',
-  '.json': 'json',
-  '.xml': 'xml',
-  '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.sql': 'sql',
-  '.sh': 'shell',
-  '.bash': 'shell',
-  '.zsh': 'shell',
-  '.fish': 'shell',
-  '.html': 'html',
-  '.htm': 'html',
-  '.css': 'css',
-  '.scss': 'scss',
-  '.sass': 'sass',
-  '.less': 'less',
-  '.vue': 'vue',
-  '.svelte': 'svelte',
-  '.txt': 'text',
-  '.log': 'log',
-  '.ini': 'ini',
-  '.cfg': 'ini',
-  '.conf': 'ini',
-  '.toml': 'toml',
-  '.dockerfile': 'dockerfile',
-  '.makefile': 'makefile',
-  '.cmake': 'cmake',
-  '.pl': 'perl',
-  '.r': 'r',
-  '.m': 'matlab',
-  '.lua': 'lua',
-  '.dart': 'dart',
-  '.ex': 'elixir',
-  '.exs': 'elixir',
-  '.erl': 'erlang',
-  '.hs': 'haskell',
-  '.ml': 'ocaml',
-  '.fs': 'fsharp',
-  '.vb': 'visualbasic',
-  '.ps1': 'powershell',
-  '.bat': 'batch',
-  '.cmd': 'batch'
-};
-
-// 代码语言列表常量
-export const CODE_LANGUAGES = [
- 'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
- 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'shell',
-  'html', 'css', 'scss', 'sass', 'less', 'vue', 'svelte', 'json',
-  'xml', 'yaml', 'sql', 'dockerfile', 'cmake', 'perl', 'r', 'matlab',
-  'lua', 'dart', 'elixir', 'erlang', 'haskell', 'ocaml', 'fsharp',
-  'visualbasic', 'powershell', 'batch'
-];
-
-// 结构化文件语言列表
-export const STRUCTURED_LANGUAGES = [
-  'json', 'xml', 'yaml', 'html', 'css', 'scss', 'sass'
-];
 
 // 块大小限制常量（基于kilocode经验，但根据文件大小动态调整）
 export const BLOCK_SIZE_LIMITS = {
   MIN_BLOCK_CHARS: 20,                    // 小文件最小块大小（原50太大）
   MAX_BLOCK_CHARS: 1000,                  // 避免AI处理超长上下文
   MAX_CHARS_TOLERANCE_FACTOR: 1.2,        // 允许1200字符的弹性空间
-  MIN_CHUNK_REMAINDER_CHARS: 100          // 小文件最后一块最小大小（原200太大）
+ MIN_CHUNK_REMAINDER_CHARS: 100          // 小文件最后一块最小大小（原200太大）
 } as const;
 
 // 根据文件大小动态调整块大小限制
@@ -131,7 +25,7 @@ export const getDynamicBlockLimits = (contentLength: number, lineCount: number) 
   // 中等文件：标准限制
   if (contentLength < 2000 || lineCount < 10) {
     return BLOCK_SIZE_LIMITS;
-  }
+ }
 
   // 大文件：严格限制
   return {
@@ -141,71 +35,6 @@ export const getDynamicBlockLimits = (contentLength: number, lineCount: number) 
     MIN_CHUNK_REMAINDER_CHARS: 200
   };
 };
-
-// 小文件阈值 - 小于这个大小的文件直接作为一个块处理
-export const SMALL_FILE_THRESHOLD = {
-  CHARS: 300,    // 30字符以下
-  LINES: 15      // 15行以下
-} as const;
-
-// 配置默认值常量
-export const DEFAULT_CONFIG = {
- // 错误处理配置
-  MAX_ERRORS: 5,
-  ERROR_RESET_INTERVAL: 6000, // 1分钟
-
-  // 内存限制配置
-  MEMORY_LIMIT_MB: 500,
-  MEMORY_CHECK_INTERVAL: 5000, // 5秒
-
-  // 分段参数配置
- MAX_CHUNK_SIZE: 2000,
-  CHUNK_OVERLAP: 200,
-  MAX_LINES_PER_CHUNK: 50,
-
-  // 文本分段器配置
-  TEXT_SPLITTER_OPTIONS: {
-    maxChunkSize: 2000,
-    overlapSize: 200,
-    maxLinesPerChunk: 50,
-    errorThreshold: 5,
-    memoryLimitMB: 500,
-    enableBracketBalance: true,
-    enableSemanticDetection: true
-  },
-
-  // 备份文件模式
-  BACKUP_FILE_PATTERNS: ['.bak', '.backup', '.old', '.tmp', '.temp', '.orig', '.save']
-} as const;
-
-// Shebang模式常量
-export const SHEBANG_PATTERNS: [string, string][] = [
-  ['#!/bin/bash', 'shell'],
-  ['#!/bin/sh', 'shell'],
-  ['#!/usr/bin/env bash', 'shell'],
-  ['#!/usr/bin/env sh', 'shell'],
-  ['#!/usr/bin/env python', 'python'],
-  ['#!/usr/bin/env python3', 'python'],
-  ['#!/usr/bin/env python2', 'python'],
-  ['#!/usr/bin/python', 'python'],
-  ['#!/usr/bin/python3', 'python'],
-  ['#!/usr/bin/env node', 'javascript'],
-  ['#!/usr/bin/env nodejs', 'javascript'],
-  ['#!/usr/bin/node', 'javascript'],
-  ['#!/usr/bin/env ruby', 'ruby'],
-  ['#!/usr/bin/env perl', 'perl'],
-  ['#!/usr/bin/env php', 'php'],
-  ['#!/usr/bin/env lua', 'lua'],
-  ['#!/usr/bin/env awk', 'awk'],
-  ['#!/usr/bin/env sed', 'sed'],
-  ['#!/usr/bin/env tcl', 'tcl'],
-  ['#!/usr/bin/env expect', 'expect'],
-  ['#!/usr/bin/env fish', 'fish'],
-  ['#!/usr/bin/env zsh', 'shell'],
-  ['#!/usr/bin/env ksh', 'shell'],
-  ['#!/usr/bin/env csh', 'shell'],
-  ['#!/usr/bin/env tcsh', 'shell']
-];
 
 // 语法模式常量
 export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
@@ -305,7 +134,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /typedef\s+/m,
     /\/\*[\s\S]*?\*\//m,
     /\/\/.*$/m
-  ],
+ ],
   go: [
     /package\s+\w+/m,
     /import\s*\(/m,
@@ -442,7 +271,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /USER\s+/i,
     /#\s*.*$/m
   ],
-  markdown: [
+ markdown: [
     /^#\s+.*$/m, // 标题
     /^\*\*.*\*\*$/m, // 粗体
     /\*.*\*/m, // 斜体
@@ -474,7 +303,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /^\w+\s*=\s*.*$/m,
     /;\s*.*$/m,
     /#\s*.*$/m
-  ],
+ ],
  makefile: [
     /^\w+:\s*$/m,
     /^\w+:\s+.*$/m,
@@ -507,7 +336,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /if\s*\(/m,
     /#\s*.*$/m
   ],
-  lua: [
+ lua: [
     /require\s+['"`][^'"`]+['"`]/m,
     /function\s+\w+/m,
     /local\s+\w+/m,
@@ -543,12 +372,6 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
 export const FILE_STRUCTURE_PATTERNS: [string, RegExp][] = [
   ['dockerfile', /^(FROM|RUN|COPY|ADD|CMD|ENTRYPOINT|ENV|EXPOSE|VOLUME|WORKDIR|USER)/i],
   ['makefile', /^[a-zA-Z_][a-zA-Z0-9_]*\s*:/m],
-  ['cmake', /^(cmake_minimum_required|project|add_executable|add_library)/i],
+ ['cmake', /^(cmake_minimum_required|project|add_executable|add_library)/i],
   ['python', /^(import|from|def|class)\s+/m]
-];
-
-// 具有强特征的语言列表
-export const STRONG_FEATURE_LANGUAGES = [
-  'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'go', 'rust',
-  'php', 'ruby', 'shell', 'json', 'html', 'css', 'sql', 'dockerfile'
 ];

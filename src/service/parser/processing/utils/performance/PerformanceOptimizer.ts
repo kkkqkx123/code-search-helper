@@ -1,5 +1,5 @@
 import { CodeChunk, EnhancedChunkingOptions } from '../../../splitting';
-import { ASTNodeTracker } from '../ASTNodeTracker';
+import { ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { BasePerformanceTracker } from '../base/BasePerformanceTracker';
 
 export interface PerformanceMetrics {

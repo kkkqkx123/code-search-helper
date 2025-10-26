@@ -1,5 +1,5 @@
 import { CodeChunk, ChunkingOptions, ASTNode, SplitStrategy } from '..';
-import { ASTNodeTracker } from './ASTNodeTracker';
+import { ASTNodeTracker } from './AST/ASTNodeTracker';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
 import { SimilarityDetector } from './similarity/SimilarityDetector';
 import { UnifiedOverlapCalculator } from './overlap/UnifiedOverlapCalculator';

@@ -1,4 +1,4 @@
-import { ComplexityCalculator as ComplexityCalculatorInterface } from '..';
+import { ComplexityCalculator as ComplexityCalculatorInterface } from '../types/SegmentationTypes';
 
 export class ComplexityCalculator implements ComplexityCalculatorInterface {
   /**

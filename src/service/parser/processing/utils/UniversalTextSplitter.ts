@@ -321,7 +321,7 @@ export class UniversalTextSplitter implements ITextSplitter {
     for (const strategy of strategies) {
       if (strategy.getSupportedLanguages) {
         const languages = strategy.getSupportedLanguages();
-        languages.forEach(lang => supportedLanguages.add(lang));
+        languages.forEach((lang: string) => supportedLanguages.add(lang));
       }
     }
 
@@ -334,7 +334,7 @@ export class UniversalTextSplitter implements ITextSplitter {
   getAvailableStrategies(): Array<{ name: string; priority: number; supportedLanguages?: string[] }> {
     const strategies = this.contextManager.getStrategies();
 
-    return strategies.map(strategy => ({
+    return strategies.map((strategy: { getName: () => any; getPriority: () => any; getSupportedLanguages: () => any; }) => ({
       name: strategy.getName(),
       priority: strategy.getPriority(),
       supportedLanguages: strategy.getSupportedLanguages ? strategy.getSupportedLanguages() : undefined
@@ -366,7 +366,7 @@ export class UniversalTextSplitter implements ITextSplitter {
             this.createSegmentationContext(content, filePath, language)
           );
           const duration = Date.now() - startTime;
-          const averageChunkSize = chunks.reduce((sum, chunk) => sum + chunk.content.length, 0) / chunks.length;
+          const averageChunkSize = chunks.reduce((sum: any, chunk: { content: string | any[]; }) => sum + chunk.content.length, 0) / chunks.length;
 
           results.push({
             strategy: strategy.getName(),

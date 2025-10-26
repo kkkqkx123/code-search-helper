@@ -1,7 +1,7 @@
 import { Tree } from 'tree-sitter';
-import { ContentHashIDGenerator } from './ContentHashIDGenerator';
-import { SimilarityDetector } from './similarity/SimilarityDetector';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
+import { SimilarityDetector } from '../similarity/SimilarityDetector';
+import { LoggerService } from '../../../../../utils/LoggerService';
 
 export interface TrackingStats {
   totalNodes: number;
@@ -61,7 +61,7 @@ export class ASTNodeTracker {
    */
   markUsed(node: ASTNode): void {
     const nodeId = this.generateEnhancedNodeId(node);
-    
+
     if (this.usedNodes.has(nodeId)) {
       this.reuseCount++;
       this.logger?.debug(`Node already used: ${nodeId}`);
@@ -76,7 +76,7 @@ export class ASTNodeTracker {
 
     this.usedNodes.add(nodeId);
     this.nodeCache.set(nodeId, node);
-    
+
     if (this.enableContentHashing && node.contentHash) {
       this.updateContentHashIndex(node.contentHash, nodeId);
     }
@@ -94,7 +94,7 @@ export class ASTNodeTracker {
    */
   isUsed(node: ASTNode): boolean {
     const nodeId = this.generateEnhancedNodeId(node);
-    
+
     if (this.usedNodes.has(nodeId)) {
       this.reuseCount++;
       return true;
@@ -119,7 +119,7 @@ export class ASTNodeTracker {
     const similarNodes = this.contentHashIndex.get(node.contentHash);
     if (similarNodes && similarNodes.size > 0) {
       this.hashCollisions++;
-      
+
       for (const existingNodeId of similarNodes) {
         const existingNode = this.nodeCache.get(existingNodeId);
         if (existingNode && this.usedNodes.has(existingNodeId)) {
@@ -205,13 +205,13 @@ export class ASTNodeTracker {
    */
   getUnusedNodes(): ASTNode[] {
     const unusedNodes: ASTNode[] = [];
-    
+
     for (const [nodeId, node] of this.nodeCache) {
       if (!this.usedNodes.has(nodeId) && !this.isContentSimilar(node)) {
         unusedNodes.push(node);
       }
     }
-    
+
     return unusedNodes;
   }
 
@@ -262,10 +262,10 @@ export class ASTNodeTracker {
   filterUnusedNodesFromTree(tree: Tree, startLine?: number, endLine?: number): ASTNode[] {
     const allNodes: ASTNode[] = [];
     const root = tree.rootNode;
-    
+
     const cursor = root.walk();
     this.collectNodes(cursor, allNodes, startLine, endLine);
-    
+
     return allNodes.filter(node => !this.isUsed(node));
   }
 
@@ -274,7 +274,7 @@ export class ASTNodeTracker {
    */
   private collectNodes(cursor: any, nodes: ASTNode[], startLine?: number, endLine?: number): void {
     const node = cursor.currentNode;
-    
+
     if (startLine !== undefined && endLine !== undefined) {
       if (node.endPosition.row < startLine || node.startPosition.row > endLine) {
         if (cursor.gotoFirstChild()) {
@@ -284,7 +284,7 @@ export class ASTNodeTracker {
         return;
       }
     }
-    
+
     const astNode: ASTNode = {
       id: this.generateEnhancedNodeId({
         startByte: node.startIndex,
@@ -305,9 +305,9 @@ export class ASTNodeTracker {
     if (this.enableContentHashing) {
       astNode.contentHash = ContentHashIDGenerator.getContentHashPrefix(node.text);
     }
-    
+
     nodes.push(astNode);
-    
+
     if (cursor.gotoFirstChild()) {
       do {
         this.collectNodes(cursor, nodes, startLine, endLine);
@@ -354,7 +354,7 @@ export class ASTNodeTracker {
     if (this.nodeCache.size > this.maxCacheSize) {
       const keys = Array.from(this.nodeCache.keys());
       const keysToRemove = keys.slice(0, keys.length - this.cacheEvictionThreshold);
-      
+
       for (const key of keysToRemove) {
         const node = this.nodeCache.get(key);
         if (node) {
@@ -364,7 +364,7 @@ export class ASTNodeTracker {
               this.contentHashIndex.delete(node.contentHash);
             }
           }
-          
+
           if (node.similarityGroup) {
             this.similarityIndex.get(node.similarityGroup)?.delete(key);
             if (this.similarityIndex.get(node.similarityGroup)?.size === 0) {
@@ -372,7 +372,7 @@ export class ASTNodeTracker {
             }
           }
         }
-        
+
         this.nodeCache.delete(key);
         if (this.usedNodes.has(key)) {
           this.usedNodes.delete(key);
@@ -393,7 +393,7 @@ export class ASTNodeTracker {
     for (const nodes of this.contentHashIndex.values()) {
       totalNodes += nodes.size;
     }
-    
+
     return {
       totalHashes: this.contentHashIndex.size,
       totalNodes,

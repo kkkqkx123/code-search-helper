@@ -12,5 +12,5 @@ export {
   STRONG_FEATURE_LANGUAGES,
   SMALL_FILE_THRESHOLD,
   getDynamicBlockLimits
-} from './backup-constants';
+} from './constants';
 export { ErrorThresholdInterceptor } from './protection/ErrorThresholdInterceptor';

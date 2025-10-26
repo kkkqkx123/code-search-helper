@@ -1,2 +1,6 @@
-export { SimilarityDetector, SimilarityResult, SimilarityGroup } from './SimilarityDetector';
-export { SimilarityUtils } from './SimilarityUtils';
+/**
+ * 相似度模块统一导出
+ */
+
+export * from './SimilarityUtils';
+export * from './SimilarityDetector';

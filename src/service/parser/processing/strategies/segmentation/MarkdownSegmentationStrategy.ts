@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
-import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { DetectionResult } from '../../utils/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 
 /**

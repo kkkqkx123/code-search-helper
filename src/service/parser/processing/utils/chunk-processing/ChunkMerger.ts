@@ -1,5 +1,5 @@
 import { CodeChunk, CodeChunkMetadata, EnhancedChunkingOptions } from '../../../splitting';
-import { ASTNode, ASTNodeTracker } from '../ASTNodeTracker';
+import { ASTNode, ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
 export interface MergeDecision {

@@ -5,7 +5,7 @@ import {
   SYNTAX_PATTERNS,
   FILE_STRUCTURE_PATTERNS,
   STRONG_FEATURE_LANGUAGES
-} from './backup-constants';
+} from './constants';
 
 /**
  * 无扩展名文件处理器

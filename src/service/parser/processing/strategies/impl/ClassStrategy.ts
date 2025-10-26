@@ -6,7 +6,7 @@ import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { ContentHashIDGenerator } from '../../utils/ContentHashIDGenerator';
 import { ComplexityCalculator } from '../../utils/ComplexityCalculator';
-import { ASTNodeExtractor } from '../../utils/ASTNodeExtractor';
+import { ASTNodeExtractor } from '../../utils/AST/ASTNodeExtractor';
 import { BaseSplitStrategy } from './base/BaseASTStrategy';
 
 /**

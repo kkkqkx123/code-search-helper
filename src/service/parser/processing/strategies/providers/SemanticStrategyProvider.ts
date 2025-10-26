@@ -6,7 +6,7 @@ import { IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitSt
 import { CodeChunk } from '../../../splitting';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { SemanticSplitter } from '../impl/SemanticStrategy';
-import { ComplexityCalculator } from '../../../splitting/utils/ComplexityCalculator';
+import { ComplexityCalculator } from '../../utils/ComplexityCalculator';
 
 /**
  * 语义分段策略实现

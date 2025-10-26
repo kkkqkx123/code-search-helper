@@ -1,17 +1,17 @@
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
-import { BaseSimilarityCalculator } from '../base/BaseSimilarityCalculator';
+import { SimilarityUtils } from './SimilarityUtils';
 
 /**
  * 相似度检测器 - 计算代码片段之间的相似度
  * 用于识别和去重相似的代码块
  */
-export class SimilarityDetector extends BaseSimilarityCalculator {
+export class SimilarityDetector {
   /**
    * 从代码块列表中过滤掉相似的块
    */
   static filterSimilarChunks<T extends { content: string; id?: string }>(
     chunks: T[],
-    threshold: number = this.DEFAULT_THRESHOLD
+    threshold: number = SimilarityUtils.getRecommendedThreshold()
   ): T[] {
     const filtered: T[] = [];
     const processed = new Set<string>();
@@ -31,7 +31,7 @@ export class SimilarityDetector extends BaseSimilarityCalculator {
           continue;
         }
 
-        if (this.isSimilar(currentChunk.content, chunks[j].content, threshold)) {
+        if (SimilarityUtils.isSimilar(currentChunk.content, chunks[j].content, threshold)) {
           similarGroup.push(chunks[j]);
           processed.add(chunks[j].id || String(j));
         }
@@ -74,7 +74,7 @@ export class SimilarityDetector extends BaseSimilarityCalculator {
         } else if (i > j) {
           matrix[i][j] = matrix[j][i]; // 对称矩阵
         } else {
-          matrix[i][j] = this.calculateSimilarity(contents[i], contents[j]);
+          matrix[i][j] = SimilarityUtils.calculateSimilarity(contents[i], contents[j]);
         }
       }
     }
@@ -112,7 +112,7 @@ export class SimilarityDetector extends BaseSimilarityCalculator {
           continue;
         }
 
-        if (this.isSimilar(currentChunk.content, chunks[j].content, threshold)) {
+        if (SimilarityUtils.isSimilar(currentChunk.content, chunks[j].content, threshold)) {
           group.push(chunks[j]);
           processed.add(otherChunkId);
         }

@@ -1,7 +1,7 @@
-import { ASTNode } from '..';
-import { CodeChunk } from '..';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { ContentHashIDGenerator } from './ContentHashIDGenerator';
+import { ASTNode } from '../..';
+import { CodeChunk } from '../..';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
+import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 
 export class ASTNodeExtractor {
     constructor(private treeSitterService: TreeSitterService) { }

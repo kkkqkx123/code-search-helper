@@ -1,5 +1,5 @@
 import { CodeChunk, ASTNode, OverlapCalculator } from '../../../splitting';
-import { ASTNodeTracker } from '../ASTNodeTracker';
+import { ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { SemanticBoundaryAnalyzer } from '../SemanticBoundaryAnalyzer';
 import { BalancedChunker } from '../../../splitting/BalancedChunker';
 import { ContextAwareOverlapOptimizer, OverlapResult } from './ContextAwareOverlapOptimizer';
