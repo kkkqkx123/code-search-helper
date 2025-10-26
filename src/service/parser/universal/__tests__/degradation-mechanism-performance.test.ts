@@ -92,11 +92,11 @@ describe('Degradation Mechanism Performance Comparison', () => {
       // 忽略错误，只关注性能
     }
     const newEndTime = process.hrtime.bigint();
-    const newDuration = Number(newEndTime - newStartTime) / 100000; // 转换为毫秒
+    const newDuration = Number(newEndTime - newStartTime) / 1000000; // 转换为毫秒
 
     console.log(`Old ProcessingGuard duration: ${oldDuration}ms`);
     console.log(`New ProcessingGuard duration: ${newDuration}ms`);
-    console.log(`Performance improvement: ${((oldDuration - newDuration) / oldDuration * 10).toFixed(2)}%`);
+    console.log(`Performance improvement: ${((oldDuration - newDuration) / oldDuration * 100).toFixed(2)}%`);
 
     // 新版应该更快或至少不显著慢于旧版
     expect(newDuration).toBeLessThanOrEqual(oldDuration * 1.5); // 允许最多50%的性能差异
