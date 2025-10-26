@@ -3,6 +3,11 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
 import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
+import { 
+  StrategyDecoratorBuilder, 
+  DecoratorFactory, 
+  DecoratorOptions 
+} from '../decorators';
 import {
   ASTStrategyProvider,
   SemanticStrategyProvider,
@@ -91,6 +96,73 @@ export class UnifiedStrategyFactory {
   createStrategyFromDetection(detection: any): ISplitStrategy {
     const strategyType = detection.processingStrategy || 'universal_line';
     return this.createStrategyFromType(strategyType);
+  }
+
+  /**
+   * 创建带有装饰器的策略
+   */
+  createDecoratedStrategy(
+    strategyType: string,
+    decoratorOptions: DecoratorOptions,
+    options?: ChunkingOptions
+  ): ISplitStrategy {
+    const baseStrategy = this.createStrategyFromType(strategyType, options);
+    return new StrategyDecoratorBuilder(baseStrategy, decoratorOptions).build();
+  }
+
+  /**
+   * 创建完全装饰的策略（包含所有装饰器）
+   */
+  createFullyDecoratedStrategy(
+    strategyType: string,
+    overlapCalculator: any,
+    options?: ChunkingOptions,
+    cacheOptions?: { maxSize?: number; ttl?: number }
+  ): ISplitStrategy {
+    const baseStrategy = this.createStrategyFromType(strategyType, options);
+    return DecoratorFactory.createFullyDecoratedStrategy(
+      baseStrategy,
+      overlapCalculator,
+      this.logger,
+      cacheOptions
+    );
+  }
+
+  /**
+   * 创建带有缓存的策略
+   */
+  createCachedStrategy(
+    strategyType: string,
+    maxSize?: number,
+    ttl?: number,
+    options?: ChunkingOptions
+  ): ISplitStrategy {
+    const baseStrategy = this.createStrategyFromType(strategyType, options);
+    return DecoratorFactory.createCachedStrategy(baseStrategy, maxSize, ttl);
+  }
+
+  /**
+   * 创建带有重叠的策略
+   */
+  createOverlapStrategy(
+    strategyType: string,
+    overlapCalculator: any,
+    options?: ChunkingOptions
+  ): ISplitStrategy {
+    const baseStrategy = this.createStrategyFromType(strategyType, options);
+    return DecoratorFactory.createOverlapStrategy(baseStrategy, overlapCalculator);
+  }
+
+  /**
+   * 创建带有性能监控的策略
+   */
+  createMonitoredStrategy(
+    strategyType: string,
+    logger?: any,
+    options?: ChunkingOptions
+  ): ISplitStrategy {
+    const baseStrategy = this.createStrategyFromType(strategyType, options);
+    return DecoratorFactory.createMonitoredStrategy(baseStrategy, logger || this.logger);
   }
 
   /**
