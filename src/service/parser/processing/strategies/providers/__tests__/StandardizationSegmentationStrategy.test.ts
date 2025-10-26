@@ -1,4 +1,4 @@
-import { StandardizationSegmentationStrategy } from '../StandardizationSegmentationStrategy';
+import { StandardizationSegmentationStrategy } from '../../impl/StandardizationSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { ISegmentationStrategy, SegmentationContext } from '../../types/SegmentationTypes';
 import { CodeChunk } from '../../../../splitting';

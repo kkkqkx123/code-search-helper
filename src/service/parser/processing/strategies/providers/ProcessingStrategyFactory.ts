@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { IProcessingStrategy } from './IProcessingStrategy';
+import { IProcessingStrategy } from '../impl/IProcessingStrategy';
 import { DetectionResult, ProcessingStrategyType } from '../../../universal/UnifiedDetectionCenter';
 import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';

@@ -27,7 +27,8 @@ export class BracketSplitStrategy implements ISplitStrategy {
     
     if (!this.universalTextSplitter) {
       this.logger?.warn('UniversalTextSplitter not available, falling back to line strategy');
-      throw new Error('UniversalTextSplitter not available');
+      // 简单的行分段回退
+      return this.fallbackToLineSplitting(content, language, filePath);
     }
 
     try {
@@ -64,6 +65,34 @@ export class BracketSplitStrategy implements ISplitStrategy {
 
   getPriority(): number {
     return 4; // 中等优先级
+  }
+
+  /**
+   * 简单的行分段回退方法
+   */
+  private fallbackToLineSplitting(content: string, language: string, filePath?: string): any[] {
+    const lines = content.split('\n');
+    const chunks = [];
+    const maxLines = 50; // 每个块最多50行
+    
+    for (let i = 0; i < lines.length; i += maxLines) {
+      const chunkLines = lines.slice(i, i + maxLines);
+      const chunkContent = chunkLines.join('\n');
+      
+      chunks.push({
+        id: `bracket_fallback_${Date.now()}_${Math.floor(i / maxLines)}`,
+        content: chunkContent,
+        metadata: {
+          startLine: i + 1,
+          endLine: Math.min(i + maxLines, lines.length),
+          language: language,
+          filePath: filePath,
+          type: 'bracket' as const
+        }
+      });
+    }
+    
+    return chunks;
   }
 }
 

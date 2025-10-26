@@ -1,4 +1,4 @@
-import { MarkdownSegmentationStrategy } from '../MarkdownSegmentationStrategy';
+import { MarkdownSegmentationStrategy } from '../../impl/MarkdownSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { ISegmentationStrategy, SegmentationContext } from '../../types/SegmentationTypes';
 import { CodeChunk } from '../../../../splitting';

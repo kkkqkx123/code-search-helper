@@ -67,11 +67,11 @@ import { ComplexityCalculator } from '../../service/parser/universal/processors/
 import { OverlapProcessor } from '../../service/parser/universal/processors/OverlapProcessor';
 import { ChunkFilter } from '../../service/parser/universal/processors/ChunkFilter';
 import { ChunkRebalancer } from '../../service/parser/universal/processors/ChunkRebalancer';
-import { SemanticSegmentationStrategy } from '../../service/parser/processing/strategies/providers/SemanticSegmentationStrategy';
-import { BracketSegmentationStrategy } from '../../service/parser/processing/strategies/providers/BracketSegmentationStrategy';
+import { SemanticSegmentationStrategy } from '../../service/parser/processing/strategies/impl/SemanticSegmentationStrategy';
+import { BracketSegmentationStrategy } from '../../service/parser/processing/strategies/impl/BracketSegmentationStrategy';
 import { LineSegmentationStrategy } from '../../service/parser/processing/strategies/providers/LineSegmentationStrategy';
-import { MarkdownSegmentationStrategy } from '../../service/parser/processing/strategies/providers/MarkdownSegmentationStrategy';
-import { StandardizationSegmentationStrategy } from '../../service/parser/processing/strategies/providers/StandardizationSegmentationStrategy';
+import { MarkdownSegmentationStrategy } from '../../service/parser/processing/strategies/impl/MarkdownSegmentationStrategy';
+import { StandardizationSegmentationStrategy } from '../../service/parser/processing/strategies/impl/StandardizationSegmentationStrategy';
 
 // 文件搜索服务
 import { FileSearchService } from '../../service/filesearch/FileSearchService';

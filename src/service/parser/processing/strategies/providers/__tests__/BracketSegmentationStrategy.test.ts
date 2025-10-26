@@ -1,4 +1,4 @@
-import { BracketSegmentationStrategy } from '../BracketSegmentationStrategy';
+import { BracketSegmentationStrategy } from '../../impl/BracketSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../types/SegmentationTypes';
 import { CodeChunk } from '../../../../splitting';

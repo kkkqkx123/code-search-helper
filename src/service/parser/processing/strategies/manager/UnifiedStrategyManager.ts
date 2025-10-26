@@ -63,6 +63,38 @@ export class UnifiedStrategyManager {
     };
     
     this.logger?.debug('UnifiedStrategyManager initialized');
+    
+    // 初始化默认策略
+    this.initializeDefaultStrategies();
+  }
+
+  /**
+   * 初始化默认策略
+   */
+  private initializeDefaultStrategies(): void {
+    try {
+      // 注册一些默认策略实例
+      const defaultStrategyTypes = [
+        'universal_line',
+        'universal_bracket',
+        'universal_semantic',
+        'universal_semantic_fine',
+        'treesitter_ast',
+        'markdown_specialized',
+        'xml_specialized'
+      ];
+
+      for (const strategyType of defaultStrategyTypes) {
+        try {
+          const strategy = this.factory.createStrategyFromType(strategyType);
+          this.registerStrategy(strategy);
+        } catch (error) {
+          this.logger?.warn(`Failed to create strategy ${strategyType}:`, error);
+        }
+      }
+    } catch (error) {
+      this.logger?.error('Failed to initialize default strategies:', error);
+    }
   }
 
   /**
@@ -90,11 +122,35 @@ export class UnifiedStrategyManager {
     // 3. 根据文件大小选择策略
     const fileSize = content.length;
     if (fileSize < 1000) {
-      // 小文件使用简单策略
-      return this.factory.createStrategyFromType('line_based', options);
+      // 小文件使用简单策略，但根据语言选择不同类型
+      const smallFileStrategies: Record<string, string> = {
+        'javascript': 'universal_line',
+        'typescript': 'universal_bracket',
+        'python': 'universal_line',
+        'java': 'universal_line',
+        'go': 'universal_line',
+        'rust': 'universal_line',
+        'cpp': 'universal_line',
+        'c': 'universal_line',
+        'csharp': 'universal_line',
+        'php': 'universal_line',
+        'ruby': 'universal_line',
+        'swift': 'universal_line',
+        'kotlin': 'universal_line',
+        'scala': 'universal_line',
+        'markdown': 'markdown_specialized',
+        'xml': 'xml_specialized',
+        'html': 'xml_specialized',
+        'css': 'universal_line',
+        'json': 'universal_line',
+        'yaml': 'universal_line'
+      };
+      
+      const strategyType = smallFileStrategies[language] || 'universal_line';
+      return this.factory.createStrategyFromType(strategyType, options);
     } else if (fileSize > 10000) {
       // 大文件使用高效策略
-      return this.factory.createStrategyFromType('semantic', options);
+      return this.factory.createStrategyFromType('universal_semantic', options);
     }
 
     // 4. 根据语言特性选择策略
@@ -159,12 +215,18 @@ export class UnifiedStrategyManager {
    */
   getFallbackPath(currentStrategyName: string): string[] {
     const fallbackPaths: Record<string, string[]> = {
+      'treesitter_ast': ['universal_semantic', 'universal_semantic_fine', 'universal_bracket', 'universal_line'],
+      'universal_semantic': ['universal_semantic_fine', 'universal_bracket', 'universal_line'],
+      'universal_semantic_fine': ['universal_bracket', 'universal_line'],
+      'universal_bracket': ['universal_line'],
+      'universal_line': ['minimal_fallback'],
+      'minimal_fallback': [],
+      // 兼容旧名称
       'ast': ['syntax_aware', 'semantic', 'function', 'line_based'],
       'syntax_aware': ['semantic', 'function', 'line_based'],
       'semantic': ['function', 'line_based'],
       'function': ['line_based'],
-      'line_based': ['minimal_fallback'],
-      'minimal_fallback': []
+      'line_based': ['minimal_fallback']
     };
 
     return fallbackPaths[currentStrategyName] || ['line_based'];
@@ -266,9 +328,11 @@ export class UnifiedStrategyManager {
    */
   async executeStrategies(
     strategies: ISplitStrategy[],
-    context: StrategyExecutionContext
+    context: StrategyExecutionContext,
+    options?: { stopOnFirstSuccess?: boolean }
   ): Promise<StrategyExecutionResult[]> {
     const results: StrategyExecutionResult[] = [];
+    const stopOnFirstSuccess = options?.stopOnFirstSuccess ?? false;
 
     if (this.isParallelExecutionEnabled()) {
       // 并行执行
@@ -287,8 +351,8 @@ export class UnifiedStrategyManager {
           continue;
         }
         
-        // 如果策略成功且有结果，停止执行
-        if (result.chunks.length > 0) {
+        // 如果策略成功且有结果，且设置了停止标志，则停止执行
+        if (stopOnFirstSuccess && result.chunks.length > 0) {
           break;
         }
       }

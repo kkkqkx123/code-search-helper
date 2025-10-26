@@ -244,10 +244,39 @@ export class UnifiedStrategyFactory {
     for (const [name, provider] of this.providers) {
       try {
         const strategy = provider.createStrategy();
-        if (strategy.getName() && strategy.supportsLanguage('javascript') && strategy.getPriority()) {
-          valid.push(name);
-        } else {
+        
+        // 检查基本方法是否存在
+        if (!strategy.getName || typeof strategy.getName !== 'function') {
           invalid.push(name);
+          continue;
+        }
+        
+        // 检查是否是 ISplitStrategy 接口
+        if (strategy.supportsLanguage && typeof strategy.supportsLanguage === 'function' &&
+            strategy.getPriority && typeof strategy.getPriority === 'function') {
+          // 对于 ISplitStrategy，检查是否支持至少一种语言
+          const supportedLanguages = ['javascript', 'typescript', 'python', 'markdown', 'xml'];
+          const hasLanguageSupport = supportedLanguages.some(lang => {
+            try {
+              return strategy.supportsLanguage(lang);
+            } catch (e) {
+              return false;
+            }
+          });
+          
+          if (hasLanguageSupport && strategy.getPriority() >= 0) {
+            valid.push(name);
+          } else {
+            invalid.push(name);
+          }
+        } else {
+          // 对于其他策略类型（如 IProcessingStrategy），只检查基本方法
+          if (typeof strategy.getName === 'function' && 
+              typeof strategy.getDescription === 'function') {
+            valid.push(name);
+          } else {
+            invalid.push(name);
+          }
         }
       } catch (error) {
         this.logger?.error(`Provider ${name} validation failed:`, error);

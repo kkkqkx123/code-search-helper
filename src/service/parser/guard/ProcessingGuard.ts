@@ -5,7 +5,7 @@ import { ErrorThresholdManager } from '../universal/ErrorThresholdManager';
 import { MemoryGuard } from './MemoryGuard';
 import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
 import { UnifiedDetectionCenter, DetectionResult } from '../universal/UnifiedDetectionCenter';
-import { IProcessingStrategy } from '../processing/strategies/providers/IProcessingStrategy';
+import { IProcessingStrategy } from '../processing/strategies/impl/IProcessingStrategy';
 import { IntelligentFallbackEngine } from '../universal/IntelligentFallbackEngine';
 
 export interface ProcessingResult {
