@@ -55,7 +55,7 @@ import { FileProcessingCoordinator } from '../../service/parser/universal/coordi
 import { OptimizedProcessingGuard } from '../../service/parser/guard/OptimizedProcessingGuard';
 import { UnifiedDetectionCenter } from '../../service/parser/universal/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from '../../service/parser/universal/IntelligentFallbackEngine';
-import { ProcessingStrategyFactory } from '../../service/parser/universal/factory/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../../service/parser/universal/strategies/ProcessingStrategyFactory';
 import { MarkdownTextSplitter } from '../../service/parser/universal/md/MarkdownTextSplitter';
 import { XMLTextSplitter } from '../../service/parser/universal/xml/XMLTextSplitter';
 

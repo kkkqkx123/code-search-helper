@@ -4,7 +4,7 @@ import { ASTCodeSplitter } from '../../../service/parser/splitting/ASTCodeSplitt
 import { ProcessingGuard } from '../../../service/parser/guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../../../service/parser/universal/ErrorThresholdManager';
 import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
-import { ProcessingStrategyFactory } from '../../../service/parser/universal/factory/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../../../service/parser/universal/strategies/ProcessingStrategyFactory';
 import { FileProcessingCoordinator } from '../../../service/parser/universal/coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';

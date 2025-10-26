@@ -62,7 +62,7 @@ import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCo
 import { ProcessingGuard } from './service/parser/guard/ProcessingGuard';
 import { UnifiedDetectionCenter } from './service/parser/universal/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from './service/parser/universal/IntelligentFallbackEngine';
-import { ProcessingStrategyFactory } from './service/parser/universal/factory/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from './service/parser/universal/strategies/ProcessingStrategyFactory';
 import { MarkdownTextSplitter } from './service/parser/universal/md/MarkdownTextSplitter';
 import { XMLTextSplitter } from './service/parser/universal/xml/XMLTextSplitter';
 

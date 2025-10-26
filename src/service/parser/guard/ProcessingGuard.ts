@@ -3,7 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { ErrorThresholdManager } from '../universal/ErrorThresholdManager';
 import { MemoryGuard } from './MemoryGuard';
-import { ProcessingStrategyFactory } from '../universal/factory/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../universal/strategies/ProcessingStrategyFactory';
 import { UnifiedDetectionCenter, DetectionResult } from '../universal/UnifiedDetectionCenter';
 import { IProcessingStrategy } from '../universal/strategies/IProcessingStrategy';
 import { IntelligentFallbackEngine } from '../universal/IntelligentFallbackEngine';

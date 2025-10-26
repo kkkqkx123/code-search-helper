@@ -4,7 +4,7 @@ import { UniversalTextSplitter } from '../UniversalTextSplitter';
 import { ProcessingGuard } from '../../guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
 import { MemoryGuard } from '../../guard/MemoryGuard';
-import { ProcessingStrategyFactory } from '../factory/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../strategies/ProcessingStrategyFactory';
 import { FileProcessingCoordinator } from '../coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { SegmentationContextManager } from '../context/SegmentationContextManager';
@@ -33,7 +33,7 @@ describe('Universal Processing Performance Tests', () => {
     // 创建容器并注册服务
     container = new Container();
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
-    
+
     // 创建 IMemoryMonitorService 的模拟实现
     const mockMemoryMonitor: any = {
       getMemoryStatus: jest.fn().mockReturnValue({
@@ -54,49 +54,49 @@ describe('Universal Processing Performance Tests', () => {
       isWithinLimit: jest.fn().mockReturnValue(true),
       setMemoryLimit: jest.fn()
     };
-    
+
     container.bind(TYPES.MemoryMonitorService).toConstantValue(mockMemoryMonitor);
-    
+
     // 创建并绑定配置
     const config = new UniversalProcessingConfig();
     container.bind<UniversalProcessingConfig>(TYPES.UniversalProcessingConfig).toConstantValue(config);
-    
+
     // 创建并绑定配置管理器
     const configManager = new ConfigurationManager(mockLogger);
     container.bind<ConfigurationManager>(TYPES.ConfigurationManager).toConstantValue(configManager);
-    
+
     // 创建并绑定保护协调器
     const protectionCoordinator = new ProtectionCoordinator(mockLogger);
     container.bind<ProtectionCoordinator>(TYPES.ProtectionCoordinator).toConstantValue(protectionCoordinator);
-    
+
     // 创建并绑定TreeSitterCoreService
     const treeSitterCoreService = new TreeSitterCoreService();
     container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).toConstantValue(treeSitterCoreService);
-    
+
     // 创建并绑定TreeSitterService
     const treeSitterService = new TreeSitterService(treeSitterCoreService);
     container.bind<TreeSitterService>(TYPES.TreeSitterService).toConstantValue(treeSitterService);
-    
+
     // 创建并绑定上下文管理器
     const contextManager = new SegmentationContextManager(mockLogger, configManager);
     container.bind<SegmentationContextManager>(TYPES.SegmentationContextManager).toConstantValue(contextManager);
-    
+
     // 创建并绑定UniversalTextSplitter
     const universalTextSplitter = new UniversalTextSplitter(mockLogger, configManager, protectionCoordinator);
     container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).toConstantValue(universalTextSplitter);
-    
+
     // 创建并绑定FileProcessingCoordinator
     const fileProcessingCoordinator = new FileProcessingCoordinator(mockLogger, universalTextSplitter, treeSitterService);
     container.bind<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator).toConstantValue(fileProcessingCoordinator);
-    
+
     // 创建并绑定ProcessingStrategyFactory
     const processingStrategyFactory = new ProcessingStrategyFactory(mockLogger);
     container.bind<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory).toConstantValue(processingStrategyFactory);
-    
+
     // 创建其他依赖
     const errorThresholdManager = new ErrorThresholdManager(mockLogger);
     const memoryGuard = new MemoryGuard(mockMemoryMonitor, 1000, 10000, mockLogger);
-    
+
     processingGuard = new ProcessingGuard(
       mockLogger,
       errorThresholdManager,
@@ -275,7 +275,7 @@ describe('Universal Processing Performance Tests', () => {
     return result.join('\n');
   }
 
- function generateLargePythonFile(lines: number): string {
+  function generateLargePythonFile(lines: number): string {
     const functions = [
       `def calculate_total(items):
     total = 0

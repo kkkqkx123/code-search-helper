@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { ProcessingGuard } from '../../guard/ProcessingGuard';
 import { ErrorThresholdManager } from '../ErrorThresholdManager';
 import { MemoryGuard } from '../../guard/MemoryGuard';
-import { ProcessingStrategyFactory } from '../factory/ProcessingStrategyFactory';
+import { ProcessingStrategyFactory } from '../strategies/ProcessingStrategyFactory';
 import { FileProcessingCoordinator } from '../coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
@@ -31,7 +31,7 @@ describe('ProcessingGuard Integration Tests', () => {
 
     // Create instances of all components
     errorThresholdManager = new ErrorThresholdManager(mockLogger);
-    
+
     // 创建 IMemoryMonitorService 的模拟实现
     const mockMemoryMonitor: any = {
       getMemoryStatus: jest.fn().mockReturnValue({
@@ -63,7 +63,7 @@ describe('ProcessingGuard Integration Tests', () => {
     const treeSitterCoreService = new TreeSitterCoreService();
     const treeSitterService = new TreeSitterService(treeSitterCoreService);
     const universalTextSplitter = new UniversalTextSplitter(mockLogger, configManager, protectionCoordinator);
-    
+
     // 直接创建FileProcessingCoordinator实例，传入所有必需的依赖
     const fileProcessingCoordinator = new FileProcessingCoordinator(
       mockLogger,
@@ -106,12 +106,12 @@ describe('ProcessingGuard Integration Tests', () => {
   describe('Error Threshold Management', () => {
     it('should use fallback when error threshold is reached', async () => {
       processingGuard.initialize();
-      
+
       // 模拟错误达到阈值
       for (let i = 0; i < 5; i++) {
         processingGuard.recordError(new Error('Test error'), 'test context');
       }
-      
+
       // 测试降级处理
       const result = await processingGuard.processFile('test.js', 'test content');
       expect(result).toBeDefined();
@@ -121,15 +121,15 @@ describe('ProcessingGuard Integration Tests', () => {
 
     it('should reset error counter after reset interval', async () => {
       processingGuard.initialize();
-      
+
       // 添加一些错误
       for (let i = 0; i < 3; i++) {
         processingGuard.recordError(new Error('Test error'), 'test context');
       }
-      
+
       // 等待重置间隔（测试中使用短间隔）
       await new Promise(resolve => setTimeout(resolve, 600));
-      
+
       // 验证错误计数器已重置
       const result = await processingGuard.processFile('test.js', 'test content');
       expect(result).toBeDefined();
@@ -139,19 +139,19 @@ describe('ProcessingGuard Integration Tests', () => {
   describe('Backup File Processing', () => {
     it('should process backup files correctly', async () => {
       processingGuard.initialize();
-      
+
       const backupContent = 'backup file content';
       const result = await processingGuard.processFile('test.js.bak', backupContent);
-      
+
       expect(result).toBeDefined();
       // 备份文件处理的日志可能在不同的组件中，只要结果正确即可
     });
 
     it('should process various backup file types', async () => {
       processingGuard.initialize();
-      
+
       const backupExtensions = ['.bak', '.backup', '.old', '.tmp'];
-      
+
       for (const ext of backupExtensions) {
         const result = await processingGuard.processFile(`test${ext}`, 'content');
         expect(result).toBeDefined();
@@ -162,10 +162,10 @@ describe('ProcessingGuard Integration Tests', () => {
   describe('Extensionless File Processing', () => {
     it('should process extensionless files correctly', async () => {
       processingGuard.initialize();
-      
+
       const content = '#!/bin/bash\necho "Hello World"';
       const result = await processingGuard.processFile('script', content);
-      
+
       expect(result).toBeDefined();
       // 扩展名文件处理的日志可能在不同的组件中，只要结果正确即可
     });

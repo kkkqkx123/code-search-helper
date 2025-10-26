@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
-import { IProcessingStrategy } from '../strategies/IProcessingStrategy';
+import { IProcessingStrategy } from './IProcessingStrategy';
 import { DetectionResult, ProcessingStrategyType } from '../UnifiedDetectionCenter';
 import { UniversalTextSplitter } from '../UniversalTextSplitter';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
@@ -34,28 +34,28 @@ export class ProcessingStrategyFactory {
     switch (detection.processingStrategy) {
       case ProcessingStrategyType.TREESITTER_AST:
         return new ASTStrategy(this.treeSitterService, this.logger);
-        
+
       case ProcessingStrategyType.MARKDOWN_SPECIALIZED:
         return new MarkdownStrategy(this.markdownSplitter, this.logger);
-        
+
       case ProcessingStrategyType.XML_SPECIALIZED:
         return new XMLStrategy(this.xmlSplitter, this.logger);
-        
+
       case ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE:
         return new SemanticFineStrategy(this.universalTextSplitter, this.logger);
-        
+
       case ProcessingStrategyType.UNIVERSAL_SEMANTIC:
         return new SemanticStrategy(this.universalTextSplitter, this.logger);
-        
+
       case ProcessingStrategyType.UNIVERSAL_BRACKET:
         return new BracketStrategy(this.universalTextSplitter, this.logger);
-        
+
       case ProcessingStrategyType.UNIVERSAL_LINE:
       case ProcessingStrategyType.EMERGENCY_SINGLE_CHUNK:
       default:
         return new LineStrategy(this.universalTextSplitter, this.logger);
     }
- }
+  }
 }
 
 // 具体策略实现
@@ -63,7 +63,7 @@ class ASTStrategy implements IProcessingStrategy {
   constructor(
     private treeSitterService: TreeSitterService | undefined,
     private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     if (!this.treeSitterService) {
@@ -144,7 +144,7 @@ class ASTStrategy implements IProcessingStrategy {
       return { chunks, metadata: { strategy: 'ASTStrategy', language: detectedLanguage.name } };
     } catch (error) {
       this.logger?.error(`AST strategy failed: ${error}`);
-      
+
       // 如果失败，返回一个简单的块
       return {
         chunks: [{
@@ -160,7 +160,7 @@ class ASTStrategy implements IProcessingStrategy {
         metadata: { strategy: 'ASTStrategy', error: (error as Error).message }
       };
     }
- }
+  }
 
   getName(): string {
     return 'ASTStrategy';
@@ -191,7 +191,7 @@ class MarkdownStrategy implements IProcessingStrategy {
   constructor(
     private markdownSplitter: MarkdownTextSplitter | undefined,
     private logger?: LoggerService
- ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Markdown strategy for ${filePath}`);
@@ -207,7 +207,7 @@ class MarkdownStrategy implements IProcessingStrategy {
     return 'MarkdownStrategy';
   }
 
- getDescription(): string {
+  getDescription(): string {
     return 'Uses specialized Markdown splitting to preserve semantic structure';
   }
 }
@@ -216,7 +216,7 @@ class XMLStrategy implements IProcessingStrategy {
   constructor(
     private xmlSplitter: XMLTextSplitter | undefined,
     private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using XML strategy for ${filePath}`);
@@ -232,7 +232,7 @@ class XMLStrategy implements IProcessingStrategy {
     return 'XMLStrategy';
   }
 
- getDescription(): string {
+  getDescription(): string {
     return 'Uses specialized XML splitting to preserve element structure';
   }
 }
@@ -241,7 +241,7 @@ class SemanticFineStrategy implements IProcessingStrategy {
   constructor(
     private universalTextSplitter: UniversalTextSplitter | undefined,
     private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Semantic Fine strategy for ${filePath}`);
@@ -306,7 +306,7 @@ class SemanticStrategy implements IProcessingStrategy {
   constructor(
     private universalTextSplitter: UniversalTextSplitter | undefined,
     private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Semantic strategy for ${filePath}`);
@@ -331,7 +331,7 @@ class BracketStrategy implements IProcessingStrategy {
   constructor(
     private universalTextSplitter: UniversalTextSplitter | undefined,
     private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Bracket strategy for ${filePath}`);
@@ -356,7 +356,7 @@ class LineStrategy implements IProcessingStrategy {
   constructor(
     private universalTextSplitter: UniversalTextSplitter | undefined,
     private logger?: LoggerService
-  ) {}
+  ) { }
 
   async execute(filePath: string, content: string, detection: DetectionResult) {
     this.logger?.debug(`Using Line strategy for ${filePath}`);
@@ -385,7 +385,7 @@ class LineStrategy implements IProcessingStrategy {
     return 'LineStrategy';
   }
 
- getDescription(): string {
+  getDescription(): string {
     return 'Uses simple line-based splitting as a fallback';
   }
 }
