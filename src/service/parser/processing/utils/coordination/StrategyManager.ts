@@ -1,10 +1,10 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
-import { IProcessingStrategy } from '../../processing/strategies/impl/base/IProcessingStrategy';
-import { DetectionResult, ProcessingStrategyType } from '../UnifiedDetectionCenter';
-import { ProcessingStrategyFactory } from '../../processing/strategies/providers/ProcessingStrategyFactory';
-import { FileFeatureDetector } from '../../processing/utils/FileFeatureDetector';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { IProcessingStrategy } from '../../strategies/impl/base/IProcessingStrategy';
+import { DetectionResult, ProcessingStrategyType } from '../../../universal/UnifiedDetectionCenter';
+import { ProcessingStrategyFactory } from '../../strategies/providers/ProcessingStrategyFactory';
+import { FileFeatureDetector } from '../../FileFeatureDetector';
 
 /**
  * 策略管理器

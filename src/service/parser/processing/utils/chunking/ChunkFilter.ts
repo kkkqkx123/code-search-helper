@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationProcessor, SegmentationContext } from '../../processing/strategies/types/SegmentationTypes';
-import { CodeChunk } from '../../splitting';
-import { TYPES } from '../../../../types';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { BLOCK_SIZE_LIMITS } from '../constants';
+import { ISegmentationProcessor, SegmentationContext } from '../../strategies/types/SegmentationTypes';
+import { CodeChunk } from '../../../splitting';
+import { TYPES } from '../../../../../types';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
 
 /**
  * 块过滤器
@@ -44,8 +44,6 @@ export class ChunkFilter implements ISegmentationProcessor {
       const isNormalSized = chunkSize >= 20 || // 长度大于等于20
         chunk.content.includes(' ') || // 包含空格（可能是句子）
         chunkSize >= 12; // 长度大于等于12
-
-
 
       if (isNormalSized) {
         // 虽然小于minChunkSize，但基于内容特征认为是正常大小

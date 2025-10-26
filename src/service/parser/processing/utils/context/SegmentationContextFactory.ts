@@ -1,6 +1,6 @@
-import { SegmentationContext, UniversalChunkingOptions } from '../../processing/strategies/types/SegmentationTypes';
-import { BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD } from '../constants';
-import { languageExtensionMap } from '../../utils/language/LanguageExtensionMap';
+import { SegmentationContext, UniversalChunkingOptions } from '../../strategies/types/SegmentationTypes';
+import { BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD } from '../../../universal/constants';
+import { languageExtensionMap } from '../../../universal/utils/language/LanguageExtensionMap';
 
 /**
  * 分段上下文工厂类

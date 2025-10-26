@@ -673,3 +673,9 @@ export {
   StringUtils,
   ArrayUtils
 };
+
+// 导出子模块
+export * from './chunking';
+export * from './context';
+export * from './coordination';
+export * from './calculation';

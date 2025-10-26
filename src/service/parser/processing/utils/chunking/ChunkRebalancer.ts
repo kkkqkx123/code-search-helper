@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationProcessor, SegmentationContext, IComplexityCalculator } from '../../processing/strategies/types/SegmentationTypes';
-import { CodeChunk } from '../../splitting';
-import { TYPES } from '../../../../types';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { BLOCK_SIZE_LIMITS } from '../constants';
+import { ISegmentationProcessor, SegmentationContext, IComplexityCalculator } from '../../strategies/types/SegmentationTypes';
+import { CodeChunk } from '../../../splitting';
+import { TYPES } from '../../../../../types';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { BLOCK_SIZE_LIMITS } from '../../../universal/constants';
 
 /**
  * 块再平衡器

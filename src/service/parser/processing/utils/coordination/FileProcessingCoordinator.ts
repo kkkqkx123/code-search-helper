@@ -1,16 +1,16 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
-import { UniversalTextSplitter } from '../UniversalTextSplitter';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { CodeChunk } from '../../splitting';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
+import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
+import { CodeChunk } from '../../../splitting';
 import {
   IFileProcessingCoordinator,
   IFileProcessingContext,
   IFileProcessingResult,
   IFallbackResult
-} from './interfaces/IFileProcessingCoordinator';
-import { IStrategySelectionResult, ProcessingStrategyType } from './interfaces/IProcessingStrategySelector';
+} from '../../../universal/coordination/interfaces/IFileProcessingCoordinator';
+import { IStrategySelectionResult, ProcessingStrategyType } from '../../../universal/coordination/interfaces/IProcessingStrategySelector';
 
 /**
  * 文件处理协调器

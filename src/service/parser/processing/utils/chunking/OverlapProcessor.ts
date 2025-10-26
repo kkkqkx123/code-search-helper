@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
-import { ISegmentationProcessor, SegmentationContext, IComplexityCalculator } from '../../processing/strategies/types/SegmentationTypes';
-import { CodeChunk } from '../../splitting';
-import { TYPES } from '../../../../types';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { ISegmentationProcessor, SegmentationContext, IComplexityCalculator } from '../../strategies/types/SegmentationTypes';
+import { CodeChunk } from '../../../splitting';
+import { TYPES } from '../../../../../types';
+import { LoggerService } from '../../../../../utils/LoggerService';
 
 /**
  * 重叠处理器

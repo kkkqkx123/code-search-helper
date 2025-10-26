@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
-import { IComplexityCalculator } from '../../processing/strategies/types/SegmentationTypes';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
+import { IComplexityCalculator } from '../../strategies/types/SegmentationTypes';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
 
 /**
  * 复杂度计算器实现

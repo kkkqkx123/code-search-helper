@@ -4,9 +4,9 @@ import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
 import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { ContentHashIDGenerator } from '../../../splitting/utils/ContentHashIDGenerator';
-import { ComplexityCalculator } from '../../../splitting/utils/ComplexityCalculator';
-import { ASTNodeExtractor } from '../../../splitting/utils/ASTNodeExtractor';
+import { ContentHashIDGenerator } from '../../utils/ContentHashIDGenerator';
+import { ComplexityCalculator } from '../../utils/ComplexityCalculator';
+import { ASTNodeExtractor } from '../../utils/ASTNodeExtractor';
 import { BaseSplitStrategy } from './base/BaseASTStrategy';
 
 /**
