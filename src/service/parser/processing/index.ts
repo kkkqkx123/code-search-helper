@@ -42,6 +42,11 @@ export * from './types';
 // 工具函数导出
 export * from './utils';
 
+// 子模块导出
+export * from './config';
+export * from './detection';
+export * from './quality';
+
 // 重新导出核心类型以保持向后兼容
 export type {
   SplitStrategy as LegacySplitStrategy,

@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../splitting';
+import { CodeChunk } from '../../../splitting';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 
 /**

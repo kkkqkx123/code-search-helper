@@ -175,8 +175,4 @@ mv protection src/service/parser/processing/
 - 职责分离：每个目录职责单一明确
 - 代码组织：逻辑相关的文件集中管理
 - 可维护性：降低目录复杂度，提高代码可读性
-- 扩展性：为未来功能扩展提供清晰的结构基础</content>
-</xai:function_call()>  
-
-<xai:function_call name="todo_write">
-<parameter name="todos">[{"content": "\u521b\u5efasrc/service/parser/processing\u5b50\u76ee\u5f55\uff1aconfig, detection, quality", "status": "pending", "priority": "high", "id": "create-subdirs"}, {"content": "\u79fb\u52a8UniversalProcessingConfig.ts\u5230config\u76ee\u5f55", "status": "pending", "priority": "high", "id": "move-config-files"}, {"content": "\u79fb\u52a8\u68c0\u6d4b\u76f8\u5173\u6587\u4ef6(UnifiedDetectionCenter, FileFeatureDetector\u7b49)\u5230detection\u76ee\u5f55", "status": "pending", "priority": "high", "id": "move-detection-files"}, {"content": "\u79fb\u52a8\u8d28\u91cf\u8bc4\u4f30\u6587\u4ef6\u5230quality\u76ee\u5f55", "status": "pending", "priority": "high", "id": "move-quality-files"}, {"content": "\u4fee\u590d\u6240\u6709\u6587\u4ef6\u7684\u5bfc\u5165\u8def\u5f84", "status": "pending", "priority": "high", "id": "fix-imports"}, {"content": "\u66f4\u65b0\u6240\u6709index.ts\u5bfc\u51fa\u6587\u4ef6", "status": "pending", "priority": "high", "id": "update-exports"}, {"content": "\u8fd0\u884c\u7c7b\u578b\u68c0\u67e5\u548c\u6d4b\u8bd5\u786e\u4fdd\u91cd\u6784\u6b63\u786e", "status": "pending", "priority": "medium", "id": "run-tests"}]
+- 扩展性：为未来功能扩展提供清晰的结构基础

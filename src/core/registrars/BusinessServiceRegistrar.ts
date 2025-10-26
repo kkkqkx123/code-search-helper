@@ -54,7 +54,7 @@ import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuard
 import { ProcessingStrategySelector } from '../../service/parser/processing/utils/coordination/ProcessingStrategySelector';
 import { FileProcessingCoordinator } from '../../service/parser/processing/utils/coordination/FileProcessingCoordinator';
 // import { OptimizedProcessingGuard } from '../../service/parser/guard/OptimizedProcessingGuard'; // 暂时注释掉，文件不存在
-import { UnifiedDetectionCenter } from '../../service/parser/processing/utils/UnifiedDetectionCenter';
+import { UnifiedDetectionCenter } from '../../service/parser/processing/detection/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from '../../service/parser/processing/utils/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextSplitter } from '../../service/parser/processing/utils/md/MarkdownTextSplitter';

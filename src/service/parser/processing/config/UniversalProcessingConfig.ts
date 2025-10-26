@@ -1,6 +1,6 @@
 import { injectable } from 'inversify';
-import { LoggerService } from '../../../utils/LoggerService';
-import { DEFAULT_CONFIG } from './constants';
+import { LoggerService } from '../../../../utils/LoggerService';
+import { DEFAULT_CONFIG } from '../utils/constants';
 
 /**
  * 通用文件处理配置
@@ -38,7 +38,7 @@ export class UniversalProcessingConfig {
   private loadFromEnvironment(): void {
     try {
       let hasInvalidValues = false;
-      
+
       // 错误处理配置
       if (process.env.UNIVERSAL_MAX_ERRORS) {
         const parsed = parseInt(process.env.UNIVERSAL_MAX_ERRORS, 10);
@@ -48,7 +48,7 @@ export class UniversalProcessingConfig {
           hasInvalidValues = true;
         }
       }
-      
+
       if (process.env.UNIVERSAL_ERROR_RESET_INTERVAL) {
         const parsed = parseInt(process.env.UNIVERSAL_ERROR_RESET_INTERVAL, 10);
         if (!isNaN(parsed) && parsed > 0) {
@@ -67,7 +67,7 @@ export class UniversalProcessingConfig {
           hasInvalidValues = true;
         }
       }
-      
+
       if (process.env.UNIVERSAL_MEMORY_CHECK_INTERVAL) {
         const parsed = parseInt(process.env.UNIVERSAL_MEMORY_CHECK_INTERVAL, 10);
         if (!isNaN(parsed) && parsed > 0) {
@@ -86,7 +86,7 @@ export class UniversalProcessingConfig {
           hasInvalidValues = true;
         }
       }
-      
+
       if (process.env.UNIVERSAL_CHUNK_OVERLAP) {
         const parsed = parseInt(process.env.UNIVERSAL_CHUNK_OVERLAP, 10);
         if (!isNaN(parsed) && parsed >= 0) {
@@ -95,7 +95,7 @@ export class UniversalProcessingConfig {
           hasInvalidValues = true;
         }
       }
-      
+
       if (process.env.UNIVERSAL_MAX_LINES_PER_CHUNK) {
         const parsed = parseInt(process.env.UNIVERSAL_MAX_LINES_PER_CHUNK, 10);
         if (!isNaN(parsed) && parsed > 0) {
@@ -115,7 +115,7 @@ export class UniversalProcessingConfig {
           this.backupFilePatterns = patterns.filter(p => p.length > 0);
         }
       }
-      
+
       // 备份文件置信度阈值配置
       if (process.env.UNIVERSAL_BACKUP_CONFIDENCE_THRESHOLD) {
         const parsed = parseFloat(process.env.UNIVERSAL_BACKUP_CONFIDENCE_THRESHOLD);
@@ -128,15 +128,15 @@ export class UniversalProcessingConfig {
 
       if (hasInvalidValues) {
         this.logger?.error('Failed to load configuration from environment: Error: Invalid environment variable value');
-      } else if (process.env.UNIVERSAL_MAX_ERRORS || 
-                 process.env.UNIVERSAL_ERROR_RESET_INTERVAL || 
-                 process.env.UNIVERSAL_MEMORY_LIMIT_MB || 
-                 process.env.UNIVERSAL_MEMORY_CHECK_INTERVAL || 
-                 process.env.UNIVERSAL_MAX_CHUNK_SIZE || 
-                 process.env.UNIVERSAL_CHUNK_OVERLAP || 
-                 process.env.UNIVERSAL_MAX_LINES_PER_CHUNK || 
-                 process.env.UNIVERSAL_BACKUP_PATTERNS !== undefined || 
-                 process.env.UNIVERSAL_BACKUP_CONFIDENCE_THRESHOLD) {
+      } else if (process.env.UNIVERSAL_MAX_ERRORS ||
+        process.env.UNIVERSAL_ERROR_RESET_INTERVAL ||
+        process.env.UNIVERSAL_MEMORY_LIMIT_MB ||
+        process.env.UNIVERSAL_MEMORY_CHECK_INTERVAL ||
+        process.env.UNIVERSAL_MAX_CHUNK_SIZE ||
+        process.env.UNIVERSAL_CHUNK_OVERLAP ||
+        process.env.UNIVERSAL_MAX_LINES_PER_CHUNK ||
+        process.env.UNIVERSAL_BACKUP_PATTERNS !== undefined ||
+        process.env.UNIVERSAL_BACKUP_CONFIDENCE_THRESHOLD) {
         this.logger?.info('Universal processing configuration loaded from environment variables');
       }
     } catch (error) {
@@ -233,14 +233,14 @@ export class UniversalProcessingConfig {
     this.backupFilePatterns = [...backupFilePatterns];
     this.logger?.info(`Backup file config updated: patterns=${backupFilePatterns.join(', ')}`);
   }
-  
+
   /**
    * 获取备份文件置信度阈值
    */
   getBackupFileConfidenceThreshold(): number {
     return this.backupFileConfidenceThreshold;
   }
-  
+
   /**
    * 设置备份文件置信度阈值
    */
@@ -283,7 +283,7 @@ export class UniversalProcessingConfig {
     this.maxLinesPerChunk = 50;
     this.backupFilePatterns = ['.bak', '.backup', '.old', '.tmp'];
     this.backupFileConfidenceThreshold = 0.7;
-    
+
     this.logger?.info('Universal processing configuration reset to defaults');
   }
 
@@ -297,7 +297,7 @@ export class UniversalProcessingConfig {
     if (this.maxErrors <= 0) {
       errors.push('maxErrors must be greater than 0');
     }
-    
+
     if (this.errorResetInterval <= 0) {
       errors.push('errorResetInterval must be greater than 0');
     }
@@ -306,7 +306,7 @@ export class UniversalProcessingConfig {
     if (this.memoryLimitMB <= 0) {
       errors.push('memoryLimitMB must be greater than 0');
     }
-    
+
     if (this.memoryCheckInterval <= 0) {
       errors.push('memoryCheckInterval must be greater than 0');
     }
@@ -315,15 +315,15 @@ export class UniversalProcessingConfig {
     if (this.maxChunkSize <= 0) {
       errors.push('maxChunkSize must be greater than 0');
     }
-    
+
     if (this.chunkOverlap < 0) {
       errors.push('chunkOverlap must be non-negative');
     }
-    
+
     if (this.chunkOverlap >= this.maxChunkSize) {
       errors.push('chunkOverlap must be less than maxChunkSize');
     }
-    
+
     if (this.maxLinesPerChunk <= 0) {
       errors.push('maxLinesPerChunk must be greater than 0');
     }
@@ -332,7 +332,7 @@ export class UniversalProcessingConfig {
     if (this.backupFilePatterns.length === 0) {
       errors.push('backupFilePatterns cannot be empty');
     }
-    
+
     // 验证备份文件置信度阈值
     if (this.backupFileConfidenceThreshold < 0 || this.backupFileConfidenceThreshold > 1) {
       errors.push('backupFileConfidenceThreshold must be between 0 and 1');

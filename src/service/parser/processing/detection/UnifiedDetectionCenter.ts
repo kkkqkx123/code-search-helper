@@ -1,12 +1,12 @@
 import { injectable, inject } from 'inversify';
 import * as path from 'path';
-import { LoggerService } from '../../../utils/LoggerService';
-import { TYPES } from '../../../types';
-import { BackupFileProcessor } from './BackupFileProcessor';
+import { LoggerService } from '../../../../utils/LoggerService';
+import { TYPES } from '../../../../types';
+import { BackupFileProcessor } from '../utils/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
 import { LanguageDetector, LanguageDetectionResult } from '../core/language-detection/LanguageDetector';
-import { UniversalProcessingConfig } from './UniversalProcessingConfig';
-import { FileFeatureDetector } from '../processing/utils/FileFeatureDetector';
+import { UniversalProcessingConfig } from '../config/UniversalProcessingConfig';
+import { FileFeatureDetector } from './FileFeatureDetector';
 
 export interface DetectionResult {
   language: string;

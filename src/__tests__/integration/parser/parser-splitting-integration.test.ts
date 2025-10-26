@@ -5,7 +5,7 @@ import { ProcessingGuard } from '../../../service/parser/guard/ProcessingGuard';
 import { ErrorThresholdInterceptor } from '../../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
 import { ProcessingStrategyFactory } from '../../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
-import { UnifiedDetectionCenter } from '../../../service/parser/processing/utils/UnifiedDetectionCenter';
+import { UnifiedDetectionCenter } from '../../../service/parser/processing/detection/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from '../../../service/parser/processing/utils/IntelligentFallbackEngine';
 import { FileProcessingCoordinator } from '../../../service/parser/processing/utils/coordination/FileProcessingCoordinator';
 import { LoggerService } from '../../../utils/LoggerService';

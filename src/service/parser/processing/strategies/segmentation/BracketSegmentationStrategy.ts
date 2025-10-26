@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
 import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
-import { DetectionResult } from '../../utils/UnifiedDetectionCenter';
+import { DetectionResult } from '../../detection/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
 import { BLOCK_SIZE_LIMITS } from '../../utils/constants';
 

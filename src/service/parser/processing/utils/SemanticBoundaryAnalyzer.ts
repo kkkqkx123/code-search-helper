@@ -1,4 +1,4 @@
-import { BalancedChunker } from '../BalancedChunker';
+import { BalancedChunker } from '../../splitting/BalancedChunker';
 import { languageWeightsProvider, structureDetector } from '../../utils';
 
 export interface BoundaryScore {

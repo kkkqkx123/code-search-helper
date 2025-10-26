@@ -6,7 +6,7 @@ import { ContextAwareOverlapOptimizer, OverlapResult } from './ContextAwareOverl
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { SimilarityDetector } from '../similarity/SimilarityDetector';
-import { CodeQualityAssessmentUtils } from '../CodeQualityAssessmentUtils';
+import { CodeQualityAssessmentUtils } from '../../quality/CodeQualityAssessmentUtils';
 import { OverlapStrategyUtils } from './OverlapStrategyUtils';
 import { ChunkSimilarityUtils } from '../chunk-processing/ChunkSimilarityUtils';
 

@@ -9,12 +9,12 @@ import {
   IConfigurationManager,
   SegmentationContext,
   UniversalChunkingOptions
-} from '../processing/strategies/types/SegmentationTypes';
-import { SegmentationContextManager } from '../processing/utils/context/SegmentationContextManager';
-import { ConfigurationManager } from '../processing/config/ConfigurationManager';
-import { ProtectionCoordinator } from '../processing/utils/protection/ProtectionCoordinator';
+} from '../strategies/types/SegmentationTypes';
+import { SegmentationContextManager } from '../utils/context/SegmentationContextManager';
+import { ConfigurationManager } from '../config/ConfigurationManager';
+import { ProtectionCoordinator } from '../utils/protection/ProtectionCoordinator';
 import { TYPES } from '../../../types';
-import { FileFeatureDetector } from '../processing/utils/FileFeatureDetector';
+import { FileFeatureDetector } from '../detection/FileFeatureDetector';
 
 /**
  * 通用文本分段器（重构后版本）
