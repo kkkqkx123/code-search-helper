@@ -1,3 +1,0 @@
-将默认的语言由typescript改为undifined
-
-src\service\parser\core\parse\TreeSitterCoreService.ts新增__

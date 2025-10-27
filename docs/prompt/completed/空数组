@@ -1,3 +1,0 @@
-src\service\index\IndexService.ts返回空数组以满足processBatches的返回类型要求
-
-需要完善

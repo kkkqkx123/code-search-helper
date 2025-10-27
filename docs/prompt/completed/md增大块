@@ -1,6 +1,0 @@
-当前的结果：
-test-data\parser-result\long-readme.md.result.json
-
-应当合并连续出现的标题(限制最大、最小行数与字符数)
-
-标题/加粗与内容也可以合并
