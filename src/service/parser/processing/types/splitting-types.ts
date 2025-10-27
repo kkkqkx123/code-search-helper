@@ -72,7 +72,7 @@ export interface ChunkingOptions {
   enableSmartDeduplication?: boolean;
   similarityThreshold?: number;
   overlapMergeStrategy?: 'aggressive' | 'conservative';
-  
+
   // 新增属性以支持策略提供者
   treeSitterService?: any;
   universalTextStrategy?: any;
@@ -103,6 +103,7 @@ export interface EnhancedChunkingOptions extends ChunkingOptions {
   enableBoundaryOptimization?: boolean;
   boundaryOptimizationThreshold?: number;
   enableAdvancedMerging?: boolean;
+  enableOverlap?: boolean;
   mergeDecisionThreshold?: number;
 }
 
@@ -195,7 +196,8 @@ export const DEFAULT_ENHANCED_CHUNKING_OPTIONS: Required<EnhancedChunkingOptions
   enableBoundaryOptimization: true,
   boundaryOptimizationThreshold: 0.7,
   enableAdvancedMerging: true,
-  mergeDecisionThreshold: 0.75
+  enableOverlap: false,
+  mergeDecisionThreshold: 0.75,
 };
 
 export interface CodeChunkMetadata {
@@ -203,7 +205,7 @@ export interface CodeChunkMetadata {
   endLine: number;
   language: string;
   filePath?: string;
-  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' | 'declaration' | 'doctype' | 'root' | 'element' | 'instruction' | 'comment' | 'cdata' | 'text';
+  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' | 'declaration' | 'doctype' | 'root' | 'element' | 'instruction' | 'comment' | 'cdata' | 'text' | 'overlap-split';
   functionName?: string;
   className?: string;
   complexity?: number; // 新增：代码复杂度

@@ -1,7 +1,7 @@
 import { CodeChunk } from '../types/splitting-types';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { BalancedChunker } from '../utils/chunking/BalancedChunker';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
  * 符号平衡后处理器
@@ -98,7 +98,7 @@ export class SymbolBalancePostProcessor implements IChunkPostProcessor {
       this.balancedChunker.analyzeLineSymbols(additionalLine);
       
       // 检查大小限制
-      if (currentContent.length > context.options.maxChunkSize) {
+      if (context.options.maxChunkSize && currentContent.length > context.options.maxChunkSize) {
         // 如果超过大小限制，则回退到平衡状态检查
         break;
       }

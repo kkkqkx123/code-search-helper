@@ -5,7 +5,8 @@ import { SimilarityDetector } from './similarity/SimilarityDetector';
 import { UnifiedOverlapCalculator } from './overlap/UnifiedOverlapCalculator';
 import { PerformanceMonitor } from './performance/PerformanceMonitor';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { ChunkPostProcessorCoordinator, PostProcessingContext } from '../post-processing/ChunkPostProcessorCoordinator';
+import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
+import { PostProcessingContext } from '../post-processing/IChunkPostProcessor';
 
 /**
  * 增强的分段策略协调器 - 统一管理所有分段策略的执行，支持重复检测
@@ -29,6 +30,8 @@ export class ChunkingCoordinator {
     'SyntaxAwareSplitter', // 语法感知分段
     'IntelligentSplitter', // 智能分段（后备方案）
     'SemanticSplitter'   // 语义分段（最后后备）
+  ];
+
   constructor(
     nodeTracker: ASTNodeTracker,
     options: Required<EnhancedChunkingOptions>, // 更新参数类型
@@ -67,8 +70,6 @@ export class ChunkingCoordinator {
     // 初始化后处理协调器
     this.chunkPostProcessorCoordinator = new ChunkPostProcessorCoordinator(logger);
     this.chunkPostProcessorCoordinator.initializeDefaultProcessors(this.options);
-  }
-    }
   }
 
   /**

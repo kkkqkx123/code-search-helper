@@ -1,14 +1,15 @@
 import { CodeChunk, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../types/splitting-types';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { BalancedChunker } from '../utils/chunking/BalancedChunker';
-import { ChunkFilter } from '../utils/chunking/ChunkFilter';
-import { ChunkRebalancer } from '../utils/chunking/ChunkRebalancer';
 import { ChunkMerger } from '../utils/chunk-processing/ChunkMerger';
 import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';
 import { SymbolBalancePostProcessor } from './SymbolBalancePostProcessor';
 import { IntelligentFilterPostProcessor } from './IntelligentFilterPostProcessor';
 import { SmartRebalancingPostProcessor } from './SmartRebalancingPostProcessor';
+import { AdvancedMergingPostProcessor } from './AdvancedMergingPostProcessor';
+import { BoundaryOptimizationPostProcessor } from './BoundaryOptimizationPostProcessor';
+import { OverlapPostProcessor } from './OverlapPostProcessor';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { IComplexityCalculator } from '../strategies/types/SegmentationTypes';
 
 /**
  * 分段后处理协调器
@@ -18,11 +19,13 @@ export class ChunkPostProcessorCoordinator {
   private chunkingProcessors: IChunkPostProcessor[];
   private chunkProcessingProcessors: IChunkPostProcessor[];
   private logger?: LoggerService;
+  private complexityCalculator?: IComplexityCalculator;
 
-  constructor(logger?: LoggerService) {
+  constructor(logger?: LoggerService, complexityCalculator?: IComplexityCalculator) {
     this.chunkingProcessors = [];
     this.chunkProcessingProcessors = [];
     this.logger = logger;
+    this.complexityCalculator = complexityCalculator;
   }
 
   /**
@@ -100,129 +103,39 @@ export class ChunkPostProcessorCoordinator {
   initializeDefaultProcessors(options: EnhancedChunkingOptions): void {
     // 创建基于选项的处理器实例
     if (options.enableEnhancedBalancing) {
-      // 创建一个包装器来实现IChunkPostProcessor接口
-      this.addChunkingProcessor({
-        getName: () => 'balanced-chunker',
-        shouldApply: (chunks: CodeChunk[], context: PostProcessingContext) => chunks.length > 0,
-        process: async (chunks: CodeChunk[], context: PostProcessingContext) => {
-          // 使用BalancedChunker进行符号平衡分析
-          const balancedChunker = new BalancedChunker(this.logger);
-          
-          // 对每个代码块进行符号平衡检查
-          const balancedChunks = chunks.map(chunk => {
-            // 重置并分析代码块的符号平衡
-            balancedChunker.reset();
-            const lines = chunk.content.split('\n');
-            
-            for (const line of lines) {
-              balancedChunker.analyzeLineSymbols(line);
-            }
-            
-            // 如果代码块符号不平衡，可能需要特殊处理
-            // 目前我们只是确保代码块在语法上是完整的
-            return chunk;
-          });
-          
-          return balancedChunks;
-        }
-      });
+      // 使用专用的符号平衡处理器
+      const symbolBalanceProcessor = new SymbolBalancePostProcessor(this.logger);
+      this.addChunkingProcessor(symbolBalanceProcessor);
     }
 
     if (options.enableIntelligentFiltering) {
-      // 创建一个包装器来实现IChunkPostProcessor接口
-      this.addChunkingProcessor({
-        getName: () => 'chunk-filter',
-        shouldApply: (chunks: CodeChunk[], context: PostProcessingContext) => chunks.length > 0,
-        process: async (chunks: CodeChunk[], context: PostProcessingContext) => {
-          // 使用ChunkFilter的智能过滤功能
-          const filter = new ChunkFilter();
-          // 使用默认的上下文进行过滤
-          const filterContext: any = {
-            options: {
-              filterConfig: {
-                enableSmallChunkFilter: true,
-                minChunkSize: context.options.minChunkSize || 100,
-                maxChunkSize: context.options.maxChunkSize || 1000
-              }
-            },
-            metadata: { isCodeFile: true }
-          };
-          return filter.process(chunks, filterContext);
-        }
-      });
+      // 使用专用的智能过滤处理器
+      const intelligentFilterProcessor = new IntelligentFilterPostProcessor(this.logger);
+      this.addChunkingProcessor(intelligentFilterProcessor);
     }
 
     if (options.enableSmartRebalancing) {
-      // 创建一个包装器来实现IChunkPostProcessor接口
-      this.addChunkingProcessor({
-        getName: () => 'chunk-rebalancer',
-        shouldApply: (chunks: CodeChunk[], context: PostProcessingContext) => chunks.length > 1,
-        process: async (chunks: CodeChunk[], context: PostProcessingContext) => {
-          // 使用context中的options进行再平衡
-          const minChunkSize = context.options.minChunkSize || 100;
-          const maxChunkSize = context.options.maxChunkSize || 1000;
-
-          if (chunks.length === 0) return chunks;
-
-          const rebalancedChunks: CodeChunk[] = [];
-
-          for (let i = 0; i < chunks.length; i++) {
-            const chunk = chunks[i];
-
-            // 检查是否是最后一块且过小
-            if (i === chunks.length - 1 && chunk.content.length < minChunkSize) {
-              // 尝试向前合并到前一个块
-              if (rebalancedChunks.length > 0) {
-                const prevChunk = rebalancedChunks[rebalancedChunks.length - 1];
-                const combinedSize = prevChunk.content.length + chunk.content.length;
-
-                // 确保合并后不超过最大限制
-                if (combinedSize <= maxChunkSize) {
-                  prevChunk.content += '\n' + chunk.content;
-                  prevChunk.metadata.endLine = chunk.metadata.endLine;
-                  continue;
-                }
-              }
-            }
-
-            rebalancedChunks.push(chunk);
-          }
-
-          return rebalancedChunks;
-        }
-      });
+      // 使用专用的智能再平衡处理器
+      const smartRebalancingProcessor = new SmartRebalancingPostProcessor(this.logger, this.complexityCalculator);
+      this.addChunkingProcessor(smartRebalancingProcessor);
     }
 
     if (options.enableAdvancedMerging) {
-      this.addChunkProcessingProcessor({
-        getName: () => 'chunk-merger',
-        shouldApply: (chunks: CodeChunk[], context: PostProcessingContext) => chunks.length > 1,
-        process: async (chunks: CodeChunk[], context: PostProcessingContext) => {
-          // 确保传递给ChunkMerger的options是完整类型
-          const completeOptions: Required<EnhancedChunkingOptions> = {
-            ...DEFAULT_ENHANCED_CHUNKING_OPTIONS,
-            ...context.options
-          };
-          const merger = new ChunkMerger(completeOptions);
-          return merger.mergeOverlappingChunks(chunks);
-        }
-      });
+      // 使用专用的高级合并处理器
+      const advancedMergingProcessor = new AdvancedMergingPostProcessor(this.logger);
+      this.addChunkProcessingProcessor(advancedMergingProcessor);
     }
 
     if (options.enableBoundaryOptimization) {
-      this.addChunkProcessingProcessor({
-        getName: () => 'chunk-optimizer',
-        shouldApply: (chunks: CodeChunk[], context: PostProcessingContext) => chunks.length > 0,
-        process: async (chunks: CodeChunk[], context: PostProcessingContext) => {
-          // 确保传递给ChunkOptimizer的options是完整类型
-          const completeOptions: Required<EnhancedChunkingOptions> = {
-            ...DEFAULT_ENHANCED_CHUNKING_OPTIONS,
-            ...context.options
-          };
-          const optimizer = new ChunkOptimizer(completeOptions);
-          return optimizer.optimize(chunks, context.originalContent);
-        }
-      });
+      // 使用专用的边界优化处理器
+      const boundaryOptimizationProcessor = new BoundaryOptimizationPostProcessor(this.logger);
+      this.addChunkProcessingProcessor(boundaryOptimizationProcessor);
+    }
+
+    if (options.enableOverlap) {
+      // 使用专用的重叠处理器
+      const overlapProcessor = new OverlapPostProcessor(this.logger);
+      this.addChunkProcessingProcessor(overlapProcessor);
     }
   }
 }

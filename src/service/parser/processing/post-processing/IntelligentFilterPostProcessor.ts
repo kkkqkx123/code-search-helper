@@ -1,7 +1,7 @@
 import { CodeChunk } from '../types/splitting-types';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { ChunkFilter } from '../utils/chunking/ChunkFilter';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
  * 智能过滤后处理器
@@ -51,7 +51,7 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
     const filteredChunks = await this.chunkFilter.process(chunks, filterContext);
 
     // 如果启用了高级合并，应用智能合并
-    if (context.options.enableIntelligentMerge) {
+    if (context.options.enableIntelligentFiltering) {
       const mergedChunks = await this.chunkFilter.intelligentMerge(filteredChunks, filterContext);
       this.logger?.debug(`Intelligent filter: ${chunks.length} -> ${filteredChunks.length} -> ${mergedChunks.length} chunks`);
       return mergedChunks;

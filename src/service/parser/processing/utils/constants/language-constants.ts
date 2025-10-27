@@ -14,12 +14,12 @@ export const LANGUAGE_MAP: Record<string, string> = {
   '.c': 'c',
   '.h': 'cpp',
   '.hpp': 'cpp',
- '.cs': 'csharp',
+  '.cs': 'csharp',
   '.go': 'go',
   '.rs': 'rust',
   '.php': 'php',
   '.rb': 'ruby',
- '.swift': 'swift',
+  '.swift': 'swift',
   '.kt': 'kotlin',
   '.scala': 'scala',
   '.md': 'markdown',
@@ -37,7 +37,7 @@ export const LANGUAGE_MAP: Record<string, string> = {
   '.css': 'css',
   '.scss': 'scss',
   '.sass': 'sass',
- '.less': 'less',
+  '.less': 'less',
   '.vue': 'vue',
   '.svelte': 'svelte',
   '.txt': 'text',
@@ -58,7 +58,7 @@ export const LANGUAGE_MAP: Record<string, string> = {
   '.exs': 'elixir',
   '.erl': 'erlang',
   '.hs': 'haskell',
- '.ml': 'ocaml',
+  '.ml': 'ocaml',
   '.fs': 'fsharp',
   '.vb': 'visualbasic',
   '.ps1': 'powershell',
@@ -68,17 +68,17 @@ export const LANGUAGE_MAP: Record<string, string> = {
 
 // 代码语言列表常量
 export const CODE_LANGUAGES = [
- 'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
- 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'shell',
+  'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
+  'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'shell',
   'html', 'css', 'scss', 'sass', 'less', 'vue', 'svelte', 'json',
-  'xml', 'yaml', 'sql', 'dockerfile', 'cmake', 'perl', 'r', 'matlab',
+  'xml', 'yaml', 'toml', 'sql', 'dockerfile', 'cmake', 'perl', 'r', 'matlab',
   'lua', 'dart', 'elixir', 'erlang', 'haskell', 'ocaml', 'fsharp',
   'visualbasic', 'powershell', 'batch'
 ];
 
 // 结构化文件语言列表
 export const STRUCTURED_LANGUAGES = [
-  'json', 'xml', 'yaml', 'html', 'css', 'scss', 'sass'
+  'toml', 'json', 'xml', 'yaml', 'html', 'css', 'scss', 'sass'
 ];
 
 // 具有强特征的语言列表

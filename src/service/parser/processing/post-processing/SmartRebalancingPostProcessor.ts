@@ -1,6 +1,7 @@
 import { CodeChunk } from '../types/splitting-types';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
+import { IComplexityCalculator } from '../strategies/types/SegmentationTypes';
 
 /**
  * 智能再平衡后处理器
@@ -8,9 +9,11 @@ import { LoggerService } from '../../../utils/LoggerService';
  */
 export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
   private logger?: LoggerService;
+  private complexityCalculator?: IComplexityCalculator;
 
-  constructor(logger?: LoggerService) {
+  constructor(logger?: LoggerService, complexityCalculator?: IComplexityCalculator) {
     this.logger = logger;
+    this.complexityCalculator = complexityCalculator;
   }
 
   getName(): string {
@@ -263,6 +266,11 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
     targetChunk.content += '\n' + sourceChunk.content;
     targetChunk.metadata.endLine = sourceChunk.metadata.endLine;
 
+    // 重新计算复杂度（如果可用）
+    if (this.complexityCalculator) {
+      targetChunk.metadata.complexity = this.complexityCalculator.calculate(targetChunk.content);
+    }
+
     // 如果源块有额外的元数据，考虑是否需要保留
     if (sourceChunk.metadata.functionName && !targetChunk.metadata.functionName) {
       targetChunk.metadata.functionName = sourceChunk.metadata.functionName;
@@ -361,7 +369,9 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
         language: parentChunk.metadata.language,
         filePath: parentChunk.metadata.filePath,
         type: parentChunk.metadata.type,
-        complexity: parentChunk.metadata.complexity || 0,
+        complexity: this.complexityCalculator ? 
+          this.complexityCalculator.calculate(content) : 
+          (parentChunk.metadata.complexity || 0),
         functionName: parentChunk.metadata.functionName,
         className: parentChunk.metadata.className
       }
@@ -407,5 +417,25 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
     const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
     const squaredDiffs = values.map(value => Math.pow(value - mean, 2));
     return squaredDiffs.reduce((sum, diff) => sum + diff, 0) / values.length;
+  }
+
+  /**
+   * 设置再平衡配置
+   */
+  setRebalancingConfig(config: {
+    enableSmartRebalancing?: boolean;
+    minChunkSizeThreshold?: number;
+    maxChunkSizeThreshold?: number;
+    rebalancingStrategy?: 'conservative' | 'aggressive';
+  }): void {
+    this.logger?.debug('Smart rebalancing configuration updated', config);
+  }
+
+  /**
+   * 设置复杂度计算器
+   */
+  setComplexityCalculator(calculator: IComplexityCalculator): void {
+    this.complexityCalculator = calculator;
+    this.logger?.debug('Complexity calculator set for smart rebalancing');
   }
 }

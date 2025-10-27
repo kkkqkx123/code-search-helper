@@ -70,9 +70,7 @@ import { SegmentationStrategyCoordinator } from '../../service/parser/processing
 import { ConfigurationManager } from '../../service/parser/processing/config/ConfigurationManager';
 import { ProtectionCoordinator } from '../../service/parser/processing/utils/protection/ProtectionCoordinator';
 import { ComplexityCalculator } from '../../service/parser/processing/utils/calculation/ComplexityCalculator';
-import { OverlapProcessor } from '../../service/parser/processing/utils/chunking/OverlapProcessor';
 import { ChunkFilter } from '../../service/parser/processing/utils/chunking/ChunkFilter';
-import { ChunkRebalancer } from '../../service/parser/processing/utils/chunking/ChunkRebalancer';
 import { SemanticSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/SemanticSegmentationStrategy';
 import { BracketSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/BracketSegmentationStrategy';
 import { LineStrategyProvider } from '../../service/parser/processing/strategies/providers/LineStrategyProvider';
@@ -201,9 +199,7 @@ export class BusinessServiceRegistrar {
       container.bind<SemanticStrategyProvider>(TYPES.SemanticStrategyProvider).to(SemanticStrategyProvider).inSingletonScope();
 
       // 处理器
-      container.bind<OverlapProcessor>(TYPES.OverlapProcessor).to(OverlapProcessor).inSingletonScope();
       container.bind<ChunkFilter>(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();
-      container.bind<ChunkRebalancer>(TYPES.ChunkRebalancer).to(ChunkRebalancer).inSingletonScope();
 
       // 初始化分段器模块 - 设置策略和处理器
       BusinessServiceRegistrar.initializeSegmentationServices(container);
