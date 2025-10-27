@@ -2,12 +2,12 @@ import { Container } from 'inversify';
 import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { QueryResultNormalizer } from '../QueryResultNormalizer';
-import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
+import { UniversalTextStrategy } from '../../../processing/utils/UniversalTextStrategy';
 import { PerformanceMonitor } from '../../../../../infrastructure/monitoring/PerformanceMonitor';
 import { ErrorHandlingManager } from '../ErrorHandlingManager';
 import { TreeSitterCoreService, ParserLanguage } from '../../parse/TreeSitterCoreService';
 import { NormalizationIntegrationService } from '../NormalizationIntegrationService';
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../../processing/types/splitting-types';
 
 // 创建模拟实现，避免依赖注入问题
 class MockLoggerService extends LoggerService {
@@ -16,7 +16,7 @@ class MockLoggerService extends LoggerService {
   }
 }
 
-class MockUniversalTextSplitter extends UniversalTextSplitter {
+class MockUniversalTextStrategy extends UniversalTextStrategy {
   constructor() {
     super(
       new MockLoggerService(),
@@ -33,7 +33,8 @@ class MockUniversalTextSplitter extends UniversalTextSplitter {
         startLine: 1,
         endLine: lines.length,
         language: language || 'unknown',
-        filePath
+        filePath,
+        type: 'bracket'
       }
     }];
   }
@@ -46,7 +47,8 @@ class MockUniversalTextSplitter extends UniversalTextSplitter {
         startLine: 1,
         endLine: lines.length,
         language: language || 'unknown',
-        filePath
+        filePath,
+        type: 'line'
       }
     }];
   }
@@ -286,7 +288,7 @@ class MockErrorHandlingManager extends ErrorHandlingManager {
     const logger = new MockLoggerService();
     const infrastructureErrorHandler = new MockInfrastructureErrorHandler(logger);
     const faultToleranceHandler = new MockFaultToleranceHandler();
-    
+
     // 使用类型断言来绕过类型检查
     super(logger, infrastructureErrorHandler as any, faultToleranceHandler as any);
   }
@@ -339,7 +341,7 @@ describe('NormalizationIntegrationService', () => {
     container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).toConstantValue(
       new QueryResultNormalizer({ enableCache: false, debug: false })
     );
-    container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).toConstantValue(new MockUniversalTextSplitter());
+    container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).toConstantValue(new MockUniversalTextStrategy());
     container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).toConstantValue(new MockPerformanceMonitor());
     container.bind<ErrorHandlingManager>(TYPES.ErrorHandlingManager).toConstantValue(new MockErrorHandlingManager());
     container.bind<TreeSitterCoreService>(TYPES.TreeSitterService).toConstantValue(new MockTreeSitterCoreService());
@@ -348,7 +350,7 @@ describe('NormalizationIntegrationService', () => {
     service = new NormalizationIntegrationService(
       container.get<LoggerService>(TYPES.LoggerService),
       container.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer),
-      container.get<UniversalTextSplitter>(TYPES.UniversalTextSplitter),
+      container.get<UniversalTextStrategy>(TYPES.UniversalTextStrategy),
       container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
       container.get<ErrorHandlingManager>(TYPES.ErrorHandlingManager),
       container.get<TreeSitterCoreService>(TYPES.TreeSitterService)

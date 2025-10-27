@@ -65,7 +65,7 @@ export const TYPES = {
   ISpaceNameUtils: Symbol.for('ISpaceNameUtils'),
   
   // 通用文件处理服务
-  UniversalTextSplitter: Symbol.for('UniversalTextSplitter'),
+  UniversalTextStrategy: Symbol.for('UniversalTextStrategy'),
   ErrorThresholdManager: Symbol.for('ErrorThresholdManager'),
   MemoryGuard: Symbol.for('MemoryGuard'),
   BackupFileProcessor: Symbol.for('BackupFileProcessor'),

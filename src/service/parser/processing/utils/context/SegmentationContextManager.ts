@@ -6,7 +6,7 @@ import {
   UniversalChunkingOptions,
   IConfigurationManager
 } from '../../strategies/types/SegmentationTypes';
-import { CodeChunk } from '../../splitting-types';
+import { CodeChunk } from '../../types/splitting-types';
 import { SegmentationContextFactory } from './SegmentationContextFactory';
 import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';

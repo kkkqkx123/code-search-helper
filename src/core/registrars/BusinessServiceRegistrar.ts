@@ -37,17 +37,16 @@ import { PerformanceOptimizerService } from '../../infrastructure/batching/Perfo
 // 解析服务
 import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
-import { ASTCodeSplitter } from '../../service/parser/splitting/ASTCodeSplitter';
+import { ASTCodeSplitter } from '../../service/parser/processing/strategies/impl/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
 import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
 
 // 通用文件处理服务
-import { UniversalTextSplitter } from '../../service/parser/universal/UniversalTextSplitter';
-import { ErrorThresholdManager } from '../../service/parser/universal/ErrorThresholdManager';
-import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
-import { BackupFileProcessor } from '../../service/parser/processing/utils/BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../../service/parser/processing/utils/ExtensionlessFileProcessor';
+import { UniversalTextStrategy } from '../../service/parser/processing/utils/UniversalTextStrategy';
 import { ErrorThresholdInterceptor } from '../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
+import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
+import { BackupFileProcessor } from '../../service/parser/processing/detection/BackupFileProcessor';
+import { ExtensionlessFileProcessor } from '../../service/parser/processing/detection/ExtensionlessFileProcessor';
 // ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名，通过类型定义处理
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
@@ -57,8 +56,8 @@ import { FileProcessingCoordinator } from '../../service/parser/processing/utils
 import { UnifiedDetectionCenter } from '../../service/parser/processing/detection/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from '../../service/parser/processing/utils/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
-import { MarkdownTextSplitter } from '../../service/parser/processing/utils/md/MarkdownTextStrategy';
-import { XMLTextSplitter } from '../../service/parser/processing/utils/xml/XMLTextStrategy';
+import { MarkdownTextStrategy } from '../../service/parser/processing/utils/md/MarkdownTextStrategy';
+import { XMLTextStrategy } from '../../service/parser/processing/utils/xml/XMLTextStrategy';
 
 // 分段器模块服务
 import { SegmentationContextManager } from '../../service/parser/processing/utils/context/SegmentationContextManager';
@@ -159,7 +158,7 @@ export class BusinessServiceRegistrar {
       // 文件处理协调器 - 需要在UnifiedGuardCoordinator之前注册
       container.bind<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
-        const universalTextSplitter = context.get<UniversalTextSplitter>(TYPES.UniversalTextSplitter);
+        const universalTextSplitter = context.get<UniversalTextStrategy>(TYPES.UniversalTextStrategy);
         const treeSitterService = context.get<TreeSitterService>(TYPES.TreeSitterService);
         return new FileProcessingCoordinator(logger, universalTextSplitter, treeSitterService);
       }).inSingletonScope();
@@ -171,7 +170,7 @@ export class BusinessServiceRegistrar {
 
       // 分段器模块服务 - 统一在这里管理
       // 核心类
-      container.bind<UniversalTextSplitter>(TYPES.UniversalTextSplitter).to(UniversalTextSplitter).inSingletonScope();
+      container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
       container.bind<SegmentationContextManager>(TYPES.SegmentationContextManager).to(SegmentationContextManager).inSingletonScope();
 
       // 配置和保护
@@ -271,10 +270,10 @@ export class BusinessServiceRegistrar {
       // 处理策略工厂
       container.bind<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
-        const universalTextSplitter = context.get<UniversalTextSplitter>(TYPES.UniversalTextSplitter);
+        const universalTextSplitter = context.get<UniversalTextStrategy>(TYPES.UniversalTextStrategy);
         const treeSitterService = context.get<TreeSitterService>(TYPES.TreeSitterService);
-        const markdownSplitter = context.get<MarkdownTextSplitter>(TYPES.MarkdownTextSplitter);
-        const xmlSplitter = context.get<XMLTextSplitter>(TYPES.XMLTextSplitter);
+        const markdownSplitter = context.get<MarkdownTextStrategy>(TYPES.MarkdownTextStrategy);
+        const xmlSplitter = context.get<XMLTextStrategy>(TYPES.XMLTextStrategy);
 
         return new ProcessingStrategyFactory(logger, treeSitterService, markdownSplitter, xmlSplitter);
       }).inSingletonScope();
@@ -282,7 +281,7 @@ export class BusinessServiceRegistrar {
       // UnifiedGuardCoordinator - 新的统一保护机制协调器
       container.bind<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator).toDynamicValue(context => {
         const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
-        const errorThresholdManager = context.get<ErrorThresholdManager>(TYPES.ErrorThresholdManager);
+        const errorThresholdInterceptor = context.get<ErrorThresholdInterceptor>(TYPES.ErrorThresholdManager);
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
         const logger = context.get<LoggerService>(TYPES.LoggerService);
 
@@ -300,7 +299,7 @@ export class BusinessServiceRegistrar {
 
         return UnifiedGuardCoordinator.getInstance(
           memoryMonitorService,
-          errorThresholdManager,
+          errorThresholdInterceptor,
           cleanupManager,
           processingStrategySelector,
           fileProcessingCoordinator,
@@ -314,8 +313,8 @@ export class BusinessServiceRegistrar {
       }).inSingletonScope();
 
       // 特殊格式文本分割器
-      container.bind<MarkdownTextSplitter>(TYPES.MarkdownTextSplitter).to(MarkdownTextSplitter).inSingletonScope();
-      container.bind<XMLTextSplitter>(TYPES.XMLTextSplitter).to(XMLTextSplitter).inSingletonScope();
+      container.bind<MarkdownTextStrategy>(TYPES.MarkdownTextStrategy).to(MarkdownTextStrategy).inSingletonScope();
+      container.bind<XMLTextStrategy>(TYPES.XMLTextStrategy).to(XMLTextStrategy).inSingletonScope();
 
       // 搜索服务
       container.bind<FileSearchService>(TYPES.FileSearchService).to(FileSearchService).inSingletonScope();
@@ -374,9 +373,9 @@ export class BusinessServiceRegistrar {
         }
       }
 
-      // 设置处理器到UniversalTextSplitter
-      const universalTextSplitter = container.get<UniversalTextSplitter>(TYPES.UniversalTextSplitter);
-      logger?.debug('UniversalTextSplitter retrieved from container');
+      // 设置处理器到UniversalTextStrategy
+      const universalTextSplitter = container.get<UniversalTextStrategy>(TYPES.UniversalTextStrategy);
+      logger?.debug('UniversalTextStrategy retrieved from container');
 
       const processors = [
         { name: 'OverlapProcessor', type: TYPES.OverlapProcessor },

@@ -1,8 +1,8 @@
-import { ISplitStrategyFactory } from '../interfaces/ISplitStrategyFactory';
-import { ISplitStrategy } from '../interfaces/ISplitStrategy';
-import { IStrategyProvider } from '../interfaces/IStrategyProvider';
-import { ChunkingOptions } from '..';
-import { BaseSplitStrategy } from '../../processing/strategies/impl/base/BaseASTStrategy';
+import { ISplitStrategyFactory } from '../../interfaces/ISplitStrategyFactory';
+import { ISplitStrategy } from '../../interfaces/ISplitStrategy';
+import { IStrategyProvider } from '../../interfaces/IStrategyProvider';
+import { ChunkingOptions } from '../../types/splitting-types';
+import { BaseSplitStrategy } from '../impl/base/BaseASTStrategy';
 
 /**
  * 分割策略工厂实现 - 使用策略提供者模式

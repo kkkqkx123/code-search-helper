@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { CodeChunk } from '../splitting-types';
+import { CodeChunk } from '../types/splitting-types';
 import { LoggerService } from '../../../../utils/LoggerService';
 import {
   ITextSplitter,

@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../splitting-types';
+import { CodeChunk } from '../../types/splitting-types';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 
 /**
@@ -47,7 +47,7 @@ export class SimilarityUtils {
   private static calculateLevenshteinSimilarity(str1: string, str2: string): number {
     const distance = this.levenshteinDistance(str1, str2);
     const maxLength = Math.max(str1.length, str2.length);
-    
+
     if (maxLength === 0) {
       return 1.0;
     }
@@ -86,7 +86,7 @@ export class SimilarityUtils {
     }
 
     return matrix[str2.length][str1.length];
- }
+  }
 
   /**
    * 检查两个代码片段是否相似（基于阈值）
@@ -136,7 +136,7 @@ export class SimilarityUtils {
       default:
         return this.DEFAULT_THRESHOLD;
     }
- }
+  }
 
   /**
    * 检查两个块是否可以合并

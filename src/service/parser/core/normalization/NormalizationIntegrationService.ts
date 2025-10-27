@@ -2,13 +2,13 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { QueryResultNormalizer } from './QueryResultNormalizer';
-import { UniversalTextSplitter } from '../../universal/UniversalTextSplitter';
+import { UniversalTextStrategy } from '../../processing/utils/UniversalTextStrategy';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { LRUCache } from '../../../../utils/LRUCache';
 import { ErrorHandlingManager, ErrorType } from './ErrorHandlingManager';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { StandardizedQueryResult } from './types';
-import { CodeChunk } from '../../splitting';
+import { CodeChunk } from '../../processing/types/splitting-types';
 import { NormalizationPerformanceAdapter } from './PerformanceAdapter';
 
 /**
@@ -45,13 +45,13 @@ export interface ProcessingResult {
 
 /**
  * 标准化集成服务
- * 整合QueryResultNormalizer、UniversalTextSplitter、缓存、性能监控和错误处理
+ * 整合QueryResultNormalizer、UniversalTextStrategy、缓存、性能监控和错误处理
  */
 @injectable()
 export class NormalizationIntegrationService {
   private logger: LoggerService;
   private queryNormalizer: QueryResultNormalizer;
-  private universalTextSplitter: UniversalTextSplitter;
+  private universalTextSplitter: UniversalTextStrategy;
   private performanceMonitor?: PerformanceMonitor;
   private normalizationPerformanceAdapter?: NormalizationPerformanceAdapter;
   private cache?: LRUCache<string, any>;
@@ -62,7 +62,7 @@ export class NormalizationIntegrationService {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.QueryResultNormalizer) queryNormalizer: QueryResultNormalizer,
-    @inject(TYPES.UniversalTextSplitter) universalTextSplitter: UniversalTextSplitter,
+    @inject(TYPES.UniversalTextStrategy) universalTextSplitter: UniversalTextStrategy,
     @inject(TYPES.PerformanceMonitor) performanceMonitor?: PerformanceMonitor,
     @inject(TYPES.ErrorHandlingManager) errorHandlingManager?: ErrorHandlingManager,
     @inject(TYPES.TreeSitterService) treeSitterService?: TreeSitterCoreService

@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../splitting-types';
+import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../types/splitting-types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../core/normalization/types';
 import { IntelligentStrategy } from './IntelligentStrategy';
@@ -34,15 +34,15 @@ export class StructureAwareStrategy implements ISplitStrategy {
   * 设置查询结果标准化器
   */
   setQueryNormalizer(normalizer: IQueryResultNormalizer): void {
-  this.queryNormalizer = normalizer;
+    this.queryNormalizer = normalizer;
   }
 
   /**
     * 设置日志器
     */
-   setLogger(logger: LoggerService): void {
-     this.logger = logger;
-   }
+  setLogger(logger: LoggerService): void {
+    this.logger = logger;
+  }
 
   async split(
     content: string,

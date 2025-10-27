@@ -35,9 +35,9 @@ export class UnifiedStrategyFactory {
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.UnifiedConfigManager) configManager?: UnifiedConfigManager,
     @inject(TYPES.TreeSitterService) treeSitterService?: any,
-    @inject(TYPES.UniversalTextSplitter) universalTextSplitter?: any,
-    @inject(TYPES.MarkdownTextSplitter) markdownSplitter?: any,
-    @inject(TYPES.XMLTextSplitter) xmlSplitter?: any
+    @inject(TYPES.UniversalTextStrategy) universalTextSplitter?: any,
+    @inject(TYPES.MarkdownTextStrategy) markdownSplitter?: any,
+    @inject(TYPES.XMLTextStrategy) xmlSplitter?: any
   ) {
     this.logger = logger;
     this.configManager = configManager || new UnifiedConfigManager();

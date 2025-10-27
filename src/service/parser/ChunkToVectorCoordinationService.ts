@@ -12,12 +12,12 @@ import { CodeChunk } from './types';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { UnifiedGuardCoordinator } from './guard/UnifiedGuardCoordinator';
-import { UniversalTextSplitter } from './universal/UniversalTextSplitter';
-import { BackupFileProcessor } from './processing/utils/BackupFileProcessor';
-import { ExtensionlessFileProcessor } from './processing/utils/ExtensionlessFileProcessor';
+import { UniversalTextStrategy } from './processing/utils/UniversalTextStrategy';
+import { BackupFileProcessor } from './processing/detection/BackupFileProcessor';
+import { ExtensionlessFileProcessor } from './processing/detection/ExtensionlessFileProcessor';
 import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
 import { LanguageDetectionService } from './processing/detection/LanguageDetectionService';
-import { UnifiedDetectionCenter } from './universal/UnifiedDetectionCenter';
+import { UnifiedDetectionCenter } from './processing/detection/UnifiedDetectionCenter';
 
 export interface ProcessingOptions {
   maxChunkSize?: number;
@@ -46,7 +46,7 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.ProcessingGuard) private processingGuard: UnifiedGuardCoordinator,
-    @inject(TYPES.UniversalTextSplitter) private universalTextSplitter: UniversalTextSplitter,
+    @inject(TYPES.UniversalTextStrategy) private universalTextSplitter: UniversalTextStrategy,
     @inject(TYPES.BackupFileProcessor) private backupFileProcessor: BackupFileProcessor,
     @inject(TYPES.ExtensionlessFileProcessor) private extensionlessFileProcessor: ExtensionlessFileProcessor,
     @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer,

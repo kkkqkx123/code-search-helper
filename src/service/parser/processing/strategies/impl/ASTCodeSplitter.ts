@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { Splitter, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../splitting-types';
+import { Splitter, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../types/splitting-types';
 import { TYPES } from '../../../../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../../utils/LoggerService';
@@ -20,7 +20,7 @@ import { UnifiedPerformanceMonitoringSystem } from '../../utils/performance/Unif
  * 采用新的架构设计，使用工厂模式、策略模式和装饰器模式
  */
 @injectable()
-export class ASTCodeStrategy implements Splitter {
+export class ASTCodeSplitter implements Splitter {
   private treeSitterService: TreeSitterService;
   private logger?: LoggerService;
   private balancedChunker: BalancedChunker;

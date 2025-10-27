@@ -1,4 +1,4 @@
-import { CodeChunk, CodeChunkMetadata } from './types';
+import { CodeChunk, CodeChunkMetadata } from './processing/types/splitting-types';
 
 // 代码块类型定义
 export interface SnippetChunk extends CodeChunk {
@@ -40,4 +40,4 @@ export {
   PerformanceMonitor,
   DEFAULT_CHUNKING_OPTIONS,
   DEFAULT_ENHANCED_CHUNKING_OPTIONS
-} from './processing/splitting-types';
+} from './processing/types/splitting-types';

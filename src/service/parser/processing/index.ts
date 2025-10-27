@@ -27,7 +27,7 @@ export {
   PerformanceMonitor,
   DEFAULT_CHUNKING_OPTIONS,
   DEFAULT_ENHANCED_CHUNKING_OPTIONS
-} from './splitting-types';
+} from './types/splitting-types';
 
 // 配置管理导入和导出
 import { UnifiedConfigManager, UnifiedConfig, UniversalProcessingConfig } from '../config/UnifiedConfigManager';
@@ -66,7 +66,7 @@ export type {
   ChunkingOptions as LegacyChunkingOptions,
   CodeChunk as LegacyCodeChunk,
   CodeChunkMetadata as LegacyCodeChunkMetadata
-} from './splitting-types';
+} from './types/splitting-types';
 
 // 默认导出
 export default {
@@ -76,9 +76,9 @@ export default {
   UnifiedStrategyManager,
   UnifiedDetectionService,
   UnifiedProcessingCoordinator,
-  
+
   // 接口（作为类型导出，不作为值）
-  
+
   // 类型
   // 注意：这些是类型，不能作为值使用
 };

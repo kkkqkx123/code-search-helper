@@ -1,37 +1,30 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
+import { UniversalTextStrategy } from '../../../processing/utils/UniversalTextStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { CodeChunk } from '../../../splitting';
-import {
-  IFileProcessingCoordinator,
-  IFileProcessingContext,
-  IFileProcessingResult,
-  IFallbackResult
-} from '../../../universal/coordination/interfaces/IFileProcessingCoordinator';
-import { IStrategySelectionResult, ProcessingStrategyType } from '../../../universal/coordination/interfaces/IProcessingStrategySelector';
+import { CodeChunk } from '../../types/splitting-types';
 
 /**
  * 文件处理协调器
  * 负责协调文件处理流程，包括策略执行和降级处理
  */
 @injectable()
-export class FileProcessingCoordinator implements IFileProcessingCoordinator {
+export class FileProcessingCoordinator {
   private logger?: LoggerService;
-  private universalTextSplitter: UniversalTextSplitter;
+  private universalTextSplitter: UniversalTextStrategy;
   private treeSitterService?: TreeSitterService;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.UniversalTextSplitter) universalTextSplitter?: UniversalTextSplitter,
+    @inject(TYPES.UniversalTextStrategy) universalTextSplitter?: UniversalTextStrategy,
     @inject(TYPES.TreeSitterService) treeSitterService?: TreeSitterService
   ) {
     this.logger = logger;
 
-    // UniversalTextSplitter 应该始终通过 DI 容器提供
+    // UniversalTextStrategy 应该始终通过 DI 容器提供
     if (!universalTextSplitter) {
-      throw new Error('UniversalTextSplitter is required and must be provided through DI container');
+      throw new Error('UniversalTextStrategy is required and must be provided through DI container');
     }
     this.universalTextSplitter = universalTextSplitter;
     this.treeSitterService = treeSitterService;
@@ -48,7 +41,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
   /**
    * 执行文件处理
    */
-  async processFile(context: IFileProcessingContext): Promise<IFileProcessingResult> {
+  async processFile(context: any): Promise<any> {
     const startTime = Date.now();
     const { filePath, content, strategy, language } = context;
 
@@ -140,7 +133,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
    * 执行处理策略
    */
   async executeProcessingStrategy(
-    strategy: IStrategySelectionResult,
+    strategy: any,
     filePath: string,
     content: string,
     language: string
@@ -150,21 +143,21 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
     this.logger?.debug(`Executing strategy: ${strategyType} for ${filePath}`);
 
     switch (strategyType) {
-      case ProcessingStrategyType.TREESITTER_AST:
+      case 'TREESITTER_AST':
         // 使用TreeSitter进行AST解析分段
         return await this.chunkByTreeSitter(content, filePath, language);
 
-      case ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE:
+      case 'UNIVERSAL_SEMANTIC_FINE':
         // 使用更精细的语义分段
         return await this.chunkByFineSemantic(content, filePath, language);
 
-      case ProcessingStrategyType.UNIVERSAL_SEMANTIC:
+      case 'UNIVERSAL_SEMANTIC':
         return await this.universalTextSplitter.chunkBySemanticBoundaries(content, filePath, language);
 
-      case ProcessingStrategyType.UNIVERSAL_BRACKET:
+      case 'UNIVERSAL_BRACKET':
         return await this.universalTextSplitter.chunkByBracketsAndLines(content, filePath, language);
 
-      case ProcessingStrategyType.UNIVERSAL_LINE:
+      case 'UNIVERSAL_LINE':
         return await this.universalTextSplitter.chunkByLines(content, filePath, language);
 
       default:
@@ -181,7 +174,7 @@ export class FileProcessingCoordinator implements IFileProcessingCoordinator {
     content: string,
     reason: string,
     originalError?: Error
-  ): Promise<IFallbackResult> {
+  ): Promise<any> {
     this.logger?.info(`Using fallback processing for ${filePath}: ${reason}`);
 
     try {

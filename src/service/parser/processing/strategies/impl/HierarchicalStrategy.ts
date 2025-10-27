@@ -2,7 +2,7 @@ import Parser from 'tree-sitter';
 import { FunctionStrategy } from './FunctionStrategy';
 import { ClassStrategy } from './ClassStrategy';
 import { ModuleStrategy } from './ModuleStrategy';
-import { CodeChunk } from '../../splitting-types';
+import { CodeChunk } from '../../types/splitting-types';
 import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
 
 /**

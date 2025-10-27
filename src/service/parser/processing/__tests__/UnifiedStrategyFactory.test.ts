@@ -33,7 +33,7 @@ describe('UnifiedStrategyFactory', () => {
       expect(astDependencies).toContain('TreeSitterService');
 
       const semanticDependencies = factory.getProviderDependencies('universal_semantic');
-      expect(semanticDependencies).toContain('UniversalTextSplitter');
+      expect(semanticDependencies).toContain('UniversalTextStrategy');
     });
 
     it('应该能够验证策略提供者', () => {

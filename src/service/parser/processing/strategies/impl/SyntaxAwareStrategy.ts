@@ -86,9 +86,9 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
     const chunks: CodeChunk[] = [];
 
     // 使用策略工厂创建子分割器，避免直接导入
-    this.functionStrategy = this.functionStrategy || strategyFactory.create('FunctionStrategy', options);
-    this.classStrategy = this.classStrategy || strategyFactory.create('ClassStrategy', options);
-    this.importStrategy = this.importStrategy || strategyFactory.create('ImportStrategy', options);
+    this.functionStrategy = this.functionStrategy || strategyFactory.create('FunctionStrategy', options) as OldISplitStrategy;
+    this.classStrategy = this.classStrategy || strategyFactory.create('ClassStrategy', options) as OldISplitStrategy;
+    this.importStrategy = this.importStrategy || strategyFactory.create('ImportStrategy', options) as OldISplitStrategy;
 
     // 设置必要的服务
     if (this.treeSitterService) {

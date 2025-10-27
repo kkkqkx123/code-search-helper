@@ -66,6 +66,12 @@ import { ProcessingStrategyFactory } from './service/parser/processing/strategie
 import { MarkdownTextStrategy } from './service/parser/processing/utils/md/MarkdownTextStrategy';
 import { XMLTextStrategy } from './service/parser/processing/utils/xml/XMLTextStrategy';
 import { UnifiedConfigManager } from './service/parser/config/UnifiedConfigManager';
+import { ASTCodeSplitter } from './service/parser/processing/strategies/impl/ASTCodeSplitter';
+import { ImportStrategyProvider } from './service/parser/processing/strategies/providers/ImportStrategyProvider';
+import { SyntaxAwareStrategyProvider } from './service/parser/processing/strategies/providers/SyntaxAwareStrategyProvider';
+import { IntelligentStrategyProvider } from './service/parser/processing/strategies/providers/IntelligentStrategyProvider';
+import { StructureAwareStrategyProvider } from './service/parser/processing/strategies/providers/StructureAwareStrategyProvider';
+import { SemanticStrategyProvider } from './service/parser/processing/strategies/providers/SemanticStrategyProvider';
 
 // 12. 文件搜索模块
 import { FileSearchService } from './service/filesearch/FileSearchService';
@@ -406,4 +412,12 @@ export const TYPES = {
 
   // 41. 语言检测器
   LanguageDetector: Symbol.for('LanguageDetector'),
+
+  // 42. 分段策略提供者
+  ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
+  ImportStrategyProvider: Symbol.for('ImportStrategyProvider'),
+  SyntaxAwareStrategyProvider: Symbol.for('SyntaxAwareStrategyProvider'),
+  IntelligentStrategyProvider: Symbol.for('IntelligentStrategyProvider'),
+  StructureAwareStrategyProvider: Symbol.for('StructureAwareStrategyProvider'),
+  SemanticStrategyProvider: Symbol.for('SemanticStrategyProvider'),
 };

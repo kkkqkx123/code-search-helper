@@ -1,4 +1,4 @@
-import { CodeChunk, ChunkingOptions, ASTNode } from '../splitting-types';
+import { CodeChunk, ChunkingOptions, ASTNode } from '../types/splitting-types';
 
 /**
  * 分割策略接口
@@ -13,14 +13,14 @@ export interface ISplitStrategy {
    * @param nodeTracker AST节点跟踪器（可选）
    * @param ast AST树（可选）
    */
- split(
+  split(
     content: string,
     language: string,
     filePath?: string,
     options?: ChunkingOptions,
     nodeTracker?: any,
     ast?: any
- ): Promise<CodeChunk[]>;
+  ): Promise<CodeChunk[]>;
 
   /**
    * 获取策略名称（用于日志和调试）
