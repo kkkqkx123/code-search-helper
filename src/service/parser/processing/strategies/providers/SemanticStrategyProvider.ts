@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { SemanticStrategy } from '../impl/SemanticStrategy';
+import { SemanticStrategy as ImportedSemanticStrategy } from '../impl/SemanticStrategy';
 import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
 
 /**
@@ -11,13 +11,13 @@ import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculat
  * 实现ISplitStrategy接口，使用语义分数进行后备分割
  */
 @injectable()
-export class SemanticStrategy implements ISplitStrategy {
-  private semanticStrategy: SemanticStrategy;
+export class SemanticSplitStrategy implements ISplitStrategy {
+  private semanticStrategy: ImportedSemanticStrategy;
 
   constructor(
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.semanticStrategy = new SemanticStrategy();
+    this.semanticStrategy = new ImportedSemanticStrategy();
     // 通过直接赋值来设置logger
     (this.semanticStrategy as any).logger = this.logger;
   }
@@ -71,7 +71,7 @@ export class SemanticStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    const strategy = new SemanticStrategy(
+    const strategy = new SemanticSplitStrategy(
       this.logger
     );
 

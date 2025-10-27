@@ -5,7 +5,7 @@ import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../int
 import { CodeChunk } from '../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import Parser from 'tree-sitter';
-import { ModuleChunkingStrategy } from '../../../core/strategy/ModuleChunkingStrategy';
+import { ModuleStrategy as ImportedModuleStrategy } from '../impl/ModuleStrategy';
 
 /**
  * 模块分段策略实现
@@ -13,13 +13,13 @@ import { ModuleChunkingStrategy } from '../../../core/strategy/ModuleChunkingStr
  */
 @injectable()
 export class ModuleSplitStrategy implements ISplitStrategy {
-  private moduleChunkingStrategy: ModuleChunkingStrategy;
+  private moduleStrategy: ImportedModuleStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.moduleChunkingStrategy = new ModuleChunkingStrategy();
+    this.moduleStrategy = new ImportedModuleStrategy(this.logger, this.treeSitterService);
   }
 
   async split(
@@ -56,33 +56,10 @@ export class ModuleSplitStrategy implements ISplitStrategy {
         throw new Error(`TreeSitter parsing failed for ${filePath}`);
       }
 
-      // 使用原有的ModuleChunkingStrategy提取模块信息
-      // 模块通常是整个文件的根节点
-      const rootNode = parseResult.ast.rootNode;
-      this.logger?.debug(`TreeSitter processing module root node`);
-
-      // 将AST节点转换为CodeChunk
-      const chunks: CodeChunk[] = [];
-
-      // 使用原有的策略来处理模块节点
-      if (this.moduleChunkingStrategy.canHandle(language, rootNode)) {
-        const moduleChunks = this.moduleChunkingStrategy.chunk(rootNode, content);
-        // 转换类型以匹配ISplitStrategy接口
-        for (const chunk of moduleChunks) {
-          const convertedChunk: CodeChunk = {
-            id: `module_${Date.now()}_${chunks.length}`,
-            content: chunk.content,
-            metadata: {
-              startLine: chunk.metadata.startLine,
-              endLine: chunk.metadata.endLine,
-              language: chunk.metadata.language,
-              type: 'import',
-              complexity: chunk.metadata.complexity
-            }
-          };
-          chunks.push(convertedChunk);
-        }
-      }
+      // 使用ModuleStrategy提取模块信息
+      const chunks = await this.moduleStrategy.extractModuleInfo(content, parseResult.ast, language, filePath, nodeTracker);
+      
+      this.logger?.debug(`ModuleStrategy extracted ${chunks.length} chunks`);
 
       // 如果没有提取到任何模块信息，返回空数组以触发后备策略
       if (chunks.length === 0) {
@@ -108,7 +85,7 @@ export class ModuleSplitStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.moduleChunkingStrategy.supportedLanguages.includes(language.toLowerCase());
+    return this.moduleStrategy.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -116,11 +93,11 @@ export class ModuleSplitStrategy implements ISplitStrategy {
   }
 
   canHandleNode?(language: string, node: Parser.SyntaxNode): boolean {
-    return this.moduleChunkingStrategy.canHandle(language, node);
+    return this.moduleStrategy.supportsLanguage(language);
   }
 
   getSupportedNodeTypes?(language: string): Set<string> {
-    return this.moduleChunkingStrategy.getSupportedNodeTypes(language);
+    return new Set(['import_statement', 'export_statement']);
   }
 }
 

@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
-import { DetectionResult, ProcessingStrategyType } from '../../UnifiedDetectionCenter';
+import { DetectionResult, ProcessingStrategyType } from '../../detection/UnifiedDetectionCenter';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { MarkdownTextStrategy } from '../../utils/md/MarkdownTextStrategy';
 import { XMLTextStrategy } from '../../utils/xml/XMLTextStrategy';
@@ -11,7 +11,7 @@ import { BracketSegmentationStrategy } from '../segmentation/BracketSegmentation
 import { LineSegmentationStrategy } from '../segmentation/LineSegmentationStrategy';
 import { MarkdownSegmentationStrategy } from '../segmentation/MarkdownSegmentationStrategy';
 import { SemanticSegmentationStrategy } from '../segmentation/SemanticSegmentationStrategy';
-import { XMLStrategy } from '../impl/XMLStrategy';
+import { XMLStrategy } from '../segmentation/XMLSegmentationStrategy';
 
 @injectable()
 export class ProcessingStrategyFactory {

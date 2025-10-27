@@ -5,7 +5,7 @@ import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../int
 import { CodeChunk } from '../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import Parser from 'tree-sitter';
-import { ClassChunkingStrategy } from '../impl/ClassStrategy';
+import { ClassStrategy as ImportedClassStrategy } from '../impl/ClassStrategy';
 
 /**
  * 类分段策略实现
@@ -13,13 +13,13 @@ import { ClassChunkingStrategy } from '../impl/ClassStrategy';
  */
 @injectable()
 export class ClassSplitStrategy implements ISplitStrategy {
-  private classChunkingStrategy: ClassChunkingStrategy;
+  private classStrategy: ImportedClassStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.classChunkingStrategy = new ClassChunkingStrategy();
+    this.classStrategy = new ImportedClassStrategy(this.logger, this.treeSitterService);
   }
 
   async split(
@@ -56,7 +56,7 @@ export class ClassSplitStrategy implements ISplitStrategy {
         throw new Error(`TreeSitter parsing failed for ${filePath}`);
       }
 
-      // 使用原有的ClassChunkingStrategy提取类
+      // 使用ClassStrategy提取类
       const classes = await this.treeSitterService.extractClasses(parseResult.ast);
       this.logger?.debug(`TreeSitter extracted ${classes.length} classes`);
 
@@ -65,29 +65,9 @@ export class ClassSplitStrategy implements ISplitStrategy {
 
       // 处理类定义
       for (const cls of classes) {
-        // 使用原有的策略来处理类节点
-        if (this.classChunkingStrategy.canHandle(language, cls)) {
-          const classChunks = this.classChunkingStrategy.chunk(cls, content);
-          // 转换类型以匹配ISplitStrategy接口
-          for (const chunk of classChunks) {
-            const convertedChunk: CodeChunk = {
-              id: `class_${Date.now()}_${chunks.length}`,
-              content: chunk.content,
-              metadata: {
-                startLine: chunk.metadata.startLine,
-                endLine: chunk.metadata.endLine,
-                language: chunk.metadata.language,
-                type: 'class',
-                className: chunk.metadata.className,
-                complexity: chunk.metadata.complexity,
-                nestingLevel: chunk.metadata.nestingLevel,
-                isAbstract: chunk.metadata.isAbstract,
-                isGeneric: chunk.metadata.isGeneric
-              }
-            };
-            chunks.push(convertedChunk);
-          }
-        }
+        // 使用ClassStrategy来处理类节点
+        const classChunks = await this.classStrategy.extractClasses(content, cls, language, filePath, nodeTracker);
+        chunks.push(...classChunks);
       }
 
       // 如果没有提取到任何类，返回空数组以触发后备策略
@@ -114,7 +94,7 @@ export class ClassSplitStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.classChunkingStrategy.supportedLanguages.includes(language.toLowerCase());
+    return this.classStrategy.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -122,11 +102,11 @@ export class ClassSplitStrategy implements ISplitStrategy {
   }
 
   canHandleNode?(language: string, node: Parser.SyntaxNode): boolean {
-    return this.classChunkingStrategy.canHandle(language, node);
+    return this.classStrategy.supportsLanguage(language);
   }
 
   getSupportedNodeTypes?(language: string): Set<string> {
-    return this.classChunkingStrategy.getSupportedNodeTypes(language);
+    return new Set(['class_declaration', 'interface_declaration']);
   }
 }
 

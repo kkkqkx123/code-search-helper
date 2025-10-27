@@ -5,7 +5,7 @@ import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../int
 import { CodeChunk } from '../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import Parser from 'tree-sitter';
-import { FunctionChunkingStrategy } from '../FunctionChunkingStrategy';
+import { FunctionStrategy as ImportedFunctionStrategy } from '../impl/FunctionStrategy';
 
 /**
  * 函数分段策略实现
@@ -13,13 +13,13 @@ import { FunctionChunkingStrategy } from '../FunctionChunkingStrategy';
  */
 @injectable()
 export class FunctionSplitStrategy implements ISplitStrategy {
-  private functionChunkingStrategy: FunctionChunkingStrategy;
+  private functionStrategy: ImportedFunctionStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.functionChunkingStrategy = new FunctionChunkingStrategy();
+    this.functionStrategy = new ImportedFunctionStrategy(this.logger, this.treeSitterService);
   }
 
   async split(
@@ -36,70 +36,10 @@ export class FunctionSplitStrategy implements ISplitStrategy {
     }
 
     try {
-      // 如果提供了AST，直接使用
-      let parseResult = ast ? { success: true, ast } : null;
-
-      // 如果没有提供AST，尝试解析
-      if (!parseResult) {
-        const detectedLanguage = await this.treeSitterService.detectLanguage(filePath || '');
-        if (!detectedLanguage) {
-          this.logger?.warn(`Language not supported by TreeSitter for ${filePath}`);
-          throw new Error(`Language not supported by TreeSitter for ${filePath}`);
-        }
-
-        this.logger?.info(`Using TreeSitter AST parsing for ${detectedLanguage.name}`);
-        parseResult = await this.treeSitterService.parseCode(content, detectedLanguage.name);
-      }
-
-      if (!parseResult.success || !parseResult.ast) {
-        this.logger?.warn(`TreeSitter parsing failed for ${filePath}`);
-        throw new Error(`TreeSitter parsing failed for ${filePath}`);
-      }
-
-      // 使用原有的FunctionChunkingStrategy提取函数
-      const functions = await this.treeSitterService.extractFunctions(parseResult.ast);
-      this.logger?.debug(`TreeSitter extracted ${functions.length} functions`);
-
-      // 将AST节点转换为CodeChunk
-      const chunks: CodeChunk[] = [];
-
-      // 处理函数定义
-      for (const func of functions) {
-        // 使用原有的策略来处理函数节点
-        if (this.functionChunkingStrategy.canHandle(language, func)) {
-          const funcChunks = this.functionChunkingStrategy.chunk(func, content);
-          // 转换类型以匹配ISplitStrategy接口
-          for (const chunk of funcChunks) {
-            const convertedChunk: CodeChunk = {
-              id: `func_${Date.now()}_${chunks.length}`,
-              content: chunk.content,
-              metadata: {
-                startLine: chunk.metadata.startLine,
-                endLine: chunk.metadata.endLine,
-                language: chunk.metadata.language,
-                type: 'function',
-                functionName: chunk.metadata.functionName,
-                complexity: chunk.metadata.complexity,
-                nestingLevel: chunk.metadata.nestingLevel,
-                hasSideEffects: chunk.metadata.hasSideEffects
-              }
-            };
-            chunks.push(convertedChunk);
-          }
-        }
-      }
-
-      // 如果没有提取到任何函数，返回空数组以触发后备策略
-      if (chunks.length === 0) {
-        this.logger?.info('No functions found by TreeSitter');
-        throw new Error('No functions found by TreeSitter');
-      }
-
-      return chunks;
+      // 直接使用FunctionStrategy进行分割
+      return await this.functionStrategy.split(content, language, filePath, options, nodeTracker, ast);
     } catch (error) {
       this.logger?.error(`Function strategy failed: ${error}`);
-
-      // 如果失败，抛出错误让工厂选择其他策略
       throw error;
     }
   }
@@ -113,7 +53,7 @@ export class FunctionSplitStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.functionChunkingStrategy.supportedLanguages.includes(language.toLowerCase());
+    return this.functionStrategy.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -121,11 +61,11 @@ export class FunctionSplitStrategy implements ISplitStrategy {
   }
 
   canHandleNode?(language: string, node: Parser.SyntaxNode): boolean {
-    return this.functionChunkingStrategy.canHandle(language, node);
+    return this.functionStrategy.supportsLanguage(language);
   }
 
   getSupportedNodeTypes?(language: string): Set<string> {
-    return this.functionChunkingStrategy.getSupportedNodeTypes(language);
+    return new Set(['function_declaration', 'method_definition']);
   }
 }
 

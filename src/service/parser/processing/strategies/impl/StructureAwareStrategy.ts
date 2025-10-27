@@ -31,11 +31,18 @@ export class StructureAwareStrategy implements ISplitStrategy {
   }
 
   /**
-   * 设置查询结果标准化器
-   */
+  * 设置查询结果标准化器
+  */
   setQueryNormalizer(normalizer: IQueryResultNormalizer): void {
-    this.queryNormalizer = normalizer;
+  this.queryNormalizer = normalizer;
   }
+
+  /**
+    * 设置日志器
+    */
+   setLogger(logger: LoggerService): void {
+     this.logger = logger;
+   }
 
   async split(
     content: string,

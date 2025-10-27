@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { StructureAwareStrategy } from '../impl/StructureAwareStrategy';
+import { StructureAwareStrategy as ImplStructureAwareStrategy, StructureAwareStrategy } from '../impl/StructureAwareStrategy';
 import { IQueryResultNormalizer } from '../../../core/normalization/types';
 
 /**
@@ -11,15 +11,15 @@ import { IQueryResultNormalizer } from '../../../core/normalization/types';
  * 实现ISplitStrategy接口，使用标准化查询结果进行智能分割
  */
 @injectable()
-export class StructureAwareStrategy implements ISplitStrategy {
-  private structureAwareStrategy: StructureAwareStrategy;
+export class StructureAwareSplitStrategy implements ISplitStrategy {
+  private structureAwareStrategy: ImplStructureAwareStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService,
     @inject(TYPES.QueryResultNormalizer) private queryResultNormalizer?: IQueryResultNormalizer
   ) {
-    this.structureAwareStrategy = new StructureAwareStrategy();
+    this.structureAwareStrategy = new ImplStructureAwareStrategy();
     if (this.logger) {
       this.structureAwareStrategy.setLogger(this.logger);
     }
@@ -84,7 +84,7 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    const strategy = new StructureAwareStrategy(
+    const strategy = new StructureAwareSplitStrategy(
       this.treeSitterService,
       this.logger,
       this.queryResultNormalizer
@@ -93,16 +93,10 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
     // 如果提供了选项，也应用到内部的StructureAwareStrategy
     if (options) {
       const structureStrategy = (strategy as any).structureAwareStrategy as StructureAwareStrategy;
-      // 重新创建StructureAwareStrategy以应用选项
-      const newStructureStrategy = new StructureAwareStrategy(options);
-      if (this.logger) {
-        newStructureStrategy.setLogger(this.logger);
-      }
+      // StructureAwareStrategy构造函数不接受options参数，只接受logger和treeSitterService
+      const newStructureStrategy = new StructureAwareStrategy(this.logger, this.treeSitterService);
       if (this.queryResultNormalizer) {
         newStructureStrategy.setQueryNormalizer(this.queryResultNormalizer);
-      }
-      if (this.treeSitterService) {
-        (newStructureStrategy as any).treeSitterService = this.treeSitterService;
       }
       (strategy as any).structureAwareStrategy = newStructureStrategy;
     }

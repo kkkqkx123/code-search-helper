@@ -1,6 +1,6 @@
-import { MarkdownSegmentationStrategy } from '../../segmentation/MarkdownSegmentationStrategy';
+import { MarkdownSegmentationStrategy } from '../MarkdownSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
-import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { DetectionResult } from '../../../detection/UnifiedDetectionCenter';
 
 // Mock LoggerService
 jest.mock('../../../../../../utils/LoggerService');
@@ -13,8 +13,7 @@ describe('MarkdownSegmentationStrategy', () => {
   const createMockDetectionResult = (language: string = 'markdown'): DetectionResult => ({
     language,
     confidence: 0.9,
-    features: ['markdown'],
-    detectedBy: 'test'
+    fileType: 'normal'
   });
 
   beforeEach(() => {

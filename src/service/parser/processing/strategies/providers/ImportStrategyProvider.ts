@@ -3,21 +3,21 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { ImportStrategy } from '../impl/ImportStrategy';
+import { ImportStrategy as ImplImportStrategy, ImportStrategy } from '../impl/ImportStrategy';
 
 /**
  * 导入语句分段策略实现
  * 实现ISplitStrategy接口，使用TreeSitter进行AST解析来提取导入语句
  */
 @injectable()
-export class ImportStrategy implements ISplitStrategy {
-  private importStrategy: ImportStrategy;
+export class ImportSplitStrategy implements ISplitStrategy {
+  private importStrategy: ImplImportStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.importStrategy = new ImportStrategy();
+    this.importStrategy = new ImplImportStrategy();
     if (this.treeSitterService) {
       this.importStrategy.setTreeSitterService(this.treeSitterService);
     }
@@ -81,7 +81,7 @@ export class ImportStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    const strategy = new ImportStrategy(
+    const strategy = new ImportSplitStrategy(
       this.treeSitterService,
       this.logger
     );

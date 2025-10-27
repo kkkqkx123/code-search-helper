@@ -252,4 +252,75 @@ export class ComplexityCalculator implements IComplexityCalculator {
 
     return Math.max(0.1, 1 - commentRatio * 0.3); // 最多降低30%复杂度
   }
+
+  /**
+   * 计算语义分数
+   * @param line 单行代码
+   */
+  calculateSemanticScore(line: string): number {
+    // 基于行内容计算语义分数
+    const trimmedLine = line.trim();
+    
+    if (trimmedLine === '') {
+      return 0.1; // 空行有最小语义分数
+    }
+    
+    // 计算包含关键字的语义分数
+    const keywordScore = this.calculateKeywordScore(trimmedLine);
+    
+    // 计算语法结构分数
+    const structureScore = this.calculateStructureScore(trimmedLine);
+    
+    // 计算内容长度分数（避免过长行）
+    const lengthScore = Math.min(trimmedLine.length / 100, 1.0);
+    
+    // 组合分数，确保在合理范围内
+    const totalScore = keywordScore + structureScore + lengthScore;
+    
+    return Math.max(0.1, Math.min(totalScore, 10.0)); // 限制在0.1-10.0之间
+  }
+
+  /**
+   * 计算关键字分数
+   */
+  private calculateKeywordScore(line: string): number {
+    const keywords = [
+      'function', 'class', 'if', 'else', 'for', 'while', 'return', 'import', 'export',
+      'const', 'let', 'var', 'def', 'public', 'private', 'protected', 'interface',
+      'try', 'catch', 'finally', 'switch', 'case', 'default', 'async', 'await'
+    ];
+    
+    let score = 0;
+    for (const keyword of keywords) {
+      if (line.includes(keyword)) {
+        score += 0.5;
+      }
+    }
+    
+    return score;
+  }
+
+ /**
+   * 计算结构分数
+   */
+  private calculateStructureScore(line: string): number {
+    let score = 0;
+    
+    // 括号、大括号等结构
+    score += (line.match(/\(/g) || []).length * 0.2;
+    score += (line.match(/\)/g) || []).length * 0.1;
+    score += (line.match(/\{/g) || []).length * 0.3;
+    score += (line.match(/\}/g) || []).length * 0.2;
+    score += (line.match(/\[/g) || []).length * 0.1;
+    score += (line.match(/\]/g) || []).length * 0.1;
+    
+    // 操作符
+    score += (line.match(/\=/g) || []).length * 0.1;
+    score += (line.match(/\+/g) || []).length * 0.1;
+    score += (line.match(/\-/g) || []).length * 0.1;
+    score += (line.match(/\*/g) || []).length * 0.1;
+    score += (line.match(/\//g) || []).length * 0.1;
+    
+    return Math.min(score, 5.0); // 限制结构分数
+  }
 }

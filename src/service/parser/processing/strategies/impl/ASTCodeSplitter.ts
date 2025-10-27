@@ -1,19 +1,19 @@
 import { injectable, inject } from 'inversify';
 import { Splitter, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../splitting-types';
 import { TYPES } from '../../../../../types';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { BalancedChunker } from '../../utils/chunking/BalancedChunker';
 import { ChunkingConfigManager } from '../../config/ChunkingConfigManager';
 import { SplitStrategyFactory, strategyFactory } from '../factory/SplitStrategyFactory';
-import { ensureStrategyProvidersRegistered } from '../factory/StrategyProviderRegistration';
+// import { ensureStrategyProvidersRegistered } from '../factory/StrategyProviderRegistration';
 import { ChunkingCoordinator } from '../../utils/ChunkingCoordinator';
 import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
 // 移除重复导入，已在第2行导入
 import { PerformanceOptimizer } from '../../utils/performance/PerformanceOptimizer';
 import { IPerformanceMonitoringSystem } from '../../utils/performance/IPerformanceMonitoringSystem';
 import { UnifiedPerformanceMonitoringSystem } from '../../utils/performance/UnifiedPerformanceMonitoringSystem';
-import { ProcessingGuard } from '../guard/ProcessingGuard';
+// import { ProcessingGuard } from '../guard/ProcessingGuard';
 
 /**
  * 重构后的AST代码分割器（完全替换旧实现）
@@ -31,23 +31,23 @@ export class ASTCodeStrategy implements Splitter {
   private performanceOptimizer?: PerformanceOptimizer;
   private performanceMonitoring?: IPerformanceMonitoringSystem;
   private options: Required<EnhancedChunkingOptions>;
-  private processingGuard?: ProcessingGuard;
+  // private processingGuard?: ProcessingGuard;
 
   constructor(
     @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.ProcessingGuard) processingGuard?: ProcessingGuard
+    // @inject(TYPES.ProcessingGuard) processingGuard?: ProcessingGuard
   ) {
     this.treeSitterService = treeSitterService;
     this.logger = logger;
-    this.processingGuard = processingGuard;
+    // this.processingGuard = processingGuard;
     this.balancedChunker = new BalancedChunker(logger);
     this.configManager = new ChunkingConfigManager();
     this.strategyFactory = strategyFactory;
     this.options = { ...DEFAULT_ENHANCED_CHUNKING_OPTIONS };
 
     // 确保策略提供者已注册
-    this.ensureStrategyProvidersRegistered();
+    // this.ensureStrategyProvidersRegistered();
 
     this.initializeComponents();
   }
@@ -55,13 +55,13 @@ export class ASTCodeStrategy implements Splitter {
   /**
  * 确保策略提供者已注册
  */
-  private ensureStrategyProvidersRegistered(): void {
-    try {
-      ensureStrategyProvidersRegistered(this.logger);
-    } catch (error) {
-      this.logger?.warn('Failed to ensure strategy providers registration:', error);
-    }
-  }
+  // private ensureStrategyProvidersRegistered(): void {
+  //   try {
+  //     ensureStrategyProvidersRegistered(this.logger);
+  //   } catch (error) {
+  //     this.logger?.warn('Failed to ensure strategy providers registration:', error);
+  //   }
+  // }
 
   /**
    * 初始化组件
@@ -426,14 +426,14 @@ export class ASTCodeStrategy implements Splitter {
     config?: ChunkingOptions
   ): Promise<CodeChunk[]> {
     // 如果有ProcessingGuard，使用它进行智能分段
-    if (this.processingGuard && filePath) {
-      try {
-        const result = await this.processingGuard.processFile(filePath, code);
-        return result.chunks;
-      } catch (error) {
-        this.logger?.warn(`ProcessingGuard failed, falling back to simple text split: ${error}`);
-      }
-    }
+    // if (this.processingGuard && filePath) {
+    //   try {
+    //     const result = await this.processingGuard.processFile(filePath, code);
+    //     return result.chunks;
+    //   } catch (error) {
+    //     this.logger?.warn(`ProcessingGuard failed, falling back to simple text split: ${error}`);
+    //   }
+    // }
 
     // 使用BalancedChunker进行符号平衡的分割
     return this.simpleTextSplit(code, language, filePath);

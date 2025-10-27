@@ -55,7 +55,6 @@ import { IgnoreRuleManager } from './service/ignore/IgnoreRuleManager';
 // 11. Tree-sitter 解析模块
 import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from './service/parser/core/parse/TreeSitterCoreService';
-import { ASTCodeStrategy } from './service/parser/processing/strategies/impl/ASTCodeStrategy';
 import { ChunkToVectorCoordinationService } from './service/parser/ChunkToVectorCoordinationService';
 import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
 import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';
@@ -211,7 +210,6 @@ export const TYPES = {
   // 11. Tree-sitter 解析服务
   TreeSitterService: Symbol.for('TreeSitterService'),
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
-  ASTCodeStrategy: Symbol.for('ASTCodeStrategy'),
   ChunkToVectorCoordinationService: Symbol.for('ChunkToVectorCoordinationService'),
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),

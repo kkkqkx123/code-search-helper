@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { IntelligentStrategy } from '../impl/IntelligentStrategy';
+import { IntelligentStrategy as ImportedIntelligentStrategy } from '../impl/IntelligentStrategy';
 import { BalancedChunker } from '../../utils/chunking/BalancedChunker';
 import { SemanticBoundaryAnalyzer } from '../../utils/SemanticBoundaryAnalyzer';
 import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
@@ -13,14 +13,14 @@ import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalc
  * 实现ISplitStrategy接口，使用语义边界评分和复杂度计算进行智能分割
  */
 @injectable()
-export class IntelligentStrategy implements ISplitStrategy {
-  private intelligentStrategy: IntelligentStrategy;
+export class IntelligentSplitStrategy implements ISplitStrategy {
+  private intelligentStrategy: ImportedIntelligentStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.intelligentStrategy = new IntelligentStrategy();
+    this.intelligentStrategy = new ImportedIntelligentStrategy();
     if (this.logger) {
       this.intelligentStrategy.setLogger(this.logger);
     }
@@ -76,16 +76,16 @@ export class IntelligentStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    const strategy = new IntelligentStrategy(
+    const strategy = new IntelligentSplitStrategy(
       this.treeSitterService,
       this.logger
     );
 
     // 如果提供了选项，也应用到内部的IntelligentStrategy
     if (options) {
-      const intelligentStrategy = (strategy as any).intelligentStrategy as IntelligentStrategy;
+      const intelligentStrategy = (strategy as any).intelligentStrategy as ImportedIntelligentStrategy;
       // 重新创建IntelligentStrategy以应用选项
-      const newIntelligentStrategy = new IntelligentStrategy(options);
+      const newIntelligentStrategy = new ImportedIntelligentStrategy(options);
       if (this.logger) {
         newIntelligentStrategy.setLogger(this.logger);
       }

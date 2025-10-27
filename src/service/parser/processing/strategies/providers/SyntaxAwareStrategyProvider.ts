@@ -4,19 +4,21 @@ import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 
+import { SyntaxAwareStrategy as ImplSyntaxAwareStrategy, SyntaxAwareStrategy } from '../impl/SyntaxAwareStrategy';
+
 /**
  * 语法感知分段策略实现
  * 实现ISplitStrategy接口，使用多种子分割器组合进行智能分割
  */
 @injectable()
-export class SyntaxAwareStrategy implements ISplitStrategy {
-  private syntaxAwareStrategy: SyntaxAwareStrategy;
+export class SyntaxAwareSplitStrategy implements ISplitStrategy {
+  private syntaxAwareStrategy: ImplSyntaxAwareStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.syntaxAwareStrategy = new SyntaxAwareStrategy();
+    this.syntaxAwareStrategy = new ImplSyntaxAwareStrategy();
     if (this.treeSitterService) {
       this.syntaxAwareStrategy.setTreeSitterService(this.treeSitterService);
     }
@@ -80,7 +82,7 @@ export class SyntaxAwareStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    const strategy = new SyntaxAwareStrategy(
+    const strategy = new SyntaxAwareSplitStrategy(
       this.treeSitterService,
       this.logger
     );

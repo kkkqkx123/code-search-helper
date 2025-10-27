@@ -217,7 +217,7 @@ export class IntelligentStrategy implements ISplitStrategy {
    */
   private getOptimizationLevel(content: string): 'low' | 'medium' | 'high' {
     const lines = content.split('\n').length;
-    const complexity = this.complexityCalculator.estimate(content);
+    const complexity = this.complexityCalculator.calculate(content);
 
     if (lines < 100 && complexity < 50) {
       return 'low'; // 使用基本符号跟踪

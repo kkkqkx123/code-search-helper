@@ -5,7 +5,7 @@ import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../int
 import { CodeChunk } from '../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import Parser from 'tree-sitter';
-import { HierarchicalChunkingStrategy } from '../../../core/strategy/HierarchicalChunkingStrategy';
+import { HierarchicalStrategy } from '../impl/HierarchicalStrategy';
 
 /**
  * 分层分段策略实现
@@ -13,13 +13,13 @@ import { HierarchicalChunkingStrategy } from '../../../core/strategy/Hierarchica
  */
 @injectable()
 export class HierarchicalSplitStrategy implements ISplitStrategy {
-  private hierarchicalChunkingStrategy: HierarchicalChunkingStrategy;
+  private HierarchicalStrategy: HierarchicalStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.hierarchicalChunkingStrategy = new HierarchicalChunkingStrategy();
+    this.HierarchicalStrategy = new HierarchicalStrategy();
   }
 
   async split(
@@ -56,7 +56,7 @@ export class HierarchicalSplitStrategy implements ISplitStrategy {
         throw new Error(`TreeSitter parsing failed for ${filePath}`);
       }
 
-      // 使用原有的HierarchicalChunkingStrategy提取分层信息
+      // 使用原有的HierarchicalStrategy提取分层信息
       const rootNode = parseResult.ast.rootNode;
       this.logger?.debug(`TreeSitter processing hierarchical structure`);
 
@@ -64,8 +64,8 @@ export class HierarchicalSplitStrategy implements ISplitStrategy {
       const chunks: CodeChunk[] = [];
 
       // 使用原有的策略来处理分层结构
-      if (this.hierarchicalChunkingStrategy.canHandle(language, rootNode)) {
-        const hierarchicalChunks = this.hierarchicalChunkingStrategy.chunk(rootNode, content);
+      if (this.HierarchicalStrategy.supportsLanguage(language)) {
+        const hierarchicalChunks = await this.HierarchicalStrategy.split(content, language, filePath);
         // 转换类型以匹配ISplitStrategy接口
         for (const chunk of hierarchicalChunks) {
           const convertedChunk: CodeChunk = {
@@ -107,7 +107,7 @@ export class HierarchicalSplitStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.hierarchicalChunkingStrategy.supportedLanguages.includes(language.toLowerCase());
+    return this.HierarchicalStrategy.supportedLanguages.includes(language.toLowerCase());
   }
 
   getPriority(): number {
@@ -115,11 +115,11 @@ export class HierarchicalSplitStrategy implements ISplitStrategy {
   }
 
   canHandleNode?(language: string, node: Parser.SyntaxNode): boolean {
-    return this.hierarchicalChunkingStrategy.canHandle(language, node);
+    return this.HierarchicalStrategy.supportsLanguage(language);
   }
 
   getSupportedNodeTypes?(language: string): Set<string> {
-    return this.hierarchicalChunkingStrategy.getSupportedNodeTypes(language);
+    return this.HierarchicalStrategy.getSupportedNodeTypes(language);
   }
 }
 
