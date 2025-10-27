@@ -5,7 +5,7 @@ import { BackupFileProcessor } from '../../detection/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../../detection/ExtensionlessFileProcessor';
 import { UniversalProcessingConfig } from '../../config/UniversalProcessingConfig';
 import * as path from 'path';
-import { LANGUAGE_MAP } from '../constants';
+import { LANGUAGE_MAP } from '../../constants';
 import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
 
 // 定义接口和类型

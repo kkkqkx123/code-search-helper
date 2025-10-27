@@ -21,7 +21,7 @@ export {
   STRONG_FEATURE_LANGUAGES,
   SMALL_FILE_THRESHOLD,
   getDynamicBlockLimits
-} from './constants';
+} from '../constants';
 
 // 保护机制
 export { ErrorThresholdInterceptor } from './protection/ErrorThresholdInterceptor';
@@ -32,5 +32,5 @@ export { ExtensionlessFileProcessor } from '../detection/ExtensionlessFileProces
 export { FileFeatureDetector } from '../detection/FileFeatureDetector';
 export { UnifiedDetectionCenter } from '../detection/UnifiedDetectionCenter';
 export { UniversalProcessingConfig } from '../config/UniversalProcessingConfig';
-export { CodeQualityAssessmentUtils } from '../quality/CodeQualityAssessmentUtils';
-export { ComplexityCalculator } from '../quality/ComplexityCalculator';
+export { CodeQualityAssessmentUtils } from './quality/CodeQualityAssessmentUtils';
+export { ComplexityCalculator } from './quality/ComplexityCalculator';

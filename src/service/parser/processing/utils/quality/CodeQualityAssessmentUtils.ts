@@ -1,5 +1,5 @@
-import { CodeChunk } from '../types/splitting-types';
-import { structureDetector } from '../../utils';
+import { CodeChunk } from '../../types/splitting-types';
+import { structureDetector } from '../../../utils';
 
 /**
  * 代码质量评估工具类

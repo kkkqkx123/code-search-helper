@@ -5,7 +5,7 @@ import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } fro
 import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
 import { DetectionResult } from '../../detection/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../types';
-import { BLOCK_SIZE_LIMITS } from '../../utils/constants';
+import { BLOCK_SIZE_LIMITS } from '../../constants';
 
 /**
  * 括号分段策略

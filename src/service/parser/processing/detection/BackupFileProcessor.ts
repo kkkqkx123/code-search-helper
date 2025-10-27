@@ -1,7 +1,7 @@
 import { injectable } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import * as path from 'path';
-import { BACKUP_FILE_PATTERNS, LANGUAGE_MAP, CODE_LANGUAGES } from '../utils/constants';
+import { BACKUP_FILE_PATTERNS, LANGUAGE_MAP, CODE_LANGUAGES } from '../constants';
 
 /**
  * 备份文件处理器

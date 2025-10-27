@@ -1,4 +1,4 @@
-import { IComplexityCalculator } from '../strategies/types/SegmentationTypes';
+import { IComplexityCalculator } from '../../strategies/types/SegmentationTypes';
 
 export class ComplexityCalculator implements IComplexityCalculator {
   /**

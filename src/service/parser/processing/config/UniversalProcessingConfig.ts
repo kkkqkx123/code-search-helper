@@ -1,6 +1,6 @@
 import { injectable } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { DEFAULT_CONFIG } from '../utils/constants';
+import { DEFAULT_CONFIG } from '../constants';
 
 /**
  * 通用文件处理配置

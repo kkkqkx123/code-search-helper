@@ -4,7 +4,7 @@ import { TYPES } from '../../../../../types';
 import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
 import { DetectionResult } from '../../detection/UnifiedDetectionCenter';
 import { CodeChunk, CodeChunkMetadata } from '../../types';
-import { BLOCK_SIZE_LIMITS } from '../../utils/constants';
+import { BLOCK_SIZE_LIMITS } from '../../constants';
 
 /**
  * 行数分段策略
