@@ -3,6 +3,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
 import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../../processing';
+import { EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../types/splitting-types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { ChunkOptimizer } from '../../utils/chunk-processing/ChunkOptimizer';
 import { strategyFactory } from '../factory/SplitStrategyFactory';
@@ -145,7 +146,14 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
     }
 
     // 4. 优化块大小
-    this.chunkOptimizer = this.chunkOptimizer || new ChunkOptimizer(options);
+    if (!this.chunkOptimizer) {
+      // 将 ChunkingOptions 转换为 EnhancedChunkingOptions
+      const enhancedOptions: EnhancedChunkingOptions = {
+        ...DEFAULT_ENHANCED_CHUNKING_OPTIONS,
+        ...options
+      };
+      this.chunkOptimizer = new ChunkOptimizer(enhancedOptions);
+    }
     return this.chunkOptimizer.optimize(chunks, content);
   }
 

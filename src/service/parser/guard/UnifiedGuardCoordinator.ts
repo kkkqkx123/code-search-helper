@@ -4,11 +4,11 @@ import { TYPES } from '../../../types';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
-import { IProcessingStrategySelector, ProcessingStrategyType } from '../processing/utils/coordination/ProcessingStrategySelector';
+import { ProcessingStrategyType } from '../processing/detection/UnifiedDetectionCenter';
 import { UnifiedDetectionCenter, DetectionResult } from '../processing/detection/UnifiedDetectionCenter';
 import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
-import { IntelligentFallbackEngine } from '../processing/utils/IntelligentFallbackEngine';
-import { IFileProcessingCoordinator } from '../processing/utils/coordination/FileProcessingCoordinator';
+import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
+
 import {
   IUnifiedGuardCoordinator,
   MemoryStatus,
@@ -33,9 +33,7 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
   private memoryMonitor: IMemoryMonitorService;
   private errorThresholdManager: ErrorThresholdInterceptor;
   private cleanupManager: CleanupManager;
-  private processingStrategySelector: IProcessingStrategySelector;
-  private fileProcessingCoordinator: IFileProcessingCoordinator;
-  
+
   // ProcessingGuard 整合的依赖组件
   private detectionCenter: UnifiedDetectionCenter;
   private strategyFactory: ProcessingStrategyFactory;
@@ -56,8 +54,6 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
     memoryMonitor: IMemoryMonitorService,
     errorThresholdManager: ErrorThresholdInterceptor,
     cleanupManager: CleanupManager,
-    processingStrategySelector: IProcessingStrategySelector,
-    fileProcessingCoordinator: IFileProcessingCoordinator,
     detectionCenter: UnifiedDetectionCenter,
     strategyFactory: ProcessingStrategyFactory,
     fallbackEngine: IntelligentFallbackEngine,
@@ -68,8 +64,6 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
     this.memoryMonitor = memoryMonitor;
     this.errorThresholdManager = errorThresholdManager;
     this.cleanupManager = cleanupManager;
-    this.processingStrategySelector = processingStrategySelector;
-    this.fileProcessingCoordinator = fileProcessingCoordinator;
     this.detectionCenter = detectionCenter;
     this.strategyFactory = strategyFactory;
     this.fallbackEngine = fallbackEngine;
@@ -88,8 +82,6 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
     memoryMonitor: IMemoryMonitorService,
     errorThresholdManager: ErrorThresholdInterceptor,
     cleanupManager: CleanupManager,
-    processingStrategySelector: IProcessingStrategySelector,
-    fileProcessingCoordinator: IFileProcessingCoordinator,
     detectionCenter: UnifiedDetectionCenter,
     strategyFactory: ProcessingStrategyFactory,
     fallbackEngine: IntelligentFallbackEngine,
@@ -102,8 +94,6 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
         memoryMonitor,
         errorThresholdManager,
         cleanupManager,
-        processingStrategySelector,
-        fileProcessingCoordinator,
         detectionCenter,
         strategyFactory,
         fallbackEngine,
@@ -402,17 +392,25 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
         const memoryLimitBytes = this.memoryLimitMB * 1024 * 1024;
         this.logger?.warn(`Memory limit exceeded before processing: ${memoryStatus.heapUsed} > ${memoryLimitBytes}`);
 
-        const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(
-          filePath,
-          content,
-          'Memory limit exceeded'
-        );
+        // 使用智能降级引擎处理内存限制情况
+        const detection = await this.detectionCenter.detectFile(filePath, content);
+        const fallbackStrategy = await this.fallbackEngine.determineFallbackStrategy(filePath, new Error('Memory limit exceeded'), detection);
 
         return {
-          chunks: fallbackResult.chunks,
+          chunks: [{
+            content: content,
+            metadata: {
+              startLine: 1,
+              endLine: content.split('\n').length,
+              language: 'text',
+              filePath: filePath,
+              fallback: true,
+              reason: 'Memory limit exceeded'
+            }
+          }],
           language: 'text',
-          processingStrategy: fallbackResult.fallbackStrategy,
-          fallbackReason: fallbackResult.reason
+          processingStrategy: fallbackStrategy.strategy,
+          fallbackReason: `Memory limit exceeded (${fallbackStrategy.reason})`
         };
       }
 
@@ -420,63 +418,66 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
       if (this.errorThresholdManager.shouldUseFallback()) {
         this.logger?.warn('Error threshold reached, using fallback processing');
 
-        const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(
-          filePath,
-          content,
-          'Error threshold exceeded'
-        );
+        // 使用智能降级引擎处理错误阈值情况
+        const detection = await this.detectionCenter.detectFile(filePath, content);
+        const fallbackStrategy = await this.fallbackEngine.determineFallbackStrategy(filePath, new Error('Error threshold exceeded'), detection);
 
         return {
-          chunks: fallbackResult.chunks,
+          chunks: [{
+            content: content,
+            metadata: {
+              startLine: 1,
+              endLine: content.split('\n').length,
+              language: 'text',
+              filePath: filePath,
+              fallback: true,
+              reason: 'Error threshold exceeded'
+            }
+          }],
           language: 'text',
-          processingStrategy: fallbackResult.fallbackStrategy,
-          fallbackReason: fallbackResult.reason
+          processingStrategy: fallbackStrategy.strategy,
+          fallbackReason: `Error threshold exceeded (${fallbackStrategy.reason})`
         };
       }
 
-      // 3. 使用专门的策略选择器进行语言检测和策略选择
-      const languageInfo = await this.processingStrategySelector.detectLanguageIntelligently(filePath, content);
-      const strategyContext = {
-        filePath,
-        content,
-        languageInfo,
-        timestamp: new Date()
-      };
+      // 3. 使用检测中心进行语言检测
+      const detection = await this.detectionCenter.detectFile(filePath, content);
 
-      const strategy = await this.processingStrategySelector.selectProcessingStrategy(strategyContext);
+      // 4. 使用策略工厂创建策略
+      const strategy = this.strategyFactory.createStrategy(detection);
 
-      // 4. 使用专门的文件处理协调器执行处理
-      const context = {
-        filePath,
-        content,
-        strategy,
-        language: languageInfo.language,
-        timestamp: new Date()
-      };
-
-      const result = await this.fileProcessingCoordinator.processFile(context);
+      // 5. 执行处理
+      const result = await strategy.execute(filePath, content, detection);
 
       return {
         chunks: result.chunks,
-        language: languageInfo.language,
-        processingStrategy: result.processingStrategy,
+        language: detection.language,
+        processingStrategy: detection.processingStrategy || 'unknown',
         fallbackReason: result.metadata?.fallbackReason
       };
     } catch (error) {
       this.logger?.error(`Error in unified file processing: ${error}`);
       this.errorThresholdManager.recordError(error as Error, `processFile: ${filePath}`);
 
-      const fallbackResult = await this.fileProcessingCoordinator.processWithFallback(
-        filePath,
-        content,
-        `Processing error: ${(error as Error).message}`
-      );
+      // 使用智能降级引擎处理错误情况
+      const detection = await this.detectionCenter.detectFile(filePath, content);
+      const fallbackStrategy = await this.fallbackEngine.determineFallbackStrategy(filePath, error as Error, detection);
 
       return {
-        chunks: fallbackResult.chunks,
+        chunks: [{
+          content: content,
+          metadata: {
+            startLine: 1,
+            endLine: content.split('\n').length,
+            language: 'text',
+            filePath: filePath,
+            fallback: true,
+            reason: (error as Error).message
+          }
+        }],
         language: 'text',
-        processingStrategy: fallbackResult.fallbackStrategy,
-        fallbackReason: fallbackResult.reason
+        processingStrategy: fallbackStrategy.strategy,
+        fallbackReason: `Processing error: ${(error as Error).message} (${fallbackStrategy.reason})`
       };
     }
   }
@@ -661,8 +662,8 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
    * 执行降级处理
    */
   private async executeFallback(
-    filePath: string, 
-    content: string, 
+    filePath: string,
+    content: string,
     reason: string,
     cachedDetection?: DetectionResult
   ): Promise<Omit<ProcessingResult, 'success' | 'duration'>> {

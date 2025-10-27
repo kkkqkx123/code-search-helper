@@ -1,13 +1,12 @@
 import { TreeSitterService } from '../../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../../service/parser/core/parse/TreeSitterCoreService';
 import { ASTCodeSplitter } from '../../../service/parser/processing/strategies/impl/ASTCodeSplitter';
-import { ProcessingGuard } from '../../../service/parser/guard/ProcessingGuard';
+import { UnifiedGuardCoordinator } from '../../../service/parser/guard/UnifiedGuardCoordinator';
 import { ErrorThresholdInterceptor } from '../../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
 import { ProcessingStrategyFactory } from '../../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { UnifiedDetectionCenter } from '../../../service/parser/processing/detection/UnifiedDetectionCenter';
-import { IntelligentFallbackEngine } from '../../../service/parser/processing/utils/IntelligentFallbackEngine';
-import { FileProcessingCoordinator } from '../../../service/parser/processing/utils/coordination/FileProcessingCoordinator';
+import { IntelligentFallbackEngine } from '../../../service/parser/guard/IntelligentFallbackEngine';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -15,7 +14,7 @@ import * as path from 'path';
 describe('Parser Splitting Integration Test', () => {
   let treeSitterService: TreeSitterService;
   let astCodeSplitter: ASTCodeSplitter;
-  let processingGuard: ProcessingGuard;
+  let processingGuard: UnifiedGuardCoordinator;
   let logger: LoggerService;
 
   beforeAll(() => {
@@ -53,17 +52,25 @@ describe('Parser Splitting Integration Test', () => {
 
     const memoryGuard = new MemoryGuard(memoryMonitor, 500, 5000, logger);
 
-    // 创建ProcessingGuard
-    processingGuard = new ProcessingGuard(
-      logger,
+    // 创建CleanupManager
+    const cleanupManager: any = {
+      performCleanup: async () => ({ success: true, memoryFreed: 0, cleanedCaches: [] })
+    };
+
+    // 创建UnifiedGuardCoordinator
+    processingGuard = UnifiedGuardCoordinator.getInstance(
+      memoryMonitor,
       errorThresholdManager,
-      memoryGuard,
-      new ProcessingStrategyFactory(logger),
+      cleanupManager,
       new UnifiedDetectionCenter(logger),
-      new IntelligentFallbackEngine(logger)
+      new ProcessingStrategyFactory(logger),
+      new IntelligentFallbackEngine(logger),
+      500, // memoryLimitMB
+      5000, // memoryCheckIntervalMs
+      logger
     );
 
-    // 初始化ProcessingGuard
+    // 初始化UnifiedGuardCoordinator
     processingGuard.initialize();
 
     // 创建ASTCodeSplitter（只传入必需的参数）
@@ -99,7 +106,7 @@ describe('Parser Splitting Integration Test', () => {
         // 读取文件内容
         const content = fs.readFileSync(filePath, 'utf-8');
 
-        // 使用ProcessingGuard进行智能文件处理
+        // 使用UnifiedGuardCoordinator进行智能文件处理
         const processingResult = await processingGuard.processFile(filePath, content);
         const { chunks, language, processingStrategy } = processingResult;
 
@@ -111,7 +118,7 @@ describe('Parser Splitting Integration Test', () => {
           language,
           processingStrategy,
           chunksCount: chunks.length,
-          chunks: chunks.map((chunk, index) => ({
+          chunks: chunks.map((chunk: any, index: number) => ({
             index,
             content: chunk.content,
             metadata: chunk.metadata,

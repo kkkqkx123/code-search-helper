@@ -21,7 +21,8 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
     super(
       new MockLoggerService(),
       { get: () => ({}) } as any,
-      { shouldProtect: () => false } as any
+      { shouldProtect: () => false } as any,
+      { selectStrategy: () => ({ executeStrategy: async () => [] }) } as any
     );
   }
 

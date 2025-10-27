@@ -49,8 +49,8 @@ export class TreeSitterUtils {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
+      hash = ((hash << 5) - hash) + char;
+      hash = hash >>> 0; // 正确地保持为无符号32位整数
     }
     return hash.toString(36);
   }
@@ -129,7 +129,7 @@ export class TreeSitterUtils {
         return nameNode.text || node.type;
       }
     }
-    
+
     if (node.type === 'class_declaration') {
       const nameNode = node.children?.find(child => child.type === 'type_identifier' || child.type === 'identifier');
       if (nameNode) {

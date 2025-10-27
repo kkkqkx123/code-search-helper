@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
-import { DetectionResult, ProcessingStrategyType } from '../detection/UnifiedDetectionCenter';
-import { FileFeatureDetector } from '../detection/FileFeatureDetector';
+import { LoggerService } from '../../../utils/LoggerService';
+import { TYPES } from '../../../types';
+import { DetectionResult, ProcessingStrategyType } from '../processing/detection/UnifiedDetectionCenter';
+import { FileFeatureDetector } from '../processing/detection/FileFeatureDetector';
 
 export interface FallbackStrategy {
   strategy: string;

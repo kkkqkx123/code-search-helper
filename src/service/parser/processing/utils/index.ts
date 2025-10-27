@@ -1,7 +1,6 @@
 // 核心处理逻辑 - 保留在 utils
 export { UniversalTextStrategy } from './UniversalTextStrategy';
-export { ChunkingCoordinator } from './ChunkingCoordinator';
-export { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
+export { IntelligentFallbackEngine } from '../../guard/IntelligentFallbackEngine';
 
 // 通用工具 - 保留在 utils
 export { ContentHashIDGenerator } from './ContentHashIDGenerator';

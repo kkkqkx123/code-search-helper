@@ -51,11 +51,9 @@ import { ExtensionlessFileProcessor } from '../../service/parser/processing/dete
 // ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名，通过类型定义处理
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
-import { ProcessingStrategySelector } from '../../service/parser/processing/utils/coordination/ProcessingStrategySelector';
-import { FileProcessingCoordinator } from '../../service/parser/processing/utils/coordination/FileProcessingCoordinator';
 // import { OptimizedProcessingGuard } from '../../service/parser/guard/OptimizedProcessingGuard'; // 暂时注释掉，文件不存在
 import { UnifiedDetectionCenter } from '../../service/parser/processing/detection/UnifiedDetectionCenter';
-import { IntelligentFallbackEngine } from '../../service/parser/processing/utils/IntelligentFallbackEngine';
+import { IntelligentFallbackEngine } from '../../service/parser/guard/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextStrategy } from '../../service/parser/processing/utils/md/MarkdownTextStrategy';
 import { XMLTextStrategy } from '../../service/parser/processing/utils/xml/XMLTextStrategy';
@@ -152,20 +150,6 @@ export class BusinessServiceRegistrar {
 
       // 标准化服务
       container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).to(QueryResultNormalizer).inSingletonScope();
-
-      // 处理策略选择器 - 需要在UnifiedGuardCoordinator之前注册
-      container.bind<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return new ProcessingStrategySelector(logger);
-      }).inSingletonScope();
-
-      // 文件处理协调器 - 需要在UnifiedGuardCoordinator之前注册
-      container.bind<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        const universalTextSplitter = context.get<UniversalTextStrategy>(TYPES.UniversalTextStrategy);
-        const treeSitterService = context.get<TreeSitterService>(TYPES.TreeSitterService);
-        return new FileProcessingCoordinator(logger, universalTextSplitter, treeSitterService);
-      }).inSingletonScope();
 
       // CleanupManager 现在在 InfrastructureServiceRegistrar 中注册
       /* 通过DIContainer.ts的注册顺序保证：
@@ -288,10 +272,6 @@ export class BusinessServiceRegistrar {
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
         const logger = context.get<LoggerService>(TYPES.LoggerService);
 
-        // 获取策略选择器和文件处理协调器
-        const processingStrategySelector = context.get<ProcessingStrategySelector>(TYPES.ProcessingStrategySelector);
-        const fileProcessingCoordinator = context.get<FileProcessingCoordinator>(TYPES.FileProcessingCoordinator);
-
         // 获取 ProcessingGuard 整合的依赖
         const detectionCenter = context.get<UnifiedDetectionCenter>(TYPES.UnifiedDetectionCenter);
         const strategyFactory = context.get<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory);
@@ -304,8 +284,6 @@ export class BusinessServiceRegistrar {
           memoryMonitorService,
           errorThresholdInterceptor,
           cleanupManager,
-          processingStrategySelector,
-          fileProcessingCoordinator,
           detectionCenter,
           strategyFactory,
           fallbackEngine,

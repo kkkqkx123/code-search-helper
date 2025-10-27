@@ -6,7 +6,7 @@ import { MemoryGuard } from './MemoryGuard';
 import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
 import { UnifiedDetectionCenter, DetectionResult } from '../processing/detection/UnifiedDetectionCenter';
 import { IProcessingStrategy } from '../processing/strategies/impl/base/IProcessingStrategy';
-import { IntelligentFallbackEngine } from '../processing/utils/IntelligentFallbackEngine';
+import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
 
 export interface ProcessingResult {
   chunks: any[];
