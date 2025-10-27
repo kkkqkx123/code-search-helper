@@ -1,0 +1,6 @@
+src\service\parser\processing\utils\chunking
+src\service\parser\processing\utils\chunk-processing
+分析这些模块的作用，并分析如何集成到parser的工作流中(该模块来自其他模块迁移，放在processing目录不代表必须在该步处理)。该模块主要用于在分段后合并部分块，应当在分段之后被使用。
+当前processing的工作流见docs\parser\processing\coordinator-analysis.md，parser的工作流见docs\parser\workflow\parser-analysis-summary.md
+docs\parser\workflow\parser-detailed-call-chain.md
+docs\parser\workflow\parser-module-call-chain-analysis.md
