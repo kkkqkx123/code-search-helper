@@ -91,6 +91,19 @@ export interface EnhancedChunkingOptions extends ChunkingOptions {
   enableSmartDeduplication: boolean; // 启用智能去重
   similarityThreshold: number;       // 相似度阈值
   overlapMergeStrategy: 'aggressive' | 'conservative'; // 重叠合并策略
+
+  // 新增：增强配置选项
+  enableEnhancedBalancing?: boolean;
+  balancedChunkerThreshold?: number;
+  enableIntelligentFiltering?: boolean;
+  minChunkSizeThreshold?: number;
+  maxChunkSizeThreshold?: number;
+  enableSmartRebalancing?: boolean;
+  rebalancingStrategy?: 'conservative' | 'aggressive';
+  enableBoundaryOptimization?: boolean;
+  boundaryOptimizationThreshold?: number;
+  enableAdvancedMerging?: boolean;
+  mergeDecisionThreshold?: number;
 }
 
 // 默认配置
@@ -170,7 +183,19 @@ export const DEFAULT_ENHANCED_CHUNKING_OPTIONS: Required<EnhancedChunkingOptions
   minChunkSimilarity: 0.6,
   enableSmartDeduplication: true,
   similarityThreshold: 0.8,
-  overlapMergeStrategy: 'conservative'
+  overlapMergeStrategy: 'conservative',
+  // 新增：增强配置选项
+  enableEnhancedBalancing: true,
+  balancedChunkerThreshold: 100,
+  enableIntelligentFiltering: true,
+  minChunkSizeThreshold: 50,
+  maxChunkSizeThreshold: 2000,
+  enableSmartRebalancing: true,
+  rebalancingStrategy: 'conservative',
+  enableBoundaryOptimization: true,
+  boundaryOptimizationThreshold: 0.7,
+  enableAdvancedMerging: true,
+  mergeDecisionThreshold: 0.75
 };
 
 export interface CodeChunkMetadata {

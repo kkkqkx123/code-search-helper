@@ -1,10 +1,11 @@
-import { CodeChunk, ChunkingOptions, ASTNode, SplitStrategy } from '../../types';
+import { CodeChunk, ChunkingOptions, EnhancedChunkingOptions, ASTNode, SplitStrategy } from '../../types';
 import { ASTNodeTracker } from './AST/ASTNodeTracker';
 import { ContentHashIDGenerator } from './ContentHashIDGenerator';
 import { SimilarityDetector } from './similarity/SimilarityDetector';
 import { UnifiedOverlapCalculator } from './overlap/UnifiedOverlapCalculator';
 import { PerformanceMonitor } from './performance/PerformanceMonitor';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { ChunkPostProcessorCoordinator, PostProcessingContext } from '../post-processing/ChunkPostProcessorCoordinator';
 
 /**
  * 增强的分段策略协调器 - 统一管理所有分段策略的执行，支持重复检测
@@ -13,9 +14,10 @@ export class ChunkingCoordinator {
   private nodeTracker: ASTNodeTracker;
   private strategies: Map<string, SplitStrategy> = new Map();
   private logger?: LoggerService;
-  private options: Required<ChunkingOptions>;
+  private options: Required<EnhancedChunkingOptions>; // 更新为EnhancedChunkingOptions
   private performanceMonitor?: PerformanceMonitor;
   private unifiedOverlapCalculator?: UnifiedOverlapCalculator;
+  private chunkPostProcessorCoordinator?: ChunkPostProcessorCoordinator; // 新增后处理协调器
   private enableDeduplication: boolean;
   private similarityThreshold: number;
 
@@ -27,15 +29,14 @@ export class ChunkingCoordinator {
     'SyntaxAwareSplitter', // 语法感知分段
     'IntelligentSplitter', // 智能分段（后备方案）
     'SemanticSplitter'   // 语义分段（最后后备）
-  ];
-
   constructor(
     nodeTracker: ASTNodeTracker,
-    options: Required<ChunkingOptions>,
+    options: Required<EnhancedChunkingOptions>, // 更新参数类型
     logger?: LoggerService
   ) {
     this.nodeTracker = nodeTracker;
-    this.options = options;
+    // 确保options是完整的EnhancedChunkingOptions类型
+    this.options = { ...options }; // 扩展默认选项
     this.logger = logger;
 
     // 配置重复检测参数
@@ -61,6 +62,12 @@ export class ChunkingCoordinator {
         nodeTracker: this.nodeTracker,
         logger: this.logger
       });
+    }
+
+    // 初始化后处理协调器
+    this.chunkPostProcessorCoordinator = new ChunkPostProcessorCoordinator(logger);
+    this.chunkPostProcessorCoordinator.initializeDefaultProcessors(this.options);
+  }
     }
   }
 
@@ -135,7 +142,7 @@ export class ChunkingCoordinator {
     }
 
     // 后处理：合并相似块和智能重叠控制
-    const processedChunks = this.postProcessChunks(allChunks, content);
+    const processedChunks = await this.postProcessChunks(allChunks, content, language, filePath);
 
     // 记录性能指标
     if (this.performanceMonitor) {
@@ -222,7 +229,7 @@ export class ChunkingCoordinator {
   /**
    * 后处理：合并相似块和智能重叠控制
    */
-  private postProcessChunks(chunks: CodeChunk[], originalContent: string): CodeChunk[] {
+  private async postProcessChunks(chunks: CodeChunk[], originalContent: string, language: string = 'unknown', filePath?: string): Promise<CodeChunk[]> {
     if (!this.enableDeduplication || chunks.length <= 1) {
       return chunks;
     }
@@ -236,15 +243,30 @@ export class ChunkingCoordinator {
     this.logger?.debug(`Deduplication: ${chunks.length} -> ${deduplicatedChunks.length} chunks`);
 
     // 第二步：智能合并相似且相邻的块（使用统一重叠计算器）
+    let intermediateChunks = deduplicatedChunks;
     if (this.unifiedOverlapCalculator) {
       const mergedChunks = this.unifiedOverlapCalculator.mergeSimilarChunks(deduplicatedChunks);
 
       this.logger?.debug(`Smart merge: ${deduplicatedChunks.length} -> ${mergedChunks.length} chunks`);
 
-      return mergedChunks;
+      intermediateChunks = mergedChunks;
     }
 
-    return deduplicatedChunks;
+    // 第三步：应用增强的后处理（符号平衡、智能过滤、再平衡、合并策略、边界优化）
+    if (this.chunkPostProcessorCoordinator) {
+      const postProcessingContext: PostProcessingContext = {
+        originalContent,
+        language, // 使用传入的语言参数
+        filePath, // 使用传入的文件路径参数
+        options: this.options
+      };
+
+      const postProcessedChunks = await this.chunkPostProcessorCoordinator.process(intermediateChunks, postProcessingContext);
+      this.logger?.debug(`Post-processing: ${intermediateChunks.length} -> ${postProcessedChunks.length} chunks`);
+      return postProcessedChunks;
+    }
+
+    return intermediateChunks;
   }
 
   /**
@@ -267,8 +289,8 @@ export class ChunkingCoordinator {
   /**
    * 设置分段选项（增强版）
    */
-  setOptions(options: Required<ChunkingOptions>): void {
-    this.options = options;
+  setOptions(options: Required<EnhancedChunkingOptions>): void {
+    this.options = { ...options }; // 确保是完整的EnhancedChunkingOptions
 
     // 更新重复检测参数
     this.enableDeduplication = options.enableChunkDeduplication ?? false;
@@ -292,12 +314,18 @@ export class ChunkingCoordinator {
     } else {
       this.unifiedOverlapCalculator = undefined;
     }
+
+    // 重新初始化后处理协调器
+    if (this.chunkPostProcessorCoordinator) {
+      this.chunkPostProcessorCoordinator = new ChunkPostProcessorCoordinator(this.logger);
+      this.chunkPostProcessorCoordinator.initializeDefaultProcessors(this.options);
+    }
   }
 
   /**
    * 获取分段选项
    */
-  getOptions(): Required<ChunkingOptions> {
+  getOptions(): Required<EnhancedChunkingOptions> {
     return this.options;
   }
 

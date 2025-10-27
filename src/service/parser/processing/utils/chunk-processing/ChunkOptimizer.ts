@@ -1,12 +1,12 @@
-import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../../types/splitting-types';
+import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../types/splitting-types';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
 export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizerInterface {
-  private options: Required<ChunkingOptions>;
+  private options: Required<EnhancedChunkingOptions>;
 
-  constructor(options?: ChunkingOptions) {
+ constructor(options?: EnhancedChunkingOptions) {
     super();
-    this.options = { ...DEFAULT_CHUNKING_OPTIONS, ...options };
+    this.options = { ...DEFAULT_ENHANCED_CHUNKING_OPTIONS, ...options };
   }
 
   /**
@@ -88,6 +88,13 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
     const combinedComplexity = (chunk1.metadata.complexity || 0) + (chunk2.metadata.complexity || 0);
     if (combinedComplexity > 50) { // 复杂度阈值
       return false;
+    }
+
+    // 新增：使用边界优化阈值
+    if (this.options.enableBoundaryOptimization) {
+      const boundaryOptimizationThreshold = this.options.boundaryOptimizationThreshold || 0.7;
+      // 这里可以添加更复杂的边界优化逻辑
+      // 例如：检查合并后是否破坏了语义边界
     }
 
     return true;
