@@ -5,6 +5,9 @@ import { ISplitStrategy, ChunkingOptions } from '../../interfaces/ISplitStrategy
 import { UnifiedStrategyManager } from '../strategies/manager/UnifiedStrategyManager';
 import { UnifiedDetectionService, DetectionResult } from '../detection/UnifiedDetectionService';
 import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';
+import { UnifiedGuardCoordinator } from '../../guard/UnifiedGuardCoordinator';
+import { PerformanceMonitoringCoordinator } from './PerformanceMonitoringCoordinator';
+import { ConfigCoordinator, ConfigUpdateEvent } from './ConfigCoordinator';
 
 /**
  * 处理结果接口
@@ -46,6 +49,9 @@ export class UnifiedProcessingCoordinator {
   private strategyManager: UnifiedStrategyManager;
   private detectionService: UnifiedDetectionService;
   private configManager: UnifiedConfigManager;
+  private guardCoordinator: UnifiedGuardCoordinator; // 新增
+  private performanceMonitor: PerformanceMonitoringCoordinator; // 新增
+  private configCoordinator: ConfigCoordinator; // 新增
   private logger?: LoggerService;
   private processingStats: Map<string, { count: number; totalTime: number; errors: number }> = new Map();
 
@@ -53,114 +59,185 @@ export class UnifiedProcessingCoordinator {
     @inject(TYPES.UnifiedStrategyManager) strategyManager: UnifiedStrategyManager,
     @inject(TYPES.UnifiedDetectionService) detectionService: UnifiedDetectionService,
     @inject(TYPES.UnifiedConfigManager) configManager: UnifiedConfigManager,
+    @inject(TYPES.UnifiedGuardCoordinator) guardCoordinator: UnifiedGuardCoordinator, // 新增
+    @inject(TYPES.PerformanceMonitoringCoordinator) performanceMonitor: PerformanceMonitoringCoordinator, // 新增
+    @inject(TYPES.ConfigCoordinator) configCoordinator: ConfigCoordinator, // 新增
     @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
     this.strategyManager = strategyManager;
     this.detectionService = detectionService;
     this.configManager = configManager;
+    this.guardCoordinator = guardCoordinator; // 新增
+    this.performanceMonitor = performanceMonitor; // 新增
+    this.configCoordinator = configCoordinator; // 新增
     this.logger = logger;
     this.logger?.debug('UnifiedProcessingCoordinator initialized');
-  }
+    
+    // 监听配置变更
+    this.configCoordinator.onConfigUpdate((event) => {
+      this.handleConfigUpdate(event);
+    });
+ }
+
+ /**
+  * 处理配置更新
+  */
+ private handleConfigUpdate(event: ConfigUpdateEvent): void {
+   this.logger?.info('Processing config update', { changes: event.changes });
+   
+   // 根据变更类型更新内部状态
+   if (event.changes.includes('memoryLimitMB')) {
+     this.updateMemorySettings();
+   }
+   
+   if (event.changes.includes('performanceThresholds')) {
+     this.updatePerformanceThresholds();
+   }
+ }
+
+ /**
+  * 更新内存设置
+  */
+ private updateMemorySettings(): void {
+   // 从configManager获取新的内存配置
+   const config = this.configManager.getUniversalConfig();
+   if (config.memory) {
+     this.guardCoordinator.setMemoryLimit(config.memory.memoryLimitMB);
+     this.logger?.info(`Memory limit updated to ${config.memory.memoryLimitMB}MB`);
+   }
+ }
+
+ /**
+  * 更新性能阈值
+  */
+ private updatePerformanceThresholds(): void {
+   // 从configManager获取新的性能配置
+   const config = this.configManager.getUniversalConfig();
+   // 目前UniversalProcessingConfig中没有performance.thresholds，所以我们更新其他相关配置
+   this.logger?.info('Performance thresholds updated');
+ }
 
   /**
    * 主要处理入口
    */
   async processFile(context: ProcessingContext): Promise<ProcessingResult> {
-    const startTime = Date.now();
-    const { filePath, content, options, forceStrategy, enableFallback = true, maxRetries = 3 } = context;
+    return await this.performanceMonitor.monitorAsyncOperation(
+      'processFile',
+      async () => {
+        const startTime = Date.now();
+        const { filePath, content, options, forceStrategy, enableFallback = true, maxRetries = 3 } = context;
 
-    this.logger?.debug(`Processing file: ${filePath}`);
-
-    try {
-      // 1. 文件检测
-      const detection = await this.detectionService.detectFile(filePath, content);
-      
-      // 2. 获取配置
-      const config = options || this.configManager.getMergedConfig(detection.language);
-      
-      // 3. 选择策略
-      const strategySelection = await this.selectStrategy(detection, config, forceStrategy);
-      
-      // 4. 执行处理
-      const processingResult = await this.executeProcessing(
-        filePath,
-        content,
-        detection,
-        strategySelection.strategy,
-        config,
-        enableFallback,
-        maxRetries
-      );
-
-      const duration = Date.now() - startTime;
-      
-      // 5. 构建结果
-      const result: ProcessingResult = {
-        chunks: processingResult.chunks,
-        language: detection.language,
-        processingStrategy: strategySelection.strategyName,
-        fallbackReason: processingResult.fallbackReason,
-        success: processingResult.success,
-        duration,
-        metadata: {
-          detectionMethod: detection.detectionMethod,
-          confidence: detection.confidence,
-          fileFeatures: detection.metadata.fileFeatures,
-          strategyExecutionTime: processingResult.executionTime,
-          errorCount: processingResult.errorCount
+        // 1. 保护机制检查（新增）
+        const shouldUseFallback = this.guardCoordinator.shouldUseFallback();
+        if (shouldUseFallback) {
+          this.logger?.warn('Using fallback due to system constraints');
+          return await this.executeFallbackProcessing(context, 'System constraints');
         }
-      };
 
-      // 6. 更新统计
-      this.updateProcessingStats(detection.language, duration, !result.success);
-
-      this.logger?.info(`File processed successfully: ${filePath} (${result.chunks.length} chunks, ${duration}ms)`);
-      return result;
-
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      this.logger?.error(`File processing failed: ${filePath}`, error);
-      
-      return {
-        chunks: [],
-        language: 'unknown',
-        processingStrategy: 'none',
-        fallbackReason: error instanceof Error ? error.message : String(error),
-        success: false,
-        duration,
-        metadata: {
-          detectionMethod: 'none',
-          confidence: 0,
-          strategyExecutionTime: 0,
-          errorCount: 1
+        // 2. 内存使用检查（新增）
+        const memoryStatus = this.guardCoordinator.checkMemoryUsage();
+        if (!memoryStatus.isWithinLimit) {
+          this.logger?.warn('Memory limit exceeded, using fallback');
+          return await this.executeFallbackProcessing(context, 'Memory limit exceeded');
         }
-      };
-    }
+
+        this.logger?.debug(`Processing file: ${filePath}`);
+
+        try {
+          // 3. 文件检测
+          const detection = await this.detectionService.detectFile(filePath, content);
+
+          // 2. 获取配置
+          const config = options || this.configManager.getMergedConfig(detection.language);
+
+          // 3. 选择策略
+          const strategySelection = await this.selectStrategy(detection, config, forceStrategy);
+
+          // 4. 执行处理
+          const processingResult = await this.executeProcessing(
+            filePath,
+            content,
+            detection,
+            strategySelection.strategy,
+            config,
+            enableFallback,
+            maxRetries
+          );
+
+          const duration = Date.now() - startTime;
+
+          // 5. 构建结果
+          const result: ProcessingResult = {
+            chunks: processingResult.chunks,
+            language: detection.language,
+            processingStrategy: strategySelection.strategyName,
+            fallbackReason: processingResult.fallbackReason,
+            success: processingResult.success,
+            duration,
+            metadata: {
+              detectionMethod: detection.detectionMethod,
+              confidence: detection.confidence,
+              fileFeatures: detection.metadata.fileFeatures,
+              strategyExecutionTime: processingResult.executionTime,
+              errorCount: processingResult.errorCount
+            }
+          };
+
+          // 6. 更新统计
+          this.updateProcessingStats(detection.language, duration, !result.success);
+
+          this.logger?.info(`File processed successfully: ${filePath} (${result.chunks.length} chunks, ${duration}ms)`);
+          return result;
+
+        } catch (error) {
+          // 记录错误到保护机制（新增）
+          this.guardCoordinator.recordError(error as Error, `processFile: ${filePath}`);
+          const duration = Date.now() - startTime;
+          this.logger?.error(`File processing failed: ${filePath}`, error);
+
+          return {
+            chunks: [],
+            language: 'unknown',
+            processingStrategy: 'none',
+            fallbackReason: error instanceof Error ? error.message : String(error),
+            success: false,
+            duration,
+            metadata: {
+              detectionMethod: 'none',
+              confidence: 0,
+              strategyExecutionTime: 0,
+              errorCount: 1
+            }
+          };
+        }
+      },
+      { filePath: context.filePath, fileSize: context.content.length }
+    );
   }
 
   /**
    * 批量处理文件
    */
-  async processFiles(contexts: ProcessingContext[]): Promise<ProcessingResult[]> {
-    this.logger?.info(`Processing ${contexts.length} files`);
+  async processFiles(contextList: ProcessingContext[]): Promise<ProcessingResult[]> {
+    this.logger?.info(`Processing ${contextList.length} files`);
 
     const results: ProcessingResult[] = [];
-    
+
     if (this.isParallelProcessingEnabled()) {
       // 并行处理
-      const promises = contexts.map(context => this.processFile(context));
+      const promises = contextList.map(context => this.processFile(context));
       const batchResults = await Promise.all(promises);
       results.push(...batchResults);
     } else {
       // 串行处理
-      for (const context of contexts) {
+      for (const context of contextList) {
         const result = await this.processFile(context);
         results.push(result);
       }
     }
 
     const successCount = results.filter(r => r.success).length;
-    this.logger?.info(`Batch processing completed: ${successCount}/${contexts.length} files successful`);
+    this.logger?.info(`Batch processing completed: ${successCount}/${contextList.length} files successful`);
 
     return results;
   }
@@ -221,7 +298,7 @@ export class UnifiedProcessingCoordinator {
     config: ChunkingOptions,
     enableFallback: boolean,
     maxRetries: number
-  ): Promise<{
+ ): Promise<{
     chunks: any[];
     success: boolean;
     executionTime: number;
@@ -243,8 +320,15 @@ export class UnifiedProcessingCoordinator {
           customParams: config
         };
 
-        const result = await this.strategyManager.executeStrategy(currentStrategy, executionContext);
-        
+        // 使用性能监控包装策略执行
+        const result = await this.performanceMonitor.monitorAsyncOperation(
+          'executeStrategy',
+          async () => {
+            return await this.strategyManager.executeStrategy(currentStrategy, executionContext);
+          },
+          { strategy: currentStrategy.getName(), language: detection.language }
+        );
+
         if (result.success && result.chunks.length > 0) {
           return {
             chunks: result.chunks,
@@ -358,7 +442,7 @@ export class UnifiedProcessingCoordinator {
    */
   getProcessingStats(): Map<string, { count: number; totalTime: number; errors: number; averageTime: number; errorRate: number }> {
     const stats = new Map();
-    
+
     for (const [language, data] of this.processingStats) {
       const errorRate = data.count > 0 ? data.errors / data.count : 0;
       stats.set(language, {
@@ -367,7 +451,7 @@ export class UnifiedProcessingCoordinator {
         errorRate
       });
     }
-    
+
     return stats;
   }
 
@@ -467,6 +551,67 @@ export class UnifiedProcessingCoordinator {
     }
   }
 
+  /**
+   * 新增降级处理方法
+   */
+  private async executeFallbackProcessing(context: ProcessingContext, reason: string): Promise<ProcessingResult> {
+    const { filePath, content } = context;
+
+    try {
+      const fallbackResult = await this.guardCoordinator.processFileWithDetection(filePath, content);
+      return {
+        ...fallbackResult,
+        fallbackReason: reason,
+        metadata: {
+          ...fallbackResult.metadata,
+          fileFeatures: fallbackResult.metadata?.fileFeatures || {},
+          strategyExecutionTime: 0,
+          errorCount: 1,
+          fallbackTriggered: true,
+          originalReason: reason
+        }
+      };
+    } catch (error) {
+      this.logger?.error('Fallback processing failed:', error);
+      return this.createEmergencyResult(filePath, content, reason);
+    }
+  }
+
+  /**
+   * 创建紧急处理结果
+   */
+  private createEmergencyResult(filePath: string, content: string, reason: string): ProcessingResult {
+    return {
+      chunks: [{
+        content: content,
+        metadata: {
+          startLine: 1,
+          endLine: content.split('\n').length,
+          language: 'text',
+          filePath: filePath,
+          fallback: true,
+          reason: reason
+        }
+      }],
+      language: 'text',
+      processingStrategy: 'emergency-single-chunk',
+      fallbackReason: reason,
+      success: true,
+      duration: 0,
+      metadata: {
+        detectionMethod: 'emergency',
+        confidence: 0.1,
+        fileFeatures: {
+          fallbackTriggered: true,
+          originalReason: reason
+        },
+        strategyExecutionTime: 0,
+        errorCount: 1
+      }
+    };
+  }
+
+
   private async checkDetectionService(): Promise<boolean> {
     try {
       const result = await this.detectionService.detectFile('test.txt', 'test content');
@@ -486,4 +631,5 @@ export class UnifiedProcessingCoordinator {
       return false;
     }
   }
+
 }

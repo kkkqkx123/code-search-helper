@@ -40,6 +40,7 @@ import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitte
 import { ASTCodeSplitter } from '../../service/parser/processing/strategies/impl/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
 import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
+import { UnifiedConfigManager } from '../../service/parser/config/UnifiedConfigManager';
 
 // 通用文件处理服务
 import { UniversalTextStrategy } from '../../service/parser/processing/utils/UniversalTextStrategy';
@@ -58,6 +59,11 @@ import { IntelligentFallbackEngine } from '../../service/parser/processing/utils
 import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextStrategy } from '../../service/parser/processing/utils/md/MarkdownTextStrategy';
 import { XMLTextStrategy } from '../../service/parser/processing/utils/xml/XMLTextStrategy';
+import { ConfigCoordinator } from '../../service/parser/processing/coordination/ConfigCoordinator';
+import { PerformanceMonitoringCoordinator } from '../../service/parser/processing/coordination/PerformanceMonitoringCoordinator';
+import { UnifiedProcessingCoordinator } from '../../service/parser/processing/coordination/UnifiedProcessingCoordinator';
+import { UnifiedStrategyManager } from '../../service/parser/processing/strategies/manager/UnifiedStrategyManager';
+import { UnifiedDetectionService } from '../../service/parser/processing/detection/UnifiedDetectionService';
 
 // 分段器模块服务
 import { SegmentationContextManager } from '../../service/parser/processing/utils/context/SegmentationContextManager';
@@ -308,6 +314,40 @@ export class BusinessServiceRegistrar {
           fallbackEngine,
           memoryLimitMB,
           memoryCheckIntervalMs,
+          logger
+        );
+      }).inSingletonScope();
+
+      // 配置协调器
+      container.bind<ConfigCoordinator>(TYPES.ConfigCoordinator).toDynamicValue(context => {
+        const configManager = context.get<UnifiedConfigManager>(TYPES.UnifiedConfigManager);
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        return new ConfigCoordinator(configManager, logger);
+      }).inSingletonScope();
+
+      // 性能监控协调器
+      container.bind<PerformanceMonitoringCoordinator>(TYPES.PerformanceMonitoringCoordinator).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        return new PerformanceMonitoringCoordinator(logger);
+      }).inSingletonScope();
+
+      // 统一处理协调器
+      container.bind<UnifiedProcessingCoordinator>(TYPES.UnifiedProcessingCoordinator).toDynamicValue(context => {
+        const strategyManager = context.get<UnifiedStrategyManager>(TYPES.UnifiedStrategyManager);
+        const detectionService = context.get<UnifiedDetectionService>(TYPES.UnifiedDetectionService);
+        const configManager = context.get<UnifiedConfigManager>(TYPES.UnifiedConfigManager);
+        const guardCoordinator = context.get<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator);
+        const performanceMonitor = context.get<PerformanceMonitoringCoordinator>(TYPES.PerformanceMonitoringCoordinator);
+        const configCoordinator = context.get<ConfigCoordinator>(TYPES.ConfigCoordinator);
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+
+        return new UnifiedProcessingCoordinator(
+          strategyManager,
+          detectionService,
+          configManager,
+          guardCoordinator,
+          performanceMonitor,
+          configCoordinator,
           logger
         );
       }).inSingletonScope();

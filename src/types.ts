@@ -421,4 +421,8 @@ export const TYPES = {
   IntelligentStrategyProvider: Symbol.for('IntelligentStrategyProvider'),
   StructureAwareStrategyProvider: Symbol.for('StructureAwareStrategyProvider'),
   SemanticStrategyProvider: Symbol.for('SemanticStrategyProvider'),
+
+  // 43. 协调器
+  PerformanceMonitoringCoordinator: Symbol.for('PerformanceMonitoringCoordinator'),
+  ConfigCoordinator: Symbol.for('ConfigCoordinator'),
 };
