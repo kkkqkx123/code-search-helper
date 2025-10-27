@@ -379,7 +379,7 @@ export const TYPES = {
   ErrorHandlingManager: Symbol.for('ErrorHandlingManager'),
 
   // 36. 分段器相关服务
-  SegmentationContextManager: Symbol.for('SegmentationContextManager'),
+  SegmentationStrategyCoordinator: Symbol.for('SegmentationStrategyCoordinator'),
   ConfigurationManager: Symbol.for('ConfigurationManager'),
   ProtectionCoordinator: Symbol.for('ProtectionCoordinator'),
   ComplexityCalculator: Symbol.for('ComplexityCalculator'),

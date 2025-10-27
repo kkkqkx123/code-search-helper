@@ -8,6 +8,8 @@ import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';
 import { UnifiedGuardCoordinator } from '../../guard/UnifiedGuardCoordinator';
 import { PerformanceMonitoringCoordinator } from './PerformanceMonitoringCoordinator';
 import { ConfigCoordinator, ConfigUpdateEvent } from './ConfigCoordinator';
+import { SegmentationStrategyCoordinator } from './SegmentationStrategyCoordinator';
+import { UniversalChunkingOptions } from '../strategies/types/SegmentationTypes';
 
 /**
  * 处理结果接口
@@ -52,6 +54,7 @@ export class UnifiedProcessingCoordinator {
   private guardCoordinator: UnifiedGuardCoordinator; // 新增
   private performanceMonitor: PerformanceMonitoringCoordinator; // 新增
   private configCoordinator: ConfigCoordinator; // 新增
+  private segmentationCoordinator: SegmentationStrategyCoordinator; // 新增
   private logger?: LoggerService;
   private processingStats: Map<string, { count: number; totalTime: number; errors: number }> = new Map();
 
@@ -62,6 +65,7 @@ export class UnifiedProcessingCoordinator {
     @inject(TYPES.UnifiedGuardCoordinator) guardCoordinator: UnifiedGuardCoordinator, // 新增
     @inject(TYPES.PerformanceMonitoringCoordinator) performanceMonitor: PerformanceMonitoringCoordinator, // 新增
     @inject(TYPES.ConfigCoordinator) configCoordinator: ConfigCoordinator, // 新增
+    @inject(TYPES.SegmentationStrategyCoordinator) segmentationCoordinator: SegmentationStrategyCoordinator, // 新增
     @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
     this.strategyManager = strategyManager;
@@ -70,6 +74,7 @@ export class UnifiedProcessingCoordinator {
     this.guardCoordinator = guardCoordinator; // 新增
     this.performanceMonitor = performanceMonitor; // 新增
     this.configCoordinator = configCoordinator; // 新增
+    this.segmentationCoordinator = segmentationCoordinator; // 新增
     this.logger = logger;
     this.logger?.debug('UnifiedProcessingCoordinator initialized');
     
@@ -77,7 +82,7 @@ export class UnifiedProcessingCoordinator {
     this.configCoordinator.onConfigUpdate((event) => {
       this.handleConfigUpdate(event);
     });
- }
+  }
 
  /**
   * 处理配置更新
@@ -249,7 +254,7 @@ export class UnifiedProcessingCoordinator {
     detection: DetectionResult,
     config: ChunkingOptions,
     forceStrategy?: string
-  ): Promise<{ strategy: ISplitStrategy; strategyName: string }> {
+ ): Promise<{ strategy: ISplitStrategy; strategyName: string }> {
     // 如果强制指定策略
     if (forceStrategy) {
       const strategy = this.strategyManager.selectOptimalStrategy(
@@ -275,16 +280,111 @@ export class UnifiedProcessingCoordinator {
       return { strategy, strategyName: recommendedStrategy };
     }
 
-    // 智能策略选择
-    const strategy = this.strategyManager.selectOptimalStrategy(
-      detection.language,
-      '',
-      '',
-      undefined,
-      config
-    );
+    // 使用分段策略协调器的智能策略选择
+    try {
+      // 将ChunkingOptions转换为UniversalChunkingOptions
+      const universalOptions = this.convertChunkingOptionsToUniversal(config);
+      
+      const segmentationContext = this.segmentationCoordinator.createSegmentationContext(
+        detection.metadata.fileFeatures?.size ? '' : '', // 这里我们只传递内容用于上下文创建，实际内容会在执行时提供
+        undefined, // filePath
+        detection.language,
+        universalOptions
+      );
+      
+      // 使用协调器的智能策略选择
+      const segmentationStrategy = this.segmentationCoordinator.selectStrategyWithHeuristics(segmentationContext);
+      
+      // 将ISegmentationStrategy适配为ISplitStrategy
+      const adaptedStrategy = this.adaptSegmentationStrategy(segmentationStrategy);
+      
+      return { strategy: adaptedStrategy, strategyName: segmentationStrategy.getName() };
+    } catch (error) {
+      // 如果智能选择失败，回退到原来的策略
+      this.logger?.warn('Intelligent strategy selection failed, falling back to default strategy selection', error);
+      const strategy = this.strategyManager.selectOptimalStrategy(
+        detection.language,
+        '',
+        '',
+        undefined,
+        config
+      );
+      return { strategy, strategyName: strategy.getName() };
+    }
+  }
 
-    return { strategy, strategyName: strategy.getName() };
+  /**
+   * 将ChunkingOptions转换为UniversalChunkingOptions
+   */
+  private convertChunkingOptionsToUniversal(config: ChunkingOptions): UniversalChunkingOptions {
+    return {
+      maxChunkSize: config.maxChunkSize || 2000,
+      overlapSize: config.overlapSize || 200,
+      maxLinesPerChunk: config.maxLines || 100,
+      enableBracketBalance: config.optimizationLevel !== 'low',
+      enableSemanticDetection: config.optimizationLevel !== 'low',
+      enableCodeOverlap: config.addOverlap || false,
+      enableStandardization: true,
+      standardizationFallback: true,
+      maxOverlapRatio: config.maxOverlapRatio || 0.3,
+      errorThreshold: 10,
+      memoryLimitMB: 512,
+      strategyPriorities: {
+        'markdown': 1,
+        'standardization': 2,
+        'semantic': 3,
+        'bracket': 4,
+        'line': 5
+      },
+      filterConfig: {
+        enableSmallChunkFilter: true,
+        enableChunkRebalancing: true,
+        minChunkSize: config.minChunkSize || 100,
+        maxChunkSize: config.maxChunkSize ? config.maxChunkSize * 2 : 4000
+      },
+      protectionConfig: {
+        enableProtection: true,
+        protectionLevel: 'medium'
+      }
+    };
+  }
+
+  /**
+   * 将ISegmentationStrategy适配为ISplitStrategy
+   */
+ private adaptSegmentationStrategy(segmentationStrategy: any): ISplitStrategy {
+    // 创建一个适配器，将ISegmentationStrategy转换为ISplitStrategy
+    return {
+      split: async (
+        content: string,
+        language: string,
+        filePath?: string,
+        options?: any,
+        nodeTracker?: any,
+        ast?: any
+      ) => {
+        // 创建分段上下文
+        const universalOptions = this.convertChunkingOptionsToUniversal(options || {});
+        const context = this.segmentationCoordinator.createSegmentationContext(
+          content,
+          filePath,
+          language,
+          universalOptions
+        );
+        
+        // 执行分段
+        return await this.segmentationCoordinator.executeStrategy(segmentationStrategy, context);
+      },
+      getName: () => segmentationStrategy.getName(),
+      supportsLanguage: (language: string) => {
+        if (segmentationStrategy.getSupportedLanguages) {
+          return segmentationStrategy.getSupportedLanguages().includes(language);
+        }
+        // 默认返回true，如果策略没有提供特定的语言支持信息
+        return true;
+      },
+      getPriority: () => segmentationStrategy.getPriority()
+    };
   }
 
   /**

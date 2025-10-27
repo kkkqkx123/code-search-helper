@@ -66,7 +66,7 @@ import { UnifiedStrategyManager } from '../../service/parser/processing/strategi
 import { UnifiedDetectionService } from '../../service/parser/processing/detection/UnifiedDetectionService';
 
 // 分段器模块服务
-import { SegmentationContextManager } from '../../service/parser/processing/utils/context/SegmentationContextManager';
+import { SegmentationStrategyCoordinator } from '../../service/parser/processing/coordination/SegmentationStrategyCoordinator';
 import { ConfigurationManager } from '../../service/parser/processing/config/ConfigurationManager';
 import { ProtectionCoordinator } from '../../service/parser/processing/utils/protection/ProtectionCoordinator';
 import { ComplexityCalculator } from '../../service/parser/processing/utils/calculation/ComplexityCalculator';
@@ -177,7 +177,7 @@ export class BusinessServiceRegistrar {
       // 分段器模块服务 - 统一在这里管理
       // 核心类
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
-      container.bind<SegmentationContextManager>(TYPES.SegmentationContextManager).to(SegmentationContextManager).inSingletonScope();
+      container.bind<SegmentationStrategyCoordinator>(TYPES.SegmentationStrategyCoordinator).to(SegmentationStrategyCoordinator).inSingletonScope();
 
       // 配置和保护
       container.bind<ConfigurationManager>(TYPES.ConfigurationManager).to(ConfigurationManager).inSingletonScope();
@@ -207,6 +207,7 @@ export class BusinessServiceRegistrar {
 
       // 初始化分段器模块 - 设置策略和处理器
       BusinessServiceRegistrar.initializeSegmentationServices(container);
+      BusinessServiceRegistrar.initializeSegmentationStrategyCoordinator(container);
 
       // 通用文件处理服务 - 使用新的模块化分段器
       container.bind<ErrorThresholdInterceptor>(TYPES.ErrorThresholdManager).toDynamicValue(context => {
@@ -339,6 +340,7 @@ export class BusinessServiceRegistrar {
         const guardCoordinator = context.get<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator);
         const performanceMonitor = context.get<PerformanceMonitoringCoordinator>(TYPES.PerformanceMonitoringCoordinator);
         const configCoordinator = context.get<ConfigCoordinator>(TYPES.ConfigCoordinator);
+        const segmentationCoordinator = context.get<SegmentationStrategyCoordinator>(TYPES.SegmentationStrategyCoordinator);
         const logger = context.get<LoggerService>(TYPES.LoggerService);
 
         return new UnifiedProcessingCoordinator(
@@ -348,6 +350,7 @@ export class BusinessServiceRegistrar {
           guardCoordinator,
           performanceMonitor,
           configCoordinator,
+          segmentationCoordinator,
           logger
         );
       }).inSingletonScope();
@@ -389,9 +392,9 @@ export class BusinessServiceRegistrar {
     try {
       logger?.info('Initializing segmentation services...');
 
-      // 设置策略到上下文管理器
-      const contextManager = container.get<SegmentationContextManager>(TYPES.SegmentationContextManager);
-      logger?.debug('SegmentationContextManager retrieved from container');
+      // 设置策略到协调器
+      const segmentationCoordinator = container.get<SegmentationStrategyCoordinator>(TYPES.SegmentationStrategyCoordinator);
+      logger?.debug('SegmentationStrategyCoordinator retrieved from container');
 
       // 添加所有策略
       const strategies = [
@@ -405,7 +408,7 @@ export class BusinessServiceRegistrar {
       for (const strategy of strategies) {
         try {
           const strategyInstance = container.get<any>(strategy.type);
-          contextManager.addStrategy(strategyInstance);
+          segmentationCoordinator.addStrategy(strategyInstance);
           logger?.debug(`Added segmentation strategy: ${strategy.name}`);
         } catch (error) {
           logger?.error(`Failed to add segmentation strategy ${strategy.name}:`, error);
@@ -437,6 +440,48 @@ export class BusinessServiceRegistrar {
       logger?.info('Segmentation services initialized successfully');
     } catch (error) {
       logger?.error('Failed to initialize segmentation services:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 初始化分段策略协调器 - 添加策略到协调器
+   */
+  private static initializeSegmentationStrategyCoordinator(container: Container): void {
+    const logger = container.get<LoggerService>(TYPES.LoggerService);
+
+    try {
+      logger?.info('Initializing SegmentationStrategyCoordinator with strategies...');
+
+      // 获取分段策略协调器实例
+      const segmentationCoordinator = container.get<SegmentationStrategyCoordinator>(TYPES.SegmentationStrategyCoordinator);
+      logger?.debug('SegmentationStrategyCoordinator retrieved from container');
+
+      // 获取所有分段策略
+      const strategies = [
+        { name: 'SemanticSegmentationStrategy', type: TYPES.SemanticSegmentationStrategy },
+        { name: 'BracketSegmentationStrategy', type: TYPES.BracketSegmentationStrategy },
+        { name: 'LineSegmentationStrategy', type: TYPES.LineSegmentationStrategy },
+        { name: 'MarkdownSegmentationStrategy', type: TYPES.MarkdownSegmentationStrategy },
+        { name: 'StandardizationSegmentationStrategy', type: TYPES.StandardizationSegmentationStrategy }
+      ];
+
+      // 添加策略到协调器
+      for (const strategy of strategies) {
+        try {
+          const strategyInstance = container.get<any>(strategy.type);
+          segmentationCoordinator.addStrategy(strategyInstance);
+          logger?.debug(`Added segmentation strategy to coordinator: ${strategy.name}`);
+        } catch (error) {
+          logger?.error(`Failed to add segmentation strategy to coordinator ${strategy.name}:`, error);
+          // 这里我们继续添加其他策略，而不是抛出异常
+          continue;
+        }
+      }
+
+      logger?.info('SegmentationStrategyCoordinator initialized successfully');
+    } catch (error) {
+      logger?.error('Failed to initialize SegmentationStrategyCoordinator:', error);
       throw error;
     }
   }

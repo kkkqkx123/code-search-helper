@@ -5,19 +5,19 @@ import {
   SegmentationContext,
   UniversalChunkingOptions,
   IConfigurationManager
-} from '../../strategies/types/SegmentationTypes';
-import { CodeChunk } from '../../types/splitting-types';
+} from '../strategies/types/SegmentationTypes';
+import { CodeChunk } from '../types/splitting-types';
 import { SegmentationContextFactory } from './SegmentationContextFactory';
-import { TYPES } from '../../../../../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
-import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
+import { TYPES } from '../../../../types';
+import { LoggerService } from '../../../../utils/LoggerService';
+import { FileFeatureDetector } from '../detection/FileFeatureDetector';
 
 /**
- * 分段上下文管理器
- * 职责：管理分段上下文，选择和执行分段策略
+ * 分段策略协调器
+ * 职责：协调分段策略，选择和执行分段策略
  */
 @injectable()
-export class SegmentationContextManager implements ISegmentationContextManager {
+export class SegmentationStrategyCoordinator implements ISegmentationContextManager {
   private strategies: ISegmentationStrategy[];
   private configManager: IConfigurationManager;
   private logger?: LoggerService;
@@ -32,12 +32,12 @@ export class SegmentationContextManager implements ISegmentationContextManager {
     this.configManager = configManager || this.createDefaultConfigManager();
     this.strategies = [];
     this.fileFeatureDetector = new FileFeatureDetector(logger);
-    this.logger?.debug('SegmentationContextManager initialized');
+    this.logger?.debug('SegmentationStrategyCoordinator initialized');
   }
 
   /**
-   * 选择合适的分段策略
-   */
+    * 选择合适的分段策略
+    */
   selectStrategy(
     context: SegmentationContext,
     preferredType?: string
@@ -145,8 +145,8 @@ export class SegmentationContextManager implements ISegmentationContextManager {
   }
 
   /**
-   * 添加策略
-   */
+    * 添加策略
+    */
   addStrategy(strategy: ISegmentationStrategy): void {
     // 检查是否已存在同名策略
     const existingIndex = this.strategies.findIndex(s => s.getName() === strategy.getName());

@@ -3,7 +3,7 @@ import { IProtectionCoordinator, SegmentationContext } from '../../strategies/ty
 import { ProtectionInterceptorChain, ProtectionContext } from './ProtectionInterceptor';
 import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { SegmentationContextFactory } from '../context/SegmentationContextFactory';
+import { SegmentationContextFactory } from '../../coordination/SegmentationContextFactory';
 
 /**
  * 保护协调器

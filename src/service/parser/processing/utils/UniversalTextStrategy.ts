@@ -10,7 +10,7 @@ import {
   SegmentationContext,
   UniversalChunkingOptions
 } from '../strategies/types/SegmentationTypes';
-import { SegmentationContextManager } from './context/SegmentationContextManager';
+import { SegmentationStrategyCoordinator } from '../coordination/SegmentationStrategyCoordinator';
 import { ConfigurationManager } from '../config/ConfigurationManager';
 import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
 import { TYPES } from '../../../../types';
@@ -33,20 +33,19 @@ export class UniversalTextStrategy implements ITextSplitter {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ConfigurationManager) configManager: ConfigurationManager,
-    @inject(TYPES.ProtectionCoordinator) protectionCoordinator: ProtectionCoordinator
+    @inject(TYPES.ProtectionCoordinator) protectionCoordinator: ProtectionCoordinator,
+    @inject(TYPES.SegmentationStrategyCoordinator) contextManager: ISegmentationContextManager
   ) {
     try {
       this.logger = logger;
       this.configManager = configManager;
       this.protectionCoordinator = protectionCoordinator;
+      this.contextManager = contextManager;
       this.options = configManager.getDefaultOptions();
       this.processors = [];
       this.fileFeatureDetector = new FileFeatureDetector(logger);
 
       this.logger?.debug('Initializing UniversalTextStrategy...');
-
-      // 创建上下文管理器
-      this.contextManager = new SegmentationContextManager(logger, configManager);
 
       this.logger?.debug('UniversalTextStrategy initialized successfully');
     } catch (error) {

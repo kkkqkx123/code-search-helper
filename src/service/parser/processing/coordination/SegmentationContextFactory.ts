@@ -1,6 +1,6 @@
-import { SegmentationContext, UniversalChunkingOptions } from '../../strategies/types/SegmentationTypes';
-import { BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD } from '../constants';
-import { languageExtensionMap } from '../../../utils/language/LanguageExtensionMap';
+import { SegmentationContext, UniversalChunkingOptions } from '../strategies/types/SegmentationTypes';
+import { BLOCK_SIZE_LIMITS, SMALL_FILE_THRESHOLD } from '../index';
+import { languageExtensionMap } from '../../utils/language/LanguageExtensionMap';
 
 /**
  * 分段上下文工厂类
@@ -59,8 +59,8 @@ export class SegmentationContextFactory {
   }
 
   /**
-   * 获取默认选项
-   */
+    * 获取默认选项
+    */
   private static getDefaultOptions(): UniversalChunkingOptions {
     return {
       // 基础分段参数
@@ -116,8 +116,8 @@ export class SegmentationContextFactory {
   }
 
   /**
-   * 检查是否为代码文件（非markdown）
-   */
+    * 检查是否为代码文件（非markdown）
+    */
   private static isCodeFile(language?: string, filePath?: string): boolean {
     if (language === 'markdown' || (filePath && filePath.endsWith('.md'))) {
       return false;

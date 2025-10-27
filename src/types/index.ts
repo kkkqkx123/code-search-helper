@@ -74,7 +74,7 @@ export const TYPES = {
   ProcessingStrategySelector: Symbol.for('ProcessingStrategySelector'),
   UniversalProcessingConfig: Symbol.for('UniversalProcessingConfig'),
   FileProcessingCoordinator: Symbol.for('FileProcessingCoordinator'),
-  SegmentationContextManager: Symbol.for('SegmentationContextManager'),
+  SegmentationStrategyCoordinator: Symbol.for('SegmentationStrategyCoordinator'),
   ConfigurationManager: Symbol.for('ConfigurationManager'),
   ProtectionCoordinator: Symbol.for('ProtectionCoordinator'),
   
