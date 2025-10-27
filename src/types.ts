@@ -55,7 +55,7 @@ import { IgnoreRuleManager } from './service/ignore/IgnoreRuleManager';
 // 11. Tree-sitter 解析模块
 import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from './service/parser/core/parse/TreeSitterCoreService';
-import { ASTCodeSplitter } from './service/parser/processing/strategies/impl/ASTCodeSplitter';
+import { ASTCodeStrategy } from './service/parser/processing/strategies/impl/ASTCodeStrategy';
 import { ChunkToVectorCoordinationService } from './service/parser/ChunkToVectorCoordinationService';
 import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
 import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';
@@ -64,8 +64,8 @@ type ProcessingGuard = UnifiedGuardCoordinator;
 import { UnifiedDetectionCenter } from './service/parser/processing/detection/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from './service/parser/processing/utils/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from './service/parser/processing/strategies/providers/ProcessingStrategyFactory';
-import { MarkdownTextSplitter } from './service/parser/processing/utils/md/MarkdownTextSplitter';
-import { XMLTextSplitter } from './service/parser/processing/utils/xml/XMLTextSplitter';
+import { MarkdownTextStrategy } from './service/parser/processing/utils/md/MarkdownTextStrategy';
+import { XMLTextStrategy } from './service/parser/processing/utils/xml/XMLTextStrategy';
 import { UnifiedConfigManager } from './service/parser/config/UnifiedConfigManager';
 
 // 12. 文件搜索模块
@@ -211,7 +211,7 @@ export const TYPES = {
   // 11. Tree-sitter 解析服务
   TreeSitterService: Symbol.for('TreeSitterService'),
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
-  ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
+  ASTCodeStrategy: Symbol.for('ASTCodeStrategy'),
   ChunkToVectorCoordinationService: Symbol.for('ChunkToVectorCoordinationService'),
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
@@ -328,7 +328,7 @@ export const TYPES = {
   BatchProcessingOptimizer: Symbol.for('BatchProcessingOptimizer'),
 
   // 26. 通用文件处理服务
-  UniversalTextSplitter: Symbol.for('UniversalTextSplitter'),
+  UniversalTextStrategy: Symbol.for('UniversalTextStrategy'),
   ErrorThresholdManager: Symbol.for('ErrorThresholdManager'),
   MemoryGuard: Symbol.for('MemoryGuard'),
   BackupFileProcessor: Symbol.for('BackupFileProcessor'),
@@ -394,8 +394,8 @@ export const TYPES = {
   ProcessingStrategyFactory: Symbol.for('ProcessingStrategyFactory'),
 
   // 38. 特殊格式文本分割器
-  MarkdownTextSplitter: Symbol.for('MarkdownTextSplitter'),
-  XMLTextSplitter: Symbol.for('XMLTextSplitter'),
+  MarkdownTextStrategy: Symbol.for('MarkdownTextStrategy'),
+  XMLTextStrategy: Symbol.for('XMLTextStrategy'),
 
   // 39. 统一配置管理器
   UnifiedConfigManager: Symbol.for('UnifiedConfigManager'),

@@ -4,7 +4,7 @@ import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
 import { UnifiedStrategyFactory } from '../factory/UnifiedStrategyFactory';
 import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../types';
 
 // 定义本地类型
 interface StrategyExecutionResult {
@@ -52,7 +52,7 @@ export class UnifiedStrategyManager {
     this.factory = factory;
     this.configManager = configManager;
     this.logger = logger;
-    
+
     // 初始化配置
     this.config = {
       enablePerformanceMonitoring: true,
@@ -61,9 +61,9 @@ export class UnifiedStrategyManager {
       maxExecutionTime: 10000,
       enableParallel: true
     };
-    
+
     this.logger?.debug('UnifiedStrategyManager initialized');
-    
+
     // 初始化默认策略
     this.initializeDefaultStrategies();
   }
@@ -118,7 +118,7 @@ export class UnifiedStrategyManager {
 
     // 2. 根据内容特征选择策略
     const contentFeatures = this.analyzeContent(content, language);
-    
+
     // 3. 根据文件大小选择策略
     const fileSize = content.length;
     if (fileSize < 1000) {
@@ -145,7 +145,7 @@ export class UnifiedStrategyManager {
         'json': 'universal_line',
         'yaml': 'universal_line'
       };
-      
+
       const strategyType = smallFileStrategies[language] || 'universal_line';
       return this.factory.createStrategyFromType(strategyType, options);
     } else if (fileSize > 10000) {
@@ -172,7 +172,7 @@ export class UnifiedStrategyManager {
     dependencies: any = {}
   ): ISplitStrategy {
     const language = detection.language || 'unknown';
-    
+
     // 启发式规则
     const heuristics = [
       // 规则1: 测试文件使用函数级分段
@@ -306,7 +306,7 @@ export class UnifiedStrategyManager {
 
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      
+
       // 更新错误统计
       this.updatePerformanceStats(strategy.getName(), executionTime, true);
 
@@ -344,13 +344,13 @@ export class UnifiedStrategyManager {
       for (const strategy of strategies) {
         const result = await this.executeStrategy(strategy, context);
         results.push(result);
-        
+
         // 如果策略失败，尝试下一个
         if (!result.success) {
           this.logger?.warn(`Strategy ${strategy.getName()} failed, trying next strategy`);
           continue;
         }
-        
+
         // 如果策略成功且有结果，且设置了停止标志，则停止执行
         if (stopOnFirstSuccess && result.chunks.length > 0) {
           break;
@@ -372,11 +372,11 @@ export class UnifiedStrategyManager {
     supportsAST: boolean;
   }> {
     const providers = this.factory.getAvailableProviders();
-    
+
     return providers.map(providerName => {
       const provider = this.factory.getProviderDependencies(providerName);
       const strategy = this.factory.createStrategyFromType(providerName);
-      
+
       return {
         name: strategy.getName(),
         description: strategy.getDescription(),
@@ -435,7 +435,7 @@ export class UnifiedStrategyManager {
     // 简单的复杂度检测
     const nestedBrackets = (content.match(/\{[^{}]*\{[^{}]*\}/g) || []).length;
     const nestedFunctions = (content.match(/function\s+\w+\s*\([^)]*\)\s*\{[^}]*function/g) || []).length;
-    
+
     return nestedBrackets > 5 || nestedFunctions > 3;
   }
 
@@ -490,7 +490,7 @@ export class UnifiedStrategyManager {
 
     const pattern = patterns[language.toLowerCase()];
     if (!pattern) return 0;
-    
+
     const matches = content.match(pattern);
     return matches ? matches.length : 0;
   }
@@ -510,7 +510,7 @@ export class UnifiedStrategyManager {
 
     const pattern = patterns[language.toLowerCase()];
     if (!pattern) return 0;
-    
+
     const matches = content.match(pattern);
     return matches ? matches.length : 0;
   }
@@ -523,7 +523,7 @@ export class UnifiedStrategyManager {
     const lines = content.split('\n');
     const nestedStructures = (content.match(/\{[^{}]*\{/g) || []).length;
     const controlStructures = (content.match(/if|for|while|switch|case/g) || []).length;
-    
+
     return lines.length + nestedStructures * 2 + controlStructures;
   }
 
@@ -546,14 +546,14 @@ export class UnifiedStrategyManager {
    */
   getPerformanceStats(): Map<string, { count: number; totalTime: number; errors: number; averageTime: number }> {
     const stats = new Map();
-    
+
     for (const [strategyName, data] of this.performanceStats) {
       stats.set(strategyName, {
         ...data,
         averageTime: data.count > 0 ? data.totalTime / data.count : 0
       });
     }
-    
+
     return stats;
   }
 

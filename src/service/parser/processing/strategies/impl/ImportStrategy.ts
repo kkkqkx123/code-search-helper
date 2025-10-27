@@ -2,11 +2,11 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../processing';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { ContentHashIDGenerator } from '../../../splitting/utils/ContentHashIDGenerator';
-import { ComplexityCalculator } from '../../../splitting/utils/ComplexityCalculator';
-import { ASTNodeExtractor } from '../../../splitting/utils/ASTNodeExtractor';
+import { ContentHashIDGenerator } from '../../utils/ContentHashIDGenerator';
+import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
+import { ASTNodeExtractor } from '../../utils/AST/ASTNodeExtractor';
 import { BaseSplitStrategy } from './base/BaseASTStrategy';
 
 /**
@@ -14,7 +14,7 @@ import { BaseSplitStrategy } from './base/BaseASTStrategy';
  * 专注于提取和分割导入/引入语句
  */
 @injectable()
-export class ImportSplitter extends BaseSplitStrategy {
+export class ImportStrategy extends BaseSplitStrategy {
   private complexityCalculator: ComplexityCalculator;
   private astNodeExtractor?: ASTNodeExtractor;
 
@@ -52,7 +52,7 @@ export class ImportSplitter extends BaseSplitStrategy {
     }
 
     if (!this.treeSitterService) {
-      this.logger?.warn('TreeSitterService is required for ImportSplitter');
+      this.logger?.warn('TreeSitterService is required for ImportStrategy');
       return [];
     }
 
@@ -76,11 +76,11 @@ export class ImportSplitter extends BaseSplitStrategy {
   }
 
   getName(): string {
-    return 'ImportSplitter';
+    return 'ImportStrategy';
   }
 
   getDescription(): string {
-    return 'Import splitter that extracts import/require statements';
+    return 'Import Strategy that extracts import/require statements';
   }
 
   supportsLanguage(language: string): boolean {
@@ -240,7 +240,7 @@ export class ImportStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    return new ImportSplitter(this.logger, this.treeSitterService);
+    return new ImportStrategy(this.logger, this.treeSitterService);
   }
 
   getDependencies(): string[] {

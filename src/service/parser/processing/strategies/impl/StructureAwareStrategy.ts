@@ -2,22 +2,22 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../splitting-types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../core/normalization/types';
-import { IntelligentSplitter } from './IntelligentStrategy';
+import { IntelligentStrategy } from './IntelligentStrategy';
 
 /**
  * 结构感知分割器
  * 基于标准化查询结果进行智能分割
  */
 @injectable()
-export class StructureAwareSplitter implements ISplitStrategy {
+export class StructureAwareStrategy implements ISplitStrategy {
   private queryNormalizer?: IQueryResultNormalizer;
   private treeSitterService?: TreeSitterService;
   private logger?: LoggerService;
   private options: Required<ChunkingOptions>;
-  private intelligentSplitter: IntelligentSplitter;
+  private intelligentStrategy: IntelligentStrategy;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
@@ -25,7 +25,7 @@ export class StructureAwareSplitter implements ISplitStrategy {
   ) {
     this.logger = logger;
     this.treeSitterService = treeSitterService;
-    this.intelligentSplitter = new IntelligentSplitter();
+    this.intelligentStrategy = new IntelligentStrategy();
     // 使用默认选项
     this.options = { ...DEFAULT_CHUNKING_OPTIONS };
   }
@@ -47,11 +47,11 @@ export class StructureAwareSplitter implements ISplitStrategy {
   ): Promise<CodeChunk[]> {
     // 合并选项
     const mergedOptions = { ...this.options, ...options };
-    
+
     // 如果没有设置标准化器，回退到基础分割器
     if (!this.queryNormalizer || !this.treeSitterService) {
-      this.logger?.warn('QueryNormalizer or TreeSitterService not set, falling back to intelligent splitter');
-      return this.intelligentSplitter.split(content, language, filePath, mergedOptions, nodeTracker);
+      this.logger?.warn('QueryNormalizer or TreeSitterService not set, falling back to intelligent Strategy');
+      return this.intelligentStrategy.split(content, language, filePath, mergedOptions, nodeTracker);
     }
 
     try {
@@ -59,16 +59,16 @@ export class StructureAwareSplitter implements ISplitStrategy {
       const parseResult = ast || await this.treeSitterService.parseCode(content, language);
 
       if (!parseResult.success || !parseResult.ast) {
-        this.logger?.warn(`Failed to parse ${language} code, falling back to intelligent splitter`);
-        return this.intelligentSplitter.split(content, language, filePath, mergedOptions, nodeTracker);
+        this.logger?.warn(`Failed to parse ${language} code, falling back to intelligent Strategy`);
+        return this.intelligentStrategy.split(content, language, filePath, mergedOptions, nodeTracker);
       }
 
       // 2. 执行标准化查询
       const standardizedResults = await this.queryNormalizer.normalize(parseResult.ast, language);
 
       if (standardizedResults.length === 0) {
-        this.logger?.debug(`No structures found in ${language} code, falling back to intelligent splitter`);
-        return this.intelligentSplitter.split(content, language, filePath, mergedOptions, nodeTracker);
+        this.logger?.debug(`No structures found in ${language} code, falling back to intelligent Strategy`);
+        return this.intelligentStrategy.split(content, language, filePath, mergedOptions, nodeTracker);
       }
 
       // 3. 基于标准化结果进行智能分割
@@ -76,16 +76,16 @@ export class StructureAwareSplitter implements ISplitStrategy {
 
     } catch (error) {
       this.logger?.error(`Structure-aware splitting failed for ${language}:`, error);
-      return this.intelligentSplitter.split(content, language, filePath, mergedOptions, nodeTracker);
+      return this.intelligentStrategy.split(content, language, filePath, mergedOptions, nodeTracker);
     }
   }
 
   getName(): string {
-    return 'StructureAwareSplitter';
+    return 'StructureAwareStrategy';
   }
 
   getDescription(): string {
-    return 'Structure-aware splitter that uses standardized query results for intelligent code splitting';
+    return 'Structure-aware Strategy that uses standardized query results for intelligent code splitting';
   }
 
   supportsLanguage(language: string): boolean {
@@ -93,7 +93,7 @@ export class StructureAwareSplitter implements ISplitStrategy {
     if (this.queryNormalizer) {
       return true; // 标准化器会处理语言适配
     }
-    return this.intelligentSplitter.supportsLanguage(language);
+    return this.intelligentStrategy.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -314,14 +314,14 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.LoggerService) private logger?: LoggerService,
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'StructureAwareStrategyProvider';
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    return new StructureAwareSplitter(this.logger, this.treeSitterService);
+    return new StructureAwareStrategy(this.logger, this.treeSitterService);
   }
 
   getDependencies(): string[] {

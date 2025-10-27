@@ -1,12 +1,10 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
-import { IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk } from '../../../splitting';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { SemanticSplitter } from '../impl/SemanticStrategy';
-import { ComplexityCalculator } from '../../utils/ComplexityCalculator';
+import { SemanticStrategy } from '../impl/SemanticStrategy';
+import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
 
 /**
  * 语义分段策略实现
@@ -14,14 +12,14 @@ import { ComplexityCalculator } from '../../utils/ComplexityCalculator';
  */
 @injectable()
 export class SemanticStrategy implements ISplitStrategy {
-  private semanticSplitter: SemanticSplitter;
+  private semanticStrategy: SemanticStrategy;
 
   constructor(
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.semanticSplitter = new SemanticSplitter();
+    this.semanticStrategy = new SemanticStrategy();
     // 通过直接赋值来设置logger
-    (this.semanticSplitter as any).logger = this.logger;
+    (this.semanticStrategy as any).logger = this.logger;
   }
 
   async split(
@@ -33,8 +31,8 @@ export class SemanticStrategy implements ISplitStrategy {
     ast?: any
   ): Promise<CodeChunk[]> {
     try {
-      // 使用SemanticSplitter进行分割
-      return await this.semanticSplitter.split(content, language, filePath, options);
+      // 使用SemanticStrategy进行分割
+      return await this.semanticStrategy.split(content, language, filePath, options);
     } catch (error) {
       this.logger?.error(`Semantic strategy failed: ${error}`);
       return [];
@@ -50,7 +48,7 @@ export class SemanticStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.semanticSplitter.supportsLanguage(language);
+    return this.semanticStrategy.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -81,7 +79,7 @@ export class SemanticStrategyProvider implements IStrategyProvider {
   }
 
   getDependencies(): string[] {
-    return ['LoggerService']; // SemanticSplitter主要依赖内部组件
+    return ['LoggerService']; // SemanticStrategy主要依赖内部组件
   }
 
   supportsLanguage(language: string): boolean {

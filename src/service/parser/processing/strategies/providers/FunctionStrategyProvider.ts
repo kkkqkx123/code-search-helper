@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import Parser from 'tree-sitter';
 import { FunctionChunkingStrategy } from '../FunctionChunkingStrategy';

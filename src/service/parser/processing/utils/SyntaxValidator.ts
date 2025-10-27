@@ -1,5 +1,5 @@
 import { SyntaxValidator as SyntaxValidatorInterface } from '..';
-import { BalancedChunker } from '../BalancedChunker';
+import { BalancedChunker } from './chunking/BalancedChunker';
 
 export class SyntaxValidator implements SyntaxValidatorInterface {
   private balancedChunker: BalancedChunker;

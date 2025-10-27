@@ -1,7 +1,7 @@
 import { StandardizationSegmentationStrategy } from '../../segmentation/StandardizationSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { ISegmentationStrategy, SegmentationContext } from '../../types/SegmentationTypes';
-import { CodeChunk } from '../../../../splitting';
+import { CodeChunk } from '../../../types';
 import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../../core/normalization/types';
 import { TreeSitterCoreService } from '../../../../core/parse/TreeSitterCoreService';
 

@@ -1,11 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
-import { IStrategyProvider, ChunkingOptions } from '../../../splitting/interfaces/IStrategyProvider';
-import { CodeChunk } from '../../../splitting';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { SyntaxAwareSplitter } from '../impl/SyntaxAwareStrategy';
 
 /**
  * 语法感知分段策略实现
@@ -13,18 +10,18 @@ import { SyntaxAwareSplitter } from '../impl/SyntaxAwareStrategy';
  */
 @injectable()
 export class SyntaxAwareStrategy implements ISplitStrategy {
-  private syntaxAwareSplitter: SyntaxAwareSplitter;
+  private syntaxAwareStrategy: SyntaxAwareStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.syntaxAwareSplitter = new SyntaxAwareSplitter();
+    this.syntaxAwareStrategy = new SyntaxAwareStrategy();
     if (this.treeSitterService) {
-      this.syntaxAwareSplitter.setTreeSitterService(this.treeSitterService);
+      this.syntaxAwareStrategy.setTreeSitterService(this.treeSitterService);
     }
     if (this.logger) {
-      this.syntaxAwareSplitter.setLogger(this.logger);
+      this.syntaxAwareStrategy.setLogger(this.logger);
     }
   }
 
@@ -42,8 +39,8 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
     }
 
     try {
-      // 使用SyntaxAwareSplitter进行分割
-      return await this.syntaxAwareSplitter.split(content, language, filePath, options);
+      // 使用SyntaxAwareStrategy进行分割
+      return await this.syntaxAwareStrategy.split(content, language, filePath, options);
     } catch (error) {
       this.logger?.error(`Syntax-aware strategy failed: ${error}`);
       return [];
@@ -59,7 +56,7 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.syntaxAwareSplitter.supportsLanguage(language);
+    return this.syntaxAwareStrategy.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -88,18 +85,18 @@ export class SyntaxAwareStrategyProvider implements IStrategyProvider {
       this.logger
     );
 
-    // 如果提供了选项，也应用到内部的SyntaxAwareSplitter
+    // 如果提供了选项，也应用到内部的SyntaxAwareStrategy
     if (options) {
-      const syntaxSplitter = (strategy as any).syntaxAwareSplitter as SyntaxAwareSplitter;
-      // 重新创建SyntaxAwareSplitter以应用选项
-      const newSyntaxSplitter = new SyntaxAwareSplitter(options);
+      const syntaxStrategy = (strategy as any).syntaxAwareStrategy as SyntaxAwareStrategy;
+      // 重新创建SyntaxAwareStrategy以应用选项
+      const newSyntaxStrategy = new SyntaxAwareStrategy(options);
       if (this.treeSitterService) {
-        newSyntaxSplitter.setTreeSitterService(this.treeSitterService);
+        newSyntaxStrategy.setTreeSitterService(this.treeSitterService);
       }
       if (this.logger) {
-        newSyntaxSplitter.setLogger(this.logger);
+        newSyntaxStrategy.setLogger(this.logger);
       }
-      (strategy as any).syntaxAwareSplitter = newSyntaxSplitter;
+      (strategy as any).syntaxAwareStrategy = newSyntaxStrategy;
     }
 
     return strategy;

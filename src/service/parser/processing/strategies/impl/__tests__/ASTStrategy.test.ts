@@ -1,7 +1,7 @@
 import { ASTStrategy } from '../ASTStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { TreeSitterService } from '../../../../core/parse/TreeSitterService';
-import { DetectionResult } from '../../../universal/UnifiedDetectionCenter';
+import { DetectionResult } from '../../../detection/UnifiedDetectionCenter';
 
 // Mock LoggerService
 jest.mock('../../../../../../utils/LoggerService');

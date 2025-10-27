@@ -1,7 +1,7 @@
 import { BracketSegmentationStrategy } from '../../segmentation/BracketSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../../types/SegmentationTypes';
-import { CodeChunk } from '../../../../splitting';
+import { CodeChunk } from '../../../types';
 
 // Mock LoggerService
 jest.mock('../../../../../../utils/LoggerService');

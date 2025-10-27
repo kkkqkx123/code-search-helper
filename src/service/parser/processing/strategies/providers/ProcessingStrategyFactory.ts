@@ -2,10 +2,10 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
-import { DetectionResult, ProcessingStrategyType } from '../../../universal/UnifiedDetectionCenter';
+import { DetectionResult, ProcessingStrategyType } from '../../UnifiedDetectionCenter';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { MarkdownTextSplitter } from '../../utils/md/MarkdownTextSplitter';
-import { XMLTextSplitter } from '../../utils/xml/XMLTextSplitter';
+import { MarkdownTextStrategy } from '../../utils/md/MarkdownTextStrategy';
+import { XMLTextStrategy } from '../../utils/xml/XMLTextStrategy';
 import { ASTStrategy } from '../impl/ASTStrategy';
 import { BracketSegmentationStrategy } from '../segmentation/BracketSegmentationStrategy';
 import { LineSegmentationStrategy } from '../segmentation/LineSegmentationStrategy';
@@ -17,19 +17,19 @@ import { XMLStrategy } from '../impl/XMLStrategy';
 export class ProcessingStrategyFactory {
   private logger?: LoggerService;
   private treeSitterService?: TreeSitterService;
-  private markdownSplitter: MarkdownTextSplitter | undefined;
-  private xmlSplitter: XMLTextSplitter | undefined;
+  private markdownStrategy: MarkdownTextStrategy | undefined;
+  private xmlStrategy: XMLTextStrategy | undefined;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.TreeSitterService) treeSitterService?: TreeSitterService,
-    @inject(TYPES.MarkdownTextSplitter) markdownSplitter?: MarkdownTextSplitter,
-    @inject(TYPES.XMLTextSplitter) xmlSplitter?: XMLTextSplitter
+    @inject(TYPES.MarkdownTextStrategy) markdownStrategy?: MarkdownTextStrategy,
+    @inject(TYPES.XMLTextStrategy) xmlStrategy?: XMLTextStrategy
   ) {
     this.logger = logger;
     this.treeSitterService = treeSitterService;
-    this.markdownSplitter = markdownSplitter;
-    this.xmlSplitter = xmlSplitter;
+    this.markdownStrategy = markdownStrategy;
+    this.xmlStrategy = xmlStrategy;
   }
 
   createStrategy(detection: DetectionResult): IProcessingStrategy {
@@ -41,7 +41,7 @@ export class ProcessingStrategyFactory {
         return new MarkdownSegmentationStrategy(this.logger);
 
       case ProcessingStrategyType.XML_SPECIALIZED:
-        return new XMLStrategy(this.xmlSplitter, this.logger);
+        return new XMLStrategy(this.xmlStrategy, this.logger);
 
       case ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE:
         // 使用精细模式的语义分段策略
@@ -75,9 +75,9 @@ export class ProcessingStrategyFactory {
     detection: DetectionResult,
     dependencies: {
       treeSitterService?: any;
-      universalTextSplitter?: any;
-      markdownSplitter?: any;
-      xmlSplitter?: any;
+      universalTextStrategy?: any;
+      markdownStrategy?: any;
+      xmlStrategy?: any;
     }
   ): IProcessingStrategy {
     // 创建带有依赖的策略
@@ -89,7 +89,7 @@ export class ProcessingStrategyFactory {
         return new MarkdownSegmentationStrategy(this.logger);
 
       case ProcessingStrategyType.XML_SPECIALIZED:
-        return new XMLStrategy(dependencies.xmlSplitter || this.xmlSplitter, this.logger);
+        return new XMLStrategy(dependencies.xmlStrategy || this.xmlStrategy, this.logger);
 
       case ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE:
         const fineSemanticStrategy = new SemanticSegmentationStrategy(this.logger);

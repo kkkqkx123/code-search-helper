@@ -57,8 +57,8 @@ import { FileProcessingCoordinator } from '../../service/parser/processing/utils
 import { UnifiedDetectionCenter } from '../../service/parser/processing/detection/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from '../../service/parser/processing/utils/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
-import { MarkdownTextSplitter } from '../../service/parser/processing/utils/md/MarkdownTextSplitter';
-import { XMLTextSplitter } from '../../service/parser/processing/utils/xml/XMLTextSplitter';
+import { MarkdownTextSplitter } from '../../service/parser/processing/utils/md/MarkdownTextStrategy';
+import { XMLTextSplitter } from '../../service/parser/processing/utils/xml/XMLTextStrategy';
 
 // 分段器模块服务
 import { SegmentationContextManager } from '../../service/parser/processing/utils/context/SegmentationContextManager';

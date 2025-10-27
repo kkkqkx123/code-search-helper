@@ -2,10 +2,10 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import Parser from 'tree-sitter';
-import { ClassChunkingStrategy } from '../../../core/strategy/ClassChunkingStrategy';
+import { ClassChunkingStrategy } from '../impl/ClassStrategy';
 
 /**
  * 类分段策略实现
@@ -38,7 +38,7 @@ export class ClassSplitStrategy implements ISplitStrategy {
     try {
       // 如果提供了AST，直接使用
       let parseResult = ast ? { success: true, ast } : null;
-      
+
       // 如果没有提供AST，尝试解析
       if (!parseResult) {
         const detectedLanguage = await this.treeSitterService.detectLanguage(filePath || '');
@@ -139,7 +139,7 @@ export class ClassStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'class_provider';

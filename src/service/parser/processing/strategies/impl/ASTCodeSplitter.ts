@@ -1,10 +1,10 @@
 import { injectable, inject } from 'inversify';
 import { Splitter, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../splitting-types';
-import { TYPES } from '../../../types';
+import { TYPES } from '../../../../../types';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../../utils/LoggerService';
 import { BalancedChunker } from '../../utils/chunking/BalancedChunker';
-import { ChunkingConfigManager } from '../config/ChunkingConfigManager';
+import { ChunkingConfigManager } from '../../config/ChunkingConfigManager';
 import { SplitStrategyFactory, strategyFactory } from '../factory/SplitStrategyFactory';
 import { ensureStrategyProvidersRegistered } from '../factory/StrategyProviderRegistration';
 import { ChunkingCoordinator } from '../../utils/ChunkingCoordinator';
@@ -20,7 +20,7 @@ import { ProcessingGuard } from '../guard/ProcessingGuard';
  * 采用新的架构设计，使用工厂模式、策略模式和装饰器模式
  */
 @injectable()
-export class ASTCodeSplitter implements Splitter {
+export class ASTCodeStrategy implements Splitter {
   private treeSitterService: TreeSitterService;
   private logger?: LoggerService;
   private balancedChunker: BalancedChunker;

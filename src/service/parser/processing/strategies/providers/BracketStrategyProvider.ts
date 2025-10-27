@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
+import { UniversalTextStrategy } from '../../utils/UniversalTextStrategy';
 
 /**
  * 括号平衡策略实现
@@ -11,7 +11,7 @@ import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter'
 @injectable()
 export class BracketSplitStrategy implements ISplitStrategy {
   constructor(
-    @inject(TYPES.UniversalTextSplitter) private universalTextSplitter?: UniversalTextSplitter,
+    @inject(TYPES.UniversalTextStrategy) private universalTextStrategy?: UniversalTextStrategy,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -24,18 +24,18 @@ export class BracketSplitStrategy implements ISplitStrategy {
     ast?: any
   ) {
     this.logger?.debug(`Using bracket strategy for ${filePath}`);
-    
-    if (!this.universalTextSplitter) {
-      this.logger?.warn('UniversalTextSplitter not available, falling back to line strategy');
+
+    if (!this.universalTextStrategy) {
+      this.logger?.warn('UniversalTextStrategy not available, falling back to line strategy');
       // 简单的行分段回退
       return this.fallbackToLineSplitting(content, language, filePath);
     }
 
     try {
-      const chunks = await this.universalTextSplitter.chunkByBracketsAndLines(content, filePath || '', language);
+      const chunks = await this.universalTextStrategy.chunkByBracketsAndLines(content, filePath || '', language);
 
       // 为每个块添加ID
-      return chunks.map((chunk, index) => ({
+      return chunks.map((chunk: CodeChunk, index: number) => ({
         id: `bracket_${Date.now()}_${index}`,
         ...chunk
       }));
@@ -70,15 +70,15 @@ export class BracketSplitStrategy implements ISplitStrategy {
   /**
    * 简单的行分段回退方法
    */
-  private fallbackToLineSplitting(content: string, language: string, filePath?: string): any[] {
+  private fallbackToLineSplitting(content: string, language: string, filePath?: string): CodeChunk[] {
     const lines = content.split('\n');
     const chunks = [];
     const maxLines = 50; // 每个块最多50行
-    
+
     for (let i = 0; i < lines.length; i += maxLines) {
       const chunkLines = lines.slice(i, i + maxLines);
       const chunkContent = chunkLines.join('\n');
-      
+
       chunks.push({
         id: `bracket_fallback_${Date.now()}_${Math.floor(i / maxLines)}`,
         content: chunkContent,
@@ -91,7 +91,7 @@ export class BracketSplitStrategy implements ISplitStrategy {
         }
       });
     }
-    
+
     return chunks;
   }
 }
@@ -102,9 +102,9 @@ export class BracketSplitStrategy implements ISplitStrategy {
 @injectable()
 export class BracketStrategyProvider implements IStrategyProvider {
   constructor(
-    @inject(TYPES.UniversalTextSplitter) private universalTextSplitter?: UniversalTextSplitter,
+    @inject(TYPES.UniversalTextStrategy) private universalTextStrategy?: UniversalTextStrategy,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'universal_bracket';
@@ -112,13 +112,13 @@ export class BracketStrategyProvider implements IStrategyProvider {
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
     return new BracketSplitStrategy(
-      options?.universalTextSplitter || this.universalTextSplitter,
+      options?.universalTextStrategy || this.universalTextStrategy,
       this.logger
     );
   }
 
   getDependencies(): string[] {
-    return ['UniversalTextSplitter'];
+    return ['UniversalTextStrategy'];
   }
 
   supportsLanguage(language: string): boolean {

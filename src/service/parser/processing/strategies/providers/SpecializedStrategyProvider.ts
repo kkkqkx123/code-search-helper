@@ -2,8 +2,8 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { MarkdownTextSplitter } from '../../utils/md/MarkdownTextSplitter';
-import { XMLTextSplitter } from '../../utils/xml/XMLTextSplitter';
+import { MarkdownTextStrategy } from '../../utils/md/MarkdownTextStrategy';
+import { XMLTextStrategy } from '../../utils/xml/XMLTextStrategy';
 
 /**
  * Markdown策略实现
@@ -12,7 +12,7 @@ import { XMLTextSplitter } from '../../utils/xml/XMLTextSplitter';
 @injectable()
 export class MarkdownSplitStrategy implements ISplitStrategy {
   constructor(
-    @inject(TYPES.MarkdownTextSplitter) private markdownSplitter?: MarkdownTextSplitter,
+    @inject(TYPES.MarkdownTextStrategy) private markdownStrategy?: MarkdownTextStrategy,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -26,13 +26,13 @@ export class MarkdownSplitStrategy implements ISplitStrategy {
   ) {
     this.logger?.debug(`Using Markdown strategy for ${filePath}`);
 
-    if (!this.markdownSplitter) {
-      this.logger?.warn('MarkdownSplitter not available, falling back to semantic strategy');
-      throw new Error('MarkdownSplitter not available');
+    if (!this.markdownStrategy) {
+      this.logger?.warn('MarkdownStrategy not available, falling back to semantic strategy');
+      throw new Error('MarkdownStrategy not available');
     }
 
     try {
-      const chunks = await this.markdownSplitter.chunkMarkdown(content, filePath || '');
+      const chunks = await this.markdownStrategy.chunkMarkdown(content, filePath || '');
 
       // 为每个块添加ID并确保元数据格式正确
       return chunks.map((chunk, index) => ({
@@ -77,7 +77,7 @@ export class MarkdownSplitStrategy implements ISplitStrategy {
 @injectable()
 export class XMLSplitStrategy implements ISplitStrategy {
   constructor(
-    @inject(TYPES.XMLTextSplitter) private xmlSplitter?: XMLTextSplitter,
+    @inject(TYPES.XMLTextStrategy) private xmlStrategy?: XMLTextStrategy,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -91,13 +91,13 @@ export class XMLSplitStrategy implements ISplitStrategy {
   ) {
     this.logger?.debug(`Using XML strategy for ${filePath}`);
 
-    if (!this.xmlSplitter) {
-      this.logger?.warn('XMLSplitter not available, falling back to semantic strategy');
-      throw new Error('XMLSplitter not available');
+    if (!this.xmlStrategy) {
+      this.logger?.warn('XMLStrategy not available, falling back to semantic strategy');
+      throw new Error('XMLStrategy not available');
     }
 
     try {
-      const chunks = await this.xmlSplitter.chunkXML(content, filePath || '');
+      const chunks = await this.xmlStrategy.chunkXML(content, filePath || '');
 
       // 为每个块添加ID并确保元数据格式正确
       return chunks.map((chunk, index) => ({
@@ -141,7 +141,7 @@ export class XMLSplitStrategy implements ISplitStrategy {
 @injectable()
 export class MarkdownStrategyProvider implements IStrategyProvider {
   constructor(
-    @inject(TYPES.MarkdownTextSplitter) private markdownSplitter?: MarkdownTextSplitter,
+    @inject(TYPES.MarkdownTextStrategy) private markdownStrategy?: MarkdownTextStrategy,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -151,13 +151,13 @@ export class MarkdownStrategyProvider implements IStrategyProvider {
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
     return new MarkdownSplitStrategy(
-      options?.markdownSplitter || this.markdownSplitter,
+      options?.markdownStrategy || this.markdownStrategy,
       this.logger
     );
   }
 
   getDependencies(): string[] {
-    return ['MarkdownTextSplitter'];
+    return ['MarkdownTextStrategy'];
   }
 
   supportsLanguage(language: string): boolean {
@@ -179,7 +179,7 @@ export class MarkdownStrategyProvider implements IStrategyProvider {
 @injectable()
 export class XMLStrategyProvider implements IStrategyProvider {
   constructor(
-    @inject(TYPES.XMLTextSplitter) private xmlSplitter?: XMLTextSplitter,
+    @inject(TYPES.XMLTextStrategy) private xmlStrategy?: XMLTextStrategy,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -189,13 +189,13 @@ export class XMLStrategyProvider implements IStrategyProvider {
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
     return new XMLSplitStrategy(
-      options?.xmlSplitter || this.xmlSplitter,
+      options?.xmlStrategy || this.xmlStrategy,
       this.logger
     );
   }
 
   getDependencies(): string[] {
-    return ['XMLTextSplitter'];
+    return ['XMLTextStrategy'];
   }
 
   supportsLanguage(language: string): boolean {

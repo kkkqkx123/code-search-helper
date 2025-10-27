@@ -1,11 +1,9 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
-import { IStrategyProvider, ChunkingOptions } from '../../../splitting/interfaces/IStrategyProvider';
-import { CodeChunk } from '../../../splitting';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { StructureAwareSplitter } from '../impl/StructureAwareStrategy';
+import { StructureAwareStrategy } from '../impl/StructureAwareStrategy';
 import { IQueryResultNormalizer } from '../../../core/normalization/types';
 
 /**
@@ -14,24 +12,24 @@ import { IQueryResultNormalizer } from '../../../core/normalization/types';
  */
 @injectable()
 export class StructureAwareStrategy implements ISplitStrategy {
-  private structureAwareSplitter: StructureAwareSplitter;
+  private structureAwareStrategy: StructureAwareStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService,
     @inject(TYPES.QueryResultNormalizer) private queryResultNormalizer?: IQueryResultNormalizer
   ) {
-    this.structureAwareSplitter = new StructureAwareSplitter();
+    this.structureAwareStrategy = new StructureAwareStrategy();
     if (this.logger) {
-      this.structureAwareSplitter.setLogger(this.logger);
+      this.structureAwareStrategy.setLogger(this.logger);
     }
     if (this.queryResultNormalizer) {
-      this.structureAwareSplitter.setQueryNormalizer(this.queryResultNormalizer);
+      this.structureAwareStrategy.setQueryNormalizer(this.queryResultNormalizer);
     }
     // 如果有TreeSitterCoreService，也需要设置
     if (this.treeSitterService) {
       // 这里需要适配TreeSitterService到TreeSitterCoreService
-      (this.structureAwareSplitter as any).treeSitterService = this.treeSitterService;
+      (this.structureAwareStrategy as any).treeSitterService = this.treeSitterService;
     }
   }
 
@@ -44,8 +42,8 @@ export class StructureAwareStrategy implements ISplitStrategy {
     ast?: any
   ): Promise<CodeChunk[]> {
     try {
-      // 使用StructureAwareSplitter进行分割
-      return await this.structureAwareSplitter.split(content, language, filePath, options, nodeTracker, ast);
+      // 使用StructureAwareStrategy进行分割
+      return await this.structureAwareStrategy.split(content, language, filePath, options, nodeTracker, ast);
     } catch (error) {
       this.logger?.error(`Structure-aware strategy failed: ${error}`);
       return [];
@@ -61,7 +59,7 @@ export class StructureAwareStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.structureAwareSplitter.supportsLanguage(language);
+    return this.structureAwareStrategy.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -92,21 +90,21 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
       this.queryResultNormalizer
     );
 
-    // 如果提供了选项，也应用到内部的StructureAwareSplitter
+    // 如果提供了选项，也应用到内部的StructureAwareStrategy
     if (options) {
-      const structureSplitter = (strategy as any).structureAwareSplitter as StructureAwareSplitter;
-      // 重新创建StructureAwareSplitter以应用选项
-      const newStructureSplitter = new StructureAwareSplitter(options);
+      const structureStrategy = (strategy as any).structureAwareStrategy as StructureAwareStrategy;
+      // 重新创建StructureAwareStrategy以应用选项
+      const newStructureStrategy = new StructureAwareStrategy(options);
       if (this.logger) {
-        newStructureSplitter.setLogger(this.logger);
+        newStructureStrategy.setLogger(this.logger);
       }
       if (this.queryResultNormalizer) {
-        newStructureSplitter.setQueryNormalizer(this.queryResultNormalizer);
+        newStructureStrategy.setQueryNormalizer(this.queryResultNormalizer);
       }
       if (this.treeSitterService) {
-        (newStructureSplitter as any).treeSitterService = this.treeSitterService;
+        (newStructureStrategy as any).treeSitterService = this.treeSitterService;
       }
-      (strategy as any).structureAwareSplitter = newStructureSplitter;
+      (strategy as any).structureAwareStrategy = newStructureStrategy;
     }
 
     return strategy;

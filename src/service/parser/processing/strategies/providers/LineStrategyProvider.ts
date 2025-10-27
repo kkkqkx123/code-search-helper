@@ -1,9 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk } from '../../../splitting';
-import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
+import { UniversalTextStrategy } from '../../utils/UniversalTextStrategy';
 
 /**
  * 行级策略实现
@@ -12,7 +11,7 @@ import { UniversalTextSplitter } from '../../../universal/UniversalTextSplitter'
 @injectable()
 export class LineSplitStrategy implements ISplitStrategy {
   constructor(
-    @inject(TYPES.UniversalTextSplitter) private universalTextSplitter?: UniversalTextSplitter,
+    @inject(TYPES.UniversalTextStrategy) private universalTextStrategy?: UniversalTextStrategy,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -26,9 +25,9 @@ export class LineSplitStrategy implements ISplitStrategy {
   ): Promise<CodeChunk[]> {
     this.logger?.debug(`Using line strategy for ${filePath}`);
 
-    if (!this.universalTextSplitter) {
-      this.logger?.warn('UniversalTextSplitter not available, returning single chunk');
-      // 如果没有UniversalTextSplitter，返回一个包含全部内容的简单块
+    if (!this.universalTextStrategy) {
+      this.logger?.warn('UniversalTextStrategy not available, returning single chunk');
+      // 如果没有UniversalTextStrategy，返回一个包含全部内容的简单块
       return [{
         id: `line_fallback_${Date.now()}`,
         content,
@@ -44,10 +43,10 @@ export class LineSplitStrategy implements ISplitStrategy {
     }
 
     try {
-      const chunks = await this.universalTextSplitter.chunkByLines(content, filePath || '', language);
+      const chunks = await this.universalTextStrategy.chunkByLines(content, filePath || '', language);
 
       // 为每个块添加ID并确保类型正确
-      return chunks.map((chunk, index) => ({
+      return chunks.map((chunk: any, index: number) => ({
         id: `line_${Date.now()}_${index}`,
         content: typeof chunk === 'string' ? chunk : chunk.content,
         metadata: {
@@ -61,7 +60,7 @@ export class LineSplitStrategy implements ISplitStrategy {
       }));
     } catch (error) {
       this.logger?.error(`Line strategy failed: ${error}`);
-      
+
       // 如果失败，返回一个包含整个内容的单一块
       return [{
         id: `emergency_${Date.now()}`,
@@ -103,9 +102,9 @@ export class LineSplitStrategy implements ISplitStrategy {
 @injectable()
 export class LineStrategyProvider implements IStrategyProvider {
   constructor(
-    @inject(TYPES.UniversalTextSplitter) private universalTextSplitter?: UniversalTextSplitter,
+    @inject(TYPES.UniversalTextStrategy) private universalTextStrategy?: UniversalTextStrategy,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'universal_line';
@@ -113,13 +112,13 @@ export class LineStrategyProvider implements IStrategyProvider {
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
     return new LineSplitStrategy(
-      options?.universalTextSplitter || this.universalTextSplitter,
+      options?.universalTextStrategy || this.universalTextStrategy,
       this.logger
     );
   }
 
   getDependencies(): string[] {
-    return ['UniversalTextSplitter'];
+    return ['UniversalTextStrategy'];
   }
 
   supportsLanguage(language: string): boolean {

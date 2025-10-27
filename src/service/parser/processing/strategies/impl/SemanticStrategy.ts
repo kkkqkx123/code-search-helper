@@ -2,10 +2,10 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
-import { ComplexityCalculator } from '../../../splitting/utils/ComplexityCalculator';
+import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS } from '../../splitting-types';
+import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
 
-export class SemanticSplitter implements ISplitStrategy {
+export class SemanticStrategy implements ISplitStrategy {
   private options: Required<ChunkingOptions>;
   private complexityCalculator?: ComplexityCalculator;
   private logger?: LoggerService;
@@ -127,11 +127,11 @@ export class SemanticSplitter implements ISplitStrategy {
   }
 
   getName(): string {
-    return 'SemanticSplitter';
+    return 'SemanticStrategy';
   }
 
   getDescription(): string {
-    return 'Semantic splitter that uses semantic scoring as a fallback strategy';
+    return 'Semantic Strategy that uses semantic scoring as a fallback strategy';
   }
 
   supportsLanguage(language: string): boolean {
@@ -150,14 +150,14 @@ export class SemanticSplitter implements ISplitStrategy {
 export class SemanticStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'SemanticStrategyProvider';
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    return new SemanticSplitter(options);
+    return new SemanticStrategy(options);
   }
 
   getDependencies(): string[] {

@@ -246,7 +246,7 @@ describe('ProtectionInterceptor', () => {
     it('should block operation when error threshold is exceeded', async () => {
       // 记录一些错误
       for (let i = 0; i < 5; i++) {
-        errorInterceptor.recordError('parse_error', `Test error ${i}`);
+        errorInterceptor.recordErrorByType('parse_error', `Test error ${i}`);
       }
 
       const context: ProtectionContext = {
@@ -263,9 +263,9 @@ describe('ProtectionInterceptor', () => {
     });
 
     it('should only record specified error types', async () => {
-      errorInterceptor.recordError('parse_error', 'Parse error');
-      errorInterceptor.recordError('processing_error', 'Processing error');
-      errorInterceptor.recordError('other_error', 'Other error'); // 不应该被记录
+      errorInterceptor.recordErrorByType('parse_error', 'Parse error');
+      errorInterceptor.recordErrorByType('processing_error', 'Processing error');
+      errorInterceptor.recordErrorByType('other_error', 'Other error'); // 不应该被记录
 
       const stats = errorInterceptor.getErrorStats();
       expect(stats.totalErrors).toBe(2); // 只有前两个错误被记录
@@ -273,7 +273,7 @@ describe('ProtectionInterceptor', () => {
 
     it('should clean expired errors', async () => {
       // 记录一个错误
-      errorInterceptor.recordError('parse_error', 'Test error');
+      errorInterceptor.recordErrorByType('parse_error', 'Test error');
 
       // 模拟时间流逝（超过时间窗口）
       jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 70000); // 70秒后
@@ -295,7 +295,7 @@ describe('ProtectionInterceptor', () => {
 
       // 记录3个错误（达到自动重置阈值）
       for (let i = 0; i < 3; i++) {
-        autoResetInterceptor.recordError('parse_error', `Test error ${i}`);
+        autoResetInterceptor.recordErrorByType('parse_error', `Test error ${i}`);
       }
 
       expect(autoResetInterceptor.getCurrentErrorCount()).toBe(0); // 应该已自动重置
@@ -361,8 +361,8 @@ describe('ProtectionInterceptor', () => {
       expect(result1.shouldProceed).toBe(true);
 
       // 记录一些错误
-      errorInterceptor.recordError('parse_error', 'Test error 1');
-      errorInterceptor.recordError('parse_error', 'Test error 2');
+      errorInterceptor.recordErrorByType('parse_error', 'Test error 1');
+      errorInterceptor.recordErrorByType('parse_error', 'Test error 2');
 
       // 第二次执行应该被错误阈值拦截器阻止
       const result2 = await protectionChain.execute(context);

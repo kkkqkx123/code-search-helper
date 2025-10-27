@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
+import { CodeChunk, CodeChunkMetadata } from '../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import {
   MarkdownChunkingConfig,
@@ -22,7 +22,7 @@ import {
  * 针对 Markdown 文件的特殊结构和语义进行优化的分段策略
  */
 @injectable()
-export class MarkdownTextSplitter {
+export class MarkdownTextStrategy {
   private config: MarkdownChunkingConfig;
   private logger?: LoggerService;
 

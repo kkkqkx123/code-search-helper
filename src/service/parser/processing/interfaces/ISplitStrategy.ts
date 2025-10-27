@@ -1,4 +1,4 @@
-import { CodeChunk, ChunkingOptions, ASTNode } from '..';
+import { CodeChunk, ChunkingOptions, ASTNode } from '../splitting-types';
 
 /**
  * 分割策略接口

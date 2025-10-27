@@ -2,10 +2,10 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../processing';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { ContentHashIDGenerator } from '../../utils/ContentHashIDGenerator';
-import { ComplexityCalculator } from '../../utils/ComplexityCalculator';
+import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
 import { ASTNodeExtractor } from '../../utils/AST/ASTNodeExtractor';
 import { BaseSplitStrategy } from './base/BaseASTStrategy';
 
@@ -14,7 +14,7 @@ import { BaseSplitStrategy } from './base/BaseASTStrategy';
  * 专注于提取和分割类定义
  */
 @injectable()
-export class ClassSplitter extends BaseSplitStrategy {
+export class ClassStrategy extends BaseSplitStrategy {
   private complexityCalculator: ComplexityCalculator;
   private astNodeExtractor?: ASTNodeExtractor;
 
@@ -52,7 +52,7 @@ export class ClassSplitter extends BaseSplitStrategy {
     }
 
     if (!this.treeSitterService) {
-      this.logger?.warn('TreeSitterService is required for ClassSplitter');
+      this.logger?.warn('TreeSitterService is required for ClassStrategy');
       return [];
     }
 
@@ -76,11 +76,11 @@ export class ClassSplitter extends BaseSplitStrategy {
   }
 
   getName(): string {
-    return 'ClassSplitter';
+    return 'ClassStrategy';
   }
 
   getDescription(): string {
-    return 'Class splitter that extracts class and interface definitions';
+    return 'Class Strategy that extracts class and interface definitions';
   }
 
   supportsLanguage(language: string): boolean {
@@ -307,7 +307,7 @@ export class ClassStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    return new ClassSplitter(this.logger, this.treeSitterService);
+    return new ClassStrategy(this.logger, this.treeSitterService);
   }
 
   getDependencies(): string[] {

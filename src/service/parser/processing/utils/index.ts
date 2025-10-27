@@ -1,5 +1,5 @@
 // 核心处理逻辑 - 保留在 utils
-export { UniversalTextSplitter } from './UniversalTextSplitter';
+export { UniversalTextSplitter } from './UniversalTextStrategy';
 export { ChunkingCoordinator } from './ChunkingCoordinator';
 export { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
 

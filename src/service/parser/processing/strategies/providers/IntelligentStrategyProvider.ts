@@ -1,12 +1,10 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
-import { IStrategyProvider, ChunkingOptions } from '../../../splitting/interfaces/IStrategyProvider';
-import { CodeChunk } from '../../../splitting';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { IntelligentSplitter } from '../impl/IntelligentStrategy';
-import { BalancedChunker } from '../../../splitting/BalancedChunker';
+import { IntelligentStrategy } from '../impl/IntelligentStrategy';
+import { BalancedChunker } from '../../utils/chunking/BalancedChunker';
 import { SemanticBoundaryAnalyzer } from '../../utils/SemanticBoundaryAnalyzer';
 import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
 
@@ -16,15 +14,15 @@ import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalc
  */
 @injectable()
 export class IntelligentStrategy implements ISplitStrategy {
-  private intelligentSplitter: IntelligentSplitter;
+  private intelligentStrategy: IntelligentStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.intelligentSplitter = new IntelligentSplitter();
+    this.intelligentStrategy = new IntelligentStrategy();
     if (this.logger) {
-      this.intelligentSplitter.setLogger(this.logger);
+      this.intelligentStrategy.setLogger(this.logger);
     }
   }
 
@@ -37,8 +35,8 @@ export class IntelligentStrategy implements ISplitStrategy {
     ast?: any
   ): Promise<CodeChunk[]> {
     try {
-      // 使用IntelligentSplitter进行分割
-      return await this.intelligentSplitter.split(content, language, filePath, options, nodeTracker);
+      // 使用IntelligentStrategy进行分割
+      return await this.intelligentStrategy.split(content, language, filePath, options, nodeTracker);
     } catch (error) {
       this.logger?.error(`Intelligent strategy failed: ${error}`);
       return [];
@@ -54,7 +52,7 @@ export class IntelligentStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.intelligentSplitter.supportsLanguage(language);
+    return this.intelligentStrategy.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -83,32 +81,32 @@ export class IntelligentStrategyProvider implements IStrategyProvider {
       this.logger
     );
 
-    // 如果提供了选项，也应用到内部的IntelligentSplitter
+    // 如果提供了选项，也应用到内部的IntelligentStrategy
     if (options) {
-      const intelligentSplitter = (strategy as any).intelligentSplitter as IntelligentSplitter;
-      // 重新创建IntelligentSplitter以应用选项
-      const newIntelligentSplitter = new IntelligentSplitter(options);
+      const intelligentStrategy = (strategy as any).intelligentStrategy as IntelligentStrategy;
+      // 重新创建IntelligentStrategy以应用选项
+      const newIntelligentStrategy = new IntelligentStrategy(options);
       if (this.logger) {
-        newIntelligentSplitter.setLogger(this.logger);
+        newIntelligentStrategy.setLogger(this.logger);
       }
       // 如果有其他可配置组件，也设置它们
       const balancedChunker = new BalancedChunker(this.logger);
-      newIntelligentSplitter.setBalancedChunker(balancedChunker);
-      newIntelligentSplitter.setSemanticBoundaryAnalyzer(new SemanticBoundaryAnalyzer());
-      newIntelligentSplitter.setUnifiedOverlapCalculator(new UnifiedOverlapCalculator({
+      newIntelligentStrategy.setBalancedChunker(balancedChunker);
+      newIntelligentStrategy.setSemanticBoundaryAnalyzer(new SemanticBoundaryAnalyzer());
+      newIntelligentStrategy.setUnifiedOverlapCalculator(new UnifiedOverlapCalculator({
         maxSize: options.overlapSize || 50,
         minLines: 1,
         maxOverlapRatio: 0.3,
         enableASTBoundaryDetection: false
       }));
-      (strategy as any).intelligentSplitter = newIntelligentSplitter;
+      (strategy as any).intelligentStrategy = newIntelligentStrategy;
     }
 
     return strategy;
   }
 
   getDependencies(): string[] {
-    return ['LoggerService']; // IntelligentSplitter主要依赖内部组件
+    return ['LoggerService']; // IntelligentStrategy主要依赖内部组件
   }
 
   supportsLanguage(language: string): boolean {

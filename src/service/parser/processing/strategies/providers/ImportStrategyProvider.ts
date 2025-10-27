@@ -1,11 +1,9 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy } from '../../../splitting/interfaces/ISplitStrategy';
-import { IStrategyProvider, ChunkingOptions } from '../../../splitting/interfaces/IStrategyProvider';
-import { CodeChunk } from '../../../splitting';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { ImportSplitter } from '../impl/ImportStrategy';
+import { ImportStrategy } from '../impl/ImportStrategy';
 
 /**
  * 导入语句分段策略实现
@@ -13,18 +11,18 @@ import { ImportSplitter } from '../impl/ImportStrategy';
  */
 @injectable()
 export class ImportStrategy implements ISplitStrategy {
-  private importSplitter: ImportSplitter;
+  private importStrategy: ImportStrategy;
 
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) {
-    this.importSplitter = new ImportSplitter();
+    this.importStrategy = new ImportStrategy();
     if (this.treeSitterService) {
-      this.importSplitter.setTreeSitterService(this.treeSitterService);
+      this.importStrategy.setTreeSitterService(this.treeSitterService);
     }
     if (this.logger) {
-      this.importSplitter.setLogger(this.logger);
+      this.importStrategy.setLogger(this.logger);
     }
   }
 
@@ -42,8 +40,8 @@ export class ImportStrategy implements ISplitStrategy {
     }
 
     try {
-      // 使用ImportSplitter进行分割
-      return await this.importSplitter.split(content, language, filePath, options, nodeTracker, ast);
+      // 使用ImportStrategy进行分割
+      return await this.importStrategy.split(content, language, filePath, options, nodeTracker, ast);
     } catch (error) {
       this.logger?.error(`Import strategy failed: ${error}`);
       return [];
@@ -59,7 +57,7 @@ export class ImportStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.importSplitter.supportsLanguage(language);
+    return this.importStrategy.supportsLanguage(language);
   }
 
   getPriority(): number {
@@ -88,18 +86,18 @@ export class ImportStrategyProvider implements IStrategyProvider {
       this.logger
     );
 
-    // 如果提供了选项，也应用到内部的ImportSplitter
+    // 如果提供了选项，也应用到内部的ImportStrategy
     if (options) {
-      const importSplitter = (strategy as any).importSplitter as ImportSplitter;
-      // 重新创建ImportSplitter以应用选项
-      const newImportSplitter = new ImportSplitter(options);
+      const importStrategy = (strategy as any).importStrategy as ImportStrategy;
+      // 重新创建ImportStrategy以应用选项
+      const newImportStrategy = new ImportStrategy(this.logger, this.treeSitterService);
       if (this.treeSitterService) {
-        newImportSplitter.setTreeSitterService(this.treeSitterService);
+        newImportStrategy.setTreeSitterService(this.treeSitterService);
       }
       if (this.logger) {
-        newImportSplitter.setLogger(this.logger);
+        newImportStrategy.setLogger(this.logger);
       }
-      (strategy as any).importSplitter = newImportSplitter;
+      (strategy as any).importStrategy = newImportStrategy;
     }
 
     return strategy;

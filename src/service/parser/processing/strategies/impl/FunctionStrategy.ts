@@ -2,11 +2,11 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../processing';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import { ContentHashIDGenerator } from '../../../splitting/utils/ContentHashIDGenerator';
-import { ComplexityCalculator } from '../../../splitting/utils/ComplexityCalculator';
-import { ASTNodeExtractor } from '../../../splitting/utils/ASTNodeExtractor';
+import { ContentHashIDGenerator } from '../../utils/ContentHashIDGenerator';
+import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
+import { ASTNodeExtractor } from '../../utils/AST/ASTNodeExtractor';
 import { BaseSplitStrategy } from './base/BaseASTStrategy';
 
 /**
@@ -14,7 +14,7 @@ import { BaseSplitStrategy } from './base/BaseASTStrategy';
  * 专注于提取和分割函数/方法定义
  */
 @injectable()
-export class FunctionSplitter extends BaseSplitStrategy {
+export class FunctionStrategy extends BaseSplitStrategy {
   private complexityCalculator: ComplexityCalculator;
   private astNodeExtractor?: ASTNodeExtractor;
 
@@ -52,7 +52,7 @@ export class FunctionSplitter extends BaseSplitStrategy {
     }
 
     if (!this.treeSitterService) {
-      this.logger?.warn('TreeSitterService is required for FunctionSplitter');
+      this.logger?.warn('TreeSitterService is required for FunctionStrategy');
       return [];
     }
 
@@ -123,11 +123,11 @@ export class FunctionSplitter extends BaseSplitStrategy {
   }
 
   getName(): string {
-    return 'FunctionSplitter';
+    return 'FunctionStrategy';
   }
 
   getDescription(): string {
-    return 'Function splitter that extracts function and method definitions';
+    return 'Function Strategy that extracts function and method definitions';
   }
 
   supportsLanguage(language: string): boolean {
@@ -289,7 +289,7 @@ export class FunctionStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    return new FunctionSplitter(this.logger, this.treeSitterService);
+    return new FunctionStrategy(this.logger, this.treeSitterService);
   }
 
   getDependencies(): string[] {

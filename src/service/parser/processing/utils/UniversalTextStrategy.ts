@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { CodeChunk } from '../splitting-types';
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 import {
   ITextSplitter,
   ISegmentationContextManager,
@@ -10,10 +10,10 @@ import {
   SegmentationContext,
   UniversalChunkingOptions
 } from '../strategies/types/SegmentationTypes';
-import { SegmentationContextManager } from '../utils/context/SegmentationContextManager';
+import { SegmentationContextManager } from './context/SegmentationContextManager';
 import { ConfigurationManager } from '../config/ConfigurationManager';
-import { ProtectionCoordinator } from '../utils/protection/ProtectionCoordinator';
-import { TYPES } from '../../../types';
+import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
+import { TYPES } from '../../../../types';
 import { FileFeatureDetector } from '../detection/FileFeatureDetector';
 
 /**
@@ -21,7 +21,7 @@ import { FileFeatureDetector } from '../detection/FileFeatureDetector';
  * 职责：专注于核心分段逻辑，不承担其他职责
  */
 @injectable()
-export class UniversalTextSplitter implements ITextSplitter {
+export class UniversalTextStrategy implements ITextSplitter {
   private contextManager: ISegmentationContextManager;
   private processors: ISegmentationProcessor[];
   private protectionCoordinator: IProtectionCoordinator;
@@ -43,14 +43,14 @@ export class UniversalTextSplitter implements ITextSplitter {
       this.processors = [];
       this.fileFeatureDetector = new FileFeatureDetector(logger);
 
-      this.logger?.debug('Initializing UniversalTextSplitter...');
+      this.logger?.debug('Initializing UniversalTextStrategy...');
 
       // 创建上下文管理器
       this.contextManager = new SegmentationContextManager(logger, configManager);
 
-      this.logger?.debug('UniversalTextSplitter initialized successfully');
+      this.logger?.debug('UniversalTextStrategy initialized successfully');
     } catch (error) {
-      this.logger?.error('Failed to initialize UniversalTextSplitter:', error);
+      this.logger?.error('Failed to initialize UniversalTextStrategy:', error);
       throw error;
     }
   }
@@ -111,7 +111,7 @@ export class UniversalTextSplitter implements ITextSplitter {
    */
   setProtectionChain(chain: any): void {
     this.protectionCoordinator.setProtectionChain(chain);
-    this.logger?.debug('Protection interceptor chain set for UniversalTextSplitter');
+    this.logger?.debug('Protection interceptor chain set for UniversalTextStrategy');
   }
 
   /**
@@ -334,7 +334,7 @@ export class UniversalTextSplitter implements ITextSplitter {
   getAvailableStrategies(): Array<{ name: string; priority: number; supportedLanguages?: string[] }> {
     const strategies = this.contextManager.getStrategies();
 
-    return strategies.map((strategy: { getName: () => any; getPriority: () => any; getSupportedLanguages: () => any; }) => ({
+    return strategies.map((strategy) => ({
       name: strategy.getName(),
       priority: strategy.getPriority(),
       supportedLanguages: strategy.getSupportedLanguages ? strategy.getSupportedLanguages() : undefined

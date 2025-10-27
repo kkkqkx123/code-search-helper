@@ -2,16 +2,16 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
-import { BalancedChunker } from '../../../splitting/BalancedChunker';
-import { ComplexityCalculator } from '../../utils/ComplexityCalculator';
+import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS } from '../../splitting-types';
+import { BalancedChunker } from '../../utils/chunking/BalancedChunker';
+import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
 import { SyntaxValidator } from '../../utils/SyntaxValidator';
 import { SemanticBoundaryAnalyzer } from '../../utils/SemanticBoundaryAnalyzer';
 import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
 import { LanguageSpecificConfigManager } from '../../config/LanguageSpecificConfigManager';
 import { ChunkingPerformanceOptimizer } from '../../utils/performance/ChunkingPerformanceOptimizer';
 
-export class IntelligentSplitter implements ISplitStrategy {
+export class IntelligentStrategy implements ISplitStrategy {
   private options: Required<ChunkingOptions>;
   private balancedChunker?: BalancedChunker;
   private logger?: LoggerService;
@@ -277,11 +277,11 @@ export class IntelligentSplitter implements ISplitStrategy {
   }
 
   getName(): string {
-    return 'IntelligentSplitter';
+    return 'IntelligentStrategy';
   }
 
   getDescription(): string {
-    return 'Intelligent splitter that uses semantic boundary analysis and syntax validation';
+    return 'Intelligent Strategy that uses semantic boundary analysis and syntax validation';
   }
 
   supportsLanguage(language: string): boolean {
@@ -307,7 +307,7 @@ export class IntelligentStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
-    const strategy = new IntelligentSplitter(options);
+    const strategy = new IntelligentStrategy(options);
     if (this.logger) {
       strategy.setLogger(this.logger);
     }

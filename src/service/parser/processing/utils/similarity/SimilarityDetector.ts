@@ -87,7 +87,7 @@ export class SimilarityDetector {
    */
   static findSimilarityGroups<T extends { content: string; id?: string }>(
     chunks: T[],
-    threshold: number = this.DEFAULT_THRESHOLD
+    threshold: number = SimilarityUtils.getRecommendedThreshold()
   ): Map<string, T[]> {
     const groups = new Map<string, T[]>();
     const processed = new Set<string>();

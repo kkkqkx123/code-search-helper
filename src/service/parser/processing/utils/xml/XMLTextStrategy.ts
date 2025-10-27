@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
+import { CodeChunk, CodeChunkMetadata } from '../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import {
   XMLChunkingConfig,
@@ -26,7 +26,7 @@ import {
  * 针对 XML 文件的特殊结构和语义进行优化的分段策略
  */
 @injectable()
-export class XMLTextSplitter {
+export class XMLTextStrategy {
   private config: XMLChunkingConfig;
   private logger?: LoggerService;
 
