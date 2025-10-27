@@ -55,6 +55,10 @@ export class CacheDecorator implements ISplitStrategy {
     return this.strategy.getPriority();
   }
 
+  getDescription(): string {
+    return `Cache decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;
+  }
+
   /**
    * 获取缓存统计信息
    */

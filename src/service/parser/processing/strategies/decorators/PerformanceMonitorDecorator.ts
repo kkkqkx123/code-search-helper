@@ -57,6 +57,10 @@ export class PerformanceMonitorDecorator implements ISplitStrategy {
     return this.strategy.getPriority();
   }
 
+  getDescription(): string {
+    return `Performance monitor decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;
+  }
+
   /**
    * 获取性能统计信息
    */

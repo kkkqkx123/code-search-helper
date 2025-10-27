@@ -1,6 +1,6 @@
-import { ComplexityCalculator as ComplexityCalculatorInterface } from '../strategies/types/SegmentationTypes';
+import { IComplexityCalculator } from '../strategies/types/SegmentationTypes';
 
-export class ComplexityCalculator implements ComplexityCalculatorInterface {
+export class ComplexityCalculator implements IComplexityCalculator {
   /**
    * 计算代码复杂度
    * @param content 代码内容

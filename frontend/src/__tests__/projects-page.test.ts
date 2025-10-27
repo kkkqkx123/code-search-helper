@@ -5,21 +5,21 @@
  * Mock implementation of ProjectsPage methods for testing
  */
 class ProjectsPageMock {
-  async deleteProject(projectId: string, element: HTMLElement) {
+  async deleteProject(_projectId: string, _element: HTMLElement) {
     if (!window.confirm('确定要删除该项目的索引吗？此操作不可撤销。')) return;
     
     // Simulate API call
     return { success: true };
   }
   
-  async reindexProject(projectId: string) {
+  async reindexProject(_projectId: string) {
     if (!window.confirm('确定要重新索引该项目吗？')) return;
     
     // Simulate API call
     return { success: true };
   }
   
-  async handleManualUpdate(projectId: string) {
+  async handleManualUpdate(_projectId: string) {
     if (!window.confirm('确定要手动更新此项目的索引吗？这将只更新发生变化的文件。')) return;
     
     // Simulate API call

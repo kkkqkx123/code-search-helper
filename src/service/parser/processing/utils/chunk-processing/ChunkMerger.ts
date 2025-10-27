@@ -1,4 +1,4 @@
-import { CodeChunk, CodeChunkMetadata, EnhancedChunkingOptions } from '../../../splitting';
+import { CodeChunk, CodeChunkMetadata, EnhancedChunkingOptions } from '../../types/splitting-types';
 import { ASTNode, ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 

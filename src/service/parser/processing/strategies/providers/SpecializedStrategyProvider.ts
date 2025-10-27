@@ -151,7 +151,7 @@ export class MarkdownStrategyProvider implements IStrategyProvider {
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
     return new MarkdownSplitStrategy(
-      options?.markdownStrategy || this.markdownStrategy,
+      this.markdownStrategy,
       this.logger
     );
   }
@@ -189,7 +189,7 @@ export class XMLStrategyProvider implements IStrategyProvider {
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
     return new XMLSplitStrategy(
-      options?.xmlStrategy || this.xmlStrategy,
+      this.xmlStrategy,
       this.logger
     );
   }

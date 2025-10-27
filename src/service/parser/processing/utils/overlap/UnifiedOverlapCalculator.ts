@@ -1,7 +1,7 @@
-import { CodeChunk, ASTNode, OverlapCalculator } from '../../../splitting';
+import { CodeChunk, ASTNode, OverlapCalculator } from '../../types/splitting-types';
 import { ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { SemanticBoundaryAnalyzer } from '../SemanticBoundaryAnalyzer';
-import { BalancedChunker } from '../../../splitting/BalancedChunker';
+import { BalancedChunker } from '../chunking/BalancedChunker';
 import { ContextAwareOverlapOptimizer, OverlapResult } from './ContextAwareOverlapOptimizer';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';

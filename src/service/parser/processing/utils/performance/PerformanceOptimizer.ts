@@ -1,4 +1,4 @@
-import { CodeChunk, EnhancedChunkingOptions } from '../../../splitting';
+import { CodeChunk, EnhancedChunkingOptions } from '../../types/splitting-types';
 import { ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { BasePerformanceTracker } from '../base/BasePerformanceTracker';
 
@@ -157,7 +157,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
       // 移除多余的空白行
       const optimizedContent = chunk.content
         .split('\n')
-        .filter(line => line.trim() !== '' || batch.length <= 10)
+        .filter((line: string) => line.trim() !== '' || batch.length <= 10)
         .join('\n');
 
       return {

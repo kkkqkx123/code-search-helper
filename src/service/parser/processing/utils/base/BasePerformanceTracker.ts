@@ -1,4 +1,4 @@
-import { PerformanceStats } from '../../../splitting';
+import { PerformanceStats } from '../../types/splitting-types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 /**

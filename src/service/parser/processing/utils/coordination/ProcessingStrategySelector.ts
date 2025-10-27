@@ -1,19 +1,53 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { BackupFileProcessor } from '../BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
-import { UniversalProcessingConfig } from '../../../universal/UniversalProcessingConfig';
-import {
-  IProcessingStrategySelector,
-  ILanguageDetectionInfo,
-  IStrategySelectionContext,
-  IStrategySelectionResult,
-  ProcessingStrategyType
-} from '../../../universal/coordination/interfaces/IProcessingStrategySelector';
+import { BackupFileProcessor } from '../../detection/BackupFileProcessor';
+import { ExtensionlessFileProcessor } from '../../detection/ExtensionlessFileProcessor';
+import { UniversalProcessingConfig } from '../../config/UniversalProcessingConfig';
 import * as path from 'path';
 import { LANGUAGE_MAP } from '../constants';
-import { FileFeatureDetector } from '../../FileFeatureDetector';
+import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
+
+// 定义接口和类型
+export interface ILanguageDetectionInfo {
+  language: string;
+  confidence: number;
+  detectionMethod: 'extension' | 'content' | 'backup' | 'default';
+  metadata?: Record<string, any>;
+}
+
+export interface IStrategySelectionContext {
+  filePath: string;
+  content: string;
+  languageInfo: ILanguageDetectionInfo;
+}
+
+export interface IStrategySelectionResult {
+  strategy: ProcessingStrategyType;
+  reason: string;
+  shouldFallback: boolean;
+  fallbackReason?: string;
+  parameters?: Record<string, any>;
+}
+
+export enum ProcessingStrategyType {
+  TREESITTER_AST = 'treesitter-ast',
+  UNIVERSAL_BRACKET = 'universal-bracket',
+  UNIVERSAL_SEMANTIC = 'universal-semantic',
+  UNIVERSAL_SEMANTIC_FINE = 'universal-semantic-fine',
+  UNIVERSAL_LINE = 'universal-line'
+}
+
+export interface IProcessingStrategySelector {
+  name: string;
+  description: string;
+  detectLanguageIntelligently(filePath: string, content: string): Promise<ILanguageDetectionInfo>;
+  selectProcessingStrategy(context: IStrategySelectionContext): Promise<IStrategySelectionResult>;
+  isCodeLanguage(language: string): boolean;
+  isTextLanguage(language: string): boolean;
+  canUseTreeSitter(language: string): boolean;
+  isStructuredFile(content: string, language: string): boolean;
+}
 
 /**
  * 处理策略选择器

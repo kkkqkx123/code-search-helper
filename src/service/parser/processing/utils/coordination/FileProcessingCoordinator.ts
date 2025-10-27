@@ -5,6 +5,14 @@ import { UniversalTextStrategy } from '../../../processing/utils/UniversalTextSt
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { CodeChunk } from '../../types/splitting-types';
 
+// 定义接口
+export interface IFileProcessingCoordinator {
+  name: string;
+  description: string;
+  processFile(context: any): Promise<any>;
+  processWithFallback(filePath: string, content: string, reason: string, originalError?: Error): Promise<any>;
+}
+
 /**
  * 文件处理协调器
  * 负责协调文件处理流程，包括策略执行和降级处理

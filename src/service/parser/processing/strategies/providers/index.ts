@@ -2,7 +2,7 @@
 export { ASTSplitStrategy, ASTStrategyProvider } from './ASTStrategyProvider';
 
 // 语义策略提供者
-export { SemanticStrategy, SemanticStrategyProvider } from './SemanticStrategyProvider';
+export { SemanticSplitStrategy as SemanticStrategy, SemanticStrategyProvider } from './SemanticStrategyProvider';
 
 // 行级策略提供者
 export { LineSplitStrategy, LineStrategyProvider } from './LineStrategyProvider';

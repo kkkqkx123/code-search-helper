@@ -254,7 +254,7 @@ export class QdrantCollectionViewPage {
             
             let pointsHtml = '<div class="points-grid">';
             
-            points.forEach((point, index) => {
+            points.forEach((point, _index) => {
                 pointsHtml += `
                     <div class="point-card">
                         <div class="point-header">

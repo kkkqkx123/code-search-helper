@@ -1,5 +1,6 @@
 import { OverlapDecorator } from '../OverlapDecorator';
-import { ISplitStrategy, IOverlapCalculator } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
+import { IOverlapCalculator } from '../../../types/splitting-types';
 import { CodeChunk, ChunkingOptions } from '../../../types';
 
 // Mock strategy
@@ -16,6 +17,10 @@ class MockStrategy implements ISplitStrategy {
   
   getPriority(): number {
     return this.priority;
+  }
+
+  getDescription(): string {
+    return `Mock strategy: ${this.name}`;
   }
   
   async split(

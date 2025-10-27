@@ -4,7 +4,7 @@
  */
 
 import { QueryResultNormalizer } from '../QueryResultNormalizer';
-import { StructureAwareSplitter } from '../../../processing/strategies/impl/StructureAwareStrategy';
+import { StructureAwareStrategy } from '../../../processing/strategies/impl/StructureAwareStrategy';
 import { TreeSitterCoreService } from '../../parse/TreeSitterCoreService';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
@@ -14,7 +14,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 export class StructureAwareSplittingExample {
   private logger: LoggerService;
   private normalizer: QueryResultNormalizer;
-  private splitter: StructureAwareSplitter;
+  private splitter: StructureAwareStrategy;
   private treeSitterService: TreeSitterCoreService;
 
   constructor() {
@@ -23,17 +23,12 @@ export class StructureAwareSplittingExample {
       enableCache: true,
       debug: true
     });
-    this.splitter = new StructureAwareSplitter({
-      maxChunkSize: 500,
-      minChunkSize: 10,
-      overlapSize: 3
-    });
+    this.splitter = new StructureAwareStrategy();
     this.treeSitterService = new TreeSitterCoreService();
 
     // 设置依赖关系
     this.normalizer.setTreeSitterService(this.treeSitterService);
     this.splitter.setQueryNormalizer(this.normalizer);
-    this.splitter.setTreeSitterService(this.treeSitterService);
   }
 
   /**

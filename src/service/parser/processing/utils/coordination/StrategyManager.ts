@@ -2,9 +2,9 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { IProcessingStrategy } from '../../strategies/impl/base/IProcessingStrategy';
-import { DetectionResult, ProcessingStrategyType } from '../../../universal/UnifiedDetectionCenter';
+import { DetectionResult, ProcessingStrategyType } from '../../detection/UnifiedDetectionCenter';
 import { ProcessingStrategyFactory } from '../../strategies/providers/ProcessingStrategyFactory';
-import { FileFeatureDetector } from '../../FileFeatureDetector';
+import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
 
 /**
  * 策略管理器

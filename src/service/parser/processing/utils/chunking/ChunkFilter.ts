@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { ISegmentationProcessor, SegmentationContext } from '../../strategies/types/SegmentationTypes';
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../types/splitting-types';
 import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { BLOCK_SIZE_LIMITS } from '../constants';

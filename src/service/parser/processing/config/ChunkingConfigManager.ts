@@ -1,4 +1,4 @@
-import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../../splitting';
+import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types/splitting-types';
 
 /**
  * 分层配置管理器

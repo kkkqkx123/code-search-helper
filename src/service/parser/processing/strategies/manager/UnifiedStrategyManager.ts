@@ -379,7 +379,7 @@ export class UnifiedStrategyManager {
 
       return {
         name: strategy.getName(),
-        description: strategy.getDescription(),
+        description: strategy.getDescription?.() || '',
         supportedLanguages: [], // 需要从策略获取
         priority: strategy.getPriority(),
         supportsAST: strategy.canHandleNode !== undefined

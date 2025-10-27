@@ -182,7 +182,7 @@ export class ASTStrategyProvider implements IStrategyProvider {
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
     return new ASTSplitStrategy(
-      options?.treeSitterService || this.treeSitterService,
+      this.treeSitterService,
       this.logger
     );
   }

@@ -1,4 +1,4 @@
-import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../../../splitting';
+import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../../types/splitting-types';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
 export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizerInterface {

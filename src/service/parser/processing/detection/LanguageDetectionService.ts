@@ -70,7 +70,7 @@ export class LanguageDetectionService {
       }
 
       // 2. 尝试通过扩展名检测
-      const extensionResult = await this.detectLanguageByExtension(filePath);
+      const extensionResult = await this.detectLanguageByExtensionAsync(filePath);
       if (extensionResult.language && extensionResult.language !== 'unknown') {
         return extensionResult;
       }
@@ -108,11 +108,11 @@ export class LanguageDetectionService {
   }
 
   /**
-   * 根据扩展名检测语言
+   * 根据扩展名检测语言（异步版本）
    * @param filePath 文件路径
    * @returns 语言检测结果
    */
-  async detectLanguageByExtension(filePath: string): Promise<LanguageDetectionResult> {
+  async detectLanguageByExtensionAsync(filePath: string): Promise<LanguageDetectionResult> {
     const language = languageExtensionMap.getLanguageFromPath(filePath);
     const extension = fileUtils.extractFileExtension(filePath);
     

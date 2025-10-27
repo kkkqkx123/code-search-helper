@@ -1,5 +1,4 @@
-import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
-import { IOverlapCalculator } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IOverlapCalculator } from '../../../interfaces/ISplitStrategy';
 import { OverlapDecorator } from './OverlapDecorator';
 import { PerformanceMonitorDecorator } from './PerformanceMonitorDecorator';
 import { CacheDecorator } from './CacheDecorator';

@@ -22,7 +22,7 @@ import { ChangeDetectionService } from './service/filesystem/ChangeDetectionServ
 import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
 import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
 import { ProcessEventManager } from './utils/ProcessEventManager';
-import { registerDefaultStrategyProviders } from './service/parser/splitting/core/StrategyProviderRegistration';
+import { registerDefaultStrategyProviders } from './service/parser/processing/strategies/factory';
 
 // 获取事件管理器实例，用于统一管理所有事件监听器
 const eventManager = ProcessEventManager.getInstance();

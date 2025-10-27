@@ -17,6 +17,10 @@ class MockStrategy implements ISplitStrategy {
   getPriority(): number {
     return this.priority;
   }
+
+  getDescription(): string {
+    return `Mock strategy: ${this.name}`;
+  }
   
   private callCount = 0;
   

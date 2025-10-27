@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../types/splitting-types';
 
 /**
  * 代码块处理基类

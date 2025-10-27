@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../types/splitting-types';
 
 export type OverlapStrategy = 'semantic' | 'syntactic' | 'size-based' | 'hybrid' | 'ast-boundary' | 'node-aware' | 'smart-deduplication';
 

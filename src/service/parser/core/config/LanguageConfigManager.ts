@@ -1,4 +1,4 @@
-import { StrategyConfiguration } from '../strategy/ChunkingStrategy';
+import { StrategyConfiguration } from '../../interfaces/ISplitStrategy';
 
 /**
  * 语言特定配置接口

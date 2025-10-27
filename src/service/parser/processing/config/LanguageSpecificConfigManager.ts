@@ -1,4 +1,4 @@
-import { BalancedChunker } from '../../splitting/BalancedChunker';
+import { BalancedChunker } from '../utils/chunking/BalancedChunker';
 
 export interface LanguageSpecificConfig {
   boundaries: {

@@ -342,6 +342,7 @@ export const TYPES = {
   CleanupManager: Symbol.for('CleanupManager'),
   UniversalProcessingConfig: Symbol.for('UniversalProcessingConfig'),
   FileProcessingCoordinator: Symbol.for('FileProcessingCoordinator'),
+  FileFeatureDetector: Symbol.for('FileFeatureDetector'),
 
   // 27. MemoryGuard 参数
   MemoryLimitMB: Symbol.for('MemoryLimitMB'),

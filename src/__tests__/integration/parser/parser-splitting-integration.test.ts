@@ -1,6 +1,6 @@
 import { TreeSitterService } from '../../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../../service/parser/core/parse/TreeSitterCoreService';
-import { ASTCodeSplitter } from '../../../service/parser/splitting/ASTCodeSplitter';
+import { ASTCodeSplitter } from '../../../service/parser/processing/strategies/impl/ASTCodeSplitter';
 import { ProcessingGuard } from '../../../service/parser/guard/ProcessingGuard';
 import { ErrorThresholdInterceptor } from '../../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
@@ -24,7 +24,7 @@ describe('Parser Splitting Integration Test', () => {
     treeSitterService = new TreeSitterService(treeSitterCoreService);
 
     // 创建ProcessingGuard的依赖
-    const errorThresholdManager = new ErrorThresholdManager(logger);
+    const errorThresholdManager = new ErrorThresholdInterceptor({ maxErrorCount: 5 }, logger);
 
     // 创建IMemoryMonitorService的简单实现
     const memoryMonitor: any = {
@@ -66,8 +66,8 @@ describe('Parser Splitting Integration Test', () => {
     // 初始化ProcessingGuard
     processingGuard.initialize();
 
-    // 创建ASTCodeSplitter时传入ProcessingGuard
-    astCodeSplitter = new ASTCodeSplitter(treeSitterService, logger, processingGuard);
+    // 创建ASTCodeSplitter（只传入必需的参数）
+    astCodeSplitter = new ASTCodeSplitter(treeSitterService, logger);
   });
 
   it('should process all files in test-files directory and save results to test-data/parser-result', async () => {

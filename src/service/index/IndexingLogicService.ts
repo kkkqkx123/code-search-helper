@@ -11,7 +11,7 @@ import { PerformanceOptimizerService } from '../../infrastructure/batching/Perfo
 import { VectorPoint } from '../../database/qdrant/IVectorStore';
 import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 // Tree-sitter AST分段支持
-import { ASTCodeSplitter } from '../parser/splitting/ASTCodeSplitter';
+import { ASTCodeSplitter } from '../parser/processing/strategies/impl/ASTCodeSplitter';
 import { CodeChunk } from '../parser/types';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
 import { ConcurrencyService } from './shared/ConcurrencyService';

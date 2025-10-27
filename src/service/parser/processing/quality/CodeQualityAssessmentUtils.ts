@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../splitting';
+import { CodeChunk } from '../types/splitting-types';
 import { structureDetector } from '../../utils';
 
 /**

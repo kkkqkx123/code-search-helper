@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../types/splitting-types';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 import { SimilarityUtils } from '../similarity/SimilarityUtils';

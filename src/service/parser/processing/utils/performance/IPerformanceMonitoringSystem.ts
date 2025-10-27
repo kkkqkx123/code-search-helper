@@ -1,4 +1,4 @@
-import { PerformanceStats } from '../../../splitting';
+import { PerformanceStats } from '../../types/splitting-types';
 
 /**
  * 操作指标接口

@@ -5,12 +5,15 @@
 export {
   ISplitStrategy,
   IStrategyProvider,
-  ChunkingOptions,
+  ChunkingOptions
+} from './interfaces/ISplitStrategy';
+
+// 从splitting-types.ts导出类型
+export {
   CodeChunk,
   CodeChunkMetadata,
-  ASTNode,
-  StrategyConfiguration
-} from './interfaces/ISplitStrategy';
+  ASTNode
+} from './types/splitting-types';
 
 export {
   IStrategyProvider as IStrategyProviderInterface

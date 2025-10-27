@@ -62,7 +62,7 @@ import { IgnoreRuleManager } from './service/ignore/IgnoreRuleManager';
 // Tree-sitter 解析服务
 import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from './service/parser/core/parse/TreeSitterCoreService';
-import { ASTCodeSplitter } from './service/parser/splitting/ASTCodeSplitter';
+import { ASTCodeSplitter } from './service/parser/processing/strategies/impl/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from './service/parser/ChunkToVectorCoordinationService';
 
 // 文件搜索服务

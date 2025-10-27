@@ -1,5 +1,5 @@
 
-import { LoggerService } from '../../../utils/LoggerService';
+import { LoggerService } from '../../../../../utils/LoggerService';
 
 /**
  * 符号栈接口

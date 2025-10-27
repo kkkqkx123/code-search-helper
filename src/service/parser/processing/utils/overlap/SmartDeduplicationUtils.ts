@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../../splitting';
+import { CodeChunk } from '../../types/splitting-types';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { ChunkSimilarityUtils } from '../chunk-processing/ChunkSimilarityUtils';
 
@@ -40,7 +40,7 @@ export class SmartDeduplicationUtils {
 
     // 3. 节点ID检查（如果有AST节点信息）
     if (chunk.metadata.nodeIds && nextChunk.metadata.nodeIds) {
-      const hasCommonNodes = chunk.metadata.nodeIds.some(id =>
+      const hasCommonNodes = chunk.metadata.nodeIds.some((id: string) =>
         nextChunk.metadata.nodeIds!.includes(id)
       );
       if (hasCommonNodes) {

@@ -4,7 +4,7 @@ import { TYPES } from '../../../types';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from './MemoryGuard';
 import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
-import { UnifiedDetectionCenter, DetectionResult } from '../universal/UnifiedDetectionCenter';
+import { UnifiedDetectionCenter, DetectionResult } from '../processing/detection/UnifiedDetectionCenter';
 import { IProcessingStrategy } from '../processing/strategies/impl/base/IProcessingStrategy';
 import { IntelligentFallbackEngine } from '../processing/utils/IntelligentFallbackEngine';
 

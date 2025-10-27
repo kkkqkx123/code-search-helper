@@ -1,6 +1,5 @@
-import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IOverlapCalculator } from '../../../interfaces/ISplitStrategy';
 import { CodeChunk, ChunkingOptions } from '../../../types';
-import { IOverlapCalculator } from '../../../interfaces/ISplitStrategy';
 
 /**
  * 重叠装饰器 - 使用装饰器模式添加重叠功能
@@ -61,6 +60,10 @@ export class OverlapDecorator implements ISplitStrategy {
 
   getPriority(): number {
     return this.strategy.getPriority();
+  }
+
+  getDescription(): string {
+    return `Overlap decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;
   }
 
   extractNodesFromChunk(chunk: CodeChunk, ast: any): any[] {

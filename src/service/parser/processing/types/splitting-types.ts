@@ -72,6 +72,10 @@ export interface ChunkingOptions {
   enableSmartDeduplication?: boolean;
   similarityThreshold?: number;
   overlapMergeStrategy?: 'aggressive' | 'conservative';
+  
+  // 新增属性以支持策略提供者
+  treeSitterService?: any;
+  universalTextStrategy?: any;
 }
 
 // 增强的分段选项，用于解决片段重复问题
@@ -147,7 +151,10 @@ export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
   // 新增：智能去重和重叠合并策略
   enableSmartDeduplication: false,
   similarityThreshold: 0.8,
-  overlapMergeStrategy: 'conservative'
+  overlapMergeStrategy: 'conservative',
+  // 新增属性以支持策略提供者
+  treeSitterService: undefined,
+  universalTextStrategy: undefined
 };
 
 // 增强配置的默认值
@@ -358,6 +365,13 @@ export interface OverlapCalculator {
     originalCode: string,
     startLine: number
   ): string[];
+}
+
+/**
+ * 重叠计算器接口（用于装饰器模式）
+ */
+export interface IOverlapCalculator {
+  addOverlap(chunks: CodeChunk[], content: string): Promise<CodeChunk[]>;
 }
 
 export interface PerformanceStats {

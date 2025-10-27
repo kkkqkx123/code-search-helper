@@ -1,6 +1,6 @@
 import { Tree } from 'tree-sitter';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
-import { SimilarityDetector } from '../similarity/SimilarityDetector';
+import { SimilarityUtils } from '../similarity/SimilarityUtils';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 export interface TrackingStats {
@@ -123,7 +123,7 @@ export class ASTNodeTracker {
       for (const existingNodeId of similarNodes) {
         const existingNode = this.nodeCache.get(existingNodeId);
         if (existingNode && this.usedNodes.has(existingNodeId)) {
-          if (SimilarityDetector.isSimilar(node.text, existingNode.text, this.similarityThreshold)) {
+          if (SimilarityUtils.isSimilar(node.text, existingNode.text, this.similarityThreshold)) {
             return true;
           }
         }

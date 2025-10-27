@@ -23,6 +23,10 @@ class MockStrategy implements ISplitStrategy {
   getPriority(): number {
     return this.priority;
   }
+
+  getDescription(): string {
+    return `Mock strategy: ${this.name}`;
+  }
   
   private callCount = 0;
   
@@ -224,7 +228,7 @@ describe('Decorator Integration Tests', () => {
       try {
         await decoratedStrategy.split('content', 'javascript');
         fail('Should have thrown an error');
-      } catch (error) {
+      } catch (error: any) {
         expect(error.message).toBe('Test error');
       }
       
@@ -246,7 +250,7 @@ describe('Decorator Integration Tests', () => {
       try {
         await decoratedStrategy.split('line1\nline2', 'javascript');
         fail('Should have thrown an error');
-      } catch (error) {
+      } catch (error: any) {
         expect(error.message).toBe('Overlap error');
       }
     });

@@ -112,7 +112,7 @@ export class BracketStrategyProvider implements IStrategyProvider {
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
     return new BracketSplitStrategy(
-      options?.universalTextStrategy || this.universalTextStrategy,
+      this.universalTextStrategy,
       this.logger
     );
   }

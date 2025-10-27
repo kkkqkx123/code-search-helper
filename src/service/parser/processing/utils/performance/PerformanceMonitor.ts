@@ -1,4 +1,4 @@
-import { PerformanceMonitor as PerformanceMonitorInterface, PerformanceStats } from '../../../splitting';
+import { PerformanceMonitor as PerformanceMonitorInterface, PerformanceStats } from '../../types/splitting-types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { BasePerformanceTracker } from '../base/BasePerformanceTracker';
 

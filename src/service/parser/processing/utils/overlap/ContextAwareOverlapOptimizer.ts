@@ -1,4 +1,4 @@
-import { CodeChunk, CodeChunkMetadata } from '../../../splitting';
+import { CodeChunk, CodeChunkMetadata } from '../../types/splitting-types';
 
 export interface OverlapResult {
   content: string;

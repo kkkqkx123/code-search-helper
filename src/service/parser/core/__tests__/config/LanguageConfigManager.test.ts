@@ -1,5 +1,5 @@
 import { LanguageConfigManager, ConfigManagerFactory } from '../../config/LanguageConfigManager';
-import { StrategyConfiguration } from '../../strategy/ChunkingStrategy';
+import { StrategyConfiguration } from '../../../interfaces/ISplitStrategy';
 
 describe('LanguageConfigManager', () => {
  let configManager: LanguageConfigManager;

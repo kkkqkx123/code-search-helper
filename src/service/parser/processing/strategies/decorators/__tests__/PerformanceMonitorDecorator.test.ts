@@ -17,6 +17,10 @@ class MockStrategy implements ISplitStrategy {
   getPriority(): number {
     return this.priority;
   }
+
+  getDescription(): string {
+    return `Mock strategy: ${this.name}`;
+  }
   
   async split(
     content: string,
@@ -130,7 +134,7 @@ describe('PerformanceMonitorDecorator', () => {
       try {
         await errorDecorator.split('content', 'javascript');
         fail('Should have thrown an error');
-      } catch (error) {
+      } catch (error: any) {
         expect(error.message).toBe('Test error');
       }
       

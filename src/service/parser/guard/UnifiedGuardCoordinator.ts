@@ -4,11 +4,11 @@ import { TYPES } from '../../../types';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
-import { IProcessingStrategySelector } from '../universal/coordination/interfaces/IProcessingStrategySelector';
-import { UnifiedDetectionCenter, DetectionResult } from '../universal/UnifiedDetectionCenter';
+import { IProcessingStrategySelector, ProcessingStrategyType } from '../processing/utils/coordination/ProcessingStrategySelector';
+import { UnifiedDetectionCenter, DetectionResult } from '../processing/detection/UnifiedDetectionCenter';
 import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
-import { IntelligentFallbackEngine } from '../universal/IntelligentFallbackEngine';
-import { IFileProcessingCoordinator } from '../universal/coordination/interfaces/IFileProcessingCoordinator';
+import { IntelligentFallbackEngine } from '../processing/utils/IntelligentFallbackEngine';
+import { IFileProcessingCoordinator } from '../processing/utils/coordination/FileProcessingCoordinator';
 import {
   IUnifiedGuardCoordinator,
   MemoryStatus,
