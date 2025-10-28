@@ -271,11 +271,6 @@ export interface SplitStrategy {
   supportsLanguage(language: string): boolean;
 
   /**
-   * 获取策略的优先级（数值越小优先级越高）
-   */
-  getPriority(): number;
-
-  /**
    * 提取代码块关联的AST节点（新增）
    * @param chunk 代码块
    * @param ast AST树

@@ -383,7 +383,7 @@ export class UnifiedProcessingCoordinator {
         // 默认返回true，如果策略没有提供特定的语言支持信息
         return true;
       },
-      getPriority: () => segmentationStrategy.getPriority()
+      
     };
   }
 

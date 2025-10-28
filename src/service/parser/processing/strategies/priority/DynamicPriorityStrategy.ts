@@ -46,8 +46,8 @@ export class DynamicPriorityStrategy implements ISplitStrategy {
   getPriority(): number {
     // 使用动态优先级管理器获取优先级
     const context = {
-      language,
-      filePath: undefined // 在策略级别无法获取完整的上下文
+      language: 'unknown', // 在策略级别无法获取完整的上下文
+      filePath: undefined
     };
     
     const priority = this.priorityManager.getPriority(this.strategy.getName(), context);

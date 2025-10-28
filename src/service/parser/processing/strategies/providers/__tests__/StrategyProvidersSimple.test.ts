@@ -53,7 +53,7 @@ describe('AST Strategy Providers - Simple Validation', () => {
       
       expect(provider.getName()).toBe('module_provider');
       expect(provider.getDescription()).toBe('Provides module-based code splitting using TreeSitter');
-      expect(provider.getPriority()).toBe(0);
+      
       expect(provider.getDependencies()).toEqual(['TreeSitterService']);
     });
 
@@ -69,7 +69,7 @@ describe('AST Strategy Providers - Simple Validation', () => {
       
       expect(provider.getName()).toBe('hierarchical_provider');
       expect(provider.getDescription()).toBe('Provides hierarchical code splitting using TreeSitter');
-      expect(provider.getPriority()).toBe(0);
+      
       expect(provider.getDependencies()).toEqual(['TreeSitterService']);
     });
 
@@ -92,16 +92,16 @@ describe('AST Strategy Providers - Simple Validation', () => {
       const hierarchicalStrategy = hierarchicalProvider.createStrategy();
 
       expect(functionStrategy.getName()).toBe('function_split_strategy');
-      expect(functionStrategy.getPriority()).toBe(1);
+      
 
       expect(classStrategy.getName()).toBe('class_split_strategy');
-      expect(classStrategy.getPriority()).toBe(2);
+      
 
       expect(moduleStrategy.getName()).toBe('module_split_strategy');
-      expect(moduleStrategy.getPriority()).toBe(0);
+      
 
       expect(hierarchicalStrategy.getName()).toBe('hierarchical_split_strategy');
-      expect(hierarchicalStrategy.getPriority()).toBe(0);
+      
     });
   });
 

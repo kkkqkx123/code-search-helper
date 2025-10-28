@@ -139,20 +139,20 @@ describe('SegmentationTypes', () => {
       // Create a mock implementation
       const mockStrategy: ISegmentationStrategy = {
         getName: jest.fn().mockReturnValue('test'),
-        getPriority: jest.fn().mockReturnValue(1),
+        
         getSupportedLanguages: jest.fn().mockReturnValue(['javascript']),
         canHandle: jest.fn().mockReturnValue(true),
         segment: jest.fn().mockResolvedValue([])
       };
 
       expect(typeof mockStrategy.getName).toBe('function');
-      expect(typeof mockStrategy.getPriority).toBe('function');
+      
       expect(typeof mockStrategy.getSupportedLanguages).toBe('function');
       expect(typeof mockStrategy.canHandle).toBe('function');
       expect(typeof mockStrategy.segment).toBe('function');
 
       expect(mockStrategy.getName()).toBe('test');
-      expect(mockStrategy.getPriority()).toBe(1);
+      
       expect(mockStrategy.getSupportedLanguages?.()).toEqual(['javascript']);
       expect(mockStrategy.canHandle({} as SegmentationContext)).toBe(true);
     });
@@ -482,7 +482,7 @@ describe('SegmentationTypes', () => {
       // Test that interfaces can be used together
       const strategy: ISegmentationStrategy = {
         getName: () => 'test',
-        getPriority: () => 1,
+        
         getSupportedLanguages: () => ['javascript'],
         canHandle: () => true,
         segment: async () => []

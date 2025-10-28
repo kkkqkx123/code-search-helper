@@ -28,7 +28,7 @@ describe('Strategy Providers Test', () => {
     const provider = container.get<SyntaxAwareStrategyProvider>(TYPES.SyntaxAwareStrategyProvider);
     expect(provider).toBeDefined();
     expect(provider.getName()).toBe('syntax_aware_provider');
-    expect(provider.getPriority()).toBe(1);
+    
   });
 
   test('should register IntelligentStrategyProvider in container', () => {
@@ -42,14 +42,14 @@ describe('Strategy Providers Test', () => {
     const provider = container.get<StructureAwareStrategyProvider>(TYPES.StructureAwareStrategyProvider);
     expect(provider).toBeDefined();
     expect(provider.getName()).toBe('structure_aware_provider');
-    expect(provider.getPriority()).toBe(1);
+    
   });
 
   test('should register SemanticStrategyProvider in container', () => {
     const provider = container.get<SemanticStrategyProvider>(TYPES.SemanticStrategyProvider);
     expect(provider).toBeDefined();
     expect(provider.getName()).toBe('semantic_provider');
-    expect(provider.getPriority()).toBe(5);
+    
   });
 
   test('should create strategies with proper dependencies', () => {

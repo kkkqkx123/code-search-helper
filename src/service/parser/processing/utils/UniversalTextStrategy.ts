@@ -15,6 +15,7 @@ import { ConfigurationManager } from '../config/ConfigurationManager';
 import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
 import { TYPES } from '../../../../types';
 import { FileFeatureDetector } from '../detection/FileFeatureDetector';
+import { PriorityManager } from '../strategies/priority/PriorityManager';
 
 /**
  * 通用文本分段器（重构后版本）
@@ -29,12 +30,14 @@ export class UniversalTextStrategy implements ITextSplitter {
   private options: UniversalChunkingOptions;
   private logger?: LoggerService;
   private fileFeatureDetector: FileFeatureDetector;
+ private priorityManager: PriorityManager;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ConfigurationManager) configManager: ConfigurationManager,
     @inject(TYPES.ProtectionCoordinator) protectionCoordinator: ProtectionCoordinator,
-    @inject(TYPES.SegmentationStrategyCoordinator) contextManager: ISegmentationContextManager
+    @inject(TYPES.SegmentationStrategyCoordinator) contextManager: ISegmentationContextManager,
+    @inject(TYPES.PriorityManager) priorityManager?: PriorityManager
   ) {
     try {
       this.logger = logger;
@@ -44,6 +47,7 @@ export class UniversalTextStrategy implements ITextSplitter {
       this.options = configManager.getDefaultOptions();
       this.processors = [];
       this.fileFeatureDetector = new FileFeatureDetector(logger);
+      this.priorityManager = priorityManager || new PriorityManager(logger);
 
       this.logger?.debug('Initializing UniversalTextStrategy...');
 
@@ -64,7 +68,7 @@ export class UniversalTextStrategy implements ITextSplitter {
   ): Promise<CodeChunk[]> {
     const context = this.createSegmentationContext(content, filePath, language);
     return this.executeSegmentation('semantic', context);
-  }
+ }
 
   /**
    * 基于括号和行数的分段
@@ -78,7 +82,7 @@ export class UniversalTextStrategy implements ITextSplitter {
     return this.executeSegmentation('bracket', context);
   }
 
-  /**
+ /**
    * 基于行数的分段
    */
   async chunkByLines(
@@ -140,7 +144,7 @@ export class UniversalTextStrategy implements ITextSplitter {
     return [...this.processors];
   }
 
-  /**
+ /**
    * 创建分段上下文
    */
   private createSegmentationContext(
@@ -231,7 +235,7 @@ export class UniversalTextStrategy implements ITextSplitter {
     return processedChunks;
   }
 
-  /**
+ /**
    * 小文件处理
    */
   private chunkSmallFile(context: SegmentationContext): CodeChunk[] {
@@ -330,14 +334,22 @@ export class UniversalTextStrategy implements ITextSplitter {
   /**
    * 获取可用的策略列表
    */
-  getAvailableStrategies(): Array<{ name: string; priority: number; supportedLanguages?: string[] }> {
+ getAvailableStrategies(): Array<{ name: string; priority: number; supportedLanguages?: string[] }> {
     const strategies = this.contextManager.getStrategies();
 
-    return strategies.map((strategy) => ({
-      name: strategy.getName(),
-      priority: strategy.getPriority(),
-      supportedLanguages: strategy.getSupportedLanguages ? strategy.getSupportedLanguages() : undefined
-    }));
+    return strategies.map((strategy) => {
+      const priorityContext = {
+        language: 'unknown',
+        filePath: undefined
+      };
+      const priority = this.priorityManager.getPriority(strategy.getName(), priorityContext);
+      
+      return {
+        name: strategy.getName(),
+        priority,
+        supportedLanguages: strategy.getSupportedLanguages ? strategy.getSupportedLanguages() : undefined
+      };
+    });
   }
 
   /**
@@ -352,7 +364,7 @@ export class UniversalTextStrategy implements ITextSplitter {
     duration: number;
     chunkCount: number;
     averageChunkSize: number;
-  }[]> {
+ }[]> {
     const strategies = this.contextManager.getStrategies();
     const results = [];
 

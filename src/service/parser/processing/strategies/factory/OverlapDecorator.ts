@@ -59,7 +59,9 @@ export class OverlapDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  
+  getDescription(): string {
+    return `Overlap decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;
+  }
 
   extractNodesFromChunk(chunk: CodeChunk, ast: any): any[] {
     if (this.strategy.extractNodesFromChunk) {
@@ -146,7 +148,9 @@ export class PerformanceMonitorDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  
+  getDescription(): string {
+    return `Cache decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;
+  }
 
   /**
    * 获取性能统计信息
@@ -237,7 +241,9 @@ export class CacheDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  
+  getDescription(): string {
+    return `Cache decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;
+  }
 
   /**
    * 获取缓存统计信息

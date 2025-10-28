@@ -114,7 +114,7 @@ export abstract class BaseSplitStrategy implements ISplitStrategy {
   /**
    * 抽象方法：获取优先级
    */
-  abstract getPriority(): number;
+  
 
   /**
    * 抽象方法：执行分割

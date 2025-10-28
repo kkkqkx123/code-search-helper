@@ -3,10 +3,10 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
 import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
-import { 
-  StrategyDecoratorBuilder, 
-  DecoratorFactory, 
-  DecoratorOptions 
+import {
+  StrategyDecoratorBuilder,
+  DecoratorFactory,
+  DecoratorOptions
 } from '../decorators';
 import {
   ASTStrategyProvider,
@@ -41,10 +41,10 @@ export class UnifiedStrategyFactory {
   ) {
     this.logger = logger;
     this.configManager = configManager || new UnifiedConfigManager();
-    
+
     // 自动注册所有策略提供者
     this.registerDefaultProviders(treeSitterService, universalTextSplitter, markdownSplitter, xmlSplitter);
-    
+
     this.logger?.debug('UnifiedStrategyFactory initialized');
   }
 
@@ -67,26 +67,26 @@ export class UnifiedStrategyFactory {
   ): void {
     // 注册AST策略提供者
     this.registerProvider(new ASTStrategyProvider(treeSitterService, this.logger));
-    
+
     // 注册语义策略提供者
     this.registerProvider(new SemanticStrategyProvider(this.logger));
-    
+
     // 注册行级策略提供者
     this.registerProvider(new LineStrategyProvider(universalTextSplitter, this.logger));
-    
+
     // 注册专门格式策略提供者
     this.registerProvider(new MarkdownStrategyProvider(markdownSplitter, this.logger));
     this.registerProvider(new XMLStrategyProvider(xmlSplitter, this.logger));
-    
+
     // 注册括号策略提供者
     this.registerProvider(new BracketStrategyProvider(universalTextSplitter, this.logger));
-    
+
     // 注册AST高级策略提供者
     this.registerProvider(new FunctionStrategyProvider(treeSitterService, this.logger));
     this.registerProvider(new ClassStrategyProvider(treeSitterService, this.logger));
     this.registerProvider(new ModuleStrategyProvider(treeSitterService, this.logger));
     this.registerProvider(new HierarchicalStrategyProvider(treeSitterService, this.logger));
-    
+
     this.logger?.info(`Registered ${this.providers.size} default strategy providers`);
   }
 
@@ -228,7 +228,8 @@ export class UnifiedStrategyFactory {
       languageProviders.sort((a, b) => {
         const strategyA = a.createStrategy(options);
         const strategyB = b.createStrategy(options);
-        return strategyA.getPriority() - strategyB.getPriority();
+        // 使用新的优先级系统 - 暂时使用提供者名称作为排序依据
+        return strategyA.getName().localeCompare(strategyB.getName());
       });
 
       const provider = languageProviders[0];
@@ -324,16 +325,16 @@ export class UnifiedStrategyFactory {
     for (const [name, provider] of this.providers) {
       try {
         const strategy = provider.createStrategy();
-        
+
         // 检查基本方法是否存在
         if (!strategy.getName || typeof strategy.getName !== 'function') {
           invalid.push(name);
           continue;
         }
-        
+
         // 检查是否是 ISplitStrategy 接口
-        if (strategy.supportsLanguage && typeof strategy.supportsLanguage === 'function' &&
-            strategy.getPriority && typeof strategy.getPriority === 'function') {
+        if (strategy.supportsLanguage && typeof strategy.supportsLanguage === 'function') {
+          // 移除getPriority检查，使用新的优先级系统
           // 对于 ISplitStrategy，检查是否支持至少一种语言
           const supportedLanguages = ['javascript', 'typescript', 'python', 'markdown', 'xml'];
           const hasLanguageSupport = supportedLanguages.some(lang => {
@@ -343,16 +344,16 @@ export class UnifiedStrategyFactory {
               return false;
             }
           });
-          
-          if (hasLanguageSupport && strategy.getPriority() >= 0) {
+
+          if (hasLanguageSupport) {
             valid.push(name);
           } else {
             invalid.push(name);
           }
         } else {
           // 对于其他策略类型（如 IProcessingStrategy），只检查基本方法
-          if (typeof strategy.getName === 'function' && 
-              typeof strategy.getDescription === 'function') {
+          if (typeof strategy.getName === 'function' &&
+            typeof strategy.getDescription === 'function') {
             valid.push(name);
           } else {
             invalid.push(name);

@@ -52,7 +52,7 @@ describe('AST Strategy Providers', () => {
       const provider = new FunctionStrategyProvider(treeSitterService, loggerService);
       const strategy = provider.createStrategy();
       expect(strategy.getName()).toBe('function_split_strategy');
-      expect(strategy.getPriority()).toBe(1);
+      
     });
   });
 
@@ -73,7 +73,7 @@ describe('AST Strategy Providers', () => {
       const provider = new ClassStrategyProvider(treeSitterService, loggerService);
       const strategy = provider.createStrategy();
       expect(strategy.getName()).toBe('class_split_strategy');
-      expect(strategy.getPriority()).toBe(2);
+      
     });
   });
 
@@ -82,7 +82,7 @@ describe('AST Strategy Providers', () => {
       const provider = new ModuleStrategyProvider(treeSitterService, loggerService);
       expect(provider.getName()).toBe('module_provider');
       expect(provider.getDescription()).toBe('Provides module-based code splitting using TreeSitter');
-      expect(provider.getPriority()).toBe(0);
+      
     });
 
     it('should support TypeScript language', () => {
@@ -94,7 +94,7 @@ describe('AST Strategy Providers', () => {
       const provider = new ModuleStrategyProvider(treeSitterService, loggerService);
       const strategy = provider.createStrategy();
       expect(strategy.getName()).toBe('module_split_strategy');
-      expect(strategy.getPriority()).toBe(0);
+      
     });
   });
 
@@ -103,7 +103,7 @@ describe('AST Strategy Providers', () => {
       const provider = new HierarchicalStrategyProvider(treeSitterService, loggerService);
       expect(provider.getName()).toBe('hierarchical_provider');
       expect(provider.getDescription()).toBe('Provides hierarchical code splitting using TreeSitter');
-      expect(provider.getPriority()).toBe(0);
+      
     });
 
     it('should support TypeScript language', () => {
@@ -115,7 +115,7 @@ describe('AST Strategy Providers', () => {
       const provider = new HierarchicalStrategyProvider(treeSitterService, loggerService);
       const strategy = provider.createStrategy();
       expect(strategy.getName()).toBe('hierarchical_split_strategy');
-      expect(strategy.getPriority()).toBe(0);
+      
     });
   });
 

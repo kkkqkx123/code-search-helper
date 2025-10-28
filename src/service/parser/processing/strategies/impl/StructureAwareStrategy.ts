@@ -103,9 +103,7 @@ export class StructureAwareStrategy implements ISplitStrategy {
     return this.intelligentStrategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 1; // 最高优先级，因为这是最智能的分割策略
-  }
+  
 
   /**
    * 基于结构进行分割

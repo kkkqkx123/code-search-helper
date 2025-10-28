@@ -11,10 +11,12 @@ import { SegmentationContextFactory } from './SegmentationContextFactory';
 import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { FileFeatureDetector } from '../detection/FileFeatureDetector';
+import { PriorityManager } from '../strategies/priority/PriorityManager';
 
 /**
  * 分段策略协调器
  * 职责：协调分段策略，选择和执行分段策略
+ * 重构：完全集成新的优先级系统
  */
 @injectable()
 export class SegmentationStrategyCoordinator implements ISegmentationContextManager {
@@ -23,21 +25,24 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
   private logger?: LoggerService;
   private strategyCache: Map<string, ISegmentationStrategy> = new Map();
   private fileFeatureDetector: FileFeatureDetector;
+  private priorityManager: PriorityManager;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.ConfigurationManager) configManager?: IConfigurationManager
+    @inject(TYPES.ConfigurationManager) configManager?: IConfigurationManager,
+    @inject(TYPES.PriorityManager) priorityManager?: PriorityManager
   ) {
     this.logger = logger;
     this.configManager = configManager || this.createDefaultConfigManager();
     this.strategies = [];
     this.fileFeatureDetector = new FileFeatureDetector(logger);
-    this.logger?.debug('SegmentationStrategyCoordinator initialized');
+    this.priorityManager = priorityManager || new PriorityManager(logger);
+    this.logger?.debug('SegmentationStrategyCoordinator initialized with new priority system');
   }
 
   /**
-    * 选择合适的分段策略
-    */
+   * 选择合适的分段策略
+   */
   selectStrategy(
     context: SegmentationContext,
     preferredType?: string
@@ -69,16 +74,19 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
       }
     }
 
-    // 按优先级选择第一个可用的策略
-    for (const strategy of this.strategies) {
-      if (strategy.canHandle(context)) {
-        this.strategyCache.set(cacheKey, strategy);
-        this.logger?.debug(`Selected strategy: ${strategy.getName()}`);
-        return strategy;
-      }
+    // 使用新的优先级系统选择策略
+    const suitableStrategies = this.strategies.filter(s => s.canHandle(context));
+    if (suitableStrategies.length === 0) {
+      throw new Error('No suitable segmentation strategy found');
     }
 
-    throw new Error('No suitable segmentation strategy found');
+    // 按优先级排序并选择最优策略
+    const sortedStrategies = this.sortStrategiesByPriority(suitableStrategies, context);
+    const selectedStrategy = sortedStrategies[0];
+    
+    this.strategyCache.set(cacheKey, selectedStrategy);
+    this.logger?.debug(`Selected strategy: ${selectedStrategy.getName()} with priority ${this.priorityManager.getPriority(selectedStrategy.getName(), this.createPriorityContext(context))}`);
+    return selectedStrategy;
   }
 
   /**
@@ -100,11 +108,17 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
       const chunks = await strategy.segment(context);
       const duration = Date.now() - startTime;
 
+      // 更新性能统计到新的优先级系统
+      this.priorityManager.updatePerformance(strategy.getName(), duration, true);
+
       this.logger?.debug(`Strategy ${strategy.getName()} completed in ${duration}ms, produced ${chunks.length} chunks`);
 
       return chunks;
     } catch (error) {
       this.logger?.error(`Strategy ${strategy.getName()} failed:`, error);
+
+      // 更新失败统计
+      this.priorityManager.updatePerformance(strategy.getName(), 0, false);
 
       // 尝试降级到行数分段
       const fallbackStrategy = this.strategies.find(s =>
@@ -145,8 +159,8 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
   }
 
   /**
-    * 添加策略
-    */
+   * 添加策略
+   */
   addStrategy(strategy: ISegmentationStrategy): void {
     // 检查是否已存在同名策略
     const existingIndex = this.strategies.findIndex(s => s.getName() === strategy.getName());
@@ -157,9 +171,6 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
       this.strategies.push(strategy);
       this.logger?.debug(`Added new strategy: ${strategy.getName()}`);
     }
-
-    // 按优先级排序
-    this.strategies.sort((a, b) => a.getPriority() - b.getPriority());
 
     // 清除缓存
     this.strategyCache.clear();
@@ -192,11 +203,16 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
    * 获取策略信息
    */
   getStrategyInfo(): Array<{ name: string; priority: number; supportedLanguages?: string[] }> {
-    return this.strategies.map(strategy => ({
-      name: strategy.getName(),
-      priority: strategy.getPriority(),
-      supportedLanguages: strategy.getSupportedLanguages ? strategy.getSupportedLanguages() : undefined
-    }));
+    return this.strategies.map(strategy => {
+      const context = this.createPriorityContext({ language: 'unknown', filePath: undefined });
+      const priority = this.priorityManager.getPriority(strategy.getName(), context);
+      
+      return {
+        name: strategy.getName(),
+        priority,
+        supportedLanguages: strategy.getSupportedLanguages ? strategy.getSupportedLanguages() : undefined
+      };
+    });
   }
 
   /**
@@ -272,7 +288,34 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
     }
 
     // 默认选择优先级最高的策略
-    return strategies[0];
+    const sortedStrategies = this.sortStrategiesByPriority(strategies, context);
+    return sortedStrategies[0];
+  }
+
+  /**
+   * 使用新的优先级系统对策略进行排序
+   */
+  private sortStrategiesByPriority(strategies: ISegmentationStrategy[], context: SegmentationContext): ISegmentationStrategy[] {
+    const priorityContext = this.createPriorityContext(context);
+    
+    return strategies.sort((a, b) => {
+      const priorityA = this.priorityManager.getPriority(a.getName(), priorityContext);
+      const priorityB = this.priorityManager.getPriority(b.getName(), priorityContext);
+      return priorityA - priorityB;
+    });
+  }
+
+  /**
+   * 创建优先级上下文
+   */
+  private createPriorityContext(context: { language?: string; filePath?: string }): any {
+    return {
+      language: context.language || 'unknown',
+      filePath: context.filePath,
+      content: undefined,
+      fileSize: undefined,
+      hasAST: false
+    };
   }
 
   /**
@@ -355,5 +398,20 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
       size: this.strategyCache.size,
       keys: Array.from(this.strategyCache.keys())
     };
+  }
+
+  /**
+   * 获取性能统计
+   */
+  getPerformanceStats(): Map<string, any> {
+    return this.priorityManager.getPerformanceStats();
+  }
+
+  /**
+   * 重新加载优先级配置
+   */
+  reloadPriorityConfig(): void {
+    this.priorityManager.reloadConfig();
+    this.logger?.debug('Priority configuration reloaded');
   }
 }

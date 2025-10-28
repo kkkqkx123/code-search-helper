@@ -61,9 +61,7 @@ export class SyntaxAwareSplitStrategy implements ISplitStrategy {
     return this.syntaxAwareStrategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 1; // 高优先级
-  }
+  
 }
 
 /**
@@ -113,9 +111,7 @@ export class SyntaxAwareStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 1; // 高优先级
-  }
+  
 
   getDescription(): string {
     return 'Provides syntax-aware code splitting using multiple sub-strategies';

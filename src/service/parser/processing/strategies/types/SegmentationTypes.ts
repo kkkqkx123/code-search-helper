@@ -167,10 +167,7 @@ export interface ISegmentationStrategy {
    */
   getName(): string;
 
-  /**
-   * 获取策略优先级（数值越小优先级越高）
-   */
-  getPriority(): number;
+  
 
   /**
    * 获取策略支持的语言列表（可选）

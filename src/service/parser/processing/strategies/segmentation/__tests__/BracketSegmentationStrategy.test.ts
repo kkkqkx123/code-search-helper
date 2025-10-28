@@ -87,11 +87,7 @@ describe('BracketSegmentationStrategy', () => {
     });
   });
 
-  describe('getPriority', () => {
-    it('should return the strategy priority', () => {
-      expect(strategy.getPriority()).toBe(4);
-    });
-  });
+  
 
   describe('getSupportedLanguages', () => {
     it('should return supported languages', () => {

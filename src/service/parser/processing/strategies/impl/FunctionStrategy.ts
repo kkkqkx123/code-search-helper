@@ -134,9 +134,7 @@ export class FunctionStrategy extends BaseSplitStrategy {
     return this.treeSitterService?.detectLanguage(language) !== null || false;
   }
 
-  getPriority(): number {
-    return 2; // 中等优先级
-  }
+  
 
   /**
    * 提取函数块 - 改为public以便测试
@@ -301,9 +299,7 @@ export class FunctionStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 2; // 中等优先级
-  }
+  
 
   getDescription(): string {
     return 'Provides function extraction strategy';
