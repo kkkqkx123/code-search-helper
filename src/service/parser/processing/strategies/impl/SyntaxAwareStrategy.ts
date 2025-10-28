@@ -169,10 +169,6 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
     // 检查TreeSitterService是否支持该语言
     return this.treeSitterService?.detectLanguage(language) !== null || false;
   }
-
-  getPriority(): number {
-    return 1; // 高优先级
-  }
 }
 
 /**
@@ -207,10 +203,6 @@ export class SyntaxAwareStrategyProvider implements IStrategyProvider {
   supportsLanguage(language: string): boolean {
     const strategy = this.createStrategy();
     return strategy.supportsLanguage(language);
-  }
-
-  getPriority(): number {
-    return 1; // 高优先级
   }
 
   getDescription(): string {

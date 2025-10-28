@@ -103,7 +103,7 @@ export class StructureAwareStrategy implements ISplitStrategy {
     return this.intelligentStrategy.supportsLanguage(language);
   }
 
-  
+
 
   /**
    * 基于结构进行分割
@@ -336,10 +336,6 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
   supportsLanguage(language: string): boolean {
     const strategy = this.createStrategy();
     return strategy.supportsLanguage(language);
-  }
-
-  getPriority(): number {
-    return 1; // 最高优先级
   }
 
   getDescription(): string {

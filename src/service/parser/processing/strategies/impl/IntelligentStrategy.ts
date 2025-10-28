@@ -286,10 +286,6 @@ export class IntelligentStrategy implements ISplitStrategy {
   supportsLanguage(language: string): boolean {
     return true; // 智能分段器支持所有语言
   }
-
-  getPriority(): number {
-    return 4; // 较低优先级（作为后备方案）
-  }
 }
 
 /**
@@ -320,10 +316,6 @@ export class IntelligentStrategyProvider implements IStrategyProvider {
   supportsLanguage(language: string): boolean {
     const strategy = this.createStrategy();
     return strategy.supportsLanguage(language);
-  }
-
-  getPriority(): number {
-    return 4; // 较低优先级
   }
 
   getDescription(): string {

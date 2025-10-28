@@ -18,7 +18,10 @@ import {
   FunctionStrategyProvider,
   ClassStrategyProvider,
   ModuleStrategyProvider,
-  HierarchicalStrategyProvider
+  ImportStrategyProvider,
+  IntelligentStrategyProvider,
+  StructureAwareStrategyProvider,
+  SyntaxAwareStrategyProvider
 } from '../providers';
 
 /**
@@ -81,11 +84,22 @@ export class UnifiedStrategyFactory {
     // 注册括号策略提供者
     this.registerProvider(new BracketStrategyProvider(universalTextSplitter, this.logger));
 
+    // 注册导入策略提供者
+    this.registerProvider(new ImportStrategyProvider(treeSitterService, this.logger));
+
     // 注册AST高级策略提供者
     this.registerProvider(new FunctionStrategyProvider(treeSitterService, this.logger));
     this.registerProvider(new ClassStrategyProvider(treeSitterService, this.logger));
     this.registerProvider(new ModuleStrategyProvider(treeSitterService, this.logger));
-    this.registerProvider(new HierarchicalStrategyProvider(treeSitterService, this.logger));
+
+    // 注册语法感知策略提供者
+    this.registerProvider(new SyntaxAwareStrategyProvider(treeSitterService, this.logger));
+
+    // 注册结构感知策略提供者
+    this.registerProvider(new StructureAwareStrategyProvider(treeSitterService, this.logger));
+
+    // 注册智能策略提供者（作为后备方案）
+    this.registerProvider(new IntelligentStrategyProvider(treeSitterService, this.logger));
 
     this.logger?.info(`Registered ${this.providers.size} default strategy providers`);
   }

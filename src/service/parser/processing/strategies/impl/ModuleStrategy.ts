@@ -79,10 +79,6 @@ export class ModuleStrategy extends BaseSplitStrategy {
     return this.treeSitterService?.detectLanguage(language) !== null || false;
   }
 
-  getPriority(): number {
-    return 0; // 最高优先级
-  }
-
   /**
    * 提取模块信息 - 改为public以便测试
    */
@@ -235,10 +231,6 @@ export class ModuleStrategyProvider implements IStrategyProvider {
   supportsLanguage(language: string): boolean {
     const strategy = this.createStrategy();
     return strategy.supportsLanguage(language);
-  }
-
-  getPriority(): number {
-    return 0; // 最高优先级
   }
 
   getDescription(): string {

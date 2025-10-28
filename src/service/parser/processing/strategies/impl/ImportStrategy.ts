@@ -252,10 +252,6 @@ export class ImportStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 3; // 低优先级
-  }
-
   getDescription(): string {
     return 'Provides import statement extraction strategy';
   }

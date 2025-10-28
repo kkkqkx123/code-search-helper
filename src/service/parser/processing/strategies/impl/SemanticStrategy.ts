@@ -137,10 +137,6 @@ export class SemanticStrategy implements ISplitStrategy {
   supportsLanguage(language: string): boolean {
     return true; // 语义分段器支持所有语言
   }
-
-  getPriority(): number {
-    return 5; // 最低优先级（作为最后的后备方案）
-  }
 }
 
 /**
@@ -167,10 +163,6 @@ export class SemanticStrategyProvider implements IStrategyProvider {
   supportsLanguage(language: string): boolean {
     const strategy = this.createStrategy();
     return strategy.supportsLanguage(language);
-  }
-
-  getPriority(): number {
-    return 5; // 最低优先级
   }
 
   getDescription(): string {
