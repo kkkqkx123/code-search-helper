@@ -30,6 +30,10 @@ class MockSegmentationStrategy implements ISegmentationStrategy {
   }
 
   canHandle(context: SegmentationContext): boolean {
+    // 如果指定了支持的语言，检查上下文语言是否在支持列表中
+    if (this.supportedLanguages && this.supportedLanguages.length > 0 && context.language) {
+      return this.canHandleResult && this.supportedLanguages.includes(context.language);
+    }
     return this.canHandleResult;
   }
 
@@ -94,7 +98,7 @@ describe('SegmentationStrategyCoordinator', () => {
       }
     }));
 
-    coordinator = new SegmentationStrategyCoordinator(mockLogger, undefined, mockPriorityManager);
+    coordinator = new SegmentationStrategyCoordinator(mockLogger, undefined, mockPriorityManager, mockFileFeatureDetector);
   });
 
   describe('Constructor', () => {

@@ -30,12 +30,13 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.ConfigurationManager) configManager?: IConfigurationManager,
-    @inject(TYPES.PriorityManager) priorityManager?: PriorityManager
+    @inject(TYPES.PriorityManager) priorityManager?: PriorityManager,
+    @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: FileFeatureDetector
   ) {
     this.logger = logger;
     this.configManager = configManager || this.createDefaultConfigManager();
     this.strategies = [];
-    this.fileFeatureDetector = new FileFeatureDetector(logger);
+    this.fileFeatureDetector = fileFeatureDetector || new FileFeatureDetector(logger);
     this.priorityManager = priorityManager || new PriorityManager(logger);
     this.logger?.debug('SegmentationStrategyCoordinator initialized with new priority system');
   }
@@ -298,9 +299,16 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
   private sortStrategiesByPriority(strategies: ISegmentationStrategy[], context: SegmentationContext): ISegmentationStrategy[] {
     const priorityContext = this.createPriorityContext(context);
     
-    return strategies.sort((a, b) => {
-      const priorityA = this.priorityManager.getPriority(a.getName(), priorityContext);
-      const priorityB = this.priorityManager.getPriority(b.getName(), priorityContext);
+    // 预先获取所有策略的优先级，避免在排序过程中多次调用getPriority
+    const priorities = new Map<string, number>();
+    for (const strategy of strategies) {
+      priorities.set(strategy.getName(), this.priorityManager.getPriority(strategy.getName(), priorityContext));
+    }
+    
+    // 使用预获取的优先级进行排序
+    return [...strategies].sort((a, b) => {
+      const priorityA = priorities.get(a.getName()) || Number.MAX_SAFE_INTEGER;
+      const priorityB = priorities.get(b.getName()) || Number.MAX_SAFE_INTEGER;
       return priorityA - priorityB;
     });
   }

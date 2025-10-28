@@ -6,7 +6,7 @@ import { QueryCache } from './QueryCache';
 import { QueryPerformanceMonitor } from './QueryPerformanceMonitor';
 import { createCache } from '../../../../utils/cache';
 import { CacheKeyGenerator } from './CacheKeyGenerator';
-import { TestQueryExecutor } from '../__tests__/query/TestQueryExecutor';
+
 
 /**
  * Tree-sitter查询模式定义
@@ -338,9 +338,9 @@ export class TreeSitterQueryEngine {
       }
 
       // 检查是否为测试环境中的模拟语言对象
-      if (TestQueryExecutor.isTestEnvironment(language)) {
-        // 测试环境，返回模拟结果
-        return TestQueryExecutor.createMockResults(ast, pattern);
+      if (this.isTestEnvironment(language)) {
+        // 测试环境，返回空结果
+        return [];
       }
 
       const query = QueryCache.getQuery(language, pattern.pattern);
@@ -356,8 +356,16 @@ export class TreeSitterQueryEngine {
       }));
     } catch (error) {
       this.logger.error('查询执行失败:', error);
-      return [];
+      // 重新抛出错误以便上层处理
+      throw error;
     }
+  }
+
+  /**
+   * 检查是否为测试环境
+   */
+  private isTestEnvironment(language: any): boolean {
+    return language && language.query && typeof language.query === 'function';
   }
 
 

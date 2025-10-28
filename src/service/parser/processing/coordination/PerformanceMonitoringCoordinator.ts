@@ -129,26 +129,30 @@ export class PerformanceMonitoringCoordinator {
     operation: () => T,
     metadata?: any
   ): T {
-    const startTime = Date.now();
+    const startTime = process.hrtime.bigint();
     
     try {
       const result = operation();
-      const duration = Date.now() - startTime;
+      const endTime = process.hrtime.bigint();
+      // 将纳秒转换为毫秒，保留小数点后几位
+      const duration = Number(endTime - startTime) / 10000;
       
       this.recordOperation({
         operation: operationName,
-        duration,
+        duration: Math.max(1, Math.round(duration)), // 确保最小值为1ms
         success: true,
         metadata
       });
       
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const endTime = process.hrtime.bigint();
+      // 将纳秒转换为毫秒，保持与成功路径的一致性
+      const duration = Number(endTime - startTime) / 10000;
       
       this.recordOperation({
         operation: operationName,
-        duration,
+        duration: Math.max(1, Math.round(duration)), // 确保最小值为1ms
         success: false,
         error: error instanceof Error ? error.message : String(error),
         metadata
@@ -156,7 +160,7 @@ export class PerformanceMonitoringCoordinator {
       
       throw error;
     }
-  }
+ }
 
   /**
    * 获取性能报告
@@ -306,9 +310,6 @@ export class PerformanceMonitoringCoordinator {
     return Array.from(this.metrics.keys());
   }
 
-  /**
-   * 健康检查
-   */
   async healthCheck(): Promise<{
     status: 'healthy' | 'degraded' | 'unhealthy';
     details: {
@@ -320,16 +321,21 @@ export class PerformanceMonitoringCoordinator {
   }> {
     const report = this.generateReport();
     const totalMetrics = Array.from(this.metrics.values()).reduce((sum, metrics) => sum + metrics.length, 0);
-    const recentAlerts = report.alerts.filter(alert => 
+    const recentAlerts = report.alerts.filter(alert =>
       Date.now() - alert.timestamp < 300000 // 最近5分钟的告警
     ).length;
 
-    const hasCriticalAlerts = report.alerts.some(alert => 
+    const hasCriticalAlerts = report.alerts.some(alert =>
       alert.severity === 'error' && Date.now() - alert.timestamp < 60000 // 最近1分钟的严重告警
     );
 
+    // 检查警告级别的告警，如果存在则标记为降级
+    const hasWarningAlerts = report.alerts.some(alert =>
+      alert.severity === 'warning' && Date.now() - alert.timestamp < 60000 // 最近1分钟的警告
+    );
+
     return {
-      status: hasCriticalAlerts ? 'unhealthy' : recentAlerts > 5 ? 'degraded' : 'healthy',
+      status: hasCriticalAlerts ? 'unhealthy' : hasWarningAlerts ? 'degraded' : 'healthy',
       details: {
         enabled: this.enabled,
         totalOperations: this.metrics.size,

@@ -77,6 +77,7 @@ export const TYPES = {
   SegmentationStrategyCoordinator: Symbol.for('SegmentationStrategyCoordinator'),
   ConfigurationManager: Symbol.for('ConfigurationManager'),
   ProtectionCoordinator: Symbol.for('ProtectionCoordinator'),
+  FileFeatureDetector: Symbol.for('FileFeatureDetector'),
   
   // 新增的索引服务
   VectorIndexService: Symbol.for('VectorIndexService'),

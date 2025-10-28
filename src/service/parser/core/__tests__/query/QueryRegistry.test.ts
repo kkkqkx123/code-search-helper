@@ -90,12 +90,7 @@ describe('QueryRegistry (重构后)', () => {
     expect(functionQuery).toBeTruthy();
   });
 
-  test('should get transformer stats', () => {
-    const stats = QueryRegistryImpl.getTransformerStats();
-    expect(stats).toHaveProperty('totalQueries');
-    expect(stats).toHaveProperty('cachedLanguages');
-    expect(stats).toHaveProperty('languageStats');
-  });
+  
 
   test('should get loader stats', () => {
     const stats = QueryRegistryImpl.getLoaderStats();

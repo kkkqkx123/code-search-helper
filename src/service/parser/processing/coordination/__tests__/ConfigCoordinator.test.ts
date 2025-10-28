@@ -35,11 +35,10 @@ describe('ConfigCoordinator', () => {
   describe('Constructor', () => {
     it('should initialize with current config from config manager', () => {
       expect(mockConfigManager.getGlobalConfig).toHaveBeenCalled();
-      expect(configCoordinator.getConfig()).toEqual({
-        maxChunkSize: 2000,
-        overlapSize: 200,
-        preserveFunctionBoundaries: true
-      });
+      const config = configCoordinator.getConfig();
+      expect(config.maxChunkSize).toBe(2000);
+      expect(config.overlapSize).toBe(200);
+      expect(config.preserveFunctionBoundaries).toBe(true);
     });
 
     it('should initialize without logger when not provided', () => {
@@ -154,7 +153,7 @@ describe('ConfigCoordinator', () => {
 
   describe('Config Validation', () => {
     it('should validate memory limit', async () => {
-      const invalidMemory = { maxChunkSize: 50 };
+      const invalidMemory = { memory: { memoryLimitMB: 50 } };
       await expect(configCoordinator.updateConfig(invalidMemory))
         .rejects.toThrow('Memory limit must be at least 100MB');
 

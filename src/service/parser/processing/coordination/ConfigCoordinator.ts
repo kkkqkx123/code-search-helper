@@ -23,7 +23,36 @@ export class ConfigCoordinator extends EventEmitter {
     super();
     this.configManager = configManager;
     this.logger = logger;
-    this.currentConfig = this.configManager.getGlobalConfig();
+    // 合并全局配置和通用配置
+    const globalConfig = this.configManager.getGlobalConfig();
+    let universalConfig;
+    try {
+      universalConfig = this.configManager.getUniversalConfig();
+    } catch (e) {
+      // 如果获取通用配置失败，使用默认值
+      universalConfig = {
+        memory: { memoryLimitMB: 512, memoryCheckInterval: 5000 },
+        chunking: { maxChunkSize: 2000, chunkOverlap: 200, maxLinesPerChunk: 1000 },
+        error: { maxErrors: 5, errorResetInterval: 6000 },
+        backup: { backupFilePatterns: [], backupFileConfidenceThreshold: 0.7 }
+      };
+    }
+    // 确保配置对象结构完整，即使在测试环境中
+    this.currentConfig = {
+      ...globalConfig,
+      memory: universalConfig?.memory || { memoryLimitMB: 512, memoryCheckInterval: 5000 },
+      chunking: universalConfig?.chunking || { maxChunkSize: 2000, chunkOverlap: 200, maxLinesPerChunk: 1000 },
+      error: universalConfig?.error || { maxErrors: 5, errorResetInterval: 6000 },
+      backup: universalConfig?.backup || { backupFilePatterns: [], backupFileConfidenceThreshold: 0.7 },
+      cache: {
+        maxSize: 2000 // 默认缓存大小
+      },
+      performance: {
+        thresholds: {
+          processFile: 5000 // 默认阈值
+        }
+      }
+    };
   }
 
   /**
@@ -38,7 +67,8 @@ export class ConfigCoordinator extends EventEmitter {
    */
   async updateConfig(updates: Partial<any>): Promise<void> {
     const oldConfig = this.currentConfig;
-    const newConfig = { ...oldConfig, ...updates };
+    // 深度合并配置，确保嵌套对象被正确合并
+    const newConfig = this.deepMerge({ ...oldConfig }, updates);
     
     // 验证配置
     const validationResult = this.validateConfig(newConfig);
@@ -57,6 +87,33 @@ export class ConfigCoordinator extends EventEmitter {
   }
 
   /**
+   * 深度合并配置对象
+   */
+  private deepMerge(target: any, source: any): any {
+    const output = { ...target };
+
+    if (this.isObject(target) && this.isObject(source)) {
+      Object.keys(source).forEach(key => {
+        if (this.isObject(source[key])) {
+          if (!(key in target)) {
+            Object.assign(output, { [key]: source[key] });
+          } else {
+            output[key] = this.deepMerge(target[key], source[key]);
+          }
+        } else {
+          Object.assign(output, { [key]: source[key] });
+        }
+      });
+    }
+
+    return output;
+  }
+
+  private isObject(item: any): boolean {
+    return (item && typeof item === 'object' && !Array.isArray(item));
+  }
+
+  /**
    * 监听配置变更
    */
   onConfigUpdate(callback: (event: ConfigUpdateEvent) => void): void {
@@ -69,14 +126,22 @@ export class ConfigCoordinator extends EventEmitter {
   private validateConfig(config: any): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    // 验证内存配置
-    if (config.maxChunkSize && config.maxChunkSize < 100) {
+    // 验证内存配置 - 先检查memory对象中的memoryLimitMB
+    if (config.memory && config.memory.memoryLimitMB !== undefined && config.memory.memoryLimitMB < 100) {
+      errors.push('Memory limit must be at least 100MB');
+    }
+    // 然后检查maxChunkSize
+    else if (config.maxChunkSize !== undefined && config.maxChunkSize < 100) {
       errors.push('Max chunk size must be at least 100');
     }
 
     // 验证缓存配置
-    if (config.overlapSize && config.overlapSize < 0) {
+    if (config.overlapSize !== undefined && config.overlapSize < 0) {
       errors.push('Overlap size must be non-negative');
+    }
+
+    if (config.cache && config.cache.maxSize !== undefined && config.cache.maxSize < 0) {
+      errors.push('Cache size must be non-negative');
     }
 
     return {
@@ -90,6 +155,17 @@ export class ConfigCoordinator extends EventEmitter {
    */
   private detectConfigChanges(oldConfig: any, newConfig: any): string[] {
     const changes: string[] = [];
+
+    // 检测基础配置变更
+    if (oldConfig.maxChunkSize !== newConfig.maxChunkSize) {
+      changes.push('maxChunkSize');
+    }
+    if (oldConfig.overlapSize !== newConfig.overlapSize) {
+      changes.push('overlapSize');
+    }
+    if (oldConfig.preserveFunctionBoundaries !== newConfig.preserveFunctionBoundaries) {
+      changes.push('preserveFunctionBoundaries');
+    }
 
     // 检测内存配置变更
     if (oldConfig.memory?.memoryLimitMB !== newConfig.memory?.memoryLimitMB) {

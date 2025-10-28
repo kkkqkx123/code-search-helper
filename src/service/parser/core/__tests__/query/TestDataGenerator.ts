@@ -358,7 +358,31 @@ class JSClass${i} extends ${i % 2 === 0 ? 'EventEmitter' : 'Object'} {
    * 创建空AST用于边界测试
    */
   static createEmptyAST(): Parser.SyntaxNode {
-    return this.createMockASTFromCode('', 'typescript');
+    const emptyCode = '';
+    return {
+      type: 'program',
+      startIndex: 0,
+      endIndex: 0,
+      startPosition: { row: 0, column: 0 },
+      endPosition: { row: 0, column: 0 },
+      text: emptyCode,
+      children: [],
+      parent: null,
+      nextSibling: null,
+      previousSibling: null,
+      tree: {
+        language: { 
+          name: 'typescript',
+          query: (pattern: string) => ({
+            matches: () => [] // 空AST应该返回空匹配
+          })
+        }
+      },
+      id: 0,
+      typeId: 0,
+      grammarId: 0,
+      _stableId: 'empty_ast'
+    } as unknown as Parser.SyntaxNode;
   }
 
   /**
@@ -376,6 +400,30 @@ class BrokenClass {
   // missing closing parenthesis
 }
 `;
-    return this.createMockASTFromCode(code, 'typescript');
+    return {
+      type: 'program',
+      startIndex: 0,
+      endIndex: code.length,
+      startPosition: { row: 0, column: 0 },
+      endPosition: { row: code.split('\n').length, column: code.split('\n').pop()?.length || 0 },
+      text: code,
+      children: [],
+      parent: null,
+      nextSibling: null,
+      previousSibling: null,
+      tree: {
+        language: { 
+          name: 'typescript',
+          query: (pattern: string) => {
+            // 模拟查询错误
+            throw new Error('Simulated query error for testing');
+          }
+        }
+      },
+      id: 0,
+      typeId: 0,
+      grammarId: 0,
+      _stableId: 'error_ast'
+    } as unknown as Parser.SyntaxNode;
   }
 }

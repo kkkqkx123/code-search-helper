@@ -65,9 +65,7 @@ export class QueryRegistryCompatibility {
     QueryRegistryImpl.clearCache();
   }
 
-  static getTransformerStats() {
-    return QueryRegistryImpl.getTransformerStats();
-  }
+  
 
   static getLoaderStats() {
     return QueryRegistryImpl.getLoaderStats();

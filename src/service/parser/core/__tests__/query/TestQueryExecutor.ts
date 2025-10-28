@@ -15,6 +15,16 @@ export class TestQueryExecutor {
   static createMockResults(ast: Parser.SyntaxNode, pattern: QueryPattern): QueryMatch[] {
     const results: QueryMatch[] = [];
 
+    // 检查是否为空AST
+    if ((ast as any)._stableId === 'empty_ast') {
+      return []; // 空AST应该返回空结果
+    }
+
+    // 检查是否为错误AST
+    if ((ast as any)._stableId === 'error_ast') {
+      throw new Error('Simulated query error for testing');
+    }
+
     // 根据查询类型创建模拟结果
     if (pattern.name.includes('functions')) {
       results.push(this.createMockFunctionNode(ast));

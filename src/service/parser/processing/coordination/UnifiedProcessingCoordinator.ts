@@ -717,7 +717,7 @@ export class UnifiedProcessingCoordinator {
 
   private async checkConfigManager(): Promise<boolean> {
     try {
-      const config = this.configManager.getGlobalConfig();
+      const config = this.configManager.getUniversalConfig();
       return config !== null;
     } catch (error) {
       this.logger?.error('Config manager health check failed:', error);

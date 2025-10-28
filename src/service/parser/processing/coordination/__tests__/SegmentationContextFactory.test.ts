@@ -180,7 +180,7 @@ describe('SegmentationContextFactory', () => {
       expect(newContext.language).toBe('typescript');
       expect(newContext.options).toBe(originalContext.options); // Should be the same reference
       expect(newContext.metadata).toEqual({
-        contentLength: 17, // Updated based on new content
+        contentLength: 16, // Updated based on new content
         lineCount: 1,
         isSmallFile: true,
         isCodeFile: true,

@@ -220,12 +220,7 @@ export class QueryRegistryImpl {
     this.logger.info('QueryRegistry 缓存已清除');
   }
 
-  /**
-   * 获取转换器统计信息（已弃用）
-   */
-  static getTransformerStats() {
-    return { message: 'QueryTransformer已弃用，使用新结构' };
-  }
+  
 
   /**
    * 获取查询加载器统计信息
