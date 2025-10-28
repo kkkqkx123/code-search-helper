@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 
 /**
@@ -31,7 +31,7 @@ export class ASTSplitStrategy implements ISplitStrategy {
     try {
       // 如果提供了AST，直接使用
       let parseResult = ast ? { success: true, ast } : null;
-      
+
       // 如果没有提供AST，尝试解析
       if (!parseResult) {
         const detectedLanguage = await this.treeSitterService.detectLanguage(filePath || '');
@@ -140,7 +140,7 @@ export class ASTSplitStrategy implements ISplitStrategy {
     return supportedLanguages.includes(language.toLowerCase());
   }
 
-  
+
 
   canHandleNode(language: string, node: any): boolean {
     return this.supportsLanguage(language) && node !== undefined;
@@ -172,7 +172,7 @@ export class ASTStrategyProvider implements IStrategyProvider {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) {}
+  ) { }
 
   getName(): string {
     return 'treesitter_ast';
@@ -194,7 +194,7 @@ export class ASTStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  
+
 
   getDescription(): string {
     return 'Provides AST-based code splitting using TreeSitter';

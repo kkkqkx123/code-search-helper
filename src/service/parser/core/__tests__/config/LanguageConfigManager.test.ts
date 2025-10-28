@@ -1,8 +1,8 @@
 import { LanguageConfigManager, ConfigManagerFactory } from '../../config/LanguageConfigManager';
-import { StrategyConfiguration } from '../../../interfaces/ISplitStrategy';
+import { StrategyConfiguration } from '../../../interfaces/CoreISplitStrategy';
 
 describe('LanguageConfigManager', () => {
- let configManager: LanguageConfigManager;
+  let configManager: LanguageConfigManager;
 
   beforeEach(() => {
     configManager = new LanguageConfigManager();
@@ -165,7 +165,7 @@ describe('LanguageConfigManager', () => {
       expect(config.preserveEmptyLines).toBe(false);
       expect(config.maxNestingLevel).toBe(10);
     });
- });
+  });
 
   describe('getPerformanceConfig', () => {
     it('should return performance configuration for language', () => {
@@ -270,7 +270,7 @@ describe('LanguageConfigManager', () => {
 
       configManager.addLanguageConfig(newConfig);
       expect(configManager.isLanguageSupported('ruby')).toBe(true);
-      
+
       const retrievedConfig = configManager.getLanguageConfig('ruby');
       expect(retrievedConfig.language).toBe('ruby');
       expect(retrievedConfig.fileExtensions).toEqual(['.rb']);
@@ -287,7 +287,7 @@ describe('LanguageConfigManager', () => {
       };
 
       configManager.updateLanguageConfig('typescript', updates);
-      
+
       const config = configManager.getLanguageConfig('typescript');
       expect(config.defaultChunkConfig.maxChunkSize).toBe(3000);
       expect(config.defaultChunkConfig.minChunkSize).toBe(300);
@@ -303,7 +303,7 @@ describe('LanguageConfigManager', () => {
       };
 
       configManager.updateLanguageConfig('php', updates);
-      
+
       const config = configManager.getLanguageConfig('php');
       expect(config.language).toBe('php');
       expect(config.fileExtensions).toEqual(['.php']);
@@ -336,7 +336,7 @@ describe('LanguageConfigManager', () => {
       });
 
       expect(configManager.isLanguageSupported('php')).toBe(true);
-      
+
       configManager.removeLanguageConfig('php');
       expect(configManager.isLanguageSupported('php')).toBe(false);
     });
@@ -360,7 +360,7 @@ describe('ConfigManagerFactory', () => {
   it('should return singleton instance', () => {
     const instance1 = ConfigManagerFactory.getInstance();
     const instance2 = ConfigManagerFactory.getInstance();
-    
+
     expect(instance1).toBe(instance2);
   });
 

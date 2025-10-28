@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
 import { MarkdownTextStrategy } from '../../utils/md/MarkdownTextStrategy';
 import { XMLTextStrategy } from '../../utils/xml/XMLTextStrategy';
 
@@ -164,7 +164,7 @@ export class MarkdownStrategyProvider implements IStrategyProvider {
     return ['markdown', 'md'].includes(language.toLowerCase());
   }
 
-  
+
 
   getDescription(): string {
     return 'Provides specialized Markdown document splitting';
@@ -200,7 +200,7 @@ export class XMLStrategyProvider implements IStrategyProvider {
     return ['xml', 'html', 'xhtml', 'svg'].includes(language.toLowerCase());
   }
 
-  
+
 
   getDescription(): string {
     return 'Provides specialized XML/HTML document splitting';

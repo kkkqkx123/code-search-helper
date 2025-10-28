@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/CoreISplitStrategy';
 import { UniversalTextStrategy } from '../../utils/UniversalTextStrategy';
 
 /**
@@ -63,7 +63,7 @@ export class BracketSplitStrategy implements ISplitStrategy {
     return structuredLanguages.includes(language.toLowerCase());
   }
 
-  
+
 
   /**
    * 简单的行分段回退方法
@@ -128,7 +128,7 @@ export class BracketStrategyProvider implements IStrategyProvider {
     return structuredLanguages.includes(language.toLowerCase());
   }
 
-  
+
 
   getDescription(): string {
     return 'Provides bracket-balanced code splitting for structured content';

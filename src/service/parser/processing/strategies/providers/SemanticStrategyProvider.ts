@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/CoreISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { SemanticStrategy as ImportedSemanticStrategy } from '../impl/SemanticStrategy';
 import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
@@ -51,7 +51,7 @@ export class SemanticSplitStrategy implements ISplitStrategy {
     return this.semanticStrategy.supportsLanguage(language);
   }
 
-  
+
 }
 
 /**
@@ -85,7 +85,7 @@ export class SemanticStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  
+
 
   getDescription(): string {
     return 'Provides semantic-based fallback code splitting';

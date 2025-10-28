@@ -1,4 +1,4 @@
-import { StrategyConfiguration } from '../../interfaces/ISplitStrategy';
+import { StrategyConfiguration } from '../../interfaces/CoreISplitStrategy';
 
 /**
  * 语言特定配置接口
@@ -6,22 +6,22 @@ import { StrategyConfiguration } from '../../interfaces/ISplitStrategy';
 export interface LanguageConfiguration {
   /** 语言名称 */
   language: string;
-  
+
   /** 文件扩展名 */
   fileExtensions: string[];
-  
+
   /** 支持的分段类型 */
   chunkTypes: string[];
-  
+
   /** 默认分段配置 */
   defaultChunkConfig: StrategyConfiguration;
-  
+
   /** 语法规则 */
   syntaxRules: SyntaxRule[];
-  
+
   /** 特殊处理规则 */
   specialRules: SpecialRule[];
-  
+
   /** 性能优化配置 */
   performanceConfig: PerformanceConfig;
 }
@@ -32,16 +32,16 @@ export interface LanguageConfiguration {
 export interface SyntaxRule {
   /** 规则名称 */
   name: string;
-  
+
   /** 规则描述 */
   description: string;
-  
+
   /** 适用的节点类型 */
   nodeTypes: string[];
-  
+
   /** 处理函数 */
   handler: string;
-  
+
   /** 优先级 */
   priority: number;
 }
@@ -52,16 +52,16 @@ export interface SyntaxRule {
 export interface SpecialRule {
   /** 规则名称 */
   name: string;
-  
+
   /** 规则描述 */
   description: string;
-  
+
   /** 匹配模式 */
   pattern: string | RegExp;
-  
+
   /** 替换模式 */
   replacement: string;
-  
+
   /** 是否启用 */
   enabled: boolean;
 }
@@ -72,16 +72,16 @@ export interface SpecialRule {
 export interface PerformanceConfig {
   /** 最大文件大小（字节） */
   maxFileSize: number;
-  
+
   /** 最大解析时间（毫秒） */
   maxParseTime: number;
-  
+
   /** 缓存大小 */
   cacheSize: number;
-  
+
   /** 是否启用并行处理 */
   enableParallel: boolean;
-  
+
   /** 并行处理线程数 */
   parallelThreads: number;
 }
@@ -92,12 +92,12 @@ export interface PerformanceConfig {
 export class LanguageConfigManager {
   private configs: Map<string, LanguageConfiguration> = new Map();
   private defaultConfig!: LanguageConfiguration;
-  
+
   constructor() {
     this.initializeDefaultConfig();
     this.initializeLanguageConfigs();
   }
-  
+
   /**
    * 初始化默认配置
    */
@@ -124,7 +124,7 @@ export class LanguageConfigManager {
       }
     };
   }
-  
+
   /**
    * 初始化语言特定配置
    */
@@ -191,7 +191,7 @@ export class LanguageConfigManager {
         parallelThreads: 4
       }
     });
-    
+
     // JavaScript 配置
     this.addLanguageConfig({
       language: 'javascript',
@@ -245,7 +245,7 @@ export class LanguageConfigManager {
         parallelThreads: 4
       }
     });
-    
+
     // Python 配置
     this.addLanguageConfig({
       language: 'python',
@@ -300,7 +300,7 @@ export class LanguageConfigManager {
         parallelThreads: 3
       }
     });
-    
+
     // Java 配置
     this.addLanguageConfig({
       language: 'java',
@@ -355,7 +355,7 @@ export class LanguageConfigManager {
         parallelThreads: 4
       }
     });
-    
+
     // Go 配置
     this.addLanguageConfig({
       language: 'go',
@@ -410,21 +410,21 @@ export class LanguageConfigManager {
       }
     });
   }
-  
+
   /**
    * 添加语言配置
    */
   addLanguageConfig(config: LanguageConfiguration): void {
     this.configs.set(config.language, config);
   }
-  
+
   /**
    * 获取语言配置
    */
   getLanguageConfig(language: string): LanguageConfiguration {
     return this.configs.get(language) || this.defaultConfig;
   }
-  
+
   /**
    * 根据文件扩展名获取语言配置
    */
@@ -436,14 +436,14 @@ export class LanguageConfigManager {
     }
     return this.defaultConfig;
   }
-  
+
   /**
    * 获取所有支持的语言
    */
   getSupportedLanguages(): string[] {
     return Array.from(this.configs.keys());
   }
-  
+
   /**
    * 获取语言的分段类型
    */
@@ -451,7 +451,7 @@ export class LanguageConfigManager {
     const config = this.getLanguageConfig(language);
     return config.chunkTypes;
   }
-  
+
   /**
    * 获取语言的默认配置
    */
@@ -459,7 +459,7 @@ export class LanguageConfigManager {
     const config = this.getLanguageConfig(language);
     return config.defaultChunkConfig;
   }
-  
+
   /**
    * 获取语言的性能配置
    */
@@ -467,7 +467,7 @@ export class LanguageConfigManager {
     const config = this.getLanguageConfig(language);
     return config.performanceConfig;
   }
-  
+
   /**
    * 获取语言的语法规则
    */
@@ -475,7 +475,7 @@ export class LanguageConfigManager {
     const config = this.getLanguageConfig(language);
     return config.syntaxRules;
   }
-  
+
   /**
    * 获取语言的特殊规则
    */
@@ -483,14 +483,14 @@ export class LanguageConfigManager {
     const config = this.getLanguageConfig(language);
     return config.specialRules;
   }
-  
+
   /**
    * 检查语言是否支持
    */
   isLanguageSupported(language: string): boolean {
     return this.configs.has(language);
   }
-  
+
   /**
    * 更新语言配置
    */
@@ -499,14 +499,14 @@ export class LanguageConfigManager {
     const updated = { ...existing, ...updates };
     this.configs.set(language, updated);
   }
-  
+
   /**
    * 移除语言配置
    */
   removeLanguageConfig(language: string): void {
     this.configs.delete(language);
   }
-  
+
   /**
    * 获取所有配置
    */
@@ -520,7 +520,7 @@ export class LanguageConfigManager {
  */
 export class ConfigManagerFactory {
   private static instance: LanguageConfigManager;
-  
+
   static getInstance(): LanguageConfigManager {
     if (!this.instance) {
       this.instance = new LanguageConfigManager();

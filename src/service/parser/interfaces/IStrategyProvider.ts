@@ -1,4 +1,4 @@
-import { ISplitStrategy, ChunkingOptions } from './ISplitStrategy';
+import { ISplitStrategy, ChunkingOptions } from './CoreISplitStrategy';
 
 /**
  * 策略提供者接口
@@ -26,7 +26,7 @@ export interface IStrategyProvider {
  * 策略管理器配置接口
  */
 export interface StrategyManagerConfig {
- /** 是否启用性能监控 */
+  /** 是否启用性能监控 */
   enablePerformanceMonitoring: boolean;
 
   /** 是否启用缓存 */
@@ -36,7 +36,7 @@ export interface StrategyManagerConfig {
   cacheSize: number;
 
   /** 最大执行时间（毫秒） */
- maxExecutionTime: number;
+  maxExecutionTime: number;
 
   /** 是否启用并行处理 */
   enableParallel: boolean;

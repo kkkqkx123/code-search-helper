@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { PriorityManager, StrategyContext } from './PriorityManager';
-import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy } from '../../../interfaces/CoreISplitStrategy';
 
 export interface FallbackResult {
   strategy: ISplitStrategy;
@@ -44,7 +44,7 @@ export class FallbackManager {
   ): Promise<FallbackResult> {
     const maxAttempts = options.maxAttempts || 5;
     const timeoutPerStrategy = options.timeoutPerStrategy || 10000;
-    
+
     // 构建降级路径
     const fallbackPath = this.buildFallbackPath(
       primaryStrategy.getName(),
@@ -72,7 +72,7 @@ export class FallbackManager {
 
         if (result.success && result.chunks.length > 0) {
           this.logger?.info(`Strategy ${strategy.getName()} succeeded after ${attemptCount} attempts`);
-          
+
           // 更新性能统计
           this.priorityManager.updatePerformance(
             strategy.getName(),
@@ -116,7 +116,7 @@ export class FallbackManager {
 
     // 所有策略都失败了，返回最后的错误
     this.logger?.error(`All ${attemptCount} strategies failed`);
-    
+
     return {
       strategy: primaryStrategy,
       success: false,
@@ -142,7 +142,7 @@ export class FallbackManager {
   ): ISplitStrategy[] {
     // 获取配置的降级路径
     const configuredPath = this.priorityManager.getFallbackPath(failedStrategy, '');
-    
+
     // 创建策略名称到策略实例的映射
     const strategyMap = new Map<string, ISplitStrategy>();
     for (const strategy of availableStrategies) {
@@ -151,7 +151,7 @@ export class FallbackManager {
 
     // 构建实际的降级路径
     const fallbackPath: ISplitStrategy[] = [];
-    
+
     // 首先添加配置的降级策略
     for (const strategyName of configuredPath) {
       const strategy = strategyMap.get(strategyName);
@@ -185,7 +185,7 @@ export class FallbackManager {
   ): ISplitStrategy[] {
     const allStrategies = this.getAllAvailableStrategies(); // 需要从外部获取
     const fallbackPath = this.buildFallbackPath(failedStrategy, allStrategies, context);
-    
+
     return fallbackPath.slice(0, count);
   }
 
@@ -224,7 +224,7 @@ export class FallbackManager {
   }> {
     return new Promise((resolve) => {
       const startTime = Date.now();
-      
+
       // 设置超时
       const timeoutId = setTimeout(() => {
         resolve({
@@ -280,15 +280,15 @@ export class FallbackManager {
     // 检查文件类型特定限制
     if (context.filePath) {
       const extension = context.filePath.split('.').pop()?.toLowerCase();
-      
+
       // 某些策略不适用于特定文件类型
       const strategyName = strategy.getName().toLowerCase();
-      
+
       // Markdown专用策略只适用于markdown文件
       if (strategyName.includes('markdown') && !['md', 'markdown'].includes(extension || '')) {
         return false;
       }
-      
+
       // XML专用策略只适用于XML相关文件
       if (strategyName.includes('xml') && !['xml', 'html', 'xhtml', 'svg'].includes(extension || '')) {
         return false;
@@ -308,7 +308,7 @@ export class FallbackManager {
       'memory'
     ];
 
-    return adjustTriggers.some(trigger => 
+    return adjustTriggers.some(trigger =>
       errorMessage.toLowerCase().includes(trigger.toLowerCase())
     );
   }
@@ -326,8 +326,8 @@ export class FallbackManager {
       // 移除其他AST相关策略
       for (let i = failedIndex + 1; i < fallbackPath.length; i++) {
         const strategyName = fallbackPath[i].getName().toLowerCase();
-        if (strategyName.includes('ast') || strategyName.includes('structure') || 
-            strategyName.includes('syntax') || strategyName.includes('hierarchical')) {
+        if (strategyName.includes('ast') || strategyName.includes('structure') ||
+          strategyName.includes('syntax') || strategyName.includes('hierarchical')) {
           fallbackPath.splice(i, 1);
           i--; // 调整索引
         }
@@ -338,8 +338,8 @@ export class FallbackManager {
       // 移除可能耗时的复杂策略
       for (let i = failedIndex + 1; i < fallbackPath.length; i++) {
         const strategyName = fallbackPath[i].getName().toLowerCase();
-        if (strategyName.includes('ast') || strategyName.includes('semantic') || 
-            strategyName.includes('intelligent')) {
+        if (strategyName.includes('ast') || strategyName.includes('semantic') ||
+          strategyName.includes('intelligent')) {
           fallbackPath.splice(i, 1);
           i--; // 调整索引
         }

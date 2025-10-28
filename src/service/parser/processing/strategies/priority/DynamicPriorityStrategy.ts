@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy } from '../../../interfaces/CoreISplitStrategy';
 import { PriorityManager } from './PriorityManager';
 
 /**
@@ -49,7 +49,7 @@ export class DynamicPriorityStrategy implements ISplitStrategy {
       language: 'unknown', // 在策略级别无法获取完整的上下文
       filePath: undefined
     };
-    
+
     const priority = this.priorityManager.getPriority(this.strategy.getName(), context);
     this.logger?.debug(`Dynamic priority for ${this.strategy.getName()}: ${priority}`);
     return priority;

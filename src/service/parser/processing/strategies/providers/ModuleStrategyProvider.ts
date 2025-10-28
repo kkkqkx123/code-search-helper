@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
 import { CodeChunk } from '../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import Parser from 'tree-sitter';
@@ -58,7 +58,7 @@ export class ModuleSplitStrategy implements ISplitStrategy {
 
       // 使用ModuleStrategy提取模块信息
       const chunks = await this.moduleStrategy.extractModuleInfo(content, parseResult.ast, language, filePath, nodeTracker);
-      
+
       this.logger?.debug(`ModuleStrategy extracted ${chunks.length} chunks`);
 
       // 如果没有提取到任何模块信息，返回空数组以触发后备策略
@@ -88,7 +88,7 @@ export class ModuleSplitStrategy implements ISplitStrategy {
     return this.moduleStrategy.supportsLanguage(language);
   }
 
-  
+
 
   canHandleNode?(language: string, node: Parser.SyntaxNode): boolean {
     return this.moduleStrategy.supportsLanguage(language);
@@ -130,7 +130,7 @@ export class ModuleStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  
+
 
   getDescription(): string {
     return 'Provides module-based code splitting using TreeSitter';

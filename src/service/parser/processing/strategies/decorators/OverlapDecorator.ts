@@ -1,4 +1,4 @@
-import { ISplitStrategy, IOverlapCalculator } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IOverlapCalculator } from '../../../interfaces/CoreISplitStrategy';
 import { CodeChunk, ChunkingOptions } from '../../../types';
 
 /**
@@ -58,7 +58,7 @@ export class OverlapDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  
+
 
   getDescription(): string {
     return `Overlap decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;

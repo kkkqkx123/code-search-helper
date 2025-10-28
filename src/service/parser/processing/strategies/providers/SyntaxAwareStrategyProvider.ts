@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/CoreISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 
 import { SyntaxAwareStrategy as ImplSyntaxAwareStrategy, SyntaxAwareStrategy } from '../impl/SyntaxAwareStrategy';
@@ -61,7 +61,7 @@ export class SyntaxAwareSplitStrategy implements ISplitStrategy {
     return this.syntaxAwareStrategy.supportsLanguage(language);
   }
 
-  
+
 }
 
 /**
@@ -111,7 +111,7 @@ export class SyntaxAwareStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  
+
 
   getDescription(): string {
     return 'Provides syntax-aware code splitting using multiple sub-strategies';

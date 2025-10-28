@@ -1,0 +1,1 @@
+export { ISplitStrategy, IStrategyProvider, StrategyConfiguration } from './CoreISplitStrategy';

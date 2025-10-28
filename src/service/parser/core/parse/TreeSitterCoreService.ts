@@ -5,7 +5,7 @@ import { ConfigService } from '../../../../config/ConfigService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { TYPES } from '../../../../types';
-import { LanguageDetectionService } from '../../processing/detection/LanguageDetectionService';
+import { LanguageDetector } from '../language-detection/LanguageDetector';
 import { languageExtensionMap } from '../../utils';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
@@ -50,7 +50,7 @@ export class TreeSitterCoreService {
     maxParseTime: 0,
     minParseTime: Number.MAX_VALUE,
   };
-  private languageDetectionService: LanguageDetectionService;
+  private languageDetector: LanguageDetector;
   private extensionMap = languageExtensionMap;
   private useOptimizedQueries: boolean = true; // 优化查询系统开关
   private queryRegistry = QueryRegistryImpl;
@@ -60,7 +60,7 @@ export class TreeSitterCoreService {
   private queryEngine: TreeSitterQueryEngine;
 
   constructor() {
-    this.languageDetectionService = new LanguageDetectionService(this.logger);
+    this.languageDetector = new LanguageDetector();
     this.dynamicManager = new DynamicParserManager();
     this.errorHandler = new ErrorHandlerService(this.logger);
     this.queryEngine = QueryEngineFactory.getInstance();
@@ -111,11 +111,17 @@ export class TreeSitterCoreService {
    * 检测语言
    */
   async detectLanguage(filePath: string, content?: string): Promise<ParserLanguage | null> {
-    // 首先尝试使用动态管理器检测
-    const detectedLanguage = await this.dynamicManager.detectLanguage(filePath, content);
-    if (detectedLanguage) {
+    // 使用核心语言检测器进行检测
+    const detectionResult = await this.languageDetector.detectLanguage(filePath, content);
+    if (detectionResult.language) {
       const supportedLanguages = this.getSupportedLanguages();
-      return supportedLanguages.find(lang => lang.name.toLowerCase() === detectedLanguage) || null;
+      const foundLanguage = supportedLanguages.find(lang =>
+        lang.name.toLowerCase() === detectionResult.language?.toLowerCase()
+      );
+      
+      if (foundLanguage) {
+        return foundLanguage;
+      }
     }
 
     // 回退到基于扩展名的检测方法

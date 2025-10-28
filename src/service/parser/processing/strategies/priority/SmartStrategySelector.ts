@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { PriorityManager, StrategyContext } from './PriorityManager';
-import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy } from '../../../interfaces/CoreISplitStrategy';
 
 @injectable()
 export class SmartStrategySelector {
@@ -72,7 +72,7 @@ export class SmartStrategySelector {
     availableStrategies: ISplitStrategy[],
     language: string
   ): ISplitStrategy[] {
-    return availableStrategies.filter(strategy => 
+    return availableStrategies.filter(strategy =>
       strategy.supportsLanguage(language)
     );
   }
@@ -81,7 +81,7 @@ export class SmartStrategySelector {
    * 获取支持AST的策略
    */
   getASTStrategies(availableStrategies: ISplitStrategy[]): ISplitStrategy[] {
-    return availableStrategies.filter(strategy => 
+    return availableStrategies.filter(strategy =>
       (strategy as any).canHandleNode !== undefined
     );
   }
@@ -122,23 +122,23 @@ export class SmartStrategySelector {
   }
 
   private getSpecificFileStrategy(
-    filePath?: string, 
+    filePath?: string,
     availableStrategies: ISplitStrategy[] = []
   ): ISplitStrategy | null {
     if (!filePath) return null;
 
     const extension = filePath.split('.').pop()?.toLowerCase();
-    
+
     // Markdown文件
     if (['md', 'markdown'].includes(extension || '')) {
-      return availableStrategies.find(s => 
+      return availableStrategies.find(s =>
         s.getName().includes('markdown') || s.getName().includes('md')
       ) || null;
     }
 
     // XML/HTML文件
     if (['xml', 'html', 'xhtml', 'svg'].includes(extension || '')) {
-      return availableStrategies.find(s => 
+      return availableStrategies.find(s =>
         s.getName().includes('xml') || s.getName().includes('html')
       ) || null;
     }
@@ -158,7 +158,7 @@ export class SmartStrategySelector {
 
   private calculateSizeAdaptability(strategy: ISplitStrategy, fileSize: number): number {
     const strategyName = strategy.getName().toLowerCase();
-    
+
     // 小文件适合简单策略
     if (fileSize < 1000) {
       if (strategyName.includes('line') || strategyName.includes('bracket')) {
@@ -168,7 +168,7 @@ export class SmartStrategySelector {
         return 8;
       }
     }
-    
+
     // 大文件适合复杂策略
     if (fileSize > 10000) {
       if (strategyName.includes('ast') || strategyName.includes('semantic')) {
@@ -178,7 +178,7 @@ export class SmartStrategySelector {
         return 12;
       }
     }
-    
+
     // 中等文件适合中等复杂度策略
     if (fileSize >= 1000 && fileSize <= 10000) {
       if (strategyName.includes('function') || strategyName.includes('class')) {
@@ -188,7 +188,7 @@ export class SmartStrategySelector {
         return 8;
       }
     }
-    
+
     return 5;
   }
 
@@ -259,7 +259,7 @@ export class SmartStrategySelector {
     const nestedBrackets = (content.match(/\{[^{}]*\{[^{}]*\}/g) || []).length;
     const nestedFunctions = (content.match(/function\s+\w+\s*\([^)]*\)\s*\{[^}]*function/g) || []).length;
     const nestedClasses = (content.match(/class\s+\w+\s*\{[^}]*class/g) || []).length;
-    
+
     return nestedBrackets > 5 || nestedFunctions > 3 || nestedClasses > 2;
   }
 
@@ -275,7 +275,7 @@ export class SmartStrategySelector {
       rust: /fn\s+\w+/g,
       kotlin: /fun\s+\w+/g
     };
-    
+
     const pattern = language ? patterns[language.toLowerCase()] : /function\s+\w+/g;
     return pattern ? (content.match(pattern) || []).length : 0;
   }
@@ -289,7 +289,7 @@ export class SmartStrategySelector {
       cpp: /class\s+\w+/g,
       kotlin: /class\s+\w+/g
     };
-    
+
     const pattern = language ? patterns[language.toLowerCase()] : /class\s+\w+/g;
     return pattern ? (content.match(pattern) || []).length : 0;
   }
@@ -302,7 +302,7 @@ export class SmartStrategySelector {
     const openBrackets = (content.match(/\{/g) || []).length;
     const closeBrackets = (content.match(/\}/g) || []).length;
     const parentheses = (content.match(/\(/g) || []).length;
-    
+
     return openBrackets + closeBrackets + parentheses;
   }
 }

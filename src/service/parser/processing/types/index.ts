@@ -10,7 +10,7 @@ import {
   CodeChunkMetadata,
   ASTNode,
   StrategyConfiguration
-} from '../../interfaces/ISplitStrategy';
+} from '../../interfaces/CoreISplitStrategy';
 
 // 重新导出核心接口
 export {
@@ -21,7 +21,7 @@ export {
   CodeChunkMetadata,
   ASTNode,
   StrategyConfiguration
-} from '../../interfaces/ISplitStrategy';
+} from '../../interfaces/CoreISplitStrategy';
 
 export {
   IStrategyProvider as IStrategyProviderInterface
@@ -100,17 +100,17 @@ export interface ProcessingOptions extends ChunkingOptions {
   maxRetries?: number;
   forceStrategy?: string;
   enableParallel?: boolean;
-  
+
   // 监控选项
   enableMetrics?: boolean;
   enableLogging?: boolean;
   enableProfiling?: boolean;
-  
+
   // 缓存选项
   enableCache?: boolean;
   cacheTTL?: number;
   cacheSize?: number;
-  
+
   // 性能选项
   timeout?: number;
   maxConcurrency?: number;
@@ -122,11 +122,11 @@ export interface BatchProcessingOptions {
   maxConcurrency?: number;
   failFast?: boolean;
   continueOnError?: boolean;
-  
+
   // 进度报告
   enableProgress?: boolean;
   progressCallback?: (completed: number, total: number, current: string) => void;
-  
+
   // 结果聚合
   aggregateResults?: boolean;
   resultFilter?: (result: ProcessingResult) => boolean;
@@ -176,17 +176,17 @@ export interface ProcessingMetrics {
   detectionTime: number;
   strategySelectionTime: number;
   executionTime: number;
-  
+
   // 内存指标
   memoryUsage: NodeJS.MemoryUsage;
   peakMemoryUsage: number;
-  
+
   // 质量指标
   chunkCount: number;
   averageChunkSize: number;
   totalChunkSize: number;
   compressionRatio: number;
-  
+
   // 错误指标
   errorCount: number;
   warningCount: number;

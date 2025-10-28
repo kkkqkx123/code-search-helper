@@ -1,4 +1,4 @@
-import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy } from '../../../interfaces/CoreISplitStrategy';
 import { CodeChunk, ChunkingOptions } from '../../../types';
 
 /**
@@ -53,7 +53,7 @@ export class PerformanceMonitorDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  
+
 
   getDescription(): string {
     return `Performance monitor decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;

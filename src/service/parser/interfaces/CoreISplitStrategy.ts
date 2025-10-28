@@ -1,13 +1,12 @@
 import Parser from 'tree-sitter';
-import { CodeChunk, CodeChunkMetadata, ASTNode, ChunkingOptions } from '../processing/types/splitting-types';
+import { CodeChunk, CodeChunkMetadata, ChunkingOptions } from '../types';
 
 // 重新导出类型，以便其他模块可以使用
-export type { CodeChunk, CodeChunkMetadata, ASTNode, ChunkingOptions };
-export type { IOverlapCalculator } from '../processing/types/splitting-types';
+export type { CodeChunk, CodeChunkMetadata, ChunkingOptions };
 
 /**
- * 统一的分段策略接口
- * 整合了 IProcessingStrategy、SplitStrategy 和 ChunkingStrategy 的功能
+ * 核心分段策略接口
+ * 定义基础的分段策略功能
  */
 export interface ISplitStrategy {
   /**
@@ -79,20 +78,6 @@ export interface ISplitStrategy {
    */
   validateChunks?(chunks: CodeChunk[]): boolean;
 
-  /**
-   * 提取代码块关联的AST节点（来自splitting）
-   * @param chunk 代码块
-   * @param ast AST树
-   */
-  extractNodesFromChunk?(chunk: CodeChunk, ast: any): ASTNode[];
-
-  /**
-   * 检查代码块是否包含已使用的节点（来自splitting）
-   * @param chunk 代码块
-   * @param nodeTracker 节点跟踪器
-   * @param ast AST树
-   */
-  hasUsedNodes?(chunk: CodeChunk, nodeTracker: any, ast: any): boolean;
 }
 
 /**
@@ -142,7 +127,7 @@ export interface StrategyConfiguration {
   cacheSize?: number;
 
   /** 最大执行时间（毫秒） */
-  maxExecutionTime?: number;
+ maxExecutionTime?: number;
 
   /** 是否启用并行处理 */
   enableParallel?: boolean;

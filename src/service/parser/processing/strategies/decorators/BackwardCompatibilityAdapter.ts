@@ -1,11 +1,11 @@
-import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy } from '../../../interfaces/CoreISplitStrategy';
 import { CodeChunk, ChunkingOptions } from '../../../types';
-import { 
-  OverlapDecorator, 
-  PerformanceMonitorDecorator, 
+import {
+  OverlapDecorator,
+  PerformanceMonitorDecorator,
   CacheDecorator,
   StrategyDecoratorBuilder,
-  DecoratorFactory 
+  DecoratorFactory
 } from './index';
 
 /**
@@ -131,19 +131,19 @@ export class LegacySplitStrategyFactory {
     logger?: any
   ): ISplitStrategy {
     let strategy = this.createStrategy(strategyType, options);
-    
+
     if (enableCache) {
       strategy = BackwardCompatibilityAdapter.createLegacyCacheDecorator(strategy);
     }
-    
+
     if (overlapCalculator) {
       strategy = BackwardCompatibilityAdapter.createLegacyOverlapDecorator(strategy, overlapCalculator);
     }
-    
+
     if (enablePerformance) {
       strategy = BackwardCompatibilityAdapter.createLegacyPerformanceMonitorDecorator(strategy, logger);
     }
-    
+
     return strategy;
   }
 }

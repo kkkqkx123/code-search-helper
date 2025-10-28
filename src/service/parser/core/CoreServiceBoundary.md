@@ -33,7 +33,6 @@
 ### 依赖规则
 
 - **不依赖** `processing/` 目录
-- **不依赖** `universal/` 和 `splitting/` 目录
 - **可以依赖** 外部工具库和基础设施
 - **提供** 基础服务给上层使用
 
@@ -65,7 +64,6 @@
 ### 依赖规则
 
 - **可以依赖** `core/` 目录的基础服务
-- **不依赖** `universal/` 和 `splitting/` 目录（已整合）
 - **提供** 业务逻辑给外部调用
 
 ## 依赖关系图
@@ -150,21 +148,6 @@ graph TB
 1. **自上而下**: API → Processing → Core
 2. **自下而上**: Core → Processing → API
 3. **横向**: Processing内部组件通过接口通信
-
-## 迁移指南
-
-### 从 universal/splitting 迁移到 processing
-
-1. **策略实现**: 迁移到 `processing/strategies/impl/`
-2. **装饰器**: 迁移到 `processing/strategies/decorators/`
-3. **工厂**: 整合到 `processing/strategies/factory/`
-4. **协调器**: 整合到 `processing/coordination/`
-
-### 从 core/strategy 迁移到 processing
-
-1. **AST策略**: 迁移为 `processing/strategies/providers/` 中的高级策略
-2. **管理器**: 整合到 `processing/strategies/manager/`
-3. **配置**: 整合到统一的配置管理系统
 
 ## 性能考虑
 

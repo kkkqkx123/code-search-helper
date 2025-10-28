@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
 import { CodeChunk, ASTNode, DEFAULT_CHUNKING_OPTIONS } from '../../../processing';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { ContentHashIDGenerator } from '../../utils/ContentHashIDGenerator';
@@ -134,7 +134,7 @@ export class FunctionStrategy extends BaseSplitStrategy {
     return this.treeSitterService?.detectLanguage(language) !== null || false;
   }
 
-  
+
 
   /**
    * 提取函数块 - 改为public以便测试
@@ -299,7 +299,7 @@ export class FunctionStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  
+
 
   getDescription(): string {
     return 'Provides function extraction strategy';

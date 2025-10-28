@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '../../../interfaces/CoreISplitStrategy';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { StructureAwareStrategy as ImplStructureAwareStrategy, StructureAwareStrategy } from '../impl/StructureAwareStrategy';
 import { IQueryResultNormalizer } from '../../../core/normalization/types';
@@ -62,7 +62,7 @@ export class StructureAwareSplitStrategy implements ISplitStrategy {
     return this.structureAwareStrategy.supportsLanguage(language);
   }
 
-  
+
 }
 
 /**
@@ -111,7 +111,7 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  
+
 
   getDescription(): string {
     return 'Provides structure-aware code splitting using standardized query results';

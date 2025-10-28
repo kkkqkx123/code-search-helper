@@ -1,4 +1,4 @@
-import { ChunkingOptions, StrategyConfiguration } from '../interfaces/ISplitStrategy';
+import { ChunkingOptions, StrategyConfiguration } from '../interfaces/CoreISplitStrategy';
 import { LanguageConfiguration } from './LanguageConfigManager';
 
 /**
@@ -19,20 +19,20 @@ export interface UniversalProcessingConfig {
     maxErrors: number;
     errorResetInterval: number;
   };
-  
+
   // 内存限制配置
   memory: {
     memoryLimitMB: number;
     memoryCheckInterval: number;
   };
-  
+
   // 分段参数配置
- chunking: {
+  chunking: {
     maxChunkSize: number;
     chunkOverlap: number;
     maxLinesPerChunk: number;
   };
-  
+
   // 备份文件处理配置
   backup: {
     backupFilePatterns: string[];
@@ -194,7 +194,7 @@ export class UnifiedConfigManager {
    */
   getLanguageSpecificConfig(language: string): LanguageConfiguration {
     return this.config.languageConfigs.get(language) || this.getDefaultLanguageConfig(language);
- }
+  }
 
   /**
    * 获取默认语言配置
@@ -393,14 +393,14 @@ export class UnifiedConfigManager {
    */
   validateConfig(): boolean {
     // 验证分段配置
-    if (this.config.global.maxChunkSize && this.config.global.minChunkSize && 
-        this.config.global.maxChunkSize < this.config.global.minChunkSize) {
+    if (this.config.global.maxChunkSize && this.config.global.minChunkSize &&
+      this.config.global.maxChunkSize < this.config.global.minChunkSize) {
       throw new Error('maxChunkSize must be greater than or equal to minChunkSize');
     }
 
     // 验证重叠配置
-    if (this.config.global.overlapSize && this.config.global.maxChunkSize && 
-        this.config.global.overlapSize >= this.config.global.maxChunkSize) {
+    if (this.config.global.overlapSize && this.config.global.maxChunkSize &&
+      this.config.global.overlapSize >= this.config.global.maxChunkSize) {
       throw new Error('overlapSize must be less than maxChunkSize');
     }
 
@@ -416,31 +416,31 @@ export class UnifiedConfigManager {
     if (this.config.universal.error.maxErrors <= 0) {
       throw new Error('maxErrors must be greater than 0');
     }
-    
+
     if (this.config.universal.error.errorResetInterval <= 0) {
       throw new Error('errorResetInterval must be greater than 0');
     }
-    
+
     if (this.config.universal.memory.memoryLimitMB <= 0) {
       throw new Error('memoryLimitMB must be greater than 0');
     }
-    
+
     if (this.config.universal.memory.memoryCheckInterval <= 0) {
       throw new Error('memoryCheckInterval must be greater than 0');
     }
-    
+
     if (this.config.universal.chunking.maxChunkSize <= 0) {
       throw new Error('maxChunkSize must be greater than 0');
     }
-    
+
     if (this.config.universal.chunking.chunkOverlap < 0) {
       throw new Error('chunkOverlap must be non-negative');
     }
-    
+
     if (this.config.universal.chunking.chunkOverlap >= this.config.universal.chunking.maxChunkSize) {
       throw new Error('chunkOverlap must be less than maxChunkSize');
     }
-    
+
     if (this.config.universal.chunking.maxLinesPerChunk <= 0) {
       throw new Error('maxLinesPerChunk must be greater than 0');
     }
@@ -504,7 +504,7 @@ export class UnifiedConfigManager {
     } catch (error) {
       throw new Error(`Failed to save config to ${filePath}: ${error}`);
     }
- }
+  }
 
   /**
    * 获取配置统计信息

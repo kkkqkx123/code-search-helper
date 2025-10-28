@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
-import { ISplitStrategy, ChunkingOptions } from '../../interfaces/ISplitStrategy';
+import { ISplitStrategy, ChunkingOptions } from '../../interfaces/CoreISplitStrategy';
 import { UnifiedStrategyManager } from '../strategies/manager/UnifiedStrategyManager';
 import { UnifiedDetectionService, DetectionResult } from '../detection/UnifiedDetectionService';
 import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';
@@ -77,50 +77,50 @@ export class UnifiedProcessingCoordinator {
     this.segmentationCoordinator = segmentationCoordinator; // 新增
     this.logger = logger;
     this.logger?.debug('UnifiedProcessingCoordinator initialized');
-    
+
     // 监听配置变更
     this.configCoordinator.onConfigUpdate((event) => {
       this.handleConfigUpdate(event);
     });
   }
 
- /**
-  * 处理配置更新
-  */
- private handleConfigUpdate(event: ConfigUpdateEvent): void {
-   this.logger?.info('Processing config update', { changes: event.changes });
-   
-   // 根据变更类型更新内部状态
-   if (event.changes.includes('memoryLimitMB')) {
-     this.updateMemorySettings();
-   }
-   
-   if (event.changes.includes('performanceThresholds')) {
-     this.updatePerformanceThresholds();
-   }
- }
+  /**
+   * 处理配置更新
+   */
+  private handleConfigUpdate(event: ConfigUpdateEvent): void {
+    this.logger?.info('Processing config update', { changes: event.changes });
 
- /**
-  * 更新内存设置
-  */
- private updateMemorySettings(): void {
-   // 从configManager获取新的内存配置
-   const config = this.configManager.getUniversalConfig();
-   if (config.memory) {
-     this.guardCoordinator.setMemoryLimit(config.memory.memoryLimitMB);
-     this.logger?.info(`Memory limit updated to ${config.memory.memoryLimitMB}MB`);
-   }
- }
+    // 根据变更类型更新内部状态
+    if (event.changes.includes('memoryLimitMB')) {
+      this.updateMemorySettings();
+    }
 
- /**
-  * 更新性能阈值
-  */
- private updatePerformanceThresholds(): void {
-   // 从configManager获取新的性能配置
-   const config = this.configManager.getUniversalConfig();
-   // 目前UniversalProcessingConfig中没有performance.thresholds，所以我们更新其他相关配置
-   this.logger?.info('Performance thresholds updated');
- }
+    if (event.changes.includes('performanceThresholds')) {
+      this.updatePerformanceThresholds();
+    }
+  }
+
+  /**
+   * 更新内存设置
+   */
+  private updateMemorySettings(): void {
+    // 从configManager获取新的内存配置
+    const config = this.configManager.getUniversalConfig();
+    if (config.memory) {
+      this.guardCoordinator.setMemoryLimit(config.memory.memoryLimitMB);
+      this.logger?.info(`Memory limit updated to ${config.memory.memoryLimitMB}MB`);
+    }
+  }
+
+  /**
+   * 更新性能阈值
+   */
+  private updatePerformanceThresholds(): void {
+    // 从configManager获取新的性能配置
+    const config = this.configManager.getUniversalConfig();
+    // 目前UniversalProcessingConfig中没有performance.thresholds，所以我们更新其他相关配置
+    this.logger?.info('Performance thresholds updated');
+  }
 
   /**
    * 主要处理入口
@@ -254,7 +254,7 @@ export class UnifiedProcessingCoordinator {
     detection: DetectionResult,
     config: ChunkingOptions,
     forceStrategy?: string
- ): Promise<{ strategy: ISplitStrategy; strategyName: string }> {
+  ): Promise<{ strategy: ISplitStrategy; strategyName: string }> {
     // 如果强制指定策略
     if (forceStrategy) {
       const strategy = this.strategyManager.selectOptimalStrategy(
@@ -284,20 +284,20 @@ export class UnifiedProcessingCoordinator {
     try {
       // 将ChunkingOptions转换为UniversalChunkingOptions
       const universalOptions = this.convertChunkingOptionsToUniversal(config);
-      
+
       const segmentationContext = this.segmentationCoordinator.createSegmentationContext(
         detection.metadata.fileFeatures?.size ? '' : '', // 这里我们只传递内容用于上下文创建，实际内容会在执行时提供
         undefined, // filePath
         detection.language,
         universalOptions
       );
-      
+
       // 使用协调器的智能策略选择
       const segmentationStrategy = this.segmentationCoordinator.selectStrategyWithHeuristics(segmentationContext);
-      
+
       // 将ISegmentationStrategy适配为ISplitStrategy
       const adaptedStrategy = this.adaptSegmentationStrategy(segmentationStrategy);
-      
+
       return { strategy: adaptedStrategy, strategyName: segmentationStrategy.getName() };
     } catch (error) {
       // 如果智能选择失败，回退到原来的策略
@@ -352,7 +352,7 @@ export class UnifiedProcessingCoordinator {
   /**
    * 将ISegmentationStrategy适配为ISplitStrategy
    */
- private adaptSegmentationStrategy(segmentationStrategy: any): ISplitStrategy {
+  private adaptSegmentationStrategy(segmentationStrategy: any): ISplitStrategy {
     // 创建一个适配器，将ISegmentationStrategy转换为ISplitStrategy
     return {
       split: async (
@@ -371,7 +371,7 @@ export class UnifiedProcessingCoordinator {
           language,
           universalOptions
         );
-        
+
         // 执行分段
         return await this.segmentationCoordinator.executeStrategy(segmentationStrategy, context);
       },
@@ -383,7 +383,7 @@ export class UnifiedProcessingCoordinator {
         // 默认返回true，如果策略没有提供特定的语言支持信息
         return true;
       },
-      
+
     };
   }
 
@@ -398,7 +398,7 @@ export class UnifiedProcessingCoordinator {
     config: ChunkingOptions,
     enableFallback: boolean,
     maxRetries: number
- ): Promise<{
+  ): Promise<{
     chunks: any[];
     success: boolean;
     executionTime: number;

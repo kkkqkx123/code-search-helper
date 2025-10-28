@@ -1,13 +1,13 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
-import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
 import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../../processing';
 import { EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../types/splitting-types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { ChunkOptimizer } from '../../utils/chunk-processing/ChunkOptimizer';
 import { strategyFactory } from '../factory/SplitStrategyFactory';
-import { ISplitStrategy as OldISplitStrategy } from '../../../interfaces/ISplitStrategy';
+import { ISplitStrategy as OldISplitStrategy } from '../../../interfaces/CoreISplitStrategy';
 
 export class SyntaxAwareStrategy implements ISplitStrategy {
   private options: Required<ChunkingOptions>;

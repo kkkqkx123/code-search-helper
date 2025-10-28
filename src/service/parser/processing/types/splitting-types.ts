@@ -1,81 +1,18 @@
-export interface Splitter {
-  split(code: string, language: string, filePath?: string): Promise<CodeChunk[]>;
-  setChunkSize(chunkSize: number): void;
-  setChunkOverlap(chunkOverlap: number): void;
-}
+import { CodeChunk, CodeChunkMetadata, ChunkingOptions } from '../../types';
 
-export interface ChunkingOptions {
-  maxChunkSize?: number;
-  overlapSize?: number;
-  preserveFunctionBoundaries?: boolean;
-  preserveClassBoundaries?: boolean;
-  includeComments?: boolean;
-  minChunkSize?: number;
-  extractSnippets?: boolean;
-  addOverlap?: boolean;
-  optimizationLevel?: 'low' | 'medium' | 'high';
-  maxLines?: number; // 内存保护：最大处理行数
-
-  // 动态调整参数
-  adaptiveBoundaryThreshold?: boolean;
-  contextAwareOverlap?: boolean;
-  semanticWeight?: number;
-  syntacticWeight?: number;
-
-  // 语义边界评分配置
-  boundaryScoring?: {
-    enableSemanticScoring: boolean;
-    minBoundaryScore: number;
-    maxSearchDistance: number;
-    languageSpecificWeights: boolean;
-  };
-
-  // 重叠策略配置
-  overlapStrategy?: {
-    preferredStrategy: 'semantic' | 'syntactic' | 'size-based' | 'hybrid';
-    enableContextOptimization: boolean;
-    qualityThreshold: number;
-  };
-
-  // 针对不同代码类型的专门配置
-  functionSpecificOptions?: {
-    preferWholeFunctions: boolean;
-    minFunctionOverlap: number;
-    maxFunctionSize: number;
-    maxFunctionLines?: number;        // 最大函数行数
-    minFunctionLines?: number;        // 最小函数行数
-    enableSubFunctionExtraction?: boolean; // 启用子函数提取
-  };
-
-  classSpecificOptions?: {
-    keepMethodsTogether: boolean;
-    classHeaderOverlap: number;
-    maxClassSize: number;
-  };
-
-  // 新增：重复问题解决方案配置
-  enableASTBoundaryDetection?: boolean;
-  enableChunkDeduplication?: boolean;
-  maxOverlapRatio?: number;
-  deduplicationThreshold?: number;
-  astNodeTracking?: boolean;
-  chunkMergeStrategy?: 'aggressive' | 'conservative';
-  minChunkSimilarity?: number;
-  // 新增：协调机制配置
-  enableChunkingCoordination?: boolean;
-  strategyExecutionOrder?: string[];
-  // 新增：性能优化配置
-  enablePerformanceOptimization?: boolean;
-  enablePerformanceMonitoring?: boolean;
-  enableNodeTracking?: boolean;
-  // 新增：智能去重和重叠合并策略
-  enableSmartDeduplication?: boolean;
-  similarityThreshold?: number;
-  overlapMergeStrategy?: 'aggressive' | 'conservative';
-
-  // 新增属性以支持策略提供者
-  treeSitterService?: any;
-  universalTextStrategy?: any;
+// AST节点接口定义
+export interface ASTNode {
+  id: string;
+  type: string;
+  startByte: number;
+  endByte: number;
+  startLine: number;
+  endLine: number;
+  text: string;
+  parent?: ASTNode;
+  children?: ASTNode[];
+  contentHash?: string; // 新增：内容哈希，用于相似性检测
+  similarityGroup?: string; // 新增：相似性分组标识
 }
 
 // 增强的分段选项，用于解决片段重复问题
@@ -199,45 +136,6 @@ export const DEFAULT_ENHANCED_CHUNKING_OPTIONS: Required<EnhancedChunkingOptions
   enableOverlap: false,
   mergeDecisionThreshold: 0.75,
 };
-
-export interface CodeChunkMetadata {
-  startLine: number;
-  endLine: number;
-  language: string;
-  filePath?: string;
-  type?: 'function' | 'class' | 'interface' | 'method' | 'code' | 'import' | 'generic' | 'semantic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | 'heading' | 'paragraph' | 'table' | 'list' | 'blockquote' | 'code_block' | 'markdown' | 'standardization' | 'section' | 'content' | 'declaration' | 'doctype' | 'root' | 'element' | 'instruction' | 'comment' | 'cdata' | 'text' | 'overlap-split';
-  functionName?: string;
-  className?: string;
-  complexity?: number; // 新增：代码复杂度
-  startByte?: number;
-  endByte?: number;
-  imports?: string[];
-  exports?: string[];
-  nestingLevel?: number;
-  nodeIds?: string[]; // 新增：关联的AST节点ID列表
-  [key: string]: any;
-}
-
-export interface CodeChunk {
-  id?: string;
-  content: string;
-  metadata: CodeChunkMetadata;
-}
-
-// AST节点接口定义
-export interface ASTNode {
-  id: string;
-  type: string;
-  startByte: number;
-  endByte: number;
-  startLine: number;
-  endLine: number;
-  text: string;
-  parent?: ASTNode;
-  children?: ASTNode[];
-  contentHash?: string; // 新增：内容哈希，用于相似性检测
-  similarityGroup?: string; // 新增：相似性分组标识
-}
 
 // 增强的SplitStrategy接口，支持节点跟踪
 export interface SplitStrategy {
