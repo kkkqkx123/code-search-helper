@@ -1,7 +1,7 @@
 import { StandardizationSegmentationStrategy } from '../StandardizationSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { DetectionResult } from '../../../detection/UnifiedDetectionCenter';
-import { CodeChunk } from '../../../types';
+import { CodeChunk } from '../../../../types/core-types';
 import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../../core/normalization/types';
 import { TreeSitterCoreService } from '../../../../core/parse/TreeSitterCoreService';
 

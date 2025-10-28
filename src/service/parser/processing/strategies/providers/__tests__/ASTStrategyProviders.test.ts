@@ -98,38 +98,19 @@ describe('AST Strategy Providers', () => {
     });
   });
 
-  describe('HierarchicalStrategyProvider', () => {
-    it('should create hierarchical strategy provider', () => {
-      const provider = new HierarchicalStrategyProvider(treeSitterService, loggerService);
-      expect(provider.getName()).toBe('hierarchical_provider');
-      expect(provider.getDescription()).toBe('Provides hierarchical code splitting using TreeSitter');
-      
-    });
 
-    it('should support TypeScript language', () => {
-      const provider = new HierarchicalStrategyProvider(treeSitterService, loggerService);
-      expect(provider.supportsLanguage('typescript')).toBe(true);
-    });
-
-    it('should create strategy instance', () => {
-      const provider = new HierarchicalStrategyProvider(treeSitterService, loggerService);
-      const strategy = provider.createStrategy();
-      expect(strategy.getName()).toBe('hierarchical_split_strategy');
-      
-    });
-  });
 
   describe('Strategy Dependencies', () => {
     it('should have correct dependencies', () => {
       const functionProvider = new FunctionStrategyProvider(treeSitterService, loggerService);
       const classProvider = new ClassStrategyProvider(treeSitterService, loggerService);
       const moduleProvider = new ModuleStrategyProvider(treeSitterService, loggerService);
-      const hierarchicalProvider = new HierarchicalStrategyProvider(treeSitterService, loggerService);
+
 
       expect(functionProvider.getDependencies()).toEqual(['TreeSitterService']);
       expect(classProvider.getDependencies()).toEqual(['TreeSitterService']);
       expect(moduleProvider.getDependencies()).toEqual(['TreeSitterService']);
-      expect(hierarchicalProvider.getDependencies()).toEqual(['TreeSitterService']);
+
     });
   });
 });

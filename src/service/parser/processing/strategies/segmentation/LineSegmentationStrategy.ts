@@ -3,7 +3,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
 import { DetectionResult } from '../../detection/UnifiedDetectionCenter';
-import { CodeChunk, CodeChunkMetadata } from '../../types';
+import { CodeChunk, CodeChunkMetadata } from '../../../types/core-types';
 import { BLOCK_SIZE_LIMITS } from '../../constants';
 
 /**
@@ -39,6 +39,7 @@ export class LineSegmentationStrategy implements IProcessingStrategy {
         const chunkContent = chunkLines.join('\n');
 
         chunks.push({
+          id: `line_${filePath || 'unknown'}_${startLine}_${endLine}_${Date.now()}`,
           content: chunkContent,
           metadata: {
             startLine: startLine + 1, // 转换为1基索引
@@ -174,6 +175,7 @@ export class LineSegmentationStrategy implements IProcessingStrategy {
     const complexity = this.calculateComplexity(chunkContent);
 
     return {
+      id: `line_${filePath || 'unknown'}_${actualStartLine}_${endLine}_${Date.now()}`,
       content: chunkContent,
       metadata: {
         startLine: actualStartLine + 1, // 转换为1基索引

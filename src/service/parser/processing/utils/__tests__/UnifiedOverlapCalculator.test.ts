@@ -85,10 +85,12 @@ describe('UnifiedOverlapCalculator', () => {
     it('should add overlap between chunks', () => {
       const chunks: CodeChunk[] = [
         {
+          id: 'test-chunk-1',
           content: 'function first() {\n  return "first";',
           metadata: { startLine: 1, endLine: 2, language: 'typescript' } as CodeChunkMetadata
         },
         {
+          id: 'test-chunk-2',
           content: '}\nfunction second() {\n  return "second";\n}',
           metadata: { startLine: 3, endLine: 5, language: 'typescript' } as CodeChunkMetadata
         }

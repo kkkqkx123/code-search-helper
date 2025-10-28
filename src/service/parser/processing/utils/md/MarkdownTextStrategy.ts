@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { CodeChunk, CodeChunkMetadata } from '../../types';
+import { CodeChunk, CodeChunkMetadata } from '../../../types/core-types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import {
   MarkdownChunkingConfig,

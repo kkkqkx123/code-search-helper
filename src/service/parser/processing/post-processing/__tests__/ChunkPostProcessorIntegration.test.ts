@@ -89,6 +89,7 @@ describe('ChunkPostProcessorIntegration', () => {
       
       const chunks: CodeChunk[] = [
         {
+          id: 'test-chunk-1',
           content: 'function test() {',
           metadata: {
             startLine: 1,
@@ -118,6 +119,7 @@ describe('ChunkPostProcessorIntegration', () => {
       
       const chunks: CodeChunk[] = [
         {
+          id: 'test-chunk-2-1',
           content: 'small', // 过小的块
           metadata: {
             startLine: 1,
@@ -127,6 +129,7 @@ describe('ChunkPostProcessorIntegration', () => {
           }
         },
         {
+          id: 'test-chunk-2-2',
           content: 'const validChunk = "this is a valid chunk with sufficient content";',
           metadata: {
             startLine: 2,
@@ -156,6 +159,7 @@ describe('ChunkPostProcessorIntegration', () => {
       
       const chunks: CodeChunk[] = [
         {
+          id: 'test-chunk-3-1',
           content: 'const firstChunk = "this is a normal sized chunk";',
           metadata: {
             startLine: 1,
@@ -165,6 +169,7 @@ describe('ChunkPostProcessorIntegration', () => {
           }
         },
         {
+          id: 'test-chunk-3-2',
           content: 'tiny', // 过小的最后一块
           metadata: {
             startLine: 2,

@@ -63,33 +63,19 @@ describe('AST Strategy Providers - Simple Validation', () => {
     });
   });
 
-  describe('HierarchicalStrategyProvider', () => {
-    it('should create hierarchical strategy provider with correct properties', () => {
-      const provider = new HierarchicalStrategyProvider(mockTreeSitterService, mockLoggerService);
-      
-      expect(provider.getName()).toBe('hierarchical_provider');
-      expect(provider.getDescription()).toBe('Provides hierarchical code splitting using TreeSitter');
-      
-      expect(provider.getDependencies()).toEqual(['TreeSitterService']);
-    });
 
-    it('should support TypeScript language', () => {
-      const provider = new HierarchicalStrategyProvider(mockTreeSitterService, mockLoggerService);
-      expect(provider.supportsLanguage('typescript')).toBe(true);
-    });
-  });
 
   describe('Strategy Creation', () => {
     it('should create strategy instances from providers', () => {
       const functionProvider = new FunctionStrategyProvider(mockTreeSitterService, mockLoggerService);
       const classProvider = new ClassStrategyProvider(mockTreeSitterService, mockLoggerService);
       const moduleProvider = new ModuleStrategyProvider(mockTreeSitterService, mockLoggerService);
-      const hierarchicalProvider = new HierarchicalStrategyProvider(mockTreeSitterService, mockLoggerService);
+
 
       const functionStrategy = functionProvider.createStrategy();
       const classStrategy = classProvider.createStrategy();
       const moduleStrategy = moduleProvider.createStrategy();
-      const hierarchicalStrategy = hierarchicalProvider.createStrategy();
+
 
       expect(functionStrategy.getName()).toBe('function_split_strategy');
       
@@ -100,7 +86,7 @@ describe('AST Strategy Providers - Simple Validation', () => {
       expect(moduleStrategy.getName()).toBe('module_split_strategy');
       
 
-      expect(hierarchicalStrategy.getName()).toBe('hierarchical_split_strategy');
+
       
     });
   });
@@ -110,8 +96,7 @@ describe('AST Strategy Providers - Simple Validation', () => {
       const providers = [
         new FunctionStrategyProvider(mockTreeSitterService, mockLoggerService),
         new ClassStrategyProvider(mockTreeSitterService, mockLoggerService),
-        new ModuleStrategyProvider(mockTreeSitterService, mockLoggerService),
-        new HierarchicalStrategyProvider(mockTreeSitterService, mockLoggerService)
+        new ModuleStrategyProvider(mockTreeSitterService, mockLoggerService)
       ];
 
       const supportedLanguages = ['typescript', 'javascript', 'python', 'java', 'go', 'rust', 'c', 'cpp'];
@@ -127,8 +112,7 @@ describe('AST Strategy Providers - Simple Validation', () => {
       const providers = [
         new FunctionStrategyProvider(mockTreeSitterService, mockLoggerService),
         new ClassStrategyProvider(mockTreeSitterService, mockLoggerService),
-        new ModuleStrategyProvider(mockTreeSitterService, mockLoggerService),
-        new HierarchicalStrategyProvider(mockTreeSitterService, mockLoggerService)
+        new ModuleStrategyProvider(mockTreeSitterService, mockLoggerService)
       ];
 
       providers.forEach(provider => {

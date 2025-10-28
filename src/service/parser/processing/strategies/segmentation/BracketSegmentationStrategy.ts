@@ -4,7 +4,7 @@ import { TYPES } from '../../../../../types';
 import { ISegmentationStrategy, SegmentationContext, IComplexityCalculator } from '../types/SegmentationTypes';
 import { IProcessingStrategy } from '../impl/base/IProcessingStrategy';
 import { DetectionResult } from '../../detection/UnifiedDetectionCenter';
-import { CodeChunk, CodeChunkMetadata } from '../../types';
+import { CodeChunk, CodeChunkMetadata } from '../../../types/core-types';
 import { BLOCK_SIZE_LIMITS } from '../../constants';
 
 /**

@@ -29,6 +29,7 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
   async chunkBySemanticBoundaries(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     const lines = content.split('\n');
     return [{
+      id: 'test-chunk-semantic',
       content,
       metadata: {
         startLine: 1,
@@ -43,6 +44,7 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
   async chunkByBracketsAndLines(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     const lines = content.split('\n');
     return [{
+      id: 'test-chunk-bracket-line',
       content,
       metadata: {
         startLine: 1,
@@ -57,6 +59,7 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
   async chunkByLines(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     const lines = content.split('\n');
     return lines.map((line, index) => ({
+      id: `test-chunk-line-${index}`,
       content: line,
       metadata: {
         startLine: index + 1,

@@ -62,8 +62,8 @@ describe('OverlapPostProcessor', () => {
 
     test('应该在启用重叠且有多个块时应用', () => {
       const chunks: CodeChunk[] = [
-        { content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } },
-        { content: 'chunk2', metadata: { startLine: 2, endLine: 2, language: 'typescript' } }
+        { id: 'test-chunk-3-1', content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } },
+        { id: 'test-chunk-3-2', content: 'chunk2', metadata: { startLine: 2, endLine: 2, language: 'typescript' } }
       ];
 
       const context: PostProcessingContext = {
@@ -78,8 +78,8 @@ describe('OverlapPostProcessor', () => {
 
     test('应该在禁用重叠时不应用', () => {
       const chunks: CodeChunk[] = [
-        { content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } },
-        { content: 'chunk2', metadata: { startLine: 2, endLine: 2, language: 'typescript' } }
+        { id: 'test-chunk-2-1', content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } },
+        { id: 'test-chunk-2-2', content: 'chunk2', metadata: { startLine: 2, endLine: 2, language: 'typescript' } }
       ];
 
       const context: PostProcessingContext = {
@@ -94,8 +94,8 @@ describe('OverlapPostProcessor', () => {
 
     test('应该在没有重叠大小时不应用', () => {
       const chunks: CodeChunk[] = [
-        { content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } },
-        { content: 'chunk2', metadata: { startLine: 2, endLine: 2, language: 'typescript' } }
+        { id: 'test-chunk-1-1', content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } },
+        { id: 'test-chunk-1-2', content: 'chunk2', metadata: { startLine: 2, endLine: 2, language: 'typescript' } }
       ];
 
       const context: PostProcessingContext = {
@@ -110,7 +110,7 @@ describe('OverlapPostProcessor', () => {
 
     test('应该只有一个块时不应用', () => {
       const chunks: CodeChunk[] = [
-        { content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } }
+        { id: 'test-chunk-4-1', content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } }
       ];
 
       const context: PostProcessingContext = {
@@ -130,6 +130,7 @@ describe('OverlapPostProcessor', () => {
       const largeContent = 'const x = "This is a very long string that will make the chunk exceed the maximum size limit";\n'.repeat(50);
       const chunks: CodeChunk[] = [
         {
+          id: 'chunk-1',
           content: largeContent,
           metadata: {
             startLine: 1,
@@ -165,6 +166,7 @@ describe('OverlapPostProcessor', () => {
       const normalContent = 'const x = 1;\nconst y = 2;';
       const chunks: CodeChunk[] = [
         {
+          id: 'chunk-2',
           content: normalContent,
           metadata: {
             startLine: 1,
@@ -194,6 +196,7 @@ describe('OverlapPostProcessor', () => {
     test('应该为文本文件添加重叠内容', async () => {
       const chunks: CodeChunk[] = [
         {
+          id: 'chunk-3',
           content: 'First paragraph',
           metadata: {
             startLine: 1,
@@ -203,6 +206,7 @@ describe('OverlapPostProcessor', () => {
           }
         },
         {
+          id: 'chunk-4',
           content: 'Second paragraph',
           metadata: {
             startLine: 2,
@@ -275,6 +279,7 @@ describe('OverlapPostProcessor', () => {
     test('应该优雅处理空内容', async () => {
       const chunks: CodeChunk[] = [
         {
+          id: 'chunk-7',
           content: '',
           metadata: {
             startLine: 1,
@@ -301,6 +306,7 @@ describe('OverlapPostProcessor', () => {
     test('应该优雅处理无效的行号', async () => {
       const chunks: CodeChunk[] = [
         {
+          id: 'chunk-8',
           content: 'test content',
           metadata: {
             startLine: 0,
