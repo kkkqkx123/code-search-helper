@@ -5,6 +5,9 @@ import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../int
 import { UnifiedStrategyFactory } from '../factory/UnifiedStrategyFactory';
 import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
 import { CodeChunk } from '../../types';
+import { PriorityManager } from '../priority/PriorityManager';
+import { SmartStrategySelector } from '../priority/SmartStrategySelector';
+import { FallbackManager } from '../priority/FallbackManager';
 
 // 定义本地类型
 interface StrategyExecutionResult {
@@ -36,6 +39,9 @@ export class UnifiedStrategyManager {
   private executionCache: Map<string, StrategyExecutionResult> = new Map();
   private performanceStats: Map<string, { count: number; totalTime: number; errors: number }> = new Map();
   private strategies: Map<string, ISplitStrategy> = new Map();
+  private priorityManager: PriorityManager;
+  private smartSelector: SmartStrategySelector;
+  private fallbackManager: FallbackManager;
   private config: {
     enablePerformanceMonitoring: boolean;
     enableCaching: boolean;
@@ -47,11 +53,17 @@ export class UnifiedStrategyManager {
   constructor(
     @inject(TYPES.UnifiedStrategyFactory) factory: UnifiedStrategyFactory,
     @inject(TYPES.UnifiedConfigManager) configManager: UnifiedConfigManager,
-    @inject(TYPES.LoggerService) logger?: LoggerService
+    @inject(TYPES.LoggerService) logger?: LoggerService,
+    @inject(TYPES.PriorityManager) priorityManager?: PriorityManager,
+    @inject(TYPES.SmartStrategySelector) smartSelector?: SmartStrategySelector,
+    @inject(TYPES.FallbackManager) fallbackManager?: FallbackManager
   ) {
     this.factory = factory;
     this.configManager = configManager;
     this.logger = logger;
+    this.priorityManager = priorityManager || new PriorityManager(logger);
+    this.smartSelector = smartSelector || new SmartStrategySelector(this.priorityManager, logger);
+    this.fallbackManager = fallbackManager || new FallbackManager(this.priorityManager, logger);
 
     // 初始化配置
     this.config = {
@@ -98,7 +110,7 @@ export class UnifiedStrategyManager {
   }
 
   /**
-   * 智能策略选择（来自universal）
+   * 智能策略选择（使用新的优先级系统）
    */
   selectOptimalStrategy(
     language: string,
@@ -107,59 +119,19 @@ export class UnifiedStrategyManager {
     ast?: any,
     options?: any
   ): ISplitStrategy {
-    // 1. 如果有AST，优先选择支持AST的策略
-    if (ast) {
-      const astStrategy = this.factory.createStrategyFromAST(language, ast, options);
-      if (astStrategy) {
-        this.logger?.debug(`Selected AST-based strategy for ${language}`);
-        return astStrategy;
-      }
-    }
+    const context = {
+      language,
+      content,
+      filePath,
+      fileSize: content.length,
+      hasAST: !!ast
+    };
 
-    // 2. 根据内容特征选择策略
-    const contentFeatures = this.analyzeContent(content, language);
+    // 获取所有可用策略
+    const availableStrategies = this.getAllStrategies();
 
-    // 3. 根据文件大小选择策略
-    const fileSize = content.length;
-    if (fileSize < 1000) {
-      // 小文件使用简单策略，但根据语言选择不同类型
-      const smallFileStrategies: Record<string, string> = {
-        'javascript': 'universal_line',
-        'typescript': 'universal_bracket',
-        'python': 'universal_line',
-        'java': 'universal_line',
-        'go': 'universal_line',
-        'rust': 'universal_line',
-        'cpp': 'universal_line',
-        'c': 'universal_line',
-        'csharp': 'universal_line',
-        'php': 'universal_line',
-        'ruby': 'universal_line',
-        'swift': 'universal_line',
-        'kotlin': 'universal_line',
-        'scala': 'universal_line',
-        'markdown': 'markdown_specialized',
-        'xml': 'xml_specialized',
-        'html': 'xml_specialized',
-        'css': 'universal_line',
-        'json': 'universal_line',
-        'yaml': 'universal_line'
-      };
-
-      const strategyType = smallFileStrategies[language] || 'universal_line';
-      return this.factory.createStrategyFromType(strategyType, options);
-    } else if (fileSize > 10000) {
-      // 大文件使用高效策略
-      return this.factory.createStrategyFromType('universal_semantic', options);
-    }
-
-    // 4. 根据语言特性选择策略
-    if (this.isStructuredLanguage(language)) {
-      return this.factory.createStrategyFromType('syntax_aware', options);
-    }
-
-    // 5. 默认选择语言特定策略
-    return this.factory.createStrategyFromLanguage(language, options);
+    // 使用智能选择器选择最优策略
+    return this.smartSelector.selectOptimalStrategy(availableStrategies, context);
   }
 
   /**
@@ -322,6 +294,55 @@ export class UnifiedStrategyManager {
       return result;
     }
   }
+  /**
+   * 执行策略并处理降级（使用新的降级管理器）
+   */
+  async executeStrategyWithFallback(
+    strategy: ISplitStrategy,
+    context: StrategyExecutionContext
+  ): Promise<StrategyExecutionResult> {
+    const fallbackContext = {
+      language: context.language,
+      content: context.sourceCode,
+      filePath: context.filePath,
+      fileSize: context.sourceCode.length,
+      hasAST: !!context.ast
+    };
+
+    const availableStrategies = this.getAllStrategies();
+
+    const fallbackResult = await this.fallbackManager.executeWithFallback(
+      strategy,
+      availableStrategies,
+      fallbackContext,
+      {
+        maxAttempts: 5,
+        timeoutPerStrategy: this.config.maxExecutionTime
+      }
+    );
+
+    // 更新性能统计
+    this.priorityManager.updatePerformance(
+      fallbackResult.strategy.getName(),
+      fallbackResult.executionTime,
+      fallbackResult.success
+    );
+
+    return {
+      strategyName: fallbackResult.strategy.getName(),
+      chunks: fallbackResult.chunks,
+      executionTime: fallbackResult.executionTime,
+      success: fallbackResult.success,
+      error: fallbackResult.error,
+      metadata: {
+        language: context.language,
+        filePath: context.filePath,
+        chunkCount: fallbackResult.chunks.length,
+        ...fallbackResult.metadata
+      }
+    };
+
+  }
 
   /**
    * 批量执行策略（来自core/strategy）
@@ -381,7 +402,7 @@ export class UnifiedStrategyManager {
         name: strategy.getName(),
         description: strategy.getDescription?.() || '',
         supportedLanguages: [], // 需要从策略获取
-        priority: strategy.getPriority(),
+        priority: this.priorityManager.getPriority(strategy.getName(), { language: 'unknown' }),
         supportsAST: strategy.canHandleNode !== undefined
       };
     });
@@ -620,8 +641,12 @@ export class UnifiedStrategyManager {
   async executeHierarchicalStrategy(context: StrategyExecutionContext): Promise<CodeChunk[]> {
     const applicableStrategies = this.getStrategiesForLanguage(context.language);
 
-    // 按优先级排序
-    applicableStrategies.sort((a, b) => a.getPriority() - b.getPriority());
+    // 按优先级排序（使用新的优先级系统）
+    applicableStrategies.sort((a, b) => {
+      const priorityA = this.priorityManager.getPriority(a.getName(), context);
+      const priorityB = this.priorityManager.getPriority(b.getName(), context);
+      return priorityA - priorityB;
+    });
 
     const allChunks: CodeChunk[] = [];
 

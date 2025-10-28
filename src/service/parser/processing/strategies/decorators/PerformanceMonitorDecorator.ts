@@ -53,9 +53,7 @@ export class PerformanceMonitorDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return this.strategy.getPriority();
-  }
+  
 
   getDescription(): string {
     return `Performance monitor decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;

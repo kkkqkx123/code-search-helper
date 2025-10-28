@@ -63,9 +63,7 @@ export class BracketSplitStrategy implements ISplitStrategy {
     return structuredLanguages.includes(language.toLowerCase());
   }
 
-  getPriority(): number {
-    return 4; // 中等优先级
-  }
+  
 
   /**
    * 简单的行分段回退方法
@@ -130,9 +128,7 @@ export class BracketStrategyProvider implements IStrategyProvider {
     return structuredLanguages.includes(language.toLowerCase());
   }
 
-  getPriority(): number {
-    return 4; // 中等优先级
-  }
+  
 
   getDescription(): string {
     return 'Provides bracket-balanced code splitting for structured content';

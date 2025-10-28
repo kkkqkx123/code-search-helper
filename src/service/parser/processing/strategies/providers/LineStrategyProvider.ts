@@ -91,9 +91,7 @@ export class LineSplitStrategy implements ISplitStrategy {
     return true;
   }
 
-  getPriority(): number {
-    return 10; // 最低优先级，作为最后的降级选项
-  }
+  
 }
 
 /**
@@ -125,9 +123,7 @@ export class LineStrategyProvider implements IStrategyProvider {
     return true; // 支持所有语言
   }
 
-  getPriority(): number {
-    return 10; // 最低优先级
-  }
+  
 
   getDescription(): string {
     return 'Provides simple line-based code splitting as a fallback';

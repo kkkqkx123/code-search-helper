@@ -51,9 +51,7 @@ export class SemanticSplitStrategy implements ISplitStrategy {
     return this.semanticStrategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 5; // 最低优先级（作为最后的后备方案）
-  }
+  
 }
 
 /**
@@ -87,9 +85,7 @@ export class SemanticStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 5; // 最低优先级（作为最后的后备方案）
-  }
+  
 
   getDescription(): string {
     return 'Provides semantic-based fallback code splitting';

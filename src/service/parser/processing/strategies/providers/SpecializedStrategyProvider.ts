@@ -164,9 +164,7 @@ export class MarkdownStrategyProvider implements IStrategyProvider {
     return ['markdown', 'md'].includes(language.toLowerCase());
   }
 
-  getPriority(): number {
-    return 1; // 高优先级
-  }
+  
 
   getDescription(): string {
     return 'Provides specialized Markdown document splitting';
@@ -202,9 +200,7 @@ export class XMLStrategyProvider implements IStrategyProvider {
     return ['xml', 'html', 'xhtml', 'svg'].includes(language.toLowerCase());
   }
 
-  getPriority(): number {
-    return 1; // 高优先级
-  }
+  
 
   getDescription(): string {
     return 'Provides specialized XML/HTML document splitting';

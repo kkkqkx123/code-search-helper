@@ -421,6 +421,10 @@ export const TYPES = {
   IntelligentStrategyProvider: Symbol.for('IntelligentStrategyProvider'),
   StructureAwareStrategyProvider: Symbol.for('StructureAwareStrategyProvider'),
   SemanticStrategyProvider: Symbol.for('SemanticStrategyProvider'),
+  // 41. 优先级管理系统
+  PriorityManager: Symbol.for('PriorityManager'),
+  SmartStrategySelector: Symbol.for('SmartStrategySelector'),
+  FallbackManager: Symbol.for('FallbackManager'),
 
   // 43. 协调器
   PerformanceMonitoringCoordinator: Symbol.for('PerformanceMonitoringCoordinator'),

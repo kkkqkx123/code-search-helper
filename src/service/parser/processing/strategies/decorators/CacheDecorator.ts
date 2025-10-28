@@ -51,9 +51,7 @@ export class CacheDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return this.strategy.getPriority();
-  }
+  
 
   getDescription(): string {
     return `Cache decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;

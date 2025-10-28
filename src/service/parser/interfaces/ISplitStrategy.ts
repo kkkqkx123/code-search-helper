@@ -63,11 +63,6 @@ export interface ISplitStrategy {
   supportsLanguage(language: string): boolean;
 
   /**
-   * 获取策略的优先级（数值越小优先级越高）
-   */
-  getPriority(): number;
-
-  /**
    * 获取策略描述
    */
   getDescription?(): string;
@@ -126,11 +121,6 @@ export interface IStrategyProvider {
    * @param language 编程语言
    */
   supportsLanguage(language: string): boolean;
-
-  /**
-   * 获取提供者的优先级
-   */
-  getPriority(): number;
 
   /**
    * 获取提供者描述

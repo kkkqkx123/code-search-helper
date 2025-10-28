@@ -62,9 +62,7 @@ export class StructureAwareSplitStrategy implements ISplitStrategy {
     return this.structureAwareStrategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 1; // 最高优先级
-  }
+  
 }
 
 /**
@@ -113,9 +111,7 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 1; // 最高优先级
-  }
+  
 
   getDescription(): string {
     return 'Provides structure-aware code splitting using standardized query results';

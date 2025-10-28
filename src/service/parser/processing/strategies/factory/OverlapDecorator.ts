@@ -59,9 +59,7 @@ export class OverlapDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return this.strategy.getPriority();
-  }
+  
 
   extractNodesFromChunk(chunk: CodeChunk, ast: any): any[] {
     if (this.strategy.extractNodesFromChunk) {
@@ -148,9 +146,7 @@ export class PerformanceMonitorDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return this.strategy.getPriority();
-  }
+  
 
   /**
    * 获取性能统计信息
@@ -241,9 +237,7 @@ export class CacheDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return this.strategy.getPriority();
-  }
+  
 
   /**
    * 获取缓存统计信息

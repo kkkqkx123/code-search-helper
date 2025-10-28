@@ -140,9 +140,7 @@ export class ASTSplitStrategy implements ISplitStrategy {
     return supportedLanguages.includes(language.toLowerCase());
   }
 
-  getPriority(): number {
-    return 1; // 高优先级
-  }
+  
 
   canHandleNode(language: string, node: any): boolean {
     return this.supportsLanguage(language) && node !== undefined;
@@ -196,9 +194,7 @@ export class ASTStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 1; // 高优先级
-  }
+  
 
   getDescription(): string {
     return 'Provides AST-based code splitting using TreeSitter';

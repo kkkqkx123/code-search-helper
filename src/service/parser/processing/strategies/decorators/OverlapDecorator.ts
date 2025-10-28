@@ -58,9 +58,7 @@ export class OverlapDecorator implements ISplitStrategy {
     return this.strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return this.strategy.getPriority();
-  }
+  
 
   getDescription(): string {
     return `Overlap decorator for ${this.strategy.getDescription?.() || this.strategy.getName()}`;

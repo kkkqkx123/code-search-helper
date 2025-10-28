@@ -88,9 +88,7 @@ export class ModuleSplitStrategy implements ISplitStrategy {
     return this.moduleStrategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 0; // 最高优先级
-  }
+  
 
   canHandleNode?(language: string, node: Parser.SyntaxNode): boolean {
     return this.moduleStrategy.supportsLanguage(language);
@@ -132,9 +130,7 @@ export class ModuleStrategyProvider implements IStrategyProvider {
     return strategy.supportsLanguage(language);
   }
 
-  getPriority(): number {
-    return 0; // 最高优先级
-  }
+  
 
   getDescription(): string {
     return 'Provides module-based code splitting using TreeSitter';
