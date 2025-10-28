@@ -26,9 +26,8 @@ export class IntelligentStrategy implements ISplitStrategy {
   constructor(options?: ChunkingOptions) {
     this.options = { ...DEFAULT_CHUNKING_OPTIONS, ...options };
     this.complexityCalculator = new ComplexityCalculator();
-    // 创建一个临时的balancedChunker用于syntaxValidator
-    const tempBalancedChunker = new BalancedChunker();
-    this.syntaxValidator = new SyntaxValidator(tempBalancedChunker);
+    // SyntaxValidator现在可以自己管理BalancedChunker实例
+    this.syntaxValidator = new SyntaxValidator();
 
     // 初始化新组件
     this.semanticBoundaryAnalyzer = new SemanticBoundaryAnalyzer();
@@ -45,7 +44,7 @@ export class IntelligentStrategy implements ISplitStrategy {
   setBalancedChunker(balancedChunker: BalancedChunker): void {
     this.balancedChunker = balancedChunker;
     // 更新语法验证器使用的balancedChunker
-    this.syntaxValidator = new SyntaxValidator(balancedChunker);
+    this.syntaxValidator.setBalancedChunker(balancedChunker);
   }
 
   setOptimizationLevel(level: 'low' | 'medium' | 'high'): void {

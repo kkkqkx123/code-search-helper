@@ -315,18 +315,6 @@ export interface SyntaxValidator {
   validate(content: string, language: string): boolean;
 
   /**
-   * 检查括号平衡
-   * @param content 代码内容
-   */
-  checkBracketBalance(content: string): number;
-
-  /**
-   * 检查花括号平衡
-   * @param content 代码内容
-   */
-  checkBraceBalance(content: string): number;
-
-  /**
    * 检查符号平衡（使用BalancedChunker）
    * @param content 代码内容
    */

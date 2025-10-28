@@ -4,7 +4,15 @@ import { BalancedChunker } from './chunking/BalancedChunker';
 export class SyntaxValidator implements SyntaxValidatorInterface {
   private balancedChunker: BalancedChunker;
 
-  constructor(balancedChunker: BalancedChunker) {
+  constructor(balancedChunker?: BalancedChunker) {
+    this.balancedChunker = balancedChunker || new BalancedChunker();
+  }
+
+  /**
+   * 设置BalancedChunker实例
+   * @param balancedChunker BalancedChunker实例
+   */
+  setBalancedChunker(balancedChunker: BalancedChunker): void {
     this.balancedChunker = balancedChunker;
   }
 
@@ -16,50 +24,10 @@ export class SyntaxValidator implements SyntaxValidatorInterface {
   validate(content: string, language: string): boolean {
     try {
       // 使用BalancedChunker验证符号平衡
-      if (!this.balancedChunker.validateCodeBalance(content)) {
-        return false;
-      }
-
-      // 对于JavaScript/TypeScript，进行额外的语法检查
-      if (language === 'javascript' || language === 'typescript') {
-        const bracketBalance = this.checkBracketBalance(content);
-        const braceBalance = this.checkBraceBalance(content);
-
-        if (bracketBalance !== 0 || braceBalance !== 0) {
-          return false;
-        }
-      }
-
-      return true;
+      return this.balancedChunker.validateCodeBalance(content);
     } catch (error) {
       return false;
     }
-  }
-
-  /**
-   * 检查括号平衡
-   * @param content 代码内容
-   */
-  checkBracketBalance(content: string): number {
-    let balance = 0;
-    for (const char of content) {
-      if (char === '(') balance++;
-      if (char === ')') balance--;
-    }
-    return balance;
-  }
-
-  /**
-   * 检查花括号平衡
-   * @param content 代码内容
-   */
-  checkBraceBalance(content: string): number {
-    let balance = 0;
-    for (const char of content) {
-      if (char === '{') balance++;
-      if (char === '}') balance--;
-    }
-    return balance;
   }
 
   /**

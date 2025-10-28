@@ -7,7 +7,7 @@ import { BalancedChunker } from '../../utils/chunking/BalancedChunker';
 import { ChunkingConfigManager } from '../../config/ChunkingConfigManager';
 import { SplitStrategyFactory, strategyFactory } from '../factory/SplitStrategyFactory';
 // import { ensureStrategyProvidersRegistered } from '../factory/StrategyProviderRegistration';
-import { ChunkingCoordinator } from '../../utils/ChunkingCoordinator';
+// import { ChunkingCoordinator } from '../../utils/ChunkingCoordinator'; // 移除了对不存在的ChunkingCoordinator的导入
 import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
 // 移除重复导入，已在第2行导入
 import { PerformanceOptimizer } from '../../utils/performance/PerformanceOptimizer';
@@ -26,7 +26,7 @@ export class ASTCodeSplitter implements Splitter {
   private balancedChunker: BalancedChunker;
   private configManager: ChunkingConfigManager;
   private strategyFactory: SplitStrategyFactory;
-  private coordinator?: ChunkingCoordinator;
+  // private coordinator?: ChunkingCoordinator; // 移除了对不存在的ChunkingCoordinator的引用
   private overlapCalculator?: UnifiedOverlapCalculator;
   private performanceOptimizer?: PerformanceOptimizer;
   private performanceMonitoring?: IPerformanceMonitoringSystem;
@@ -81,15 +81,6 @@ export class ASTCodeSplitter implements Splitter {
     // 初始化性能优化器
     if (this.options.enablePerformanceOptimization) {
       this.performanceOptimizer = new PerformanceOptimizer(1000); // 可配置缓存大小
-    }
-
-    // 初始化协调器
-    if (this.options.enableChunkingCoordination) {
-      this.coordinator = new ChunkingCoordinator(
-        {} as any, // AST节点跟踪器需要在这里创建
-        this.options,
-        this.logger
-      );
     }
 
     // 初始化重叠计算器
@@ -232,13 +223,14 @@ export class ASTCodeSplitter implements Splitter {
   ): Promise<CodeChunk[]> {
     let chunks: CodeChunk[];
 
-    if (this.options.enableChunkingCoordination && this.coordinator) {
-      // 使用协调器进行处理
-      chunks = await this.coordinator.coordinate(code, language, filePath, parseResult.ast);
-    } else {
-      // 使用策略工厂创建策略链
-      chunks = await this.processWithStrategyChain(code, parseResult, language, filePath, config);
-    }
+    // 始终使用策略链进行处理，因为ChunkingCoordinator不存在
+    // if (this.options.enableChunkingCoordination && this.coordinator) {
+    //   // 使用协调器进行处理
+    //   chunks = await this.coordinator.coordinate(code, language, filePath, parseResult.ast);
+    // } else {
+    // 使用策略工厂创建策略链
+    chunks = await this.processWithStrategyChain(code, parseResult, language, filePath, config);
+    // }
 
     // 应用性能优化
     if (this.performanceOptimizer && this.options.enablePerformanceOptimization) {
