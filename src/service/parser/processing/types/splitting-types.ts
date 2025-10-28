@@ -1,4 +1,7 @@
-import { CodeChunk, CodeChunkMetadata, ChunkingOptions } from '../../types';
+import { CodeChunk, CodeChunkMetadata, ChunkingOptions } from '../../types/core-types';
+
+// 重新导出基础类型以避免破坏现有导入
+export { CodeChunk, CodeChunkMetadata, ChunkingOptions };
 
 // AST节点接口定义
 export interface ASTNode {
@@ -13,6 +16,29 @@ export interface ASTNode {
   children?: ASTNode[];
   contentHash?: string; // 新增：内容哈希，用于相似性检测
   similarityGroup?: string; // 新增：相似性分组标识
+}
+
+// 代码分割器基础接口
+export interface Splitter {
+  /**
+   * 分割代码
+   * @param code 源代码内容
+   * @param language 编程语言
+   * @param filePath 文件路径（可选）
+   */
+  split(code: string, language: string, filePath?: string): Promise<CodeChunk[]>;
+
+  /**
+   * 设置块大小
+   * @param chunkSize 块大小
+   */
+  setChunkSize(chunkSize: number): void;
+
+  /**
+   * 设置块重叠大小
+   * @param chunkOverlap 重叠大小
+   */
+  setChunkOverlap(chunkOverlap: number): void;
 }
 
 // 增强的分段选项，用于解决片段重复问题

@@ -8,19 +8,15 @@ export {
   ChunkingOptions
 } from './interfaces/ISplitStrategy';
 
-// 从splitting-types.ts导出类型
-export {
-  CodeChunk,
-  CodeChunkMetadata,
-  ASTNode
-} from './types/splitting-types';
-
 export {
   IStrategyProvider as IStrategyProviderInterface
 } from './interfaces/IStrategyProvider';
 
-// 导出splitting相关的核心类型和接口
+// 从splitting-types.ts导出所有类型
 export {
+  CodeChunk,
+  CodeChunkMetadata,
+  ASTNode,
   Splitter,
   ComplexityCalculator,
   SyntaxValidator,
@@ -29,7 +25,9 @@ export {
   PerformanceStats,
   PerformanceMonitor,
   DEFAULT_CHUNKING_OPTIONS,
-  DEFAULT_ENHANCED_CHUNKING_OPTIONS
+  DEFAULT_ENHANCED_CHUNKING_OPTIONS,
+  SplitStrategy,
+  EnhancedChunkingOptions
 } from './types/splitting-types';
 
 // 配置管理导入和导出
@@ -52,9 +50,6 @@ export { UnifiedDetectionService, DetectionResult, FileFeatures, LanguageDetecti
 import { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext } from './coordination/UnifiedProcessingCoordinator';
 export { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext };
 
-// 类型定义导出
-export * from './types';
-
 // 工具函数导出
 export * from './utils';
 
@@ -62,14 +57,6 @@ export * from './utils';
 export * from './config';
 export * from './detection';
 export * from './utils/quality';
-
-// 重新导出核心类型以保持向后兼容
-export type {
-  SplitStrategy as LegacySplitStrategy,
-  ChunkingOptions as LegacyChunkingOptions,
-  CodeChunk as LegacyCodeChunk,
-  CodeChunkMetadata as LegacyCodeChunkMetadata
-} from './types/splitting-types';
 
 // 默认导出
 export default {
@@ -81,7 +68,4 @@ export default {
   UnifiedProcessingCoordinator,
 
   // 接口（作为类型导出，不作为值）
-
-  // 类型
-  // 注意：这些是类型，不能作为值使用
 };

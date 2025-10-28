@@ -4,7 +4,7 @@ import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
 import { UnifiedStrategyFactory } from '../factory/UnifiedStrategyFactory';
 import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
-import { CodeChunk } from '../../types';
+import { CodeChunk } from '../../../types/core-types';
 import { PriorityManager } from '../priority/PriorityManager';
 import { SmartStrategySelector } from '../priority/SmartStrategySelector';
 import { FallbackManager } from '../priority/FallbackManager';

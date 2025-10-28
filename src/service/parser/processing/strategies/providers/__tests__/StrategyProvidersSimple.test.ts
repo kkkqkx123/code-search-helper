@@ -1,4 +1,4 @@
-import { FunctionStrategyProvider, ClassStrategyProvider, ModuleStrategyProvider, HierarchicalStrategyProvider } from '../index';
+import { FunctionStrategyProvider, ClassStrategyProvider, ModuleStrategyProvider } from '../index';
 
 describe('AST Strategy Providers - Simple Validation', () => {
   // 创建简单的模拟服务

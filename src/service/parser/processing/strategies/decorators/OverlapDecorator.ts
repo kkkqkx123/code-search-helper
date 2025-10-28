@@ -1,5 +1,6 @@
-import { ISplitStrategy, IOverlapCalculator } from '../../../interfaces/CoreISplitStrategy';
-import { CodeChunk, ChunkingOptions } from '../../../types';
+import { ISplitStrategy } from '../../../interfaces/CoreISplitStrategy';
+import { IOverlapCalculator } from '../../types/splitting-types';
+import { CodeChunk, ChunkingOptions } from '../../../../types/core-types';
 
 /**
  * 重叠装饰器 - 使用装饰器模式添加重叠功能

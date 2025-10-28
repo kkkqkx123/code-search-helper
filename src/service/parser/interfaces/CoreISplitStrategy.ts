@@ -73,10 +73,25 @@ export interface ISplitStrategy {
   getSupportedNodeTypes?(language: string): Set<string>;
 
   /**
-   * 验证分段结果的合理性（来自core/strategy）
-   * @param chunks 代码块数组
-   */
+  * 验证分段结果的合理性（来自core/strategy）
+  * @param chunks 代码块数组
+  */
   validateChunks?(chunks: CodeChunk[]): boolean;
+
+  /**
+   * 提取代码块关联的AST节点（新增）
+   * @param chunk 代码块
+   * @param ast AST树
+   */
+  extractNodesFromChunk?(chunk: CodeChunk, ast: any): any[];
+
+  /**
+   * 检查代码块是否包含已使用的节点（新增）
+   * @param chunk 代码块
+   * @param nodeTracker 节点跟踪器
+   * @param ast AST树
+   */
+  hasUsedNodes?(chunk: CodeChunk, nodeTracker: any, ast: any): boolean;
 
 }
 

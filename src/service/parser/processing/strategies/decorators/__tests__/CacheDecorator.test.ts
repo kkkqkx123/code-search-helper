@@ -1,6 +1,6 @@
 import { CacheDecorator } from '../CacheDecorator';
 import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk, ChunkingOptions } from '../../../types';
+import { CodeChunk, ChunkingOptions } from '../../../../types/core-types';
 
 // Mock strategy
 class MockStrategy implements ISplitStrategy {

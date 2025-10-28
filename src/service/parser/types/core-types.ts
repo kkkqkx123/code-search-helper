@@ -1,12 +1,15 @@
 import Parser from 'tree-sitter';
 
 /**
- * 基础代码分段接口
- */
+* 基础代码分段接口
+*/
 export interface CodeChunk {
-  /** 分段内容 */
-  content: string;
-  
+/** 分段ID */
+id: string;
+
+/** 分段内容 */
+content: string;
+
   /** 分段元数据 */
   metadata: CodeChunkMetadata;
 }
