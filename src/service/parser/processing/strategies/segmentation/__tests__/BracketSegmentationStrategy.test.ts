@@ -44,13 +44,6 @@ describe('BracketSegmentationStrategy', () => {
       maxOverlapRatio: 0.3,
       errorThreshold: 5,
       memoryLimitMB: 500,
-      strategyPriorities: {
-        'markdown': 1,
-        'standardization': 2,
-        'semantic': 3,
-        'bracket': 4,
-        'line': 5
-      },
       filterConfig: {
         enableSmallChunkFilter: true,
         enableChunkRebalancing: true,

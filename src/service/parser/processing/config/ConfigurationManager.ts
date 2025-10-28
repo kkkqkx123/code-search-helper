@@ -102,13 +102,6 @@ export class ConfigurationManager implements IConfigurationManager {
       };
     }
 
-    if (override.strategyPriorities) {
-      merged.strategyPriorities = {
-        ...base.strategyPriorities,
-        ...override.strategyPriorities
-      };
-    }
-
     return merged;
   }
 
@@ -206,15 +199,6 @@ export class ConfigurationManager implements IConfigurationManager {
       // 错误和性能控制
       errorThreshold: DEFAULT_CONFIG.TEXT_SPLITTER_OPTIONS.errorThreshold,
       memoryLimitMB: DEFAULT_CONFIG.TEXT_SPLITTER_OPTIONS.memoryLimitMB,
-
-      // 策略优先级（可配置）
-      strategyPriorities: {
-        'markdown': 1,
-        'standardization': 2,
-        'semantic': 3,
-        'bracket': 4,
-        'line': 5
-      },
 
       // 处理器配置
       filterConfig: {

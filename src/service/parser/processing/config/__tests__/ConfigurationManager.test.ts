@@ -77,7 +77,6 @@ describe('ConfigurationManager', () => {
       expect(options).toHaveProperty('maxOverlapRatio');
       expect(options).toHaveProperty('errorThreshold');
       expect(options).toHaveProperty('memoryLimitMB');
-      expect(options).toHaveProperty('strategyPriorities');
       expect(options).toHaveProperty('filterConfig');
       expect(options).toHaveProperty('protectionConfig');
     });
@@ -215,9 +214,6 @@ describe('ConfigurationManager', () => {
         protectionConfig: {
           enableProtection: true,
           protectionLevel: 'high' as const
-        },
-        strategyPriorities: {
-          'semantic': 1
         }
       };
 
@@ -229,9 +225,6 @@ describe('ConfigurationManager', () => {
 
       expect(merged.protectionConfig.protectionLevel).toBe('high');
       expect(merged.protectionConfig.enableProtection).toBe(base.protectionConfig.enableProtection); // Should remain unchanged
-
-      expect(merged.strategyPriorities.semantic).toBe(1);
-      expect(merged.strategyPriorities.markdown).toBe(base.strategyPriorities.markdown); // Should remain unchanged
     });
 
     it('should handle missing nested objects', () => {

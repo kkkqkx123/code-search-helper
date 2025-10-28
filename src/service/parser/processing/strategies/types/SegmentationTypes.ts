@@ -90,9 +90,6 @@ export interface UniversalChunkingOptions {
   errorThreshold: number;
   memoryLimitMB: number;
 
-  // 策略优先级（可配置）
-  strategyPriorities: Record<string, number>;
-
   // 处理器配置
   filterConfig: {
     enableSmallChunkFilter: boolean;
@@ -167,7 +164,7 @@ export interface ISegmentationStrategy {
    */
   getName(): string;
 
-  
+
 
   /**
    * 获取策略支持的语言列表（可选）

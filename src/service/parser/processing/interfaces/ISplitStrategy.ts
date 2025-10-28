@@ -1,6 +1,7 @@
 import { ISplitStrategy as CoreISplitStrategy } from '../../interfaces/CoreISplitStrategy';
 import { IStrategyProvider } from './IStrategyProvider';
 import { CodeChunk, ChunkingOptions, ASTNode } from '../types/splitting-types';
+import { StrategyConfiguration } from '../../interfaces/CoreISplitStrategy';
 
 /**
  * 处理层分割策略接口 - 扩展核心接口
@@ -25,3 +26,4 @@ export interface ISplitStrategy extends CoreISplitStrategy {
 // 重新导出接口
 export { IStrategyProvider };
 export { ChunkingOptions };
+export { StrategyConfiguration };

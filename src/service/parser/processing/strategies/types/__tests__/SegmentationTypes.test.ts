@@ -33,13 +33,6 @@ describe('SegmentationTypes', () => {
         maxOverlapRatio: 0.3,
         errorThreshold: 5,
         memoryLimitMB: 500,
-        strategyPriorities: {
-          'markdown': 1,
-          'standardization': 2,
-          'semantic': 3,
-          'bracket': 4,
-          'line': 5
-        },
         filterConfig: {
           enableSmallChunkFilter: true,
           enableChunkRebalancing: true,
@@ -63,7 +56,6 @@ describe('SegmentationTypes', () => {
       expect(options.maxOverlapRatio).toBe(0.3);
       expect(options.errorThreshold).toBe(5);
       expect(options.memoryLimitMB).toBe(500);
-      expect(options.strategyPriorities).toBeDefined();
       expect(options.filterConfig).toBeDefined();
       expect(options.protectionConfig).toBeDefined();
     });
@@ -96,13 +88,6 @@ describe('SegmentationTypes', () => {
           maxOverlapRatio: 0.3,
           errorThreshold: 5,
           memoryLimitMB: 500,
-          strategyPriorities: {
-            'markdown': 1,
-            'standardization': 2,
-            'semantic': 3,
-            'bracket': 4,
-            'line': 5
-          },
           filterConfig: {
             enableSmallChunkFilter: true,
             enableChunkRebalancing: true,

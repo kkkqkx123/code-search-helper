@@ -329,13 +329,6 @@ export class UnifiedProcessingCoordinator {
       maxOverlapRatio: config.maxOverlapRatio || 0.3,
       errorThreshold: 10,
       memoryLimitMB: 512,
-      strategyPriorities: {
-        'markdown': 1,
-        'standardization': 2,
-        'semantic': 3,
-        'bracket': 4,
-        'line': 5
-      },
       filterConfig: {
         enableSmallChunkFilter: true,
         enableChunkRebalancing: true,

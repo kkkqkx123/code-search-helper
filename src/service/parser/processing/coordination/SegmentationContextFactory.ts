@@ -82,15 +82,6 @@ export class SegmentationContextFactory {
       errorThreshold: 10,
       memoryLimitMB: 512,
 
-      // 策略优先级
-      strategyPriorities: {
-        'markdown': 1,
-        'standardization': 2,
-        'semantic': 3,
-        'bracket': 4,
-        'line': 5
-      },
-
       // 处理器配置
       filterConfig: {
         enableSmallChunkFilter: true,

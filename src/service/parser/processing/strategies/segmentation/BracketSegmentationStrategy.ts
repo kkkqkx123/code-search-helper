@@ -278,7 +278,6 @@ export class BracketSegmentationStrategy implements ISegmentationStrategy, IProc
         maxOverlapRatio: 0.1,
         errorThreshold: 1000,
         memoryLimitMB: 100,
-        strategyPriorities: {},
         filterConfig: {
           enableSmallChunkFilter: false,
           enableChunkRebalancing: false,

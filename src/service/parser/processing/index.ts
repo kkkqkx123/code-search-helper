@@ -5,6 +5,7 @@
 export {
   ISplitStrategy,
   IStrategyProvider,
+  StrategyConfiguration,
   ChunkingOptions
 } from './interfaces/ISplitStrategy';
 
