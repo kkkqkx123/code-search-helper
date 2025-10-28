@@ -100,7 +100,7 @@ graph TB
 |-----------|----------|--------|------|
 | `.md`, `.markdown` | `markdown_specialized` | 0 | Markdown专用策略 |
 | `.xml`, `.html`, `.xhtml`, `.svg` | `xml_specialized` | 0 | XML/HTML专用策略 |
-| `.json`, `.yaml`, `.yml`, `.toml` | `universal_bracket` | 9 | 配置文件使用括号策略 |
+| `.json`, `.yaml`, `.yml`, `.toml` | `treesitter_ast` | 5 | 配置文件使用AST策略 |
 | `.test.js`, `.spec.js`, `.test.ts`, `.spec.ts` | `function_provider` | 6 | 测试文件使用函数策略 |
 
 ### 语言特定策略映射
@@ -111,7 +111,7 @@ graph TB
 | Python | 语法感知策略 | AST策略 | Python支持良好AST解析 |
 | Java/C# | 分层策略 | 类策略 | 面向对象语言优先处理类结构 |
 | Go/Rust | AST策略 | 函数策略 | 函数式语言优先处理函数 |
-| 配置文件 | 括号策略 | 行级策略 | 配置文件使用简单策略 |
+| 配置文件 | AST策略 | 行级策略 | 配置文件使用AST策略 |
 
 ## ⚙️ 实现方案
 
@@ -183,7 +183,7 @@ class SmartStrategySelector {
       case 'yaml':
       case 'yml':
       case 'toml':
-        return 'universal_bracket';
+        return 'treesitter_ast';
       default:
         return null;
     }
