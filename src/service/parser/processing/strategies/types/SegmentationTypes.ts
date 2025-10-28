@@ -64,6 +64,7 @@ export interface SegmentationContext {
     isSmallFile: boolean;
     isCodeFile: boolean;
     isMarkdownFile: boolean;
+    [key: string]: any;
   };
 }
 

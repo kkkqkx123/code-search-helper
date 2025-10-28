@@ -70,13 +70,13 @@ export class ConfigCoordinator extends EventEmitter {
     const errors: string[] = [];
 
     // 验证内存配置
-    if (config.memory?.memoryLimitMB && config.memory.memoryLimitMB < 100) {
-      errors.push('Memory limit must be at least 100MB');
+    if (config.maxChunkSize && config.maxChunkSize < 100) {
+      errors.push('Max chunk size must be at least 100');
     }
 
     // 验证缓存配置
-    if (config.cache?.maxSize && config.cache.maxSize < 0) {
-      errors.push('Cache size must be non-negative');
+    if (config.overlapSize && config.overlapSize < 0) {
+      errors.push('Overlap size must be non-negative');
     }
 
     return {

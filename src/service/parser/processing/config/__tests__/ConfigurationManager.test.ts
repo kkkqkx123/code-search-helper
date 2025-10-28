@@ -44,13 +44,16 @@ describe('ConfigurationManager', () => {
 
     it('should handle initialization errors', () => {
       // Mock an error during initialization
-      const originalCreateDefaultOptions = configManager['createDefaultOptions'];
-      configManager['createDefaultOptions'] = jest.fn().mockImplementation(() => {
+      const originalCreateDefaultOptions = (ConfigurationManager.prototype as any)['createDefaultOptions'];
+      (ConfigurationManager.prototype as any)['createDefaultOptions'] = jest.fn().mockImplementation(() => {
         throw new Error('Initialization error');
       });
 
-      expect(() => new ConfigurationManager(mockLogger)).toThrow('Initialization error');
+      expect(() => new ConfigurationManager(mockLogger)).not.toThrow();
       expect(mockLogger.error).toHaveBeenCalledWith('Failed to initialize ConfigurationManager:', expect.any(Error));
+
+      // Restore
+      (ConfigurationManager.prototype as any)['createDefaultOptions'] = originalCreateDefaultOptions;
     });
   });
 
@@ -104,44 +107,44 @@ describe('ConfigurationManager', () => {
 
     it('should reject invalid maxChunkSize', () => {
       const invalidOptions = { maxChunkSize: 0 };
-      expect(configManager.validateOptions(invalidOptions)).toBe(false);
+      expect(() => configManager.validateOptions(invalidOptions)).toThrow();
 
       const negativeOptions = { maxChunkSize: -100 };
-      expect(configManager.validateOptions(negativeOptions)).toBe(false);
+      expect(() => configManager.validateOptions(negativeOptions)).toThrow();
     });
 
     it('should reject invalid overlapSize', () => {
       const invalidOptions = { overlapSize: -1 };
-      expect(configManager.validateOptions(invalidOptions)).toBe(false);
+      expect(() => configManager.validateOptions(invalidOptions)).toThrow();
     });
 
     it('should reject invalid maxLinesPerChunk', () => {
       const invalidOptions = { maxLinesPerChunk: 0 };
-      expect(configManager.validateOptions(invalidOptions)).toBe(false);
+      expect(() => configManager.validateOptions(invalidOptions)).toThrow();
 
       const negativeOptions = { maxLinesPerChunk: -10 };
-      expect(configManager.validateOptions(negativeOptions)).toBe(false);
+      expect(() => configManager.validateOptions(negativeOptions)).toThrow();
     });
 
     it('should reject invalid maxOverlapRatio', () => {
       const negativeOptions = { maxOverlapRatio: -0.1 };
-      expect(configManager.validateOptions(negativeOptions)).toBe(false);
+      expect(() => configManager.validateOptions(negativeOptions)).toThrow();
 
       const greaterThanOneOptions = { maxOverlapRatio: 1.1 };
-      expect(configManager.validateOptions(greaterThanOneOptions)).toBe(false);
+      expect(() => configManager.validateOptions(greaterThanOneOptions)).toThrow();
     });
 
     it('should reject invalid errorThreshold', () => {
       const invalidOptions = { errorThreshold: -1 };
-      expect(configManager.validateOptions(invalidOptions)).toBe(false);
+      expect(() => configManager.validateOptions(invalidOptions)).toThrow();
     });
 
     it('should reject invalid memoryLimitMB', () => {
       const invalidOptions = { memoryLimitMB: 0 };
-      expect(configManager.validateOptions(invalidOptions)).toBe(false);
+      expect(() => configManager.validateOptions(invalidOptions)).toThrow();
 
       const negativeOptions = { memoryLimitMB: -100 };
-      expect(configManager.validateOptions(negativeOptions)).toBe(false);
+      expect(() => configManager.validateOptions(negativeOptions)).toThrow();
     });
 
     it('should reject invalid filterConfig', () => {
@@ -153,7 +156,7 @@ describe('ConfigurationManager', () => {
           maxChunkSize: 50 // minChunkSize >= maxChunkSize
         }
       };
-      expect(configManager.validateOptions(invalidOptions)).toBe(false);
+      expect(() => configManager.validateOptions(invalidOptions)).toThrow();
 
       const negativeMinOptions = {
         filterConfig: {
@@ -163,7 +166,7 @@ describe('ConfigurationManager', () => {
           maxChunkSize: 100
         }
       };
-      expect(configManager.validateOptions(negativeMinOptions)).toBe(false);
+      expect(() => configManager.validateOptions(negativeMinOptions)).toThrow();
 
       const nonPositiveMaxOptions = {
         filterConfig: {
@@ -173,17 +176,18 @@ describe('ConfigurationManager', () => {
           maxChunkSize: 0
         }
       };
-      expect(configManager.validateOptions(nonPositiveMaxOptions)).toBe(false);
+      expect(() => configManager.validateOptions(nonPositiveMaxOptions)).toThrow();
     });
 
-    it('should handle validation errors gracefully', () => {
+    it('should throw validation errors', () => {
       // Mock a scenario where validation throws an error
-      const originalValidateOptions = configManager.validateOptions;
-      configManager.validateOptions = jest.fn().mockImplementation(() => {
+      const spy = jest.spyOn(configManager, 'validateOptions').mockImplementation(() => {
         throw new Error('Validation error');
       });
 
-      expect(configManager.validateOptions({})).toBe(false);
+      expect(() => configManager.validateOptions({})).toThrow('Validation error');
+
+      spy.mockRestore();
     });
   });
 

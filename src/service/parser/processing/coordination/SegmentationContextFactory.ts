@@ -9,6 +9,27 @@ import { languageExtensionMap } from '../../utils/language/LanguageExtensionMap'
 export class SegmentationContextFactory {
 
   /**
+   * 深度合并metadata对象
+   */
+  private static deepMergeMetadata(base: any, override: any): any {
+    const result = { ...base };
+
+    for (const key in override) {
+      if (override.hasOwnProperty(key)) {
+        if (typeof override[key] === 'object' && override[key] !== null &&
+            typeof result[key] === 'object' && result[key] !== null &&
+            !Array.isArray(override[key]) && !Array.isArray(result[key])) {
+          result[key] = this.deepMergeMetadata(result[key], override[key]);
+        } else {
+          result[key] = override[key];
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * 创建分段上下文
    */
   static create(
@@ -37,14 +58,22 @@ export class SegmentationContextFactory {
    */
   static fromExisting(
     existing: SegmentationContext,
-    modifications: Partial<SegmentationContext>
+    modifications: Partial<Omit<SegmentationContext, 'metadata'> & { metadata?: Partial<SegmentationContext['metadata']> }>
   ): SegmentationContext {
+    // 如果内容被修改，重新计算相关的元数据
+    let updatedMetadata = { ...existing.metadata };
+    if (modifications.content && modifications.content !== existing.content) {
+      updatedMetadata.contentLength = modifications.content.length;
+      updatedMetadata.lineCount = modifications.content.split('\\n').length;
+      updatedMetadata.isSmallFile = this.isSmallFile(modifications.content);
+    }
+
     const newContext = {
       ...existing,
       ...modifications,
       metadata: {
-        ...existing.metadata,
-        ...(modifications.metadata || {})
+        ...(modifications.metadata || {}),
+        ...updatedMetadata
       }
     };
 
@@ -157,15 +186,26 @@ export class SegmentationContextFactory {
       errors.push('Content cannot be empty');
     }
 
-    // 检查内容长度
-    if (context.metadata.contentLength !== context.content.length) {
+    // 检查内容长度 - 只检查必需的metadata属性
+    if (typeof context.metadata.contentLength !== 'number' || context.metadata.contentLength !== context.content.length) {
       errors.push('Content length mismatch in metadata');
     }
 
     // 检查行数
     const actualLineCount = context.content.split('\n').length;
-    if (context.metadata.lineCount !== actualLineCount) {
+    if (typeof context.metadata.lineCount !== 'number' || context.metadata.lineCount !== actualLineCount) {
       errors.push('Line count mismatch in metadata');
+    }
+
+    // 检查其他必需的boolean属性
+    if (typeof context.metadata.isSmallFile !== 'boolean') {
+      errors.push('isSmallFile must be boolean in metadata');
+    }
+    if (typeof context.metadata.isCodeFile !== 'boolean') {
+      errors.push('isCodeFile must be boolean in metadata');
+    }
+    if (typeof context.metadata.isMarkdownFile !== 'boolean') {
+      errors.push('isMarkdownFile must be boolean in metadata');
     }
 
     // 检查选项

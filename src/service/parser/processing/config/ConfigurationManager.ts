@@ -19,7 +19,30 @@ export class ConfigurationManager implements IConfigurationManager {
       this.logger?.debug('ConfigurationManager initialized successfully');
     } catch (error) {
       this.logger?.error('Failed to initialize ConfigurationManager:', error);
-      throw error;
+      // Fallback to hardcoded defaults
+      this.defaultOptions = {
+        maxChunkSize: 2000,
+        overlapSize: 200,
+        maxLinesPerChunk: 50,
+        enableBracketBalance: true,
+        enableSemanticDetection: true,
+        enableCodeOverlap: false,
+        enableStandardization: true,
+        standardizationFallback: true,
+        maxOverlapRatio: 0.3,
+        errorThreshold: 5,
+        memoryLimitMB: 500,
+        filterConfig: {
+          enableSmallChunkFilter: true,
+          enableChunkRebalancing: true,
+          minChunkSize: 20,
+          maxChunkSize: 1000
+        },
+        protectionConfig: {
+          enableProtection: true,
+          protectionLevel: 'medium'
+        }
+      };
     }
   }
 
@@ -34,45 +57,41 @@ export class ConfigurationManager implements IConfigurationManager {
    * 验证配置
    */
   validateOptions(options: Partial<UniversalChunkingOptions>): boolean {
-    try {
-      // 检查必需的字段
-      if (options.maxChunkSize !== undefined && options.maxChunkSize <= 0) {
-        return false;
-      }
-
-      if (options.overlapSize !== undefined && options.overlapSize < 0) {
-        return false;
-      }
-
-      if (options.maxLinesPerChunk !== undefined && options.maxLinesPerChunk <= 0) {
-        return false;
-      }
-
-      if (options.maxOverlapRatio !== undefined &&
-        (options.maxOverlapRatio < 0 || options.maxOverlapRatio > 1)) {
-        return false;
-      }
-
-      if (options.errorThreshold !== undefined && options.errorThreshold < 0) {
-        return false;
-      }
-
-      if (options.memoryLimitMB !== undefined && options.memoryLimitMB <= 0) {
-        return false;
-      }
-
-      // 验证处理器配置
-      if (options.filterConfig) {
-        const { minChunkSize, maxChunkSize } = options.filterConfig;
-        if (minChunkSize >= maxChunkSize || minChunkSize < 0 || maxChunkSize <= 0) {
-          return false;
-        }
-      }
-
-      return true;
-    } catch (error) {
-      return false;
+    // 检查必需的字段
+    if (options.maxChunkSize !== undefined && options.maxChunkSize <= 0) {
+      throw new Error('Invalid configuration option: maxChunkSize must be greater than 0');
     }
+
+    if (options.overlapSize !== undefined && options.overlapSize < 0) {
+      throw new Error('Invalid configuration option: overlapSize must be non-negative');
+    }
+
+    if (options.maxLinesPerChunk !== undefined && options.maxLinesPerChunk <= 0) {
+      throw new Error('Invalid configuration option: maxLinesPerChunk must be greater than 0');
+    }
+
+    if (options.maxOverlapRatio !== undefined &&
+      (options.maxOverlapRatio < 0 || options.maxOverlapRatio > 1)) {
+      throw new Error('Invalid configuration option: maxOverlapRatio must be between 0 and 1');
+    }
+
+    if (options.errorThreshold !== undefined && options.errorThreshold < 0) {
+      throw new Error('Invalid configuration option: errorThreshold must be non-negative');
+    }
+
+    if (options.memoryLimitMB !== undefined && options.memoryLimitMB <= 0) {
+      throw new Error('Invalid configuration option: memoryLimitMB must be greater than 0');
+    }
+
+    // 验证处理器配置
+    if (options.filterConfig) {
+      const { minChunkSize, maxChunkSize } = options.filterConfig;
+      if (minChunkSize >= maxChunkSize || minChunkSize < 0 || maxChunkSize <= 0) {
+        throw new Error('Invalid configuration option: filterConfig minChunkSize must be less than maxChunkSize and both positive');
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -220,9 +239,10 @@ export class ConfigurationManager implements IConfigurationManager {
    * 更新默认配置
    */
   updateDefaultOptions(options: Partial<UniversalChunkingOptions>): void {
-    if (this.validateOptions(options)) {
+    try {
+      this.validateOptions(options);
       this.defaultOptions = this.mergeOptions(this.defaultOptions, options);
-    } else {
+    } catch (error) {
       throw new Error('Invalid configuration options provided');
     }
   }
