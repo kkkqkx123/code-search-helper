@@ -19,11 +19,6 @@ type NodeInfo =
     });
 
 type Language = {
-  language: unknown;
+ language: unknown;
   nodeTypeInfo: NodeInfo[];
 };
-
-declare module 'tree-sitter-vue' {
-  const grammar: Language;
-  export default grammar;
-}

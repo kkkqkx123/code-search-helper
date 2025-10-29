@@ -396,7 +396,6 @@ export const TYPES = {
   ChunkRebalancer: Symbol.for('ChunkRebalancer'),
 
   // 37. 优化的降级处理相关服务
-  // 37. 优化的降级处理相关服务
   OptimizedProcessingGuard: Symbol.for('OptimizedProcessingGuard'),
   UnifiedDetectionService: Symbol.for('UnifiedDetectionService'),
   IntelligentFallbackEngine: Symbol.for('IntelligentFallbackEngine'),
