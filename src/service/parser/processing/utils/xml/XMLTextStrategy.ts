@@ -1,6 +1,7 @@
-import { injectable } from 'inversify';
+import { injectable, inject } from 'inversify';
 import { CodeChunk, CodeChunkMetadata } from '../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
 import {
   XMLChunkingConfig,
   XMLBlockType,
@@ -30,7 +31,10 @@ export class XMLTextStrategy {
   private config: XMLChunkingConfig;
   private logger?: LoggerService;
 
-  constructor(logger?: LoggerService, config?: Partial<XMLChunkingConfig>) {
+  constructor(
+    @inject(TYPES.LoggerService) logger?: LoggerService,
+    @inject('unmanaged') config?: Partial<XMLChunkingConfig>
+  ) {
     this.logger = logger;
     this.config = { ...DEFAULT_XML_CONFIG, ...config };
   }

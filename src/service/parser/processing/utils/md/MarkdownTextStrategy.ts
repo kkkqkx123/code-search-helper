@@ -1,6 +1,7 @@
-import { injectable } from 'inversify';
+import { injectable, inject } from 'inversify';
 import { CodeChunk, CodeChunkMetadata } from '../../../types/core-types';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { TYPES } from '../../../../../types';
 import {
   MarkdownChunkingConfig,
   MarkdownBlockType,
@@ -26,7 +27,10 @@ export class MarkdownTextStrategy {
   private config: MarkdownChunkingConfig;
   private logger?: LoggerService;
 
-  constructor(logger?: LoggerService, config?: Partial<MarkdownChunkingConfig>) {
+  constructor(
+    @inject(TYPES.LoggerService) logger?: LoggerService,
+    @inject('unmanaged') config?: Partial<MarkdownChunkingConfig>
+  ) {
     this.logger = logger;
     this.config = { ...DEFAULT_MARKDOWN_CONFIG, ...config };
   }

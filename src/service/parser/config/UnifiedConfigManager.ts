@@ -1,3 +1,4 @@
+import { injectable, inject } from 'inversify';
 import { ChunkingOptions, StrategyConfiguration } from '../interfaces/CoreISplitStrategy';
 import { LanguageConfiguration } from './LanguageConfigManager';
 
@@ -40,6 +41,7 @@ export interface UniversalProcessingConfig {
   };
 }
 
+@injectable()
 export class UnifiedConfigManager {
   private config: UnifiedConfig;
   private listeners: Array<(config: UnifiedConfig) => void> = [];
@@ -63,7 +65,7 @@ export class UnifiedConfigManager {
     }
   };
 
-  constructor(initialConfig?: Partial<UnifiedConfig>) {
+  constructor(@inject('unmanaged') initialConfig?: Partial<UnifiedConfig>) {
     this.config = {
       global: {
         maxChunkSize: 2000,

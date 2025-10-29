@@ -389,6 +389,8 @@ export const TYPES = {
   MarkdownSegmentationStrategy: Symbol.for('MarkdownSegmentationStrategy'),
   StandardizationSegmentationStrategy: Symbol.for('StandardizationSegmentationStrategy'),
   OverlapProcessor: Symbol.for('OverlapProcessor'),
+  OverlapPostProcessor: Symbol.for('OverlapPostProcessor'),
+  ASTNodeTracker: Symbol.for('ASTNodeTracker'),
   ChunkFilter: Symbol.for('ChunkFilter'),
   ChunkRebalancer: Symbol.for('ChunkRebalancer'),
 

@@ -36,20 +36,20 @@ import { UnifiedConfigManager, UnifiedConfig, UniversalProcessingConfig } from '
 export { UnifiedConfigManager, UnifiedConfig, UniversalProcessingConfig };
 
 // 策略工厂导入和导出
-import { UnifiedStrategyFactory } from './strategies/factory/UnifiedStrategyFactory';
-export { UnifiedStrategyFactory };
+// import { UnifiedStrategyFactory } from './strategies/factory/UnifiedStrategyFactory';
+// export { UnifiedStrategyFactory };
 
 // 策略管理器导入和导出
-import { UnifiedStrategyManager } from './strategies/manager/UnifiedStrategyManager';
-export { UnifiedStrategyManager };
+// import { UnifiedStrategyManager } from './strategies/manager/UnifiedStrategyManager';
+// export { UnifiedStrategyManager };
 
 // 检测服务导入和导出
 import { UnifiedDetectionService, DetectionResult, FileFeatures, LanguageDetectionInfo } from './detection/UnifiedDetectionService';
 export { UnifiedDetectionService, DetectionResult, FileFeatures, LanguageDetectionInfo };
 
 // 处理协调器导入和导出
-import { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext } from './coordination/UnifiedProcessingCoordinator';
-export { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext };
+// import { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext } from './coordination/UnifiedProcessingCoordinator';
+// export { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext };
 
 // 工具函数导出
 export * from './utils';
@@ -63,10 +63,10 @@ export * from './utils/quality';
 export default {
   // 主要类
   UnifiedConfigManager,
-  UnifiedStrategyFactory,
-  UnifiedStrategyManager,
+  // UnifiedStrategyFactory,
+  // UnifiedStrategyManager,
   UnifiedDetectionService,
-  UnifiedProcessingCoordinator,
+  // UnifiedProcessingCoordinator,
 
   // 接口（作为类型导出，不作为值）
 };

@@ -1,21 +1,27 @@
+import { injectable, inject } from 'inversify';
 import { CodeChunk, EnhancedChunkingOptions } from '../types/splitting-types';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { UnifiedOverlapCalculator } from '../utils/overlap/UnifiedOverlapCalculator';
 import { DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../types/splitting-types';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ASTNodeTracker } from '../utils/AST/ASTNodeTracker';
+import { TYPES } from '../../../../types';
 
 /**
  * 重叠后处理器
  * 集成OverlapProcessor和UnifiedOverlapCalculator的功能
  * 为大型代码块和纯文本文件提供重叠支持
  */
+@injectable()
 export class OverlapPostProcessor implements IChunkPostProcessor {
   private logger?: LoggerService;
   private unifiedOverlapCalculator?: UnifiedOverlapCalculator;
   private nodeTracker?: ASTNodeTracker;
 
-  constructor(logger?: LoggerService, nodeTracker?: ASTNodeTracker) {
+  constructor(
+    @inject(TYPES.LoggerService) logger?: LoggerService,
+    @inject(TYPES.ASTNodeTracker) nodeTracker?: ASTNodeTracker
+  ) {
     this.logger = logger;
     this.nodeTracker = nodeTracker;
   }

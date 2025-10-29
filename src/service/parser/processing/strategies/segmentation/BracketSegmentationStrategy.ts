@@ -11,11 +11,15 @@ import { BLOCK_SIZE_LIMITS } from '../../constants';
  * 括号分段策略
  * 职责：基于括号和XML标签平衡的分段
  */
+@injectable()
 export class BracketSegmentationStrategy implements ISegmentationStrategy, IProcessingStrategy {
   private logger?: LoggerService;
   private complexityCalculator?: IComplexityCalculator;
 
-  constructor(complexityCalculator?: IComplexityCalculator, logger?: LoggerService) {
+  constructor(
+    @inject(TYPES.ComplexityCalculator) complexityCalculator?: IComplexityCalculator,
+    @inject(TYPES.LoggerService) logger?: LoggerService
+  ) {
     this.complexityCalculator = complexityCalculator;
     this.logger = logger;
   }

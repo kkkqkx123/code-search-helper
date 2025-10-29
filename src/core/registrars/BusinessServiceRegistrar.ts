@@ -48,6 +48,9 @@ import { ErrorThresholdInterceptor } from '../../service/parser/processing/utils
 import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../service/parser/processing/detection/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from '../../service/parser/processing/detection/ExtensionlessFileProcessor';
+import { OverlapPostProcessor } from '../../service/parser/processing/post-processing/OverlapPostProcessor';
+import { ASTNodeTracker } from '../../service/parser/processing/utils/AST/ASTNodeTracker';
+import { ChunkRebalancer } from '../../service/parser/processing/utils/ChunkRebalancer';
 // ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名，通过类型定义处理
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
@@ -61,6 +64,7 @@ import { ConfigCoordinator } from '../../service/parser/processing/coordination/
 import { PerformanceMonitoringCoordinator } from '../../service/parser/processing/coordination/PerformanceMonitoringCoordinator';
 import { UnifiedProcessingCoordinator } from '../../service/parser/processing/coordination/UnifiedProcessingCoordinator';
 import { UnifiedStrategyManager } from '../../service/parser/processing/strategies/manager/UnifiedStrategyManager';
+import { UnifiedStrategyFactory } from '../../service/parser/processing/strategies/factory/UnifiedStrategyFactory';
 import { UnifiedDetectionService } from '../../service/parser/processing/detection/UnifiedDetectionService';
 
 // 分段器模块服务
@@ -71,9 +75,14 @@ import { ComplexityCalculator } from '../../service/parser/processing/utils/calc
 import { ChunkFilter } from '../../service/parser/processing/utils/chunking/ChunkFilter';
 import { SemanticSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/SemanticSegmentationStrategy';
 import { BracketSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/BracketSegmentationStrategy';
+import { LineSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/LineSegmentationStrategy';
 import { LineStrategyProvider } from '../../service/parser/processing/strategies/providers/LineStrategyProvider';
 import { MarkdownSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/MarkdownSegmentationStrategy';
 import { StandardizationSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/StandardizationSegmentationStrategy';
+import { PriorityManager } from '../../service/parser/processing/strategies/priority/PriorityManager';
+import { SmartStrategySelector } from '../../service/parser/processing/strategies/priority/SmartStrategySelector';
+import { FallbackManager } from '../../service/parser/processing/strategies/priority/FallbackManager';
+import { FileFeatureDetector } from '../../service/parser/processing/detection/FileFeatureDetector';
 
 // 新增的策略提供者
 import { ImportStrategyProvider } from '../../service/parser/processing/strategies/providers/ImportStrategyProvider';
@@ -143,6 +152,13 @@ export class BusinessServiceRegistrar {
       container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).to(PerformanceOptimizerService).inSingletonScope();
 
       // 解析服务
+      container.bind('unmanaged').toConstantValue(undefined);
+      container.bind<UnifiedConfigManager>(TYPES.UnifiedConfigManager).to(UnifiedConfigManager).inSingletonScope();
+      container.bind<UnifiedStrategyFactory>(TYPES.UnifiedStrategyFactory).to(UnifiedStrategyFactory).inSingletonScope();
+      container.bind<UnifiedStrategyManager>(TYPES.UnifiedStrategyManager).to(UnifiedStrategyManager).inSingletonScope();
+      container.bind<UnifiedDetectionService>(TYPES.UnifiedDetectionService).to(UnifiedDetectionService).inSingletonScope();
+
+      // 解析服务
       container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
       container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
       container.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).to(ASTCodeSplitter).inSingletonScope();
@@ -158,6 +174,10 @@ export class BusinessServiceRegistrar {
 
       // 分段器模块服务 - 统一在这里管理
       // 核心类
+      container.bind<PriorityManager>(TYPES.PriorityManager).to(PriorityManager).inSingletonScope();
+      container.bind<SmartStrategySelector>(TYPES.SmartStrategySelector).to(SmartStrategySelector).inSingletonScope();
+      container.bind<FallbackManager>(TYPES.FallbackManager).to(FallbackManager).inSingletonScope();
+      container.bind<FileFeatureDetector>(TYPES.FileFeatureDetector).to(FileFeatureDetector).inSingletonScope();
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
       container.bind<SegmentationStrategyCoordinator>(TYPES.SegmentationStrategyCoordinator).to(SegmentationStrategyCoordinator).inSingletonScope();
 
@@ -171,7 +191,7 @@ export class BusinessServiceRegistrar {
       // 策略
       container.bind<SemanticSegmentationStrategy>(TYPES.SemanticSegmentationStrategy).to(SemanticSegmentationStrategy).inSingletonScope();
       container.bind<BracketSegmentationStrategy>(TYPES.BracketSegmentationStrategy).to(BracketSegmentationStrategy).inSingletonScope();
-      // container.bind<LineSegmentationStrategy>(TYPES.LineSegmentationStrategy).to(LineSegmentationStrategy).inSingletonScope(); // 暂时注释掉
+      container.bind<LineSegmentationStrategy>(TYPES.LineSegmentationStrategy).to(LineSegmentationStrategy).inSingletonScope();
       container.bind<MarkdownSegmentationStrategy>(TYPES.MarkdownSegmentationStrategy).to(MarkdownSegmentationStrategy).inSingletonScope();
       container.bind<StandardizationSegmentationStrategy>(TYPES.StandardizationSegmentationStrategy).to(StandardizationSegmentationStrategy).inSingletonScope();
 
@@ -184,6 +204,9 @@ export class BusinessServiceRegistrar {
 
       // 处理器
       container.bind<ChunkFilter>(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();
+      container.bind<OverlapPostProcessor>(TYPES.OverlapPostProcessor).to(OverlapPostProcessor).inSingletonScope();
+      container.bind<ASTNodeTracker>(TYPES.ASTNodeTracker).to(ASTNodeTracker).inSingletonScope();
+      container.bind<ChunkRebalancer>(TYPES.ChunkRebalancer).to(ChunkRebalancer).inSingletonScope();
 
       // 初始化分段器模块 - 设置策略和处理器
       BusinessServiceRegistrar.initializeSegmentationServices(container);
@@ -395,7 +418,7 @@ export class BusinessServiceRegistrar {
       logger?.debug('UniversalTextStrategy retrieved from container');
 
       const processors = [
-        { name: 'OverlapProcessor', type: TYPES.OverlapProcessor },
+        { name: 'OverlapPostProcessor', type: TYPES.OverlapPostProcessor },
         { name: 'ChunkFilter', type: TYPES.ChunkFilter },
         { name: 'ChunkRebalancer', type: TYPES.ChunkRebalancer }
       ];
