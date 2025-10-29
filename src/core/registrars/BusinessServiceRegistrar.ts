@@ -79,6 +79,7 @@ import { LineSegmentationStrategy } from '../../service/parser/processing/strate
 import { LineStrategyProvider } from '../../service/parser/processing/strategies/providers/LineStrategyProvider';
 import { MarkdownSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/MarkdownSegmentationStrategy';
 import { StandardizationSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/StandardizationSegmentationStrategy';
+import { ASTSegmentationStrategy } from '../../service/parser/processing/strategies/segmentation/ASTSegmentationStrategy';
 import { PriorityManager } from '../../service/parser/processing/strategies/priority/PriorityManager';
 import { SmartStrategySelector } from '../../service/parser/processing/strategies/priority/SmartStrategySelector';
 import { FallbackManager } from '../../service/parser/processing/strategies/priority/FallbackManager';
@@ -210,6 +211,7 @@ export class BusinessServiceRegistrar {
       container.bind<LineSegmentationStrategy>(TYPES.LineSegmentationStrategy).to(LineSegmentationStrategy).inSingletonScope();
       container.bind<MarkdownSegmentationStrategy>(TYPES.MarkdownSegmentationStrategy).to(MarkdownSegmentationStrategy).inSingletonScope();
       container.bind<StandardizationSegmentationStrategy>(TYPES.StandardizationSegmentationStrategy).to(StandardizationSegmentationStrategy).inSingletonScope();
+      container.bind<ASTSegmentationStrategy>(TYPES.ASTSegmentationStrategy).to(ASTSegmentationStrategy).inSingletonScope();
 
       // 新增的策略提供者
       container.bind<ImportStrategyProvider>(TYPES.ImportStrategyProvider).to(ImportStrategyProvider).inSingletonScope();
@@ -415,7 +417,8 @@ export class BusinessServiceRegistrar {
         { name: 'BracketSegmentationStrategy', type: TYPES.BracketSegmentationStrategy },
         { name: 'LineSegmentationStrategy', type: TYPES.LineSegmentationStrategy },
         { name: 'MarkdownSegmentationStrategy', type: TYPES.MarkdownSegmentationStrategy },
-        { name: 'StandardizationSegmentationStrategy', type: TYPES.StandardizationSegmentationStrategy }
+        { name: 'StandardizationSegmentationStrategy', type: TYPES.StandardizationSegmentationStrategy },
+        { name: 'ASTSegmentationStrategy', type: TYPES.ASTSegmentationStrategy }
       ];
 
       for (const strategy of strategies) {
@@ -476,7 +479,8 @@ export class BusinessServiceRegistrar {
         { name: 'BracketSegmentationStrategy', type: TYPES.BracketSegmentationStrategy },
         { name: 'LineSegmentationStrategy', type: TYPES.LineSegmentationStrategy },
         { name: 'MarkdownSegmentationStrategy', type: TYPES.MarkdownSegmentationStrategy },
-        { name: 'StandardizationSegmentationStrategy', type: TYPES.StandardizationSegmentationStrategy }
+        { name: 'StandardizationSegmentationStrategy', type: TYPES.StandardizationSegmentationStrategy },
+        { name: 'ASTSegmentationStrategy', type: TYPES.ASTSegmentationStrategy }
       ];
 
       // 添加策略到协调器

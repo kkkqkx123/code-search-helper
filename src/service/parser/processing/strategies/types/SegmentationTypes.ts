@@ -1,6 +1,9 @@
-import { CodeChunk, CodeChunkMetadata } from '../../types/splitting-types';
+import { CodeChunkMetadata } from '../../types/splitting-types';
 // import { ProtectionContext, ProtectionDecision } from '../../../universal/protection/ProtectionInterceptor';
 // import { IProtectionInterceptor } from '../../../universal/protection/interfaces/IProtectionInterceptor';
+
+// 重新导出CodeChunk类型
+export type { CodeChunk } from '../../types/splitting-types';
 
 // 临时定义这些类型，直到相关模块实现完成
 export interface ProtectionContext {

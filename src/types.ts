@@ -388,6 +388,7 @@ export const TYPES = {
   LineSegmentationStrategy: Symbol.for('LineSegmentationStrategy'),
   MarkdownSegmentationStrategy: Symbol.for('MarkdownSegmentationStrategy'),
   StandardizationSegmentationStrategy: Symbol.for('StandardizationSegmentationStrategy'),
+  ASTSegmentationStrategy: Symbol.for('ASTSegmentationStrategy'),
   OverlapProcessor: Symbol.for('OverlapProcessor'),
   OverlapPostProcessor: Symbol.for('OverlapPostProcessor'),
   ASTNodeTracker: Symbol.for('ASTNodeTracker'),
