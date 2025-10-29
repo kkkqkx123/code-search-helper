@@ -30,13 +30,12 @@ export class SegmentationStrategyCoordinator implements ISegmentationContextMana
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.ConfigurationManager) configManager?: IConfigurationManager,
-    @inject(TYPES.PriorityManager) priorityManager?: PriorityManager,
-    @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: FileFeatureDetector
+    @inject(TYPES.PriorityManager) priorityManager?: PriorityManager
   ) {
     this.logger = logger;
     this.configManager = configManager || this.createDefaultConfigManager();
     this.strategies = [];
-    this.fileFeatureDetector = fileFeatureDetector || new FileFeatureDetector(logger);
+    this.fileFeatureDetector = FileFeatureDetector.getInstance(logger);
     this.priorityManager = priorityManager || new PriorityManager(logger);
     this.logger?.debug('SegmentationStrategyCoordinator initialized with new priority system');
   }

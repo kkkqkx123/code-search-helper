@@ -193,7 +193,7 @@ export class BusinessServiceRegistrar {
       container.bind<PriorityManager>(TYPES.PriorityManager).to(PriorityManager).inSingletonScope();
       container.bind<SmartStrategySelector>(TYPES.SmartStrategySelector).to(SmartStrategySelector).inSingletonScope();
       container.bind<FallbackManager>(TYPES.FallbackManager).to(FallbackManager).inSingletonScope();
-      container.bind<FileFeatureDetector>(TYPES.FileFeatureDetector).to(FileFeatureDetector).inSingletonScope();
+      // FileFeatureDetector 现在使用单例模式，不需要通过DI容器绑定
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
       container.bind<SegmentationStrategyCoordinator>(TYPES.SegmentationStrategyCoordinator).to(SegmentationStrategyCoordinator).inSingletonScope();
 

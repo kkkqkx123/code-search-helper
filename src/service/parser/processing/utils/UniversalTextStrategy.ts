@@ -46,7 +46,7 @@ export class UniversalTextStrategy implements ITextSplitter {
       this.contextManager = contextManager;
       this.options = configManager.getDefaultOptions();
       this.processors = [];
-      this.fileFeatureDetector = new FileFeatureDetector(logger);
+      this.fileFeatureDetector = FileFeatureDetector.getInstance(logger);
       this.priorityManager = priorityManager || new PriorityManager(logger);
 
       this.logger?.debug('Initializing UniversalTextStrategy...');

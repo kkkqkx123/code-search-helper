@@ -2,6 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';
+import { TreeSitterService } from '../../core/parse/TreeSitterService';
 
 /**
  * 检测结果接口
@@ -58,10 +59,13 @@ export class UnifiedDetectionService {
   private configManager: UnifiedConfigManager;
   private languageMap: Map<string, string[]> = new Map();
   private contentPatterns: Map<string, RegExp[]> = new Map();
+  private detectionCache: Map<string, DetectionResult> = new Map();
+  private readonly cacheSizeLimit = 1000; // 限制缓存大小
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.UnifiedConfigManager) configManager?: UnifiedConfigManager
+    @inject(TYPES.UnifiedConfigManager) configManager?: UnifiedConfigManager,
+    @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService
   ) {
     this.logger = logger;
     this.configManager = configManager || new UnifiedConfigManager();
@@ -75,6 +79,15 @@ export class UnifiedDetectionService {
    */
   async detectFile(filePath: string, content: string): Promise<DetectionResult> {
     this.logger?.debug(`Detecting file: ${filePath}`);
+
+    // 创建缓存键，包含文件路径和内容长度以确保一致性
+    const cacheKey = `${filePath}:${content.length}:${this.getContentHash(content)}`;
+
+    // 检查缓存
+    if (this.detectionCache.has(cacheKey)) {
+      this.logger?.debug(`Cache hit for detection: ${filePath}`);
+      return this.detectionCache.get(cacheKey)!;
+    }
 
     try {
       // 1. 检查是否为备份文件
@@ -97,15 +110,36 @@ export class UnifiedDetectionService {
       const fileFeatures = this.analyzeFileFeatures(content, finalResult.language);
       finalResult.metadata.fileFeatures = fileFeatures;
       
-      // 6. 处理策略推荐
+      // 6. AST生成（如果适用）
+      if (this.shouldGenerateAST(finalResult, fileFeatures) && this.treeSitterService) {
+        try {
+          const astInfo = await this.generateAST(content, finalResult.language);
+          if (astInfo) {
+            finalResult.metadata.astInfo = astInfo;
+            this.logger?.debug(`AST generated successfully for ${filePath}`);
+          }
+        } catch (error) {
+          this.logger?.warn(`Failed to generate AST for ${filePath}:`, error);
+          // AST生成失败不应该影响整个检测过程
+        }
+      }
+      
+      // 7. 处理策略推荐
       finalResult.metadata.processingStrategy = this.recommendProcessingStrategy(finalResult, fileFeatures);
 
       this.logger?.debug(`Final detection result: ${finalResult.language} (confidence: ${finalResult.confidence})`);
+      
+      // 缓存结果
+      this.cacheDetectionResult(cacheKey, finalResult);
+      
       return finalResult;
 
     } catch (error) {
       this.logger?.error(`File detection failed for ${filePath}:`, error);
-      return this.createFallbackResult(filePath, content);
+      const fallbackResult = this.createFallbackResult(filePath, content);
+      // 缓存降级结果
+      this.cacheDetectionResult(cacheKey, fallbackResult);
+      return fallbackResult;
     }
   }
 
@@ -286,8 +320,8 @@ export class UnifiedDetectionService {
     // 基本特征
     const isCodeFile = this.isCodeLanguage(language);
     const isTextFile = this.isTextLanguage(language);
-    const isMarkdownFile = language === 'markdown';
-    const isXMLFile = this.isXMLLanguage(language);
+    const isMarkdownFile = this.isMarkdown(language);
+    const isXMLFile = this.isXML(language);
     
     // 结构特征
     const hasImports = this.hasImports(content, language);
@@ -298,7 +332,9 @@ export class UnifiedDetectionService {
     // 复杂度分析
     const complexity = this.calculateComplexity(content, language);
     const isStructuredFile = hasFunctions || hasClasses || hasImports;
-    const isHighlyStructured = (hasFunctions && hasClasses) || complexity > 100;
+    
+    // 使用与FileFeatureDetector一致的isHighlyStructured逻辑
+    const isHighlyStructured = this.isHighlyStructured(content, language);
 
     return {
       isCodeFile,
@@ -325,46 +361,61 @@ export class UnifiedDetectionService {
     
     // 低置信度使用简单策略
     if (confidence < 0.5) {
-      return 'universal_line';
+      return 'universal-line';
     }
 
     // 备份文件使用保守策略
     if (detection.detectionMethod === 'backup') {
-      return 'universal_line';
+      return 'universal-bracket';
     }
 
     // 小文件使用简单策略
     if (features.size < 1000) {
-      return 'universal_line';
+      return 'universal-line';
     }
 
     // 大文件使用语义策略
     if (features.size > 50000) {
-      return 'universal_semantic';
+      return 'universal-semantic';
     }
 
     // 结构化文件使用语法感知策略
     if (features.isHighlyStructured) {
-      return 'treesitter_ast';
+      // 检查是否支持TreeSitter
+      if (this.canUseTreeSitter(language)) {
+        return 'treesitter-ast';
+      }
+      return 'universal-bracket';
     }
 
     // 代码文件使用语义策略
     if (features.isCodeFile && features.isStructuredFile) {
-      return 'universal_semantic';
+      return 'universal-semantic-fine';
     }
 
     // Markdown文件使用专门策略
     if (features.isMarkdownFile) {
-      return 'markdown_specialized';
+      return 'markdown-specialized';
     }
 
     // XML文件使用专门策略
     if (features.isXMLFile) {
-      return 'xml_specialized';
+      return 'xml-specialized';
     }
 
     // 默认使用语义策略
-    return 'universal_semantic';
+    return 'universal-semantic';
+  }
+
+  /**
+   * 检查是否可以使用TreeSitter
+   */
+  private canUseTreeSitter(language: string): boolean {
+    const treeSitterLanguages = [
+      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
+      'go', 'rust', 'php', 'ruby'
+    ];
+    return treeSitterLanguages.includes(language.toLowerCase());
   }
 
   /**
@@ -544,6 +595,44 @@ export class UnifiedDetectionService {
     return xmlLanguages.includes(language);
   }
 
+  /**
+   * 检查是否为Markdown（与FileFeatureDetector保持一致）
+   */
+  private isMarkdown(language: string): boolean {
+    return ['markdown', 'md'].includes(language.toLowerCase());
+  }
+
+  /**
+   * 检查是否为XML类语言（与FileFeatureDetector保持一致）
+   */
+  private isXML(language: string): boolean {
+    return ['xml', 'html', 'svg', 'xhtml'].includes(language.toLowerCase());
+  }
+
+  /**
+   * 检查是否为高度结构化文件（与FileFeatureDetector保持一致）
+   */
+  private isHighlyStructured(content: string, language: string): boolean {
+    // 如果是已知结构化语言，直接返回true
+    const structuredLanguages = ['json', 'xml', 'html', 'yaml', 'css', 'sql'];
+    if (structuredLanguages.includes(language.toLowerCase())) {
+      return true;
+    }
+
+    // 检查内容是否包含大量括号或标签
+    const bracketCount = (content.match(/[{}()\[\]]/g) || []).length;
+    const tagCount = (content.match(/<[^>]+>/g) || []).length;
+    const totalLength = content.length;
+
+    const isStructured = (bracketCount / totalLength > 0.01) || (tagCount / totalLength > 0.005);
+    
+    if (isStructured) {
+      this.logger?.debug(`Detected structured content: brackets=${bracketCount}, tags=${tagCount}, ratio=${(bracketCount / totalLength).toFixed(3)}`);
+    }
+
+    return isStructured;
+  }
+
   private hasImports(content: string, language: string): boolean {
     const patterns: Record<string, RegExp> = {
       typescript: /import\s+|require\s*\(/,
@@ -605,5 +694,131 @@ export class UnifiedDetectionService {
     const controlStructures = (content.match(/if|for|while|switch|case/g) || []).length;
     
     return lines.length + nestedStructures * 2 + controlStructures;
+  }
+
+  /**
+   * 判断是否应该生成AST
+   */
+  private shouldGenerateAST(detection: DetectionResult, features: FileFeatures): boolean {
+    // 只为代码文件生成AST
+    if (!features.isCodeFile) {
+      return false;
+    }
+
+    // 只为高置信度的检测生成AST
+    if (detection.confidence < 0.7) {
+      return false;
+    }
+
+    // 只为结构化文件生成AST
+    if (!features.isStructuredFile) {
+      return false;
+    }
+
+    // 文件大小限制（避免为过大的文件生成AST）
+    if (features.size > 100000) { // 100KB
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 生成AST信息
+   */
+  private async generateAST(content: string, language: string): Promise<any> {
+    if (!this.treeSitterService) {
+      return null;
+    }
+
+    try {
+      // 检测语言 - 使用更宽松的匹配方式
+      const supportedLanguages = this.treeSitterService.getSupportedLanguages();
+      const detectedLanguage = supportedLanguages.find(lang => 
+        lang.name.toLowerCase() === language.toLowerCase()
+      );
+      if (!detectedLanguage) {
+        this.logger?.warn(`TreeSitter does not support language: ${language}`);
+        return null;
+      }
+
+      // 解析代码
+      const parseResult = await this.treeSitterService.parseCode(content, detectedLanguage.name);
+      if (!parseResult.success || !parseResult.ast) {
+        this.logger?.warn(`Failed to parse ${language} code with TreeSitter`);
+        return null;
+      }
+
+      // 提取函数和类信息
+      const functions = await this.treeSitterService.extractFunctions(parseResult.ast);
+      const classes = await this.treeSitterService.extractClasses(parseResult.ast);
+
+      return {
+        ast: parseResult.ast,
+        language: detectedLanguage.name,
+        functions: functions.length,
+        classes: classes.length,
+        parseSuccess: true,
+        timestamp: Date.now()
+      };
+
+    } catch (error) {
+      this.logger?.error(`AST generation failed for ${language}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 生成内容哈希
+   */
+  private getContentHash(content: string): string {
+    // 简单的哈希算法，基于内容的前100个字符和后100个字符
+    const prefix = content.substring(0, 100);
+    const suffix = content.length > 100 ? content.substring(content.length - 100) : '';
+    const combined = prefix + suffix;
+    
+    let hash = 0;
+    for (let i = 0; i < combined.length; i++) {
+      const char = combined.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 转换为32位整数
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  /**
+   * 缓存检测结果
+   */
+  private cacheDetectionResult(cacheKey: string, result: DetectionResult): void {
+    // 管理缓存大小
+    if (this.detectionCache.size >= this.cacheSizeLimit) {
+      // 删除最旧的条目（简单的FIFO策略）
+      const firstKey = this.detectionCache.keys().next().value;
+      if (firstKey) {
+        this.detectionCache.delete(firstKey);
+      }
+    }
+
+    // 缓存结果
+    this.detectionCache.set(cacheKey, result);
+    this.logger?.debug(`Detection result cached for key: ${cacheKey}`);
+  }
+
+  /**
+   * 清除检测缓存
+   */
+  clearCache(): void {
+    this.detectionCache.clear();
+    this.logger?.info('UnifiedDetectionService cache cleared');
+  }
+
+  /**
+   * 获取缓存统计信息
+   */
+  getCacheStats(): { size: number; limit: number } {
+    return {
+      size: this.detectionCache.size,
+      limit: this.cacheSizeLimit
+    };
   }
 }

@@ -227,7 +227,7 @@ export class TreeSitterQueryEngine {
       QueryPerformanceMonitor.recordCacheHit(false);
 
       // 执行查询 - 使用原生tree-sitter Query API
-      const matches = this.executeQueryPattern(ast, pattern);
+      const matches = await this.executeQueryPattern(ast, pattern, language);
 
       const executionTime = Date.now() - startTime;
       QueryPerformanceMonitor.recordQuery(`${language}_${patternName}`, executionTime);
@@ -328,22 +328,34 @@ export class TreeSitterQueryEngine {
   /**
    * 执行查询模式（使用原生tree-sitter Query API）
    */
-  private executeQueryPattern(ast: Parser.SyntaxNode, pattern: QueryPattern): QueryMatch[] {
+  private async executeQueryPattern(ast: Parser.SyntaxNode, pattern: QueryPattern, language: string): Promise<QueryMatch[]> {
     try {
-      // 获取语言对象，假设从AST的tree属性中获取
-      const language = (ast.tree as any)?.language;
-      if (!language) {
-        this.logger.warn('无法获取语言对象，跳过查询');
-        return [];
+      // 获取语言对象，首先尝试从AST的tree属性中获取
+      let languageObj = (ast.tree as any)?.language;
+      
+      // 如果无法从AST获取语言对象，尝试使用DynamicParserManager获取
+      if (!languageObj) {
+        try {
+          // 导入DynamicParserManager来获取解析器
+          const { DynamicParserManager } = await import('../parse/DynamicParserManager');
+          const dynamicManager = new DynamicParserManager();
+          const parser = await dynamicManager.getParser(language);
+          if (parser) {
+            // 从解析器获取语言对象
+            languageObj = parser.getLanguage();
+          } else {
+            this.logger.warn(`无法获取解析器 ${language}，跳过查询`);
+            return [];
+          }
+        } catch (error) {
+          this.logger.warn(`无法获取语言对象 ${language}，跳过查询:`, error);
+          return [];
+        }
       }
 
-      // 检查是否为测试环境中的模拟语言对象
-      if (this.isTestEnvironment(language)) {
-        // 测试环境，返回空结果
-        return [];
-      }
+      
 
-      const query = QueryCache.getQuery(language, pattern.pattern);
+      const query = QueryCache.getQuery(languageObj, pattern.pattern);
       const matches = query.matches(ast);
 
       return matches.map(match => ({
@@ -363,9 +375,11 @@ export class TreeSitterQueryEngine {
 
   /**
    * 检查是否为测试环境
+   * 注意：真实的tree-sitter语言对象也有query方法，所以不能仅凭这个判断
+   * 这里我们检查是否是模拟对象（没有name属性）
    */
   private isTestEnvironment(language: any): boolean {
-    return language && language.query && typeof language.query === 'function';
+    return language && !language.name && language.query && typeof language.query === 'function';
   }
 
 

@@ -377,6 +377,9 @@ export class ASTCodeSplitter implements Splitter {
     const chunks: CodeChunk[] = [];
     const lines = code.split('\n');
 
+    if (items.length === 0) {
+      return chunks;
+    }
     for (const item of items) {
       // 使用tree-sitter节点的正确位置信息
       const startLine = item.startPosition ? item.startPosition.row + 1 : 1;
@@ -386,13 +389,19 @@ export class ASTCodeSplitter implements Splitter {
       const adjustedStartLine = Math.max(1, Math.min(startLine, lines.length));
       const adjustedEndLine = Math.max(adjustedStartLine, Math.min(endLine, lines.length));
 
-      const content = lines.slice(adjustedStartLine - 1, adjustedEndLine).join('\n');
+      // 获取节点文本内容
+      const nodeText = this.treeSitterService.getNodeText(item, code);
+      
+      if (!nodeText || nodeText.trim().length === 0) {
+        this.logger?.warn(`Node text is empty, skipping ${type}`);
+        continue;
+      }
 
       // 获取函数或类的名称
       const name = this.treeSitterService.getNodeName(item);
 
       chunks.push({
-        content,
+        content: nodeText,
         metadata: {
           startLine: adjustedStartLine,
           endLine: adjustedEndLine,
@@ -404,6 +413,7 @@ export class ASTCodeSplitter implements Splitter {
         }
       });
     }
+    this.logger?.debug(`Created ${chunks.length} chunks from ${items.length} ${type} nodes`);
 
     return chunks;
   }

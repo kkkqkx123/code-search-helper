@@ -34,13 +34,12 @@ export class LanguageDetectionService {
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.BackupFileProcessor) backupProcessor?: BackupFileProcessor,
-    @inject(TYPES.ExtensionlessFileProcessor) extensionlessProcessor?: ExtensionlessFileProcessor,
-    @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: FileFeatureDetector
+    @inject(TYPES.ExtensionlessFileProcessor) extensionlessProcessor?: ExtensionlessFileProcessor
   ) {
     this.logger = logger;
     this.backupProcessor = backupProcessor || new BackupFileProcessor(logger);
     this.extensionlessProcessor = extensionlessProcessor || new ExtensionlessFileProcessor(logger);
-    this.fileFeatureDetector = fileFeatureDetector || new FileFeatureDetector(logger);
+    this.fileFeatureDetector = FileFeatureDetector.getInstance(logger);
   }
 
   /**

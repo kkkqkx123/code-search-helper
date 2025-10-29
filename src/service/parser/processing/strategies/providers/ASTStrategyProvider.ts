@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
-import { TreeSitterService } from '../../../core/parse/TreeSitterService';
+import { TreeSitterCoreService } from '../../../core/parse/TreeSitterCoreService';
 
 /**
  * AST策略实现
@@ -11,7 +11,7 @@ import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 @injectable()
 export class ASTSplitStrategy implements ISplitStrategy {
   constructor(
-    @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
+    @inject(TYPES.TreeSitterCoreService) private treeSitterService?: TreeSitterCoreService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -31,17 +31,45 @@ export class ASTSplitStrategy implements ISplitStrategy {
     try {
       // 如果提供了AST，直接使用
       let parseResult = ast ? { success: true, ast } : null;
+      let detectedLanguage = null;
 
       // 如果没有提供AST，尝试解析
       if (!parseResult) {
-        const detectedLanguage = await this.treeSitterService.detectLanguage(filePath || '');
+        this.logger?.debug(`Starting AST parsing for file: ${filePath}, language: ${language}`);
+        
+        try {
+          detectedLanguage = await this.treeSitterService.detectLanguage(filePath || '');
+          this.logger?.debug(`Language detection from file path: ${JSON.stringify(detectedLanguage)}`);
+        } catch (detectError) {
+          this.logger?.warn(`Language detection from file path failed: ${detectError}`);
+        }
+        
+        // 如果基于文件路径的检测失败，尝试使用传入的语言参数
+        if (!detectedLanguage && language) {
+          this.logger?.info(`Using provided language parameter: ${language}`);
+          detectedLanguage = {
+            name: language,
+            fileExtensions: [],
+            supported: true
+          };
+        }
+        
         if (!detectedLanguage) {
           this.logger?.warn(`Language not supported by TreeSitter for ${filePath}`);
           throw new Error(`Language not supported by TreeSitter for ${filePath}`);
         }
 
         this.logger?.info(`Using TreeSitter AST parsing for ${detectedLanguage.name}`);
-        parseResult = await this.treeSitterService.parseCode(content, detectedLanguage.name);
+        try {
+          parseResult = await this.treeSitterService.parseCode(content, detectedLanguage.name);
+          if (!parseResult.success || !parseResult.ast) {
+            this.logger?.warn(`Parse failed for language ${detectedLanguage.name}, success: ${parseResult.success}, ast: ${!!parseResult.ast}`);
+            throw new Error(`TreeSitter parsing failed for ${filePath}`);
+          }
+        } catch (parseError) {
+          this.logger?.error(`Failed to parse code with TreeSitter: ${parseError}`);
+          throw new Error(`TreeSitter parsing failed for ${filePath}: ${parseError}`);
+        }
       }
 
       if (!parseResult.success || !parseResult.ast) {
@@ -49,19 +77,71 @@ export class ASTSplitStrategy implements ISplitStrategy {
         throw new Error(`TreeSitter parsing failed for ${filePath}`);
       }
 
+      // 如果没有检测到语言但有AST，使用传入的语言参数
+      if (!detectedLanguage && language) {
+        detectedLanguage = {
+          name: language,
+          fileExtensions: [],
+          supported: true
+        };
+      }
+
       // 提取函数和类定义
+      const languageName = detectedLanguage?.name || language;
+      this.logger?.info(`Extracting functions and classes with language: ${languageName}`);
+      this.logger?.info(`detectedLanguage.name: ${detectedLanguage?.name}, fallback language: ${language}`);
+      this.logger?.info(`Parse result success: ${parseResult.success}, AST exists: ${!!parseResult.ast}`);
+      
+      // 使用不传递语言参数的方式，让系统自动从AST检测语言
+      this.logger?.info(`Using AST-based language detection for function extraction...`);
       const functions = await this.treeSitterService.extractFunctions(parseResult.ast);
       const classes = await this.treeSitterService.extractClasses(parseResult.ast);
+      this.logger?.info(`Extracted ${functions.length} functions and ${classes.length} classes using AST-based detection`);
 
-      this.logger?.debug(`TreeSitter extracted ${functions.length} functions and ${classes.length} classes`);
+      this.logger?.info(`TreeSitter extracted ${functions.length} functions and ${classes.length} classes`);
+      
+      // 添加详细的调试信息
+      this.logger?.info(`Function nodes: ${functions.length}, Class nodes: ${classes.length}`);
+      if (functions.length > 0) {
+        this.logger?.info(`First function node type: ${functions[0]?.type}`);
+        this.logger?.info(`First function node has startPosition: ${!!functions[0]?.startPosition}`);
+        this.logger?.info(`First function node has endPosition: ${!!functions[0]?.endPosition}`);
+      }
+      if (classes.length > 0) {
+        this.logger?.info(`First class node type: ${classes[0]?.type}`);
+      }
 
       // 将AST节点转换为CodeChunk
       const chunks: any[] = [];
 
       // 处理函数定义
-      for (const func of functions) {
-        const location = this.treeSitterService.getNodeLocation(func);
-        const funcText = this.treeSitterService.getNodeText(func, content);
+      this.logger?.info(`Processing ${functions.length} functions...`);
+      for (let i = 0; i < functions.length; i++) {
+        const func = functions[i];
+        let location;
+        let funcText;
+
+        this.logger?.debug(`Processing function ${i + 1}/${functions.length}, type: ${func.type}`);
+
+        try {
+          // 尝试获取节点位置和文本
+          location = this.treeSitterService.getNodeLocation(func);
+          funcText = this.treeSitterService.getNodeText(func, content);
+          
+          this.logger?.info(`Function ${i + 1} - Location: ${JSON.stringify(location)}, text length: ${funcText.length}`);
+        } catch (error) {
+          this.logger?.error(`Failed to get function location or text for function ${i + 1}: ${error}`);
+          this.logger?.error(`Error stack: ${(error as Error).stack}`);
+          continue;
+        }
+
+        this.logger?.info(`Function ${i + 1} location: ${JSON.stringify(location)}, text length: ${funcText.length}, node type: ${func.type}`);
+        
+        // 检查节点文本是否为空
+        if (!funcText || funcText.trim().length === 0) {
+          this.logger?.warn(`Function ${i + 1} node has empty text, skipping`);
+          continue;
+        }
 
         chunks.push({
           id: `func_${Date.now()}_${chunks.length}`,
@@ -79,8 +159,25 @@ export class ASTSplitStrategy implements ISplitStrategy {
 
       // 处理类定义
       for (const cls of classes) {
-        const location = this.treeSitterService.getNodeLocation(cls);
-        const clsText = this.treeSitterService.getNodeText(cls, content);
+        let location;
+        let clsText;
+
+        try {
+          // 尝试获取节点位置和文本
+          location = this.treeSitterService.getNodeLocation(cls);
+          clsText = this.treeSitterService.getNodeText(cls, content);
+        } catch (error) {
+          this.logger?.warn(`Failed to get class location or text: ${error}`);
+          continue;
+        }
+
+        this.logger?.debug(`Class location: ${JSON.stringify(location)}, text length: ${clsText.length}`);
+        
+        // 检查节点文本是否为空
+        if (!clsText || clsText.trim().length === 0) {
+          this.logger?.warn(`Class node has empty text, skipping`);
+          continue;
+        }
 
         chunks.push({
           id: `class_${Date.now()}_${chunks.length}`,
@@ -96,18 +193,34 @@ export class ASTSplitStrategy implements ISplitStrategy {
         });
       }
 
-      // 如果没有提取到任何函数或类，返回空数组以触发后备策略
+      this.logger?.debug(`Generated ${chunks.length} chunks from AST`);
+
+      // 如果没有提取到任何函数或类，返回包含整个文件的chunk
       if (chunks.length === 0) {
-        this.logger?.info('No functions or classes found by TreeSitter');
-        throw new Error('No functions or classes found by TreeSitter');
+        this.logger?.info('No functions or classes found by TreeSitter, returning full content as single chunk');
+        chunks.push({
+          id: `full_content_${Date.now()}`,
+          content: content,
+          metadata: {
+            startLine: 1,
+            endLine: content.split('\n').length,
+            language: language,
+            filePath: filePath,
+            type: 'full_content',
+            complexity: this.calculateComplexity(content),
+            reason: 'no_functions_or_classes_found'
+          }
+        });
       }
 
+      this.logger?.info(`Successfully created ${chunks.length} chunks from AST extraction`);
       return chunks;
     } catch (error) {
       this.logger?.error(`AST strategy failed: ${error}`);
+      this.logger?.error(`Error stack: ${(error as Error).stack}`);
 
       // 如果失败，返回一个简单的块
-      return [{
+      const fallbackChunk = [{
         id: `fallback_${Date.now()}`,
         content,
         metadata: {
@@ -120,6 +233,9 @@ export class ASTSplitStrategy implements ISplitStrategy {
           error: (error as Error).message
         }
       }];
+      
+      this.logger?.warn(`Returning fallback chunk due to AST strategy failure`);
+      return fallbackChunk;
     }
   }
 
@@ -170,7 +286,7 @@ export class ASTSplitStrategy implements ISplitStrategy {
 @injectable()
 export class ASTStrategyProvider implements IStrategyProvider {
   constructor(
-    @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
+    @inject(TYPES.TreeSitterCoreService) private treeSitterService?: TreeSitterCoreService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -186,7 +302,7 @@ export class ASTStrategyProvider implements IStrategyProvider {
   }
 
   getDependencies(): string[] {
-    return ['TreeSitterService'];
+    return ['TreeSitterCoreService'];
   }
 
   supportsLanguage(language: string): boolean {

@@ -34,7 +34,7 @@ export class IntelligentFallbackEngine {
     @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
     this.logger = logger;
-    this.fileFeatureDetector = new FileFeatureDetector(logger);
+    this.fileFeatureDetector = FileFeatureDetector.getInstance(logger);
   }
 
   /**

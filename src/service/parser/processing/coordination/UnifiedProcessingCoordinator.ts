@@ -267,6 +267,7 @@ export class UnifiedProcessingCoordinator {
       return { strategy, strategyName: forceStrategy };
     }
 
+    this.logger?.info(`Selecting strategy for language: ${detection.language}, recommended strategy: ${detection.metadata.processingStrategy}`);
     // 使用推荐的处理策略
     const recommendedStrategy = detection.metadata.processingStrategy;
     if (recommendedStrategy) {
@@ -421,6 +422,10 @@ export class UnifiedProcessingCoordinator {
           },
           { strategy: currentStrategy.getName(), language: detection.language }
         );
+        this.logger?.info(`Strategy execution result: success=${result.success}, chunks.length=${result.chunks.length}`);
+        if (result.chunks.length > 0) {
+          this.logger?.info(`First chunk type: ${result.chunks[0].metadata?.type}`);
+        }
 
         if (result.success && result.chunks.length > 0) {
           return {

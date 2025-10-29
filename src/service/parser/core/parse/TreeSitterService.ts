@@ -40,12 +40,12 @@ export class TreeSitterService {
     return this.coreService.parseFile(filePath, content);
   }
 
-  async extractFunctions(ast: Parser.SyntaxNode): Promise<Parser.SyntaxNode[]> {
-    return this.coreService.extractFunctions(ast);
+  async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    return this.coreService.extractFunctions(ast, language);
   }
 
-  async extractClasses(ast: Parser.SyntaxNode): Promise<Parser.SyntaxNode[]> {
-    return this.coreService.extractClasses(ast);
+  async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    return this.coreService.extractClasses(ast, language);
   }
 
   extractImports(ast: Parser.SyntaxNode, sourceCode?: string): Parser.SyntaxNode[] {

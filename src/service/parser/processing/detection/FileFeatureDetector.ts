@@ -3,17 +3,27 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 
 /**
- * 文件特征检测器
- * 统一处理文件特征检测逻辑，避免重复代码
+ * 统一的文件特征检测器
+ * 提供单例模式的文件特征检测，避免重复实例化
  */
 @injectable()
 export class FileFeatureDetector {
+  private static instance: FileFeatureDetector;
   private logger?: LoggerService;
 
-  constructor(
-    @inject(TYPES.LoggerService) logger?: LoggerService
-  ) {
+  private constructor(logger?: LoggerService) {
     this.logger = logger;
+    this.logger?.debug('FileFeatureDetector initialized');
+  }
+
+  /**
+   * 获取单例实例
+   */
+  static getInstance(logger?: LoggerService): FileFeatureDetector {
+    if (!FileFeatureDetector.instance) {
+      FileFeatureDetector.instance = new FileFeatureDetector(logger);
+    }
+    return FileFeatureDetector.instance;
   }
 
   /**

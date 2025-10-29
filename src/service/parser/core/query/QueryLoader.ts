@@ -23,8 +23,9 @@ export class QueryLoader {
    * @param language 语言名称
    */
   static async loadLanguageQueries(language: string): Promise<void> {
-    if (this.loadedLanguages.has(language.toLowerCase())) {
-      this.logger.debug(`${language}语言的查询已加载`);
+    const normalizedLanguage = language.toLowerCase();
+    if (this.loadedLanguages.has(normalizedLanguage)) {
+      this.logger.debug(`${language}语言的查询已加载，跳过重复加载`);
       return;
     }
 
@@ -46,8 +47,8 @@ export class QueryLoader {
           // 对于有index.ts的语言，使用智能分类
           const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
 
-          this.queries.set(language.toLowerCase(), languageQueriesMap);
-          this.loadedLanguages.add(language.toLowerCase());
+          this.queries.set(normalizedLanguage, languageQueriesMap);
+          this.loadedLanguages.add(normalizedLanguage);
           this.logger.info(`${language}语言查询加载成功，共${languageQueriesMap.size}种类型`);
           return;
         }
@@ -63,8 +64,8 @@ export class QueryLoader {
             // 对于简单语言，使用智能分类
             const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
 
-            this.queries.set(language.toLowerCase(), languageQueriesMap);
-            this.loadedLanguages.add(language.toLowerCase());
+            this.queries.set(normalizedLanguage, languageQueriesMap);
+            this.loadedLanguages.add(normalizedLanguage);
             this.logger.info(`${language}语言查询加载成功（旧结构兼容），共${languageQueriesMap.size}种类型`);
             return;
           }
@@ -96,7 +97,8 @@ export class QueryLoader {
    * @returns 查询字符串
    */
   static getQuery(language: string, queryType: string): string {
-    const languageQueries = this.queries.get(language.toLowerCase());
+    const normalizedLanguage = language.toLowerCase();
+    const languageQueries = this.queries.get(normalizedLanguage);
     if (!languageQueries) {
       throw new Error(`${language}语言的查询未加载`);
     }
@@ -116,7 +118,8 @@ export class QueryLoader {
    * @returns 是否存在
    */
   static hasQueryType(language: string, queryType: string): boolean {
-    const languageQueries = this.queries.get(language.toLowerCase());
+    const normalizedLanguage = language.toLowerCase();
+    const languageQueries = this.queries.get(normalizedLanguage);
     return languageQueries ? languageQueries.has(queryType) : false;
   }
 
@@ -143,7 +146,8 @@ export class QueryLoader {
    * @returns 查询类型列表
    */
   static getQueryTypesForLanguage(language: string): string[] {
-    const languageQueries = this.queries.get(language.toLowerCase());
+    const normalizedLanguage = language.toLowerCase();
+    const languageQueries = this.queries.get(normalizedLanguage);
     return languageQueries ? Array.from(languageQueries.keys()) : [];
   }
 

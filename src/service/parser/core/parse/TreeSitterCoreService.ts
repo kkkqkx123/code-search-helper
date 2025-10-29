@@ -350,11 +350,22 @@ export class TreeSitterCoreService {
    */
   async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
-      const lang = language || this.detectLanguageFromAST(ast);
+      let lang = language;
+      
+      // 如果没有提供语言参数，尝试从AST检测
+      if (!lang) {
+        const detectedLang = this.detectLanguageFromAST(ast);
+        if (detectedLang) {
+          lang = detectedLang;
+        }
+      }
+      
       if (!lang) {
         this.logger.warn('无法检测语言，使用回退机制');
         return this.legacyExtractFunctions(ast);
       }
+      
+      this.logger.debug(`使用语言参数: ${lang}`);
 
       // 使用优化后的查询系统
       if (this.useOptimizedQueries && this.querySystemInitialized) {
@@ -379,11 +390,22 @@ export class TreeSitterCoreService {
    */
   async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
-      const lang = language || this.detectLanguageFromAST(ast);
+      let lang = language;
+      
+      // 如果没有提供语言参数，尝试从AST检测
+      if (!lang) {
+        const detectedLang = this.detectLanguageFromAST(ast);
+        if (detectedLang) {
+          lang = detectedLang;
+        }
+      }
+      
       if (!lang) {
         this.logger.warn('无法检测语言，使用回退机制');
         return this.legacyExtractClasses(ast);
       }
+      
+      this.logger.debug(`使用语言参数: ${lang}`);
 
       // 使用优化后的查询系统
       if (this.useOptimizedQueries && this.querySystemInitialized) {

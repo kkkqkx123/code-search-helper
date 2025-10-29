@@ -60,7 +60,7 @@ export class UnifiedDetectionCenter {
     this.extensionlessProcessor = extensionlessProcessor || new ExtensionlessFileProcessor(logger);
     this.languageDetectionService = languageDetectionService || new LanguageDetectionService(logger);
     this.config = config || new UniversalProcessingConfig(logger);
-    this.fileFeatureDetector = new FileFeatureDetector(logger);
+    this.fileFeatureDetector = FileFeatureDetector.getInstance(logger);
   }
 
   async detectFile(filePath: string, content: string): Promise<DetectionResult> {
