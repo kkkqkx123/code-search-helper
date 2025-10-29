@@ -14,7 +14,6 @@ jest.mock('../SegmentationContextFactory');
 
 const MockLoggerService = LoggerService as jest.MockedClass<typeof LoggerService>;
 const MockPriorityManager = PriorityManager as jest.MockedClass<typeof PriorityManager>;
-const MockFileFeatureDetector = FileFeatureDetector as jest.MockedClass<typeof FileFeatureDetector>;
 const MockSegmentationContextFactory = SegmentationContextFactory as jest.Mocked<typeof SegmentationContextFactory>;
 
 // Mock segmentation strategy
@@ -70,7 +69,19 @@ describe('SegmentationStrategyCoordinator', () => {
   beforeEach(() => {
     mockLogger = new MockLoggerService() as jest.Mocked<LoggerService>;
     mockPriorityManager = new MockPriorityManager() as jest.Mocked<PriorityManager>;
-    mockFileFeatureDetector = new MockFileFeatureDetector() as jest.Mocked<FileFeatureDetector>;
+    mockFileFeatureDetector = {
+      calculateComplexity: jest.fn().mockReturnValue(15),
+      isCodeLanguage: jest.fn(),
+      isTextLanguage: jest.fn(),
+      isMarkdown: jest.fn(),
+      isXML: jest.fn(),
+      canUseTreeSitter: jest.fn(),
+      isStructuredFile: jest.fn(),
+      isHighlyStructured: jest.fn(),
+      detectLanguageByExtension: jest.fn(),
+      isSmallFile: jest.fn(),
+      getFileStats: jest.fn()
+    } as jest.Mocked<FileFeatureDetector>;
 
     mockLogger.debug = jest.fn();
     mockLogger.info = jest.fn();
@@ -82,7 +93,8 @@ describe('SegmentationStrategyCoordinator', () => {
     mockPriorityManager.getPerformanceStats = jest.fn().mockReturnValue(new Map());
     mockPriorityManager.reloadConfig = jest.fn();
 
-    mockFileFeatureDetector.calculateComplexity = jest.fn().mockReturnValue(15);
+    // Mock FileFeatureDetector.getInstance
+    (FileFeatureDetector.getInstance as jest.Mock).mockReturnValue(mockFileFeatureDetector);
 
     MockSegmentationContextFactory.create = jest.fn().mockImplementation((content, filePath, language, options) => ({
       content,
@@ -98,7 +110,7 @@ describe('SegmentationStrategyCoordinator', () => {
       }
     }));
 
-    coordinator = new SegmentationStrategyCoordinator(mockLogger, undefined, mockPriorityManager, mockFileFeatureDetector);
+    coordinator = new SegmentationStrategyCoordinator(mockLogger, undefined, mockPriorityManager);
   });
 
   describe('Constructor', () => {

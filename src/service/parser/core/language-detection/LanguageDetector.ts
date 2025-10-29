@@ -302,13 +302,19 @@ export class LanguageDetector implements ILanguageDetector {
     };
 
     for (const [language, patterns] of Object.entries(contentPatterns)) {
+      let languageMatches = 0;
       for (const pattern of patterns) {
         const matches = lines.filter(line => pattern.test(line)).length;
-        const confidence = matches / lines.length;
+        languageMatches += matches;
+      }
+      // Increase confidence calculation to make content detection more effective
+      // Base confidence is matches/lines, but we add a bonus for multiple pattern matches
+      const baseConfidence = languageMatches / lines.length;
+      const patternBonus = Math.min(languageMatches * 0.1, 0.3); // Max 0.3 bonus
+      const confidence = Math.min(baseConfidence + patternBonus, 1.0);
 
-        if (confidence > bestMatch.confidence) {
-          bestMatch = { language, confidence };
-        }
+      if (confidence > bestMatch.confidence) {
+        bestMatch = { language, confidence };
       }
     }
 
