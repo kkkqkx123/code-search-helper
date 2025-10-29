@@ -13,6 +13,7 @@ import { DynamicParserManager, DynamicParserLanguage, DynamicParseResult } from 
 import { SimpleQueryEngine } from '../query/SimpleQueryEngine';
 import { TreeSitterQueryEngine } from '../query/TreeSitterQueryEngine';
 import { QueryEngineFactory } from '../query/QueryEngineFactory';
+import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
 
 export interface ParserLanguage {
   name: string;
@@ -557,10 +558,15 @@ export class TreeSitterCoreService {
    */
   private async initializeQuerySystem(): Promise<void> {
     try {
-      await this.queryRegistry.initialize();
-      await QueryManager.initialize();
-      this.querySystemInitialized = true;
-      this.logger.info('查询系统初始化完成');
+      // 使用全局初始化管理器避免重复初始化
+      const success = await GlobalQueryInitializer.initialize();
+      if (success) {
+        this.querySystemInitialized = true;
+        this.logger.info('查询系统初始化完成');
+      } else {
+        this.logger.warn('查询系统初始化失败，使用回退机制');
+        this.useOptimizedQueries = false;
+      }
     } catch (error) {
       this.logger.error('查询系统初始化失败:', error);
       // 即使初始化失败，服务仍可运行（使用回退机制）

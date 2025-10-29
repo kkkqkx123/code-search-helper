@@ -6,6 +6,7 @@ import { QueryCache } from './QueryCache';
 import { QueryPerformanceMonitor } from './QueryPerformanceMonitor';
 import { createCache } from '../../../../utils/cache';
 import { CacheKeyGenerator } from './CacheKeyGenerator';
+import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 
 
 /**
@@ -97,10 +98,15 @@ export class TreeSitterQueryEngine {
    */
   private async initialize(): Promise<void> {
     try {
-      await this.queryRegistry.initialize();
-      await this.loadPatternsFromRegistry();
-      this.initialized = true;
-      this.logger.info('TreeSitterQueryEngine 初始化完成');
+      // 使用全局初始化管理器避免重复初始化
+      const success = await GlobalQueryInitializer.initialize();
+      if (success) {
+        await this.loadPatternsFromRegistry();
+        this.initialized = true;
+        this.logger.info('TreeSitterQueryEngine 初始化完成');
+      } else {
+        this.logger.warn('TreeSitterQueryEngine 初始化失败: 全局查询系统初始化失败');
+      }
     } catch (error) {
       this.logger.error('TreeSitterQueryEngine 初始化失败:', error);
     }

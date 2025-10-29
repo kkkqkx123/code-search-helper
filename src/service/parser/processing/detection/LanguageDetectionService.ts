@@ -82,15 +82,35 @@ export class LanguageDetectionService {
         }
       }
 
+      // 如果所有检测都失败，尝试基于文件路径的简单检测
+      const simpleDetection = this.detectLanguageSync(filePath);
+      if (simpleDetection && simpleDetection !== 'unknown') {
+        return {
+          language: simpleDetection,
+          confidence: 0.3,
+          method: 'fallback'
+        };
+      }
+
       return {
-        language: undefined,
+        language: 'unknown',
         confidence: 0.0,
         method: 'fallback'
       };
     } catch (error) {
       this.logger?.error(`Language detection failed for ${filePath}:`, error);
+      // 如果所有检测都失败，尝试基于文件路径的简单检测
+      const simpleDetection = this.detectLanguageSync(filePath);
+      if (simpleDetection && simpleDetection !== 'unknown') {
+        return {
+          language: simpleDetection,
+          confidence: 0.3,
+          method: 'fallback'
+        };
+      }
+
       return {
-        language: undefined,
+        language: 'unknown',
         confidence: 0.0,
         method: 'fallback'
       };

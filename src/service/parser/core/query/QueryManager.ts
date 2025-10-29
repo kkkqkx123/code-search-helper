@@ -3,6 +3,7 @@ import { LRUCache } from '../../../../utils/LRUCache';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { QueryRegistry, QueryRegistryImpl } from './QueryRegistry';
 import { QueryLoader } from './QueryLoader';
+import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 
 /**
  * 查询管理器 - 简化版本
@@ -29,9 +30,15 @@ export class QueryManager {
     }
 
     try {
-      await this.queryRegistry.initialize();
-      this.initialized = true;
-      this.logger.info('QueryManager 初始化完成');
+      // 使用全局初始化管理器避免重复初始化
+      const success = await GlobalQueryInitializer.initialize();
+      if (success) {
+        this.initialized = true;
+        this.logger.info('QueryManager 初始化完成');
+      } else {
+        this.logger.warn('QueryManager 初始化失败: 全局查询系统初始化失败');
+        throw new Error('全局查询系统初始化失败');
+      }
     } catch (error) {
       this.logger.error('QueryManager 初始化失败:', error);
       throw error;

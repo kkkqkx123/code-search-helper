@@ -6,7 +6,7 @@ async function testLanguageDetectionConsistency() {
   
   try {
     // 获取检测服务（DI容器已经在导入时初始化）
-    const detectionService = diContainer.get(TYPES.UnifiedDetectionService);
+    const detectionService = diContainer.get(TYPES.UnifiedDetectionService) as any;
     
     // 测试文件
     const testFiles = [

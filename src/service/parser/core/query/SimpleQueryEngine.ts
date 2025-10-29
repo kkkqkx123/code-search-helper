@@ -3,6 +3,7 @@ import { TreeSitterQueryEngine, QueryResult } from './TreeSitterQueryEngine';
 import { QueryEngineFactory } from './QueryEngineFactory';
 import { QueryCache } from './QueryCache';
 import { CacheKeyGenerator } from './CacheKeyGenerator';
+import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 
 /**
  * 简化查询引擎

@@ -1,6 +1,7 @@
 import { QueryLoader } from './QueryLoader';
 
 import { LoggerService } from '../../../../utils/LoggerService';
+import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 
 /**
  * 查询注册表 - 管理所有语言的查询模式
@@ -22,7 +23,14 @@ export class QueryRegistryImpl {
     this.logger.info('初始化查询注册表...');
     
     try {
-      
+      // 使用全局初始化管理器检查是否已经初始化
+      const globalStatus = GlobalQueryInitializer.getStatus();
+      if (globalStatus.initialized) {
+        // 如果全局已经初始化，直接标记为已初始化
+        this.initialized = true;
+        this.logger.info(`查询注册表已通过全局初始化完成，支持 ${this.patterns.size} 种语言`);
+        return;
+      }
       
       // 从查询文件加载
       await this.loadFromQueryFiles();
@@ -41,15 +49,26 @@ export class QueryRegistryImpl {
    */
   private static async loadFromQueryFiles(): Promise<void> {
     const languages = this.getSupportedLanguages();
+    this.logger.info(`开始加载 ${languages.length} 种语言的查询模式...`);
     
-    for (const language of languages) {
-      try {
-        await this.loadLanguageQueries(language);
-      } catch (error) {
-        this.logger.warn(`加载 ${language} 语言查询失败:`, error);
-        // 继续加载其他语言，不中断整个初始化过程
-      }
+    // 使用Promise.allSettled并行加载，但限制并发数
+    const batchSize = 5; // 限制并发数避免资源竞争
+    for (let i = 0; i < languages.length; i += batchSize) {
+      const batch = languages.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map(language => this.loadLanguageQueries(language))
+      );
+      
+      // 记录结果
+      results.forEach((result, index) => {
+        const language = batch[index];
+        if (result.status === 'rejected') {
+          this.logger.warn(`加载 ${language} 语言查询失败:`, result.reason);
+        }
+      });
     }
+    
+    this.logger.info(`查询模式加载完成，成功加载 ${this.patterns.size} 种语言`);
   }
 
   /**

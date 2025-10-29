@@ -6,6 +6,7 @@ import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageExtensionMap } from '../../utils';
 import { LanguageDetectionService } from '../../processing/detection/LanguageDetectionService';
+import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -110,10 +111,14 @@ export class DynamicParserManager {
    */
   private async initializeQuerySystem(): Promise<void> {
     try {
-      await QueryManager.initialize();
-      await QueryRegistryImpl.initialize();
-      this.querySystemInitialized = true;
-      this.logger.info('查询系统初始化完成');
+      // 使用全局初始化管理器避免重复初始化
+      const success = await GlobalQueryInitializer.initialize();
+      if (success) {
+        this.querySystemInitialized = true;
+        this.logger.info('查询系统初始化完成');
+      } else {
+        this.logger.warn('查询系统初始化失败');
+      }
     } catch (error) {
       this.logger.error('查询系统初始化失败:', error);
       // 即使初始化失败，服务仍可运行（使用回退机制）
