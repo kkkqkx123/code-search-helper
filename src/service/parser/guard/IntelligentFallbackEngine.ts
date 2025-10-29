@@ -129,6 +129,13 @@ export class IntelligentFallbackEngine {
 
     // 基于结构化程度
     if (detection.isHighlyStructured) {
+      // 对于高度结构化的代码文件，优先尝试AST策略
+      if (this.isCodeLanguage(detection.language) && this.canUseTreeSitter(detection.language)) {
+        return {
+          strategy: ProcessingStrategyType.TREESITTER_AST,
+          reason: 'Highly structured code file - attempting AST-based segmentation'
+        };
+      }
       return {
         strategy: ProcessingStrategyType.UNIVERSAL_BRACKET,
         reason: 'Highly structured file - using bracket balancing'
@@ -190,6 +197,17 @@ export class IntelligentFallbackEngine {
    */
   private isXML(language: string): boolean {
     return this.fileFeatureDetector.isXML(language);
+  }
+
+  /**
+   * 检查是否可以使用TreeSitter
+   */
+  private canUseTreeSitter(language: string): boolean {
+    const treeSitterLanguages = [
+      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
+      'go', 'rust', 'php', 'ruby'
+    ];
+    return treeSitterLanguages.includes(language.toLowerCase());
   }
 
   /**

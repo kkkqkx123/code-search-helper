@@ -376,21 +376,21 @@ export class UnifiedDetectionService {
 
     // 大文件使用语义策略
     if (features.size > 50000) {
-      return 'universal-semantic';
+      return 'universal_semantic';
     }
 
     // 结构化文件使用语法感知策略
     if (features.isHighlyStructured) {
       // 检查是否支持TreeSitter
       if (this.canUseTreeSitter(language)) {
-        return 'treesitter-ast';
+        return 'treesitter_ast';
       }
-      return 'universal-bracket';
+      return 'universal_bracket';
     }
 
     // 代码文件使用语义策略
     if (features.isCodeFile && features.isStructuredFile) {
-      return 'universal-semantic-fine';
+      return 'universal_semantic_fine';
     }
 
     // Markdown文件使用专门策略
@@ -404,7 +404,7 @@ export class UnifiedDetectionService {
     }
 
     // 默认使用语义策略
-    return 'universal-semantic';
+    return 'universal_semantic';
   }
 
   /**

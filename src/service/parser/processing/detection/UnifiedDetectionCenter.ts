@@ -29,14 +29,14 @@ export interface DetectionResult {
 }
 
 export enum ProcessingStrategyType {
-  TREESITTER_AST = 'treesitter-ast',
-  UNIVERSAL_SEMANTIC_FINE = 'universal-semantic-fine',
-  UNIVERSAL_SEMANTIC = 'universal-semantic',
-  UNIVERSAL_BRACKET = 'universal-bracket',
-  UNIVERSAL_LINE = 'universal-line',
-  MARKDOWN_SPECIALIZED = 'markdown-specialized',
-  XML_SPECIALIZED = 'xml-specialized',
-  EMERGENCY_SINGLE_CHUNK = 'emergency-single-chunk'
+  TREESITTER_AST = 'treesitter_ast',
+  UNIVERSAL_SEMANTIC_FINE = 'universal_semantic_fine',
+  UNIVERSAL_SEMANTIC = 'universal_semantic',
+  UNIVERSAL_BRACKET = 'universal_bracket',
+  UNIVERSAL_LINE = 'universal_line',
+  MARKDOWN_SPECIALIZED = 'markdown_specialized',
+  XML_SPECIALIZED = 'xml_specialized',
+  EMERGENCY_SINGLE_CHUNK = 'emergency_single_chunk'
 }
 
 @injectable()
