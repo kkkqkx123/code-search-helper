@@ -40,7 +40,8 @@ export class GlobalQueryInitializer {
     try {
       // 按正确顺序初始化
       await QueryRegistryImpl.initialize();
-      await QueryManager.initialize();
+      // 注意：不要在这里调用QueryManager.initialize()，避免循环依赖
+      // QueryManager会在需要时自行调用GlobalQueryInitializer.initialize()
       
       this.initialized = true;
       this.initializing = false;
