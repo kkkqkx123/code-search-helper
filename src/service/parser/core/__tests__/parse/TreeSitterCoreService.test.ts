@@ -385,14 +385,14 @@ describe('TreeSitterCoreService', () => {
       }
     });
 
-    it('should return empty array if no source code provided', async () => {
+    it('should extract import statements from AST', async () => {
       const code = `import { Component } from 'react';`;
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
         const imports = await treeSitterService.extractImports(result.ast);
         expect(Array.isArray(imports)).toBe(true);
-        expect(imports.length).toBe(0);
+        expect(imports.length).toBeGreaterThanOrEqual(1);
       }
     });
   });
@@ -409,14 +409,14 @@ describe('TreeSitterCoreService', () => {
       }
     });
 
-    it('should return empty array if no source code provided', async () => {
+    it('should extract export statements from AST', async () => {
       const code = `export { Component };`;
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
         const exports = await treeSitterService.extractExports(result.ast);
         expect(Array.isArray(exports)).toBe(true);
-        expect(exports.length).toBe(0);
+        expect(exports.length).toBeGreaterThanOrEqual(1);
       }
     });
   });

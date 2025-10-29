@@ -41,11 +41,19 @@ export class TreeSitterService {
   }
 
   async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    return this.coreService.extractFunctions(ast, language);
+    // 如果没有提供language参数，不传递undefined，让coreService自己处理
+    if (language !== undefined) {
+      return this.coreService.extractFunctions(ast, language);
+    }
+    return this.coreService.extractFunctions(ast);
   }
 
   async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    return this.coreService.extractClasses(ast, language);
+    // 如果没有提供language参数，不传递undefined，让coreService自己处理
+    if (language !== undefined) {
+      return this.coreService.extractClasses(ast, language);
+    }
+    return this.coreService.extractClasses(ast);
   }
 
   extractImports(ast: Parser.SyntaxNode, sourceCode?: string): Parser.SyntaxNode[] {

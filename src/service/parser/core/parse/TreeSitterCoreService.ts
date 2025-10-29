@@ -371,7 +371,13 @@ export class TreeSitterCoreService {
       // 使用优化后的查询系统
       if (this.useOptimizedQueries && this.querySystemInitialized) {
         try {
-          return await SimpleQueryEngine.findFunctions(ast, lang);
+          const result = await SimpleQueryEngine.findFunctions(ast, lang);
+          // 如果优化查询系统返回空结果，尝试使用回退机制
+          if (result.length === 0) {
+            this.logger.warn('优化查询系统返回空结果，尝试回退机制');
+            return this.legacyExtractFunctions(ast);
+          }
+          return result;
         } catch (error) {
           this.logger.warn('优化查询系统失败，回退到动态管理器:', error);
           return await this.dynamicManager.extractFunctions(ast, lang);
@@ -379,7 +385,13 @@ export class TreeSitterCoreService {
       }
 
       // 使用动态管理器提取
-      return await this.dynamicManager.extractFunctions(ast, lang);
+      const dynamicResult = await this.dynamicManager.extractFunctions(ast, lang);
+      // 如果动态管理器返回空结果，尝试使用回退机制
+      if (dynamicResult.length === 0) {
+        this.logger.warn('动态管理器返回空结果，尝试回退机制');
+        return this.legacyExtractFunctions(ast);
+      }
+      return dynamicResult;
     } catch (error) {
       this.logger.error('函数提取失败:', error);
       return this.legacyExtractFunctions(ast);
@@ -411,7 +423,13 @@ export class TreeSitterCoreService {
       // 使用优化后的查询系统
       if (this.useOptimizedQueries && this.querySystemInitialized) {
         try {
-          return await SimpleQueryEngine.findClasses(ast, lang);
+          const result = await SimpleQueryEngine.findClasses(ast, lang);
+          // 如果优化查询系统返回空结果，尝试使用回退机制
+          if (result.length === 0) {
+            this.logger.warn('优化查询系统返回空结果，尝试回退机制');
+            return this.legacyExtractClasses(ast);
+          }
+          return result;
         } catch (error) {
           this.logger.warn('优化查询系统失败，回退到动态管理器:', error);
           return await this.dynamicManager.extractClasses(ast, lang);
@@ -419,7 +437,13 @@ export class TreeSitterCoreService {
       }
 
       // 使用动态管理器提取
-      return await this.dynamicManager.extractClasses(ast, lang);
+      const dynamicResult = await this.dynamicManager.extractClasses(ast, lang);
+      // 如果动态管理器返回空结果，尝试使用回退机制
+      if (dynamicResult.length === 0) {
+        this.logger.warn('动态管理器返回空结果，尝试回退机制');
+        return this.legacyExtractClasses(ast);
+      }
+      return dynamicResult;
     } catch (error) {
       this.logger.error('类提取失败:', error);
       return this.legacyExtractClasses(ast);
