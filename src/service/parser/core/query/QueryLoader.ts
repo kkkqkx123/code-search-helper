@@ -31,53 +31,46 @@ export class QueryLoader {
     try {
       this.logger.info(`加载${language}语言的查询文件...`);
 
-      // 尝试加载新的目录结构
       const languageQueries = new Map<string, string>();
+      const queryFileName = this.getQueryFileName(language);
 
       try {
-        // 使用动态发现的查询类型，如果没有发现则使用默认类型
-        const queryTypes = await this.discoverQueryTypes(language);
+        // 首先尝试加载index.ts文件（新结构）
+        const importPath = `../../constants/queries/${queryFileName}/index`;
+        this.logger.debug(`Attempting to import: ${importPath}`);
 
-        for (const queryType of queryTypes) {
-          try {
-            const queryModule = await import(`../constants/queries/${this.getQueryFileName(language)}/${queryType}`);
-            const query = queryModule.default;
-            if (query) {
-              languageQueries.set(queryType, query);
-            }
-          } catch (error) {
-            // 如果特定类型不存在，跳过
-            this.logger.debug(`跳过 ${language}.${queryType}: ${error}`);
-          }
-        }
-
-        if (languageQueries.size > 0) {
-          this.queries.set(language.toLowerCase(), languageQueries);
-          this.loadedLanguages.add(language.toLowerCase());
-          this.logger.info(`${language}语言查询加载成功，共${languageQueries.size}种类型`);
-          return;
-        }
-      } catch (error) {
-        this.logger.error(`新结构加载失败: ${error}`);
-        throw error;
-      }
-
-      // 尝试回退到旧的单一文件结构（用于简单语言）
-      try {
-        const queryModule = await import(`../constants/queries/${this.getQueryFileName(language)}`);
-        const query = queryModule.default || queryModule[`${this.getQueryFileName(language)}Query`];
+        const queryModule = await import(importPath);
+        const query = queryModule.default;
 
         if (query) {
-          // 对于简单语言，使用智能分类
+          // 对于有index.ts的语言，使用智能分类
           const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
 
           this.queries.set(language.toLowerCase(), languageQueriesMap);
           this.loadedLanguages.add(language.toLowerCase());
-          this.logger.info(`${language}语言查询加载成功（旧结构兼容），共${languageQueriesMap.size}种类型`);
+          this.logger.info(`${language}语言查询加载成功，共${languageQueriesMap.size}种类型`);
           return;
         }
-      } catch (fallbackError) {
-        this.logger.error(`旧结构加载也失败: ${fallbackError}`);
+      } catch (error) {
+        this.logger.debug(`新结构加载失败，尝试旧结构: ${error}`);
+
+        // 尝试回退到旧的单一文件结构
+        try {
+          const queryModule = await import(`../../constants/queries/${queryFileName}`);
+          const query = queryModule.default || queryModule[`${queryFileName}Query`];
+
+          if (query) {
+            // 对于简单语言，使用智能分类
+            const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
+
+            this.queries.set(language.toLowerCase(), languageQueriesMap);
+            this.loadedLanguages.add(language.toLowerCase());
+            this.logger.info(`${language}语言查询加载成功（旧结构兼容），共${languageQueriesMap.size}种类型`);
+            return;
+          }
+        } catch (fallbackError) {
+          this.logger.error(`旧结构加载也失败: ${fallbackError}`);
+        }
       }
 
       throw new Error(`未找到${language}语言的查询文件`);
@@ -200,17 +193,17 @@ export class QueryLoader {
    */
   static async discoverQueryTypes(language: string): Promise<string[]> {
     const queryDir = `../constants/queries/${this.getQueryFileName(language)}`;
-    
+
     try {
       // 尝试动态读取目录结构
       const fs = await import('fs');
       const path = await import('path');
-      
+
       const queryDirPath = path.join(__dirname, queryDir);
-      
+
       // 添加调试信息
       this.logger.debug(`Checking query directory for ${language}: ${queryDirPath}`);
-      
+
       // 检查目录是否存在
       if (!fs.existsSync(queryDirPath)) {
         this.logger.debug(`Query directory not found for ${language}: ${queryDirPath}`);
@@ -220,7 +213,7 @@ export class QueryLoader {
       // 读取目录内容
       const files = fs.readdirSync(queryDirPath);
       this.logger.debug(`Found files in ${queryDirPath}:`, files);
-      
+
       // 过滤出TypeScript查询文件
       const queryFiles = files
         .filter(file => file.endsWith('.ts') && file !== 'index.ts')
@@ -233,7 +226,7 @@ export class QueryLoader {
 
       this.logger.debug(`No query files found in directory for ${language}`);
       return this.getDefaultQueryTypes();
-      
+
     } catch (error) {
       const errorContext = {
         language,
@@ -243,10 +236,10 @@ export class QueryLoader {
         stack: error instanceof Error ? error.stack : undefined,
         timestamp: new Date().toISOString()
       };
-      
+
       // 记录详细错误信息到安全日志
       this.logger.error('Query type discovery failed', errorContext);
-      
+
       // 向用户返回友好的错误信息
       throw new QueryDiscoveryError(
         `无法发现 ${language} 语言的查询类型，将使用默认查询类型`,
@@ -288,10 +281,10 @@ export class QueryLoader {
         stack: error instanceof Error ? error.stack : undefined,
         timestamp: new Date().toISOString()
       };
-      
+
       // 记录详细错误信息到安全日志
       this.logger.error('Query type existence check failed', errorContext);
-      
+
       // 返回false而不是抛出错误，保持方法的行为一致
       return false;
     }
@@ -371,10 +364,10 @@ export class QueryLoader {
       // 检查查询模式 - 修复跨行查询验证
       let currentQuery = '';
       let parenBalance = 0;
-      
+
       for (const line of lines) {
         const trimmed = line.trim();
-        
+
         if (!trimmed || trimmed.startsWith(';')) {
           // 跳过空行和注释
           if (currentQuery.trim() && parenBalance === 0) {
@@ -386,13 +379,13 @@ export class QueryLoader {
           }
           continue;
         }
-        
+
         currentQuery += (currentQuery ? ' ' : '') + trimmed;
-        
+
         // 计算括号平衡
         parenBalance += (trimmed.match(/\(/g) || []).length;
         parenBalance -= (trimmed.match(/\)/g) || []).length;
-        
+
         // 如果括号平衡，检查查询模式
         if (parenBalance === 0) {
           if (!currentQuery.includes('(') || !currentQuery.includes(')')) {
@@ -401,7 +394,7 @@ export class QueryLoader {
           currentQuery = '';
         }
       }
-      
+
       // 检查最后一个未完成的查询
       if (currentQuery.trim() && parenBalance === 0) {
         if (!currentQuery.includes('(') || !currentQuery.includes(')')) {
