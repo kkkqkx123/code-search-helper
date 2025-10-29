@@ -135,6 +135,73 @@ export class FileFeatureDetector {
   }
 
   /**
+   * 检查内容是否有导入语句
+   */
+  hasImports(content: string, language: string): boolean {
+    const importPatterns: Record<string, RegExp> = {
+      typescript: /import\s+|require\s*\(/,
+      javascript: /import\s+|require\s*\(/,
+      python: /import\s+|from\s+.*\s+import/,
+      java: /import\s+/,
+      go: /import\s+/,
+      rust: /use\s+/,
+      c: /#include/,
+      cpp: /#include|using\s+namespace/
+    };
+
+    const pattern = importPatterns[language.toLowerCase()];
+    return pattern ? pattern.test(content) : /import\s+|from\s+.*import|require\s*\(|#include|use\s+/.test(content);
+  }
+
+  /**
+   * 检查内容是否有导出语句
+   */
+  hasExports(content: string, language: string): boolean {
+    const exportPatterns: Record<string, RegExp> = {
+      typescript: /export\s+/,
+      javascript: /export\s+|module\.exports/,
+      python: /__all__\s*=/
+    };
+
+    const pattern = exportPatterns[language.toLowerCase()];
+    return pattern ? pattern.test(content) : /export\s+|module\.exports|__all__\s*=/.test(content);
+  }
+
+  /**
+   * 检查内容是否有函数定义
+   */
+  hasFunctions(content: string, language: string): boolean {
+    const functionPatterns: Record<string, RegExp> = {
+      typescript: /function\s+\w+|=>\s*\{|const\s+\w+\s*=\s*\(/,
+      javascript: /function\s+\w+|=>\s*\{|const\s+\w+\s*=\s*\(/,
+      python: /def\s+\w+/,
+      java: /\w+\s+\w+\s*\([^)]*\)\s*\{/,
+      go: /func\s+\w+/,
+      rust: /fn\s+\w+/
+    };
+
+    const pattern = functionPatterns[language.toLowerCase()];
+    return pattern ? pattern.test(content) : /function\s+\w+|def\s+\w+|func\s+\w+|fn\s+\w+|=>\s*\{|const\s+\w+\s*=\s*\(/.test(content);
+  }
+
+  /**
+   * 检查内容是否有类定义
+   */
+  hasClasses(content: string, language: string): boolean {
+    const classPatterns: Record<string, RegExp> = {
+      typescript: /class\s+\w+/,
+      javascript: /class\s+\w+/,
+      python: /class\s+\w+/,
+      java: /class\s+\w+/,
+      go: /type\s+\w+\s+struct/,
+      rust: /struct\s+\w+/
+    };
+
+    const pattern = classPatterns[language.toLowerCase()];
+    return pattern ? pattern.test(content) : /class\s+\w+|type\s+\w+\s+struct|struct\s+\w+/.test(content);
+  }
+
+  /**
    * 获取文件的基本统计信息
    */
   getFileStats(content: string): {
@@ -147,7 +214,7 @@ export class FileFeatureDetector {
     const lines = content.split('\n');
     const bracketCount = (content.match(/[{}()\[\]]/g) || []).length;
     const tagCount = (content.match(/<[^>]+>/g) || []).length;
-
+    
     return {
       contentLength: content.length,
       lineCount: lines.length,
