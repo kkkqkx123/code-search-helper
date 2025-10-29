@@ -1,7 +1,7 @@
 import { ASTStrategy } from '../ASTStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { TreeSitterService } from '../../../../core/parse/TreeSitterService';
-import { DetectionResult } from '../../../detection/UnifiedDetectionCenter';
+import { DetectionResult } from '../../../detection/UnifiedDetectionService';
 
 // Mock LoggerService
 jest.mock('../../../../../../utils/LoggerService');
@@ -19,7 +19,26 @@ describe('ASTStrategy', () => {
   const createMockDetectionResult = (language: string = 'javascript'): DetectionResult => ({
     language,
     confidence: 0.9,
-    fileType: 'normal'
+    detectionMethod: 'extension',
+    fileType: 'normal',
+    metadata: {
+      originalExtension: '.js',
+      fileFeatures: {
+        isCodeFile: true,
+        isTextFile: false,
+        isMarkdownFile: false,
+        isXMLFile: false,
+        isStructuredFile: true,
+        isHighlyStructured: true,
+        complexity: 10,
+        lineCount: 100,
+        size: 1024,
+        hasImports: true,
+        hasExports: true,
+        hasFunctions: true,
+        hasClasses: true
+      }
+    }
   });
 
   beforeEach(() => {

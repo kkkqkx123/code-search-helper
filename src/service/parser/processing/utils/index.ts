@@ -29,7 +29,7 @@ export { ErrorThresholdInterceptor } from './protection/ErrorThresholdIntercepto
 export { BackupFileProcessor } from '../detection/BackupFileProcessor';
 export { ExtensionlessFileProcessor } from '../detection/ExtensionlessFileProcessor';
 export { FileFeatureDetector } from '../detection/FileFeatureDetector';
-export { UnifiedDetectionCenter } from '../detection/UnifiedDetectionCenter';
+export { UnifiedDetectionService } from '../detection/UnifiedDetectionService';
 export { UniversalProcessingConfig } from '../config/UniversalProcessingConfig';
 export { CodeQualityAssessmentUtils } from './quality/CodeQualityAssessmentUtils';
 export { ComplexityCalculator } from './quality/ComplexityCalculator';

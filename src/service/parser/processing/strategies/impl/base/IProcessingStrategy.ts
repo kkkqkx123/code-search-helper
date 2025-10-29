@@ -1,4 +1,4 @@
-import { DetectionResult } from '../../../detection/UnifiedDetectionCenter';
+import { DetectionResult } from '../../../detection/UnifiedDetectionService';
 
 export interface IProcessingStrategy {
   execute(filePath: string, content: string, detection: DetectionResult): Promise<{

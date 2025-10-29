@@ -1,9 +1,8 @@
 // 文件检测识别模块
-export { UnifiedDetectionCenter } from './UnifiedDetectionCenter';
+export { UnifiedDetectionService } from './UnifiedDetectionService';
 export { FileFeatureDetector } from './FileFeatureDetector';
 export { BackupFileProcessor } from './BackupFileProcessor';
 export { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
-export { UnifiedDetectionService } from './UnifiedDetectionService';
 export { LanguageDetectionService, LanguageDetectionResult } from './LanguageDetectionService';
 
 // 向后兼容的导出（替换core目录的功能）

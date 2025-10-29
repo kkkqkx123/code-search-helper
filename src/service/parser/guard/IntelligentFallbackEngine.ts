@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
-import { DetectionResult, ProcessingStrategyType } from '../processing/detection/UnifiedDetectionCenter';
+import { DetectionResult, ProcessingStrategyType } from '../processing/detection/UnifiedDetectionService';
 import { FileFeatureDetector } from '../processing/detection/FileFeatureDetector';
 
 export interface FallbackStrategy {
@@ -103,13 +103,13 @@ export class IntelligentFallbackEngine {
     */
   private determineStrategyByFileCharacteristics(detection: DetectionResult, error?: Error): FallbackStrategy {
     this.logger?.debug(`Determining strategy by file characteristics for language: ${detection.language}`);
-
-    // 基于文件大小
-    if (detection.contentLength && detection.contentLength < 1000) {
+    // 基于文件大小（从metadata中获取）
+    if (detection.metadata && detection.metadata.fileFeatures && detection.metadata.fileFeatures.size < 1000) {
       return {
         strategy: ProcessingStrategyType.UNIVERSAL_SEMANTIC,
         reason: 'Small file - using semantic segmentation'
       };
+
     }
 
     // 基于语言类型
@@ -128,7 +128,7 @@ export class IntelligentFallbackEngine {
     }
 
     // 基于结构化程度
-    if (detection.isHighlyStructured) {
+    if (detection.metadata && detection.metadata.fileFeatures && detection.metadata.fileFeatures.isHighlyStructured) {
       // 对于高度结构化的代码文件，优先尝试AST策略
       if (this.isCodeLanguage(detection.language) && this.canUseTreeSitter(detection.language)) {
         return {

@@ -1,6 +1,6 @@
 import { StandardizationSegmentationStrategy } from '../StandardizationSegmentationStrategy';
 import { LoggerService } from '../../../../../../utils/LoggerService';
-import { DetectionResult } from '../../../detection/UnifiedDetectionCenter';
+import { DetectionResult } from '../../../detection/UnifiedDetectionService';
 import { CodeChunk } from '../../../../types/core-types';
 import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../../core/normalization/types';
 import { TreeSitterCoreService } from '../../../../core/parse/TreeSitterCoreService';
@@ -26,7 +26,26 @@ describe('StandardizationSegmentationStrategy', () => {
   const createMockDetectionResult = (language: string = 'javascript'): DetectionResult => ({
     language,
     confidence: 0.9,
-    fileType: 'normal'
+    detectionMethod: 'extension',
+    fileType: 'normal',
+    metadata: {
+      originalExtension: '.js',
+      fileFeatures: {
+        isCodeFile: true,
+        isTextFile: false,
+        isMarkdownFile: false,
+        isXMLFile: false,
+        isStructuredFile: true,
+        isHighlyStructured: true,
+        complexity: 10,
+        lineCount: 100,
+        size: 1024,
+        hasImports: true,
+        hasExports: true,
+        hasFunctions: true,
+        hasClasses: true
+      }
+    }
   });
 
   // Create mock standardized results

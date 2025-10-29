@@ -9,6 +9,16 @@ import { BackupFileProcessor } from './BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
 import { LanguageDetector } from '../../core/language-detection/LanguageDetector';
 
+export enum ProcessingStrategyType {
+  TREESITTER_AST = 'treesitter_ast',
+  UNIVERSAL_SEMANTIC_FINE = 'universal_semantic_fine',
+  UNIVERSAL_SEMANTIC = 'universal_semantic',
+  UNIVERSAL_BRACKET = 'universal_bracket',
+  UNIVERSAL_LINE = 'universal_line',
+  MARKDOWN_SPECIALIZED = 'markdown_specialized',
+  XML_SPECIALIZED = 'xml_specialized',
+  EMERGENCY_SINGLE_CHUNK = 'emergency_single_chunk'
+}
 /**
  * 检测结果接口
  */
@@ -16,6 +26,8 @@ export interface DetectionResult {
   language: string;
   confidence: number;
   detectionMethod: 'extension' | 'content' | 'backup' | 'treesitter' | 'hybrid';
+  fileType?: 'backup' | 'normal' | 'extensionless' | 'unknown'; // 添加fileType字段
+  processingStrategy?: string; // 添加processingStrategy字段
   metadata: {
     originalExtension?: string;
     overrideReason?: string;
@@ -64,7 +76,7 @@ export class UnifiedDetectionService {
   private configManager: UnifiedConfigManager;
   private detectionCache: Map<string, DetectionResult> = new Map();
   private readonly cacheSizeLimit = 1000; // 限制缓存大小
- private fileFeatureDetector: FileFeatureDetector;
+  private fileFeatureDetector: FileFeatureDetector;
   private backupFileProcessor: BackupFileProcessor;
   private extensionlessFileProcessor: ExtensionlessFileProcessor;
 
@@ -113,17 +125,17 @@ export class UnifiedDetectionService {
 
       // 2. 基于扩展名的语言检测
       const extensionResult = this.detectLanguageByExtension(filePath);
-      
+
       // 3. 基于内容的语言检测
       const contentResult = this.detectLanguageByContent(content);
-      
+
       // 4. 智能决策
       const finalResult = this.makeDetectionDecision(filePath, content, extensionResult, contentResult);
-      
+
       // 5. 文件特征分析
       const fileFeatures = this.analyzeFileFeatures(content, finalResult.language);
       finalResult.metadata.fileFeatures = fileFeatures;
-      
+
       // 6. AST生成（如果适用）
       if (this.shouldGenerateAST(finalResult, fileFeatures) && this.treeSitterService) {
         try {
@@ -137,15 +149,21 @@ export class UnifiedDetectionService {
           // AST生成失败不应该影响整个检测过程
         }
       }
-      
+
       // 7. 处理策略推荐
       finalResult.metadata.processingStrategy = this.recommendProcessingStrategy(finalResult, fileFeatures);
+      finalResult.processingStrategy = finalResult.metadata.processingStrategy;
+      
+      // 确保fileType有值
+      if (!finalResult.fileType) {
+        finalResult.fileType = 'normal';
+      }
 
       this.logger?.debug(`Final detection result: ${finalResult.language} (confidence: ${finalResult.confidence})`);
-      
+
       // 缓存结果
       this.cacheDetectionResult(cacheKey, finalResult);
-      
+
       return finalResult;
 
     } catch (error) {
@@ -157,30 +175,31 @@ export class UnifiedDetectionService {
     }
   }
 
- /**
-  * 检测备份文件
-  */
- private detectBackupFile(filePath: string, content: string): DetectionResult | null {
-   // 使用现有的BackupFileProcessor
-   if (!this.backupFileProcessor.isBackupFile(filePath)) {
-     return null;
-   }
+  /**
+   * 检测备份文件
+   */
+  private detectBackupFile(filePath: string, content: string): DetectionResult | null {
+    // 使用现有的BackupFileProcessor
+    if (!this.backupFileProcessor.isBackupFile(filePath)) {
+      return null;
+    }
 
-   const backupMetadata = this.backupFileProcessor.getBackupFileMetadata(filePath);
-   if (backupMetadata.originalInfo && backupMetadata.originalInfo.confidence >= 0.5) {
-     return {
-       language: backupMetadata.originalInfo.language,
-       confidence: backupMetadata.originalInfo.confidence,
-       detectionMethod: 'backup',
-       metadata: {
-         originalExtension: backupMetadata.originalInfo.extension,
-         fileFeatures: this.analyzeFileFeatures(content, backupMetadata.originalInfo.language)
-       }
-     };
-   }
+    const backupMetadata = this.backupFileProcessor.getBackupFileMetadata(filePath);
+    if (backupMetadata.originalInfo && backupMetadata.originalInfo.confidence >= 0.5) {
+      return {
+        language: backupMetadata.originalInfo.language,
+        confidence: backupMetadata.originalInfo.confidence,
+        detectionMethod: 'backup',
+        fileType: 'backup',
+        metadata: {
+          originalExtension: backupMetadata.originalInfo.extension,
+          fileFeatures: this.analyzeFileFeatures(content, backupMetadata.originalInfo.language)
+        }
+      };
+    }
 
-   return null;
- }
+    return null;
+  }
 
   /**
    * 基于扩展名检测语言
@@ -190,7 +209,7 @@ export class UnifiedDetectionService {
     const extension = this.getFileExtension(filePath);
     // 通过依赖注入的LanguageDetector获取语言
     const language = this.languageDetector.detectLanguageByExtension(extension);
-    
+
     return {
       language: language || 'unknown',
       confidence: language ? 0.9 : 0.1,
@@ -198,8 +217,8 @@ export class UnifiedDetectionService {
       metadata: { extension }
     };
   }
-  
-  
+
+
 
   /**
    * 基于内容检测语言
@@ -207,7 +226,7 @@ export class UnifiedDetectionService {
   private detectLanguageByContent(content: string): LanguageDetectionInfo {
     // 使用现有的ExtensionlessFileProcessor进行内容检测
     const detectionResult = this.extensionlessFileProcessor.detectLanguageByContent(content);
-    
+
     return {
       language: detectionResult.language,
       confidence: detectionResult.confidence,
@@ -226,12 +245,13 @@ export class UnifiedDetectionService {
     contentResult: LanguageDetectionInfo
   ): DetectionResult {
     // 如果扩展名检测置信度高，且内容检测不冲突，使用扩展名结果
-    if (extensionResult.confidence >= 0.8 && 
+    if (extensionResult.confidence >= 0.8 &&
         (contentResult.language === 'unknown' || contentResult.language === extensionResult.language)) {
       return {
         language: extensionResult.language,
         confidence: extensionResult.confidence,
         detectionMethod: 'extension',
+        fileType: 'normal',
         metadata: {
           originalExtension: (extensionResult.metadata as any)?.extension
         }
@@ -244,6 +264,7 @@ export class UnifiedDetectionService {
         language: contentResult.language,
         confidence: contentResult.confidence,
         detectionMethod: 'content',
+        fileType: 'extensionless',
         metadata: {
           originalExtension: (extensionResult.metadata as any)?.extension,
           overrideReason: 'content_confidence_higher'
@@ -257,6 +278,7 @@ export class UnifiedDetectionService {
         language: extensionResult.language, // 优先扩展名
         confidence: Math.max(extensionResult.confidence, contentResult.confidence) * 0.8,
         detectionMethod: 'hybrid',
+        fileType: extensionResult.language !== 'unknown' ? 'normal' : 'extensionless',
         metadata: {
           originalExtension: (extensionResult.metadata as any)?.extension,
           processingStrategy: contentResult.language
@@ -269,59 +291,60 @@ export class UnifiedDetectionService {
       language: extensionResult.language,
       confidence: extensionResult.confidence,
       detectionMethod: 'extension',
+      fileType: extensionResult.language !== 'unknown' ? 'normal' : 'unknown',
       metadata: {
         originalExtension: (extensionResult.metadata as any)?.extension
       }
     };
   }
 
- /**
-  * 分析文件特征
-  */
- private analyzeFileFeatures(content: string, language: string): FileFeatures {
-   const lines = content.split('\n');
-   const size = content.length;
-   
-   // 使用现有的FileFeatureDetector方法
-   const isCodeFile = this.fileFeatureDetector.isCodeLanguage(language);
-   const isTextFile = this.fileFeatureDetector.isTextLanguage(language);
-   const isMarkdownFile = this.fileFeatureDetector.isMarkdown(language);
-   const isXMLFile = this.fileFeatureDetector.isXML(language);
-   const isHighlyStructured = this.fileFeatureDetector.isHighlyStructured(content, language);
-   const isStructuredFile = this.fileFeatureDetector.isStructuredFile(content, language);
-   
-   // 计算复杂度
-   const complexity = this.fileFeatureDetector.calculateComplexity(content);
-   
-   // 检查导入/导出/函数/类
-   const hasImports = this.hasImports(content, language);
-   const hasExports = this.hasExports(content, language);
-   const hasFunctions = this.hasFunctions(content, language);
-   const hasClasses = this.hasClasses(content, language);
+  /**
+   * 分析文件特征
+   */
+  private analyzeFileFeatures(content: string, language: string): FileFeatures {
+    const lines = content.split('\n');
+    const size = content.length;
 
-   return {
-     isCodeFile,
-     isTextFile,
-     isMarkdownFile,
-     isXMLFile,
-     isStructuredFile,
-     isHighlyStructured,
-     complexity,
-     lineCount: lines.length,
-     size,
-     hasImports,
-     hasExports,
-     hasFunctions,
-     hasClasses
-   };
- }
+    // 使用现有的FileFeatureDetector方法
+    const isCodeFile = this.fileFeatureDetector.isCodeLanguage(language);
+    const isTextFile = this.fileFeatureDetector.isTextLanguage(language);
+    const isMarkdownFile = this.fileFeatureDetector.isMarkdown(language);
+    const isXMLFile = this.fileFeatureDetector.isXML(language);
+    const isHighlyStructured = this.fileFeatureDetector.isHighlyStructured(content, language);
+    const isStructuredFile = this.fileFeatureDetector.isStructuredFile(content, language);
+
+    // 计算复杂度
+    const complexity = this.fileFeatureDetector.calculateComplexity(content);
+
+    // 检查导入/导出/函数/类
+    const hasImports = this.hasImports(content, language);
+    const hasExports = this.hasExports(content, language);
+    const hasFunctions = this.hasFunctions(content, language);
+    const hasClasses = this.hasClasses(content, language);
+
+    return {
+      isCodeFile,
+      isTextFile,
+      isMarkdownFile,
+      isXMLFile,
+      isStructuredFile,
+      isHighlyStructured,
+      complexity,
+      lineCount: lines.length,
+      size,
+      hasImports,
+      hasExports,
+      hasFunctions,
+      hasClasses
+    };
+  }
 
   /**
    * 推荐处理策略
    */
   private recommendProcessingStrategy(detection: DetectionResult, features: FileFeatures): string {
     const { language, confidence } = detection;
-    
+
     // 低置信度使用简单策略
     if (confidence < 0.5) {
       return 'universal-line';
@@ -370,55 +393,56 @@ export class UnifiedDetectionService {
     return 'universal_semantic';
   }
 
- /**
-  * 辅助方法
-  */
- private getFileExtension(filePath: string): string {
-   const lastDot = filePath.lastIndexOf('.');
-   return lastDot !== -1 ? filePath.substring(lastDot).toLowerCase() : '';
- }
+  /**
+   * 辅助方法
+   */
+  private getFileExtension(filePath: string): string {
+    const lastDot = filePath.lastIndexOf('.');
+    return lastDot !== -1 ? filePath.substring(lastDot).toLowerCase() : '';
+  }
 
- /**
-  * 检查是否可以使用TreeSitter
-  */
- private canUseTreeSitter(language: string): boolean {
-   return this.fileFeatureDetector.canUseTreeSitter(language);
- }
+  /**
+   * 检查是否可以使用TreeSitter
+   */
+  private canUseTreeSitter(language: string): boolean {
+    return this.fileFeatureDetector.canUseTreeSitter(language);
+  }
 
-/**
-  * 创建降级结果
-  */
- private createFallbackResult(filePath: string, content: string): DetectionResult {
-   return {
-     language: 'text',
-     confidence: 0.1,
-     detectionMethod: 'hybrid',
-     metadata: {
-       fileFeatures: this.analyzeFileFeatures(content, 'text'),
-       processingStrategy: 'universal_line'
-     }
-   };
- }
+  /**
+    * 创建降级结果
+    */
+  private createFallbackResult(filePath: string, content: string): DetectionResult {
+    return {
+      language: 'text',
+      confidence: 0.1,
+      detectionMethod: 'hybrid',
+      fileType: 'unknown',
+      metadata: {
+        fileFeatures: this.analyzeFileFeatures(content, 'text'),
+        processingStrategy: 'universal_line'
+      }
+    };
+  }
 
- private hasImports(content: string, language: string): boolean {
-   return this.fileFeatureDetector.hasImports(content, language);
- }
+  private hasImports(content: string, language: string): boolean {
+    return this.fileFeatureDetector.hasImports(content, language);
+  }
 
- private hasExports(content: string, language: string): boolean {
-   return this.fileFeatureDetector.hasExports(content, language);
- }
+  private hasExports(content: string, language: string): boolean {
+    return this.fileFeatureDetector.hasExports(content, language);
+  }
 
- private hasFunctions(content: string, language: string): boolean {
-   return this.fileFeatureDetector.hasFunctions(content, language);
- }
+  private hasFunctions(content: string, language: string): boolean {
+    return this.fileFeatureDetector.hasFunctions(content, language);
+  }
 
- private hasClasses(content: string, language: string): boolean {
-   return this.fileFeatureDetector.hasClasses(content, language);
- }
+  private hasClasses(content: string, language: string): boolean {
+    return this.fileFeatureDetector.hasClasses(content, language);
+  }
 
- private calculateComplexity(content: string, language: string): number {
-   return this.fileFeatureDetector.calculateComplexity(content);
- }
+  private calculateComplexity(content: string, language: string): number {
+    return this.fileFeatureDetector.calculateComplexity(content);
+  }
 
   /**
    * 判断是否应该生成AST
@@ -458,7 +482,7 @@ export class UnifiedDetectionService {
     try {
       // 检测语言 - 使用更宽松的匹配方式
       const supportedLanguages = this.treeSitterService.getSupportedLanguages();
-      const detectedLanguage = supportedLanguages.find(lang => 
+      const detectedLanguage = supportedLanguages.find(lang =>
         lang.name.toLowerCase() === language.toLowerCase()
       );
       if (!detectedLanguage) {
@@ -500,7 +524,7 @@ export class UnifiedDetectionService {
     const prefix = content.substring(0, 100);
     const suffix = content.length > 100 ? content.substring(content.length - 100) : '';
     const combined = prefix + suffix;
-    
+
     let hash = 0;
     for (let i = 0; i < combined.length; i++) {
       const char = combined.charCodeAt(i);
@@ -544,5 +568,22 @@ export class UnifiedDetectionService {
       size: this.detectionCache.size,
       limit: this.cacheSizeLimit
     };
+  }
+
+  /**
+   * 批量检测文件
+   */
+  async batchDetect(filePaths: Array<{ filePath: string; content: string }>): Promise<Map<string, DetectionResult>> {
+    const results = new Map<string, DetectionResult>();
+
+    // 并行处理检测
+    const detectionPromises = filePaths.map(async ({ filePath, content }) => {
+      const result = await this.detectFile(filePath, content);
+      results.set(filePath, result);
+    });
+
+    await Promise.all(detectionPromises);
+
+    return results;
   }
 }

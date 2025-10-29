@@ -17,7 +17,7 @@ import { BackupFileProcessor } from './processing/detection/BackupFileProcessor'
 import { ExtensionlessFileProcessor } from './processing/detection/ExtensionlessFileProcessor';
 import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
 import { LanguageDetectionService } from './processing/detection/LanguageDetectionService';
-import { UnifiedDetectionCenter } from './processing/detection/UnifiedDetectionCenter';
+import { UnifiedDetectionService } from './processing/detection/UnifiedDetectionService';
 
 export interface ProcessingOptions {
   maxChunkSize?: number;
@@ -50,7 +50,7 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.BackupFileProcessor) private backupFileProcessor: BackupFileProcessor,
     @inject(TYPES.ExtensionlessFileProcessor) private extensionlessFileProcessor: ExtensionlessFileProcessor,
     @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer,
-    @inject(TYPES.UnifiedDetectionCenter) private detectionCenter: UnifiedDetectionCenter
+    @inject(TYPES.UnifiedDetectionService) private detectionService: UnifiedDetectionService
   ) {
     this.languageDetectionService = new LanguageDetectionService(this.logger);
   }
@@ -66,8 +66,8 @@ export class ChunkToVectorCoordinationService {
       // 1. 读取文件内容
       const content = await fs.readFile(filePath, 'utf-8');
 
-      // 2. 使用统一检测中心进行语言检测（一次性完成所有检测）
-      const detectionResult = await this.detectionCenter.detectFile(filePath, content);
+      // 2. 使用统一检测服务进行语言检测（一次性完成所有检测）
+      const detectionResult = await this.detectionService.detectFile(filePath, content);
       const language = detectionResult.language;
 
       // 3. 优先尝试使用ASTCodeSplitter进行智能分段（防止重复）

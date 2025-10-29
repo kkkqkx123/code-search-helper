@@ -80,7 +80,11 @@ describe('SegmentationStrategyCoordinator', () => {
       isHighlyStructured: jest.fn(),
       detectLanguageByExtension: jest.fn(),
       isSmallFile: jest.fn(),
-      getFileStats: jest.fn()
+      getFileStats: jest.fn(),
+      hasImports: jest.fn(),
+      hasExports: jest.fn(),
+      hasFunctions: jest.fn(),
+      hasClasses: jest.fn()
     } as jest.Mocked<FileFeatureDetector>;
 
     mockLogger.debug = jest.fn();

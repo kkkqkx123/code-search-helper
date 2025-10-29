@@ -4,7 +4,7 @@ import { TYPES } from '../../../types';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from './MemoryGuard';
 import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
-import { UnifiedDetectionCenter, DetectionResult } from '../processing/detection/UnifiedDetectionCenter';
+import { UnifiedDetectionService, DetectionResult } from '../processing/detection/UnifiedDetectionService';
 import { IProcessingStrategy } from '../processing/strategies/impl/base/IProcessingStrategy';
 import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
 
@@ -20,21 +20,21 @@ export interface ProcessingResult {
 
 @injectable()
 export class ProcessingGuard {
-  private static instance: ProcessingGuard;
-  private errorManager: ErrorThresholdInterceptor;
-  private memoryGuard: MemoryGuard;
-  private strategyFactory: ProcessingStrategyFactory;
-  private detectionCenter: UnifiedDetectionCenter;
-  private fallbackEngine: IntelligentFallbackEngine;
-  private logger?: LoggerService;
-  private isInitialized: boolean = false;
+   private static instance: ProcessingGuard;
+   private errorManager: ErrorThresholdInterceptor;
+   private memoryGuard: MemoryGuard;
+   private strategyFactory: ProcessingStrategyFactory;
+   private detectionService: UnifiedDetectionService;
+   private fallbackEngine: IntelligentFallbackEngine;
+   private logger?: LoggerService;
+   private isInitialized: boolean = false;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.ErrorThresholdManager) errorManager?: ErrorThresholdInterceptor,
     @inject(TYPES.MemoryGuard) memoryGuard?: MemoryGuard,
     @inject(TYPES.ProcessingStrategyFactory) strategyFactory?: ProcessingStrategyFactory,
-    @inject(TYPES.UnifiedDetectionCenter) detectionCenter?: UnifiedDetectionCenter,
+    @inject(TYPES.UnifiedDetectionService) detectionService?: UnifiedDetectionService,
     @inject(TYPES.IntelligentFallbackEngine) fallbackEngine?: IntelligentFallbackEngine
   ) {
     this.logger = logger;
@@ -69,7 +69,7 @@ export class ProcessingGuard {
       100, 1000, logger || new LoggerService()
     );
     this.strategyFactory = strategyFactory || new ProcessingStrategyFactory(logger);
-    this.detectionCenter = detectionCenter || new UnifiedDetectionCenter(logger);
+    this.detectionService = detectionService || new UnifiedDetectionService(logger);
     this.fallbackEngine = fallbackEngine || new IntelligentFallbackEngine(logger);
   }
 
@@ -82,7 +82,7 @@ export class ProcessingGuard {
     errorManager?: ErrorThresholdInterceptor,
     memoryGuard?: MemoryGuard,
     strategyFactory?: ProcessingStrategyFactory,
-    detectionCenter?: UnifiedDetectionCenter
+    detectionService?: UnifiedDetectionService
   ): ProcessingGuard {
     if (!ProcessingGuard.instance) {
       ProcessingGuard.instance = new ProcessingGuard(
@@ -90,7 +90,7 @@ export class ProcessingGuard {
         errorManager,
         memoryGuard,
         strategyFactory,
-        detectionCenter
+        detectionService
       );
     }
     return ProcessingGuard.instance;
@@ -180,7 +180,7 @@ export class ProcessingGuard {
     // 2. 统一检测（一次性完成所有检测）
     let detection;
     try {
-      detection = await this.detectionCenter.detectFile(filePath, content);
+      detection = await this.detectionService.detectFile(filePath, content);
     } catch (detectionError) {
       // 如果检测失败，直接进入fallback
       const duration = Date.now() - startTime;
@@ -295,7 +295,7 @@ export class ProcessingGuard {
     try {
       // 使用智能降级引擎确定最佳降级策略
       // 如果已经有检测结果，则避免重复检测
-      const detection = cachedDetection || await this.detectionCenter.detectFile(filePath, content);
+      const detection = cachedDetection || await this.detectionService.detectFile(filePath, content);
       const fallbackStrategy = await this.fallbackEngine.determineFallbackStrategy(filePath, new Error(reason), detection);
 
       this.logger?.info(`Using intelligent fallback strategy: ${fallbackStrategy.strategy} for ${filePath}`);
@@ -304,15 +304,25 @@ export class ProcessingGuard {
       const strategy = this.strategyFactory.createStrategy({
         language: detection.language,
         confidence: detection.confidence,
+        detectionMethod: detection.detectionMethod || 'hybrid',
         fileType: detection.fileType,
-        processingStrategy: fallbackStrategy.strategy
+        processingStrategy: fallbackStrategy.strategy,
+        metadata: {
+          ...detection.metadata,
+          processingStrategy: fallbackStrategy.strategy
+        }
       });
 
       const result = await strategy.execute(filePath, content, {
         language: detection.language,
         confidence: detection.confidence,
+        detectionMethod: detection.detectionMethod || 'hybrid',
         fileType: detection.fileType,
-        processingStrategy: fallbackStrategy.strategy
+        processingStrategy: fallbackStrategy.strategy,
+        metadata: {
+          ...detection.metadata,
+          processingStrategy: fallbackStrategy.strategy
+        }
       });
 
       return {
@@ -387,7 +397,7 @@ export class ProcessingGuard {
   reset(): void {
     this.errorManager.resetCounter();
     this.memoryGuard.clearHistory();
-    this.detectionCenter.clearCache();
+    this.detectionService.clearCache();
     this.logger?.info('ProcessingGuard reset completed');
   }
 }

@@ -87,12 +87,11 @@ describe('Go AST Segmentation Integration Test', () => {
     };
 
     // 创建UnifiedGuardCoordinator
-    const detectionServiceAdapter = new UnifiedDetectionServiceAdapter(detectionService, logger);
     const guardCoordinator = UnifiedGuardCoordinator.getInstance(
       memoryMonitor,
       errorThresholdManager,
       cleanupManager,
-      detectionServiceAdapter,
+      detectionService,
       new ProcessingStrategyFactory(logger),
       new IntelligentFallbackEngine(logger),
       500, // memoryLimitMB

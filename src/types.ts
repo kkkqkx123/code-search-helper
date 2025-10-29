@@ -60,7 +60,7 @@ import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoor
 import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';
 // ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名
 type ProcessingGuard = UnifiedGuardCoordinator;
-import { UnifiedDetectionCenter } from './service/parser/processing/detection/UnifiedDetectionCenter';
+import { UnifiedDetectionService } from './service/parser/processing/detection/UnifiedDetectionService';
 import { IntelligentFallbackEngine } from './service/parser/guard/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from './service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextStrategy } from './service/parser/processing/utils/md/MarkdownTextStrategy';
@@ -396,8 +396,9 @@ export const TYPES = {
   ChunkRebalancer: Symbol.for('ChunkRebalancer'),
 
   // 37. 优化的降级处理相关服务
+  // 37. 优化的降级处理相关服务
   OptimizedProcessingGuard: Symbol.for('OptimizedProcessingGuard'),
-  UnifiedDetectionCenter: Symbol.for('UnifiedDetectionCenter'),
+  UnifiedDetectionService: Symbol.for('UnifiedDetectionService'),
   IntelligentFallbackEngine: Symbol.for('IntelligentFallbackEngine'),
   ProcessingStrategyFactory: Symbol.for('ProcessingStrategyFactory'),
 
@@ -411,10 +412,8 @@ export const TYPES = {
   // 40. 统一策略工厂和管理器
   UnifiedStrategyFactory: Symbol.for('UnifiedStrategyFactory'),
   UnifiedStrategyManager: Symbol.for('UnifiedStrategyManager'),
-  UnifiedDetectionService: Symbol.for('UnifiedDetectionService'),
   UnifiedProcessingCoordinator: Symbol.for('UnifiedProcessingCoordinator'),
 
-  // 41. 语言检测器
   LanguageDetector: Symbol.for('LanguageDetector'),
 
   // 42. 分段策略提供者

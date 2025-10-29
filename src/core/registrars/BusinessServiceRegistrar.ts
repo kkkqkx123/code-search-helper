@@ -54,8 +54,6 @@ import { ChunkRebalancer } from '../../service/parser/processing/utils/ChunkReba
 // ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名，通过类型定义处理
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
-// import { OptimizedProcessingGuard } from '../../service/parser/guard/OptimizedProcessingGuard'; // 暂时注释掉，文件不存在
-import { UnifiedDetectionCenter } from '../../service/parser/processing/detection/UnifiedDetectionCenter';
 import { IntelligentFallbackEngine } from '../../service/parser/guard/IntelligentFallbackEngine';
 import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextStrategy } from '../../service/parser/processing/utils/md/MarkdownTextStrategy';
@@ -66,6 +64,7 @@ import { UnifiedProcessingCoordinator } from '../../service/parser/processing/co
 import { UnifiedStrategyManager } from '../../service/parser/processing/strategies/manager/UnifiedStrategyManager';
 import { UnifiedStrategyFactory } from '../../service/parser/processing/strategies/factory/UnifiedStrategyFactory';
 import { UnifiedDetectionService } from '../../service/parser/processing/detection/UnifiedDetectionService';
+import { LanguageDetector } from '../../service/parser/core/language-detection/LanguageDetector';
 
 // 分段器模块服务
 import { SegmentationStrategyCoordinator } from '../../service/parser/processing/coordination/SegmentationStrategyCoordinator';
@@ -162,7 +161,7 @@ export class BusinessServiceRegistrar {
         const universalTextStrategy = context.get<UniversalTextStrategy>(TYPES.UniversalTextStrategy);
         const markdownTextStrategy = context.get<MarkdownTextStrategy>(TYPES.MarkdownTextStrategy);
         const xmlTextStrategy = context.get<XMLTextStrategy>(TYPES.XMLTextStrategy);
-        
+
         return new UnifiedStrategyFactory(
           logger,
           configManager,
@@ -173,7 +172,6 @@ export class BusinessServiceRegistrar {
         );
       }).inSingletonScope();
       container.bind<UnifiedStrategyManager>(TYPES.UnifiedStrategyManager).to(UnifiedStrategyManager).inSingletonScope();
-      container.bind<UnifiedDetectionService>(TYPES.UnifiedDetectionService).to(UnifiedDetectionService).inSingletonScope();
 
       // 解析服务
       container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
@@ -194,7 +192,10 @@ export class BusinessServiceRegistrar {
       container.bind<PriorityManager>(TYPES.PriorityManager).to(PriorityManager).inSingletonScope();
       container.bind<SmartStrategySelector>(TYPES.SmartStrategySelector).to(SmartStrategySelector).inSingletonScope();
       container.bind<FallbackManager>(TYPES.FallbackManager).to(FallbackManager).inSingletonScope();
-      // FileFeatureDetector 现在使用单例模式，不需要通过DI容器绑定
+      container.bind<FileFeatureDetector>(TYPES.FileFeatureDetector).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        return FileFeatureDetector.getInstance(logger);
+      }).inSingletonScope();
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
       container.bind<SegmentationStrategyCoordinator>(TYPES.SegmentationStrategyCoordinator).to(SegmentationStrategyCoordinator).inSingletonScope();
 
@@ -236,7 +237,7 @@ export class BusinessServiceRegistrar {
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
         // 从环境变量获取配置，如果没有则使用默认值
         const maxErrors = parseInt(process.env.UNIVERSAL_MAX_ERRORS || '5', 10);
-        const resetInterval = parseInt(process.env.UNIVERSAL_ERROR_RESET_INTERVAL || '60000', 10);
+        const resetInterval = parseInt(process.env.UNIVERSAL_ERROR_RESET_INTERVAL || '6000', 10);
         const config = { maxErrorCount: maxErrors };
         const errorThresholdInterceptor = new ErrorThresholdInterceptor(config, logger, cleanupManager, maxErrors, resetInterval);
         return errorThresholdInterceptor;
@@ -262,32 +263,11 @@ export class BusinessServiceRegistrar {
         return context.get<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator);
       }).inSingletonScope();
 
-      // 优化的处理保护器
-      // container.bind<OptimizedProcessingGuard>(TYPES.OptimizedProcessingGuard).toDynamicValue(context => {
-      //   const logger = context.get<LoggerService>(TYPES.LoggerService);
-      //   const errorThresholdManager = context.get<ErrorThresholdManager>(TYPES.ErrorThresholdManager);
-      //   const memoryGuard = context.get<MemoryGuard>(TYPES.MemoryGuard);
-      //   const strategyFactory = context.get<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory);
-      //   const detectionCenter = context.get<UnifiedDetectionCenter>(TYPES.UnifiedDetectionCenter);
-      //   const fallbackEngine = context.get<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine);
+      // 统一检测服务
+      container.bind<UnifiedDetectionService>(TYPES.UnifiedDetectionService).to(UnifiedDetectionService).inSingletonScope();
 
-      //   return OptimizedProcessingGuard.getInstance(
-      //     logger,
-      //     errorThresholdManager,
-      //     memoryGuard,
-      //     strategyFactory,
-      //     detectionCenter
-      //   );
-      // }).inSingletonScope(); // 暂时注释掉，类不存在
-
-      // 统一检测中心
-      container.bind<UnifiedDetectionCenter>(TYPES.UnifiedDetectionCenter).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        const backupProcessor = context.get<BackupFileProcessor>(TYPES.BackupFileProcessor);
-        const extensionlessProcessor = context.get<ExtensionlessFileProcessor>(TYPES.ExtensionlessFileProcessor);
-
-        return new UnifiedDetectionCenter(logger, backupProcessor, extensionlessProcessor);
-      }).inSingletonScope();
+      // 语言检测服务
+      container.bind<LanguageDetector>(TYPES.LanguageDetector).to(LanguageDetector).inSingletonScope();
 
       // 智能降级引擎
       container.bind<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine).toDynamicValue(context => {
@@ -314,7 +294,7 @@ export class BusinessServiceRegistrar {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
 
         // 获取 ProcessingGuard 整合的依赖
-        const detectionCenter = context.get<UnifiedDetectionCenter>(TYPES.UnifiedDetectionCenter);
+        const detectionService = context.get<UnifiedDetectionService>(TYPES.UnifiedDetectionService);
         const strategyFactory = context.get<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory);
         const fallbackEngine = context.get<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine);
 
@@ -325,7 +305,7 @@ export class BusinessServiceRegistrar {
           memoryMonitorService,
           errorThresholdInterceptor,
           cleanupManager,
-          detectionCenter,
+          detectionService,
           strategyFactory,
           fallbackEngine,
           memoryLimitMB,

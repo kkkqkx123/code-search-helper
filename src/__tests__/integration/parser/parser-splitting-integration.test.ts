@@ -5,7 +5,7 @@ import { UnifiedGuardCoordinator } from '../../../service/parser/guard/UnifiedGu
 import { ErrorThresholdInterceptor } from '../../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../../../service/parser/guard/MemoryGuard';
 import { ProcessingStrategyFactory } from '../../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
-import { UnifiedDetectionCenter } from '../../../service/parser/processing/detection/UnifiedDetectionCenter';
+import { UnifiedDetectionService } from '../../../service/parser/processing/detection/UnifiedDetectionService';
 import { IntelligentFallbackEngine } from '../../../service/parser/guard/IntelligentFallbackEngine';
 import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';
@@ -62,7 +62,7 @@ describe('Parser Splitting Integration Test', () => {
       memoryMonitor,
       errorThresholdManager,
       cleanupManager,
-      new UnifiedDetectionCenter(logger),
+      new UnifiedDetectionService(logger),
       new ProcessingStrategyFactory(logger),
       new IntelligentFallbackEngine(logger),
       500, // memoryLimitMB
