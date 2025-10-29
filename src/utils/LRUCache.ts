@@ -49,7 +49,9 @@ export class LRUCache<K, V> {
       return undefined;
     }
 
-    // 更新访问时间
+    // 更新访问时间并将其移到缓存末尾（实现LRU）
+    this.cache.delete(key);
+    this.cache.set(key, entry);
     entry.accessTime = Date.now();
     
     if (this.enableStats) this.stats.hits++;

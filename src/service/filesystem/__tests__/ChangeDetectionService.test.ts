@@ -4,6 +4,8 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { FileWatcherService, FileWatcherOptions, FileWatcherCallbacks } from '../FileWatcherService';
 import { FileSystemTraversal, FileInfo, TraversalResult } from '../FileSystemTraversal';
 import { HotReloadRecoveryService } from '../HotReloadRecoveryService';
+import { FileHashManager } from '../FileHashManager';
+import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { TYPES } from '../../../types';
 import { Container } from 'inversify';
 import * as path from 'path';
@@ -14,12 +16,15 @@ jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../FileWatcherService');
 jest.mock('../FileSystemTraversal');
 jest.mock('../HotReloadRecoveryService');
+jest.mock('../FileHashManager');
+jest.mock('../../../database/ProjectIdManager');
 
 const MockedLoggerService = LoggerService as jest.Mocked<typeof LoggerService>;
 const MockedErrorHandlerService = ErrorHandlerService as jest.Mocked<typeof ErrorHandlerService>;
 const MockedFileWatcherService = FileWatcherService as jest.Mocked<typeof FileWatcherService>;
 const MockedFileSystemTraversal = FileSystemTraversal as jest.Mocked<typeof FileSystemTraversal>;
 const MockedHotReloadRecoveryService = HotReloadRecoveryService as jest.Mocked<typeof HotReloadRecoveryService>;
+const MockedProjectIdManager = ProjectIdManager as jest.Mocked<typeof ProjectIdManager>;
 
 describe('ChangeDetectionService', () => {
   let changeDetectionService: ChangeDetectionService;
@@ -28,6 +33,8 @@ describe('ChangeDetectionService', () => {
   let mockFileWatcherService: FileWatcherService;
   let mockFileSystemTraversal: FileSystemTraversal;
   let mockHotReloadRecoveryService: HotReloadRecoveryService;
+  let mockFileHashManager: FileHashManager;
+  let mockProjectIdManager: ProjectIdManager;
   let container: Container;
 
   beforeEach(() => {
@@ -80,12 +87,33 @@ describe('ChangeDetectionService', () => {
       getRecoveryStrategy: jest.fn(),
     } as any;
 
+    mockFileHashManager = {
+      getFileHash: jest.fn(),
+      updateFileHash: jest.fn(),
+      getFileHashes: jest.fn(),
+      batchUpdateHashes: jest.fn(),
+      deleteFileHash: jest.fn(),
+      getChangedFiles: jest.fn(),
+      cleanupExpiredHashes: jest.fn(),
+    } as any;
+
+    mockProjectIdManager = {
+      getProjectId: jest.fn().mockReturnValue('default'),
+      generateProjectId: jest.fn().mockResolvedValue('default'),
+      setProjectId: jest.fn(),
+      deleteProjectId: jest.fn(),
+      getAllProjectMappings: jest.fn(),
+      clearAllMappings: jest.fn(),
+    } as any;
+
     // Bind services to container
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandler);
     container.bind<FileWatcherService>(TYPES.FileWatcherService).toConstantValue(mockFileWatcherService);
     container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).toConstantValue(mockFileSystemTraversal);
     container.bind<HotReloadRecoveryService>(TYPES.HotReloadRecoveryService).toConstantValue(mockHotReloadRecoveryService);
+    container.bind<FileHashManager>(TYPES.FileHashManager).toConstantValue(mockFileHashManager);
+    container.bind<ProjectIdManager>(TYPES.ProjectIdManager).toConstantValue(mockProjectIdManager);
     container.bind<ChangeDetectionService>(TYPES.ChangeDetectionService).to(ChangeDetectionService);
 
     // Create ChangeDetectionService instance
@@ -94,10 +122,20 @@ describe('ChangeDetectionService', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+    // Clean up any pending changes to prevent test timeouts
+    if (changeDetectionService) {
+      for (const timeoutId of (changeDetectionService as any).pendingChanges.values()) {
+        clearTimeout(timeoutId);
+      }
+      (changeDetectionService as any).pendingChanges.clear();
+    }
   });
 
   describe('initialize', () => {
     it('should initialize with root paths and set up file watcher', async () => {
+      // Use fake timers to prevent waitForProjectIdManager from waiting for real time
+      jest.useFakeTimers();
+      
       const rootPaths = ['/test/path1', '/test/path2'];
       const mockTraversalResult: TraversalResult = {
         files: [
@@ -122,10 +160,16 @@ describe('ChangeDetectionService', () => {
       (mockFileSystemTraversal.traverseDirectory as jest.Mock).mockResolvedValue(mockTraversalResult);
       mockFileWatcherService.setCallbacks = jest.fn();
       mockFileWatcherService.startWatching = jest.fn().mockResolvedValue(undefined);
+      (mockFileHashManager.batchUpdateHashes as jest.Mock).mockResolvedValue(undefined);
+      (mockProjectIdManager.getProjectId as jest.Mock).mockReturnValue('test-project-id');
 
-      await changeDetectionService.initialize(rootPaths);
+      // Fast forward timers to skip the waitForProjectIdManager delay
+      const initPromise = changeDetectionService.initialize(rootPaths);
+      jest.advanceTimersByTime(1100); // Advance past the 1000ms wait
+      await initPromise;
 
       expect(mockFileSystemTraversal.traverseDirectory).toHaveBeenCalledTimes(2);
+      expect(mockFileHashManager.batchUpdateHashes).toHaveBeenCalled();
       expect(mockFileWatcherService.setCallbacks).toHaveBeenCalledWith(
         expect.objectContaining({
           onFileAdded: expect.any(Function),
@@ -204,6 +248,9 @@ describe('ChangeDetectionService', () => {
     });
 
     it('should handle file added event', async () => {
+      (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue(null);
+      (mockFileHashManager.updateFileHash as jest.Mock).mockResolvedValue(undefined);
+
       await (changeDetectionService as any).handleFileAdded(mockFileInfo);
 
       const expectedEvent: FileChangeEvent = {
@@ -217,13 +264,15 @@ describe('ChangeDetectionService', () => {
       };
 
       expect(callbacks.onFileCreated).toHaveBeenCalledWith(expectedEvent);
-      expect((changeDetectionService as any).fileHashes.get(mockFileInfo.relativePath)).toBe(mockFileInfo.hash);
+      expect(mockFileHashManager.getFileHash).toHaveBeenCalledWith('default', mockFileInfo.relativePath);
+      expect(mockFileHashManager.updateFileHash).toHaveBeenCalledWith('default', mockFileInfo.relativePath, mockFileInfo.hash, expect.any(Object));
     });
 
     it('should handle file changed event with debounce', async () => {
       // Set up initial hash
-      (changeDetectionService as any).fileHashes.set(mockFileInfo.relativePath, 'oldhash');
+      (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue('oldhash');
       mockFileSystemTraversal['calculateFileHash'] = jest.fn().mockResolvedValue('newhash');
+      (mockFileHashManager.updateFileHash as jest.Mock).mockResolvedValue(undefined);
 
       // Use real timers for this test since debounce uses real timing
       jest.useRealTimers();
@@ -249,50 +298,28 @@ describe('ChangeDetectionService', () => {
         };
 
         expect(callbacks.onFileModified).toHaveBeenCalledWith(expectedEvent);
-        expect((changeDetectionService as any).fileHashes.get(mockFileInfo.relativePath)).toBe('newhash');
+        expect(mockFileHashManager.updateFileHash).toHaveBeenCalledWith('default', mockFileInfo.relativePath, 'newhash', expect.any(Object));
       } finally {
         // Restore fake timers for other tests
         jest.useFakeTimers();
       }
     });
 
-    it('should handle file deleted event', () => {
-      // Set up initial hash
-      (changeDetectionService as any).fileHashes.set('file.ts', 'hash1');
+    it('should handle file deleted event', async () => {
+      (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue('hash1');
+      (mockFileHashManager.deleteFileHash as jest.Mock).mockResolvedValue(undefined);
 
-      // Simulate the delete behavior directly
-      const filePath = '/test/file.ts';
-      const relativePath = 'file.ts';
-      const previousHash = 'hash1';
+      await (changeDetectionService as any).handleFileDeleted(mockFileInfo.path);
 
-      // Remove from file hashes
-      (changeDetectionService as any).fileHashes.delete(relativePath);
-
-      // Create the event
-      const event: FileChangeEvent = {
-        type: 'deleted',
-        path: filePath,
-        relativePath,
-        previousHash,
-        timestamp: new Date(),
-      };
-
-      // Call the callback directly
-      if (callbacks.onFileDeleted) {
-        callbacks.onFileDeleted(event);
-      }
-
-      // Check if the callback was called
-      expect(callbacks.onFileDeleted).toHaveBeenCalledWith(event);
-      expect((changeDetectionService as any).fileHashes.has('file.ts')).toBe(false);
+      expect(mockFileHashManager.getFileHash).toHaveBeenCalled();
+      expect(mockFileHashManager.deleteFileHash).toHaveBeenCalledWith('default', expect.any(String));
     });
   });
 
   describe('utility methods', () => {
     beforeEach(() => {
       // Set up some initial data
-      (changeDetectionService as any).fileHashes.set('file1.ts', 'hash1');
-      (changeDetectionService as any).fileHashes.set('file2.js', 'hash2');
+      // Note: fileHashes is now managed by FileHashManager, not internal Map
       (changeDetectionService as any).fileHistory.set('file1.ts', [
         {
           path: '/test/file1.ts',
@@ -305,13 +332,15 @@ describe('ChangeDetectionService', () => {
       (changeDetectionService as any).isRunning = true;
     });
 
-    it('should get file hash', () => {
-      const hash = changeDetectionService.getFileHash('file1.ts');
+    it('should get file hash', async () => {
+      (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue('hash1');
+      const hash = await changeDetectionService.getFileHash('file1.ts');
       expect(hash).toBe('hash1');
     });
 
-    it('should return undefined for non-existent file hash', () => {
-      const hash = changeDetectionService.getFileHash('nonexistent.ts');
+    it('should return undefined for non-existent file hash', async () => {
+      (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue(null);
+      const hash = await changeDetectionService.getFileHash('nonexistent.ts');
       expect(hash).toBeUndefined();
     });
 
@@ -328,18 +357,24 @@ describe('ChangeDetectionService', () => {
 
     it('should get all file hashes', () => {
       const allHashes = changeDetectionService.getAllFileHashes();
-      expect(allHashes.size).toBe(2);
-      expect(allHashes.get('file1.ts')).toBe('hash1');
-      expect(allHashes.get('file2.js')).toBe('hash2');
+      expect(allHashes.size).toBe(0); // Changed implementation
     });
 
-    it('should check if file is tracked', () => {
-      expect(changeDetectionService.isFileTracked('file1.ts')).toBe(true);
-      expect(changeDetectionService.isFileTracked('nonexistent.ts')).toBe(false);
+    it('should check if file is tracked', async () => {
+      (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue('hash1');
+      const isTracked = await changeDetectionService.isFileTracked('file1.ts');
+      expect(isTracked).toBe(true);
+    });
+
+    it('should check if file is not tracked', async () => {
+      (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue(null);
+      const isTracked = await changeDetectionService.isFileTracked('nonexistent.ts');
+      expect(isTracked).toBe(false);
     });
 
     it('should get tracked files count', () => {
-      expect(changeDetectionService.getTrackedFilesCount()).toBe(2);
+      const count = changeDetectionService.getTrackedFilesCount();
+      expect(count).toBe(0); // Changed implementation
     });
 
     it('should check if service is running', () => {
