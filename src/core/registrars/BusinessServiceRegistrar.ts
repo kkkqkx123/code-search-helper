@@ -154,7 +154,23 @@ export class BusinessServiceRegistrar {
       // 解析服务
       container.bind('unmanaged').toConstantValue(undefined);
       container.bind<UnifiedConfigManager>(TYPES.UnifiedConfigManager).to(UnifiedConfigManager).inSingletonScope();
-      container.bind<UnifiedStrategyFactory>(TYPES.UnifiedStrategyFactory).to(UnifiedStrategyFactory).inSingletonScope();
+      container.bind<UnifiedStrategyFactory>(TYPES.UnifiedStrategyFactory).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        const configManager = context.get<UnifiedConfigManager>(TYPES.UnifiedConfigManager);
+        const treeSitterService = context.get<TreeSitterService>(TYPES.TreeSitterService);
+        const universalTextStrategy = context.get<UniversalTextStrategy>(TYPES.UniversalTextStrategy);
+        const markdownTextStrategy = context.get<MarkdownTextStrategy>(TYPES.MarkdownTextStrategy);
+        const xmlTextStrategy = context.get<XMLTextStrategy>(TYPES.XMLTextStrategy);
+        
+        return new UnifiedStrategyFactory(
+          logger,
+          configManager,
+          treeSitterService,
+          universalTextStrategy,
+          markdownTextStrategy,
+          xmlTextStrategy
+        );
+      }).inSingletonScope();
       container.bind<UnifiedStrategyManager>(TYPES.UnifiedStrategyManager).to(UnifiedStrategyManager).inSingletonScope();
       container.bind<UnifiedDetectionService>(TYPES.UnifiedDetectionService).to(UnifiedDetectionService).inSingletonScope();
 

@@ -40,7 +40,7 @@ export class QueryLoader {
 
         for (const queryType of queryTypes) {
           try {
-            const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}/${queryType}`);
+            const queryModule = await import(`../constants/queries/${this.getQueryFileName(language)}/${queryType}`);
             const query = queryModule.default;
             if (query) {
               languageQueries.set(queryType, query);
@@ -64,7 +64,7 @@ export class QueryLoader {
 
       // 尝试回退到旧的单一文件结构（用于简单语言）
       try {
-        const queryModule = await import(`../../constants/queries/${this.getQueryFileName(language)}`);
+        const queryModule = await import(`../constants/queries/${this.getQueryFileName(language)}`);
         const query = queryModule.default || queryModule[`${this.getQueryFileName(language)}Query`];
 
         if (query) {
@@ -199,7 +199,7 @@ export class QueryLoader {
    * @returns 查询类型数组
    */
   static async discoverQueryTypes(language: string): Promise<string[]> {
-    const queryDir = `../../constants/queries/${this.getQueryFileName(language)}`;
+    const queryDir = `../constants/queries/${this.getQueryFileName(language)}`;
     
     try {
       // 尝试动态读取目录结构

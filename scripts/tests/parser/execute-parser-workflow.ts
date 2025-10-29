@@ -47,7 +47,7 @@ async function runParserWorkflow() {
     // 获取TreeSitter服务并等待初始化
     const treeSitterService = diContainer.get(TYPES.TreeSitterCoreService) as import('../../../src/service/parser/core/parse/TreeSitterCoreService').TreeSitterCoreService;
     
-    // 等待初始化
+    // 等待TreeSitterCoreService初始化
     const maxWaitTime = 30000; // 30秒超时
     const startTime = Date.now();
     
@@ -62,8 +62,33 @@ async function runParserWorkflow() {
     
     console.log('TreeSitterCoreService initialized successfully');
 
-    // 定义源目录
-    const sourceDir = path.join(process.cwd(), 'test-files');
+    // 等待查询系统完全初始化
+    console.log('Waiting for query system initialization...');
+    const querySystemStatus = treeSitterService.getQuerySystemStatus();
+    console.log('Query system status:', querySystemStatus);
+    
+    // 额外等待查询系统初始化完成
+    let querySystemReady = false;
+    const queryWaitStartTime = Date.now();
+    while (!querySystemReady && Date.now() - queryWaitStartTime < maxWaitTime) {
+      const status = treeSitterService.getQuerySystemStatus();
+      querySystemReady = status.initialized;
+      
+      if (!querySystemReady) {
+        console.log('Query system not ready yet, waiting...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    if (!querySystemReady) {
+      console.error('Query system failed to initialize within timeout');
+      return;
+    }
+    
+    console.log('Query system initialized successfully');
+
+    // 定义源目录 - 从项目根目录查找test-files
+    const sourceDir = path.join(__dirname, '..', '..', '..', 'test-files');
     const OUTPUT_DIR = path.join(process.cwd(), 'test-data', 'parser-result');
 
     // 确保结果目录存在
@@ -112,11 +137,22 @@ async function runParserWorkflow() {
 
         // 使用处理协调器处理文件
         const processingResult = await processingCoordinator.processFile(context);
-        const { chunks, language, processingStrategy } = processingResult;
+        const { chunks, language, processingStrategy, fallbackReason, success, metadata } = processingResult;
 
         console.log(`  - Language: ${language}`);
         console.log(`  - Strategy: ${processingStrategy}`);
         console.log(`  - Chunks: ${chunks.length}`);
+        console.log(`  - Success: ${success}`);
+        console.log(`  - Fallback Reason: ${fallbackReason || 'None'}`);
+        console.log(`  - Detection Method: ${metadata?.detectionMethod || 'Unknown'}`);
+        console.log(`  - Confidence: ${metadata?.confidence || 0}`);
+        
+        // 检查chunk的metadata，看看是否是fallback
+        if (chunks.length > 0) {
+          const firstChunk = chunks[0];
+          console.log(`  - Chunk Type: ${firstChunk.metadata?.type || 'unknown'}`);
+          console.log(`  - Is Fallback: ${firstChunk.metadata?.fallback || false}`);
+        }
 
         // 准备结果数据
         const resultData = {
@@ -151,6 +187,10 @@ async function runParserWorkflow() {
     }
 
     console.log('Parser workflow test completed!');
+    
+    // 直接退出进程
+    console.log('Exiting process...');
+    process.exit(0);
   } catch (error) {
     console.error('Failed to load modules:', error);
     throw error;
