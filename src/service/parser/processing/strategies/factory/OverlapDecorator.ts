@@ -34,7 +34,7 @@ export class OverlapDecorator implements ISplitStrategy {
     if (isCodeFile) {
       // 检查是否有块超过最大大小限制
       const hasOversizedChunks = chunks.some(chunk => {
-        const maxSize = options?.maxChunkSize || 2000;
+        const maxSize = options?.basic?.maxChunkSize || 2000;
         return chunk.content.length > maxSize;
       });
 

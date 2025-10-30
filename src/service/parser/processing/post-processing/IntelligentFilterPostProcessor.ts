@@ -22,7 +22,7 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
 
   shouldApply(chunks: CodeChunk[], context: PostProcessingContext): boolean {
     // 只在启用智能过滤时应用
-    return context.options.enableIntelligentFiltering === true && chunks.length > 0;
+    return context.options.advanced?.enableIntelligentFiltering === true && chunks.length > 0;
   }
 
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {
@@ -37,11 +37,11 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
       options: {
         filterConfig: {
           enableSmallChunkFilter: true,
-          minChunkSize: context.options.minChunkSizeThreshold || context.options.minChunkSize || 100,
-          maxChunkSize: context.options.maxChunkSizeThreshold || context.options.maxChunkSize || 1000
+          minChunkSize: context.options.advanced?.minChunkSizeThreshold || context.options.basic?.minChunkSize || 100,
+          maxChunkSize: context.options.advanced?.maxChunkSizeThreshold || context.options.basic?.maxChunkSize || 1000
         }
       },
-      metadata: { 
+      metadata: {
         isCodeFile: this.isCodeFile(context.language),
         language: context.language
       }
@@ -51,7 +51,7 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
     const filteredChunks = await this.chunkFilter.process(chunks, filterContext);
 
     // 如果启用了高级合并，应用智能合并
-    if (context.options.enableIntelligentFiltering) {
+    if (context.options.advanced?.enableIntelligentFiltering) {
       const mergedChunks = await this.chunkFilter.intelligentMerge(filteredChunks, filterContext);
       this.logger?.debug(`Intelligent filter: ${chunks.length} -> ${filteredChunks.length} -> ${mergedChunks.length} chunks`);
       return mergedChunks;
@@ -99,7 +99,7 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
    */
   private isHighQualityChunk(chunk: CodeChunk, context: PostProcessingContext): boolean {
     const content = chunk.content.trim();
-    const minChunkSize = context.options.minChunkSizeThreshold || context.options.minChunkSize || 100;
+    const minChunkSize = context.options.advanced?.minChunkSizeThreshold || context.options.basic?.minChunkSize || 100;
     const verySmallThreshold = Math.min(minChunkSize * 0.3, 15);
 
     // 基本长度检查

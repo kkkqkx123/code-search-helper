@@ -1,7 +1,14 @@
-import { CodeChunk, CodeChunkMetadata, ChunkingOptions } from '../../types/core-types';
+import { CodeChunk, CodeChunkMetadata, ChunkingOptions, LegacyChunkingOptions, ChunkingPreset, ChunkingOptionsConverter } from '../../types/config-types';
 
 // 重新导出基础类型以避免破坏现有导入
-export { CodeChunk, CodeChunkMetadata, ChunkingOptions };
+export { 
+  CodeChunk, 
+  CodeChunkMetadata, 
+  ChunkingOptions, 
+  LegacyChunkingOptions,
+  ChunkingPreset,
+  ChunkingOptionsConverter
+};
 
 // AST节点接口定义
 export interface ASTNode {
@@ -41,127 +48,304 @@ export interface Splitter {
   setChunkOverlap(chunkOverlap: number): void;
 }
 
-// 增强的分段选项，用于解决片段重复问题
-export interface EnhancedChunkingOptions extends ChunkingOptions {
-  maxOverlapRatio: number;           // 最大重叠比例（默认0.3）
-  enableASTBoundaryDetection: boolean; // 启用AST边界检测
-  deduplicationThreshold: number;    // 去重阈值（相似度>0.8）
-  astNodeTracking: boolean;          // 启用AST节点跟踪
-  chunkMergeStrategy: 'aggressive' | 'conservative'; // 合并策略
-  enableChunkDeduplication: boolean; // 启用块去重
-  maxOverlapLines: number;           // 最大重叠行数限制
-  minChunkSimilarity: number;        // 最小块相似度阈值
-  enableSmartDeduplication: boolean; // 启用智能去重
-  similarityThreshold: number;       // 相似度阈值
-  overlapMergeStrategy: 'aggressive' | 'conservative'; // 重叠合并策略
+// 预设配置工厂
+export class ChunkingPresetFactory {
+  /**
+   * 根据预设创建配置
+   */
+  static createPreset(preset: ChunkingPreset): ChunkingOptions {
+    switch (preset) {
+      case ChunkingPreset.FAST:
+        return this.createFastPreset();
+      case ChunkingPreset.BALANCED:
+        return this.createBalancedPreset();
+      case ChunkingPreset.QUALITY:
+        return this.createQualityPreset();
+      case ChunkingPreset.CUSTOM:
+      default:
+        return this.createCustomPreset();
+    }
+  }
 
-  // 新增：增强配置选项
-  enableEnhancedBalancing?: boolean;
-  balancedChunkerThreshold?: number;
-  enableIntelligentFiltering?: boolean;
-  minChunkSizeThreshold?: number;
-  maxChunkSizeThreshold?: number;
-  enableSmartRebalancing?: boolean;
-  rebalancingStrategy?: 'conservative' | 'aggressive';
-  enableBoundaryOptimization?: boolean;
-  boundaryOptimizationThreshold?: number;
-  enableAdvancedMerging?: boolean;
-  enableOverlap?: boolean;
-  mergeDecisionThreshold?: number;
+  /**
+   * 快速预设：性能优先，基础功能
+   */
+  private static createFastPreset(): ChunkingOptions {
+    return {
+      preset: ChunkingPreset.FAST,
+      basic: {
+        maxChunkSize: 2000,
+        minChunkSize: 200,
+        overlapSize: 100,
+        preserveFunctionBoundaries: false,
+        preserveClassBoundaries: false,
+        includeComments: false,
+        extractSnippets: false,
+        addOverlap: false,
+        optimizationLevel: 'low',
+        maxLines: 5000
+      },
+      advanced: {
+        enableASTBoundaryDetection: false,
+        astNodeTracking: false,
+        enableChunkDeduplication: false,
+        enableSmartDeduplication: false,
+        enableEnhancedBalancing: false,
+        enableIntelligentFiltering: false,
+        enableSmartRebalancing: false,
+        enableBoundaryOptimization: false,
+        enableAdvancedMerging: false
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: false,
+        enableNodeTracking: false
+      },
+      quality: {
+        boundaryScoring: {
+          enableSemanticScoring: false,
+          minBoundaryScore: 0.3,
+          maxSearchDistance: 5,
+          languageSpecificWeights: false
+        },
+        overlapStrategy: {
+          preferredStrategy: 'line',
+          enableContextOptimization: false,
+          qualityThreshold: 0.5
+        },
+        functionSpecificOptions: {
+          preferWholeFunctions: false,
+          minFunctionOverlap: 20,
+          maxFunctionSize: 1000,
+          maxFunctionLines: 20,
+          minFunctionLines: 3,
+          enableSubFunctionExtraction: false
+        },
+        classSpecificOptions: {
+          keepMethodsTogether: false,
+          classHeaderOverlap: 50,
+          maxClassSize: 1500
+        }
+      }
+    };
+  }
+
+  /**
+   * 平衡预设：功能与性能平衡
+   */
+  private static createBalancedPreset(): ChunkingOptions {
+    return {
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        maxChunkSize: 1000,
+        minChunkSize: 100,
+        overlapSize: 200,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium',
+        maxLines: 10000
+      },
+      advanced: {
+        enableASTBoundaryDetection: true,
+        astNodeTracking: false,
+        enableChunkDeduplication: true,
+        maxOverlapRatio: 0.3,
+        deduplicationThreshold: 0.8,
+        chunkMergeStrategy: 'conservative',
+        minChunkSimilarity: 0.6,
+        enableSmartDeduplication: false,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative',
+        maxOverlapLines: 50,
+        enableEnhancedBalancing: true,
+        balancedChunkerThreshold: 100,
+        enableIntelligentFiltering: true,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 2000,
+        enableSmartRebalancing: true,
+        rebalancingStrategy: 'conservative',
+        enableBoundaryOptimization: true,
+        boundaryOptimizationThreshold: 0.7,
+        enableAdvancedMerging: false
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: false,
+        enableNodeTracking: false
+      },
+      quality: {
+        boundaryScoring: {
+          enableSemanticScoring: true,
+          minBoundaryScore: 0.5,
+          maxSearchDistance: 10,
+          languageSpecificWeights: true
+        },
+        overlapStrategy: {
+          preferredStrategy: 'semantic',
+          enableContextOptimization: true,
+          qualityThreshold: 0.7
+        },
+        functionSpecificOptions: {
+          preferWholeFunctions: true,
+          minFunctionOverlap: 50,
+          maxFunctionSize: 2000,
+          maxFunctionLines: 30,
+          minFunctionLines: 5,
+          enableSubFunctionExtraction: true
+        },
+        classSpecificOptions: {
+          keepMethodsTogether: true,
+          classHeaderOverlap: 100,
+          maxClassSize: 3000
+        }
+      }
+    };
+  }
+
+  /**
+   * 质量预设：最高质量，功能全面
+   */
+  private static createQualityPreset(): ChunkingOptions {
+    return {
+      preset: ChunkingPreset.QUALITY,
+      basic: {
+        maxChunkSize: 800,
+        minChunkSize: 50,
+        overlapSize: 200,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: true,
+        extractSnippets: true,
+        addOverlap: true,
+        optimizationLevel: 'high',
+        maxLines: 15000
+      },
+      advanced: {
+        enableASTBoundaryDetection: true,
+        astNodeTracking: true,
+        enableChunkDeduplication: true,
+        maxOverlapRatio: 0.3,
+        deduplicationThreshold: 0.8,
+        chunkMergeStrategy: 'conservative',
+        minChunkSimilarity: 0.6,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative',
+        maxOverlapLines: 50,
+        enableEnhancedBalancing: true,
+        balancedChunkerThreshold: 100,
+        enableIntelligentFiltering: true,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 2000,
+        enableSmartRebalancing: true,
+        rebalancingStrategy: 'conservative',
+        enableBoundaryOptimization: true,
+        boundaryOptimizationThreshold: 0.7,
+        enableAdvancedMerging: true,
+        mergeDecisionThreshold: 0.75
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: true,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: ['ImportSplitter', 'ClassSplitter', 'FunctionSplitter', 'SyntaxAwareSplitter', 'IntelligentSplitter'],
+        enableNodeTracking: true
+      },
+      quality: {
+        boundaryScoring: {
+          enableSemanticScoring: true,
+          minBoundaryScore: 0.7,
+          maxSearchDistance: 15,
+          languageSpecificWeights: true
+        },
+        overlapStrategy: {
+          preferredStrategy: 'semantic',
+          enableContextOptimization: true,
+          qualityThreshold: 0.8
+        },
+        functionSpecificOptions: {
+          preferWholeFunctions: true,
+          minFunctionOverlap: 50,
+          maxFunctionSize: 2000,
+          maxFunctionLines: 30,
+          minFunctionLines: 5,
+          enableSubFunctionExtraction: true
+        },
+        classSpecificOptions: {
+          keepMethodsTogether: true,
+          classHeaderOverlap: 100,
+          maxClassSize: 3000
+        }
+      }
+    };
+  }
+
+  /**
+   * 自定义预设：用户完全控制
+   */
+  private static createCustomPreset(): ChunkingOptions {
+    return {
+      preset: ChunkingPreset.CUSTOM
+    };
+  }
 }
 
-// 默认配置
-export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
-  maxChunkSize: 1000,
-  overlapSize: 200,
-  preserveFunctionBoundaries: true,
-  preserveClassBoundaries: true,
-  includeComments: false,
-  minChunkSize: 100,
-  extractSnippets: true,
-  addOverlap: false,
-  optimizationLevel: 'medium',
-  maxLines: 10000,
-  adaptiveBoundaryThreshold: false,
-  contextAwareOverlap: false,
-  semanticWeight: 0.7,
-  syntacticWeight: 0.3,
-  boundaryScoring: {
-    enableSemanticScoring: true,
-    minBoundaryScore: 0.5,
-    maxSearchDistance: 10,
-    languageSpecificWeights: true
-  },
-  overlapStrategy: {
-    preferredStrategy: 'semantic',
-    enableContextOptimization: true,
-    qualityThreshold: 0.7
-  },
-  functionSpecificOptions: {
-    preferWholeFunctions: true,
-    minFunctionOverlap: 50,
-    maxFunctionSize: 2000,
-    maxFunctionLines: 30,              // 最大函数行数
-    minFunctionLines: 5,               // 最小函数行数
-    enableSubFunctionExtraction: true  // 启用子函数提取
-  },
-  classSpecificOptions: {
-    keepMethodsTogether: true,
-    classHeaderOverlap: 100,
-    maxClassSize: 3000
-  },
-  // 新增：重复问题解决方案配置
-  enableASTBoundaryDetection: false,
-  enableChunkDeduplication: false,
-  maxOverlapRatio: 0.3,
-  deduplicationThreshold: 0.8,
-  astNodeTracking: false,
-  chunkMergeStrategy: 'conservative',
-  minChunkSimilarity: 0.6,
-  // 新增：性能优化配置
-  enablePerformanceOptimization: false,
-  enablePerformanceMonitoring: false,
-  // 新增：协调机制配置
-  enableChunkingCoordination: false,
-  strategyExecutionOrder: ['ImportSplitter', 'ClassSplitter', 'FunctionSplitter', 'SyntaxAwareSplitter', 'IntelligentSplitter'],
-  enableNodeTracking: false,
-  // 新增：智能去重和重叠合并策略
-  enableSmartDeduplication: false,
-  similarityThreshold: 0.8,
-  overlapMergeStrategy: 'conservative',
-  // 新增属性以支持策略提供者
-  treeSitterService: undefined,
-  universalTextStrategy: undefined
-};
+// 配置合并工具
+export class ChunkingOptionsMerger {
+  /**
+   * 合并配置选项
+   */
+  static merge(base: ChunkingOptions, override: ChunkingOptions): ChunkingOptions {
+    const result: ChunkingOptions = { ...base };
+    
+    // 合并预设
+    if (override.preset) {
+      result.preset = override.preset;
+    }
+    
+    // 合并分层配置
+    if (override.basic) {
+      result.basic = { ...base.basic, ...override.basic };
+    }
+    
+    if (override.advanced) {
+      result.advanced = { ...base.advanced, ...override.advanced };
+    }
+    
+    if (override.performance) {
+      result.performance = { ...base.performance, ...override.performance };
+    }
+    
+    if (override.quality) {
+      result.quality = { ...base.quality, ...override.quality };
+    }
+    
+    // 合并其他属性
+    if (override.treeSitterService) {
+      result.treeSitterService = override.treeSitterService;
+    }
+    
+    if (override.universalTextStrategy) {
+      result.universalTextStrategy = override.universalTextStrategy;
+    }
+    
+    return result;
+  }
+}
 
-// 增强配置的默认值
-export const DEFAULT_ENHANCED_CHUNKING_OPTIONS: Required<EnhancedChunkingOptions> = {
-  ...DEFAULT_CHUNKING_OPTIONS,
-  maxOverlapRatio: 0.3,
-  enableASTBoundaryDetection: true,
-  deduplicationThreshold: 0.8,
-  astNodeTracking: true,
-  chunkMergeStrategy: 'conservative',
-  enableChunkDeduplication: true,
-  maxOverlapLines: 50,
-  minChunkSimilarity: 0.6,
-  enableSmartDeduplication: true,
-  similarityThreshold: 0.8,
-  overlapMergeStrategy: 'conservative',
-  // 新增：增强配置选项
-  enableEnhancedBalancing: true,
-  balancedChunkerThreshold: 100,
-  enableIntelligentFiltering: true,
-  minChunkSizeThreshold: 50,
-  maxChunkSizeThreshold: 2000,
-  enableSmartRebalancing: true,
-  rebalancingStrategy: 'conservative',
-  enableBoundaryOptimization: true,
-  boundaryOptimizationThreshold: 0.7,
-  enableAdvancedMerging: true,
-  enableOverlap: false,
-  mergeDecisionThreshold: 0.75,
-};
+// 默认配置（向后兼容）
+export const DEFAULT_CHUNKING_OPTIONS: ChunkingOptions = ChunkingPresetFactory.createPreset(ChunkingPreset.BALANCED);
+
+// 向后兼容的别名
+export const DEFAULT_ENHANCED_CHUNKING_OPTIONS = DEFAULT_CHUNKING_OPTIONS;
+
+// 向后兼容的类型别名
+export type EnhancedChunkingOptions = ChunkingOptions;
 
 // 增强的SplitStrategy接口，支持节点跟踪
 export interface SplitStrategy {

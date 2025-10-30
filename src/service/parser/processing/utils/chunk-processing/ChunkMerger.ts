@@ -1,29 +1,12 @@
-import { CodeChunk, CodeChunkMetadata, EnhancedChunkingOptions } from '../../types/splitting-types';
+import { CodeChunk, CodeChunkMetadata, ChunkingOptions } from '../../types/splitting-types';
 import { ASTNode, ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
-export interface MergeDecision {
-  shouldMerge: boolean;
-  mergeStrategy: 'combine' | 'replace';
-  confidence: number;
-  reason?: string;
-}
-
-export interface ChunkSimilarity {
-  contentSimilarity: number;
-  astSimilarity: number;
-  proximity: number;
-  overall: number;
-}
-
-/**
- * 智能块合并器 - 检测并合并重复或重叠的片段
- */
 export class ChunkMerger extends BaseChunkProcessor {
-  private options: Required<EnhancedChunkingOptions>;
+  private options: ChunkingOptions;
   private nodeTracker?: ASTNodeTracker;
 
-  constructor(options: Required<EnhancedChunkingOptions>, nodeTracker?: ASTNodeTracker) {
+  constructor(options: ChunkingOptions, nodeTracker?: ASTNodeTracker) {
     super();
     this.options = options;
     this.nodeTracker = nodeTracker;
@@ -32,157 +15,101 @@ export class ChunkMerger extends BaseChunkProcessor {
   /**
    * 合并重叠的代码块
    */
-  mergeOverlappingChunks(chunks: CodeChunk[]): CodeChunk[] {
-    if (!this.options.enableChunkDeduplication || chunks.length <= 1) {
+  async mergeOverlappingChunks(chunks: CodeChunk[]): Promise<CodeChunk[]> {
+    if (chunks.length <= 1) {
       return chunks;
     }
 
     const mergedChunks: CodeChunk[] = [];
-    const usedIndices = new Set<number>();
+    let currentMerge: CodeChunk[] = [chunks[0]];
 
-    for (let i = 0; i < chunks.length; i++) {
-      if (usedIndices.has(i)) continue;
+    for (let i = 1; i < chunks.length; i++) {
+      const currentChunk = chunks[i];
+      const lastChunk = currentMerge[currentMerge.length - 1];
 
-      let currentChunk = chunks[i];
-      let merged = false;
-
-      // 查找可以与当前块合并的后续块
-      for (let j = i + 1; j < chunks.length; j++) {
-        if (usedIndices.has(j)) continue;
-
-        const nextChunk = chunks[j];
-        const decision = this.decideMerge(currentChunk, nextChunk);
-
-        if (decision.shouldMerge) {
-          currentChunk = this.mergeChunks(currentChunk, nextChunk, decision.mergeStrategy);
-          usedIndices.add(j);
-          merged = true;
+      if (this.shouldMerge(lastChunk, currentChunk)) {
+        currentMerge.push(currentChunk);
+      } else {
+        // 合并当前累积的块
+        if (currentMerge.length > 1) {
+          const merged = await this.mergeChunks(currentMerge);
+          mergedChunks.push(merged);
+        } else {
+          mergedChunks.push(currentMerge[0]);
         }
+        currentMerge = [currentChunk];
       }
+    }
 
-      mergedChunks.push(currentChunk);
+    // 处理最后的累积块
+    if (currentMerge.length > 1) {
+      const merged = await this.mergeChunks(currentMerge);
+      mergedChunks.push(merged);
+    } else {
+      mergedChunks.push(currentMerge[0]);
     }
 
     return mergedChunks;
   }
 
   /**
-   * 检测重复内容
+   * 判断是否应该合并两个块
    */
-  detectDuplicateContent(chunks: CodeChunk[]): Map<string, number> {
-    const duplicateMap = new Map<string, number>();
-    const contentHashes = new Map<string, number>();
-
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const contentHash = this.calculateContentHash(chunk.content);
-
-      if (contentHashes.has(contentHash)) {
-        const existingIndex = contentHashes.get(contentHash)!;
-        const duplicateKey = `${existingIndex}-${i}`;
-        const similarity = this.calculateContentSimilarity(chunks[existingIndex], chunk);
-
-        if (similarity > this.options.deduplicationThreshold) {
-          duplicateMap.set(duplicateKey, similarity);
-        }
-      } else {
-        contentHashes.set(contentHash, i);
-      }
+  shouldMerge(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
+    // 检查块是否重叠
+    const isOverlapping = this.areChunksOverlapping(chunk1, chunk2);
+    
+    if (!isOverlapping) {
+      return false;
     }
 
-    return duplicateMap;
+    // 检查合并后的块大小是否合理
+    const mergedSize = chunk1.content.length + chunk2.content.length;
+    const maxSize = this.options.basic?.maxChunkSize || 1000;
+    
+    if (mergedSize > maxSize) {
+      return false;
+    }
+
+    // 检查语言是否相同
+    if (chunk1.metadata.language !== chunk2.metadata.language) {
+      return false;
+    }
+
+    // 检查类型兼容性
+    if (!this.areTypesCompatible(chunk1.metadata.type, chunk2.metadata.type)) {
+      return false;
+    }
+
+    // 使用合并决策阈值
+    const mergeThreshold = this.options.advanced?.mergeDecisionThreshold || 0.75;
+    const similarityScore = this.calculateSimilarity(chunk1, chunk2);
+    
+    return similarityScore >= mergeThreshold;
   }
 
   /**
-   * 计算块相似度
+   * 合并多个代码块
    */
-  calculateChunkSimilarity(chunk1: CodeChunk, chunk2: CodeChunk): ChunkSimilarity {
-    const contentSim = this.calculateContentSimilarity(chunk1, chunk2);
-    const astSim = this.calculateASTSimilarity(chunk1, chunk2);
-    const proximity = this.calculateProximity(chunk1.metadata, chunk2.metadata);
-
-    const overall = (contentSim * 0.6) + (astSim * 0.3) + (proximity * 0.1);
-
-    return {
-      contentSimilarity: contentSim,
-      astSimilarity: astSim,
-      proximity: proximity,
-      overall
-    };
-  }
-
-  /**
-   * 优化块边界
-   */
-  optimizeChunkBoundaries(chunks: CodeChunk[], originalCode: string): CodeChunk[] {
-    return chunks.map(chunk => {
-      // 如果启用了AST边界检测，尝试优化边界
-      if (this.options.enableASTBoundaryDetection) {
-        return this.optimizeSingleChunkBoundary(chunk, originalCode);
-      }
-      return chunk;
-    });
-  }
-
-  /**
-   * 决定是否合并两个块
-   */
-  private decideMerge(chunk1: CodeChunk, chunk2: CodeChunk): MergeDecision {
-    const similarity = this.calculateChunkSimilarity(chunk1, chunk2);
-
-    // 高相似度：直接替换
-    if (similarity.overall > 0.9) {
-      return {
-        shouldMerge: true,
-        mergeStrategy: 'replace',
-        confidence: similarity.overall,
-        reason: 'Very high similarity'
-      };
+  async mergeChunks(chunks: CodeChunk[]): Promise<CodeChunk> {
+    if (chunks.length === 1) {
+      return chunks[0];
     }
 
-    // 中等相似度：合并内容
-    if (similarity.overall > 0.7) {
-      return {
-        shouldMerge: true,
-        mergeStrategy: 'combine',
-        confidence: similarity.overall,
-        reason: 'High similarity'
-      };
-    }
+    const contents = chunks.map(chunk => chunk.content);
+    const mergedContent = contents.join('\n\n');
 
-    // 检查是否相邻且有部分重叠
-    if (this.areAdjacentAndOverlapping(chunk1, chunk2) && similarity.overall > 0.5) {
-      return {
-        shouldMerge: true,
-        mergeStrategy: 'combine',
-        confidence: similarity.overall,
-        reason: 'Adjacent and overlapping'
-      };
-    }
+    const firstChunk = chunks[0];
+    const lastChunk = chunks[chunks.length - 1];
 
-    return {
-      shouldMerge: false,
-      mergeStrategy: 'combine', // 或者 'replace'，因为 shouldMerge 是 false，这个值不会被使用
-      confidence: similarity.overall,
-      reason: 'Similarity too low'
-    };
-  }
-
-  /**
-   * 合并两个代码块
-   */
-  private mergeChunks(chunk1: CodeChunk, chunk2: CodeChunk, strategy: 'combine' | 'replace'): CodeChunk {
-    if (strategy === 'replace') {
-      // 如果内容高度相似，选择质量更高的块
-      return chunk1.content.length > chunk2.content.length ? chunk1 : chunk2;
-    }
-
-    // 合并策略：连接两个块的内容
-    const mergedContent = chunk1.content + '\n' + chunk2.content;
-    const mergedMetadata: CodeChunkMetadata = {
-      ...chunk1.metadata,
-      endLine: chunk2.metadata.endLine,
-      complexity: (chunk1.metadata.complexity || 0) + (chunk2.metadata.complexity || 0)
+    // 合并元数据
+    const mergedMetadata = {
+      ...firstChunk.metadata,
+      endLine: lastChunk.metadata.endLine,
+      type: 'merged' as const,
+      complexity: chunks.reduce((sum, chunk) => sum + (chunk.metadata.complexity || 0), 0),
+      mergedTypes: chunks.map(chunk => chunk.metadata.type || 'code'),
+      mergedCount: chunks.length
     };
 
     return {
@@ -192,113 +119,139 @@ export class ChunkMerger extends BaseChunkProcessor {
   }
 
   /**
-   * 计算内容相似度
+   * 检查两个块是否重叠
    */
-  private calculateContentSimilarity(chunk1: CodeChunk, chunk2: CodeChunk): number {
-    const content1 = chunk1.content.trim();
-    const content2 = chunk2.content.trim();
-
-    if (content1 === content2) return 1.0;
-
-    // 使用简单的文本相似度算法（Jaccard相似度）
-    const words1 = new Set(content1.split(/\s+/));
-    const words2 = new Set(content2.split(/\s+/));
-
-    const intersection = new Set([...words1].filter(x => words2.has(x)));
-    const union = new Set([...words1, ...words2]);
-
-    return intersection.size / union.size;
+  private areChunksOverlapping(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
+    const end1 = chunk1.metadata.endLine;
+    const start2 = chunk2.metadata.startLine;
+    
+    // 允许一定的间隔重叠
+    const overlapThreshold = this.options.advanced?.maxOverlapLines || 50;
+    return (start2 - end1) <= overlapThreshold;
   }
 
   /**
-   * 计算AST结构相似度（使用节点跟踪器）
+   * 检查类型是否兼容
    */
-  private calculateASTSimilarity(chunk1: CodeChunk, chunk2: CodeChunk): number {
-    if (!this.nodeTracker) return 0.5; // 如果没有节点跟踪器，返回中性值
+  private areTypesCompatible(type1?: string, type2?: string): boolean {
+    // 相同类型总是兼容
+    if (type1 === type2) {
+      return true;
+    }
 
-    const nodes1 = this.nodeTracker.getUsedNodes().filter(node =>
-      node.startLine >= chunk1.metadata.startLine &&
-      node.endLine <= chunk1.metadata.endLine
-    );
+    // 定义兼容的类型组合
+    const compatibleTypes: Record<string, string[]> = {
+      'function': ['method', 'constructor'],
+      'class': ['interface', 'type'],
+      'import': ['export'],
+      'variable': ['constant', 'let']
+    };
 
-    const nodes2 = this.nodeTracker.getUsedNodes().filter(node =>
-      node.startLine >= chunk2.metadata.startLine &&
-      node.endLine <= chunk2.metadata.endLine
-    );
+    // 检查是否在兼容列表中
+    if (type1 && compatibleTypes[type1]) {
+      return compatibleTypes[type1].includes(type2 || '');
+    }
 
-    if (nodes1.length === 0 && nodes2.length === 0) return 0.5;
+    if (type2 && compatibleTypes[type2]) {
+      return compatibleTypes[type2].includes(type1 || '');
+    }
 
-    const nodeTypes1 = nodes1.map(n => n.type);
-    const nodeTypes2 = nodes2.map(n => n.type);
-
-    const intersection = nodeTypes1.filter(type => nodeTypes2.includes(type));
-    const union = [...new Set([...nodeTypes1, ...nodeTypes2])];
-
-    return union.length > 0 ? intersection.length / union.length : 0;
+    // 默认不兼容
+    return false;
   }
 
   /**
-   * 计算邻近度
+   * 计算两个块的相似度
    */
-  private calculateProximity(metadata1: CodeChunkMetadata, metadata2: CodeChunkMetadata): number {
-    const distance = Math.abs(metadata1.startLine - metadata2.startLine);
-    // 距离越近，相似度越高（指数衰减）
-    return Math.exp(-distance / 100);
+  private calculateSimilarity(chunk1: CodeChunk, chunk2: CodeChunk): number {
+    let similarity = 0;
+
+    // 基于类型的相似度
+    if (chunk1.metadata.type === chunk2.metadata.type) {
+      similarity += 0.3;
+    }
+
+    // 基于复杂度的相似度
+    const complexity1 = chunk1.metadata.complexity || 0;
+    const complexity2 = chunk2.metadata.complexity || 0;
+    const maxComplexity = Math.max(complexity1, complexity2);
+    if (maxComplexity > 0) {
+      const complexityDiff = Math.abs(complexity1 - complexity2) / maxComplexity;
+      similarity += (1 - complexityDiff) * 0.2;
+    }
+
+    // 基于大小的相似度
+    const size1 = chunk1.content.length;
+    const size2 = chunk2.content.length;
+    const maxSize = Math.max(size1, size2);
+    if (maxSize > 0) {
+      const sizeDiff = Math.abs(size1 - size2) / maxSize;
+      similarity += (1 - sizeDiff) * 0.2;
+    }
+
+    // 基于位置的相似度（距离越近越相似）
+    const distance = chunk2.metadata.startLine - chunk1.metadata.endLine;
+    const maxDistance = this.options.advanced?.maxOverlapLines || 50;
+    if (distance >= 0 && distance <= maxDistance) {
+      similarity += (1 - distance / maxDistance) * 0.3;
+    }
+
+    return Math.min(similarity, 1.0);
   }
 
   /**
-   * 检查两个块是否相邻且有重叠
+   * 智能合并策略
    */
-  private areAdjacentAndOverlapping(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
-    // 检查行号连续性
-    const isAdjacent = chunk1.metadata.endLine + 1 >= chunk2.metadata.startLine;
+  async intelligentMerge(chunks: CodeChunk[]): Promise<CodeChunk[]> {
+    if (chunks.length <= 1) {
+      return chunks;
+    }
 
-    // 检查内容重叠
-    const lines1 = chunk1.content.split('\n');
-    const lines2 = chunk2.content.split('\n');
-
-    const overlapThreshold = 0.3; // 30%重叠
-    const maxOverlapLines = Math.min(lines1.length, lines2.length) * overlapThreshold;
-
-    // 检查开头和结尾的重叠
-    const startOverlap = this.countOverlappingLines(lines1.slice(-5), lines2.slice(0, 5));
-    const endOverlap = this.countOverlappingLines(lines2.slice(-5), lines1.slice(0, 5));
-
-    return isAdjacent && (startOverlap > maxOverlapLines || endOverlap > maxOverlapLines);
-  }
-
-  /**
-   * 计算重叠行数
-   */
-  private countOverlappingLines(lines1: string[], lines2: string[]): number {
-    let count = 0;
-    for (let i = 0; i < Math.min(lines1.length, lines2.length); i++) {
-      if (lines1[lines1.length - 1 - i] === lines2[i]) {
-        count++;
+    // 按相似度分组
+    const groups = this.groupBySimilarity(chunks);
+    
+    // 合并每个组
+    const mergedChunks: CodeChunk[] = [];
+    for (const group of groups) {
+      if (group.length > 1) {
+        const merged = await this.mergeChunks(group);
+        mergedChunks.push(merged);
+      } else {
+        mergedChunks.push(group[0]);
       }
     }
-    return count;
+
+    return mergedChunks;
   }
 
   /**
-   * 优化单个块的边界
+   * 按相似度分组
    */
-  private optimizeSingleChunkBoundary(chunk: CodeChunk, originalCode: string): CodeChunk {
-    // 暂时返回原块，后续可以实现更复杂的边界优化逻辑
-    return chunk;
-  }
+  private groupBySimilarity(chunks: CodeChunk[]): CodeChunk[][] {
+    const groups: CodeChunk[][] = [];
+    const used = new Set<number>();
 
-  /**
-   * 计算内容哈希（用于快速重复检测）
-   */
-  private calculateContentHash(content: string): string {
-    // 简单的哈希函数，用于快速比较
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
+    for (let i = 0; i < chunks.length; i++) {
+      if (used.has(i)) continue;
+
+      const group = [chunks[i]];
+      used.add(i);
+
+      for (let j = i + 1; j < chunks.length; j++) {
+        if (used.has(j)) continue;
+
+        const similarity = this.calculateSimilarity(chunks[i], chunks[j]);
+        const threshold = this.options.advanced?.similarityThreshold || 0.8;
+
+        if (similarity >= threshold) {
+          group.push(chunks[j]);
+          used.add(j);
+        }
+      }
+
+      groups.push(group);
     }
-    return hash.toString();
+
+    return groups;
   }
 }

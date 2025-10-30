@@ -90,16 +90,22 @@ export class FunctionStrategy extends BaseSplitStrategy {
     if (lineCount <= 20) {
       return {
         ...baseOptions,
-        functionSpecificOptions: {
-          preferWholeFunctions: true,
-          minFunctionOverlap: baseOptions.functionSpecificOptions?.minFunctionOverlap || 50,
-          maxFunctionSize: baseOptions.functionSpecificOptions?.maxFunctionSize || 2000,
-          maxFunctionLines: Math.max(lineCount, 50), // 放宽最大行数限制
-          minFunctionLines: 1, // 最小行数降为1
-          enableSubFunctionExtraction: false // 禁用子函数提取
+        quality: {
+          ...baseOptions.quality,
+          functionSpecificOptions: {
+            preferWholeFunctions: true,
+            minFunctionOverlap: baseOptions.quality?.functionSpecificOptions?.minFunctionOverlap || 50,
+            maxFunctionSize: baseOptions.quality?.functionSpecificOptions?.maxFunctionSize || 2000,
+            maxFunctionLines: Math.max(lineCount, 50), // 放宽最大行数限制
+            minFunctionLines: 1, // 最小行数降为1
+            enableSubFunctionExtraction: false // 禁用子函数提取
+          }
         },
-        minChunkSize: 5, // 降低最小块大小
-        maxChunkSize: Math.max(100, lineCount * 3) // 调整最大块大小
+        basic: {
+          ...baseOptions.basic,
+          minChunkSize: 5, // 降低最小块大小
+          maxChunkSize: Math.max(100, lineCount * 3) // 调整最大块大小
+        }
       };
     }
 
@@ -107,13 +113,16 @@ export class FunctionStrategy extends BaseSplitStrategy {
     if (lineCount <= 100) {
       return {
         ...baseOptions,
-        functionSpecificOptions: {
-          preferWholeFunctions: true,
-          minFunctionOverlap: baseOptions.functionSpecificOptions?.minFunctionOverlap || 50,
-          maxFunctionSize: baseOptions.functionSpecificOptions?.maxFunctionSize || 2000,
-          maxFunctionLines: 100, // 适度放宽
-          minFunctionLines: 3, // 稍微降低最小行数
-          enableSubFunctionExtraction: baseOptions.functionSpecificOptions?.enableSubFunctionExtraction ?? true
+        quality: {
+          ...baseOptions.quality,
+          functionSpecificOptions: {
+            preferWholeFunctions: true,
+            minFunctionOverlap: baseOptions.quality?.functionSpecificOptions?.minFunctionOverlap || 50,
+            maxFunctionSize: baseOptions.quality?.functionSpecificOptions?.maxFunctionSize || 2000,
+            maxFunctionLines: 100, // 适度放宽
+            minFunctionLines: 3, // 稍微降低最小行数
+            enableSubFunctionExtraction: baseOptions.quality?.functionSpecificOptions?.enableSubFunctionExtraction ?? true
+          }
         }
       };
     }
@@ -140,8 +149,6 @@ export class FunctionStrategy extends BaseSplitStrategy {
       lang.name.toLowerCase() === language.toLowerCase() && lang.supported
     );
   }
-
-
 
   /**
    * 提取函数块 - 改为public以便测试
@@ -305,8 +312,6 @@ export class FunctionStrategyProvider implements IStrategyProvider {
     const strategy = this.createStrategy();
     return strategy.supportsLanguage(language);
   }
-
-
 
   getDescription(): string {
     return 'Provides function extraction strategy';

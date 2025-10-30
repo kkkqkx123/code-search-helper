@@ -1,5 +1,6 @@
 import { injectable, inject } from 'inversify';
-import { ChunkingOptions, StrategyConfiguration } from '../interfaces/CoreISplitStrategy';
+import { ChunkingOptions, ChunkingPreset, ChunkingPresetFactory } from '../processing/types/splitting-types';
+import { StrategyConfiguration } from '../interfaces/CoreISplitStrategy';
 import { LanguageConfiguration } from './LanguageConfigManager';
 
 /**
@@ -67,61 +68,7 @@ export class UnifiedConfigManager {
 
   constructor(@inject('unmanaged') initialConfig?: Partial<UnifiedConfig>) {
     this.config = {
-      global: {
-        maxChunkSize: 2000,
-        overlapSize: 200,
-        preserveFunctionBoundaries: true,
-        preserveClassBoundaries: true,
-        includeComments: false,
-        minChunkSize: 100,
-        extractSnippets: true,
-        addOverlap: false,
-        optimizationLevel: 'medium',
-        maxLines: 1000,
-        adaptiveBoundaryThreshold: false,
-        contextAwareOverlap: false,
-        semanticWeight: 0.7,
-        syntacticWeight: 0.3,
-        boundaryScoring: {
-          enableSemanticScoring: true,
-          minBoundaryScore: 0.5,
-          maxSearchDistance: 10,
-          languageSpecificWeights: true
-        },
-        overlapStrategy: {
-          preferredStrategy: 'semantic',
-          enableContextOptimization: true,
-          qualityThreshold: 0.7
-        },
-        functionSpecificOptions: {
-          preferWholeFunctions: true,
-          minFunctionOverlap: 50,
-          maxFunctionSize: 2000,
-          maxFunctionLines: 30,
-          minFunctionLines: 5,
-          enableSubFunctionExtraction: true
-        },
-        classSpecificOptions: {
-          keepMethodsTogether: true,
-          classHeaderOverlap: 100,
-          maxClassSize: 3000
-        },
-        enableASTBoundaryDetection: false,
-        enableChunkDeduplication: false,
-        maxOverlapRatio: 0.3,
-        deduplicationThreshold: 0.8,
-        astNodeTracking: false,
-        chunkMergeStrategy: 'conservative',
-        minChunkSimilarity: 0.6,
-        enablePerformanceOptimization: false,
-        enablePerformanceMonitoring: false,
-        enableChunkingCoordination: false,
-        strategyExecutionOrder: ['ImportSplitter', 'ClassSplitter', 'FunctionSplitter', 'SyntaxAwareSplitter', 'IntelligentSplitter'],
-        enableNodeTracking: false,
-        enableSmartDeduplication: false,
-        similarityThreshold: 0.8,
-        overlapMergeStrategy: 'conservative'
-      },
+      global: ChunkingPresetFactory.createPreset(ChunkingPreset.BALANCED),
       language: new Map(),
       strategy: new Map(),
       universal: { ...this.defaultUniversalConfig },
@@ -297,61 +244,7 @@ export class UnifiedConfigManager {
    */
   resetToDefaults(): void {
     this.config = {
-      global: {
-        maxChunkSize: 2000,
-        overlapSize: 200,
-        preserveFunctionBoundaries: true,
-        preserveClassBoundaries: true,
-        includeComments: false,
-        minChunkSize: 100,
-        extractSnippets: true,
-        addOverlap: false,
-        optimizationLevel: 'medium',
-        maxLines: 10000,
-        adaptiveBoundaryThreshold: false,
-        contextAwareOverlap: false,
-        semanticWeight: 0.7,
-        syntacticWeight: 0.3,
-        boundaryScoring: {
-          enableSemanticScoring: true,
-          minBoundaryScore: 0.5,
-          maxSearchDistance: 10,
-          languageSpecificWeights: true
-        },
-        overlapStrategy: {
-          preferredStrategy: 'semantic',
-          enableContextOptimization: true,
-          qualityThreshold: 0.7
-        },
-        functionSpecificOptions: {
-          preferWholeFunctions: true,
-          minFunctionOverlap: 50,
-          maxFunctionSize: 200,
-          maxFunctionLines: 30,
-          minFunctionLines: 5,
-          enableSubFunctionExtraction: true
-        },
-        classSpecificOptions: {
-          keepMethodsTogether: true,
-          classHeaderOverlap: 100,
-          maxClassSize: 3000
-        },
-        enableASTBoundaryDetection: false,
-        enableChunkDeduplication: false,
-        maxOverlapRatio: 0.3,
-        deduplicationThreshold: 0.8,
-        astNodeTracking: false,
-        chunkMergeStrategy: 'conservative',
-        minChunkSimilarity: 0.6,
-        enablePerformanceOptimization: false,
-        enablePerformanceMonitoring: false,
-        enableChunkingCoordination: false,
-        strategyExecutionOrder: ['ImportSplitter', 'ClassSplitter', 'FunctionSplitter', 'SyntaxAwareSplitter', 'IntelligentSplitter'],
-        enableNodeTracking: false,
-        enableSmartDeduplication: false,
-        similarityThreshold: 0.8,
-        overlapMergeStrategy: 'conservative'
-      },
+      global: ChunkingPresetFactory.createPreset(ChunkingPreset.BALANCED),
       language: new Map(),
       strategy: new Map(),
       universal: { ...this.defaultUniversalConfig },
@@ -395,20 +288,20 @@ export class UnifiedConfigManager {
    */
   validateConfig(): boolean {
     // 验证分段配置
-    if (this.config.global.maxChunkSize && this.config.global.minChunkSize &&
-      this.config.global.maxChunkSize < this.config.global.minChunkSize) {
+    if (this.config.global.basic?.maxChunkSize && this.config.global.basic?.minChunkSize &&
+      this.config.global.basic.maxChunkSize < this.config.global.basic.minChunkSize) {
       throw new Error('maxChunkSize must be greater than or equal to minChunkSize');
     }
 
     // 验证重叠配置
-    if (this.config.global.overlapSize && this.config.global.maxChunkSize &&
-      this.config.global.overlapSize >= this.config.global.maxChunkSize) {
+    if (this.config.global.basic?.overlapSize && this.config.global.basic?.maxChunkSize &&
+      this.config.global.basic.overlapSize >= this.config.global.basic.maxChunkSize) {
       throw new Error('overlapSize must be less than maxChunkSize');
     }
 
     // 验证权重配置
-    if (this.config.global.semanticWeight !== undefined && this.config.global.syntacticWeight !== undefined) {
-      const totalWeight = this.config.global.semanticWeight + this.config.global.syntacticWeight;
+    if (this.config.global.advanced?.semanticWeight !== undefined && this.config.global.advanced?.syntacticWeight !== undefined) {
+      const totalWeight = this.config.global.advanced.semanticWeight + this.config.global.advanced.syntacticWeight;
       if (Math.abs(totalWeight - 1.0) > 0.01) {
         throw new Error('semanticWeight and syntacticWeight must sum to 1.0');
       }

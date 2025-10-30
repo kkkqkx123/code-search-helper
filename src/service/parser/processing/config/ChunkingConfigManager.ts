@@ -166,18 +166,18 @@ export class ChunkingConfigManager {
    */
   validateConfig(config: ChunkingOptions): boolean {
     // 检查块大小配置
-    if (config.maxChunkSize && config.minChunkSize && config.maxChunkSize < config.minChunkSize) {
+    if (config.basic?.maxChunkSize && config.basic?.minChunkSize && config.basic.maxChunkSize < config.basic.minChunkSize) {
       throw new Error('maxChunkSize must be greater than or equal to minChunkSize');
     }
 
     // 检查重叠配置
-    if (config.overlapSize && config.maxChunkSize && config.overlapSize >= config.maxChunkSize) {
+    if (config.basic?.overlapSize && config.basic?.maxChunkSize && config.basic.overlapSize >= config.basic.maxChunkSize) {
       throw new Error('overlapSize must be less than maxChunkSize');
     }
 
     // 检查权重配置
-    if (config.semanticWeight !== undefined && config.syntacticWeight !== undefined) {
-      const totalWeight = config.semanticWeight + config.syntacticWeight;
+    if (config.advanced?.semanticWeight !== undefined && config.advanced?.syntacticWeight !== undefined) {
+      const totalWeight = config.advanced.semanticWeight + config.advanced.syntacticWeight;
       if (Math.abs(totalWeight - 1.0) > 0.01) {
         throw new Error('semanticWeight and syntacticWeight must sum to 1.0');
       }

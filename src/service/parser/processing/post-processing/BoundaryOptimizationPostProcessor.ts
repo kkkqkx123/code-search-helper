@@ -1,4 +1,4 @@
-import { CodeChunk, EnhancedChunkingOptions } from '../types/splitting-types';
+import { CodeChunk, ChunkingOptions, EnhancedChunkingOptions } from '../types/splitting-types';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';
 import { DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../types/splitting-types';
@@ -21,15 +21,15 @@ export class BoundaryOptimizationPostProcessor implements IChunkPostProcessor {
 
   shouldApply(chunks: CodeChunk[], context: PostProcessingContext): boolean {
     // 只有启用边界优化且有代码块时才应用
-    return chunks.length > 0 && context.options.enableBoundaryOptimization === true;
+    return chunks.length > 0 && context.options.advanced?.enableBoundaryOptimization === true;
   }
 
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {
     this.logger?.debug(`Starting boundary optimization for ${chunks.length} chunks`);
 
     try {
-      // 确保传递给ChunkOptimizer的options是完整类型
-      const completeOptions: Required<EnhancedChunkingOptions> = {
+     // 确保传递给ChunkOptimizer的options是完整类型
+      const completeOptions: ChunkingOptions = {
         ...DEFAULT_ENHANCED_CHUNKING_OPTIONS,
         ...context.options
       };

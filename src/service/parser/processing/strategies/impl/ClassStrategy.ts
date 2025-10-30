@@ -94,8 +94,6 @@ export class ClassStrategy extends BaseSplitStrategy {
     );
   }
 
-
-
   /**
    * 提取类块 - 改为public以便测试
    */
@@ -164,7 +162,7 @@ export class ClassStrategy extends BaseSplitStrategy {
     }
 
     // 根据配置决定是否保持方法在一起
-    const keepMethodsTogether = this.options.classSpecificOptions?.keepMethodsTogether ?? true;
+    const keepMethodsTogether = this.options.quality?.classSpecificOptions?.keepMethodsTogether ?? true;
 
     if (keepMethodsTogether) {
       // 保持方法在一起，将整个类作为一个块
@@ -323,8 +321,6 @@ export class ClassStrategyProvider implements IStrategyProvider {
     const strategy = this.createStrategy();
     return strategy.supportsLanguage(language);
   }
-
-
 
   getDescription(): string {
     return 'Provides class extraction strategy';

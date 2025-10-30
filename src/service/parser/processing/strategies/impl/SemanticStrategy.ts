@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
-import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS } from '../../types/splitting-types';
+import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS, ChunkingPreset, ChunkingPresetFactory } from '../../types/splitting-types';
 import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
 
 export class SemanticStrategy implements ISplitStrategy {
@@ -12,7 +12,15 @@ export class SemanticStrategy implements ISplitStrategy {
   private maxLines: number = 10000; // 默认最大处理行数
 
   constructor(options?: ChunkingOptions) {
-    this.options = { ...DEFAULT_CHUNKING_OPTIONS, ...options };
+    // 使用预设工厂创建基础配置，然后合并用户选项
+    const baseOptions = options?.preset ?
+      ChunkingPresetFactory.createPreset(options.preset) :
+      DEFAULT_CHUNKING_OPTIONS;
+    
+    this.options = {
+      ...baseOptions,
+      ...options
+    } as Required<ChunkingOptions>;
   }
 
   setComplexityCalculator(complexityCalculator: ComplexityCalculator): void {
@@ -64,7 +72,7 @@ export class SemanticStrategy implements ISplitStrategy {
       semanticScore += lineScore;
 
       // 决定是否分段
-      const shouldSplit = semanticScore > this.options.maxChunkSize * 0.8 ||
+      const shouldSplit = semanticScore > (this.options.basic?.maxChunkSize || 1000) * 0.8 ||
         (trimmedLine === '' && currentChunk.length > 3) ||
         i === maxLines - 1;
 

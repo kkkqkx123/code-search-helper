@@ -1,7 +1,6 @@
-import { CodeChunk, EnhancedChunkingOptions } from '../types/splitting-types';
+import { CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types/splitting-types';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { ChunkMerger } from '../utils/chunk-processing/ChunkMerger';
-import { DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../types/splitting-types';
 import { LoggerService } from '../../../../utils/LoggerService';
 
 /**
@@ -21,7 +20,7 @@ export class AdvancedMergingPostProcessor implements IChunkPostProcessor {
 
   shouldApply(chunks: CodeChunk[], context: PostProcessingContext): boolean {
     // 只有多个代码块时才需要合并处理
-    return chunks.length > 1 && context.options.enableAdvancedMerging === true;
+    return chunks.length > 1 && context.options.advanced?.enableAdvancedMerging === true;
   }
 
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {
@@ -29,8 +28,8 @@ export class AdvancedMergingPostProcessor implements IChunkPostProcessor {
 
     try {
       // 确保传递给ChunkMerger的options是完整类型
-      const completeOptions: Required<EnhancedChunkingOptions> = {
-        ...DEFAULT_ENHANCED_CHUNKING_OPTIONS,
+      const completeOptions: ChunkingOptions = {
+        ...DEFAULT_CHUNKING_OPTIONS,
         ...context.options
       };
 

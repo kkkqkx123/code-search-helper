@@ -94,7 +94,7 @@ export class IntelligentStrategyProvider implements IStrategyProvider {
       newIntelligentStrategy.setBalancedChunker(balancedChunker);
       newIntelligentStrategy.setSemanticBoundaryAnalyzer(new SemanticBoundaryAnalyzer());
       newIntelligentStrategy.setUnifiedOverlapCalculator(new UnifiedOverlapCalculator({
-        maxSize: options.overlapSize || 50,
+        maxSize: options.basic?.overlapSize || 50,
         minLines: 1,
         maxOverlapRatio: 0.3,
         enableASTBoundaryDetection: false

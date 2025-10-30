@@ -1,4 +1,4 @@
-import { CodeChunk, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../types/splitting-types';
+import { CodeChunk, ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../types/splitting-types';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { ChunkMerger } from '../utils/chunk-processing/ChunkMerger';
 import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';
@@ -100,39 +100,39 @@ export class ChunkPostProcessorCoordinator {
   /**
    * 初始化默认处理器
    */
-  initializeDefaultProcessors(options: EnhancedChunkingOptions): void {
+  initializeDefaultProcessors(options: ChunkingOptions): void {
     // 创建基于选项的处理器实例
-    if (options.enableEnhancedBalancing) {
+    if (options.advanced?.enableEnhancedBalancing) {
       // 使用专用的符号平衡处理器
       const symbolBalanceProcessor = new SymbolBalancePostProcessor(this.logger);
       this.addChunkingProcessor(symbolBalanceProcessor);
     }
 
-    if (options.enableIntelligentFiltering) {
+    if (options.advanced?.enableIntelligentFiltering) {
       // 使用专用的智能过滤处理器
       const intelligentFilterProcessor = new IntelligentFilterPostProcessor(this.logger);
       this.addChunkingProcessor(intelligentFilterProcessor);
     }
 
-    if (options.enableSmartRebalancing) {
+    if (options.advanced?.enableSmartRebalancing) {
       // 使用专用的智能再平衡处理器
       const smartRebalancingProcessor = new SmartRebalancingPostProcessor(this.logger, this.complexityCalculator);
       this.addChunkingProcessor(smartRebalancingProcessor);
     }
 
-    if (options.enableAdvancedMerging) {
+    if (options.advanced?.enableAdvancedMerging) {
       // 使用专用的高级合并处理器
       const advancedMergingProcessor = new AdvancedMergingPostProcessor(this.logger);
       this.addChunkProcessingProcessor(advancedMergingProcessor);
     }
 
-    if (options.enableBoundaryOptimization) {
+    if (options.advanced?.enableBoundaryOptimization) {
       // 使用专用的边界优化处理器
       const boundaryOptimizationProcessor = new BoundaryOptimizationPostProcessor(this.logger);
       this.addChunkProcessingProcessor(boundaryOptimizationProcessor);
     }
 
-    if (options.enableOverlap) {
+    if (options.basic?.addOverlap) {
       // 使用专用的重叠处理器
       const overlapProcessor = new OverlapPostProcessor(this.logger);
       this.addChunkProcessingProcessor(overlapProcessor);

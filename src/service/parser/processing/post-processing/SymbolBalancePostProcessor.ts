@@ -22,7 +22,7 @@ export class SymbolBalancePostProcessor implements IChunkPostProcessor {
 
   shouldApply(chunks: CodeChunk[], context: PostProcessingContext): boolean {
     // 只在启用增强平衡时应用
-    return context.options.enableEnhancedBalancing === true && chunks.length > 0;
+    return context.options.advanced?.enableEnhancedBalancing === true && chunks.length > 0;
   }
 
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {
@@ -97,8 +97,8 @@ export class SymbolBalancePostProcessor implements IChunkPostProcessor {
       // 分析新增的行
       this.balancedChunker.analyzeLineSymbols(additionalLine);
       
-      // 检查大小限制
-      if (context.options.maxChunkSize && currentContent.length > context.options.maxChunkSize) {
+     // 检查大小限制
+      if (context.options.basic?.maxChunkSize && currentContent.length > context.options.basic.maxChunkSize) {
         // 如果超过大小限制，则回退到平衡状态检查
         break;
       }

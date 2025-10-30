@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
-import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../types/splitting-types';
+import { CodeChunk, DEFAULT_CHUNKING_OPTIONS, ChunkingPreset, ChunkingPresetFactory } from '../../types/splitting-types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { IQueryResultNormalizer, StandardizedQueryResult } from '../../../core/normalization/types';
 import { IntelligentStrategy } from './IntelligentStrategy';
@@ -26,8 +26,8 @@ export class StructureAwareStrategy implements ISplitStrategy {
     this.logger = logger;
     this.treeSitterService = treeSitterService;
     this.intelligentStrategy = new IntelligentStrategy();
-    // 使用默认选项
-    this.options = { ...DEFAULT_CHUNKING_OPTIONS };
+    // 使用预设工厂创建默认配置
+    this.options = DEFAULT_CHUNKING_OPTIONS as Required<ChunkingOptions>;
   }
 
   /**
@@ -249,7 +249,7 @@ export class StructureAwareStrategy implements ISplitStrategy {
    * 合并过小的块
    */
   private mergeSmallChunks(chunks: CodeChunk[], options?: ChunkingOptions): CodeChunk[] {
-    const minChunkSize = options?.minChunkSize || 10;
+    const minChunkSize = options?.basic?.minChunkSize || 10;
     const mergedChunks: CodeChunk[] = [];
     let currentMerge: CodeChunk[] = [];
 

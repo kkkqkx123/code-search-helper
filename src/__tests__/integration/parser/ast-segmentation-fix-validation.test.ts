@@ -1,6 +1,7 @@
 import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
 import { UnifiedProcessingCoordinator } from '../../../service/parser/processing/coordination/UnifiedProcessingCoordinator';
+import { ChunkingOptionsConverter } from '../../../service/parser/types/config-types';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -30,17 +31,19 @@ describe('AST分段策略修复验证', () => {
     const goFilePath = path.join(testFilesDir, 'dataStructure/datastructure/linked_list.go');
     const content = fs.readFileSync(goFilePath, 'utf-8');
 
+    const legacyOptions = {
+      maxChunkSize: 2000,
+      overlapSize: 200,
+      maxLines: 100,
+      optimizationLevel: 'medium' as const,
+      addOverlap: false,
+      maxOverlapRatio: 0.3
+    };
+    
     const context = {
       filePath: goFilePath,
       content,
-      options: {
-        maxChunkSize: 2000,
-        overlapSize: 200,
-        maxLines: 100,
-        optimizationLevel: 'medium' as const,
-        addOverlap: false,
-        maxOverlapRatio: 0.3
-      }
+      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
     };
 
     const result = await processingCoordinator.processFile(context);
@@ -78,17 +81,19 @@ describe('AST分段策略修复验证', () => {
     const jsFilePath = path.join(testFilesDir, 'test-language-detection.js');
     const content = fs.readFileSync(jsFilePath, 'utf-8');
 
+    const legacyOptions = {
+      maxChunkSize: 2000,
+      overlapSize: 200,
+      maxLines: 100,
+      optimizationLevel: 'medium' as const,
+      addOverlap: false,
+      maxOverlapRatio: 0.3
+    };
+    
     const context = {
       filePath: jsFilePath,
       content,
-      options: {
-        maxChunkSize: 2000,
-        overlapSize: 200,
-        maxLines: 100,
-        optimizationLevel: 'medium' as const,
-        addOverlap: false,
-        maxOverlapRatio: 0.3
-      }
+      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
     };
 
     const result = await processingCoordinator.processFile(context);
@@ -110,17 +115,19 @@ describe('AST分段策略修复验证', () => {
     const pyFilePath = path.join(testFilesDir, 'test.py');
     const content = fs.readFileSync(pyFilePath, 'utf-8');
 
+    const legacyOptions = {
+      maxChunkSize: 2000,
+      overlapSize: 200,
+      maxLines: 100,
+      optimizationLevel: 'medium' as const,
+      addOverlap: false,
+      maxOverlapRatio: 0.3
+    };
+    
     const context = {
       filePath: pyFilePath,
       content,
-      options: {
-        maxChunkSize: 2000,
-        overlapSize: 200,
-        maxLines: 100,
-        optimizationLevel: 'medium' as const,
-        addOverlap: false,
-        maxOverlapRatio: 0.3
-      }
+      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
     };
 
     const result = await processingCoordinator.processFile(context);
@@ -153,17 +160,19 @@ const (
 var globalVariable int = 42
 `;
 
+    const legacyOptions = {
+      maxChunkSize: 2000,
+      overlapSize: 200,
+      maxLines: 100,
+      optimizationLevel: 'medium' as const,
+      addOverlap: false,
+      maxOverlapRatio: 0.3
+    };
+    
     const context = {
       filePath: 'test-simple.go',
       content: simpleGoContent,
-      options: {
-        maxChunkSize: 2000,
-        overlapSize: 200,
-        maxLines: 100,
-        optimizationLevel: 'medium' as const,
-        addOverlap: false,
-        maxOverlapRatio: 0.3
-      }
+      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
     };
 
     const result = await processingCoordinator.processFile(context);
@@ -182,17 +191,19 @@ var globalVariable int = 42
     const mdFilePath = path.join(testFilesDir, 'example.md');
     const content = fs.readFileSync(mdFilePath, 'utf-8');
 
+    const legacyOptions = {
+      maxChunkSize: 2000,
+      overlapSize: 200,
+      maxLines: 100,
+      optimizationLevel: 'medium' as const,
+      addOverlap: false,
+      maxOverlapRatio: 0.3
+    };
+    
     const context = {
       filePath: mdFilePath,
       content,
-      options: {
-        maxChunkSize: 2000,
-        overlapSize: 200,
-        maxLines: 100,
-        optimizationLevel: 'medium' as const,
-        addOverlap: false,
-        maxOverlapRatio: 0.3
-      }
+      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
     };
 
     const result = await processingCoordinator.processFile(context);

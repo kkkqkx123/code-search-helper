@@ -1,5 +1,5 @@
 import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
-import { CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../../../types/splitting-types';
+import { CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, ChunkingPreset } from '../../../types/splitting-types';
 import { TreeSitterService } from '../../../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 
@@ -13,7 +13,84 @@ export abstract class BaseSplitStrategy implements ISplitStrategy {
   protected treeSitterService?: TreeSitterService;
 
   constructor(options?: ChunkingOptions) {
-    this.options = { ...DEFAULT_CHUNKING_OPTIONS, ...options };
+    this.options = {
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        maxChunkSize: options?.basic?.maxChunkSize ?? 1000,
+        minChunkSize: options?.basic?.minChunkSize ?? 100,
+        overlapSize: options?.basic?.overlapSize ?? 200,
+        preserveFunctionBoundaries: options?.basic?.preserveFunctionBoundaries ?? true,
+        preserveClassBoundaries: options?.basic?.preserveClassBoundaries ?? true,
+        includeComments: options?.basic?.includeComments ?? false,
+        extractSnippets: options?.basic?.extractSnippets ?? true,
+        addOverlap: options?.basic?.addOverlap ?? false,
+        optimizationLevel: options?.basic?.optimizationLevel ?? 'medium',
+        maxLines: options?.basic?.maxLines ?? 10000
+      },
+      advanced: {
+        adaptiveBoundaryThreshold: options?.advanced?.adaptiveBoundaryThreshold ?? false,
+        contextAwareOverlap: options?.advanced?.contextAwareOverlap ?? false,
+        semanticWeight: options?.advanced?.semanticWeight ?? 0.7,
+        syntacticWeight: options?.advanced?.syntacticWeight ?? 0.3,
+        enableASTBoundaryDetection: options?.advanced?.enableASTBoundaryDetection ?? false,
+        astNodeTracking: options?.advanced?.astNodeTracking ?? false,
+        enableChunkDeduplication: options?.advanced?.enableChunkDeduplication ?? false,
+        maxOverlapRatio: options?.advanced?.maxOverlapRatio ?? 0.3,
+        deduplicationThreshold: options?.advanced?.deduplicationThreshold ?? 0.8,
+        chunkMergeStrategy: options?.advanced?.chunkMergeStrategy ?? 'conservative',
+        minChunkSimilarity: options?.advanced?.minChunkSimilarity ?? 0.6,
+        enableSmartDeduplication: options?.advanced?.enableSmartDeduplication ?? false,
+        similarityThreshold: options?.advanced?.similarityThreshold ?? 0.8,
+        overlapMergeStrategy: options?.advanced?.overlapMergeStrategy ?? 'conservative',
+        maxOverlapLines: options?.advanced?.maxOverlapLines ?? 50,
+        enableEnhancedBalancing: options?.advanced?.enableEnhancedBalancing ?? true,
+        balancedChunkerThreshold: options?.advanced?.balancedChunkerThreshold ?? 100,
+        enableIntelligentFiltering: options?.advanced?.enableIntelligentFiltering ?? true,
+        minChunkSizeThreshold: options?.advanced?.minChunkSizeThreshold ?? 50,
+        maxChunkSizeThreshold: options?.advanced?.maxChunkSizeThreshold ?? 2000,
+        enableSmartRebalancing: options?.advanced?.enableSmartRebalancing ?? true,
+        rebalancingStrategy: options?.advanced?.rebalancingStrategy ?? 'conservative',
+        enableBoundaryOptimization: options?.advanced?.enableBoundaryOptimization ?? true,
+        boundaryOptimizationThreshold: options?.advanced?.boundaryOptimizationThreshold ?? 0.7,
+        enableAdvancedMerging: options?.advanced?.enableAdvancedMerging ?? true,
+        mergeDecisionThreshold: options?.advanced?.mergeDecisionThreshold ?? 0.75
+      },
+      performance: {
+        enablePerformanceOptimization: options?.performance?.enablePerformanceOptimization ?? false,
+        enablePerformanceMonitoring: options?.performance?.enablePerformanceMonitoring ?? false,
+        enableChunkingCoordination: options?.performance?.enableChunkingCoordination ?? false,
+        strategyExecutionOrder: options?.performance?.strategyExecutionOrder ?? ['ImportSplitter', 'ClassSplitter', 'FunctionSplitter', 'SyntaxAwareSplitter', 'IntelligentSplitter'],
+        enableNodeTracking: options?.performance?.enableNodeTracking ?? false
+      },
+      quality: {
+        boundaryScoring: options?.quality?.boundaryScoring ?? {
+          enableSemanticScoring: true,
+          minBoundaryScore: 0.5,
+          maxSearchDistance: 10,
+          languageSpecificWeights: true
+        },
+        overlapStrategy: options?.quality?.overlapStrategy ?? {
+          preferredStrategy: 'semantic',
+          enableContextOptimization: true,
+          qualityThreshold: 0.7
+        },
+        functionSpecificOptions: options?.quality?.functionSpecificOptions ?? {
+          preferWholeFunctions: true,
+          minFunctionOverlap: 50,
+          maxFunctionSize: 2000,
+          maxFunctionLines: 30,
+          minFunctionLines: 5,
+          enableSubFunctionExtraction: true
+        },
+        classSpecificOptions: options?.quality?.classSpecificOptions ?? {
+          keepMethodsTogether: true,
+          classHeaderOverlap: 100,
+          maxClassSize: 3000
+        }
+      },
+      treeSitterService: options?.treeSitterService,
+      universalTextStrategy: options?.universalTextStrategy
+    };
   }
 
   /**
@@ -79,7 +156,7 @@ export abstract class BaseSplitStrategy implements ISplitStrategy {
    * 检查代码块是否有效
    */
   protected isValidChunk(chunk: CodeChunk): boolean {
-    if (!chunk.content || chunk.content.trim().length < (this.options.minChunkSize || 50)) {
+    if (!chunk.content || chunk.content.trim().length < (this.options.basic?.minChunkSize || 50)) {
       return false;
     }
 

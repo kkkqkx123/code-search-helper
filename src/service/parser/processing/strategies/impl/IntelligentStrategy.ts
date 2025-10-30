@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
-import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS } from '../../types/splitting-types';
+import { CodeChunk, CodeChunkMetadata, DEFAULT_CHUNKING_OPTIONS, ChunkingPreset, ChunkingPresetFactory } from '../../types/splitting-types';
 import { BalancedChunker } from '../../utils/chunking/BalancedChunker';
 import { ComplexityCalculator } from '../../utils/calculation/ComplexityCalculator';
 import { SyntaxValidator } from '../../utils/SyntaxValidator';
@@ -24,7 +24,15 @@ export class IntelligentStrategy implements ISplitStrategy {
   private performanceOptimizer: ChunkingPerformanceOptimizer;
 
   constructor(options?: ChunkingOptions) {
-    this.options = { ...DEFAULT_CHUNKING_OPTIONS, ...options };
+    // 使用预设工厂创建基础配置，然后合并用户选项
+    const baseOptions = options?.preset ?
+      ChunkingPresetFactory.createPreset(options.preset) :
+      DEFAULT_CHUNKING_OPTIONS;
+    
+    this.options = {
+      ...baseOptions,
+      ...options
+    } as Required<ChunkingOptions>;
     this.complexityCalculator = new ComplexityCalculator();
     // SyntaxValidator现在可以自己管理BalancedChunker实例
     this.syntaxValidator = new SyntaxValidator();
@@ -32,7 +40,7 @@ export class IntelligentStrategy implements ISplitStrategy {
     // 初始化新组件
     this.semanticBoundaryAnalyzer = new SemanticBoundaryAnalyzer();
     this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
-      maxSize: this.options.overlapSize,
+      maxSize: this.options.basic?.overlapSize || 200,
       minLines: 1,
       maxOverlapRatio: 0.3,
       enableASTBoundaryDetection: false
@@ -124,7 +132,7 @@ export class IntelligentStrategy implements ISplitStrategy {
         currentChunk,
         currentSize,
         lineSize,
-        this.options.maxChunkSize,
+        this.options.basic?.maxChunkSize || 1000,
         language,
         lines,
         i

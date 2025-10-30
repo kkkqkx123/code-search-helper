@@ -1,4 +1,4 @@
-import { CodeChunk, EnhancedChunkingOptions } from '../../types/splitting-types';
+import { CodeChunk, ChunkingOptions } from '../../types/splitting-types';
 import { ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { BasePerformanceTracker } from '../base/BasePerformanceTracker';
 
@@ -38,7 +38,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
    */
   optimizeChunks(
     chunks: CodeChunk[],
-    options: Required<EnhancedChunkingOptions>,
+    options: ChunkingOptions,
     nodeTracker?: ASTNodeTracker
   ): OptimizationResult {
     const startTime = Date.now();
@@ -46,7 +46,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
     let optimizedChunks = [...chunks];
 
     // 1. 内存优化：清理未使用的AST节点
-    if (nodeTracker && options.astNodeTracking) {
+    if (nodeTracker && options.advanced?.astNodeTracking) {
       optimizedChunks = this.optimizeMemoryUsage(optimizedChunks, nodeTracker);
       optimizationsApplied.push('memory-optimization');
     }
@@ -130,7 +130,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
    */
   private optimizeBatchProcessing(
     chunks: CodeChunk[],
-    options: Required<EnhancedChunkingOptions>
+    options: ChunkingOptions
   ): CodeChunk[] {
     // 如果块数量很大，分批处理
     if (chunks.length > 100) {
@@ -151,7 +151,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
   /**
    * 处理单个批次
    */
-  private processBatch(batch: CodeChunk[], options: Required<EnhancedChunkingOptions>): CodeChunk[] {
+  private processBatch(batch: CodeChunk[], options: ChunkingOptions): CodeChunk[] {
     // 应用批量优化逻辑
     return batch.map(chunk => {
       // 移除多余的空白行

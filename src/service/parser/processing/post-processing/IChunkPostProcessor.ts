@@ -1,10 +1,10 @@
-import { CodeChunk, EnhancedChunkingOptions } from '../types/splitting-types';
+import { CodeChunk, ChunkingOptions } from '../types/splitting-types';
 
 export interface PostProcessingContext {
   originalContent: string;
- language: string;
- filePath?: string;
-  options: EnhancedChunkingOptions;
+  language: string;
+  filePath?: string;
+  options: ChunkingOptions;
 }
 
 export interface IChunkPostProcessor {

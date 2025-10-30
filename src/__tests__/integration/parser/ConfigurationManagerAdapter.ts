@@ -21,22 +21,22 @@ export class ConfigurationManagerAdapter implements IConfigurationManager {
     
     // 将ChunkingOptions转换为UniversalChunkingOptions
     return {
-      maxChunkSize: globalConfig.maxChunkSize || 2000,
-      overlapSize: globalConfig.overlapSize || 200,
-      maxLinesPerChunk: globalConfig.maxLines || 100,
-      enableBracketBalance: globalConfig.optimizationLevel !== 'low',
-      enableSemanticDetection: globalConfig.optimizationLevel !== 'low',
-      enableCodeOverlap: globalConfig.addOverlap || false,
+      maxChunkSize: globalConfig.basic?.maxChunkSize || 2000,
+      overlapSize: globalConfig.basic?.overlapSize || 200,
+      maxLinesPerChunk: globalConfig.basic?.maxLines || 100,
+      enableBracketBalance: globalConfig.basic?.optimizationLevel !== 'low',
+      enableSemanticDetection: globalConfig.basic?.optimizationLevel !== 'low',
+      enableCodeOverlap: globalConfig.basic?.addOverlap || false,
       enableStandardization: true,
       standardizationFallback: true,
-      maxOverlapRatio: globalConfig.maxOverlapRatio || 0.3,
+      maxOverlapRatio: globalConfig.advanced?.maxOverlapRatio || 0.3,
       errorThreshold: 10,
       memoryLimitMB: 512,
       filterConfig: {
         enableSmallChunkFilter: true,
         enableChunkRebalancing: true,
-        minChunkSize: globalConfig.minChunkSize || 100,
-        maxChunkSize: globalConfig.maxChunkSize ? globalConfig.maxChunkSize * 2 : 4000
+        minChunkSize: globalConfig.basic?.minChunkSize || 100,
+        maxChunkSize: globalConfig.basic?.maxChunkSize ? globalConfig.basic.maxChunkSize * 2 : 4000
       },
       protectionConfig: {
         enableProtection: true,
@@ -83,13 +83,13 @@ export class ConfigurationManagerAdapter implements IConfigurationManager {
     
     // 将ChunkingOptions转换为Partial<UniversalChunkingOptions>
     return {
-      maxChunkSize: languageConfig.maxChunkSize,
-      overlapSize: languageConfig.overlapSize,
-      maxLinesPerChunk: languageConfig.maxLines,
-      enableBracketBalance: languageConfig.optimizationLevel !== 'low',
-      enableSemanticDetection: languageConfig.optimizationLevel !== 'low',
-      enableCodeOverlap: languageConfig.addOverlap,
-      maxOverlapRatio: languageConfig.maxOverlapRatio
+      maxChunkSize: languageConfig.basic?.maxChunkSize,
+      overlapSize: languageConfig.basic?.overlapSize,
+      maxLinesPerChunk: languageConfig.basic?.maxLines,
+      enableBracketBalance: languageConfig.basic?.optimizationLevel !== 'low',
+      enableSemanticDetection: languageConfig.basic?.optimizationLevel !== 'low',
+      enableCodeOverlap: languageConfig.basic?.addOverlap,
+      maxOverlapRatio: languageConfig.advanced?.maxOverlapRatio
     };
   }
 }

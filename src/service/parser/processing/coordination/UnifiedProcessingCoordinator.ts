@@ -319,22 +319,22 @@ export class UnifiedProcessingCoordinator {
    */
   private convertChunkingOptionsToUniversal(config: ChunkingOptions): UniversalChunkingOptions {
     return {
-      maxChunkSize: config.maxChunkSize || 2000,
-      overlapSize: config.overlapSize || 200,
-      maxLinesPerChunk: config.maxLines || 100,
-      enableBracketBalance: config.optimizationLevel !== 'low',
-      enableSemanticDetection: config.optimizationLevel !== 'low',
-      enableCodeOverlap: config.addOverlap || false,
+      maxChunkSize: config.basic?.maxChunkSize || 2000,
+      overlapSize: config.basic?.overlapSize || 200,
+      maxLinesPerChunk: config.basic?.maxLines || 100,
+      enableBracketBalance: config.basic?.optimizationLevel !== 'low',
+      enableSemanticDetection: config.basic?.optimizationLevel !== 'low',
+      enableCodeOverlap: config.basic?.addOverlap || false,
       enableStandardization: true,
       standardizationFallback: true,
-      maxOverlapRatio: config.maxOverlapRatio || 0.3,
+      maxOverlapRatio: config.advanced?.maxOverlapRatio || 0.3,
       errorThreshold: 10,
       memoryLimitMB: 512,
       filterConfig: {
         enableSmallChunkFilter: true,
         enableChunkRebalancing: true,
-        minChunkSize: config.minChunkSize || 100,
-        maxChunkSize: config.maxChunkSize ? config.maxChunkSize * 2 : 4000
+        minChunkSize: config.basic?.minChunkSize || 100,
+        maxChunkSize: config.basic?.maxChunkSize ? config.basic?.maxChunkSize * 2 : 4000
       },
       protectionConfig: {
         enableProtection: true,

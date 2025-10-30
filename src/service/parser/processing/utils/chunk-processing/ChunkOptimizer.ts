@@ -1,12 +1,15 @@
-import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../types/splitting-types';
+import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS, ChunkingOptionsConverter } from '../../types/splitting-types';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
 export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizerInterface {
-  private options: Required<EnhancedChunkingOptions>;
+  private options: Required<ChunkingOptions>;
 
- constructor(options?: EnhancedChunkingOptions) {
+ constructor(options?: ChunkingOptions) {
     super();
-    this.options = { ...DEFAULT_ENHANCED_CHUNKING_OPTIONS, ...options };
+    // 转换为Required<ChunkingOptions>
+    const baseOptions = DEFAULT_ENHANCED_CHUNKING_OPTIONS;
+    const mergedOptions = { ...baseOptions, ...options };
+    this.options = mergedOptions as Required<ChunkingOptions>;
   }
 
   /**
@@ -40,7 +43,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
     optimizedChunks.push(currentChunk);
 
     // 应用重叠
-    if (this.options.addOverlap) {
+    if (this.options.basic?.addOverlap) {
       return this.addOverlapToChunks(optimizedChunks, originalCode);
     }
 
@@ -56,7 +59,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
     const totalSize = chunk1.content.length + chunk2.content.length;
 
     // 大小检查
-    if (totalSize > this.options.maxChunkSize) {
+    if (totalSize > (this.options.basic?.maxChunkSize || 1000)) {
       return false;
     }
 
@@ -91,8 +94,8 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
     }
 
     // 新增：使用边界优化阈值
-    if (this.options.enableBoundaryOptimization) {
-      const boundaryOptimizationThreshold = this.options.boundaryOptimizationThreshold || 0.7;
+    if (this.options.advanced?.enableBoundaryOptimization) {
+      const boundaryOptimizationThreshold = this.options.advanced?.boundaryOptimizationThreshold || 0.7;
       // 这里可以添加更复杂的边界优化逻辑
       // 例如：检查合并后是否破坏了语义边界
     }
@@ -159,8 +162,8 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
       // Calculate the character position where next chunk starts (subtract 1 for the newline that's not at the end)
       const charsUntilNextChunk = linesUntilNextChunk.join('\n').length + (linesUntilNextChunk.length > 0 ? 1 : 0) - 1;
 
-      // Calculate the starting position for overlap in the original code
-      const overlapStartPosition = Math.max(0, charsUntilNextChunk - this.options.overlapSize);
+     // Calculate the starting position for overlap in the original code
+      const overlapStartPosition = Math.max(0, charsUntilNextChunk - (this.options.basic?.overlapSize || 200));
 
       // Find which line this overlap position corresponds to
       let currentPos = 0;

@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { Splitter, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../types/splitting-types';
+import { Splitter, CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS, ChunkingPresetFactory } from '../../types/splitting-types';
 import { TYPES } from '../../../../../types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { LoggerService } from '../../../../../utils/LoggerService';
@@ -10,7 +10,6 @@ import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalc
 import { PerformanceOptimizer } from '../../utils/performance/PerformanceOptimizer';
 import { IPerformanceMonitoringSystem } from '../../utils/performance/IPerformanceMonitoringSystem';
 import { UnifiedPerformanceMonitoringSystem } from '../../utils/performance/UnifiedPerformanceMonitoringSystem';
-// import { ProcessingGuard } from '../guard/ProcessingGuard';
 
 /**
  * 重构后的AST代码分割器（完全替换旧实现）
@@ -23,49 +22,31 @@ export class ASTCodeSplitter implements Splitter {
   private balancedChunker: BalancedChunker;
   private configManager: ChunkingConfigManager;
   private strategyFactory: SplitStrategyFactory;
-  // private coordinator?: ChunkingCoordinator; // 移除了对不存在的ChunkingCoordinator的引用
   private overlapCalculator?: UnifiedOverlapCalculator;
   private performanceOptimizer?: PerformanceOptimizer;
   private performanceMonitoring?: IPerformanceMonitoringSystem;
-  private options: Required<EnhancedChunkingOptions>;
-  // private processingGuard?: ProcessingGuard;
+  private options: ChunkingOptions;
 
   constructor(
     @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
-    @inject(TYPES.LoggerService) logger?: LoggerService,
-    // @inject(TYPES.ProcessingGuard) processingGuard?: ProcessingGuard
+    @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
     this.treeSitterService = treeSitterService;
     this.logger = logger;
-    // this.processingGuard = processingGuard;
     this.balancedChunker = new BalancedChunker(logger);
     this.configManager = new ChunkingConfigManager();
     this.strategyFactory = strategyFactory;
-    this.options = { ...DEFAULT_ENHANCED_CHUNKING_OPTIONS };
-
-    // 确保策略提供者已注册
-    // this.ensureStrategyProvidersRegistered();
+    this.options = { ...DEFAULT_CHUNKING_OPTIONS };
 
     this.initializeComponents();
   }
-
-  /**
- * 确保策略提供者已注册
- */
-  // private ensureStrategyProvidersRegistered(): void {
-  //   try {
-  //     ensureStrategyProvidersRegistered(this.logger);
-  //   } catch (error) {
-  //     this.logger?.warn('Failed to ensure strategy providers registration:', error);
-  //   }
-  // }
 
   /**
    * 初始化组件
    */
   private initializeComponents(): void {
     // 初始化性能监控系统
-    if (this.options.enablePerformanceMonitoring) {
+    if (this.options.performance?.enablePerformanceMonitoring) {
       this.performanceMonitoring = new UnifiedPerformanceMonitoringSystem(this.logger, {
         maxProcessingTime: 10000, // 10秒
         maxMemoryUsage: 300 * 1024 * 1024, // 300MB
@@ -76,22 +57,22 @@ export class ASTCodeSplitter implements Splitter {
     }
 
     // 初始化性能优化器
-    if (this.options.enablePerformanceOptimization) {
+    if (this.options.performance?.enablePerformanceOptimization) {
       this.performanceOptimizer = new PerformanceOptimizer(1000); // 可配置缓存大小
     }
 
     // 初始化重叠计算器
-    if (this.options.addOverlap) {
+    if (this.options.basic?.addOverlap) {
       this.overlapCalculator = new UnifiedOverlapCalculator({
-        maxSize: this.options.overlapSize,
+        maxSize: this.options.basic.overlapSize || 200,
         minLines: 1,
-        maxOverlapRatio: this.options.maxOverlapRatio || 0.3, // 确保不超过原块大小的30%
-        maxOverlapLines: 50,
-        enableASTBoundaryDetection: this.options.enableASTBoundaryDetection,
-        enableNodeAwareOverlap: this.options.astNodeTracking,
-        enableSmartDeduplication: this.options.enableSmartDeduplication,
-        similarityThreshold: this.options.similarityThreshold || 0.8,
-        mergeStrategy: this.options.overlapMergeStrategy || 'conservative',
+        maxOverlapRatio: this.options.advanced?.maxOverlapRatio || 0.3,
+        maxOverlapLines: this.options.advanced?.maxOverlapLines || 50,
+        enableASTBoundaryDetection: this.options.advanced?.enableASTBoundaryDetection || false,
+        enableNodeAwareOverlap: this.options.advanced?.astNodeTracking || false,
+        enableSmartDeduplication: this.options.advanced?.enableSmartDeduplication || false,
+        similarityThreshold: this.options.advanced?.similarityThreshold || 0.8,
+        mergeStrategy: this.options.advanced?.overlapMergeStrategy || 'conservative',
         logger: this.logger
       });
     }
@@ -220,17 +201,11 @@ export class ASTCodeSplitter implements Splitter {
   ): Promise<CodeChunk[]> {
     let chunks: CodeChunk[];
 
-    // 始终使用策略链进行处理，因为ChunkingCoordinator不存在
-    // if (this.options.enableChunkingCoordination && this.coordinator) {
-    //   // 使用协调器进行处理
-    //   chunks = await this.coordinator.coordinate(code, language, filePath, parseResult.ast);
-    // } else {
-    // 使用策略工厂创建策略链
+    // 使用策略链进行处理
     chunks = await this.processWithStrategyChain(code, parseResult, language, filePath, config);
-    // }
 
     // 应用性能优化
-    if (this.performanceOptimizer && this.options.enablePerformanceOptimization) {
+    if (this.performanceOptimizer && this.options.performance?.enablePerformanceOptimization) {
       const optimizationResult = this.performanceOptimizer.optimizeChunks(
         chunks,
         this.options,
@@ -246,7 +221,7 @@ export class ASTCodeSplitter implements Splitter {
     }
 
     // 应用重叠（仅在代码块大小超过最大限制时才使用重叠）
-    if (this.options.addOverlap && this.overlapCalculator) {
+    if (this.options.basic?.addOverlap && this.overlapCalculator) {
       // 确保使用基于语义边界和上下文连续性的重叠策略
       this.ensureSemanticOverlapStrategy();
       chunks = this.applyConditionalOverlap(chunks, code);
@@ -254,6 +229,7 @@ export class ASTCodeSplitter implements Splitter {
 
     return chunks;
   }
+
   /**
    * 条件性应用重叠 - 仅在代码块大小超过最大限制时才使用重叠
    */
@@ -297,32 +273,38 @@ export class ASTCodeSplitter implements Splitter {
   private ensureSemanticOverlapStrategy(): void {
     // 通过正确配置UnifiedOverlapCalculator来确保语义边界和上下文连续性
     // 这已经在初始化时完成，但我们可以添加额外的逻辑来动态调整
-    if (this.overlapCalculator && this.options.enableASTBoundaryDetection) {
+    if (this.overlapCalculator && this.options.advanced?.enableASTBoundaryDetection) {
       this.logger?.debug('Semantic overlap strategy is enabled with AST boundary detection');
     }
   }
 
   setChunkSize(chunkSize: number): void {
-    this.options.maxChunkSize = chunkSize;
-    this.configManager.updateGlobalConfig({ maxChunkSize: chunkSize });
+    if (!this.options.basic) {
+      this.options.basic = {};
+    }
+    this.options.basic.maxChunkSize = chunkSize;
+    this.configManager.updateGlobalConfig({ basic: { maxChunkSize: chunkSize } });
   }
 
   setChunkOverlap(chunkOverlap: number): void {
-    this.options.overlapSize = chunkOverlap;
-    this.configManager.updateGlobalConfig({ overlapSize: chunkOverlap });
+    if (!this.options.basic) {
+      this.options.basic = {};
+    }
+    this.options.basic.overlapSize = chunkOverlap;
+    this.configManager.updateGlobalConfig({ basic: { overlapSize: chunkOverlap } });
 
     // 重新初始化重叠计算器
     if (this.overlapCalculator) {
       this.overlapCalculator = new UnifiedOverlapCalculator({
         maxSize: chunkOverlap,
         minLines: 1,
-        maxOverlapRatio: this.options.maxOverlapRatio || 0.3,
-        maxOverlapLines: 50,
-        enableASTBoundaryDetection: this.options.enableASTBoundaryDetection,
-        enableNodeAwareOverlap: this.options.astNodeTracking,
-        enableSmartDeduplication: this.options.enableSmartDeduplication,
-        similarityThreshold: this.options.similarityThreshold || 0.8,
-        mergeStrategy: this.options.overlapMergeStrategy || 'conservative',
+        maxOverlapRatio: this.options.advanced?.maxOverlapRatio || 0.3,
+        maxOverlapLines: this.options.advanced?.maxOverlapLines || 50,
+        enableASTBoundaryDetection: this.options.advanced?.enableASTBoundaryDetection || false,
+        enableNodeAwareOverlap: this.options.advanced?.astNodeTracking || false,
+        enableSmartDeduplication: this.options.advanced?.enableSmartDeduplication || false,
+        similarityThreshold: this.options.advanced?.similarityThreshold || 0.8,
+        mergeStrategy: this.options.advanced?.overlapMergeStrategy || 'conservative',
         logger: this.logger
       });
     }
@@ -424,16 +406,6 @@ export class ASTCodeSplitter implements Splitter {
     filePath?: string,
     config?: ChunkingOptions
   ): Promise<CodeChunk[]> {
-    // 如果有ProcessingGuard，使用它进行智能分段
-    // if (this.processingGuard && filePath) {
-    //   try {
-    //     const result = await this.processingGuard.processFile(filePath, code);
-    //     return result.chunks;
-    //   } catch (error) {
-    //     this.logger?.warn(`ProcessingGuard failed, falling back to simple text split: ${error}`);
-    //   }
-    // }
-
     // 使用BalancedChunker进行符号平衡的分割
     return this.simpleTextSplit(code, language, filePath);
   }
@@ -444,7 +416,7 @@ export class ASTCodeSplitter implements Splitter {
   private simpleTextSplit(code: string, language: string, filePath?: string): CodeChunk[] {
     const chunks: CodeChunk[] = [];
     const lines = code.split('\n');
-    const maxChunkSize = this.options.maxChunkSize || 1000;
+    const maxChunkSize = this.options.basic?.maxChunkSize || 1000;
 
     if (lines.length === 0) {
       return chunks;

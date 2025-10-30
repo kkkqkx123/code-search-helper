@@ -2,8 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
-import { CodeChunk, DEFAULT_CHUNKING_OPTIONS } from '../../../processing';
-import { EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../types/splitting-types';
+import { CodeChunk, DEFAULT_CHUNKING_OPTIONS, ChunkingPreset, ChunkingPresetFactory, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../types/splitting-types';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { ChunkOptimizer } from '../../utils/chunk-processing/ChunkOptimizer';
 import { strategyFactory } from '../factory/SplitStrategyFactory';
@@ -19,7 +18,15 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
   private chunkOptimizer?: ChunkOptimizer;
 
   constructor(options?: ChunkingOptions) {
-    this.options = { ...DEFAULT_CHUNKING_OPTIONS, ...options };
+    // 使用预设工厂创建基础配置，然后合并用户选项
+    const baseOptions = options?.preset ?
+      ChunkingPresetFactory.createPreset(options.preset) :
+      DEFAULT_CHUNKING_OPTIONS;
+    
+    this.options = {
+      ...baseOptions,
+      ...options
+    } as Required<ChunkingOptions>;
   }
 
   setTreeSitterService(treeSitterService: TreeSitterService): void {
@@ -169,9 +176,9 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
     if (!this.treeSitterService) {
       return false;
     }
-    
+
     const supportedLanguages = this.treeSitterService.getSupportedLanguages();
-    return supportedLanguages.some(lang => 
+    return supportedLanguages.some(lang =>
       lang.name.toLowerCase() === language.toLowerCase() && lang.supported
     );
   }
