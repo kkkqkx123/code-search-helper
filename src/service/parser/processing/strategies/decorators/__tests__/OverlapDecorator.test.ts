@@ -31,6 +31,9 @@ class MockStrategy implements ISplitStrategy {
     nodeTracker?: any,
     ast?: any
   ): Promise<CodeChunk[]> {
+    if (!content) {
+      return [];
+    }
     const lines = content.split('\n');
     return lines.map((line, index) => ({
       id: `chunk_${index}`,
@@ -118,7 +121,7 @@ describe('OverlapDecorator', () => {
       const content = 'line1\nline2\nline3';
       const language = 'javascript';
       const filePath = 'test.js';
-      const options = { basic: { maxChunkSize: 5 } }; // Small size to trigger overlap
+      const options = { basic: { maxChunkSize: 4 } }; // Small size to trigger overlap
       
       const result = await decorator.split(content, language, filePath, options);
       

@@ -113,9 +113,10 @@ describe('Decorator Integration Tests', () => {
       const content = 'line1\nline2\nline3';
       const language = 'javascript';
       const filePath = 'test.js';
+      const options = { basic: { maxChunkSize: 4 } }; // Small size to trigger overlap
       
       // First call
-      const result1 = await decoratedStrategy.split(content, language, filePath);
+      const result1 = await decoratedStrategy.split(content, language, filePath, options);
       expect(result1).toHaveLength(3);
       expect(result1[0].content).toBe('line1');
       expect(result1[1].content).toBe('overlap_line2');
@@ -123,7 +124,7 @@ describe('Decorator Integration Tests', () => {
       expect(result1[0].metadata.callCount).toBe(1);
       
       // Second call should use cache
-      const result2 = await decoratedStrategy.split(content, language, filePath);
+      const result2 = await decoratedStrategy.split(content, language, filePath, options);
       expect(result2).toHaveLength(3);
       expect(result2[0].metadata.callCount).toBe(1); // Should be same as first call
       
@@ -173,14 +174,15 @@ describe('Decorator Integration Tests', () => {
         .build();
       
       const content = 'line1\nline2';
+      const options = { basic: { maxChunkSize: 4 } }; // Small size to trigger overlap
       
       // First call (cache miss)
-      const result1 = await decoratedStrategy.split(content, 'javascript');
+      const result1 = await decoratedStrategy.split(content, 'javascript', undefined, options);
       expect(result1[0].content).toBe('line1');
       expect(result1[1].content).toBe('overlap_line2');
       
       // Second call (cache hit)
-      const result2 = await decoratedStrategy.split(content, 'javascript');
+      const result2 = await decoratedStrategy.split(content, 'javascript', undefined, options);
       expect(result2[0].content).toBe('line1');
       expect(result2[1].content).toBe('overlap_line2');
       
@@ -247,9 +249,11 @@ describe('Decorator Integration Tests', () => {
         .withOverlap(errorCalculator)
         .build();
       
+      const options = { basic: { maxChunkSize: 4 } }; // Small size to trigger overlap
+      
       try {
-        await decoratedStrategy.split('line1\nline2', 'javascript');
-        fail('Should have thrown an error');
+        await decoratedStrategy.split('line1\nline2', 'javascript', undefined, options);
+        throw new Error('Should have thrown an error');
       } catch (error: any) {
         expect(error.message).toBe('Overlap error');
       }
@@ -284,7 +288,8 @@ describe('Decorator Integration Tests', () => {
       const decoratedStrategy = new StrategyDecoratorBuilder(mockStrategy, customOptions)
         .build();
       
-      const result = await decoratedStrategy.split('line1\nline2', 'javascript');
+      const options = { basic: { maxChunkSize: 4 } }; // Small size to trigger overlap
+      const result = await decoratedStrategy.split('line1\nline2', 'javascript', undefined, options);
       
       expect(result).toHaveLength(2);
       expect(result[1].content).toBe('overlap_line2');

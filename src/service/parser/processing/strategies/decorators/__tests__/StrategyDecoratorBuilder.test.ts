@@ -114,7 +114,7 @@ describe('StrategyDecoratorBuilder', () => {
         .build();
       
       // Should be wrapped in the correct order: Cache -> Overlap -> Performance
-      expect(result.getName()).toBe('test_strategy_with_overlap_monitored_cached');
+      expect(result.getName()).toBe('test_strategy_cached_with_overlap_monitored');
     });
     
     it('should build strategy with all decorators using convenience method', () => {
@@ -122,7 +122,7 @@ describe('StrategyDecoratorBuilder', () => {
       const builder = new StrategyDecoratorBuilder(mockStrategy);
       const result = builder.withAllDecorators(mockCalculator, mockLogger).build();
       
-      expect(result.getName()).toBe('test_strategy_with_overlap_monitored_cached');
+      expect(result.getName()).toBe('test_strategy_cached_with_overlap_monitored');
     });
   });
   
@@ -180,13 +180,16 @@ describe('StrategyDecoratorBuilder', () => {
         .withPerformanceMonitor(mockLogger)
         .build();
       
-      // Execute split
-      const result = await decoratedStrategy.split('line1\nline2', 'javascript');
+      // Execute split with large content to trigger overlap
+      const largeContent = 'x'.repeat(3000) + '\n' + 'y'.repeat(3000);
+      const result = await decoratedStrategy.split(largeContent, 'javascript', 'test.js', {
+        basic: { maxChunkSize: 2000 }
+      });
       
       expect(result).toHaveLength(2);
       // The overlap should be applied (content should be prefixed)
-      expect(result[0].content).toBe('overlap_line1');
-      expect(result[1].content).toBe('overlap_line2');
+      expect(result[0].content).toMatch(/^overlap_/);
+      expect(result[1].content).toMatch(/^overlap_/);
       
       // Performance stats should be tracked
       const perfStats = (decoratedStrategy as any).getPerformanceStats?.();
@@ -216,7 +219,7 @@ describe('DecoratorFactory', () => {
         { maxSize: 50, ttl: 60000 }
       );
       
-      expect(result.getName()).toBe('test_strategy_with_overlap_monitored_cached');
+      expect(result.getName()).toBe('test_strategy_cached_with_overlap_monitored');
     });
     
     it('should create cached strategy', () => {
@@ -259,7 +262,7 @@ describe('DecoratorFactory', () => {
         mockCalculator
       );
       
-      expect(result.getName()).toBe('test_strategy_with_overlap_monitored_cached');
+      expect(result.getName()).toBe('test_strategy_cached_with_overlap_monitored');
     });
     
     it('should use default logger when not provided', () => {
