@@ -7,7 +7,7 @@ export const BLOCK_SIZE_LIMITS = {
   MIN_BLOCK_CHARS: 20,                    // 小文件最小块大小（原50太大）
   MAX_BLOCK_CHARS: 1000,                  // 避免AI处理超长上下文
   MAX_CHARS_TOLERANCE_FACTOR: 1.2,        // 允许1200字符的弹性空间
- MIN_CHUNK_REMAINDER_CHARS: 100          // 小文件最后一块最小大小（原200太大）
+  MIN_CHUNK_REMAINDER_CHARS: 100          // 小文件最后一块最小大小（原200太大）
 } as const;
 
 // 根据文件大小动态调整块大小限制
@@ -15,8 +15,8 @@ export const getDynamicBlockLimits = (contentLength: number, lineCount: number) 
   // 小文件：放宽限制
   if (contentLength < 500 || lineCount < 20) {
     return {
-      MIN_BLOCK_CHARS: 10,
-      MAX_BLOCK_CHARS: 800,
+      MIN_BLOCK_CHARS: 30,
+      MAX_BLOCK_CHARS: 500,
       MAX_CHARS_TOLERANCE_FACTOR: 1.5,
       MIN_CHUNK_REMAINDER_CHARS: 50
     };
@@ -25,12 +25,12 @@ export const getDynamicBlockLimits = (contentLength: number, lineCount: number) 
   // 中等文件：标准限制
   if (contentLength < 2000 || lineCount < 10) {
     return BLOCK_SIZE_LIMITS;
- }
+  }
 
-  // 大文件：严格限制
+  // 大文件：严格限制，但避免过度碎片化
   return {
     MIN_BLOCK_CHARS: 50,
-    MAX_BLOCK_CHARS: 100,
+    MAX_BLOCK_CHARS: 500,
     MAX_CHARS_TOLERANCE_FACTOR: 1.2,
     MIN_CHUNK_REMAINDER_CHARS: 200
   };
@@ -39,17 +39,20 @@ export const getDynamicBlockLimits = (contentLength: number, lineCount: number) 
 // 语法模式常量
 export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
   python: [
-    /^import\s+\w+/m,
     /^from\s+\w+\s+import/m,
-    /^def\s+\w+\s*\(/m,
-    /^class\s+\w+/m,
-    /print\s*\(/m,
-    /self\./m,
+    /^def\s+\w+\s*\([^)]*\)\s*:/m, // 更具体的函数定义
+    /^class\s+\w+\s*\([^)]*\)\s*:/m, // 更具体的类定义
     /if\s+__name__\s*==\s*['"']__main__['"']/m,
     /#\s*.*$/m, // Python注释
     /\"\"\"[\s\S]*?\"\"\"/m, // Python多行注释
-    /'''[\s\S]*?'''/m
- ],
+    /'''[\s\S]*?'''/m,
+    /lambda\s+/m, // lambda函数
+    /with\s+/m, // with语句
+    /yield\s+/m, // yield关键字
+    /async\s+def/m, // async函数
+    /pass\s*$/m, // pass语句
+    /raise\s+\w+/m // raise语句
+  ],
   javascript: [
     /function\s+\w+\s*\(/m,
     /const\s+\w+\s*=/m,
@@ -61,6 +64,8 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /module\.exports/m,
     /console\.log/m,
     /=>\s*{/m, // 箭头函数
+    /class\s+\w+\s*{/m, // 类定义
+    /this\.\w+/m, // this关键字
     /\/\*[\s\S]*?\*\//m, // 多行注释
     /\/\/.*$/m // 单行注释
   ],
@@ -75,6 +80,8 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /module\.exports/m,
     /console\.log/m,
     /=>\s*{/m, // 箭头函数
+    /class\s+\w+\s*{/m, // 类定义
+    /this\.\w+/m, // this关键字
     /\/\*[\s\S]*?\*\//m, // 多行注释
     /\/\/.*$/m, // 单行注释
     // TypeScript特有模式
@@ -134,7 +141,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /typedef\s+/m,
     /\/\*[\s\S]*?\*\//m,
     /\/\/.*$/m
- ],
+  ],
   go: [
     /package\s+\w+/m,
     /import\s*\(/m,
@@ -147,7 +154,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /range\s+/m,
     /\/\/.*$/m,
     /\/\*[\s\S]*?\*\//m
- ],
+  ],
   rust: [
     /use\s+[\w:]+/m,
     /fn\s+\w+\s*\(/m,
@@ -240,7 +247,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /margin\s*:/m,
     /padding\s*:/m,
     /\/\*[\s\S]*?\*\//m
- ],
+  ],
   sql: [
     /SELECT\s+.+\s+FROM\s+/i,
     /INSERT\s+INTO\s+/i,
@@ -256,7 +263,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /JOIN\s+/i,
     /--\s*.*$/m,
     /\/\*[\s\S]*?\*\//m
- ],
+  ],
   dockerfile: [
     /FROM\s+\w+/i,
     /RUN\s+/i,
@@ -271,7 +278,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /USER\s+/i,
     /#\s*.*$/m
   ],
- markdown: [
+  markdown: [
     /^#\s+.*$/m, // 标题
     /^\*\*.*\*\*$/m, // 粗体
     /\*.*\*/m, // 斜体
@@ -299,12 +306,12 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /#\s*.*$/m
   ],
   ini: [
-    /^\[\w+\]$/m,
-    /^\w+\s*=\s*.*$/m,
-    /;\s*.*$/m,
-    /#\s*.*$/m
- ],
- makefile: [
+    /^\[.+\]$/m,
+    /^[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(?:[^;{}()<>]*|[^;{}()<>]*;[^;{}()<>]*)$/m,
+    /^;\s*.*$/m,
+    /^#\s*.*$/m
+  ],
+  makefile: [
     /^\w+:\s*$/m,
     /^\w+:\s+.*$/m,
     /^\t\w+/m, // 命令
@@ -336,7 +343,7 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
     /if\s*\(/m,
     /#\s*.*$/m
   ],
- lua: [
+  lua: [
     /require\s+['"`][^'"`]+['"`]/m,
     /function\s+\w+/m,
     /local\s+\w+/m,
@@ -372,6 +379,5 @@ export const SYNTAX_PATTERNS: Record<string, RegExp[]> = {
 export const FILE_STRUCTURE_PATTERNS: [string, RegExp][] = [
   ['dockerfile', /^(FROM|RUN|COPY|ADD|CMD|ENTRYPOINT|ENV|EXPOSE|VOLUME|WORKDIR|USER)/i],
   ['makefile', /^[a-zA-Z_][a-zA-Z0-9_]*\s*:/m],
- ['cmake', /^(cmake_minimum_required|project|add_executable|add_library)/i],
-  ['python', /^(import|from|def|class)\s+/m]
+  ['cmake', /^(cmake_minimum_required|project|add_executable|add_library)/i]
 ];

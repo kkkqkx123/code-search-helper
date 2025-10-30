@@ -87,7 +87,11 @@ export class FileFeatureDetector {
     const isStructured = (bracketCount / totalLength > 0.01) || (tagCount / totalLength > 0.005);
     
     if (isStructured) {
-      this.logger?.debug(`Detected structured content: brackets=${bracketCount}, tags=${tagCount}, ratio=${(bracketCount / totalLength).toFixed(3)}`);
+      this.logger?.debug(`Detected structured content: brackets=${bracketCount}, tags=${tagCount}, ratio=${(bracketCount / totalLength).toFixed(3)}`, {
+        brackets: bracketCount,
+        tags: tagCount,
+        ratio: bracketCount / totalLength
+      });
     }
 
     return isStructured;
@@ -112,6 +116,11 @@ export class FileFeatureDetector {
    * 计算内容复杂度
    */
   calculateComplexity(content: string): number {
+    // 如果内容为空，返回0
+    if (!content || content.trim().length === 0) {
+      return 0;
+    }
+
     let complexity = 0;
 
     // 基于代码结构计算复杂度

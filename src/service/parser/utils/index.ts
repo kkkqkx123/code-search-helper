@@ -11,6 +11,9 @@ export * from './language';
 // 语法相关工具
 export * from './syntax';
 
+// 明确导出常用工具
+export { languageExtensionMap, fileUtils, languageFeatureDetector } from './language';
+
 // 便捷导出
 export { languageUtils } from './language';
 export { syntaxUtils } from './syntax';
