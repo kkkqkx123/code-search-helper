@@ -1,4 +1,5 @@
 import Parser from 'tree-sitter';
+import { ChunkingOptions, LegacyChunkingOptions } from './config-types';
 
 /**
 * 基础代码分段接口
@@ -43,71 +44,11 @@ export interface CodeChunkMetadata {
   [key: string]: any;
 }
 
-/**
- * 分段选项接口
- */
-export interface ChunkingOptions {
-  maxChunkSize?: number;
-  overlapSize?: number;
-  preserveFunctionBoundaries?: boolean;
-  preserveClassBoundaries?: boolean;
-  includeComments?: boolean;
-  minChunkSize?: number;
-  extractSnippets?: boolean;
-  addOverlap?: boolean;
-  optimizationLevel?: 'low' | 'medium' | 'high';
-  maxLines?: number;
-  adaptiveBoundaryThreshold?: boolean;
-  contextAwareOverlap?: boolean;
-  semanticWeight?: number;
-  syntacticWeight?: number;
-  boundaryScoring?: {
-    enableSemanticScoring: boolean;
-    minBoundaryScore: number;
-    maxSearchDistance: number;
-    languageSpecificWeights: boolean;
-  };
-  overlapStrategy?: {
-    preferredStrategy: 'semantic' | 'syntactic' | 'line' | 'overlap';
-    enableContextOptimization: boolean;
-    qualityThreshold: number;
-  };
-  functionSpecificOptions?: {
-    preferWholeFunctions: boolean;
-    minFunctionOverlap: number;
-    maxFunctionSize: number;
-    maxFunctionLines: number;
-    minFunctionLines: number;
-    enableSubFunctionExtraction: boolean;
-  };
-  classSpecificOptions?: {
-    keepMethodsTogether: boolean;
-    classHeaderOverlap: number;
-    maxClassSize: number;
-  };
-  // 新增：重复问题解决方案配置
-  enableASTBoundaryDetection?: boolean;
-  enableChunkDeduplication?: boolean;
-  maxOverlapRatio?: number;
-  deduplicationThreshold?: number;
-  astNodeTracking?: boolean;
-  chunkMergeStrategy?: 'aggressive' | 'conservative';
-  minChunkSimilarity?: number;
-  // 新增：性能优化配置
-  enablePerformanceOptimization?: boolean;
-  enablePerformanceMonitoring?: boolean;
-  // 新增：协调机制配置
-  enableChunkingCoordination?: boolean;
-  strategyExecutionOrder?: string[];
-  enableNodeTracking?: boolean;
-  // 新增：智能去重和重叠合并策略
-  enableSmartDeduplication?: boolean;
-  similarityThreshold?: number;
-  overlapMergeStrategy?: 'aggressive' | 'conservative';
-  // 新增属性以支持策略提供者
-  treeSitterService?: any;
-  universalTextStrategy?: any;
-}
+// 重新导出配置类型
+export { ChunkingOptions, LegacyChunkingOptions };
+
+// 为了向后兼容，保留旧的 ChunkingOptions 别名
+export type OldChunkingOptions = LegacyChunkingOptions;
 
 /**
  * 策略执行上下文

@@ -166,8 +166,14 @@ export class SyntaxAwareStrategy implements ISplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    // 检查TreeSitterService是否支持该语言
-    return this.treeSitterService?.detectLanguage(language) !== null || false;
+    if (!this.treeSitterService) {
+      return false;
+    }
+    
+    const supportedLanguages = this.treeSitterService.getSupportedLanguages();
+    return supportedLanguages.some(lang => 
+      lang.name.toLowerCase() === language.toLowerCase() && lang.supported
+    );
   }
 }
 

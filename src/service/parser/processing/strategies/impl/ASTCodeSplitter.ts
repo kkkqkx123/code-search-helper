@@ -6,10 +6,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { BalancedChunker } from '../../utils/chunking/BalancedChunker';
 import { ChunkingConfigManager } from '../../config/ChunkingConfigManager';
 import { SplitStrategyFactory, strategyFactory } from '../factory/SplitStrategyFactory';
-// import { ensureStrategyProvidersRegistered } from '../factory/StrategyProviderRegistration';
-// import { ChunkingCoordinator } from '../../utils/ChunkingCoordinator'; // 移除了对不存在的ChunkingCoordinator的导入
 import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
-// 移除重复导入，已在第2行导入
 import { PerformanceOptimizer } from '../../utils/performance/PerformanceOptimizer';
 import { IPerformanceMonitoringSystem } from '../../utils/performance/IPerformanceMonitoringSystem';
 import { UnifiedPerformanceMonitoringSystem } from '../../utils/performance/UnifiedPerformanceMonitoringSystem';
@@ -391,7 +388,7 @@ export class ASTCodeSplitter implements Splitter {
 
       // 获取节点文本内容
       const nodeText = this.treeSitterService.getNodeText(item, code);
-      
+
       if (!nodeText || nodeText.trim().length === 0) {
         this.logger?.warn(`Node text is empty, skipping ${type}`);
         continue;

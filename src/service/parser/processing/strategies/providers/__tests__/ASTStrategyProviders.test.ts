@@ -19,7 +19,12 @@ describe('AST Strategy Providers', () => {
         }
       }),
       extractFunctions: jest.fn().mockResolvedValue([]),
-      extractClasses: jest.fn().mockResolvedValue([])
+      extractClasses: jest.fn().mockResolvedValue([]),
+      getSupportedLanguages: jest.fn().mockReturnValue([
+        { name: 'typescript', supported: true, fileExtensions: ['.ts', '.tsx'] },
+        { name: 'javascript', supported: true, fileExtensions: ['.js', '.jsx'] },
+        { name: 'python', supported: true, fileExtensions: ['.py'] }
+      ])
     };
 
     loggerService = {

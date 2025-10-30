@@ -84,7 +84,14 @@ export class ImportStrategy extends BaseSplitStrategy {
   }
 
   supportsLanguage(language: string): boolean {
-    return this.treeSitterService?.detectLanguage(language) !== null || false;
+    if (!this.treeSitterService) {
+      return false;
+    }
+    
+    const supportedLanguages = this.treeSitterService.getSupportedLanguages();
+    return supportedLanguages.some(lang => 
+      lang.name.toLowerCase() === language.toLowerCase() && lang.supported
+    );
   }
 
   getPriority(): number {
