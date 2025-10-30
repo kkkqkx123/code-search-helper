@@ -38,8 +38,9 @@ export class ConfigCoordinator extends EventEmitter {
       };
     }
     // 确保配置对象结构完整，即使在测试环境中
+    const basicConfig = globalConfig?.basic || {};
     this.currentConfig = {
-      ...globalConfig,
+      ...basicConfig,
       memory: universalConfig?.memory || { memoryLimitMB: 512, memoryCheckInterval: 5000 },
       chunking: universalConfig?.chunking || { maxChunkSize: 2000, chunkOverlap: 200, maxLinesPerChunk: 1000 },
       error: universalConfig?.error || { maxErrors: 5, errorResetInterval: 6000 },

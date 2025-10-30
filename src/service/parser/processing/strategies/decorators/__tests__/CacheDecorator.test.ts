@@ -96,8 +96,8 @@ describe('CacheDecorator', () => {
     it('should treat different options as separate cache entries', async () => {
       const content = 'line1\nline2';
       const language = 'javascript';
-      const options1 = { maxChunkSize: 100 };
-      const options2 = { maxChunkSize: 200 };
+      const options1 = { basic: { maxChunkSize: 100 } };
+      const options2 = { basic: { maxChunkSize: 200 } };
       
       await decorator.split(content, language, undefined, options1);
       await decorator.split(content, language, undefined, options2);

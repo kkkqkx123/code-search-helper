@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { ChunkingOptions, LegacyChunkingOptions } from './config-types';
+import { ChunkingOptions } from './config-types';
 
 /**
 * 基础代码分段接口
@@ -45,10 +45,7 @@ export interface CodeChunkMetadata {
 }
 
 // 重新导出配置类型
-export { ChunkingOptions, LegacyChunkingOptions };
-
-// 为了向后兼容，保留旧的 ChunkingOptions 别名
-export type OldChunkingOptions = LegacyChunkingOptions;
+export { ChunkingOptions };
 
 /**
  * 策略执行上下文

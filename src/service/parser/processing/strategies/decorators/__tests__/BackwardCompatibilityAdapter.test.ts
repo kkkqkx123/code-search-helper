@@ -201,7 +201,7 @@ describe('LegacySplitStrategyFactory', () => {
     });
     
     it('should create strategy with options', () => {
-      const options: ChunkingOptions = { maxChunkSize: 100 };
+      const options: ChunkingOptions = { basic: { maxChunkSize: 100 } };
       const strategy = legacyFactory.createStrategy('test_strategy', options);
       
       expect(strategy.getName()).toBe('test_strategy');
@@ -213,7 +213,7 @@ describe('LegacySplitStrategyFactory', () => {
       
       const strategy = legacyFactory.createDecoratedStrategy(
         'test_strategy',
-        { maxChunkSize: 100 },
+        { basic: { maxChunkSize: 100 } },
         mockCalculator,
         true, // enableCache
         true, // enablePerformance

@@ -26,6 +26,12 @@ export class AdvancedMergingPostProcessor implements IChunkPostProcessor {
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {
     this.logger?.debug(`Starting advanced merging for ${chunks.length} chunks`);
 
+    // 检查是否应该应用合并处理
+    if (!this.shouldApply(chunks, context)) {
+      this.logger?.debug('Advanced merging is disabled or not applicable, returning original chunks');
+      return chunks;
+    }
+
     try {
       // 确保传递给ChunkMerger的options是完整类型
       const completeOptions: ChunkingOptions = {

@@ -1,6 +1,6 @@
 import { ChunkPostProcessorCoordinator } from '../ChunkPostProcessorCoordinator';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, EnhancedChunkingOptions } from '../../types/splitting-types';
+import { CodeChunk, EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../types/splitting-types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 describe('ChunkPostProcessorIntegration', () => {
@@ -13,48 +13,54 @@ describe('ChunkPostProcessorIntegration', () => {
     coordinator = new ChunkPostProcessorCoordinator(logger);
     
     mockOptions = {
-      // 基础选项
-      minChunkSize: 100,
-      maxChunkSize: 1000,
-      overlapSize: 50,
-      preserveFunctionBoundaries: true,
-      preserveClassBoundaries: true,
-      includeComments: false,
-      extractSnippets: true,
-      addOverlap: false,
-      optimizationLevel: 'medium' as const,
-      maxLines: 10000,
-      
-      // EnhancedChunkingOptions 必需属性
-      maxOverlapRatio: 0.3,
-      enableASTBoundaryDetection: false,
-      deduplicationThreshold: 0.8,
-      astNodeTracking: false,
-      chunkMergeStrategy: 'conservative' as const,
-      enableChunkDeduplication: true,
-      maxOverlapLines: 10,
-      minChunkSimilarity: 0.7,
-      enableSmartDeduplication: true,
-      similarityThreshold: 0.8,
-      overlapMergeStrategy: 'conservative' as const,
-      
-      // 增强选项
-      enableEnhancedBalancing: true,
-      enableIntelligentFiltering: true,
-      enableSmartRebalancing: true,
-      enableAdvancedMerging: true,
-      enableBoundaryOptimization: true,
-      
-      // 阈值配置
-      balancedChunkerThreshold: 0.8,
-      minChunkSizeThreshold: 50,
-      maxChunkSizeThreshold: 1500,
-      rebalancingStrategy: 'conservative' as const,
-      boundaryOptimizationThreshold: 0.9,
-      mergeDecisionThreshold: 0.85,
-      
-      // 其他选项
-      enablePerformanceMonitoring: false
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        minChunkSize: 100,
+        maxChunkSize: 1000,
+        overlapSize: 50,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 10000
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableEnhancedBalancing: true,
+        enableIntelligentFiltering: true,
+        enableSmartRebalancing: true,
+        enableAdvancedMerging: true,
+        enableBoundaryOptimization: true,
+        balancedChunkerThreshold: 0.8,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        rebalancingStrategy: 'conservative' as const,
+        boundaryOptimizationThreshold: 0.9,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
   });
 
@@ -318,9 +324,14 @@ describe('ChunkPostProcessorIntegration', () => {
     });
 
     test('应该处理禁用的处理器', async () => {
-      const disabledOptions = { ...mockOptions };
-      disabledOptions.enableIntelligentFiltering = false;
-      disabledOptions.enableSmartRebalancing = false;
+      const disabledOptions = { 
+        ...mockOptions,
+        advanced: {
+          ...mockOptions.advanced,
+          enableIntelligentFiltering: false,
+          enableSmartRebalancing: false
+        }
+      };
       
       coordinator.initializeDefaultProcessors(disabledOptions);
       

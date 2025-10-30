@@ -13,45 +13,49 @@ describe('BoundaryOptimizationPostProcessor', () => {
     processor = new BoundaryOptimizationPostProcessor(logger);
     
     mockOptions = {
-      // 基础选项
-      minChunkSize: 100,
-      maxChunkSize: 1000,
-      overlapSize: 50,
-      preserveFunctionBoundaries: true,
-      preserveClassBoundaries: true,
-      includeComments: false,
-      extractSnippets: true,
-      addOverlap: false,
-      optimizationLevel: 'medium' as const,
-      maxLines: 10000,
-      
-      // EnhancedChunkingOptions 必需属性
-      maxOverlapRatio: 0.3,
-      enableASTBoundaryDetection: false,
-      deduplicationThreshold: 0.8,
-      astNodeTracking: false,
-      chunkMergeStrategy: 'conservative' as const,
-      enableChunkDeduplication: true,
-      maxOverlapLines: 10,
-      minChunkSimilarity: 0.7,
-      enableSmartDeduplication: true,
-      similarityThreshold: 0.8,
-      overlapMergeStrategy: 'conservative' as const,
-      
-      // 新增：增强配置选项
-      enableEnhancedBalancing: false,
-      enableIntelligentFiltering: false,
-      enableSmartRebalancing: false,
-      enableAdvancedMerging: false,
-      enableBoundaryOptimization: true, // 启用边界优化
-      enableOverlap: false,
-      balancedChunkerThreshold: 0.8,
-      minChunkSizeThreshold: 50,
-      maxChunkSizeThreshold: 1500,
-      rebalancingStrategy: 'conservative' as const,
-      boundaryOptimizationThreshold: 0.9,
-      mergeDecisionThreshold: 0.85,
-      enablePerformanceMonitoring: false
+      basic: {
+        // 基础选项
+        minChunkSize: 100,
+        maxChunkSize: 1000,
+        overlapSize: 50,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 10000
+      },
+      advanced: {
+        // EnhancedChunkingOptions 必需属性
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        
+        // 新增：增强配置选项
+        enableEnhancedBalancing: false,
+        enableIntelligentFiltering: false,
+        enableSmartRebalancing: false,
+        enableAdvancedMerging: false,
+        enableBoundaryOptimization: true, // 启用边界优化
+        balancedChunkerThreshold: 0.8,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        rebalancingStrategy: 'conservative' as const,
+        boundaryOptimizationThreshold: 0.9,
+        mergeDecisionThreshold: 0.85
+      },
+      performance: {
+        enablePerformanceMonitoring: false
+      }
     };
   });
 
@@ -84,7 +88,13 @@ describe('BoundaryOptimizationPostProcessor', () => {
         originalContent: 'chunk1',
         language: 'typescript',
         filePath: 'test.ts',
-        options: { ...mockOptions, enableBoundaryOptimization: false }
+        options: {
+          ...mockOptions,
+          advanced: {
+            ...mockOptions.advanced,
+            enableBoundaryOptimization: false
+          }
+        }
       };
 
       expect(processor.shouldApply(chunks, context)).toBe(false);
@@ -122,7 +132,13 @@ describe('BoundaryOptimizationPostProcessor', () => {
         originalContent: 'function test() { return "hello"; }',
         language: 'typescript',
         filePath: 'test.ts',
-        options: { ...mockOptions, enableBoundaryOptimization: false }
+        options: {
+          ...mockOptions,
+          advanced: {
+            ...mockOptions.advanced,
+            enableBoundaryOptimization: false
+          }
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -301,7 +317,9 @@ describe('BoundaryOptimizationPostProcessor', () => {
         filePath: 'test.ts',
         options: {
           ...mockOptions,
-          boundaryOptimizationThreshold: 0.95
+          advanced: {
+            boundaryOptimizationThreshold: 0.95
+          }
         }
       };
 
@@ -331,8 +349,11 @@ describe('BoundaryOptimizationPostProcessor', () => {
         filePath: 'test.ts',
         options: {
           ...mockOptions,
-          minChunkSizeThreshold: 10,
-          maxChunkSizeThreshold: 1000
+          advanced: {
+            ...mockOptions.advanced,
+            minChunkSizeThreshold: 10,
+            maxChunkSizeThreshold: 1000
+          }
         }
       };
 

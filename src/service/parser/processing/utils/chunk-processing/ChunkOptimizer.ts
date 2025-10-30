@@ -1,10 +1,10 @@
-import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS, ChunkingOptionsConverter } from '../../types/splitting-types';
+import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk, ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../types/splitting-types';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
 export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizerInterface {
   private options: Required<ChunkingOptions>;
 
- constructor(options?: ChunkingOptions) {
+  constructor(options?: ChunkingOptions) {
     super();
     // 转换为Required<ChunkingOptions>
     const baseOptions = DEFAULT_ENHANCED_CHUNKING_OPTIONS;
@@ -162,7 +162,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
       // Calculate the character position where next chunk starts (subtract 1 for the newline that's not at the end)
       const charsUntilNextChunk = linesUntilNextChunk.join('\n').length + (linesUntilNextChunk.length > 0 ? 1 : 0) - 1;
 
-     // Calculate the starting position for overlap in the original code
+      // Calculate the starting position for overlap in the original code
       const overlapStartPosition = Math.max(0, charsUntilNextChunk - (this.options.basic?.overlapSize || 200));
 
       // Find which line this overlap position corresponds to

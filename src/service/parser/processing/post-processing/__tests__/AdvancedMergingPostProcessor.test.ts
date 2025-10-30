@@ -211,13 +211,13 @@ describe('AdvancedMergingPostProcessor', () => {
           }
         },
         {
-          content: 'function medium2() {\n  // Another medium sized function\n  return 2;\n}',
+          content: 'class VeryDifferentClass {\n  constructor() {\n    this.value = 42;\n  }\n  getValue() {\n    return this.value;\n  }\n}',
           metadata: {
-            startLine: 5,
-            endLine: 8,
+            startLine: 100, // Far away from the first chunk
+            endLine: 106,
             language: 'javascript',
-            type: 'function',
-            complexity: 5
+            type: 'class', // Different type
+            complexity: 15 // Different complexity
           }
         }
       ];

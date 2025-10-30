@@ -663,9 +663,11 @@ mockConfigManager.getUniversalConfig = jest.fn().mockReturnValue({
           }
         `.trim(),
         options: {
-          maxChunkSize: 1500,
-          overlapSize: 150,
-          maxLines: 50
+          basic: {
+            maxChunkSize: 1500,
+            overlapSize: 150,
+            maxLines: 50
+          }
         },
         forceStrategy: 'semantic',
         enableFallback: true,

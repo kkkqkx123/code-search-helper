@@ -19,9 +19,11 @@ describe('ConfigCoordinator', () => {
     mockLogger = new MockLoggerService() as jest.Mocked<LoggerService>;
 
     mockConfigManager.getGlobalConfig.mockReturnValue({
-      maxChunkSize: 2000,
-      overlapSize: 200,
-      preserveFunctionBoundaries: true
+      basic: {
+        maxChunkSize: 2000,
+        overlapSize: 200,
+        preserveFunctionBoundaries: true
+      }
     });
 
     mockLogger.debug = jest.fn();

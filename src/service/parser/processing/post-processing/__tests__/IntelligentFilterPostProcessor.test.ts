@@ -1,6 +1,6 @@
 import { IntelligentFilterPostProcessor } from '../IntelligentFilterPostProcessor';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, EnhancedChunkingOptions } from '../../types/splitting-types';
+import { CodeChunk, EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../types/splitting-types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 describe('IntelligentFilterPostProcessor', () => {
@@ -13,45 +13,54 @@ describe('IntelligentFilterPostProcessor', () => {
     processor = new IntelligentFilterPostProcessor(logger);
     
     mockOptions = {
-      // 基础选项
-      minChunkSize: 100,
-      maxChunkSize: 1000,
-      overlapSize: 50,
-      preserveFunctionBoundaries: true,
-      preserveClassBoundaries: true,
-      includeComments: false,
-      extractSnippets: true,
-      addOverlap: false,
-      optimizationLevel: 'medium' as const,
-      maxLines: 10000,
-      
-      // EnhancedChunkingOptions 必需属性
-      maxOverlapRatio: 0.3,
-      enableASTBoundaryDetection: false,
-      deduplicationThreshold: 0.8,
-      astNodeTracking: false,
-      chunkMergeStrategy: 'conservative' as const,
-      enableChunkDeduplication: true,
-      maxOverlapLines: 10,
-      minChunkSimilarity: 0.7,
-      enableSmartDeduplication: true,
-      similarityThreshold: 0.8,
-      overlapMergeStrategy: 'conservative' as const,
-      
-      // 新增：增强配置选项
-      enableEnhancedBalancing: false,
-      enableIntelligentFiltering: true, // 启用智能过滤
-      enableSmartRebalancing: false,
-      enableAdvancedMerging: false,
-      enableBoundaryOptimization: false,
-      enableOverlap: false,
-      balancedChunkerThreshold: 0.8,
-      minChunkSizeThreshold: 50,
-      maxChunkSizeThreshold: 1500,
-      rebalancingStrategy: 'conservative' as const,
-      boundaryOptimizationThreshold: 0.9,
-      mergeDecisionThreshold: 0.85,
-      enablePerformanceMonitoring: false
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        minChunkSize: 100,
+        maxChunkSize: 1000,
+        overlapSize: 50,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 10000
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableEnhancedBalancing: false,
+        enableIntelligentFiltering: true, // 启用智能过滤
+        enableSmartRebalancing: false,
+        enableAdvancedMerging: false,
+        enableBoundaryOptimization: false,
+        balancedChunkerThreshold: 0.8,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        rebalancingStrategy: 'conservative' as const,
+        boundaryOptimizationThreshold: 0.9,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
   });
 
@@ -84,7 +93,13 @@ describe('IntelligentFilterPostProcessor', () => {
         originalContent: 'chunk1',
         language: 'typescript',
         filePath: 'test.ts',
-        options: { ...mockOptions, enableIntelligentFiltering: false }
+        options: {
+          ...mockOptions,
+          advanced: {
+            ...mockOptions.advanced,
+            enableIntelligentFiltering: false
+          }
+        }
       };
 
       expect(processor.shouldApply(chunks, context)).toBe(false);
@@ -131,7 +146,13 @@ describe('IntelligentFilterPostProcessor', () => {
         originalContent: 'const validChunk = "this is a valid chunk with sufficient content";\ntiny',
         language: 'typescript',
         filePath: 'test.ts',
-        options: { ...mockOptions, enableIntelligentFiltering: false }
+        options: {
+          ...mockOptions,
+          advanced: {
+            ...mockOptions.advanced,
+            enableIntelligentFiltering: false
+          }
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -334,7 +355,10 @@ describe('IntelligentFilterPostProcessor', () => {
         filePath: 'test.ts',
         options: {
           ...mockOptions,
-          minChunkSizeThreshold: 5 // 设置较低阈值
+          advanced: {
+            ...mockOptions.advanced,
+            minChunkSizeThreshold: 5 // 设置较低阈值
+          }
         }
       };
 
@@ -363,7 +387,10 @@ describe('IntelligentFilterPostProcessor', () => {
         filePath: 'test.ts',
         options: {
           ...mockOptions,
-          maxChunkSizeThreshold: 1000
+          advanced: {
+            ...mockOptions.advanced,
+            maxChunkSizeThreshold: 1000
+          }
         }
       };
 

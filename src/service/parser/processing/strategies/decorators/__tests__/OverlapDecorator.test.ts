@@ -103,7 +103,7 @@ describe('OverlapDecorator', () => {
       const content = 'line1\nline2\nline3';
       const language = 'javascript';
       const filePath = 'test.js';
-      const options = { maxChunkSize: 100 };
+      const options = { basic: { maxChunkSize: 100 } };
       
       const result = await decorator.split(content, language, filePath, options);
       
@@ -118,7 +118,7 @@ describe('OverlapDecorator', () => {
       const content = 'line1\nline2\nline3';
       const language = 'javascript';
       const filePath = 'test.js';
-      const options = { maxChunkSize: 5 }; // Small size to trigger overlap
+      const options = { basic: { maxChunkSize: 5 } }; // Small size to trigger overlap
       
       const result = await decorator.split(content, language, filePath, options);
       

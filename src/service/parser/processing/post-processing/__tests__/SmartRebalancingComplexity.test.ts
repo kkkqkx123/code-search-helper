@@ -1,6 +1,6 @@
 import { SmartRebalancingPostProcessor } from '../SmartRebalancingPostProcessor';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, EnhancedChunkingOptions } from '../../types/splitting-types';
+import { CodeChunk, EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../types/splitting-types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { IComplexityCalculator } from '../../strategies/types/SegmentationTypes';
 
@@ -28,39 +28,54 @@ describe('SmartRebalancingComplexity', () => {
     processor = new SmartRebalancingPostProcessor(logger, complexityCalculator);
     
     mockOptions = {
-      // 基础选项
-      minChunkSize: 100,
-      maxChunkSize: 1000,
-      overlapSize: 50,
-      preserveFunctionBoundaries: true,
-      preserveClassBoundaries: true,
-      includeComments: false,
-      extractSnippets: true,
-      addOverlap: false,
-      optimizationLevel: 'medium' as const,
-      maxLines: 10000,
-      
-      // EnhancedChunkingOptions 必需属性
-      maxOverlapRatio: 0.3,
-      enableASTBoundaryDetection: false,
-      deduplicationThreshold: 0.8,
-      astNodeTracking: false,
-      chunkMergeStrategy: 'conservative' as const,
-      enableChunkDeduplication: true,
-      maxOverlapLines: 10,
-      minChunkSimilarity: 0.7,
-      enableSmartDeduplication: true,
-      similarityThreshold: 0.8,
-      overlapMergeStrategy: 'conservative' as const,
-      
-      // 启用智能再平衡
-      enableSmartRebalancing: true,
-      minChunkSizeThreshold: 50,
-      maxChunkSizeThreshold: 1500,
-      rebalancingStrategy: 'conservative' as const,
-      
-      // 其他选项
-      enablePerformanceMonitoring: false
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        minChunkSize: 100,
+        maxChunkSize: 1000,
+        overlapSize: 50,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 10000
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableSmartRebalancing: true,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        rebalancingStrategy: 'conservative' as const,
+        enableEnhancedBalancing: false,
+        balancedChunkerThreshold: 0.8,
+        enableIntelligentFiltering: false,
+        enableBoundaryOptimization: false,
+        boundaryOptimizationThreshold: 0.9,
+        enableAdvancedMerging: false,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
   });
 
@@ -95,7 +110,10 @@ describe('SmartRebalancingComplexity', () => {
         filePath: 'test.ts',
         options: {
           ...mockOptions,
-          minChunkSizeThreshold: 30 // 设置较高的阈值以确保tiny被合并
+          advanced: {
+            ...mockOptions.advanced,
+            minChunkSizeThreshold: 30 // 设置较高的阈值以确保tiny被合并
+          }
         }
       };
 
@@ -134,8 +152,11 @@ describe('SmartRebalancingComplexity', () => {
         filePath: 'test.ts',
         options: {
           ...mockOptions,
-          maxChunkSizeThreshold: 200, // 设置较小的阈值以触发拆分
-          rebalancingStrategy: 'aggressive' // 使用激进策略确保拆分
+          advanced: {
+            ...mockOptions.advanced,
+            maxChunkSizeThreshold: 200, // 设置较小的阈值以触发拆分
+            rebalancingStrategy: 'aggressive' // 使用激进策略确保拆分
+          }
         }
       };
 

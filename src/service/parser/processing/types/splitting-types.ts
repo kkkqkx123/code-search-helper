@@ -1,13 +1,11 @@
-import { CodeChunk, CodeChunkMetadata, ChunkingOptions, LegacyChunkingOptions, ChunkingPreset, ChunkingOptionsConverter } from '../../types/config-types';
+import { CodeChunk, CodeChunkMetadata, ChunkingOptions, ChunkingPreset } from '../../types/config-types';
 
 // 重新导出基础类型以避免破坏现有导入
-export { 
-  CodeChunk, 
-  CodeChunkMetadata, 
-  ChunkingOptions, 
-  LegacyChunkingOptions,
+export {
+  CodeChunk,
+  CodeChunkMetadata,
+  ChunkingOptions,
   ChunkingPreset,
-  ChunkingOptionsConverter
 };
 
 // AST节点接口定义
@@ -302,38 +300,38 @@ export class ChunkingOptionsMerger {
    */
   static merge(base: ChunkingOptions, override: ChunkingOptions): ChunkingOptions {
     const result: ChunkingOptions = { ...base };
-    
+
     // 合并预设
     if (override.preset) {
       result.preset = override.preset;
     }
-    
+
     // 合并分层配置
     if (override.basic) {
       result.basic = { ...base.basic, ...override.basic };
     }
-    
+
     if (override.advanced) {
       result.advanced = { ...base.advanced, ...override.advanced };
     }
-    
+
     if (override.performance) {
       result.performance = { ...base.performance, ...override.performance };
     }
-    
+
     if (override.quality) {
       result.quality = { ...base.quality, ...override.quality };
     }
-    
+
     // 合并其他属性
     if (override.treeSitterService) {
       result.treeSitterService = override.treeSitterService;
     }
-    
+
     if (override.universalTextStrategy) {
       result.universalTextStrategy = override.universalTextStrategy;
     }
-    
+
     return result;
   }
 }

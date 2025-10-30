@@ -1,6 +1,6 @@
 import { OverlapPostProcessor } from '../OverlapPostProcessor';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, EnhancedChunkingOptions } from '../../types/splitting-types';
+import { CodeChunk, EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../types/splitting-types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 describe('OverlapPostProcessor', () => {
@@ -13,45 +13,54 @@ describe('OverlapPostProcessor', () => {
     processor = new OverlapPostProcessor(logger);
     
     mockOptions = {
-      // 基础选项
-      minChunkSize: 100,
-      maxChunkSize: 1000,
-      overlapSize: 200,
-      preserveFunctionBoundaries: true,
-      preserveClassBoundaries: true,
-      includeComments: false,
-      extractSnippets: true,
-      addOverlap: false,
-      optimizationLevel: 'medium' as const,
-      maxLines: 10000,
-      
-      // EnhancedChunkingOptions 必需属性
-      maxOverlapRatio: 0.3,
-      enableASTBoundaryDetection: false,
-      deduplicationThreshold: 0.8,
-      astNodeTracking: false,
-      chunkMergeStrategy: 'conservative' as const,
-      enableChunkDeduplication: true,
-      maxOverlapLines: 10,
-      minChunkSimilarity: 0.7,
-      enableSmartDeduplication: true,
-      similarityThreshold: 0.8,
-      overlapMergeStrategy: 'conservative' as const,
-      
-      // 新增：增强配置选项
-      enableEnhancedBalancing: false,
-      enableIntelligentFiltering: false,
-      enableSmartRebalancing: false,
-      enableAdvancedMerging: false,
-      enableBoundaryOptimization: false,
-      enableOverlap: true, // 启用重叠处理
-      balancedChunkerThreshold: 0.8,
-      minChunkSizeThreshold: 50,
-      maxChunkSizeThreshold: 1500,
-      rebalancingStrategy: 'conservative' as const,
-      boundaryOptimizationThreshold: 0.9,
-      mergeDecisionThreshold: 0.85,
-      enablePerformanceMonitoring: false
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        minChunkSize: 100,
+        maxChunkSize: 1000,
+        overlapSize: 200,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: true,
+        optimizationLevel: 'medium' as const,
+        maxLines: 10000
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableEnhancedBalancing: false,
+        enableIntelligentFiltering: false,
+        enableSmartRebalancing: false,
+        enableAdvancedMerging: false,
+        enableBoundaryOptimization: false,
+        balancedChunkerThreshold: 0.8,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        rebalancingStrategy: 'conservative' as const,
+        boundaryOptimizationThreshold: 0.9,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
   });
 
@@ -86,7 +95,13 @@ describe('OverlapPostProcessor', () => {
         originalContent: 'chunk1\nchunk2',
         language: 'typescript',
         filePath: 'test.ts',
-        options: { ...mockOptions, enableOverlap: false }
+        options: {
+          ...mockOptions,
+          basic: {
+            ...mockOptions.basic,
+            addOverlap: false
+          }
+        }
       };
 
       expect(processor.shouldApply(chunks, context)).toBe(false);
@@ -102,7 +117,13 @@ describe('OverlapPostProcessor', () => {
         originalContent: 'chunk1\nchunk2',
         language: 'typescript',
         filePath: 'test.ts',
-        options: { ...mockOptions, overlapSize: 0 }
+        options: {
+          ...mockOptions,
+          basic: {
+            ...mockOptions.basic,
+            overlapSize: 0
+          }
+        }
       };
 
       expect(processor.shouldApply(chunks, context)).toBe(false);

@@ -1,7 +1,7 @@
 import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
 import { UnifiedProcessingCoordinator } from '../../../service/parser/processing/coordination/UnifiedProcessingCoordinator';
-import { ChunkingOptionsConverter } from '../../../service/parser/types/config-types';
+import { ChunkingOptions, ChunkingPreset } from '../../../service/parser/types/config-types';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -12,16 +12,16 @@ describe('AST分段策略修复验证', () => {
   beforeAll(async () => {
     // 获取处理协调器
     processingCoordinator = diContainer.get(TYPES.UnifiedProcessingCoordinator);
-    
+
     // 等待TreeSitter初始化
     const treeSitterService = diContainer.get(TYPES.TreeSitterCoreService) as any;
     const maxWaitTime = 30000;
     const startTime = Date.now();
-    
+
     while (!treeSitterService.isInitialized() && Date.now() - startTime < maxWaitTime) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    
+
     if (!treeSitterService.isInitialized()) {
       throw new Error('TreeSitterCoreService failed to initialize');
     }
@@ -31,19 +31,61 @@ describe('AST分段策略修复验证', () => {
     const goFilePath = path.join(testFilesDir, 'dataStructure/datastructure/linked_list.go');
     const content = fs.readFileSync(goFilePath, 'utf-8');
 
-    const legacyOptions = {
-      maxChunkSize: 2000,
-      overlapSize: 200,
-      maxLines: 100,
-      optimizationLevel: 'medium' as const,
-      addOverlap: false,
-      maxOverlapRatio: 0.3
+    const options: ChunkingOptions = {
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        maxChunkSize: 2000,
+        minChunkSize: 100,
+        overlapSize: 200,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 100
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableEnhancedBalancing: false,
+        balancedChunkerThreshold: 0.8,
+        enableIntelligentFiltering: false,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        enableSmartRebalancing: false,
+        rebalancingStrategy: 'conservative' as const,
+        enableBoundaryOptimization: false,
+        boundaryOptimizationThreshold: 0.9,
+        enableAdvancedMerging: false,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
-    
+
     const context = {
       filePath: goFilePath,
       content,
-      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
+      options
     };
 
     const result = await processingCoordinator.processFile(context);
@@ -51,11 +93,11 @@ describe('AST分段策略修复验证', () => {
     // 验证策略选择
     expect(result.processingStrategy).toBe('treesitter_ast');
     expect(result.language).toBe('go');
-    
+
     // 验证分段结果
     expect(result.chunks.length).toBeGreaterThan(1); // 应该有多个函数
     expect(result.chunks.length).toBe(6); // linked_list.go有6个函数
-    
+
     // 验证每个chunk都是函数类型
     result.chunks.forEach(chunk => {
       expect(chunk.metadata.type).toBe('function');
@@ -81,19 +123,61 @@ describe('AST分段策略修复验证', () => {
     const jsFilePath = path.join(testFilesDir, 'test-language-detection.js');
     const content = fs.readFileSync(jsFilePath, 'utf-8');
 
-    const legacyOptions = {
-      maxChunkSize: 2000,
-      overlapSize: 200,
-      maxLines: 100,
-      optimizationLevel: 'medium' as const,
-      addOverlap: false,
-      maxOverlapRatio: 0.3
+    const options: ChunkingOptions = {
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        maxChunkSize: 2000,
+        minChunkSize: 100,
+        overlapSize: 200,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 100
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableEnhancedBalancing: false,
+        balancedChunkerThreshold: 0.8,
+        enableIntelligentFiltering: false,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        enableSmartRebalancing: false,
+        rebalancingStrategy: 'conservative' as const,
+        enableBoundaryOptimization: false,
+        boundaryOptimizationThreshold: 0.9,
+        enableAdvancedMerging: false,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
-    
+
     const context = {
       filePath: jsFilePath,
       content,
-      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
+      options
     };
 
     const result = await processingCoordinator.processFile(context);
@@ -101,10 +185,10 @@ describe('AST分段策略修复验证', () => {
     // 验证策略选择
     expect(result.processingStrategy).toBe('treesitter_ast');
     expect(result.language).toBe('javascript');
-    
+
     // 验证分段结果
     expect(result.chunks.length).toBeGreaterThanOrEqual(1);
-    
+
     // 验证chunk类型
     result.chunks.forEach(chunk => {
       expect(chunk.metadata.language).toBe('JavaScript');
@@ -115,19 +199,61 @@ describe('AST分段策略修复验证', () => {
     const pyFilePath = path.join(testFilesDir, 'test.py');
     const content = fs.readFileSync(pyFilePath, 'utf-8');
 
-    const legacyOptions = {
-      maxChunkSize: 2000,
-      overlapSize: 200,
-      maxLines: 100,
-      optimizationLevel: 'medium' as const,
-      addOverlap: false,
-      maxOverlapRatio: 0.3
+    const options: ChunkingOptions = {
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        maxChunkSize: 2000,
+        minChunkSize: 100,
+        overlapSize: 200,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 100
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableEnhancedBalancing: false,
+        balancedChunkerThreshold: 0.8,
+        enableIntelligentFiltering: false,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        enableSmartRebalancing: false,
+        rebalancingStrategy: 'conservative' as const,
+        enableBoundaryOptimization: false,
+        boundaryOptimizationThreshold: 0.9,
+        enableAdvancedMerging: false,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
-    
+
     const context = {
       filePath: pyFilePath,
       content,
-      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
+      options
     };
 
     const result = await processingCoordinator.processFile(context);
@@ -135,10 +261,10 @@ describe('AST分段策略修复验证', () => {
     // 验证策略选择
     expect(result.processingStrategy).toBe('treesitter_ast');
     expect(result.language).toBe('python');
-    
+
     // 验证分段结果
     expect(result.chunks.length).toBeGreaterThanOrEqual(1);
-    
+
     // 验证chunk类型
     result.chunks.forEach(chunk => {
       expect(chunk.metadata.language).toBe('Python');
@@ -160,19 +286,61 @@ const (
 var globalVariable int = 42
 `;
 
-    const legacyOptions = {
-      maxChunkSize: 2000,
-      overlapSize: 200,
-      maxLines: 100,
-      optimizationLevel: 'medium' as const,
-      addOverlap: false,
-      maxOverlapRatio: 0.3
+    const options: ChunkingOptions = {
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        maxChunkSize: 2000,
+        minChunkSize: 100,
+        overlapSize: 200,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 100
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableEnhancedBalancing: false,
+        balancedChunkerThreshold: 0.8,
+        enableIntelligentFiltering: false,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        enableSmartRebalancing: false,
+        rebalancingStrategy: 'conservative' as const,
+        enableBoundaryOptimization: false,
+        boundaryOptimizationThreshold: 0.9,
+        enableAdvancedMerging: false,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
-    
+
     const context = {
       filePath: 'test-simple.go',
       content: simpleGoContent,
-      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
+      options
     };
 
     const result = await processingCoordinator.processFile(context);
@@ -180,7 +348,7 @@ var globalVariable int = 42
     // 验证策略选择
     expect(result.processingStrategy).toBe('treesitter_ast');
     expect(result.language).toBe('go');
-    
+
     // 验证分段结果 - 应该回退到全内容
     expect(result.chunks.length).toBe(1);
     expect(result.chunks[0].metadata.type).toBe('full_content');
@@ -191,19 +359,61 @@ var globalVariable int = 42
     const mdFilePath = path.join(testFilesDir, 'example.md');
     const content = fs.readFileSync(mdFilePath, 'utf-8');
 
-    const legacyOptions = {
-      maxChunkSize: 2000,
-      overlapSize: 200,
-      maxLines: 100,
-      optimizationLevel: 'medium' as const,
-      addOverlap: false,
-      maxOverlapRatio: 0.3
+    const options: ChunkingOptions = {
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        maxChunkSize: 2000,
+        minChunkSize: 100,
+        overlapSize: 200,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 100
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableEnhancedBalancing: false,
+        balancedChunkerThreshold: 0.8,
+        enableIntelligentFiltering: false,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        enableSmartRebalancing: false,
+        rebalancingStrategy: 'conservative' as const,
+        enableBoundaryOptimization: false,
+        boundaryOptimizationThreshold: 0.9,
+        enableAdvancedMerging: false,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
-    
+
     const context = {
       filePath: mdFilePath,
       content,
-      options: ChunkingOptionsConverter.fromLegacy(legacyOptions)
+      options
     };
 
     const result = await processingCoordinator.processFile(context);
@@ -211,7 +421,7 @@ var globalVariable int = 42
     // 验证策略选择
     expect(result.processingStrategy).toBe('markdown_specialized');
     expect(result.language).toBe('markdown');
-    
+
     // 验证分段结果
     expect(result.chunks.length).toBeGreaterThanOrEqual(1);
   });

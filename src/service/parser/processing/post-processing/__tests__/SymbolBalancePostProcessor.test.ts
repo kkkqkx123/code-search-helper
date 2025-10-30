@@ -1,6 +1,6 @@
 import { SymbolBalancePostProcessor } from '../SymbolBalancePostProcessor';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, EnhancedChunkingOptions } from '../../types/splitting-types';
+import { CodeChunk, EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../types/splitting-types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 describe('SymbolBalancePostProcessor', () => {
@@ -13,45 +13,54 @@ describe('SymbolBalancePostProcessor', () => {
     processor = new SymbolBalancePostProcessor(logger);
     
     mockOptions = {
-      // 基础选项
-      minChunkSize: 100,
-      maxChunkSize: 1000,
-      overlapSize: 50,
-      preserveFunctionBoundaries: true,
-      preserveClassBoundaries: true,
-      includeComments: false,
-      extractSnippets: true,
-      addOverlap: false,
-      optimizationLevel: 'medium' as const,
-      maxLines: 10000,
-      
-      // EnhancedChunkingOptions 必需属性
-      maxOverlapRatio: 0.3,
-      enableASTBoundaryDetection: false,
-      deduplicationThreshold: 0.8,
-      astNodeTracking: false,
-      chunkMergeStrategy: 'conservative' as const,
-      enableChunkDeduplication: true,
-      maxOverlapLines: 10,
-      minChunkSimilarity: 0.7,
-      enableSmartDeduplication: true,
-      similarityThreshold: 0.8,
-      overlapMergeStrategy: 'conservative' as const,
-      
-      // 新增：增强配置选项
-      enableEnhancedBalancing: true, // 启用增强平衡
-      enableIntelligentFiltering: false,
-      enableSmartRebalancing: false,
-      enableAdvancedMerging: false,
-      enableBoundaryOptimization: false,
-      enableOverlap: false,
-      balancedChunkerThreshold: 0.8,
-      minChunkSizeThreshold: 50,
-      maxChunkSizeThreshold: 1500,
-      rebalancingStrategy: 'conservative' as const,
-      boundaryOptimizationThreshold: 0.9,
-      mergeDecisionThreshold: 0.85,
-      enablePerformanceMonitoring: false
+      preset: ChunkingPreset.BALANCED,
+      basic: {
+        minChunkSize: 100,
+        maxChunkSize: 1000,
+        overlapSize: 50,
+        preserveFunctionBoundaries: true,
+        preserveClassBoundaries: true,
+        includeComments: false,
+        extractSnippets: true,
+        addOverlap: false,
+        optimizationLevel: 'medium' as const,
+        maxLines: 10000
+      },
+      advanced: {
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: false,
+        chunkMergeStrategy: 'conservative' as const,
+        enableChunkDeduplication: true,
+        maxOverlapLines: 10,
+        minChunkSimilarity: 0.7,
+        enableSmartDeduplication: true,
+        similarityThreshold: 0.8,
+        overlapMergeStrategy: 'conservative' as const,
+        enableEnhancedBalancing: true, // 启用增强平衡
+        enableIntelligentFiltering: false,
+        enableSmartRebalancing: false,
+        enableAdvancedMerging: false,
+        enableBoundaryOptimization: false,
+        balancedChunkerThreshold: 0.8,
+        minChunkSizeThreshold: 50,
+        maxChunkSizeThreshold: 1500,
+        rebalancingStrategy: 'conservative' as const,
+        boundaryOptimizationThreshold: 0.9,
+        mergeDecisionThreshold: 0.85,
+        adaptiveBoundaryThreshold: false,
+        contextAwareOverlap: false,
+        semanticWeight: 0.5,
+        syntacticWeight: 0.5
+      },
+      performance: {
+        enablePerformanceOptimization: true,
+        enablePerformanceMonitoring: false,
+        enableChunkingCoordination: true,
+        strategyExecutionOrder: [],
+        enableNodeTracking: false
+      }
     };
   });
 
@@ -84,7 +93,13 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'chunk1',
         language: 'typescript',
         filePath: 'test.ts',
-        options: { ...mockOptions, enableEnhancedBalancing: false }
+        options: {
+          ...mockOptions,
+          advanced: {
+            ...mockOptions.advanced,
+            enableEnhancedBalancing: false
+          }
+        }
       };
 
       expect(processor.shouldApply(chunks, context)).toBe(false);
@@ -149,7 +164,13 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'function test() {\n  return "hello";\n}',
         language: 'typescript',
         filePath: 'test.ts',
-        options: { ...mockOptions, enableEnhancedBalancing: false }
+        options: {
+          ...mockOptions,
+          advanced: {
+            ...mockOptions.advanced,
+            enableEnhancedBalancing: false
+          }
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -467,7 +488,10 @@ describe('SymbolBalancePostProcessor', () => {
         filePath: 'test.ts',
         options: {
           ...mockOptions,
-          balancedChunkerThreshold: 0.95
+          advanced: {
+            ...mockOptions.advanced,
+            balancedChunkerThreshold: 0.95
+          }
         }
       };
 
@@ -497,8 +521,11 @@ describe('SymbolBalancePostProcessor', () => {
         filePath: 'test.ts',
         options: {
           ...mockOptions,
-          minChunkSizeThreshold: 10,
-          maxChunkSizeThreshold: 1000
+          advanced: {
+            ...mockOptions.advanced,
+            minChunkSizeThreshold: 10,
+            maxChunkSizeThreshold: 1000
+          }
         }
       };
 
