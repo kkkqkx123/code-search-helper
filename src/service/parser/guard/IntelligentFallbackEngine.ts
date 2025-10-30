@@ -159,7 +159,7 @@ export class IntelligentFallbackEngine {
       return 'memory_error';
     }
 
-    if (message.includes('parse') || message.includes('syntax') || message.includes('tree-sitter')) {
+    if (message.includes('parse') || message.includes('tree-sitter')) {
       return 'parse_error';
     }
 
