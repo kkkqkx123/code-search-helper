@@ -3,7 +3,7 @@ import { TYPES } from '../../../types';
 import { SqliteDatabaseService } from '../SqliteDatabaseService';
 import { SqliteConnectionManager } from '../SqliteConnectionManager';
 import { SqliteProjectManager } from '../SqliteProjectManager';
-import { SqliteInfrastructure } from '../../../infrastructure/implementations/SqliteInfrastructure';
+import { SqliteInfrastructure } from '../SqliteInfrastructure';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';

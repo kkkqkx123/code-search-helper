@@ -1,22 +1,22 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { DatabaseType } from '../types';
-import { IDatabaseInfrastructure } from '../InfrastructureManager';
-import { ICacheService } from '../caching/types';
-import { IPerformanceMonitor } from '../monitoring/types';
-import { IBatchOptimizer } from '../batching/types';
-import { IHealthChecker } from '../monitoring/types';
-import { DatabaseConnectionPool } from '../connection/DatabaseConnectionPool';
-import { CacheService } from '../caching/CacheService';
-import { PerformanceMonitor } from '../monitoring/PerformanceMonitor';
-import { BatchOptimizer } from '../batching/BatchOptimizer';
-import { DatabaseHealthChecker } from '../monitoring/DatabaseHealthChecker';
+import { DatabaseType } from '../../infrastructure/types';
+import { IDatabaseInfrastructure } from '../../infrastructure/InfrastructureManager';
+import { ICacheService } from '../../infrastructure/caching/types';
+import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
+import { IBatchOptimizer } from '../../infrastructure/batching/types';
+import { IHealthChecker } from '../../infrastructure/monitoring/types';
+import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
+import { CacheService } from '../../infrastructure/caching/CacheService';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
+import { BatchOptimizer } from '../../infrastructure/batching/BatchOptimizer';
+import { DatabaseHealthChecker } from '../../infrastructure/monitoring/DatabaseHealthChecker';
 
 @injectable()
 export class QdrantInfrastructure implements IDatabaseInfrastructure {
   readonly databaseType = DatabaseType.QDRANT;
-  
+
   private logger: LoggerService;
   private cacheService: ICacheService;
   private performanceMonitor: IPerformanceMonitor;
@@ -39,7 +39,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     this.batchOptimizer = batchOptimizer;
     this.healthChecker = healthChecker;
     this.connectionManager = connectionManager;
-    
+
     this.logger.info('Qdrant infrastructure created');
   }
 
@@ -79,14 +79,14 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     try {
       // 启动性能监控
       this.performanceMonitor.startPeriodicMonitoring(30000);
-      
+
       // 验证连接池
       const testConnection = await this.connectionManager.getConnection(this.databaseType);
       await this.connectionManager.releaseConnection(testConnection);
-      
+
       // 执行健康检查
       await this.healthChecker.checkHealth();
-      
+
       this.initialized = true;
       this.logger.info('Qdrant infrastructure initialized successfully');
     } catch (error) {
@@ -108,13 +108,13 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     try {
       // 停止性能监控
       this.performanceMonitor.stopPeriodicMonitoring();
-      
+
       // 清理缓存
       this.cacheService.clearAllCache();
-      
+
       // 重置性能指标
       this.performanceMonitor.resetMetrics();
-      
+
       this.initialized = false;
       this.logger.info('Qdrant infrastructure shutdown completed');
     } catch (error) {

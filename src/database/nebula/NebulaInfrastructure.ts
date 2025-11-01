@@ -1,23 +1,23 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { DatabaseType } from '../types';
-import { IDatabaseInfrastructure } from '../InfrastructureManager';
-import { ICacheService } from '../caching/types';
-import { IPerformanceMonitor } from '../monitoring/types';
-import { IBatchOptimizer } from '../batching/types';
-import { IHealthChecker } from '../monitoring/types';
-import { DatabaseConnectionPool } from '../connection/DatabaseConnectionPool';
-import { CacheService } from '../caching/CacheService';
-import { PerformanceMonitor } from '../monitoring/PerformanceMonitor';
-import { BatchOptimizer } from '../batching/BatchOptimizer';
-import { DatabaseHealthChecker } from '../monitoring/DatabaseHealthChecker';
-import { GraphOperation, BatchResult } from '../batching/types';
+import { DatabaseType } from '../../infrastructure/types';
+import { IDatabaseInfrastructure } from '../../infrastructure/InfrastructureManager';
+import { ICacheService } from '../../infrastructure/caching/types';
+import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
+import { IBatchOptimizer } from '../../infrastructure/batching/types';
+import { IHealthChecker } from '../../infrastructure/monitoring/types';
+import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
+import { CacheService } from '../../infrastructure/caching/CacheService';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
+import { BatchOptimizer } from '../../infrastructure/batching/BatchOptimizer';
+import { DatabaseHealthChecker } from '../../infrastructure/monitoring/DatabaseHealthChecker';
+import { GraphOperation, BatchResult } from '../../infrastructure/batching/types';
 
 @injectable()
 export class NebulaInfrastructure implements IDatabaseInfrastructure {
   readonly databaseType = DatabaseType.NEBULA;
-  
+
   private logger: LoggerService;
   private cacheService: ICacheService;
   private performanceMonitor: IPerformanceMonitor;
@@ -40,7 +40,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     this.batchOptimizer = batchOptimizer;
     this.healthChecker = healthChecker;
     this.connectionManager = connectionManager;
-    
+
     this.logger.info('Nebula infrastructure created');
   }
 
@@ -80,14 +80,14 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     try {
       // 启动性能监控
       this.performanceMonitor.startPeriodicMonitoring(30000);
-      
+
       // 验证连接池
       const testConnection = await this.connectionManager.getConnection(this.databaseType);
       await this.connectionManager.releaseConnection(testConnection);
-      
+
       // 执行健康检查
       await this.healthChecker.checkHealth();
-      
+
       this.initialized = true;
       this.logger.info('Nebula infrastructure initialized successfully');
     } catch (error) {
@@ -109,13 +109,13 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     try {
       // 停止性能监控
       this.performanceMonitor.stopPeriodicMonitoring();
-      
+
       // 清理缓存
       this.cacheService.clearAllCache();
-      
+
       // 重置性能指标
       this.performanceMonitor.resetMetrics();
-      
+
       this.initialized = false;
       this.logger.info('Nebula infrastructure shutdown completed');
     } catch (error) {
@@ -195,7 +195,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     spaceName?: string
   ): Promise<any> {
     this.ensureInitialized();
-    
+
     const startTime = Date.now();
     let success = false;
     let result: any = null;
@@ -203,19 +203,19 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     try {
       // 获取连接
       const connection = await this.connectionManager.getConnection(this.databaseType);
-      
+
       try {
         // 在实际实现中，这里会执行真正的图查询
         // 目前为模拟实现
         this.logger.debug('Executing graph query', { query, parameters, spaceName });
-        
+
         // 模拟查询执行
         result = {
           success: true,
           data: [], // 实际查询结果
           executionTime: Date.now() - startTime
         };
-        
+
         success = true;
       } finally {
         // 释放连接
@@ -250,21 +250,21 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     }
   ): Promise<void> {
     this.ensureInitialized();
-    
+
     this.logger.info('Creating Nebula space', { spaceName, options });
-    
+
     const startTime = Date.now();
     let success = false;
 
     try {
       // 获取连接
       const connection = await this.connectionManager.getConnection(this.databaseType);
-      
+
       try {
         // 在实际实现中，这里会执行真正的创建空间操作
         // 目前为模拟实现
         this.logger.debug('Creating space with connection', { spaceName });
-        
+
         // 模拟创建空间
         success = true;
       } finally {

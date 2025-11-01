@@ -8,9 +8,9 @@ import { IBatchOptimizer } from './batching/types';
 import { IHealthChecker } from './monitoring/types';
 import { TransactionCoordinator } from './transaction/TransactionCoordinator';
 import { DatabaseConnectionPool } from './connection/DatabaseConnectionPool';
-import { QdrantInfrastructure } from './implementations/QdrantInfrastructure';
-import { NebulaInfrastructure } from './implementations/NebulaInfrastructure';
-import { SqliteInfrastructure } from './implementations/SqliteInfrastructure';
+import { QdrantInfrastructure } from '../database/qdrant/QdrantInfrastructure';
+import { NebulaInfrastructure } from '../database/nebula/NebulaInfrastructure';
+import { SqliteInfrastructure } from '../database/splite/SqliteInfrastructure';
 import { InfrastructureConfig as TypedInfrastructureConfig } from './config/types';
 import { ConfigValidator } from './config/ConfigValidator';
 import { InfrastructureConfigService } from './config/InfrastructureConfigService';
@@ -624,7 +624,7 @@ export class InfrastructureManager {
    */
   registerHealthCheckers(healthCheckerRegistry: IHealthCheckerRegistry): void {
     this.logger.info('Registering health checkers to registry');
-    
+
     for (const [databaseType, infrastructure] of this.databaseInfrastructures) {
       try {
         const healthChecker = infrastructure.getHealthChecker();
@@ -857,7 +857,7 @@ export class InfrastructureManager {
     return { ...this.config };
   }
 
-  
+
   private validateConfiguration(config: InfrastructureConfig, context: string): void {
     this.logger.debug(`Validating configuration: ${context}`);
 
@@ -913,7 +913,7 @@ export class InfrastructureManager {
   } {
     // 创建一个完整的配置对象用于验证，只更新特定数据库的配置
     const configToValidate: InfrastructureConfig = { ...this.config };
-    
+
     switch (databaseType) {
       case DatabaseType.QDRANT:
         if (!this.config.qdrant) {

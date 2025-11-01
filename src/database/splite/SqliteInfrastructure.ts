@@ -1,20 +1,20 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { DatabaseType } from '../types';
-import { IDatabaseInfrastructure } from '../InfrastructureManager';
-import { ICacheService } from '../caching/types';
-import { IPerformanceMonitor } from '../monitoring/types';
-import { IBatchOptimizer } from '../batching/types';
-import { IHealthChecker } from '../monitoring/types';
-import { DatabaseConnectionPool } from '../connection/DatabaseConnectionPool';
-import { SqliteDatabaseService } from '../../database/splite/SqliteDatabaseService';
-import { SqliteConnectionManager } from '../../database/splite/SqliteConnectionManager';
+import { DatabaseType } from '../../infrastructure/types';
+import { IDatabaseInfrastructure } from '../../infrastructure/InfrastructureManager';
+import { ICacheService } from '../../infrastructure/caching/types';
+import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
+import { IBatchOptimizer } from '../../infrastructure/batching/types';
+import { IHealthChecker } from '../../infrastructure/monitoring/types';
+import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
+import { SqliteDatabaseService } from './SqliteDatabaseService';
+import { SqliteConnectionManager } from './SqliteConnectionManager';
 
 @injectable()
 export class SqliteInfrastructure implements IDatabaseInfrastructure {
   readonly databaseType = DatabaseType.SQLITE;
-  
+
   private logger: LoggerService;
   private cacheService: ICacheService;
   private performanceMonitor: IPerformanceMonitor;
@@ -43,7 +43,7 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     this.connectionManager = connectionManager;
     this.sqliteService = sqliteService;
     this.sqliteConnectionManager = sqliteConnectionManager;
-    
+
     this.logger.info('Sqlite infrastructure created');
   }
 
@@ -83,20 +83,20 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     try {
       // 初始化SQLite数据库服务
       await this.sqliteService.initialize();
-      
+
       // 初始化SQLite连接管理器
       await this.sqliteConnectionManager.initialize();
-      
+
       // 启动性能监控
       this.performanceMonitor.startPeriodicMonitoring(30000);
-      
+
       // 验证连接池
       const testConnection = await this.connectionManager.getConnection(this.databaseType);
       await this.connectionManager.releaseConnection(testConnection);
-      
+
       // 执行健康检查
       await this.healthChecker.checkHealth();
-      
+
       this.initialized = true;
       this.logger.info('Sqlite infrastructure initialized successfully');
     } catch (error) {
@@ -118,16 +118,16 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     try {
       // 停止性能监控
       this.performanceMonitor.stopPeriodicMonitoring();
-      
+
       // 清理缓存
       this.cacheService.clearAllCache();
-      
+
       // 重置性能指标
       this.performanceMonitor.resetMetrics();
-      
+
       // 关闭SQLite数据库连接
       await this.sqliteService.close();
-      
+
       this.initialized = false;
       this.logger.info('Sqlite infrastructure shutdown completed');
     } catch (error) {
@@ -147,10 +147,10 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
   // SQLite特定的辅助方法
   async executeSqlQuery(query: string, params?: any[]): Promise<any> {
     this.ensureInitialized();
-    
+
     const startTime = Date.now();
     let success = false;
-    
+
     try {
       const result = await this.sqliteService.executeQuery(query, params);
       success = true;
@@ -191,7 +191,7 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
       duration,
       success
     );
-    
+
     this.logger.debug('Recorded SQL operation', {
       operation,
       query: query.substring(0, 100), // 只记录前100个字符

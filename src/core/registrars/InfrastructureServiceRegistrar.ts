@@ -34,7 +34,7 @@ import { AsyncTaskQueue } from '../../infrastructure/batching/AsyncTaskQueue';
 import { ConflictResolver } from '../../infrastructure/transaction/ConflictResolver';
 
 // SQLite基础设施
-import { SqliteInfrastructure } from '../../infrastructure/implementations/SqliteInfrastructure';
+import { SqliteInfrastructure } from '../../database/splite/SqliteInfrastructure';
 import { SqliteStateManager } from '../../database/splite/SqliteStateManager';
 
 // 数据库迁移管理
@@ -86,12 +86,12 @@ export class InfrastructureServiceRegistrar {
       container.bind<InfrastructureErrorHandler>(TYPES.InfrastructureErrorHandler).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const performanceMonitor = context.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
-        
+
         // 创建一个简单的警报管理器实现
         const alertManager = {
           sendAlert: jest.fn() // 在实际环境中应该实现真实的警报管理器
         };
-        
+
         return new InfrastructureErrorHandler(
           logger,
           alertManager as any,
