@@ -302,6 +302,9 @@ describe('HotReloadErrorPersistenceService', () => {
 
   describe('rotateLogFileIfNeeded', () => {
     it('should rotate log file when it exceeds max size', async () => {
+      // Update config to set maxFileSize to 10MB for this test
+      await errorPersistenceService.updateConfig({ maxFileSize: 10 * 1024 * 1024 });
+
       const logFilePath = './logs/hotreload-errors.jsonl';
 
       (fs.stat as jest.Mock).mockResolvedValue({
@@ -319,6 +322,9 @@ describe('HotReloadErrorPersistenceService', () => {
     });
 
     it('should not rotate log file when it is within size limit', async () => {
+      // Update config to set maxFileSize to 10MB for this test
+      await errorPersistenceService.updateConfig({ maxFileSize: 10 * 1024 * 1024 });
+
       const logFilePath = './logs/hotreload-errors.jsonl';
 
       (fs.stat as jest.Mock).mockResolvedValue({
@@ -350,6 +356,9 @@ describe('HotReloadErrorPersistenceService', () => {
 
   describe('cleanupOldArchives', () => {
     it('should clean up old archive files', async () => {
+      // Update config to set maxFiles to 2 for this test to ensure 1 file gets deleted
+      await errorPersistenceService.updateConfig({ maxFiles: 2 });
+
       (fs.readdir as jest.Mock).mockResolvedValue([
         'hotreload-errors-2023-01-01_10-00-00-000.jsonl',
         'hotreload-errors-2023-01-02_10-00-00-000.jsonl',
@@ -361,7 +370,7 @@ describe('HotReloadErrorPersistenceService', () => {
       await (errorPersistenceService as any).cleanupOldArchives();
 
       expect(fs.readdir).toHaveBeenCalledWith('./logs');
-      expect(fs.unlink).toHaveBeenCalledTimes(1); // Only 1 file should be deleted if maxFiles is 10 and we have 3
+      expect(fs.unlink).toHaveBeenCalledTimes(1); // Only 1 file should be deleted if maxFiles is 2 and we have 3
     });
 
     it('should handle errors during cleanup', async () => {
@@ -471,27 +480,28 @@ describe('HotReloadErrorPersistenceService', () => {
   });
 
  describe('getErrorStats', () => {
-    it('should return error statistics', async () => {
-      const logContent = JSON.stringify({
-        id: 'error-1',
-        timestamp: new Date().toISOString(),
-        projectId: 'test-project',
-        errorCode: 'TEST_ERROR',
-        message: 'Test error message',
-        stack: 'Error stack',
-        context: {},
-        resolved: false
-      }) + '\n';
+   it('should return error statistics', async () => {
+     const logContent = JSON.stringify({
+       id: 'error-1',
+       timestamp: new Date().toISOString(),
+       projectId: 'test-project',
+       errorCode: 'TEST_ERROR',
+       message: 'Test error message',
+       stack: 'Error stack',
+       context: {},
+       resolved: false
+     }) + '\n';
 
-      (fs.stat as jest.Mock).mockResolvedValue({ size: 100 });
-      (fs.readFile as jest.Mock).mockResolvedValue(logContent);
+     (fs.stat as jest.Mock).mockResolvedValue({ size: 100 });
+     (fs.readFile as jest.Mock).mockResolvedValue(logContent);
+     (fs.readdir as jest.Mock).mockResolvedValue([]); // No archive files
 
-      const stats = await errorPersistenceService.getErrorStats();
+     const stats = await errorPersistenceService.getErrorStats();
 
-      expect(stats.totalErrors).toBe(1);
-      expect(stats.errorTypes['TEST_ERROR']).toBe(1);
-      expect(stats.storageSize).toBe(100);
-    });
+     expect(stats.totalErrors).toBe(1);
+     expect(stats.errorTypes['TEST_ERROR']).toBe(1);
+     expect(stats.storageSize).toBe(100);
+   });
 
     it('should handle errors when getting stats', async () => {
       (fs.stat as jest.Mock).mockRejectedValue(new Error('Stat failed'));

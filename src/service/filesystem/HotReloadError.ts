@@ -20,6 +20,16 @@ export class HotReloadError extends Error {
     super(message);
     this.name = 'HotReloadError';
   }
+
+  toJSON() {
+    return {
+      code: this.code,
+      message: this.message,
+      name: this.name,
+      context: this.context,
+      stack: this.stack
+    };
+  }
 }
 
 // 扩展ErrorReport接口以包含热更新特定字段

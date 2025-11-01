@@ -113,6 +113,10 @@ export class HotReloadErrorPersistenceService {
    */
   async persistError(errorReport: HotReloadErrorReport): Promise<void> {
     if (!this.config.enabled) {
+      this.errorHandler.handleError(
+        new Error('Cannot persist error: persistence is disabled'),
+        { component: 'HotReloadErrorPersistenceService', operation: 'persistError', errorId: errorReport.id }
+      );
       return;
     }
 
@@ -211,7 +215,9 @@ export class HotReloadErrorPersistenceService {
         .sort(); // 按名称排序（时间戳格式确保按时间顺序）
 
       // 删除超出maxFiles限制的最旧文件
-      const filesToDelete = archiveFiles.slice(0, Math.max(0, archiveFiles.length - this.config.maxFiles + 1));
+      const filesToDelete = archiveFiles.length > this.config.maxFiles
+        ? archiveFiles.slice(0, archiveFiles.length - this.config.maxFiles)
+        : [];
       
       for (const fileToDelete of filesToDelete) {
         const filePath = path.join(this.config.storagePath, fileToDelete);

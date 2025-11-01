@@ -64,7 +64,7 @@ export class HotReloadMonitoringService {
 
     this.config = {
       enableMetricsCollection: true,
-      metricsCollectionInterval: 30000, // 30 seconds
+      metricsCollectionInterval: 10000, // 10 seconds
       enableDetailedLogging: false,
       maxMetricsHistory: 100, // Keep last 100 metrics points
       alertThresholds: {
@@ -88,10 +88,10 @@ export class HotReloadMonitoringService {
     }, 5000); // 每5秒更新一次系统指标
   }
 
- /**
-   * 更新配置
-   */
- updateConfig(config: Partial<HotReloadMonitoringConfig>): void {
+  /**
+    * 更新配置
+    */
+  updateConfig(config: Partial<HotReloadMonitoringConfig>): void {
     this.config = {
       ...this.config,
       ...config,
@@ -111,9 +111,9 @@ export class HotReloadMonitoringService {
     this.logger.info('Hot reload monitoring configuration updated', { config: this.config });
   }
 
- /**
-   * 启动指标收集
-   */
+  /**
+    * 启动指标收集
+    */
   private startMetricsCollection(): void {
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
@@ -178,9 +178,9 @@ export class HotReloadMonitoringService {
     }
   }
 
- /**
-   * 更新项目指标
-   */
+  /**
+    * 更新项目指标
+    */
   updateProjectMetrics(projectPath: string, metricsUpdate: Partial<HotReloadMetrics>): void {
     const currentMetrics = this.getProjectMetrics(projectPath);
     const updatedMetrics: HotReloadMetrics = {
@@ -227,9 +227,9 @@ export class HotReloadMonitoringService {
     return { ...this.defaultMetrics };
   }
 
- /**
-   * 获取所有项目指标
-   */
+  /**
+    * 获取所有项目指标
+    */
   getAllProjectMetrics(): Map<string, HotReloadMetrics> {
     const result = new Map<string, HotReloadMetrics>();
     for (const [projectPath, metrics] of this.projectMetrics.entries()) {
@@ -258,8 +258,13 @@ export class HotReloadMonitoringService {
    */
   private checkAlerts(projectPath: string, metrics: HotReloadMetrics): void {
     // 检查错误率（基于每分钟的错误数）
-    const timeSinceLastUpdate = (Date.now() - metrics.lastUpdated.getTime()) / 1000 / 60; // 转换为分钟
-    const errorRate = timeSinceLastUpdate > 0 ? metrics.errorCount / timeSinceLastUpdate : 0;
+    // 这里我们检查自上次指标更新以来的错误率
+    const now = Date.now();
+    const timeSinceLastUpdate = (now - metrics.lastUpdated.getTime()) / 1000 / 60; // 转换为分钟
+
+    // 计算错误率：每分钟的错误数
+    // 如果时间差为0（或接近0），则使用当前错误总数作为错误率
+    const errorRate = timeSinceLastUpdate > 0 ? metrics.errorCount / Math.max(timeSinceLastUpdate, 1) : metrics.errorCount;
 
     if (errorRate > this.config.alertThresholds.errorRate) {
       this.logger.warn(`High error rate detected for project ${projectPath}`, {

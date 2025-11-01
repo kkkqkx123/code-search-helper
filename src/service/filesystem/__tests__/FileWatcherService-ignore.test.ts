@@ -111,7 +111,7 @@ describe('FileWatcherService Ignore Rules', () => {
     // Create a .gitignore file in the watched directory
     const gitignorePath = path.join(watchDir, '.gitignore');
     await fs.writeFile(gitignorePath, 'test-file.txt\n*.log\nnode_modules/');
-
+    
     // Refresh ignore rules for this path
     await fileWatcherService['refreshIgnoreRules'](watchDir);
 
@@ -126,5 +126,33 @@ describe('FileWatcherService Ignore Rules', () => {
 
     const shouldIgnoreLogFile = fileWatcherService['shouldIgnoreFile']('app.log');
     expect(shouldIgnoreLogFile).toBe(true);
+  });
+
+  test('should not duplicate ignore patterns when refreshing multiple times', async () => {
+    // Create a temporary directory to watch
+    const watchDir = path.join(testDir, 'watch-test-duplicate');
+    await fs.mkdir(watchDir, { recursive: true });
+
+    // Create a .gitignore file in the watched directory
+    const gitignorePath = path.join(watchDir, '.gitignore');
+    await fs.writeFile(gitignorePath, 'test-file.txt\n*.log');
+
+    // Get initial count of patterns
+    const initialPatternCount = fileWatcherService['allIgnorePatterns'].length;
+
+    // Refresh ignore rules multiple times
+    await fileWatcherService['refreshIgnoreRules'](watchDir);
+    await fileWatcherService['refreshIgnoreRules'](watchDir);
+    await fileWatcherService['refreshIgnoreRules'](watchDir);
+
+    // Check that the pattern count hasn't grown excessively
+    const finalPatternCount = fileWatcherService['allIgnorePatterns'].length;
+    
+    // Should not have tripled the patterns
+    expect(finalPatternCount).toBeLessThan(initialPatternCount * 2);
+    
+    // Should still contain the expected patterns
+    expect(fileWatcherService['allIgnorePatterns']).toContain('**/node_modules/**');
+    expect(fileWatcherService['allIgnorePatterns']).toContain('**/test-file.txt');
   });
 });

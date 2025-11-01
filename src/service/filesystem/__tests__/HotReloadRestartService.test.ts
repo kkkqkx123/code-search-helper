@@ -35,13 +35,127 @@ describe('HotReloadRestartService', () => {
     let mockErrorHandler: jest.Mocked<ErrorHandlerService>;
 
     beforeEach(() => {
-        // Create mock services
-        mockProjectHotReloadService = {} as jest.Mocked<ProjectHotReloadService>;
-        mockChangeDetectionService = {} as jest.Mocked<ChangeDetectionService>;
-        mockIndexService = {} as jest.Mocked<IndexService>;
-        mockConfigService = {} as jest.Mocked<HotReloadConfigService>;
-        mockRecoveryService = {} as jest.Mocked<HotReloadRecoveryService>;
-        mockProjectStateManager = {} as jest.Mocked<ProjectStateManager>;
+        // Create mock services with proper method implementations
+        mockProjectHotReloadService = {
+            getAllProjectStatuses: jest.fn(),
+            getProjectConfig: jest.fn(),
+            getProjectMetrics: jest.fn(),
+            enableForProject: jest.fn(),
+            disableForProject: jest.fn(),
+            getProjectStatus: jest.fn(),
+            updateConfig: jest.fn(),
+            isProjectHotReloadEnabled: jest.fn()
+        } as unknown as jest.Mocked<ProjectHotReloadService>;
+
+        mockChangeDetectionService = {
+            isServiceRunning: jest.fn(),
+            initialize: jest.fn(),
+            stop: jest.fn(),
+            setCallbacks: jest.fn(),
+            getFileHash: jest.fn(),
+            getFileHistory: jest.fn(),
+            getAllFileHashes: jest.fn(),
+            isFileTracked: jest.fn(),
+            getTrackedFilesCount: jest.fn(),
+            getStats: jest.fn(),
+            resetStats: jest.fn(),
+            isTestMode: jest.fn(),
+            waitForFileProcessing: jest.fn(),
+            waitForAllProcessing: jest.fn(),
+            flushPendingChanges: jest.fn(),
+            getProjectIdForPath: jest.fn(),
+            detectChangesForUpdate: jest.fn(),
+            on: jest.fn(),
+            once: jest.fn(),
+            removeListener: jest.fn(),
+            eventNames: jest.fn(),
+            listenerCount: jest.fn(),
+            addListener: jest.fn(),
+            off: jest.fn(),
+            removeAllListeners: jest.fn(),
+            setMaxListeners: jest.fn(),
+            getMaxListeners: jest.fn(),
+            listeners: jest.fn()
+        } as unknown as jest.Mocked<ChangeDetectionService>;
+
+        mockIndexService = {
+            restoreProjectWatchingAfterRestart: jest.fn(),
+            getAllIndexedProjectPaths: jest.fn(),
+            on: jest.fn(),
+            startIndexing: jest.fn(),
+            getIndexStatus: jest.fn(),
+            getAllIndexStatuses: jest.fn(),
+            stopIndexing: jest.fn(),
+            reindexProject: jest.fn(),
+            startProjectWatching: jest.fn(),
+            destroy: jest.fn(),
+            isProjectIndexed: jest.fn(),
+            updateIndex: jest.fn(),
+            getUpdateProgress: jest.fn(),
+            cancelUpdate: jest.fn(),
+            checkProjectExists: jest.fn()
+        } as unknown as jest.Mocked<IndexService>;
+
+        mockConfigService = {
+            getProjectConfig: jest.fn(),
+            getGlobalConfig: jest.fn(),
+            updateGlobalConfig: jest.fn(),
+            getProjectConfigFromState: jest.fn(),
+            updateProjectStateConfig: jest.fn(),
+            setProjectConfig: jest.fn(),
+            removeProjectConfig: jest.fn(),
+            getAllProjectConfigs: jest.fn(),
+            isGloballyEnabled: jest.fn(),
+            isProjectEnabled: jest.fn(),
+            validateConfig: jest.fn(),
+            validateProjectStateConfig: jest.fn(),
+            getProjectHotReloadStatus: jest.fn(),
+            resetProjectStats: jest.fn(),
+            resetToDefaults: jest.fn(),
+            loadFromFile: jest.fn(),
+            saveToFile: jest.fn()
+        } as unknown as jest.Mocked<HotReloadConfigService>;
+
+        mockRecoveryService = {
+            handleError: jest.fn(),
+            getRecoveryStrategy: jest.fn()
+        } as unknown as jest.Mocked<HotReloadRecoveryService>;
+
+        mockProjectStateManager = {
+            getProjectStateByPath: jest.fn(),
+            getProjectId: jest.fn(),
+            getAllProjects: jest.fn(),
+            refreshAllProjectStates: jest.fn(),
+            initialize: jest.fn(),
+            createOrUpdateProjectState: jest.fn(),
+            getProjectState: jest.fn(),
+            getAllProjectStates: jest.fn(),
+            updateProjectStatus: jest.fn(),
+            updateProjectIndexingProgress: jest.fn(),
+            updateProjectLastIndexed: jest.fn(),
+            updateProjectMetadata: jest.fn(),
+            deleteProjectState: jest.fn(),
+            getProjectStats: jest.fn(),
+            activateProject: jest.fn(),
+            deactivateProject: jest.fn(),
+            refreshProjectState: jest.fn(),
+            cleanupInvalidStates: jest.fn(),
+            updateVectorStatus: jest.fn(),
+            updateGraphStatus: jest.fn(),
+            getVectorStatus: jest.fn(),
+            getGraphStatus: jest.fn(),
+            resetVectorStatus: jest.fn(),
+            resetGraphStatus: jest.fn(),
+            startVectorIndexing: jest.fn(),
+            startGraphIndexing: jest.fn(),
+            updateVectorIndexingProgress: jest.fn(),
+            updateGraphIndexingProgress: jest.fn(),
+            completeVectorIndexing: jest.fn(),
+            completeGraphIndexing: jest.fn(),
+            failVectorIndexing: jest.fn(),
+            failGraphIndexing: jest.fn(),
+            disableGraphIndexing: jest.fn()
+        } as unknown as jest.Mocked<ProjectStateManager>;
 
         mockLogger = new LoggerService() as jest.Mocked<LoggerService>;
         mockLogger.info = jest.fn();
@@ -101,14 +215,14 @@ describe('HotReloadRestartService', () => {
             // Mock failure in one of the restart steps
             const restoreStateSpy = jest.spyOn(restartService as any, 'restoreStateAfterRestart')
                 .mockRejectedValue(new Error('Test error'));
-            const basicRecoverySpy = jest.spyOn(restartService as any, 'performBasicRecovery')
-                .mockRejectedValue(new Error('Basic recovery failed'));
+            // 通过模拟 indexService.restoreProjectWatchingAfterRestart 失败来让 basic recovery 失败
+            mockIndexService.restoreProjectWatchingAfterRestart.mockRejectedValue(new Error('Basic recovery failed'));
             const advancedRecoverySpy = jest.spyOn(restartService as any, 'performAdvancedRecovery').mockResolvedValue(undefined);
 
             await restartService.handleApplicationRestart();
 
             expect(restoreStateSpy).toHaveBeenCalled();
-            expect(basicRecoverySpy).toHaveBeenCalled();
+            expect(mockIndexService.restoreProjectWatchingAfterRestart).toHaveBeenCalled(); // basic recovery内部会调用这个
             expect(advancedRecoverySpy).toHaveBeenCalled();
             expect(mockErrorHandler.handleError).toHaveBeenCalled();
         });
@@ -136,12 +250,15 @@ describe('HotReloadRestartService', () => {
                 expect.any(String)
             );
             expect(mockLogger.info).toHaveBeenCalledWith(
-                expect.stringContaining('Hot reload state saved for'),
-                expect.any(Object)
+                expect.stringContaining('Hot reload state saved for')
             );
         });
 
         it('should handle errors during state saving', async () => {
+            const mockStatuses = new Map([
+                ['project1', { enabled: true, isWatching: true, watchedPaths: ['/path1'], lastChange: null, changesCount: 0, errorsCount: 0, lastError: null }]
+            ]);
+            mockProjectHotReloadService.getAllProjectStatuses.mockReturnValue(mockStatuses);
             (fs.writeFile as jest.Mock).mockRejectedValue(new Error('Write error'));
 
             await expect(restartService.saveCurrentState()).rejects.toThrow('Write error');
@@ -170,8 +287,7 @@ describe('HotReloadRestartService', () => {
             const result = await (restartService as any).loadRestartState();
             expect(result).toBeNull();
             expect(mockLogger.warn).toHaveBeenCalledWith(
-                'Invalid JSON in restart state file, starting fresh',
-                expect.any(Object)
+                'Invalid JSON in restart state file, starting fresh'
             );
         });
     });
@@ -191,7 +307,9 @@ describe('HotReloadRestartService', () => {
             };
 
             const loadRestartStateSpy = jest.spyOn(restartService as any, 'loadRestartState').mockResolvedValue(mockStateData);
-            (fs.access as jest.Mock).mockResolvedValue(undefined);
+            (fs.access as jest.Mock).mockResolvedValue(undefined); // 模拟项目路径存在
+            (restartService as any).checkProjectExists = jest.fn().mockResolvedValue(true); // 模拟项目存在
+            (restartService as any).isProjectIndexed = jest.fn().mockResolvedValue(true); // 模拟项目已索引
             mockProjectHotReloadService.enableForProject.mockResolvedValue(undefined);
 
             await (restartService as any).restoreStateAfterRestart();

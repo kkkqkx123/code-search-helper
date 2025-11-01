@@ -124,31 +124,25 @@ export class FileWatcherService {
       // Load .gitignore patterns if enabled
       if (this.traversalOptions.respectGitignore !== false) {
         this.gitignorePatterns = await GitignoreParser.getAllGitignorePatterns(watchPath);
-        this.allIgnorePatterns.push(...this.gitignorePatterns);
       }
 
       // Load .indexignore patterns
       this.indexignorePatterns = await GitignoreParser.parseIndexignore(watchPath);
-      this.allIgnorePatterns.push(...this.indexignorePatterns);
+
+      // Build all ignore patterns
+      const allPatterns = [
+        ...DEFAULT_IGNORE_PATTERNS,
+        ...this.gitignorePatterns,
+        ...this.indexignorePatterns
+      ];
 
       // Add custom exclude patterns
       if (this.traversalOptions.excludePatterns) {
-        this.allIgnorePatterns = [
-          ...DEFAULT_IGNORE_PATTERNS,
-          ...this.gitignorePatterns,
-          ...this.indexignorePatterns,
-          ...this.traversalOptions.excludePatterns
-        ];
-      } else {
-        this.allIgnorePatterns = [
-          ...DEFAULT_IGNORE_PATTERNS,
-          ...this.gitignorePatterns,
-          ...this.indexignorePatterns
-        ];
+        allPatterns.push(...this.traversalOptions.excludePatterns);
       }
 
-      // Remove duplicates
-      this.allIgnorePatterns = [...new Set(this.allIgnorePatterns)];
+      // Remove duplicates and assign to instance variable
+      this.allIgnorePatterns = [...new Set(allPatterns)];
 
       this.logger.debug(`Refreshed ignore rules for ${watchPath}`, {
         defaultPatterns: DEFAULT_IGNORE_PATTERNS.length,
