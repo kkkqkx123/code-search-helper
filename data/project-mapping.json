@@ -1,19 +1,19 @@
 [
   {
     "projectIdMap": {
-      "/path/to/transaction/test": "015e37e4ad53153f"
+      "D:/ide/tool/code-search-helper/test-files": "25c8ec09854263fc"
     },
     "collectionMap": {
-      "015e37e4ad53153f": "project-015e37e4ad53153f"
+      "25c8ec09854263fc": "project-25c8ec09854263fc"
     },
     "spaceMap": {
-      "015e37e4ad53153f": "project-015e37e4ad53153f"
+      "25c8ec09854263fc": "project-25c8ec09854263fc"
     },
     "pathToProjectMap": {
-      "015e37e4ad53153f": "/path/to/transaction/test"
+      "25c8ec09854263fc": "D:/ide/tool/code-search-helper/test-files"
     },
     "projectUpdateTimes": {
-      "015e37e4ad53153f": null
+      "25c8ec09854263fc": null
     }
   },
   {
@@ -31,6 +31,23 @@
     },
     "projectUpdateTimes": {
       "7309b226edd38773": null
+    }
+  },
+  {
+    "projectIdMap": {
+      "D:\\ide\\tool\\code-search-helper\\test-files": "ada029ec0e391066"
+    },
+    "collectionMap": {
+      "ada029ec0e391066": "project-ada029ec0e391066"
+    },
+    "spaceMap": {
+      "ada029ec0e391066": "project-ada029ec0e391066"
+    },
+    "pathToProjectMap": {
+      "ada029ec0e391066": "D:\\ide\\tool\\code-search-helper\\test-files"
+    },
+    "projectUpdateTimes": {
+      "ada029ec0e391066": "2025-11-01T11:14:31.328Z"
     }
   }
 ]

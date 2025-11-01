@@ -29,11 +29,13 @@ export interface UniversalProcessingConfig {
   };
 
   // 分段参数配置
-  chunking: {
-    maxChunkSize: number;
-    chunkOverlap: number;
-    maxLinesPerChunk: number;
-  };
+chunking: {
+   minChunkSize: number;
+   maxChunkSize: number;
+   chunkOverlap: number;
+   minLinesPerChunk: number;
+   maxLinesPerChunk: number;
+ };
 
   // 备份文件处理配置
   backup: {
@@ -56,8 +58,10 @@ export class UnifiedConfigManager {
       memoryCheckInterval: 5000
     },
     chunking: {
+      minChunkSize: 50,
       maxChunkSize: 2000,
       chunkOverlap: 200,
+      minLinesPerChunk: 1,
       maxLinesPerChunk: 50
     },
     backup: {
@@ -324,8 +328,16 @@ export class UnifiedConfigManager {
       throw new Error('memoryCheckInterval must be greater than 0');
     }
 
+    if (this.config.universal.chunking.minChunkSize <= 0) {
+      throw new Error('minChunkSize must be greater than 0');
+    }
+
     if (this.config.universal.chunking.maxChunkSize <= 0) {
       throw new Error('maxChunkSize must be greater than 0');
+    }
+
+    if (this.config.universal.chunking.minChunkSize > this.config.universal.chunking.maxChunkSize) {
+      throw new Error('minChunkSize must be less than or equal to maxChunkSize');
     }
 
     if (this.config.universal.chunking.chunkOverlap < 0) {
@@ -336,8 +348,16 @@ export class UnifiedConfigManager {
       throw new Error('chunkOverlap must be less than maxChunkSize');
     }
 
+    if (this.config.universal.chunking.minLinesPerChunk <= 0) {
+      throw new Error('minLinesPerChunk must be greater than 0');
+    }
+
     if (this.config.universal.chunking.maxLinesPerChunk <= 0) {
       throw new Error('maxLinesPerChunk must be greater than 0');
+    }
+
+    if (this.config.universal.chunking.minLinesPerChunk > this.config.universal.chunking.maxLinesPerChunk) {
+      throw new Error('minLinesPerChunk must be less than or equal to maxLinesPerChunk');
     }
 
     return true;

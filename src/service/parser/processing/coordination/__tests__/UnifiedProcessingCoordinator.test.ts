@@ -129,7 +129,7 @@ describe('UnifiedProcessingCoordinator', () => {
 mockConfigManager.getUniversalConfig = jest.fn().mockReturnValue({
   memory: { memoryLimitMB: 512, memoryCheckInterval: 5000 },
   error: { maxErrors: 5, errorResetInterval: 6000 },
-  chunking: { maxChunkSize: 2000, chunkOverlap: 200, maxLinesPerChunk: 50 },
+  chunking: { minChunkSize: 50, maxChunkSize: 2000, chunkOverlap: 200, minLinesPerChunk: 1, maxLinesPerChunk: 50 },
   backup: { backupFilePatterns: ['.bak'], backupFileConfidenceThreshold: 0.7 }
 });
 
@@ -380,7 +380,7 @@ mockConfigManager.getUniversalConfig = jest.fn().mockReturnValue({
       mockConfigManager.getUniversalConfig.mockReturnValue({
         memory: { memoryLimitMB: 500, memoryCheckInterval: 5000 },
         error: { maxErrors: 5, errorResetInterval: 600 },
-        chunking: { maxChunkSize: 2000, chunkOverlap: 200, maxLinesPerChunk: 50 },
+        chunking: { minChunkSize: 50, maxChunkSize: 2000, chunkOverlap: 200, minLinesPerChunk: 1, maxLinesPerChunk: 50 },
         backup: { backupFilePatterns: ['.bak'], backupFileConfidenceThreshold: 0.7 }
       });
 
@@ -400,9 +400,9 @@ mockConfigManager.getUniversalConfig = jest.fn().mockReturnValue({
 
     it('should process multiple files in parallel when enabled', async () => {
       mockConfigManager.getUniversalConfig.mockReturnValue({
-        memory: { memoryLimitMB: 2000, memoryCheckInterval: 5000 },
+        memory: { memoryLimitMB: 2000, memoryCheckInterval: 500 },
         error: { maxErrors: 5, errorResetInterval: 6000 },
-        chunking: { maxChunkSize: 2000, chunkOverlap: 200, maxLinesPerChunk: 50 },
+        chunking: { minChunkSize: 50, maxChunkSize: 2000, chunkOverlap: 200, minLinesPerChunk: 1, maxLinesPerChunk: 50 },
         backup: { backupFilePatterns: ['.bak'], backupFileConfidenceThreshold: 0.7 }
       });
 

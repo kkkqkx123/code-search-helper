@@ -210,7 +210,11 @@ export class IndexingRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to create index:', { error, projectPath: req.body.projectPath });
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        message: 'Failed to create index'
+      });
     }
   }
 
@@ -259,7 +263,11 @@ export class IndexingRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to index project:', { error, projectId: req.params.projectId });
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        message: 'Failed to index project'
+      });
     }
   }
 
@@ -291,7 +299,11 @@ export class IndexingRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to get index status:', { error, projectId: req.params.projectId });
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        message: 'Failed to get index status'
+      });
     }
   }
 
@@ -328,7 +340,11 @@ export class IndexingRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to list projects:', { error });
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        message: 'Failed to list projects'
+      });
     }
   }
 
@@ -391,7 +407,11 @@ export class IndexingRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to remove index:', { error, projectId: req.params.projectId });
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        message: 'Failed to remove index'
+      });
     }
   }
 
@@ -433,7 +453,11 @@ export class IndexingRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to search:', { error, query: req.body.query });
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        message: 'Failed to search'
+      });
     }
   }
 
@@ -640,7 +664,11 @@ export class IndexingRoutes {
         });
       } else {
         this.logger.error('Failed to update index:', { error, projectId: req.params.projectId });
-        next(error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'An unknown error occurred',
+          message: 'Failed to update index'
+        });
       }
     }
   }
@@ -675,7 +703,11 @@ export class IndexingRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to get update progress:', { error, projectId: req.params.projectId });
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        message: 'Failed to get update progress'
+      });
     }
   }
 
@@ -712,7 +744,11 @@ export class IndexingRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to cancel update:', { error, projectId: req.params.projectId });
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        message: 'Failed to cancel update'
+      });
     }
   }
 
@@ -729,7 +765,11 @@ export class IndexingRoutes {
       });
     } catch (error) {
       this.logger.error('Failed to get available embedders:', { error });
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        message: 'Failed to get available embedders'
+      });
     }
   }
 

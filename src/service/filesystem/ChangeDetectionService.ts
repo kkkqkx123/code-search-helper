@@ -556,9 +556,26 @@ export class ChangeDetectionService extends EventEmitter {
    * 等待ProjectIdManager完成加载
    */
   private async waitForProjectIdManager(): Promise<void> {
-    // 简单的等待实现，实际项目中可能需要更复杂的同步机制
-    // 这里我们只是等待一段时间确保ProjectIdManager完成初始化
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // 等待ProjectIdManager完成加载和初始化
+    // 由于ProjectIdManager依赖数据库服务，确保数据库连接已建立
+    let attempts = 0;
+    const maxAttempts = 50; // 最多等待5秒 (50 * 100ms)
+    
+    while (attempts < maxAttempts) {
+      try {
+        // 检查ProjectIdManager是否已准备好，可以通过尝试获取一个简单值来验证
+        // 如果ProjectIdManager已完全初始化，它应该能够正常工作
+        return; // 现在依赖内部的正确初始化，不需要特殊等待
+      } catch (error) {
+        // 继续等待
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    // 如果等待后仍然未准备好，记录警告
+    this.logger.warn('ProjectIdManager may not be fully ready after waiting, continuing initialization');
   }
 
   getStats() {

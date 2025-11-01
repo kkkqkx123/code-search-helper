@@ -18,10 +18,12 @@ export class UniversalProcessingConfig {
   private memoryLimitMB: number = DEFAULT_CONFIG.MEMORY_LIMIT_MB;
   private memoryCheckInterval: number = DEFAULT_CONFIG.MEMORY_CHECK_INTERVAL;
 
-  // 分段参数配置
-  private maxChunkSize: number = DEFAULT_CONFIG.MAX_CHUNK_SIZE;
-  private chunkOverlap: number = DEFAULT_CONFIG.CHUNK_OVERLAP;
-  private maxLinesPerChunk: number = DEFAULT_CONFIG.MAX_LINES_PER_CHUNK;
+   // 分段参数配置
+   private minChunkSize: number = DEFAULT_CONFIG.MIN_CHUNK_SIZE || 50;
+   private maxChunkSize: number = DEFAULT_CONFIG.MAX_CHUNK_SIZE;
+   private chunkOverlap: number = DEFAULT_CONFIG.CHUNK_OVERLAP;
+   private minLinesPerChunk: number = DEFAULT_CONFIG.MIN_LINES_PER_CHUNK || 1;
+   private maxLinesPerChunk: number = DEFAULT_CONFIG.MAX_LINES_PER_CHUNK;
 
   // 备份文件处理配置
   private backupFilePatterns: string[] = ['.bak', '.backup', '.old', '.tmp', '.temp', '.orig', '.save'];
@@ -78,6 +80,15 @@ export class UniversalProcessingConfig {
       }
 
       // 分段参数配置
+      if (process.env.UNIVERSAL_MIN_CHUNK_SIZE) {
+        const parsed = parseInt(process.env.UNIVERSAL_MIN_CHUNK_SIZE, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          this.minChunkSize = parsed;
+        } else {
+          hasInvalidValues = true;
+        }
+      }
+
       if (process.env.UNIVERSAL_MAX_CHUNK_SIZE) {
         const parsed = parseInt(process.env.UNIVERSAL_MAX_CHUNK_SIZE, 10);
         if (!isNaN(parsed) && parsed > 0) {
@@ -91,6 +102,15 @@ export class UniversalProcessingConfig {
         const parsed = parseInt(process.env.UNIVERSAL_CHUNK_OVERLAP, 10);
         if (!isNaN(parsed) && parsed >= 0) {
           this.chunkOverlap = parsed;
+        } else {
+          hasInvalidValues = true;
+        }
+      }
+
+      if (process.env.UNIVERSAL_MIN_LINES_PER_CHUNK) {
+        const parsed = parseInt(process.env.UNIVERSAL_MIN_LINES_PER_CHUNK, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          this.minLinesPerChunk = parsed;
         } else {
           hasInvalidValues = true;
         }
@@ -174,13 +194,17 @@ export class UniversalProcessingConfig {
    * 获取分段参数配置
    */
   getChunkingConfig(): {
+    minChunkSize: number;
     maxChunkSize: number;
     chunkOverlap: number;
+    minLinesPerChunk: number;
     maxLinesPerChunk: number;
   } {
     return {
+      minChunkSize: this.minChunkSize,
       maxChunkSize: this.maxChunkSize,
       chunkOverlap: this.chunkOverlap,
+      minLinesPerChunk: this.minLinesPerChunk,
       maxLinesPerChunk: this.maxLinesPerChunk
     };
   }
@@ -219,11 +243,13 @@ export class UniversalProcessingConfig {
   /**
    * 设置分段参数配置
    */
-  setChunkingConfig(maxChunkSize: number, chunkOverlap: number, maxLinesPerChunk: number): void {
+  setChunkingConfig(minChunkSize: number, maxChunkSize: number, chunkOverlap: number, minLinesPerChunk: number, maxLinesPerChunk: number): void {
+    this.minChunkSize = minChunkSize;
     this.maxChunkSize = maxChunkSize;
     this.chunkOverlap = chunkOverlap;
+    this.minLinesPerChunk = minLinesPerChunk;
     this.maxLinesPerChunk = maxLinesPerChunk;
-    this.logger?.info(`Chunking config updated: maxChunkSize=${maxChunkSize}, chunkOverlap=${chunkOverlap}, maxLinesPerChunk=${maxLinesPerChunk}`);
+    this.logger?.info(`Chunking config updated: minChunkSize=${minChunkSize}, maxChunkSize=${maxChunkSize}, chunkOverlap=${chunkOverlap}, minLinesPerChunk=${minLinesPerChunk}, maxLinesPerChunk=${maxLinesPerChunk}`);
   }
 
   /**
@@ -259,7 +285,7 @@ export class UniversalProcessingConfig {
   getAllConfig(): {
     error: { maxErrors: number; errorResetInterval: number };
     memory: { memoryLimitMB: number; memoryCheckInterval: number };
-    chunking: { maxChunkSize: number; chunkOverlap: number; maxLinesPerChunk: number };
+    chunking: { minChunkSize: number; maxChunkSize: number; chunkOverlap: number; minLinesPerChunk: number; maxLinesPerChunk: number };
     backup: { backupFilePatterns: string[]; backupFileConfidenceThreshold: number };
   } {
     return {
@@ -278,8 +304,10 @@ export class UniversalProcessingConfig {
     this.errorResetInterval = 60000;
     this.memoryLimitMB = 500;
     this.memoryCheckInterval = 5000;
+    this.minChunkSize = 50;
     this.maxChunkSize = 2000;
     this.chunkOverlap = 200;
+    this.minLinesPerChunk = 1;
     this.maxLinesPerChunk = 50;
     this.backupFilePatterns = ['.bak', '.backup', '.old', '.tmp'];
     this.backupFileConfidenceThreshold = 0.7;
@@ -312,8 +340,16 @@ export class UniversalProcessingConfig {
     }
 
     // 验证分段参数配置
+    if (this.minChunkSize <= 0) {
+      errors.push('minChunkSize must be greater than 0');
+    }
+
     if (this.maxChunkSize <= 0) {
       errors.push('maxChunkSize must be greater than 0');
+    }
+
+    if (this.minChunkSize > this.maxChunkSize) {
+      errors.push('minChunkSize must be less than or equal to maxChunkSize');
     }
 
     if (this.chunkOverlap < 0) {
@@ -324,8 +360,16 @@ export class UniversalProcessingConfig {
       errors.push('chunkOverlap must be less than maxChunkSize');
     }
 
+    if (this.minLinesPerChunk <= 0) {
+      errors.push('minLinesPerChunk must be greater than 0');
+    }
+
     if (this.maxLinesPerChunk <= 0) {
       errors.push('maxLinesPerChunk must be greater than 0');
+    }
+
+    if (this.minLinesPerChunk > this.maxLinesPerChunk) {
+      errors.push('minLinesPerChunk must be less than or equal to maxLinesPerChunk');
     }
 
     // 验证备份文件处理配置

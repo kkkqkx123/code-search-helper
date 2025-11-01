@@ -3,6 +3,7 @@ import { IProjectManager } from '../common/IDatabaseService';
 import { EventListener } from '../../types';
 import { TYPES } from '../../types';
 import { SqliteDatabaseService } from './SqliteDatabaseService';
+import { LoggerService } from '../../utils/LoggerService';
 
 export interface Project {
   id: string;
@@ -54,10 +55,15 @@ export interface ProjectStatus {
 @injectable()
 export class SqliteProjectManager implements IProjectManager {
   private sqliteService: SqliteDatabaseService;
+  private logger: LoggerService;
   private eventListeners: Map<string, EventListener[]> = new Map();
 
-  constructor(@inject(TYPES.SqliteDatabaseService) sqliteService: SqliteDatabaseService) {
+  constructor(
+    @inject(TYPES.SqliteDatabaseService) sqliteService: SqliteDatabaseService,
+    @inject(TYPES.LoggerService) logger: LoggerService
+  ) {
     this.sqliteService = sqliteService;
+    this.logger = logger;
   }
 
   async createProjectSpace(projectPath: string, config?: any): Promise<boolean> {
@@ -75,31 +81,56 @@ export class SqliteProjectManager implements IProjectManager {
         settings: config?.settings,
         metadata: config?.metadata
       };
+     const stmt = this.sqliteService.prepare(`
+       INSERT INTO projects (id, path, name, description, collection_name, space_name, created_at, updated_at, status, settings, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     `);
 
-      const stmt = this.sqliteService.prepare(`
-        INSERT INTO projects (id, path, name, description, collection_name, space_name, created_at, updated_at, status, settings, metadata)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      stmt.run(
-        project.id,
-        project.path,
-        project.name,
-        project.description,
-        project.collection_name,
-        project.space_name,
-        project.created_at.toISOString(),
-        project.updated_at.toISOString(),
-        project.status,
-        JSON.stringify(project.settings || {}),
-        JSON.stringify(project.metadata || {})
-      );
+     stmt.run(
+       project.id,
+       project.path,
+       project.name,
+       project.description,
+       project.collection_name,
+       project.space_name,
+       project.created_at.toISOString(),
+       project.updated_at.toISOString(),
+       project.status,
+       JSON.stringify(project.settings || {}),
+       JSON.stringify(project.metadata || {})
+     );
 
       this.emitEvent('space_created', { projectPath, projectId: project.id });
       return true;
     } catch (error) {
-      this.emitEvent('error', error);
-      return false;
+      // 检查是否是唯一约束错误
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isUniqueConstraintError = errorMessage.includes('UNIQUE constraint failed') || errorMessage.includes('SQLITE_CONSTRAINT');
+      
+      if (isUniqueConstraintError) {
+        // 如果是唯一约束错误，说明项目已存在，这可能不是真正的错误
+        this.logger.warn(`Project already exists in SQLite (unique constraint), treating as success: ${projectPath}`, {
+          projectId: this.generateProjectId(projectPath),
+          error: errorMessage
+        });
+        return true; // 返回true，表示操作成功（项目已存在）
+      } else {
+        // 记录详细的错误信息，便于调试
+        this.logger.error(`Failed to create project space in SQLite:`, {
+          projectPath,
+          projectId: this.generateProjectId(projectPath),
+          error: error instanceof Error ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          } : error,
+          config,
+          isUniqueConstraintError
+        });
+        
+        this.emitEvent('error', error);
+        return false;
+      }
     }
   }
 

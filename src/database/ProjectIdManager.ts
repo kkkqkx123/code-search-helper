@@ -466,7 +466,7 @@ export class ProjectIdManager {
   /**
    * 同步项目到SQLite
    */
-  private async syncProjectToSQLite(projectId: string, projectPath: string): Promise<void> {
+ private async syncProjectToSQLite(projectId: string, projectPath: string): Promise<void> {
     try {
       const collectionName = this.collectionMap.get(projectId) || this.qdrantConfigService.getCollectionNameForProject(projectId);
       const spaceName = this.spaceMap.get(projectId) || this.nebulaConfigService.getSpaceNameForProject(projectId);
@@ -483,9 +483,39 @@ export class ProjectIdManager {
         status: 'active' as const
       };
 
-      await this.sqliteProjectManager.createProjectSpace(projectPath, project);
+      const success = await this.sqliteProjectManager.createProjectSpace(projectPath, project);
+      
+      if (!success) {
+        const error = new Error(`Failed to sync project to SQLite for project: ${projectId}, path: ${projectPath}`);
+        // 使用错误处理服务记录错误
+        this.errorHandler.handleError(
+          error,
+          {
+            component: 'ProjectIdManager',
+            operation: 'syncProjectToSQLite',
+            projectPath,
+            projectId,
+            collectionName,
+            spaceName
+          }
+        );
+        throw error;
+      }
     } catch (error) {
-      this.logger.warn(`Failed to sync project to SQLite: ${projectId}`, error);
+      this.logger.error(`Failed to sync project to SQLite: ${projectId}`, error);
+      // 使用错误处理服务记录错误
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          component: 'ProjectIdManager',
+          operation: 'syncProjectToSQLite',
+          projectPath,
+          projectId,
+          collectionName: this.collectionMap.get(projectId),
+          spaceName: this.spaceMap.get(projectId)
+        }
+      );
+      throw error; // 重新抛出错误，确保调用者知道操作失败
     }
   }
 
@@ -513,10 +543,53 @@ export class ProjectIdManager {
         collectionName: collectionName,
         spaceName: spaceName
       };
+      
+      const success = await this.sqliteProjectManager.createProjectSpace(projectPath, config);
 
-      await this.sqliteProjectManager.createProjectSpace(projectPath, config);
+      if (!success) {
+        // 由于我们无法直接检查是否是唯一约束错误（因为getProjectByPath是私有方法），
+        // 我们通过尝试获取项目信息来判断项目是否已存在
+        try {
+          const projectSpaceInfo = await this.sqliteProjectManager.getProjectSpaceInfo(projectPath);
+          if (projectSpaceInfo) {
+            // 如果能获取到项目信息，说明项目已存在，我们可以认为操作成功
+            this.logger.warn(`Project already exists in SQLite for path: ${projectPath}, id: ${projectId}`);
+            return;
+          }
+        } catch (checkError) {
+          this.logger.debug(`Could not check for existing project: ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+        }
+        
+        const error = new Error(`Failed to create project space in SQLite for project: ${projectId}, path: ${projectPath}`);
+        // 使用错误处理服务记录错误
+        this.errorHandler.handleError(
+          error,
+          {
+            component: 'ProjectIdManager',
+            operation: 'createProjectInSQLite',
+            projectPath,
+            projectId,
+            collectionName,
+            spaceName
+          }
+        );
+        throw error;
+      }
     } catch (error) {
-      this.logger.warn(`Failed to create project in SQLite: ${projectId}`, error);
+      this.logger.error(`Failed to create project in SQLite: ${projectId}`, error);
+      // 使用错误处理服务记录错误
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          component: 'ProjectIdManager',
+          operation: 'createProjectInSQLite',
+          projectPath,
+          projectId,
+          collectionName,
+          spaceName
+        }
+      );
+      throw error; // 重新抛出错误，确保调用者知道操作失败
     }
   }
 
