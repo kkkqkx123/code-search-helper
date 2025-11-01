@@ -30,9 +30,9 @@ describe('ConfigFactory', () => {
         monitoring: { enabled: true, port: 9090, prometheusTargetDir: './etc/prometheus' },
         fileProcessing: { maxFileSize: 10485760, supportedExtensions: '.ts,.js,.py', indexBatchSize: 100, chunkSize: 1000, overlapSize: 200 },
         batchProcessing: { enabled: true, maxConcurrentOperations: 5, defaultBatchSize: 50, maxBatchSize: 500, memoryThreshold: 80, processingTimeout: 300000, retryAttempts: 3, retryDelay: 1000, continueOnError: true, adaptiveBatching: { enabled: true, minBatchSize: 10, maxBatchSize: 200, performanceThreshold: 1000, adjustmentFactor: 1.2 }, monitoring: { enabled: true, metricsInterval: 6000, alertThresholds: { highLatency: 5000, lowThroughput: 10, highErrorRate: 0.1, highMemoryUsage: 80, criticalMemoryUsage: 90, highCpuUsage: 70, criticalCpuUsage: 85 } } },
-        redis: { enabled: false, url: 'redis://localhost:6379', useMultiLevel: true, ttl: { embedding: 86400, search: 3600, graph: 1800, progress: 300 }, retry: { attempts: 3, delay: 1000 }, pool: { min: 1, max: 10 } },
-        lsp: { enabled: true, timeout: 3000, retryAttempts: 3, retryDelay: 100, cacheEnabled: true, cacheTTL: 30, batchSize: 20, maxConcurrency: 5, supportedLanguages: ['typescript'], languageServers: {} },
-        semgrep: { binaryPath: 'semgrep', timeout: 3000, maxMemory: 512, maxTargetBytes: 1000000, jobs: 4, noGitIgnore: false, noRewriteRuleIds: false, strict: false, configPaths: ['auto'], customRulesPath: './config/semgrep-rules', enhancedRulesPath: './enhanced-rules', outputFormat: 'json', excludePatterns: ['node_modules'], includePatterns: ['*.js'], severityLevels: ['ERROR'], enableControlFlow: false, enableDataFlow: false, enableTaintAnalysis: false, securitySeverity: ['HIGH'] },
+        
+        
+        
         mlReranking: { modelPath: './model', modelType: 'linear', features: ['semanticScore'], trainingEnabled: true },
         caching: { defaultTTL: 300, maxSize: 1000 },
         indexing: { batchSize: 50, maxConcurrency: 3 },
@@ -54,9 +54,6 @@ describe('ConfigFactory', () => {
       expect(appConfig.monitoring).toBe(mockFullConfig.monitoring);
       expect(appConfig.fileProcessing).toBe(mockFullConfig.fileProcessing);
       expect(appConfig.batchProcessing).toBe(mockFullConfig.batchProcessing);
-      expect(appConfig.redis).toBe(mockFullConfig.redis);
-      expect(appConfig.lsp).toBe(mockFullConfig.lsp);
-      expect(appConfig.semgrep).toBe(mockFullConfig.semgrep);
       expect(appConfig.mlReranking).toBe(mockFullConfig.mlReranking);
       expect(appConfig.caching).toBe(mockFullConfig.caching);
       expect(appConfig.indexing).toBe(mockFullConfig.indexing);
@@ -80,9 +77,6 @@ describe('ConfigFactory', () => {
         monitoring: {},
         fileProcessing: {},
         batchProcessing: {},
-        redis: {},
-        lsp: {},
-        semgrep: {},
         caching: {},
         indexing: {},
       };
@@ -171,35 +165,6 @@ describe('ConfigFactory', () => {
       expect(batchProcessingConfig).toBe(expectedBatchProcessingConfig);
     });
 
-    it('应该返回Redis配置', () => {
-      const expectedRedisConfig = { enabled: false, url: 'redis://localhost:6379' };
-      mockConfigService.get.mockReturnValue(expectedRedisConfig);
-
-      const redisConfig = configFactory.getRedisConfig();
-
-      expect(mockConfigService.get).toHaveBeenCalledWith('redis');
-      expect(redisConfig).toBe(expectedRedisConfig);
-    });
-
-    it('应该返回LSP配置', () => {
-      const expectedLSPConfig = { enabled: true, timeout: 30000 };
-      mockConfigService.get.mockReturnValue(expectedLSPConfig);
-
-      const lspConfig = configFactory.getLSPConfig();
-
-      expect(mockConfigService.get).toHaveBeenCalledWith('lsp');
-      expect(lspConfig).toBe(expectedLSPConfig);
-    });
-
-    it('应该返回Semgrep配置', () => {
-      const expectedSemgrepConfig = { binaryPath: 'semgrep', timeout: 3000 };
-      mockConfigService.get.mockReturnValue(expectedSemgrepConfig);
-
-      const semgrepConfig = configFactory.getSemgrepConfig();
-
-      expect(mockConfigService.get).toHaveBeenCalledWith('semgrep');
-      expect(semgrepConfig).toBe(expectedSemgrepConfig);
-    });
 
     it('应该返回ML重排序配置', () => {
       const expectedMLRerankingConfig = { modelPath: './model', modelType: 'linear', features: ['semanticScore'], trainingEnabled: true };

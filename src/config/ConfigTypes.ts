@@ -97,70 +97,6 @@ export interface BatchProcessingConfig {
   };
 }
 
-export interface RedisConfig {
-  enabled: boolean;
-  url: string;
-  maxmemory?: string;
-  useMultiLevel: boolean;
-  ttl: {
-    embedding: number;
-    search: number;
-    graph: number;
-    progress: number;
-  };
-  retry: {
-    attempts: number;
-    delay: number;
-  };
-  pool: {
-    min: number;
-    max: number;
-  };
-}
-
-export interface LSPConfig {
-  enabled: boolean;
-  timeout: number;
-  retryAttempts: number;
-  retryDelay: number;
-  cacheEnabled: boolean;
-  cacheTTL: number;
-  batchSize: number;
-  maxConcurrency: number;
-  supportedLanguages: string[];
-  languageServers: {
-    [key: string]: {
-      command: string;
-      args: string[];
-      enabled: boolean;
-      workspaceRequired: boolean;
-      initializationOptions?: any;
-      settings?: any;
-    };
-  };
-}
-
-export interface SemgrepConfig {
-  binaryPath: string;
-  timeout: number;
-  maxMemory: number;
-  maxTargetBytes: number;
-  jobs: number;
-  noGitIgnore: boolean;
-  noRewriteRuleIds: boolean;
-  strict: boolean;
-  configPaths: string[];
-  customRulesPath: string;
-  enhancedRulesPath: string;
-  outputFormat: 'json' | 'sarif' | 'text';
-  excludePatterns: string[];
-  includePatterns: string[];
-  severityLevels: string[];
-  enableControlFlow: boolean;
-  enableDataFlow: boolean;
-  enableTaintAnalysis: boolean;
-  securitySeverity: string[];
-}
 
 export interface MLRerankingConfig {
   modelPath?: string;
@@ -280,9 +216,6 @@ export interface AppConfig {
   memoryMonitor: MemoryMonitorConfig;
   fileProcessing: FileProcessingConfig;
   batchProcessing: BatchProcessingConfig;
-  redis: RedisConfig;
-  lsp: LSPConfig;
-  semgrep: SemgrepConfig;
   mlReranking?: MLRerankingConfig;
   caching: CachingConfig;
   indexing: IndexingConfig;

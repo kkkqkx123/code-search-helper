@@ -15,11 +15,8 @@ export const TYPES = {
   MemoryMonitorConfigService: Symbol.for('MemoryMonitorConfigService'),
   FileProcessingConfigService: Symbol.for('FileProcessingConfigService'),
   BatchProcessingConfigService: Symbol.for('BatchProcessingConfigService'),
-  RedisConfigService: Symbol.for('RedisConfigService'),
   ProjectConfigService: Symbol.for('ProjectConfigService'),
   IndexingConfigService: Symbol.for('IndexingConfigService'),
-  LSPConfigService: Symbol.for('LSPConfigService'),
-  SemgrepConfigService: Symbol.for('SemgrepConfigService'),
   TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
   ProjectNamingConfigService: Symbol.for('ProjectNamingConfigService'),
 

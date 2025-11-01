@@ -94,17 +94,6 @@ const mockContainer = {
         })
       };
     }
-    if (serviceIdentifier.name === 'RedisConfigService') {
-      return {
-        getConfig: () => ({
-          host: 'localhost',
-          port: 6379,
-          db: 0,
-          password: undefined,
-          maxRetriesPerRequest: 3,
-        })
-      };
-    }
     if (serviceIdentifier.name === 'ProjectConfigService') {
       return {
         getConfig: () => ({
@@ -122,26 +111,6 @@ const mockContainer = {
           updateInterval: 300,
           maxFileSize: 5242880,
           batchSize: 50,
-        })
-      };
-    }
-    if (serviceIdentifier.name === 'LSPConfigService') {
-      return {
-        getConfig: () => ({
-          enabled: true,
-          serverPath: '/usr/local/bin/typescript-language-server',
-          timeout: 30000,
-          maxServerInstances: 5,
-        })
-      };
-    }
-    if (serviceIdentifier.name === 'SemgrepConfigService') {
-      return {
-        getConfig: () => ({
-          enabled: true,
-          configPath: './config/semgrep-rules.yml',
-          timeout: 60000,
-          maxFileSize: 1048576,
         })
       };
     }
@@ -221,12 +190,12 @@ describe('ConfigService', () => {
       mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
       mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
       mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-      mockContainer.get({ name: 'RedisConfigService' }) as any,
       mockContainer.get({ name: 'ProjectConfigService' }) as any,
       mockContainer.get({ name: 'IndexingConfigService' }) as any,
-      mockContainer.get({ name: 'LSPConfigService' }) as any,
-      mockContainer.get({ name: 'SemgrepConfigService' }) as any,
       mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+      mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
+      mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+      mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
     );
   });
 
@@ -327,12 +296,12 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
         mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'RedisConfigService' }) as any,
         mockContainer.get({ name: 'ProjectConfigService' }) as any,
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'LSPConfigService' }) as any,
-        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const config = newConfigService.getAll();
@@ -375,12 +344,12 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
         mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'RedisConfigService' }) as any,
         mockContainer.get({ name: 'ProjectConfigService' }) as any,
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'LSPConfigService' }) as any,
-        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
 
       // 现在initialize()方法应该抛出错误，因为getConfig()会抛出错误
@@ -509,12 +478,12 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
         mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'RedisConfigService' }) as any,
         mockContainer.get({ name: 'ProjectConfigService' }) as any,
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'LSPConfigService' }) as any,
-        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -555,12 +524,12 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
         mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'RedisConfigService' }) as any,
         mockContainer.get({ name: 'ProjectConfigService' }) as any,
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'LSPConfigService' }) as any,
-        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -602,12 +571,12 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
         mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'RedisConfigService' }) as any,
         mockContainer.get({ name: 'ProjectConfigService' }) as any,
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'LSPConfigService' }) as any,
-        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -658,12 +627,12 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
         mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'RedisConfigService' }) as any,
         mockContainer.get({ name: 'ProjectConfigService' }) as any,
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'LSPConfigService' }) as any,
-        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
+        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
 
       await newConfigService.initialize();
@@ -676,75 +645,4 @@ describe('ConfigService', () => {
     });
   });
 
-  describe('Semgrep配置', () => {
-    it('应该正确处理Semgrep配置', async () => {
-      // 为Semgrep测试创建一个新的配置服务实例
-      const semgrepConfigService = {
-        getConfig: () => ({
-          binaryPath: '/usr/local/bin/semgrep',
-          timeout: 60000,
-          maxMemory: 512,
-          maxTargetBytes: 1048576,
-          jobs: 8,
-          noGitIgnore: false,
-          noRewriteRuleIds: false,
-          strict: false,
-          configPaths: ['p/security-audit', 'p/secrets'],
-          customRulesPath: './config/semgrep-rules',
-          enhancedRulesPath: './enhanced-rules',
-          outputFormat: 'json',
-          excludePatterns: ['node_modules', '.git', 'dist', 'build'],
-          includePatterns: ['*.js', '*.ts', '*.py', '*.java'],
-          severityLevels: ['ERROR', 'WARNING', 'INFO'],
-          enableControlFlow: false,
-          enableDataFlow: false,
-          enableTaintAnalysis: false,
-          securitySeverity: ['HIGH', 'MEDIUM'],
-        })
-      };
-
-      const semgrepConfigServiceInstance = new ConfigService(
-        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
-        mockContainer.get({ name: 'QdrantConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-        mockContainer.get({ name: 'LoggingConfigService' }) as any,
-        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
-        mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
-        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'RedisConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectConfigService' }) as any,
-        mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'LSPConfigService' }) as any,
-        semgrepConfigService as any, // 使用专门的semgrep配置服务
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-      );
-
-      // 创建新的ConfigService实例
-      const newConfigService = new ConfigService(
-        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
-        mockContainer.get({ name: 'QdrantConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-        mockContainer.get({ name: 'LoggingConfigService' }) as any,
-        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
-        mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
-        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'RedisConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectConfigService' }) as any,
-        mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'LSPConfigService' }) as any,
-        mockContainer.get({ name: 'SemgrepConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-      );
-
-      await semgrepConfigServiceInstance.initialize();
-      const semgrepConfig = semgrepConfigServiceInstance.get('semgrep');
-
-      expect(semgrepConfig.binaryPath).toBe('/usr/local/bin/semgrep');
-      expect(semgrepConfig.timeout).toBe(60000);
-      expect(semgrepConfig.jobs).toBe(8);
-      expect(semgrepConfig.configPaths).toEqual(['p/security-audit', 'p/secrets']);
-    });
-  });
 });

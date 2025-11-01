@@ -95,27 +95,6 @@ export const cachingSchema = Joi.object({
   cleanupInterval: Joi.number().positive().default(600000), // 10 minutes
 }).optional();
 
-// Redis配置验证模式
-export const redisSchema = Joi.object({
-  enabled: Joi.boolean().default(false),
-  url: Joi.string().uri().default('redis://localhost:6379'),
-  maxmemory: Joi.string().default('256mb'),
-  useMultiLevel: Joi.boolean().default(true),
-  ttl: Joi.object({
-    embedding: Joi.number().default(86400),
-    search: Joi.number().default(3600),
-    graph: Joi.number().default(1800),
-    progress: Joi.number().default(300),
-  }),
-  retry: Joi.object({
-    attempts: Joi.number().default(3),
-    delay: Joi.number().default(1000),
-  }),
-  pool: Joi.object({
-    min: Joi.number().default(1),
-    max: Joi.number().default(10),
-  }),
-});
 
 // Project配置验证模式
 export const projectSchema = Joi.object({
@@ -130,106 +109,7 @@ export const indexingSchema = Joi.object({
   maxConcurrency: Joi.number().positive().default(3),
 });
 
-// LSP配置验证模式
-export const lspSchema = Joi.object({
-  enabled: Joi.boolean().default(true),
-  timeout: Joi.number().positive().default(30000),
-  retryAttempts: Joi.number().positive().default(3),
-  retryDelay: Joi.number().positive().default(100),
-  cacheEnabled: Joi.boolean().default(true),
-  cacheTTL: Joi.number().positive().default(300),
-  batchSize: Joi.number().positive().default(20),
-  maxConcurrency: Joi.number().positive().default(5),
-  supportedLanguages: Joi.array()
-    .items(Joi.string())
-    .default([
-      'typescript',
-      'javascript',
-      'python',
-      'java',
-      'go',
-      'rust',
-      'cpp',
-      'c',
-      'csharp',
-      'php',
-      'ruby',
-    ]),
-  languageServers: Joi.object()
-    .pattern(
-      Joi.string(),
-      Joi.object({
-        command: Joi.string().required(),
-        args: Joi.array().items(Joi.string()).default([]),
-        enabled: Joi.boolean().default(true),
-        workspaceRequired: Joi.boolean().default(true),
-        initializationOptions: Joi.object().optional(),
-        settings: Joi.object().optional(),
-      })
-    )
-    .default({}),
-});
 
-// Semgrep配置验证模式
-export const semgrepSchema = Joi.object({
-  binaryPath: Joi.string().default('semgrep'),
-  timeout: Joi.number().positive().default(3000),
-  maxMemory: Joi.number().positive().default(512),
-  maxTargetBytes: Joi.number().positive().default(1000000),
-  jobs: Joi.number().positive().default(4),
-  noGitIgnore: Joi.boolean().default(false),
-  noRewriteRuleIds: Joi.boolean().default(false),
-  strict: Joi.boolean().default(false),
-  configPaths: Joi.array()
-    .items(Joi.string())
-    .default([
-      'auto',
-      'p/security-audit',
-      'p/secrets',
-      'p/owasp-top-ten',
-      'p/javascript',
-      'p/python',
-      'p/java',
-      'p/go',
-      'p/typescript',
-    ]),
-  customRulesPath: Joi.string().default('./config/semgrep-rules'),
-  enhancedRulesPath: Joi.string().default('./enhanced-rules'),
-  enableControlFlow: Joi.boolean().default(false),
-  enableDataFlow: Joi.boolean().default(false),
-  enableTaintAnalysis: Joi.boolean().default(false),
-  securitySeverity: Joi.array().items(Joi.string()).default(['HIGH', 'MEDIUM']),
-  outputFormat: Joi.string().valid('json', 'sarif', 'text').default('json'),
-  excludePatterns: Joi.array()
-    .items(Joi.string())
-    .default([
-      'node_modules',
-      '.git',
-      'dist',
-      'build',
-      'coverage',
-      '*.min.js',
-      '*.min.css',
-      'vendor',
-      'test/fixtures',
-      'tests/fixtures',
-    ]),
-  includePatterns: Joi.array()
-    .items(Joi.string())
-    .default([
-      '*.js',
-      '*.ts',
-      '*.jsx',
-      '*.tsx',
-      '*.py',
-      '*.java',
-      '*.go',
-      '*.php',
-      '*.rb',
-      '*.cs',
-    ]),
-  severityLevels: Joi.array().items(Joi.string()).default(['ERROR', 'WARNING', 'INFO']),
-});
 
 // TreeSitter配置验证模式
 export const treeSitterSchema = Joi.object({
@@ -262,10 +142,7 @@ export const mainConfigSchema = Joi.object({
   batchProcessing: batchProcessingSchema,
   mlReranking: mlRerankingSchema,
   caching: cachingSchema,
-  redis: redisSchema,
   project: projectSchema,
   indexing: indexingSchema,
-  lsp: lspSchema,
-  semgrep: semgrepSchema,
   treeSitter: treeSitterSchema,
 });

@@ -543,7 +543,6 @@ export class InfrastructureConfigService {
       // 从主配置服务获取可能影响基础设施的配置
       // 由于AppConfig中没有infrastructure字段，我们检查是否有相关的配置项
       const batchProcessingConfig = this.configService.get('batchProcessing');
-      const redisConfig = this.configService.get('redis');
       const loggingConfig = this.configService.get('logging');
 
       // 合并相关的配置到基础设施配置中，但保持最小值验证
@@ -581,11 +580,6 @@ export class InfrastructureConfigService {
         }
       }
 
-      if (redisConfig && redisConfig.enabled !== undefined) {
-        // 更新缓存相关的基础设施配置
-        this.config.qdrant.cache.enableStats = redisConfig.enabled;
-        this.config.nebula.cache.enableStats = redisConfig.enabled;
-      }
 
       if (loggingConfig && loggingConfig.level !== undefined) {
         // 更新日志相关的基础设施配置

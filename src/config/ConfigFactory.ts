@@ -66,26 +66,6 @@ export class ConfigFactory {
     return this.configService.get('batchProcessing');
   }
 
-  /**
-   * 获取Redis配置
-   */
-  getRedisConfig(): AppConfig['redis'] {
-    return this.configService.get('redis');
-  }
-
-  /**
-   * 获取LSP配置
-   */
-  getLSPConfig(): AppConfig['lsp'] {
-    return this.configService.get('lsp');
-  }
-
-  /**
-   * 获取Semgrep配置
-   */
-  getSemgrepConfig(): AppConfig['semgrep'] {
-    return this.configService.get('semgrep');
-  }
 
   /**
    * 获取热更新配置

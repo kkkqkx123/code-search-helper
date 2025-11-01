@@ -96,28 +96,6 @@ export const testFileProcessingConfig = {
   enableValidation: true
 };
 
-export const testRedisConfig = {
-  enabled: true,
-  host: 'localhost',
-  port: 6379,
-  password: '',
-  db: 0,
-  keyPrefix: 'test:'
-};
-
-export const testLSPConfig = {
-  enabled: true,
-  port: 3001,
-  workspace: './test-workspace',
-  languages: ['typescript', 'javascript']
-};
-
-export const testSemgrepConfig = {
-  enabled: true,
-  rulesPath: './test-rules',
-  timeout: 30000,
-  maxFileSize: 1048576
-};
 
 export const testTreeSitterConfig = {
   enabled: true,
@@ -150,12 +128,6 @@ export function getTestConfig<T>(key: string): T | undefined {
       return testEmbeddingConfig as T;
     case 'fileProcessing':
       return testFileProcessingConfig as T;
-    case 'redis':
-      return testRedisConfig as T;
-    case 'lsp':
-      return testLSPConfig as T;
-    case 'semgrep':
-      return testSemgrepConfig as T;
     case 'treeSitter':
       return testTreeSitterConfig as T;
     default:
@@ -177,9 +149,6 @@ export function getAllTestConfigs(): Record<string, any> {
     monitoring: testMonitoringConfig,
     embedding: testEmbeddingConfig,
     fileProcessing: testFileProcessingConfig,
-    redis: testRedisConfig,
-    lsp: testLSPConfig,
-    semgrep: testSemgrepConfig,
     treeSitter: testTreeSitterConfig
   };
 }
