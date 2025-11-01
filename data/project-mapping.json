@@ -32,39 +32,5 @@
     "projectUpdateTimes": {
       "7309b226edd38773": null
     }
-  },
-  {
-    "projectIdMap": {
-      "d44e2ff16a046d3b": "D:/ide/tool/code-search-helper"
-    },
-    "collectionMap": {
-      "D:/ide/tool/code-search-helper": "project-7309b226edd38773"
-    },
-    "spaceMap": {
-      "D:/ide/tool/code-search-helper": "project-7309b226edd38773"
-    },
-    "pathToProjectMap": {
-      "D:/ide/tool/code-search-helper": "d44e2ff16a046d3b"
-    },
-    "projectUpdateTimes": {
-      "D:/ide/tool/code-search-helper": null
-    }
-  },
-  {
-    "projectIdMap": {
-      "86b62e2ebce0231b": "D:/code/Go/dataStructure"
-    },
-    "collectionMap": {
-      "D:/code/Go/dataStructure": "project-b5c2e4c435d504e5"
-    },
-    "spaceMap": {
-      "D:/code/Go/dataStructure": "project-b5c2e4c435d504e5"
-    },
-    "pathToProjectMap": {
-      "D:/code/Go/dataStructure": "86b62e2ebce0231b"
-    },
-    "projectUpdateTimes": {
-      "D:/code/Go/dataStructure": null
-    }
   }
 ]
