@@ -20,11 +20,20 @@ export class ProjectsPage {
     private sortBy: string = 'name';
     private sortOrder: string = 'asc';
 
+    // 事件处理器引用
+    private handleScroll: () => void;
+    private handleResize: () => void;
+
     constructor(container: HTMLElement, apiClient: ApiClient) {
         this.container = container;
         this.apiClient = apiClient;
         this.updateProgressModal = new UpdateProgressModal();
         this.updateProgressModal.setApiClient(apiClient);
+        
+        // 初始化事件处理器
+        this.handleScroll = () => this.adjustAllDropdownsPosition();
+        this.handleResize = () => this.adjustAllDropdownsPosition();
+        
         this.render();
         this.setupEventListeners();
         this.setupSearchAndFilterListeners();
@@ -118,6 +127,27 @@ export class ProjectsPage {
         refreshProjectsButton?.addEventListener('click', () => {
             // 强制刷新项目列表，清除缓存
             this.loadProjectsList(true);
+        });
+
+        // 添加窗口滚动事件监听器，用于调整下拉菜单位置
+        this.handleScroll = this.handleScroll.bind(this);
+        window.addEventListener('scroll', this.handleScroll, { passive: true });
+
+        // 添加窗口大小变化事件监听器
+        this.handleResize = this.handleResize.bind(this);
+        window.addEventListener('resize', this.handleResize);
+    }
+
+
+    /**
+     * 调整所有可见下拉菜单位置
+     */
+    private adjustAllDropdownsPosition() {
+        document.querySelectorAll('.dropdown-menu.show').forEach(dropdown => {
+            const button = dropdown.previousElementSibling as HTMLButtonElement;
+            if (button && button.classList.contains('dropdown-toggle')) {
+                this.adjustDropdownPosition(button, dropdown as HTMLElement);
+            }
         });
     }
 
@@ -323,9 +353,13 @@ export class ProjectsPage {
                 if (projectId && action) {
                     e.stopPropagation(); // 防止事件冒泡
                     // 关闭下拉菜单
-                    const dropdownMenu = button.closest('.dropdown-menu');
+                    const dropdownMenu = button.closest('.dropdown-menu') as HTMLElement;
                     if (dropdownMenu) {
                         dropdownMenu.classList.remove('show');
+                        dropdownMenu.classList.remove('dropup');
+                        dropdownMenu.classList.remove('viewport-constrained');
+                        dropdownMenu.style.left = '';
+                        dropdownMenu.style.top = '';
                     }
                     
                     if (action === 'delete') {
@@ -394,16 +428,85 @@ export class ProjectsPage {
     private toggleDropdown(button: HTMLButtonElement) {
         const dropdown = button.nextElementSibling as HTMLElement;
         if (dropdown && dropdown.classList.contains('dropdown-menu')) {
+            // 先关闭所有其他下拉菜单
+            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                if (menu !== dropdown) {
+                    menu.classList.remove('show');
+                }
+            });
+
+            // 切换当前下拉菜单
             dropdown.classList.toggle('show');
+
+            // 如果菜单被显示，进行位置调整
+            if (dropdown.classList.contains('show')) {
+                this.adjustDropdownPosition(button, dropdown);
+            }
 
             // 点击其他地方关闭下拉菜单
             const closeDropdown = (e: MouseEvent) => {
                 if (!button.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
                     dropdown.classList.remove('show');
+                    dropdown.classList.remove('dropup');
+                    dropdown.classList.remove('viewport-constrained');
                     document.removeEventListener('click', closeDropdown);
                 }
             };
             document.addEventListener('click', closeDropdown);
+        }
+    }
+
+    /**
+     * 调整下拉菜单位置，确保在视口内可见
+     */
+    private adjustDropdownPosition(button: HTMLButtonElement, dropdown: HTMLElement) {
+        // 重置类
+        dropdown.classList.remove('dropup');
+        dropdown.classList.remove('viewport-constrained');
+
+        // 获取按钮和下拉菜单的位置信息
+        const buttonRect = button.getBoundingClientRect();
+        const dropdownHeight = dropdown.offsetHeight;
+        
+        // 计算可用空间
+        const spaceBelow = window.innerHeight - buttonRect.bottom;
+        const spaceAbove = buttonRect.top;
+        
+        // 判断是否需要向上展开
+        const shouldDropUp = spaceBelow < dropdownHeight && spaceAbove > dropdownHeight;
+        
+        if (shouldDropUp) {
+            // 向上展开
+            dropdown.classList.add('dropup');
+        } else if (spaceBelow < dropdownHeight && spaceAbove < dropdownHeight) {
+            // 上下空间都不够，使用固定定位并限制高度
+            dropdown.classList.add('viewport-constrained');
+            
+            // 设置下拉菜单位置
+            const dropdownWidth = dropdown.offsetWidth;
+            let left = buttonRect.right - dropdownWidth;
+            let top = buttonRect.bottom;
+            
+            // 确保不超出右边界
+            if (left < 0) {
+                left = 10;
+            }
+            if (left + dropdownWidth > window.innerWidth) {
+                left = window.innerWidth - dropdownWidth - 10;
+            }
+            
+            // 确保不超出底部边界
+            if (top + dropdownHeight > window.innerHeight) {
+                top = buttonRect.top - dropdownHeight;
+            }
+            
+            // 应用位置
+            dropdown.style.left = `${left}px`;
+            dropdown.style.top = `${top}px`;
+        } else {
+            // 正常向下展开，清除可能存在的固定定位样式
+            dropdown.style.left = '';
+            dropdown.style.top = '';
         }
     }
 
@@ -897,5 +1000,29 @@ export class ProjectsPage {
      */
     hide() {
         this.container.style.display = 'none';
+        this.cleanup();
+    }
+
+    /**
+     * 清理事件监听器和资源
+     */
+    private cleanup() {
+        // 关闭所有下拉菜单
+        document.querySelectorAll('.dropdown-menu.show').forEach(dropdown => {
+            const dropdownElement = dropdown as HTMLElement;
+            dropdownElement.classList.remove('show');
+            dropdownElement.classList.remove('dropup');
+            dropdownElement.classList.remove('viewport-constrained');
+            dropdownElement.style.left = '';
+            dropdownElement.style.top = '';
+        });
+
+        // 移除事件监听器
+        if (this.handleScroll) {
+            window.removeEventListener('scroll', this.handleScroll);
+        }
+        if (this.handleResize) {
+            window.removeEventListener('resize', this.handleResize);
+        }
     }
 }

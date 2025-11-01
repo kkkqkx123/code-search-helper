@@ -227,10 +227,25 @@
     border: 1px solid var(--border-color);
     z-index: 1000;
     overflow: hidden;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .dropdown-menu.show {
     display: block;
+}
+
+/* 向上展开的下拉菜单 */
+.dropdown-menu.dropup {
+    top: auto;
+    bottom: 100%;
+}
+
+/* 确保下拉菜单在视口内 */
+.dropdown-menu.viewport-constrained {
+    position: fixed;
+    max-height: 200px;
+    overflow-y: auto;
 }
 
 .dropdown-item {
