@@ -51,6 +51,10 @@ import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
 import { TransactionCoordinator } from '../../infrastructure/transaction/TransactionCoordinator';
+import { ConnectionPoolHealthChecker } from '../../infrastructure/connection/ConnectionPoolHealthChecker';
+import { ConnectionPoolMonitor } from '../../infrastructure/connection/ConnectionPoolMonitor';
+import { ConnectionPoolStatisticsCollector } from '../../infrastructure/connection/ConnectionPoolStatisticsCollector';
+import { ConnectionPoolEventEmitter } from '../../infrastructure/connection/ConnectionPoolEventEmitter';
 import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
 import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
 import { GarbageCollectionStrategy } from '../../infrastructure/cleanup/strategies/GarbageCollectionStrategy';
@@ -239,6 +243,10 @@ export class InfrastructureServiceRegistrar {
       container.bind<BatchOptimizer>(TYPES.BatchOptimizer).to(BatchOptimizer).inSingletonScope();
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
       container.bind<DatabaseConnectionPool>(TYPES.DatabaseConnectionPool).to(DatabaseConnectionPool).inSingletonScope();
+      container.bind<ConnectionPoolHealthChecker>(TYPES.ConnectionPoolHealthChecker).to(ConnectionPoolHealthChecker).inSingletonScope();
+      container.bind<ConnectionPoolMonitor>(TYPES.ConnectionPoolMonitor).to(ConnectionPoolMonitor).inSingletonScope();
+      container.bind<ConnectionPoolStatisticsCollector>(TYPES.ConnectionPoolStatisticsCollector).to(ConnectionPoolStatisticsCollector).inSingletonScope();
+      container.bind<ConnectionPoolEventEmitter>(TYPES.ConnectionPoolEventEmitter).to(ConnectionPoolEventEmitter).inSingletonScope();
       container.bind<TransactionCoordinator>(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
 
       // 基础设施管理器 - 使用动态绑定确保正确的初始化顺序

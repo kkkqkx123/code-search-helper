@@ -427,4 +427,10 @@ export const TYPES = {
   // 43. 协调器
   PerformanceMonitoringCoordinator: Symbol.for('PerformanceMonitoringCoordinator'),
   ConfigCoordinator: Symbol.for('ConfigCoordinator'),
+
+  // 44. 连接池相关服务
+  ConnectionPoolHealthChecker: Symbol.for('ConnectionPoolHealthChecker'),
+  ConnectionPoolMonitor: Symbol.for('ConnectionPoolMonitor'),
+  ConnectionPoolStatisticsCollector: Symbol.for('ConnectionPoolStatisticsCollector'),
+  ConnectionPoolEventEmitter: Symbol.for('ConnectionPoolEventEmitter'),
 };

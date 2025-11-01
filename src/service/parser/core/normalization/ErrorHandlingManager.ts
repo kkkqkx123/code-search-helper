@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { InfrastructureErrorHandler } from '../../../../infrastructure/error/InfrastructureErrorHandler';
+import { DatabaseErrorHandler } from '../../../../database/error/DatabaseErrorHandler';
 import { FaultToleranceHandler, FaultToleranceOptions } from '../../../../utils/FaultToleranceHandler';
 
 export enum ErrorType {
@@ -43,13 +43,13 @@ export interface ErrorStats {
 @injectable()
 export class ErrorHandlingManager {
   private logger: LoggerService;
-  private infrastructureErrorHandler: InfrastructureErrorHandler;
+  private infrastructureErrorHandler: DatabaseErrorHandler;
   private faultToleranceHandler: FaultToleranceHandler;
   private config: ErrorHandlingConfig;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.InfrastructureErrorHandler) infrastructureErrorHandler: InfrastructureErrorHandler,
+    @inject(TYPES.InfrastructureErrorHandler) infrastructureErrorHandler: DatabaseErrorHandler,
     @inject(TYPES.FaultToleranceHandler) faultToleranceHandler: FaultToleranceHandler
   ) {
     this.logger = logger;

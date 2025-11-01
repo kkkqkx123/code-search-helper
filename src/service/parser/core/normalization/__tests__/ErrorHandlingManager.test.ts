@@ -1,12 +1,12 @@
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { InfrastructureErrorHandler } from '../../../../../infrastructure/error/InfrastructureErrorHandler';
+import { DatabaseErrorHandler } from '../../../../../database/error/DatabaseErrorHandler';
 import { FaultToleranceHandler } from '../../../../../utils/FaultToleranceHandler';
 import { ErrorHandlingManager, ErrorType, ErrorHandlingConfig } from '../ErrorHandlingManager';
 
 describe('ErrorHandlingManager', () => {
   let errorHandlingManager: ErrorHandlingManager;
   let mockLogger: jest.Mocked<LoggerService>;
-  let mockInfrastructureErrorHandler: jest.Mocked<InfrastructureErrorHandler>;
+  let mockInfrastructureErrorHandler: jest.Mocked<DatabaseErrorHandler>;
   let mockFaultToleranceHandler: jest.Mocked<FaultToleranceHandler>;
 
   beforeEach(() => {
@@ -24,7 +24,7 @@ describe('ErrorHandlingManager', () => {
       handleBatchOperationError: jest.fn(),
       executeWithErrorHandling: jest.fn(),
       executeInfrastructureOperation: jest.fn(),
-    } as unknown as jest.Mocked<InfrastructureErrorHandler>;
+    } as unknown as jest.Mocked<DatabaseErrorHandler>;
 
     mockFaultToleranceHandler = {
       executeWithFaultTolerance: jest.fn(),
