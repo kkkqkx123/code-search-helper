@@ -8,11 +8,8 @@ export { MonitoringConfigService, MonitoringConfig } from './MonitoringConfigSer
 export { MemoryMonitorConfigService, MemoryMonitorConfig } from './MemoryMonitorConfigService';
 export { FileProcessingConfigService, FileProcessingConfig } from './FileProcessingConfigService';
 export { BatchProcessingConfigService, BatchProcessingConfig } from './BatchProcessingConfigService';
-export { RedisConfigService, RedisConfig } from './RedisConfigService';
 export { ProjectConfigService, ProjectConfig } from './ProjectConfigService';
 export { IndexingConfigService, IndexingConfig } from './IndexingConfigService';
-export { LSPConfigService, LSPConfig } from './LSPConfigService';
-export { SemgrepConfigService, SemgrepConfig } from './SemgrepConfigService';
 export { TreeSitterConfigService, TreeSitterConfig } from './TreeSitterConfigService';
 export { NebulaConfigService, NebulaConfig } from './NebulaConfigService';
 export { ProjectNamingConfigService } from './ProjectNamingConfigService';

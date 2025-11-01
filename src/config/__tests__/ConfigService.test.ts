@@ -227,9 +227,6 @@ describe('ConfigService', () => {
       mockContainer.get({ name: 'LSPConfigService' }) as any,
       mockContainer.get({ name: 'SemgrepConfigService' }) as any,
       mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-      mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-      mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-      mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
     );
   });
 
@@ -336,9 +333,6 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const config = newConfigService.getAll();
@@ -387,9 +381,6 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
 
       // 现在initialize()方法应该抛出错误，因为getConfig()会抛出错误
@@ -524,9 +515,6 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -573,9 +561,6 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -623,9 +608,6 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -682,9 +664,6 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
 
       await newConfigService.initialize();
@@ -739,9 +718,6 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         semgrepConfigService as any, // 使用专门的semgrep配置服务
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
 
       // 创建新的ConfigService实例
@@ -760,9 +736,6 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'LSPConfigService' }) as any,
         mockContainer.get({ name: 'SemgrepConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
 
       await semgrepConfigServiceInstance.initialize();

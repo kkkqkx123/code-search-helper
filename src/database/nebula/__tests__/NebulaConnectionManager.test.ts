@@ -18,11 +18,8 @@ import {
   MonitoringConfigService,
   FileProcessingConfigService,
   BatchProcessingConfigService,
-  RedisConfigService,
   ProjectConfigService,
   IndexingConfigService,
-  LSPConfigService,
-  SemgrepConfigService,
   TreeSitterConfigService
 } from '../../../config/service';
 import { ProjectNamingConfigService } from '../../../config/service/ProjectNamingConfigService';
@@ -74,7 +71,7 @@ describe('NebulaConnectionManager Refactored', () => {
       debug: jest.fn(),
       log: jest.fn()
     };
-    
+
     mockErrorHandlerService = {
       handleError: jest.fn(),
       handleWarning: jest.fn(),
@@ -82,7 +79,7 @@ describe('NebulaConnectionManager Refactored', () => {
       getWarningCount: jest.fn().mockReturnValue(0),
       resetCounters: jest.fn()
     };
-    
+
     mockDatabaseLoggerService = {
       logConnectionEvent: jest.fn(),
       logQueryEvent: jest.fn(),
@@ -93,7 +90,7 @@ describe('NebulaConnectionManager Refactored', () => {
       logInfo: jest.fn(),
       logDebug: jest.fn()
     };
-    
+
     const mockPerformanceMonitor = {
       recordOperation: jest.fn(),
       startTimer: jest.fn().mockReturnValue({ end: jest.fn() }),
@@ -112,11 +109,8 @@ describe('NebulaConnectionManager Refactored', () => {
     container.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
     container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
-    container.bind<RedisConfigService>(TYPES.RedisConfigService).to(RedisConfigService).inSingletonScope();
     container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
     container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
-    container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
-    container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
     container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
@@ -198,7 +192,7 @@ describe('NebulaConnectionManager Refactored', () => {
         data: []
       };
     });
-    
+
     // Mock isConnected to return true initially (as was originally)
     // This was causing the issue - connection may not actually be established
     // but we'll keep this for now to maintain the original structure
@@ -210,7 +204,7 @@ describe('NebulaConnectionManager Refactored', () => {
     jest.clearAllMocks();
     jest.clearAllTimers();
     jest.useRealTimers(); // Ensure real timers are restored
-    
+
     // Ensure that the default mock implementation is properly restored
     // in case any test cleared it
     mockExecute.mockImplementation(() => {
@@ -249,7 +243,7 @@ describe('NebulaConnectionManager Refactored', () => {
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
@@ -322,17 +316,17 @@ describe('NebulaConnectionManager Refactored', () => {
     const originalExecuteQuery = connectionManager.executeQuery;
     const mockExecuteQuery = jest.fn();
     connectionManager.executeQuery = mockExecuteQuery;
-    
+
     // 为每个查询设置模拟返回值
     mockExecuteQuery.mockResolvedValueOnce({ data: [] });
     mockExecuteQuery.mockResolvedValueOnce({ data: [] });
-    
+
     const transactionResults = await connectionManager.executeTransaction(queries);
-    
+
     // 验证executeQuery被正确调用
     expect(mockExecuteQuery).toHaveBeenCalledTimes(queries.length);
     expect(transactionResults).toHaveLength(queries.length);
-    
+
     // 恢复原始方法
     connectionManager.executeQuery = originalExecuteQuery;
   });
@@ -517,7 +511,7 @@ describe('NebulaConnectionManager Refactored', () => {
     // Simplified test focusing on core functionality rather than specific call sequences
     // Reset mock implementation before test
     mockExecute.mockReset();
-    
+
     // Set default success response for any unexpected calls
     mockExecute.mockImplementation(() => ({
       code: 0,
@@ -525,22 +519,22 @@ describe('NebulaConnectionManager Refactored', () => {
       data: []
     }));
     const projectIds = ['project_alpha'];
-    
+
     // Mock connection setup for the initial connect
     mockExecute.mockResolvedValueOnce({
       data: [{ Name: 'test_space' }],
       code: 0,
     });
-    
+
     const originalOnce = mockClient.once;
     originalOnce.mockImplementation((event: string, callback: Function) => {
       if (event === 'authorized') {
         setTimeout(() => callback(), 10);
       }
     });
-    
+
     await connectionManager.connect();
-    
+
     // Mock the setTimeout call to avoid actual delay
     const originalSetTimeout = global.setTimeout;
     (global.setTimeout as any) = jest.fn().mockImplementation((callback: Function, delay?: number) => {
@@ -552,11 +546,11 @@ describe('NebulaConnectionManager Refactored', () => {
         return originalSetTimeout(callback, delay);
       }
     });
-    
+
     try {
       for (const projectId of projectIds) {
         const projectSpaceName = `project_${projectId}`;
-        
+
         // Mock the test connection query to succeed (YIELD 1 AS test_connection;)
         mockExecute.mockResolvedValueOnce({
           code: 0,
@@ -565,27 +559,27 @@ describe('NebulaConnectionManager Refactored', () => {
           error: null,
           error_msg: null
         });
-        
+
         // Mock space switching success
         mockExecute.mockResolvedValueOnce({
           code: 0,
           error_code: 0,
           data: []
         });
-        
+
         // Directly verify successful connection retrieval without caring about specific call sequences
         // This better aligns with unit testing principles, testing behavior rather than implementation details
         const connection = await connectionManager.getConnectionForSpace(projectSpaceName);
-        
-    // Reset mock implementation before test
-    mockExecute.mockReset();
-    
-    // Set default success response for any unexpected calls
-    mockExecute.mockImplementation(() => ({
-      code: 0,
-      error_code: 0,
-      data: []
-    }));
+
+        // Reset mock implementation before test
+        mockExecute.mockReset();
+
+        // Set default success response for any unexpected calls
+        mockExecute.mockImplementation(() => ({
+          code: 0,
+          error_code: 0,
+          data: []
+        }));
         expect(connection).toBeDefined();
         expect(connection).toBe(mockClient); // Verify that the mock client is returned
       }
@@ -593,11 +587,11 @@ describe('NebulaConnectionManager Refactored', () => {
       global.setTimeout = originalSetTimeout;
     }
   }, 15000); // Increase timeout to 15 seconds
-  
+
   test('should handle space switching errors gracefully', async () => {
     // Test the error handling when both space switching and space creation fail
     const spaceName = 'invalid_space';
-    
+
     // Since the actual client connection may not be properly established in beforeEach
     // due to the mocked isConnected() method, we need to make sure that
     // getConnectionForSpace() can access a valid client object
@@ -607,7 +601,7 @@ describe('NebulaConnectionManager Refactored', () => {
       writable: true,
       configurable: true
     });
-    
+
     // Set up the exact sequence of calls that should happen in getConnectionForSpace:
     // 1. Test connection query (YIELD 1 AS test_connection)
     mockExecute.mockResolvedValueOnce({
@@ -617,7 +611,7 @@ describe('NebulaConnectionManager Refactored', () => {
       error: null,
       error_msg: null
     });
-    
+
     // 2. USE query attempt (this should fail with space not found)
     mockExecute.mockResolvedValueOnce({
       code: -1,
@@ -625,7 +619,7 @@ describe('NebulaConnectionManager Refactored', () => {
       error_msg: 'Space not found',
       error: ''
     });
-    
+
     // 3. CREATE SPACE query (this should also fail)
     mockExecute.mockResolvedValueOnce({
       code: -1,
@@ -633,7 +627,7 @@ describe('NebulaConnectionManager Refactored', () => {
       error_msg: 'Failed to create space',  // Error from space creation
       error: ''
     });
-    
+
     // Mock setTimeout to call the callback immediately for the 10-second wait
     jest.useFakeTimers();
     jest.spyOn(global, 'setTimeout').mockImplementation((callback: any, delay?: number) => {
@@ -644,11 +638,11 @@ describe('NebulaConnectionManager Refactored', () => {
       }
       return setTimeout(callback, delay);
     });
-    
+
     // Now test that the error gets thrown when space creation fails
     await expect(connectionManager.getConnectionForSpace(spaceName))
       .rejects.toThrow(`Failed to switch to space ${spaceName}: Failed to create space`);
-      
+
     // Restore real timers
     jest.useRealTimers();
   }, 15000); // Increase timeout to 15 seconds
@@ -671,7 +665,7 @@ describe('NebulaDataService', () => {
       getMetrics: jest.fn().mockReturnValue({}),
       reset: jest.fn()
     } as any);
-    
+
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService as any);
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
     container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
@@ -681,11 +675,8 @@ describe('NebulaDataService', () => {
     container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
     container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
-    container.bind<RedisConfigService>(TYPES.RedisConfigService).to(RedisConfigService).inSingletonScope();
     container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
     container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
-    container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
-    container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
     container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
@@ -731,7 +722,7 @@ describe('NebulaDataService', () => {
       getConnectionForSpace: jest.fn(),
       executeTransaction: jest.fn()
     };
-    
+
     // Create query service with mock connection manager
     const queryService = new NebulaQueryService(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
@@ -740,7 +731,7 @@ describe('NebulaDataService', () => {
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
       mockConnectionManager as any
     );
-    
+
     // Create transaction service with mock connection manager
     const transactionService = new NebulaTransactionService(
       queryService,
@@ -748,7 +739,7 @@ describe('NebulaDataService', () => {
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<PerformanceMonitor>(TYPES.PerformanceMonitor)
     );
-    
+
     const connectionManager = new NebulaConnectionManager(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
@@ -756,7 +747,7 @@ describe('NebulaDataService', () => {
       container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
       new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService))
     );
-    
+
     // Update the query service and transaction service to reference the actual connection manager
     queryService['connectionManager'] = connectionManager;
     transactionService['queryService'] = new NebulaQueryService(
@@ -853,7 +844,7 @@ describe('NebulaSpaceService', () => {
     // Register all dependencies including missing services
     // Create mock instances for services (reuse from above)
     // Mock instances are already created at the module level
-    
+
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService as any);
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
     container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
@@ -870,11 +861,8 @@ describe('NebulaSpaceService', () => {
     } as any);
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
     container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
-    container.bind<RedisConfigService>(TYPES.RedisConfigService).to(RedisConfigService).inSingletonScope();
     container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
     container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
-    container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
-    container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
     container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
@@ -915,7 +903,7 @@ describe('NebulaSpaceService', () => {
       getConnectionForSpace: jest.fn(),
       executeTransaction: jest.fn()
     };
-    
+
     // Create query service with mock connection manager
     const queryService = new NebulaQueryService(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
@@ -924,7 +912,7 @@ describe('NebulaSpaceService', () => {
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
       mockConnectionManager as any
     );
-    
+
     // Create transaction service with mock connection manager
     const transactionService = new NebulaTransactionService(
       queryService,
@@ -932,7 +920,7 @@ describe('NebulaSpaceService', () => {
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<PerformanceMonitor>(TYPES.PerformanceMonitor)
     );
-    
+
     const connectionManager = new NebulaConnectionManager(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
@@ -940,7 +928,7 @@ describe('NebulaSpaceService', () => {
       container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
       new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService))
     );
-    
+
     // Update the query service and transaction service to reference the actual connection manager
     queryService['connectionManager'] = connectionManager;
     transactionService['queryService'] = new NebulaQueryService(

@@ -16,10 +16,7 @@ import { MonitoringConfigService } from '../../../config/service/MonitoringConfi
 import { MemoryMonitorConfigService } from '../../../config/service/MemoryMonitorConfigService';
 import { FileProcessingConfigService } from '../../../config/service/FileProcessingConfigService';
 import { BatchProcessingConfigService } from '../../../config/service/BatchProcessingConfigService';
-import { RedisConfigService } from '../../../config/service/RedisConfigService';
 import { ProjectConfigService } from '../../../config/service/ProjectConfigService';
-import { LSPConfigService } from '../../../config/service/LSPConfigService';
-import { SemgrepConfigService } from '../../../config/service/SemgrepConfigService';
 import { TreeSitterConfigService } from '../../../config/service/TreeSitterConfigService';
 import { ProjectNamingConfigService } from '../../../config/service/ProjectNamingConfigService';
 import { EmbeddingBatchConfigService } from '../../../config/service/EmbeddingBatchConfigService';
@@ -42,7 +39,7 @@ describe('SQLite Integration Tests', () => {
   beforeAll(async () => {
     // 设置DI容器
     container = new Container();
-    
+
     // 注册基础服务
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
@@ -55,11 +52,8 @@ describe('SQLite Integration Tests', () => {
     container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
     container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
-    container.bind<RedisConfigService>(TYPES.RedisConfigService).to(RedisConfigService).inSingletonScope();
     container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
     container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
-    container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
-    container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
     container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
@@ -71,19 +65,19 @@ describe('SQLite Integration Tests', () => {
     container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
     container.bind<DatabaseConnectionPool>(TYPES.DatabaseConnectionPool).to(DatabaseConnectionPool).inSingletonScope();
     container.bind<TransactionCoordinator>(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
-    
+
     // 注册SQLite服务
     container.bind<SqliteDatabaseService>(TYPES.SqliteDatabaseService).to(SqliteDatabaseService).inSingletonScope();
     container.bind<SqliteConnectionManager>(TYPES.SqliteConnectionManager).to(SqliteConnectionManager).inSingletonScope();
     container.bind<SqliteProjectManager>(TYPES.SqliteProjectManager).to(SqliteProjectManager).inSingletonScope();
     container.bind<SqliteInfrastructure>(TYPES.SqliteInfrastructure).to(SqliteInfrastructure).inSingletonScope();
-    
+
     // 解析服务
     sqliteService = container.get<SqliteDatabaseService>(TYPES.SqliteDatabaseService);
     connectionManager = container.get<SqliteConnectionManager>(TYPES.SqliteConnectionManager);
     projectManager = container.get<SqliteProjectManager>(TYPES.SqliteProjectManager);
     infrastructure = container.get<SqliteInfrastructure>(TYPES.SqliteInfrastructure);
-    
+
     // 初始化基础设施
     await infrastructure.initialize();
   });
@@ -126,10 +120,10 @@ describe('SQLite Integration Tests', () => {
   describe('SqliteConnectionManager', () => {
     test('should connect and disconnect', async () => {
       expect(connectionManager.isConnected()).toBe(true);
-      
+
       await connectionManager.disconnect();
       expect(connectionManager.isConnected()).toBe(false);
-      
+
       await connectionManager.connect();
       expect(connectionManager.isConnected()).toBe(true);
     });
@@ -167,7 +161,7 @@ describe('SQLite Integration Tests', () => {
       const projects = await projectManager.listProjectSpaces();
       expect(Array.isArray(projects)).toBe(true);
       expect(projects.length).toBeGreaterThan(0);
-      
+
       const testProject = projects.find(p => p.path === testProjectPath);
       expect(testProject).toBeDefined();
       expect(testProject.name).toBe('Test Project');
@@ -185,7 +179,7 @@ describe('SQLite Integration Tests', () => {
         failed_files: 0,
         last_updated: new Date()
       };
-      
+
       const result = await projectManager.updateProjectStatus(project.project.id, status);
       expect(result).toBe(true);
     });

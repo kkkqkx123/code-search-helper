@@ -16,11 +16,8 @@ import { MonitoringConfigService } from '../config/service/MonitoringConfigServi
 import { MemoryMonitorConfigService } from '../config/service/MemoryMonitorConfigService';
 import { FileProcessingConfigService } from '../config/service/FileProcessingConfigService';
 import { BatchProcessingConfigService } from '../config/service/BatchProcessingConfigService';
-import { RedisConfigService } from '../config/service/RedisConfigService';
 import { ProjectConfigService } from '../config/service/ProjectConfigService';
 import { IndexingConfigService } from '../config/service/IndexingConfigService';
-import { LSPConfigService } from '../config/service/LSPConfigService';
-import { SemgrepConfigService } from '../config/service/SemgrepConfigService';
 import { TreeSitterConfigService } from '../config/service/TreeSitterConfigService';
 import { ProjectNamingConfigService } from '../config/service/ProjectNamingConfigService';
 import { EmbeddingBatchConfigService } from '../config/service/EmbeddingBatchConfigService';
@@ -46,11 +43,8 @@ describe('Memory Monitor Integration Tests', () => {
     container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
     container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
-    container.bind<RedisConfigService>(TYPES.RedisConfigService).to(RedisConfigService).inSingletonScope();
     container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
     container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
-    container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
-    container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
     container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
     container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();

@@ -10,11 +10,8 @@ import {
   MemoryMonitorConfigService,
   FileProcessingConfigService,
   BatchProcessingConfigService,
-  RedisConfigService,
   ProjectConfigService,
   IndexingConfigService,
-  LSPConfigService,
-  SemgrepConfigService,
   TreeSitterConfigService,
   ProjectNamingConfigService,
   EmbeddingBatchConfigService,
@@ -40,17 +37,14 @@ export class ConfigService {
     @inject(TYPES.MemoryMonitorConfigService) private memoryMonitorConfigService: MemoryMonitorConfigService,
     @inject(TYPES.FileProcessingConfigService) private fileProcessingConfigService: FileProcessingConfigService,
     @inject(TYPES.BatchProcessingConfigService) private batchProcessingConfigService: BatchProcessingConfigService,
-    @inject(TYPES.RedisConfigService) private redisConfigService: RedisConfigService,
     @inject(TYPES.ProjectConfigService) private projectConfigService: ProjectConfigService,
     @inject(TYPES.IndexingConfigService) private indexingConfigService: IndexingConfigService,
-    @inject(TYPES.LSPConfigService) private lspConfigService: LSPConfigService,
-    @inject(TYPES.SemgrepConfigService) private semgrepConfigService: SemgrepConfigService,
     @inject(TYPES.TreeSitterConfigService) private treeSitterConfigService: TreeSitterConfigService,
     @inject(TYPES.ProjectNamingConfigService) private projectNamingConfigService: ProjectNamingConfigService,
     @inject(TYPES.EmbeddingBatchConfigService) private embeddingBatchConfigService: EmbeddingBatchConfigService,
     @inject(TYPES.GraphCacheConfigService) private graphCacheConfigService: GraphCacheConfigService,
   ) { }
-  
+
 
   async initialize(): Promise<void> {
     try {
@@ -63,11 +57,8 @@ export class ConfigService {
       const memoryMonitor = this.memoryMonitorConfigService.getConfig();
       const fileProcessing = this.fileProcessingConfigService.getConfig();
       const batchProcessing = this.batchProcessingConfigService.getConfig();
-      const redis = this.redisConfigService.getConfig();
       const project = this.projectConfigService.getConfig();
       const indexing = this.indexingConfigService.getConfig();
-      const lsp = this.lspConfigService.getConfig();
-      const semgrep = this.semgrepConfigService.getConfig();
       const treeSitter = this.treeSitterConfigService.getConfig();
       const projectNaming = this.projectNamingConfigService.getConfig();
       const embeddingBatch = this.embeddingBatchConfigService.getConfig();
@@ -85,9 +76,6 @@ export class ConfigService {
         memoryMonitor,
         fileProcessing,
         batchProcessing,
-        redis,
-        lsp,
-        semgrep,
         caching: {
           defaultTTL: 3600,
           maxSize: 10000,
@@ -128,7 +116,7 @@ export class ConfigService {
   private getDefaultHotReloadConfig(): HotReloadConfig {
     // 使用配置工厂获取默认配置，避免硬编码
     const globalConfig = HotReloadConfigFactory.createDefaultGlobalConfig();
-    
+
     // 转换为HotReloadConfig格式
     return {
       enabled: globalConfig.enabled,

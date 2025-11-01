@@ -10,11 +10,8 @@ import {
   MemoryMonitorConfigService,
   FileProcessingConfigService,
   BatchProcessingConfigService,
-  RedisConfigService,
   ProjectConfigService,
   IndexingConfigService,
-  LSPConfigService,
-  SemgrepConfigService,
   TreeSitterConfigService,
   ProjectNamingConfigService,
   NebulaConfigService,
@@ -35,17 +32,14 @@ export class ConfigServiceRegistrar {
       container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
       container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
       container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
-      container.bind<RedisConfigService>(TYPES.RedisConfigService).to(RedisConfigService).inSingletonScope();
       container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
       container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
-      container.bind<LSPConfigService>(TYPES.LSPConfigService).to(LSPConfigService).inSingletonScope();
-      container.bind<SemgrepConfigService>(TYPES.SemgrepConfigService).to(SemgrepConfigService).inSingletonScope();
       container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
       container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
       container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
       container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
       container.bind<GraphCacheConfigService>(TYPES.GraphCacheConfigService).to(GraphCacheConfigService).inSingletonScope();
-      
+
       // 数据库服务
       container.bind<ProjectPathMappingService>(TYPES.ProjectPathMappingService).to(ProjectPathMappingService).inSingletonScope();
 
