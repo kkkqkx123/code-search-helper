@@ -174,8 +174,41 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
     try {
       // 使用事务进行批量操作
       this.sqliteService.transaction(() => {
+        // 首先确保所有涉及的项目都存在于projects表中
+        const uniqueProjectIds = [...new Set(updates.map(update => update.projectId))];
+        for (const projectId of uniqueProjectIds) {
+          // 检查项目是否已存在
+          const checkStmt = this.sqliteService.prepare('SELECT id FROM projects WHERE id = ?');
+          const existingProject = checkStmt.get(projectId);
+          
+          if (!existingProject) {
+            // 如果项目不存在，创建一个最小的项目记录以满足外键约束
+            const now = new Date().toISOString();
+            const insertProjectStmt = this.sqliteService.prepare(`
+              INSERT OR IGNORE INTO projects
+              (id, path, name, description, collection_name, space_name, created_at, updated_at, last_indexed_at, status, settings, metadata)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            // 使用一个默认路径，实际路径应该在其他地方正确设置
+            insertProjectStmt.run(
+              projectId,
+              `unknown_path_for_${projectId}`,
+              `Project ${projectId}`,
+              null,  // description
+              null,  // collection_name
+              null,  // space_name
+              now,   // created_at
+              now,   // updated_at
+              null,  // last_indexed_at
+              'active',  // status
+              '{}',  // settings (JSON)
+              '{}'   // metadata (JSON)
+            );
+          }
+        }
+        
         const stmt = this.sqliteService.prepare(`
-          INSERT OR REPLACE INTO file_index_states 
+          INSERT OR REPLACE INTO file_index_states
           (project_id, file_path, relative_path, content_hash, file_size, last_modified, language, file_type, status, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
