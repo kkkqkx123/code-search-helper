@@ -616,7 +616,7 @@ export class IndexService {
             enabled: true,
             watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java}'], // 根据项目类型调整
             ignorePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**', '**/target/**', '**/venv/**'],
-            maxFileSize: 10 * 1024 * 1024, // 10MB
+            maxFileSize: 512000, // 500KB
             errorHandling: {
               maxRetries: 3,
               alertThreshold: 5,
@@ -1248,7 +1248,7 @@ export class IndexService {
                 enabled: true,
                 watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java}'], // 根据项目类型调整
                 ignorePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**', '**/target/**', '**/venv/**'],
-                maxFileSize: 10 * 1024 * 1024, // 10MB
+                maxFileSize: 512000, // 500KB
                 errorHandling: {
                   maxRetries: 3,
                   alertThreshold: 5,

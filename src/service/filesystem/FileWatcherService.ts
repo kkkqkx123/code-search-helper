@@ -566,7 +566,7 @@ export class FileWatcherService {
       const stats = await fs.stat(fullPath);
 
       // Check file size
-      const maxFileSize = this.traversalOptions.maxFileSize || 10 * 1024 * 1024; // 10MB default
+      const maxFileSize = this.traversalOptions.maxFileSize || 512000; // 500KB default
       if (stats.size > maxFileSize) {
         this.logger.warn(`File too large: ${relativePath} (${stats.size} bytes)`);
         return null;

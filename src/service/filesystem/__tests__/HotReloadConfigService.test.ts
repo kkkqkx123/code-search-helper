@@ -46,7 +46,7 @@ describe('HotReloadConfigService', () => {
       // 验证默认值
       expect(config.enabled).toBe(true);
       expect(config.defaultDebounceInterval).toBe(500);
-      expect(config.defaultMaxFileSize).toBe(10 * 1024 * 1024);
+      expect(config.defaultMaxFileSize).toBe(512000);
       expect(config.maxConcurrentProjects).toBe(5);
       expect(config.enableDetailedLogging).toBe(false);
       expect(config.defaultErrorHandling.maxRetries).toBe(3);
@@ -100,7 +100,7 @@ describe('HotReloadConfigService', () => {
       expect(config.defaultDebounceInterval).toBe(1000);
       expect(config.defaultErrorHandling.maxRetries).toBe(5);
       // 其他值应保持不变
-      expect(config.defaultMaxFileSize).toBe(10 * 1024 * 1024);
+      expect(config.defaultMaxFileSize).toBe(512000);
       expect(config.defaultErrorHandling.alertThreshold).toBe(5);
       expect(config.defaultErrorHandling.autoRecovery).toBe(true);
     });
@@ -126,7 +126,7 @@ describe('HotReloadConfigService', () => {
       expect(config.debounceInterval).toBe(500);
       expect(config.watchPatterns).toContain('**/*.{js,ts,jsx,tsx,json,md,py,go,java,css,html,scss}');
       expect(config.ignorePatterns).toContain('**/node_modules/**');
-      expect(config.maxFileSize).toBe(10 * 1024 * 1024);
+      expect(config.maxFileSize).toBe(512000);
       expect(config.errorHandling.maxRetries).toBe(3);
     });
 
@@ -182,7 +182,7 @@ describe('HotReloadConfigService', () => {
     it('should return valid for correct configuration', () => {
       const validConfig = {
         debounceInterval: 500,
-        maxFileSize: 10 * 1024 * 1024,
+        maxFileSize: 512000,
         errorHandling: {
           maxRetries: 3,
           alertThreshold: 5,

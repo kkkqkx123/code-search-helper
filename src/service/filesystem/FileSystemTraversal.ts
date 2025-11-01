@@ -56,7 +56,7 @@ export class FileSystemTraversal {
         '**/dist/**',
         '**/build/**',
       ],
-      maxFileSize: options?.maxFileSize ?? 10 * 1024 * 1024, // 10MB
+      maxFileSize: options?.maxFileSize ?? 512000, // 500KB (512000 bytes)
       supportedExtensions: options?.supportedExtensions ?? [
         '.ts',
         '.js',
@@ -580,6 +580,19 @@ export class FileSystemTraversal {
     return changedFiles;
   }
 
+  /**
+   * Static version of findChangedFiles for testing purposes
+   */
+  static async findChangedFiles(
+    rootPath: string,
+    previousHashes: Map<string, string>,
+    logger?: LoggerService,
+    options?: TraversalOptions
+  ): Promise<FileInfo[]> {
+    const traversal = new FileSystemTraversal(logger || {} as LoggerService, options);
+    return traversal.findChangedFiles(rootPath, previousHashes, options);
+  }
+
   async getFileContent(filePath: string): Promise<string> {
     try {
       return await fs.readFile(filePath, 'utf-8');
@@ -631,5 +644,32 @@ export class FileSystemTraversal {
    */
   getSupportedExtensions(): string[] {
     return [...this.defaultOptions.supportedExtensions];
+  }
+
+  /**
+   * Static version of getSupportedExtensions for testing purposes
+   */
+  static getSupportedExtensions(): string[] {
+    return [
+      '.ts',
+      '.js',
+      '.tsx',
+      '.jsx',
+      '.py',
+      '.java',
+      '.go',
+      '.rs',
+      '.cpp',
+      '.c',
+      '.h',
+      '.hpp',
+      '.txt',
+      '.md',
+      '.json',
+      '.yaml',
+      '.yml',
+      '.xml',
+      '.csv',
+    ];
   }
 }

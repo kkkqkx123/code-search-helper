@@ -23,7 +23,7 @@ export class HotReloadConfigFactory {
         'HOT_RELOAD_IGNORE_PATTERNS',
         IgnoreConfigFactory.createHotReloadIgnorePatterns()
       ),
-      defaultMaxFileSize: EnvironmentUtils.parseNumber('HOT_RELOAD_MAX_FILE_SIZE', 10 * 1024 * 1024), // 10MB
+      defaultMaxFileSize: EnvironmentUtils.parseNumber('HOT_RELOAD_MAX_FILE_SIZE', 512000), // 500KB
       defaultErrorHandling: {
         maxRetries: EnvironmentUtils.parseNumber('HOT_RELOAD_ERROR_MAX_RETRIES', 3),
         alertThreshold: EnvironmentUtils.parseNumber('HOT_RELOAD_ERROR_ALERT_THRESHOLD', 5),

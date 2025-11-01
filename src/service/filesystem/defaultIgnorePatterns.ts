@@ -1,97 +1,100 @@
 export const DEFAULT_IGNORE_PATTERNS: string[] = [
   // Version control
-  '.git/**',
-  '.hg/**',
+  '**/.git/**',
+  '**/.hg/**',
   '.hgignore',
-  '.svn/**',
+  '**/.svn/**',
+
+  // Repomix
+  '**/repomix-output.xml',
 
   // Dependency directories
   '**/node_modules/**',
   '**/bower_components/**',
   '**/jspm_packages/**',
-  'vendor/**',
+  '**/vendor/**',
   '**/.bundle/**',
   '**/.gradle/**',
-  'target/**',
+  '**/target/**',
 
   // Logs
-  'logs/**',
+  '**/logs/**',
   '**/*.log',
   '**/npm-debug.log*',
   '**/yarn-debug.log*',
   '**/yarn-error.log*',
 
   // Runtime data
-  'pids/**',
+  '**/pids/**',
   '*.pid',
   '*.seed',
   '*.pid.lock',
 
   // Coverage directory used by tools like istanbul
-  'coverage/**',
-  '.nyc_output/**',
+  '**/coverage/**',
+  '**/.nyc_output/**',
 
   // Grunt intermediate storage
-  '.grunt/**',
+  '**/.grunt/**',
 
   // Compiled binary addons
-  'build/Release/**',
+  '**/build/Release/**',
 
   // TypeScript v1 declaration files
-  'typings/**',
+  '**/typings/**',
 
   // Optional npm cache directory
   '**/.npm/**',
 
   // Cache directories
-  '.eslintcache',
-  '.rollup.cache/**',
-  '.webpack.cache/**',
-  '.parcel-cache/**',
-  '.sass-cache/**',
+  '**/.eslintcache',
+  '**/.rollup.cache/**',
+  '**/.webpack.cache/**',
+  '**/.parcel-cache/**',
+  '**/.sass-cache/**',
   '*.cache',
 
   // Optional REPL history
-  '.node_repl_history',
+  '**/.node_repl_history',
 
   // Output of 'npm pack'
-  '*.tgz',
+  '**/*.tgz',
 
   // Yarn files
   '**/.yarn/**',
   '**/.yarn-integrity',
 
   // dotenv environment variables file
-  '.env',
+  '**/.env',
 
   // next.js build output
-  '.next/**',
+  '**/.next/**',
 
   // nuxt.js build output
-  '.nuxt/**',
+  '**/.nuxt/**',
 
   // vuepress build output
-  '.vuepress/dist/**',
+  '**/.vuepress/dist/**',
 
   // Serverless directories
-  '.serverless/**',
+  '**/.serverless/**',
 
   // FuseBox cache
-  '.fusebox/**',
+  '**/.fusebox/**',
 
   // DynamoDB Local files
-  '.dynamodb/**',
+  '**/.dynamodb/**',
 
   // TypeScript output
-  'dist/**',
+  '**/dist/**',
 
   // OS generated files
   '**/.DS_Store',
   '**/Thumbs.db',
 
   // Editor directories and files
-  '.idea/**',
-  '.vscode/**',
+  '**/.idea/**',
+  '**/.vscode/**',
   '**/*.swp',
   '**/*.swo',
   '**/*.swn',
@@ -103,12 +106,12 @@ export const DEFAULT_IGNORE_PATTERNS: string[] = [
   '**/.*.bak',  // 隐藏的备份文件
 
   // Build outputs
-  'build/**',
-  'out/**',
+  '**/build/**',
+  '**/out/**',
 
   // Temporary files
-  'tmp/**',
-  'temp/**',
+  '**/tmp/**',
+  '**/temp/**',
 
   // repomix output
   '**/repomix-output.*',

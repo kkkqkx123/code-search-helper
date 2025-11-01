@@ -25,7 +25,7 @@ describe('HotReloadConfigFactory', () => {
         defaultDebounceInterval: 500,
         defaultWatchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java,css,html,scss}'],
         defaultIgnorePatterns: IgnoreConfigFactory.createHotReloadIgnorePatterns(),
-        defaultMaxFileSize: 10 * 1024 * 1024,
+        defaultMaxFileSize: 512000,
         defaultErrorHandling: {
           maxRetries: 3,
           alertThreshold: 5,

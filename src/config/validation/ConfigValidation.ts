@@ -42,7 +42,7 @@ export const monitoringSchema = Joi.object({
 
 // FileProcessing配置验证模式
 export const fileProcessingSchema = Joi.object({
-  maxFileSize: Joi.number().positive().default(10485760),
+  maxFileSize: Joi.number().positive().default(512000),
   supportedExtensions: Joi.string().default('.ts,.js,.py,.java,.go,.rs,.cpp,.c,.h'),
   indexBatchSize: Joi.number().positive().default(100),
   chunkSize: Joi.number().positive().default(1000),

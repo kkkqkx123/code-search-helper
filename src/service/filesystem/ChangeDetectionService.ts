@@ -121,7 +121,7 @@ export class ChangeDetectionService extends EventEmitter {
       enableDetailedLogging: options?.enableDetailedLogging ?? false,
       permissionRetryAttempts: options?.permissionRetryAttempts ?? 3,
       permissionRetryDelay: this.isTestMode() ? 100 : (options?.permissionRetryDelay ?? 1000),
-      maxFileSizeBytes: options?.maxFileSizeBytes ?? 10 * 1024 * 1024, // 10MB
+      maxFileSizeBytes: options?.maxFileSizeBytes ?? 512000, // 500KB
       excludedExtensions: options?.excludedExtensions ?? ['.log', '.tmp', '.bak'],
       excludedDirectories: options?.excludedDirectories ?? [
         'node_modules',
@@ -229,11 +229,11 @@ export class ChangeDetectionService extends EventEmitter {
 
   private async initializeFileHashes(rootPaths: string[]): Promise<void> {
     try {
-      const hashUpdates: Array<{projectId: string, filePath: string, hash: string, fileSize?: number, lastModified?: Date, language?: string, fileType?: string}> = [];
-      
+      const hashUpdates: Array<{ projectId: string, filePath: string, hash: string, fileSize?: number, lastModified?: Date, language?: string, fileType?: string }> = [];
+
       for (const rootPath of rootPaths) {
         const result = await this.fileSystemTraversal.traverseDirectory(rootPath);
-        
+
         // 获取项目ID
         const projectId = await this.getProjectIdForPath(rootPath);
 
@@ -560,7 +560,7 @@ export class ChangeDetectionService extends EventEmitter {
     // 由于ProjectIdManager依赖数据库服务，确保数据库连接已建立
     let attempts = 0;
     const maxAttempts = 50; // 最多等待5秒 (50 * 100ms)
-    
+
     while (attempts < maxAttempts) {
       try {
         // 检查ProjectIdManager是否已准备好，可以通过尝试获取一个简单值来验证
@@ -569,11 +569,11 @@ export class ChangeDetectionService extends EventEmitter {
       } catch (error) {
         // 继续等待
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, 100));
       attempts++;
     }
-    
+
     // 如果等待后仍然未准备好，记录警告
     this.logger.warn('ProjectIdManager may not be fully ready after waiting, continuing initialization');
   }
@@ -650,18 +650,25 @@ export class ChangeDetectionService extends EventEmitter {
   }
 
   /**
-   * 获取项目ID
+   * 获取项目ID（私有方法），用于测试
    */
-  private async getProjectIdForPath(rootPath: string): Promise<string> {
+  private async getProjectIdForPathInternal(rootPath: string): Promise<string> {
     // 使用ProjectIdManager来获取项目ID
     let projectId = this.projectIdManager.getProjectId(rootPath);
-    
+
     // 如果项目ID不存在，创建一个新的
     if (!projectId) {
       projectId = await this.projectIdManager.generateProjectId(rootPath);
     }
-    
+
     return projectId;
+  }
+
+  /**
+   * 获取项目ID（公共方法）
+   */
+  async getProjectIdForPath(path: string): Promise<string> {
+    return this.getProjectIdForPathInternal(path);
   }
 
   /**
@@ -674,26 +681,26 @@ export class ChangeDetectionService extends EventEmitter {
     unchanged: string[];
   }> {
     const enableHashComparison = options?.enableHashComparison ?? true;
-    
+
     try {
       this.logger.info(`Detecting file changes for manual update: ${projectPath}`);
-      
+
       // 1. 获取当前文件系统状态
       const currentFiles = await this.fileSystemTraversal.traverseDirectory(projectPath);
       const currentFilePaths = currentFiles.files.map(file => file.path);
-      
+
       // 2. 获取已索引的文件列表
       const projectId = this.projectIdManager.getProjectId(projectPath);
       if (!projectId) {
         throw new Error(`Project ID not found for path: ${projectPath}`);
       }
-      
+
       // 从IndexingLogicService获取已索引的文件列表
       // 这里我们需要通过依赖注入获取IndexingLogicService
       // 由于ChangeDetectionService没有直接注入IndexingLogicService，我们需要通过其他方式获取
       // 暂时使用一个简化的方法，通过FileHashManager获取已跟踪的文件
       const indexedFiles = await this.getIndexedFilesFromHashManager(projectId);
-      
+
       // 3. 检测文件变化
       const changes = {
         added: [] as string[],
@@ -756,21 +763,21 @@ export class ChangeDetectionService extends EventEmitter {
     try {
       // 获取当前文件哈希
       const currentHash = await this.fileSystemTraversal['calculateFileHash'](filePath);
-      
+
       // 从FileHashManager获取缓存的哈希
       const cachedHash = await this.fileHashManager.getFileHash(projectId, filePath);
-      
+
       if (cachedHash === null) {
         // 新文件，需要索引
         await this.fileHashManager.updateFileHash(projectId, filePath, currentHash);
         return true;
       }
-      
+
       const hasChanged = currentHash !== cachedHash;
       if (hasChanged) {
         await this.fileHashManager.updateFileHash(projectId, filePath, currentHash);
       }
-      
+
       return hasChanged;
     } catch (error) {
       this.logger.warn(`Failed to check file change for ${filePath}:`, error);
@@ -794,7 +801,7 @@ export class ChangeDetectionService extends EventEmitter {
         FROM file_index_states 
         WHERE project_id = ? AND status = 'indexed'
       `);
-      
+
       const results = stmt.all(projectId) as any[];
       return results.map(row => row.file_path);
     } catch (error) {
@@ -802,4 +809,5 @@ export class ChangeDetectionService extends EventEmitter {
       return [];
     }
   }
+
 }

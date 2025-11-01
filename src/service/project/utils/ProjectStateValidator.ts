@@ -97,7 +97,7 @@ export class ProjectStateValidator {
             '**/tmp/**',
             '**/temp/**'
           ],
-          maxFileSize: typeof rawState.hotReload.config?.maxFileSize === 'number' ? rawState.hotReload.config.maxFileSize : 10 * 1024 * 1024,
+          maxFileSize: typeof rawState.hotReload.config?.maxFileSize === 'number' ? rawState.hotReload.config.maxFileSize : 512000,
           errorHandling: rawState.hotReload.config?.errorHandling ? {
             maxRetries: typeof rawState.hotReload.config.errorHandling.maxRetries === 'number' ? rawState.hotReload.config.errorHandling.maxRetries : 3,
             alertThreshold: typeof rawState.hotReload.config.errorHandling.alertThreshold === 'number' ? rawState.hotReload.config.errorHandling.alertThreshold : 5,
@@ -132,7 +132,7 @@ export class ProjectStateValidator {
             '**/tmp/**',
             '**/temp/**'
           ],
-          maxFileSize: 10 * 1024 * 1024, // 10MB
+          maxFileSize: 512000, // 500KB
           errorHandling: {
             maxRetries: 3,
             alertThreshold: 5,

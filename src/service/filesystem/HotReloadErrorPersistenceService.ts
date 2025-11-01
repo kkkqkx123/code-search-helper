@@ -31,7 +31,7 @@ export class HotReloadErrorPersistenceService {
     this.config = {
       enabled: true,
       storagePath: './logs',
-      maxFileSize: 10 * 1024 * 1024, // 10MB
+      maxFileSize: 512000, // 500KB
       maxFiles: 10,
       flushInterval: 5000, // 5 seconds
       enableCompression: false
