@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { DatabaseType } from '../types';
-import { ICacheService, CacheEntry, CacheConfig } from './types';
+import { DatabaseType } from '../../infrastructure/types';
+import { ICacheService, CacheEntry, CacheConfig } from '../../infrastructure/caching/types';
 
 export interface SearchResult {
   id: string;

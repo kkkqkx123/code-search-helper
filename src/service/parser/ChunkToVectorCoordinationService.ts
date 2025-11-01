@@ -15,7 +15,7 @@ import { UnifiedGuardCoordinator } from './guard/UnifiedGuardCoordinator';
 import { UniversalTextStrategy } from './processing/utils/UniversalTextStrategy';
 import { BackupFileProcessor } from './processing/detection/BackupFileProcessor';
 import { ExtensionlessFileProcessor } from './processing/detection/ExtensionlessFileProcessor';
-import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
+import { VectorBatchOptimizer } from '../optimization/VectorBatchOptimizer';
 import { LanguageDetectionService } from './processing/detection/LanguageDetectionService';
 import { UnifiedDetectionService } from './processing/detection/UnifiedDetectionService';
 

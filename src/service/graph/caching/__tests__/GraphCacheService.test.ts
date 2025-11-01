@@ -3,7 +3,7 @@
  * 测试新的简化图缓存服务
  */
 
-import { GraphCacheService } from '../../../../infrastructure/caching/GraphCacheService';
+import { GraphCacheService } from '../../../caching/GraphCacheService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { GraphData, CacheOptions } from '../types';
 
@@ -118,9 +118,9 @@ describe('GraphCacheService', () => {
     it('应该正确清空缓存', async () => {
       const testData: GraphData = { nodes: [], relationships: [] };
       await service.set('test-key', testData);
-      
+
       await service.clearGraphCache();
-      
+
       const cached = await service.getGraphData('test-key');
       expect(cached).toBeNull();
       expect(service.getGraphCacheSize()).toBe(0);
@@ -130,7 +130,7 @@ describe('GraphCacheService', () => {
       const testData: GraphData = { nodes: [], relationships: [] };
       await service.set('key1', testData);
       await service.set('key2', testData);
-      
+
       expect(service.getGraphCacheSize()).toBe(2);
     });
 
@@ -138,7 +138,7 @@ describe('GraphCacheService', () => {
       const testData: GraphData = { nodes: [], relationships: [] };
       await service.set('key1', testData);
       await service.set('key2', testData);
-      
+
       const keys = service.getGraphCacheKeys();
       expect(keys).toContain('key1');
       expect(keys).toContain('key2');
@@ -169,12 +169,12 @@ describe('GraphCacheService', () => {
     it('应该正确处理TTL过期', async () => {
       const testData: GraphData = { nodes: [], relationships: [] };
       const options: CacheOptions = { ttl: 100 }; // 100ms
-      
+
       await service.setGraphData('test-key', testData, options);
-      
+
       // 等待过期
       await new Promise(resolve => setTimeout(resolve, 150));
-      
+
       const cached = await service.getGraphData('test-key');
       expect(cached).toBeNull();
     });

@@ -138,7 +138,7 @@ describe('AutoOptimizationAdvisor', () => {
         })
       );
     });
- });
+  });
 
   describe('startAnalysis and stopAnalysis', () => {
     it('should start analysis and log the start', () => {

@@ -1,5 +1,5 @@
-import { IBatchOptimizer, BatchOptimizerConfig } from '../types';
-import { DatabaseType } from '../../types';
+import { IBatchOptimizer, BatchOptimizerConfig } from '../../../infrastructure/batching/types';
+import { DatabaseType } from '../../../infrastructure/types';
 
 // Simple mock implementation for testing
 class MockBatchOptimizer implements IBatchOptimizer {
@@ -144,10 +144,10 @@ describe('BatchOptimizer', () => {
         retryDelay: 2000,
         adaptiveBatchingEnabled: false,
       };
-      
+
       const customOptimizer = new MockBatchOptimizer(customConfig);
       const config = (customOptimizer as any).config;
-      
+
       expect(config.maxConcurrentOperations).toBe(10);
       expect(config.defaultBatchSize).toBe(100);
       expect(config.maxBatchSize).toBe(1000);
@@ -193,7 +193,7 @@ describe('BatchOptimizer', () => {
       const operation = jest.fn()
         .mockRejectedValueOnce(new Error('First failure'))
         .mockResolvedValue('success');
-      
+
       // We need to override the shouldRetry method for this test
       const mockBatchOptimizer = new MockBatchOptimizer();
       mockBatchOptimizer.shouldRetry = async (operation, maxRetries = 3) => {
@@ -211,14 +211,14 @@ describe('BatchOptimizer', () => {
         }
         throw lastError!;
       };
-      
+
       const result = await mockBatchOptimizer.shouldRetry(operation, 3);
       expect(result).toBe('success');
     });
 
     it('should throw an error after max retry attempts reached', async () => {
       const operation = jest.fn().mockRejectedValue(new Error('Persistent failure'));
-      
+
       // We need to override the shouldRetry method for this test
       const mockBatchOptimizer = new MockBatchOptimizer();
       mockBatchOptimizer.shouldRetry = async (operation, maxRetries = 3) => {
@@ -236,69 +236,69 @@ describe('BatchOptimizer', () => {
         }
         throw lastError!;
       };
-      
+
       await expect(mockBatchOptimizer.shouldRetry(operation, 3)).rejects.toThrow('Persistent failure');
     });
- 
+
     describe('calculateOptimalGraphBatchSize', () => {
-   it('should calculate appropriate batch size for NEBULA database', () => {
-     const batchSize = batchOptimizer.calculateOptimalGraphBatchSize(100, DatabaseType.NEBULA);
-     expect(batchSize).toBeGreaterThanOrEqual(10); // min batch size
-     expect(batchSize).toBeLessThanOrEqual(500); // max batch size
-   });
+      it('should calculate appropriate batch size for NEBULA database', () => {
+        const batchSize = batchOptimizer.calculateOptimalGraphBatchSize(100, DatabaseType.NEBULA);
+        expect(batchSize).toBeGreaterThanOrEqual(10); // min batch size
+        expect(batchSize).toBeLessThanOrEqual(500); // max batch size
+      });
 
-   it('should calculate appropriate batch size for GRAPH database', () => {
-     const batchSize = batchOptimizer.calculateOptimalGraphBatchSize(50, DatabaseType.GRAPH);
-     expect(batchSize).toBeGreaterThanOrEqual(10); // min batch size
-     expect(batchSize).toBeLessThanOrEqual(500); // max batch size
-   });
+      it('should calculate appropriate batch size for GRAPH database', () => {
+        const batchSize = batchOptimizer.calculateOptimalGraphBatchSize(50, DatabaseType.GRAPH);
+        expect(batchSize).toBeGreaterThanOrEqual(10); // min batch size
+        expect(batchSize).toBeLessThanOrEqual(500); // max batch size
+      });
 
-   it('should return default batch size for other database types', () => {
-     const batchSize = batchOptimizer.calculateOptimalGraphBatchSize(1000, DatabaseType.QDRANT);
-     expect(batchSize).toBeLessThanOrEqual(50); // default batch size
-   });
+      it('should return default batch size for other database types', () => {
+        const batchSize = batchOptimizer.calculateOptimalGraphBatchSize(1000, DatabaseType.QDRANT);
+        expect(batchSize).toBeLessThanOrEqual(50); // default batch size
+      });
 
-   it('should not exceed operation count', () => {
-     const batchSize = batchOptimizer.calculateOptimalGraphBatchSize(5, DatabaseType.NEBULA);
-     expect(batchSize).toBeLessThanOrEqual(5);
-   });
- });
+      it('should not exceed operation count', () => {
+        const batchSize = batchOptimizer.calculateOptimalGraphBatchSize(5, DatabaseType.NEBULA);
+        expect(batchSize).toBeLessThanOrEqual(5);
+      });
+    });
 
- describe('updateConfig', () => {
-   it('should update configuration', () => {
-     batchOptimizer.updateConfig({
-       maxConcurrentOperations: 15,
-       defaultBatchSize: 75,
-     });
-     
-     const config = (batchOptimizer as any).config;
-     expect(config.maxConcurrentOperations).toBe(15);
-     expect(config.defaultBatchSize).toBe(75);
-   });
+    describe('updateConfig', () => {
+      it('should update configuration', () => {
+        batchOptimizer.updateConfig({
+          maxConcurrentOperations: 15,
+          defaultBatchSize: 75,
+        });
 
-   it('should merge configuration with existing values', () => {
-     batchOptimizer.updateConfig({
-       maxConcurrentOperations: 15,
-     });
-     
-     const config = (batchOptimizer as any).config;
-     expect(config.maxConcurrentOperations).toBe(15);
-     expect(config.defaultBatchSize).toBe(50); // Default value
-   });
- });
+        const config = (batchOptimizer as any).config;
+        expect(config.maxConcurrentOperations).toBe(15);
+        expect(config.defaultBatchSize).toBe(75);
+      });
 
- describe('getConfig', () => {
-   it('should return current configuration', () => {
-     const config = batchOptimizer.getConfig();
-     expect(config).toHaveProperty('maxConcurrentOperations');
-     expect(config).toHaveProperty('defaultBatchSize');
-     expect(config).toHaveProperty('maxBatchSize');
-     expect(config).toHaveProperty('memoryThreshold');
-     expect(config).toHaveProperty('processingTimeout');
-     expect(config).toHaveProperty('retryAttempts');
-     expect(config).toHaveProperty('retryDelay');
-     expect(config).toHaveProperty('adaptiveBatchingEnabled');
-   });
- });
-});
+      it('should merge configuration with existing values', () => {
+        batchOptimizer.updateConfig({
+          maxConcurrentOperations: 15,
+        });
+
+        const config = (batchOptimizer as any).config;
+        expect(config.maxConcurrentOperations).toBe(15);
+        expect(config.defaultBatchSize).toBe(50); // Default value
+      });
+    });
+
+    describe('getConfig', () => {
+      it('should return current configuration', () => {
+        const config = batchOptimizer.getConfig();
+        expect(config).toHaveProperty('maxConcurrentOperations');
+        expect(config).toHaveProperty('defaultBatchSize');
+        expect(config).toHaveProperty('maxBatchSize');
+        expect(config).toHaveProperty('memoryThreshold');
+        expect(config).toHaveProperty('processingTimeout');
+        expect(config).toHaveProperty('retryAttempts');
+        expect(config).toHaveProperty('retryDelay');
+        expect(config).toHaveProperty('adaptiveBatchingEnabled');
+      });
+    });
+  });
 });

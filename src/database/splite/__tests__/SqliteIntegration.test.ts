@@ -24,8 +24,8 @@ import { GraphCacheConfigService } from '../../../config/service/GraphCacheConfi
 import { InfrastructureManager } from '../../../infrastructure/InfrastructureManager';
 import { CacheService } from '../../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
-import { BatchOptimizer } from '../../../infrastructure/batching/BatchOptimizer';
-import { DatabaseHealthChecker } from '../../../infrastructure/monitoring/DatabaseHealthChecker';
+import { BatchOptimizer } from '../../../service/optimization/BatchOptimizerService';
+import { DatabaseHealthChecker } from '../../../service/monitoring/DatabaseHealthChecker';
 import { DatabaseConnectionPool } from '../../../infrastructure/connection/DatabaseConnectionPool';
 import { TransactionCoordinator } from '../../../infrastructure/transaction/TransactionCoordinator';
 

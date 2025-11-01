@@ -10,7 +10,7 @@ import { ConflictResolver } from '../../infrastructure/transaction/ConflictResol
 import { DataConsistencyChecker } from '../../database/common/DataConsistencyChecker';
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
 import { TransactionCoordinator } from '../../infrastructure/transaction/TransactionCoordinator';
-import { DatabaseHealthChecker } from '../../infrastructure/monitoring/DatabaseHealthChecker';
+import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { GraphModule } from '../../service/graph/core/GraphModule';
 
 describe('Service Integration Tests', () => {
@@ -89,7 +89,7 @@ describe('Service Integration Tests', () => {
       expect(status.completed).toBe(10);
       expect(status.pending).toBe(0);
       expect(status.running).toBe(0);
-      
+
       // 验证每个任务都有结果
       for (const taskId of taskIds) {
         const result = taskQueue.getTaskResult(taskId);
@@ -410,7 +410,7 @@ describe('Service Integration Tests', () => {
         }),
         subscribeToHealthUpdates: jest.fn()
       };
-      
+
       healthChecker.registerHealthChecker('test_db' as any, mockHealthChecker);
 
       // 触发健康检查

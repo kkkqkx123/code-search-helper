@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { DatabaseType } from '../types';
-import { IHealthChecker, DatabaseHealthStatus } from './types';
+import { DatabaseType } from '../../infrastructure/types';
+import { IHealthChecker, DatabaseHealthStatus } from '../../infrastructure/monitoring/types';
 import { DatabaseHealthChecker } from './DatabaseHealthChecker';
 
 /**
@@ -23,7 +23,7 @@ export class HealthCheckerAdapter implements IHealthChecker {
     this.logger = logger;
     this.databaseHealthChecker = databaseHealthChecker;
     this.databaseType = databaseType;
-    
+
     // 注册这个基础设施的健康检查器
     this.databaseHealthChecker.registerHealthChecker(this.databaseType, this);
   }
@@ -32,7 +32,7 @@ export class HealthCheckerAdapter implements IHealthChecker {
     try {
       // 使用 DatabaseHealthChecker 检查当前基础设施的健康状态
       const healthStatus = await this.databaseHealthChecker.checkHealthByDatabase(this.databaseType);
-      
+
       // 将 HealthStatus 转换为 DatabaseHealthStatus
       const databaseHealthStatus: DatabaseHealthStatus = {
         databaseType: this.databaseType,

@@ -3,8 +3,8 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
-import { DatabaseType } from '../types';
-import { IBatchOptimizer, BatchOptimizerConfig, GraphOperation, BatchResult, BatchOperationResult } from './types';
+import { DatabaseType } from '../../infrastructure/types';
+import { IBatchOptimizer, BatchOptimizerConfig, GraphOperation, BatchResult, BatchOperationResult } from '../../infrastructure/batching/types';
 
 @injectable()
 export class BatchOptimizer implements IBatchOptimizer {
@@ -310,11 +310,11 @@ export class BatchOptimizer implements IBatchOptimizer {
       case DatabaseType.NEBULA:
         // Nebula图数据库适合中等批大小
         return Math.min(baseSize, dbConfig?.maxBatchSize || this.config.maxBatchSize);
-      
+
       case DatabaseType.QDRANT:
         // Qdrant向量数据库可以处理大批次
         return Math.min(baseSize * 2, dbConfig?.maxBatchSize || this.config.maxBatchSize);
-      
+
       default:
         return baseSize;
     }
@@ -326,7 +326,7 @@ export class BatchOptimizer implements IBatchOptimizer {
     databaseType: DatabaseType
   ): Promise<BatchResult> {
     const batchSize = this.calculateOptimalGraphBatchSize(operations.length, databaseType);
-    
+
     // 创建批次
     const batches: GraphOperation[][] = [];
     for (let i = 0; i < operations.length; i += batchSize) {

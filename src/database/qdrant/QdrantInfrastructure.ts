@@ -10,8 +10,8 @@ import { IHealthChecker } from '../../infrastructure/monitoring/types';
 import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
 import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
-import { BatchOptimizer } from '../../infrastructure/batching/BatchOptimizer';
-import { DatabaseHealthChecker } from '../../infrastructure/monitoring/DatabaseHealthChecker';
+import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService';
+import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 
 @injectable()
 export class QdrantInfrastructure implements IDatabaseInfrastructure {

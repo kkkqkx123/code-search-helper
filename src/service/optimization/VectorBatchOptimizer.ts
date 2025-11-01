@@ -3,14 +3,14 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
-import { DatabaseType } from '../types';
+import { DatabaseType } from '../../infrastructure/types';
 import {
   IBatchOptimizer,
   BatchOptimizerConfig,
   GraphOperation,
   BatchResult,
   BatchOperationResult
-} from './types';
+} from '../../infrastructure/batching/types';
 
 export interface VectorData {
   id: string;

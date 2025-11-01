@@ -4,7 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 
 // 图服务基础设施
-import { GraphCacheService } from '../../infrastructure/caching/GraphCacheService';
+import { GraphCacheService } from '../../service/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { GraphQueryValidator } from '../../service/graph/query/GraphQueryValidator';
 
@@ -27,7 +27,7 @@ import { InfrastructureConfigService } from '../../infrastructure/config/Infrast
 import { GraphConfigService } from '../../config/service/GraphConfigService';
 
 // 向量批处理优化器
-import { VectorBatchOptimizer } from '../../infrastructure/batching/VectorBatchOptimizer';
+import { VectorBatchOptimizer } from '../../service/optimization/VectorBatchOptimizer';
 
 // 异步任务队列和冲突解决服务
 import { AsyncTaskQueue } from '../../infrastructure/batching/AsyncTaskQueue';
@@ -47,15 +47,15 @@ import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 // 基础设施服务
 import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
-import { BatchOptimizer } from '../../infrastructure/batching/BatchOptimizer';
-import { DatabaseHealthChecker } from '../../infrastructure/monitoring/DatabaseHealthChecker';
+import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService';
+import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
 import { TransactionCoordinator } from '../../infrastructure/transaction/TransactionCoordinator';
 import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
 import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
 import { GarbageCollectionStrategy } from '../../infrastructure/cleanup/strategies/GarbageCollectionStrategy';
 import { FaultToleranceHandler } from '../../utils/FaultToleranceHandler';
-import { InfrastructureErrorHandler } from '../../infrastructure/error/InfrastructureErrorHandler';
+import { DatabaseErrorHandler } from '../../database/error/DatabaseErrorHandler';
 
 // 基础设施管理器
 import { InfrastructureManager } from '../../infrastructure/InfrastructureManager';
@@ -83,7 +83,7 @@ export class InfrastructureServiceRegistrar {
       }).inSingletonScope();
 
       // 基础设施错误处理器
-      container.bind<InfrastructureErrorHandler>(TYPES.InfrastructureErrorHandler).toDynamicValue(context => {
+      container.bind<DatabaseErrorHandler>(TYPES.InfrastructureErrorHandler).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const performanceMonitor = context.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
 
@@ -92,7 +92,7 @@ export class InfrastructureServiceRegistrar {
           sendAlert: jest.fn() // 在实际环境中应该实现真实的警报管理器
         };
 
-        return new InfrastructureErrorHandler(
+        return new DatabaseErrorHandler(
           logger,
           alertManager as any,
           performanceMonitor

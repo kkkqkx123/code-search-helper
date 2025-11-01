@@ -1,10 +1,11 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { IPerformanceMonitor, PerformanceMetrics, OperationContext, OperationResult, ParsingOperationMetric, NormalizationOperationMetric, ChunkingOperationMetric } from './types';
+import { DatabaseType } from '../../infrastructure/types';
+import { IPerformanceMonitor, PerformanceMetrics, GraphDatabaseMetric, VectorOperationMetric, ParsingOperationMetric, NormalizationOperationMetric, ChunkingOperationMetric, OperationContext, OperationResult } from '../../infrastructure/monitoring/types';
 
 @injectable()
-export class PerformanceMonitor implements IPerformanceMonitor {
+export class DatabasePerformanceMonitor implements IPerformanceMonitor {
   private logger: LoggerService;
   private metrics: PerformanceMetrics;
  private monitoringInterval: NodeJS.Timeout | null = null;
@@ -14,7 +15,10 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   private batchSizes: number[] = [];
   private batchSuccesses: number = 0;
   private batchFailures: number = 0;
-  // 通用操作监控相关属性
+  // 数据库特定的指标
+  private nebulaOperationMetrics: GraphDatabaseMetric[] = [];
+  private vectorOperationMetrics: VectorOperationMetric[] = [];
+  // 操作监控相关属性
   private operationContexts: Map<string, OperationContext> = new Map();
 
   constructor(
@@ -107,7 +111,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     this.batchSizes.push(batchSize);
 
     // Keep only the last 100 batch sizes
-    if (this.batchSizes.length > 10) {
+    if (this.batchSizes.length > 100) {
       this.batchSizes = this.batchSizes.slice(-100);
     }
 
@@ -227,7 +231,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
       this.batchFailures++;
     }
     this.updateBatchProcessingStats();
-  }
+ }
 
   getDetailedMetrics(): PerformanceMetrics & {
     queryExecutionTimes: number[];
@@ -248,7 +252,130 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     };
   }
 
-  // 保留通用操作监控功能
+  // 扩展方法：记录Nebula操作指标
+  async recordNebulaOperation(
+    operation: string,
+    spaceName: string,
+    duration: number,
+    success: boolean
+  ): Promise<void> {
+    const metric: GraphDatabaseMetric = {
+      databaseType: DatabaseType.NEBULA,
+      operation,
+      spaceName,
+      duration,
+      success,
+      timestamp: Date.now(),
+      metadata: {
+        vertexCount: 0, // 从操作结果中获取
+        edgeCount: 0    // 从操作结果中获取
+      }
+    };
+
+    // 保留最近的1000个指标
+    if (this.nebulaOperationMetrics.length >= 1000) {
+      this.nebulaOperationMetrics = this.nebulaOperationMetrics.slice(-500); // 保留一半
+    }
+
+    this.nebulaOperationMetrics.push(metric);
+
+    this.logger.debug('Recorded Nebula operation metric', {
+      operation,
+      spaceName,
+      duration,
+      success
+    });
+
+    // 检查健康状态
+    await this.checkNebulaHealth(spaceName, success, duration);
+  }
+
+  // 扩展方法：记录向量操作指标
+  async recordVectorOperation(
+    operation: 'insert' | 'search' | 'update' | 'delete',
+    collectionName: string,
+    vectorCount: number,
+    dimension: number,
+    duration: number,
+    success: boolean
+  ): Promise<void> {
+    const metric: VectorOperationMetric = {
+      operation,
+      collectionName,
+      vectorCount,
+      dimension,
+      duration,
+      success,
+      timestamp: Date.now(),
+      throughput: vectorCount / (duration / 1000) // 向量/秒
+    };
+
+    // 保留最近的1000个指标
+    if (this.vectorOperationMetrics.length >= 1000) {
+      this.vectorOperationMetrics = this.vectorOperationMetrics.slice(-500); // 保留一半
+    }
+
+    this.vectorOperationMetrics.push(metric);
+
+    this.logger.debug('Recorded vector operation metric', {
+      operation,
+      collectionName,
+      vectorCount,
+      dimension,
+      duration,
+      success,
+      throughput: metric.throughput
+    });
+
+    // 检查性能阈值
+    if (success && this.shouldAlertOnPerformance(operation, duration, vectorCount)) {
+      await this.sendPerformanceAlert(operation, collectionName, duration, vectorCount);
+    }
+  }
+
+  private async checkNebulaHealth(spaceName: string, success: boolean, duration: number): Promise<void> {
+    const healthStatus = this.calculateHealthStatus(success, duration);
+
+    if (healthStatus !== 'healthy') {
+      this.logger.warn(`Nebula graph space ${spaceName} is ${healthStatus}`, {
+        duration,
+        success
+      });
+    }
+  }
+
+  private calculateHealthStatus(success: boolean, duration: number): 'healthy' | 'degraded' | 'critical' {
+    if (!success) return 'critical';
+    // 假设超过1秒的查询为降级状态
+    if (duration > 1000) return 'degraded';
+    return 'healthy';
+  }
+
+  private shouldAlertOnPerformance(
+    operation: string,
+    duration: number,
+    vectorCount: number
+  ): boolean {
+    // 假设平均每个向量操作超过10ms需要警报
+    const avgDurationPerVector = duration / vectorCount;
+    return avgDurationPerVector > 100;
+  }
+
+  private async sendPerformanceAlert(
+    operation: string,
+    collectionName: string,
+    duration: number,
+    vectorCount: number
+  ): Promise<void> {
+    this.logger.warn('Vector operation performance alert', {
+      operation,
+      collectionName,
+      duration,
+      vectorCount
+    });
+  }
+
+  // 通用操作监控功能（用于数据库相关操作）
   startOperation(operationType: string, metadata?: Record<string, any>): string {
     const operationId = `${operationType}_${Date.now()}_${Math.random()}`;
     const context: OperationContext = {
@@ -264,7 +391,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     return operationId;
   }
 
- endOperation(operationId: string, result?: Partial<OperationResult>): void {
+  endOperation(operationId: string, result?: Partial<OperationResult>): void {
     const context = this.operationContexts.get(operationId);
     if (!context) {
       this.logger.warn('Attempted to end non-existent operation', { operationId });
@@ -287,45 +414,47 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     // 可以根据需要记录到特定的指标数组
   }
 
-  // 以下是数据库特定的方法，需要从接口中移除或提供空实现
-  // 为了保持接口兼容性，提供空实现
-  async recordNebulaOperation(
-    operation: string,
-    spaceName: string,
-    duration: number,
-    success: boolean
-  ): Promise<void> {
-    // 空实现，数据库特定逻辑已移至DatabasePerformanceMonitor
-  }
-
-  async recordVectorOperation(
-    operation: 'insert' | 'search' | 'update' | 'delete',
-    collectionName: string,
-    vectorCount: number,
-    dimension: number,
-    duration: number,
-    success: boolean
-  ): Promise<void> {
-    // 空实现，数据库特定逻辑已移至DatabasePerformanceMonitor
-  }
-
+  // 解析操作监控（对于数据库查询解析等）
   async recordParsingOperation(metric: ParsingOperationMetric): Promise<void> {
-    // 空实现，解析操作已移至专门的监控器
+    // 专门记录数据库相关的解析操作
+    this.logger.debug('Recorded database parsing operation', {
+      operation: metric.operation,
+      language: metric.language,
+      duration: metric.duration,
+      success: metric.success
+    });
   }
 
+  // 标准化操作监控（对于数据库查询标准化等）
   async recordNormalizationOperation(metric: NormalizationOperationMetric): Promise<void> {
-    // 空实现，标准化操作已移至专门的监控器
+    // 专门记录数据库相关的标准化操作
+    this.logger.debug('Recorded database normalization operation', {
+      operation: metric.operation,
+      language: metric.language,
+      queryType: metric.queryType,
+      duration: metric.duration,
+      success: metric.success
+    });
   }
 
+  // 分段操作监控（对于数据库数据分段等）
   async recordChunkingOperation(metric: ChunkingOperationMetric): Promise<void> {
-    // 空实现，分段操作已移至专门的监控器
-  }
+    // 专门记录数据库相关的分段操作
+    this.logger.debug('Recorded database chunking operation', {
+      operation: metric.operation,
+      language: metric.language,
+      duration: metric.duration,
+      success: metric.success
+    });
+ }
 
   getOperationMetrics(): {
     parsing: ParsingOperationMetric[];
     normalization: NormalizationOperationMetric[];
     chunking: ChunkingOperationMetric[];
   } {
+    // 返回空数组，因为DatabasePerformanceMonitor不存储这些详细指标
+    // 如果需要存储，可以扩展类来存储这些指标
     return {
       parsing: [],
       normalization: [],
@@ -340,6 +469,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     operationsByType: Record<string, number>;
     operationsByLanguage: Record<string, number>;
   } {
+    // 返回基本统计信息
     return {
       totalOperations: 0,
       successRate: 0,

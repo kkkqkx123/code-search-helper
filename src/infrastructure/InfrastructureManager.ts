@@ -14,7 +14,7 @@ import { SqliteInfrastructure } from '../database/splite/SqliteInfrastructure';
 import { InfrastructureConfig as TypedInfrastructureConfig } from './config/types';
 import { ConfigValidator } from './config/ConfigValidator';
 import { InfrastructureConfigService } from './config/InfrastructureConfigService';
-import { IHealthCheckerRegistry } from './monitoring/DatabaseHealthChecker';
+import { IHealthCheckerRegistry } from '../service/monitoring/DatabaseHealthChecker';
 
 export interface IDatabaseInfrastructure {
   readonly databaseType: DatabaseType;

@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { PerformanceMetrics, VectorOperationMetric, ParsingOperationMetric, NormalizationOperationMetric, ChunkingOperationMetric, OperationContext, OperationResult } from './types';
-import { IPerformanceMonitor } from './types';
+import { PerformanceMetrics, VectorOperationMetric, ParsingOperationMetric, NormalizationOperationMetric, ChunkingOperationMetric, OperationContext, OperationResult } from '../../infrastructure/monitoring/types';
+import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
 
 export interface VectorCollectionMetrics {
   totalVectors: number;

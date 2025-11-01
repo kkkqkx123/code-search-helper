@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { IPerformanceMonitor } from '../monitoring/types';
-import { DatabaseType } from '../types';
+import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
+import { DatabaseType } from '../../infrastructure/types';
 
 interface ErrorInfo {
   category: string;
@@ -21,7 +21,7 @@ export interface Alert {
 }
 
 @injectable()
-export class InfrastructureErrorHandler {
+export class DatabaseErrorHandler {
   private logger: LoggerService;
   private alertManager: IAlertManager;
   private performanceMonitor: IPerformanceMonitor;
@@ -106,7 +106,7 @@ export class InfrastructureErrorHandler {
     }
   }
 
-  async handleInfrastructureError(
+ async handleInfrastructureError(
     error: Error,
     component: string,
     operation: string,
@@ -170,7 +170,7 @@ export class InfrastructureErrorHandler {
     }
   }
 
-  async handleBatchOperationError(
+ async handleBatchOperationError(
     error: Error,
     databaseType: DatabaseType,
     batchSize: number,
@@ -209,7 +209,7 @@ export class InfrastructureErrorHandler {
         error: error.message 
       }
     });
-  }
+ }
 
   private shouldAdjustBatchSize(error: Error): boolean {
     const errorMessage = error.message.toLowerCase();

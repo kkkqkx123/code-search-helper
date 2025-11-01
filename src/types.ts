@@ -102,7 +102,7 @@ import { SpaceNameUtils, ISpaceNameUtils } from './database/nebula/SpaceNameUtil
 import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
 
 // 15. 图服务模块
-import { GraphCacheService } from './infrastructure/caching/GraphCacheService';
+import { GraphCacheService } from './service/caching/GraphCacheService';
 import { GraphQueryBuilder, IGraphQueryBuilder } from './database/nebula/query/GraphQueryBuilder';
 import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
 import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
@@ -119,7 +119,7 @@ import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
 
 // 17. 基础设施模块
 import { TransactionCoordinator } from './infrastructure/transaction/TransactionCoordinator';
-import { DatabaseHealthChecker } from './infrastructure/monitoring/DatabaseHealthChecker';
+import { DatabaseHealthChecker } from './service/monitoring/DatabaseHealthChecker';
 
 // 18. 图数据映射模块
 import { GraphDataMappingService } from './service/graph/mapping/GraphDataMappingService';

@@ -1,11 +1,11 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { ICacheService, CacheConfig } from './types';
+import { ICacheService, CacheConfig } from '../../infrastructure/caching/types';
 import { DatabaseType } from '../../infrastructure/types';
 import { GraphCacheConfigService } from '../../config/service/GraphCacheConfigService';
 import { MemoryAwareCache } from '../../utils/cache/MemoryAwareCache';
-import { GraphData, CacheOptions, CacheItem, CacheStats } from '../../service/graph/caching/types';
+import { GraphData, CacheOptions, CacheItem, CacheStats } from '../graph/caching/types';
 
 @injectable()
 export class GraphCacheService implements ICacheService {
@@ -141,11 +141,11 @@ export class GraphCacheService implements ICacheService {
     this.cache.set(key, value, ttl || this.config.defaultTTL);
     this.timestamps.set(key, Date.now());
     this.ttlMap.set(key, ttl || this.config.defaultTTL);
-    
+
     if (this.config.enableStats) {
       this.stats.sets++;
     }
-    
+
     this.logger.debug('Cache set', { key, ttl: ttl || this.config.defaultTTL });
   }
 
@@ -171,11 +171,11 @@ export class GraphCacheService implements ICacheService {
     const existed = this.cache.delete(key);
     this.timestamps.delete(key);
     this.ttlMap.delete(key);
-    
+
     if (existed && this.config.enableStats) {
       this.logger.debug('Cache delete', { key });
     }
-    
+
     return existed;
   }
 
@@ -184,11 +184,11 @@ export class GraphCacheService implements ICacheService {
     const existed = this.cache.delete(key);
     this.timestamps.delete(key);
     this.ttlMap.delete(key);
-    
+
     if (existed && this.config.enableStats) {
       this.logger.debug('Cache delete', { key });
     }
-    
+
     return existed;
   }
 
@@ -217,7 +217,7 @@ export class GraphCacheService implements ICacheService {
   } {
     const total = this.stats.hits + this.stats.misses;
     const hitRate = total > 0 ? this.stats.hits / total : 0;
-    
+
     return {
       totalEntries: this.cache.size(),
       hitCount: this.stats.hits,
@@ -241,19 +241,19 @@ export class GraphCacheService implements ICacheService {
   // ICacheService接口实现
   async invalidateDatabaseCache(databaseType: DatabaseType): Promise<void> {
     const keysToDelete: string[] = [];
-    
+
     // 收集所有属于指定数据库类型的键
     for (const key of this.cache.keys()) {
       if (key.startsWith(`${databaseType}:`)) {
         keysToDelete.push(key);
       }
     }
-    
+
     // 删除这些键
     for (const key of keysToDelete) {
       await this.delete(key);
     }
-    
+
     this.logger.info(`Invalidated cache for database type: ${databaseType}`, {
       deletedEntries: keysToDelete.length
     });
@@ -264,12 +264,12 @@ export class GraphCacheService implements ICacheService {
     try {
       const ttl = options?.ttl ?? this.config.defaultTTL;
       this.cache.set(key, data, ttl);
-      
-      this.logger.debug('Graph data cached', { 
-        key, 
+
+      this.logger.debug('Graph data cached', {
+        key,
         nodes: data.nodes.length,
         relationships: data.relationships.length,
-        ttl 
+        ttl
       });
       return true;
     } catch (error) {
@@ -282,7 +282,7 @@ export class GraphCacheService implements ICacheService {
   async getGraphData(key: string): Promise<GraphData | null> {
     try {
       const data = this.cache.get(key);
-      
+
       if (data) {
         this.hits++;
         this.logger.debug('Graph data cache hit', { key });
@@ -290,7 +290,7 @@ export class GraphCacheService implements ICacheService {
         this.misses++;
         this.logger.debug('Graph data cache miss', { key });
       }
-      
+
       return data || null;
     } catch (error) {
       this.logger.error('Failed to get graph data', { key, error });
@@ -301,30 +301,30 @@ export class GraphCacheService implements ICacheService {
   // 图缓存专用方法
   async setGraphBatch(items: CacheItem[]): Promise<number> {
     let successCount = 0;
-    
+
     for (const item of items) {
       if (await this.setGraphData(item.key, item.data, item.options)) {
         successCount++;
       }
     }
-    
-    this.logger.debug('Batch graph cache completed', { 
-      total: items.length, 
+
+    this.logger.debug('Batch graph cache completed', {
+      total: items.length,
       success: successCount,
-      failed: items.length - successCount 
+      failed: items.length - successCount
     });
-    
+
     return successCount;
   }
 
   // 图缓存专用方法
   async getGraphBatch(keys: string[]): Promise<Map<string, GraphData | null>> {
     const results = new Map<string, GraphData | null>();
-    
+
     for (const key of keys) {
       results.set(key, await this.getGraphData(key));
     }
-    
+
     return results;
   }
 
@@ -358,7 +358,7 @@ export class GraphCacheService implements ICacheService {
     try {
       const memoryStats = this.cache.getDetailedMemoryStats();
       const totalGets = this.hits + this.misses;
-      
+
       return {
         hits: this.hits,
         misses: this.misses,
@@ -387,18 +387,18 @@ export class GraphCacheService implements ICacheService {
     try {
       const stats = this.getGraphCacheStats();
       const memoryUtilization = this.cache.getMemoryUtilization();
-      
+
       // 健康检查逻辑
       if (memoryUtilization > 95) {
         this.logger.warn('Cache memory utilization too high', { utilization: memoryUtilization });
         return false;
       }
-      
+
       if (stats.hitRate < 0.1 && stats.size > 100) {
         this.logger.warn('Cache hit rate too low', { hitRate: stats.hitRate });
         return false;
       }
-      
+
       return true;
     } catch (error) {
       this.logger.error('Health check failed', { error });
@@ -507,8 +507,8 @@ export class GraphCacheService implements ICacheService {
     }
     this.logger.info('GraphCacheService disposed');
   }
-  
- stopCleanup(): void {
+
+  stopCleanup(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;

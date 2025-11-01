@@ -1,9 +1,9 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { DatabaseType } from '../types';
-import { IHealthChecker } from './types';
-import { HealthStatus, AggregateHealthStatus } from './IDatabaseHealthChecker';
+import { DatabaseType } from '../../infrastructure/types';
+import { IHealthChecker } from '../../infrastructure/monitoring/types';
+import { HealthStatus, AggregateHealthStatus } from '../../infrastructure/monitoring/IDatabaseHealthChecker';
 import { DataConsistencyChecker } from '../../database/common/DataConsistencyChecker';
 
 export interface IHealthCheckerRegistry {
