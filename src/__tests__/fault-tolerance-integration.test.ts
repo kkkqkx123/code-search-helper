@@ -4,7 +4,6 @@ import { TYPES } from '../types';
 import { FaultToleranceHandler } from '../utils/FaultToleranceHandler';
 import { GraphDataMappingService } from '../service/graph/mapping/GraphDataMappingService';
 import { LoggerService } from '../utils/LoggerService';
-import { TransactionLogger } from '../service/transaction/TransactionLogger';
 import { GraphMappingCache } from '../service/graph/caching/GraphMappingCache';
 import { DataMappingValidator } from '../service/graph/mapping/DataMappingValidator';
 import { GraphBatchOptimizer } from '../service/graph/utils/GraphBatchOptimizer';
@@ -73,7 +72,6 @@ describe('FaultTolerance Integration', () => {
 
     // Register services
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
-    container.bind<TransactionLogger>(TYPES.TransactionLogger).toConstantValue(mockTransactionLogger);
     container.bind<GraphMappingCache>(TYPES.GraphMappingCache).toConstantValue(mockCache);
     container.bind<DataMappingValidator>(TYPES.DataMappingValidator).toConstantValue(mockValidator);
     container.bind<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer).toConstantValue(mockBatchOptimizer);
@@ -84,12 +82,10 @@ describe('FaultTolerance Integration', () => {
     // Register FaultToleranceHandler with config
     container.bind<FaultToleranceHandler>(TYPES.FaultToleranceHandler).toDynamicValue(context => {
       const logger = context.get<LoggerService>(TYPES.LoggerService);
-      const transactionLogger = context.get<TransactionLogger>(TYPES.TransactionLogger);
       const cache = context.get<GraphMappingCache>(TYPES.GraphMappingCache);
 
       return new FaultToleranceHandler(
         logger,
-        transactionLogger,
         cache,
         faultToleranceOptions
       );

@@ -6,7 +6,6 @@ import { ICacheService } from './caching/types';
 import { IPerformanceMonitor } from './monitoring/types';
 import { IBatchOptimizer } from './batching/types';
 import { IHealthChecker } from './monitoring/types';
-import { TransactionCoordinator } from './transaction/TransactionCoordinator';
 import { QdrantInfrastructure } from '../database/qdrant/QdrantInfrastructure';
 import { NebulaInfrastructure } from '../database/nebula/NebulaInfrastructure';
 import { SqliteInfrastructure } from '../database/splite/SqliteInfrastructure';
@@ -38,7 +37,6 @@ export interface InfrastructureConfig extends TypedInfrastructureConfig { }
 export class InfrastructureManager {
   private logger: LoggerService;
   private databaseInfrastructures: Map<DatabaseType, IDatabaseInfrastructure>;
-  private transactionCoordinator: TransactionCoordinator;
   private config: InfrastructureConfig;
 
   constructor(
@@ -46,12 +44,10 @@ export class InfrastructureManager {
     @inject(TYPES.CacheService) cacheService: any,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: any,
     @inject(TYPES.BatchOptimizer) batchOptimizer: any,
-    @inject(TYPES.TransactionCoordinator) transactionCoordinator: TransactionCoordinator,
     @inject(TYPES.InfrastructureConfigService) private infrastructureConfigService: InfrastructureConfigService
   ) {
     this.logger = logger;
     this.databaseInfrastructures = new Map();
-    this.transactionCoordinator = transactionCoordinator;
 
     // 从配置服务获取配置，如果没有则使用硬编码的默认值作为后备
     try {
@@ -578,10 +574,6 @@ export class InfrastructureManager {
     }
   }
 
-  getTransactionCoordinator(): TransactionCoordinator {
-    return this.transactionCoordinator;
-  }
-
   async getAllHealthStatus(): Promise<Map<DatabaseType, any>> {
     const healthStatus = new Map<DatabaseType, any>();
 
@@ -671,23 +663,6 @@ export class InfrastructureManager {
       }
     } catch (error) {
       this.logger.error(`Error during ${databaseType} infrastructure shutdown`, {
-        error: (error as Error).message
-      });
-      throw error;
-    }
-  }
-
-  private async shutdownTransactionCoordinator(): Promise<void> {
-    this.logger.debug('Shutting down transaction coordinator');
-
-    try {
-      // 检查是否有活跃的事务
-      // 这里可以添加事务协调器的关闭逻辑
-      // 目前TransactionCoordinator没有shutdown方法，所以只记录日志
-
-      this.logger.debug('Transaction coordinator shutdown completed');
-    } catch (error) {
-      this.logger.error('Error during transaction coordinator shutdown', {
         error: (error as Error).message
       });
       throw error;

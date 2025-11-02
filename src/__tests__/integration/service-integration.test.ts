@@ -6,20 +6,16 @@ import { DatabaseServiceRegistrar } from '../../core/registrars/DatabaseServiceR
 import { BusinessServiceRegistrar } from '../../core/registrars/BusinessServiceRegistrar';
 import { EmbedderServiceRegistrar } from '../../core/registrars/EmbedderServiceRegistrar';
 import { AsyncTaskQueue } from '../../infrastructure/batching/AsyncTaskQueue';
-import { ConflictResolver } from '../../infrastructure/transaction/ConflictResolver';
 import { DataConsistencyChecker } from '../../database/common/DataConsistencyChecker';
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
-import { TransactionCoordinator } from '../../infrastructure/transaction/TransactionCoordinator';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { GraphModule } from '../../service/graph/core/GraphModule';
 
 describe('Service Integration Tests', () => {
   let container: Container;
   let taskQueue: AsyncTaskQueue;
-  let conflictResolver: ConflictResolver;
   let consistencyChecker: DataConsistencyChecker;
   let performanceOptimizer: PerformanceOptimizerService;
-  let transactionCoordinator: TransactionCoordinator;
   let healthChecker: DatabaseHealthChecker;
   let graphCacheService: any; // GraphCacheService
 
@@ -37,10 +33,7 @@ describe('Service Integration Tests', () => {
 
     // 获取服务实例
     taskQueue = container.get<AsyncTaskQueue>(TYPES.AsyncTaskQueue);
-    conflictResolver = container.get<ConflictResolver>(TYPES.ConflictResolver);
-    consistencyChecker = container.get<DataConsistencyChecker>(TYPES.DataConsistencyChecker);
     performanceOptimizer = container.get<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService);
-    transactionCoordinator = container.get<TransactionCoordinator>(TYPES.TransactionCoordinator);
     healthChecker = container.get<DatabaseHealthChecker>(TYPES.HealthChecker);
     graphCacheService = container.get<any>(TYPES.GraphCacheService);
   });
@@ -119,127 +112,6 @@ describe('Service Integration Tests', () => {
     }, 60000); // 增加超时时间为60秒
   });
 
-  describe('ConflictResolver Integration', () => {
-    test('should resolve data conflicts using latest_wins strategy', async () => {
-      const conflict = {
-        id: 'test-conflict-1',
-        type: 'data_conflict' as const,
-        entities: [
-          {
-            source: 'database1',
-            id: 'entity-1',
-            data: { value: 'old', timestamp: 1000 },
-            timestamp: 1000
-          },
-          {
-            source: 'database2',
-            id: 'entity-1',
-            data: { value: 'new', timestamp: 2000 },
-            timestamp: 2000
-          }
-        ],
-        context: {
-          operation: 'update',
-          projectPath: '/test/project'
-        }
-      };
-
-      const resolution = await conflictResolver.resolveConflict(conflict, {
-        strategy: 'latest_wins'
-      });
-
-      expect(resolution.success).toBe(true);
-      expect(resolution.resolvedData.value).toBe('new');
-      expect(resolution.appliedTo).toContain('database2');
-    });
-
-    test('should merge data using merge strategy', async () => {
-      const conflict = {
-        id: 'test-conflict-2',
-        type: 'data_conflict' as const,
-        entities: [
-          {
-            source: 'database1',
-            id: 'entity-2',
-            data: { field1: 'value1', field2: 'old' },
-            timestamp: 1000
-          },
-          {
-            source: 'database2',
-            id: 'entity-2',
-            data: { field2: 'new', field3: 'value3' },
-            timestamp: 2000
-          }
-        ],
-        context: {
-          operation: 'merge',
-          projectPath: '/test/project'
-        }
-      };
-
-      const resolution = await conflictResolver.resolveConflict(conflict, {
-        strategy: 'merge'
-      });
-
-      expect(resolution.success).toBe(true);
-      expect(resolution.resolvedData.field1).toBe('value1');
-      expect(resolution.resolvedData.field2).toBe('new');
-      expect(resolution.resolvedData.field3).toBe('value3');
-    });
-
-    test('should handle batch conflict resolution', async () => {
-      const conflicts = [
-        {
-          id: 'batch-conflict-1',
-          type: 'data_conflict' as const,
-          entities: [
-            {
-              source: 'database1',
-              id: 'entity-1',
-              data: { value: 'old' },
-              timestamp: 1000
-            },
-            {
-              source: 'database2',
-              id: 'entity-1',
-              data: { value: 'new' },
-              timestamp: 2000
-            }
-          ],
-          context: { operation: 'batch' }
-        },
-        {
-          id: 'batch-conflict-2',
-          type: 'data_conflict' as const,
-          entities: [
-            {
-              source: 'database1',
-              id: 'entity-2',
-              data: { value: 'old2' },
-              timestamp: 1000
-            },
-            {
-              source: 'database2',
-              id: 'entity-2',
-              data: { value: 'new2' },
-              timestamp: 2000
-            }
-          ],
-          context: { operation: 'batch' }
-        }
-      ];
-
-      const results = await conflictResolver.resolveConflicts(conflicts, {
-        strategy: 'latest_wins'
-      });
-
-      expect(results.length).toBe(2);
-      expect(results.every(r => r.success)).toBe(true);
-      expect(results[0].resolvedData.value).toBe('new');
-      expect(results[1].resolvedData.value).toBe('new2');
-    });
-  });
-
   describe('DataConsistencyChecker Integration', () => {
     test('should perform consistency checks', async () => {
       const result = await consistencyChecker.checkConsistency('/test/project', {
@@ -301,57 +173,6 @@ describe('Service Integration Tests', () => {
       expect(stats.count).toBe(1);
       expect(stats.successRate).toBe(1);
       expect(stats.averageDuration).toBeGreaterThan(0);
-    });
-  });
-
-  describe('TransactionCoordinator Integration', () => {
-    test('should handle transaction conflicts', async () => {
-      const transactionId = await transactionCoordinator.beginTransaction();
-
-      const conflictData = {
-        entities: [
-          {
-            source: 'database1',
-            id: 'entity-1',
-            data: { value: 'conflicted' },
-            timestamp: Date.now()
-          }
-        ],
-        context: {
-          operation: 'conflict_test'
-        }
-      };
-
-      const resolved = await transactionCoordinator.resolveTransactionConflict(
-        transactionId,
-        conflictData
-      );
-
-      expect(typeof resolved).toBe('boolean');
-
-      await transactionCoordinator.cleanupTransaction(transactionId);
-    });
-
-    test('should execute two-phase commit', async () => {
-      const mockParticipant = {
-        databaseType: 'test' as any,
-        prepare: jest.fn().mockResolvedValue(true),
-        commit: jest.fn().mockResolvedValue(true),
-        rollback: jest.fn().mockResolvedValue(true),
-        isPrepared: jest.fn().mockResolvedValue(true)
-      };
-
-      const result = await transactionCoordinator.executeTwoPhaseCommit(
-        [mockParticipant],
-        async () => {
-          // 模拟业务操作
-          return 'operation-result';
-        }
-      );
-
-      expect(result).toBe(true);
-      expect(mockParticipant.prepare).toHaveBeenCalled();
-      expect(mockParticipant.commit).toHaveBeenCalled();
     });
   });
 
@@ -430,54 +251,7 @@ describe('Service Integration Tests', () => {
 
       expect(results.length).toBe(100);
       expect(results.every((r: { processed: any; }) => r.processed)).toBe(true);
-      expect(processingTime).toBeLessThan(15000); // 调整期望时间
-    }, 90000); // 增加超时时间为90秒
-
-    test('should integrate ConflictResolver with TransactionCoordinator', async () => {
-      const transactionId = await transactionCoordinator.beginTransaction();
-
-      // 模拟冲突场景
-      const conflictData = {
-        entities: [
-          {
-            source: 'primary_db',
-            id: 'conflict-entity',
-            data: { status: 'pending' },
-            timestamp: Date.now() - 1000
-          },
-          {
-            source: 'secondary_db',
-            id: 'conflict-entity',
-            data: { status: 'completed' },
-            timestamp: Date.now()
-          }
-        ],
-        context: {
-          operation: 'status_update',
-          transactionId
-        }
-      };
-
-      const conflictResolved = await transactionCoordinator.resolveTransactionConflict(
-        transactionId,
-        conflictData
-      );
-
-      expect(typeof conflictResolved).toBe('boolean');
-
-      await transactionCoordinator.cleanupTransaction(transactionId);
-    });
-
-    test('should integrate DataConsistencyChecker with DatabaseHealthChecker', async () => {
-      const healthResult = await healthChecker.performComprehensiveHealthCheck('/test/project');
-
-      expect(healthResult.databaseStatuses.has('consistency_check' as any)).toBe(true);
-
-      const consistencyStatus = healthResult.databaseStatuses.get('consistency_check' as any);
-      expect(consistencyStatus).toBeDefined();
-      if (consistencyStatus) {
-        expect(consistencyStatus.status).toMatch(/^(healthy|degraded|error)$/);
-      }
-    });
+      expect(processingTime).toBeLessThan(5000); // 调整期望时间
+    }, 10000); // 增加超时时间为91秒
   });
 });

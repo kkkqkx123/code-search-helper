@@ -2,7 +2,6 @@ import { injectable, inject, unmanaged } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { PerformanceDashboard, PerformanceMetric } from './PerformanceDashboard';
-import { TransactionLogger } from '../transaction/TransactionLogger';
 import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
 
 export interface CollectionRule {
@@ -22,7 +21,6 @@ export interface MetricsCollectionOptions {
 export class PerformanceMetricsCollector {
   private logger: LoggerService;
   private dashboard: PerformanceDashboard;
-  private transactionLogger: TransactionLogger;
   private cache: GraphMappingCache;
   private options: MetricsCollectionOptions;
   private collectionRules: Map<string, CollectionRule> = new Map();
@@ -54,26 +52,18 @@ export class PerformanceMetricsCollector {
       interval: 10000,
       collector: async () => (await this.cache.getStats()).size,
       enabled: true
-    },
-    {
-      metricName: 'transaction.success_rate',
-      interval: 3000,
-      collector: async () => this.getTransactionSuccessRate(),
-      enabled: true
     }
   ];
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.PerformanceDashboard) dashboard: PerformanceDashboard,
-    @inject(TYPES.TransactionLogger) transactionLogger: TransactionLogger,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     options?: Partial<MetricsCollectionOptions>
   ) {
     try {
       this.logger = logger;
       this.dashboard = dashboard;
-      this.transactionLogger = transactionLogger;
       this.cache = cache;
 
       this.options = {
@@ -274,16 +264,6 @@ export class PerformanceMetricsCollector {
   }
 
   /**
-   * 获取事务成功率
-   */
-  private async getTransactionSuccessRate(): Promise<number> {
-    const stats = await this.transactionLogger.getStats();
-    return stats.totalEntries > 0
-      ? (stats.committedCount + stats.rolledBackCount) / stats.totalEntries
-      : 1;
-  }
-
-  /**
    * 获取缓存统计信息
    */
   async getCacheStats(): Promise<{
@@ -292,19 +272,6 @@ export class PerformanceMetricsCollector {
     memoryUsage: number;
   }> {
     return await this.cache.getStats();
-  }
-
-  /**
-   * 获取事务统计信息
-   */
-  async getTransactionStats(): Promise<{
-    totalEntries: number;
-    pendingCount: number;
-    committedCount: number;
-    rolledBackCount: number;
-    failedCount: number;
-  }> {
-    return await this.transactionLogger.getStats();
   }
 
   /**

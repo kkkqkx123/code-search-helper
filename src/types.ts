@@ -92,7 +92,6 @@ import { NebulaQueryUtils } from './database/nebula/query/NebulaQueryUtils';
 import { NebulaResultFormatter } from './database/nebula/NebulaResultFormatter';
 import { NebulaEventManager } from './database/nebula/NebulaEventManager';
 import { NebulaQueryService, INebulaQueryService } from './database/nebula/query/NebulaQueryService';
-import { NebulaTransactionService, INebulaTransactionService } from './database/nebula/NebulaTransactionService';
 import { NebulaDataOperations, INebulaDataOperations } from './database/nebula/operation/NebulaDataOperations';
 import { NebulaSchemaManager, INebulaSchemaManager } from './database/nebula/NebulaSchemaManager';
 import { NebulaIndexManager, INebulaIndexManager } from './database/nebula/NebulaIndexManager';
@@ -118,7 +117,6 @@ import { GraphServiceNewAdapter } from './service/graph/core/GraphServiceNewAdap
 import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
 
 // 17. 基础设施模块
-import { TransactionCoordinator } from './infrastructure/transaction/TransactionCoordinator';
 import { DatabaseHealthChecker } from './service/monitoring/DatabaseHealthChecker';
 
 // 18. 图数据映射模块
@@ -306,12 +304,6 @@ export const TYPES = {
 
   // 22. 批处理优化服务
   VectorBatchOptimizer: Symbol.for('VectorBatchOptimizer'),
-
-  // 23. 事务相关服务
-  TransactionLogger: Symbol.for('TransactionLogger'),
-  DataConsistencyChecker: Symbol.for('DataConsistencyChecker'),
-  ConflictResolver: Symbol.for('ConflictResolver'),
-  TransactionPerformanceOptimizer: Symbol.for('TransactionPerformanceOptimizer'),
 
   // 24. 高级映射相关服务
   AdvancedMappingService: Symbol.for('AdvancedMappingService'),

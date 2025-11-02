@@ -1,7 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { TransactionLogger } from '../transaction/TransactionLogger';
 import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
 import { GraphCacheStats } from '../graph/caching/GraphMappingCache';
 
@@ -73,8 +72,7 @@ export class PerformanceDashboard {
   private readonly alertThresholds: { [key: string]: number } = {
     'qdrant.response_time': 1000, // 1秒
     'graph.response_time': 2000, // 2秒
-    'cache.hit_rate': 0.8,        // 80%
-    'transaction.error_rate': 0.05 // 5%
+    'cache.hit_rate': 0.8        // 80%
   };
 
   private readonly MIN_STATISTICALLY_SIGNIFICANT_ACCESSES = 10; // 最少10次访问才认为统计显著
@@ -83,12 +81,10 @@ export class PerformanceDashboard {
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.TransactionLogger) transactionLogger: TransactionLogger,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache
   ) {
     try {
       this.logger = logger;
-      this.transactionLogger = transactionLogger;
       this.cache = cache;
 
       // 初始化仪表板统计
@@ -203,24 +199,6 @@ export class PerformanceDashboard {
     const cacheStats = await this.cache.getStats();
     this.dashboardStats.cache.hitRate = cacheStats.hitRate;
     this.dashboardStats.cache.memoryUsage = cacheStats.memoryUsage;
-
-    // 事务相关统计
-    const transactionLogs = await this.transactionLogger.getTransactionLogs();
-    const recentTransactions = transactionLogs.filter(log => log.timestamp > lastMinute);
-    const successfulTransactions = recentTransactions.filter(log => log.status === 'committed');
-    this.dashboardStats.transaction.successRate =
-      recentTransactions.length > 0 ? successfulTransactions.length / recentTransactions.length : 1;
-
-    const transactionDurations = recentTransactions
-      .filter(log => log.status === 'committed' || log.status === 'failed')
-      .map(log => (log.details.duration || 0) as number);
-    this.dashboardStats.transaction.averageDuration =
-      transactionDurations.length > 0
-        ? transactionDurations.reduce((a, b) => a + b, 0) / transactionDurations.length
-        : 0;
-
-    this.dashboardStats.transaction.activeTransactions =
-      transactionLogs.filter(log => log.status === 'pending' || log.status === 'prepared').length;
 
     return this.dashboardStats;
   }

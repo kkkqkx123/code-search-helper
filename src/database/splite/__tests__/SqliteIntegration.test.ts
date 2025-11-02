@@ -26,7 +26,6 @@ import { CacheService } from '../../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { BatchOptimizer } from '../../../service/optimization/BatchOptimizerService';
 import { DatabaseHealthChecker } from '../../../service/monitoring/DatabaseHealthChecker';
-import { TransactionCoordinator } from '../../../infrastructure/transaction/TransactionCoordinator';
 
 describe('SQLite Integration Tests', () => {
   let container: Container;
@@ -62,7 +61,6 @@ describe('SQLite Integration Tests', () => {
     container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
     container.bind<BatchOptimizer>(TYPES.BatchOptimizer).to(BatchOptimizer).inSingletonScope();
     container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
-    container.bind<TransactionCoordinator>(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
 
     // 注册SQLite服务
     container.bind<SqliteDatabaseService>(TYPES.SqliteDatabaseService).to(SqliteDatabaseService).inSingletonScope();

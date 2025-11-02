@@ -14,7 +14,6 @@ import { AdvancedMappingService as SemanticRelationshipExtractor } from '../../s
 // 性能监控服务
 import { PerformanceDashboard } from '../../service/monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../../service/monitoring/PerformanceMetricsCollector';
-import { TransactionLogger } from '../../service/transaction/TransactionLogger';
 import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
 import { GraphBatchOptimizer } from '../../service/graph/utils/GraphBatchOptimizer';
@@ -31,7 +30,6 @@ import { VectorBatchOptimizer } from '../../service/optimization/VectorBatchOpti
 
 // 异步任务队列和冲突解决服务
 import { AsyncTaskQueue } from '../../infrastructure/batching/AsyncTaskQueue';
-import { ConflictResolver } from '../../infrastructure/transaction/ConflictResolver';
 
 // SQLite基础设施
 import { SqliteInfrastructure } from '../../database/splite/SqliteInfrastructure';
@@ -49,7 +47,6 @@ import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
-import { TransactionCoordinator } from '../../infrastructure/transaction/TransactionCoordinator';
 import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
 import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
 import { GarbageCollectionStrategy } from '../../infrastructure/cleanup/strategies/GarbageCollectionStrategy';
@@ -67,7 +64,6 @@ export class InfrastructureServiceRegistrar {
       container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
       container.bind<FaultToleranceHandler>(TYPES.FaultToleranceHandler).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
-        const transactionLogger = context.get<TransactionLogger>(TYPES.TransactionLogger);
         const cache = context.get<GraphMappingCache>(TYPES.GraphMappingCache);
         const graphConfigService = context.get<GraphConfigService>(TYPES.GraphConfigService);
 
@@ -75,7 +71,6 @@ export class InfrastructureServiceRegistrar {
 
         return new FaultToleranceHandler(
           logger,
-          transactionLogger,
           cache,
           options
         );
@@ -119,25 +114,20 @@ export class InfrastructureServiceRegistrar {
       container.bind<PerformanceDashboard>(TYPES.PerformanceDashboard).to(PerformanceDashboard).inSingletonScope();
       console.log('PerformanceDashboard bound');
 
-      console.log('Binding TransactionLogger...');
-      container.bind<TransactionLogger>(TYPES.TransactionLogger).to(TransactionLogger).inSingletonScope();
-      console.log('TransactionLogger bound');
-
       console.log('Attempting to bind PerformanceMetricsCollector...');
       try {
         // Disable auto-collection in test environment to prevent open handles
         const isTestEnvironment = process.env.NODE_ENV === 'test';
         const options = isTestEnvironment ? { enableAutoCollection: false } : {};
+container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).toConstantValue(
+  new PerformanceMetricsCollector(
+    container.get<LoggerService>(TYPES.LoggerService),
+    container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
+    container.get<GraphMappingCache>(TYPES.GraphMappingCache),
+    options
+  )
+);
 
-        container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).toConstantValue(
-          new PerformanceMetricsCollector(
-            container.get<LoggerService>(TYPES.LoggerService),
-            container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
-            container.get<TransactionLogger>(TYPES.TransactionLogger),
-            container.get<GraphMappingCache>(TYPES.GraphMappingCache),
-            options
-          )
-        );
         console.log('PerformanceMetricsCollector bound');
       } catch (error: any) {
         console.error('Error binding PerformanceMetricsCollector:', error);
@@ -207,15 +197,6 @@ export class InfrastructureServiceRegistrar {
           );
         }).inSingletonScope();
 
-      // 注册 ConflictResolver
-      console.log('Binding ConflictResolver...');
-      container.bind<ConflictResolver>(TYPES.ConflictResolver)
-        .toDynamicValue(context => {
-          const logger = context.get<LoggerService>(TYPES.LoggerService);
-
-          return new ConflictResolver(logger);
-        }).inSingletonScope();
-
       // CleanupManager - 注册为基础设施服务
       container.bind<CleanupManager>(TYPES.CleanupManager).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
@@ -237,7 +218,6 @@ export class InfrastructureServiceRegistrar {
       container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
       container.bind<BatchOptimizer>(TYPES.BatchOptimizer).to(BatchOptimizer).inSingletonScope();
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
-      container.bind<TransactionCoordinator>(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
 
       // 基础设施管理器 - 使用动态绑定确保正确的初始化顺序
       container.bind<InfrastructureManager>(TYPES.InfrastructureManager).toDynamicValue(context => {
@@ -245,7 +225,6 @@ export class InfrastructureServiceRegistrar {
         const cacheService = context.get<CacheService>(TYPES.CacheService);
         const performanceMonitor = context.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
         const batchOptimizer = context.get<BatchOptimizer>(TYPES.BatchOptimizer);
-        const transactionCoordinator = context.get<TransactionCoordinator>(TYPES.TransactionCoordinator);
         const infrastructureConfigService = context.get<InfrastructureConfigService>(TYPES.InfrastructureConfigService);
 
         const infrastructureManager = new InfrastructureManager(
@@ -253,7 +232,6 @@ export class InfrastructureServiceRegistrar {
           cacheService,
           performanceMonitor,
           batchOptimizer,
-          transactionCoordinator,
           infrastructureConfigService
         );
 

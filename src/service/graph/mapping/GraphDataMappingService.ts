@@ -26,7 +26,6 @@ import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
 import { FaultToleranceHandler } from '../../../utils/FaultToleranceHandler';
-import { TransactionLogger } from '../../../service/transaction/TransactionLogger';
 
 @injectable()
 export class GraphDataMappingService implements IGraphDataMappingService {
@@ -36,7 +35,6 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   private unifiedCache: any; // 新的统一缓存服务
   private batchOptimizer: GraphBatchOptimizer;
   private faultToleranceHandler: FaultToleranceHandler;
-  private transactionLogger: TransactionLogger;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -44,8 +42,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     @inject(TYPES.GraphCacheService) unifiedCache: any,
     @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
-    @inject(TYPES.FaultToleranceHandler) faultToleranceHandler: FaultToleranceHandler,
-    @inject(TYPES.TransactionLogger) transactionLogger: TransactionLogger
+    @inject(TYPES.FaultToleranceHandler) faultToleranceHandler: FaultToleranceHandler
   ) {
     this.logger = logger;
     this.validator = validator;
@@ -53,7 +50,6 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     this.unifiedCache = unifiedCache;
     this.batchOptimizer = batchOptimizer;
     this.faultToleranceHandler = faultToleranceHandler;
-    this.transactionLogger = transactionLogger;
 
     this.logger.info('GraphDataMappingService initialized with fault tolerance');
   }

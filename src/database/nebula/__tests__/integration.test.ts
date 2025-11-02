@@ -10,7 +10,6 @@ import { NebulaConfigService } from '../../../config/service/NebulaConfigService
 import { ConnectionStateManager } from '../ConnectionStateManager';
 import { NebulaEventManager } from '../NebulaEventManager';
 import { NebulaQueryService } from '../query/NebulaQueryService';
-import { NebulaTransactionService } from '../NebulaTransactionService';
 import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import { LoggerService } from '../../../utils/LoggerService';
 import {
@@ -84,14 +83,6 @@ describe('Integration Test: Nebula Module After Refactoring', () => {
       new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
       undefined as any // 连接管理器将在之后设置
-    );
-
-    // 创建NebulaTransactionService实例
-    const transactionService = new NebulaTransactionService(
-      queryService,
-      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-      new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService))
     );
 
     // 现在创建NebulaConnectionManager实例

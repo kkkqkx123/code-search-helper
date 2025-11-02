@@ -1,7 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../types';
 import { LoggerService } from './LoggerService';
-import { TransactionLogger } from '../service/transaction/TransactionLogger';
 import { GraphMappingCache } from '../service/graph/caching/GraphMappingCache';
 
 export interface FaultToleranceOptions {
@@ -32,19 +31,16 @@ export interface OperationResult<T = any> {
 @injectable()
 export class FaultToleranceHandler {
   private logger: LoggerService;
-  private transactionLogger: TransactionLogger;
   private cache: GraphMappingCache;
   private options: FaultToleranceOptions;
   private circuitBreakers: Map<string, CircuitBreakerState> = new Map();
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.TransactionLogger) transactionLogger: TransactionLogger,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     options?: Partial<FaultToleranceOptions>
   ) {
     this.logger = logger;
-    this.transactionLogger = transactionLogger;
     this.cache = cache;
 
     this.options = {
@@ -147,20 +143,6 @@ export class FaultToleranceHandler {
           maxRetries: this.options.maxRetries,
           error: (error as Error).message
         });
-
-        // 记录事务日志
-        await this.transactionLogger.logTransaction(
-          `retry_${operationName}_${retries}`,
-          operationName,
-          'unknown' as any, // 实际中应根据具体情况设置
-          'failed',
-          {
-            retryAttempt: retries,
-            error: (error as Error).message,
-            context
-          },
-          (error as Error).message
-        );
 
         if (retries <= this.options.maxRetries) {
           // 计算延迟时间（支持指数退避）

@@ -6,7 +6,6 @@ import { InfrastructureConfigService } from '../../infrastructure/config/Infrast
 import { InfrastructureManager } from '../../infrastructure/InfrastructureManager';
 import { ConfigValidator } from '../../infrastructure/config/ConfigValidator';
 import { DatabaseType } from '../../infrastructure/types';
-import { TransactionCoordinator } from '../../infrastructure/transaction/TransactionCoordinator';
 
 // Mock dependencies
 const mockLoggerService = {
@@ -46,14 +45,6 @@ const mockHealthChecker = {
   checkHealth: jest.fn()
 };
 
-const mockTransactionCoordinator = {
-  beginTransaction: jest.fn(),
-  preparePhase: jest.fn(),
-  commitPhase: jest.fn(),
-  rollback: jest.fn(),
-  getTransactionStatus: jest.fn()
-};
-
 
 describe('简化配置管理测试', () => {
   let container: Container;
@@ -75,9 +66,6 @@ describe('简化配置管理测试', () => {
     container.bind(TYPES.BatchOptimizer).toConstantValue(mockBatchOptimizer);
     container.bind(TYPES.HealthChecker).toConstantValue(mockHealthChecker);
     container.bind(TYPES.InfrastructureConfigService).to(InfrastructureConfigService).inSingletonScope();
-
-    // 创建真实的TransactionCoordinator实例，依赖于已绑定的LoggerService
-    container.bind(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
 
     container.bind(InfrastructureManager).to(InfrastructureManager).inSingletonScope();
 
@@ -125,13 +113,6 @@ describe('简化配置管理测试', () => {
       expect(typeof commonConfig.enableCache).toBe('boolean');
       expect(typeof commonConfig.enableMonitoring).toBe('boolean');
       expect(typeof commonConfig.enableBatching).toBe('boolean');
-    });
-
-    test('应该能够获取事务配置', () => {
-      const transactionConfig = infrastructureConfigService.getTransactionConfig();
-      expect(transactionConfig).toBeDefined();
-      expect(typeof transactionConfig.timeout).toBe('number');
-      expect(typeof transactionConfig.retryAttempts).toBe('number');
     });
   });
 
@@ -303,7 +284,6 @@ describe('简化配置管理测试', () => {
       errorContainer.bind(TYPES.BatchOptimizer).toConstantValue(mockBatchOptimizer);
       errorContainer.bind(TYPES.HealthChecker).toConstantValue(mockHealthChecker);
       errorContainer.bind(TYPES.InfrastructureConfigService).to(InfrastructureConfigService).inSingletonScope();
-      errorContainer.bind(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
       errorContainer.bind(InfrastructureManager).to(InfrastructureManager).inSingletonScope();
 
       // 获取实例（应该使用降级策略）
