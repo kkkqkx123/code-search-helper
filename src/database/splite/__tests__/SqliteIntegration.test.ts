@@ -201,7 +201,7 @@ describe('SQLite Integration Tests', () => {
       expect(infrastructure.getPerformanceMonitor()).toBeDefined();
       expect(infrastructure.getBatchOptimizer()).toBeDefined();
       expect(infrastructure.getHealthChecker()).toBeDefined();
-      expect(infrastructure.getConnectionManager()).toBeDefined();
+      expect(infrastructure).toBeDefined();
     });
 
     test('should execute SQL queries', async () => {

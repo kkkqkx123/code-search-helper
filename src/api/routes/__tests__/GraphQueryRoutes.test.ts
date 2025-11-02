@@ -1,8 +1,8 @@
 import express from 'express';
 import request from 'supertest';
 import { GraphQueryRoutes } from '../GraphQueryRoutes';
-import { GraphServiceNewAdapter } from '../../../service/graph/core/GraphServiceNewAdapter';
 import { GraphQueryValidator } from '../../../service/graph/query/GraphQueryValidator';
+import { IGraphService } from '../../../service/graph/core/IGraphService';
 import { GraphPerformanceMonitor } from '../../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../../utils/LoggerService';
 
@@ -55,7 +55,7 @@ describe('GraphQueryRoutes', () => {
 
     // Create GraphQueryRoutes instance
     graphQueryRoutes = new GraphQueryRoutes(
-      mockGraphService as GraphServiceNewAdapter,
+      mockGraphService as IGraphService,
       mockQueryValidator as GraphQueryValidator,
       mockPerformanceMonitor as GraphPerformanceMonitor,
       mockLoggerService as LoggerService

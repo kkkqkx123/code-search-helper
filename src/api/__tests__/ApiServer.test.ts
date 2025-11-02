@@ -272,7 +272,6 @@ describe('ApiServer', () => {
     };
     
     testContainer.bind(TYPES.GraphSearchServiceNew).toConstantValue(mockGraphSearchService);
-    testContainer.bind(TYPES.GraphServiceNewAdapter).toConstantValue(mockGraphService);
     testContainer.bind(TYPES.GraphCacheService).toConstantValue(mockGraphCacheService);
     testContainer.bind(TYPES.GraphPerformanceMonitor).toConstantValue(mockGraphPerformanceMonitor);
     testContainer.bind(TYPES.GraphQueryValidator).toConstantValue(mockGraphQueryValidator);

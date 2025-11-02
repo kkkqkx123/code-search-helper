@@ -9,6 +9,7 @@ describe('SqliteProjectManager', () => {
   let projectManager: SqliteProjectManager;
   let mockSqliteService: jest.Mocked<SqliteDatabaseService>;
   let mockStatement: jest.Mocked<any>;
+  let mockLogger: jest.Mocked<any>;
 
   beforeEach(() => {
     // Create mock statement
@@ -25,7 +26,7 @@ describe('SqliteProjectManager', () => {
       exec: jest.fn()
     } as any;
 
-    projectManager = new SqliteProjectManager(mockSqliteService);
+    projectManager = new SqliteProjectManager(mockSqliteService, mockLogger);
   });
 
   afterEach(() => {

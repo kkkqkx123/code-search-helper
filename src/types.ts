@@ -109,9 +109,7 @@ import { GraphQueryValidator } from './service/graph/query/GraphQueryValidator';
 import { IGraphSearchService } from './service/graph/core/IGraphSearchService';
 import { GraphAnalysisService } from './service/graph/core/GraphAnalysisService';
 import { GraphDataService } from './service/graph/core/GraphDataService';
-import { GraphTransactionService } from './service/graph/core/GraphTransactionService';
 import { GraphSearchServiceNew } from './service/graph/core/GraphSearchService';
-import { GraphServiceNewAdapter } from './service/graph/core/GraphServiceNewAdapter';
 
 // 16. 图数据库模块
 import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
@@ -238,8 +236,6 @@ export const TYPES = {
   INebulaSpaceService: Symbol.for('INebulaSpaceService'),
   NebulaQueryService: Symbol.for('NebulaQueryService'),
   INebulaQueryService: Symbol.for('INebulaQueryService'),
-  NebulaTransactionService: Symbol.for('NebulaTransactionService'),
-  INebulaTransactionService: Symbol.for('INebulaTransactionService'),
   NebulaDataOperations: Symbol.for('NebulaDataOperations'),
   INebulaDataOperations: Symbol.for('INebulaDataOperations'),
   NebulaSchemaManager: Symbol.for('NebulaSchemaManager'),
@@ -267,13 +263,10 @@ export const TYPES = {
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
   GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
-  TransactionManager: Symbol.for('TransactionManager'),
   GraphDatabaseService: Symbol.for('GraphDatabaseService'),
   GraphAnalysisService: Symbol.for('GraphAnalysisService'),
   GraphDataService: Symbol.for('GraphDataService'),
-  GraphTransactionService: Symbol.for('GraphTransactionService'),
   GraphSearchServiceNew: Symbol.for('GraphSearchServiceNew'),
-  GraphServiceNewAdapter: Symbol.for('GraphServiceNewAdapter'),
 
   // 16. 项目查询服务
   ProjectLookupService: Symbol.for('ProjectLookupService'),
@@ -282,7 +275,6 @@ export const TYPES = {
   CacheService: Symbol.for('CacheService'),
   BatchOptimizer: Symbol.for('BatchOptimizer'),
   HealthChecker: Symbol.for('HealthChecker'),
-  TransactionCoordinator: Symbol.for('TransactionCoordinator'),
   InfrastructureManager: Symbol.for('InfrastructureManager'),
   DatabaseHealthChecker: Symbol.for('DatabaseHealthChecker'),
   GraphCacheService: Symbol.for('GraphCacheService'),

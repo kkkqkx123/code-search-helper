@@ -28,7 +28,7 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.DataConsistencyChecker) private consistencyChecker: DataConsistencyChecker
+    @inject(TYPES.DataConsistencyService) private consistencyChecker: DataConsistencyChecker
   ) {
     this.logger = logger;
   }

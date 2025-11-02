@@ -319,14 +319,6 @@ export class InfrastructureManager {
             autoVacuum: 'INCREMENTAL',
             busyTimeout: 5000
           }
-        },
-        transaction: {
-          timeout: 30000,
-          retryAttempts: 3,
-          retryDelay: 1000,
-          enableTwoPhaseCommit: true,
-          maxConcurrentTransactions: 100,
-          deadlockDetectionTimeout: 1000  // 增加到最小值1000
         }
       };
     }

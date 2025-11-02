@@ -142,16 +142,6 @@ export interface DatabaseSpecificConfig {
   };
 }
 
-// 事务配置
-export interface TransactionConfig {
-  timeout: number;
-  retryAttempts: number;
-  retryDelay: number;
-  enableTwoPhaseCommit: boolean;
-  isolationLevel?: 'READ_UNCOMMITTED' | 'READ_COMMITTED' | 'REPEATABLE_READ' | 'SERIALIZABLE';
-  maxConcurrentTransactions: number;
-  deadlockDetectionTimeout: number;
-}
 
 // 通用配置
 export interface CommonConfig {
@@ -197,7 +187,6 @@ export interface InfrastructureConfig {
     batch: BatchConfig;
     database: SqliteSpecificConfig;
   };
-  transaction: TransactionConfig;
 }
 
 // 配置验证规则

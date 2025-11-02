@@ -8,19 +8,17 @@ import { GraphQueryBuilder } from '../../../database/nebula/query/GraphQueryBuil
 import { IBatchOptimizer } from '../../../infrastructure/batching/types';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
-import { TransactionManager, TransactionOperation, TransactionResult } from '../../../database/core/TransactionManager';
-import { IGraphTransactionService } from './IGraphTransactionService';
 
 export interface GraphTransactionConfig {
   enableTransactions: boolean;
-  maxBatchSize: number;
+ maxBatchSize: number;
   maxRetries: number;
   retryDelay: number;
   timeout: number;
 }
 
 @injectable()
-export class GraphTransactionService implements IGraphTransactionService {
+export class GraphTransactionService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
@@ -29,7 +27,6 @@ export class GraphTransactionService implements IGraphTransactionService {
   private batchOptimizer: IBatchOptimizer;
   private cacheService: ICacheService;
   private performanceMonitor: IPerformanceMonitor;
-  private transactionManager: TransactionManager;
   private config: GraphTransactionConfig;
   private isInitialized: boolean = false;
 
@@ -42,7 +39,6 @@ export class GraphTransactionService implements IGraphTransactionService {
     @inject(TYPES.GraphBatchOptimizer) batchOptimizer: IBatchOptimizer,
     @inject(TYPES.GraphCacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor,
-    @inject(TYPES.TransactionManager) transactionManager: TransactionManager
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -52,10 +48,9 @@ export class GraphTransactionService implements IGraphTransactionService {
     this.batchOptimizer = batchOptimizer;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
-    this.transactionManager = transactionManager;
 
     this.config = {
-      enableTransactions: true,
+      enableTransactions: false, // 现在默认禁用事务
       maxBatchSize: 100,
       maxRetries: 3,
       retryDelay: 1000,
@@ -96,97 +91,27 @@ export class GraphTransactionService implements IGraphTransactionService {
   }
 
   async executeInTransaction<T>(
-    operations: TransactionOperation[],
+    operations: Array<{ nGQL: string; parameters?: Record<string, any> }>,
     callback: (results: any[]) => Promise<T>
   ): Promise<T> {
     if (!this.isInitialized) {
       await this.initialize();
     }
 
-    if (!this.config.enableTransactions) {
-      // Execute operations without transaction
-      const results = [];
-      for (const operation of operations) {
-        const result = await this.graphDatabase.executeWriteQuery(
-          operation.nGQL,
-          operation.parameters || {}
-        );
-        results.push(result);
-      }
-      return callback(results);
-    }
-
-    const startTime = Date.now();
-    const transactionId = await this.transactionManager.beginTransaction();
-
-    try {
-      // Add all operations to the transaction
-      for (const operation of operations) {
-        await this.transactionManager.addOperation(transactionId, operation);
-      }
-
-      // Execute the transaction
-      const result = await this.transactionManager.commitTransaction(
-        transactionId,
-        async (transactionOperations) => {
-          try {
-            // Execute all operations in sequence
-            const results = [];
-            for (const operation of transactionOperations) {
-              const result = await this.graphDatabase.executeWriteQuery(
-                operation.nGQL,
-                operation.parameters || {}
-              );
-              results.push(result);
-            }
-
-            const executionTime = Date.now() - startTime;
-            this.performanceMonitor.recordQueryExecution(executionTime);
-
-            // Invalidate cache on successful transaction
-            this.invalidateCacheForOperations(transactionOperations);
-
-            return {
-              success: true,
-              results,
-              executionTime,
-            };
-          } catch (error) {
-            const executionTime = Date.now() - startTime;
-            this.performanceMonitor.recordQueryExecution(executionTime);
-
-            return {
-              success: false,
-              results: [],
-              error: error instanceof Error ? error.message : String(error),
-              executionTime,
-            };
-          }
-        }
+    // 直接执行操作，不再使用事务
+    const results = [];
+    for (const operation of operations) {
+      const result = await this.graphDatabase.executeWriteQuery(
+        operation.nGQL,
+        operation.parameters || {}
       );
-
-      if (!result.success) {
-        throw new Error(result.error || 'Transaction failed');
-      }
-
-      // Process results with callback
-      return callback(result.results);
-    } catch (error) {
-      // Rollback on error
-      await this.transactionManager.rollbackTransaction(transactionId);
-
-      this.errorHandler.handleError(
-        new Error(
-          `Transaction execution failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'GraphTransactionService', operation: 'executeInTransaction' }
-      );
-      throw error;
+      results.push(result);
     }
+    return callback(results);
   }
 
   async executeBatchInTransaction<T>(
-    operations: TransactionOperation[],
+    operations: Array<{ nGQL: string; parameters?: Record<string, any> }>,
     callback: (results: any[]) => Promise<T>,
     options?: { batchSize?: number; concurrency?: number }
   ): Promise<T> {
@@ -201,31 +126,21 @@ export class GraphTransactionService implements IGraphTransactionService {
       const result = await this.batchOptimizer.executeWithOptimalBatching(
         operations,
         async (batch) => {
-          if (this.config.enableTransactions && batch.length > 1) {
-            return await this.executeInTransaction(batch, async (results) => {
-              return {
-                success: true,
-                results,
-                executionTime: Date.now() - startTime,
-              };
-            });
-          } else {
-            // Execute queries individually
-            const results = [];
-            for (const operation of batch) {
-              const result = await this.graphDatabase.executeWriteQuery(
-                operation.nGQL,
-                operation.parameters || {}
-              );
-              results.push(result);
-            }
-
-            return {
-              success: true,
-              results,
-              executionTime: Date.now() - startTime,
-            };
+          // 直接执行批量操作，不使用事务
+          const results = [];
+          for (const operation of batch) {
+            const result = await this.graphDatabase.executeWriteQuery(
+              operation.nGQL,
+              operation.parameters || {}
+            );
+            results.push(result);
           }
+
+          return {
+            success: true,
+            results,
+            executionTime: Date.now() - startTime,
+          };
         },
         {
           batchSize: options?.batchSize || this.config.maxBatchSize,
@@ -390,17 +305,15 @@ export class GraphTransactionService implements IGraphTransactionService {
     successRate: number;
   }> {
     try {
-      const transactionStats = this.transactionManager.getTransactionStats();
-
-      // Calculate success rate from performance monitor
+      // 返回默认的统计信息，因为不再使用事务
       const performanceMetrics = this.performanceMonitor.getMetrics();
       const batchStats = performanceMetrics.batchProcessingStats;
       const successRate = batchStats.totalBatches > 0 ? batchStats.successRate : 0;
 
       return {
-        activeTransactions: transactionStats.activeCount,
-        averageOperationCount: transactionStats.averageOperationCount,
-        averageDuration: transactionStats.averageDuration,
+        activeTransactions: 0, // 由于不再使用事务，返回0
+        averageOperationCount: 0,
+        averageDuration: 0,
         successRate,
       };
     } catch (error) {
@@ -452,7 +365,7 @@ export class GraphTransactionService implements IGraphTransactionService {
     }
   }
 
-  private invalidateCacheForOperations(operations: TransactionOperation[]): void {
+  private invalidateCacheForOperations(operations: Array<{ nGQL: string; parameters?: Record<string, any> }>): void {
     for (const operation of operations) {
       if (operation.nGQL.includes('INSERT') ||
         operation.nGQL.includes('UPDATE') ||

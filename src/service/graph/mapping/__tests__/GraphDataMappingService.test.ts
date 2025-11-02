@@ -4,7 +4,6 @@ import { DataMappingValidator } from '../DataMappingValidator';
 import { GraphMappingCache } from '../../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../../utils/GraphBatchOptimizer';
 import { FaultToleranceHandler } from '../../../../utils/FaultToleranceHandler';
-import { TransactionLogger } from '../../../transaction/TransactionLogger';
 import { GraphNodeType, GraphRelationshipType, FileAnalysisResult } from '../IGraphDataMappingService';
 import { CodeChunk } from '../../../parser/types';
 
@@ -66,7 +65,6 @@ describe('GraphDataMappingService', () => {
       mockUnifiedCache as any,
       mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
       mockFaultToleranceHandler as unknown as FaultToleranceHandler,
-      mockTransactionLogger as unknown as TransactionLogger
     );
   });
 

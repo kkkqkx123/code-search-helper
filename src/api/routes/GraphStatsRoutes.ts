@@ -15,7 +15,7 @@ export class GraphStatsRoutes {
   protected logger: LoggerService;
 
   constructor(
-    @inject(TYPES.GraphServiceNewAdapter) graphService: IGraphService,
+    @inject(TYPES.GraphService) graphService: IGraphService,
     @inject(TYPES.GraphCacheService) graphCacheService: GraphCacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.LoggerService) logger: LoggerService

@@ -22,7 +22,6 @@ import { DatabaseEventType, NebulaEventType as UnifiedNebulaEventType } from '..
 import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
 import { NebulaEventManager } from './NebulaEventManager';
 import { INebulaQueryService } from './query/NebulaQueryService';
-import { INebulaTransactionService } from './NebulaTransactionService';
 import { INebulaDataOperations } from './operation/NebulaDataOperations';
 import { INebulaSchemaManager } from './NebulaSchemaManager';
 import { INebulaIndexManager } from './NebulaIndexManager';
@@ -83,7 +82,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   private reconnectDelay = 1000;
   private eventManager: NebulaEventManager;
   private queryService: INebulaQueryService;
-  private transactionService: INebulaTransactionService;
   private dataOperations: INebulaDataOperations;
   private schemaManager: INebulaSchemaManager;
   private indexManager: INebulaIndexManager;
@@ -99,7 +97,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     @inject(TYPES.INebulaProjectManager) projectManager: NebulaProjectManager,
     @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager,
     @inject(TYPES.NebulaQueryService) queryService: INebulaQueryService,
-    @inject(TYPES.NebulaTransactionService) transactionService: INebulaTransactionService,
     @inject(TYPES.NebulaDataOperations) dataOperations: INebulaDataOperations,
     @inject(TYPES.NebulaSchemaManager) schemaManager: INebulaSchemaManager,
     @inject(TYPES.NebulaIndexManager) indexManager: INebulaIndexManager
@@ -120,7 +117,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     this.projectManager = projectManager;
     this.eventManager = eventManager;
     this.queryService = queryService;
-    this.transactionService = transactionService;
     this.dataOperations = dataOperations;
     this.schemaManager = schemaManager;
     this.indexManager = indexManager;
@@ -418,7 +414,9 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      const results = await this.transactionService.executeTransaction(queries);
+      // 直接使用connectionManager执行查询，不再使用事务服务
+      const results = await this.connectionManager.executeTransaction(queries);
+      return results;
       return results;
     } catch (error) {
       // 检查是否是连接错误，如果是则尝试重连
@@ -434,7 +432,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         if (reconnected) {
           // 重连成功后重新执行事务
           try {
-            const retryResults = await this.transactionService.executeTransaction(queries);
+            const retryResults = await this.connectionManager.executeTransaction(queries);
+            return retryResults;
             return retryResults;
           } catch (retryError) {
             // 如果重试事务也失败，抛出错误而不继续重试

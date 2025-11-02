@@ -63,7 +63,6 @@ export interface PerformanceTrend {
 @injectable()
 export class PerformanceDashboard {
   private logger: LoggerService;
-  private transactionLogger: TransactionLogger;
   private cache: GraphMappingCache;
   private metrics: PerformanceMetric[] = [];
   private alerts: Alert[] = [];

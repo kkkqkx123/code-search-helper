@@ -6,7 +6,7 @@ import { DatabaseType } from '../types';
 import { ConfigValidationUtil } from './ConfigValidator';
 import { BaseConfigTemplate } from './BaseServiceConfig';
 import { EnvVarOptimizer } from './EnvVarOptimizer';
-import { CommonConfig, TransactionConfig } from './types';
+import { CommonConfig } from './types';
 import { InfrastructureConfig } from './InfrastructureConfigTypes';
 
 @injectable()
@@ -144,15 +144,6 @@ export class InfrastructureConfigService {
             autoCreateEdges: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_GRAPH_SCHEMA_AUTO_CREATE_EDGES', false)
           }
         }
-      },
-      transaction: {
-        timeout: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_TIMEOUT', 30000),
-        retryAttempts: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_RETRY_ATTEMPTS', 3),
-        retryDelay: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_RETRY_DELAY', 100),
-        enableTwoPhaseCommit: EnvVarOptimizer.getEnvBooleanValue('INFRA_TRANSACTION_ENABLE_TWO_PHASE_COMMIT', true),
-        maxConcurrentTransactions: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_MAX_CONCURRENT_TRANSACTIONS', 100),
-        deadlockDetectionTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_TRANSACTION_DEADLOCK_DETECTION_TIMEOUT', 1000),  // 设置为最低允许值
-        isolationLevel: (EnvVarOptimizer.getEnvValue('INFRA_TRANSACTION_ISOLATION_LEVEL') as any) || undefined
       }
     };
   }
@@ -341,15 +332,6 @@ export class InfrastructureConfigService {
             autoCreateEdges: false
           }
         }
-      },
-      transaction: {
-        timeout: 15000,
-        retryAttempts: 2,
-        retryDelay: 500,
-        enableTwoPhaseCommit: false,
-        maxConcurrentTransactions: 50,
-        deadlockDetectionTimeout: 3000,
-        isolationLevel: undefined
       }
     };
   }
@@ -465,15 +447,6 @@ export class InfrastructureConfigService {
             autoCreateEdges: false
           }
         }
-      },
-      transaction: {
-        timeout: 10000,
-        retryAttempts: 1,
-        retryDelay: 1000,
-        enableTwoPhaseCommit: false,
-        maxConcurrentTransactions: 10,
-        deadlockDetectionTimeout: 2000,
-        isolationLevel: undefined
       }
     };
   }
@@ -569,10 +542,6 @@ export class InfrastructureConfigService {
 
   getCommonConfig(): InfrastructureConfig['common'] {
     return this.config.common;
-  }
-
-  getTransactionConfig(): InfrastructureConfig['transaction'] {
-    return this.config.transaction;
   }
 
   validateConfig(): boolean {

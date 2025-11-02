@@ -20,8 +20,6 @@ export class ConfigValidator {
     // 验证Nebula配置
     this.validateNebulaConfig(config.nebula, errors);
 
-    // 验证事务配置
-    this.validateTransactionConfig(config.transaction, errors);
 
     return {
       isValid: errors.length === 0,
@@ -338,50 +336,6 @@ export class ConfigValidator {
     }
   }
 
-  /**
-   * 验证事务配置
-   */
-  private static validateTransactionConfig(transaction: any, errors: string[]): void {
-    if (!transaction) {
-      errors.push('Transaction configuration is required');
-      return;
-    }
-
-    // 验证超时时间
-    if (typeof transaction.timeout !== 'number' || transaction.timeout < 1000) {
-      errors.push('Transaction timeout must be a number and at least 1000ms');
-    }
-
-    // 验证重试次数
-    if (typeof transaction.retryAttempts !== 'number' || transaction.retryAttempts < 0 || transaction.retryAttempts > 10) {
-      errors.push('Transaction retry attempts must be a number between 0 and 10');
-    }
-
-    // 验证重试延迟
-    if (typeof transaction.retryDelay !== 'number' || transaction.retryDelay < 100) {
-      errors.push('Transaction retry delay must be a number and at least 100ms');
-    }
-
-    // 验证两阶段提交启用状态
-    if (typeof transaction.enableTwoPhaseCommit !== 'boolean') {
-      errors.push('Transaction enableTwoPhaseCommit must be a boolean');
-    }
-
-    // 验证最大并发事务数
-    if (typeof transaction.maxConcurrentTransactions !== 'number' || transaction.maxConcurrentTransactions < 1 || transaction.maxConcurrentTransactions > 1000) {
-      errors.push('Transaction max concurrent transactions must be a number between 1 and 1000');
-    }
-
-    // 验证死锁检测超时时间
-    if (typeof transaction.deadlockDetectionTimeout !== 'number' || transaction.deadlockDetectionTimeout < 1000) {
-      errors.push('Transaction deadlock detection timeout must be a number and at least 1000ms');
-    }
-
-    // 验证隔离级别
-    if (transaction.isolationLevel && !['READ_UNCOMMITTED', 'READ_COMMITTED', 'REPEATABLE_READ', 'SERIALIZABLE'].includes(transaction.isolationLevel)) {
-      errors.push('Transaction isolation level must be one of: READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE');
-    }
-  }
 }
 
 /**

@@ -2,7 +2,6 @@ import { Container } from 'inversify';
 import { LoggerService } from '../../utils/LoggerService';
 
 import { TYPES } from '../../types';
-import { TransactionManager } from '../../database/core/TransactionManager';
 
 // 项目管理服务
 import { ProjectIdManager } from '../../database/ProjectIdManager';
@@ -44,7 +43,6 @@ import { NebulaQueryUtils } from '../../database/nebula/query/NebulaQueryUtils';
 import { NebulaResultFormatter } from '../../database/nebula/NebulaResultFormatter';
 import { NebulaEventManager } from '../../database/nebula/NebulaEventManager';
 import { NebulaQueryService, INebulaQueryService } from '../../database/nebula/query/NebulaQueryService';
-import { NebulaTransactionService, INebulaTransactionService } from '../../database/nebula/NebulaTransactionService';
 import { NebulaDataOperations, INebulaDataOperations } from '../../database/nebula/operation/NebulaDataOperations';
 import { NebulaSchemaManager, INebulaSchemaManager } from '../../database/nebula/NebulaSchemaManager';
 import { NebulaIndexManager, INebulaIndexManager } from '../../database/nebula/NebulaIndexManager';
@@ -68,7 +66,6 @@ export class DatabaseServiceRegistrar {
       // 通用数据库服务
       container.bind<ProjectIdManager>(TYPES.ProjectIdManager).to(ProjectIdManager).inSingletonScope();
       container.bind<ProjectLookupService>(TYPES.ProjectLookupService).to(ProjectLookupService).inSingletonScope();
-      container.bind<TransactionManager>(TYPES.TransactionManager).to(TransactionManager).inSingletonScope();
 
       // 数据库日志和监控服务
       container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
@@ -106,8 +103,6 @@ export class DatabaseServiceRegistrar {
       container.bind<INebulaSpaceService>(TYPES.INebulaSpaceService).to(NebulaSpaceService).inSingletonScope();
       container.bind<NebulaQueryService>(TYPES.NebulaQueryService).to(NebulaQueryService).inSingletonScope();
       container.bind<INebulaQueryService>(TYPES.INebulaQueryService).to(NebulaQueryService).inSingletonScope();
-      container.bind<NebulaTransactionService>(TYPES.NebulaTransactionService).to(NebulaTransactionService).inSingletonScope();
-      container.bind<INebulaTransactionService>(TYPES.INebulaTransactionService).to(NebulaTransactionService).inSingletonScope();
       container.bind<NebulaDataOperations>(TYPES.NebulaDataOperations).to(NebulaDataOperations).inSingletonScope();
       container.bind<INebulaDataOperations>(TYPES.INebulaDataOperations).to(NebulaDataOperations).inSingletonScope();
       container.bind<NebulaSchemaManager>(TYPES.NebulaSchemaManager).to(NebulaSchemaManager).inSingletonScope();
@@ -123,20 +118,7 @@ export class DatabaseServiceRegistrar {
       container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
 
       // 图数据映射和验证服务
-      // 注册 DataConsistencyChecker
-      console.log('Binding DataConsistencyChecker...');
-      container.bind<DataConsistencyChecker>(TYPES.DataConsistencyChecker)
-        .toDynamicValue(context => {
-          const logger = context.get<LoggerService>(TYPES.LoggerService);
-          const qdrantService = context.get<QdrantService>(TYPES.QdrantService);
-          const graphService = context.get<IGraphService>(TYPES.GraphService);
-          
-          return new DataConsistencyChecker(
-            logger,
-            qdrantService,
-            graphService
-          );
-        }).inSingletonScope();
+      container.bind<DataConsistencyChecker>(TYPES.DataConsistencyService).to(DataConsistencyChecker).inSingletonScope();
 
       // SQLite数据库服务
       container.bind<SqliteDatabaseService>(TYPES.SqliteDatabaseService).to(SqliteDatabaseService).inSingletonScope();

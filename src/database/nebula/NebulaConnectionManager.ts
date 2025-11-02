@@ -10,7 +10,6 @@ import { ConnectionStateManager } from './ConnectionStateManager';
 import { EventListener } from '../../types';
 import { NebulaEventManager } from './NebulaEventManager';
 import { INebulaQueryService } from './query/NebulaQueryService';
-import { INebulaTransactionService } from './NebulaTransactionService';
 
 // 导入Nebula Graph客户端库
 import { createClient } from '@nebula-contrib/nebula-nodejs';

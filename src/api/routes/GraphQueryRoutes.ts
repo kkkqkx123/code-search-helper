@@ -1,21 +1,21 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
-import { GraphServiceNewAdapter } from '../../service/graph/core/GraphServiceNewAdapter';
 import { GraphQueryValidator } from '../../service/graph/query/GraphQueryValidator';
+import { IGraphService } from '../../service/graph/core/IGraphService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../utils/LoggerService';
 
 @injectable()
 export class GraphQueryRoutes {
   private router: Router;
-  private graphService: GraphServiceNewAdapter;
+  private graphService: IGraphService;
   private validator: GraphQueryValidator;
   private performanceMonitor: GraphPerformanceMonitor;
   private logger: LoggerService;
 
   constructor(
-    @inject(TYPES.GraphServiceNewAdapter) graphService: GraphServiceNewAdapter,
+    @inject(TYPES.GraphService) graphService: IGraphService,
     @inject(TYPES.GraphQueryValidator) validator: GraphQueryValidator,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.LoggerService) logger: LoggerService
@@ -85,7 +85,7 @@ export class GraphQueryRoutes {
 
       const startTime = Date.now();
       // 使用 GraphService 的方法执行查询
-      const result = await this.graphService['graphDataService'].executeRawQuery(query, parameters);
+      const result = await this.graphService.executeRawQuery(query, parameters);
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
@@ -218,7 +218,7 @@ export class GraphQueryRoutes {
         FIND ALL PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${maxDepth || 5} STEPS
         YIELD path as p
       `;
-      const result = await this.graphService['graphDataService'].executeRawQuery(query);
+      const result = await this.graphService.executeRawQuery(query);
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
@@ -280,7 +280,7 @@ export class GraphQueryRoutes {
         `;
       }
 
-      const result = await this.graphService['graphDataService'].executeRawQuery(query);
+      const result = await this.graphService.executeRawQuery(query);
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);

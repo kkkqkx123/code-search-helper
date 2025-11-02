@@ -90,7 +90,7 @@ export class ApiServer {
 
     // 从依赖注入容器获取Graph服务
     const graphSearchService = diContainer.get<any>(TYPES.GraphSearchServiceNew);
-    const graphService = diContainer.get<any>(TYPES.GraphServiceNewAdapter);
+    const graphService = diContainer.get<any>(TYPES.GraphService);
     const graphCacheService = diContainer.get<any>(TYPES.GraphCacheService);
     const graphPerformanceMonitor = diContainer.get<any>(TYPES.GraphPerformanceMonitor);
     const graphQueryValidator = diContainer.get<any>(TYPES.GraphQueryValidator);

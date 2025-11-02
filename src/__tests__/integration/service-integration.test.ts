@@ -33,6 +33,7 @@ describe('Service Integration Tests', () => {
 
     // 获取服务实例
     taskQueue = container.get<AsyncTaskQueue>(TYPES.AsyncTaskQueue);
+    consistencyChecker = container.get<DataConsistencyChecker>(TYPES.DataConsistencyService);
     performanceOptimizer = container.get<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService);
     healthChecker = container.get<DatabaseHealthChecker>(TYPES.HealthChecker);
     graphCacheService = container.get<any>(TYPES.GraphCacheService);

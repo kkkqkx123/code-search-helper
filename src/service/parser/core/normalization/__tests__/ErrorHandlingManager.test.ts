@@ -1,12 +1,12 @@
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { InfrastructureErrorHandler } from '../../../../../infrastructure/error/InfrastructureErrorHandler';
+import { ErrorHandlerService } from '../../../../../utils/ErrorHandlerService';
 import { FaultToleranceHandler } from '../../../../../utils/FaultToleranceHandler';
 import { ErrorHandlingManager, ErrorType, ErrorHandlingConfig } from '../ErrorHandlingManager';
 
 describe('ErrorHandlingManager', () => {
   let errorHandlingManager: ErrorHandlingManager;
   let mockLogger: jest.Mocked<LoggerService>;
-  let mockInfrastructureErrorHandler: jest.Mocked<InfrastructureErrorHandler>;
+  let mockErrorHandler: jest.Mocked<ErrorHandlerService>;
   let mockFaultToleranceHandler: jest.Mocked<FaultToleranceHandler>;
 
   beforeEach(() => {
@@ -18,13 +18,14 @@ describe('ErrorHandlingManager', () => {
       trace: jest.fn(),
     } as unknown as jest.Mocked<LoggerService>;
 
-    mockInfrastructureErrorHandler = {
+    mockErrorHandler = {
+      handleError: jest.fn(),
       handleDatabaseError: jest.fn(),
       handleInfrastructureError: jest.fn(),
       handleBatchOperationError: jest.fn(),
       executeWithErrorHandling: jest.fn(),
       executeInfrastructureOperation: jest.fn(),
-    } as unknown as jest.Mocked<InfrastructureErrorHandler>;
+    } as unknown as jest.Mocked<ErrorHandlerService>;
 
     mockFaultToleranceHandler = {
       executeWithFaultTolerance: jest.fn(),
@@ -37,17 +38,17 @@ describe('ErrorHandlingManager', () => {
 
     errorHandlingManager = new ErrorHandlingManager(
       mockLogger,
-      mockInfrastructureErrorHandler,
+      mockErrorHandler,
       mockFaultToleranceHandler
     );
-  });
+ });
 
   describe('configuration', () => {
     it('should update configuration', () => {
       const newConfig: Partial<ErrorHandlingConfig> = {
         maxRetries: 5,
         enableFallback: false,
-        retryDelay: 2000,
+        retryDelay: 200,
         circuitBreakerThreshold: 10,
         circuitBreakerTimeout: 120000
       };
@@ -67,11 +68,9 @@ describe('ErrorHandlingManager', () => {
       errorHandlingManager.recordError(ErrorType.PARSE_ERROR, error, context);
 
       // 验证错误被委托给基础设施错误处理器
-      expect(mockInfrastructureErrorHandler.handleInfrastructureError).toHaveBeenCalledWith(
+      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(
         error,
-        'TreeSitterParser',
-        'test_operation',
-        { ...context, errorType: ErrorType.PARSE_ERROR }
+        { ...context, errorType: ErrorType.PARSE_ERROR, component: 'TreeSitterParser', operation: 'test_operation' }
       );
     });
   });
@@ -115,7 +114,7 @@ describe('ErrorHandlingManager', () => {
 
       expect(mockFaultToleranceHandler.resetCircuitBreaker).toHaveBeenCalledWith('parse_error:test_operation');
     });
-  });
+ });
 
   describe('executeWithFallback', () => {
     it('should execute operation successfully without fallback', async () => {
@@ -225,7 +224,7 @@ describe('ErrorHandlingManager', () => {
       errorHandlingManager.resetCircuitBreakers();
       expect(mockLogger.info).toHaveBeenCalledWith('All circuit breakers reset requested');
     });
-  });
+ });
 
   describe('circuit breaker states', () => {
     it('should return circuit breaker states', () => {

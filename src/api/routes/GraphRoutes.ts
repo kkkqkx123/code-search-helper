@@ -17,7 +17,7 @@ export class GraphRoutes {
   private logger: LoggerService;
 
   constructor(
-    @inject(TYPES.GraphServiceNewAdapter) graphService: IGraphService,
+    @inject(TYPES.GraphService) graphService: IGraphService,
     @inject(TYPES.ProjectLookupService) projectLookupService: ProjectLookupService,
     @inject(TYPES.GraphQueryValidator) validator: GraphQueryValidator,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,

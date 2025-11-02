@@ -2,10 +2,10 @@ import { ContainerModule } from 'inversify';
 import { TYPES } from '../../../types';
 import { GraphAnalysisService } from './GraphAnalysisService';
 import { GraphDataService } from './GraphDataService';
-import { GraphTransactionService } from './GraphTransactionService';
 import { GraphSearchServiceNew } from './GraphSearchService';
-import { GraphServiceNewAdapter } from './GraphServiceNewAdapter';
 import { IGraphSearchService } from './IGraphSearchService';
+import { IGraphService } from './IGraphService';
+
 
 // 导入基础设施服务实现
 import { GraphCacheService } from '../../caching/GraphCacheService';
@@ -28,10 +28,6 @@ export const GraphModule = new ContainerModule((bindObj: any) => {
       .to(GraphDataService)
       .inSingletonScope();
 
-    // 绑定图事务服务
-    bind(TYPES.GraphTransactionService)
-      .to(GraphTransactionService)
-      .inSingletonScope();
 
     // 绑定图搜索服务接口和实现
     bind(TYPES.IGraphSearchService)
@@ -45,14 +41,9 @@ export const GraphModule = new ContainerModule((bindObj: any) => {
       .to(GraphSearchServiceNew)
       .inSingletonScope();
 
-    // 绑定图服务适配器（实现旧接口）
-    bind(TYPES.GraphServiceNewAdapter)
-      .to(GraphServiceNewAdapter)
-      .inSingletonScope();
-
     // 绑定GraphService以解决依赖问题
     bind(TYPES.GraphService)
-      .to(GraphServiceNewAdapter)
+      .to(GraphSearchServiceNew)
       .inSingletonScope();
   } catch (error: any) {
     console.error('Error creating GraphModule:', error);

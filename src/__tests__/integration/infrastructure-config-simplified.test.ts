@@ -16,7 +16,7 @@ const mockLoggerService = {
 };
 
 const mockConfigService = {
-  get: jest.fn(),
+ get: jest.fn(),
   set: jest.fn(),
   has: jest.fn()
 };
@@ -81,7 +81,6 @@ describe('简化配置管理测试', () => {
       expect(config.common).toBeDefined();
       expect(config.qdrant).toBeDefined();
       expect(config.nebula).toBeDefined();
-      expect(config.transaction).toBeDefined();
     });
 
     test('应该能够验证配置', () => {
@@ -123,7 +122,6 @@ describe('简化配置管理测试', () => {
       expect(config.common).toBeDefined();
       expect(config.qdrant).toBeDefined();
       expect(config.nebula).toBeDefined();
-      expect(config.transaction).toBeDefined();
     });
 
     test('应该能够获取配置摘要', () => {
@@ -183,7 +181,7 @@ describe('简化配置管理测试', () => {
             performanceThresholds: {
               queryExecutionTime: 1000,
               memoryUsage: 80,
-              responseTime: 500
+              responseTime: 50
             },
             databaseSpecific: {}
           },
@@ -193,7 +191,7 @@ describe('简化配置管理测试', () => {
             maxBatchSize: 100,
             minBatchSize: 5,
             memoryThreshold: 70,
-            processingTimeout: 30000,
+            processingTimeout: 300,
             retryAttempts: 2,
             retryDelay: 1000,
             adaptiveBatchingEnabled: false,
@@ -201,12 +199,28 @@ describe('简化配置管理测试', () => {
             adjustmentFactor: 0.1,
             databaseSpecific: {}
           },
+          vector: {
+            defaultCollection: 'default',
+            collectionOptions: {
+              vectorSize: 1536,
+              distance: 'Cosine' as const,
+              indexing: {
+                type: 'hnsw',
+                options: {}
+              }
+            },
+            searchOptions: {
+              limit: 10,
+              threshold: 0.5,
+              exactSearch: false
+            }
+          }
         },
         nebula: {
           cache: {
             defaultTTL: 30000,
             maxEntries: 1000,
-            cleanupInterval: 60000,
+            cleanupInterval: 600,
             enableStats: true,
             databaseSpecific: {}
           },
@@ -231,7 +245,7 @@ describe('简化配置管理测试', () => {
             retryAttempts: 2,
             retryDelay: 100,
             adaptiveBatchingEnabled: false,
-            performanceThreshold: 1000,
+            performanceThreshold: 100,
             adjustmentFactor: 0.1,
             databaseSpecific: {}
           },
@@ -252,15 +266,6 @@ describe('简化配置管理测试', () => {
             }
           }
         },
-        transaction: {
-          timeout: 15000,
-          retryAttempts: 2,
-          retryDelay: 500,
-          enableTwoPhaseCommit: false,
-          maxConcurrentTransactions: 50,
-          deadlockDetectionTimeout: 3000,
-          isolationLevel: undefined
-        }
       };
 
       expect(() => {
@@ -343,13 +348,11 @@ describe('简化配置管理测试', () => {
       expect(config.qdrant).toHaveProperty('cache');
       expect(config.qdrant).toHaveProperty('performance');
       expect(config.qdrant).toHaveProperty('batch');
-      expect(config.qdrant).toHaveProperty('connection');
+      expect(config.qdrant).toHaveProperty('vector');
       expect(config.nebula).toHaveProperty('cache');
       expect(config.nebula).toHaveProperty('performance');
       expect(config.nebula).toHaveProperty('batch');
-      expect(config.nebula).toHaveProperty('connection');
       expect(config.nebula).toHaveProperty('graph');
-      expect(config.transaction).toBeDefined();
     });
 
     test('应该能够从主配置服务合并配置', () => {

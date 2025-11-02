@@ -1,4 +1,4 @@
-import { CommonConfig, TransactionConfig } from './types';
+import { CommonConfig } from './types';
 
 /**
  * 基础设施配置接口
@@ -124,6 +124,4 @@ export interface InfrastructureConfig {
     };
   };
   
-  // 事务配置
-  transaction: TransactionConfig;
 }
