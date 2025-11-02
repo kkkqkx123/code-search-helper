@@ -70,7 +70,7 @@ describe('IndexingLogicService', () => {
       errorHandlerService,
       {} as any // Mock SqliteProjectManager
     ) as jest.Mocked<ProjectIdManager>;
-    
+
     // Create a mock ConfigService for testing
     const mockConfigService = {
       get: jest.fn().mockImplementation((key: string) => {
@@ -80,7 +80,7 @@ describe('IndexingLogicService', () => {
         return undefined;
       })
     } as unknown as ConfigService;
-    
+
     embedderFactory = new EmbedderFactory(
       loggerService,
       errorHandlerService,
@@ -127,13 +127,12 @@ describe('IndexingLogicService', () => {
         }
       })
     };
-    
+
     performanceOptimizerService = new PerformanceOptimizerService(
       loggerService,
       errorHandlerService,
       {} as any,
       mockMemoryMonitor,
-      {} as any
     ) as jest.Mocked<PerformanceOptimizerService>;
     astSplitter = {} as jest.Mocked<ASTCodeSplitter>;
     coordinationService = {

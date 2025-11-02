@@ -3,7 +3,6 @@ export type EventListener<T = any> = (data: T) => void;
 
 // 2. 配置模块
 import { ConfigService } from './config/ConfigService';
-import { ConfigFactory } from './config/ConfigFactory';
 
 // 3. 核心服务模块
 import { LoggerService } from './utils/LoggerService';
@@ -132,7 +131,6 @@ export const TYPES = {
 
   // 2. 配置服务
   ConfigService: Symbol.for('ConfigService'),
-  ConfigFactory: Symbol.for('ConfigFactory'),
   EnvironmentConfigService: Symbol.for('EnvironmentConfigService'),
   QdrantConfigService: Symbol.for('QdrantConfigService'),
   EmbeddingConfigService: Symbol.for('EmbeddingConfigService'),

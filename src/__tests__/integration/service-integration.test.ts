@@ -5,7 +5,6 @@ import { ConfigServiceRegistrar } from '../../core/registrars/ConfigServiceRegis
 import { DatabaseServiceRegistrar } from '../../core/registrars/DatabaseServiceRegistrar';
 import { BusinessServiceRegistrar } from '../../core/registrars/BusinessServiceRegistrar';
 import { EmbedderServiceRegistrar } from '../../core/registrars/EmbedderServiceRegistrar';
-import { AsyncTaskQueue } from '../../infrastructure/batching/AsyncTaskQueue';
 import { DataConsistencyChecker } from '../../database/common/DataConsistencyChecker';
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
@@ -13,7 +12,6 @@ import { GraphModule } from '../../service/graph/core/GraphModule';
 
 describe('Service Integration Tests', () => {
   let container: Container;
-  let taskQueue: AsyncTaskQueue;
   let consistencyChecker: DataConsistencyChecker;
   let performanceOptimizer: PerformanceOptimizerService;
   let healthChecker: DatabaseHealthChecker;
@@ -32,7 +30,6 @@ describe('Service Integration Tests', () => {
     container.load(GraphModule);                         // 图服务模块，包含IGraphService
 
     // 获取服务实例
-    taskQueue = container.get<AsyncTaskQueue>(TYPES.AsyncTaskQueue);
     consistencyChecker = container.get<DataConsistencyChecker>(TYPES.DataConsistencyService);
     performanceOptimizer = container.get<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService);
     healthChecker = container.get<DatabaseHealthChecker>(TYPES.HealthChecker);
@@ -41,76 +38,12 @@ describe('Service Integration Tests', () => {
 
   afterAll(async () => {
     // 清理资源
-    if (taskQueue) {
-      taskQueue.stop();
-    }
     if (healthChecker) {
       healthChecker.stopMonitoring();
     }
     if (graphCacheService && typeof graphCacheService.stopCleanup === 'function') {
       graphCacheService.stopCleanup();
     }
-  });
-
-  describe('AsyncTaskQueue Integration', () => {
-    test('should process tasks concurrently', async () => {
-      const tasks = Array.from({ length: 10 }, (_, i) => ({
-        id: `test-task-${i}`,
-        priority: 'normal',
-        execute: async () => {
-          await new Promise(resolve => setTimeout(resolve, 50)); // 减少等待时间
-          return { result: `task-${i}-completed` };
-        }
-      }));
-
-      const results: any[] = [];
-
-      // 添加任务到队列
-      const taskIds = [];
-      for (const task of tasks) {
-        const taskId = await taskQueue.addTask(task.execute, {
-          priority: task.priority === 'normal' ? 0 : 1,
-          timeout: 10000 // 设置任务超时时间
-        });
-        taskIds.push(taskId);
-      }
-
-      // 等待所有任务完成，增加超时时间
-      await taskQueue.waitForCompletion(45000);
-
-      // 验证结果
-      const status = taskQueue.getStatus();
-      expect(status.completed).toBe(10);
-      expect(status.pending).toBe(0);
-      expect(status.running).toBe(0);
-
-      // 验证每个任务都有结果
-      for (const taskId of taskIds) {
-        const result = taskQueue.getTaskResult(taskId);
-        expect(result).toBeDefined();
-        expect(result?.success).toBe(true);
-      }
-    }, 60000); // 增加超时时间为60秒
-
-    test('should handle task failures and retries', async () => {
-      let attemptCount = 0;
-      const taskId = await taskQueue.addTask(async () => {
-        attemptCount++;
-        if (attemptCount < 3) {
-          throw new Error('Simulated failure');
-        }
-        return { success: true };
-      }, {
-        maxRetries: 3,
-        timeout: 15000 // 设置任务超时时间
-      });
-
-      await taskQueue.waitForCompletion(45000);
-      const result = taskQueue.getTaskResult(taskId);
-
-      expect(result?.success).toBe(true);
-      expect(result?.retries).toBe(2);
-    }, 60000); // 增加超时时间为60秒
   });
 
   describe('DataConsistencyChecker Integration', () => {
@@ -145,22 +78,6 @@ describe('Service Integration Tests', () => {
   });
 
   describe('PerformanceOptimizerService Integration', () => {
-    test('should use AsyncTaskQueue for batch processing', async () => {
-      const items = Array.from({ length: 20 }, (_, i) => ({ id: i, value: `item-${i}` }));
-
-      const results = await performanceOptimizer.processBatchesWithQueue(
-        items,
-        async (batch: any[]) => {
-          await new Promise(resolve => setTimeout(resolve, 25)); // 减少等待时间
-          return batch.map((item: any) => ({ ...item, processed: true }));
-        },
-        'test-operation'
-      );
-
-      expect(results.length).toBe(20);
-      expect(results.every((r: { processed: any; }) => r.processed)).toBe(true);
-    }, 60000); // 增加超时时间为60秒
-
     test('should handle performance monitoring', async () => {
       await performanceOptimizer.executeWithMonitoring(
         async () => {
@@ -231,28 +148,5 @@ describe('Service Integration Tests', () => {
 
       expect(updateReceived).toBe(true);
     });
-  });
-
-  describe('Cross-Service Integration', () => {
-    test('should integrate AsyncTaskQueue with PerformanceOptimizer', async () => {
-      const largeDataset = Array.from({ length: 100 }, (_, i) => ({ id: i, data: `data-${i}` }));
-
-      const startTime = Date.now();
-      const results = await performanceOptimizer.processBatchesWithQueue(
-        largeDataset,
-        async (batch: any[]) => {
-          // 模拟处理时间
-          await new Promise(resolve => setTimeout(resolve, 5)); // 减少等待时间
-          return batch.map((item: any) => ({ ...item, processed: true }));
-        },
-        'large-dataset-processing'
-      );
-
-      const processingTime = Date.now() - startTime;
-
-      expect(results.length).toBe(100);
-      expect(results.every((r: { processed: any; }) => r.processed)).toBe(true);
-      expect(processingTime).toBeLessThan(5000); // 调整期望时间
-    }, 10000); // 增加超时时间为91秒
   });
 });

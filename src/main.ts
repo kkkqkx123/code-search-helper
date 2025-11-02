@@ -11,7 +11,6 @@ import { EmbedderFactory } from './embedders/EmbedderFactory';
 import { IndexService } from './service/index/IndexService';
 import { ProjectStateManager } from './service/project/ProjectStateManager';
 import { ConfigService } from './config/ConfigService';
-import { ConfigFactory } from './config/ConfigFactory';
 import { diContainer } from './core/DIContainer';
 import { TYPES } from './types';
 import { EmbeddingConfigService } from './config/service/EmbeddingConfigService';
