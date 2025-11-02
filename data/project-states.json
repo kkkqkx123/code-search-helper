@@ -3,20 +3,20 @@
     "projectId": "ada029ec0e391066",
     "projectPath": "D:\\ide\\tool\\code-search-helper\\test-files",
     "name": "D:\\ide\\tool\\code-search-helper\\test-files",
-    "status": "error",
+    "status": "active",
     "vectorStatus": {
-      "status": "error",
-      "progress": 0,
-      "lastUpdated": "2025-11-01T11:14:34.561Z"
+      "status": "completed",
+      "progress": 100,
+      "lastUpdated": "2025-11-02T15:21:32.586Z"
     },
     "graphStatus": {
-      "status": "error",
-      "progress": 0,
-      "lastUpdated": "2025-11-01T11:14:34.562Z"
+      "status": "completed",
+      "progress": 100,
+      "lastUpdated": "2025-11-02T15:21:32.587Z"
     },
     "createdAt": "2025-11-01T09:03:27.270Z",
-    "updatedAt": "2025-11-01T11:14:34.562Z",
-    "lastIndexedAt": "2025-11-01T11:14:34.534Z",
+    "updatedAt": "2025-11-02T15:21:32.587Z",
+    "lastIndexedAt": "2025-11-02T15:21:32.585Z",
     "indexingProgress": 100,
     "totalFiles": 9,
     "indexedFiles": 9,

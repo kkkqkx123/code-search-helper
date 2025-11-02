@@ -302,11 +302,13 @@ export class ChangeDetectionService extends EventEmitter {
     try {
       this.logger.debug(`File added: ${fileInfo.relativePath}`);
 
-      const previousHash = await this.fileHashManager.getFileHash('default', fileInfo.relativePath);
+      // 获取实际的项目ID而不是硬编码的'default'
+      const projectId = await this.getProjectIdForPath(fileInfo.path);
+      const previousHash = await this.fileHashManager.getFileHash(projectId, fileInfo.relativePath);
 
       if (previousHash === null) {
         // New file
-        await this.fileHashManager.updateFileHash('default', fileInfo.relativePath, fileInfo.hash, {
+        await this.fileHashManager.updateFileHash(projectId, fileInfo.relativePath, fileInfo.hash, {
           fileSize: fileInfo.size,
           lastModified: fileInfo.lastModified,
           language: fileInfo.language,
@@ -346,7 +348,9 @@ export class ChangeDetectionService extends EventEmitter {
     try {
       this.logger.debug(`File changed: ${fileInfo.relativePath}`);
 
-      const previousHash = await this.fileHashManager.getFileHash('default', fileInfo.relativePath);
+      // 获取实际的项目ID而不是硬编码的'default'
+      const projectId = await this.getProjectIdForPath(fileInfo.path);
+      const previousHash = await this.fileHashManager.getFileHash(projectId, fileInfo.relativePath);
 
       if (previousHash === null) {
         // File not tracked yet, treat as new
@@ -367,7 +371,7 @@ export class ChangeDetectionService extends EventEmitter {
 
           if (previousHash !== currentHash) {
             // Actual content change
-            await this.fileHashManager.updateFileHash('default', fileInfo.relativePath, currentHash, {
+            await this.fileHashManager.updateFileHash(projectId, fileInfo.relativePath, currentHash, {
               fileSize: fileInfo.size,
               lastModified: fileInfo.lastModified,
               language: fileInfo.language,
@@ -421,10 +425,13 @@ export class ChangeDetectionService extends EventEmitter {
 
       // Convert to relative path for consistency
       const relativePath = path.relative(process.cwd(), filePath);
-      const previousHash = await this.fileHashManager.getFileHash('default', relativePath);
+      
+      // 获取实际的项目ID而不是硬编码的'default'
+      const projectId = await this.getProjectIdForPath(filePath);
+      const previousHash = await this.fileHashManager.getFileHash(projectId, relativePath);
 
       if (previousHash !== null) {
-        await this.fileHashManager.deleteFileHash('default', relativePath);
+        await this.fileHashManager.deleteFileHash(projectId, relativePath);
 
         const event: FileChangeEvent = {
           type: 'deleted',
@@ -523,7 +530,10 @@ export class ChangeDetectionService extends EventEmitter {
   }
 
   async getFileHash(relativePath: string): Promise<string | undefined> {
-    const hash = await this.fileHashManager.getFileHash('default', relativePath);
+    // 需要完整路径来获取项目ID，这里使用当前工作目录作为基础路径
+    const fullPath = path.resolve(process.cwd(), relativePath);
+    const projectId = await this.getProjectIdForPath(fullPath);
+    const hash = await this.fileHashManager.getFileHash(projectId, relativePath);
     return hash || undefined;
   }
 
@@ -538,7 +548,10 @@ export class ChangeDetectionService extends EventEmitter {
   }
 
   async isFileTracked(relativePath: string): Promise<boolean> {
-    const hash = await this.fileHashManager.getFileHash('default', relativePath);
+    // 需要完整路径来获取项目ID，这里使用当前工作目录作为基础路径
+    const fullPath = path.resolve(process.cwd(), relativePath);
+    const projectId = await this.getProjectIdForPath(fullPath);
+    const hash = await this.fileHashManager.getFileHash(projectId, relativePath);
     return hash !== null;
   }
 

@@ -248,6 +248,10 @@ describe('ChangeDetectionService', () => {
         });
 
         it('should handle file added event', async () => {
+            // Mock getProjectIdForPath to return a test project ID
+            const mockProjectId = 'test-project-id';
+            (mockProjectIdManager.getProjectId as jest.Mock).mockReturnValue(mockProjectId);
+            
             (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue(null);
             (mockFileHashManager.updateFileHash as jest.Mock).mockResolvedValue(undefined);
 
@@ -264,11 +268,15 @@ describe('ChangeDetectionService', () => {
             };
 
             expect(callbacks.onFileCreated).toHaveBeenCalledWith(expectedEvent);
-            expect(mockFileHashManager.getFileHash).toHaveBeenCalledWith('default', mockFileInfo.relativePath);
-            expect(mockFileHashManager.updateFileHash).toHaveBeenCalledWith('default', mockFileInfo.relativePath, mockFileInfo.hash, expect.any(Object));
+            expect(mockFileHashManager.getFileHash).toHaveBeenCalledWith('test-project-id', mockFileInfo.relativePath);
+            expect(mockFileHashManager.updateFileHash).toHaveBeenCalledWith('test-project-id', mockFileInfo.relativePath, mockFileInfo.hash, expect.any(Object));
         });
 
         it('should handle file changed event with debounce', async () => {
+            // Mock getProjectIdForPath to return a test project ID
+            const mockProjectId = 'test-project-id';
+            (mockProjectIdManager.getProjectId as jest.Mock).mockReturnValue(mockProjectId);
+            
             // Set up initial hash
             (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue('oldhash');
             mockFileSystemTraversal['calculateFileHash'] = jest.fn().mockResolvedValue('newhash');
@@ -298,7 +306,7 @@ describe('ChangeDetectionService', () => {
                 };
 
                 expect(callbacks.onFileModified).toHaveBeenCalledWith(expectedEvent);
-                expect(mockFileHashManager.updateFileHash).toHaveBeenCalledWith('default', mockFileInfo.relativePath, 'newhash', expect.any(Object));
+                expect(mockFileHashManager.updateFileHash).toHaveBeenCalledWith('test-project-id', mockFileInfo.relativePath, 'newhash', expect.any(Object));
             } finally {
                 // Restore fake timers for other tests
                 jest.useFakeTimers();
@@ -306,13 +314,17 @@ describe('ChangeDetectionService', () => {
         });
 
         it('should handle file deleted event', async () => {
+            // Mock getProjectIdForPath to return a test project ID
+            const mockProjectId = 'test-project-id';
+            (mockProjectIdManager.getProjectId as jest.Mock).mockReturnValue(mockProjectId);
+            
             (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue('hash1');
             (mockFileHashManager.deleteFileHash as jest.Mock).mockResolvedValue(undefined);
 
             await (changeDetectionService as any).handleFileDeleted(mockFileInfo.path);
 
             expect(mockFileHashManager.getFileHash).toHaveBeenCalled();
-            expect(mockFileHashManager.deleteFileHash).toHaveBeenCalledWith('default', expect.any(String));
+            expect(mockFileHashManager.deleteFileHash).toHaveBeenCalledWith('test-project-id', expect.any(String));
         });
     });
 
