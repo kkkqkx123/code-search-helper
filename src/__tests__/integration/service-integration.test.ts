@@ -388,24 +388,12 @@ describe('Service Integration Tests', () => {
           databaseType: 'test_db' as any,
           status: 'healthy',
           responseTime: 10,
-          connectionPoolStatus: {
-            activeConnections: 1,
-            idleConnections: 1,
-            pendingRequests: 0,
-            maxConnections: 10
-          },
           timestamp: Date.now()
         }),
         getHealthStatus: jest.fn().mockReturnValue({
           databaseType: 'test_db' as any,
           status: 'healthy',
           responseTime: 10,
-          connectionPoolStatus: {
-            activeConnections: 1,
-            idleConnections: 1,
-            pendingRequests: 0,
-            maxConnections: 10
-          },
           timestamp: Date.now()
         }),
         subscribeToHealthUpdates: jest.fn()

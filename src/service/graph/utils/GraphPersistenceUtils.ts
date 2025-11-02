@@ -560,7 +560,7 @@ export class GraphPersistenceUtils {
     };
   }
 
-  async initializeConnectionPoolMonitoring(
+  async initializeConnectionMonitoring(
     nebulaService: NebulaService,
     performanceMonitor: any
   ): Promise<void> {

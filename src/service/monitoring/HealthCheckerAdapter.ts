@@ -38,12 +38,6 @@ export class HealthCheckerAdapter implements IHealthChecker {
         databaseType: this.databaseType,
         status: healthStatus.status,
         responseTime: healthStatus.responseTime || 0,
-        connectionPoolStatus: {
-          activeConnections: 0, // 可以从基础设施获取实际值
-          idleConnections: 0,
-          pendingRequests: 0,
-          maxConnections: 0
-        },
         timestamp: healthStatus.timestamp
       };
 
@@ -57,12 +51,6 @@ export class HealthCheckerAdapter implements IHealthChecker {
         databaseType: this.databaseType,
         status: 'error',
         responseTime: 0,
-        connectionPoolStatus: {
-          activeConnections: 0,
-          idleConnections: 0,
-          pendingRequests: 0,
-          maxConnections: 0
-        },
         timestamp: Date.now()
       };
     }
@@ -75,12 +63,6 @@ export class HealthCheckerAdapter implements IHealthChecker {
       databaseType: this.databaseType,
       status: 'healthy',
       responseTime: 0,
-      connectionPoolStatus: {
-        activeConnections: 0,
-        idleConnections: 0,
-        pendingRequests: 0,
-        maxConnections: 0
-      },
       timestamp: Date.now()
     };
   }
@@ -93,12 +75,6 @@ export class HealthCheckerAdapter implements IHealthChecker {
           databaseType: this.databaseType,
           status: status.status,
           responseTime: status.responseTime || 0,
-          connectionPoolStatus: {
-            activeConnections: 0,
-            idleConnections: 0,
-            pendingRequests: 0,
-            maxConnections: 0
-          },
           timestamp: status.timestamp
         };
         callback(databaseHealthStatus);
