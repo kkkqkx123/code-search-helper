@@ -221,42 +221,9 @@ class Application {
         // 继续执行，因为这不应该阻止应用启动
       }
 
-      // Check if hot reload is enabled via configuration
-      // 直接启用热重载，因为目前没有专门的配置项
-      const hotReloadEnabled = true;
-      if (hotReloadEnabled) {
-        try {
-          // 获取项目根路径（使用当前工作目录作为项目路径）
-          const projectPath = process.cwd();
-
-          // 检查项目是否已索引，如果未索引则启动索引
-          const projectId = this.projectIdManager.getProjectId(projectPath);
-          if (!projectId) {
-            await this.loggerService.info('Project not indexed, starting indexing process...');
-
-            // 初始化变更检测服务
-            await this.changeDetectionService.initialize([projectPath]);
-            await this.loggerService.info('Change Detection Service initialized successfully');
-
-            // 开始索引项目（这将自动启用热更新，如果配置了enableHotReload）
-            await this.indexService.startIndexing(projectPath, { enableHotReload: true });
-            await this.loggerService.info('Project indexing started with hot reload enabled');
-          } else {
-            // 项目已存在，但可能没有激活热更新，检查是否需要激活
-            await this.loggerService.info('Project already indexed, checking hot reload status...');
-
-            // 尝试为已索引的项目启用热更新
-            await this.indexService.startProjectWatching(projectPath);
-            await this.loggerService.info('Project watching started for hot reload');
-          }
-        } catch (error) {
-          await this.loggerService.error('Failed to initialize hot reload services:', error);
-          // Graceful degradation - continue without hot reload
-          await this.loggerService.warn('Hot reload disabled due to initialization error');
-        }
-      } else {
-        await this.loggerService.info('Hot reload is disabled via configuration');
-      }
+      // 热重载服务已移除自动索引逻辑
+      // 索引现在只能通过API调用触发
+      await this.loggerService.info('Hot reload service initialized - indexing only available via API calls');
 
       this.currentPhase = ApplicationLifecyclePhase.RUNNING;
 
