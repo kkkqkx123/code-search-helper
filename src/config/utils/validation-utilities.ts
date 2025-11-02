@@ -26,9 +26,6 @@ export const ValidationPatterns = {
   interval: Joi.number().positive().min(1000), // Minimum 1 second
   retention: Joi.number().positive().min(60000), // Minimum 1 minute
 
-  // Common connection patterns
-  maxConnections: Joi.number().positive().min(1).max(1000),
-  minConnections: Joi.number().min(0),
 
   // Common batch processing patterns
   batchSize: Joi.number().positive().min(1).max(10000),
@@ -65,20 +62,6 @@ export class SchemaBuilder {
     });
   }
 
-  /**
-   * Build connection configuration schema
-   */
-  static connectionSchema(additionalFields: Record<string, Joi.Schema> = {}): Joi.ObjectSchema {
-    return Joi.object({
-      maxConnections: ValidationPatterns.maxConnections.default(10),
-      minConnections: ValidationPatterns.minConnections.default(1),
-      connectionTimeout: ValidationPatterns.timeout.default(30000),
-      idleTimeout: ValidationPatterns.timeout.default(300000),
-      acquireTimeout: ValidationPatterns.timeout.default(10000),
-      enableConnectionPooling: ValidationPatterns.booleanDefaultTrue,
-      ...additionalFields,
-    });
-  }
 
   /**
    * Build cache configuration schema
@@ -232,12 +215,6 @@ export class EnhancedValidator {
   static validateCrossFields(config: any): string[] {
     const errors: string[] = [];
 
-    // Validate min/max relationships
-    if (config.minConnections !== undefined && config.maxConnections !== undefined) {
-      if (config.minConnections > config.maxConnections) {
-        errors.push('minConnections cannot be greater than maxConnections');
-      }
-    }
 
     if (config.minBatchSize !== undefined && config.maxBatchSize !== undefined) {
       if (config.minBatchSize > config.maxBatchSize) {

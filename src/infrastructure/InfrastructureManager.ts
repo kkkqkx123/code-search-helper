@@ -7,7 +7,6 @@ import { IPerformanceMonitor } from './monitoring/types';
 import { IBatchOptimizer } from './batching/types';
 import { IHealthChecker } from './monitoring/types';
 import { TransactionCoordinator } from './transaction/TransactionCoordinator';
-import { DatabaseConnectionPool } from './connection/DatabaseConnectionPool';
 import { QdrantInfrastructure } from '../database/qdrant/QdrantInfrastructure';
 import { NebulaInfrastructure } from '../database/nebula/NebulaInfrastructure';
 import { SqliteInfrastructure } from '../database/splite/SqliteInfrastructure';
@@ -30,9 +29,6 @@ export interface IDatabaseInfrastructure {
 
   // 健康检查
   getHealthChecker(): IHealthChecker;
-
-  // 连接管理
-  getConnectionManager(): DatabaseConnectionPool;
 }
 
 // 为了向后兼容，保留旧的接口但使用新的类型
@@ -51,7 +47,6 @@ export class InfrastructureManager {
     @inject(TYPES.PerformanceMonitor) performanceMonitor: any,
     @inject(TYPES.BatchOptimizer) batchOptimizer: any,
     @inject(TYPES.TransactionCoordinator) transactionCoordinator: TransactionCoordinator,
-    @inject(TYPES.DatabaseConnectionPool) databaseConnectionPool: DatabaseConnectionPool,
     @inject(TYPES.InfrastructureConfigService) private infrastructureConfigService: InfrastructureConfigService
   ) {
     this.logger = logger;
@@ -115,16 +110,6 @@ export class InfrastructureManager {
             adjustmentFactor: 0.1,
             databaseSpecific: {}
           },
-          connection: {
-            maxConnections: 10,
-            minConnections: 2,
-            connectionTimeout: 30000,
-            idleTimeout: 300000,
-            acquireTimeout: 10000,
-            validationInterval: 6000,
-            enableConnectionPooling: true,
-            databaseSpecific: {}
-          },
           vector: {
             defaultCollection: 'default',
             collectionOptions: {
@@ -173,16 +158,6 @@ export class InfrastructureManager {
             adaptiveBatchingEnabled: true,
             performanceThreshold: 1000,
             adjustmentFactor: 0.1,
-            databaseSpecific: {}
-          },
-          connection: {
-            maxConnections: 10,
-            minConnections: 2,
-            connectionTimeout: 30000,
-            idleTimeout: 300000,
-            acquireTimeout: 10000,
-            validationInterval: 60000,
-            enableConnectionPooling: true,
             databaseSpecific: {}
           },
           graph: {
@@ -235,16 +210,6 @@ export class InfrastructureManager {
             adjustmentFactor: 0.1,
             databaseSpecific: {}
           },
-          connection: {
-            maxConnections: 10,
-            minConnections: 2,
-            connectionTimeout: 30000,
-            idleTimeout: 300000,
-            acquireTimeout: 10000,
-            validationInterval: 60000,
-            enableConnectionPooling: true,
-            databaseSpecific: {}
-          },
           vector: {
             defaultCollection: 'default',
             collectionOptions: {
@@ -293,16 +258,6 @@ export class InfrastructureManager {
             adaptiveBatchingEnabled: true,
             performanceThreshold: 1000,
             adjustmentFactor: 0.1,
-            databaseSpecific: {}
-          },
-          connection: {
-            maxConnections: 10,
-            minConnections: 2,
-            connectionTimeout: 30000,
-            idleTimeout: 300000,
-            acquireTimeout: 10000,
-            validationInterval: 60000,
-            enableConnectionPooling: true,
             databaseSpecific: {}
           },
           graph: {
@@ -355,16 +310,6 @@ export class InfrastructureManager {
             adjustmentFactor: 0.1,
             databaseSpecific: {}
           },
-          connection: {
-            maxConnections: 10,
-            minConnections: 2,
-            connectionTimeout: 30000,
-            idleTimeout: 300000,
-            acquireTimeout: 10000,
-            validationInterval: 60000,
-            enableConnectionPooling: true,
-            databaseSpecific: {}
-          },
           database: {
             databasePath: 'data/code-search-helper.db',
             backupPath: 'data/backups',
@@ -400,7 +345,6 @@ export class InfrastructureManager {
       cacheService,
       performanceMonitor,
       batchOptimizer,
-      databaseConnectionPool
     );
 
     this.logger.info('Infrastructure manager initialized');
@@ -415,7 +359,6 @@ export class InfrastructureManager {
     cacheService: any,
     performanceMonitor: any,
     batchOptimizer: any,
-    databaseConnectionPool: DatabaseConnectionPool
   ): void {
     // 创建 Qdrant 基础设施
     const qdrantInfrastructure = new QdrantInfrastructure(
@@ -424,7 +367,6 @@ export class InfrastructureManager {
       performanceMonitor,
       batchOptimizer,
       null as any, // healthChecker - 将通过注册表模式设置
-      databaseConnectionPool
     );
     this.databaseInfrastructures.set(DatabaseType.QDRANT, qdrantInfrastructure);
 
@@ -435,7 +377,6 @@ export class InfrastructureManager {
       performanceMonitor,
       batchOptimizer,
       null as any, // healthChecker - 将通过注册表模式设置
-      databaseConnectionPool
     );
     this.databaseInfrastructures.set(DatabaseType.NEBULA, nebulaInfrastructure);
 
@@ -446,7 +387,6 @@ export class InfrastructureManager {
       performanceMonitor,
       batchOptimizer,
       null as any, // healthChecker - 将通过注册表模式设置
-      databaseConnectionPool,
       null as any, // sqliteService - 将在DI容器中注入
       null as any  // sqliteConnectionManager - 将在DI容器中注入
     );
@@ -673,12 +613,6 @@ export class InfrastructureManager {
       // 关闭所有数据库基础设施
       await this.shutdownAllInfrastructures();
 
-      // 关闭事务协调器（如果需要）
-      await this.shutdownTransactionCoordinator();
-
-      // 关闭连接池（如果需要）
-      await this.shutdownConnectionPool();
-
       // 清理资源
       this.cleanupResources();
 
@@ -754,40 +688,6 @@ export class InfrastructureManager {
       this.logger.debug('Transaction coordinator shutdown completed');
     } catch (error) {
       this.logger.error('Error during transaction coordinator shutdown', {
-        error: (error as Error).message
-      });
-      throw error;
-    }
-  }
-
-  private async shutdownConnectionPool(): Promise<void> {
-    this.logger.debug('Shutting down connection pools');
-
-    try {
-      // 遍历所有数据库类型，关闭连接池
-      for (const databaseType of Object.values(DatabaseType)) {
-        try {
-          // 获取连接池状态
-          const infrastructure = this.databaseInfrastructures.get(databaseType);
-          if (infrastructure) {
-            const connectionManager = infrastructure.getConnectionManager();
-            const poolStatus = connectionManager.getPoolStatus(databaseType);
-
-            this.logger.debug(`Connection pool status for ${databaseType}`, poolStatus);
-
-            // 这里可以添加连接池的关闭逻辑
-            // 目前DatabaseConnectionPool没有shutdown方法，所以只记录状态
-          }
-        } catch (error) {
-          this.logger.warn(`Error getting connection pool status for ${databaseType}`, {
-            error: (error as Error).message
-          });
-        }
-      }
-
-      this.logger.debug('Connection pools shutdown completed');
-    } catch (error) {
-      this.logger.error('Error during connection pool shutdown', {
         error: (error as Error).message
       });
       throw error;

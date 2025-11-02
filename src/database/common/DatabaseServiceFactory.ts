@@ -24,7 +24,6 @@ export enum DatabaseType {
 export interface DatabaseConfig {
   type: DatabaseType;
   connection: ConnectionConfig;
-  pool?: PoolConfig;
   features: FeatureConfig;
 }
 
@@ -43,14 +42,6 @@ export interface ConnectionConfig {
 }
 
 /**
- * 连接池配置接口
- */
-export interface PoolConfig {
-  minConnections?: number;
-  maxConnections?: number;
-  idleTimeout?: number;
-}
-
 /**
  * 功能配置接口
  */

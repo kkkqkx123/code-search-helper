@@ -7,7 +7,6 @@ import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
 import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { IHealthChecker } from '../../infrastructure/monitoring/types';
-import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
 import { SqliteDatabaseService } from './SqliteDatabaseService';
 import { SqliteConnectionManager } from './SqliteConnectionManager';
 
@@ -20,7 +19,6 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
   private performanceMonitor: IPerformanceMonitor;
   private batchOptimizer: IBatchOptimizer;
   private healthChecker: IHealthChecker;
-  private connectionManager: DatabaseConnectionPool;
   private sqliteService: SqliteDatabaseService;
   private sqliteConnectionManager: SqliteConnectionManager;
   private initialized = false;
@@ -31,7 +29,6 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     @inject(TYPES.PerformanceMonitor) performanceMonitor: IPerformanceMonitor,
     @inject(TYPES.BatchOptimizer) batchOptimizer: IBatchOptimizer,
     @inject(TYPES.HealthChecker) healthChecker: IHealthChecker,
-    @inject(TYPES.DatabaseConnectionPool) connectionManager: DatabaseConnectionPool,
     @inject(TYPES.SqliteDatabaseService) sqliteService: SqliteDatabaseService,
     @inject(TYPES.SqliteConnectionManager) sqliteConnectionManager: SqliteConnectionManager
   ) {
@@ -40,7 +37,6 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     this.performanceMonitor = performanceMonitor;
     this.batchOptimizer = batchOptimizer;
     this.healthChecker = healthChecker;
-    this.connectionManager = connectionManager;
     this.sqliteService = sqliteService;
     this.sqliteConnectionManager = sqliteConnectionManager;
 
@@ -67,11 +63,6 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     return this.healthChecker;
   }
 
-  getConnectionManager(): DatabaseConnectionPool {
-    this.ensureInitialized();
-    return this.connectionManager;
-  }
-
   async initialize(): Promise<void> {
     if (this.initialized) {
       this.logger.warn('Sqlite infrastructure already initialized');
@@ -89,10 +80,6 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
 
       // 启动性能监控
       this.performanceMonitor.startPeriodicMonitoring(30000);
-
-      // 验证连接池
-      const testConnection = await this.connectionManager.getConnection(this.databaseType);
-      await this.connectionManager.releaseConnection(testConnection);
 
       // 执行健康检查
       await this.healthChecker.checkHealth();

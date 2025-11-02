@@ -81,9 +81,6 @@ export class ConfigValidator {
     // 验证批处理配置
     this.validateBatchConfig(qdrant.batch, 'Qdrant', errors);
 
-    // 验证连接配置
-    this.validateConnectionConfig(qdrant.connection, 'Qdrant', errors);
-
     // 验证向量配置（如果存在）
     if (qdrant.vector) {
       this.validateVectorConfig(qdrant.vector, 'Qdrant', errors);
@@ -107,9 +104,6 @@ export class ConfigValidator {
 
     // 验证批处理配置
     this.validateBatchConfig(nebula.batch, 'Nebula', errors);
-
-    // 验证连接配置
-    this.validateConnectionConfig(nebula.connection, 'Nebula', errors);
 
     // 验证图配置（如果存在）
     if (nebula.graph) {
@@ -253,50 +247,6 @@ export class ConfigValidator {
     }
   }
 
-  /**
-   * 验证连接配置
-   */
-  private static validateConnectionConfig(connection: any, service: string, errors: string[]): void {
-    if (!connection) {
-      errors.push(`${service} connection configuration is required`);
-      return;
-    }
-
-    // 验证最大连接数
-    if (typeof connection.maxConnections !== 'number' || connection.maxConnections < 1 || connection.maxConnections > 1000) {
-      errors.push(`${service} connection max connections must be a number between 1 and 1000`);
-    }
-
-    // 验证最小连接数
-    if (typeof connection.minConnections !== 'number' || connection.minConnections < 0 || connection.minConnections > connection.maxConnections) {
-      errors.push(`${service} connection min connections must be a number between 0 and maxConnections`);
-    }
-
-    // 验证连接超时时间
-    if (typeof connection.connectionTimeout !== 'number' || connection.connectionTimeout < 1000) {
-      errors.push(`${service} connection timeout must be a number and at least 1000ms`);
-    }
-
-    // 验证空闲超时时间
-    if (typeof connection.idleTimeout !== 'number' || connection.idleTimeout < 1000) {
-      errors.push(`${service} connection idle timeout must be a number and at least 1000ms`);
-    }
-
-    // 验证获取超时时间
-    if (typeof connection.acquireTimeout !== 'number' || connection.acquireTimeout < 1000) {
-      errors.push(`${service} connection acquire timeout must be a number and at least 1000ms`);
-    }
-
-    // 验证验证间隔
-    if (typeof connection.validationInterval !== 'number' || connection.validationInterval < 1000) {
-      errors.push(`${service} connection validation interval must be a number and at least 1000ms`);
-    }
-
-    // 验证连接池启用状态
-    if (typeof connection.enableConnectionPooling !== 'boolean') {
-      errors.push(`${service} connection enableConnectionPooling must be a boolean`);
-    }
-  }
 
   /**
    * 验证向量配置

@@ -152,7 +152,7 @@ export class DatabaseErrorHandler {
     if (errorMessage.includes('batch') || errorMessage.includes('batching')) {
       return { category: 'BATCH_ERROR', severity: 'MEDIUM' };
     }
-    if (errorMessage.includes('connection') || errorMessage.includes('pool')) {
+    if (errorMessage.includes('connection')) {
       return { category: 'CONNECTION_ERROR', severity: 'HIGH' };
     }
     if (errorMessage.includes('transaction')) {

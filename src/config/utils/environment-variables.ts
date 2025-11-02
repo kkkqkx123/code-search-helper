@@ -289,19 +289,6 @@ export class EnvironmentParser {
     };
   }
 
-  /**
-   * Parse common connection configuration
-   */
-  static parseConnectionConfig(prefix: string) {
-    return {
-      maxConnections: parseIntEnv(process.env[`${prefix}_MAX_CONNECTIONS`], 10, { min: 1, max: 1000 }),
-      minConnections: parseIntEnv(process.env[`${prefix}_MIN_CONNECTIONS`], 1, { min: 0 }),
-      connectionTimeout: parseTimeoutEnv(process.env[`${prefix}_CONNECTION_TIMEOUT`], 30000),
-      idleTimeout: parseTimeoutEnv(process.env[`${prefix}_IDLE_TIMEOUT`], 300000),
-      acquireTimeout: parseTimeoutEnv(process.env[`${prefix}_ACQUIRE_TIMEOUT`], 10000),
-      enablePooling: parseBooleanEnv(process.env[`${prefix}_ENABLE_POOLING`], true),
-    };
-  }
 
   /**
    * Parse common cache configuration

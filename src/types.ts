@@ -284,7 +284,6 @@ export const TYPES = {
   CacheService: Symbol.for('CacheService'),
   BatchOptimizer: Symbol.for('BatchOptimizer'),
   HealthChecker: Symbol.for('HealthChecker'),
-  DatabaseConnectionPool: Symbol.for('DatabaseConnectionPool'),
   TransactionCoordinator: Symbol.for('TransactionCoordinator'),
   InfrastructureManager: Symbol.for('InfrastructureManager'),
   DatabaseHealthChecker: Symbol.for('DatabaseHealthChecker'),

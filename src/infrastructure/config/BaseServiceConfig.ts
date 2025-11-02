@@ -41,18 +41,6 @@ export interface BaseBatchConfig {
   adjustmentFactor: number;
 }
 
-/**
- * 基础连接配置接口
- */
-export interface BaseConnectionConfig {
-  maxConnections: number;
-  minConnections: number;
-  connectionTimeout: number;
-  idleTimeout: number;
-  acquireTimeout: number;
-  validationInterval: number;
-  enableConnectionPooling: boolean;
-}
 
 /**
  * 基础服务配置接口
@@ -62,7 +50,6 @@ export interface BaseServiceConfig {
   cache: BaseCacheConfig;
   performance: BasePerformanceConfig;
   batch: BaseBatchConfig;
-  connection: BaseConnectionConfig;
 }
 
 /**
@@ -174,29 +161,13 @@ export class BaseConfigTemplate {
   }
 
   /**
-   * 获取基础连接配置默认值
-   */
-  static getConnectionDefaults(): BaseConnectionConfig {
-    return {
-      maxConnections: 10,
-      minConnections: 2,
-      connectionTimeout: 30000,
-      idleTimeout: 300000,
-      acquireTimeout: 10000,
-      validationInterval: 60000,
-      enableConnectionPooling: true
-    };
-  }
-
-  /**
    * 获取完整的基础服务配置默认值
    */
   static getServiceDefaults(): BaseServiceConfig {
     return {
       cache: this.getCacheDefaults(),
       performance: this.getPerformanceDefaults(),
-      batch: this.getBatchDefaults(),
-      connection: this.getConnectionDefaults()
+      batch: this.getBatchDefaults()
     };
   }
 }

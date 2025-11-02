@@ -48,18 +48,6 @@ export interface InfrastructureConfig {
         [key: string]: any;
       };
     };
-    connection: {
-      maxConnections: number;
-      minConnections: number;
-      connectionTimeout: number;
-      idleTimeout: number;
-      acquireTimeout: number;
-      validationInterval: number;
-      enableConnectionPooling: boolean;
-      databaseSpecific: {
-        [key: string]: any;
-      };
-    };
     vector?: {
       defaultCollection?: string;
       collectionOptions?: {
@@ -114,18 +102,6 @@ export interface InfrastructureConfig {
       adaptiveBatchingEnabled: boolean;
       performanceThreshold: number;
       adjustmentFactor: number;
-      databaseSpecific: {
-        [key: string]: any;
-      };
-    };
-    connection: {
-      maxConnections: number;
-      minConnections: number;
-      connectionTimeout: number;
-      idleTimeout: number;
-      acquireTimeout: number;
-      validationInterval: number;
-      enableConnectionPooling: boolean;
       databaseSpecific: {
         [key: string]: any;
       };

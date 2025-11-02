@@ -7,7 +7,6 @@ import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
 import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { IHealthChecker } from '../../infrastructure/monitoring/types';
-import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
 import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService';
@@ -22,7 +21,6 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
   private performanceMonitor: IPerformanceMonitor;
   private batchOptimizer: IBatchOptimizer;
   private healthChecker: IHealthChecker;
-  private connectionManager: DatabaseConnectionPool;
   private initialized = false;
 
   constructor(
@@ -30,15 +28,13 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     @inject(TYPES.CacheService) cacheService: CacheService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: IPerformanceMonitor,
     @inject(TYPES.BatchOptimizer) batchOptimizer: BatchOptimizer,
-    @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker,
-    @inject(TYPES.DatabaseConnectionPool) connectionManager: DatabaseConnectionPool
+    @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker
   ) {
     this.logger = logger;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
     this.batchOptimizer = batchOptimizer;
     this.healthChecker = healthChecker;
-    this.connectionManager = connectionManager;
 
     this.logger.info('Qdrant infrastructure created');
   }
@@ -63,11 +59,6 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     return this.healthChecker;
   }
 
-  getConnectionManager(): DatabaseConnectionPool {
-    this.ensureInitialized();
-    return this.connectionManager;
-  }
-
   async initialize(): Promise<void> {
     if (this.initialized) {
       this.logger.warn('Qdrant infrastructure already initialized');
@@ -79,10 +70,6 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     try {
       // 启动性能监控
       this.performanceMonitor.startPeriodicMonitoring(30000);
-
-      // 验证连接池
-      const testConnection = await this.connectionManager.getConnection(this.databaseType);
-      await this.connectionManager.releaseConnection(testConnection);
 
       // 执行健康检查
       await this.healthChecker.checkHealth();

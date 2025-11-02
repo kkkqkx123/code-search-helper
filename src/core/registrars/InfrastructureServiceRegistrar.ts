@@ -49,7 +49,6 @@ import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
-import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
 import { TransactionCoordinator } from '../../infrastructure/transaction/TransactionCoordinator';
 import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
 import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
@@ -238,7 +237,6 @@ export class InfrastructureServiceRegistrar {
       container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
       container.bind<BatchOptimizer>(TYPES.BatchOptimizer).to(BatchOptimizer).inSingletonScope();
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
-      container.bind<DatabaseConnectionPool>(TYPES.DatabaseConnectionPool).to(DatabaseConnectionPool).inSingletonScope();
       container.bind<TransactionCoordinator>(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
 
       // 基础设施管理器 - 使用动态绑定确保正确的初始化顺序
@@ -248,7 +246,6 @@ export class InfrastructureServiceRegistrar {
         const performanceMonitor = context.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
         const batchOptimizer = context.get<BatchOptimizer>(TYPES.BatchOptimizer);
         const transactionCoordinator = context.get<TransactionCoordinator>(TYPES.TransactionCoordinator);
-        const databaseConnectionPool = context.get<DatabaseConnectionPool>(TYPES.DatabaseConnectionPool);
         const infrastructureConfigService = context.get<InfrastructureConfigService>(TYPES.InfrastructureConfigService);
 
         const infrastructureManager = new InfrastructureManager(
@@ -257,7 +254,6 @@ export class InfrastructureServiceRegistrar {
           performanceMonitor,
           batchOptimizer,
           transactionCoordinator,
-          databaseConnectionPool,
           infrastructureConfigService
         );
 

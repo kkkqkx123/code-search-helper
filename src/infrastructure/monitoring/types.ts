@@ -1,4 +1,4 @@
-import { DatabaseType, PoolStatus } from '../types';
+import { DatabaseType } from '../types';
 
 export interface PerformanceMetrics {
   queryExecutionTimes: number[];
@@ -182,7 +182,6 @@ export interface DatabaseHealthStatus {
   databaseType: DatabaseType;
   status: 'healthy' | 'degraded' | 'error';
   responseTime: number;
-  connectionPoolStatus: PoolStatus;
   timestamp: number;
 }
 

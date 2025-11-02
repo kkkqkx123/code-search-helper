@@ -416,12 +416,6 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
         databaseType: DatabaseType.QDRANT,
         status: 'healthy',
         responseTime: 0,
-        connectionPoolStatus: {
-          activeConnections: 0,
-          idleConnections: 0,
-          pendingRequests: 0,
-          maxConnections: 0
-        },
         timestamp: Date.now()
       };
     }
@@ -436,12 +430,6 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
       databaseType: DatabaseType.QDRANT,
       status: 'healthy',
       responseTime: 0,
-      connectionPoolStatus: {
-        activeConnections: 0,
-        idleConnections: 0,
-        pendingRequests: 0,
-        maxConnections: 0
-      },
       timestamp: Date.now()
     };
   }
@@ -451,12 +439,6 @@ export class DatabaseHealthChecker implements IHealthChecker, IHealthCheckerRegi
       databaseType: status.details?.databaseType || DatabaseType.QDRANT,
       status: status.status,
       responseTime: status.responseTime || 0,
-      connectionPoolStatus: {
-        activeConnections: 0,
-        idleConnections: 0,
-        pendingRequests: 0,
-        maxConnections: 0
-      },
       timestamp: status.timestamp
     };
   }

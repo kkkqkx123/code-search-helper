@@ -26,7 +26,6 @@ import { CacheService } from '../../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { BatchOptimizer } from '../../../service/optimization/BatchOptimizerService';
 import { DatabaseHealthChecker } from '../../../service/monitoring/DatabaseHealthChecker';
-import { DatabaseConnectionPool } from '../../../infrastructure/connection/DatabaseConnectionPool';
 import { TransactionCoordinator } from '../../../infrastructure/transaction/TransactionCoordinator';
 
 describe('SQLite Integration Tests', () => {
@@ -63,7 +62,6 @@ describe('SQLite Integration Tests', () => {
     container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
     container.bind<BatchOptimizer>(TYPES.BatchOptimizer).to(BatchOptimizer).inSingletonScope();
     container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
-    container.bind<DatabaseConnectionPool>(TYPES.DatabaseConnectionPool).to(DatabaseConnectionPool).inSingletonScope();
     container.bind<TransactionCoordinator>(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
 
     // 注册SQLite服务

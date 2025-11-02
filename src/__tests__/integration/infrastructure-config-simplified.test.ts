@@ -6,7 +6,6 @@ import { InfrastructureConfigService } from '../../infrastructure/config/Infrast
 import { InfrastructureManager } from '../../infrastructure/InfrastructureManager';
 import { ConfigValidator } from '../../infrastructure/config/ConfigValidator';
 import { DatabaseType } from '../../infrastructure/types';
-import { IDatabaseConnectionPool, ITransactionCoordinator } from '../../infrastructure/connection/types';
 import { TransactionCoordinator } from '../../infrastructure/transaction/TransactionCoordinator';
 
 // Mock dependencies
@@ -55,12 +54,6 @@ const mockTransactionCoordinator = {
   getTransactionStatus: jest.fn()
 };
 
-const mockDatabaseConnectionPool = {
-  getConnection: jest.fn(),
-  releaseConnection: jest.fn(),
-  getPoolStatus: jest.fn(),
-  close: jest.fn()
-};
 
 describe('简化配置管理测试', () => {
   let container: Container;
@@ -82,7 +75,6 @@ describe('简化配置管理测试', () => {
     container.bind(TYPES.BatchOptimizer).toConstantValue(mockBatchOptimizer);
     container.bind(TYPES.HealthChecker).toConstantValue(mockHealthChecker);
     container.bind(TYPES.InfrastructureConfigService).to(InfrastructureConfigService).inSingletonScope();
-    container.bind(TYPES.DatabaseConnectionPool).toConstantValue(mockDatabaseConnectionPool);
 
     // 创建真实的TransactionCoordinator实例，依赖于已绑定的LoggerService
     container.bind(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
@@ -228,16 +220,6 @@ describe('简化配置管理测试', () => {
             adjustmentFactor: 0.1,
             databaseSpecific: {}
           },
-          connection: {
-            maxConnections: 5,
-            minConnections: 1,
-            connectionTimeout: 10000,
-            idleTimeout: 30000,
-            acquireTimeout: 5000,
-            validationInterval: 10000,
-            enableConnectionPooling: true,
-            databaseSpecific: {}
-          }
         },
         nebula: {
           cache: {
@@ -270,16 +252,6 @@ describe('简化配置管理测试', () => {
             adaptiveBatchingEnabled: false,
             performanceThreshold: 1000,
             adjustmentFactor: 0.1,
-            databaseSpecific: {}
-          },
-          connection: {
-            maxConnections: 5,
-            minConnections: 1,
-            connectionTimeout: 10000,
-            idleTimeout: 30000,
-            acquireTimeout: 5000,
-            validationInterval: 10000,
-            enableConnectionPooling: true,
             databaseSpecific: {}
           },
           graph: {
@@ -331,7 +303,6 @@ describe('简化配置管理测试', () => {
       errorContainer.bind(TYPES.BatchOptimizer).toConstantValue(mockBatchOptimizer);
       errorContainer.bind(TYPES.HealthChecker).toConstantValue(mockHealthChecker);
       errorContainer.bind(TYPES.InfrastructureConfigService).to(InfrastructureConfigService).inSingletonScope();
-      errorContainer.bind(TYPES.DatabaseConnectionPool).toConstantValue(mockDatabaseConnectionPool);
       errorContainer.bind(TYPES.TransactionCoordinator).to(TransactionCoordinator).inSingletonScope();
       errorContainer.bind(InfrastructureManager).to(InfrastructureManager).inSingletonScope();
 

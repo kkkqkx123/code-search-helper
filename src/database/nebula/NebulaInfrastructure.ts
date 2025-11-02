@@ -7,7 +7,6 @@ import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
 import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { IHealthChecker } from '../../infrastructure/monitoring/types';
-import { DatabaseConnectionPool } from '../../infrastructure/connection/DatabaseConnectionPool';
 import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService';
@@ -23,7 +22,6 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
   private performanceMonitor: IPerformanceMonitor;
   private batchOptimizer: IBatchOptimizer;
   private healthChecker: IHealthChecker;
-  private connectionManager: DatabaseConnectionPool;
   private initialized = false;
 
   constructor(
@@ -31,15 +29,13 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     @inject(TYPES.CacheService) cacheService: CacheService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: IPerformanceMonitor,
     @inject(TYPES.BatchOptimizer) batchOptimizer: BatchOptimizer,
-    @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker,
-    @inject(TYPES.DatabaseConnectionPool) connectionManager: DatabaseConnectionPool
+    @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker
   ) {
     this.logger = logger;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
     this.batchOptimizer = batchOptimizer;
     this.healthChecker = healthChecker;
-    this.connectionManager = connectionManager;
 
     this.logger.info('Nebula infrastructure created');
   }
@@ -64,11 +60,6 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     return this.healthChecker;
   }
 
-  getConnectionManager(): DatabaseConnectionPool {
-    this.ensureInitialized();
-    return this.connectionManager;
-  }
-
   async initialize(): Promise<void> {
     if (this.initialized) {
       this.logger.warn('Nebula infrastructure already initialized');
@@ -80,10 +71,6 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     try {
       // 启动性能监控
       this.performanceMonitor.startPeriodicMonitoring(30000);
-
-      // 验证连接池
-      const testConnection = await this.connectionManager.getConnection(this.databaseType);
-      await this.connectionManager.releaseConnection(testConnection);
 
       // 执行健康检查
       await this.healthChecker.checkHealth();
@@ -201,26 +188,18 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     let result: any = null;
 
     try {
-      // 获取连接
-      const connection = await this.connectionManager.getConnection(this.databaseType);
+      // 在实际实现中，这里会执行真正的图查询
+      // 目前为模拟实现
+      this.logger.debug('Executing graph query', { query, parameters, spaceName });
 
-      try {
-        // 在实际实现中，这里会执行真正的图查询
-        // 目前为模拟实现
-        this.logger.debug('Executing graph query', { query, parameters, spaceName });
+      // 模拟查询执行
+      result = {
+        success: true,
+        data: [], // 实际查询结果
+        executionTime: Date.now() - startTime
+      };
 
-        // 模拟查询执行
-        result = {
-          success: true,
-          data: [], // 实际查询结果
-          executionTime: Date.now() - startTime
-        };
-
-        success = true;
-      } finally {
-        // 释放连接
-        await this.connectionManager.releaseConnection(connection);
-      }
+      success = true;
     } catch (error) {
       this.logger.error('Graph query execution failed', {
         query,
@@ -257,20 +236,12 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     let success = false;
 
     try {
-      // 获取连接
-      const connection = await this.connectionManager.getConnection(this.databaseType);
+      // 在实际实现中，这里会执行真正的创建空间操作
+      // 目前为模拟实现
+      this.logger.debug('Creating space', { spaceName });
 
-      try {
-        // 在实际实现中，这里会执行真正的创建空间操作
-        // 目前为模拟实现
-        this.logger.debug('Creating space with connection', { spaceName });
-
-        // 模拟创建空间
-        success = true;
-      } finally {
-        // 释放连接
-        await this.connectionManager.releaseConnection(connection);
-      }
+      // 模拟创建空间
+      success = true;
     } catch (error) {
       this.logger.error('Space creation failed', {
         spaceName,

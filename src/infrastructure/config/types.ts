@@ -56,27 +56,6 @@ export interface BatchConfig {
   };
 }
 
-// 连接配置
-export interface ConnectionConfig {
-  maxConnections: number;
-  minConnections: number;
-  connectionTimeout: number;
-  idleTimeout: number;
-  acquireTimeout: number;
-  validationInterval: number;
-  enableConnectionPooling: boolean;
-  databaseSpecific: {
-    [key in DatabaseType]?: {
-      host?: string;
-      port?: number;
-      username?: string;
-      password?: string;
-      database?: string;
-      ssl?: boolean;
-      additionalOptions?: Record<string, any>;
-    };
-  };
-}
 
 // 图数据库特定配置
 export interface GraphSpecificConfig {
@@ -135,35 +114,30 @@ export interface DatabaseSpecificConfig {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     vector?: VectorSpecificConfig;
   };
   nebula: {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     graph: GraphSpecificConfig;
   };
   vector?: {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     vector?: VectorSpecificConfig;
   };
   graph?: {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     graph: GraphSpecificConfig;
   };
   sqlite?: {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     database: SqliteSpecificConfig;
   };
 }
@@ -197,35 +171,30 @@ export interface InfrastructureConfig {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     vector?: VectorSpecificConfig;
   };
   nebula: {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     graph: GraphSpecificConfig;
   };
   vector?: {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     vector?: VectorSpecificConfig;
   };
   graph?: {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     graph: GraphSpecificConfig;
   };
   sqlite?: {
     cache: CacheConfig;
     performance: PerformanceConfig;
     batch: BatchConfig;
-    connection: ConnectionConfig;
     database: SqliteSpecificConfig;
   };
   transaction: TransactionConfig;

@@ -78,16 +78,6 @@ export class InfrastructureConfigService {
           adjustmentFactor: EnvVarOptimizer.getEnvFloatValue('INFRA_QDRANT_BATCH_ADJUSTMENT_FACTOR', 0.1),
           databaseSpecific: {}
         },
-        connection: {
-          maxConnections: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_MAX_CONNECTIONS', 10),
-          minConnections: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_MIN_CONNECTIONS', 2),
-          connectionTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_CONNECTION_TIMEOUT', 3000),
-          idleTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_IDLE_TIMEOUT', 300000),
-          acquireTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_ACQUIRE_TIMEOUT', 10000),
-          validationInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CONNECTION_VALIDATION_INTERVAL', 6000),
-          enableConnectionPooling: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_CONNECTION_ENABLE_CONNECTION_POOLING', true),
-          databaseSpecific: {}
-        },
         vector: {
           defaultCollection: EnvVarOptimizer.getEnvValue('INFRA_QDRANT_VECTOR_DEFAULT_COLLECTION') || 'default',
           collectionOptions: {
@@ -136,16 +126,6 @@ export class InfrastructureConfigService {
           adaptiveBatchingEnabled: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_BATCH_ADAPTIVE_BATCHING_ENABLED', true),
           performanceThreshold: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_PERFORMANCE_THRESHOLD', 1000),
           adjustmentFactor: EnvVarOptimizer.getEnvFloatValue('INFRA_NEBULA_BATCH_ADJUSTMENT_FACTOR', 0.1),
-          databaseSpecific: {}
-        },
-        connection: {
-          maxConnections: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_MAX_CONNECTIONS', 10),
-          minConnections: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_MIN_CONNECTIONS', 2),
-          connectionTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_CONNECTION_TIMEOUT', 30000),
-          idleTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_IDLE_TIMEOUT', 30000),
-          acquireTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_ACQUIRE_TIMEOUT', 10000),
-          validationInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CONNECTION_VALIDATION_INTERVAL', 60000),
-          enableConnectionPooling: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_CONNECTION_ENABLE_CONNECTION_POOLING', true),
           databaseSpecific: {}
         },
         graph: {
@@ -295,16 +275,6 @@ export class InfrastructureConfigService {
           adjustmentFactor: 0.1,
           databaseSpecific: {}
         },
-        connection: {
-          maxConnections: 5,
-          minConnections: 1,
-          connectionTimeout: 10000,
-          idleTimeout: 30000,
-          acquireTimeout: 5000,
-          validationInterval: 10000,
-          enableConnectionPooling: true,
-          databaseSpecific: {}
-        },
         vector: {
           defaultCollection: 'default',
           collectionOptions: {
@@ -353,16 +323,6 @@ export class InfrastructureConfigService {
           adaptiveBatchingEnabled: false,
           performanceThreshold: 1000,
           adjustmentFactor: 0.1,
-          databaseSpecific: {}
-        },
-        connection: {
-          maxConnections: 5,
-          minConnections: 1,
-          connectionTimeout: 10000,
-          idleTimeout: 30000,
-          acquireTimeout: 5000,
-          validationInterval: 10000,
-          enableConnectionPooling: true,
           databaseSpecific: {}
         },
         graph: {
@@ -439,16 +399,6 @@ export class InfrastructureConfigService {
           adjustmentFactor: 0.05,
           databaseSpecific: {}
         },
-        connection: {
-          maxConnections: 2,
-          minConnections: 1,
-          connectionTimeout: 5000,
-          idleTimeout: 10000,
-          acquireTimeout: 3000,
-          validationInterval: 15000,
-          enableConnectionPooling: false,
-          databaseSpecific: {}
-        },
         vector: {
           defaultCollection: 'default',
           collectionOptions: {
@@ -497,16 +447,6 @@ export class InfrastructureConfigService {
           adaptiveBatchingEnabled: false,
           performanceThreshold: 5000,
           adjustmentFactor: 0.05,
-          databaseSpecific: {}
-        },
-        connection: {
-          maxConnections: 2,
-          minConnections: 1,
-          connectionTimeout: 5000,
-          idleTimeout: 10000,
-          acquireTimeout: 3000,
-          validationInterval: 15000,
-          enableConnectionPooling: false,
           databaseSpecific: {}
         },
         graph: {
