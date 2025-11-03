@@ -26,7 +26,7 @@ export class RelationshipExtractorFactory {
       // this.extractors.set('typescript', this.container.get<TypeScriptRelationshipExtractor>(TYPES.TypeScriptRelationshipExtractor));
       // this.extractors.set('python', this.container.get<PythonRelationshipExtractor>(TYPES.PythonRelationshipExtractor));
       // this.extractors.set('java', this.container.get<JavaRelationshipExtractor>(TYPES.JavaRelationshipExtractor));
-      
+
       this.logger.info(`Initialized ${this.extractors.size} language relationship extractors`);
     } catch (error) {
       this.logger.error('Failed to initialize relationship extractors', { error: (error as Error).message });

@@ -7,8 +7,11 @@ import { TYPES } from '../../../types';
 // 符号类型枚举
 export enum SymbolType {
   FUNCTION = 'function',
+  METHOD = 'method',
   CLASS = 'class',
   INTERFACE = 'interface',
+  TYPE = 'type',
+  ENUM = 'enum',
   VARIABLE = 'variable',
   PARAMETER = 'parameter',
   IMPORT = 'import'
@@ -210,6 +213,18 @@ class JavaScriptSymbolExtractor implements LanguageSymbolExtractor {
         };
         scope.symbols.set(functionName, symbol);
       }
+    } else if (node.type === 'method_definition') {
+      const methodName = this.extractMethodName(node);
+      if (methodName) {
+        const symbol: Symbol = {
+          name: methodName,
+          type: SymbolType.METHOD,
+          filePath,
+          location: this.getNodeLocation(node),
+          parameters: this.extractParameters(node)
+        };
+        scope.symbols.set(methodName, symbol);
+      }
     } else if (node.type === 'class_declaration') {
       const className = this.extractClassName(node);
       if (className) {
@@ -256,6 +271,16 @@ class JavaScriptSymbolExtractor implements LanguageSymbolExtractor {
     // 简化实现
     for (const child of node.children) {
       if (child.type === 'identifier') {
+        return child.text || null;
+      }
+    }
+    return null;
+  }
+
+  private extractMethodName(node: Parser.SyntaxNode): string | null {
+    // 简化实现，method_definition中的property_identifier
+    for (const child of node.children) {
+      if (child.type === 'property_identifier') {
         return child.text || null;
       }
     }

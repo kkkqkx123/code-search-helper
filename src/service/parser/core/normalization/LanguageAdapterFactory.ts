@@ -10,6 +10,7 @@ import { QueryTypeMapper } from './QueryTypeMappings';
 // 导入所有语言适配器
 import { RustLanguageAdapter } from './adapters/RustLanguageAdapter';
 import { TypeScriptLanguageAdapter } from './adapters/TypeScriptLanguageAdapter';
+import { JavaScriptLanguageAdapter } from './adapters/JavaScriptLanguageAdapter';
 import { PythonLanguageAdapter } from './adapters/PythonLanguageAdapter';
 import { JavaLanguageAdapter } from './adapters/JavaLanguageAdapter';
 import { CppLanguageAdapter } from './adapters/CppLanguageAdapter';
@@ -125,8 +126,9 @@ export class LanguageAdapterFactory {
         case 'rust':
           return new RustLanguageAdapter(options);
         case 'typescript':
-        case 'javascript':
           return new TypeScriptLanguageAdapter(options);
+        case 'javascript':
+          return new JavaScriptLanguageAdapter(options);
         case 'python':
         case 'py':
           return new PythonLanguageAdapter(options);

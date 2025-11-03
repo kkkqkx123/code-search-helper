@@ -3,6 +3,7 @@
  */
 
 export { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
+export { JavaScriptLanguageAdapter } from './JavaScriptLanguageAdapter';
 export { PythonLanguageAdapter } from './PythonLanguageAdapter';
 export { CLanguageAdapter } from './CLanguageAdapter';
 export { CppLanguageAdapter } from './CppLanguageAdapter';
@@ -20,6 +21,7 @@ export { YAMLConfigAdapter } from './YAMLConfigAdapter';
 export { JSONConfigAdapter } from './JSONConfigAdapter';
 
 import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
+import { JavaScriptLanguageAdapter } from './JavaScriptLanguageAdapter';
 import { PythonLanguageAdapter } from './PythonLanguageAdapter';
 import { CLanguageAdapter } from './CLanguageAdapter';
 import { CppLanguageAdapter } from './CppLanguageAdapter';
