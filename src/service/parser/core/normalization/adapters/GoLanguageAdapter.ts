@@ -12,114 +12,111 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
 
   getSupportedQueryTypes(): string[] {
     return [
-      'functions',
-      'types', 
-      'variables',
-      'imports',
-      'control-flow',
-      'expressions'
+      'functions-types',
+      'variables-imports',
+      'expressions-control-flow'
     ];
   }
 
   mapNodeType(nodeType: string): string {
     const typeMapping: Record<string, string> = {
       // Function related
-      'function_declaration': 'function',
-      'method_declaration': 'method',
-      'func_literal': 'function', // Anonymous functions
-      'function_type': 'type',
+      'function_declaration': 'functionDeclaration',
+      'method_declaration': 'methodDeclaration',
+      'func_literal': 'lambdaExpression', // Anonymous functions
+      'function_type': 'typeAnnotation',
 
       // Type related
-      'type_declaration': 'class', // Go structs/interfaces as class-like
-      'struct_type': 'class',
-      'interface_type': 'interface',
-      'type_alias': 'type',
-      'type_identifier': 'type',
-      'field_declaration': 'variable',
-      'field_identifier': 'variable',
-      'qualified_type': 'type', // Qualified types (package.Type)
+      'type_declaration': 'classDeclaration', // Go structs/interfaces as class-like
+      'struct_type': 'structDeclaration',
+      'interface_type': 'interfaceDeclaration',
+      'type_alias': 'typeAnnotation',
+      'type_identifier': 'propertyIdentifier',
+      'field_declaration': 'memberExpression',
+      'field_identifier': 'propertyIdentifier',
+      'qualified_type': 'typeAnnotation', // Qualified types (package.Type)
 
       // Import related
-      'import_declaration': 'import',
-      'import_spec': 'import',
-      'package_clause': 'import',
-      'dot': 'import', // Dot import identifier
+      'import_declaration': 'importDeclaration',
+      'import_spec': 'importDeclaration',
+      'package_clause': 'importDeclaration',
+      'dot': 'importDeclaration', // Dot import identifier
 
       // Variable related
-      'var_declaration': 'variable',
-      'var_spec': 'variable',
-      'const_declaration': 'variable',
-      'const_spec': 'variable',
-      'assignment_statement': 'variable',
-      'short_var_declaration': 'variable',
-      'parameter_declaration': 'variable',
-      'variadic_parameter_declaration': 'variable',
-      'identifier': 'variable',
+      'var_declaration': 'variableDeclaration',
+      'var_spec': 'variableDeclaration',
+      'const_declaration': 'variableDeclaration',
+      'const_spec': 'variableDeclaration',
+      'assignment_statement': 'variableDeclaration',
+      'short_var_declaration': 'variableDeclaration',
+      'parameter_declaration': 'variableDeclaration',
+      'variadic_parameter_declaration': 'variableDeclaration',
+      'identifier': 'propertyIdentifier',
 
-      // Control flow
-      'if_statement': 'control-flow',
-      'for_statement': 'control-flow',
-      'range_clause': 'control-flow',
-      'select_statement': 'control-flow',
-      'expression_case': 'control-flow',
-      'default_case': 'control-flow',
-      'type_case': 'control-flow',
-      'type_switch_statement': 'control-flow',
-      'return_statement': 'control-flow',
-      'defer_statement': 'control-flow',
-      'go_statement': 'control-flow',
-      'break_statement': 'control-flow',
-      'continue_statement': 'control-flow',
-      'fallthrough_statement': 'control-flow',
-      'block': 'control-flow',
-      'labeled_statement': 'control-flow', // Labeled statements
+      // Control flow - map to variableDeclaration since there's no control-flow category
+      'if_statement': 'variableDeclaration',
+      'for_statement': 'variableDeclaration',
+      'range_clause': 'variableDeclaration',
+      'select_statement': 'variableDeclaration',
+      'expression_case': 'variableDeclaration',
+      'default_case': 'variableDeclaration',
+      'type_case': 'variableDeclaration',
+      'type_switch_statement': 'variableDeclaration',
+      'return_statement': 'variableDeclaration',
+      'defer_statement': 'variableDeclaration',
+      'go_statement': 'variableDeclaration',
+      'break_statement': 'variableDeclaration',
+      'continue_statement': 'variableDeclaration',
+      'fallthrough_statement': 'variableDeclaration',
+      'block': 'variableDeclaration',
+      'labeled_statement': 'variableDeclaration', // Labeled statements
 
       // Expressions
-      'call_expression': 'expression',
-      'selector_expression': 'expression',
-      'composite_literal': 'expression',
-      'slice_expression': 'expression',
-      'index_expression': 'expression',
-      'send_statement': 'expression',
-      'unary_expression': 'expression',
-      'binary_expression': 'expression',
-      'type_assertion_expression': 'expression',
-      'type_conversion_expression': 'expression',
-      'expression_statement': 'expression',
-      'parenthesized_expression': 'expression',
-      'argument_list': 'expression',
-      'expression_list': 'expression',
-      'literal_value': 'expression',
-      'keyed_element': 'expression',
-      'literal_element': 'expression',
-      'inc_statement': 'expression', // Increment statements
-      'dec_statement': 'expression', // Decrement statements
-      'variadic_argument': 'expression', // Variadic arguments
-      'escape_sequence': 'expression', // Escape sequences
+      'call_expression': 'callExpression',
+      'selector_expression': 'memberExpression',
+      'composite_literal': 'variableDeclaration',
+      'slice_expression': 'variableDeclaration',
+      'index_expression': 'variableDeclaration',
+      'send_statement': 'variableDeclaration',
+      'unary_expression': 'variableDeclaration',
+      'binary_expression': 'variableDeclaration',
+      'type_assertion_expression': 'variableDeclaration',
+      'type_conversion_expression': 'variableDeclaration',
+      'expression_statement': 'variableDeclaration',
+      'parenthesized_expression': 'variableDeclaration',
+      'argument_list': 'variableDeclaration',
+      'expression_list': 'variableDeclaration',
+      'literal_value': 'variableDeclaration',
+      'keyed_element': 'variableDeclaration',
+      'literal_element': 'variableDeclaration',
+      'inc_statement': 'variableDeclaration', // Increment statements
+      'dec_statement': 'variableDeclaration', // Decrement statements
+      'variadic_argument': 'variableDeclaration', // Variadic arguments
+      'escape_sequence': 'variableDeclaration', // Escape sequences
 
       // Literals
-      'int_literal': 'expression',
-      'float_literal': 'expression',
-      'interpreted_string_literal': 'expression',
-      'raw_string_literal': 'expression',
-      'rune_literal': 'expression',
+      'int_literal': 'variableDeclaration',
+      'float_literal': 'variableDeclaration',
+      'interpreted_string_literal': 'variableDeclaration',
+      'raw_string_literal': 'variableDeclaration',
+      'rune_literal': 'variableDeclaration',
 
       // Types
-      'array_type': 'type',
-      'slice_type': 'type',
-      'map_type': 'type',
-      'pointer_type': 'type',
-      'channel_type': 'type',
-      'type_parameter_list': 'type',
+      'array_type': 'typeAnnotation',
+      'slice_type': 'typeAnnotation',
+      'map_type': 'typeAnnotation',
+      'pointer_type': 'typeAnnotation',
+      'channel_type': 'typeAnnotation',
+      'type_parameter_list': 'genericTypes',
 
       // Others
-      'comment': 'expression',
-      'blank_identifier': 'variable',
-      'iota': 'variable',
-      'package_identifier': 'import'
+      'comment': 'variableDeclaration',
+      'blank_identifier': 'variableDeclaration',
+      'iota': 'variableDeclaration',
+      'package_identifier': 'propertyIdentifier'
     };
 
-    return typeMapping[nodeType] || nodeType;
+    return typeMapping[nodeType] || 'variableDeclaration';
   }
 
   extractName(result: any): string {
@@ -345,12 +342,9 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
 
   mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
     const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'functions': 'function',
-      'types': 'class',     // Go structs/interfaces treated as class-like
-      'variables': 'variable',
-      'imports': 'import',  // Go imports and packages
-      'control-flow': 'control-flow',
-      'expressions': 'expression'
+      'functions-types': 'function',
+      'variables-imports': 'variable',
+      'expressions-control-flow': 'expression'
     };
     
     return mapping[queryType] || 'expression';

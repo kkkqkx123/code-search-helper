@@ -126,7 +126,9 @@ class ConsistencyChecker {
     
     // 从适配器目录收集语言
     const adapterFiles = fs.readdirSync(this.adaptersDir)
-      .filter(file => file.endsWith('LanguageAdapter.ts') && !file.includes('DefaultLanguageAdapter'));
+      .filter(file => file.endsWith('LanguageAdapter.ts') &&
+             !file.includes('DefaultLanguageAdapter') &&
+             !file.includes('ConfigLanguageAdapter')); // 跳过抽象基类
     
     for (const file of adapterFiles) {
       const languageName = this.extractLanguageFromFileName(file);
@@ -392,12 +394,68 @@ class ConsistencyChecker {
     const files = fs.readdirSync(queryPath).filter(file => file.endsWith('.ts'));
     const queryTypes: string[] = [];
     
-    for (const file of files) {
-      if (file === 'index.ts') continue;
+    // 首先检查是否有index.ts文件（新结构）
+    const hasIndex = files.includes('index.ts');
+    
+    if (hasIndex) {
+      // 对于新结构，尝试从文件名推断查询类型
+      for (const file of files) {
+        if (file === 'index.ts') continue;
+        
+        const fileName = path.basename(file, '.ts');
+        
+        // 直接添加标准查询类型
+        if (['functions', 'classes', 'methods', 'imports', 'exports', 'variables', 'types', 'interfaces', 'control-flow', 'data-structures', 'types-decorators'].includes(fileName)) {
+          queryTypes.push(fileName);
+        } else {
+          // 处理复合查询类型
+          const compoundMappings: Record<string, string[]> = {
+            'functions-types': ['functions', 'classes'],
+            'classes-functions': ['classes', 'functions'],
+            'methods-variables': ['methods', 'variables'],
+            'constructors-properties': ['methods', 'properties'],
+            'control-flow-patterns': ['control-flow'],
+            'controlFlow': ['control-flow'],
+            'controlFlowPatterns': ['control-flow'],
+            'expressions-control-flow': ['expression', 'control-flow'],
+            'expressionsControlFlow': ['expression', 'control-flow'],
+            'types-decorators': ['types-decorators'],
+            'typesDecorators': ['types-decorators'],
+            'variables-imports': ['variables', 'imports'],
+            'variablesImports': ['variables', 'imports'],
+            'functions-structs': ['functions', 'classes'],
+            'functionsStructs': ['functions', 'classes'],
+            'modules-imports': ['imports'],
+            'modulesImports': ['imports'],
+            'variables-expressions': ['variables'],
+            'variablesExpressions': ['variables'],
+            'types-macros': ['types'],
+            'typesMacros': ['types'],
+            'data-structures': ['data-structures'],
+            'dataStructures': ['data-structures'],
+            'classes-interfaces': ['classes', 'interfaces'],
+            'classesInterfaces': ['classes', 'interfaces']
+          };
+          
+          if (compoundMappings[fileName]) {
+            queryTypes.push(...compoundMappings[fileName]);
+          }
+        }
+      }
       
-      const content = fs.readFileSync(path.join(queryPath, file), 'utf-8');
-      const typeName = path.basename(file, '.ts');
-      queryTypes.push(typeName);
+      // 确保至少有基本的查询类型
+      if (!queryTypes.includes('functions')) {
+        queryTypes.push('functions');
+      }
+      if (!queryTypes.includes('classes')) {
+        queryTypes.push('classes');
+      }
+    } else {
+      // 对于旧结构，直接从文件名提取查询类型
+      for (const file of files) {
+        const typeName = path.basename(file, '.ts');
+        queryTypes.push(typeName);
+      }
     }
     
     const languageName = path.basename(queryPath);
@@ -405,7 +463,7 @@ class ConsistencyChecker {
     return {
       language: languageName,
       queryFiles: files,
-      queryTypes
+      queryTypes: [...new Set(queryTypes)] // 去重
     };
   }
 

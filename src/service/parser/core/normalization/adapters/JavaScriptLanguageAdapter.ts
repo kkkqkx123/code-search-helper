@@ -12,30 +12,131 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
 
   getSupportedQueryTypes(): string[] {
     return [
-      'functions',
       'classes',
-      'methods',
+      'functions',
+      'variables',
       'imports',
+      'control-flow',
+      'expressions',
       'exports',
       'interfaces',
-      'types',
+      'methods',
       'properties',
-      'variables',
-      'control-flow',
-      'expressions'
+      'types'
     ];
   }
 
   mapNodeType(nodeType: string): string {
     const typeMapping: Record<string, string> = {
-      'function_declaration': 'function',
-      'arrow_function': 'function',
-      'method_definition': 'method',
-      'class_declaration': 'class',
-      'import_statement': 'import',
-      'export_statement': 'export',
-      'variable_declaration': 'variable',
-      'property_definition': 'property'
+      // Functions
+      'function_declaration': 'functionDeclaration',
+      'arrow_function': 'lambdaExpression',
+      'function_expression': 'functionDeclaration',
+      'generator_function': 'functionDeclaration',
+      'generator_function_declaration': 'functionDeclaration',
+      'async_function_declaration': 'functionDeclaration',
+      'async_function_expression': 'functionDeclaration',
+      
+      // Classes
+      'class_declaration': 'classDeclaration',
+      'class_expression': 'classDeclaration',
+      'class': 'classDeclaration',
+      
+      // Methods
+      'method_definition': 'methodDeclaration',
+      
+      // Imports and Exports
+      'import_statement': 'importDeclaration',
+      'export_statement': 'exportDeclaration',
+      
+      // Variables
+      'variable_declaration': 'variableDeclaration',
+      'lexical_declaration': 'variableDeclaration',
+      
+      // Properties
+      'property_definition': 'variableDeclaration',
+      'public_field_definition': 'variableDeclaration',
+      'private_field_definition': 'variableDeclaration',
+      'pair': 'propertyIdentifier',
+      
+      // Control Flow
+      'if_statement': 'controlFlow',
+      'for_statement': 'controlFlow',
+      'while_statement': 'controlFlow',
+      'do_statement': 'controlFlow',
+      'switch_statement': 'controlFlow',
+      'switch_case': 'controlFlow',
+      'switch_default': 'controlFlow',
+      'try_statement': 'controlFlow',
+      'catch_clause': 'controlFlow',
+      'finally_clause': 'controlFlow',
+      'return_statement': 'controlFlow',
+      'break_statement': 'controlFlow',
+      'continue_statement': 'controlFlow',
+      'labeled_statement': 'controlFlow',
+      'with_statement': 'controlFlow',
+      'debugger_statement': 'controlFlow',
+      
+      // Expressions
+      'expression_statement': 'expression',
+      'binary_expression': 'expression',
+      'unary_expression': 'expression',
+      'update_expression': 'expression',
+      'logical_expression': 'expression',
+      'conditional_expression': 'expression',
+      'assignment_expression': 'expression',
+      'augmented_assignment_expression': 'expression',
+      'sequence_expression': 'expression',
+      'yield_expression': 'expression',
+      'await_expression': 'expression',
+      'new_expression': 'callExpression',
+      'optional_chain': 'memberExpression',
+      'call_expression': 'callExpression',
+      'member_expression': 'memberExpression',
+      
+      // Literals
+      'string': 'literal',
+      'template_string': 'literal',
+      'regex': 'literal',
+      'number': 'literal',
+      'true': 'literal',
+      'false': 'literal',
+      'null': 'literal',
+      
+      // Patterns
+      'array_pattern': 'pattern',
+      'object_pattern': 'pattern',
+      'assignment_pattern': 'pattern',
+      'spread_element': 'pattern',
+      '_': 'pattern',
+      
+      // Types
+      'type_alias_declaration': 'typeAnnotation',
+      'namespace_declaration': 'typeAnnotation',
+      'type_parameters': 'genericTypes',
+      'type_arguments': 'genericTypes',
+      
+      // JSX
+      'jsx_element': 'classDeclaration',
+      'jsx_self_closing_element': 'classDeclaration',
+      'jsx_fragment': 'classDeclaration',
+      'jsx_attribute': 'propertyIdentifier',
+      'jsx_expression': 'expression',
+      
+      // Comments
+      'comment': 'comment',
+      
+      // Identifiers
+      'private_property_identifier': 'propertyIdentifier',
+      'identifier': 'propertyIdentifier',
+      'property_identifier': 'propertyIdentifier',
+      
+      // Objects and Arrays
+      'object': 'variableDeclaration',
+      'array': 'variableDeclaration',
+      
+      // Function
+      'function': 'functionDeclaration'
     };
 
     return typeMapping[nodeType] || nodeType;
@@ -199,17 +300,17 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
 
   mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
     const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'functions': 'function',
       'classes': 'class',
-      'methods': 'method',
+      'functions': 'function',
+      'variables': 'variable',
       'imports': 'import',
+      'control-flow': 'control-flow',
+      'expressions': 'expression',
       'exports': 'export',
       'interfaces': 'interface',
-      'types': 'type',
+      'methods': 'method',
       'properties': 'variable',  // 将properties映射到variable，因为StandardizedQueryResult不支持property类型
-      'variables': 'variable',
-      'control-flow': 'control-flow',
-      'expressions': 'expression'
+      'types': 'type'
     };
 
     return mapping[queryType] || 'expression';

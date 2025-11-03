@@ -42,56 +42,34 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
 
   getSupportedQueryTypes(): string[] {
     return [
-      'document',
-      'element',
-      'script',
-      'style',
-      'start_tag',
-      'end_tag',
-      'self_closing_tag',
-      'doctype',
-      'nested_elements',
-      'custom_element',
-      'form_element',
-      'table_element',
-      'list_element',
-      'semantic_element',
-      'anchor_element',
-      'image_element',
-      'meta_element',
-      'link_element',
-      'title_element',
-      'heading_element',
-      'section_element',
-      'void_element',
-      'attribute',
-      'attribute_value',
-      'comment',
-      'text',
-      'raw_text',
-      'entity'
+      'elements',
+      'attributes-content'
     ];
   }
 
   mapNodeType(nodeType: string): string {
     const typeMapping: Record<string, string> = {
-      'document': 'document',
-      'element': 'element',
-      'script_element': 'script',
-      'style_element': 'style',
-      'start_tag': 'tag',
-      'end_tag': 'tag',
-      'self_closing_tag': 'tag',
-      'doctype': 'doctype',
-      'attribute': 'attribute',
-      'comment': 'comment',
-      'text': 'text',
-      'raw_text': 'text',
-      'entity': 'entity',
-      'erroneous_end_tag': 'error'
+      'document': 'classDeclaration',
+      'element': 'classDeclaration',
+      'script_element': 'classDeclaration',
+      'style_element': 'classDeclaration',
+      'start_tag': 'classDeclaration',
+      'end_tag': 'classDeclaration',
+      'self_closing_tag': 'classDeclaration',
+      'doctype': 'classDeclaration',
+      'attribute': 'memberExpression',
+      'attribute_name': 'propertyIdentifier',
+      'attribute_value': 'variableDeclaration',
+      'quoted_attribute_value': 'variableDeclaration',
+      'comment': 'variableDeclaration',
+      'text': 'variableDeclaration',
+      'raw_text': 'variableDeclaration',
+      'entity': 'variableDeclaration',
+      'tag_name': 'propertyIdentifier',
+      'erroneous_end_tag': 'variableDeclaration'
     };
     
-    return typeMapping[nodeType] || nodeType;
+    return typeMapping[nodeType] || 'classDeclaration';
   }
 
   extractName(result: any): string {
@@ -278,34 +256,8 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
 
   private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
     const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'document': 'expression',
-      'element': 'variable',
-      'script': 'expression',
-      'style': 'expression',
-      'start_tag': 'variable',
-      'end_tag': 'variable',
-      'self_closing_tag': 'variable',
-      'doctype': 'expression',
-      'nested_elements': 'expression',
-      'custom_element': 'variable',
-      'form_element': 'variable',
-      'table_element': 'variable',
-      'list_element': 'variable',
-      'semantic_element': 'variable',
-      'anchor_element': 'variable',
-      'image_element': 'variable',
-      'meta_element': 'variable',
-      'link_element': 'variable',
-      'title_element': 'variable',
-      'heading_element': 'variable',
-      'section_element': 'variable',
-      'void_element': 'variable',
-      'attribute': 'variable',
-      'attribute_value': 'expression',
-      'comment': 'expression',
-      'text': 'expression',
-      'raw_text': 'expression',
-      'entity': 'expression'
+      'elements': 'variable',
+      'attributes-content': 'variable'
     };
     
     return mapping[queryType] || 'expression';

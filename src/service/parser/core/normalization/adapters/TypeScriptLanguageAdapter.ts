@@ -13,14 +13,14 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
 
   getSupportedQueryTypes(): string[] {
     return [
+      'classes',
       'functions',
-      'classes', 
-      'methods',
-      'imports',
       'exports',
+      'imports',
       'interfaces',
-      'types',
+      'methods',
       'properties',
+      'types',
       'variables',
       'control-flow',
       'expressions'
@@ -33,10 +33,28 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
 
     // 添加TypeScript特有的类型映射
     const tsTypeMapping: Record<string, string> = {
-      'abstract_class_declaration': 'class',
-      'interface_declaration': 'interface',
-      'type_alias_declaration': 'type',
-      'enum_declaration': 'enum'
+      'abstract_class_declaration': 'classDeclaration',
+      'interface_declaration': 'interfaceDeclaration',
+      'type_alias_declaration': 'typeAnnotation',
+      'enum_declaration': 'enumDeclaration',
+      'class_static_block': 'block',
+      'for_in_statement': 'controlFlow',
+      'for_of_statement': 'controlFlow',
+      'generator_function_declaration': 'functionDeclaration',
+      'async_function_declaration': 'functionDeclaration',
+      'async_function_expression': 'functionDeclaration',
+      'type_assertion': 'expression',
+      'as_expression': 'expression',
+      'satisfies_expression': 'expression',
+      'non_null_expression': 'expression',
+      'ternary_expression': 'expression',
+      'subscript_expression': 'memberExpression',
+      'parenthesized_expression': 'expression',
+      'named_imports': 'propertyIdentifier',
+      'method_signature': 'methodDeclaration',
+      'abstract_method_signature': 'methodDeclaration',
+      'public_field_definition': 'variableDeclaration',
+      'internal_module': 'typeAnnotation'
     };
 
     return tsTypeMapping[nodeType] || baseMapping;

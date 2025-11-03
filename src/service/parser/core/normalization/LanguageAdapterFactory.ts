@@ -26,6 +26,7 @@ import { TOMLConfigAdapter } from './adapters/TOMLConfigAdapter';
 import { YAMLConfigAdapter } from './adapters/YAMLConfigAdapter';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { JSONConfigAdapter } from './adapters/JSONConfigAdapter';
+import { TSXLanguageAdapter } from './adapters/TSXLanguageAdapter';
 
 /**
  * 语言适配器工厂类
@@ -153,8 +154,7 @@ export class LanguageAdapterFactory {
         case 'vue':
           return new VueLanguageAdapter();
         case 'tsx':
-          // TSX uses the same adapter as TypeScript since it extends TypeScript functionality
-          return new TypeScriptLanguageAdapter(options);
+          return new TSXLanguageAdapter(options);
         case 'toml':
           // TOML configuration files
           return new TOMLConfigAdapter(options);

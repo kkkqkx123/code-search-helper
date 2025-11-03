@@ -12,11 +12,10 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
 
   getSupportedQueryTypes(): string[] {
     return [
-      'functions',
       'classes',
-      'methods',
-      'imports',
+      'functions',
       'variables',
+      'imports',
       'control-flow',
       'data-structures',
       'types-decorators'
@@ -26,86 +25,86 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
   mapNodeType(nodeType: string): string {
     const typeMapping: Record<string, string> = {
       // 函数相关
-      'function_definition': 'function',
-      'async_function_definition': 'function',
-      'decorated_definition': 'function', // 默认为函数，后续会根据内容调整
-      'method_definition': 'method',
-      'lambda': 'function',
+      'function_definition': 'functionDeclaration',
+      'async_function_definition': 'functionDeclaration',
+      'decorated_definition': 'functionDeclaration', // 默认为函数，后续会根据内容调整
+      'method_definition': 'methodDeclaration',
+      'lambda': 'lambdaExpression',
       
       // 类相关
-      'class_definition': 'class',
-      'class_pattern': 'class',
+      'class_definition': 'classDeclaration',
+      'class_pattern': 'classDeclaration',
       
       // 导入相关
-      'import_statement': 'import',
-      'import_from_statement': 'import',
-      'relative_import': 'import',
-      'wildcard_import': 'import',
-      'dotted_name': 'expression',
+      'import_statement': 'importDeclaration',
+      'import_from_statement': 'importDeclaration',
+      'relative_import': 'importDeclaration',
+      'wildcard_import': 'importDeclaration',
+      'dotted_name': 'memberExpression',
       
       // 变量相关
-      'assignment': 'variable',
-      'annotated_assignment': 'variable',
-      'augmented_assignment': 'variable',
+      'assignment': 'variableDeclaration',
+      'annotated_assignment': 'variableDeclaration',
+      'augmented_assignment': 'variableDeclaration',
       'named_expression': 'expression',
       
       // 控制流相关
-      'for_statement': 'control-flow',
-      'while_statement': 'control-flow',
-      'if_statement': 'control-flow',
-      'try_statement': 'control-flow',
-      'with_statement': 'control-flow',
-      'break_statement': 'control-flow',
-      'continue_statement': 'control-flow',
-      'return_statement': 'control-flow',
-      'raise_statement': 'control-flow',
-      'assert_statement': 'control-flow',
-      'expression_statement': 'control-flow',
-      'type_alias_statement': 'control-flow',
-      'global_statement': 'control-flow',
-      'nonlocal_statement': 'control-flow',
+      'for_statement': 'controlFlow',
+      'while_statement': 'controlFlow',
+      'if_statement': 'controlFlow',
+      'try_statement': 'controlFlow',
+      'with_statement': 'controlFlow',
+      'break_statement': 'controlFlow',
+      'continue_statement': 'controlFlow',
+      'return_statement': 'controlFlow',
+      'raise_statement': 'controlFlow',
+      'assert_statement': 'controlFlow',
+      'expression_statement': 'controlFlow',
+      'type_alias_statement': 'typeAnnotation',
+      'global_statement': 'controlFlow',
+      'nonlocal_statement': 'controlFlow',
       
       // 表达式相关
-      'call': 'expression',
-      'attribute': 'expression',
-      'subscript': 'expression',
+      'call': 'callExpression',
+      'attribute': 'memberExpression',
+      'subscript': 'memberExpression',
       'binary_operator': 'expression',
       'yield': 'expression',
-      'type': 'expression',
-      'parameters': 'expression',
-      'default_parameter': 'expression',
-      'typed_parameter': 'expression',
-      'typed_default_parameter': 'expression',
-      'decorator': 'expression',
-      'comment': 'expression',
-      'string': 'expression',
-      'integer': 'expression',
-      'float': 'expression',
-      'true': 'expression',
-      'false': 'expression',
-      'none': 'expression',
-      'ellipsis': 'expression',
-      'list': 'expression',
-      'tuple': 'expression',
-      'set': 'expression',
-      'dictionary': 'expression',
+      'type': 'typeAnnotation',
+      'parameters': 'typeAnnotation',
+      'default_parameter': 'typeAnnotation',
+      'typed_parameter': 'typeAnnotation',
+      'typed_default_parameter': 'typeAnnotation',
+      'decorator': 'decorator',
+      'comment': 'comment',
+      'string': 'literal',
+      'integer': 'literal',
+      'float': 'literal',
+      'true': 'literal',
+      'false': 'literal',
+      'none': 'literal',
+      'ellipsis': 'literal',
+      'list': 'variableDeclaration',
+      'tuple': 'variableDeclaration',
+      'set': 'variableDeclaration',
+      'dictionary': 'variableDeclaration',
       'list_comprehension': 'expression',
       'dictionary_comprehension': 'expression',
       'set_comprehension': 'expression',
-      'generator_expression': 'expression',
+      'generator_expression': 'lambdaExpression',
       'parenthesized_expression': 'expression',
       'expression_list': 'expression',
       'slice': 'expression',
-      'tuple_pattern': 'expression',
-      'list_pattern': 'expression',
-      'dict_pattern': 'expression',
-      'union_type': 'expression',
-      'generic_type': 'expression',
-      'argument_list': 'expression',
+      'tuple_pattern': 'pattern',
+      'list_pattern': 'pattern',
+      'dict_pattern': 'pattern',
+      'union_type': 'typeAnnotation',
+      'generic_type': 'genericTypes',
+      'argument_list': 'callExpression',
       
       // 其他
-      'identifier': 'expression',
-      'block': 'expression'
+      'identifier': 'propertyIdentifier',
+      'block': 'block'
     };
     
     return typeMapping[nodeType] || 'expression';
@@ -295,11 +294,10 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
 
   mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
     const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-      'functions': 'function',
       'classes': 'class',
-      'methods': 'method',
-      'imports': 'import',
+      'functions': 'function',
       'variables': 'variable',
+      'imports': 'import',
       'control-flow': 'control-flow',
       'data-structures': 'class', // Python的数据结构通常映射为类
       'types-decorators': 'type'

@@ -12,39 +12,38 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
 
     getSupportedQueryTypes(): string[] {
         return [
-            'template-elements',
-            'template-directives',
-            'component-definitions',
-            'script-definitions',
-            'style-definitions',
-            'vue-exports',
-            'vue-lifecycle',
-            'vue-slots',
-            'vue-interpolations'
+            'components',
+            'template-directives'
         ];
     }
 
     mapNodeType(nodeType: string): string {
         const typeMapping: Record<string, string> = {
-            'template_element': 'element',
-            'script_element': 'function',
-            'style_element': 'element',
-            'element': 'element',
-            'start_tag': 'tag',
-            'end_tag': 'tag',
-            'attribute': 'attribute',
-            'comment': 'comment',
-            'function_declaration': 'function',
-            'method_definition': 'method',
-            'class_declaration': 'class',
-            'import_statement': 'import',
-            'export_statement': 'export',
-            'variable_declaration': 'variable',
-            'rule_set': 'element',
-            'stylesheet': 'element'
+            'template_element': 'classDeclaration',
+            'script_element': 'classDeclaration',
+            'style_element': 'classDeclaration',
+            'element': 'classDeclaration',
+            'start_tag': 'classDeclaration',
+            'end_tag': 'classDeclaration',
+            'attribute': 'memberExpression',
+            'attribute_name': 'propertyIdentifier',
+            'comment': 'variableDeclaration',
+            'function_declaration': 'functionDeclaration',
+            'method_definition': 'methodDeclaration',
+            'lifecycle_hook': 'methodDeclaration',
+            'class_declaration': 'classDeclaration',
+            'component_tag': 'classDeclaration',
+            'import_statement': 'importDeclaration',
+            'export_statement': 'exportDeclaration',
+            'variable_declaration': 'variableDeclaration',
+            'interpolation': 'variableDeclaration',
+            'property_identifier': 'propertyIdentifier',
+            'tag_name': 'propertyIdentifier',
+            'rule_set': 'classDeclaration',
+            'stylesheet': 'classDeclaration'
         };
 
-        return typeMapping[nodeType] || nodeType;
+        return typeMapping[nodeType] || 'classDeclaration';
     }
 
     extractName(result: any): string {
@@ -119,15 +118,8 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
 
     mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
         const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
-            'template-elements': 'variable',
-            'template-directives': 'variable',
-            'component-definitions': 'class',
-            'script-definitions': 'function',
-            'style-definitions': 'variable',
-            'vue-exports': 'export',
-            'vue-lifecycle': 'method',
-            'vue-slots': 'variable',
-            'vue-interpolations': 'expression'
+            'components': 'class',
+            'template-directives': 'variable'
         };
 
         return mapping[queryType] || 'expression';

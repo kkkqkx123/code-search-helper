@@ -44,8 +44,19 @@ export class QueryLoader {
         const query = queryModule.default;
 
         if (query) {
-          // 对于有index.ts的语言，使用智能分类
-          const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
+          // 对于有index.ts的语言，尝试加载单独的查询文件
+          const languageQueriesMap = await this.loadStructuredQueries(queryFileName, language);
+          
+          // 如果没有找到单独的查询文件，回退到智能分类
+          if (languageQueriesMap.size === 0) {
+            const categorizedMap = this.categorizeSimpleLanguageQuery(query, language);
+            // 确保至少有functions和classes查询类型
+            this.ensureBasicQueryTypes(categorizedMap, query, language);
+            languageQueriesMap.clear();
+            for (const [key, value] of categorizedMap) {
+              languageQueriesMap.set(key, value);
+            }
+          }
 
           this.queries.set(normalizedLanguage, languageQueriesMap);
           this.loadedLanguages.add(normalizedLanguage);
@@ -63,6 +74,8 @@ export class QueryLoader {
           if (query) {
             // 对于简单语言，使用智能分类
             const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
+            // 确保至少有functions和classes查询类型
+            this.ensureBasicQueryTypes(languageQueriesMap, query, language);
 
             this.queries.set(normalizedLanguage, languageQueriesMap);
             this.loadedLanguages.add(normalizedLanguage);
@@ -560,5 +573,183 @@ export class QueryLoader {
 
     this.logger.debug(`${language}语言查询分类完成，共${languageQueriesMap.size}种类型`);
     return languageQueriesMap;
+  }
+
+  /**
+   * 加载结构化查询（新目录结构）
+   * @param queryFileName 查询文件名
+   * @param language 语言名称
+   * @returns 查询映射
+   */
+  private static async loadStructuredQueries(queryFileName: string, language: string): Promise<Map<string, string>> {
+    const languageQueriesMap = new Map<string, string>();
+    
+    try {
+      // 尝试加载常见的查询类型
+      const commonQueryTypes = ['functions', 'classes', 'methods', 'imports', 'exports', 'variables', 'types', 'interfaces'];
+      
+      for (const queryType of commonQueryTypes) {
+        try {
+          const importPath = `../../constants/queries/${queryFileName}/${queryType}`;
+          const queryModule = await import(importPath);
+          const query = queryModule.default;
+          
+          if (query) {
+            languageQueriesMap.set(queryType, query);
+            this.logger.debug(`加载${language}语言的${queryType}查询成功`);
+          }
+        } catch (error) {
+          // 某些查询类型可能不存在，这是正常的
+          this.logger.debug(`${language}语言的${queryType}查询文件不存在: ${error}`);
+        }
+      }
+      
+      // 尝试加载复合查询类型（如functions-types）
+      const compoundTypes = [
+        { file: 'functions-types', queries: ['functions', 'classes'] },
+        { file: 'classes-functions', queries: ['classes', 'functions'] },
+        { file: 'methods-variables', queries: ['methods', 'variables'] },
+        { file: 'constructors-properties', queries: ['methods', 'properties'] },
+        { file: 'control-flow-patterns', queries: ['controlFlow'] },
+        { file: 'expressions-control-flow', queries: ['expression', 'controlFlow'] },
+        { file: 'types-decorators', queries: ['types', 'decorator'] },
+        { file: 'variables-imports', queries: ['variables', 'imports'] }
+      ];
+      
+      for (const compoundType of compoundTypes) {
+        try {
+          const importPath = `../../constants/queries/${queryFileName}/${compoundType.file}`;
+          const queryModule = await import(importPath);
+          const query = queryModule.default;
+          
+          if (query) {
+            // 为复合查询类型中的每个查询类型创建查询
+            const categorizedQueries = this.categorizeSimpleLanguageQuery(query, language);
+            for (const queryType of compoundType.queries) {
+              if (categorizedQueries.has(queryType) && !languageQueriesMap.has(queryType)) {
+                languageQueriesMap.set(queryType, categorizedQueries.get(queryType)!);
+                this.logger.debug(`从${compoundType.file}加载${language}语言的${queryType}查询成功`);
+              }
+            }
+          }
+        } catch (error) {
+          this.logger.debug(`${language}语言的${compoundType.file}查询文件不存在: ${error}`);
+        }
+      }
+      
+    } catch (error) {
+      this.logger.error(`加载${language}语言的结构化查询失败:`, error);
+    }
+    
+    return languageQueriesMap;
+  }
+
+  /**
+   * 确保基本的查询类型存在
+   * @param languageQueriesMap 语言查询映射
+   * @param query 完整查询字符串
+   * @param language 语言名称
+   */
+  private static ensureBasicQueryTypes(
+    languageQueriesMap: Map<string, string>,
+    query: string,
+    language: string
+  ): void {
+    // 确保至少有functions查询类型
+    if (!languageQueriesMap.has('functions')) {
+      // 从完整查询中提取函数相关的模式
+      const functionPatterns = this.extractPatternsForType(query, [
+        'function_definition', 'function_declaration', 'function_declarator',
+        'method_definition', 'method_declaration', 'func_literal',
+        'local_function_definition', 'function_declaration'
+      ]);
+      
+      if (functionPatterns.length > 0) {
+        languageQueriesMap.set('functions', functionPatterns.join('\n\n'));
+        this.logger.debug(`为${language}语言创建functions查询`);
+      } else {
+        // 如果没有找到函数模式，使用整个查询
+        languageQueriesMap.set('functions', query);
+        this.logger.debug(`为${language}语言使用默认functions查询`);
+      }
+    }
+    
+    // 确保至少有classes查询类型
+    if (!languageQueriesMap.has('classes')) {
+      // 从完整查询中提取类相关的模式
+      const classPatterns = this.extractPatternsForType(query, [
+        'class_declaration', 'class_definition', 'struct_specifier',
+        'struct_item', 'union_specifier', 'enum_specifier',
+        'interface_type', 'struct_type', 'interface_declaration',
+        'type_declaration', 'type_definition'
+      ]);
+      
+      if (classPatterns.length > 0) {
+        languageQueriesMap.set('classes', classPatterns.join('\n\n'));
+        this.logger.debug(`为${language}语言创建classes查询`);
+      } else {
+        // 如果没有找到类模式，创建一个空的查询
+        languageQueriesMap.set('classes', '; No class patterns found for this language');
+        this.logger.debug(`为${language}语言创建空classes查询`);
+      }
+    }
+  }
+
+  /**
+   * 从查询中提取特定类型的模式
+   * @param query 完整查询字符串
+   * @param keywords 关键词列表
+   * @returns 提取的模式数组
+   */
+  private static extractPatternsForType(query: string, keywords: string[]): string[] {
+    const lines = query.split('\n');
+    const patterns: string[] = [];
+    let currentPattern: string[] = [];
+    let inPattern = false;
+    let parenDepth = 0;
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+
+      // 跳过空行和注释
+      if (!trimmedLine || trimmedLine.startsWith(';') || trimmedLine.startsWith('//')) {
+        if (currentPattern.length > 0 && parenDepth === 0) {
+          patterns.push(currentPattern.join('\n'));
+          currentPattern = [];
+          inPattern = false;
+        }
+        continue;
+      }
+
+      // 检查是否包含目标关键词
+      const hasKeyword = keywords.some(keyword =>
+        trimmedLine.includes(`(${keyword}`) ||
+        trimmedLine.includes(` ${keyword} `) ||
+        trimmedLine.includes(`@${keyword}`)
+      );
+
+      if (hasKeyword || inPattern) {
+        currentPattern.push(line);
+        inPattern = true;
+
+        // 计算括号深度
+        parenDepth += (line.match(/\(/g) || []).length;
+        parenDepth -= (line.match(/\)/g) || []).length;
+
+        // 如果括号平衡，可能是一个完整的模式
+        if (parenDepth === 0 && currentPattern.length > 0) {
+          patterns.push(currentPattern.join('\n'));
+          currentPattern = [];
+          inPattern = false;
+        }
+      }
+    }
+
+    // 处理未完成的模式
+    if (currentPattern.length > 0 && parenDepth === 0) {
+      patterns.push(currentPattern.join('\n'));
+    }
+
+    return patterns;
   }
 }

@@ -13,82 +13,143 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   getSupportedQueryTypes(): string[] {
     return [
       'classes-interfaces',
-      'methods-variables', 
-      'control-flow-patterns',
-      'functions',
-      'classes',
-      'methods',
-      'imports',
-      'variables',
-      'control-flow',
-      'types',
-      'interfaces',
-      'enums',
-      'records',
-      'annotations'
+      'methods-variables',
+      'control-flow-patterns'
     ];
   }
 
   mapNodeType(nodeType: string): string {
     const typeMapping: Record<string, string> = {
-      // Java specific
-      'class_declaration': 'class',
-      'interface_declaration': 'interface',
-      'enum_declaration': 'type',
-      'record_declaration': 'class',
-      'annotation_type_declaration': 'interface',
-      'module_declaration': 'class',
-      'package_declaration': 'import',
+      // Java specific - 映射到图映射中定义的类别
+      'class_declaration': 'classDeclaration',
+      'interface_declaration': 'interfaceDeclaration',
+      'enum_declaration': 'enumDeclaration',
+      'record_declaration': 'classDeclaration',
+      'annotation_type_declaration': 'interfaceDeclaration',
+      'module_declaration': 'classDeclaration',
+      'package_declaration': 'importDeclaration',
       
       // Methods and constructors
-      'method_declaration': 'method',
-      'constructor_declaration': 'method',
-      'lambda_expression': 'function',
+      'method_declaration': 'methodDeclaration',
+      'constructor_declaration': 'functionDeclaration',
+      'lambda_expression': 'lambdaExpression',
       
       // Variables and fields
-      'field_declaration': 'variable',
-      'local_variable_declaration': 'variable',
-      'variable_declarator': 'variable',
-      'formal_parameter': 'variable',
+      'field_declaration': 'variableDeclaration',
+      'local_variable_declaration': 'variableDeclaration',
+      'variable_declarator': 'variableDeclaration',
+      'formal_parameter': 'variableDeclaration',
       
       // Imports
-      'import_declaration': 'import',
+      'import_declaration': 'importDeclaration',
       
       // Control flow
-      'if_statement': 'control-flow',
-      'for_statement': 'control-flow',
-      'enhanced_for_statement': 'control-flow',
-      'while_statement': 'control-flow',
-      'do_statement': 'control-flow',
-      'switch_statement': 'control-flow',
-      'switch_expression': 'control-flow',
-      'try_statement': 'control-flow',
-      'catch_clause': 'control-flow',
-      'finally_clause': 'control-flow',
+      'if_statement': 'controlFlow',
+      'for_statement': 'controlFlow',
+      'enhanced_for_statement': 'controlFlow',
+      'while_statement': 'controlFlow',
+      'do_statement': 'controlFlow',
+      'switch_statement': 'controlFlow',
+      'switch_expression': 'controlFlow',
+      'try_statement': 'controlFlow',
+      'catch_clause': 'controlFlow',
+      'finally_clause': 'controlFlow',
+      'return_statement': 'controlFlow',
+      'yield_statement': 'controlFlow',
+      'break_statement': 'controlFlow',
+      'continue_statement': 'controlFlow',
+      'throw_statement': 'controlFlow',
+      'assert_statement': 'controlFlow',
+      'synchronized_statement': 'controlFlow',
+      'labeled_statement': 'controlFlow',
       
       // Expressions
       'assignment_expression': 'expression',
       'binary_expression': 'expression',
       'unary_expression': 'expression',
       'instanceof_expression': 'expression',
-      'method_invocation': 'expression',
+      'method_invocation': 'callExpression',
       'object_creation_expression': 'expression',
+      'update_expression': 'expression',
       
       // Types
-      'type_identifier': 'type',
-      'generic_type': 'type',
-      'array_type': 'type',
-      'integral_type': 'type',
-      'floating_point_type': 'type',
-      'boolean_type': 'type',
-      'void_type': 'type',
+      'type_identifier': 'typeAnnotation',
+      'generic_type': 'genericTypes',
+      'array_type': 'typeAnnotation',
+      'integral_type': 'typeAnnotation',
+      'floating_point_type': 'typeAnnotation',
+      'boolean_type': 'typeAnnotation',
+      'void_type': 'typeAnnotation',
       
       // Annotations
-      'annotation': 'type',
-      'marker_annotation': 'type',
+      'annotation': 'decorator',
+      'marker_annotation': 'decorator',
       
       // Modifiers
-      'modifiers': 'type'
+      'modifiers': 'modifier',
+      
+      // Type system
+      'superclass': 'typeSystem',
+      'super_interfaces': 'typeSystem',
+      'type_arguments': 'typeSystem',
+      'type_parameters': 'typeSystem',
+      'dimensions': 'typeSystem',
+      'formal_parameters': 'typeSystem',
+      'class_literal': 'typeSystem',
+      'this': 'typeSystem',
+      'super': 'typeSystem',
+      
+      // Pattern matching
+      'record_pattern': 'pattern',
+      'type_pattern': 'pattern',
+      'underscore_pattern': 'pattern',
+      'guard': 'pattern',
+      'switch_rule': 'pattern',
+      'switch_label': 'pattern',
+      'switch_block_statement_group': 'pattern',
+      'record_pattern_component': 'pattern',
+      'catch_formal_parameter': 'pattern',
+      
+      // Blocks
+      'class_body': 'block',
+      'interface_body': 'block',
+      'enum_body': 'block',
+      'annotation_type_body': 'block',
+      'switch_block': 'block',
+      'record_pattern_body': 'block',
+      'block': 'block',
+      'expression_statement': 'block',
+      
+      // Literals
+      'string_literal': 'literal',
+      'string_fragment': 'literal',
+      'escape_sequence': 'literal',
+      'character_literal': 'literal',
+      'decimal_integer_literal': 'literal',
+      'hex_integer_literal': 'literal',
+      'octal_integer_literal': 'literal',
+      'binary_integer_literal': 'literal',
+      'decimal_floating_point_literal': 'literal',
+      'hex_floating_point_literal': 'literal',
+      'true': 'literal',
+      'false': 'literal',
+      'null_literal': 'literal',
+      
+      // Special statements
+      'try_with_resources_statement': 'specialStatement',
+      
+      // Comments
+      'line_comment': 'comment',
+      'block_comment': 'comment',
+      
+      // Member expressions
+      'field_access': 'memberExpression',
+      'scoped_identifier': 'memberExpression',
+      'scoped_type_identifier': 'memberExpression',
+      
+      // Property identifiers
+      'identifier': 'propertyIdentifier',
+      'enum_constant': 'propertyIdentifier'
     };
     
     return typeMapping[nodeType] || nodeType;
@@ -337,18 +398,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
       'classes-interfaces': 'class',
       'methods-variables': 'method',
-      'control-flow-patterns': 'control-flow',
-      'functions': 'function',
-      'classes': 'class',
-      'methods': 'method',
-      'imports': 'import',
-      'variables': 'variable',
-      'control-flow': 'control-flow',
-      'types': 'type',
-      'interfaces': 'interface',
-      'enums': 'type',
-      'records': 'class',
-      'annotations': 'type'
+      'control-flow-patterns': 'control-flow'
     };
     
     return mapping[queryType] || 'expression';
