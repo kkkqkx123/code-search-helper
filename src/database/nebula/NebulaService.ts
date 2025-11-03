@@ -25,6 +25,11 @@ import { INebulaQueryService } from './query/NebulaQueryService';
 import { INebulaDataOperations } from './operation/NebulaDataOperations';
 import { INebulaSchemaManager } from './NebulaSchemaManager';
 import { INebulaIndexManager } from './NebulaIndexManager';
+import { INebulaTransactionService } from './transaction/NebulaTransactionService';
+import { INebulaBatchService } from './batch/NebulaBatchService';
+import { INebulaFileDataService } from './file/NebulaFileDataService';
+import { ProjectIdManager } from '../ProjectIdManager';
+import { Subscription } from '../common/DatabaseEventTypes';
 
 export interface INebulaService {
   // 基础操作
@@ -64,6 +69,7 @@ export interface INebulaService {
   // 事件处理
   addEventListener(type: NebulaEventType | string, listener: (event: any) => void): void;
   removeEventListener(type: NebulaEventType | string, listener: (event: any) => void): void;
+  subscribe(type: NebulaEventType | string, listener: (event: any) => void): Subscription;
 }
 
 @injectable()
@@ -85,6 +91,10 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   private dataOperations: INebulaDataOperations;
   private schemaManager: INebulaSchemaManager;
   private indexManager: INebulaIndexManager;
+  private transactionService: INebulaTransactionService;
+  private batchService: INebulaBatchService;
+  private fileDataService: INebulaFileDataService;
+  private projectIdManager: ProjectIdManager;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
@@ -99,7 +109,11 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     @inject(TYPES.NebulaQueryService) queryService: INebulaQueryService,
     @inject(TYPES.NebulaDataOperations) dataOperations: INebulaDataOperations,
     @inject(TYPES.NebulaSchemaManager) schemaManager: INebulaSchemaManager,
-    @inject(TYPES.NebulaIndexManager) indexManager: INebulaIndexManager
+    @inject(TYPES.NebulaIndexManager) indexManager: INebulaIndexManager,
+    @inject(TYPES.NebulaTransactionService) transactionService: INebulaTransactionService,
+    @inject(TYPES.NebulaBatchService) batchService: INebulaBatchService,
+    @inject(TYPES.NebulaFileDataService) fileDataService: INebulaFileDataService,
+    @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager
   ) {
     // 调用父类构造函数，提供必要的依赖
     super(
@@ -120,6 +134,10 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     this.dataOperations = dataOperations;
     this.schemaManager = schemaManager;
     this.indexManager = indexManager;
+    this.transactionService = transactionService;
+    this.batchService = batchService;
+    this.fileDataService = fileDataService;
+    this.projectIdManager = projectIdManager;
   }
 
   /**
@@ -132,7 +150,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       if (!nebulaEnabled) {
         this.initialized = false;
         this.reconnectAttempts = 0;
-        
+
         // 使用 DatabaseLoggerService 记录服务被禁用事件
         await this.databaseLogger.logDatabaseEvent({
           type: DatabaseEventType.SERVICE_INITIALIZED,
@@ -140,7 +158,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
           timestamp: new Date(),
           data: { message: 'Nebula service is disabled via NEBULA_ENABLED environment variable, skipping initialization' }
         });
-        
+
         this.emitEvent('initialized', { timestamp: new Date(), disabled: true });
         return false; // 返回false表示服务被禁用，不需要连接
       }
@@ -414,9 +432,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
 
     try {
-      // 直接使用connectionManager执行查询，不再使用事务服务
-      const results = await this.connectionManager.executeTransaction(queries);
-      return results;
+      // 使用新的 NebulaTransactionService
+      const results = await this.transactionService.executeTransaction(queries);
       return results;
     } catch (error) {
       // 检查是否是连接错误，如果是则尝试重连
@@ -432,8 +449,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
         if (reconnected) {
           // 重连成功后重新执行事务
           try {
-            const retryResults = await this.connectionManager.executeTransaction(queries);
-            return retryResults;
+            const retryResults = await this.transactionService.executeTransaction(queries);
             return retryResults;
           } catch (retryError) {
             // 如果重试事务也失败，抛出错误而不继续重试
@@ -786,23 +802,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     try {
       const startTime = Date.now();
 
-      // 从第一个节点的属性中获取projectId，如果不存在则尝试获取当前空间的相关信息
-      let projectId = nodes[0].properties?.projectId;
-      if (!projectId) {
-        // 尝试获取当前空间信息以确定projectId
-        const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
-        if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
-          const currentSpace = spaceResult.data[0];
-          projectId = currentSpace.Name || currentSpace.name;
-        }
-      }
-
-      if (!projectId) {
-        throw new Error('Unable to determine project ID for node insertion');
-      }
-
-      // 使用dataOperations服务进行批量插入
-      const result = await this.dataOperations.insertNodes(projectId, this.generateSpaceNameFromPath(projectId), nodes);
+      // 使用 NebulaBatchService 进行批量插入
+      const result = await this.batchService.insertNodes(nodes);
 
       const duration = Date.now() - startTime;
       this.emitEvent('data_inserted', { nodeCount: nodes.length, duration });
@@ -821,8 +822,27 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   }
 
   /**
-   * 批量插入关系
+   * 删除文件相关的所有数据
    */
+  async deleteDataForFile(filePath: string): Promise<void> {
+    try {
+      // 使用 NebulaFileDataService 删除文件数据
+      await this.fileDataService.deleteDataForFile(filePath);
+    } catch (error) {
+      // 使用 DatabaseLoggerService 记录错误事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SERVICE_ERROR,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Failed to delete data for file: ${filePath}`, filePath },
+        error: error instanceof Error ? error : new Error(String(error))
+      });
+      throw error;
+    }
+  }
+
+  //批量插入关系
+
   async insertRelationships(relationships: NebulaRelationship[]): Promise<boolean> {
     if (!this.initialized) {
       // 如果服务从未成功初始化过，不尝试重新连接
@@ -840,27 +860,8 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     try {
       const startTime = Date.now();
 
-      // 从第一个关系的属性中获取projectId，如果不存在则尝试获取当前空间的相关信息
-      let projectId = relationships[0].properties?.projectId;
-      if (!projectId) {
-        // 尝试获取当前空间信息以确定projectId
-        const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
-        if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
-          const currentSpace = spaceResult.data[0];
-          projectId = currentSpace.Name || currentSpace.name;
-        }
-      }
-
-      if (!projectId) {
-        throw new Error('Unable to determine project ID for relationship insertion');
-      }
-
-      // 使用dataOperations服务进行批量插入
-      const result = await this.dataOperations.insertRelationships(
-        projectId,
-        this.generateSpaceNameFromPath(projectId),
-        relationships
-      );
+      // 使用 NebulaBatchService 进行批量插入
+      const result = await this.batchService.insertRelationships(relationships);
 
       const duration = Date.now() - startTime;
       this.emitEvent('data_inserted', { relationshipCount: relationships.length, duration });
@@ -895,7 +896,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       const startTime = Date.now();
 
       // 尝试获取当前空间信息以确定projectId
-      let projectId = '';
+      let projectId: string | undefined;
       const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
       if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
         const currentSpace = spaceResult.data[0];
@@ -907,9 +908,14 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
       }
 
       // 使用dataOperations服务进行查找
+      const spaceName = this.projectIdManager.getSpaceName(projectId);
+      if (!spaceName) {
+        throw new Error(`Unable to determine space name for project ID: ${projectId}`);
+      }
+
       const result = await this.dataOperations.findNodesByLabel(
         projectId,
-        this.generateSpaceNameFromPath(projectId),
+        spaceName, // 使用ProjectIdManager的方法
         label,
         filter
       );
@@ -944,19 +950,25 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   }
 
   /**
+   * 订阅事件（推荐的新API）
+   */
+  subscribe(type: NebulaEventType | string, listener: (event: any) => void) {
+    return this.eventManager.subscribe(type, listener);
+  }
+
+  /**
    * 移除事件监听器
    */
   removeEventListener(type: NebulaEventType | string, listener: (event: any) => void): void {
-    // 由于 NebulaEventManager 使用订阅模式，我们不能直接通过 listener 函数来取消订阅
-    // 因此，我们只提供取消所有订阅的方法，或者需要修改方法签名以使用订阅对象
-    console.warn('Direct removeEventListener is deprecated, use subscription.unsubscribe() instead');
+    // 委托给 NebulaEventManager 的适配器方法
+    this.eventManager.removeEventListener(type, listener as any);
 
     // 使用 DatabaseLoggerService 记录事件监听器移除事件
     this.databaseLogger.logDatabaseEvent({
       type: DatabaseEventType.SERVICE_INITIALIZED,
       source: 'nebula',
       timestamp: new Date(),
-      data: { message: `Event listener removal attempted for type: ${type}`, eventType: type }
+      data: { message: `Event listener removed for type: ${type}`, eventType: type }
     }).catch(error => {
       // 如果日志记录失败，我们不希望影响主流程
       console.error('Failed to log event listener removal:', error);
@@ -1001,18 +1013,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   }
 
   /**
-   * 从项目路径生成空间名称
-   */
-  private generateSpaceNameFromPath(projectPath: string): string {
-    // 将路径转换为有效的空间名称
-    return projectPath
-      .replace(/[^a-zA-Z0-9_]/g, '_')
-      .replace(/_+/g, '_')
-      .replace(/^_|_$/g, '')
-      .toLowerCase();
-  }
-
-  /**
    * 初始化空间模式
    */
   private async initializeSpaceSchema(): Promise<void> {
@@ -1023,29 +1023,4 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     await this.initializeSchema();
   }
 
-  /**
-   * 按标签分组节点
-   */
-  private groupNodesByLabel(nodes: NebulaNode[]): Record<string, NebulaNode[]> {
-    return nodes.reduce((acc, node) => {
-      if (!acc[node.label]) {
-        acc[node.label] = [];
-      }
-      acc[node.label].push(node);
-      return acc;
-    }, {} as Record<string, NebulaNode[]>);
-  }
-
-  /**
-   * 按类型分组关系
-   */
-  private groupRelationshipsByType(relationships: NebulaRelationship[]): Record<string, NebulaRelationship[]> {
-    return relationships.reduce((acc, relationship) => {
-      if (!acc[relationship.type]) {
-        acc[relationship.type] = [];
-      }
-      acc[relationship.type].push(relationship);
-      return acc;
-    }, {} as Record<string, NebulaRelationship[]>);
-  }
 }

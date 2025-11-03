@@ -662,7 +662,13 @@ export class IndexService {
    */
   private async indexFile(projectPath: string, filePath: string): Promise<void> {
     try {
+      // 原有的向量索引逻辑
       await this.indexingLogicService.indexFile(projectPath, filePath);
+      
+      // 新增的图索引逻辑
+      if (process.env.NEBULA_ENABLED?.toLowerCase() !== 'false') {
+        await this.indexingLogicService.indexFileToGraph(projectPath, filePath);
+      }
     } catch (error) {
       this.recordError(filePath, error);
       this.errorHandler.handleError(

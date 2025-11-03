@@ -39,18 +39,30 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'variables': ['variables'],
     'control-flow': ['control-flow'],
     'expressions': ['expressions'],
-    'properties': ['variables']
+    'properties': ['variables'],
+    // 新增图索引映射
+    'graph-classes': ['classes', 'interfaces'],
+    'graph-functions': ['functions', 'methods'],
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports'],
+    'graph-exports': ['exports']
   },
-   'python': {
-     'functions': ['functions'],
-     'classes': ['classes'],
-     'methods': ['methods'],
-     'imports': ['imports'],
-     'variables': ['variables'],
-     'control-flow': ['control-flow'],
-     'data-structures': ['classes'],
-     'types-decorators': ['types']
-   },
+  'python': {
+    'functions': ['functions'],
+    'classes': ['classes'],
+    'methods': ['methods'],
+    'imports': ['imports'],
+    'variables': ['variables'],
+    'control-flow': ['control-flow'],
+    'data-structures': ['classes'],
+    'types-decorators': ['types'],
+    // 新增图索引映射
+    'graph-classes': ['classes'],
+    'graph-functions': ['functions', 'methods'],
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports'],
+    'graph-exports': ['variables'] // Python中导出通常作为变量
+  },
   'java': {
     'classes-interfaces': ['classes', 'interfaces'],
     'methods-variables': ['methods', 'variables'],
@@ -65,8 +77,14 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'interfaces': ['interfaces'],
     'enums': ['types'],
     'records': ['classes'],
-    'annotations': ['types']
- },
+    'annotations': ['types'],
+    // 新增图索引映射
+    'graph-classes': ['classes', 'interfaces'],
+    'graph-functions': ['methods'], // Java中方法是类的成员
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports'],
+    'graph-exports': ['types'] // Java中导出通常作为类型
+  },
   'cpp': {
     'functions': ['functions'],
     'classes': ['classes'],
@@ -77,7 +95,13 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'types': ['types'],
     'namespaces': ['modules'],
     'preprocessor': ['imports'],
-    'modern-features': ['types']
+    'modern-features': ['types'],
+    // 新增图索引映射
+    'graph-classes': ['classes'],
+    'graph-functions': ['functions', 'methods'],
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports', 'preprocessor'], // C++中预处理器指令类似导入
+    'graph-exports': ['types'] // C++中导出通常作为类型声明
   },
   'go': {
     'functions-types': ['functions', 'classes'],
@@ -88,14 +112,26 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'methods': ['methods'],
     'imports': ['imports'],
     'variables': ['variables'],
-    'control-flow': ['control-flow']
+    'control-flow': ['control-flow'],
+    // 新增图索引映射
+    'graph-classes': ['types'], // Go中结构体作为类
+    'graph-functions': ['functions', 'methods'],
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports'],
+    'graph-exports': ['functions', 'types'] // Go中导出函数和类型
   },
   'c': {
     'functions': ['functions'],
     'variables': ['variables'],
     'imports': ['imports'],
     'control-flow': ['control-flow'],
-    'types': ['types']
+    'types': ['types'],
+    // 新增图索引映射
+    'graph-classes': ['types'], // C中结构体作为类
+    'graph-functions': ['functions'],
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports'], // C中头文件包含
+    'graph-exports': ['types', 'functions'] // C中导出类型和函数
   },
   'csharp': {
     'classes': ['classes'],
@@ -109,7 +145,13 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'interfaces': ['interfaces'],
     'linq': ['expressions'],
     'patterns': ['control-flow'],
-    'expressions': ['expressions']
+    'expressions': ['expressions'],
+    // 新增图索引映射
+    'graph-classes': ['classes', 'interfaces'],
+    'graph-functions': ['methods'],
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports'], // C#中使用using导入
+    'graph-exports': ['types'], // C#中导出通常作为类型
   },
   'kotlin': {
     'classes-functions': ['classes', 'functions'],
@@ -123,7 +165,13 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'variables': ['variables'],
     'control-flow': ['control-flow'],
     'types': ['types'],
-    'interfaces': ['interfaces']
+    'interfaces': ['interfaces'],
+    // 新增图索引映射
+    'graph-classes': ['classes', 'interfaces'],
+    'graph-functions': ['functions', 'methods'],
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports'],
+    'graph-exports': ['types', 'functions'] // Kotlin中导出类型和函数
   },
   'swift': {
     'functions': ['functions'],
@@ -133,7 +181,13 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'variables': ['variables'],
     'control-flow': ['control-flow'],
     'types': ['types'],
-    'protocols': ['interfaces']
+    'protocols': ['interfaces'],
+    // 新增图索引映射
+    'graph-classes': ['classes', 'protocols'], // Swift中协议类似接口
+    'graph-functions': ['functions', 'methods'],
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports'],
+    'graph-exports': ['types', 'functions'] // Swift中导出类型和函数
   },
   'css': {
     'selectors': ['classes'],
@@ -155,7 +209,13 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'variables': ['variables'],
     'control-flow': ['control-flow'],
     'expressions': ['expressions'],
-    'properties': ['variables']
+    'properties': ['variables'],
+    // 新增图索引映射
+    'graph-classes': ['classes'],
+    'graph-functions': ['functions', 'methods'],
+    'graph-calls': ['expressions'],
+    'graph-imports': ['imports'],
+    'graph-exports': ['exports']
   },
   'tsx': {
     'functions': ['functions'],
@@ -170,11 +230,23 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'expressions': ['expressions'],
     'components': ['classes'],
     'jsx': ['expressions'],
-    'types-hooks': ['types', 'functions']
+    'types-hooks': ['types', 'functions'],
+    // 新增图索引映射
+    'graph-classes': ['classes', 'components'],
+    'graph-functions': ['functions', 'methods', 'types-hooks'],
+    'graph-calls': ['jsx', 'expressions'],
+    'graph-imports': ['imports'],
+    'graph-exports': ['exports']
   },
   'vue': {
     'components': ['classes'],
-    'template-directives': ['functions']
+    'template-directives': ['functions'],
+    // 新增图索引映射
+    'graph-classes': ['components'],
+    'graph-functions': ['template-directives'],
+    'graph-calls': [],
+    'graph-imports': [],
+    'graph-exports': []
   },
   'json': {
     'objects-arrays': ['tables', 'arrays'],
@@ -183,7 +255,13 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
     'strings': ['values'],
     'numbers': ['values'],
     'booleans': ['values'],
-    'nulls': ['values']
+    'nulls': ['values'],
+    // 新增图索引映射 - JSON不包含代码结构，但可以映射为图节点
+    'graph-classes': ['objects-arrays'],
+    'graph-functions': [],
+    'graph-calls': [],
+    'graph-imports': [],
+    'graph-exports': ['key-value-pairs']
   }
 };
 
@@ -200,13 +278,13 @@ export class QueryTypeMapper {
    */
   static getMappedQueryTypes(language: string, discoveredTypes: string[]): string[] {
     const mapping = LANGUAGE_QUERY_MAPPINGS[language.toLowerCase()];
-    
+
     if (!mapping) {
       return discoveredTypes;
     }
-    
+
     const mappedTypes: string[] = [];
-    
+
     for (const discoveredType of discoveredTypes) {
       const mapped = mapping[discoveredType];
       if (mapped) {
@@ -215,10 +293,10 @@ export class QueryTypeMapper {
         mappedTypes.push(discoveredType);
       }
     }
-    
+
     return [...new Set(mappedTypes)];
   }
-  
+
   /**
    * 验证查询类型
    * @param language 编程语言
@@ -229,7 +307,7 @@ export class QueryTypeMapper {
     const supportedTypes = this.getSupportedQueryTypes(language);
     return queryTypes.every(type => supportedTypes.includes(type));
   }
-  
+
   /**
    * 获取支持的查询类型
    * @param language 编程语言
@@ -240,10 +318,10 @@ export class QueryTypeMapper {
     if (!mapping) {
       return [];
     }
-    
+
     return [...new Set(Object.values(mapping).flat())];
   }
-  
+
   /**
    * 添加语言映射
    * @param language 编程语言
@@ -252,7 +330,7 @@ export class QueryTypeMapper {
   static addLanguageMapping(language: string, mapping: LanguageQueryMapping): void {
     LANGUAGE_QUERY_MAPPINGS[language.toLowerCase()] = mapping;
   }
-  
+
   /**
    * 更新语言映射
    * @param language 编程语言
@@ -303,7 +381,7 @@ export class QueryTypeMapper {
     if (!mapping || !mapping[queryFile]) {
       return [];
     }
-    
+
     return [...mapping[queryFile]];
   }
 
@@ -318,14 +396,14 @@ export class QueryTypeMapper {
     if (!mapping) {
       return [];
     }
-    
+
     const files: string[] = [];
     for (const [file, types] of Object.entries(mapping)) {
       if (types.includes(queryType)) {
         files.push(file);
       }
     }
-    
+
     return files;
   }
 }

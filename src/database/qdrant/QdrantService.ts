@@ -28,6 +28,7 @@ import { DatabaseEventType, QdrantEventType as UnifiedQdrantEventType } from '..
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
 import { PerformanceMonitor } from '../common/PerformanceMonitor';
 import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
+import { Subscription } from '../common/DatabaseEventTypes';
 
 /**
  * Qdrant 服务类
@@ -498,9 +499,6 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
     }
   }
 
-  /**
-   * 移除事件监听器
-   */
   removeEventListener(type: QdrantEventType | string, listener: (event: any) => void): void {
     // 从基础服务移除
     super.removeEventListener(type, listener);
@@ -515,6 +513,28 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
     }
   }
 
+  /**
+   * 订阅事件（推荐的新API）
+   */
+  subscribe(type: QdrantEventType | string, listener: (event: any) => void) {
+    // 添加到基础服务
+    const baseSubscription = super.subscribe(type, listener);
+    
+    // 保持向后兼容性，同时添加到所有模块
+    if (Object.values(QdrantEventType).includes(type as QdrantEventType)) {
+      this.connectionManager.addEventListener(type as QdrantEventType, listener);
+      this.collectionManager.addEventListener(type as QdrantEventType, listener);
+      this.vectorOperations.addEventListener(type as QdrantEventType, listener);
+      this.queryUtils.addEventListener(type as QdrantEventType, listener);
+      this.projectManager.addEventListener(type as QdrantEventType, listener);
+    }
+    
+    return baseSubscription;
+  }
+
+  /**
+   * 健康检查
+   */
   /**
    * 健康检查
    */

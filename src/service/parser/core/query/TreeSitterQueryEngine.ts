@@ -7,6 +7,7 @@ import { QueryPerformanceMonitor } from './QueryPerformanceMonitor';
 import { createCache } from '../../../../utils/cache';
 import { CacheKeyGenerator } from './CacheKeyGenerator';
 import { GlobalQueryInitializer } from './GlobalQueryInitializer';
+import { LANGUAGE_QUERY_MAPPINGS } from '../normalization/QueryTypeMappings';
 
 
 /**
@@ -338,7 +339,7 @@ export class TreeSitterQueryEngine {
     try {
       // 获取语言对象，首先尝试从AST的tree属性中获取
       let languageObj = (ast.tree as any)?.language;
-      
+
       // 如果无法从AST获取语言对象，尝试使用DynamicParserManager获取
       if (!languageObj) {
         try {
@@ -359,7 +360,7 @@ export class TreeSitterQueryEngine {
         }
       }
 
-      
+
 
       const query = QueryCache.getQuery(languageObj, pattern.pattern);
       const matches = query.matches(ast);
@@ -389,7 +390,6 @@ export class TreeSitterQueryEngine {
   }
 
 
-
   /**
    * 获取节点位置
    */
@@ -402,6 +402,34 @@ export class TreeSitterQueryEngine {
     };
   }
 
+  /**
+   * 执行图索引查询
+   */
+  async executeGraphQueries(ast: Parser.SyntaxNode, language: string): Promise<Map<string, QueryResult>> {
+    // 获取图索引查询类型
+    const graphQueryTypes = this.getGraphQueryTypes(language);
 
+    // 执行查询
+    const results = new Map<string, QueryResult>();
+    for (const queryType of graphQueryTypes) {
+      const result = await this.executeQuery(ast, queryType, language);
+      results.set(queryType, result);
+    }
+
+    return results;
+  }
+
+  /**
+   * 获取图索引查询类型
+   */
+  private getGraphQueryTypes(language: string): string[] {
+    const mapping = LANGUAGE_QUERY_MAPPINGS[language.toLowerCase()];
+    if (!mapping) {
+      return [];
+    }
+
+    // 返回图索引相关的查询类型
+    return Object.keys(mapping).filter(key => key.startsWith('graph-'));
+  }
 }
 

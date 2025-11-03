@@ -24,6 +24,8 @@ import { GraphPersistenceResult } from '../graph/core/types';
 import { PerformanceDashboard } from '../monitoring/PerformanceDashboard';
 import { AutoOptimizationAdvisor } from '../optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../optimization/BatchProcessingOptimizer';
+import { TreeSitterService } from '../parser/core/parse/TreeSitterService';
+import { TreeSitterQueryEngine } from '../parser/core/query/TreeSitterQueryEngine';
 
 export interface MemoryUsage {
   used: number;
@@ -58,6 +60,8 @@ export class IndexingLogicService {
   @inject(TYPES.ASTCodeSplitter) private astSplitter!: ASTCodeSplitter;
   @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService!: ChunkToVectorCoordinationService;
   @inject(TYPES.ConcurrencyService) private concurrencyService!: ConcurrencyService;
+  @inject(TYPES.TreeSitterService) private treeSitterService!: TreeSitterService;
+  @inject(TYPES.TreeSitterQueryEngine) private treeSitterQueryEngine!: TreeSitterQueryEngine;
 
   /**
    * 索引项目
@@ -473,6 +477,80 @@ export class IndexingLogicService {
       );
       throw error;
     }
+  }
+
+  /**
+   * 索引文件到图数据库
+   */
+  async indexFileToGraph(projectPath: string, filePath: string): Promise<void> {
+    try {
+      // 读取文件内容
+      const content = await fs.readFile(filePath, 'utf8');
+      
+      // 检测语言
+      const language = await this.treeSitterService.detectLanguage(filePath);
+      if (!language) {
+        this.logger.warn(`Unsupported language for file: ${filePath}`);
+        return;
+      }
+
+      // 解析为 AST
+      const parseResult = await this.treeSitterService.parseCode(content, language);
+      
+      // 执行图索引查询
+      const queryResults = await this.treeSitterQueryEngine.executeGraphQueries(parseResult.ast, language);
+
+      // 映射为图元素
+      const graphElements = await this.graphMappingService.mapQueryResultsToGraph(queryResults);
+
+      // 转换为 Nebula 格式
+      const nebulaNodes = this.convertToNebulaNodes(graphElements.nodes);
+      const nebulaRelationships = this.convertToNebulaRelationships(graphElements.edges);
+
+      // 插入到图数据库
+      if (nebulaNodes.length > 0) {
+        await this.graphService.storeNodes(nebulaNodes);
+      }
+
+      if (nebulaRelationships.length > 0) {
+        await this.graphService.storeRelationships(nebulaRelationships);
+      }
+
+      this.logger.info(`Successfully indexed file to graph: ${filePath}`, {
+        nodeCount: nebulaNodes.length,
+        edgeCount: nebulaRelationships.length
+      });
+
+    } catch (error) {
+      this.logger.error(`Failed to index file to graph: ${filePath}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 转换为Nebula节点格式
+   */
+  private convertToNebulaNodes(nodes: any[]): any[] {
+    // 简化转换逻辑，实际实现可能需要更复杂的映射
+    return nodes.map(node => ({
+      id: node.id,
+      label: node.type,
+      properties: node.properties
+    }));
+  }
+
+  /**
+   * 转换为Nebula关系格式
+   */
+  private convertToNebulaRelationships(edges: any[]): any[] {
+    // 简化转换逻辑，实际实现可能需要更复杂的映射
+    return edges.map(edge => ({
+      id: edge.id,
+      type: edge.type,
+      sourceId: edge.sourceNodeId,
+      targetId: edge.targetNodeId,
+      properties: edge.properties
+    }));
   }
 
   /**

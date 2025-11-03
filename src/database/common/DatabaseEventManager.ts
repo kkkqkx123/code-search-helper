@@ -7,9 +7,17 @@ import {
   QdrantEventType,
   NebulaEventType
 } from './DatabaseEventTypes';
+import { randomUUID } from 'crypto';
+
+export interface Subscription {
+  id: string;
+  eventType: string;
+  handler: DatabaseEventListener;
+  unsubscribe: () => void;
+}
 
 /**
- * 统一的数据库事件管理器实现
+ * 统一的数据库事件管理器实现（订阅模式）
  * 为Qdrant和Nebula数据库服务提供事件管理功能
  *
  * @template TEvents - 事件类型映射接口，将事件类型映射到对应的事件数据类型
@@ -27,22 +35,30 @@ import {
  */
 @injectable()
 export class DatabaseEventManager<TEvents = Record<string, any>> implements IEventManager<TEvents> {
-  private eventListeners: Map<string, DatabaseEventListener[]> = new Map();
+  private eventListeners: Map<string, Map<string, DatabaseEventListener>> = new Map(); // eventType -> Map<subscriptionId, listener>
   private eventHistory: DatabaseEvent[] = [];
   private maxEventHistory: number = 1000;
 
   /**
-   * 添加事件监听器
+   * 添加事件监听器，返回订阅对象
    */
   addEventListener<K extends keyof TEvents>(
     eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
     listener: DatabaseEventListener<TEvents[K]>
   ): void {
     const eventTypeStr = String(eventType);
+    
+    // 如果该事件类型还没有监听器映射，创建一个
     if (!this.eventListeners.has(eventTypeStr)) {
-      this.eventListeners.set(eventTypeStr, []);
+      this.eventListeners.set(eventTypeStr, new Map());
     }
-    this.eventListeners.get(eventTypeStr)!.push(listener as DatabaseEventListener);
+    
+    // 生成唯一订阅ID
+    const subscriptionId = randomUUID();
+    const listenersMap = this.eventListeners.get(eventTypeStr)!;
+    
+    // 存储监听器
+    listenersMap.set(subscriptionId, listener as DatabaseEventListener);
   }
 
   /**
@@ -53,15 +69,19 @@ export class DatabaseEventManager<TEvents = Record<string, any>> implements IEve
     listener: DatabaseEventListener<TEvents[K]>
   ): void {
     const eventTypeStr = String(eventType);
-    const listeners = this.eventListeners.get(eventTypeStr);
-    if (listeners) {
-      const index = listeners.indexOf(listener as DatabaseEventListener);
-      if (index > -1) {
-        listeners.splice(index, 1);
+    const listenersMap = this.eventListeners.get(eventTypeStr);
+    
+    if (listenersMap) {
+      // 遍历找到匹配的监听器并删除
+      for (const [id, storedListener] of listenersMap.entries()) {
+        if (storedListener === listener) {
+          listenersMap.delete(id);
+          break; // 假设每个监听器只注册一次
+        }
       }
       
-      // 如果没有监听器了，删除该事件类型的条目
-      if (listeners.length === 0) {
+      // 如果该事件类型没有监听器了，删除整个映射
+      if (listenersMap.size === 0) {
         this.eventListeners.delete(eventTypeStr);
       }
     }
@@ -103,7 +123,7 @@ export class DatabaseEventManager<TEvents = Record<string, any>> implements IEve
       // 处理泛型事件 - 需要重构以支持泛型事件
       this.emitGenericEvent<K>(event as TEvents[K]);
     }
-  }
+ }
 
   /**
    * 发出泛型事件
@@ -146,7 +166,7 @@ export class DatabaseEventManager<TEvents = Record<string, any>> implements IEve
       return String((event as any).type);
     }
     return null;
-  }
+ }
 
   /**
    * 移除所有监听器
@@ -156,21 +176,62 @@ export class DatabaseEventManager<TEvents = Record<string, any>> implements IEve
   }
 
   /**
+   * 添加事件监听器（订阅模式）
+   */
+  subscribe<K extends keyof TEvents>(
+    eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
+    listener: DatabaseEventListener<TEvents[K]>
+  ): Subscription {
+    const eventTypeStr = String(eventType);
+    
+    // 如果该事件类型还没有监听器映射，创建一个
+    if (!this.eventListeners.has(eventTypeStr)) {
+      this.eventListeners.set(eventTypeStr, new Map());
+    }
+    
+    // 生成唯一订阅ID
+    const subscriptionId = randomUUID();
+    const listenersMap = this.eventListeners.get(eventTypeStr)!;
+    
+    // 存储监听器
+    listenersMap.set(subscriptionId, listener as DatabaseEventListener);
+    
+    // 创建并返回订阅对象
+    const subscription = {
+      id: subscriptionId,
+      eventType: eventTypeStr,
+      handler: listener as DatabaseEventListener,
+      unsubscribe: () => {
+        const map = this.eventListeners.get(eventTypeStr);
+        if (map) {
+          map.delete(subscriptionId);
+          // 如果该事件类型没有监听器了，删除整个映射
+          if (map.size === 0) {
+            this.eventListeners.delete(eventTypeStr);
+          }
+        }
+      }
+    };
+    
+    return subscription;
+  }
+
+  /**
    * 获取监听器数量
    */
   getListenerCount(eventType?: DatabaseEventType | QdrantEventType | NebulaEventType | keyof TEvents): number {
     if (eventType === undefined) {
       // 返回所有监听器的总数
       let totalCount = 0;
-      for (const listeners of this.eventListeners.values()) {
-        totalCount += listeners.length;
+      for (const listenersMap of this.eventListeners.values()) {
+        totalCount += listenersMap.size;
       }
       return totalCount;
     }
     
     const eventTypeStr = String(eventType);
-    const listeners = this.eventListeners.get(eventTypeStr);
-    return listeners ? listeners.length : 0;
+    const listenersMap = this.eventListeners.get(eventTypeStr);
+    return listenersMap ? listenersMap.size : 0;
   }
 
   /**
@@ -217,11 +278,9 @@ export class DatabaseEventManager<TEvents = Record<string, any>> implements IEve
   /**
    * 通知监听器
    */
-  private notifyListeners(listeners: DatabaseEventListener[], event: DatabaseEvent): void {
-    // 创建监听器副本，避免在迭代过程中修改原数组
-    const listenersCopy = [...listeners];
-    
-    for (const listener of listenersCopy) {
+  private notifyListeners(listenersMap: Map<string, DatabaseEventListener>, event: DatabaseEvent): void {
+    // 遍历监听器并通知它们
+    for (const listener of listenersMap.values()) {
       try {
         listener(event);
       } catch (error) {
@@ -256,7 +315,7 @@ export class DatabaseEventManager<TEvents = Record<string, any>> implements IEve
     data?: any,
     error?: Error,
     metadata?: DatabaseEvent['metadata']
-  ): DatabaseEvent {
+ ): DatabaseEvent {
     return {
       type,
       timestamp: new Date(),
@@ -316,7 +375,7 @@ export class DatabaseEventManager<TEvents = Record<string, any>> implements IEve
     );
   }
 
-  /**
+ /**
    * 创建批量操作事件
    */
   static createBatchOperationEvent(

@@ -245,6 +245,12 @@ export const TYPES = {
   NebulaQueryUtils: Symbol.for('NebulaQueryUtils'),
   NebulaResultFormatter: Symbol.for('NebulaResultFormatter'),
   NebulaEventManager: Symbol.for('NebulaEventManager'),
+  NebulaTransactionService: Symbol.for('NebulaTransactionService'),
+  INebulaTransactionService: Symbol.for('INebulaTransactionService'),
+  NebulaBatchService: Symbol.for('NebulaBatchService'),
+  INebulaBatchService: Symbol.for('INebulaBatchService'),
+  NebulaFileDataService: Symbol.for('NebulaFileDataService'),
+  INebulaFileDataService: Symbol.for('INebulaFileDataService'),
 
   // 14. Nebula 监控服务
   NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
@@ -282,6 +288,7 @@ export const TYPES = {
 
   // 18. 图数据映射服务
   GraphDataMappingService: Symbol.for('GraphDataMappingService'),
+  GraphMapperService: Symbol.for('GraphMapperService'),
 
   // 19. 异步处理服务
   AsyncTaskQueue: Symbol.for('AsyncTaskQueue'),

@@ -962,9 +962,15 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
    * 移除事件监听器 - 委托给全局事件管理器
    */
   removeEventListener(eventType: string, listener: EventListener): void {
-    // 委托给 NebulaEventManager
-    // 需要先获取订阅对象才能取消订阅
-    console.warn('Direct removeEventListener is deprecated, use the subscription object to unsubscribe');
+    // 委托给 NebulaEventManager 的适配器方法
+    this.eventManager.removeEventListener(eventType, listener as any);
+  }
+
+  /**
+   * 订阅事件（推荐的新API）
+   */
+  subscribe(eventType: string, listener: EventListener) {
+    return this.eventManager.subscribe(eventType, listener as any);
   }
 
   /**

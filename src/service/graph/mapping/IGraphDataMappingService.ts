@@ -1,4 +1,5 @@
 import { CodeChunk } from '../../parser/types';
+import { QueryResult } from '../../parser/core/query/TreeSitterQueryEngine';
 
 // 图节点类型枚举
 export enum GraphNodeType {
@@ -155,6 +156,21 @@ export interface FileMetadata {
   projectId: string;
 }
 
+// 图映射结果
+export interface GraphMappingResult {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+// 图边接口
+export interface GraphEdge {
+  id: string;
+  type: GraphRelationshipType;
+  sourceNodeId: string;
+  targetNodeId: string;
+  properties: Record<string, any>;
+}
+
 export interface IGraphDataMappingService {
   /**
    * 将文件分析结果映射为图数据库节点
@@ -225,4 +241,9 @@ export interface IGraphDataMappingService {
    * 从AST中提取代码元素
    */
   extractCodeElementsFromAST(ast: any, filePath: string): Promise<FileAnalysisResult>;
+
+  /**
+   * 将查询结果映射为图元素
+   */
+  mapQueryResultsToGraph(queryResults: Map<string, QueryResult>): GraphMappingResult;
 }

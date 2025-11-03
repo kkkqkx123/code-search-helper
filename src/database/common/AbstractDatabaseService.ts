@@ -639,6 +639,42 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
   }
 
   /**
+   * 订阅事件（推荐的新API）
+   */
+  subscribe(eventType: string, listener: EventListener) {
+    if (!this.eventListeners.has(eventType)) {
+      this.eventListeners.set(eventType, []);
+    }
+    this.eventListeners.get(eventType)!.push(listener);
+
+    // 同时在子组件上添加监听器
+    this.connectionManager.addEventListener(eventType, listener);
+    this.projectManager.addEventListener(eventType, listener);
+
+    // 返回一个订阅对象，允许取消订阅
+    const subscription = {
+      id: `${eventType}_${Date.now()}`, // 简单的ID生成
+      eventType,
+      handler: listener,
+      unsubscribe: () => {
+        const listeners = this.eventListeners.get(eventType);
+        if (listeners) {
+          const index = listeners.indexOf(listener);
+          if (index > -1) {
+            listeners.splice(index, 1);
+          }
+          
+          // 同时在子组件上移除监听器
+          this.connectionManager.removeEventListener(eventType, listener);
+          this.projectManager.removeEventListener(eventType, listener);
+        }
+      }
+    };
+
+    return subscription;
+  }
+
+  /**
    * 健康检查
    */
   async healthCheck(): Promise<{

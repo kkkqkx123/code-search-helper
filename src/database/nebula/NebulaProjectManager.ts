@@ -694,9 +694,15 @@ export class NebulaProjectManager implements INebulaProjectManager {
    * 移除事件监听器
    */
   removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
-    // 由于 NebulaEventManager 使用订阅模式，我们不能直接通过 listener 函数来取消订阅
-    // 因此，我们只提供取消所有订阅的方法，或者需要修改方法签名以使用订阅对象
-    console.warn('Direct removeEventListener is deprecated, use subscription.unsubscribe() instead');
+    // 委托给 NebulaEventManager 的适配器方法
+    this.eventManager.removeEventListener(type as string, listener);
+  }
+
+  /**
+   * 订阅事件（推荐的新API）
+   */
+  subscribe(type: NebulaEventType, listener: (event: NebulaEvent) => void) {
+    return this.eventManager.subscribe(type as string, listener);
   }
 
   /**
