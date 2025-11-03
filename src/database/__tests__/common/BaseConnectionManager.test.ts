@@ -97,12 +97,14 @@ describe('BaseConnectionManager', () => {
 
     it('should emit config_updated event', () => {
       const listener: EventListener = jest.fn();
-      connectionManager.addEventListener('config_updated', listener);
-      
+      const subscription = connectionManager.subscribe('config_updated', listener);
+
       const newConfig = { timeout: 15000 };
       connectionManager.updateConfig(newConfig);
-      
+
       expect(listener).toHaveBeenCalledWith({ config: connectionManager.getConfig() });
+
+      subscription.unsubscribe();
     });
   });
 
@@ -124,10 +126,10 @@ describe('BaseConnectionManager', () => {
   describe('event listeners', () => {
     it('should add and remove event listeners', () => {
       const listener: EventListener = jest.fn();
-      
-      connectionManager.addEventListener('test_event', listener);
-      connectionManager.removeEventListener('test_event', listener);
-      
+
+      const subscription = connectionManager.subscribe('test_event', listener);
+      subscription.unsubscribe();
+
       // 触发事件，监听器不应该被调用
       (connectionManager as any).emitEvent('test_event', { data: 'test' });
       expect(listener).not.toHaveBeenCalled();
@@ -138,37 +140,42 @@ describe('BaseConnectionManager', () => {
       const listener: EventListener = () => {
         throw new Error('Test error');
       };
-      
-      connectionManager.addEventListener('test_event', listener);
+
+      const subscription = connectionManager.subscribe('test_event', listener);
       (connectionManager as any).emitEvent('test_event', { data: 'test' });
-      
+
       expect(consoleSpy).toHaveBeenCalledWith(
         'Error in event listener for test_event:',
         expect.any(Error)
       );
-      
+
       consoleSpy.mockRestore();
+      subscription.unsubscribe();
     });
   });
 
   describe('connect/disconnect events', () => {
     it('should emit connected event when connected', async () => {
       const listener: EventListener = jest.fn();
-      connectionManager.addEventListener('connected', listener);
-      
+      const subscription = connectionManager.subscribe('connected', listener);
+
       await connectionManager.connect();
-      
+
       expect(listener).toHaveBeenCalledWith({ timestamp: expect.any(Date) });
+
+      subscription.unsubscribe();
     });
 
     it('should emit disconnected event when disconnected', async () => {
       const listener: EventListener = jest.fn();
-      connectionManager.addEventListener('disconnected', listener);
-      
+      const subscription = connectionManager.subscribe('disconnected', listener);
+
       await connectionManager.connect();
       await connectionManager.disconnect();
-      
+
       expect(listener).toHaveBeenCalledWith({ timestamp: expect.any(Date) });
+
+      subscription.unsubscribe();
     });
   });
 
@@ -176,39 +183,44 @@ describe('BaseConnectionManager', () => {
     it('should handle connection errors correctly', () => {
       const errorListener: EventListener = jest.fn();
       const statusListener: EventListener = jest.fn();
-      
-      connectionManager.addEventListener('error', errorListener);
-      connectionManager.addEventListener('status_updated', statusListener);
-      
+
+      const errorSubscription = connectionManager.subscribe('error', errorListener);
+      const statusSubscription = connectionManager.subscribe('status_updated', statusListener);
+
       const error = new Error('Connection failed');
       connectionManager.handleConnectionErrorForTest(error);
-      
+
       // 检查连接状态
       expect(connectionManager.isConnected()).toBe(false);
-      
+
       // 检查事件是否被正确发出
       expect(errorListener).toHaveBeenCalledWith({
         type: 'connection_error',
         message: 'Connection failed',
         timestamp: expect.any(Date)
       });
-      
+
       expect(statusListener).toHaveBeenCalled();
+
+      errorSubscription.unsubscribe();
+      statusSubscription.unsubscribe();
     });
   });
 
   describe('recordConnectionMetric', () => {
     it('should record connection metrics', () => {
       const metricListener: EventListener = jest.fn();
-      connectionManager.addEventListener('metric', metricListener);
-      
+      const subscription = connectionManager.subscribe('metric', metricListener);
+
       connectionManager.recordConnectionMetricForTest('latency', 150);
-      
+
       expect(metricListener).toHaveBeenCalledWith({
         metric: 'latency',
         value: 150,
         timestamp: expect.any(Date)
       });
+
+      subscription.unsubscribe();
     });
   });
 });

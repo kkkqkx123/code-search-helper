@@ -3,86 +3,45 @@ import { TYPES } from '../../../types';
 import { SqliteDatabaseService } from '../SqliteDatabaseService';
 import { SqliteConnectionManager } from '../SqliteConnectionManager';
 import { SqliteProjectManager } from '../SqliteProjectManager';
-import { SqliteInfrastructure } from '../SqliteInfrastructure';
+
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
-import { IndexingConfigService } from '../../../config/service/IndexingConfigService';
-import { EnvironmentConfigService } from '../../../config/service/EnvironmentConfigService';
-import { QdrantConfigService } from '../../../config/service/QdrantConfigService';
-import { EmbeddingConfigService } from '../../../config/service/EmbeddingConfigService';
-import { LoggingConfigService } from '../../../config/service/LoggingConfigService';
-import { MonitoringConfigService } from '../../../config/service/MonitoringConfigService';
-import { MemoryMonitorConfigService } from '../../../config/service/MemoryMonitorConfigService';
-import { FileProcessingConfigService } from '../../../config/service/FileProcessingConfigService';
-import { BatchProcessingConfigService } from '../../../config/service/BatchProcessingConfigService';
-import { ProjectConfigService } from '../../../config/service/ProjectConfigService';
-import { TreeSitterConfigService } from '../../../config/service/TreeSitterConfigService';
-import { ProjectNamingConfigService } from '../../../config/service/ProjectNamingConfigService';
-import { EmbeddingBatchConfigService } from '../../../config/service/EmbeddingBatchConfigService';
-import { GraphCacheConfigService } from '../../../config/service/GraphCacheConfigService';
-import { InfrastructureManager } from '../../../infrastructure/InfrastructureManager';
-import { CacheService } from '../../../infrastructure/caching/CacheService';
-import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
-import { BatchOptimizer } from '../../../service/optimization/BatchOptimizerService';
-import { DatabaseHealthChecker } from '../../../service/monitoring/DatabaseHealthChecker';
 
 describe('SQLite Integration Tests', () => {
   let container: Container;
   let sqliteService: SqliteDatabaseService;
   let connectionManager: SqliteConnectionManager;
   let projectManager: SqliteProjectManager;
-  let infrastructure: SqliteInfrastructure;
 
   beforeAll(async () => {
     // 设置DI容器
     container = new Container();
 
-    // 注册基础服务
+    // 注册基础服务 - 只绑定SQLite服务真正需要的依赖
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
     container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
-    container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
-    container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
-    container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
-    container.bind<LoggingConfigService>(TYPES.LoggingConfigService).to(LoggingConfigService).inSingletonScope();
-    container.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
-    container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
-    container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
-    container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
-    container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
-    container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
-    container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
-    container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
-    container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
-    container.bind<GraphCacheConfigService>(TYPES.GraphCacheConfigService).to(GraphCacheConfigService).inSingletonScope();
-    container.bind<InfrastructureManager>(TYPES.InfrastructureManager).to(InfrastructureManager).inSingletonScope();
-    container.bind<CacheService>(TYPES.CacheService).to(CacheService).inSingletonScope();
-    container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
-    container.bind<BatchOptimizer>(TYPES.BatchOptimizer).to(BatchOptimizer).inSingletonScope();
-    container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
 
     // 注册SQLite服务
     container.bind<SqliteDatabaseService>(TYPES.SqliteDatabaseService).to(SqliteDatabaseService).inSingletonScope();
     container.bind<SqliteConnectionManager>(TYPES.SqliteConnectionManager).to(SqliteConnectionManager).inSingletonScope();
     container.bind<SqliteProjectManager>(TYPES.SqliteProjectManager).to(SqliteProjectManager).inSingletonScope();
-    container.bind<SqliteInfrastructure>(TYPES.SqliteInfrastructure).to(SqliteInfrastructure).inSingletonScope();
 
     // 解析服务
     sqliteService = container.get<SqliteDatabaseService>(TYPES.SqliteDatabaseService);
     connectionManager = container.get<SqliteConnectionManager>(TYPES.SqliteConnectionManager);
     projectManager = container.get<SqliteProjectManager>(TYPES.SqliteProjectManager);
-    infrastructure = container.get<SqliteInfrastructure>(TYPES.SqliteInfrastructure);
 
-    // 初始化基础设施
-    await infrastructure.initialize();
+    // 初始化数据库连接
+    await sqliteService.connect();
+
+    // 初始化连接管理器
+    await connectionManager.initialize();
   });
 
   afterAll(async () => {
-    // 清理资源
-    if (infrastructure) {
-      await infrastructure.shutdown();
-    }
+    // 清理资源 - SQLite 服务会在容器销毁时自动清理
   });
 
   describe('SqliteDatabaseService', () => {
@@ -191,31 +150,5 @@ describe('SQLite Integration Tests', () => {
     });
   });
 
-  describe('SqliteInfrastructure', () => {
-    test('should be properly initialized', () => {
-      expect(infrastructure.isInitialized()).toBe(true);
-    });
 
-    test('should provide infrastructure services', () => {
-      expect(infrastructure.getCacheService()).toBeDefined();
-      expect(infrastructure.getPerformanceMonitor()).toBeDefined();
-      expect(infrastructure.getBatchOptimizer()).toBeDefined();
-      expect(infrastructure.getHealthChecker()).toBeDefined();
-      expect(infrastructure).toBeDefined();
-    });
-
-    test('should execute SQL queries', async () => {
-      const result = await infrastructure.executeSqlQuery('SELECT COUNT(*) as count FROM projects');
-      expect(result).toBeDefined();
-    });
-
-    test('should get database stats', async () => {
-      const stats = await infrastructure.getDatabaseStats();
-      expect(stats).toHaveProperty('projects');
-      expect(stats).toHaveProperty('fileStates');
-      expect(stats).toHaveProperty('projectStatus');
-      expect(stats).toHaveProperty('changeHistory');
-      expect(stats).toHaveProperty('databaseSize');
-    });
-  });
 });

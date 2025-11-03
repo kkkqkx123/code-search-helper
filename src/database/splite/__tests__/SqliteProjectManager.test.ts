@@ -26,6 +26,14 @@ describe('SqliteProjectManager', () => {
       exec: jest.fn()
     } as any;
 
+    // Create mock logger
+    mockLogger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn()
+    } as any;
+
     projectManager = new SqliteProjectManager(mockSqliteService, mockLogger);
   });
 
@@ -515,14 +523,14 @@ describe('SqliteProjectManager', () => {
       const mockListener1 = jest.fn();
       const mockListener2 = jest.fn();
 
-      projectManager.addEventListener('space_created', mockListener1);
-      projectManager.addEventListener('space_created', mockListener2);
-      projectManager.addEventListener('error', mockListener1);
+      const subscription1 = projectManager.subscribe('space_created', mockListener1);
+      const subscription2 = projectManager.subscribe('space_created', mockListener2);
+      const subscription3 = projectManager.subscribe('error', mockListener1);
 
-      projectManager.removeEventListener('space_created', mockListener1);
+      subscription1.unsubscribe();
 
       // Verify listeners can be managed
-      expect(() => projectManager.removeEventListener('nonexistent', mockListener1)).not.toThrow();
+      expect(() => subscription1.unsubscribe()).not.toThrow();
     });
 
     it('should handle errors in event listeners gracefully', async () => {
@@ -532,7 +540,7 @@ describe('SqliteProjectManager', () => {
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      projectManager.addEventListener('error', errorListener);
+      const subscription = projectManager.subscribe('error', errorListener);
 
       // Trigger an error by making database operation fail
       mockStatement.run.mockImplementation(() => {
@@ -545,6 +553,7 @@ describe('SqliteProjectManager', () => {
       expect(errorListener).toHaveBeenCalled();
 
       consoleSpy.mockRestore();
+      subscription.unsubscribe();
     });
   });
 });

@@ -41,7 +41,5 @@ describe('Nebula Connection Integration Test', () => {
     expect(nebulaService.createRelationship).toBeDefined();
     expect(nebulaService.findNodes).toBeDefined();
     expect(nebulaService.getDatabaseStats).toBeDefined();
-    expect(nebulaService.addEventListener).toBeDefined();
-    expect(nebulaService.removeEventListener).toBeDefined();
   });
 });

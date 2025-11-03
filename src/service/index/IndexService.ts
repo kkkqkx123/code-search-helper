@@ -20,7 +20,6 @@ import { NebulaService, INebulaService } from '../../database/nebula/NebulaServi
 import { FileTraversalService } from './shared/FileTraversalService';
 import { ConcurrencyService } from './shared/ConcurrencyService';
 import { IgnoreRuleManager } from '../ignore/IgnoreRuleManager';
-import * as fs from 'fs/promises';
 import * as path from 'path';
 
 export interface IndexSyncOptions {
@@ -664,7 +663,7 @@ export class IndexService {
     try {
       // 原有的向量索引逻辑
       await this.indexingLogicService.indexFile(projectPath, filePath);
-      
+
       // 新增的图索引逻辑
       if (process.env.NEBULA_ENABLED?.toLowerCase() !== 'false') {
         await this.indexingLogicService.indexFileToGraph(projectPath, filePath);
@@ -952,7 +951,7 @@ export class IndexService {
   async updateIndex(projectPath: string, options?: UpdateIndexOptions): Promise<UpdateIndexResult> {
     const startTime = Date.now();
     const projectId = this.projectIdManager.getProjectId(projectPath);
-    
+
     if (!projectId) {
       throw new Error(`Project not found: ${projectPath}`);
     }
@@ -1026,8 +1025,8 @@ export class IndexService {
    * 执行增量更新
    */
   private async performIncrementalUpdate(
-    projectPath: string, 
-    options: UpdateIndexOptions = {}, 
+    projectPath: string,
+    options: UpdateIndexOptions = {},
     operation: UpdateOperation
   ): Promise<UpdateIndexResult> {
     const startTime = Date.now();
@@ -1105,11 +1104,11 @@ export class IndexService {
             operation.progress.currentFile = file;
             operation.progress.filesProcessed++;
             operation.progress.percentage = Math.round((operation.progress.filesProcessed / operation.progress.filesTotal) * 100);
-            
+
             // 更新预计剩余时间
             const elapsedTime = Date.now() - operation.startTime.getTime();
             const filesPerSecond = operation.progress.filesProcessed / (elapsedTime / 1000);
-            operation.progress.estimatedTimeRemaining = filesPerSecond > 0 
+            operation.progress.estimatedTimeRemaining = filesPerSecond > 0
               ? Math.round((operation.progress.filesTotal - operation.progress.filesProcessed) / filesPerSecond)
               : 0;
 

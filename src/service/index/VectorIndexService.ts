@@ -9,8 +9,6 @@ import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { IndexService } from './IndexService';
 import { FileTraversalService } from './shared/FileTraversalService';
 import { ConcurrencyService } from './shared/ConcurrencyService';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
 export interface VectorIndexOptions {
   embedder?: string;
@@ -45,7 +43,7 @@ export class VectorIndexService {
     @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
     @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService
-  ) {}
+  ) { }
 
   /**
    * 执行向量嵌入
@@ -127,14 +125,14 @@ export class VectorIndexService {
   async getVectorStatus(projectId: string): Promise<any> {
     try {
       const vectorStatus = this.projectStateManager.getVectorStatus(projectId);
-      
+
       if (!vectorStatus) {
         throw new Error(`Project not found: ${projectId}`);
       }
 
       // 检查是否有正在进行的操作
       const activeOperation = this.activeOperations.get(projectId);
-      
+
       return {
         projectId,
         ...vectorStatus,
@@ -218,30 +216,30 @@ export class VectorIndexService {
     try {
       const batchSize = options.batchSize || 10;
       const maxConcurrency = options.maxConcurrency || 3;
-      
+
       let processedFiles = 0;
       let failedFiles = 0;
 
       // 分批处理文件
       for (let i = 0; i < files.length; i += batchSize) {
         const batch = files.slice(i, i + batchSize);
-        
-          try {
-            // 使用现有的IndexService处理文件
-            // 由于indexFile是私有方法，我们需要使用startIndexing
-            // 但为了简化，我们直接处理文件
-            for (const filePath of batch) {
-              try {
-                // 直接使用indexingLogicService处理文件
-                await this.indexService['indexingLogicService'].indexFile(projectPath, filePath);
-              } catch (error) {
-                this.logger.error(`Failed to index file: ${filePath}`, { error });
-                throw error;
-              }
+
+        try {
+          // 使用现有的IndexService处理文件
+          // 由于indexFile是私有方法，我们需要使用startIndexing
+          // 但为了简化，我们直接处理文件
+          for (const filePath of batch) {
+            try {
+              // 直接使用indexingLogicService处理文件
+              await this.indexService['indexingLogicService'].indexFile(projectPath, filePath);
+            } catch (error) {
+              this.logger.error(`Failed to index file: ${filePath}`, { error });
+              throw error;
             }
+          }
 
           processedFiles += batch.length;
-          
+
           // 更新进度
           const progress = Math.round((processedFiles / files.length) * 100);
           await this.projectStateManager.updateVectorIndexingProgress(
@@ -283,7 +281,7 @@ export class VectorIndexService {
 
       // 完成向量索引
       await this.projectStateManager.completeVectorIndexing(projectId);
-      
+
       this.logger.info(`Completed vector indexing for project ${projectId}`, {
         projectId,
         processedFiles,

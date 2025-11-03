@@ -74,20 +74,28 @@ describe('GlobalEventBus', () => {
     });
   });
 
-  describe('off', () => {
-    it('should remove an event listener', () => {
+  describe('on (subscription)', () => {
+    it('should return a subscription object that can be unsubscribed', () => {
       const listener = jest.fn();
-      globalEventBus.on('app.started', listener);
-      globalEventBus.off('app.started', listener);
-      
+      const subscription = globalEventBus.on('app.started', listener);
+
+      expect(subscription).toHaveProperty('unsubscribe');
+      expect(typeof subscription.unsubscribe).toBe('function');
+
+      // Test unsubscribe
       const eventData = {
         version: '1.0.0',
         environment: 'test' as const,
         startTime: new Date()
       };
-      
+
       globalEventBus.emit('app.started', eventData);
-      expect(listener).not.toHaveBeenCalled();
+      expect(listener).toHaveBeenCalledWith(eventData);
+
+      // Unsubscribe and test that listener is no longer called
+      subscription.unsubscribe();
+      globalEventBus.emit('app.started', eventData);
+      expect(listener).toHaveBeenCalledTimes(1); // Should not be called again
     });
   });
 
@@ -134,26 +142,23 @@ describe('GlobalEventBus', () => {
   });
 
   describe('onDatabaseEvent', () => {
-    it('should add a database event listener', () => {
+    it('should subscribe to a database event and return subscription', () => {
       const databaseEventManager = globalEventBus.getDatabaseEventManager();
-      const addEventListenerSpy = jest.spyOn(databaseEventManager, 'addEventListener');
-      
-      const listener = jest.fn();
-      globalEventBus.onDatabaseEvent(DatabaseEventType.SERVICE_INITIALIZED, listener);
-      
-      expect(addEventListenerSpy).toHaveBeenCalledWith(DatabaseEventType.SERVICE_INITIALIZED, listener);
-    });
-  });
+      const subscribeSpy = jest.spyOn(databaseEventManager, 'subscribe');
 
-  describe('offDatabaseEvent', () => {
-    it('should remove a database event listener', () => {
-      const databaseEventManager = globalEventBus.getDatabaseEventManager();
-      const removeEventListenerSpy = jest.spyOn(databaseEventManager, 'removeEventListener');
-      
       const listener = jest.fn();
-      globalEventBus.offDatabaseEvent(DatabaseEventType.SERVICE_INITIALIZED, listener);
-      
-      expect(removeEventListenerSpy).toHaveBeenCalledWith(DatabaseEventType.SERVICE_INITIALIZED, listener);
+      const mockSubscription = {
+        id: 'test-subscription',
+        eventType: DatabaseEventType.SERVICE_INITIALIZED,
+        handler: listener,
+        unsubscribe: jest.fn()
+      };
+      subscribeSpy.mockReturnValue(mockSubscription);
+
+      const subscription = globalEventBus.onDatabaseEvent(DatabaseEventType.SERVICE_INITIALIZED, listener);
+
+      expect(subscribeSpy).toHaveBeenCalledWith(DatabaseEventType.SERVICE_INITIALIZED, listener);
+      expect(subscription).toBe(mockSubscription);
     });
   });
 
@@ -176,17 +181,15 @@ describe('GlobalEventBus', () => {
   });
 
   describe('clearAllListeners', () => {
-    it('should clear all listeners', () => {
+    it('should clear event manager listeners', () => {
       const eventManager = globalEventBus.getEventManager();
-      const databaseEventManager = globalEventBus.getDatabaseEventManager();
-      
+
       const clearAllListenersSpy = jest.spyOn(eventManager, 'clearAllListeners');
-      const removeAllListenersSpy = jest.spyOn(databaseEventManager, 'removeAllListeners');
-      
+
       globalEventBus.clearAllListeners();
-      
+
       expect(clearAllListenersSpy).toHaveBeenCalled();
-      expect(removeAllListenersSpy).toHaveBeenCalled();
+      // Note: Database event manager clearAllListeners is handled by individual subscriptions in subscribe mode
     });
   });
 

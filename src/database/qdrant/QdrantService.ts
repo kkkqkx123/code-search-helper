@@ -66,7 +66,7 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
       connectionManager as unknown as IConnectionManager,
       projectManager as unknown as IProjectManager
     );
-    
+
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.projectIdManager = projectIdManager;
@@ -87,7 +87,7 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
       if (!baseInitialized) {
         return false;
       }
-      
+
       // 初始化连接管理器
       const connectionInitialized = await this.connectionManager.initialize();
       if (!connectionInitialized) {
@@ -96,7 +96,7 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
       }
 
       this.emitEvent('initialized', { timestamp: new Date() });
-      
+
       return true;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
@@ -187,13 +187,13 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
     try {
       const result = await this.vectorOperations.upsertVectorsWithOptions(collectionName, vectors, options);
       const duration = Date.now() - startTime;
-      
+
       this.performanceMonitor.recordOperation('upsert_vectors', duration, {
         collectionName,
         vectorCount: vectors.length,
         batchSize: vectors.length
       });
-      
+
       return result;
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -232,15 +232,15 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
     try {
       const results = await this.vectorOperations.searchVectorsWithOptions(collectionName, query, options);
       const duration = Date.now() - startTime;
-      
+
       this.performanceMonitor.recordOperation('search_vectors', duration, {
         collectionName,
         queryLength: query.length,
         resultCount: results.length
       });
-      
+
       await this.databaseLogger.logQueryPerformance(`search in ${collectionName}`, duration, results.length);
-      
+
       return results;
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -329,11 +329,11 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
   async createCollectionForProject(projectPath: string, vectorSize: number, distance?: VectorDistance): Promise<boolean> {
     try {
       const result = await this.projectManager.createCollectionForProject(projectPath, vectorSize, distance);
-      
+
       if (result) {
         this.emitEvent('project_space_created', { projectPath, vectorSize, distance });
       }
-      
+
       return result;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
@@ -349,11 +349,11 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
       const startTime = Date.now();
       const result = await this.projectManager.upsertVectorsForProject(projectPath, vectors);
       const duration = Date.now() - startTime;
-      
+
       if (result) {
         this.emitEvent('data_inserted', { projectPath, vectorCount: vectors.length, duration });
       }
-      
+
       return result;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
@@ -369,9 +369,9 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
       const startTime = Date.now();
       const results = await this.projectManager.searchVectorsForProject(projectPath, query, options);
       const duration = Date.now() - startTime;
-      
+
       this.emitEvent('data_queried', { projectPath, queryLength: query.length, options, duration, resultCount: results.length });
-      
+
       return results;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
@@ -392,11 +392,11 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
   async deleteCollectionForProject(projectPath: string): Promise<boolean> {
     try {
       const result = await this.projectManager.deleteCollectionForProject(projectPath);
-      
+
       if (result) {
         this.emitEvent('project_space_deleted', { projectPath });
       }
-      
+
       return result;
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
@@ -474,7 +474,7 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
     try {
       await this.connectionManager.close();
       await super.close();
-      
+
       this.emitEvent('closed', { timestamp: new Date() });
     } catch (error) {
       this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
@@ -483,13 +483,29 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
   }
 
   /**
-   * 订阅事件（推荐的新API）
-   */
-  subscribe(type: QdrantEventType | string, listener: (event: any) => void) {
-    // 添加到基础服务
-    const baseSubscription = super.subscribe(type, listener);
-    
-    return baseSubscription;
+  * 订阅事件（推荐的新API）
+  */
+  subscribe(type: QdrantEventType | string, listener: (event: any) => void): Subscription {
+    // 订阅所有底层管理器的同一事件
+    const connectionSub = this.connectionManager.subscribe(type as QdrantEventType, listener);
+    const collectionSub = this.collectionManager.subscribe(type as QdrantEventType, listener);
+    const vectorSub = this.vectorOperations.subscribe(type as QdrantEventType, listener);
+    const querySub = this.queryUtils.subscribe(type as QdrantEventType, listener);
+    const projectSub = this.projectManager.subscribe(type as QdrantEventType, listener);
+
+    // 返回一个组合订阅对象，取消时会取消所有订阅
+    return {
+      id: `qdrant-service-${Date.now()}`,
+      eventType: type,
+      handler: listener,
+      unsubscribe: () => {
+        connectionSub.unsubscribe();
+        collectionSub.unsubscribe();
+        vectorSub.unsubscribe();
+        querySub.unsubscribe();
+        projectSub.unsubscribe();
+      }
+    };
   }
 
   /**
@@ -505,15 +521,15 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
   }> {
     try {
       const baseHealth = await super.healthCheck();
-      
+
       if (baseHealth.status === 'unhealthy') {
         return baseHealth;
       }
-      
+
       // 检查Qdrant特定组件
       const connectionStatus = this.isConnected();
       const collections = await this.listCollections();
-      
+
       return {
         status: connectionStatus ? 'healthy' : 'unhealthy',
         details: {

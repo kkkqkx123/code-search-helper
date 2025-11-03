@@ -181,16 +181,16 @@ describe('SqliteConnectionManager', () => {
       const mockListener1 = jest.fn();
       const mockListener2 = jest.fn();
 
-      connectionManager.addEventListener('connected', mockListener1);
-      connectionManager.addEventListener('connected', mockListener2);
-      connectionManager.addEventListener('error', mockListener1);
+      const subscription1 = connectionManager.subscribe('connected', mockListener1);
+      const subscription2 = connectionManager.subscribe('connected', mockListener2);
+      const subscription3 = connectionManager.subscribe('error', mockListener1);
 
       // Connect to trigger events
       connectionManager.connect();
 
-      connectionManager.removeEventListener('connected', mockListener1);
-      
-      // Verify listeners were added and can be removed
+      subscription1.unsubscribe();
+
+      // Verify listeners were added and can be unsubscribed
       expect(mockListener1).toHaveBeenCalled();
       expect(mockListener2).toHaveBeenCalled();
     });
@@ -199,17 +199,17 @@ describe('SqliteConnectionManager', () => {
       const errorListener = jest.fn(() => {
         throw new Error('Listener error');
       });
-      
+
       // Mock console.error to verify error handling
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      connectionManager.addEventListener('error', errorListener);
-      
+      const subscription = connectionManager.subscribe('error', errorListener);
+
       // Trigger an error event
       mockSqliteService.connect.mockImplementation(() => {
         throw new Error('Connection error');
       });
-      
+
       await connectionManager.connect();
 
       expect(consoleSpy).toHaveBeenCalled();

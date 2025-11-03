@@ -4,6 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { FileSystemTraversal, FileInfo } from '../filesystem/FileSystemTraversal';
 import { QdrantService } from '../../database/qdrant/QdrantService';
+import { NebulaService } from '../../database/nebula/NebulaService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
@@ -26,6 +27,7 @@ import { AutoOptimizationAdvisor } from '../optimization/AutoOptimizationAdvisor
 import { BatchProcessingOptimizer } from '../optimization/BatchProcessingOptimizer';
 import { TreeSitterService } from '../parser/core/parse/TreeSitterService';
 import { TreeSitterQueryEngine } from '../parser/core/query/TreeSitterQueryEngine';
+import { NebulaNode, NebulaRelationship } from '../../database/nebula/NebulaTypes';
 
 export interface MemoryUsage {
   used: number;
@@ -49,6 +51,7 @@ export class IndexingLogicService {
   @inject(TYPES.FileSystemTraversal) private fileSystemTraversal!: FileSystemTraversal;
   @inject(TYPES.QdrantService) private qdrantService!: QdrantService;
   @inject(TYPES.GraphService) private graphService!: IGraphService; // 新增
+  @inject(TYPES.NebulaService) private nebulaService!: NebulaService; // 新增
   @inject(TYPES.GraphDataMappingService) private graphMappingService!: IGraphDataMappingService; // 新增
   @inject(TYPES.PerformanceDashboard) private performanceDashboard!: PerformanceDashboard; // 新增
   @inject(TYPES.AutoOptimizationAdvisor) private optimizationAdvisor!: AutoOptimizationAdvisor; // 暂时禁用
@@ -495,10 +498,10 @@ export class IndexingLogicService {
       }
 
       // 解析为 AST
-      const parseResult = await this.treeSitterService.parseCode(content, language);
+      const parseResult = await this.treeSitterService.parseCode(content, language.name);
       
       // 执行图索引查询
-      const queryResults = await this.treeSitterQueryEngine.executeGraphQueries(parseResult.ast, language);
+      const queryResults = await this.treeSitterQueryEngine.executeGraphQueries(parseResult.ast, language.name);
 
       // 映射为图元素
       const graphElements = await this.graphMappingService.mapQueryResultsToGraph(queryResults);
@@ -509,11 +512,11 @@ export class IndexingLogicService {
 
       // 插入到图数据库
       if (nebulaNodes.length > 0) {
-        await this.graphService.storeNodes(nebulaNodes);
+        await this.nebulaService.insertNodes(nebulaNodes);
       }
 
       if (nebulaRelationships.length > 0) {
-        await this.graphService.storeRelationships(nebulaRelationships);
+        await this.nebulaService.insertRelationships(nebulaRelationships);
       }
 
       this.logger.info(`Successfully indexed file to graph: ${filePath}`, {
@@ -530,7 +533,7 @@ export class IndexingLogicService {
   /**
    * 转换为Nebula节点格式
    */
-  private convertToNebulaNodes(nodes: any[]): any[] {
+  private convertToNebulaNodes(nodes: any[]): NebulaNode[] {
     // 简化转换逻辑，实际实现可能需要更复杂的映射
     return nodes.map(node => ({
       id: node.id,
@@ -542,7 +545,7 @@ export class IndexingLogicService {
   /**
    * 转换为Nebula关系格式
    */
-  private convertToNebulaRelationships(edges: any[]): any[] {
+  private convertToNebulaRelationships(edges: any[]): NebulaRelationship[] {
     // 简化转换逻辑，实际实现可能需要更复杂的映射
     return edges.map(edge => ({
       id: edge.id,

@@ -178,15 +178,18 @@ describe('QdrantConnectionManager', () => {
     });
   });
 
-  describe('addEventListener', () => {
-    it('should add an event listener', () => {
+  describe('subscribe', () => {
+    it('should subscribe to an event', () => {
       const listener = jest.fn();
 
-      connectionManager.addEventListener(QdrantEventType.CONNECTED, listener);
+      const subscription = connectionManager.subscribe(QdrantEventType.CONNECTED, listener);
 
-      // We can't directly test the internal eventListeners map, but we can verify
-      // that the method exists and can be called
-      expect(typeof connectionManager.addEventListener).toBe('function');
+      // Verify that the method exists and returns a subscription object
+      expect(typeof connectionManager.subscribe).toBe('function');
+      expect(subscription).toHaveProperty('unsubscribe');
+      expect(typeof subscription.unsubscribe).toBe('function');
+
+      subscription.unsubscribe();
     });
   });
 });

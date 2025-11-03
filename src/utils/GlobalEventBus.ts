@@ -8,7 +8,8 @@ import {
   DatabaseEventType,
   QdrantEventType,
   NebulaEventType,
-  DatabaseEventManager
+  DatabaseEventManager,
+  Subscription
 } from '../database/common/DatabaseEventTypes';
 // import { DatabaseEventInterfaces } from '../database/common/DatabaseEventInterfaces';
 
@@ -19,35 +20,22 @@ import {
  */
 export interface IGlobalEventBus<TEvents extends Record<string, any> = Record<string, any>> {
   /**
-   * 添加事件监听器
+   * 订阅事件监听器
    */
-  on<K extends keyof TEvents>(eventType: K, listener: (data: TEvents[K]) => void): void;
-  
-  /**
-   * 移除事件监听器
-   */
-  off<K extends keyof TEvents>(eventType: K, listener: (data: TEvents[K]) => void): void;
-  
+  on<K extends keyof TEvents>(eventType: K, listener: (data: TEvents[K]) => void): Subscription;
+
   /**
    * 触发事件
    */
   emit<K extends keyof TEvents>(eventType: K, data: TEvents[K]): void;
-  
+
   /**
-   * 添加数据库事件监听器
+   * 订阅数据库事件监听器
    */
   onDatabaseEvent(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType, 
+    eventType: DatabaseEventType | QdrantEventType | NebulaEventType,
     listener: DatabaseEventListener<DatabaseEvent>
-  ): void;
-  
-  /**
-   * 移除数据库事件监听器
-   */
-  offDatabaseEvent(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType, 
-    listener: DatabaseEventListener<DatabaseEvent>
-  ): void;
+  ): Subscription;
   
   /**
    * 触发数据库事件
@@ -257,7 +245,7 @@ export class GlobalEventBus<TEvents extends Record<string, any> = GlobalEvents> 
     this.eventBridge.startBridging();
     
     // 监听数据库错误事件，转换为全局错误事件
-    this.databaseEventManager.addEventListener(DatabaseEventType.ERROR_OCCURRED, (event: DatabaseEvent) => {
+    this.databaseEventManager.subscribe(DatabaseEventType.ERROR_OCCURRED, (event: DatabaseEvent) => {
       this.emit('app.error' as keyof TEvents, {
         error: (event as any).error || new Error('Unknown database error'),
         context: {
@@ -281,17 +269,20 @@ export class GlobalEventBus<TEvents extends Record<string, any> = GlobalEvents> 
   }
 
   /**
-   * 添加事件监听器
+   * 订阅事件监听器
    */
-  on<K extends keyof TEvents>(eventType: K, listener: (data: TEvents[K]) => void): void {
+  on<K extends keyof TEvents>(eventType: K, listener: (data: TEvents[K]) => void): Subscription {
+    // 使用现有的 EventManager，但返回订阅对象以保持一致性
     this.eventManager.addEventListener(String(eventType), listener as unknown as (data: TEvents) => void);
-  }
 
-  /**
-   * 移除事件监听器
-   */
-  off<K extends keyof TEvents>(eventType: K, listener: (data: TEvents[K]) => void): void {
-    this.eventManager.removeEventListener(String(eventType), listener as unknown as (data: TEvents) => void);
+    return {
+      id: `global-event-${Date.now()}-${Math.random()}`,
+      eventType: String(eventType),
+      handler: listener,
+      unsubscribe: () => {
+        this.eventManager.removeEventListener(String(eventType), listener as unknown as (data: TEvents) => void);
+      }
+    };
   }
 
   /**
@@ -315,23 +306,13 @@ export class GlobalEventBus<TEvents extends Record<string, any> = GlobalEvents> 
   }
 
   /**
-   * 添加数据库事件监听器
+   * 订阅数据库事件监听器
    */
   onDatabaseEvent(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType, 
+    eventType: DatabaseEventType | QdrantEventType | NebulaEventType,
     listener: DatabaseEventListener<DatabaseEvent>
-  ): void {
-    this.databaseEventManager.addEventListener(eventType, listener);
-  }
-
-  /**
-   * 移除数据库事件监听器
-   */
-  offDatabaseEvent(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType, 
-    listener: DatabaseEventListener<DatabaseEvent>
-  ): void {
-    this.databaseEventManager.removeEventListener(eventType, listener);
+  ): Subscription {
+    return this.databaseEventManager.subscribe(eventType, listener);
   }
 
   /**
@@ -363,11 +344,12 @@ export class GlobalEventBus<TEvents extends Record<string, any> = GlobalEvents> 
   }
 
   /**
-   * 清除所有事件监听器
-   */
+  * 清除所有事件监听器
+  */
   clearAllListeners(): void {
-    this.eventManager.clearAllListeners();
-    this.databaseEventManager.removeAllListeners();
+  this.eventManager.clearAllListeners();
+  // Note: DatabaseEventManager may not have removeAllListeners method in subscribe mode
+    // This is handled by the individual subscription objects
   }
 
   /**

@@ -20,8 +20,7 @@ const mockConnectionManager: jest.Mocked<IConnectionManager> = {
   getConfig: jest.fn(),
   updateConfig: jest.fn(),
   getConnectionStatus: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn()
+  subscribe: jest.fn()
 };
 
 const mockProjectManager: jest.Mocked<IProjectManager> = {
@@ -35,8 +34,7 @@ const mockProjectManager: jest.Mocked<IProjectManager> = {
   deleteProjectData: jest.fn(),
   searchProjectData: jest.fn(),
   getProjectDataById: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn()
+  subscribe: jest.fn()
 };
 
 describe('BaseDatabaseService', () => {
@@ -235,20 +233,40 @@ describe('BaseDatabaseService', () => {
   describe('event listeners', () => {
     it('should add event listeners to both managers', () => {
       const listener: EventListener = jest.fn();
-      
-      databaseService.addEventListener('test_event', listener);
-      
-      expect(connectionManager.addEventListener).toHaveBeenCalledWith('test_event', listener);
-      expect(projectManager.addEventListener).toHaveBeenCalledWith('test_event', listener);
+      const mockSubscription = {
+        id: 'test-id',
+        eventType: 'test_event',
+        handler: listener,
+        unsubscribe: jest.fn()
+      };
+
+      // Mock subscribe to return subscription object
+      connectionManager.subscribe.mockReturnValue(mockSubscription);
+      projectManager.subscribe.mockReturnValue(mockSubscription);
+
+      databaseService.subscribe('test_event', listener);
+
+      expect(connectionManager.subscribe).toHaveBeenCalledWith('test_event', listener);
+      expect(projectManager.subscribe).toHaveBeenCalledWith('test_event', listener);
     });
 
-    it('should remove event listeners from both managers', () => {
+    it('should handle subscription unsubscribe', () => {
       const listener: EventListener = jest.fn();
-      
-      databaseService.removeEventListener('test_event', listener);
-      
-      expect(connectionManager.removeEventListener).toHaveBeenCalledWith('test_event', listener);
-      expect(projectManager.removeEventListener).toHaveBeenCalledWith('test_event', listener);
+      const mockSubscription = {
+        id: 'test-id',
+        eventType: 'test_event',
+        handler: listener,
+        unsubscribe: jest.fn()
+      };
+
+      // Mock subscribe to return subscription object
+      connectionManager.subscribe.mockReturnValue(mockSubscription);
+      projectManager.subscribe.mockReturnValue(mockSubscription);
+
+      const subscription = databaseService.subscribe('test_event', listener);
+      subscription.unsubscribe();
+
+      expect(mockSubscription.unsubscribe).toHaveBeenCalled();
     });
   });
 

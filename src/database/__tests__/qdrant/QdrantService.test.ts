@@ -51,8 +51,7 @@ const mockConnectionManager = {
   getConnectionStatus: jest.fn(),
   getConfig: jest.fn(),
   updateConfig: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
+  subscribe: jest.fn(),
 };
 
 const mockCollectionManager = {
@@ -65,8 +64,7 @@ const mockCollectionManager = {
   createPayloadIndex: jest.fn(),
   createPayloadIndexes: jest.fn(),
   listCollections: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
+  subscribe: jest.fn(),
 };
 
 const mockVectorOperations = {
@@ -77,8 +75,7 @@ const mockVectorOperations = {
   deletePoints: jest.fn(),
   clearCollection: jest.fn(),
   getPointCount: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
+  subscribe: jest.fn(),
 };
 
 const mockQueryUtils = {
@@ -88,8 +85,7 @@ const mockQueryUtils = {
   countPoints: jest.fn(),
   buildFilter: jest.fn(),
   buildAdvancedFilter: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
+  subscribe: jest.fn(),
 };
 
 const mockProjectManager = {
@@ -102,8 +98,7 @@ const mockProjectManager = {
   listProjects: jest.fn(),
   deleteVectorsForProject: jest.fn(),
   clearProject: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
+  subscribe: jest.fn(),
 };
 
 const mockDatabaseLogger = {
@@ -431,33 +426,33 @@ describe('QdrantService', () => {
     });
   });
 
-  describe('addEventListener', () => {
-    it('should add event listener to all modules', () => {
+  describe('subscribe', () => {
+    it('should subscribe to events from all modules', () => {
       const type: QdrantEventType = QdrantEventType.CONNECTED;
       const listener = jest.fn();
+      const mockSubscription = {
+        id: 'test-id',
+        eventType: type,
+        handler: listener,
+        unsubscribe: jest.fn()
+      };
 
-      qdrantService.addEventListener(type, listener);
+      // Mock subscribe to return subscription objects
+      mockConnectionManager.subscribe.mockReturnValue(mockSubscription);
+      mockCollectionManager.subscribe.mockReturnValue(mockSubscription);
+      mockVectorOperations.subscribe.mockReturnValue(mockSubscription);
+      mockQueryUtils.subscribe.mockReturnValue(mockSubscription);
+      mockProjectManager.subscribe.mockReturnValue(mockSubscription);
 
-      expect(mockConnectionManager.addEventListener).toHaveBeenCalledWith(type, listener);
-      expect(mockCollectionManager.addEventListener).toHaveBeenCalledWith(type, listener);
-      expect(mockVectorOperations.addEventListener).toHaveBeenCalledWith(type, listener);
-      expect(mockQueryUtils.addEventListener).toHaveBeenCalledWith(type, listener);
-      expect(mockProjectManager.addEventListener).toHaveBeenCalledWith(type, listener);
-    });
-  });
+      const subscription = qdrantService.subscribe(type, listener);
 
-  describe('removeEventListener', () => {
-    it('should remove event listener from all modules', () => {
-      const type: QdrantEventType = QdrantEventType.CONNECTED;
-      const listener = jest.fn();
+      expect(mockConnectionManager.subscribe).toHaveBeenCalledWith(type, listener);
+      expect(mockCollectionManager.subscribe).toHaveBeenCalledWith(type, listener);
+      expect(mockVectorOperations.subscribe).toHaveBeenCalledWith(type, listener);
+      expect(mockQueryUtils.subscribe).toHaveBeenCalledWith(type, listener);
+      expect(mockProjectManager.subscribe).toHaveBeenCalledWith(type, listener);
 
-      qdrantService.removeEventListener(type, listener);
-
-      expect(mockConnectionManager.removeEventListener).toHaveBeenCalledWith(type, listener);
-      expect(mockCollectionManager.removeEventListener).toHaveBeenCalledWith(type, listener);
-      expect(mockVectorOperations.removeEventListener).toHaveBeenCalledWith(type, listener);
-      expect(mockQueryUtils.removeEventListener).toHaveBeenCalledWith(type, listener);
-      expect(mockProjectManager.removeEventListener).toHaveBeenCalledWith(type, listener);
+      expect(subscription).toHaveProperty('unsubscribe');
     });
   });
 });
