@@ -172,11 +172,16 @@ function test10() {
     const chunks = await strategy.chunkMarkdown(content, 'test.md');
 
     // 验证代码块被拆分
-    const codeChunks = chunks.filter(chunk => chunk.content.includes('```javascript'));
+    const codeChunks = chunks.filter(chunk => chunk.metadata.type === 'code');
     
     // 输出调试信息
+    console.log('=== 大块代码块拆分测试调试信息 ===');
     console.log('Total chunks:', chunks.length);
     console.log('Code chunks:', codeChunks.length);
+    chunks.forEach((chunk, index) => {
+      console.log(`Chunk ${index + 1}: type=${chunk.metadata.type}, size=${chunk.content.length}`);
+      console.log(` Content preview: ${chunk.content.substring(0, 100)}...`);
+    });
     codeChunks.forEach((chunk, index) => {
       console.log(`Code chunk ${index + 1} length:`, chunk.content.length);
     });

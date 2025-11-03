@@ -7,7 +7,6 @@ import {
   MarkdownBlockType,
   DEFAULT_MARKDOWN_CONFIG,
   MARKDOWN_SEMANTIC_WEIGHTS,
-  MARKDOWN_PATTERNS,
   isMarkdownFile,
   getMarkdownBlockType,
   getHeadingLevel,
@@ -197,9 +196,9 @@ export class MarkdownTextStrategy {
 
       // 同级或更高级别的标题开始新块
       const shouldStartNew = newLevel <= currentLevel;
-      
+
       this.logger?.debug(`Heading level change: current H${currentLevel} -> new H${newLevel}, start new block: ${shouldStartNew}`);
-      
+
       return shouldStartNew;
     }
 
@@ -312,11 +311,10 @@ export class MarkdownTextStrategy {
    * 判断是否应该合并块
    *
    * 规则优先级（从高到低）：
-   * 1. 硬性限制（大小、行数）- 不可违反
+   * 1. 硬性限制（大小、行数）- 不可违反(最小约束没有单独实现)
    * 2. 结构完整性保护 - 不可违反
    * 3. 标题单向合并规则 - 高优先级，但可被minChunkSize覆盖
    * 4. 语义和内容相关规则 - 可被更高优先级规则覆盖
-   * 5. 最小大小保证 - 最低优先级，确保内容不会过小
    */
   private shouldMergeBlocks(
     currentBlock: MarkdownBlock,
@@ -339,7 +337,7 @@ export class MarkdownTextStrategy {
       // 代码块保持完整
       if (this.config.preserveCodeBlocks &&
         (currentType === MarkdownBlockType.CODE_BLOCK || nextType === MarkdownBlockType.CODE_BLOCK)) {
-        // 如果当前块太小，仍然允许合并（会被优先级5覆盖）
+        // 如果当前块太小，仍然允许合并
         if (currentSize >= this.config.minChunkSize) {
           return false;
         }
@@ -348,7 +346,7 @@ export class MarkdownTextStrategy {
       // 表格保持完整
       if (this.config.preserveTables &&
         (currentType === MarkdownBlockType.TABLE || nextType === MarkdownBlockType.TABLE)) {
-        // 如果当前块太小，仍然允许合并（会被优先级5覆盖）
+        // 如果当前块太小，仍然允许合并
         if (currentSize >= this.config.minChunkSize) {
           return false;
         }
@@ -357,7 +355,7 @@ export class MarkdownTextStrategy {
       // 列表保持完整
       if (this.config.preserveLists &&
         (currentType === MarkdownBlockType.LIST || nextType === MarkdownBlockType.LIST)) {
-        // 如果当前块太小，仍然允许合并（会被优先级5覆盖）
+        // 如果当前块太小，仍然允许合并
         if (currentSize >= this.config.minChunkSize) {
           return false;
         }
@@ -374,12 +372,7 @@ export class MarkdownTextStrategy {
     }
 
     // 优先级4：语义和内容相关规则
-    // 标题与内容合并（仅向前合并）
-    if (this.config.mergeWithHeading && currentType === MarkdownBlockType.HEADING) {
-      return true;
-    }
-
-    // 连续标题合并（高级标题向低级标题合并）
+    // 连续标题合并（高级标题向低级标题合并）- 优先于标题与内容合并
     if (this.config.mergeConsecutiveHeadings &&
       currentType === MarkdownBlockType.HEADING &&
       nextType === MarkdownBlockType.HEADING) {
@@ -389,64 +382,9 @@ export class MarkdownTextStrategy {
       }
     }
 
-    // 短段落合并
-    if (this.config.mergeShortParagraphs &&
-      currentType === MarkdownBlockType.PARAGRAPH &&
-      nextType === MarkdownBlockType.PARAGRAPH &&
-      currentSize < this.config.minChunkSize) {
+    // 标题与内容合并（仅向前合并）
+    if (this.config.mergeWithHeading && currentType === MarkdownBlockType.HEADING) {
       return true;
-
-      // 语义相似性合并
-      if (this.config.enableSemanticMerge &&
-        currentType === MarkdownBlockType.PARAGRAPH &&
-        nextType === MarkdownBlockType.PARAGRAPH) {
-        const similarity = calculateSemanticSimilarity(currentBlock.content, nextBlock.content);
-        return similarity >= this.config.semanticSimilarityThreshold;
-      }
-
-      // 优先级5：最小大小保证（最低优先级，确保内容不会过小）
-      // 这个规则可以覆盖优先级3的标题单向合并规则
-      if (currentSize < this.config.minChunkSize) {
-        // 如果当前块太小，尝试与下一个块合并
-        // 即使违反标题单向合并规则也要合并，以避免产生过小的块
-        return true;
-      }
-
-      // 默认不合并不同类型
-      return false;
-    }
-
-    // 特殊元素保护逻辑
-    if (this.config.preserveStructureIntegrity) {
-      // 代码块保持完整
-      if (this.config.preserveCodeBlocks &&
-        (currentType === MarkdownBlockType.CODE_BLOCK || nextType === MarkdownBlockType.CODE_BLOCK)) {
-        // 如果当前块太小，仍然允许合并
-        if (currentSize < this.config.minChunkSize) {
-          return true;
-        }
-        return false;
-      }
-
-      // 表格保持完整
-      if (this.config.preserveTables &&
-        (currentType === MarkdownBlockType.TABLE || nextType === MarkdownBlockType.TABLE)) {
-        // 如果当前块太小，仍然允许合并
-        if (currentSize < this.config.minChunkSize) {
-          return true;
-        }
-        return false;
-      }
-
-      // 列表保持完整
-      if (this.config.preserveLists &&
-        (currentType === MarkdownBlockType.LIST || nextType === MarkdownBlockType.LIST)) {
-        // 如果当前块太小，仍然允许合并
-        if (currentSize < this.config.minChunkSize) {
-          return true;
-        }
-        return false;
-      }
     }
 
     // 短段落合并
@@ -454,14 +392,6 @@ export class MarkdownTextStrategy {
       currentType === MarkdownBlockType.PARAGRAPH &&
       nextType === MarkdownBlockType.PARAGRAPH &&
       currentSize < this.config.minChunkSize) {
-      return true;
-    }
-
-    // 如果当前块太小，合并标题和段落（标题向后合并到段落）
-    // 这里是标题块与后面的段落合并，符合标题向后合并的原则
-    if (currentSize < this.config.minChunkSize &&
-      currentType === MarkdownBlockType.HEADING &&
-      nextType === MarkdownBlockType.PARAGRAPH) {
       return true;
     }
 
@@ -471,6 +401,14 @@ export class MarkdownTextStrategy {
       nextType === MarkdownBlockType.PARAGRAPH) {
       const similarity = calculateSemanticSimilarity(currentBlock.content, nextBlock.content);
       return similarity >= this.config.semanticSimilarityThreshold;
+    }
+
+    // 优先级5：最小大小保证（最低优先级，确保内容不会过小）
+    // 这个规则可以覆盖优先级3的标题单向合并规则
+    if (currentSize < this.config.minChunkSize) {
+      // 如果当前块太小，尝试与下一个块合并
+      // 即使违反标题单向合并规则也要合并，以避免产生过小的块
+      return true;
     }
 
     // 默认不合并不同类型
@@ -518,14 +456,14 @@ export class MarkdownTextStrategy {
     if (currentLevel > 0 && nextLevel > 0 && this.config.headingLevelWeights) {
       const currentWeight = this.config.headingLevelWeights[currentLevel - 1] || 1;
       const nextWeight = this.config.headingLevelWeights[nextLevel - 1] || 1;
-      
+
       // 权重差异超过2倍认为差异过大
       const ratio = Math.max(currentWeight, nextWeight) / Math.min(currentWeight, nextWeight);
       const isTooLarge = ratio > 2;
-      
+
       // 添加调试日志
       this.logger?.debug(`Heading weight check: H${currentLevel}(${currentWeight}) vs H${nextLevel}(${nextWeight}), ratio: ${ratio}, too large: ${isTooLarge}`);
-      
+
       return isTooLarge;
     }
 
@@ -551,6 +489,7 @@ export class MarkdownTextStrategy {
 
     // 检查权重差异是否过大
     if (this.isHeadingLevelDifferenceTooLarge(currentBlock, nextBlock)) {
+      this.logger?.debug(`Heading merge blocked due to weight difference: H${currentLevel} vs H${nextLevel}`);
       return false;
     }
 
@@ -558,9 +497,9 @@ export class MarkdownTextStrategy {
     // 同级标题也可以合并（H2 -> H2）
     // 低级标题不能向高级标题合并（H2 -> H1 不允许）
     const allowMerge = currentLevel <= nextLevel;
-    
+
     this.logger?.debug(`Heading level merge check: H${currentLevel} -> H${nextLevel}, allowed: ${allowMerge}`);
-    
+
     return allowMerge;
   }
 
@@ -743,6 +682,7 @@ export class MarkdownTextStrategy {
       return true;
     }
 
+    this.logger?.debug(`Block does not need splitting: size=${block.content.length}, lines=${block.lines.length}, type=${block.type}`);
     return false;
   }
 
