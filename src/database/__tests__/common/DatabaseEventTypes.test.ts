@@ -166,16 +166,14 @@ describe('DatabaseEventTypes', () => {
       }
 
       const eventManager: IEventManager<TestEvents> = {
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
+        subscribe: jest.fn(),
         emitEvent: jest.fn(),
         removeAllListeners: jest.fn(),
         getListenerCount: jest.fn()
       };
 
       // 确保接口定义正确
-      expect(eventManager.addEventListener).toBeDefined();
-      expect(eventManager.removeEventListener).toBeDefined();
+      expect(eventManager.subscribe).toBeDefined();
       expect(eventManager.emitEvent).toBeDefined();
       expect(eventManager.removeAllListeners).toBeDefined();
       expect(eventManager.getListenerCount).toBeDefined();

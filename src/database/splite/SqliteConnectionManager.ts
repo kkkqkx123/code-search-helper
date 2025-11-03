@@ -3,6 +3,7 @@ import { IConnectionManager } from '../common/IDatabaseService';
 import { EventListener } from '../../types';
 import { TYPES } from '../../types';
 import { SqliteDatabaseService } from './SqliteDatabaseService';
+import { Subscription } from '../common/DatabaseEventTypes';
 
 @injectable()
 export class SqliteConnectionManager implements IConnectionManager {
@@ -75,21 +76,28 @@ export class SqliteConnectionManager implements IConnectionManager {
     };
   }
 
-  addEventListener(eventType: string, listener: EventListener): void {
+  subscribe(eventType: string, listener: EventListener): Subscription {
     if (!this.eventListeners.has(eventType)) {
       this.eventListeners.set(eventType, []);
     }
     this.eventListeners.get(eventType)!.push(listener);
-  }
 
-  removeEventListener(eventType: string, listener: EventListener): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      const index = listeners.indexOf(listener);
-      if (index > -1) {
-        listeners.splice(index, 1);
+    const subscription: Subscription = {
+      id: `${eventType}_${Date.now()}_${Math.random()}`,
+      eventType,
+      handler: listener,
+      unsubscribe: () => {
+        const listeners = this.eventListeners.get(eventType);
+        if (listeners) {
+          const index = listeners.indexOf(listener);
+          if (index > -1) {
+            listeners.splice(index, 1);
+          }
+        }
       }
-    }
+    };
+
+    return subscription;
   }
 
   private emitEvent(eventType: string, data: any): void {

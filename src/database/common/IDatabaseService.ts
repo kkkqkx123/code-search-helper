@@ -26,8 +26,6 @@ export interface IDatabaseService {
   getDataById(projectPath: string, id: string): Promise<any>;
 
   // 事件系统
-  addEventListener(eventType: string, listener: EventListener): void;
-  removeEventListener(eventType: string, listener: EventListener): void;
   subscribe(eventType: string, listener: EventListener): Subscription;
 
   // 健康检查
@@ -55,8 +53,6 @@ export interface IConnectionManager {
   getConnectionStatus(): any;
 
   // 事件系统
-  addEventListener(eventType: string, listener: EventListener): void;
-  removeEventListener(eventType: string, listener: EventListener): void;
   subscribe(eventType: string, listener: EventListener): Subscription;
 }
 
@@ -81,7 +77,5 @@ export interface IProjectManager {
   getProjectDataById(projectPath: string, id: string): Promise<any>;
 
   // 事件系统
-  addEventListener(eventType: string, listener: EventListener): void;
-  removeEventListener(eventType: string, listener: EventListener): void;
   subscribe(eventType: string, listener: EventListener): Subscription;
 }

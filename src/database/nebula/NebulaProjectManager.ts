@@ -34,8 +34,6 @@ export interface INebulaProjectManager extends IProjectManager {
   insertRelationshipsForProject(projectPath: string, relationships: NebulaRelationship[]): Promise<boolean>;
   findNodesForProject(projectPath: string, label: string, filter?: any): Promise<any[]>;
   findRelationshipsForProject(projectPath: string, type?: string, filter?: any): Promise<any[]>;
-  addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void;
-  removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void;
 }
 
 /**
@@ -676,26 +674,6 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       return [];
     }
-  }
-
-  /**
-   * 添加事件监听器
-   */
-  addEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
-    const subscription = this.eventManager.on(type as string, listener);
-
-    if (!this.subscriptions.has(type)) {
-      this.subscriptions.set(type, []);
-    }
-    this.subscriptions.get(type)!.push(subscription);
-  }
-
-  /**
-   * 移除事件监听器
-   */
-  removeEventListener(type: NebulaEventType, listener: (event: NebulaEvent) => void): void {
-    // 委托给 NebulaEventManager 的适配器方法
-    this.eventManager.removeEventListener(type as string, listener);
   }
 
   /**

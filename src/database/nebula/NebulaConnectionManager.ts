@@ -785,17 +785,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     this.updateConnectionStatusFromConfig();
   }
 
-  /**
-   * 添加事件监听器 - 委托给全局事件管理器
-   */
-  addEventListener(eventType: string, listener: EventListener): void {
-    // 委托给 NebulaEventManager
-    this.eventManager.on(eventType, listener);
-  }
-
-  /**
-   * 获取指定空间的连接
-   */
+   /**
+    * 获取指定空间的连接
+    */
   async getConnectionForSpace(spaceName: string): Promise<any> {
     // 验证空间名称
     if (!spaceName || typeof spaceName !== 'string' || spaceName.trim() === '') {
@@ -959,18 +951,10 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   /**
-   * 移除事件监听器 - 委托给全局事件管理器
-   */
-  removeEventListener(eventType: string, listener: EventListener): void {
-    // 委托给 NebulaEventManager 的适配器方法
-    this.eventManager.removeEventListener(eventType, listener as any);
-  }
-
-  /**
    * 订阅事件（推荐的新API）
    */
   subscribe(eventType: string, listener: EventListener) {
-    return this.eventManager.subscribe(eventType, listener as any);
+    return this.eventManager.subscribe(eventType, listener);
   }
 
   /**

@@ -20,12 +20,12 @@ describe('DatabaseEventManager', () => {
     jest.clearAllMocks();
   });
 
-  describe('addEventListener', () => {
-    it('should add event listener for specific event type', () => {
+  describe('subscribe', () => {
+    it('should subscribe event listener for specific event type', () => {
       const listener: DatabaseEventListener<{ value: number }> = jest.fn();
-      
-      eventManager.addEventListener('test.event', listener);
-      
+
+      const subscription = eventManager.subscribe('test.event', listener);
+
       // 触发事件
       const event: DatabaseEvent = {
         type: DatabaseEventType.SERVICE_INITIALIZED,
@@ -33,52 +33,57 @@ describe('DatabaseEventManager', () => {
         source: 'common',
         data: { value: 42 }
       };
-      
+
       eventManager.emitEvent(event);
-      
+
       // 注意：由于类型不匹配，监听器不会被调用
       // 这个测试主要是确保方法可以正常调用
       expect(eventManager.getListenerCount('test.event')).toBe(1);
+      expect(subscription.unsubscribe).toBeDefined();
     });
 
     it('should add multiple listeners for the same event type', () => {
       const listener1: DatabaseEventListener<any> = jest.fn();
       const listener2: DatabaseEventListener<any> = jest.fn();
-      
-      eventManager.addEventListener('test.event', listener1);
-      eventManager.addEventListener('test.event', listener2);
-      
+
+      eventManager.subscribe('test.event', listener1);
+      eventManager.subscribe('test.event', listener2);
+
       expect(eventManager.getListenerCount('test.event')).toBe(2);
     });
   });
 
-  describe('removeEventListener', () => {
-    it('should remove specific event listener', () => {
+  describe('unsubscribe', () => {
+    it('should remove specific event listener via unsubscribe', () => {
       const listener: DatabaseEventListener<any> = jest.fn();
-      
-      eventManager.addEventListener('test.event', listener);
+
+      const subscription = eventManager.subscribe('test.event', listener);
       expect(eventManager.getListenerCount('test.event')).toBe(1);
-      
-      eventManager.removeEventListener('test.event', listener);
+
+      subscription.unsubscribe();
       expect(eventManager.getListenerCount('test.event')).toBe(0);
     });
 
-    it('should not remove listener when removing non-existent listener', () => {
+    it('should handle unsubscribe when listener does not exist', () => {
       const listener1: DatabaseEventListener<any> = jest.fn();
       const listener2: DatabaseEventListener<any> = jest.fn();
-      
-      eventManager.addEventListener('test.event', listener1);
-      eventManager.removeEventListener('test.event', listener2);
-      
+
+      const subscription1 = eventManager.subscribe('test.event', listener1);
+      const subscription2 = eventManager.subscribe('test.event', listener2);
+
+      subscription2.unsubscribe(); // Remove listener2
       expect(eventManager.getListenerCount('test.event')).toBe(1);
+
+      subscription1.unsubscribe(); // Remove listener1
+      expect(eventManager.getListenerCount('test.event')).toBe(0);
     });
 
     it('should remove event type entry when no listeners remain', () => {
       const listener: DatabaseEventListener<any> = jest.fn();
-      
-      eventManager.addEventListener('test.event', listener);
-      eventManager.removeEventListener('test.event', listener);
-      
+
+      const subscription = eventManager.subscribe('test.event', listener);
+      subscription.unsubscribe();
+
       expect(eventManager.getListenerCount('test.event')).toBe(0);
     });
   });
@@ -88,7 +93,7 @@ describe('DatabaseEventManager', () => {
       const listener: DatabaseEventListener<DatabaseEvent> = jest.fn();
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       
-      eventManager.addEventListener('service_initialized' as any, listener);
+      eventManager.subscribe('service_initialized' as any, listener);
       
       const event: DatabaseEvent = {
         type: DatabaseEventType.SERVICE_INITIALIZED,
@@ -107,7 +112,7 @@ describe('DatabaseEventManager', () => {
     it('should emit event to general listeners', () => {
       const listener: DatabaseEventListener<DatabaseEvent> = jest.fn();
       
-      eventManager.addEventListener('*' as any, listener);
+      eventManager.subscribe('*' as any, listener);
       
       const event: DatabaseEvent = {
         type: DatabaseEventType.SERVICE_INITIALIZED,
@@ -123,7 +128,7 @@ describe('DatabaseEventManager', () => {
     it('should emit error events to error listeners', () => {
       const errorListener: DatabaseEventListener<DatabaseEvent> = jest.fn();
       
-      eventManager.addEventListener('error_occurred' as any, errorListener);
+      eventManager.subscribe('error_occurred' as any, errorListener);
       
       const event: DatabaseEvent = {
         type: DatabaseEventType.SERVICE_INITIALIZED,
@@ -143,7 +148,7 @@ describe('DatabaseEventManager', () => {
       };
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       
-      eventManager.addEventListener('service_initialized' as any, failingListener);
+      eventManager.subscribe('service_initialized' as any, failingListener);
       
       const event: DatabaseEvent = {
         type: DatabaseEventType.SERVICE_INITIALIZED,
@@ -166,9 +171,9 @@ describe('DatabaseEventManager', () => {
     it('should remove all listeners', () => {
       const listener1: DatabaseEventListener<any> = jest.fn();
       const listener2: DatabaseEventListener<any> = jest.fn();
-      
-      eventManager.addEventListener('test.event', listener1);
-      eventManager.addEventListener('another.event', listener2);
+
+      eventManager.subscribe('test.event', listener1);
+      eventManager.subscribe('another.event', listener2);
       
       expect(eventManager.getListenerCount()).toBe(2);
       
@@ -182,9 +187,9 @@ describe('DatabaseEventManager', () => {
     it('should return count of all listeners when no event type specified', () => {
       const listener1: DatabaseEventListener<any> = jest.fn();
       const listener2: DatabaseEventListener<any> = jest.fn();
-      
-      eventManager.addEventListener('test.event', listener1);
-      eventManager.addEventListener('another.event', listener2);
+
+      eventManager.subscribe('test.event', listener1);
+      eventManager.subscribe('another.event', listener2);
       
       expect(eventManager.getListenerCount()).toBe(2);
     });
@@ -192,10 +197,10 @@ describe('DatabaseEventManager', () => {
     it('should return count of listeners for specific event type', () => {
       const listener1: DatabaseEventListener<any> = jest.fn();
       const listener2: DatabaseEventListener<any> = jest.fn();
-      
-      eventManager.addEventListener('test.event', listener1);
-      eventManager.addEventListener('test.event', listener2);
-      eventManager.addEventListener('another.event', jest.fn());
+
+      eventManager.subscribe('test.event', listener1);
+      eventManager.subscribe('test.event', listener2);
+      eventManager.subscribe('another.event', jest.fn());
       
       expect(eventManager.getListenerCount('test.event')).toBe(2);
       expect(eventManager.getListenerCount('another.event')).toBe(1);

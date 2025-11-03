@@ -40,54 +40,6 @@ export class DatabaseEventManager<TEvents = Record<string, any>> implements IEve
   private maxEventHistory: number = 1000;
 
   /**
-   * 添加事件监听器，返回订阅对象
-   */
-  addEventListener<K extends keyof TEvents>(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
-    listener: DatabaseEventListener<TEvents[K]>
-  ): void {
-    const eventTypeStr = String(eventType);
-    
-    // 如果该事件类型还没有监听器映射，创建一个
-    if (!this.eventListeners.has(eventTypeStr)) {
-      this.eventListeners.set(eventTypeStr, new Map());
-    }
-    
-    // 生成唯一订阅ID
-    const subscriptionId = randomUUID();
-    const listenersMap = this.eventListeners.get(eventTypeStr)!;
-    
-    // 存储监听器
-    listenersMap.set(subscriptionId, listener as DatabaseEventListener);
-  }
-
-  /**
-   * 移除事件监听器
-   */
-  removeEventListener<K extends keyof TEvents>(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
-    listener: DatabaseEventListener<TEvents[K]>
-  ): void {
-    const eventTypeStr = String(eventType);
-    const listenersMap = this.eventListeners.get(eventTypeStr);
-    
-    if (listenersMap) {
-      // 遍历找到匹配的监听器并删除
-      for (const [id, storedListener] of listenersMap.entries()) {
-        if (storedListener === listener) {
-          listenersMap.delete(id);
-          break; // 假设每个监听器只注册一次
-        }
-      }
-      
-      // 如果该事件类型没有监听器了，删除整个映射
-      if (listenersMap.size === 0) {
-        this.eventListeners.delete(eventTypeStr);
-      }
-    }
-  }
-
-  /**
    * 发出事件
    */
   emitEvent<K extends keyof TEvents>(event: TEvents[K] | DatabaseEvent): void {

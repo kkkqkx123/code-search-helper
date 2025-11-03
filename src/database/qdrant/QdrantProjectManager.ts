@@ -35,8 +35,7 @@ export interface IQdrantProjectManager {
   listProjects(): Promise<ProjectInfo[]>;
   deleteVectorsForProject(projectPath: string, vectorIds: string[]): Promise<boolean>;
   clearProject(projectPath: string): Promise<boolean>;
-  addEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void;
-  removeEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void;
+  subscribe(type: QdrantEventType, listener: (event: QdrantEvent) => void): { id: string; eventType: string; handler: any; unsubscribe: () => void };
   
   // 兼容 IProjectManager 接口的方法
   createProjectSpace(projectPath: string, config?: any): Promise<boolean>;
@@ -732,26 +731,31 @@ export class QdrantProjectManager implements IQdrantProjectManager {
   }
 
   /**
-   * 添加事件监听器
+   * 订阅事件
    */
-  addEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void {
+  subscribe(type: QdrantEventType, listener: (event: QdrantEvent) => void) {
     if (!this.eventListeners.has(type)) {
       this.eventListeners.set(type, []);
     }
     this.eventListeners.get(type)!.push(listener);
-  }
-
-  /**
-   * 移除事件监听器
-   */
-  removeEventListener(type: QdrantEventType, listener: (event: QdrantEvent) => void): void {
-    const listeners = this.eventListeners.get(type);
-    if (listeners) {
-      const index = listeners.indexOf(listener);
-      if (index > -1) {
-        listeners.splice(index, 1);
+    
+    // 返回订阅对象，允许取消订阅
+    const subscription = {
+      id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      eventType: type,
+      handler: listener,
+      unsubscribe: () => {
+        const listeners = this.eventListeners.get(type);
+        if (listeners) {
+          const index = listeners.indexOf(listener);
+          if (index > -1) {
+            listeners.splice(index, 1);
+          }
+        }
       }
-    }
+    };
+    
+    return subscription;
   }
 
   /**

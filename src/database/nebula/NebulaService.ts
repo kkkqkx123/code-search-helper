@@ -67,8 +67,6 @@ export interface INebulaService {
   getDatabaseStats(): Promise<any>;
 
   // 事件处理
-  addEventListener(type: NebulaEventType | string, listener: (event: any) => void): void;
-  removeEventListener(type: NebulaEventType | string, listener: (event: any) => void): void;
   subscribe(type: NebulaEventType | string, listener: (event: any) => void): Subscription;
 }
 
@@ -931,48 +929,10 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   }
 
   /**
-   * 添加事件监听器
-   */
-  addEventListener(type: NebulaEventType | string, listener: (event: any) => void): void {
-    // 委托给 NebulaEventManager
-    this.eventManager.on(type, listener);
-
-    // 使用 DatabaseLoggerService 记录事件监听器添加事件
-    this.databaseLogger.logDatabaseEvent({
-      type: DatabaseEventType.SERVICE_INITIALIZED,
-      source: 'nebula',
-      timestamp: new Date(),
-      data: { message: `Event listener added for type: ${type}`, eventType: type }
-    }).catch(error => {
-      // 如果日志记录失败，我们不希望影响主流程
-      console.error('Failed to log event listener addition:', error);
-    });
-  }
-
-  /**
    * 订阅事件（推荐的新API）
    */
   subscribe(type: NebulaEventType | string, listener: (event: any) => void) {
     return this.eventManager.subscribe(type, listener);
-  }
-
-  /**
-   * 移除事件监听器
-   */
-  removeEventListener(type: NebulaEventType | string, listener: (event: any) => void): void {
-    // 委托给 NebulaEventManager 的适配器方法
-    this.eventManager.removeEventListener(type, listener as any);
-
-    // 使用 DatabaseLoggerService 记录事件监听器移除事件
-    this.databaseLogger.logDatabaseEvent({
-      type: DatabaseEventType.SERVICE_INITIALIZED,
-      source: 'nebula',
-      timestamp: new Date(),
-      data: { message: `Event listener removed for type: ${type}`, eventType: type }
-    }).catch(error => {
-      // 如果日志记录失败，我们不希望影响主流程
-      console.error('Failed to log event listener removal:', error);
-    });
   }
 
   /**

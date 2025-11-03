@@ -67,6 +67,7 @@ const mockNebulaEventManager = {
   emit: jest.fn(),
   on: jest.fn(),
   once: jest.fn(),
+  subscribe: jest.fn(),
 };
 
 // Mock INebulaDataOperations for testing
@@ -610,26 +611,25 @@ describe('NebulaProjectManager', () => {
     });
   });
 
-  describe('addEventListener and removeEventListener', () => {
-    it('should add and remove event listeners correctly', () => {
+  describe('subscribe', () => {
+    it('should subscribe and unsubscribe event listeners correctly', () => {
       const listener = jest.fn();
       const eventType = NebulaEventType.SPACE_CREATED;
       const eventData = { test: 'data' };
 
       // Mock event manager
       const mockSubscription = { unsubscribe: jest.fn() };
-      mockNebulaEventManager.on.mockReturnValue(mockSubscription);
+      mockNebulaEventManager.subscribe.mockReturnValue(mockSubscription);
 
-      // Add listener
-      nebulaProjectManager.addEventListener(eventType, listener);
+      // Subscribe
+      const subscription = nebulaProjectManager.subscribe(eventType, listener);
 
       // Verify event manager was called
-      expect(mockNebulaEventManager.on).toHaveBeenCalledWith(eventType, listener);
+      expect(mockNebulaEventManager.subscribe).toHaveBeenCalledWith(eventType, listener);
 
-      // Test removeEventListener
-      nebulaProjectManager.removeEventListener(eventType, listener);
-      // Currently removeEventListener just logs a warning, so we can't test much here
-      expect(true).toBe(true); // Placeholder assertion
+      // Test unsubscribe
+      subscription.unsubscribe();
+      expect(mockSubscription.unsubscribe).toHaveBeenCalled();
     });
   });
 

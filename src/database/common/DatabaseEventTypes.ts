@@ -199,22 +199,6 @@ export interface Subscription {
 
 export interface IEventManager<TEvents = Record<string, any>> {
   /**
-   * 添加事件监听器（传统模式）
-   */
-  addEventListener<K extends keyof TEvents>(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
-    listener: DatabaseEventListener<TEvents[K] | DatabaseEvent>
-  ): void;
-
-  /**
-   * 移除事件监听器（传统模式）
-   */
-  removeEventListener<K extends keyof TEvents>(
-    eventType: DatabaseEventType | QdrantEventType | NebulaEventType | K,
-    listener: DatabaseEventListener<TEvents[K] | DatabaseEvent>
-  ): void;
-
-  /**
    * 添加事件监听器（订阅模式）
    */
   subscribe<K extends keyof TEvents>(

@@ -483,51 +483,11 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
   }
 
   /**
-   * 添加事件监听器
-   */
-  addEventListener(type: QdrantEventType | string, listener: (event: any) => void): void {
-    // 添加到基础服务
-    super.addEventListener(type, listener);
-    
-    // 保持向后兼容性，同时添加到所有模块
-    if (Object.values(QdrantEventType).includes(type as QdrantEventType)) {
-      this.connectionManager.addEventListener(type as QdrantEventType, listener);
-      this.collectionManager.addEventListener(type as QdrantEventType, listener);
-      this.vectorOperations.addEventListener(type as QdrantEventType, listener);
-      this.queryUtils.addEventListener(type as QdrantEventType, listener);
-      this.projectManager.addEventListener(type as QdrantEventType, listener);
-    }
-  }
-
-  removeEventListener(type: QdrantEventType | string, listener: (event: any) => void): void {
-    // 从基础服务移除
-    super.removeEventListener(type, listener);
-    
-    // 保持向后兼容性，同时从所有模块移除
-    if (Object.values(QdrantEventType).includes(type as QdrantEventType)) {
-      this.connectionManager.removeEventListener(type as QdrantEventType, listener);
-      this.collectionManager.removeEventListener(type as QdrantEventType, listener);
-      this.vectorOperations.removeEventListener(type as QdrantEventType, listener);
-      this.queryUtils.removeEventListener(type as QdrantEventType, listener);
-      this.projectManager.removeEventListener(type as QdrantEventType, listener);
-    }
-  }
-
-  /**
    * 订阅事件（推荐的新API）
    */
   subscribe(type: QdrantEventType | string, listener: (event: any) => void) {
     // 添加到基础服务
     const baseSubscription = super.subscribe(type, listener);
-    
-    // 保持向后兼容性，同时添加到所有模块
-    if (Object.values(QdrantEventType).includes(type as QdrantEventType)) {
-      this.connectionManager.addEventListener(type as QdrantEventType, listener);
-      this.collectionManager.addEventListener(type as QdrantEventType, listener);
-      this.vectorOperations.addEventListener(type as QdrantEventType, listener);
-      this.queryUtils.addEventListener(type as QdrantEventType, listener);
-      this.projectManager.addEventListener(type as QdrantEventType, listener);
-    }
     
     return baseSubscription;
   }

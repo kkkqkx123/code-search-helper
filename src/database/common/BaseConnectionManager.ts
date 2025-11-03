@@ -1,6 +1,7 @@
 import { injectable } from 'inversify';
 import { EventListener } from '../../types';
 import { IConnectionManager } from './IDatabaseService';
+import { Subscription } from './DatabaseEventTypes';
 
 /**
  * 连接管理器基础实现类
@@ -61,26 +62,30 @@ export abstract class BaseConnectionManager implements IConnectionManager {
   }
 
   /**
-   * 添加事件监听器
-   */
-  addEventListener(eventType: string, listener: EventListener): void {
+  * 订阅事件
+  */
+  subscribe(eventType: string, listener: EventListener): Subscription {
     if (!this.eventListeners.has(eventType)) {
       this.eventListeners.set(eventType, []);
     }
     this.eventListeners.get(eventType)!.push(listener);
-  }
 
-  /**
-   * 移除事件监听器
-   */
-  removeEventListener(eventType: string, listener: EventListener): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      const index = listeners.indexOf(listener);
-      if (index > -1) {
-        listeners.splice(index, 1);
+    const subscription: Subscription = {
+      id: `${eventType}_${Date.now()}_${Math.random()}`,
+      eventType,
+      handler: listener,
+      unsubscribe: () => {
+        const listeners = this.eventListeners.get(eventType);
+        if (listeners) {
+          const index = listeners.indexOf(listener);
+          if (index > -1) {
+            listeners.splice(index, 1);
+          }
+        }
       }
-    }
+    };
+
+    return subscription;
   }
 
   /**
@@ -144,11 +149,11 @@ export abstract class BaseConnectionManager implements IConnectionManager {
    */
   protected handleConnectionError(error: Error): void {
     this.setConnected(false);
-    this.updateConnectionStatus({ 
+    this.updateConnectionStatus({
       error: error.message,
       lastError: new Date()
     });
-    this.emitEvent('error', { 
+    this.emitEvent('error', {
       type: 'connection_error',
       message: error.message,
       timestamp: new Date()
@@ -159,11 +164,11 @@ export abstract class BaseConnectionManager implements IConnectionManager {
    * 记录连接指标
    */
   protected recordConnectionMetric(metric: string, value: any): void {
-    this.updateConnectionStatus({ 
+    this.updateConnectionStatus({
       [metric]: value,
       [`${metric}_at`]: new Date()
     });
-    this.emitEvent('metric', { 
+    this.emitEvent('metric', {
       metric,
       value,
       timestamp: new Date()

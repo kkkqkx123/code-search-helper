@@ -3,7 +3,7 @@ import { EventListener } from '../../types';
 import { IDatabaseService, IConnectionManager, IProjectManager } from './IDatabaseService';
 import { DatabaseLoggerService } from './DatabaseLoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { DatabaseEventType } from './DatabaseEventTypes';
+import { DatabaseEventType, Subscription } from './DatabaseEventTypes';
 import { DatabaseError, DatabaseErrorType } from './DatabaseError';
 import { PerformanceMonitor } from './PerformanceMonitor';
 
@@ -17,6 +17,7 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
   protected initialized = false;
   protected connectionManager: IConnectionManager;
   protected projectManager: IProjectManager;
+  protected eventSubscriptions: Subscription[] = [];
   protected databaseLogger: DatabaseLoggerService;
   protected errorHandler: ErrorHandlerService;
   protected performanceMonitor: PerformanceMonitor;
@@ -608,70 +609,39 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
   }
 
   /**
-   * 添加事件监听器
-   */
-  addEventListener(eventType: string, listener: EventListener): void {
-    if (!this.eventListeners.has(eventType)) {
-      this.eventListeners.set(eventType, []);
-    }
-    this.eventListeners.get(eventType)!.push(listener);
-
-    // 同时在子组件上添加监听器
-    this.connectionManager.addEventListener(eventType, listener);
-    this.projectManager.addEventListener(eventType, listener);
+  * 订阅事件
+  */
+  subscribe(eventType: string, listener: EventListener): Subscription {
+  if (!this.eventListeners.has(eventType)) {
+  this.eventListeners.set(eventType, []);
   }
+  this.eventListeners.get(eventType)!.push(listener);
 
-  /**
-   * 移除事件监听器
-   */
-  removeEventListener(eventType: string, listener: EventListener): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      const index = listeners.indexOf(listener);
-      if (index > -1) {
-        listeners.splice(index, 1);
-      }
-    }
-
-    // 同时在子组件上移除监听器
-    this.connectionManager.removeEventListener(eventType, listener);
-    this.projectManager.removeEventListener(eventType, listener);
-  }
-
-  /**
-   * 订阅事件（推荐的新API）
-   */
-  subscribe(eventType: string, listener: EventListener) {
-    if (!this.eventListeners.has(eventType)) {
-      this.eventListeners.set(eventType, []);
-    }
-    this.eventListeners.get(eventType)!.push(listener);
-
-    // 同时在子组件上添加监听器
-    this.connectionManager.addEventListener(eventType, listener);
-    this.projectManager.addEventListener(eventType, listener);
+  // 同时在子组件上创建订阅
+  const connectionSub = this.connectionManager.subscribe(eventType, listener);
+  const projectSub = this.projectManager.subscribe(eventType, listener);
 
     // 返回一个订阅对象，允许取消订阅
-    const subscription = {
-      id: `${eventType}_${Date.now()}`, // 简单的ID生成
-      eventType,
+    const subscription: Subscription = {
+     id: `${eventType}_${Date.now()}_${Math.random()}`,
+     eventType,
       handler: listener,
-      unsubscribe: () => {
-        const listeners = this.eventListeners.get(eventType);
-        if (listeners) {
-          const index = listeners.indexOf(listener);
-          if (index > -1) {
-            listeners.splice(index, 1);
-          }
-          
-          // 同时在子组件上移除监听器
-          this.connectionManager.removeEventListener(eventType, listener);
-          this.projectManager.removeEventListener(eventType, listener);
+    unsubscribe: () => {
+      const listeners = this.eventListeners.get(eventType);
+    if (listeners) {
+      const index = listeners.indexOf(listener);
+    if (index > -1) {
+        listeners.splice(index, 1);
+        }
+
+        // 取消子组件的订阅
+        connectionSub.unsubscribe();
+        projectSub.unsubscribe();
         }
       }
     };
 
-    return subscription;
+   return subscription;
   }
 
   /**
@@ -781,42 +751,42 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
    * 将连接管理器和项目管理器的事件转发到服务级别
    */
   private setupEventForwarding(): void {
-    // 转发连接管理器事件
-    this.connectionManager.addEventListener('connected', (data: any) => {
-      this.emitEvent('connection_connected', data);
-    });
+    // 定义连接管理器事件映射
+    const connectionEvents = [
+      { source: 'connected', target: 'connection_connected' },
+      { source: 'disconnected', target: 'connection_disconnected' },
+      { source: 'error', target: 'connection_error' }
+    ];
 
-    this.connectionManager.addEventListener('disconnected', (data: any) => {
-      this.emitEvent('connection_disconnected', data);
-    });
+    // 定义项目管理器事件映射
+    const projectEvents = [
+      { source: 'space_created', target: 'project_space_created' },
+      { source: 'space_deleted', target: 'project_space_deleted' },
+      { source: 'data_inserted', target: 'data_inserted' },
+      { source: 'data_updated', target: 'data_updated' },
+      { source: 'data_deleted', target: 'data_deleted' },
+      { source: 'error', target: 'project_error' }
+    ];
 
-    this.connectionManager.addEventListener('error', (error: any) => {
-      this.emitEvent('connection_error', error);
-    });
+    // 批量设置连接管理器事件转发
+    this.setupEventForwardingForManager(this.connectionManager, connectionEvents);
 
-    // 转发项目管理器事件
-    this.projectManager.addEventListener('space_created', (data: any) => {
-      this.emitEvent('project_space_created', data);
-    });
+    // 批量设置项目管理器事件转发
+    this.setupEventForwardingForManager(this.projectManager, projectEvents);
+  }
 
-    this.projectManager.addEventListener('space_deleted', (data: any) => {
-      this.emitEvent('project_space_deleted', data);
-    });
-
-    this.projectManager.addEventListener('data_inserted', (data: any) => {
-      this.emitEvent('data_inserted', data);
-    });
-
-    this.projectManager.addEventListener('data_updated', (data: any) => {
-      this.emitEvent('data_updated', data);
-    });
-
-    this.projectManager.addEventListener('data_deleted', (data: any) => {
-      this.emitEvent('data_deleted', data);
-    });
-
-    this.projectManager.addEventListener('error', (error: any) => {
-      this.emitEvent('project_error', error);
+  /**
+   * 为指定管理器批量设置事件转发
+   * @param manager 事件管理器（连接管理器或项目管理器）
+   * @param events 事件映射数组
+   */
+  private setupEventForwardingForManager(manager: any, events: Array<{source: string, target: string}>): void {
+    events.forEach(({ source, target }) => {
+      this.eventSubscriptions.push(
+        manager.subscribe(source, (data: any) => {
+          this.emitEvent(target, data);
+        })
+      );
     });
   }
 

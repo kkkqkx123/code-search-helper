@@ -27,8 +27,7 @@ describe('IDatabaseService', () => {
         deleteData: jest.fn(),
         searchData: jest.fn(),
         getDataById: jest.fn(),
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
+        subscribe: jest.fn(),
         healthCheck: jest.fn()
       };
 
@@ -44,8 +43,7 @@ describe('IDatabaseService', () => {
       expect(databaseService.deleteData).toBeDefined();
       expect(databaseService.searchData).toBeDefined();
       expect(databaseService.getDataById).toBeDefined();
-      expect(databaseService.addEventListener).toBeDefined();
-      expect(databaseService.removeEventListener).toBeDefined();
+      expect(databaseService.subscribe).toBeDefined();
       expect(databaseService.healthCheck).toBeDefined();
     });
 
@@ -63,8 +61,7 @@ describe('IDatabaseService', () => {
         deleteData: async () => true,
         searchData: async () => [],
         getDataById: async () => ({}),
-        addEventListener: () => {},
-        removeEventListener: () => {},
+        subscribe: () => ({ id: 'test', eventType: 'test', handler: () => {}, unsubscribe: () => {} }),
         healthCheck: async () => ({ status: 'healthy' })
       };
 
@@ -83,8 +80,7 @@ describe('IDatabaseService', () => {
 
       // 测试同步方法
       expect(databaseService.isConnected()).toBeDefined();
-      expect(databaseService.addEventListener('test', () => {})).toBeUndefined();
-      expect(databaseService.removeEventListener('test', () => {})).toBeUndefined();
+      expect(databaseService.subscribe('test', () => {})).toBeDefined();
     });
   });
 
@@ -98,8 +94,7 @@ describe('IDatabaseService', () => {
         getConfig: jest.fn(),
         updateConfig: jest.fn(),
         getConnectionStatus: jest.fn(),
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn()
+        subscribe: jest.fn()
       };
 
       // 确保接口定义正确
@@ -109,8 +104,7 @@ describe('IDatabaseService', () => {
       expect(connectionManager.getConfig).toBeDefined();
       expect(connectionManager.updateConfig).toBeDefined();
       expect(connectionManager.getConnectionStatus).toBeDefined();
-      expect(connectionManager.addEventListener).toBeDefined();
-      expect(connectionManager.removeEventListener).toBeDefined();
+      expect(connectionManager.subscribe).toBeDefined();
     });
 
     it('should define correct method signatures', async () => {
@@ -122,8 +116,7 @@ describe('IDatabaseService', () => {
         getConfig: () => ({}),
         updateConfig: () => {},
         getConnectionStatus: () => ({}),
-        addEventListener: () => {},
-        removeEventListener: () => {}
+        subscribe: () => ({ id: 'test', eventType: 'test', handler: () => {}, unsubscribe: () => {} })
       };
 
       // 测试异步方法
@@ -135,8 +128,7 @@ describe('IDatabaseService', () => {
       expect(connectionManager.getConfig()).toBeDefined();
       expect(connectionManager.updateConfig({})).toBeUndefined();
       expect(connectionManager.getConnectionStatus()).toBeDefined();
-      expect(connectionManager.addEventListener('test', () => {})).toBeUndefined();
-      expect(connectionManager.removeEventListener('test', () => {})).toBeUndefined();
+      expect(connectionManager.subscribe('test', () => {})).toBeDefined();
     });
   });
 
@@ -154,8 +146,7 @@ describe('IDatabaseService', () => {
         deleteProjectData: jest.fn(),
         searchProjectData: jest.fn(),
         getProjectDataById: jest.fn(),
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn()
+        subscribe: jest.fn()
       };
 
       // 确保接口定义正确
@@ -169,8 +160,7 @@ describe('IDatabaseService', () => {
       expect(projectManager.deleteProjectData).toBeDefined();
       expect(projectManager.searchProjectData).toBeDefined();
       expect(projectManager.getProjectDataById).toBeDefined();
-      expect(projectManager.addEventListener).toBeDefined();
-      expect(projectManager.removeEventListener).toBeDefined();
+      expect(projectManager.subscribe).toBeDefined();
     });
 
     it('should define correct method signatures', async () => {
@@ -186,8 +176,7 @@ describe('IDatabaseService', () => {
         deleteProjectData: async () => true,
         searchProjectData: async () => [],
         getProjectDataById: async () => ({}),
-        addEventListener: () => {},
-        removeEventListener: () => {}
+        subscribe: () => ({ id: 'test', eventType: 'test', handler: () => {}, unsubscribe: () => {} })
       };
 
       // 测试异步方法
@@ -203,8 +192,7 @@ describe('IDatabaseService', () => {
       await expect(projectManager.getProjectDataById('/test/path', '1')).resolves.toBeDefined();
 
       // 测试同步方法
-      expect(projectManager.addEventListener('test', () => {})).toBeUndefined();
-      expect(projectManager.removeEventListener('test', () => {})).toBeUndefined();
+      expect(projectManager.subscribe('test', () => {})).toBeDefined();
     });
   });
 
@@ -255,13 +243,10 @@ describe('IDatabaseService', () => {
           expect(typeof id).toBe('string');
           return {};
         },
-        addEventListener: (eventType: string, listener: Function) => {
+        subscribe: (eventType: string, listener: Function) => {
           expect(typeof eventType).toBe('string');
           expect(typeof listener).toBe('function');
-        },
-        removeEventListener: (eventType: string, listener: Function) => {
-          expect(typeof eventType).toBe('string');
-          expect(typeof listener).toBe('function');
+          return { id: 'test', eventType, handler: listener, unsubscribe: () => {} };
         },
         healthCheck: async () => {
           return { status: 'healthy' };

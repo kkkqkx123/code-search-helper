@@ -37,9 +37,6 @@ export interface INebulaEventManager {
   clearAll(): void;
   setConfig(config: EventManagerConfig): void;
   getConfig(): EventManagerConfig;
-  // 添加兼容传统模式的方法
-  addEventListener(eventType: string, handler: EventHandler): void;
-  removeEventListener(eventType: string, handler: EventHandler): void;
   // 添加统一的订阅模式API
   subscribe(eventType: string, handler: EventHandler): Subscription;
 }
@@ -253,35 +250,11 @@ export class NebulaEventManager implements INebulaEventManager {
     }
   }
   
-  /**
-   * 添加事件监听器（传统模式适配器）
-   */
-  addEventListener(eventType: string, handler: EventHandler): void {
-    // 使用内部存储来跟踪传统模式的订阅
-    if (!this.handlers.has(eventType)) {
-      this.handlers.set(eventType, []);
-    }
-    this.handlers.get(eventType)!.push(handler);
-  }
-
-  /**
-   * 移除事件监听器（传统模式适配器）
-   */
-  removeEventListener(eventType: string, handler: EventHandler): void {
-    const handlers = this.handlers.get(eventType);
-    if (handlers) {
-      const index = handlers.indexOf(handler);
-      if (index > -1) {
-        handlers.splice(index, 1);
-      }
-    }
-}
-
  /**
   * 添加事件监听器（订阅模式）
   */
  subscribe(eventType: string, handler: EventHandler): Subscription {
    // 使用内部的 on 方法创建订阅
    return this.on(eventType, handler);
-}
+ }
 }

@@ -4,6 +4,7 @@ import { EventListener } from '../../types';
 import { TYPES } from '../../types';
 import { SqliteDatabaseService } from './SqliteDatabaseService';
 import { LoggerService } from '../../utils/LoggerService';
+import { Subscription } from '../common/DatabaseEventTypes';
 
 export interface Project {
   id: string;
@@ -81,24 +82,24 @@ export class SqliteProjectManager implements IProjectManager {
         settings: config?.settings,
         metadata: config?.metadata
       };
-     const stmt = this.sqliteService.prepare(`
+      const stmt = this.sqliteService.prepare(`
        INSERT INTO projects (id, path, name, description, collection_name, space_name, created_at, updated_at, status, settings, metadata)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      `);
 
-     stmt.run(
-       project.id,
-       project.path,
-       project.name,
-       project.description,
-       project.collection_name,
-       project.space_name,
-       project.created_at.toISOString(),
-       project.updated_at.toISOString(),
-       project.status,
-       JSON.stringify(project.settings || {}),
-       JSON.stringify(project.metadata || {})
-     );
+      stmt.run(
+        project.id,
+        project.path,
+        project.name,
+        project.description,
+        project.collection_name,
+        project.space_name,
+        project.created_at.toISOString(),
+        project.updated_at.toISOString(),
+        project.status,
+        JSON.stringify(project.settings || {}),
+        JSON.stringify(project.metadata || {})
+      );
 
       this.emitEvent('space_created', { projectPath, projectId: project.id });
       return true;
@@ -106,7 +107,7 @@ export class SqliteProjectManager implements IProjectManager {
       // 检查是否是唯一约束错误
       const errorMessage = error instanceof Error ? error.message : String(error);
       const isUniqueConstraintError = errorMessage.includes('UNIQUE constraint failed') || errorMessage.includes('SQLITE_CONSTRAINT');
-      
+
       if (isUniqueConstraintError) {
         // 如果是唯一约束错误，说明项目已存在，这可能不是真正的错误
         this.logger.warn(`Project already exists in SQLite (unique constraint), treating as success: ${projectPath}`, {
@@ -127,7 +128,7 @@ export class SqliteProjectManager implements IProjectManager {
           config,
           isUniqueConstraintError
         });
-        
+
         this.emitEvent('error', error);
         return false;
       }
@@ -255,21 +256,28 @@ export class SqliteProjectManager implements IProjectManager {
     return null;
   }
 
-  addEventListener(eventType: string, listener: EventListener): void {
+  subscribe(eventType: string, listener: EventListener): Subscription {
     if (!this.eventListeners.has(eventType)) {
       this.eventListeners.set(eventType, []);
     }
     this.eventListeners.get(eventType)!.push(listener);
-  }
 
-  removeEventListener(eventType: string, listener: EventListener): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      const index = listeners.indexOf(listener);
-      if (index > -1) {
-        listeners.splice(index, 1);
+    const subscription: Subscription = {
+      id: `${eventType}_${Date.now()}_${Math.random()}`,
+      eventType,
+      handler: listener,
+      unsubscribe: () => {
+        const listeners = this.eventListeners.get(eventType);
+        if (listeners) {
+          const index = listeners.indexOf(listener);
+          if (index > -1) {
+            listeners.splice(index, 1);
+          }
+        }
       }
-    }
+    };
+
+    return subscription;
   }
 
   // SQLite特定的项目管理方法
