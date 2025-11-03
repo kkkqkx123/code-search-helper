@@ -25,7 +25,6 @@ describe('GraphMappingCache', () => {
         maxSize: 10000,
         defaultTTL: 300000,
         optimizations: {
-          fastAccess: true,
           stats: true
         }
       });
