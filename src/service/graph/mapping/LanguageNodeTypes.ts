@@ -15,19 +15,6 @@ export interface LanguageNodeMapping {
   genericTypes: string[];
   lambdaExpression: string[];
   structDeclaration: string[];
-  // 新增的映射类别，用于更精细的节点关系管理
-  controlFlow: string[];
-  expression: string[];
-  typeSystem: string[];
-  pattern: string[];
-  block: string[];
-  modifier: string[];
-  literal: string[];
-  specialStatement: string[];
-  comment: string[];
-  jsx: string[];
-  dataStructure: string[];
-  comprehension: string[];
 }
 
 export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
@@ -47,20 +34,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type_annotation', 'type_alias_declaration', 'namespace_declaration'],
     genericTypes: ['generic_type', 'type_parameters', 'type_arguments'],
     lambdaExpression: ['arrow_function', 'lambda_expression', 'anonymous_method_expression'],
-    structDeclaration: [],  // JavaScript doesn't have struct, so empty
-    controlFlow: ['if_statement', 'for_statement', 'while_statement', 'do_statement', 'switch_statement', 'switch_case', 'switch_default', 'try_statement', 'catch_clause', 'finally_clause', 'return_statement', 'break_statement', 'continue_statement', 'labeled_statement', 'with_statement', 'debugger_statement', 'throw_statement'],
-    expression: ['expression_statement', 'binary_expression', 'unary_expression', 'update_expression', 'logical_expression', 'conditional_expression', 'assignment_expression', 'augmented_assignment_expression', 'sequence_expression', 'yield_expression', 'await_expression', 'jsx_expression'],
-    typeSystem: [],
-    pattern: ['array_pattern', 'object_pattern', 'assignment_pattern', 'spread_element', '_'],
-    block: [],
-    modifier: [],
-    literal: ['string', 'template_string', 'regex', 'number', 'true', 'false', 'null'],
-    specialStatement: [],
-    comment: ['comment'],
-    // JSX相关
-    jsx: ['jsx_element', 'jsx_self_closing_element', 'jsx_fragment', 'jsx_attribute', 'jsx_expression'],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: []  // JavaScript doesn't have struct, so empty
   },
   'typescript': {
     callExpression: ['call_expression', 'new_expression'],
@@ -78,19 +52,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type_annotation', 'type_alias_declaration', 'namespace_declaration', 'internal_module'],
     genericTypes: ['generic_type', 'type_parameters', 'type_arguments'],
     lambdaExpression: ['arrow_function', 'lambda_expression', 'anonymous_method_expression'],
-    structDeclaration: [],  // TypeScript doesn't have struct, so empty
-    controlFlow: ['if_statement', 'for_statement', 'for_in_statement', 'for_of_statement', 'while_statement', 'do_statement', 'switch_statement', 'switch_case', 'switch_default', 'try_statement', 'catch_clause', 'finally_clause', 'return_statement', 'break_statement', 'continue_statement', 'labeled_statement', 'debugger_statement', 'throw_statement'],
-    expression: ['yield_expression', 'await_expression', 'ternary_expression', 'type_assertion', 'as_expression', 'satisfies_expression', 'non_null_expression', 'binary_expression', 'unary_expression', 'update_expression', 'logical_expression', 'assignment_expression', 'augmented_assignment_expression', 'parenthesized_expression'],
-    typeSystem: [],
-    pattern: ['array_pattern', 'object_pattern', 'assignment_pattern', 'spread_element', '_'],
-    block: ['class_static_block'],
-    modifier: [],
-    literal: ['string', 'template_string', 'regex', 'number', 'true', 'false', 'null'],
-    specialStatement: [],
-    comment: [],
-    jsx: ['jsx_element', 'jsx_self_closing_element', 'jsx_fragment', 'jsx_attribute', 'jsx_expression'],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: []  // TypeScript doesn't have struct, so empty
   },
   'python': {
     callExpression: ['call', 'argument_list'],
@@ -108,21 +70,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type', 'type_annotation', 'typed_parameter', 'default_parameter', 'typed_default_parameter', 'union_type'],
     genericTypes: ['generic_type'],
     lambdaExpression: ['lambda'],
-    structDeclaration: [],  // Python doesn't have structs
-    controlFlow: ['if_statement', 'for_statement', 'while_statement', 'try_statement', 'with_statement', 'break_statement', 'continue_statement', 'return_statement', 'raise_statement', 'assert_statement', 'expression_statement', 'type_alias_statement', 'global_statement', 'nonlocal_statement'],
-    expression: ['binary_operator', 'yield', 'named_expression', 'parenthesized_expression', 'expression_list', 'slice'],
-    typeSystem: [],
-    pattern: ['tuple_pattern', 'list_pattern', 'dict_pattern', 'class_pattern'],
-    block: ['block'],
-    modifier: [],
-    literal: ['string', 'integer', 'float', 'true', 'false', 'none', 'ellipsis'],
-    specialStatement: [],
-    comment: ['comment'],
-    jsx: [],
-    // 数据结构相关
-    dataStructure: ['list', 'tuple', 'set', 'dictionary'],
-    // 推导式相关
-    comprehension: ['list_comprehension', 'dictionary_comprehension', 'set_comprehension', 'generator_expression']
+    structDeclaration: []  // Python doesn't have structs
   },
   'java': {
     callExpression: ['method_invocation'],
@@ -140,28 +88,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type_annotation', 'type_identifier', 'generic_type', 'array_type', 'integral_type', 'floating_point_type', 'boolean_type', 'void_type'],
     genericTypes: ['generic_type', 'type_parameter', 'type_parameters', 'type_arguments'],
     lambdaExpression: ['lambda_expression'],
-    structDeclaration: [],  // Java 不支持结构体（使用类/记录）
-    // 控制流相关
-    controlFlow: ['if_statement', 'for_statement', 'enhanced_for_statement', 'while_statement', 'do_statement', 'switch_statement', 'switch_expression', 'try_statement', 'catch_clause', 'finally_clause', 'return_statement', 'yield_statement', 'break_statement', 'continue_statement', 'throw_statement', 'assert_statement', 'synchronized_statement', 'labeled_statement'],
-    // 表达式相关
-    expression: ['assignment_expression', 'binary_expression', 'unary_expression', 'instanceof_expression', 'method_invocation', 'object_creation_expression', 'cast_expression', 'parenthesized_expression', 'update_expression'],
-    // 类型系统相关
-    typeSystem: ['superclass', 'super_interfaces', 'type_arguments', 'type_parameters', 'dimensions', 'formal_parameters', 'class_literal', 'this', 'super'],
-    // 模式匹配相关
-    pattern: ['record_pattern', 'type_pattern', 'underscore_pattern', 'guard', 'switch_rule', 'switch_label', 'switch_block_statement_group', 'record_pattern_component', 'catch_formal_parameter'],
-    // 语句块相关
-    block: ['class_body', 'interface_body', 'enum_body', 'annotation_type_body', 'switch_block', 'record_pattern_body', 'block', 'expression_statement'],
-    // 修饰符相关
-    modifier: ['modifiers'],
-    // 字面量相关
-    literal: ['string_literal', 'string_fragment', 'escape_sequence', 'character_literal', 'decimal_integer_literal', 'hex_integer_literal', 'octal_integer_literal', 'binary_integer_literal', 'decimal_floating_point_literal', 'hex_floating_point_literal', 'true', 'false', 'null_literal'],
-    // 特殊语句相关
-    specialStatement: ['try_with_resources_statement'],
-    // 注释相关
-    comment: ['line_comment', 'block_comment'],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: []  // Java 不支持结构体（使用类/记录）
   },
   'rust': {
     callExpression: ['call_expression'],
@@ -179,19 +106,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type_identifier'],
     genericTypes: ['type_parameter', 'type_arguments', 'type_parameters'],
     lambdaExpression: ['closure_expression'],
-    structDeclaration: ['struct_item', 'unit_struct_item', 'tuple_struct_item'],
-    controlFlow: [],
-    expression: [],
-    typeSystem: [],
-    pattern: [],
-    block: [],
-    modifier: [],
-    literal: [],
-    specialStatement: [],
-    comment: [],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: ['struct_item', 'unit_struct_item', 'tuple_struct_item']
   },
   'cpp': {
     callExpression: ['call_expression'],
@@ -209,19 +124,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type_identifier', 'primitive_type'],
     genericTypes: ['template_type', 'template_parameter_list', 'type_parameter'],
     lambdaExpression: ['lambda_expression'],
-    structDeclaration: ['struct_specifier'],
-    controlFlow: [],
-    expression: [],
-    typeSystem: [],
-    pattern: [],
-    block: [],
-    modifier: [],
-    literal: [],
-    specialStatement: [],
-    comment: [],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: ['struct_specifier']
   },
   'c': {
     callExpression: ['call_expression'],
@@ -239,19 +142,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type_identifier', 'primitive_type'],
     genericTypes: [], // C 没有泛型
     lambdaExpression: [], // C 没有lambda表达式
-    structDeclaration: ['struct_specifier'],
-    controlFlow: [],
-    expression: [],
-    typeSystem: [],
-    pattern: [],
-    block: [],
-    modifier: [],
-    literal: [],
-    specialStatement: [],
-    comment: [],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: ['struct_specifier']
   },
   'csharp': {
     callExpression: ['invocation_expression'],
@@ -269,19 +160,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type'],
     genericTypes: ['type_parameter', 'generic_name', 'type_argument'],
     lambdaExpression: ['lambda_expression', 'anonymous_method_expression'],
-    structDeclaration: ['struct_declaration', 'record_struct_declaration'],
-    controlFlow: [],
-    expression: [],
-    typeSystem: [],
-    pattern: [],
-    block: [],
-    modifier: [],
-    literal: [],
-    specialStatement: [],
-    comment: [],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: ['struct_declaration', 'record_struct_declaration']
   },
   'kotlin': {
     callExpression: ['call_expression'],
@@ -299,19 +178,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['user_type', 'type_identifier'],
     genericTypes: ['type_parameter', 'type_argument', 'type_parameters'],
     lambdaExpression: ['lambda_literal'],
-    structDeclaration: [],  // Kotlin doesn't have structs (use data classes)
-    controlFlow: [],
-    expression: [],
-    typeSystem: [],
-    pattern: [],
-    block: [],
-    modifier: [],
-    literal: [],
-    specialStatement: [],
-    comment: [],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: []  // Kotlin doesn't have structs (use data classes)
   },
   'css': {
     callExpression: ['call_expression', 'function_name'],
@@ -329,19 +196,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type_identifier'],
     genericTypes: [], // CSS doesn't have generics
     lambdaExpression: [], // CSS doesn't have lambdas
-    structDeclaration: [], // CSS doesn't have structs
-    controlFlow: [],
-    expression: [],
-    typeSystem: [],
-    pattern: [],
-    block: [],
-    modifier: [],
-    literal: [],
-    specialStatement: [],
-    comment: [],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: [] // CSS doesn't have structs
   },
   'html': {
     callExpression: [], // HTML doesn't have function calls
@@ -359,19 +214,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: [], // HTML doesn't have type annotations
     genericTypes: [], // HTML doesn't have generics
     lambdaExpression: [], // HTML doesn't have lambdas
-    structDeclaration: [], // HTML doesn't have structs
-    controlFlow: [],
-    expression: [],
-    typeSystem: [],
-    pattern: [],
-    block: [],
-    modifier: [],
-    literal: [],
-    specialStatement: [],
-    comment: [],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: [] // HTML doesn't have structs
   },
   'vue': {
     callExpression: [], // Vue doesn't have direct function calls in template
@@ -389,19 +232,7 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: [], // Vue doesn't have type annotations
     genericTypes: [], // Vue doesn't have generics
     lambdaExpression: [], // Vue doesn't have lambdas
-    structDeclaration: [], // Vue doesn't have structs
-    controlFlow: [],
-    expression: [],
-    typeSystem: [],
-    pattern: [],
-    block: [],
-    modifier: [],
-    literal: [],
-    specialStatement: [],
-    comment: [],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
+    structDeclaration: [] // Vue doesn't have structs
   },
   'go': {
     callExpression: ['call_expression', 'selector_expression'],
@@ -419,18 +250,6 @@ export const LANGUAGE_NODE_MAPPINGS: Record<string, LanguageNodeMapping> = {
     typeAnnotation: ['type_alias', 'qualified_type', 'array_type', 'slice_type', 'map_type', 'pointer_type', 'channel_type', 'function_type', 'type_parameter_list'],
     genericTypes: ['type_parameter_list'],
     lambdaExpression: ['func_literal'],
-    structDeclaration: ['struct_type'],
-    controlFlow: [],
-    expression: [],
-    typeSystem: [],
-    pattern: [],
-    block: [],
-    modifier: [],
-    literal: [],
-    specialStatement: [],
-    comment: [],
-    jsx: [],
-    dataStructure: [],
-    comprehension: []
-  },
+    structDeclaration: ['struct_type']
+  }
 };
