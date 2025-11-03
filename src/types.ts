@@ -310,7 +310,28 @@ export const TYPES = {
   MappingRuleEngine: Symbol.for('MappingRuleEngine'),
   MappingCacheManager: Symbol.for('MappingCacheManager'),
 
-  // 25. 性能监控和优化相关服务
+  // 25. 符号解析器相关
+  SymbolResolver: Symbol.for('SymbolResolver'),
+  LanguageSymbolExtractor: Symbol.for('LanguageSymbolExtractor'),
+  JavaScriptSymbolExtractor: Symbol.for('JavaScriptSymbolExtractor'),
+  TypeScriptSymbolExtractor: Symbol.for('TypeScriptSymbolExtractor'),
+  PythonSymbolExtractor: Symbol.for('PythonSymbolExtractor'),
+  JavaSymbolExtractor: Symbol.for('JavaSymbolExtractor'),
+  
+  // 26. 关系提取器相关
+  RelationshipExtractorFactory: Symbol.for('RelationshipExtractorFactory'),
+  ILanguageRelationshipExtractor: Symbol.for('ILanguageRelationshipExtractor'),
+  JavaScriptRelationshipExtractor: Symbol.for('JavaScriptRelationshipExtractor'),
+  TypeScriptRelationshipExtractor: Symbol.for('TypeScriptRelationshipExtractor'),
+  PythonRelationshipExtractor: Symbol.for('PythonRelationshipExtractor'),
+  JavaRelationshipExtractor: Symbol.for('JavaRelationshipExtractor'),
+  
+  // 27. 新增的关系类型
+  ReferenceRelationship: Symbol.for('ReferenceRelationship'),
+  CreationRelationship: Symbol.for('CreationRelationship'),
+  AnnotationRelationship: Symbol.for('AnnotationRelationship'),
+
+  // 28. 性能监控和优化相关服务
   PerformanceDashboard: Symbol.for('PerformanceDashboard'),
   PerformanceMetricsCollector: Symbol.for('PerformanceMetricsCollector'),
   AutoOptimizationAdvisor: Symbol.for('AutoOptimizationAdvisor'),
@@ -318,7 +339,7 @@ export const TYPES = {
   CachePerformanceMonitor: Symbol.for('CachePerformanceMonitor'),
   BatchProcessingOptimizer: Symbol.for('BatchProcessingOptimizer'),
 
-  // 26. 通用文件处理服务
+  // 29. 通用文件处理服务
   UniversalTextStrategy: Symbol.for('UniversalTextStrategy'),
   ErrorThresholdManager: Symbol.for('ErrorThresholdManager'),
   MemoryGuard: Symbol.for('MemoryGuard'),
@@ -330,24 +351,24 @@ export const TYPES = {
   FileProcessingCoordinator: Symbol.for('FileProcessingCoordinator'),
   FileFeatureDetector: Symbol.for('FileFeatureDetector'),
 
-  // 27. MemoryGuard 参数
+  // 30. MemoryGuard 参数
   MemoryLimitMB: Symbol.for('MemoryLimitMB'),
   MemoryCheckIntervalMs: Symbol.for('MemoryCheckIntervalMs'),
 
-  // 28. SQLite服务
+  // 31. SQLite服务
   SqliteDatabaseService: Symbol.for('SqliteDatabaseService'),
   SqliteConnectionManager: Symbol.for('SqliteConnectionManager'),
   SqliteProjectManager: Symbol.for('SqliteProjectManager'),
   SqliteInfrastructure: Symbol.for('SqliteInfrastructure'),
 
-  // 29. SQLite迁移服务
+  // 32. SQLite迁移服务
   JsonToSqliteMigrator: Symbol.for('JsonToSqliteMigrator'),
   MigrationOrchestrator: Symbol.for('MigrationOrchestrator'),
 
-  // 30. SQLite状态管理服务
+  // 33. SQLite状态管理服务
   SqliteStateManager: Symbol.for('SqliteStateManager'),
 
-  // 31. 数据库迁移管理
+  // 34. 数据库迁移管理
   MigrationManager: Symbol.for('MigrationManager'),
   DatabaseMigrationRunner: Symbol.for('DatabaseMigrationRunner'),
 

@@ -29,6 +29,7 @@ import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
 import { FaultToleranceHandler } from '../../../utils/FaultToleranceHandler';
 import { QueryResult, QueryMatch } from '../../parser/core/query/TreeSitterQueryEngine';
+import { LANGUAGE_NODE_MAPPINGS } from './LanguageNodeTypes';
 
 @injectable()
 export class GraphDataMappingService implements IGraphDataMappingService {
@@ -38,6 +39,42 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   private unifiedCache: any; // 新的统一缓存服务
   private batchOptimizer: GraphBatchOptimizer;
   private faultToleranceHandler: FaultToleranceHandler;
+
+  // 新增语言特定的capture映射
+  private readonly LANGUAGE_CAPTURE_MAPPINGS: Record<string, Record<string, string>> = {
+    'javascript': {
+      'call': 'definition.call',
+      'function': 'definition.function',
+      'class': 'definition.class',
+      'interface': 'definition.interface',
+      'import': 'definition.import',
+      'export': 'definition.export'
+    },
+    'typescript': {
+      'call': 'definition.call',
+      'function': 'definition.function',
+      'class': 'definition.class',
+      'interface': 'definition.interface',
+      'import': 'definition.import',
+      'export': 'definition.export'
+    },
+    'python': {
+      'call': 'definition.call',
+      'function': 'definition.function',
+      'class': 'definition.class',
+      'import': 'definition.import_from',
+      'export': 'definition.variable' // Python中导出通常是变量
+    },
+    'java': {
+      'call': 'definition.method_call',
+      'function': 'definition.method',
+      'class': 'definition.class',
+      'interface': 'definition.interface',
+      'import': 'definition.import',
+      'export': 'definition.type' // Java中导出通常是类型
+    }
+    // ... 其他语言
+  };
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -748,31 +785,401 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   private processCall(match: QueryMatch, nodes: GraphNode[], edges: GraphEdge[]): void {
     const captures = match.captures;
     const location = match.location;
+    const filePath = captures['file_path']?.text || 'unknown';
+    
+    // 推断语言
+    const language = this.inferLanguageFromFile(filePath);
+    const captureMapping = this.LANGUAGE_CAPTURE_MAPPINGS[language] || this.LANGUAGE_CAPTURE_MAPPINGS['javascript'];
 
-    // 获取文件路径
-    const filePath = captures['call.file_path']?.text || 'unknown';
-
-    if (captures['call.name']) {
-      const callName = captures['call.name'].text;
-      const nodeId = `call_${Buffer.from(`${filePath}_${callName}_${location.startLine}_${location.startColumn}`).toString('hex')}`;
-
-      // 查找目标函数节点
-      const targetFunctionNodeId = `function_${Buffer.from(`${filePath}_${callName}`).toString('hex')}`;
-
-      // 创建调用关系
-      const callEdge: GraphEdge = {
-        id: uuidv4(),
-        type: GraphRelationshipType.CALLS,
-        sourceNodeId: nodeId, // 或者是包含该调用的函数节点ID
-        targetNodeId: targetFunctionNodeId,
-        properties: {
-          line_number: location.startLine,
-          column_number: location.startColumn
-        }
-      };
-
-      edges.push(callEdge);
+    // 获取调用信息
+    const callCapture = captures[captureMapping['call']] || captures['call.name'];
+    if (!callCapture) {
+      this.logger.warn(`Call capture not found for language ${language}`, { captures: Object.keys(captures) });
+      return;
     }
+
+    const callName = callCapture.text;
+
+    // 查找调用者函数上下文
+    const callerContext = this.findCallerFunctionContext(match.node, filePath, language);
+    if (!callerContext) {
+      this.logger.warn(`Unable to find caller context for call: ${callName}`);
+      return;
+    }
+
+    // 创建调用关系
+    const callEdge: GraphEdge = {
+      id: uuidv4(),
+      type: GraphRelationshipType.CALLS,
+      sourceNodeId: callerContext.functionId, // 正确的调用者函数ID
+      targetNodeId: this.generateFunctionNodeId(callName, filePath),
+      properties: {
+        callName,
+        lineNumber: location.startLine,
+        columnNumber: location.startColumn,
+        filePath,
+        callType: this.determineCallType(match.node, language)
+      }
+    };
+
+    edges.push(callEdge);
+  }
+
+  // 新增：查找调用者函数上下文
+  private findCallerFunctionContext(callNode: any, filePath: string, language?: string): {
+    functionId: string;
+    functionName: string;
+  } | null {
+    let current = callNode.parent;
+    
+    // 推断语言，如果未提供
+    const inferredLanguage = language || this.inferLanguageFromFile(filePath);
+    
+    while (current) {
+      if (this.isFunctionNode(current)) {
+        const functionName = this.extractFunctionName(current, inferredLanguage);
+        return {
+          functionId: this.generateFunctionNodeId(functionName, filePath),
+          functionName
+        };
+      }
+      current = current.parent;
+    }
+    
+    return null;
+  }
+
+  // 新增：判断是否为函数节点
+  private isFunctionNode(node: any): boolean {
+    // 获取节点类型
+    const nodeType = node.type;
+    
+    // 使用LANGUAGE_NODE_MAPPINGS中的函数声明类型
+    const language = this.inferLanguageFromFile('temp'); // 语言信息通常在上层提供，这里作为辅助方法
+    
+    // 检查是否为函数声明类型
+    // JavaScript/TypeScript
+    if (nodeType === 'function_declaration' ||
+        nodeType === 'function_expression' ||
+        nodeType === 'arrow_function' ||
+        nodeType === 'generator_function' ||
+        nodeType === 'generator_function_declaration' ||
+        nodeType === 'method_definition') {
+      return true;
+    }
+    
+    // Python
+    if (nodeType === 'function_definition') {
+      return true;
+    }
+    
+    // Java
+    if (nodeType === 'method_declaration' ||
+        nodeType === 'constructor_declaration') {
+      return true;
+    }
+    
+    // Go
+    if (nodeType === 'function_declaration') {
+      return true;
+    }
+    
+    // C/C++
+    if (nodeType === 'function_definition') {
+      return true;
+    }
+    
+    // C#
+    if (nodeType === 'method_declaration' ||
+        nodeType === 'local_function_statement') {
+      return true;
+    }
+    
+    // Rust
+    if (nodeType === 'function_item') {
+      return true;
+    }
+    
+    // 其他可能的函数类型
+    if (nodeType === 'lambda' ||
+        nodeType === 'lambda_expression') {
+      return true;
+    }
+    
+    return false;
+  }
+
+  // 新增：提取函数名
+  private extractFunctionName(node: any, language?: string): string {
+    // 根据语言和节点类型提取函数名
+    const nodeType = node.type;
+    
+    // JavaScript/TypeScript
+    if (language === 'javascript' || language === 'typescript') {
+      switch (nodeType) {
+        case 'function_declaration':
+        case 'function_expression':
+        case 'generator_function':
+        case 'generator_function_declaration':
+          // 查找函数名标识符
+          if (node.children) {
+            for (const child of node.children) {
+              // 跳过关键字本身
+              if ((child.type === 'identifier' || child.type === 'property_identifier') &&
+                  child.text !== 'function' && child.text !== 'async') {
+                return child.text || 'anonymous';
+              }
+            }
+          }
+          break;
+        case 'method_definition':
+          // 方法定义可能有多种情况
+          if (node.children) {
+            for (const child of node.children) {
+              if (child.type === 'property_identifier' ||
+                  (child.type === 'identifier' && child.text !== 'get' && child.text !== 'set')) {
+                return child.text || 'anonymous';
+              }
+              // 处理getter/setter
+              if (child.type === 'identifier' &&
+                  (child.text === 'get' || child.text === 'set') &&
+                  child.nextSibling &&
+                  (child.nextSibling.type === 'property_identifier' || child.nextSibling.type === 'identifier')) {
+                return child.nextSibling.text || 'anonymous';
+              }
+            }
+          }
+          break;
+        case 'arrow_function':
+          // 箭头函数可能在赋值表达式中
+          // 这种情况需要从父节点获取名称
+          break;
+      }
+    }
+    // Python
+    else if (language === 'python') {
+      if (nodeType === 'function_definition' || nodeType === 'lambda') {
+        if (node.children) {
+          for (const child of node.children) {
+            if (child.type === 'identifier' && child.text !== 'def' && child.text !== 'lambda') {
+              return child.text || 'anonymous';
+            }
+          }
+        }
+      }
+    }
+    // Java
+    else if (language === 'java') {
+      if (nodeType === 'method_declaration' || nodeType === 'constructor_declaration') {
+        if (node.children) {
+          let foundType = false;
+          for (const child of node.children) {
+            // 跳过修饰符和返回类型
+            if (child.type === 'identifier') {
+              if (child.text === 'public' ||
+                  child.text === 'private' ||
+                  child.text === 'protected' ||
+                  child.text === 'static' ||
+                  child.text === 'final' ||
+                  child.text === 'abstract' ||
+                  child.text === 'synchronized' ||
+                  child.text === 'native' ||
+                  child.text === 'default') {
+                continue;
+              }
+              
+              // 如果已经找到了类型，下一个标识符就是函数名
+              if (foundType) {
+                return child.text || 'anonymous';
+              }
+              
+              // 标记为找到了类型（返回类型或类名）
+              foundType = true;
+            }
+          }
+        }
+      }
+    }
+    // Go
+    else if (language === 'go') {
+      if (nodeType === 'function_declaration') {
+        if (node.children) {
+          for (const child of node.children) {
+            // 查找函数名（在func关键字之后）
+            if (child.type === 'identifier' && child.text !== 'func') {
+              return child.text || 'anonymous';
+            }
+          }
+        }
+      }
+    }
+    // C/C++
+    else if (language === 'c' || language === 'cpp') {
+      if (nodeType === 'function_definition') {
+        if (node.children) {
+          let foundType = false;
+          for (const child of node.children) {
+            if (child.type === 'identifier') {
+              // 在C/C++中，第一个标识符通常是返回类型，第二个是函数名
+              if (foundType) {
+                return child.text || 'anonymous';
+              }
+              foundType = true;
+            }
+          }
+        }
+      }
+    }
+    // C#
+    else if (language === 'csharp') {
+      if (nodeType === 'method_declaration' || nodeType === 'local_function_statement') {
+        if (node.children) {
+          let foundType = false;
+          for (const child of node.children) {
+            // 跳过修饰符和返回类型
+            if (child.type === 'identifier') {
+              if (child.text === 'public' ||
+                  child.text === 'private' ||
+                  child.text === 'protected' ||
+                  child.text === 'static' ||
+                  child.text === 'virtual' ||
+                  child.text === 'override' ||
+                  child.text === 'abstract' ||
+                  child.text === 'sealed' ||
+                  child.text === 'extern' ||
+                  child.text === 'async' ||
+                  child.text === 'unsafe') {
+                continue;
+              }
+              
+              // 如果已经找到了类型，下一个标识符就是函数名
+              if (foundType) {
+                return child.text || 'anonymous';
+              }
+              
+              // 标记为找到了类型（返回类型）
+              foundType = true;
+            }
+          }
+        }
+      }
+    }
+    // Rust
+    else if (language === 'rust') {
+      if (nodeType === 'function_item') {
+        if (node.children) {
+          for (const child of node.children) {
+            if (child.type === 'identifier' && child.text !== 'fn') {
+              return child.text || 'anonymous';
+            }
+          }
+        }
+      }
+    }
+    
+    // 如果没有找到函数名，尝试通用方法
+    if (node.children) {
+      for (const child of node.children) {
+        if ((child.type === 'identifier' || child.type === 'property_identifier') &&
+            child.text &&
+            child.text !== 'function' &&
+            child.text !== 'def' &&
+            child.text !== 'func' &&
+            child.text !== 'fn') {
+          return child.text || 'anonymous';
+        }
+      }
+    }
+    
+    // 检查是否有name属性（某些AST实现中）
+    if (node.name && typeof node.name === 'string') {
+      return node.name;
+    }
+    
+    return 'anonymous';
+  }
+
+  // 新增：生成函数节点ID
+  private generateFunctionNodeId(functionName: string, filePath: string): string {
+    return `function_${Buffer.from(`${filePath}_${functionName}`).toString('hex')}`;
+  }
+
+  // 新增：确定调用类型
+  private determineCallType(node: any, language?: string): string {
+    const nodeType = node.type;
+    
+    // JavaScript/TypeScript
+    if (language === 'javascript' || language === 'typescript') {
+      if (nodeType === 'call_expression') {
+        return 'function';
+      } else if (nodeType === 'new_expression') {
+        return 'constructor';
+      } else if (nodeType === 'member_expression') {
+        return 'method';
+      } else if (nodeType === 'optional_chain') {
+        return 'optional_call';
+      } else if (nodeType === 'tagged_template') {
+        return 'tagged_template';
+      }
+    }
+    // Python
+    else if (language === 'python') {
+      if (nodeType === 'call') {
+        return 'function';
+      } else if (nodeType === 'attribute') {
+        return 'method';
+      } else if (nodeType === 'subscript') {
+        // 可能是函数调用，如 some_callable()[key]()
+        return 'function';
+      }
+    }
+    // Java
+    else if (language === 'java') {
+      if (nodeType === 'method_invocation') {
+        return 'method';
+      } else if (nodeType === 'object_creation_expression') {
+        return 'constructor';
+      } else if (nodeType === 'super_method_invocation') {
+        return 'method';
+      }
+    }
+    // Go
+    else if (language === 'go') {
+      if (nodeType === 'call_expression') {
+        return 'function';
+      }
+    }
+    // C/C++
+    else if (language === 'c' || language === 'cpp') {
+      if (nodeType === 'call_expression') {
+        return 'function';
+      }
+    }
+    // C#
+    else if (language === 'csharp') {
+      if (nodeType === 'invocation_expression') {
+        return 'method';
+      } else if (nodeType === 'object_creation_expression') {
+        return 'constructor';
+      }
+    }
+    // Rust
+    else if (language === 'rust') {
+      if (nodeType === 'call_expression') {
+        return 'function';
+      }
+    }
+    
+    // 默认处理
+    if (nodeType === 'call_expression' || nodeType === 'call') {
+      return 'function';
+    } else if (nodeType === 'new_expression' || nodeType === 'object_creation_expression') {
+      return 'constructor';
+    } else if (nodeType.includes('method') || nodeType.includes('member')) {
+      return 'method';
+    }
+    
+    return 'unknown';
   }
 
   /**

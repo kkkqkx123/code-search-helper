@@ -15,6 +15,8 @@ import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
 import { TreeSitterService } from '../../parser/core/parse/TreeSitterService';
+import { LANGUAGE_NODE_MAPPINGS } from './LanguageNodeTypes';
+import Parser = require('tree-sitter');
 
 export interface AdvancedMappingOptions {
   includeInheritance: boolean;
@@ -232,49 +234,108 @@ export class AdvancedMappingService {
   }
 
   /**
-   * 从函数AST中提取被调用的函数信息
-   */
-  private async extractCalledFunctionsFromAST(functionInfo: FunctionInfo, analysisResult: FileAnalysisResult, fileContent: string): Promise<string[]> {
-    // 使用TreeSitterService来提取函数调用
-    if (analysisResult.ast) {
-      try {
-        // 使用TreeSitterService查询函数调用表达式
-        const callExpressions = this.treeSitterService.findNodeByType(analysisResult.ast, 'call_expression');
-
-        const calledFunctions: string[] = [];
-        for (const callExpr of callExpressions) {
-          // 获取函数名部分，通常在call_expression的第一个子节点中
-          if (callExpr.children && callExpr.children.length > 0) {
-            const funcNameNode = callExpr.children[0];
-            if (funcNameNode.type === 'identifier' || funcNameNode.type === 'member_expression') {
-              // 如果是成员表达式（如obj.method()），提取方法名
-              if (funcNameNode.type === 'member_expression') {
-                const lastChild = funcNameNode.children[funcNameNode.children.length - 1];
-                if (lastChild && lastChild.type === 'property_identifier') {
-                  const propertyText = this.treeSitterService.getNodeText(lastChild, fileContent);
-                  calledFunctions.push(propertyText);
-                }
-              } else {
-                // 如果是简单标识符，直接使用节点文本
-                const funcText = this.treeSitterService.getNodeText(funcNameNode, fileContent);
-                calledFunctions.push(funcText);
-              }
-            }
-          }
-        }
-
-        return calledFunctions;
-      } catch (error) {
-        this.logger.warn('Failed to extract function calls from AST', { error: (error as Error).message });
-        // 如果提取失败，返回空数组
-        return [];
-      }
-    }
-
-    // 如果没有AST，返回空数组
-    return [];
-  }
-
+   /**
+    * 从函数AST中提取被调用的函数信息
+    */
+   private async extractCalledFunctionsFromAST(functionInfo: FunctionInfo, analysisResult: FileAnalysisResult, fileContent: string): Promise<string[]> {
+     if (!analysisResult.ast) {
+       return [];
+     }
+ 
+     const language = analysisResult.language.toLowerCase();
+     const nodeMapping = LANGUAGE_NODE_MAPPINGS[language];
+     
+     if (!nodeMapping) {
+       this.logger.warn(`No node mapping found for language: ${language}`);
+       return [];
+     }
+ 
+     try {
+       const calledFunctions: string[] = [];
+       
+       // 使用语言特定的节点类型
+       for (const callType of nodeMapping.callExpression) {
+         const callExpressions = this.treeSitterService.findNodeByType(analysisResult.ast, callType);
+         
+         for (const callExpr of callExpressions) {
+           // 检查调用是否在当前函数内部
+           if (this.isNodeInFunction(callExpr, functionInfo)) {
+             const functionName = this.extractFunctionNameFromCall(callExpr, fileContent, language);
+             if (functionName) {
+               calledFunctions.push(functionName);
+             }
+           }
+         }
+       }
+ 
+       return [...new Set(calledFunctions)]; // 去重
+     } catch (error) {
+       this.logger.warn('Failed to extract function calls from AST', {
+         error: (error as Error).message,
+         language
+       });
+       return [];
+     }
+   }
+ 
+   // 新增：检查节点是否在指定函数内部
+   private isNodeInFunction(node: Parser.SyntaxNode, functionInfo: FunctionInfo): boolean {
+     const functionStartLine = functionInfo.startLine;
+     const functionEndLine = functionInfo.endLine;
+     
+     const nodeLocation = this.treeSitterService.getNodeLocation(node);
+     return nodeLocation.startLine >= functionStartLine &&
+            nodeLocation.endLine <= functionEndLine;
+   }
+ 
+   // 新增：从调用表达式中提取函数名
+   private extractFunctionNameFromCall(
+     callExpr: Parser.SyntaxNode,
+     fileContent: string,
+     language: string
+   ): string | null {
+     const nodeMapping = LANGUAGE_NODE_MAPPINGS[language];
+     
+     if (!callExpr.children || callExpr.children.length === 0) {
+       return null;
+     }
+ 
+     const funcNameNode = callExpr.children[0];
+     
+     // 处理简单标识符
+     if (funcNameNode.type === 'identifier') {
+       return this.treeSitterService.getNodeText(funcNameNode, fileContent);
+     }
+     
+     // 处理成员表达式 (obj.method())
+     if (nodeMapping.memberExpression.includes(funcNameNode.type)) {
+       return this.extractMethodNameFromMemberExpression(funcNameNode, fileContent, language);
+     }
+     
+     return null;
+   }
+ 
+   // 新增：从成员表达式中提取方法名
+   private extractMethodNameFromMemberExpression(
+     memberExpr: Parser.SyntaxNode,
+     fileContent: string,
+     language: string
+   ): string | null {
+     const nodeMapping = LANGUAGE_NODE_MAPPINGS[language];
+     
+     if (!memberExpr.children || memberExpr.children.length === 0) {
+       return null;
+     }
+ 
+     // 获取最后一个子节点（通常是属性标识符）
+     const lastChild = memberExpr.children[memberExpr.children.length - 1];
+     
+     if (nodeMapping.propertyIdentifier.includes(lastChild.type)) {
+       return this.treeSitterService.getNodeText(lastChild, fileContent);
+     }
+     
+     return null;
+   }
   /**
    * 提取属性访问关系
    */

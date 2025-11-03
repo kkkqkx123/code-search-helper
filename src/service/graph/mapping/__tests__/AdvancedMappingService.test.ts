@@ -30,6 +30,7 @@ const mockGraphBatchOptimizer = {
 const mockTreeSitterService = {
   findNodeByType: jest.fn(),
   getNodeText: jest.fn(),
+  getNodeLocation: jest.fn(),
 };
 
 describe('AdvancedMappingService', () => {
@@ -248,6 +249,12 @@ describe('AdvancedMappingService', () => {
         }
       ]);
       (mockTreeSitterService.getNodeText as jest.Mock).mockReturnValueOnce('calledFunc');
+      (mockTreeSitterService.getNodeLocation as jest.Mock).mockReturnValueOnce({
+        startLine: 2,
+        endLine: 2,
+        startColumn: 10,
+        endColumn: 20
+      });
 
       const relationships = await advancedMappingService.extractCallRelationships(analysisResult, 'callerFunc() { calledFunc(); }');
 
@@ -317,6 +324,12 @@ describe('AdvancedMappingService', () => {
         }
       ]);
       (mockTreeSitterService.getNodeText as jest.Mock).mockReturnValueOnce('testProp');
+      (mockTreeSitterService.getNodeLocation as jest.Mock).mockReturnValueOnce({
+        startLine: 2,
+        endLine: 2,
+        startColumn: 10,
+        endColumn: 20
+      });
 
       const relationships = await advancedMappingService.extractPropertyAccessRelationships(analysisResult, 'accessorFunc() { obj.testProp; }');
 
