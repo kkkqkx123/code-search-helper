@@ -14,7 +14,6 @@ import * as path from 'path';
 import { UnifiedGuardCoordinator } from './guard/UnifiedGuardCoordinator';
 import { UniversalTextStrategy } from './processing/utils/UniversalTextStrategy';
 import { BackupFileProcessor } from './processing/detection/BackupFileProcessor';
-import { ExtensionlessFileProcessor } from './processing/detection/ExtensionlessFileProcessor';
 import { VectorBatchOptimizer } from '../optimization/VectorBatchOptimizer';
 import { LanguageDetectionService } from './processing/detection/LanguageDetectionService';
 import { UnifiedDetectionService } from './processing/detection/UnifiedDetectionService';
@@ -48,7 +47,6 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.ProcessingGuard) private processingGuard: UnifiedGuardCoordinator,
     @inject(TYPES.UniversalTextStrategy) private universalTextSplitter: UniversalTextStrategy,
     @inject(TYPES.BackupFileProcessor) private backupFileProcessor: BackupFileProcessor,
-    @inject(TYPES.ExtensionlessFileProcessor) private extensionlessFileProcessor: ExtensionlessFileProcessor,
     @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer,
     @inject(TYPES.UnifiedDetectionService) private detectionService: UnifiedDetectionService
   ) {

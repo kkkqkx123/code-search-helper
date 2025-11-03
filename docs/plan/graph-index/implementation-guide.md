@@ -84,9 +84,10 @@
    - `ChangeDetectionService` (位于 `src/service/filesystem/ChangeDetectionService.ts`) - 负责检测文件变更
    - `FileTraversalService` (位于 `src/service/index/shared/FileTraversalService.ts`) - 负责文件遍历和过滤
    - `IndexingLogicService` (位于 `src/service/index/IndexingLogicService.ts`) - 负责文件索引的具体逻辑
+   - `GraphDataMappingService` (位于 `src/service/graph/mapping/GraphDataMappingService.ts`) - 现有的图数据映射服务
 
 2. **新增组件**:
-   - `GraphMapperService` (新建，位于 `src/service/graph/GraphMapperService.ts`) - 核心组件，负责将查询结果转换为图元素
+   - `GraphMapperService` (扩展现有 `GraphDataMappingService`) - 核心组件，负责将查询结果转换为图元素
 
 ### 数据流和处理流程
 
@@ -105,7 +106,7 @@ graph TD
     end
     
     subgraph Graph Update
-        G -- Query Results --> H[GraphMapperService: Map to Graph Elements];
+        G -- Query Results --> H[GraphDataMappingService: Map to Graph Elements];
         H -- Nodes & Edges --> I{Update Strategy};
         I -- Modified File --> J[NebulaService: Delete Old Data];
         J --> K[NebulaService: Insert New Data];
@@ -235,12 +236,12 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
 
 ### 阶段一：核心服务实现
 
-#### 1. 创建 `GraphMapperService`
+#### 1. 扩展 `GraphDataMappingService`
 
-**文件路径**: `src/service/graph/GraphMapperService.ts`
+**文件路径**: `src/service/graph/mapping/GraphDataMappingService.ts`
 
 **核心职责**:
-- 提供一个 `map(queryResults: Map<string, QueryResult>): { nodes: any[], edges: any[] }` 方法。
+- 提供一个 `mapQueryResultsToGraph(queryResults: Map<string, QueryResult>): GraphMappingResult` 方法。
 - 根据查询结果创建图节点和边。
 - 计算静态分析属性（如圈复杂度、方法数量等）。
 
@@ -248,11 +249,13 @@ export const LANGUAGE_QUERY_MAPPINGS: LanguageMappings = {
 
 ```typescript
 @injectable()
-export class GraphMapperService {
+export class GraphDataMappingService implements IGraphDataMappingService {
+  // 现有方法保持不变...
+
   /**
    * 将查询结果映射为图元素
    */
-  map(queryResults: Map<string, QueryResult>): GraphMappingResult {
+  mapQueryResultsToGraph(queryResults: Map<string, QueryResult>): GraphMappingResult {
     const nodes: GraphNode[] = [];
     const edges: GraphEdge[] = [];
 
@@ -297,6 +300,80 @@ export class GraphMapperService {
 
     return { nodes, edges };
   }
+
+  /**
+   * 处理类或接口
+   */
+  private processClassOrInterface(match: QueryMatch, nodes: GraphNode[], edges: GraphEdge[]): void {
+    // 实现类和接口处理逻辑
+  }
+
+  /**
+   * 处理函数或方法
+   */
+  private processFunctionOrMethod(match: QueryMatch, nodes: GraphNode[], edges: GraphEdge[]): void {
+    // 实现函数和方法处理逻辑
+  }
+
+  /**
+   * 处理函数调用
+   */
+  private processCall(match: QueryMatch, nodes: GraphNode[], edges: GraphEdge[]): void {
+    // 实现函数调用处理逻辑
+  }
+
+  /**
+   * 处理导入
+   */
+  private processImport(match: QueryMatch, nodes: GraphNode[], edges: GraphEdge[]): void {
+    // 实现导入处理逻辑
+  }
+
+  /**
+   * 处理导出
+   */
+  private processExport(match: QueryMatch, nodes: GraphNode[], edges: GraphEdge[]): void {
+    // 实现导出处理逻辑
+  }
+}
+```
+
+#### 2. 更新接口定义
+
+**文件路径**: `src/service/graph/mapping/IGraphDataMappingService.ts`
+
+**新增接口**:
+
+```typescript
+/**
+ * 图映射结果
+ */
+export interface GraphMappingResult {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+/**
+ * 图边接口
+ */
+export interface GraphEdge {
+  id: string;
+  type: GraphRelationshipType;
+  sourceNodeId: string;
+  targetNodeId: string;
+  properties: Record<string, any>;
+}
+
+/**
+ * 扩展图数据映射服务接口
+ */
+export interface IGraphDataMappingService {
+  // 现有方法保持不变...
+
+  /**
+   * 将查询结果映射为图元素
+   */
+  mapQueryResultsToGraph(queryResults: Map<string, QueryResult>): GraphMappingResult;
 }
 ```
 
@@ -350,7 +427,7 @@ private getGraphQueryTypes(language: string): string[] {
 /**
  * 索引文件到图数据库
  */
-async function indexFileToGraph(projectPath: string, filePath: string): Promise<void> {
+async indexFileToGraph(projectPath: string, filePath: string): Promise<void> {
   try {
     // 读取文件内容
     const content = await fs.readFile(filePath, 'utf8');
@@ -369,20 +446,24 @@ async function indexFileToGraph(projectPath: string, filePath: string): Promise<
     const queryResults = await this.treeSitterQueryEngine.executeGraphQueries(parseResult.ast, language);
 
     // 映射为图元素
-    const graphElements = await this.graphMapperService.map(queryResults);
+    const graphElements = await this.graphMappingService.mapQueryResultsToGraph(queryResults);
+
+    // 转换为 Nebula 格式
+    const nebulaNodes = this.convertToNebulaNodes(graphElements.nodes);
+    const nebulaRelationships = this.convertToNebulaRelationships(graphElements.edges);
 
     // 插入到图数据库
-    if (graphElements.nodes.length > 0) {
-      await this.nebulaService.insertNodes(graphElements.nodes);
+    if (nebulaNodes.length > 0) {
+      await this.nebulaService.insertNodes(nebulaNodes);
     }
 
-    if (graphElements.edges.length > 0) {
-      await this.nebulaService.insertRelationships(graphElements.edges);
+    if (nebulaRelationships.length > 0) {
+      await this.nebulaService.insertRelationships(nebulaRelationships);
     }
 
     this.logger.info(`Successfully indexed file to graph: ${filePath}`, {
-      nodeCount: graphElements.nodes.length,
-      edgeCount: graphElements.edges.length
+      nodeCount: nebulaNodes.length,
+      edgeCount: nebulaRelationships.length
     });
 
   } catch (error) {
@@ -402,7 +483,7 @@ async function indexFileToGraph(projectPath: string, filePath: string): Promise<
 /**
  * 批量插入节点
  */
-async function batchInsertNodes(nodes: NebulaNode[]): Promise<void> {
+async batchInsertNodes(nodes: NebulaNode[]): Promise<void> {
   if (!nodes || nodes.length === 0) {
     return;
   }
@@ -431,7 +512,7 @@ async function batchInsertNodes(nodes: NebulaNode[]): Promise<void> {
 /**
  * 删除文件相关的所有数据
  */
-async function deleteDataForFile(filePath: string): Promise<void> {
+async deleteDataForFile(filePath: string): Promise<void> {
   try {
     // 删除与文件相关的所有节点和关系
     const deleteQuery = `
@@ -482,6 +563,32 @@ private async indexFile(projectPath: string, filePath: string): Promise<void> {
 }
 ```
 
+#### 2. 更新依赖注入配置
+
+**文件路径**: `src/types.ts`
+
+**新增类型**:
+
+```typescript
+export const TYPES = {
+  // 现有类型...
+  
+  // 图映射服务
+  GraphMapperService: Symbol.for('GraphMapperService'),
+  
+  // 其他现有类型...
+};
+```
+
+**文件路径**: `src/core/registrars/DatabaseServiceRegistrar.ts`
+
+**注册新服务**:
+
+```typescript
+// 注册 GraphMapperService
+container.bind<GraphDataMappingService>(TYPES.GraphMapperService).to(GraphDataMappingService).inSingletonScope();
+```
+
 ## 图 Schema 初始化脚本
 
 **文件路径**: `scripts/setup-graph-schema.ts`
@@ -517,10 +624,11 @@ const edgeQueries = [
 ## 实现步骤总结
 
 1. **Schema 初始化**: 运行 `setup-graph-schema.ts` 脚本，在数据库中创建好 TAGs 和 EDGEs。
-2. **服务实现**: 实现 `GraphMapperService`。
+2. **服务实现**: 扩展 `GraphDataMappingService`，添加 `mapQueryResultsToGraph` 方法。
 3. **服务扩展**: 增强 `TreeSitterQueryEngine`、`IndexingLogicService` 和 `NebulaService`。
 4. **集成协调**: 扩展 `IndexService` 和 `GraphIndexService`，将所有部分串联起来。
 5. **API 集成**: 确保现有的 API 端点能够支持图索引功能。
+6. **依赖注入**: 更新依赖注入配置，注册新的服务。
 
 ## 性能优化策略
 
@@ -538,6 +646,7 @@ const edgeQueries = [
 
 1. **查询结果缓存**: `TreeSitterQueryEngine` 已有查询缓存，避免重复解析相同的代码结构。
 2. **AST 缓存**: 可以考虑缓存解析后的 AST，减少重复解析开销。
+3. **映射结果缓存**: 利用现有的 `GraphMappingCache` 缓存映射结果。
 
 ## 错误处理和恢复
 
@@ -552,4 +661,10 @@ const edgeQueries = [
 2. **断点续传**: 记录处理进度，支持从中断点继续处理。
 3. **降级处理**: 在资源不足时，降低处理并发度，优先处理重要文件。
 
-这个实现指南充分利用了现有的服务和组件，避免了重复开发，确保新功能与现有架构无缝集成。
+## 向后兼容性
+
+1. **现有接口保持不变**: 所有现有的 `GraphDataMappingService` 方法保持原有签名和行为。
+2. **渐进式集成**: 新功能通过配置开关控制，默认关闭，不影响现有功能。
+3. **依赖注入兼容**: 新服务通过现有的依赖注入系统注册，不破坏现有依赖关系。
+
+这个实现指南充分利用了现有的服务和组件，避免了重复开发，确保新功能与现有架构无缝集成，同时保持了向后兼容性。

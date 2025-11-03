@@ -27,7 +27,6 @@ export { ErrorThresholdInterceptor } from './protection/ErrorThresholdIntercepto
 
 // 重新导出已移动的模块以保持向后兼容性
 export { BackupFileProcessor } from '../detection/BackupFileProcessor';
-export { ExtensionlessFileProcessor } from '../detection/ExtensionlessFileProcessor';
 export { FileFeatureDetector } from '../detection/FileFeatureDetector';
 export { UnifiedDetectionService } from '../detection/UnifiedDetectionService';
 export { UniversalProcessingConfig } from '../config/UniversalProcessingConfig';
