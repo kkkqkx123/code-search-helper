@@ -34,3 +34,7 @@ token统计模块与api请求次数统计模块，限制RPS，TPS，RPM, TRM，�
 召回片段时拆分片段后计算相似度，再根据重排结果返回原先所在片段
 
 txt, csv文件等可能用于存放数据集的需要先检查文件大小，以免增加系统负载
+
+编写专门的检查脚本用于判定src\service\parser\core\normalization\adapters中的适配器与
+src\service\parser\constants\queries目录中导出的查询规则
+与src/service/graph/mapping/LanguageNodeTypes.ts中的图映射定义是否匹配
