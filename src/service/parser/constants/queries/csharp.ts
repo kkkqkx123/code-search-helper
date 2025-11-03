@@ -2,6 +2,6 @@
 C# Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
-import cSharpQueries from './c-sharp/index';
+import cSharpQueries from './csharp/index';
 
 export default cSharpQueries;
