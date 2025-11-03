@@ -2,7 +2,6 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { BackupFileProcessor } from './BackupFileProcessor';
-import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
 import { FileFeatureDetector } from './FileFeatureDetector';
 import { languageExtensionMap, fileUtils, languageFeatureDetector } from '../../utils';
 
@@ -27,18 +26,15 @@ export interface LanguageDetectionResult {
 @injectable()
 export class LanguageDetectionService {
   private backupProcessor: BackupFileProcessor;
-  private extensionlessProcessor: ExtensionlessFileProcessor;
   private fileFeatureDetector: FileFeatureDetector;
   private logger?: LoggerService;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.BackupFileProcessor) backupProcessor?: BackupFileProcessor,
-    @inject(TYPES.ExtensionlessFileProcessor) extensionlessProcessor?: ExtensionlessFileProcessor
+    @inject(TYPES.BackupFileProcessor) backupProcessor?: BackupFileProcessor
   ) {
     this.logger = logger;
     this.backupProcessor = backupProcessor || new BackupFileProcessor(logger);
-    this.extensionlessProcessor = extensionlessProcessor || new ExtensionlessFileProcessor(logger);
     this.fileFeatureDetector = FileFeatureDetector.getInstance(logger);
   }
 
@@ -151,20 +147,21 @@ export class LanguageDetectionService {
    * @returns 语言检测结果
    */
   detectLanguageByContent(content: string): LanguageDetectionResult {
-    const detection = this.extensionlessProcessor.detectLanguageByContent(content);
-    if (detection.confidence > 0.5) {
+    // 使用工具类的内容检测
+    const detection = languageFeatureDetector.detectLanguageByContent(content);
+    
+    if (detection.language && detection.confidence > 0.5) {
       return {
         language: detection.language,
         confidence: detection.confidence,
         method: 'content',
         metadata: {
-          indicators: detection.indicators
+          indicators: [] // languageFeatureDetector 不提供 indicators，使用空数组
         }
       };
     }
     
-    // 使用工具类的内容检测
-    return languageFeatureDetector.detectLanguageByContent(content);
+    return detection;
   }
 
   /**
@@ -240,8 +237,8 @@ export class LanguageDetectionService {
       if (!ext) {
         // 如果没有扩展名，尝试内容检测
         if (content) {
-          const contentDetection = this.extensionlessProcessor.detectLanguageByContent(content);
-          if (contentDetection.confidence > 0.5) {
+          const contentDetection = languageFeatureDetector.detectLanguageByContent(content);
+          if (contentDetection.language && contentDetection.confidence > 0.5) {
             const parser = parsers.get(contentDetection.language);
             return parser && parser.supported ? parser : null;
           }
@@ -325,8 +322,8 @@ export class LanguageDetectionService {
    */
   private detectLanguageByContentFeatures(content: string, parsers: Map<string, any>): any | null {
     try {
-      // 使用扩展名处理器进行内容检测
-      const detectionResult = this.extensionlessProcessor.detectLanguageByContent(content);
+      // 使用语言特征检测器进行内容检测
+      const detectionResult = languageFeatureDetector.detectLanguageByContent(content);
       
       if (detectionResult.language && detectionResult.confidence > 0.5) {
         return parsers.get(detectionResult.language) || null;

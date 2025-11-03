@@ -47,7 +47,6 @@ import { UniversalTextStrategy } from '../../service/parser/processing/utils/Uni
 import { ErrorThresholdInterceptor } from '../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../service/parser/processing/detection/BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../../service/parser/processing/detection/ExtensionlessFileProcessor';
 import { OverlapPostProcessor } from '../../service/parser/processing/post-processing/OverlapPostProcessor';
 import { ASTNodeTracker } from '../../service/parser/processing/utils/AST/ASTNodeTracker';
 import { ChunkRebalancer } from '../../service/parser/processing/utils/ChunkRebalancer';
@@ -253,10 +252,6 @@ export class BusinessServiceRegistrar {
       container.bind<BackupFileProcessor>(TYPES.BackupFileProcessor).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         return new BackupFileProcessor(logger);
-      }).inSingletonScope();
-      container.bind<ExtensionlessFileProcessor>(TYPES.ExtensionlessFileProcessor).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return new ExtensionlessFileProcessor(logger);
       }).inSingletonScope();
       // 将 ProcessingGuard 直接绑定到 UnifiedGuardCoordinator（直接迁移策略）
       container.bind(TYPES.ProcessingGuard).toDynamicValue(context => {

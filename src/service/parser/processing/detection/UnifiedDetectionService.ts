@@ -6,8 +6,8 @@ import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { FileFeatureDetector } from './FileFeatureDetector';
 import { LanguageDetectionService } from './LanguageDetectionService';
 import { BackupFileProcessor } from './BackupFileProcessor';
-import { ExtensionlessFileProcessor } from './ExtensionlessFileProcessor';
 import { LanguageDetector } from '../../core/language-detection/LanguageDetector';
+import { languageFeatureDetector } from '../../utils';
 
 export enum ProcessingStrategyType {
   TREESITTER_AST = 'treesitter_ast',
@@ -78,8 +78,6 @@ export class UnifiedDetectionService {
   private readonly cacheSizeLimit = 1000; // 限制缓存大小
   private fileFeatureDetector: FileFeatureDetector;
   private backupFileProcessor: BackupFileProcessor;
-  private extensionlessFileProcessor: ExtensionlessFileProcessor;
-
   private languageDetector: LanguageDetector;
 
   constructor(
@@ -88,14 +86,12 @@ export class UnifiedDetectionService {
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: FileFeatureDetector,
     @inject(TYPES.BackupFileProcessor) backupFileProcessor?: BackupFileProcessor,
-    @inject(TYPES.ExtensionlessFileProcessor) extensionlessFileProcessor?: ExtensionlessFileProcessor,
     @inject(TYPES.LanguageDetector) languageDetector?: LanguageDetector
   ) {
     this.logger = logger;
     this.configManager = configManager || new UnifiedConfigManager();
     this.fileFeatureDetector = fileFeatureDetector || FileFeatureDetector.getInstance(logger);
     this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
-    this.extensionlessFileProcessor = extensionlessFileProcessor || new ExtensionlessFileProcessor(logger);
     this.languageDetector = languageDetector || new LanguageDetector();
     this.logger?.debug('UnifiedDetectionService initialized');
   }
@@ -224,14 +220,14 @@ export class UnifiedDetectionService {
    * 基于内容检测语言
    */
   private detectLanguageByContent(content: string): LanguageDetectionInfo {
-    // 使用现有的ExtensionlessFileProcessor进行内容检测
-    const detectionResult = this.extensionlessFileProcessor.detectLanguageByContent(content);
+    // 使用languageFeatureDetector进行内容检测
+    const detectionResult = languageFeatureDetector.detectLanguageByContent(content);
 
     return {
-      language: detectionResult.language,
+      language: detectionResult.language || 'unknown',
       confidence: detectionResult.confidence,
       detectionMethod: 'content',
-      metadata: { pattern: detectionResult.indicators.join(', ') }
+      metadata: { pattern: '' } // languageFeatureDetector 不提供 indicators，使用空字符串
     };
   }
 

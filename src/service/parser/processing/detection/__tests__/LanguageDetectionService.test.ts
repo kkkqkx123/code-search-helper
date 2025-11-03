@@ -1,6 +1,5 @@
 import { LanguageDetectionService, LanguageDetectionResult } from '../LanguageDetectionService';
 import { BackupFileProcessor } from '../BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
 import { FileFeatureDetector } from '../FileFeatureDetector';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
@@ -30,7 +29,6 @@ describe('LanguageDetectionService', () => {
   let service: LanguageDetectionService;
   let mockLogger: LoggerService;
   let mockBackupProcessor: jest.Mocked<BackupFileProcessor>;
-  let mockExtensionlessProcessor: jest.Mocked<ExtensionlessFileProcessor>;
   let mockFileFeatureDetector: jest.Mocked<FileFeatureDetector>;
 
   beforeEach(() => {
@@ -58,15 +56,6 @@ describe('LanguageDetectionService', () => {
       getBackupPatterns: jest.fn()
     } as any;
 
-    // Create mock extensionless processor
-    mockExtensionlessProcessor = {
-      detectLanguageByContent: jest.fn(),
-      isLikelyCodeFile: jest.fn(),
-      addSyntaxPattern: jest.fn(),
-      addShebangPattern: jest.fn(),
-      addFileStructurePattern: jest.fn()
-    } as any;
-
     // Create mock file feature detector
     mockFileFeatureDetector = {
       isCodeLanguage: jest.fn(),
@@ -92,8 +81,7 @@ describe('LanguageDetectionService', () => {
     // Create service instance
     service = new LanguageDetectionService(
       mockLogger,
-      mockBackupProcessor,
-      mockExtensionlessProcessor
+      mockBackupProcessor
     );
   });
 
@@ -154,10 +142,11 @@ describe('LanguageDetectionService', () => {
       
       mockBackupProcessor.getBackupFileMetadata.mockReturnValue({ isBackup: false, isLikelyCode: false });
       (languageExtensionMap.getLanguageFromPath as jest.Mock).mockReturnValue('unknown');
-      mockExtensionlessProcessor.detectLanguageByContent.mockReturnValue({
+      // Mock languageFeatureDetector to return python detection
+      (languageFeatureDetector.detectLanguageByContent as jest.Mock) = jest.fn().mockReturnValue({
         language: 'python',
         confidence: 0.8,
-        indicators: ['shebang: #!/usr/bin/env python']
+        method: 'content'
       });
 
       const result = await service.detectLanguage(filePath, content);
@@ -165,7 +154,6 @@ describe('LanguageDetectionService', () => {
       expect(result.language).toBe('python');
       expect(result.confidence).toBe(0.8);
       expect(result.method).toBe('content');
-      expect(result.metadata?.indicators).toEqual(['shebang: #!/usr/bin/env python']);
     });
 
     it('should use fallback detection when other methods fail', async () => {
@@ -174,17 +162,11 @@ describe('LanguageDetectionService', () => {
       mockBackupProcessor.getBackupFileMetadata.mockReturnValue({ isBackup: false, isLikelyCode: false });
       // 由于languageExtensionMap是直接导入的，我们无法mock它的行为
       // 让我们测试实际的回退行为
-      mockExtensionlessProcessor.detectLanguageByContent.mockReturnValue({
-        language: 'unknown',
-        confidence: 0.3,
-        indicators: []
-      });
 
       const result = await service.detectLanguage(filePath);
 
       // 由于无法mock languageExtensionMap，我们只能验证方法调用
       expect(mockBackupProcessor.getBackupFileMetadata).toHaveBeenCalledWith(filePath);
-      expect(mockExtensionlessProcessor.detectLanguageByContent).not.toHaveBeenCalled(); // 因为没有提供content
       expect(result.method).toBe('fallback');
     });
 
@@ -193,10 +175,11 @@ describe('LanguageDetectionService', () => {
       
       mockBackupProcessor.getBackupFileMetadata.mockReturnValue({ isBackup: false, isLikelyCode: false });
       (languageExtensionMap.getLanguageFromPath as jest.Mock).mockReturnValue('unknown');
-      mockExtensionlessProcessor.detectLanguageByContent.mockReturnValue({
+      // Mock languageFeatureDetector to return unknown
+      (languageFeatureDetector.detectLanguageByContent as jest.Mock) = jest.fn().mockReturnValue({
         language: 'unknown',
         confidence: 0.3,
-        indicators: []
+        method: 'content'
       });
 
       const result = await service.detectLanguage(filePath);
@@ -304,17 +287,17 @@ describe('LanguageDetectionService', () => {
       const expectedResult = {
         language: 'python',
         confidence: 0.8,
-        indicators: ['shebang: #!/usr/bin/env python']
+        method: 'content'
       };
       
-      mockExtensionlessProcessor.detectLanguageByContent.mockReturnValue(expectedResult);
+      // Mock languageFeatureDetector to return python detection
+      (languageFeatureDetector.detectLanguageByContent as jest.Mock) = jest.fn().mockReturnValue(expectedResult);
 
       const result = service.detectLanguageByContent(content);
 
       expect(result.language).toBe('python');
       expect(result.confidence).toBe(0.8);
       expect(result.method).toBe('content');
-      expect(result.metadata?.indicators).toEqual(['shebang: #!/usr/bin/env python']);
     });
 
     it('should use language feature detector for low confidence results', () => {
@@ -322,18 +305,19 @@ describe('LanguageDetectionService', () => {
       const lowConfidenceResult = {
         language: 'unknown',
         confidence: 0.3,
-        indicators: []
+        method: 'content'
       };
       
-      mockExtensionlessProcessor.detectLanguageByContent.mockReturnValue(lowConfidenceResult);
-      // 由于无法mock languageFeatureDetector，我们验证低置信度时的行为
+      // Mock languageFeatureDetector to return low confidence
+      (languageFeatureDetector.detectLanguageByContent as jest.Mock) = jest.fn().mockReturnValue(lowConfidenceResult);
 
       const result = service.detectLanguageByContent(content);
 
-      // 验证扩展名处理器被调用
-      expect(mockExtensionlessProcessor.detectLanguageByContent).toHaveBeenCalledWith(content);
-      // 由于无法mock直接导入的模块，我们只验证方法被调用
-      // 实际结果取决于languageFeatureDetector的实现
+      // 验证languageFeatureDetector被调用
+      expect(languageFeatureDetector.detectLanguageByContent).toHaveBeenCalledWith(content);
+      // 验证返回结果
+      expect(result.language).toBe('unknown');
+      expect(result.confidence).toBe(0.3);
     });
   });
 
@@ -462,10 +446,11 @@ describe('LanguageDetectionService', () => {
       
       mockBackupProcessor.getBackupFileMetadata.mockReturnValue({ isBackup: false, isLikelyCode: false });
       (fileUtils.extractFileExtension as jest.Mock).mockReturnValue('');
-      mockExtensionlessProcessor.detectLanguageByContent.mockReturnValue({
+      // Mock languageFeatureDetector to return python detection
+      (languageFeatureDetector.detectLanguageByContent as jest.Mock) = jest.fn().mockReturnValue({
         language: 'python',
         confidence: 0.8,
-        indicators: []
+        method: 'content'
       });
 
       const result = service.detectLanguageByParserConfig(filePath, parsers, content);

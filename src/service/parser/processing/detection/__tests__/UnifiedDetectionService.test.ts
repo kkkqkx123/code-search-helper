@@ -2,12 +2,9 @@ import { UnifiedDetectionService, DetectionResult, ProcessingStrategyType } from
 import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { FileFeatureDetector } from '../FileFeatureDetector';
-import { LanguageDetectionService } from '../LanguageDetectionService';
 import { BackupFileProcessor } from '../BackupFileProcessor';
-import { ExtensionlessFileProcessor } from '../ExtensionlessFileProcessor';
 import { LanguageDetector } from '../../../core/language-detection/LanguageDetector';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { TYPES } from '../../../../../types';
 
 describe('UnifiedDetectionService', () => {
   let service: UnifiedDetectionService;
@@ -16,7 +13,6 @@ describe('UnifiedDetectionService', () => {
   let mockTreeSitterService: jest.Mocked<TreeSitterService>;
   let mockFileFeatureDetector: jest.Mocked<FileFeatureDetector>;
   let mockBackupFileProcessor: jest.Mocked<BackupFileProcessor>;
-  let mockExtensionlessFileProcessor: jest.Mocked<ExtensionlessFileProcessor>;
   let mockLanguageDetector: jest.Mocked<LanguageDetector>;
 
   beforeEach(() => {
@@ -80,15 +76,6 @@ describe('UnifiedDetectionService', () => {
       getBackupPatterns: jest.fn()
     } as any;
 
-    // Create mock extensionless file processor
-    mockExtensionlessFileProcessor = {
-      detectLanguageByContent: jest.fn(),
-      isLikelyCodeFile: jest.fn(),
-      addSyntaxPattern: jest.fn(),
-      addShebangPattern: jest.fn(),
-      addFileStructurePattern: jest.fn()
-    } as any;
-
     // Create mock language detector
     mockLanguageDetector = {
       detectLanguageByExtension: jest.fn()
@@ -104,7 +91,6 @@ describe('UnifiedDetectionService', () => {
       mockTreeSitterService,
       mockFileFeatureDetector,
       mockBackupFileProcessor,
-      mockExtensionlessFileProcessor,
       mockLanguageDetector
     );
   });
@@ -166,11 +152,6 @@ describe('UnifiedDetectionService', () => {
 
       mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
-      mockExtensionlessFileProcessor.detectLanguageByContent.mockReturnValue({
-        language: 'unknown',
-        confidence: 0.3,
-        indicators: []
-      });
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
       mockFileFeatureDetector.isMarkdown.mockReturnValue(false);
@@ -197,11 +178,6 @@ describe('UnifiedDetectionService', () => {
 
       mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('unknown');
-      mockExtensionlessFileProcessor.detectLanguageByContent.mockReturnValue({
-        language: 'python',
-        confidence: 0.8,
-        indicators: ['shebang: #!/usr/bin/env python']
-      });
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
       mockFileFeatureDetector.isMarkdown.mockReturnValue(false);
@@ -228,11 +204,6 @@ describe('UnifiedDetectionService', () => {
 
       mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('python');
-      mockExtensionlessFileProcessor.detectLanguageByContent.mockReturnValue({
-        language: 'python',
-        confidence: 0.7,
-        indicators: ['def keyword']
-      });
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
       mockFileFeatureDetector.isMarkdown.mockReturnValue(false);
@@ -262,11 +233,6 @@ describe('UnifiedDetectionService', () => {
 
       mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
-      mockExtensionlessFileProcessor.detectLanguageByContent.mockReturnValue({
-        language: 'unknown',
-        confidence: 0.3,
-        indicators: []
-      });
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
       mockFileFeatureDetector.isMarkdown.mockReturnValue(false);
@@ -297,11 +263,6 @@ describe('UnifiedDetectionService', () => {
 
       mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
-      mockExtensionlessFileProcessor.detectLanguageByContent.mockReturnValue({
-        language: 'unknown',
-        confidence: 0.3,
-        indicators: []
-      });
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
       mockFileFeatureDetector.isMarkdown.mockReturnValue(false);
@@ -330,11 +291,6 @@ describe('UnifiedDetectionService', () => {
 
       mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
-      mockExtensionlessFileProcessor.detectLanguageByContent.mockReturnValue({
-        language: 'unknown',
-        confidence: 0.3,
-        indicators: []
-      });
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
       mockFileFeatureDetector.isMarkdown.mockReturnValue(false);
@@ -383,11 +339,6 @@ describe('UnifiedDetectionService', () => {
 
       mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
-      mockExtensionlessFileProcessor.detectLanguageByContent.mockReturnValue({
-        language: 'unknown',
-        confidence: 0.3,
-        indicators: []
-      });
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
       mockFileFeatureDetector.isMarkdown.mockReturnValue(false);
@@ -717,11 +668,6 @@ describe('UnifiedDetectionService', () => {
         if (filePath.endsWith('.py')) return 'python';
         if (filePath.endsWith('.md')) return 'markdown';
         return 'unknown';
-      });
-      mockExtensionlessFileProcessor.detectLanguageByContent.mockReturnValue({
-        language: 'unknown',
-        confidence: 0.3,
-        indicators: []
       });
       mockFileFeatureDetector.isCodeLanguage.mockImplementation((language: string) => {
         return language === 'javascript' || language === 'python';

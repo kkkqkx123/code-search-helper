@@ -314,7 +314,6 @@ export const TYPES = {
   ErrorThresholdManager: Symbol.for('ErrorThresholdManager'),
   MemoryGuard: Symbol.for('MemoryGuard'),
   BackupFileProcessor: Symbol.for('BackupFileProcessor'),
-  ExtensionlessFileProcessor: Symbol.for('ExtensionlessFileProcessor'),
   ProcessingGuard: Symbol.for('ProcessingGuard'),
   ProcessingStrategySelector: Symbol.for('ProcessingStrategySelector'),
   CleanupManager: Symbol.for('CleanupManager'),
