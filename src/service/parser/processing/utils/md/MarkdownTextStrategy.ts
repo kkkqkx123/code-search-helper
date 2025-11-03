@@ -17,6 +17,8 @@ import {
   isListItem,
   calculateSemanticSimilarity
 } from './markdown-rules';
+import { SemanticStrategy } from '../../strategies/impl/SemanticStrategy';
+import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
 
 /**
  * Markdown 专用文本分段器
@@ -52,7 +54,7 @@ export class MarkdownTextStrategy {
   /**
    * Markdown 专用分段方法
    */
-  chunkMarkdown(content: string, filePath?: string): CodeChunk[] {
+  async chunkMarkdown(content: string, filePath?: string): Promise<CodeChunk[]> {
     try {
       if (!isMarkdownFile(filePath || '')) {
         this.logger?.warn(`File ${filePath} is not recognized as markdown, using generic markdown processing`);
@@ -60,10 +62,18 @@ export class MarkdownTextStrategy {
 
       const blocks = this.parseMarkdownBlocks(content);
       const mergedBlocks = this.mergeRelatedBlocks(blocks);
-      const chunks = this.blocksToChunks(mergedBlocks, filePath);
 
-      this.logger?.info(`Markdown chunking completed: ${blocks.length} blocks -> ${chunks.length} chunks`);
-      return chunks;
+      // 检查并拆分大块
+      const processedBlocks = await this.splitLargeBlocks(mergedBlocks);
+
+      const chunks = this.blocksToChunks(processedBlocks, filePath);
+
+      // 应用重叠处理
+      const finalChunks = this.config.enableOverlap ?
+        this.applyOverlap(chunks, content) : chunks;
+
+      this.logger?.info(`Markdown chunking completed: ${blocks.length} blocks -> ${processedBlocks.length} processed blocks -> ${finalChunks.length} chunks`);
+      return finalChunks;
     } catch (error) {
       this.logger?.error(`Error in markdown chunking: ${error}`);
       // 降级到通用分段方法
@@ -186,7 +196,11 @@ export class MarkdownTextStrategy {
       const newLevel = getHeadingLevel(line);
 
       // 同级或更高级别的标题开始新块
-      return newLevel <= currentLevel;
+      const shouldStartNew = newLevel <= currentLevel;
+      
+      this.logger?.debug(`Heading level change: current H${currentLevel} -> new H${newLevel}, start new block: ${shouldStartNew}`);
+      
+      return shouldStartNew;
     }
 
     // 不同块类型通常开始新块
@@ -296,6 +310,13 @@ export class MarkdownTextStrategy {
 
   /**
    * 判断是否应该合并块
+   *
+   * 规则优先级（从高到低）：
+   * 1. 硬性限制（大小、行数）- 不可违反
+   * 2. 结构完整性保护 - 不可违反
+   * 3. 标题单向合并规则 - 高优先级，但可被minChunkSize覆盖
+   * 4. 语义和内容相关规则 - 可被更高优先级规则覆盖
+   * 5. 最小大小保证 - 最低优先级，确保内容不会过小
    */
   private shouldMergeBlocks(
     currentBlock: MarkdownBlock,
@@ -309,47 +330,123 @@ export class MarkdownTextStrategy {
     const nextSize = nextBlock.content.length;
     const totalSize = currentSize + nextSize;
 
-    // 大小限制检查
+    // 优先级1：硬性限制检查（不可违反）
     if (totalSize > this.config.maxChunkSize) return false;
     if (currentBlock.lines.length + nextBlock.lines.length > this.config.maxLinesPerChunk) return false;
 
-    // 标题与内容合并
+    // 优先级2：结构完整性保护（不可违反）
+    if (this.config.preserveStructureIntegrity) {
+      // 代码块保持完整
+      if (this.config.preserveCodeBlocks &&
+        (currentType === MarkdownBlockType.CODE_BLOCK || nextType === MarkdownBlockType.CODE_BLOCK)) {
+        // 如果当前块太小，仍然允许合并（会被优先级5覆盖）
+        if (currentSize >= this.config.minChunkSize) {
+          return false;
+        }
+      }
+
+      // 表格保持完整
+      if (this.config.preserveTables &&
+        (currentType === MarkdownBlockType.TABLE || nextType === MarkdownBlockType.TABLE)) {
+        // 如果当前块太小，仍然允许合并（会被优先级5覆盖）
+        if (currentSize >= this.config.minChunkSize) {
+          return false;
+        }
+      }
+
+      // 列表保持完整
+      if (this.config.preserveLists &&
+        (currentType === MarkdownBlockType.LIST || nextType === MarkdownBlockType.LIST)) {
+        // 如果当前块太小，仍然允许合并（会被优先级5覆盖）
+        if (currentSize >= this.config.minChunkSize) {
+          return false;
+        }
+      }
+    }
+
+    // 优先级3：标题单向合并规则（高优先级，但可被minChunkSize覆盖）
+    // 注意：这个规则在minChunkSize检查之前，确保标题的单向合并优先级
+    if (!this.shouldAllowForwardMerge(currentBlock, nextBlock)) {
+      // 但是如果当前块太小，我们需要违反这个规则来满足最小大小要求
+      if (currentSize >= this.config.minChunkSize) {
+        return false;
+      }
+    }
+
+    // 优先级4：语义和内容相关规则
+    // 标题与内容合并（仅向前合并）
     if (this.config.mergeWithHeading && currentType === MarkdownBlockType.HEADING) {
       return true;
     }
 
-    // 连续标题合并
+    // 连续标题合并（高级标题向低级标题合并）
     if (this.config.mergeConsecutiveHeadings &&
       currentType === MarkdownBlockType.HEADING &&
       nextType === MarkdownBlockType.HEADING) {
-      return true;
-    }
-
-    // 如果当前块太小，尝试合并不同层级的标题
-    if (currentSize < this.config.minChunkSize &&
-      currentType === MarkdownBlockType.HEADING &&
-      nextType === MarkdownBlockType.HEADING) {
-      return true;
-    }
-
-    // 代码块保持完整，但如果当前块太小则允许合并
-    if (this.config.preserveCodeBlocks &&
-      (currentType === MarkdownBlockType.CODE_BLOCK || nextType === MarkdownBlockType.CODE_BLOCK)) {
-      // 如果当前块太小，仍然允许合并
-      if (currentSize < this.config.minChunkSize) {
+      // 检查是否允许高级标题向低级标题合并
+      if (this.shouldAllowHeadingLevelMerge(currentBlock, nextBlock)) {
         return true;
       }
+    }
+
+    // 短段落合并
+    if (this.config.mergeShortParagraphs &&
+      currentType === MarkdownBlockType.PARAGRAPH &&
+      nextType === MarkdownBlockType.PARAGRAPH &&
+      currentSize < this.config.minChunkSize) {
+      return true;
+
+      // 语义相似性合并
+      if (this.config.enableSemanticMerge &&
+        currentType === MarkdownBlockType.PARAGRAPH &&
+        nextType === MarkdownBlockType.PARAGRAPH) {
+        const similarity = calculateSemanticSimilarity(currentBlock.content, nextBlock.content);
+        return similarity >= this.config.semanticSimilarityThreshold;
+      }
+
+      // 优先级5：最小大小保证（最低优先级，确保内容不会过小）
+      // 这个规则可以覆盖优先级3的标题单向合并规则
+      if (currentSize < this.config.minChunkSize) {
+        // 如果当前块太小，尝试与下一个块合并
+        // 即使违反标题单向合并规则也要合并，以避免产生过小的块
+        return true;
+      }
+
+      // 默认不合并不同类型
       return false;
     }
 
-    // 表格保持完整
-    if (this.config.preserveTables &&
-      (currentType === MarkdownBlockType.TABLE || nextType === MarkdownBlockType.TABLE)) {
-      // 如果当前块太小，仍然允许合并
-      if (currentSize < this.config.minChunkSize) {
-        return true;
+    // 特殊元素保护逻辑
+    if (this.config.preserveStructureIntegrity) {
+      // 代码块保持完整
+      if (this.config.preserveCodeBlocks &&
+        (currentType === MarkdownBlockType.CODE_BLOCK || nextType === MarkdownBlockType.CODE_BLOCK)) {
+        // 如果当前块太小，仍然允许合并
+        if (currentSize < this.config.minChunkSize) {
+          return true;
+        }
+        return false;
       }
-      return false;
+
+      // 表格保持完整
+      if (this.config.preserveTables &&
+        (currentType === MarkdownBlockType.TABLE || nextType === MarkdownBlockType.TABLE)) {
+        // 如果当前块太小，仍然允许合并
+        if (currentSize < this.config.minChunkSize) {
+          return true;
+        }
+        return false;
+      }
+
+      // 列表保持完整
+      if (this.config.preserveLists &&
+        (currentType === MarkdownBlockType.LIST || nextType === MarkdownBlockType.LIST)) {
+        // 如果当前块太小，仍然允许合并
+        if (currentSize < this.config.minChunkSize) {
+          return true;
+        }
+        return false;
+      }
     }
 
     // 短段落合并
@@ -360,17 +457,11 @@ export class MarkdownTextStrategy {
       return true;
     }
 
-    // 如果当前块太小，合并标题和段落
+    // 如果当前块太小，合并标题和段落（标题向后合并到段落）
+    // 这里是标题块与后面的段落合并，符合标题向后合并的原则
     if (currentSize < this.config.minChunkSize &&
       currentType === MarkdownBlockType.HEADING &&
       nextType === MarkdownBlockType.PARAGRAPH) {
-      return true;
-    }
-
-    // 如果当前块太小，合并段落和标题
-    if (currentSize < this.config.minChunkSize &&
-      currentType === MarkdownBlockType.PARAGRAPH &&
-      nextType === MarkdownBlockType.HEADING) {
       return true;
     }
 
@@ -384,6 +475,93 @@ export class MarkdownTextStrategy {
 
     // 默认不合并不同类型
     return false;
+  }
+
+  /**
+   * 判断是否允许向前合并（标题块单向合并）
+   *
+   * 合并规则说明：
+   * - "向前合并"指的是当前块与下一个块合并
+   * - 标题块可以与后面的内容合并（标题 -> 内容）
+   * - 其他块不能与标题块合并（内容 -> 标题），除非配置允许
+   * - 高级标题可以与低级标题合并（H1 -> H2），但低级标题不能与高级标题合并（H2 -> H1）
+   */
+  private shouldAllowForwardMerge(currentBlock: MarkdownBlock, nextBlock: MarkdownBlock): boolean {
+    const currentType = currentBlock.type;
+    const nextType = nextBlock.type;
+
+    // 标题块可以与后面的内容合并（标题 -> 内容）
+    if (currentType === MarkdownBlockType.HEADING) {
+      return true;
+    }
+
+    // 其他块不能与标题块向前合并（内容 -> 标题），除非配置允许
+    if (!this.config.allowBackwardHeadingMerge && nextType === MarkdownBlockType.HEADING) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 检查标题层级权重差异是否过大
+   */
+  private isHeadingLevelDifferenceTooLarge(currentBlock: MarkdownBlock, nextBlock: MarkdownBlock): boolean {
+    if (currentBlock.type !== MarkdownBlockType.HEADING || nextBlock.type !== MarkdownBlockType.HEADING) {
+      return false;
+    }
+
+    const currentLevel = getHeadingLevel(currentBlock.lines[0]);
+    const nextLevel = getHeadingLevel(nextBlock.lines[0]);
+
+    // 检查权重差异
+    if (currentLevel > 0 && nextLevel > 0 && this.config.headingLevelWeights) {
+      const currentWeight = this.config.headingLevelWeights[currentLevel - 1] || 1;
+      const nextWeight = this.config.headingLevelWeights[nextLevel - 1] || 1;
+      
+      // 权重差异超过2倍认为差异过大
+      const ratio = Math.max(currentWeight, nextWeight) / Math.min(currentWeight, nextWeight);
+      const isTooLarge = ratio > 2;
+      
+      // 添加调试日志
+      this.logger?.debug(`Heading weight check: H${currentLevel}(${currentWeight}) vs H${nextLevel}(${nextWeight}), ratio: ${ratio}, too large: ${isTooLarge}`);
+      
+      return isTooLarge;
+    }
+
+    return false;
+  }
+
+  /**
+   * 判断是否允许标题层级合并（高级标题向低级标题合并）
+   *
+   * 规则：
+   * - 高级标题（如H1）可以向低级标题（如H2）合并
+   * - 低级标题（如H2）不能向高级标题（如H1）合并
+   * - 同级标题可以合并
+   * - 权重差异过大的标题不能合并
+   */
+  private shouldAllowHeadingLevelMerge(currentBlock: MarkdownBlock, nextBlock: MarkdownBlock): boolean {
+    if (currentBlock.type !== MarkdownBlockType.HEADING || nextBlock.type !== MarkdownBlockType.HEADING) {
+      return false;
+    }
+
+    const currentLevel = getHeadingLevel(currentBlock.lines[0]);
+    const nextLevel = getHeadingLevel(nextBlock.lines[0]);
+
+    // 检查权重差异是否过大
+    if (this.isHeadingLevelDifferenceTooLarge(currentBlock, nextBlock)) {
+      return false;
+    }
+
+    // 高级标题可以向低级标题合并（H1 -> H2, H2 -> H3, 等）
+    // 同级标题也可以合并（H2 -> H2）
+    // 低级标题不能向高级标题合并（H2 -> H1 不允许）
+    const allowMerge = currentLevel <= nextLevel;
+    
+    this.logger?.debug(`Heading level merge check: H${currentLevel} -> H${nextLevel}, allowed: ${allowMerge}`);
+    
+    return allowMerge;
   }
 
   /**
@@ -524,6 +702,341 @@ export class MarkdownTextStrategy {
     }
 
     return Math.round(complexity);
+  }
+
+  /**
+   * 拆分大块
+   */
+  private async splitLargeBlocks(blocks: MarkdownBlock[]): Promise<MarkdownBlock[]> {
+    const result: MarkdownBlock[] = [];
+
+    for (const block of blocks) {
+      // 检查是否需要拆分
+      if (this.shouldSplitBlock(block)) {
+        const splitBlocks = await this.splitBlock(block);
+        result.push(...splitBlocks);
+      } else {
+        result.push(block);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * 判断是否需要拆分块
+   */
+  private shouldSplitBlock(block: MarkdownBlock): boolean {
+    // 检查大小限制
+    if (block.content.length > this.config.maxChunkSize) {
+      return true;
+    }
+
+    // 检查行数限制
+    if (block.lines.length > this.config.maxLinesPerChunk) {
+      return true;
+    }
+
+    // 对于代码块，如果内容超过最大大小的80%，也考虑拆分
+    if (block.type === MarkdownBlockType.CODE_BLOCK &&
+      block.content.length > this.config.maxChunkSize * 0.8) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * 拆分块
+   */
+  private async splitBlock(block: MarkdownBlock): Promise<MarkdownBlock[]> {
+    switch (block.type) {
+      case MarkdownBlockType.CODE_BLOCK:
+        return await this.splitCodeBlock(block);
+      case MarkdownBlockType.TABLE:
+        return this.splitTableBlock(block);
+      case MarkdownBlockType.LIST:
+        return this.splitListBlock(block);
+      default:
+        return this.splitGenericBlock(block);
+    }
+  }
+
+  /**
+   * 拆分代码块（复用SemanticStrategy）
+   */
+  private async splitCodeBlock(block: MarkdownBlock): Promise<MarkdownBlock[]> {
+    try {
+      // 使用SemanticStrategy进行语义拆分
+      const semanticStrategy = new SemanticStrategy({
+        basic: {
+          maxChunkSize: this.config.maxChunkSize * 0.8, // 留出重叠空间
+          minChunkSize: this.config.minChunkSize
+        }
+      });
+
+      // 提取代码内容（去除```标记）
+      const lines = block.lines;
+      let contentLines = lines;
+      let language = '';
+
+      // 检查是否有语言标记
+      if (lines.length > 0 && lines[0].trim().startsWith('```')) {
+        const langMatch = lines[0].trim().match(/^```(\w*)$/);
+        if (langMatch) {
+          language = langMatch[1];
+          contentLines = lines.slice(1, -1); // 去除首尾的```标记
+        }
+      }
+
+      const content = contentLines.join('\n');
+
+      // 使用语义策略拆分
+      const chunks = await semanticStrategy.split(
+        content,
+        language || 'text',
+        undefined,
+        {
+          basic: {
+            maxChunkSize: this.config.maxChunkSize * 0.8,
+            minChunkSize: this.config.minChunkSize
+          }
+        }
+      );
+
+      // 转换回MarkdownBlock格式
+      const result: MarkdownBlock[] = [];
+      let currentLine = block.startLine + 1; // 跳过开头的```
+
+      for (const chunk of chunks) {
+        const chunkLines = chunk.content.split('\n');
+        const blockContent = '```' + (language ? language : '') + '\n' +
+          chunk.content + '\n```';
+
+        result.push({
+          type: MarkdownBlockType.CODE_BLOCK,
+          lines: ['```' + (language ? language : ''), ...chunkLines, '```'],
+          content: blockContent,
+          startLine: currentLine,
+          endLine: currentLine + chunkLines.length + 1
+        });
+
+        currentLine += chunkLines.length + 2; // +2 for ``` markers
+      }
+
+      return result;
+    } catch (error) {
+      this.logger?.error(`Error splitting code block: ${error}`);
+      return [block]; // 返回原块作为降级
+    }
+  }
+
+  /**
+   * 拆分表格块
+   */
+  private splitTableBlock(block: MarkdownBlock): MarkdownBlock[] {
+    const lines = block.lines;
+    const result: MarkdownBlock[] = [];
+
+    // 找到表格分隔符位置
+    let separatorIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (isTableSeparator(lines[i])) {
+        separatorIndex = i;
+        break;
+      }
+    }
+
+    if (separatorIndex === -1) {
+      return [block]; // 没有找到分隔符，返回原块
+    }
+
+    // 保留表头和分隔符
+    const headerLines = lines.slice(0, separatorIndex + 1);
+    const dataLines = lines.slice(separatorIndex + 1);
+
+    // 计算每个子块的大小
+    const maxRowsPerChunk = Math.floor(this.config.maxLinesPerChunk / 2); // 预留空间
+    const chunkSize = Math.min(maxRowsPerChunk, Math.ceil(dataLines.length / Math.ceil(dataLines.length / maxRowsPerChunk)));
+
+    let currentLine = block.startLine;
+    let currentChunk = 0;
+
+    while (currentChunk < dataLines.length) {
+      const chunkDataLines = dataLines.slice(currentChunk, currentChunk + chunkSize);
+      const chunkLines = [...headerLines, ...chunkDataLines];
+      const chunkContent = chunkLines.join('\n');
+
+      result.push({
+        type: MarkdownBlockType.TABLE,
+        lines: chunkLines,
+        content: chunkContent,
+        startLine: currentLine,
+        endLine: currentLine + chunkLines.length - 1
+      });
+
+      currentLine += chunkLines.length;
+      currentChunk += chunkSize;
+    }
+
+    return result;
+  }
+
+  /**
+   * 拆分列表块
+   */
+  private splitListBlock(block: MarkdownBlock): MarkdownBlock[] {
+    const lines = block.lines;
+    const result: MarkdownBlock[] = [];
+
+    // 按列表项分组
+    const listItems: string[][] = [];
+    let currentItem: string[] = [];
+
+    for (const line of lines) {
+      if (isListItem(line)) {
+        if (currentItem.length > 0) {
+          listItems.push(currentItem);
+        }
+        currentItem = [line];
+      } else {
+        // 续行
+        currentItem.push(line);
+      }
+    }
+
+    if (currentItem.length > 0) {
+      listItems.push(currentItem);
+    }
+
+    // 计算每个子块的大小
+    const maxItemsPerChunk = Math.ceil(this.config.maxLinesPerChunk / 2); // 预留空间
+    let currentLine = block.startLine;
+
+    for (let i = 0; i < listItems.length; i += maxItemsPerChunk) {
+      const chunkItems = listItems.slice(i, i + maxItemsPerChunk);
+      const chunkLines = chunkItems.flat();
+      const chunkContent = chunkLines.join('\n');
+
+      result.push({
+        type: MarkdownBlockType.LIST,
+        lines: chunkLines,
+        content: chunkContent,
+        startLine: currentLine,
+        endLine: currentLine + chunkLines.length - 1
+      });
+
+      currentLine += chunkLines.length;
+    }
+
+    return result.length > 0 ? result : [block];
+  }
+
+  /**
+   * 拆分通用块
+   */
+  private splitGenericBlock(block: MarkdownBlock): MarkdownBlock[] {
+    const lines = block.lines;
+    const result: MarkdownBlock[] = [];
+
+    const maxLinesPerChunk = this.config.maxLinesPerChunk;
+    let currentLine = block.startLine;
+
+    for (let i = 0; i < lines.length; i += maxLinesPerChunk) {
+      const chunkLines = lines.slice(i, i + maxLinesPerChunk);
+      const chunkContent = chunkLines.join('\n');
+
+      result.push({
+        type: block.type,
+        lines: chunkLines,
+        content: chunkContent,
+        startLine: currentLine,
+        endLine: currentLine + chunkLines.length - 1
+      });
+
+      currentLine += chunkLines.length;
+    }
+
+    return result;
+  }
+
+  /**
+   * 应用重叠处理
+   */
+  private applyOverlap(chunks: CodeChunk[], originalContent: string): CodeChunk[] {
+    if (chunks.length <= 1) {
+      return chunks;
+    }
+
+    try {
+      const overlapCalculator = new UnifiedOverlapCalculator({
+        maxSize: this.config.overlapSize || 200,
+        minLines: 1,
+        maxOverlapRatio: 0.3,
+        enableASTBoundaryDetection: false, // Markdown不需要AST边界检测
+        logger: this.logger
+      });
+
+      // 应用重叠，但保护标题块
+      const result: CodeChunk[] = [];
+
+      for (let i = 0; i < chunks.length; i++) {
+        const currentChunk = chunks[i];
+        const nextChunk = i < chunks.length - 1 ? chunks[i + 1] : null;
+
+        if (nextChunk && this.shouldAddOverlap(currentChunk, nextChunk)) {
+          // 计算重叠
+          const overlapResult = overlapCalculator.calculateOptimalOverlap(
+            currentChunk,
+            nextChunk,
+            originalContent,
+            {
+              maxSize: this.config.overlapSize || 200,
+              similarityThreshold: 0.8
+            }
+          );
+
+          // 添加重叠内容到当前块
+          if (overlapResult.content && overlapResult.content.trim()) {
+            const overlappedChunk = {
+              ...currentChunk,
+              content: currentChunk.content + '\n' + overlapResult.content,
+              metadata: {
+                ...currentChunk.metadata,
+                endLine: currentChunk.metadata.endLine + overlapResult.lines
+              }
+            };
+            result.push(overlappedChunk);
+          } else {
+            result.push(currentChunk);
+          }
+        } else {
+          result.push(currentChunk);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      this.logger?.error(`Error applying overlap: ${error}`);
+      return chunks; // 返回原始块作为降级
+    }
+  }
+
+  /**
+   * 判断是否应该添加重叠（标题块保护）
+   */
+  private shouldAddOverlap(currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
+    // 如果下一个块是标题，不添加重叠
+    if (nextChunk.metadata.type === 'heading') {
+      return false;
+    }
+
+    // 如果当前块是标题且配置不允许向后合并，不添加重叠
+    if (currentChunk.metadata.type === 'heading' && !this.config.allowBackwardHeadingMerge) {
+      return false;
+    }
+
+    return true;
   }
 }
 

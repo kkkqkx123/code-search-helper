@@ -7,26 +7,30 @@ export interface MarkdownChunkingConfig {
   // 分段大小限制
   minChunkSize: number;        // 最小分段大小（字符数）
   maxChunkSize: number;        // 最大分段大小（字符数）
-  minLinesPerChunk: number;    // 最小行数
   maxLinesPerChunk: number;    // 最大行数
-  
+
   // 标题处理
   mergeWithHeading: boolean;   // 是否将标题与后续内容合并
   headingLevelWeights: number[]; // 标题级别权重 [H1, H2, H3, H4, H5, H6]
-  
+  allowBackwardHeadingMerge: boolean; // 是否允许标题块与前面的内容合并（默认false）
+
   // 特殊元素处理
   preserveCodeBlocks: boolean; // 保持代码块完整
   preserveTables: boolean;     // 保持表格完整
   preserveLists: boolean;      // 保持列表完整
-  
+  preserveStructureIntegrity: boolean; // 保持结构完整性（默认true）
+
   // 合并策略
   mergeConsecutiveHeadings: boolean; // 合并连续的标题
-  mergeBoldWithContent: boolean;     // 合并加粗文本与后续内容
   mergeShortParagraphs: boolean;     // 合并短段落
-  
+
   // 语义分析
   enableSemanticMerge: boolean;      // 启用语义合并
   semanticSimilarityThreshold: number; // 语义相似度阈值
+
+  // 重叠处理
+  overlapSize: number;        // 重叠大小（字符数）
+  enableOverlap: boolean;     // 是否启用重叠处理
 }
 
 /**
@@ -41,43 +45,43 @@ export const MARKDOWN_PATTERNS = {
   HEADING_4: /^####\s+(.+)$/m,
   HEADING_5: /^#####\s+(.+)$/m,
   HEADING_6: /^######\s+(.+)$/m,
-  
+
   // 代码块
   CODE_BLOCK_START: /^```(\w*)$/m,
   CODE_BLOCK_END: /^```$/m,
   INLINE_CODE: /`[^`]+`/g,
-  
+
   // 表格
   TABLE_ROW: /^\|.*\|$/m,
   TABLE_SEPARATOR: /^\|[\s\-:|]+\|$/m,
-  
+
   // 列表
   ORDERED_LIST: /^\d+\.\s+/m,
   UNORDERED_LIST: /^[\*\-\+]\s+/m,
   LIST_ITEM: /^(\s*)([\d\*\-\+])\s+(.+)$/m,
   TASK_LIST: /^[\*\-\+]\s+\[([ x])\]\s+/m,
-  
+
   // 引用
   BLOCKQUOTE: /^>\s+/m,
-  
+
   // 链接和图片
   LINK: /\[([^\]]+)\]\(([^)]+)\)/g,
   IMAGE: /!\[([^\]]*)\]\(([^)]+)\)/g,
-  
+
   // 强调
   BOLD: /\*\*([^*]+)\*\*/g,
   ITALIC: /\*([^*]+)\*/g,
   BOLD_ITALIC: /\*\*\*([^*]+)\*\*\*/g,
-  
+
   // 分隔线
   HORIZONTAL_RULE: /^([\*\-_]\s*){3,}$/m,
-  
+
   // 空行
   EMPTY_LINE: /^\s*$/,
-  
+
   // 段落
   PARAGRAPH: /^[^\s#>`|\*\-\+!\[\n].*$/,
-  
+
   // HTML 标签
   HTML_TAG: /<[^>]+>/g
 } as const;
@@ -101,28 +105,32 @@ export enum MarkdownBlockType {
  * Markdown 分段配置默认值
  */
 export const DEFAULT_MARKDOWN_CONFIG: MarkdownChunkingConfig = {
-  minChunkSize: 300,      // 最小300字符
-  maxChunkSize: 1500,     // 最大1500字符
-  minLinesPerChunk: 3,    // 最少3行
- maxLinesPerChunk: 30,   // 最多30行
-  
+  minChunkSize: 100,      // 最小100字符
+  maxChunkSize: 1200,     // 最大1200字符
+  maxLinesPerChunk: 30,   // 最多30行
+
   // 标题处理
   mergeWithHeading: true,
   headingLevelWeights: [10, 8, 6, 4, 2, 1], // H1-H6权重
-  
+  allowBackwardHeadingMerge: false, // 标题块只能与后面的内容合并
+
   // 特殊元素处理
   preserveCodeBlocks: true,
   preserveTables: true,
   preserveLists: true,
-  
+  preserveStructureIntegrity: true, // 保持结构完整性
+
   // 合并策略
   mergeConsecutiveHeadings: true,
-  mergeBoldWithContent: true,
   mergeShortParagraphs: true,
-  
+
   // 语义分析
   enableSemanticMerge: true,
-  semanticSimilarityThreshold: 0.7
+  semanticSimilarityThreshold: 0.7,
+
+  // 重叠处理
+  overlapSize: 200,       // 重叠200字符
+  enableOverlap: true     // 启用重叠处理
 };
 
 /**
@@ -206,7 +214,7 @@ export function isBlockquote(line: string): boolean {
 export function isParagraph(line: string): boolean {
   const trimmed = line.trim();
   if (!trimmed) return false;
-  
+
   // 排除其他块类型
   return !(
     MARKDOWN_PATTERNS.HEADING.test(trimmed) ||
@@ -225,10 +233,10 @@ export function isParagraph(line: string): boolean {
  */
 export function getMarkdownBlockType(line: string, inCodeBlock: boolean): MarkdownBlockType {
   const trimmed = line.trim();
-  
+
   if (!trimmed) return MarkdownBlockType.EMPTY;
   if (inCodeBlock) return MarkdownBlockType.CODE_BLOCK;
-  
+
   if (MARKDOWN_PATTERNS.HEADING.test(trimmed)) return MarkdownBlockType.HEADING;
   if (MARKDOWN_PATTERNS.CODE_BLOCK_START.test(trimmed)) return MarkdownBlockType.CODE_BLOCK;
   if (MARKDOWN_PATTERNS.TABLE_ROW.test(trimmed)) return MarkdownBlockType.TABLE;
@@ -237,7 +245,7 @@ export function getMarkdownBlockType(line: string, inCodeBlock: boolean): Markdo
   if (MARKDOWN_PATTERNS.HORIZONTAL_RULE.test(trimmed)) return MarkdownBlockType.HORIZONTAL_RULE;
   if (MARKDOWN_PATTERNS.HTML_TAG.test(trimmed)) return MarkdownBlockType.HTML;
   if (isParagraph(trimmed)) return MarkdownBlockType.PARAGRAPH;
-  
+
   return MarkdownBlockType.PARAGRAPH;
 }
 
@@ -247,12 +255,12 @@ export function getMarkdownBlockType(line: string, inCodeBlock: boolean): Markdo
 export function calculateSemanticSimilarity(text1: string, text2: string): number {
   const words1 = extractKeywords(text1);
   const words2 = extractKeywords(text2);
-  
+
   if (words1.length === 0 || words2.length === 0) return 0;
-  
+
   const intersection = words1.filter(word => words2.includes(word));
   const union = [...new Set([...words1, ...words2])];
-  
+
   return intersection.length / union.length;
 }
 
@@ -284,6 +292,6 @@ function isCommonWord(word: string): boolean {
     'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same',
     'so', 'than', 'too', 'very', 'just', 'now'
   ];
-  
+
   return commonWords.includes(word);
 }
