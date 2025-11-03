@@ -6,7 +6,7 @@ import { QueryLoader } from './QueryLoader';
 import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 
 /**
- * 查询管理器 - 简化版本
+ * 查询管理器
  * 直接从QueryLoader获取特定查询，减少转换层
  */
 export class QueryManager {

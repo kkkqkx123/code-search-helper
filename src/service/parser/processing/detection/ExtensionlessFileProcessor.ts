@@ -40,14 +40,14 @@ export class ExtensionlessFileProcessor {
     indicators: string[];
   } {
     const firstFewLines = content.substring(0, Math.min(500, content.length));
-    
+
     // 决策树检测逻辑
     const result = this.detectByDecisionTree(firstFewLines);
-    
+
     this.logger?.debug(`Language detection result: ${result.language} (confidence: ${result.confidence})`, {
       indicators: result.indicators
     });
-    
+
     return result;
   }
 
@@ -98,7 +98,7 @@ export class ExtensionlessFileProcessor {
 
     // 按照特定顺序检查 shebang 模式，确保更具体的模式优先匹配
     const patterns = Array.from(this.shebangPatterns.entries());
-    
+
     // 按模式长度降序排序，确保更长的模式优先匹配
     patterns.sort((a, b) => b[0].length - a[0].length);
 
@@ -106,7 +106,7 @@ export class ExtensionlessFileProcessor {
       if (firstLine.startsWith(pattern)) {
         return {
           language,
-          confidence: 0.9,
+          confidence: 0.95,
           indicators: [`shebang: ${pattern}`]
         };
       }
@@ -259,7 +259,7 @@ export class ExtensionlessFileProcessor {
         const isCustomLanguage = !(language in SYNTAX_PATTERNS);
         const baseConfidence = Math.min(1.0, matches / Math.max(patterns.length / 3, 1));
         const confidence = isCustomLanguage ? Math.max(baseConfidence, 0.8) : baseConfidence;
-        
+
         if (confidence > bestConfidence) {
           bestLanguage = language;
           bestConfidence = confidence;

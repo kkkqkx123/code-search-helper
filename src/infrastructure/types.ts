@@ -14,7 +14,7 @@ export interface DatabaseConnection {
 }
 
 export interface TransactionStatus {
- state: 'active' | 'prepared' | 'committed' | 'rolled_back' | 'failed';
+  state: 'active' | 'prepared' | 'committed' | 'rolled_back' | 'failed';
   participants: Map<DatabaseType, boolean>;
   timestamp: number;
 }
@@ -47,9 +47,9 @@ export interface BatchConfig {
 // 性能监控配置接口
 export interface PerformanceConfig {
   monitoringInterval: number;
- metricsRetentionPeriod: number;
+  metricsRetentionPeriod: number;
   enableDetailedLogging: boolean;
- performanceThresholds: {
+  performanceThresholds: {
     queryExecutionTime: number;
     memoryUsage: number;
     responseTime: number;
