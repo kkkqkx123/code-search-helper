@@ -18,7 +18,10 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
       'imports',
       'control-flow',
       'data-structures',
-      'types-decorators'
+      'types-decorators',
+      'data-flow',
+      'semantic-relationships',
+      'lifecycle-relationships'
     ];
   }
 
@@ -292,15 +295,18 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive'> = {
       'classes': 'class',
       'functions': 'function',
       'variables': 'variable',
       'imports': 'import',
       'control-flow': 'control-flow',
       'data-structures': 'class', // Python的数据结构通常映射为类
-      'types-decorators': 'type'
+      'types-decorators': 'type',
+      'data-flow': 'data-flow',
+      'semantic-relationships': 'semantic-relationship',
+      'lifecycle-relationships': 'lifecycle-event'
     };
     
     return mapping[queryType] || 'expression';
@@ -493,5 +499,278 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
   protected isBlockNode(node: any): boolean {
     const pythonBlockTypes = ['block', 'suite'];
     return pythonBlockTypes.includes(node.type) || super.isBlockNode(node);
+  }
+
+  // 高级关系提取方法
+
+  extractDataFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'assignment' | 'parameter' | 'return';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取赋值数据流关系
+    if (mainNode.type === 'assignment') {
+      const left = mainNode.childForFieldName('left');
+      const right = mainNode.childForFieldName('right');
+      
+      if (left?.text && right?.text) {
+        relationships.push({
+          source: right.text,
+          target: left.text,
+          type: 'assignment'
+        });
+      }
+    }
+
+    // 提取增强赋值数据流关系
+    if (mainNode.type === 'augmented_assignment') {
+      const left = mainNode.childForFieldName('left');
+      const right = mainNode.childForFieldName('right');
+      
+      if (left?.text && right?.text) {
+        relationships.push({
+          source: right.text,
+          target: left.text,
+          type: 'assignment'
+        });
+      }
+    }
+
+    // 提取参数数据流关系
+    if (mainNode.type === 'call') {
+      const args = mainNode.childForFieldName('arguments');
+      const func = mainNode.childForFieldName('function');
+      
+      if (args && func?.text) {
+        for (const arg of args.children || []) {
+          if (arg.type === 'identifier' && arg.text) {
+            relationships.push({
+              source: arg.text,
+              target: func.text,
+              type: 'parameter'
+            });
+          }
+        }
+      }
+    }
+
+    // 提取返回值数据流关系
+    if (mainNode.type === 'return_statement') {
+      const value = mainNode.childForFieldName('value');
+      if (value?.text) {
+        relationships.push({
+          source: value.text,
+          target: 'return',
+          type: 'return'
+        });
+      }
+    }
+
+    return relationships;
+  }
+
+  extractControlFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'conditional' | 'loop' | 'exception' | 'callback';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取条件控制流
+    if (mainNode.type === 'if_statement') {
+      const condition = mainNode.childForFieldName('condition');
+      if (condition?.text) {
+        relationships.push({
+          source: condition.text,
+          target: 'if-block',
+          type: 'conditional'
+        });
+      }
+    }
+
+    // 提取循环控制流
+    if (mainNode.type === 'for_statement' || mainNode.type === 'while_statement') {
+      const condition = mainNode.childForFieldName('condition');
+      if (condition?.text) {
+        relationships.push({
+          source: condition.text,
+          target: 'loop-body',
+          type: 'loop'
+        });
+      }
+    }
+
+    // 提取异常控制流
+    if (mainNode.type === 'try_statement') {
+      relationships.push({
+        source: 'try-block',
+        target: 'except-block',
+        type: 'exception'
+      });
+    }
+
+    // 提取上下文管理器控制流
+    if (mainNode.type === 'with_statement') {
+      const context = mainNode.childForFieldName('context');
+      if (context?.text) {
+        relationships.push({
+          source: context.text,
+          target: 'with-block',
+          type: 'conditional' // Using conditional as a generic type for context management
+        });
+      }
+    }
+
+    return relationships;
+  }
+
+  extractSemanticRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取Python中的语义关系
+    const text = mainNode.text || '';
+    
+    // 检查装饰器，可能是重写或观察者模式
+    if (text.includes('@override') || text.includes('@property')) {
+      relationships.push({
+        source: 'base-method',
+        target: 'overriding-method',
+        type: 'overrides'
+      });
+    }
+
+    // 简单的观察者模式检测（装饰器或回调模式）
+    if (text.includes('@on') || text.includes('@event') || text.includes('.connect')) {
+      relationships.push({
+        source: 'event-emitter',
+        target: 'listener',
+        type: 'observes'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractLifecycleRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取实例化关系
+    if (mainNode.type === 'call' && mainNode.text && mainNode.text.includes('(')) {
+      // 检查是否是类的实例化
+      const func = mainNode.childForFieldName('function');
+      if (func && (func.text && func.text[0] === func.text[0].toUpperCase())) {
+        relationships.push({
+          source: 'new-instance',
+          target: func.text,
+          type: 'instantiates'
+        });
+      }
+    }
+
+    // 提取初始化关系
+    if (mainNode.type === 'method_definition' && mainNode.text?.includes('__init__')) {
+      relationships.push({
+        source: '__init__',
+        target: 'instance',
+        type: 'initializes'
+      });
+    }
+
+    // 提取析构关系
+    if (mainNode.type === 'method_definition' && mainNode.text?.includes('__del__')) {
+      relationships.push({
+        source: 'instance',
+        target: '__del__',
+        type: 'destroys'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractConcurrencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取Python中的并发关系
+    const text = mainNode.text || '';
+    
+    // 检查锁机制
+    if (text.includes('with lock:') || text.includes('threading.Lock') || text.includes('asyncio.Lock')) {
+      relationships.push({
+        source: 'lock',
+        target: 'critical-section',
+        type: 'synchronizes'
+      });
+    }
+
+    // 检查异步操作
+    if (text.includes('async def') || text.includes('await')) {
+      relationships.push({
+        source: 'async-operation',
+        target: 'await-point',
+        type: 'communicates'
+      });
+    }
+
+    return relationships;
   }
 }

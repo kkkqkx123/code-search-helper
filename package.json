@@ -21,6 +21,7 @@
     "test:mcp": "jest src/mcp",
     "test:frontend": "cd frontend && npm test",
     "test:parser": "jest src/service/parser",
+    "test:query-rules": "ts-node scripts/query-verify/test-query-rules.ts",
     "test:all": "tsx scripts/run-tests.ts",
     "test:performance": "node --expose-gc --max-old-space-size=1536 node_modules/jest/bin/jest.js --config jest.performance.config.js --runInBand --logHeapUsage",
     "test:performance:light": "node --expose-gc --max-old-space-size=1024 node_modules/jest/bin/jest.js --config jest.performance.light.config.js --runInBand --logHeapUsage",

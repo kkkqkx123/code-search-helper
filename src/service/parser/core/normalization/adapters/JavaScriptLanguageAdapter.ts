@@ -22,7 +22,11 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       'interfaces',
       'methods',
       'properties',
-      'types'
+      'types',
+      'data-flow',
+      'semantic-relationships',
+      'lifecycle-relationships',
+      'concurrency-relationships'
     ];
   }
 
@@ -298,8 +302,8 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive'> = {
       'classes': 'class',
       'functions': 'function',
       'variables': 'variable',
@@ -310,7 +314,11 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       'interfaces': 'interface',
       'methods': 'method',
       'properties': 'variable',  // 将properties映射到variable，因为StandardizedQueryResult不支持property类型
-      'types': 'type'
+      'types': 'type',
+      'data-flow': 'data-flow',
+      'semantic-relationships': 'semantic-relationship',
+      'lifecycle-relationships': 'lifecycle-event',
+      'concurrency-relationships': 'concurrency-primitive'
     };
 
     return mapping[queryType] || 'expression';
@@ -435,5 +443,234 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
   protected isBlockNode(node: any): boolean {
     const jsBlockTypes = ['block', 'statement_block', 'class_body', 'object'];
     return jsBlockTypes.includes(node.type) || super.isBlockNode(node);
+  }
+
+  // 高级关系提取方法
+
+  extractDataFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'assignment' | 'parameter' | 'return';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取赋值数据流关系
+    if (mainNode.type === 'assignment_expression') {
+      const left = mainNode.childForFieldName('left');
+      const right = mainNode.childForFieldName('right');
+      
+      if (left?.text && right?.text) {
+        relationships.push({
+          source: right.text,
+          target: left.text,
+          type: 'assignment'
+        });
+      }
+    }
+
+    // 提取参数数据流关系
+    if (mainNode.type === 'call_expression') {
+      const args = mainNode.childForFieldName('arguments');
+      const func = mainNode.childForFieldName('function');
+      
+      if (args && func?.text) {
+        for (const arg of args.children || []) {
+          if (arg.type === 'identifier' && arg.text) {
+            relationships.push({
+              source: arg.text,
+              target: func.text,
+              type: 'parameter'
+            });
+          }
+        }
+      }
+    }
+
+    // 提取返回值数据流关系
+    if (mainNode.type === 'return_statement') {
+      const value = mainNode.childForFieldName('value');
+      if (value?.text) {
+        relationships.push({
+          source: value.text,
+          target: 'return',
+          type: 'return'
+        });
+      }
+    }
+
+    return relationships;
+  }
+
+  extractControlFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'conditional' | 'loop' | 'exception' | 'callback';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取条件控制流
+    if (mainNode.type === 'if_statement') {
+      const condition = mainNode.childForFieldName('condition');
+      if (condition?.text) {
+        relationships.push({
+          source: condition.text,
+          target: 'if-block',
+          type: 'conditional'
+        });
+      }
+    }
+
+    // 提取循环控制流
+    if (mainNode.type === 'for_statement' || mainNode.type === 'while_statement') {
+      const condition = mainNode.childForFieldName('condition');
+      if (condition?.text) {
+        relationships.push({
+          source: condition.text,
+          target: 'loop-body',
+          type: 'loop'
+        });
+      }
+    }
+
+    // 提取异常控制流
+    if (mainNode.type === 'try_statement') {
+      relationships.push({
+        source: 'try-block',
+        target: 'catch-block',
+        type: 'exception'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractSemanticRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取JavaScript中可能的语义关系
+    // 比如方法重写（在类继承中）
+    // 比如观察者模式（通过on/emit等模式）
+    const text = mainNode.text || '';
+    
+    // 简单的观察者模式检测
+    if (text.includes('.on(') || text.includes('.addListener(')) {
+      relationships.push({
+        source: 'event-emitter',
+        target: 'listener',
+        type: 'observes'
+      });
+    }
+
+    // 简单的配置模式检测
+    if (text.includes('.configure') || text.includes('.config')) {
+      relationships.push({
+        source: 'configuration',
+        target: 'configurable',
+        type: 'configures'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractLifecycleRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取实例化关系
+    if (mainNode.type === 'new_expression') {
+      const constructor = mainNode.childForFieldName('constructor');
+      if (constructor?.text) {
+        relationships.push({
+          source: 'new-instance',
+          target: constructor.text,
+          type: 'instantiates'
+        });
+      }
+    }
+
+    // 提取初始化关系
+    if (mainNode.type === 'method_definition' && mainNode.text?.includes('constructor')) {
+      relationships.push({
+        source: 'constructor',
+        target: 'instance',
+        type: 'initializes'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractConcurrencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取JavaScript中的并发关系（如Promise、async/await）
+    const text = mainNode.text || '';
+    
+    if (text.includes('Promise') || text.includes('await') || text.includes('.then')) {
+      relationships.push({
+        source: 'async-operation',
+        target: 'result',
+        type: 'communicates'
+      });
+    }
+
+    return relationships;
   }
 }

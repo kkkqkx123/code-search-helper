@@ -519,8 +519,39 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   abstract extractLanguageSpecificMetadata(result: any): Record<string, any>;
   abstract getSupportedQueryTypes(): string[];
   abstract mapNodeType(nodeType: string): string;
-  abstract mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression';
+  abstract mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive';
   abstract calculateComplexity(result: any): number;
   abstract extractDependencies(result: any): string[];
   abstract extractModifiers(result: any): string[];
+
+  // 高级关系提取方法 - 可选实现
+  extractDataFlowRelationships?(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }>;
+  
+  extractControlFlowRelationships?(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }>;
+  
+  extractSemanticRelationships?(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  }>;
+  
+  extractLifecycleRelationships?(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  }>;
+  
+  extractConcurrencyRelationships?(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  }>;
 }

@@ -10,10 +10,10 @@ function parseArgs() {
   for (const arg of args) {
     if (arg.startsWith('--lang=') || arg.startsWith('--language=')) {
       const lang = arg.split('=')[1]?.toLowerCase();
-      if (lang && ['javascript', 'python', 'java', 'c'].includes(lang)) {
+      if (lang && ['javascript', 'python', 'java', 'c', 'csharp', 'cpp'].includes(lang)) {
         languages.push(lang);
       } else {
-        console.error(`Invalid language: ${lang}. Supported languages: javascript, python, java, c`);
+        console.error(`Invalid language: ${lang}. Supported languages: javascript, python, java, c, csharp, cpp`);
         process.exit(1);
       }
     } else if (arg === '--help' || arg === '-h') {
@@ -21,13 +21,14 @@ function parseArgs() {
 Usage: npm run test:query-rules [options]
 
 Options:
-  --lang=<language>    Run tests for specific language (javascript, python, java, c)
+  --lang=<language>    Run tests for specific language (javascript, python, java, c, csharp, cpp)
   --language=<language> Same as --lang
   --help, -h           Show this help message
 
 Examples:
   npm run test:query-rules                    # Run all languages
   npm run test:query-rules --lang=javascript # Run only JavaScript
+  npm run test:query-rules --lang=csharp # Run only C#
   npm run test:query-rules --lang=javascript --lang=python # Run JavaScript and Python
       `);
       process.exit(0);
@@ -39,7 +40,7 @@ Examples:
   }
 
   // If no languages specified, run all
-  return languages.length > 0 ? languages : ['javascript', 'python', 'java', 'c'];
+  return languages.length > 0 ? languages : ['javascript', 'python', 'java', 'c', 'csharp', 'cpp'];
 }
 
 async function testQueryFilesExistence(selectedLanguages: string[]) {
@@ -122,6 +123,43 @@ async function testQueryFilesExistence(selectedLanguages: string[]) {
     }
   }
 
+  if (selectedLanguages.includes('csharp')) {
+    // Test C# queries
+  console.log('\nTesting C# query files...');
+  try {
+    const csDataFlow = await import('../../src/service/parser/constants/queries/csharp/data-flow');
+    console.log(`✓ C# data-flow query loaded: ${csDataFlow.default.length} characters`);
+
+    const csControlFlow = await import('../../src/service/parser/constants/queries/csharp/control-flow');
+    console.log(`✓ C# control-flow query loaded: ${csControlFlow.default.length} characters`);
+
+    const csSemantic = await import('../../src/service/parser/constants/queries/csharp/semantic-relationships');
+    console.log(`✓ C# semantic-relationships query loaded: ${csSemantic.default.length} characters`);
+
+    const csLifecycle = await import('../../src/service/parser/constants/queries/csharp/lifecycle-relationships');
+    console.log(`✓ C# lifecycle-relationships query loaded: ${csLifecycle.default.length} characters`);
+
+    const csConcurrency = await import('../../src/service/parser/constants/queries/csharp/concurrency-relationships');
+    console.log(`✓ C# concurrency-relationships query loaded: ${csConcurrency.default.length} characters`);
+    } catch (error) {
+      console.error('Error loading C# query files:', error);
+    }
+  }
+
+  if (selectedLanguages.includes('cpp')) {
+    // Test C++ queries
+  console.log('\nTesting C++ query files...');
+  try {
+    const cppDataFlow = await import('../../src/service/parser/constants/queries/cpp/data-flow');
+    console.log(`✓ C++ data-flow query loaded: ${cppDataFlow.default.length} characters`);
+
+    const cppSemantic = await import('../../src/service/parser/constants/queries/cpp/semantic-relationships');
+    console.log(`✓ C++ semantic-relationships query loaded: ${cppSemantic.default.length} characters`);
+    } catch (error) {
+      console.error('Error loading C++ query files:', error);
+    }
+  }
+
   console.log(`\n✅ Query files for selected languages (${selectedLanguages.join(', ')}) have been successfully tested!`);
 }
 
@@ -157,6 +195,7 @@ async function validateQuerySyntax(queries: string, language: string, queryType:
           balance--;
           if (balance < 0) {
             console.log(`✗ ${language} ${queryType} syntax error: Unbalanced parentheses at position ${i}`);
+            console.log(`Debug: Context around position ${i}:`, queries.substring(Math.max(0, i-20), Math.min(queries.length, i+20)));
             return false;
           }
         }
@@ -283,6 +322,33 @@ async function testQuerySyntax(selectedLanguages: string[]) {
 
     const cConcurrency = await import('../../src/service/parser/constants/queries/c/concurrency-relationships');
     await validateQuerySyntax(cConcurrency.default, 'C', 'concurrency-relationships');
+  }
+
+  if (selectedLanguages.includes('csharp')) {
+    // C# queries
+    const csDataFlow = await import('../../src/service/parser/constants/queries/csharp/data-flow');
+    await validateQuerySyntax(csDataFlow.default, 'C#', 'data-flow');
+
+    const csControlFlow = await import('../../src/service/parser/constants/queries/csharp/control-flow');
+    await validateQuerySyntax(csControlFlow.default, 'C#', 'control-flow');
+
+    const csSemantic = await import('../../src/service/parser/constants/queries/csharp/semantic-relationships');
+    await validateQuerySyntax(csSemantic.default, 'C#', 'semantic-relationships');
+
+    const csLifecycle = await import('../../src/service/parser/constants/queries/csharp/lifecycle-relationships');
+    await validateQuerySyntax(csLifecycle.default, 'C#', 'lifecycle-relationships');
+
+    const csConcurrency = await import('../../src/service/parser/constants/queries/csharp/concurrency-relationships');
+    await validateQuerySyntax(csConcurrency.default, 'C#', 'concurrency-relationships');
+  }
+
+  if (selectedLanguages.includes('cpp')) {
+    // C++ queries
+    const cppDataFlow = await import('../../src/service/parser/constants/queries/cpp/data-flow');
+    await validateQuerySyntax(cppDataFlow.default, 'C++', 'data-flow');
+
+    const cppSemantic = await import('../../src/service/parser/constants/queries/cpp/semantic-relationships');
+    await validateQuerySyntax(cppSemantic.default, 'C++', 'semantic-relationships');
   }
 
   console.log('\n✅ All query syntax validations completed!');

@@ -8,6 +8,11 @@ import properties from './properties';
 import linq from './linq';
 import patterns from './patterns';
 import expressions from './expressions';
+import dataFlow from './data-flow';
+import controlFlow from './control-flow';
+import semanticRelationships from './semantic-relationships';
+import lifecycleRelationships from './lifecycle-relationships';
+import concurrencyRelationships from './concurrency-relationships';
 
 export default `
 ${classes}
@@ -21,4 +26,14 @@ ${linq}
 ${patterns}
 
 ${expressions}
+
+${dataFlow}
+
+${controlFlow}
+
+${semanticRelationships}
+
+${lifecycleRelationships}
+
+${concurrencyRelationships}
 `;

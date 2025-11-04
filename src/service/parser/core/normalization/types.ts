@@ -9,7 +9,10 @@ import Parser from 'tree-sitter';
  */
 export interface StandardizedQueryResult {
   /** 结构类型 */
-  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def';
+  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def' |
+        'data-flow' | 'parameter-flow' | 'return-flow' | 
+        'exception-flow' | 'callback-flow' | 
+        'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive';
   
   /** 结构名称 */
   name: string;
@@ -229,6 +232,22 @@ export interface QueryResultMetadata {
   dependencies: string[];
   /** 修饰符列表 */
   modifiers: string[];
+  /** 数据流相关 */
+  dataFlowSources?: string[];
+  dataFlowTargets?: string[];
+  dataFlowType?: 'assignment' | 'parameter' | 'return';
+  /** 控制流相关 */
+  controlFlowType?: 'conditional' | 'loop' | 'exception' | 'callback';
+  controlFlowTargets?: string[];
+  /** 语义关系相关 */
+  semanticType?: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  semanticTargets?: string[];
+  /** 生命周期相关 */
+  lifecycleType?: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  lifecycleTargets?: string[];
+  /** 并发相关 */
+  concurrencyType?: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  concurrencyTargets?: string[];
   /** 额外的语言特定信息 */
   [key: string]: any;
 }

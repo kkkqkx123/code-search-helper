@@ -23,7 +23,11 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
       'types',
       'variables',
       'control-flow',
-      'expressions'
+      'expressions',
+      'data-flow',
+      'semantic-relationships',
+      'lifecycle-relationships',
+      'concurrency-relationships'
     ];
   }
 
@@ -184,5 +188,80 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
   protected isBlockNode(node: any): boolean {
   const tsBlockTypes = ['interface_body'];
   return tsBlockTypes.includes(node.type) || super.isBlockNode(node);
+  }
+
+  // 高级关系提取方法 - TypeScript特定的实现
+  
+  extractDataFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }> {
+    // TypeScript继承JavaScript的实现，可以复用
+    return super.extractDataFlowRelationships(result);
+  }
+
+  extractControlFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }> {
+    // TypeScript继承JavaScript的实现，可以复用
+    return super.extractControlFlowRelationships(result);
+  }
+
+  extractSemanticRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  }> {
+    // 先调用父类方法获取基础语义关系
+    const relationships = super.extractSemanticRelationships(result);
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 添加TypeScript特有的语义关系
+    const text = mainNode.text || '';
+    
+    // 检查TypeScript接口实现
+    if (text.includes('implements')) {
+      relationships.push({
+        source: 'interface',
+        target: 'implementing-class',
+        type: 'overrides'
+      });
+    }
+
+    // 检查TypeScript类型别名和泛型
+    if (text.includes('type ') || text.includes('<') && text.includes('>')) {
+      relationships.push({
+        source: 'generic-type',
+        target: 'concrete-type',
+        type: 'delegates'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractLifecycleRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  }> {
+    // TypeScript继承JavaScript的实现，可以复用
+    return super.extractLifecycleRelationships(result);
+  }
+
+  extractConcurrencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  }> {
+    // TypeScript继承JavaScript的实现，可以复用
+    return super.extractConcurrencyRelationships(result);
   }
 }

@@ -194,7 +194,15 @@ export class StructureAwareStrategy implements ISplitStrategy {
       'array': 15,
       'table': 16,
       'dependency': 17,
-      'type-def': 18
+      'type-def': 18,
+      'data-flow': 19,
+      'parameter-flow': 20,
+      'return-flow': 21,
+      'exception-flow': 22,
+      'callback-flow': 23,
+      'semantic-relationship': 24,
+      'lifecycle-event': 25,
+      'concurrency-primitive': 26
     };
 
     return structures.sort((a, b) => {

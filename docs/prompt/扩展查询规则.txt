@@ -1,1 +1,0 @@
-@/docs/plan/graph-index/query-rules-extension-plan.md 根据该文档扩展js，ts，py的查询规则，然后编写测试脚本验证查询规则是否正确。相应的tree-sitter均已下载

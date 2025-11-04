@@ -14,7 +14,10 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     return [
       'classes-interfaces',
       'methods-variables',
-      'control-flow-patterns'
+      'control-flow-patterns',
+      'data-flow',
+      'semantic-relationships',
+      'lifecycle-relationships'
     ];
   }
 
@@ -394,11 +397,14 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive'> = {
       'classes-interfaces': 'class',
       'methods-variables': 'method',
-      'control-flow-patterns': 'control-flow'
+      'control-flow-patterns': 'control-flow',
+      'data-flow': 'data-flow',
+      'semantic-relationships': 'semantic-relationship',
+      'lifecycle-relationships': 'lifecycle-event'
     };
     
     return mapping[queryType] || 'expression';
@@ -543,5 +549,260 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
       'try_statement', 'catch_clause', 'finally_clause', 'synchronized_statement'
     ];
     return javaBlockTypes.includes(node.type) || super.isBlockNode(node);
+  }
+
+  // 高级关系提取方法
+
+  extractDataFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'assignment' | 'parameter' | 'return';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取赋值数据流关系
+    if (mainNode.type === 'assignment_expression') {
+      const left = mainNode.childForFieldName('left');
+      const right = mainNode.childForFieldName('right');
+      
+      if (left?.text && right?.text) {
+        relationships.push({
+          source: right.text,
+          target: left.text,
+          type: 'assignment'
+        });
+      }
+    }
+
+    // 提取参数数据流关系
+    if (mainNode.type === 'method_invocation') {
+      const args = mainNode.childForFieldName('arguments');
+      const method = mainNode.childForFieldName('name');
+      
+      if (args && method?.text) {
+        for (const arg of args.children || []) {
+          if (arg.type === 'identifier' && arg.text) {
+            relationships.push({
+              source: arg.text,
+              target: method.text,
+              type: 'parameter'
+            });
+          }
+        }
+      }
+    }
+
+    // 提取返回值数据流关系
+    if (mainNode.type === 'return_statement') {
+      const value = mainNode.childForFieldName('value');
+      if (value?.text) {
+        relationships.push({
+          source: value.text,
+          target: 'return',
+          type: 'return'
+        });
+      }
+    }
+
+    return relationships;
+  }
+
+  extractControlFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'conditional' | 'loop' | 'exception' | 'callback';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取条件控制流
+    if (mainNode.type === 'if_statement') {
+      const condition = mainNode.childForFieldName('condition');
+      if (condition?.text) {
+        relationships.push({
+          source: condition.text,
+          target: 'if-block',
+          type: 'conditional'
+        });
+      }
+    }
+
+    // 提取循环控制流
+    if (mainNode.type === 'for_statement' || mainNode.type === 'while_statement' || 
+        mainNode.type === 'enhanced_for_statement' || mainNode.type === 'do_statement') {
+      const condition = mainNode.childForFieldName('condition');
+      if (condition?.text) {
+        relationships.push({
+          source: condition.text,
+          target: 'loop-body',
+          type: 'loop'
+        });
+      }
+    }
+
+    // 提取异常控制流
+    if (mainNode.type === 'try_statement') {
+      relationships.push({
+        source: 'try-block',
+        target: 'catch-block',
+        type: 'exception'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractSemanticRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取Java中的语义关系
+    const text = mainNode.text || '';
+    
+    // 检查是否是重写方法（包含@Overide注解）
+    if (text.includes('@Override')) {
+      relationships.push({
+        source: 'base-method',
+        target: 'overriding-method',
+        type: 'overrides'
+      });
+    }
+
+    // 检查是否是配置或观察者模式（通过注解）
+    if (text.includes('@Configuration') || text.includes('@Bean')) {
+      relationships.push({
+        source: 'configuration',
+        target: 'configurable',
+        type: 'configures'
+      });
+    }
+
+    if (text.includes('@EventListener') || text.includes('@Subscribe')) {
+      relationships.push({
+        source: 'event-emitter',
+        target: 'listener',
+        type: 'observes'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractLifecycleRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取实例化关系
+    if (mainNode.type === 'object_creation_expression') {
+      const type = mainNode.childForFieldName('type');
+      if (type?.text) {
+        relationships.push({
+          source: 'new-instance',
+          target: type.text,
+          type: 'instantiates'
+        });
+      }
+    }
+
+    // 提取初始化关系
+    if (mainNode.type === 'constructor_declaration') {
+      relationships.push({
+        source: 'constructor',
+        target: 'instance',
+        type: 'initializes'
+      });
+    }
+
+    // 提取析构关系（finalizer）
+    if (mainNode.type === 'method_declaration' && mainNode.text?.includes('finalize')) {
+      relationships.push({
+        source: 'instance',
+        target: 'finalize',
+        type: 'destroys'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractConcurrencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取Java中的并发关系
+    const text = mainNode.text || '';
+    
+    // 检查同步机制
+    if (text.includes('synchronized') || text.includes('ReentrantLock') || text.includes('synchronized_statement')) {
+      relationships.push({
+        source: 'lock',
+        target: 'critical-section',
+        type: 'synchronizes'
+      });
+    }
+
+    // 检查线程间通信
+    if (text.includes('.wait()') || text.includes('.notify()') || text.includes('.notifyAll()')) {
+      relationships.push({
+        source: 'thread',
+        target: 'communication-point',
+        type: 'communicates'
+      });
+    }
+
+    return relationships;
   }
 }

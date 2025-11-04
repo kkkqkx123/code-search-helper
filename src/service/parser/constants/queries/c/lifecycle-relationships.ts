@@ -240,29 +240,29 @@ export default `
   (declaration
     type: (type_identifier) @local.variable.type
     declarator: (identifier) @local.variable.name))
-  (#set! "operation" "scope.begin")) @lifecycle.relationship.scope.local.begin
+  (#set! "operation" "scope.begin") @lifecycle.relationship.scope.local.begin
 
 ; 局部变量作用域结束
 (compound_statement
   .
   (declaration
     type: (type_identifier) @local.variable.type
-    declarator: (identifier) @local.variable.name)))
-  (#set! "operation" "scope.end")) @lifecycle.relationship.scope.local.end
+    declarator: (identifier) @local.variable.name))
+  (#set! "operation" "scope.end") @lifecycle.relationship.scope.local.end
 
 ; 全局变量生命周期
 (declaration
   type: (type_identifier) @global.variable.type
   declarator: (init_declarator
-    declarator: (identifier) @global.variable.name)))
-  (#set! "operation" "global")) @lifecycle.relationship.scope.global
+    declarator: (identifier) @global.variable.name))
+  (#set! "operation" "global") @lifecycle.relationship.scope.global
 
 ; 静态变量生命周期
 (declaration
   storage_class_specifier: (storage_class_specifier) @static.specifier
   type: (type_identifier) @static.variable.type
-  declarator: (identifier) @static.variable.name)))
-  (#set! "operation" "static")) @lifecycle.relationship.scope.static
+  declarator: (identifier) @static.variable.name)
+  (#set! "operation" "static") @lifecycle.relationship.scope.static
 
 ; 函数参数生命周期
 (function_definition
@@ -270,7 +270,7 @@ export default `
     parameters: (parameter_list
       (parameter_declaration
         type: (type_identifier) @parameter.type
-        declarator: (identifier) @parameter.name))))
+        declarator: (identifier) @parameter.name)))
   body: (compound_statement)
-  (#set! "operation" "parameter")) @lifecycle.relationship.scope.parameter
+  (#set! "operation" "parameter") @lifecycle.relationship.scope.parameter)
 `;

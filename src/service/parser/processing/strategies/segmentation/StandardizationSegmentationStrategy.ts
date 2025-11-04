@@ -146,6 +146,15 @@ export class StandardizationSegmentationStrategy implements IProcessingStrategy 
       'export': 'import',
       'control-flow': 'code',
       'expression': 'code',
+      // 高级关系类型映射
+      'data-flow': 'code',
+      'parameter-flow': 'code',
+      'return-flow': 'code',
+      'exception-flow': 'code',
+      'callback-flow': 'code',
+      'semantic-relationship': 'code',
+      'lifecycle-event': 'code',
+      'concurrency-primitive': 'code',
       // 配置语言类型映射
       'config-item': 'code',
       'section': 'code',
