@@ -1026,7 +1026,160 @@ export class RustRelationshipExtractor implements ILanguageRelationshipExtractor
     filePath: string,
     symbolResolver: SymbolResolver
   ): Promise<DataFlowRelationship[]> {
-    return []; // 简化实现，返回空数组
+    const relationships: DataFlowRelationship[] = [];
+    
+    // 使用Tree-Sitter查询提取数据流关系
+    const queryResult = this.treeSitterService.queryTree(ast, `
+      ; 变量赋值数据流
+      (assignment_expression
+        left: (identifier) @source.variable
+        right: (identifier) @target.variable) @data.flow.assignment
+      
+      ; 字段赋值数据流
+      (assignment_expression
+        left: (field_expression
+          value: (identifier) @source.object
+          field: (field_identifier) @source.field)
+        right: (identifier) @target.variable) @data.flow.field.assignment
+      
+      ; 数组元素赋值数据流
+      (assignment_expression
+        left: (index_expression
+          value: (identifier) @source.array
+          index: (identifier) @source.index)
+        right: (identifier) @target.variable) @data.flow.array.assignment
+      
+      ; 函数调用参数传递数据流
+      (call_expression
+        function: (identifier) @target.function
+        arguments: (arguments
+          (identifier) @source.parameter)) @data.flow.parameter
+      
+      ; 方法调用参数传递数据流
+      (call_expression
+        function: (field_expression
+          value: (identifier) @target.object
+          field: (field_identifier) @target.method)
+        arguments: (arguments
+          (identifier) @source.parameter)) @data.flow.method.parameter
+      
+      ; 返回值数据流
+      (return_expression
+        (identifier) @source.variable) @data.flow.return
+      
+      ; 字段返回数据流
+      (return_expression
+        (field_expression
+          value: (identifier) @source.object
+          field: (field_identifier) @source.field)) @data.flow.field.return
+      
+      ; 闭包赋值数据流
+      (assignment_expression
+        left: (identifier) @source.variable
+        right: (closure_expression) @target.closure) @data.flow.closure.assignment
+      
+      ; 结构体实例化数据流
+      (struct_expression
+        type: (type_identifier) @target.struct
+        (field_initializer_list
+          (field_initializer
+            name: (field_identifier) @source.field
+            value: (identifier) @source.variable))) @data.flow.struct.initialization
+      
+      ; 元组解构赋值数据流
+      (assignment_expression
+        left: (tuple_pattern
+          (identifier) @target.variable1)
+        right: (identifier) @source.variable) @data.flow.tuple.destructuring
+      
+      ; 模式匹配数据流
+      (match_expression
+        value: (identifier) @source.variable
+        body: (match_block
+          (match_arm
+            pattern: (match_pattern
+              (identifier) @target.variable)
+            value: (identifier) @target.value))) @data.flow.match.pattern
+      
+      ; 引用表达式数据流
+      (reference_expression
+        (identifier) @source.variable) @data.flow.reference
+      
+      ; 解引用表达式数据流
+      (dereference_expression
+        (identifier) @source.variable) @data.flow.dereference
+      
+      ; 类型转换数据流
+      (type_cast_expression
+        value: (identifier) @source.variable
+        type: (type_identifier) @target.type) @data.flow.cast
+      
+      ; 宏调用参数数据流
+      (macro_invocation
+        macro: (identifier) @target.macro
+        arguments: (token_tree
+          (identifier) @source.parameter)) @data.flow.macro.parameter
+    `);
+    
+    if (queryResult && Array.isArray(queryResult)) {
+      for (const result of queryResult) {
+        const captures = result.captures || [];
+        let sourceId = '';
+        let targetId = '';
+        let flowType: 'variable_assignment' | 'parameter_passing' | 'return_value' | 'field_access' = 'variable_assignment';
+        
+        // 解析捕获的节点
+        for (const capture of captures) {
+          const captureName = capture.name;
+          const node = capture.node;
+          
+          if (captureName === 'source.variable' || captureName === 'source.parameter') {
+            const sourceName = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(sourceName, filePath, node);
+            sourceId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(sourceName, 'variable', filePath);
+          } else if (captureName === 'target.variable' || captureName === 'target.function') {
+            const targetName = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(targetName, filePath, node);
+            targetId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(targetName, 'variable', filePath);
+          } else if (captureName === 'source.object' || captureName === 'source.field') {
+            const name = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(name, filePath, node);
+            if (!sourceId) {
+              sourceId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'field', filePath);
+            } else if (!targetId) {
+              targetId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'field', filePath);
+            }
+          }
+          
+          // 确定数据流类型
+          if (captureName.includes('assignment')) {
+            flowType = 'variable_assignment';
+          } else if (captureName.includes('parameter')) {
+            flowType = 'parameter_passing';
+          } else if (captureName.includes('return')) {
+            flowType = 'return_value';
+          } else if (captureName.includes('field')) {
+            flowType = 'field_access';
+          }
+        }
+        
+        if (sourceId && targetId) {
+          relationships.push({
+            sourceId,
+            targetId,
+            flowType,
+            flowPath: [sourceId, targetId],
+            location: {
+              filePath,
+              lineNumber: captures[0]?.node?.startPosition.row + 1 || 0,
+              columnNumber: captures[0]?.node?.startPosition.column + 1 || 0
+            }
+          });
+        }
+      }
+    }
+    
+    return relationships;
   }
 
   // 新增：控制流关系提取
@@ -1035,7 +1188,126 @@ export class RustRelationshipExtractor implements ILanguageRelationshipExtractor
     filePath: string,
     symbolResolver: SymbolResolver
   ): Promise<ControlFlowRelationship[]> {
-    return []; // 简化实现，返回空数组
+    const relationships: ControlFlowRelationship[] = [];
+    
+    // 使用Tree-Sitter查询提取控制流关系
+    const queryResult = this.treeSitterService.queryTree(ast, `
+      ; Match表达式控制流
+      (match_expression
+        value: (_) @match.value) @control.flow.match
+      
+      ; Loop表达式控制流
+      (loop_expression) @control.flow.loop
+      
+      ; While循环控制流
+      (while_expression
+        condition: (_) @condition) @control.flow.while
+      
+      ; For循环控制流
+      (for_expression
+        pattern: (_) @loop.pattern
+        iterable: (_) @loop.iterable) @control.flow.for
+      
+      ; If表达式控制流
+      (if_expression
+        condition: (_) @condition) @control.flow.conditional
+      
+      ; Try表达式控制流
+      (try_expression) @control.flow.exception
+      
+      ; Unsafe块控制流
+      (unsafe_block) @control.flow.unsafe
+      
+      ; 异步块控制流
+      (async_block) @control.flow.async_await
+    `);
+    
+    if (queryResult && Array.isArray(queryResult)) {
+      for (const result of queryResult) {
+        const captures = result.captures || [];
+        let sourceId = '';
+        let targetId = '';
+        let flowType: 'conditional' | 'loop' | 'exception' | 'callback' | 'async_await' = 'conditional';
+        let condition = '';
+        let isExceptional = false;
+        
+        // 解析捕获的节点
+        for (const capture of captures) {
+          const captureName = capture.name;
+          const node = capture.node;
+          
+          if (captureName === 'condition' || captureName === 'match.value') {
+            condition = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(condition, filePath, node);
+            sourceId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(condition, 'condition', filePath);
+          }
+          
+          // 确定控制流类型
+          if (captureName.includes('conditional') || captureName.includes('match')) {
+            flowType = 'conditional';
+          } else if (captureName.includes('loop') || captureName.includes('for') || captureName.includes('while')) {
+            flowType = 'loop';
+          } else if (captureName.includes('exception') || captureName.includes('try')) {
+            flowType = 'exception';
+            isExceptional = true;
+          } else if (captureName.includes('async_await') || captureName.includes('async')) {
+            flowType = 'async_await';
+          } else if (captureName.includes('unsafe')) {
+            flowType = 'conditional';
+          }
+        }
+        
+        if (sourceId) {
+          targetId = this.generateNodeId(`control_flow_target_${result.captures[0]?.node?.startPosition.row}`, 'control_flow_target', filePath);
+          relationships.push({
+            sourceId,
+            targetId,
+            flowType,
+            condition,
+            isExceptional,
+            location: {
+              filePath,
+              lineNumber: captures[0]?.node?.startPosition.row + 1 || 0,
+              columnNumber: captures[0]?.node?.startPosition.column + 1 || 0
+            }
+          });
+        } else {
+          // 如果没有条件，仍然创建控制流关系
+          sourceId = this.generateNodeId(`control_flow_source_${result.captures[0]?.node?.startPosition.row}`, 'control_flow_source', filePath);
+          targetId = this.generateNodeId(`control_flow_target_${result.captures[0]?.node?.startPosition.row}`, 'control_flow_target', filePath);
+          
+          // 确定控制流类型
+          const captureName = captures[0]?.name || '';
+          if (captureName.includes('conditional') || captureName.includes('match')) {
+            flowType = 'conditional';
+          } else if (captureName.includes('loop') || captureName.includes('for') || captureName.includes('while')) {
+            flowType = 'loop';
+          } else if (captureName.includes('exception') || captureName.includes('try')) {
+            flowType = 'exception';
+            isExceptional = true;
+          } else if (captureName.includes('async_await') || captureName.includes('async')) {
+            flowType = 'async_await';
+          } else if (captureName.includes('unsafe')) {
+            flowType = 'conditional';
+          }
+          
+          relationships.push({
+            sourceId,
+            targetId,
+            flowType,
+            condition,
+            isExceptional,
+            location: {
+              filePath,
+              lineNumber: captures[0]?.node?.startPosition.row + 1 || 0,
+              columnNumber: captures[0]?.node?.startPosition.column + 1 || 0
+            }
+          });
+        }
+      }
+    }
+    
+    return relationships;
   }
 
   // 新增：语义关系提取

@@ -1,0 +1,62 @@
+import {
+  CreationRelationship,
+  SymbolResolver,
+  Parser,
+  LANGUAGE_NODE_MAPPINGS,
+  BaseCRelationshipExtractor,
+  injectable
+} from '../types';
+
+@injectable()
+export class CreationExtractor extends BaseCRelationshipExtractor {
+  async extractCreationRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<CreationRelationship[]> {
+    const relationships: CreationRelationship[] = [];
+
+    // 在C语言中，主要的创建关系是结构体实例化和变量声明
+    const variableDeclarations = this.treeSitterService.findNodesByTypes(ast,
+      LANGUAGE_NODE_MAPPINGS['c'].variableDeclaration
+    );
+
+    for (const varDecl of variableDeclarations) {
+      // 查找结构体变量声明
+      const structInstances = this.findStructInstances(varDecl, filePath, symbolResolver);
+      for (const instance of structInstances) {
+        relationships.push({
+          sourceId: this.generateNodeId(`struct_creation_${varDecl.startPosition.row}`, 'creation', filePath),
+          targetId: instance.structId,
+          creationType: 'instantiation',
+          targetName: instance.structName,
+          location: {
+            filePath,
+            lineNumber: varDecl.startPosition.row + 1,
+            columnNumber: varDecl.startPosition.column + 1
+          },
+          resolvedTargetSymbol: instance.resolvedSymbol
+        });
+      }
+
+      // 查找枚举变量声明
+      const enumInstances = this.findEnumInstances(varDecl, filePath, symbolResolver);
+      for (const instance of enumInstances) {
+        relationships.push({
+          sourceId: this.generateNodeId(`enum_creation_${varDecl.startPosition.row}`, 'creation', filePath),
+          targetId: instance.enumId,
+          creationType: 'instantiation',
+          targetName: instance.enumName,
+          location: {
+            filePath,
+            lineNumber: varDecl.startPosition.row + 1,
+            columnNumber: varDecl.startPosition.column + 1
+          },
+          resolvedTargetSymbol: instance.resolvedSymbol
+        });
+      }
+    }
+
+    return relationships;
+  }
+}

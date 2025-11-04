@@ -988,7 +988,141 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     filePath: string,
     symbolResolver: SymbolResolver
   ): Promise<DataFlowRelationship[]> {
-    return []; // 简化实现，返回空数组
+    const relationships: DataFlowRelationship[] = [];
+    
+    // 使用Tree-Sitter查询提取数据流关系
+    const queryResult = this.treeSitterService.queryTree(ast, `
+      ; 变量赋值数据流
+      (assignment_expression
+        left: (identifier) @source.variable
+        right: (identifier) @target.variable) @data.flow.assignment
+      
+      ; 对象属性赋值数据流
+      (assignment_expression
+        left: (member_expression
+          object: (identifier) @source.object
+          property: (property_identifier) @source.property)
+        right: (identifier) @target.variable) @data.flow.property.assignment
+      
+      ; 数组元素赋值数据流
+      (assignment_expression
+        left: (subscript_expression
+          object: (identifier) @source.array
+          index: (identifier) @source.index)
+        right: (identifier) @target.variable) @data.flow.array.assignment
+      
+      ; 函数参数传递数据流
+      (call_expression
+        function: (identifier) @target.function
+        arguments: (argument_list
+          (identifier) @source.parameter)) @data.flow.parameter
+      
+      ; 方法调用参数传递数据流
+      (call_expression
+        function: (member_expression
+          object: (identifier) @target.object
+          property: (property_identifier) @target.method)
+        arguments: (argument_list
+          (identifier) @source.parameter)) @data.flow.method.parameter
+      
+      ; 返回值数据流
+      (return_statement
+        (identifier) @source.variable) @data.flow.return
+      
+      ; 对象属性返回数据流
+      (return_statement
+        (member_expression
+          object: (identifier) @source.object
+          property: (property_identifier) @source.property)) @data.flow.property.return
+      
+      ; 函数表达式赋值数据流
+      (assignment_expression
+        left: (identifier) @source.variable
+        right: (function_expression) @target.function) @data.flow.function.assignment
+      
+      ; 箭头函数赋值数据流
+      (assignment_expression
+        left: (identifier) @source.variable
+        right: (arrow_function) @target.function) @data.flow.arrow.assignment
+      
+      ; 对象解构赋值数据流
+      (assignment_expression
+        left: (object_pattern
+          (pair
+            key: (property_identifier) @source.property
+            value: (identifier) @target.variable))) @data.flow.destructuring.object
+      
+      ; 数组解构赋值数据流
+      (assignment_expression
+        left: (array_pattern
+          (identifier) @target.variable)) @data.flow.destructuring.array
+      
+      ; 链式调用数据流
+      (call_expression
+        function: (member_expression
+          object: (call_expression) @source.call
+          property: (property_identifier) @target.method)) @data.flow.chained.call
+    `);
+    
+    if (queryResult && Array.isArray(queryResult)) {
+      for (const result of queryResult) {
+        const captures = result.captures || [];
+        let sourceId = '';
+        let targetId = '';
+        let flowType: 'variable_assignment' | 'parameter_passing' | 'return_value' | 'field_access' = 'variable_assignment';
+        
+        // 解析捕获的节点
+        for (const capture of captures) {
+          const captureName = capture.name;
+          const node = capture.node;
+          
+          if (captureName === 'source.variable' || captureName === 'source.parameter') {
+            const sourceName = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(sourceName, filePath, node);
+            sourceId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(sourceName, 'variable', filePath);
+          } else if (captureName === 'target.variable' || captureName === 'target.function') {
+            const targetName = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(targetName, filePath, node);
+            targetId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(targetName, 'variable', filePath);
+          } else if (captureName === 'source.object' || captureName === 'source.property') {
+            const name = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(name, filePath, node);
+            if (!sourceId) {
+              sourceId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'field', filePath);
+            } else if (!targetId) {
+              targetId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'field', filePath);
+            }
+          }
+          
+          // 确定数据流类型
+          if (captureName.includes('assignment')) {
+            flowType = 'variable_assignment';
+          } else if (captureName.includes('parameter')) {
+            flowType = 'parameter_passing';
+          } else if (captureName.includes('return')) {
+            flowType = 'return_value';
+          } else if (captureName.includes('property') || captureName.includes('field')) {
+            flowType = 'field_access';
+          }
+        }
+        
+        if (sourceId && targetId) {
+          relationships.push({
+            sourceId,
+            targetId,
+            flowType,
+            flowPath: [sourceId, targetId],
+            location: {
+              filePath,
+              lineNumber: captures[0]?.node?.startPosition.row + 1 || 0,
+              columnNumber: captures[0]?.node?.startPosition.column + 1 || 0
+            }
+          });
+        }
+      }
+    }
+    
+    return relationships;
   }
 
   // 新增：控制流关系提取
@@ -997,7 +1131,141 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     filePath: string,
     symbolResolver: SymbolResolver
   ): Promise<ControlFlowRelationship[]> {
-    return []; // 简化实现，返回空数组
+    const relationships: ControlFlowRelationship[] = [];
+    
+    // 使用Tree-Sitter查询提取控制流关系
+    const queryResult = this.treeSitterService.queryTree(ast, `
+      ; If语句控制流
+      (if_statement
+        condition: (parenthesized_expression) @condition) @control.flow.conditional
+      
+      ; For循环控制流
+      (for_statement
+        condition: (parenthesized_expression) @condition) @control.flow.loop
+      
+      ; While循环控制流
+      (while_statement
+        condition: (parenthesized_expression) @condition) @control.flow.loop
+      
+      ; Do-while循环控制流
+      (do_statement
+        condition: (parenthesized_expression) @condition) @control.flow.loop
+      
+      ; Switch语句控制流
+      (switch_statement
+        value: (identifier) @condition) @control.flow.switch
+      
+      ; Try-catch异常控制流
+      (try_statement) @control.flow.exception
+      
+      ; Catch子句
+      (catch_clause) @control.flow.exception
+      
+      ; Throw语句
+      (throw_statement) @control.flow.exception
+      
+      ; Return语句
+      (return_statement) @control.flow.return
+      
+      ; Break语句
+      (break_statement) @control.flow.break
+      
+      ; Continue语句
+      (continue_statement) @control.flow.continue
+      
+      ; Await表达式控制流
+      (await_expression) @control.flow.async_await
+      
+      ; Yield表达式控制流
+      (yield_expression) @control.flow.yield
+    `);
+    
+    if (queryResult && Array.isArray(queryResult)) {
+      for (const result of queryResult) {
+        const captures = result.captures || [];
+        let sourceId = '';
+        let targetId = '';
+        let flowType: 'conditional' | 'loop' | 'exception' | 'callback' | 'async_await' = 'conditional';
+        let condition = '';
+        let isExceptional = false;
+        
+        // 解析捕获的节点
+        for (const capture of captures) {
+          const captureName = capture.name;
+          const node = capture.node;
+          
+          if (captureName === 'condition') {
+            condition = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(condition, filePath, node);
+            sourceId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(condition, 'condition', filePath);
+          }
+          
+          // 确定控制流类型
+          if (captureName.includes('conditional')) {
+            flowType = 'conditional';
+          } else if (captureName.includes('loop')) {
+            flowType = 'loop';
+          } else if (captureName.includes('exception')) {
+            flowType = 'exception';
+            isExceptional = true;
+          } else if (captureName.includes('async_await') || captureName.includes('await')) {
+            flowType = 'async_await';
+          } else if (captureName.includes('yield')) {
+            flowType = 'callback';
+          }
+        }
+        
+        if (sourceId) {
+          targetId = this.generateNodeId(`control_flow_target_${result.captures[0]?.node?.startPosition.row}`, 'control_flow_target', filePath);
+          relationships.push({
+            sourceId,
+            targetId,
+            flowType,
+            condition,
+            isExceptional,
+            location: {
+              filePath,
+              lineNumber: captures[0]?.node?.startPosition.row + 1 || 0,
+              columnNumber: captures[0]?.node?.startPosition.column + 1 || 0
+            }
+          });
+        } else {
+          // 如果没有条件，仍然创建控制流关系
+          sourceId = this.generateNodeId(`control_flow_source_${result.captures[0]?.node?.startPosition.row}`, 'control_flow_source', filePath);
+          targetId = this.generateNodeId(`control_flow_target_${result.captures[0]?.node?.startPosition.row}`, 'control_flow_target', filePath);
+          
+          // 确定控制流类型
+          const captureName = captures[0]?.name || '';
+          if (captureName.includes('conditional')) {
+            flowType = 'conditional';
+          } else if (captureName.includes('loop')) {
+            flowType = 'loop';
+          } else if (captureName.includes('exception')) {
+            flowType = 'exception';
+            isExceptional = true;
+          } else if (captureName.includes('async_await') || captureName.includes('await')) {
+            flowType = 'async_await';
+          } else if (captureName.includes('yield')) {
+            flowType = 'callback';
+          }
+          
+          relationships.push({
+            sourceId,
+            targetId,
+            flowType,
+            condition,
+            isExceptional,
+            location: {
+              filePath,
+              lineNumber: captures[0]?.node?.startPosition.row + 1 || 0,
+              columnNumber: captures[0]?.node?.startPosition.column + 1 || 0
+            }
+          });
+        }
+      }
+    }
+    
+    return relationships;
   }
 
   // 新增：语义关系提取
@@ -1006,7 +1274,191 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     filePath: string,
     symbolResolver: SymbolResolver
   ): Promise<SemanticRelationship[]> {
-    return []; // 简化实现，返回空数组
+    const relationships: SemanticRelationship[] = [];
+    
+    // 使用Tree-Sitter查询提取语义关系
+    const queryResult = this.treeSitterService.queryTree(ast, `
+      ; 原型链继承关系（方法重写）
+      (assignment_expression
+        left: (member_expression
+          object: (identifier) @subclass.object
+          property: (property_identifier) @overridden.method)
+        right: (function_expression)) @semantic.relationship.prototype.override
+      
+      ; 类继承关系（方法重写）
+      (class_declaration
+        name: (identifier) @subclass.class
+        heritage: (class_heritage
+          (identifier) @superclass.class)
+        body: (class_body
+          (method_definition
+            name: (property_identifier) @overridden.method))) @semantic.relationship.class.override
+      
+      ; 混入模式（委托关系）
+      (call_expression
+        function: (member_expression
+          object: (identifier) @mixin.object
+          property: (property_identifier) @mixin.method)
+        arguments: (argument_list
+          (identifier) @target.object)) @semantic.relationship.mixin.delegation
+      
+      ; 观察者模式（事件监听）
+      (call_expression
+        function: (member_expression
+          object: (identifier) @observer.target
+          property: (property_identifier) @observer.method
+          (#match? @observer.method "^(addEventListener|on|watch|subscribe)$"))
+        arguments: (argument_list
+          (string) @event.name
+          (function_expression) @handler.function)) @semantic.relationship.observer.pattern
+      
+      ; 发布订阅模式
+      (call_expression
+        function: (member_expression
+          object: (identifier) @publisher.object
+          property: (property_identifier) @publisher.method
+          (#match? @publisher.method "^(emit|publish|notify)$"))
+        arguments: (argument_list
+          (string) @event.name
+          (identifier) @event.data)) @semantic.relationship.publisher.pattern
+      
+      ; 配置对象模式
+      (call_expression
+        function: (identifier) @configurable.function
+        arguments: (argument_list
+          (object
+            (pair
+              key: (property_identifier) @config.key
+              value: (identifier) @config.value)))) @semantic.relationship.configuration
+      
+      ; 工厂模式
+      (call_expression
+        function: (identifier) @factory.function
+        arguments: (argument_list
+          (identifier) @factory.parameter)) @semantic.relationship.factory.pattern
+      
+      ; 单例模式
+      (assignment_expression
+        left: (member_expression
+          object: (identifier) @singleton.object
+          property: (property_identifier) @singleton.instance)
+        right: (call_expression
+          function: (identifier) @constructor.function)) @semantic.relationship.singleton.pattern
+      
+      ; 装饰器模式（高阶函数）
+      (call_expression
+        function: (identifier) @decorator.function
+        arguments: (argument_list
+          (function_expression) @decorated.function)) @semantic.relationship.decorator.pattern
+      
+      ; 策略模式
+      (call_expression
+        function: (member_expression
+          object: (identifier) @context.object
+          property: (property_identifier) @strategy.setter
+          (#match? @strategy.setter "^(setStrategy|setAlgorithm)$"))
+        arguments: (argument_list
+          (identifier) @strategy.object)) @semantic.relationship.strategy.pattern
+      
+      ; 命令模式
+      (call_expression
+        function: (member_expression
+          object: (identifier) @invoker.object
+          property: (property_identifier) @invoker.method
+          (#match? @invoker.method "^(execute|invoke|run)$"))
+        arguments: (argument_list
+          (identifier) @command.object)) @semantic.relationship.command.pattern
+    `);
+    
+    if (queryResult && Array.isArray(queryResult)) {
+      for (const result of queryResult) {
+        const captures = result.captures || [];
+        let sourceId = '';
+        let targetId = '';
+        let semanticType: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures' = 'overrides';
+        let pattern = '';
+        const metadata: Record<string, any> = {};
+        
+        // 解析捕获的节点
+        for (const capture of captures) {
+          const captureName = capture.name;
+          const node = capture.node;
+          
+          if (captureName === 'subclass.object' || captureName === 'subclass.class' ||
+              captureName === 'mixin.object' || captureName === 'observer.target' ||
+              captureName === 'publisher.object' || captureName === 'configurable.function' ||
+              captureName === 'factory.function' || captureName === 'singleton.object' ||
+              captureName === 'decorator.function' || captureName === 'context.object' ||
+              captureName === 'invoker.object') {
+            const name = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(name, filePath, node);
+            sourceId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'semantic_source', filePath);
+          } else if (captureName === 'overridden.method' || captureName === 'superclass.class' ||
+                     captureName === 'mixin.method' || captureName === 'observer.method' ||
+                     captureName === 'publisher.method' || captureName === 'config.key' ||
+                     captureName === 'factory.parameter' || captureName === 'singleton.instance' ||
+                     captureName === 'decorated.function' || captureName === 'strategy.object' ||
+                     captureName === 'strategy.setter' || captureName === 'invoker.method' ||
+                     captureName === 'command.object') {
+            const name = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(name, filePath, node);
+            targetId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'semantic_target', filePath);
+          }
+          
+          // 确定语义关系类型和模式
+          if (captureName.includes('override')) {
+            semanticType = 'overrides';
+            pattern = 'Override';
+          } else if (captureName.includes('overload')) {
+            semanticType = 'overloads';
+            pattern = 'Overload';
+          } else if (captureName.includes('delegation') || captureName.includes('mixin')) {
+            semanticType = 'delegates';
+            pattern = 'Mixin';
+          } else if (captureName.includes('observer') || captureName.includes('publisher')) {
+            semanticType = 'observes';
+            pattern = 'Observer';
+          } else if (captureName.includes('configuration') || captureName.includes('config')) {
+            semanticType = 'configures';
+            pattern = 'Configuration';
+          } else if (captureName.includes('factory')) {
+            pattern = 'Factory';
+          } else if (captureName.includes('singleton')) {
+            pattern = 'Singleton';
+          } else if (captureName.includes('decorator')) {
+            pattern = 'Decorator';
+          } else if (captureName.includes('strategy')) {
+            pattern = 'Strategy';
+          } else if (captureName.includes('command')) {
+            pattern = 'Command';
+          }
+          
+          // 收集元数据
+          if (captureName.includes('event.name')) {
+            metadata.eventName = node.text;
+          } else if (captureName.includes('event.data')) {
+            metadata.eventData = node.text;
+          }
+        }
+        
+        if (sourceId && targetId) {
+          relationships.push({
+            sourceId,
+            targetId,
+            semanticType,
+            pattern,
+            metadata,
+            location: {
+              filePath,
+              lineNumber: captures[0]?.node?.startPosition.row + 1 || 0,
+              columnNumber: captures[0]?.node?.startPosition.column + 1 || 0
+            }
+          });
+        }
+      }
+    }
+    
+    return relationships;
   }
 
   // 新增：生命周期关系提取
@@ -1015,7 +1467,178 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     filePath: string,
     symbolResolver: SymbolResolver
   ): Promise<LifecycleRelationship[]> {
-    return []; // 简化实现，返回空数组
+    const relationships: LifecycleRelationship[] = [];
+    
+    // 使用Tree-Sitter查询提取生命周期关系
+    const queryResult = this.treeSitterService.queryTree(ast, `
+      ; 对象实例化关系
+      (new_expression
+        constructor: (identifier) @instantiated.class
+        arguments: (argument_list
+          (identifier) @constructor.parameter)) @lifecycle.relationship.instantiation
+      
+      ; 类实例化关系
+      (new_expression
+        constructor: (member_expression
+          object: (identifier) @module.object
+          property: (identifier) @instantiated.class)
+        arguments: (argument_list
+          (identifier) @constructor.parameter)) @lifecycle.relationship.class.instantiation
+      
+      ; 构造函数调用关系
+      (call_expression
+        function: (member_expression
+          object: (this) @constructor.this
+          property: (property_identifier) @constructor.method
+          (#match? @constructor.method "constructor$"))) @lifecycle.relationship.constructor.call
+      
+      ; 原型方法初始化
+      (assignment_expression
+        left: (member_expression
+          object: (member_expression
+            object: (identifier) @class.object
+            property: (property_identifier) @prototype.property)
+          property: (property_identifier) @init.method)
+        right: (function_expression)) @lifecycle.relationship.prototype.initialization
+      
+      ; 对象初始化方法
+      (call_expression
+        function: (member_expression
+          object: (identifier) @initialized.object
+          property: (property_identifier) @init.method
+          (#match? @init.method "^(init|initialize|setup|configure)$"))
+        arguments: (argument_list
+          (identifier) @init.parameter)) @lifecycle.relationship.object.initialization
+      
+      ; React组件生命周期
+      (method_definition
+        name: (property_identifier) @lifecycle.method
+        (#match? @lifecycle.method "^(componentDidMount|componentDidUpdate|componentWillUnmount|useEffect|useLayoutEffect)$")) @lifecycle.relationship.react.lifecycle
+      
+      ; 销毁关系
+      (call_expression
+        function: (member_expression
+          object: (identifier) @destroyed.object
+          property: (property_identifier) @destroy.method
+          (#match? @destroy.method "^(destroy|dispose|cleanup|teardown|close)$"))) @lifecycle.relationship.destruction
+      
+      ; 事件监听器添加（生命周期管理）
+      (call_expression
+        function: (member_expression
+          object: (identifier) @event.target
+          property: (property_identifier) @add.listener.method
+          (#match? @add.listener.method "^(addEventListener|addListener|on)$"))
+        arguments: (argument_list
+          (string) @event.name
+          (identifier) @handler.function)) @lifecycle.relationship.listener.addition
+      
+      ; 事件监听器移除（生命周期管理）
+      (call_expression
+        function: (member_expression
+          object: (identifier) @event.target
+          property: (property_identifier) @remove.listener.method
+          (#match? @remove.listener.method "^(removeEventListener|removeListener|off)$"))
+        arguments: (argument_list
+          (string) @event.name
+          (identifier) @handler.function)) @lifecycle.relationship.listener.removal
+      
+      ; 定时器创建（生命周期管理）
+      (call_expression
+        function: (identifier) @timer.function
+        (#match? @timer.function "^(setTimeout|setInterval)$")
+        arguments: (argument_list
+          (function_expression) @timer.handler
+          (identifier) @timer.delay)) @lifecycle.relationship.timer.creation
+      
+      ; 定时器清除（生命周期管理）
+      (call_expression
+        function: (identifier) @clear.timer.function
+        (#match? @clear.timer.function "^(clearTimeout|clearInterval)$")
+        arguments: (argument_list
+          (identifier) @timer.id)) @lifecycle.relationship.timer.clearance
+      
+      ; Promise创建（异步生命周期）
+      (call_expression
+        function: (identifier) @promise.constructor
+        (#match? @promise.constructor "Promise$")
+        arguments: (argument_list
+          (function_expression) @promise.executor)) @lifecycle.relationship.promise.creation
+      
+      ; 异步资源管理
+      (call_expression
+        function: (member_expression
+          object: (identifier) @async.resource
+          property: (property_identifier) @async.method
+          (#match? @async.method "^(acquire|release|open|close|start|stop)$"))) @lifecycle.relationship.async.resource.management
+    `);
+    
+    if (queryResult && Array.isArray(queryResult)) {
+      for (const result of queryResult) {
+        const captures = result.captures || [];
+        let sourceId = '';
+        let targetId = '';
+        let lifecycleType: 'instantiates' | 'initializes' | 'destroys' | 'manages' = 'instantiates';
+        let lifecyclePhase: 'creation' | 'setup' | 'teardown' | 'maintenance' = 'creation';
+        
+        // 解析捕获的节点
+        for (const capture of captures) {
+          const captureName = capture.name;
+          const node = capture.node;
+          
+          if (captureName === 'instantiated.class' || captureName === 'module.object' ||
+              captureName === 'constructor.this' || captureName === 'class.object' ||
+              captureName === 'initialized.object' || captureName === 'lifecycle.method' ||
+              captureName === 'destroyed.object' || captureName === 'event.target' ||
+              captureName === 'timer.function' || captureName === 'promise.constructor' ||
+              captureName === 'async.resource') {
+            const name = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(name, filePath, node);
+            sourceId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'lifecycle_source', filePath);
+          } else if (captureName === 'constructor.parameter' || captureName === 'prototype.property' ||
+                     captureName === 'init.method' || captureName === 'init.parameter' ||
+                     captureName === 'destroy.method' || captureName === 'event.name' ||
+                     captureName === 'handler.function' || captureName === 'timer.handler' ||
+                     captureName === 'timer.delay' || captureName === 'timer.id' ||
+                     captureName === 'promise.executor' || captureName === 'async.method') {
+            const name = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(name, filePath, node);
+            targetId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'lifecycle_target', filePath);
+          }
+          
+          // 确定生命周期类型和阶段
+          if (captureName.includes('instantiation') || captureName.includes('constructor')) {
+            lifecycleType = 'instantiates';
+            lifecyclePhase = 'creation';
+          } else if (captureName.includes('initialization') || captureName.includes('init')) {
+            lifecycleType = 'initializes';
+            lifecyclePhase = 'setup';
+          } else if (captureName.includes('destruction') || captureName.includes('destroy')) {
+            lifecycleType = 'destroys';
+            lifecyclePhase = 'teardown';
+          } else if (captureName.includes('management') || captureName.includes('listener') ||
+                     captureName.includes('timer') || captureName.includes('promise')) {
+            lifecycleType = 'manages';
+            lifecyclePhase = 'maintenance';
+          }
+        }
+        
+        if (sourceId && targetId) {
+          relationships.push({
+            sourceId,
+            targetId,
+            lifecycleType,
+            lifecyclePhase,
+            location: {
+              filePath,
+              lineNumber: captures[0]?.node?.startPosition.row + 1 || 0,
+              columnNumber: captures[0]?.node?.startPosition.column + 1 || 0
+            }
+          });
+        }
+      }
+    }
+    
+    return relationships;
   }
 
   // 新增：并发关系提取
@@ -1024,7 +1647,189 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     filePath: string,
     symbolResolver: SymbolResolver
   ): Promise<ConcurrencyRelationship[]> {
-    return []; // 简化实现，返回空数组
+    const relationships: ConcurrencyRelationship[] = [];
+    
+    // 使用Tree-Sitter查询提取并发关系
+    const queryResult = this.treeSitterService.queryTree(ast, `
+      ; Promise创建（异步并发）
+      (call_expression
+        function: (identifier) @promise.constructor
+        (#match? @promise.constructor "Promise$")
+        arguments: (argument_list
+          (function_expression) @promise.executor)) @concurrency.relationship.promise.creation
+      
+      ; Promise链式调用（异步并发）
+      (call_expression
+        function: (member_expression
+          object: (call_expression) @source.promise
+          property: (property_identifier) @promise.method
+          (#match? @promise.method "^(then|catch|finally)$"))
+        arguments: (argument_list
+          (function_expression) @handler.function)) @concurrency.relationship.promise.chain
+      
+      ; Async函数定义
+      (async_function_declaration
+        name: (identifier) @async.function) @concurrency.relationship.async.function
+      
+      ; Async函数调用
+      (call_expression
+        function: (identifier) @async.function
+        arguments: (argument_list
+          (identifier) @async.parameter)) @concurrency.relationship.async.call
+      
+      ; Await表达式
+      (await_expression
+        (call_expression) @awaited.call) @concurrency.relationship.await.expression
+      
+      ; 并行Promise执行
+      (call_expression
+        function: (member_expression
+          object: (identifier) @promise.object
+          property: (property_identifier) @parallel.method
+          (#match? @parallel.method "^(all|allSettled|race)$"))
+        arguments: (argument_list
+          (array
+            (identifier) @parallel.promise))) @concurrency.relationship.parallel.execution
+      
+      ; Worker创建
+      (new_expression
+        constructor: (identifier) @worker.constructor
+        (#match? @worker.constructor "Worker$")
+        arguments: (argument_list
+          (string) @worker.script)) @concurrency.relationship.worker.creation
+      
+      ; Worker消息发送
+      (call_expression
+        function: (member_expression
+          object: (identifier) @worker.object
+          property: (property_identifier) @worker.method
+          (#match? @worker.method "^(postMessage|send)$"))
+        arguments: (argument_list
+          (identifier) @worker.message)) @concurrency.relationship.worker.communication
+      
+      ; Worker消息接收
+      (assignment_expression
+        left: (identifier) @message.handler
+        right: (member_expression
+          object: (identifier) @worker.object
+          property: (property_identifier) @worker.event
+          (#match? @worker.event "onmessage$"))) @concurrency.relationship.worker.message.reception
+      
+      ; 共享数组缓冲区
+      (new_expression
+        constructor: (identifier) @shared.array.constructor
+        (#match? @shared.array.constructor "SharedArrayBuffer$")
+        arguments: (argument_list
+          (identifier) @buffer.size)) @concurrency.relationship.shared.array
+      
+      ; Atomics操作
+      (call_expression
+        function: (member_expression
+          object: (identifier) @atomics.object
+          property: (property_identifier) @atomics.method
+          (#match? @atomics.method "^(add|sub|and|or|xor|load|store|compareExchange)$"))
+        arguments: (argument_list
+          (identifier) @atomics.target
+          (identifier) @atomics.value)) @concurrency.relationship.atomics.operation
+      
+      ; 锁机制模拟
+      (call_expression
+        function: (member_expression
+          object: (identifier) @lock.object
+          property: (property_identifier) @lock.method
+          (#match? @lock.method "^(acquire|release|tryAcquire)$"))) @concurrency.relationship.lock.operation
+      
+      ; 条件变量模拟
+      (call_expression
+        function: (member_expression
+          object: (identifier) @condition.variable
+          property: (property_identifier) @condition.method
+          (#match? @condition.method "^(wait|signal|signalAll)$"))) @concurrency.relationship.condition.variable
+      
+      ; 信号量模拟
+      (call_expression
+        function: (member_expression
+          object: (identifier) @semaphore.object
+          property: (property_identifier) @semaphore.method
+          (#match? @semaphore.method "^(acquire|release|availablePermits)$"))) @concurrency.relationship.semaphore.operation
+      
+      ; 竞态条件检测 - 简化版本
+      (assignment_expression
+        left: (identifier) @shared.variable
+        right: (identifier) @source.variable) @concurrency.relationship.race.condition
+    `);
+    
+    if (queryResult && Array.isArray(queryResult)) {
+      for (const result of queryResult) {
+        const captures = result.captures || [];
+        let sourceId = '';
+        let targetId = '';
+        let concurrencyType: 'synchronizes' | 'locks' | 'communicates' | 'races' | 'awaits' = 'synchronizes';
+        let synchronizationMechanism = '';
+        
+        // 解析捕获的节点
+        for (const capture of captures) {
+          const captureName = capture.name;
+          const node = capture.node;
+          
+          if (captureName === 'promise.constructor' || captureName === 'async.function' ||
+              captureName === 'worker.constructor' || captureName === 'shared.array.constructor' ||
+              captureName === 'atomics.object' || captureName === 'lock.object' ||
+              captureName === 'condition.variable' || captureName === 'semaphore.object' ||
+              captureName === 'shared.variable') {
+            const name = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(name, filePath, node);
+            sourceId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'concurrency_source', filePath);
+          } else if (captureName === 'promise.executor' || captureName === 'promise.method' ||
+                     captureName === 'handler.function' || captureName === 'worker.script' ||
+                     captureName === 'worker.method' || captureName === 'worker.message' ||
+                     captureName === 'message.handler' || captureName === 'worker.event' ||
+                     captureName === 'buffer.size' || captureName === 'atomics.method' ||
+                     captureName === 'atomics.target' || captureName === 'atomics.value' ||
+                     captureName === 'lock.method' || captureName === 'condition.method' ||
+                     captureName === 'semaphore.method' || captureName === 'source.variable') {
+            const name = node.text;
+            const resolvedSymbol = symbolResolver.resolveSymbol(name, filePath, node);
+            targetId = resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(name, 'concurrency_target', filePath);
+          }
+          
+          // 确定并发关系类型和同步机制
+          if (captureName.includes('promise') || captureName.includes('async') || captureName.includes('await')) {
+            concurrencyType = 'awaits';
+            synchronizationMechanism = 'promise';
+          } else if (captureName.includes('worker')) {
+            concurrencyType = 'communicates';
+            synchronizationMechanism = 'worker';
+          } else if (captureName.includes('atomics') || captureName.includes('lock') ||
+                     captureName.includes('condition') || captureName.includes('semaphore')) {
+            concurrencyType = 'locks';
+            synchronizationMechanism = 'synchronization';
+          } else if (captureName.includes('race')) {
+            concurrencyType = 'races';
+            synchronizationMechanism = 'race_condition';
+          } else if (captureName.includes('parallel')) {
+            concurrencyType = 'synchronizes';
+            synchronizationMechanism = 'parallel_execution';
+          }
+        }
+        
+        if (sourceId && targetId) {
+          relationships.push({
+            sourceId,
+            targetId,
+            concurrencyType,
+            synchronizationMechanism,
+            location: {
+              filePath,
+              lineNumber: captures[0]?.node?.startPosition.row + 1 || 0,
+              columnNumber: captures[0]?.node?.startPosition.column + 1 || 0
+            }
+          });
+        }
+      }
+    }
+    
+    return relationships;
   }
 
   protected generateSymbolId(symbol: Symbol): string {
