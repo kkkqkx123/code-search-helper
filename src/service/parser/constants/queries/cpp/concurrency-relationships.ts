@@ -65,7 +65,7 @@ export default `
     object: (identifier) @condition.variable
     field: (field_identifier) @condition.method)
   arguments: (argument_list
-    (identifier) @locked.mutex)))
+    (identifier) @locked.mutex))
   (#match? @condition.method "wait") @concurrency.relationship.condition.wait
 
 ; 条件变量通知
@@ -89,7 +89,7 @@ export default `
     field: (field_identifier) @atomic.method)
   arguments: (argument_list
     (identifier) @expected.value
-    (identifier) @desired.value)))
+    (identifier) @desired.value))
   (#match? @atomic.method "compare_exchange") @concurrency.relationship.atomic.compare_exchange
 
 ; 原子标志
@@ -110,28 +110,32 @@ export default `
 (call_expression
   function: (field_expression
     object: (identifier) @semaphore.object
-    field: (field_identifier) @semaphore.method))
+    field: (field_identifier) @semaphore.method)
+  arguments: (argument_list))
   (#match? @semaphore.method "release") @concurrency.relationship.semaphore.release
 
 ; 闩器等待（C++20）
 (call_expression
   function: (field_expression
     object: (identifier) @latch.object
-    field: (field_identifier) @latch.method))
+    field: (field_identifier) @latch.method)
+  arguments: (argument_list))
   (#match? @latch.method "wait") @concurrency.relationship.latch.wait
 
 ; 闩器倒计时（C++20）
 (call_expression
   function: (field_expression
     object: (identifier) @latch.object
-    field: (field_identifier) @latch.method))
+    field: (field_identifier) @latch.method)
+  arguments: (argument_list))
   (#match? @latch.method "count_down") @concurrency.relationship.latch.count_down
 
 ; 屏障同步（C++20）
 (call_expression
   function: (field_expression
     object: (identifier) @barrier.object
-    field: (field_identifier) @barrier.method))
+    field: (field_identifier) @barrier.method)
+  arguments: (argument_list))
   (#match? @barrier.method "arrive_and_wait") @concurrency.relationship.barrier.sync
 
 ; 共享互斥锁（读写锁）
@@ -177,7 +181,7 @@ export default `
     object: (identifier) @promise.object
     field: (field_identifier) @promise.method)
   arguments: (argument_list
-    (identifier) @promise.value)))
+    (identifier) @promise.value))
   (#match? @promise.method "set_value") @concurrency.relationship.promise.set_value
 
 ; 打包任务
@@ -193,7 +197,7 @@ export default `
 (declaration
   (storage_class_specifier) @thread.local.specifier
   declarator: (init_declarator
-    declarator: (identifier) @thread.local.variable)))
+    declarator: (identifier) @thread.local.variable))
   (#match? @thread.local.specifier "thread_local") @concurrency.relationship.thread.local
 
 ; 内存屏障
@@ -202,7 +206,7 @@ export default `
     scope: (identifier) @std.scope
     name: (identifier) @atomic.function)
   arguments: (argument_list
-    (identifier) @memory.order)))
+    (identifier) @memory.order))
   (#match? @atomic.function "atomic_thread_fence") @concurrency.relationship.memory.fence
 
 ; 竞态条件检测
@@ -215,7 +219,7 @@ export default `
       object: (identifier) @shared.variable
       field: (field_identifier) @shared.field)
     operator: (identifier) @operator
-    right: (identifier) @increment.value))) @concurrency.relationship.race.condition
+    right: (identifier) @increment.value)) @concurrency.relationship.race.condition
 
 ; 死锁模式（多个锁获取）
 (call_expression
@@ -271,7 +275,7 @@ export default `
     name: (identifier) @parallel.algorithm)
   arguments: (argument_list
     (identifier) @execution.policy
-    (identifier) @algorithm.args)))
+    (identifier) @algorithm.args))
   (#match? @parallel.algorithm "^(for_each|sort|transform|reduce)$") @concurrency.relationship.parallel.algorithm
 
 ; 执行策略
@@ -313,7 +317,7 @@ export default `
     object: (identifier) @atomic.variable
     field: (field_identifier) @atomic.method)
   arguments: (argument_list
-    (identifier) @memory.order)))
+    (identifier) @memory.order))
   (#match? @memory.order "^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$") @concurrency.relationship.memory.order
 
 ; 事务内存（C++事务内存扩展）

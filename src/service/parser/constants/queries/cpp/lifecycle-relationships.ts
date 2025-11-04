@@ -13,7 +13,7 @@ export default `
 (new_expression
   type: (template_type
     name: (type_identifier) @instantiated.template.class
-    arguments: (template_argument_list)) @lifecycle.relationship.template.instantiation
+    arguments: (template_argument_list))) @lifecycle.relationship.template.instantiation
 
 ; 构造函数定义
 (function_definition
@@ -56,7 +56,8 @@ export default `
 (function_definition
   declarator: (function_declarator
     declarator: (identifier) @inherited.constructor)
-  (inheriting_constructor)) @lifecycle.relationship.inherited.constructor
+  body: (compound_statement
+    (inheriting_constructor))) @lifecycle.relationship.inherited.constructor
 
 ; 拷贝构造函数
 (function_definition
@@ -157,8 +158,8 @@ export default `
     (attribute
       (identifier) @lifecycle.attribute))
   declarator: (function_declarator
-    declarator: (identifier) @lifecycle.method))
-  (#match? @lifecycle.attribute "^(constructor|destructor|init|cleanup)$") @lifecycle.relationship.annotated.method
+    declarator: (identifier) @lifecycle.method)
+  (#match? @lifecycle.attribute "^(constructor|destructor|init|cleanup)$")) @lifecycle.relationship.annotated.method
 
 ; 静态初始化
 (declaration
@@ -215,7 +216,8 @@ export default `
 (call_expression
   function: (field_expression
     object: (identifier) @file.object
-    field: (field_identifier) @file.method))
+    field: (field_identifier) @file.method)
+  arguments: (argument_list))
   (#match? @file.method "^(close|flush)$") @lifecycle.relationship.file.close
 
 ; 线程生命周期管理

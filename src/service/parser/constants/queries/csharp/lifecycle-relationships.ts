@@ -37,14 +37,14 @@ export default `
 (object_creation_expression
   type: (identifier) @collection.type
   initializer: (initializer_expression
-    (identifier) @collection.element))) @lifecycle.relationship.collection.initialization
+    (identifier) @collection.element)) @lifecycle.relationship.collection.initialization
 
 ; 字段声明生命周期
 (field_declaration
   (variable_declaration
     (variable_declarator
       name: (identifier) @field.name
-      value: (identifier) @field.initialization)))) @lifecycle.relationship.field.declaration
+      value: (identifier) @field.initialization))) @lifecycle.relationship.field.declaration
 
 ; 属性声明生命周期
 (property_declaration
@@ -52,7 +52,7 @@ export default `
   (accessor_list
     (accessor_declaration
       name: (identifier) @getter.setter.name
-      body: (block) @getter.setter.body))) @lifecycle.relationship.property.declaration
+      body: (block) @getter.setter.body)) @lifecycle.relationship.property.declaration
 
 ; 自动属性生命周期
 (property_declaration
@@ -66,7 +66,7 @@ export default `
 ; 事件声明生命周期
 (event_declaration
   name: (identifier) @event.name
-  type: (identifier) @event.type)) @lifecycle.relationship.event.declaration
+  type: (identifier) @event.type) @lifecycle.relationship.event.declaration
 
 ; 事件访问器生命周期
 (event_declaration
@@ -74,7 +74,7 @@ export default `
   (accessor_list
     (accessor_declaration
       name: (identifier) @add.remove.name
-      body: (block) @add.remove.body))) @lifecycle.relationship.event.accessor
+      body: (block) @add.remove.body)) @lifecycle.relationship.event.accessor
 
 ; using语句生命周期
 (using_statement
@@ -87,13 +87,13 @@ export default `
     (variable_declarator
       name: (identifier) @using.declaration
       value: (invocation_expression
-        function: (identifier) @resource.factory)))) @lifecycle.relationship.using.declaration
+        function: (identifier) @resource.factory))) @lifecycle.relationship.using.declaration
 
 ; IDisposable实现生命周期
 (class_declaration
   name: (identifier) @disposable.class
   base_class_clause: (base_class_clause
-    (identifier) @idisposable.interface))) @lifecycle.relationship.implements.idisposable
+    (identifier) @idisposable.interface)) @lifecycle.relationship.implements.idisposable
 
 ; Dispose方法生命周期
 (method_declaration
@@ -148,7 +148,7 @@ export default `
   type: (identifier) @weak.reference.type
   arguments: (argument_list
     (argument
-      (identifier) @referenced.object)))) @lifecycle.relationship.weak.reference
+      (identifier) @referenced.object))) @lifecycle.relationship.weak.reference
 
 ; WeakEventManager生命周期
 (invocation_expression
@@ -157,9 +157,9 @@ export default `
     name: (identifier) @add.weak.method)
   arguments: (argument_list
     (argument
-      (identifier) @source.object))
+      (identifier) @source.object)
     (argument
-      (identifier) @event.name)))) @lifecycle.relationship.weak.event.manager
+      (identifier) @event.name))) @lifecycle.relationship.weak.event.manager
 
 ; 异步生命周期 - 异步方法
 (method_declaration
@@ -214,7 +214,7 @@ export default `
   (variable_declaration
     (variable_declarator
       name: (identifier) @static.field.name
-      value: (identifier) @static.field.initialization)))) @lifecycle.relationship.static.field.initialization
+      value: (identifier) @static.field.initialization))) @lifecycle.relationship.static.field.initialization
 
 ; 静态类初始化生命周期
 (class_declaration
@@ -227,7 +227,7 @@ export default `
     type: (identifier) @local.variable.type
     (variable_declarator
       name: (identifier) @local.variable.name
-      value: (identifier) @local.variable.initialization)))) @lifecycle.relationship.local.variable.declaration
+      value: (identifier) @local.variable.initialization))) @lifecycle.relationship.local.variable.declaration
 
 ; 局部函数生命周期
 (local_function_statement
@@ -297,7 +297,7 @@ export default `
 (invocation_expression
   function: (member_access_expression
     expression: (identifier) @memory.object
-    name: (identifier) @memory.dispose.method))) @lifecycle.relationship.memory.disposal
+    name: (identifier) @memory.dispose.method)) @lifecycle.relationship.memory.disposal
 
 ; 作用域生命周期 - scoped引用
 (parameter
@@ -318,7 +318,7 @@ export default `
   (parameter_list
     (parameter
       type: (identifier) @record.parameter.type
-      name: (identifier) @record.parameter.name)))) @lifecycle.relationship.record.type
+      name: (identifier) @record.parameter.name))) @lifecycle.relationship.record.type
 
 ; with表达式生命周期
 (with_expression
@@ -331,7 +331,7 @@ export default `
 (initializer_expression
   (assignment_expression
     left: (identifier) @initialized.property
-    right: (identifier) @initialization.value))) @lifecycle.relationship.initializer.expression
+    right: (identifier) @initialization.value)) @lifecycle.relationship.initializer.expression
 
 ; 委托生命周期 - 事件订阅
 (assignment_expression
@@ -354,7 +354,7 @@ export default `
     name: (identifier) @delegate.composition.method)
   arguments: (argument_list
     (argument
-      (identifier) @delegate.to.combine)))) @lifecycle.relationship.delegate.composition
+      (identifier) @delegate.to.combine))) @lifecycle.relationship.delegate.composition
 
 ; 委托生命周期 - 委托移除
 (invocation_expression
@@ -363,7 +363,7 @@ export default `
     name: (identifier) @delegate.remove.method)
   arguments: (argument_list
     (argument
-      (identifier) @delegate.to.remove)))) @lifecycle.relationship.delegate.removal
+      (identifier) @delegate.to.remove))) @lifecycle.relationship.delegate.removal
 
 ; 异步流生命周期
 (invocation_expression
@@ -382,7 +382,7 @@ export default `
   body: (declaration_list
     (property_declaration
       name: (identifier) @config.property.name
-      type: (identifier) @config.property.type)))) @lifecycle.relationship.configuration.class
+      type: (identifier) @config.property.type))) @lifecycle.relationship.configuration.class
 
 ; 配置生命周期 - 配置注入
 (parameter

@@ -107,7 +107,7 @@ export default `
 
 ; throw语句控制流
 (throw_statement
-  (identifier) @source.throw.exception)) @control.flow.throw
+  (identifier) @source.throw.exception) @control.flow.throw
 
 ; throw表达式控制流
 (throw_expression
@@ -161,7 +161,7 @@ export default `
     parameters: (parameter_list
       (parameter
         name: (identifier) @source.delegate.parameter))
-    body: (block) @target.delegate.body))) @control.flow.delegate
+    body: (block) @target.delegate.body)) @control.flow.delegate
 
 ; 事件控制流
 (assignment_expression
@@ -172,7 +172,7 @@ export default `
     parameters: (parameter_list
       (parameter
         name: (identifier) @source.event.parameter))
-    body: (block) @target.event.handler))) @control.flow.event
+    body: (block) @target.event.handler)) @control.flow.event
 
 ; yield return控制流
 (yield_statement
@@ -198,16 +198,16 @@ export default `
         (binary_expression
           left: (identifier) @source.when.condition
           right: (identifier) @target.when.expression))
-      (block) @target.when.body))) @control.flow.when.switch
+      (block) @target.when.body)) @control.flow.when.switch
 
 ; LINQ查询控制流
 (query_expression
   (from_clause
     type: (identifier) @source.linq.type
     left: (identifier) @source.linq.variable
-    source: (identifier) @source.linq.collection))
+    source: (identifier) @source.linq.collection)
   (select_clause
-    (identifier) @target.linq.result))) @control.flow.linq
+    (identifier) @target.linq.result)) @control.flow.linq
 
 ; 模式匹配is控制流
 (is_pattern_expression

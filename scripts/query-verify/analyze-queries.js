@@ -95,7 +95,7 @@ function checkPatternBalance(pattern) {
 }
 
 // Read the file
-const filePath = 'src/service/parser/constants/queries/c/lifecycle-relationships.ts';
+const filePath = 'src/service/parser/constants/queries/cpp/lifecycle-relationships.ts';
 const content = fs.readFileSync(filePath, 'utf8');
 
 // Analyze query patterns

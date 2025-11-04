@@ -15,23 +15,22 @@ export default `
   base_class_clause: (base_class_clause
     (identifier) @implemented.interface)) @semantic.relationship.interface.implementation
 
-; 多接口实现关系
+; 多接口实现关系 - captures any interface implementation
 (class_declaration
   name: (identifier) @implementing.class
   base_class_clause: (base_class_clause
-    (identifier) @interface1)
-    (identifier) @interface2)) @semantic.relationship.multiple.interfaces
+    (identifier) @implemented.interface)) @semantic.relationship.multiple.interfaces
 
 ; 接口继承关系
 (interface_declaration
   name: (identifier) @subinterface.interface
   base_class_clause: (base_class_clause
-    (identifier) @superinterface.interface))) @semantic.relationship.interface.inheritance
+    (identifier) @superinterface.interface)) @semantic.relationship.interface.inheritance
 
 ; 方法重写关系
 (method_declaration
   (modifier) @override.modifier
-  name: (identifier) @overridden.method)) @semantic.relationship.method.override
+  name: (identifier) @overridden.method) @semantic.relationship.method.override
 
 ; 抽象方法定义关系
 (method_declaration
@@ -87,19 +86,19 @@ export default `
 (type_parameter_constraints_clause
   (identifier) @constrained.type.parameter)
   (type_parameter_constraint
-    (identifier) @base.class.constraint))) @semantic.relationship.base.class.constraint
+    (identifier) @base.class.constraint)) @semantic.relationship.base.class.constraint
 
 ; 接口约束关系
 (type_parameter_constraints_clause
   (identifier) @constrained.type.parameter)
   (type_parameter_constraint
-    (identifier) @interface.constraint))) @semantic.relationship.interface.constraint
+    (identifier) @interface.constraint)) @semantic.relationship.interface.constraint
 
 ; 构造函数约束关系
 (type_parameter_constraints_clause
   (identifier) @constrained.type.parameter)
   (type_parameter_constraint
-    (constructor_constraint))) @semantic.relationship.constructor.constraint
+    (constructor_constraint)) @semantic.relationship.constructor.constraint
 
 ; 观察者模式 - 事件定义
 (event_declaration
@@ -117,7 +116,7 @@ export default `
 (invocation_expression
   function: (member_access_expression
     expression: (identifier) @publisher.object
-    name: (identifier) @publisher.event))) @semantic.relationship.observer.trigger
+    name: (identifier) @publisher.event)) @semantic.relationship.observer.trigger
 
 ; 委托关系
 (delegate_declaration
@@ -136,19 +135,19 @@ export default `
     name: (identifier) @delegate.combine.method)
   arguments: (argument_list
     (argument
-      (identifier) @delegate.to.add)))) @semantic.relationship.delegate.composition
+      (identifier) @delegate.to.add))) @semantic.relationship.delegate.composition
 
 ; 策略模式 - 策略接口
 (interface_declaration
   name: (identifier) @strategy.interface
   (method_declaration
-    name: (identifier) @strategy.method))) @semantic.relationship.strategy.interface
+    name: (identifier) @strategy.method)) @semantic.relationship.strategy.interface
 
 ; 策略模式 - 策略实现
 (class_declaration
   name: (identifier) @concrete.strategy
   base_class_clause: (base_class_clause
-    (identifier) @strategy.interface))) @semantic.relationship.strategy.implementation
+    (identifier) @strategy.interface)) @semantic.relationship.strategy.implementation
 
 ; 策略模式 - 上下文类
 (class_declaration
@@ -158,7 +157,7 @@ export default `
       (variable_declaration
         (variable_declarator
           name: (identifier) @strategy.field
-          value: (identifier) @strategy.instance))))) @semantic.relationship.strategy.context
+          value: (identifier) @strategy.instance)))) @semantic.relationship.strategy.context
 
 ; 工厂模式 - 工厂方法
 (method_declaration
@@ -174,7 +173,7 @@ export default `
   name: (identifier) @abstract.factory.interface
   (method_declaration
     name: (identifier) @factory.method
-    return_type: (identifier) @product.type))) @semantic.relationship.abstract.factory
+    return_type: (identifier) @product.type)) @semantic.relationship.abstract.factory
 
 ; 单例模式 - 静态实例字段
 (field_declaration
@@ -183,7 +182,7 @@ export default `
   (variable_declaration
     type: (identifier) @singleton.type
     (variable_declarator
-      name: (identifier) @singleton.instance))) @semantic.relationship.singleton.instance
+      name: (identifier) @singleton.instance)) @semantic.relationship.singleton.instance
 
 ; 单例模式 - 获取实例方法
 (method_declaration
@@ -195,7 +194,7 @@ export default `
 (class_declaration
   name: (identifier) @adapter.class
   base_class_clause: (base_class_clause
-    (identifier) @target.interface))) @semantic.relationship.adapter.class
+    (identifier) @target.interface)) @semantic.relationship.adapter.class
 
 ; 适配器模式 - 适配者类
 (class_declaration
@@ -205,38 +204,38 @@ export default `
       (variable_declaration
         type: (identifier) @adaptee.field.type
         (variable_declarator
-          name: (identifier) @adaptee.instance))))) @semantic.relationship.adaptee.class
+          name: (identifier) @adaptee.instance)))) @semantic.relationship.adaptee.class
 
 ; 装饰器模式 - 装饰器基类
 (class_declaration
   name: (identifier) @decorator.base
   base_class_clause: (base_class_clause
-    (identifier) @component.interface))) @semantic.relationship.decorator.base
+    (identifier) @component.interface)) @semantic.relationship.decorator.base
 
 ; 装饰器模式 - 具体装饰器
 (class_declaration
   name: (identifier) @concrete.decorator
   base_class_clause: (base_class_clause
-    (identifier) @decorator.base))) @semantic.relationship.concrete.decorator
+    (identifier) @decorator.base)) @semantic.relationship.concrete.decorator
 
 ; 模板方法模式 - 抽象模板类
 (class_declaration
   name: (identifier) @abstract.template.class
   (method_declaration
     (modifier) @virtual.modifier
-    name: (identifier) @template.method))) @semantic.relationship.template.method
+    name: (identifier) @template.method)) @semantic.relationship.template.method
 
 ; 建造者模式 - 建造者接口
 (interface_declaration
   name: (identifier) @builder.interface
   (method_declaration
-    name: (identifier) @build.method))) @semantic.relationship.builder.interface
+    name: (identifier) @build.method)) @semantic.relationship.builder.interface
 
 ; 建造者模式 - 具体建造者
 (class_declaration
   name: (identifier) @concrete.builder
   base_class_clause: (base_class_clause
-    (identifier) @builder.interface))) @semantic.relationship.concrete.builder
+    (identifier) @builder.interface)) @semantic.relationship.concrete.builder
 
 ; 原型模式 - 克隆方法
 (method_declaration
@@ -248,31 +247,31 @@ export default `
   name: (identifier) @flyweight.factory
   (method_declaration
     name: (identifier) @factory.method
-    return_type: (identifier) @flyweight.type))) @semantic.relationship.flyweight.factory
+    return_type: (identifier) @flyweight.type)) @semantic.relationship.flyweight.factory
 
 ; 代理模式 - 代理类
 (class_declaration
   name: (identifier) @proxy.class
   base_class_clause: (base_class_clause
-    (identifier) @subject.interface))) @semantic.relationship.proxy.class
+    (identifier) @subject.interface)) @semantic.relationship.proxy.class
 
 ; 代理模式 - 真实主题
 (class_declaration
   name: (identifier) @real.subject
   base_class_clause: (base_class_clause
-    (identifier) @subject.interface))) @semantic.relationship.real.subject
+    (identifier) @subject.interface)) @semantic.relationship.real.subject
 
 ; 命令模式 - 命令接口
 (interface_declaration
   name: (identifier) @command.interface
   (method_declaration
-    name: (identifier) @execute.method))) @semantic.relationship.command.interface
+    name: (identifier) @execute.method)) @semantic.relationship.command.interface
 
 ; 命令模式 - 具体命令
 (class_declaration
   name: (identifier) @concrete.command
   base_class_clause: (base_class_clause
-    (identifier) @command.interface))) @semantic.relationship.concrete.command
+    (identifier) @command.interface)) @semantic.relationship.concrete.command
 
 ; 命令模式 - 调用者
 (class_declaration
@@ -282,7 +281,7 @@ export default `
       (variable_declaration
         type: (identifier) @command.type
         (variable_declarator
-          name: (identifier) @command.field))))) @semantic.relationship.invoker
+          name: (identifier) @command.field)))) @semantic.relationship.invoker
 
 ; 外观模式 - 外观类
 (class_declaration
@@ -292,7 +291,7 @@ export default `
       (variable_declaration
         type: (identifier) @subsystem.type
         (variable_declarator
-          name: (identifier) @subsystem.instance))))) @semantic.relationship.facade
+          name: (identifier) @subsystem.instance)))) @semantic.relationship.facade
 
 ; 桥接模式 - 实现接口
 (interface_declaration
@@ -306,19 +305,19 @@ export default `
       (variable_declaration
         type: (identifier) @implementation.type
         (variable_declarator
-          name: (identifier) @implementation.field))))) @semantic.relationship.abstraction.class
+          name: (identifier) @implementation.field)))) @semantic.relationship.abstraction.class
 
 ; 组合模式 - 组件接口
 (interface_declaration
   name: (identifier) @component.interface
   (method_declaration
-    name: (identifier) @component.operation))) @semantic.relationship.composite.component
+    name: (identifier) @component.operation)) @semantic.relationship.composite.component
 
 ; 组合模式 - 叶子节点
 (class_declaration
   name: (identifier) @leaf.class
   base_class_clause: (base_class_clause
-    (identifier) @component.interface))) @semantic.relationship.composite.leaf
+    (identifier) @component.interface)) @semantic.relationship.composite.leaf
 
 ; 组合模式 - 组合节点
 (class_declaration
@@ -330,7 +329,7 @@ export default `
       (variable_declaration
         type: (array_type) @children.type
         (variable_declarator
-          name: (identifier) @children.field))))) @semantic.relationship.composite.node
+          name: (identifier) @children.field)))) @semantic.relationship.composite.node
 
 ; 备忘录模式 - 备忘录类
 (class_declaration
@@ -341,7 +340,7 @@ export default `
   name: (identifier) @originator.class
   (method_declaration
     name: (identifier) @create.memento.method
-    return_type: (identifier) @memento.type))) @semantic.relationship.originator
+    return_type: (identifier) @memento.type)) @semantic.relationship.originator
 
 ; 备忘录模式 - 管理者类
 (class_declaration
@@ -351,31 +350,31 @@ export default `
       (variable_declaration
         type: (identifier) @memento.type
         (variable_declarator
-          name: (identifier) @memento.field))))) @semantic.relationship.caretaker
+          name: (identifier) @memento.field)))) @semantic.relationship.caretaker
 
 ; 访问者模式 - 访问者接口
 (interface_declaration
   name: (identifier) @visitor.interface
   (method_declaration
-    name: (identifier) @visit.method))) @semantic.relationship.visitor.interface
+    name: (identifier) @visit.method)) @semantic.relationship.visitor.interface
 
 ; 访问者模式 - 元素接口
 (interface_declaration
   name: (identifier) @element.interface
   (method_declaration
-    name: (identifier) @accept.method))) @semantic.relationship.element.interface
+    name: (identifier) @accept.method)) @semantic.relationship.element.interface
 
 ; 访问者模式 - 具体元素
 (class_declaration
   name: (identifier) @concrete.element
   base_class_clause: (base_class_clause
-    (identifier) @element.interface))) @semantic.relationship.concrete.element
+    (identifier) @element.interface)) @semantic.relationship.concrete.element
 
 ; 责任链模式 - 处理器接口
 (interface_declaration
   name: (identifier) @handler.interface
   (method_declaration
-    name: (identifier) @handle.method))) @semantic.relationship.handler.interface
+    name: (identifier) @handle.method)) @semantic.relationship.handler.interface
 
 ; 责任链模式 - 处理器链
 (class_declaration
@@ -385,19 +384,19 @@ export default `
       (variable_declaration
         type: (identifier) @next.handler.type
         (variable_declarator
-          name: (identifier) @next.handler.field))))) @semantic.relationship.handler.chain
+          name: (identifier) @next.handler.field)))) @semantic.relationship.handler.chain
 
 ; 迭代器模式 - 迭代器接口
 (interface_declaration
   name: (identifier) @iterator.interface
   (method_declaration
-    name: (identifier) @iterator.method))) @semantic.relationship.iterator.interface
+    name: (identifier) @iterator.method)) @semantic.relationship.iterator.interface
 
 ; 迭代器模式 - 可迭代接口
 (interface_declaration
   name: (identifier) @iterable.interface
   (method_declaration
-    name: (identifier) @get.iterator.method))) @semantic.relationship.iterable.interface
+    name: (identifier) @get.iterator.method)) @semantic.relationship.iterable.interface
 
 ; 中介者模式 - 中介者接口
 (interface_declaration
@@ -411,7 +410,7 @@ export default `
       (variable_declaration
         type: (identifier) @mediator.type
         (variable_declarator
-          name: (identifier) @mediator.field))))) @semantic.relationship.colleague.class
+          name: (identifier) @mediator.field)))) @semantic.relationship.colleague.class
 
 ; 依赖注入关系
 (constructor_declaration
@@ -442,7 +441,7 @@ export default `
   name: (identifier) @attribute.name
   (attribute_argument_list
     (attribute_argument
-      (identifier) @attribute.argument)))) @semantic.relationship.attribute.argument
+      (identifier) @attribute.argument))) @semantic.relationship.attribute.argument
 
 ; 事件定义关系
 (event_declaration

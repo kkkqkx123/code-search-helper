@@ -155,6 +155,12 @@ async function testQueryFilesExistence(selectedLanguages: string[]) {
 
     const cppSemantic = await import('../../src/service/parser/constants/queries/cpp/semantic-relationships');
     console.log(`✓ C++ semantic-relationships query loaded: ${cppSemantic.default.length} characters`);
+
+    const cppLifecycle = await import('../../src/service/parser/constants/queries/cpp/lifecycle-relationships');
+    console.log(`✓ C++ lifecycle-relationships query loaded: ${cppLifecycle.default.length} characters`);
+
+    const cppConcurrency = await import('../../src/service/parser/constants/queries/cpp/concurrency-relationships');
+    console.log(`✓ C++ concurrency-relationships query loaded: ${cppConcurrency.default.length} characters`);
     } catch (error) {
       console.error('Error loading C++ query files:', error);
     }
@@ -349,6 +355,12 @@ async function testQuerySyntax(selectedLanguages: string[]) {
 
     const cppSemantic = await import('../../src/service/parser/constants/queries/cpp/semantic-relationships');
     await validateQuerySyntax(cppSemantic.default, 'C++', 'semantic-relationships');
+
+    const cppLifecycle = await import('../../src/service/parser/constants/queries/cpp/lifecycle-relationships');
+    await validateQuerySyntax(cppLifecycle.default, 'C++', 'lifecycle-relationships');
+
+    const cppConcurrency = await import('../../src/service/parser/constants/queries/cpp/concurrency-relationships');
+    await validateQuerySyntax(cppConcurrency.default, 'C++', 'concurrency-relationships');
   }
 
   console.log('\n✅ All query syntax validations completed!');

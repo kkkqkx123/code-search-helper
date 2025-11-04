@@ -96,13 +96,13 @@ export default `
 
 ; 返回值数据流
 (return_statement
-  (identifier) @source.variable)) @data.flow.return
+  (identifier) @source.variable) @data.flow.return
 
 ; 条件表达式数据流
 (conditional_expression
   condition: (identifier) @source.condition
   consequence: (identifier) @target.consequence
-  alternative: (identifier) @target.alternative)) @data.flow.conditional
+  alternative: (identifier) @target.alternative) @data.flow.conditional
 
 ; 空合并赋值数据流
 (assignment_expression

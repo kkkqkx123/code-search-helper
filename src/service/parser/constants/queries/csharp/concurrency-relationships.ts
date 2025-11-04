@@ -21,7 +21,7 @@ export default `
     (argument
       (lambda_expression
         parameters: (parameter_list)
-        body: (block) @task.body)))) @concurrency.relationship.task.creation
+        body: (block) @task.body))) @concurrency.relationship.task.creation
 
 ; Task.Run并发关系
 (invocation_expression
@@ -32,7 +32,7 @@ export default `
     (argument
       (lambda_expression
         parameters: (parameter_list)
-        body: (block) @task.action.body)))) @concurrency.relationship.task.run
+        body: (block) @task.action.body))) @concurrency.relationship.task.run
 
 ; Task启动并发关系
 (invocation_expression
@@ -95,7 +95,7 @@ export default `
     name: (identifier) @monitor.enter.method)
   arguments: (argument_list
     (argument
-      (identifier) @sync.object)))) @concurrency.relationship.monitor.enter
+      (identifier) @sync.object))) @concurrency.relationship.monitor.enter
 
 ; Monitor.Exit并发关系
 (invocation_expression
@@ -104,7 +104,7 @@ export default `
     name: (identifier) @monitor.exit.method)
   arguments: (argument_list
     (argument
-      (identifier) @sync.object)))) @concurrency.relationship.monitor.exit
+      (identifier) @sync.object))) @concurrency.relationship.monitor.exit
 
 ; Monitor.Wait并发关系
 (invocation_expression
@@ -113,7 +113,7 @@ export default `
     name: (identifier) @monitor.wait.method)
   arguments: (argument_list
     (argument
-      (identifier) @sync.object)))) @concurrency.relationship.monitor.wait
+      (identifier) @sync.object))) @concurrency.relationship.monitor.wait
 
 ; Monitor.Pulse并发关系
 (invocation_expression
@@ -122,7 +122,7 @@ export default `
     name: (identifier) @monitor.pulse.method)
   arguments: (argument_list
     (argument
-      (identifier) @sync.object)))) @concurrency.relationship.monitor.pulse
+      (identifier) @sync.object))) @concurrency.relationship.monitor.pulse
 
 ; Mutex创建并发关系
 (object_creation_expression
@@ -169,7 +169,7 @@ export default `
   type: (identifier) @semaphore.slim.type
   arguments: (argument_list
     (argument
-      (integer_literal) @initial.count)))) @concurrency.relationship.semaphore.slim
+      (integer_literal) @initial.count))) @concurrency.relationship.semaphore.slim
 
 ; ReaderWriterLock并发关系
 (object_creation_expression
@@ -198,7 +198,7 @@ export default `
   type: (identifier) @barrier.type
   arguments: (argument_list
     (argument
-      (identifier) @participants.count)))) @concurrency.relationship.barrier
+      (identifier) @participants.count))) @concurrency.relationship.barrier
 
 ; Barrier同步并发关系
 (invocation_expression
@@ -211,7 +211,7 @@ export default `
   type: (identifier) @countdown.event.type
   arguments: (argument_list
     (argument
-      (integer_literal) @initial.count)))) @concurrency.relationship.countdown.latch
+      (integer_literal) @initial.count))) @concurrency.relationship.countdown.latch
 
 ; CountDownLatch等待并发关系
 (invocation_expression
@@ -313,7 +313,7 @@ export default `
     (argument
       (lambda_expression
         parameters: (parameter_list)
-        body: (block) @parallel.action.body))))) @concurrency.relationship.parallel.invoke
+        body: (block) @parallel.action.body))) @concurrency.relationship.parallel.invoke
 
 ; Parallel.For并发关系
 (invocation_expression
@@ -322,9 +322,9 @@ export default `
     name: (identifier) @parallel.for.method)
   arguments: (argument_list
     (argument
-      (identifier) @loop.start))
+      (identifier) @loop.start)
     (argument
-      (identifier) @loop.end)))) @concurrency.relationship.parallel.for
+      (identifier) @loop.end))) @concurrency.relationship.parallel.for
 
 ; Parallel.ForEach并发关系
 (invocation_expression
@@ -333,7 +333,7 @@ export default `
     name: (identifier) @parallel.foreach.method)
   arguments: (argument_list
     (argument
-      (identifier) @source.collection)))) @concurrency.relationship.parallel.foreach
+      (identifier) @source.collection))) @concurrency.relationship.parallel.foreach
 
 ; PLINQ查询并发关系
 (invocation_expression
@@ -362,7 +362,7 @@ export default `
   function: (identifier) @async.method.with.cancellation
   arguments: (argument_list
     (argument
-      (identifier) @cancellation.token.argument)))) @concurrency.relationship.cancellation.token.passing
+      (identifier) @cancellation.token.argument))) @concurrency.relationship.cancellation.token.passing
 
 ; Interlocked操作并发关系
 (invocation_expression
@@ -371,7 +371,7 @@ export default `
     name: (identifier) @interlocked.method)
   arguments: (argument_list
     (argument
-      (identifier) @target.variable)))) @concurrency.relationship.interlocked.operation
+      (identifier) @target.variable))) @concurrency.relationship.interlocked.operation
 
 ; Interlocked CompareExchange并发关系
 (invocation_expression
@@ -380,11 +380,11 @@ export default `
     name: (identifier) @interlocked.compare.exchange.method)
   arguments: (argument_list
     (argument
-      (identifier) @location1))
+      (identifier) @location1)
     (argument
-      (identifier) @value))
+      (identifier) @value)
     (argument
-      (identifier) @comparand)))) @concurrency.relationship.interlocked.compare.exchange
+      (identifier) @comparand))) @concurrency.relationship.interlocked.compare.exchange
 
 ; Volatile读取并发关系
 (invocation_expression
@@ -393,7 +393,7 @@ export default `
     name: (identifier) @volatile.read.method)
   arguments: (argument_list
     (argument
-      (identifier) @volatile.field)))) @concurrency.relationship.volatile.read
+      (identifier) @volatile.field))) @concurrency.relationship.volatile.read
 
 ; Volatile写入并发关系
 (invocation_expression
@@ -402,9 +402,9 @@ export default `
     name: (identifier) @volatile.write.method)
   arguments: (argument_list
     (argument
-      (identifier) @volatile.field))
+      (identifier) @volatile.field)
     (argument
-      (identifier) @value.to.write)))) @concurrency.relationship.volatile.write
+      (identifier) @value.to.write))) @concurrency.relationship.volatile.write
 
 ; AsyncLocal并发关系
 (object_creation_expression
@@ -422,8 +422,8 @@ export default `
   left: (identifier) @shared.variable
   right: (binary_expression
     left: (identifier) @shared.variable
-    operator: (identifier) @read.modify.operator)
-    right: (identifier) @increment.value))) @concurrency.relationship.race.condition
+    operator: (identifier) @read.modify.operator
+    right: (identifier) @increment.value)) @concurrency.relationship.race.condition
 
 ; Potential deadlock - nested lock acquisitions
 (lock_statement
@@ -457,7 +457,7 @@ export default `
     name: (identifier) @producer.method)
   arguments: (argument_list
     (argument
-      (identifier) @concurrent.collection)))) @concurrency.relationship.producer
+      (identifier) @concurrent.collection))) @concurrency.relationship.producer
 
 ; Consumer pattern with concurrent collections
 (invocation_expression
@@ -466,7 +466,7 @@ export default `
     name: (identifier) @consumer.method)
   arguments: (argument_list
     (argument
-      (identifier) @concurrent.collection)))) @concurrency.relationship.consumer
+      (identifier) @concurrent.collection))) @concurrency.relationship.consumer
 
 ; Actor pattern - message passing
 (invocation_expression
@@ -475,7 +475,7 @@ export default `
     name: (identifier) @actor.tell.method)
   arguments: (argument_list
     (argument
-      (identifier) @message.to.send)))) @concurrency.relationship.actor.message.passing
+      (identifier) @message.to.send))) @concurrency.relationship.actor.message.passing
 
 ; Future/Promise pattern - Task continuation
 (invocation_expression
@@ -486,7 +486,7 @@ export default `
     (argument
       (lambda_expression
         parameters: (parameter_list)
-        body: (block) @continuation.body))))) @concurrency.relationship.task.continuation
+        body: (block) @continuation.body))) @concurrency.relationship.task.continuation
 
 ; Async method with synchronization context
 (method_declaration
@@ -495,7 +495,7 @@ export default `
   body: (block
     (await_expression
       (invocation_expression
-        function: (identifier) @async.operation))))) @concurrency.relationship.async.with.context
+        function: (identifier) @async.operation)))) @concurrency.relationship.async.with.context
 
 ; SemaphoreSlim WaitAsync concurrent relationship
 (invocation_expression

@@ -10,6 +10,10 @@ import namespaces from './namespaces';
 import preprocessor from './preprocessor';
 import controlFlow from './control-flow';
 import modernFeatures from './modern-features';
+import dataFlow from './data-flow';
+import semanticRelationships from './semantic-relationships';
+import lifecycleRelationships from './lifecycle-relationships';
+import concurrencyRelationships from './concurrency-relationships';
 
 export default `
 ${classes}
@@ -27,4 +31,12 @@ ${preprocessor}
 ${controlFlow}
 
 ${modernFeatures}
+
+${dataFlow}
+
+${semanticRelationships}
+
+${lifecycleRelationships}
+
+${concurrencyRelationships}
 `;

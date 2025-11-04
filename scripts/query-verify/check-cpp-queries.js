@@ -1,71 +1,13 @@
 const fs = require('fs');
-const path = require('path');
 
-// Parse command line arguments
-function parseArgs() {
-  const args = process.argv.slice(2);
-  const options = {
-    filePath: null,
-    language: null,
-    verbose: false,
-    help: false
-  };
+// C++查询文件列表
+const cppQueryFiles = [
+  'src/service/parser/constants/queries/cpp/data-flow.ts',
+  'src/service/parser/constants/queries/cpp/semantic-relationships.ts',
+  'src/service/parser/constants/queries/cpp/lifecycle-relationships.ts',
+  'src/service/parser/constants/queries/cpp/concurrency-relationships.ts'
+];
 
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === '--help' || arg === '-h') {
-      options.help = true;
-    } else if (arg === '--verbose' || arg === '-v') {
-      options.verbose = true;
-    } else if (arg.startsWith('--file=')) {
-      options.filePath = arg.split('=')[1];
-    } else if (arg.startsWith('--lang=')) {
-      options.language = arg.split('=')[1];
-    } else if (!options.filePath && !arg.startsWith('-')) {
-      // First non-flag argument is treated as file path
-      options.filePath = arg;
-    }
-  }
-
-  return options;
-}
-
-// Show help information
-function showHelp() {
-  console.log(`
-Tree-sitter Query Balance Checker
-
-Usage: node simple-balance-check.js [options] [file-path]
-
-Options:
-  --file=<path>        Path to the query file to check
-  --lang=<language>    Language code (cpp, javascript, python, java, c, csharp)
-  --verbose, -v        Show detailed analysis
-  --help, -h           Show this help message
-
-Examples:
-  node simple-balance-check.js --lang=cpp
-  node simple-balance-check.js src/service/parser/constants/queries/cpp/data-flow.ts
-  node simple-balance-check.js --file=src/service/parser/constants/queries/cpp/data-flow.ts --verbose
-
-If no file is specified, the script will check the default C++ lifecycle-relationships file.
-`);
-}
-
-// Get default file path based on language
-function getDefaultFilePath(language) {
-  const supportedLanguages = ['cpp', 'javascript', 'python', 'java', 'c', 'csharp'];
-  const lang = language || 'cpp';
-  
-  if (!supportedLanguages.includes(lang)) {
-    console.error(`Unsupported language: ${lang}. Supported languages: ${supportedLanguages.join(', ')}`);
-    process.exit(1);
-  }
-
-  return `src/service/parser/constants/queries/${lang}/lifecycle-relationships.ts`;
-}
-
-// Extract query string from file content
 function extractQueryString(content) {
   const startMarker = 'export default `';
   const startIndex = content.indexOf(startMarker);
@@ -73,26 +15,24 @@ function extractQueryString(content) {
     console.error('Could not find export default marker');
     return null;
   }
-  
   const query = content.substring(startIndex + startMarker.length);
+  // Find the last backtick that closes the string
   const lastBacktickIndex = query.lastIndexOf('`');
   if (lastBacktickIndex === -1) {
     console.error('Could not find closing backtick');
     return null;
   }
-  
-  return query.substring(0, lastBacktickIndex).trim();
+  const trimmedQuery = query.substring(0, lastBacktickIndex).trim();
+  return trimmedQuery;
 }
 
-// Find unbalanced parentheses with detailed reporting
-function findUnbalancedParentheses(query, options = {}) {
+function findUnbalancedParentheses(query, fileName) {
   let balance = 0;
   let inString = false;
   let escapeNext = false;
   let lastParenPos = -1;
   let lastParenChar = '';
   let issues = [];
-  let stringStartPos = -1;
 
   for (let i = 0; i < query.length; i++) {
     const char = query[i];
@@ -108,13 +48,7 @@ function findUnbalancedParentheses(query, options = {}) {
     }
 
     if (char === '"' && !escapeNext) {
-      if (!inString) {
-        inString = true;
-        stringStartPos = i;
-      } else {
-        inString = false;
-        stringStartPos = -1;
-      }
+      inString = !inString;
       continue;
     }
 
@@ -132,8 +66,7 @@ function findUnbalancedParentheses(query, options = {}) {
           issues.push({
             type: 'too_many_closing',
             position: i,
-            line: getLineNumber(query, i),
-            context: getContext(query, i, 50)
+            context: query.substring(Math.max(0, i-50), Math.min(query.length, i+50))
           });
         }
       }
@@ -145,44 +78,27 @@ function findUnbalancedParentheses(query, options = {}) {
       type: 'missing_closing',
       count: balance,
       position: lastParenPos,
-      line: getLineNumber(query, lastParenPos),
-      context: getContext(query, lastParenPos, 50)
+      context: query.substring(Math.max(0, lastParenPos-50), Math.min(query.length, lastParenPos+50))
     });
   }
   
   if (inString) {
     issues.push({
       type: 'unclosed_string',
-      position: stringStartPos,
-      line: getLineNumber(query, stringStartPos),
-      context: getContext(query, stringStartPos, 50)
+      context: 'String not properly closed'
     });
   }
   
-  return { balanced: issues.length === 0, issues };
+  return issues;
 }
 
-// Get line number for a position in the query
-function getLineNumber(query, position) {
-  const lines = query.substring(0, position).split('\n');
-  return lines.length;
-}
-
-// Get context around a position
-function getContext(query, position, radius = 50) {
-  const start = Math.max(0, position - radius);
-  const end = Math.min(query.length, position + radius);
-  return query.substring(start, end);
-}
-
-// Check query patterns and structure
-function checkQueryPatterns(query, options = {}) {
+function checkQueryPatterns(query, fileName) {
   const lines = query.split('\n');
   let issues = [];
   let currentQuery = '';
   let parenBalance = 0;
-  let queryStartLine = 0;
   let lineNumber = 0;
+  let queryStartLine = 0;
 
   for (const line of lines) {
     lineNumber++;
@@ -191,7 +107,7 @@ function checkQueryPatterns(query, options = {}) {
     if (!trimmed || trimmed.startsWith(';')) {
       // Skip empty lines and comments
       if (currentQuery.trim() && parenBalance === 0) {
-        // Check complete query pattern
+        // Check complete query pattern - only if it contains actual content
         if (currentQuery.trim() && !currentQuery.includes('(') && !currentQuery.includes(')')) {
           issues.push({
             type: 'invalid_query_pattern',
@@ -248,8 +164,7 @@ function checkQueryPatterns(query, options = {}) {
   return issues;
 }
 
-// Check predicates for common issues
-function checkPredicates(query, options = {}) {
+function checkPredicates(query, fileName) {
   const lines = query.split('\n');
   let issues = [];
   let lineNumber = 0;
@@ -289,8 +204,7 @@ function checkPredicates(query, options = {}) {
   return issues;
 }
 
-// Analyze a query file
-function analyzeFile(filePath, options = {}) {
+function analyzeFile(filePath) {
   console.log(`\n=== Analyzing ${filePath} ===`);
   
   try {
@@ -299,41 +213,36 @@ function analyzeFile(filePath, options = {}) {
     
     if (!queryString) {
       console.log(`❌ Failed to extract query string from ${filePath}`);
-      return false;
+      return;
     }
     
     console.log(`✓ File loaded successfully (${queryString.length} characters)`);
     
     // Check for unbalanced parentheses
-    const parenResult = findUnbalancedParentheses(queryString, options);
-    if (!parenResult.balanced) {
-      console.log(`❌ Found ${parenResult.issues.length} parenthesis issues:`);
-      parenResult.issues.forEach(issue => {
-        console.log(`  - ${issue.type} at line ${issue.line}, position ${issue.position}`);
-        if (options.verbose) {
-          console.log(`    Context: ${issue.context}`);
-        }
+    const parenIssues = findUnbalancedParentheses(queryString, filePath);
+    if (parenIssues.length > 0) {
+      console.log(`❌ Found ${parenIssues.length} parenthesis issues:`);
+      parenIssues.forEach(issue => {
+        console.log(`  - ${issue.type} at position ${issue.position}: ${issue.context}`);
       });
     } else {
       console.log(`✓ Parentheses are balanced`);
     }
     
     // Check query patterns
-    const patternIssues = checkQueryPatterns(queryString, options);
+    const patternIssues = checkQueryPatterns(queryString, filePath);
     if (patternIssues.length > 0) {
       console.log(`❌ Found ${patternIssues.length} query pattern issues:`);
       patternIssues.forEach(issue => {
         console.log(`  - Lines ${issue.line}-${issue.endLine}: ${issue.context}`);
-        if (options.verbose) {
-          console.log(`    Query: ${issue.query.substring(0, 100)}...`);
-        }
+        console.log(`    Full query: ${issue.query}`);
       });
     } else {
       console.log(`✓ Query patterns are valid`);
     }
     
     // Check predicates
-    const predicateIssues = checkPredicates(queryString, options);
+    const predicateIssues = checkPredicates(queryString, filePath);
     if (predicateIssues.length > 0) {
       console.log(`⚠️  Found ${predicateIssues.length} potential predicate issues:`);
       predicateIssues.forEach(issue => {
@@ -343,7 +252,7 @@ function analyzeFile(filePath, options = {}) {
       console.log(`✓ Predicates look good`);
     }
     
-    // Statistics
+    // Count different types of queries
     const queryCount = (queryString.match(/\) @[\w.-]+/g) || []).length;
     const predicateCount = (queryString.match(/#\w+\?/g) || []).length;
     const commentCount = (queryString.match(/;[^[\n]]*/g) || []).length;
@@ -353,43 +262,45 @@ function analyzeFile(filePath, options = {}) {
     console.log(`  - Predicates: ${predicateCount}`);
     console.log(`  - Comments: ${commentCount}`);
     
-    const totalIssues = parenResult.issues.length + patternIssues.length + predicateIssues.length;
-    if (totalIssues === 0) {
-      console.log(`🎉 No issues found!`);
-      return true;
-    } else {
-      console.log(`⚠️  Found ${totalIssues} total issues`);
-      return false;
-    }
+    return {
+      parenIssues,
+      patternIssues,
+      predicateIssues,
+      queryCount,
+      predicateCount,
+      commentCount
+    };
     
   } catch (error) {
     console.log(`❌ Error analyzing ${filePath}: ${error.message}`);
-    return false;
+    return null;
   }
 }
 
 // Main execution
-function main() {
-  const options = parseArgs();
-  
-  if (options.help) {
-    showHelp();
-    return;
-  }
-  
-  const filePath = options.filePath || getDefaultFilePath(options.language);
-  
-  if (!fs.existsSync(filePath)) {
-    console.error(`❌ File not found: ${filePath}`);
-    process.exit(1);
-  }
-  
-  console.log('Tree-sitter Query Balance Checker');
-  console.log('=================================');
-  
-  const success = analyzeFile(filePath, options);
-  process.exit(success ? 0 : 1);
-}
+console.log('C++ Query Files Analysis Tool');
+console.log('=============================');
 
-// Run the analysis
-main();
+const results = {};
+cppQueryFiles.forEach(filePath => {
+  results[filePath] = analyzeFile(filePath);
+});
+
+// Summary
+console.log('\n=== SUMMARY ===');
+let totalIssues = 0;
+cppQueryFiles.forEach(filePath => {
+  const result = results[filePath];
+  if (result) {
+    const issueCount = result.parenIssues.length + result.patternIssues.length + result.predicateIssues.length;
+    totalIssues += issueCount;
+    console.log(`${filePath}: ${issueCount} issues (${result.queryCount} queries)`);
+  }
+});
+
+console.log(`\nTotal issues found: ${totalIssues}`);
+if (totalIssues === 0) {
+  console.log('🎉 All C++ query files look good!');
+} else {
+  console.log('⚠️  Some issues found that may need attention.');
+}
