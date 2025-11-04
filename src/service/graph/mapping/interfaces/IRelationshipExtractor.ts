@@ -115,7 +115,6 @@ export interface ILanguageRelationshipExtractor {
   extractCallRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<CallRelationship[]>;
   
@@ -135,14 +134,12 @@ export interface ILanguageRelationshipExtractor {
   extractReferenceRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<ReferenceRelationship[]>;
   
   extractCreationRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<CreationRelationship[]>;
   

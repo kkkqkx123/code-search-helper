@@ -21,27 +21,26 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
   async extractCallRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<CallRelationship[]> {
-    const relationships = await super.extractCallRelationships(ast, filePath, fileContent, symbolResolver);
+    const relationships = await super.extractCallRelationships(ast, filePath, symbolResolver);
 
     // 查找所有调用表达式及新表达式
-    const callExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const callExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].callExpression
     );
 
     for (const callExpr of callExpressions) {
       // 使用符号解析器查找调用者函数
       const callerSymbol = this.findCallerSymbol(callExpr, symbolResolver, filePath);
-      const calleeName = this.extractCalleeName(callExpr, fileContent);
+      const calleeName = this.extractCalleeName(callExpr);
 
       if (callerSymbol && calleeName) {
         // 使用符号解析器解析被调用函数
         const resolvedSymbol = symbolResolver.resolveSymbol(calleeName, filePath, callExpr);
 
         // 分析调用上下文
-        const callContext = this.analyzeCallContext(callExpr, fileContent);
+        const callContext = this.analyzeCallContext(callExpr);
 
         relationships.push({
           callerId: this.generateSymbolId(callerSymbol),
@@ -70,10 +69,10 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     const relationships = await super.extractInheritanceRelationships(ast, filePath, symbolResolver);
 
     // 查找类声明，包括抽象类
-    const classDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const classDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].classDeclaration
     );
-    
+
     for (const classDecl of classDeclarations) {
       const className = this.extractClassName(classDecl);
       const heritageClauses = this.findHeritageClauses(classDecl);
@@ -105,10 +104,10 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     // 查找接口声明 (TypeScript specific)
-    const interfaceDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const interfaceDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].interfaceDeclaration
     );
-    
+
     for (const interfaceDecl of interfaceDeclarations) {
       const interfaceName = this.extractInterfaceName(interfaceDecl);
       const heritageClauses = this.findHeritageClauses(interfaceDecl);
@@ -139,10 +138,10 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     // 查找枚举声明 (TypeScript specific)
-    const enumDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const enumDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].enumDeclaration
     );
-    
+
     for (const enumDecl of enumDeclarations) {
       const enumName = this.extractEnumName(enumDecl);
       if (enumName) {
@@ -177,10 +176,10 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     const relationships = await super.extractDependencyRelationships(ast, filePath, symbolResolver);
 
     // 查找导入和导出语句
-    const importDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const importDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].importDeclaration
     );
-    
+
     for (const importStmt of importDeclarations) {
       const importInfo = this.extractImportInfo(importStmt);
 
@@ -204,10 +203,10 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     // 查找导出语句 (TypeScript specific)
-    const exportDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const exportDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].exportDeclaration
     );
-    
+
     for (const exportStmt of exportDeclarations) {
       const exportInfo = this.extractExportInfo(exportStmt);
 
@@ -234,7 +233,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     for (const typeImport of typeImports) {
       const sourceNode = this.treeSitterService.findNodeByType(typeImport, 'literal')[0];
       if (sourceNode) {
-        const source = this.treeSitterService.getNodeText(sourceNode, '').replace(/['"]/g, '');
+        const source = sourceNode.text.replace(/['"]/g, '');
 
         relationships.push({
           sourceId: this.generateNodeId(filePath, 'file', filePath),
@@ -256,18 +255,17 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
   async extractReferenceRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<ReferenceRelationship[]> {
-    const relationships = await super.extractReferenceRelationships(ast, filePath, fileContent, symbolResolver);
+    const relationships = await super.extractReferenceRelationships(ast, filePath, symbolResolver);
 
     // 查找所有属性标识符和命名导入
-    const propertyIdentifiers = this.treeSitterService.findNodesByTypes(ast, 
+    const propertyIdentifiers = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].propertyIdentifier
     );
 
     for (const identifier of propertyIdentifiers) {
-      const identifierName = this.treeSitterService.getNodeText(identifier, fileContent);
+      const identifierName = identifier.text;
 
       // 使用符号解析器解析引用的符号
       const resolvedSymbol = symbolResolver.resolveSymbol(identifierName, filePath, identifier);
@@ -292,7 +290,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     // 查找函数声明和方法声明的引用
-    const functionDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const functionDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].functionDeclaration
     );
 
@@ -319,7 +317,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     // 查找方法声明的引用
-    const methodDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const methodDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].methodDeclaration
     );
 
@@ -349,7 +347,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     const typeReferences = this.treeSitterService.findNodesByTypes(ast, ['type_identifier', 'predefined_type']);
 
     for (const typeRef of typeReferences) {
-      const typeName = this.treeSitterService.getNodeText(typeRef, fileContent);
+      const typeName = typeRef.text;
 
       // 使用符号解析器解析类型符号
       const resolvedSymbol = symbolResolver.resolveSymbol(typeName, filePath, typeRef);
@@ -375,7 +373,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     for (const typeAnnotation of typeAnnotations) {
       const typeIdentifier = this.treeSitterService.findNodeByType(typeAnnotation, 'type_identifier')[0];
       if (typeIdentifier) {
-        const typeName = this.treeSitterService.getNodeText(typeIdentifier, fileContent);
+        const typeName = typeIdentifier.text;
         const resolvedSymbol = symbolResolver.resolveSymbol(typeName, filePath, typeIdentifier);
 
         if (resolvedSymbol) {
@@ -401,16 +399,15 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
   async extractCreationRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<CreationRelationship[]> {
-    const relationships = await super.extractCreationRelationships(ast, filePath, fileContent, symbolResolver);
+    const relationships = await super.extractCreationRelationships(ast, filePath, symbolResolver);
 
     // 查找new表达式
     const newExpressions = this.treeSitterService.findNodeByType(ast, 'new_expression');
 
     for (const newExpr of newExpressions) {
-      const className = this.extractClassNameFromNewExpression(newExpr, fileContent);
+      const className = this.extractClassNameFromNewExpression(newExpr);
 
       if (className) {
         // 使用符号解析器解析类符号
@@ -432,10 +429,10 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     // 查找箭头函数、Lambda表达式
-    const lambdaExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const lambdaExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].lambdaExpression
     );
-    
+
     for (const lambdaExpr of lambdaExpressions) {
       relationships.push({
         sourceId: this.generateNodeId(`lambda_creation_${lambdaExpr.startPosition.row}`, 'creation', filePath),
@@ -452,17 +449,17 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     // 查找对象字面量创建（对象创建）
-    const objectLiterals = this.treeSitterService.findNodesByTypes(ast, 
+    const objectLiterals = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].variableDeclaration
         .filter(type => type === 'object' || type === 'pair') // Only include object-related types
     );
-    
+
     if (objectLiterals.length === 0) {
       // If no specific object literals found, look for generic object patterns
       const genericObjectLiterals = this.treeSitterService.findNodeByType(ast, 'object');
       for (const objectLiteral of genericObjectLiterals) {
         // Extract properties that indicate creation type
-        const objectType = this.inferObjectType(objectLiteral, fileContent);
+        const objectType = this.inferObjectType(objectLiteral);
         if (objectType) {
           const resolvedSymbol = symbolResolver.resolveSymbol(objectType, filePath, objectLiteral);
 
@@ -510,7 +507,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     const relationships = await super.extractAnnotationRelationships(ast, filePath, symbolResolver);
 
     // 查找装饰器
-    const decorators = this.treeSitterService.findNodesByTypes(ast, 
+    const decorators = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].decorator
     );
 
@@ -539,10 +536,10 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     // 查找类型注解、类型别名和命名空间声明
-    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast, 
+    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].typeAnnotation
     );
-    
+
     for (const typeAnnotation of typeAnnotations) {
       const annotationName = this.extractTypeName(typeAnnotation);
       if (annotationName) {
@@ -565,10 +562,10 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     // 查找类型注解中的泛型参数 (TypeScript specific)
-    const genericTypes = this.treeSitterService.findNodesByTypes(ast, 
+    const genericTypes = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['typescript'].genericTypes
     );
-    
+
     for (const genericType of genericTypes) {
       const typeName = this.extractGenericTypeName(genericType);
       const typeArguments = this.extractTypeArguments(genericType);
@@ -670,7 +667,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
   protected findEnumMembers(enumDecl: Parser.SyntaxNode): string[] {
     // 查找枚举成员
     const members: string[] = [];
-    
+
     for (const child of enumDecl.children) {
       if (child.type === 'enum_body') {
         for (const bodyChild of child.children) {
@@ -684,7 +681,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
         }
       }
     }
-    
+
     return members;
   }
 
@@ -759,7 +756,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     return 'variable';
   }
 
-  protected inferObjectType(objectLiteral: Parser.SyntaxNode, fileContent: string): string | null {
+  protected inferObjectType(objectLiteral: Parser.SyntaxNode): string | null {
     // 从对象字面量推断类型
     // This is a simplified implementation - in a real system you might look at properties
     // or assign a generic "Object" type
@@ -807,7 +804,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
       if (child.type === 'type_arguments' || child.type === 'type_parameters') {
         for (const arg of child.children) {
           if (arg.type === 'type_identifier' || arg.type === 'identifier' || arg.type === 'generic_type') {
-            args.push(this.treeSitterService.getNodeText(arg, ''));
+            args.push(arg.text);
           }
         }
         break;

@@ -36,27 +36,26 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
   async extractCallRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<CallRelationship[]> {
     const relationships: CallRelationship[] = [];
 
     // 查找所有调用表达式和新表达式
-    const callExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const callExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].callExpression
     );
 
     for (const callExpr of callExpressions) {
       // 使用符号解析器查找调用者函数
       const callerSymbol = this.findCallerSymbol(callExpr, symbolResolver, filePath);
-      const calleeName = this.extractCalleeName(callExpr, fileContent);
+      const calleeName = this.extractCalleeName(callExpr);
 
       if (callerSymbol && calleeName) {
         // 使用符号解析器解析被调用函数
         const resolvedSymbol = symbolResolver.resolveSymbol(calleeName, filePath, callExpr);
 
         // 分析调用上下文
-        const callContext = this.analyzeCallContext(callExpr, fileContent);
+        const callContext = this.analyzeCallContext(callExpr);
 
         relationships.push({
           callerId: this.generateSymbolId(callerSymbol),
@@ -85,7 +84,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     const relationships: InheritanceRelationship[] = [];
 
     // 查找类声明
-    const classDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const classDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].classDeclaration
     );
 
@@ -130,7 +129,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     const relationships: DependencyRelationship[] = [];
 
     // 查找导入语句
-    const importStatements = this.treeSitterService.findNodesByTypes(ast, 
+    const importStatements = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].importDeclaration
     );
 
@@ -157,7 +156,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     }
 
     // 查找导出语句 (JavaScript also has export statements)
-    const exportStatements = this.treeSitterService.findNodesByTypes(ast, 
+    const exportStatements = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].exportDeclaration
     );
 
@@ -188,18 +187,17 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
   async extractReferenceRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<ReferenceRelationship[]> {
     const relationships: ReferenceRelationship[] = [];
 
     // 查找所有标识符引用和属性标识符
-    const identifiers = this.treeSitterService.findNodesByTypes(ast, 
+    const identifiers = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].propertyIdentifier
     );
 
     for (const identifier of identifiers) {
-      const identifierName = this.treeSitterService.getNodeText(identifier, fileContent);
+      const identifierName = identifier.text;
 
       // 使用符号解析器解析引用的符号
       const resolvedSymbol = symbolResolver.resolveSymbol(identifierName, filePath, identifier);
@@ -224,12 +222,12 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     }
 
     // 查找成员表达式引用
-    const memberExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const memberExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].memberExpression
     );
 
     for (const memberExpr of memberExpressions) {
-      const memberName = this.extractMemberExpressionName(memberExpr, fileContent);
+      const memberName = this.extractMemberExpressionName(memberExpr);
 
       if (memberName) {
         const resolvedSymbol = symbolResolver.resolveSymbol(memberName, filePath, memberExpr);
@@ -255,7 +253,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     }
 
     // 查找函数声明和方法声明的引用
-    const functionDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const functionDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].functionDeclaration
     );
 
@@ -282,7 +280,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     }
 
     // 查找方法声明的引用
-    const methodDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const methodDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].methodDeclaration
     );
 
@@ -309,14 +307,14 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     }
 
     // 查找类型注解
-    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast, 
+    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].typeAnnotation
     );
 
     for (const typeAnnotation of typeAnnotations) {
       const typeIdentifier = this.treeSitterService.findNodeByType(typeAnnotation, 'type_identifier')[0];
       if (typeIdentifier) {
-        const typeName = this.treeSitterService.getNodeText(typeIdentifier, fileContent);
+        const typeName = typeIdentifier.text;
         const resolvedSymbol = symbolResolver.resolveSymbol(typeName, filePath, typeIdentifier);
 
         if (resolvedSymbol) {
@@ -342,18 +340,17 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
   async extractCreationRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<CreationRelationship[]> {
     const relationships: CreationRelationship[] = [];
 
     // 查找new表达式
-    const newExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const newExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].callExpression.filter(type => type === 'new_expression')
     );
 
     for (const newExpr of newExpressions) {
-      const className = this.extractClassNameFromNewExpression(newExpr, fileContent);
+      const className = this.extractClassNameFromNewExpression(newExpr);
 
       if (className) {
         // 使用符号解析器解析类符号
@@ -375,10 +372,10 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     }
 
     // 查找箭头函数、Lambda表达式
-    const lambdaExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const lambdaExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].lambdaExpression
     );
-    
+
     for (const lambdaExpr of lambdaExpressions) {
       relationships.push({
         sourceId: this.generateNodeId(`lambda_creation_${lambdaExpr.startPosition.row}`, 'creation', filePath),
@@ -395,7 +392,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     }
 
     // 查找变量声明、对象和数组字面量
-    const variableDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const variableDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].variableDeclaration
     );
 
@@ -403,7 +400,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
       // 查找对象字面量
       const objectLiterals = this.treeSitterService.findNodeByType(varDecl, 'object');
       for (const objectLiteral of objectLiterals) {
-        const objectType = this.inferObjectType(objectLiteral, fileContent);
+        const objectType = this.inferObjectType(objectLiteral);
         if (objectType) {
           const resolvedSymbol = symbolResolver.resolveSymbol(objectType, filePath, objectLiteral);
 
@@ -451,7 +448,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     const relationships: AnnotationRelationship[] = [];
 
     // 查找装饰器
-    const decorators = this.treeSitterService.findNodesByTypes(ast, 
+    const decorators = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].decorator
     );
 
@@ -480,7 +477,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     }
 
     // 查找类型注解
-    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast, 
+    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].typeAnnotation
     );
 
@@ -506,7 +503,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     }
 
     // 查找泛型类型
-    const genericTypes = this.treeSitterService.findNodesByTypes(ast, 
+    const genericTypes = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].genericTypes
     );
 
@@ -581,35 +578,35 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     return null; // 如果没找到父函数
   }
 
-  protected extractCalleeName(callExpr: Parser.SyntaxNode, fileContent: string): string | null {
+  protected extractCalleeName(callExpr: Parser.SyntaxNode): string | null {
     // 实现提取被调用函数名逻辑
     if (callExpr.children && callExpr.children.length > 0) {
       const funcNode = callExpr.children[0];
       if (funcNode.type === 'identifier') {
-        return this.treeSitterService.getNodeText(funcNode, fileContent);
+        return funcNode.text;
       } else if (funcNode.type === 'member_expression') {
         // 处理 obj.method() 的情况
-        return this.extractMethodNameFromMemberExpression(funcNode, fileContent);
+        return this.extractMethodNameFromMemberExpression(funcNode);
       } else if (funcNode.type === 'call_expression') {
         // 处理嵌套调用
-        return this.extractCalleeName(funcNode, fileContent);
+        return this.extractCalleeName(funcNode);
       }
     }
     return null;
   }
 
-  protected extractMethodNameFromMemberExpression(memberExpr: Parser.SyntaxNode, fileContent: string): string | null {
+  protected extractMethodNameFromMemberExpression(memberExpr: Parser.SyntaxNode): string | null {
     // 从成员表达式中提取方法名
     if (memberExpr.children && memberExpr.children.length > 0) {
       const lastChild = memberExpr.children[memberExpr.children.length - 1];
       if (lastChild.type === 'property_identifier' || lastChild.type === 'identifier') {
-        return this.treeSitterService.getNodeText(lastChild, fileContent);
+        return lastChild.text;
       }
     }
     return null;
   }
 
-  protected analyzeCallContext(callExpr: Parser.SyntaxNode, fileContent: string): {
+  protected analyzeCallContext(callExpr: Parser.SyntaxNode): {
     isChained: boolean;
     chainDepth?: number;
     isAsync: boolean;
@@ -826,34 +823,34 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     return 'variable';
   }
 
-  protected extractClassNameFromNewExpression(newExpr: Parser.SyntaxNode, fileContent: string): string | null {
+  protected extractClassNameFromNewExpression(newExpr: Parser.SyntaxNode): string | null {
     // 实现从new表达式中提取类名逻辑
     if (newExpr.children && newExpr.children.length > 0) {
       const classNode = newExpr.children[0];
       if (classNode.type === 'identifier' || classNode.type === 'type_identifier') {
-        return this.treeSitterService.getNodeText(classNode, fileContent);
+        return classNode.text;
       } else if (classNode.type === 'member_expression') {
         // Handle namespace.ClassName
-        return this.extractMemberExpressionName(classNode, fileContent);
+        return this.extractMemberExpressionName(classNode);
       }
     }
     return null;
   }
 
-  protected extractMemberExpressionName(memberExpr: Parser.SyntaxNode, fileContent: string): string | null {
+  protected extractMemberExpressionName(memberExpr: Parser.SyntaxNode): string | null {
     // Extract name from member expression like namespace.ClassName
     const parts: string[] = [];
-    this.collectMemberExpressionParts(memberExpr, fileContent, parts);
+    this.collectMemberExpressionParts(memberExpr, parts);
     return parts.join('.');
   }
 
-  protected collectMemberExpressionParts(memberExpr: Parser.SyntaxNode, fileContent: string, parts: string[]): void {
+  protected collectMemberExpressionParts(memberExpr: Parser.SyntaxNode, parts: string[]): void {
     // Recursively collect parts of a member expression
     for (const child of memberExpr.children) {
       if (child.type === 'identifier' || child.type === 'property_identifier' || child.type === 'type_identifier') {
-        parts.unshift(this.treeSitterService.getNodeText(child, fileContent));
+        parts.unshift(child.text);
       } else if (child.type === 'member_expression') {
-        this.collectMemberExpressionParts(child, fileContent, parts);
+        this.collectMemberExpressionParts(child, parts);
       }
     }
   }
@@ -961,7 +958,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
       if (child.type === 'type_arguments' || child.type === 'type_parameters') {
         for (const arg of child.children) {
           if (arg.type === 'type_identifier' || arg.type === 'identifier' || arg.type === 'generic_type') {
-            args.push(this.treeSitterService.getNodeText(arg, ''));
+            args.push(arg.text);
           }
         }
         break;
@@ -971,7 +968,7 @@ export class JavaScriptRelationshipExtractor implements ILanguageRelationshipExt
     return args;
   }
 
-  protected inferObjectType(objectLiteral: Parser.SyntaxNode, fileContent: string): string | null {
+  protected inferObjectType(objectLiteral: Parser.SyntaxNode): string | null {
     // 从对象字面量推断类型
     // This is a simplified implementation - in a real system you might look at properties
     // or assign a generic "Object" type

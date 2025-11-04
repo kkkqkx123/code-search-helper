@@ -36,27 +36,26 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
   async extractCallRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<CallRelationship[]> {
     const relationships: CallRelationship[] = [];
 
     // 查找所有调用表达式
-    const callExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const callExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].callExpression
     );
 
     for (const callExpr of callExpressions) {
       // 使用符号解析器查找调用者函数
       const callerSymbol = this.findCallerSymbol(callExpr, symbolResolver, filePath);
-      const calleeName = this.extractCalleeName(callExpr, fileContent);
+      const calleeName = this.extractCalleeName(callExpr);
 
       if (callerSymbol && calleeName) {
         // 使用符号解析器解析被调用函数
         const resolvedSymbol = symbolResolver.resolveSymbol(calleeName, filePath, callExpr);
 
         // 分析调用上下文
-        const callContext = this.analyzeCallContext(callExpr, fileContent);
+        const callContext = this.analyzeCallContext(callExpr);
 
         relationships.push({
           callerId: this.generateSymbolId(callerSymbol),
@@ -85,7 +84,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     const relationships: InheritanceRelationship[] = [];
 
     // 查找类声明
-    const classDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const classDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].classDeclaration
     );
 
@@ -129,7 +128,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     const relationships: DependencyRelationship[] = [];
 
     // 查找导入语句
-    const importStatements = this.treeSitterService.findNodesByTypes(ast, 
+    const importStatements = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].importDeclaration
     );
 
@@ -161,18 +160,17 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
   async extractReferenceRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<ReferenceRelationship[]> {
     const relationships: ReferenceRelationship[] = [];
 
     // 查找所有标识符引用和点分名称
-    const identifiers = this.treeSitterService.findNodesByTypes(ast, 
+    const identifiers = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].propertyIdentifier
     );
 
     for (const identifier of identifiers) {
-      const identifierName = this.treeSitterService.getNodeText(identifier, fileContent);
+      const identifierName = identifier.text;
 
       // 使用符号解析器解析引用的符号
       const resolvedSymbol = symbolResolver.resolveSymbol(identifierName, filePath, identifier);
@@ -197,12 +195,12 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     }
 
     // 查找成员表达式引用
-    const memberExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const memberExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].memberExpression
     );
 
     for (const memberExpr of memberExpressions) {
-      const memberName = this.extractMemberExpressionName(memberExpr, fileContent);
+      const memberName = this.extractMemberExpressionName(memberExpr);
 
       if (memberName) {
         const resolvedSymbol = symbolResolver.resolveSymbol(memberName, filePath, memberExpr);
@@ -228,7 +226,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     }
 
     // 查找函数声明和方法声明的引用
-    const functionDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const functionDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].functionDeclaration
     );
 
@@ -255,7 +253,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     }
 
     // 查找方法声明的引用
-    const methodDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const methodDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].methodDeclaration
     );
 
@@ -287,18 +285,17 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
   async extractCreationRelationships(
     ast: Parser.SyntaxNode,
     filePath: string,
-    fileContent: string,
     symbolResolver: SymbolResolver
   ): Promise<CreationRelationship[]> {
     const relationships: CreationRelationship[] = [];
 
     // 查找类实例化调用
-    const callExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const callExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].callExpression
     );
 
     for (const callExpr of callExpressions) {
-      const className = this.extractClassNameFromCallExpression(callExpr, fileContent);
+      const className = this.extractClassNameFromCallExpression(callExpr);
 
       if (className) {
         // 使用符号解析器解析类符号
@@ -320,10 +317,10 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     }
 
     // 查找Lambda表达式
-    const lambdaExpressions = this.treeSitterService.findNodesByTypes(ast, 
+    const lambdaExpressions = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].lambdaExpression
     );
-    
+
     for (const lambdaExpr of lambdaExpressions) {
       relationships.push({
         sourceId: this.generateNodeId(`lambda_creation_${lambdaExpr.startPosition.row}`, 'creation', filePath),
@@ -340,7 +337,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     }
 
     // 查找变量声明中的对象创建
-    const variableDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+    const variableDeclarations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].variableDeclaration
     );
 
@@ -408,7 +405,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     const relationships: AnnotationRelationship[] = [];
 
     // 查找装饰器
-    const decorators = this.treeSitterService.findNodesByTypes(ast, 
+    const decorators = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].decorator
     );
 
@@ -437,7 +434,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     }
 
     // 查找类型注解
-    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast, 
+    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['python'].typeAnnotation
     );
 
@@ -489,32 +486,32 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     return null; // 如果没找到父函数
   }
 
-  protected extractCalleeName(callExpr: Parser.SyntaxNode, fileContent: string): string | null {
+  protected extractCalleeName(callExpr: Parser.SyntaxNode): string | null {
     // 实现提取被调用函数名逻辑
     if (callExpr.children && callExpr.children.length > 0) {
       const funcNode = callExpr.children[0];
       if (funcNode.type === 'identifier') {
-        return this.treeSitterService.getNodeText(funcNode, fileContent);
+        return funcNode.text;
       } else if (funcNode.type === 'attribute') {
         // 处理 obj.method() 的情况
-        return this.extractMethodNameFromAttribute(funcNode, fileContent);
+        return this.extractMethodNameFromAttribute(funcNode);
       }
     }
     return null;
   }
 
-  protected extractMethodNameFromAttribute(attribute: Parser.SyntaxNode, fileContent: string): string | null {
+  protected extractMethodNameFromAttribute(attribute: Parser.SyntaxNode): string | null {
     // 从属性表达式中提取方法名
     if (attribute.children && attribute.children.length > 0) {
       const lastChild = attribute.children[attribute.children.length - 1];
       if (lastChild.type === 'identifier') {
-        return this.treeSitterService.getNodeText(lastChild, fileContent);
+        return lastChild.text;
       }
     }
     return null;
   }
 
-  protected analyzeCallContext(callExpr: Parser.SyntaxNode, fileContent: string): {
+  protected analyzeCallContext(callExpr: Parser.SyntaxNode): {
     isChained: boolean;
     chainDepth?: number;
     isAsync: boolean;
@@ -620,13 +617,13 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
       // 处理 import module 或 import module as alias
       for (const child of importStmt.children) {
         if (child.type === 'dotted_name') {
-          source = this.treeSitterService.getNodeText(child, '');
+          source = child.text;
           importedSymbols.push(source);
         } else if (child.type === 'aliased_import') {
           // 处理 import module as alias
           for (const aliasChild of child.children) {
             if (aliasChild.type === 'dotted_name') {
-              source = this.treeSitterService.getNodeText(aliasChild, '');
+              source = aliasChild.text;
               importedSymbols.push(source);
             }
           }
@@ -636,18 +633,18 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
       // 处理 from module import name1, name2
       for (const child of importStmt.children) {
         if (child.type === 'dotted_name') {
-          source = this.treeSitterService.getNodeText(child, '');
+          source = child.text;
         } else if (child.type === 'dotted_name' || child.type === 'import_list') {
           if (child.type === 'import_list') {
             for (const importItem of child.children) {
               if (importItem.type === 'dotted_name' || importItem.type === 'aliased_import') {
                 if (importItem.type === 'dotted_name') {
-                  importedSymbols.push(this.treeSitterService.getNodeText(importItem, ''));
+                  importedSymbols.push(importItem.text);
                 } else if (importItem.type === 'aliased_import') {
                   // 处理 name as alias
                   for (const aliasChild of importItem.children) {
                     if (aliasChild.type === 'dotted_name') {
-                      importedSymbols.push(this.treeSitterService.getNodeText(aliasChild, ''));
+                      importedSymbols.push(aliasChild.text);
                     }
                   }
                 }
@@ -663,11 +660,11 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
           for (const importItem of child.children) {
             if (importItem.type === 'dotted_name' || importItem.type === 'aliased_import') {
               if (importItem.type === 'dotted_name') {
-                importedSymbols.push(this.treeSitterService.getNodeText(importItem, ''));
+                importedSymbols.push(importItem.text);
               } else if (importItem.type === 'aliased_import') {
                 for (const aliasChild of importItem.children) {
                   if (aliasChild.type === 'dotted_name') {
-                    importedSymbols.push(this.treeSitterService.getNodeText(aliasChild, ''));
+                    importedSymbols.push(aliasChild.text);
                   }
                 }
               }
@@ -705,49 +702,49 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     return 'variable';
   }
 
-  protected extractClassNameFromCallExpression(callExpr: Parser.SyntaxNode, fileContent: string): string | null {
+  protected extractClassNameFromCallExpression(callExpr: Parser.SyntaxNode): string | null {
     // 实现从调用表达式中提取类名逻辑
     if (callExpr.children && callExpr.children.length > 0) {
       const classNode = callExpr.children[0];
       if (classNode.type === 'identifier') {
-        const name = this.treeSitterService.getNodeText(classNode, fileContent);
+        const name = classNode.text;
         // Check if it's likely a class name (starts with uppercase)
         if (name && name[0] === name[0].toUpperCase()) {
           return name;
         }
       } else if (classNode.type === 'attribute') {
         // Handle module.ClassName
-        return this.extractAttributeName(classNode, fileContent);
+        return this.extractAttributeName(classNode);
       }
     }
     return null;
   }
 
-  protected extractAttributeName(attribute: Parser.SyntaxNode, fileContent: string): string | null {
+  protected extractAttributeName(attribute: Parser.SyntaxNode): string | null {
     // Extract name from attribute expression like module.ClassName
     const parts: string[] = [];
-    this.collectAttributeParts(attribute, fileContent, parts);
+    this.collectAttributeParts(attribute, parts);
     return parts.join('.');
   }
 
-  protected collectAttributeParts(attribute: Parser.SyntaxNode, fileContent: string, parts: string[]): void {
+  protected collectAttributeParts(attribute: Parser.SyntaxNode, parts: string[]): void {
     // Recursively collect parts of an attribute expression
     for (const child of attribute.children) {
       if (child.type === 'identifier') {
-        parts.unshift(this.treeSitterService.getNodeText(child, fileContent));
+        parts.unshift(child.text);
       } else if (child.type === 'attribute') {
-        this.collectAttributeParts(child, fileContent, parts);
+        this.collectAttributeParts(child, parts);
       }
     }
   }
 
-  protected extractMemberExpressionName(memberExpr: Parser.SyntaxNode, fileContent: string): string | null {
+  protected extractMemberExpressionName(memberExpr: Parser.SyntaxNode): string | null {
     // Extract name from member expression like obj.method
     if (memberExpr.type === 'attribute') {
-      return this.extractAttributeName(memberExpr, fileContent);
+      return this.extractAttributeName(memberExpr);
     } else if (memberExpr.type === 'subscript') {
       // Handle array[index] or dict[key]
-      return this.treeSitterService.getNodeText(memberExpr, fileContent);
+      return memberExpr.text;
     }
     return null;
   }
