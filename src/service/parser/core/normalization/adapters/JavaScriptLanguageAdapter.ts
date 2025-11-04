@@ -458,9 +458,69 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       type: 'assignment' | 'parameter' | 'return';
     }> = [];
     
+    // 从查询结果中提取捕获的数据流关系
+    if (result.captures && Array.isArray(result.captures)) {
+      for (const capture of result.captures) {
+        if (!capture.name || !capture.node?.text) continue;
+        
+        // 根据捕获名称提取数据流关系
+        if (capture.name.includes('source.') || capture.name.includes('target.')) {
+          const parts = capture.name.split('.');
+          if (parts.length >= 3) {
+            const flowType = parts[2]; // 例如 'assignment', 'parameter', 'return'
+            const direction = parts[0]; // 'source' 或 'target'
+            const context = parts[1]; // 例如 'variable', 'function', 'method'
+            
+            // 查找对应的源或目标
+            const counterpart = result.captures.find((c: any) => 
+              c.name === `${direction === 'source' ? 'target' : 'source'}.${context}.${flowType}`
+            );
+            
+            if (counterpart?.node?.text) {
+              const dataFlowType = this.determineDataFlowType(flowType);
+              if (direction === 'source') {
+                relationships.push({
+                  source: capture.node.text,
+                  target: counterpart.node.text,
+                  type: dataFlowType
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // 如果没有从查询结果中提取到关系，使用传统的AST分析方法
+    if (relationships.length === 0) {
+      this.extractDataFlowFromAST(result, relationships);
+    }
+    
+    return relationships;
+  }
+  
+  private determineDataFlowType(flowType: string): 'assignment' | 'parameter' | 'return' {
+    if (flowType === 'assignment' || flowType === 'property.assignment' || 
+        flowType === 'array.assignment' || flowType === 'function.assignment' ||
+        flowType === 'arrow.assignment' || flowType === 'destructuring.object' ||
+        flowType === 'destructuring.array') {
+      return 'assignment';
+    } else if (flowType === 'parameter' || flowType === 'method.parameter') {
+      return 'parameter';
+    } else if (flowType === 'return' || flowType === 'property.return') {
+      return 'return';
+    }
+    return 'assignment'; // 默认值
+  }
+  
+  private extractDataFlowFromAST(result: any, relationships: Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }>): void {
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
-      return relationships;
+      return;
     }
 
     // 提取赋值数据流关系
@@ -506,8 +566,6 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
         });
       }
     }
-
-    return relationships;
   }
 
   extractControlFlowRelationships(result: any): Array<{
@@ -521,30 +579,116 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       type: 'conditional' | 'loop' | 'exception' | 'callback';
     }> = [];
     
+    // 从查询结果中提取捕获的关系
+    if (result.captures && Array.isArray(result.captures)) {
+      for (const capture of result.captures) {
+        if (!capture.name || !capture.node?.text) continue;
+        
+        // 根据捕获名称提取关系
+        if (capture.name.includes('source.') || capture.name.includes('target.')) {
+          const parts = capture.name.split('.');
+          if (parts.length >= 3) {
+            const relationType = parts[2]; // 例如 'condition', 'loop', 'exception'
+            const direction = parts[0]; // 'source' 或 'target'
+            const context = parts[1]; // 例如 'if', 'for', 'try'
+            
+            // 查找对应的源或目标
+            const counterpart = result.captures.find((c: any) => 
+              c.name === `${direction === 'source' ? 'target' : 'source'}.${context}.${relationType}`
+            );
+            
+            if (counterpart?.node?.text) {
+              const flowType = this.determineFlowType(context, relationType);
+              if (direction === 'source') {
+                relationships.push({
+                  source: capture.node.text,
+                  target: counterpart.node.text,
+                  type: flowType
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // 如果没有从查询结果中提取到关系，使用传统的AST分析方法
+    if (relationships.length === 0) {
+      this.extractControlFlowFromAST(result, relationships);
+    }
+    
+    return relationships;
+  }
+  
+  private determineFlowType(context: string, relationType: string): 'conditional' | 'loop' | 'exception' | 'callback' {
+    if (context === 'if' || context === 'switch' || context === 'ternary') {
+      return 'conditional';
+    } else if (context === 'for' || context === 'while' || context === 'do') {
+      return 'loop';
+    } else if (context === 'try' || context === 'catch' || context === 'throw') {
+      return 'exception';
+    } else if (context === 'callback' || context === 'promise' || context === 'async') {
+      return 'callback';
+    }
+    return 'conditional'; // 默认值
+  }
+  
+  private extractControlFlowFromAST(result: any, relationships: Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }>): void {
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
-      return relationships;
+      return;
     }
 
     // 提取条件控制流
     if (mainNode.type === 'if_statement') {
       const condition = mainNode.childForFieldName('condition');
+      const consequence = mainNode.childForFieldName('consequence');
+      const alternative = mainNode.childForFieldName('alternative');
+      
       if (condition?.text) {
-        relationships.push({
-          source: condition.text,
-          target: 'if-block',
-          type: 'conditional'
-        });
+        if (consequence?.text) {
+          relationships.push({
+            source: condition.text,
+            target: 'if-consequence',
+            type: 'conditional'
+          });
+        }
+        if (alternative?.text) {
+          relationships.push({
+            source: condition.text,
+            target: 'if-alternative',
+            type: 'conditional'
+          });
+        }
       }
     }
 
     // 提取循环控制流
-    if (mainNode.type === 'for_statement' || mainNode.type === 'while_statement') {
+    if (mainNode.type === 'for_statement') {
       const condition = mainNode.childForFieldName('condition');
-      if (condition?.text) {
+      const body = mainNode.childForFieldName('body');
+      
+      if (condition?.text && body?.text) {
         relationships.push({
           source: condition.text,
-          target: 'loop-body',
+          target: 'for-body',
+          type: 'loop'
+        });
+      }
+    }
+    
+    if (mainNode.type === 'while_statement') {
+      const condition = mainNode.childForFieldName('condition');
+      const body = mainNode.childForFieldName('body');
+      
+      if (condition?.text && body?.text) {
+        relationships.push({
+          source: condition.text,
+          target: 'while-body',
           type: 'loop'
         });
       }
@@ -552,14 +696,42 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
 
     // 提取异常控制流
     if (mainNode.type === 'try_statement') {
-      relationships.push({
-        source: 'try-block',
-        target: 'catch-block',
-        type: 'exception'
-      });
+      const body = mainNode.childForFieldName('body');
+      const catchClause = mainNode.childForFieldName('catch_clause');
+      const finallyClause = mainNode.childForFieldName('finally_clause');
+      
+      if (body?.text && catchClause?.text) {
+        relationships.push({
+          source: 'try-body',
+          target: 'catch-body',
+          type: 'exception'
+        });
+      }
+      
+      if (body?.text && finallyClause?.text) {
+        relationships.push({
+          source: 'try-body',
+          target: 'finally-body',
+          type: 'exception'
+        });
+      }
     }
-
-    return relationships;
+    
+    // 提取回调控制流
+    if (mainNode.type === 'call_expression') {
+      const args = mainNode.childForFieldName('arguments');
+      if (args?.children) {
+        for (const arg of args.children) {
+          if (arg.type === 'function_expression' || arg.type === 'arrow_function') {
+            relationships.push({
+              source: 'callback-function',
+              target: 'async-operation',
+              type: 'callback'
+            });
+          }
+        }
+      }
+    }
   }
 
   extractSemanticRelationships(result: any): Array<{

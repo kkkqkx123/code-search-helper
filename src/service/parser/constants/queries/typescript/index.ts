@@ -12,6 +12,7 @@ import properties from './properties';
 import types from './types';
 import variables from './variables';
 import controlFlow from './control-flow';
+import dataFlow from './data-flow';
 import expressions from './expressions';
 
 export default `
@@ -35,5 +36,6 @@ ${variables}
 
 ${controlFlow}
 
+${dataFlow}
 ${expressions}
 `;

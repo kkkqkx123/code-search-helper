@@ -4,7 +4,9 @@ import {
   ReferenceRelationship,
   CreationRelationship,
   AnnotationRelationship,
-  CallRelationship
+  CallRelationship,
+  DataFlowRelationship,
+  ControlFlowRelationship
 } from '../interfaces/IRelationshipExtractor';
 import { JavaScriptRelationshipExtractor } from './JavaScriptRelationshipExtractor';
 import { SymbolResolver, Symbol } from '../../symbol/SymbolResolver';
@@ -609,6 +611,235 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
       }
     }
 
+    return relationships;
+  }
+
+  // 实现IRelationshipExtractor接口中定义的数据流和控制流关系提取方法
+  
+  async extractDataFlowRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<DataFlowRelationship[]> {
+    const relationships: DataFlowRelationship[] = [];
+    
+    // 使用TreeSitterService查找数据流相关的节点
+    const dataFlowNodes = this.treeSitterService.findNodesByTypes(ast, [
+      'assignment_expression',
+      'call_expression',
+      'return_statement',
+      'variable_declarator'
+    ]);
+    
+    for (const node of dataFlowNodes) {
+      const flowRelationships = this.extractDataFlowFromNode(node, filePath, symbolResolver);
+      relationships.push(...flowRelationships);
+    }
+    
+    return relationships;
+  }
+  
+  private extractDataFlowFromNode(
+    node: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): DataFlowRelationship[] {
+    const relationships: DataFlowRelationship[] = [];
+    
+    switch (node.type) {
+      case 'assignment_expression':
+        const left = node.childForFieldName('left');
+        const right = node.childForFieldName('right');
+        
+        if (left?.text && right?.text) {
+          relationships.push({
+            sourceId: this.generateNodeId(right.text, 'variable', filePath),
+            targetId: this.generateNodeId(left.text, 'variable', filePath),
+            flowType: 'variable_assignment',
+            flowPath: [right.text, left.text],
+            location: {
+              filePath,
+              lineNumber: node.startPosition.row + 1,
+              columnNumber: node.startPosition.column + 1
+            }
+          });
+        }
+        break;
+        
+      case 'call_expression':
+        const func = node.childForFieldName('function');
+        const args = node.childForFieldName('arguments');
+        
+        if (func?.text && args?.children) {
+          for (const arg of args.children) {
+            if (arg.type === 'identifier' && arg.text) {
+              relationships.push({
+                sourceId: this.generateNodeId(arg.text, 'variable', filePath),
+                targetId: this.generateNodeId(func.text, 'function', filePath),
+                flowType: 'parameter_passing',
+                flowPath: [arg.text, func.text],
+                location: {
+                  filePath,
+                  lineNumber: node.startPosition.row + 1,
+                  columnNumber: node.startPosition.column + 1
+                }
+              });
+            }
+          }
+        }
+        break;
+        
+      case 'return_statement':
+        const value = node.childForFieldName('value');
+        
+        if (value?.text) {
+          relationships.push({
+            sourceId: this.generateNodeId(value.text, 'variable', filePath),
+            targetId: this.generateNodeId('return', 'function', filePath),
+            flowType: 'return_value',
+            flowPath: [value.text, 'return'],
+            location: {
+              filePath,
+              lineNumber: node.startPosition.row + 1,
+              columnNumber: node.startPosition.column + 1
+            }
+          });
+        }
+        break;
+    }
+    
+    return relationships;
+  }
+  
+  async extractControlFlowRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<ControlFlowRelationship[]> {
+    const relationships: ControlFlowRelationship[] = [];
+    
+    // 使用TreeSitterService查找控制流相关的节点
+    const controlFlowNodes = this.treeSitterService.findNodesByTypes(ast, [
+      'if_statement',
+      'for_statement',
+      'while_statement',
+      'do_statement',
+      'switch_statement',
+      'try_statement',
+      'catch_clause',
+      'finally_clause'
+    ]);
+    
+    for (const node of controlFlowNodes) {
+      const flowRelationships = this.extractControlFlowFromNode(node, filePath, symbolResolver);
+      relationships.push(...flowRelationships);
+    }
+    
+    return relationships;
+  }
+  
+  private extractControlFlowFromNode(
+    node: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): ControlFlowRelationship[] {
+    const relationships: ControlFlowRelationship[] = [];
+    
+    switch (node.type) {
+      case 'if_statement':
+        const condition = node.childForFieldName('condition');
+        const consequence = node.childForFieldName('consequence');
+        const alternative = node.childForFieldName('alternative');
+        
+        if (condition?.text) {
+          if (consequence?.text) {
+            relationships.push({
+              sourceId: this.generateNodeId(condition.text, 'condition', filePath),
+              targetId: this.generateNodeId('if-consequence', 'block', filePath),
+              flowType: 'conditional',
+              condition: condition.text,
+              isExceptional: false,
+              location: {
+                filePath,
+                lineNumber: node.startPosition.row + 1,
+                columnNumber: node.startPosition.column + 1
+              }
+            });
+          }
+          
+          if (alternative?.text) {
+            relationships.push({
+              sourceId: this.generateNodeId(condition.text, 'condition', filePath),
+              targetId: this.generateNodeId('if-alternative', 'block', filePath),
+              flowType: 'conditional',
+              condition: condition.text,
+              isExceptional: false,
+              location: {
+                filePath,
+                lineNumber: node.startPosition.row + 1,
+                columnNumber: node.startPosition.column + 1
+              }
+            });
+          }
+        }
+        break;
+        
+      case 'for_statement':
+      case 'while_statement':
+        const loopCondition = node.childForFieldName('condition');
+        const loopBody = node.childForFieldName('body');
+        
+        if (loopCondition?.text && loopBody?.text) {
+          relationships.push({
+            sourceId: this.generateNodeId(loopCondition.text, 'condition', filePath),
+            targetId: this.generateNodeId(`${node.type}-body`, 'block', filePath),
+            flowType: 'loop',
+            condition: loopCondition.text,
+            isExceptional: false,
+            location: {
+              filePath,
+              lineNumber: node.startPosition.row + 1,
+              columnNumber: node.startPosition.column + 1
+            }
+          });
+        }
+        break;
+        
+      case 'try_statement':
+        const tryBody = node.childForFieldName('body');
+        const catchClause = node.childForFieldName('catch_clause');
+        const finallyClause = node.childForFieldName('finally_clause');
+        
+        if (tryBody?.text && catchClause?.text) {
+          relationships.push({
+            sourceId: this.generateNodeId('try-body', 'block', filePath),
+            targetId: this.generateNodeId('catch-body', 'block', filePath),
+            flowType: 'exception',
+            isExceptional: true,
+            location: {
+              filePath,
+              lineNumber: node.startPosition.row + 1,
+              columnNumber: node.startPosition.column + 1
+            }
+          });
+        }
+        
+        if (tryBody?.text && finallyClause?.text) {
+          relationships.push({
+            sourceId: this.generateNodeId('try-body', 'block', filePath),
+            targetId: this.generateNodeId('finally-body', 'block', filePath),
+            flowType: 'exception',
+            isExceptional: false,
+            location: {
+              filePath,
+              lineNumber: node.startPosition.row + 1,
+              columnNumber: node.startPosition.column + 1
+            }
+          });
+        }
+        break;
+    }
+    
     return relationships;
   }
 

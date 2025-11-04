@@ -197,8 +197,133 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
     target: string;
     type: 'assignment' | 'parameter' | 'return';
   }> {
-    // TypeScript继承JavaScript的实现，可以复用
-    return super.extractDataFlowRelationships(result);
+    // 先调用父类方法获取基础关系
+    const relationships = super.extractDataFlowRelationships(result);
+    
+    // 添加TypeScript特有的数据流关系
+    this.extractTypeScriptDataFlowRelationships(result, relationships);
+    
+    return relationships;
+  }
+  
+  private extractTypeScriptDataFlowRelationships(result: any, relationships: Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }>): void {
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return;
+    }
+    
+    // TypeScript特有的数据流关系
+    
+    // 类型注解变量赋值数据流
+    if (mainNode.type === 'lexical_declaration') {
+      for (const child of mainNode.children || []) {
+        if (child.type === 'variable_declarator') {
+          const name = child.childForFieldName('name');
+          const type = child.childForFieldName('type');
+          const value = child.childForFieldName('value');
+          
+          if (name?.text && value?.text) {
+            relationships.push({
+              source: value.text,
+              target: name.text,
+              type: 'assignment'
+            });
+          }
+        }
+      }
+    }
+    
+    // 类型断言数据流
+    if (mainNode.type === 'as_expression') {
+      const value = mainNode.childForFieldName('value');
+      const type = mainNode.childForFieldName('type');
+      
+      if (value?.text && type?.text) {
+        relationships.push({
+          source: value.text,
+          target: type.text,
+          type: 'assignment'
+        });
+      }
+    }
+    
+    // 非空断言数据流
+    if (mainNode.type === 'non_null_expression') {
+      const value = mainNode.childForFieldName('value');
+      if (value?.text) {
+        relationships.push({
+          source: value.text,
+          target: 'non-null-asserted',
+          type: 'assignment'
+        });
+      }
+    }
+    
+    // 空值合并数据流
+    if (mainNode.type === 'binary_expression') {
+      const operator = mainNode.childForFieldName('operator');
+      if (operator?.text === '??') {
+        const left = mainNode.childForFieldName('left');
+        const right = mainNode.childForFieldName('right');
+        
+        if (left?.text && right?.text) {
+          relationships.push({
+            source: left.text,
+            target: right.text,
+            type: 'assignment'
+          });
+        }
+      }
+    }
+    
+    // Promise异步数据流
+    if (mainNode.type === 'assignment_expression') {
+      const right = mainNode.childForFieldName('right');
+      if (right?.type === 'await_expression') {
+        const awaitValue = right.childForFieldName('value');
+        const left = mainNode.childForFieldName('left');
+        
+        if (awaitValue?.text && left?.text) {
+          relationships.push({
+            source: awaitValue.text,
+            target: left.text,
+            type: 'assignment'
+          });
+        }
+      }
+    }
+    
+    // 枚举成员数据流
+    if (mainNode.type === 'member_expression') {
+      const object = mainNode.childForFieldName('object');
+      const property = mainNode.childForFieldName('property');
+      
+      if (object?.text && property?.text) {
+        relationships.push({
+          source: object.text,
+          target: property.text,
+          type: 'assignment'
+        });
+      }
+    }
+    
+    // 命名空间成员数据流
+    if (mainNode.type === 'member_expression') {
+      const object = mainNode.childForFieldName('object');
+      const property = mainNode.childForFieldName('property');
+      
+      if (object?.text && property?.text) {
+        relationships.push({
+          source: object.text,
+          target: property.text,
+          type: 'assignment'
+        });
+      }
+    }
   }
 
   extractControlFlowRelationships(result: any): Array<{
@@ -206,8 +331,83 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
     target: string;
     type: 'conditional' | 'loop' | 'exception' | 'callback';
   }> {
-    // TypeScript继承JavaScript的实现，可以复用
-    return super.extractControlFlowRelationships(result);
+    // 先调用父类方法获取基础关系
+    const relationships = super.extractControlFlowRelationships(result);
+    
+    // 添加TypeScript特有的控制流关系
+    this.extractTypeScriptControlFlowRelationships(result, relationships);
+    
+    return relationships;
+  }
+  
+  private extractTypeScriptControlFlowRelationships(result: any, relationships: Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }>): void {
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return;
+    }
+    
+    // TypeScript特有的控制流关系
+    
+    // 泛型约束控制流
+    if (mainNode.type === 'type_parameters') {
+      for (const child of mainNode.children || []) {
+        if (child.type === 'type_parameter' && child.text) {
+          const constraint = child.childForFieldName('constraint');
+          if (constraint?.text) {
+            relationships.push({
+              source: child.text,
+              target: constraint.text,
+              type: 'conditional'
+            });
+          }
+        }
+      }
+    }
+    
+    // 类型守卫控制流
+    if (mainNode.type === 'type_predicate') {
+      const parameter = mainNode.childForFieldName('parameter');
+      const type = mainNode.childForFieldName('type');
+      
+      if (parameter?.text && type?.text) {
+        relationships.push({
+          source: parameter.text,
+          target: type.text,
+          type: 'conditional'
+        });
+      }
+    }
+    
+    // 异步/等待控制流
+    if (mainNode.type === 'await_expression') {
+      const value = mainNode.childForFieldName('value');
+      if (value?.text) {
+        relationships.push({
+          source: value.text,
+          target: 'async-result',
+          type: 'callback'
+        });
+      }
+    }
+    
+    // Promise链式调用控制流
+    if (mainNode.type === 'call_expression') {
+      const func = mainNode.childForFieldName('function');
+      if (func?.type === 'member_expression') {
+        const property = func.childForFieldName('property');
+        if (property?.text && ['then', 'catch', 'finally'].includes(property.text)) {
+          relationships.push({
+            source: 'promise',
+            target: `promise-${property.text}`,
+            type: 'callback'
+          });
+        }
+      }
+    }
   }
 
   extractSemanticRelationships(result: any): Array<{
