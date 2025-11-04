@@ -325,6 +325,19 @@ export const TYPES = {
   TypeScriptRelationshipExtractor: Symbol.for('TypeScriptRelationshipExtractor'),
   PythonRelationshipExtractor: Symbol.for('PythonRelationshipExtractor'),
   JavaRelationshipExtractor: Symbol.for('JavaRelationshipExtractor'),
+   RustRelationshipExtractor: Symbol.for('RustRelationshipExtractor'),
+   // 子提取器
+   CallExtractor: Symbol.for('CallExtractor'),
+   InheritanceExtractor: Symbol.for('InheritanceExtractor'),
+   DependencyExtractor: Symbol.for('DependencyExtractor'),
+   ReferenceExtractor: Symbol.for('ReferenceExtractor'),
+   CreationExtractor: Symbol.for('CreationExtractor'),
+   AnnotationExtractor: Symbol.for('AnnotationExtractor'),
+   DataFlowExtractor: Symbol.for('DataFlowExtractor'),
+   ControlFlowExtractor: Symbol.for('ControlFlowExtractor'),
+   SemanticExtractor: Symbol.for('SemanticExtractor'),
+   LifecycleExtractor: Symbol.for('LifecycleExtractor'),
+   ConcurrencyExtractor: Symbol.for('ConcurrencyExtractor'),
   
   // 27. 新增的关系类型
   ReferenceRelationship: Symbol.for('ReferenceRelationship'),

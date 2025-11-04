@@ -27,6 +27,8 @@ export {
 // 例如：BaseCRelationshipExtractor, BaseJavaRelationshipExtractor等
 // 这些应该在各自的文件夹中定义
 export { BaseCRelationshipExtractor } from './CRelationshipExtractor/BaseCRelationshipExtractor';
+export { BaseRustRelationshipExtractor } from './RustRelationshipExtractor/BaseRustRelationshipExtractor';
+export { BaseJavaScriptRelationshipExtractor } from './JavaScriptRelationshipExtractor/BaseJavaScriptRelationshipExtractor';
 
 // 外部依赖
 export { TreeSitterService } from '../../../parser/core/parse/TreeSitterService';

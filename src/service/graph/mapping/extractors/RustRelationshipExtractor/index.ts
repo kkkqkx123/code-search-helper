@@ -14,10 +14,12 @@ import {
   SymbolResolver,
   TreeSitterService,
   LoggerService,
-  TYPES
+  TYPES,
+  inject,
+  injectable,
+  Parser
 } from '../types';
-import { inject, injectable } from 'inversify';
-import { BaseCRelationshipExtractor } from './BaseCRelationshipExtractor';
+import { BaseRustRelationshipExtractor } from './BaseRustRelationshipExtractor';
 import { CallExtractor } from './CallExtractor';
 import { InheritanceExtractor } from './InheritanceExtractor';
 import { DependencyExtractor } from './DependencyExtractor';
@@ -29,14 +31,13 @@ import { ControlFlowExtractor } from './ControlFlowExtractor';
 import { SemanticExtractor } from './SemanticExtractor';
 import { LifecycleExtractor } from './LifecycleExtractor';
 import { ConcurrencyExtractor } from './ConcurrencyExtractor';
-import Parser = require('tree-sitter');
 
 /**
- * C语言关系提取器主类
+ * Rust语言关系提取器主类
  * 整合所有特定类型的提取器，提供统一的接口
  */
 @injectable()
-export class CRelationshipExtractor extends BaseCRelationshipExtractor implements ILanguageRelationshipExtractor {
+export class RustRelationshipExtractor extends BaseRustRelationshipExtractor implements ILanguageRelationshipExtractor {
   // 各种提取器实例
   private callExtractor: CallExtractor;
   private inheritanceExtractor: InheritanceExtractor;
@@ -80,14 +81,14 @@ export class CRelationshipExtractor extends BaseCRelationshipExtractor implement
   }
 
   getSupportedLanguage(): string {
-    return 'c';
+    return 'rust';
   }
 
   getSupportedRelationshipTypes(): string[] {
     return [
       'call', 'inheritance', 'dependency',
       'reference', 'creation', 'annotation',
-      'data_flow', 'control_flow', 'semantic', 
+      'data_flow', 'control_flow', 'semantic',
       'lifecycle', 'concurrency'
     ];
   }
