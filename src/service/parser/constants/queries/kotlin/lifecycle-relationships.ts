@@ -89,7 +89,7 @@ export default `
     right: (simple_identifier) @collection.method)
   (#match? @collection.method "^(clear|remove|removeAll|retainAll)$")
   right: (value_arguments
-    (simple_identifier) @collection.target))) @lifecycle.relationship.collection.cleanup
+    (simple_identifier) @collection.target)) @lifecycle.relationship.collection.cleanup
 
 ; 字符串构建
 (call_expression
@@ -98,7 +98,7 @@ export default `
     right: (simple_identifier) @string.method)
   (#match? @string.method "^(append|insert|delete|clear|toString)$")
   right: (value_arguments
-    (simple_identifier) @string.parameter))) @lifecycle.relationship.string.building
+    (simple_identifier) @string.parameter)) @lifecycle.relationship.string.building
 
 ; 文件操作生命周期
 (call_expression
@@ -107,7 +107,7 @@ export default `
     right: (simple_identifier) @file.method)
   (#match? @file.method "^(open|create|delete|close|flush)$")
   right: (value_arguments
-    (simple_identifier) @file.parameter))) @lifecycle.relationship.file.operation
+    (simple_identifier) @file.parameter)) @lifecycle.relationship.file.operation
 
 ; 数据库连接生命周期
 (call_expression
@@ -116,7 +116,7 @@ export default `
     right: (simple_identifier) @database.method)
   (#match? @database.method "^(getConnection|closeConnection|commit|rollback)$")
   right: (value_arguments
-    (simple_identifier) @database.parameter))) @lifecycle.relationship.database.connection
+    (simple_identifier) @database.parameter)) @lifecycle.relationship.database.connection
 
 ; 网络连接生命周期
 (call_expression
@@ -125,7 +125,7 @@ export default `
     right: (simple_identifier) @network.method)
   (#match? @network.method "^(connect|disconnect|close|send|receive)$")
   right: (value_arguments
-    (simple_identifier) @network.parameter))) @lifecycle.relationship.network.connection
+    (simple_identifier) @network.parameter)) @lifecycle.relationship.network.connection
 
 ; 协程生命周期
 (call_expression

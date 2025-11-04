@@ -5,7 +5,12 @@ import {
   DependencyRelationship,
   ReferenceRelationship,
   CreationRelationship,
-  AnnotationRelationship
+  AnnotationRelationship,
+  DataFlowRelationship,
+  ControlFlowRelationship,
+  SemanticRelationship,
+  LifecycleRelationship,
+  ConcurrencyRelationship
 } from '../interfaces/IRelationshipExtractor';
 import { SymbolResolver, Symbol, SymbolType } from '../../symbol/SymbolResolver';
 import { TreeSitterService } from '../../../parser/core/parse/TreeSitterService';
@@ -29,7 +34,9 @@ export class RustRelationshipExtractor implements ILanguageRelationshipExtractor
   getSupportedRelationshipTypes(): string[] {
     return [
       'call', 'inheritance', 'dependency',
-      'reference', 'creation', 'annotation'
+      'reference', 'creation', 'annotation',
+      'data_flow', 'control_flow', 'semantic', 
+      'lifecycle', 'concurrency'
     ];
   }
 
@@ -1011,6 +1018,51 @@ export class RustRelationshipExtractor implements ILanguageRelationshipExtractor
       }
     }
     return null;
+  }
+
+  // 新增：数据流关系提取
+  async extractDataFlowRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<DataFlowRelationship[]> {
+    return []; // 简化实现，返回空数组
+  }
+
+  // 新增：控制流关系提取
+  async extractControlFlowRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<ControlFlowRelationship[]> {
+    return []; // 简化实现，返回空数组
+  }
+
+  // 新增：语义关系提取
+  async extractSemanticRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<SemanticRelationship[]> {
+    return []; // 简化实现，返回空数组
+  }
+
+  // 新增：生命周期关系提取
+  async extractLifecycleRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<LifecycleRelationship[]> {
+    return []; // 简化实现，返回空数组
+  }
+
+  // 新增：并发关系提取
+  async extractConcurrencyRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<ConcurrencyRelationship[]> {
+    return []; // 简化实现，返回空数组
   }
 
   protected generateSymbolId(symbol: Symbol): string {

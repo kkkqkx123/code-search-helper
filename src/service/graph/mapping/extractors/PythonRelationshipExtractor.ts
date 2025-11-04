@@ -5,7 +5,12 @@ import {
   DependencyRelationship,
   ReferenceRelationship,
   CreationRelationship,
-  AnnotationRelationship
+  AnnotationRelationship,
+  DataFlowRelationship,
+  ControlFlowRelationship,
+  SemanticRelationship,
+  LifecycleRelationship,
+  ConcurrencyRelationship
 } from '../interfaces/IRelationshipExtractor';
 import { SymbolResolver, Symbol } from '../../symbol/SymbolResolver';
 import { TreeSitterService } from '../../../parser/core/parse/TreeSitterService';
@@ -29,7 +34,9 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
   getSupportedRelationshipTypes(): string[] {
     return [
       'call', 'inheritance', 'dependency',
-      'reference', 'creation', 'annotation'
+      'reference', 'creation', 'annotation',
+      'data_flow', 'control_flow', 'semantic', 
+      'lifecycle', 'concurrency'
     ];
   }
 
@@ -462,6 +469,196 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     return relationships;
   }
 
+  // 新增：数据流关系提取
+  async extractDataFlowRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<DataFlowRelationship[]> {
+    const relationships: DataFlowRelationship[] = [];
+
+    // 提取变量赋值数据流
+    const assignments = this.treeSitterService.findNodesByTypes(ast,
+      LANGUAGE_NODE_MAPPINGS['python'].variableDeclaration
+    );
+
+    for (const assignment of assignments) {
+      const dataFlowRelations = this.extractAssignmentDataFlow(
+        assignment, filePath, symbolResolver
+      );
+      relationships.push(...dataFlowRelations);
+    }
+
+    // 提取函数参数传递数据流
+    const functionCalls = this.treeSitterService.findNodesByTypes(ast,
+      LANGUAGE_NODE_MAPPINGS['python'].callExpression
+    );
+
+    for (const call of functionCalls) {
+      const parameterFlows = this.extractParameterDataFlow(
+        call, filePath, symbolResolver
+      );
+      relationships.push(...parameterFlows);
+    }
+
+    // 提取返回值数据流
+    const returnStatements = this.treeSitterService.findNodesByTypes(ast,
+      ['return_statement']
+    );
+
+    for (const returnStmt of returnStatements) {
+      const returnFlows = this.extractReturnDataFlow(
+        returnStmt, filePath, symbolResolver
+      );
+      relationships.push(...returnFlows);
+    }
+
+    return relationships;
+  }
+
+  // 新增：控制流关系提取
+  async extractControlFlowRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<ControlFlowRelationship[]> {
+    const relationships: ControlFlowRelationship[] = [];
+
+    // 提取条件语句控制流
+    const ifStatements = this.treeSitterService.findNodeByType(ast, 'if_statement');
+    for (const ifStmt of ifStatements) {
+      const conditionalFlows = this.extractConditionalControlFlow(
+        ifStmt, filePath, symbolResolver
+      );
+      relationships.push(...conditionalFlows);
+    }
+
+    // 提取异常处理控制流
+    const tryStatements = this.treeSitterService.findNodeByType(ast, 'try_statement');
+    for (const tryStmt of tryStatements) {
+      const exceptionFlows = this.extractExceptionControlFlow(
+        tryStmt, filePath, symbolResolver
+      );
+      relationships.push(...exceptionFlows);
+    }
+
+    // 提取异步控制流
+    const awaitExpressions = this.treeSitterService.findNodeByType(ast, 'await');
+    for (const awaitExpr of awaitExpressions) {
+      const asyncFlows = this.extractAsyncControlFlow(
+        awaitExpr, filePath, symbolResolver
+      );
+      relationships.push(...asyncFlows);
+    }
+
+    // 提取循环控制流
+    const forStatements = this.treeSitterService.findNodeByType(ast, 'for_statement');
+    const whileStatements = this.treeSitterService.findNodeByType(ast, 'while_statement');
+    for (const loopStmt of [...forStatements, ...whileStatements]) {
+      const loopFlows = this.extractLoopControlFlow(
+        loopStmt, filePath, symbolResolver
+      );
+      relationships.push(...loopFlows);
+    }
+
+    return relationships;
+  }
+
+  // 新增：语义关系提取
+  async extractSemanticRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<SemanticRelationship[]> {
+    const relationships: SemanticRelationship[] = [];
+
+    // 提取方法重写关系
+    const methodOverrides = this.extractMethodOverrides(ast, filePath, symbolResolver);
+    relationships.push(...methodOverrides);
+
+    // 提取重载关系
+    const overloads = this.extractOverloads(ast, filePath, symbolResolver);
+    relationships.push(...overloads);
+
+    // 提取装饰器观察者模式
+    const decorators = this.treeSitterService.findNodesByTypes(ast,
+      LANGUAGE_NODE_MAPPINGS['python'].decorator
+    );
+
+    for (const decorator of decorators) {
+      const observerRelations = this.extractObserverPattern(
+        decorator, filePath, symbolResolver
+      );
+      relationships.push(...observerRelations);
+    }
+
+    return relationships;
+  }
+
+  // 新增：生命周期关系提取
+  async extractLifecycleRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<LifecycleRelationship[]> {
+    const relationships: LifecycleRelationship[] = [];
+
+    // 提取类实例化关系
+    const newExpressions = this.treeSitterService.findNodeByType(ast, 'call');
+    for (const newExpr of newExpressions) {
+      const instantiationRelations = this.extractInstantiationRelations(
+        newExpr, filePath, symbolResolver
+      );
+      relationships.push(...instantiationRelations);
+    }
+
+    // 提取构造函数初始化关系
+    const initMethods = this.treeSitterService.findNodesByTypes(ast,
+      ['function_definition'] // In Python, __init__ is a function definition
+    );
+    for (const initMethod of initMethods) {
+      const initRelations = this.extractInitializationRelations(
+        initMethod, filePath, symbolResolver
+      );
+      relationships.push(...initRelations);
+    }
+
+    return relationships;
+  }
+
+  // 新增：并发关系提取
+  async extractConcurrencyRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<ConcurrencyRelationship[]> {
+    const relationships: ConcurrencyRelationship[] = [];
+
+    // 提取异步/等待同步机制
+    const asyncFunctionDefs = this.treeSitterService.findNodesByTypes(ast,
+      ['async_function_definition'] // Python async function is defined as async_function_definition
+    );
+    for (const asyncFunc of asyncFunctionDefs) {
+      const asyncConcurrency = this.extractAsyncConcurrency(
+        asyncFunc, filePath, symbolResolver
+      );
+      relationships.push(...asyncConcurrency);
+    }
+
+    // 提取锁机制
+    const withStatements = this.treeSitterService.findNodesByTypes(ast,
+      ['with_statement']
+    );
+    for (const withStmt of withStatements) {
+      const lockRelations = this.extractLockConcurrency(
+        withStmt, filePath, symbolResolver
+      );
+      relationships.push(...lockRelations);
+    }
+
+    return relationships;
+  }
+
   // Python特定的辅助方法实现
   protected findCallerSymbol(callExpr: Parser.SyntaxNode, symbolResolver: SymbolResolver, filePath: string): Symbol | null {
     // 实现查找调用者符号的逻辑
@@ -770,7 +967,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     for (const child of decorator.children) {
       if (child.type === 'argument_list') {
         // Decorator with parameters like @decorator(param1, param2)
-        const args = this.extractCallArguments(child);
+        const args = this.extractDecoratorCallArguments(child);
         parameters.args = args;
         break;
       }
@@ -779,14 +976,14 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
     return parameters;
   }
 
-  protected extractCallArguments(callExpr: Parser.SyntaxNode): any[] {
-    // 提取调用参数
+  protected extractDecoratorCallArguments(callExpr: Parser.SyntaxNode): any[] {
+    // 提取装饰器调用参数
     const args: any[] = [];
 
     for (const child of callExpr.children) {
       if (child.type === 'argument_list') {
         for (const arg of child.children) {
-          // Simplified argument extraction
+          // Simplified参数 extraction
           args.push({
             type: arg.type,
             text: arg.text
@@ -852,5 +1049,702 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
 
   protected generateNodeId(name: string, type: string, filePath: string): string {
     return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
+  }
+
+  // 数据流关系提取辅助方法
+  protected extractAssignmentDataFlow(
+    assignment: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): DataFlowRelationship[] {
+    const relationships: DataFlowRelationship[] = [];
+
+    // 提取变量赋值的源和目标
+    const leftHandSide = assignment.firstChild; // 变量名
+    const rightHandSide = assignment.lastChild; // 赋值表达式
+
+    if (leftHandSide && rightHandSide) {
+      const targetVar = leftHandSide.text;
+      const sourceExpr = rightHandSide.text;
+
+      // 解析目标变量符号
+      const resolvedTargetSymbol = symbolResolver.resolveSymbol(targetVar, filePath, leftHandSide);
+
+      // 递归查找源表达式中的变量
+      const sourceVars = this.findVariablesInExpression(rightHandSide);
+      
+      for (const sourceVar of sourceVars) {
+        const resolvedSourceSymbol = symbolResolver.resolveSymbol(sourceVar, filePath, rightHandSide);
+
+        relationships.push({
+          sourceId: this.generateNodeId(sourceVar, 'variable', filePath),
+          targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(targetVar, 'variable', filePath),
+          flowType: 'variable_assignment',
+          dataType: 'variable',
+          flowPath: [sourceVar, targetVar],
+          location: {
+            filePath,
+            lineNumber: assignment.startPosition.row + 1,
+            columnNumber: assignment.startPosition.column + 1
+          },
+          resolvedSourceSymbol: resolvedSourceSymbol || undefined,
+          resolvedTargetSymbol: resolvedTargetSymbol || undefined
+        });
+      }
+    }
+
+    return relationships;
+  }
+
+  protected extractParameterDataFlow(
+    callExpr: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): DataFlowRelationship[] {
+    const relationships: DataFlowRelationship[] = [];
+
+    // 提取函数调用的参数传递
+    const calleeName = this.extractCalleeName(callExpr);
+    if (calleeName) {
+      const resolvedTargetSymbol = symbolResolver.resolveSymbol(calleeName, filePath, callExpr);
+
+      // 查找参数
+      const args = this.extractCallArguments(callExpr);
+      for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        const sourceVars = this.findVariablesInExpression(arg.node);
+
+        for (const sourceVar of sourceVars) {
+          const resolvedSourceSymbol = symbolResolver.resolveSymbol(sourceVar, filePath, arg.node);
+
+          relationships.push({
+            sourceId: this.generateNodeId(sourceVar, 'parameter', filePath),
+            targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(calleeName, 'function', filePath),
+            flowType: 'parameter_passing',
+            dataType: arg.type,
+            flowPath: [sourceVar, calleeName],
+            location: {
+              filePath,
+              lineNumber: callExpr.startPosition.row + 1,
+              columnNumber: callExpr.startPosition.column + 1
+            },
+            resolvedSourceSymbol: resolvedSourceSymbol || undefined,
+            resolvedTargetSymbol: resolvedTargetSymbol || undefined
+          });
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  protected extractReturnDataFlow(
+    returnStmt: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): DataFlowRelationship[] {
+    const relationships: DataFlowRelationship[] = [];
+
+    // 查找return语句中的表达式
+    const returnExpr = returnStmt.lastChild;
+    if (returnExpr) {
+      // 查找返回的变量
+      const returnVars = this.findVariablesInExpression(returnExpr);
+
+      // 找到包含return语句的函数
+      const containingFunction = this.findContainingFunction(returnStmt);
+      if (containingFunction) {
+        const funcName = this.extractFunctionName(containingFunction);
+        if (funcName) {
+          const resolvedFuncSymbol = symbolResolver.resolveSymbol(funcName, filePath, containingFunction);
+
+          for (const returnVar of returnVars) {
+            const resolvedReturnSymbol = symbolResolver.resolveSymbol(returnVar, filePath, returnExpr);
+
+            relationships.push({
+              sourceId: this.generateNodeId(returnVar, 'return_value', filePath),
+              targetId: resolvedFuncSymbol ? this.generateSymbolId(resolvedFuncSymbol) : this.generateNodeId(funcName, 'function', filePath),
+              flowType: 'return_value',
+              dataType: 'return',
+              flowPath: [returnVar, funcName],
+              location: {
+                filePath,
+                lineNumber: returnStmt.startPosition.row + 1,
+                columnNumber: returnStmt.startPosition.column + 1
+              },
+              resolvedSourceSymbol: resolvedReturnSymbol || undefined,
+              resolvedTargetSymbol: resolvedFuncSymbol || undefined
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // 控制流关系提取辅助方法
+  protected extractConditionalControlFlow(
+    ifStmt: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): ControlFlowRelationship[] {
+    const relationships: ControlFlowRelationship[] = [];
+
+    // 提取条件表达式
+    const condition = ifStmt.child(0); // if的条件部分
+    if (condition && condition.text) {
+      // 查找条件中涉及的变量
+      const conditionVars = this.findVariablesInExpression(condition);
+
+      // 找到条件语句中的函数
+      const containingFunction = this.findContainingFunction(ifStmt);
+      if (containingFunction) {
+        const funcName = this.extractFunctionName(containingFunction);
+        if (funcName) {
+          for (const varName of conditionVars) {
+            const resolvedVarSymbol = symbolResolver.resolveSymbol(varName, filePath, condition);
+            const resolvedFuncSymbol = symbolResolver.resolveSymbol(funcName, filePath, containingFunction);
+
+            relationships.push({
+              sourceId: this.generateNodeId(varName, 'condition', filePath),
+              targetId: resolvedFuncSymbol ? this.generateSymbolId(resolvedFuncSymbol) : this.generateNodeId(funcName, 'function', filePath),
+              flowType: 'conditional',
+              condition: condition.text,
+              isExceptional: false,
+              location: {
+                filePath,
+                lineNumber: ifStmt.startPosition.row + 1,
+                columnNumber: ifStmt.startPosition.column + 1
+              },
+              resolvedSymbol: resolvedVarSymbol || undefined
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  protected extractExceptionControlFlow(
+    tryStmt: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): ControlFlowRelationship[] {
+    const relationships: ControlFlowRelationship[] = [];
+
+    // 查找try块中的代码
+    const tryBlock = tryStmt.child(1); // try块通常在第二个子节点
+    if (tryBlock) {
+      // 提取try块中可能抛出异常的代码
+      const containingFunction = this.findContainingFunction(tryStmt);
+      if (containingFunction) {
+        const funcName = this.extractFunctionName(containingFunction);
+        if (funcName) {
+          const resolvedFuncSymbol = symbolResolver.resolveSymbol(funcName, filePath, containingFunction);
+
+          relationships.push({
+            sourceId: this.generateNodeId(`try_block_${tryStmt.startPosition.row}`, 'exception', filePath),
+            targetId: resolvedFuncSymbol ? this.generateSymbolId(resolvedFuncSymbol) : this.generateNodeId(funcName, 'function', filePath),
+            flowType: 'exception',
+            condition: 'try-except block',
+            isExceptional: true,
+            location: {
+              filePath,
+              lineNumber: tryStmt.startPosition.row + 1,
+              columnNumber: tryStmt.startPosition.column + 1
+            },
+            resolvedSymbol: resolvedFuncSymbol || undefined
+          });
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  protected extractAsyncControlFlow(
+    awaitExpr: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): ControlFlowRelationship[] {
+    const relationships: ControlFlowRelationship[] = [];
+
+    // 查找await表达式中的函数调用
+    const awaitContent = awaitExpr.child(0);
+    if (awaitContent) {
+      const funcName = awaitContent.text;
+      if (funcName) {
+        const resolvedFuncSymbol = symbolResolver.resolveSymbol(funcName, filePath, awaitExpr);
+
+        // 查找包含await的异步函数
+        const containingFunction = this.findContainingAsyncFunction(awaitExpr);
+        if (containingFunction) {
+          const asyncFuncName = this.extractFunctionName(containingFunction);
+          if (asyncFuncName) {
+            const resolvedAsyncFuncSymbol = symbolResolver.resolveSymbol(asyncFuncName, filePath, containingFunction);
+
+            relationships.push({
+              sourceId: resolvedFuncSymbol ? this.generateSymbolId(resolvedFuncSymbol) : this.generateNodeId(funcName, 'async_function', filePath),
+              targetId: resolvedAsyncFuncSymbol ? this.generateSymbolId(resolvedAsyncFuncSymbol) : this.generateNodeId(asyncFuncName, 'async_function', filePath),
+              flowType: 'async_await',
+              condition: funcName,
+              isExceptional: false,
+              location: {
+                filePath,
+                lineNumber: awaitExpr.startPosition.row + 1,
+                columnNumber: awaitExpr.startPosition.column + 1
+              },
+              resolvedSymbol: resolvedAsyncFuncSymbol || undefined
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  protected extractLoopControlFlow(
+    loopStmt: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): ControlFlowRelationship[] {
+    const relationships: ControlFlowRelationship[] = [];
+
+    // 提取循环条件和循环体
+    const condition = loopStmt.child(0);
+    if (condition && condition.text) {
+      const conditionVars = this.findVariablesInExpression(condition);
+
+      const containingFunction = this.findContainingFunction(loopStmt);
+      if (containingFunction) {
+        const funcName = this.extractFunctionName(containingFunction);
+        if (funcName) {
+          const resolvedFuncSymbol = symbolResolver.resolveSymbol(funcName, filePath, containingFunction);
+
+          for (const varName of conditionVars) {
+            const resolvedVarSymbol = symbolResolver.resolveSymbol(varName, filePath, condition);
+
+            relationships.push({
+              sourceId: this.generateNodeId(varName, 'loop_condition', filePath),
+              targetId: resolvedFuncSymbol ? this.generateSymbolId(resolvedFuncSymbol) : this.generateNodeId(funcName, 'function', filePath),
+              flowType: 'loop',
+              condition: condition.text,
+              isExceptional: false,
+              location: {
+                filePath,
+                lineNumber: loopStmt.startPosition.row + 1,
+                columnNumber: loopStmt.startPosition.column + 1
+              },
+              resolvedSymbol: resolvedVarSymbol || undefined
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // 语义关系提取辅助方法
+  protected extractMethodOverrides(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): SemanticRelationship[] {
+    const relationships: SemanticRelationship[] = [];
+
+    // 查找类中的方法定义
+    const classDeclarations = this.treeSitterService.findNodesByTypes(ast,
+      LANGUAGE_NODE_MAPPINGS['python'].classDeclaration
+    );
+
+    for (const classDecl of classDeclarations) {
+      const parentClasses = this.findParentClasses(classDecl);
+      const className = this.extractClassName(classDecl);
+
+      if (className && parentClasses.length > 0) {
+        // 检查类中的方法是否重写父类方法
+        const methodDeclarations = this.treeSitterService.findNodesByTypes(classDecl,
+          LANGUAGE_NODE_MAPPINGS['python'].methodDeclaration
+        );
+
+        for (const methodDecl of methodDeclarations) {
+          const methodName = this.extractMethodName(methodDecl);
+          if (methodName) {
+            // Check if method exists in parent class
+            for (const parentClass of parentClasses) {
+              const parentClassName = this.extractParentClassName(parentClass);
+              if (parentClassName) {
+                // Create a relationship for potential override
+                const resolvedSourceSymbol = symbolResolver.resolveSymbol(`${className}.${methodName}`, filePath, methodDecl);
+                const resolvedTargetSymbol = symbolResolver.resolveSymbol(`${parentClassName}.${methodName}`, filePath, parentClass);
+
+                relationships.push({
+                  sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(`${className}.${methodName}`, 'method', filePath),
+                  targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(`${parentClassName}.${methodName}`, 'method', filePath),
+                  semanticType: 'overrides',
+                  pattern: 'inheritance_override',
+                  metadata: {
+                    className,
+                    parentClassName,
+                    methodName
+                  },
+                  location: {
+                    filePath,
+                    lineNumber: methodDecl.startPosition.row + 1,
+                    columnNumber: methodDecl.startPosition.column + 1
+                  },
+                  resolvedSourceSymbol: resolvedSourceSymbol || undefined,
+                  resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  protected extractOverloads(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): SemanticRelationship[] {
+    const relationships: SemanticRelationship[] = [];
+
+    // 由于Python是动态类型语言，没有传统意义上的重载
+    // 但可以检测具有相同名称的函数定义
+    const functionDeclarations = this.treeSitterService.findNodesByTypes(ast,
+      LANGUAGE_NODE_MAPPINGS['python'].functionDeclaration
+    );
+
+    // Group functions by name to identify potential overloads
+    const functionGroups: { [key: string]: Parser.SyntaxNode[] } = {};
+    for (const funcDecl of functionDeclarations) {
+      const funcName = this.extractFunctionName(funcDecl);
+      if (funcName) {
+        if (!functionGroups[funcName]) {
+          functionGroups[funcName] = [];
+        }
+        functionGroups[funcName].push(funcDecl);
+      }
+    }
+
+    // If a function name appears multiple times, create overload relationships
+    for (const [funcName, funcDecls] of Object.entries(functionGroups)) {
+      if (funcDecls.length > 1) {
+        for (let i = 1; i < funcDecls.length; i++) {
+          const resolvedSourceSymbol = symbolResolver.resolveSymbol(funcName, filePath, funcDecls[i]);
+          const resolvedTargetSymbol = symbolResolver.resolveSymbol(funcName, filePath, funcDecls[i - 1]);
+
+          relationships.push({
+            sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(funcName, 'function', filePath),
+            targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(funcName, 'function', filePath),
+            semanticType: 'overloads',
+            pattern: 'function_redefinition',
+            metadata: {
+              functionName: funcName,
+              overloadCount: funcDecls.length
+            },
+            location: {
+              filePath,
+              lineNumber: funcDecls[i].startPosition.row + 1,
+              columnNumber: funcDecls[i].startPosition.column + 1
+            },
+            resolvedSourceSymbol: resolvedSourceSymbol || undefined,
+            resolvedTargetSymbol: resolvedTargetSymbol || undefined
+          });
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  protected extractObserverPattern(
+    decorator: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): SemanticRelationship[] {
+    const relationships: SemanticRelationship[] = [];
+
+    // 检查装饰器是否为观察者模式相关装饰器
+    const decoratorName = this.extractAnnotationName(decorator);
+    if (decoratorName && ['observer', 'subscriber', 'listener'].includes(decoratorName.toLowerCase())) {
+      // 查找装饰器所应用的函数或方法
+      const decoratedItem = decorator.parent?.parent; // decorator -> decorated_definition -> actual function
+      if (decoratedItem) {
+        let decoratedName: string | null = null;
+        
+        // 查找被装饰项的名称
+        for (const child of decoratedItem.children) {
+          if (child.type === 'identifier') {
+            decoratedName = child.text;
+            break;
+          }
+        }
+
+        if (decoratedName) {
+          const resolvedSourceSymbol = symbolResolver.resolveSymbol(decoratorName, filePath, decorator);
+          const resolvedTargetSymbol = symbolResolver.resolveSymbol(decoratedName, filePath, decoratedItem);
+
+          relationships.push({
+            sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(decoratorName, 'decorator', filePath),
+            targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(decoratedName, 'function', filePath),
+            semanticType: 'observes',
+            pattern: 'observer_pattern',
+            metadata: {
+              decorator: decoratorName,
+              observed: decoratedName
+            },
+            location: {
+              filePath,
+              lineNumber: decoratedItem.startPosition.row + 1,
+              columnNumber: decoratedItem.startPosition.column + 1
+            },
+            resolvedSourceSymbol: resolvedSourceSymbol || undefined,
+            resolvedTargetSymbol: resolvedTargetSymbol || undefined
+          });
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // 生命周期关系提取辅助方法
+  protected extractInstantiationRelations(
+    callExpr: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): LifecycleRelationship[] {
+    const relationships: LifecycleRelationship[] = [];
+
+    // 检查是否是类实例化调用
+    const className = this.extractClassNameFromCallExpression(callExpr);
+    if (className) {
+      // 检查是否是对象实例化
+      if (className[0] === className[0].toUpperCase()) { // 大写字母开头的通常为类名
+        const resolvedTargetSymbol = symbolResolver.resolveSymbol(className, filePath, callExpr);
+
+        // 查找调用实例化的位置
+        const containingFunction = this.findContainingFunction(callExpr);
+        if (containingFunction) {
+          const funcName = this.extractFunctionName(containingFunction);
+          if (funcName) {
+            const resolvedSourceSymbol = symbolResolver.resolveSymbol(funcName, filePath, containingFunction);
+
+            relationships.push({
+              sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(funcName, 'function', filePath),
+              targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(className, 'class', filePath),
+              lifecycleType: 'instantiates',
+              lifecyclePhase: 'creation',
+              location: {
+                filePath,
+                lineNumber: callExpr.startPosition.row + 1,
+                columnNumber: callExpr.startPosition.column + 1
+              },
+              resolvedTargetSymbol: resolvedTargetSymbol || undefined
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  protected extractInitializationRelations(
+    initMethod: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): LifecycleRelationship[] {
+    const relationships: LifecycleRelationship[] = [];
+
+    // 提取__init__方法中的初始化逻辑
+    const className = this.findContainingClassName(initMethod);
+    if (className) {
+      const resolvedTargetSymbol = symbolResolver.resolveSymbol(className, filePath, initMethod);
+
+      // 查找init方法的名称
+      const initName = this.extractMethodName(initMethod);
+      if (initName) {
+        const resolvedSourceSymbol = symbolResolver.resolveSymbol(initName, filePath, initMethod);
+
+        relationships.push({
+          sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(initName, 'method', filePath),
+          targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(className, 'class', filePath),
+          lifecycleType: 'initializes',
+          lifecyclePhase: 'setup',
+          location: {
+            filePath,
+            lineNumber: initMethod.startPosition.row + 1,
+            columnNumber: initMethod.startPosition.column + 1
+          },
+          resolvedTargetSymbol: resolvedTargetSymbol || undefined
+        });
+      }
+    }
+
+    return relationships;
+  }
+
+  // 并发关系提取辅助方法
+  protected extractAsyncConcurrency(
+    asyncFunc: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): ConcurrencyRelationship[] {
+    const relationships: ConcurrencyRelationship[] = [];
+
+    // 提取异步函数的并发特性
+    const funcName = this.extractFunctionName(asyncFunc);
+    if (funcName) {
+      const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, asyncFunc);
+
+      relationships.push({
+        sourceId: this.generateNodeId(`${funcName}_async`, 'function', filePath),
+        targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(funcName, 'function', filePath),
+        concurrencyType: 'awaits',
+        synchronizationMechanism: 'async/await',
+        location: {
+          filePath,
+          lineNumber: asyncFunc.startPosition.row + 1,
+          columnNumber: asyncFunc.startPosition.column + 1
+        },
+        resolvedSymbol: resolvedSymbol || undefined
+      });
+    }
+
+    return relationships;
+  }
+
+  protected extractLockConcurrency(
+    withStmt: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): ConcurrencyRelationship[] {
+    const relationships: ConcurrencyRelationship[] = [];
+
+    // 检查with语句是否包含锁机制
+    const withItem = withStmt.child(1); // with item is usually the second child
+    if (withItem && withItem.type === 'with_item') {
+      const contextExpr = withItem.firstChild;
+      if (contextExpr) {
+        // Check if the context expression is a lock
+        if (contextExpr.text.includes('lock') || contextExpr.text.includes('Lock') || 
+            contextExpr.text.includes('mutex') || contextExpr.text.includes('semaphore')) {
+          
+          const lockName = contextExpr.text;
+          const resolvedSymbol = symbolResolver.resolveSymbol(lockName, filePath, withItem);
+
+          // Find the surrounding function
+          const containingFunction = this.findContainingFunction(withStmt);
+          if (containingFunction) {
+            const funcName = this.extractFunctionName(containingFunction);
+            if (funcName) {
+              const resolvedTargetSymbol = symbolResolver.resolveSymbol(funcName, filePath, containingFunction);
+
+              relationships.push({
+                sourceId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(lockName, 'lock', filePath),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(funcName, 'function', filePath),
+                concurrencyType: 'synchronizes',
+                synchronizationMechanism: 'context_manager',
+                location: {
+                  filePath,
+                  lineNumber: withStmt.startPosition.row + 1,
+                  columnNumber: withStmt.startPosition.column + 1
+                },
+                resolvedSymbol: resolvedSymbol || undefined
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // 通用辅助方法
+  protected findContainingFunction(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
+    let currentNode: Parser.SyntaxNode | null = node.parent;
+    while (currentNode) {
+      if (currentNode.type === 'function_definition' ||
+          currentNode.type === 'async_function_definition' ||
+          currentNode.type === 'method_definition') {
+        return currentNode;
+      }
+      currentNode = currentNode.parent;
+    }
+    return null;
+  }
+
+  protected findContainingAsyncFunction(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
+    let currentNode: Parser.SyntaxNode | null = node.parent;
+    while (currentNode) {
+      if (currentNode.type === 'async_function_definition') {
+        return currentNode;
+      }
+      currentNode = currentNode.parent;
+    }
+    return null;
+  }
+
+  protected findContainingClassName(node: Parser.SyntaxNode): string | null {
+    let currentNode: Parser.SyntaxNode | null = node.parent;
+    while (currentNode) {
+      if (currentNode.type === 'class_definition') {
+        // Find class name
+        for (const child of currentNode.children) {
+          if (child.type === 'identifier') {
+            return child.text;
+          }
+        }
+      }
+      currentNode = currentNode.parent;
+    }
+    return null;
+  }
+
+  protected findVariablesInExpression(node: Parser.SyntaxNode): string[] {
+    const variables: string[] = [];
+
+    // Recursively find identifier nodes in the expression
+    if (node.type === 'identifier') {
+      variables.push(node.text);
+    }
+
+    // Recursively check children
+    for (const child of node.children || []) {
+      variables.push(...this.findVariablesInExpression(child));
+    }
+
+    return variables;
+  }
+
+  protected extractCallArguments(callExpr: Parser.SyntaxNode): Array<{type: string, node: Parser.SyntaxNode}> {
+    const args: Array<{type: string, node: Parser.SyntaxNode}> = [];
+
+    for (const child of callExpr.children) {
+      if (child.type === 'argument_list') {
+        for (const arg of child.children) {
+          if (arg.type !== ',' && arg.type !== '(' && arg.type !== ')') { // Skip separators
+            args.push({
+              type: arg.type,
+              node: arg
+            });
+          }
+        }
+        break;
+      }
+    }
+
+    return args;
   }
 }

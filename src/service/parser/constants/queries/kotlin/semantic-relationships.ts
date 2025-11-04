@@ -139,7 +139,7 @@ export default `
     (property_declaration
       name: (simple_identifier) @composite.children
       type: (user_type
-        (simple_identifier) @collection.type))))) @semantic.relationship.composite.pattern
+        (simple_identifier) @collection.type)))) @semantic.relationship.composite.pattern
 
 ; 模板方法模式
 (abstract_class_declaration

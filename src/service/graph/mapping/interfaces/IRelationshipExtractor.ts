@@ -99,6 +99,81 @@ export interface AnnotationRelationship {
   resolvedAnnotationSymbol?: Symbol;
 }
 
+// 新增：数据流关系
+export interface DataFlowRelationship {
+  sourceId: string;
+  targetId: string;
+  flowType: 'variable_assignment' | 'parameter_passing' | 'return_value' | 'field_access';
+  dataType?: string;
+  flowPath: string[]; // 数据流路径
+  location: {
+    filePath: string;
+    lineNumber: number;
+    columnNumber: number;
+  };
+  resolvedSourceSymbol?: Symbol;
+  resolvedTargetSymbol?: Symbol;
+}
+
+// 新增：控制流关系
+export interface ControlFlowRelationship {
+  sourceId: string;
+  targetId: string;
+  flowType: 'conditional' | 'loop' | 'exception' | 'callback' | 'async_await';
+  condition?: string; // 条件表达式
+  isExceptional: boolean;
+  location: {
+    filePath: string;
+    lineNumber: number;
+    columnNumber: number;
+  };
+  resolvedSymbol?: Symbol;
+}
+
+// 新增：语义关系
+export interface SemanticRelationship {
+  sourceId: string;
+  targetId: string;
+  semanticType: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  pattern?: string; // 设计模式名称
+  metadata: Record<string, any>;
+  location: {
+    filePath: string;
+    lineNumber: number;
+    columnNumber: number;
+  };
+  resolvedSourceSymbol?: Symbol;
+  resolvedTargetSymbol?: Symbol;
+}
+
+// 新增：生命周期关系
+export interface LifecycleRelationship {
+  sourceId: string;
+  targetId: string;
+  lifecycleType: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  lifecyclePhase: 'creation' | 'setup' | 'teardown' | 'maintenance';
+  location: {
+    filePath: string;
+    lineNumber: number;
+    columnNumber: number;
+  };
+  resolvedTargetSymbol?: Symbol;
+}
+
+// 新增：并发关系
+export interface ConcurrencyRelationship {
+  sourceId: string;
+  targetId: string;
+  concurrencyType: 'synchronizes' | 'locks' | 'communicates' | 'races' | 'awaits';
+  synchronizationMechanism?: string;
+  location: {
+    filePath: string;
+    lineNumber: number;
+    columnNumber: number;
+  };
+  resolvedSymbol?: Symbol;
+}
+
 // 扩展的关系提取结果
 export interface RelationshipExtractionResult {
   callRelationships: CallRelationship[];
@@ -108,6 +183,12 @@ export interface RelationshipExtractionResult {
   referenceRelationships: ReferenceRelationship[];
   creationRelationships: CreationRelationship[];
   annotationRelationships: AnnotationRelationship[];
+  // 扩展的关系类型
+  dataFlowRelationships: DataFlowRelationship[];
+  controlFlowRelationships: ControlFlowRelationship[];
+  semanticRelationships: SemanticRelationship[];
+  lifecycleRelationships: LifecycleRelationship[];
+  concurrencyRelationships: ConcurrencyRelationship[];
 }
 
 // 扩展的关系提取器接口
@@ -148,6 +229,37 @@ export interface ILanguageRelationshipExtractor {
     filePath: string,
     symbolResolver: SymbolResolver
   ): Promise<AnnotationRelationship[]>;
+  
+  // 扩展的关系提取方法
+  extractDataFlowRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<DataFlowRelationship[]>;
+  
+  extractControlFlowRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<ControlFlowRelationship[]>;
+  
+  extractSemanticRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<SemanticRelationship[]>;
+  
+  extractLifecycleRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<LifecycleRelationship[]>;
+  
+  extractConcurrencyRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    symbolResolver: SymbolResolver
+  ): Promise<ConcurrencyRelationship[]>;
   
   getSupportedLanguage(): string;
   

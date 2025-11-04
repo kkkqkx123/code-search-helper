@@ -209,7 +209,7 @@ export default `
   (modifiers
     (annotation
       name: (simple_identifier) @threadlocal.annotation
-      (#match? @threadlocal.annotation "^ThreadLocal$")))) @concurrency.relationship.thread.local
+      (#match? @threadlocal.annotation "^ThreadLocal$"))) @concurrency.relationship.thread.local
 
 ; 屏障同步
 (call_expression
@@ -217,7 +217,7 @@ export default `
   (#match? @barrier.constructor "^CyclicBarrier$")
   right: (value_arguments
     (simple_identifier) @barrier.count
-    (lambda_literal) @barrier.action))) @concurrency.relationship.barrier.creation
+    (lambda_literal) @barrier.action)) @concurrency.relationship.barrier.creation
 
 ; 屏障等待
 (call_expression
@@ -268,5 +268,5 @@ export default `
     right: (simple_identifier) @submit.method)
   (#match? @submit.method "^submit$")
   right: (value_arguments
-    (lambda_literal) @task.handler)) @concurrency.relationship.completion.submit
+    (lambda_literal) @task.handler))) @concurrency.relationship.completion.submit
 `;

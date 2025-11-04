@@ -10,10 +10,10 @@ function parseArgs() {
   for (const arg of args) {
     if (arg.startsWith('--lang=') || arg.startsWith('--language=')) {
       const lang = arg.split('=')[1]?.toLowerCase();
-      if (lang && ['javascript', 'python', 'java', 'c', 'csharp', 'cpp', 'go'].includes(lang)) {
+      if (lang && ['javascript', 'python', 'java', 'c', 'csharp', 'cpp', 'go', 'rust', 'kotlin'].includes(lang)) {
         languages.push(lang);
       } else {
-        console.error(`Invalid language: ${lang}. Supported languages: javascript, python, java, c, csharp, cpp`);
+        console.error(`Invalid language: ${lang}. Supported languages: javascript, python, java, c, csharp, cpp, rust, kotlin`);
         process.exit(1);
       }
     } else if (arg === '--help' || arg === '-h') {
@@ -40,7 +40,7 @@ Examples:
   }
 
   // If no languages specified, run all
-  return languages.length > 0 ? languages : ['javascript', 'python', 'java', 'c', 'csharp', 'cpp', 'go'];
+  return languages.length > 0 ? languages : ['javascript', 'python', 'java', 'c', 'csharp', 'cpp', 'go', 'rust', 'kotlin'];
 }
 
 async function testQueryFilesExistence(selectedLanguages: string[]) {
@@ -186,6 +186,52 @@ async function testQueryFilesExistence(selectedLanguages: string[]) {
     console.log(`✓ Go concurrency-relationships query loaded: ${goConcurrency.default.length} characters`);
     } catch (error) {
       console.error('Error loading Go query files:', error);
+    }
+  }
+
+  if (selectedLanguages.includes('rust')) {
+    // Test Rust queries
+    console.log('\nTesting Rust query files...');
+    try {
+      const rustDataFlow = await import('../../src/service/parser/constants/queries/rust/data-flow');
+      console.log(`✓ Rust data-flow query loaded: ${rustDataFlow.default.length} characters`);
+
+      const rustControlFlow = await import('../../src/service/parser/constants/queries/rust/control-flow-relationships');
+      console.log(`✓ Rust control-flow-relationships query loaded: ${rustControlFlow.default.length} characters`);
+
+      const rustSemantic = await import('../../src/service/parser/constants/queries/rust/semantic-relationships');
+      console.log(`✓ Rust semantic-relationships query loaded: ${rustSemantic.default.length} characters`);
+
+      const rustLifecycle = await import('../../src/service/parser/constants/queries/rust/lifecycle-relationships');
+      console.log(`✓ Rust lifecycle-relationships query loaded: ${rustLifecycle.default.length} characters`);
+
+      const rustConcurrency = await import('../../src/service/parser/constants/queries/rust/concurrency-relationships');
+      console.log(`✓ Rust concurrency-relationships query loaded: ${rustConcurrency.default.length} characters`);
+    } catch (error) {
+      console.error('Error loading Rust query files:', error);
+    }
+  }
+
+  if (selectedLanguages.includes('kotlin')) {
+    // Test Kotlin queries
+    console.log('\nTesting Kotlin query files...');
+    try {
+      const kotlinDataFlow = await import('../../src/service/parser/constants/queries/kotlin/data-flow');
+      console.log(`✓ Kotlin data-flow query loaded: ${kotlinDataFlow.default.length} characters`);
+
+      const kotlinControlFlow = await import('../../src/service/parser/constants/queries/kotlin/control-flow-relationships');
+      console.log(`✓ Kotlin control-flow-relationships query loaded: ${kotlinControlFlow.default.length} characters`);
+
+      const kotlinSemantic = await import('../../src/service/parser/constants/queries/kotlin/semantic-relationships');
+      console.log(`✓ Kotlin semantic-relationships query loaded: ${kotlinSemantic.default.length} characters`);
+
+      const kotlinLifecycle = await import('../../src/service/parser/constants/queries/kotlin/lifecycle-relationships');
+      console.log(`✓ Kotlin lifecycle-relationships query loaded: ${kotlinLifecycle.default.length} characters`);
+
+      const kotlinConcurrency = await import('../../src/service/parser/constants/queries/kotlin/concurrency-relationships');
+      console.log(`✓ Kotlin concurrency-relationships query loaded: ${kotlinConcurrency.default.length} characters`);
+    } catch (error) {
+      console.error('Error loading Kotlin query files:', error);
     }
   }
   console.log(`\n✅ Query files for selected languages (${selectedLanguages.join(', ')}) have been successfully tested!`);
@@ -401,6 +447,42 @@ async function testQuerySyntax(selectedLanguages: string[]) {
 
     const cppConcurrency = await import('../../src/service/parser/constants/queries/cpp/concurrency-relationships');
     await validateQuerySyntax(cppConcurrency.default, 'C++', 'concurrency-relationships');
+  }
+
+  if (selectedLanguages.includes('rust')) {
+    // Rust queries
+    const rustDataFlow = await import('../../src/service/parser/constants/queries/rust/data-flow');
+    await validateQuerySyntax(rustDataFlow.default, 'Rust', 'data-flow');
+
+    const rustControlFlow = await import('../../src/service/parser/constants/queries/rust/control-flow-relationships');
+    await validateQuerySyntax(rustControlFlow.default, 'Rust', 'control-flow-relationships');
+
+    const rustSemantic = await import('../../src/service/parser/constants/queries/rust/semantic-relationships');
+    await validateQuerySyntax(rustSemantic.default, 'Rust', 'semantic-relationships');
+
+    const rustLifecycle = await import('../../src/service/parser/constants/queries/rust/lifecycle-relationships');
+    await validateQuerySyntax(rustLifecycle.default, 'Rust', 'lifecycle-relationships');
+
+    const rustConcurrency = await import('../../src/service/parser/constants/queries/rust/concurrency-relationships');
+    await validateQuerySyntax(rustConcurrency.default, 'Rust', 'concurrency-relationships');
+  }
+
+  if (selectedLanguages.includes('kotlin')) {
+    // Kotlin queries
+    const kotlinDataFlow = await import('../../src/service/parser/constants/queries/kotlin/data-flow');
+    await validateQuerySyntax(kotlinDataFlow.default, 'Kotlin', 'data-flow');
+
+    const kotlinControlFlow = await import('../../src/service/parser/constants/queries/kotlin/control-flow-relationships');
+    await validateQuerySyntax(kotlinControlFlow.default, 'Kotlin', 'control-flow-relationships');
+
+    const kotlinSemantic = await import('../../src/service/parser/constants/queries/kotlin/semantic-relationships');
+    await validateQuerySyntax(kotlinSemantic.default, 'Kotlin', 'semantic-relationships');
+
+    const kotlinLifecycle = await import('../../src/service/parser/constants/queries/kotlin/lifecycle-relationships');
+    await validateQuerySyntax(kotlinLifecycle.default, 'Kotlin', 'lifecycle-relationships');
+
+    const kotlinConcurrency = await import('../../src/service/parser/constants/queries/kotlin/concurrency-relationships');
+    await validateQuerySyntax(kotlinConcurrency.default, 'Kotlin', 'concurrency-relationships');
   }
 
   console.log('\n✅ All query syntax validations completed!');

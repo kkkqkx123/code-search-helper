@@ -156,5 +156,5 @@ export default `
   parameters: (parameters
     (parameter
       pattern: (identifier) @chain.handler))
-  return_type: (type_identifier) @chain.result) @semantic.relationship.chain.pattern
+  return_type: (type_identifier) @chain.result)) @semantic.relationship.chain.pattern
 `;
