@@ -3,17 +3,63 @@ import {
   DependencyRelationship,
   ReferenceRelationship,
   CreationRelationship,
-  AnnotationRelationship
+  AnnotationRelationship,
+  CallRelationship
 } from '../interfaces/IRelationshipExtractor';
 import { JavaScriptRelationshipExtractor } from './JavaScriptRelationshipExtractor';
 import { SymbolResolver, Symbol } from '../../symbol/SymbolResolver';
 import { injectable } from 'inversify';
 import Parser = require('tree-sitter');
+import { LANGUAGE_NODE_MAPPINGS } from '../LanguageNodeTypes';
 
 @injectable()
 export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtractor {
   getSupportedLanguage(): string {
     return 'typescript';
+  }
+
+  async extractCallRelationships(
+    ast: Parser.SyntaxNode,
+    filePath: string,
+    fileContent: string,
+    symbolResolver: SymbolResolver
+  ): Promise<CallRelationship[]> {
+    const relationships = await super.extractCallRelationships(ast, filePath, fileContent, symbolResolver);
+
+    // 查找所有调用表达式及新表达式
+    const callExpressions = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].callExpression
+    );
+
+    for (const callExpr of callExpressions) {
+      // 使用符号解析器查找调用者函数
+      const callerSymbol = this.findCallerSymbol(callExpr, symbolResolver, filePath);
+      const calleeName = this.extractCalleeName(callExpr, fileContent);
+
+      if (callerSymbol && calleeName) {
+        // 使用符号解析器解析被调用函数
+        const resolvedSymbol = symbolResolver.resolveSymbol(calleeName, filePath, callExpr);
+
+        // 分析调用上下文
+        const callContext = this.analyzeCallContext(callExpr, fileContent);
+
+        relationships.push({
+          callerId: this.generateSymbolId(callerSymbol),
+          calleeId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(calleeName, 'function', filePath),
+          callName: calleeName,
+          location: {
+            filePath,
+            lineNumber: callExpr.startPosition.row + 1,
+            columnNumber: callExpr.startPosition.column + 1
+          },
+          callType: this.determineCallType(callExpr, resolvedSymbol),
+          callContext,
+          resolvedSymbol: resolvedSymbol || undefined
+        });
+      }
+    }
+
+    return relationships;
   }
 
   async extractInheritanceRelationships(
@@ -23,8 +69,46 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
   ): Promise<InheritanceRelationship[]> {
     const relationships = await super.extractInheritanceRelationships(ast, filePath, symbolResolver);
 
+    // 查找类声明，包括抽象类
+    const classDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].classDeclaration
+    );
+    
+    for (const classDecl of classDeclarations) {
+      const className = this.extractClassName(classDecl);
+      const heritageClauses = this.findHeritageClauses(classDecl);
+
+      if (className && heritageClauses) {
+        for (const heritageClause of heritageClauses) {
+          const parentClassName = this.extractParentClassName(heritageClause);
+          const inheritanceType = this.getInheritanceType(heritageClause);
+
+          if (parentClassName) {
+            // 使用符号解析器解析父类符号
+            const resolvedParentSymbol = symbolResolver.resolveSymbol(parentClassName, filePath, heritageClause);
+            const childSymbol = symbolResolver.resolveSymbol(className, filePath, classDecl);
+
+            relationships.push({
+              parentId: resolvedParentSymbol ? this.generateSymbolId(resolvedParentSymbol) : this.generateNodeId(parentClassName, 'class', filePath),
+              childId: childSymbol ? this.generateSymbolId(childSymbol) : this.generateNodeId(className, 'class', filePath),
+              inheritanceType,
+              location: {
+                filePath,
+                lineNumber: classDecl.startPosition.row + 1
+              },
+              resolvedParentSymbol: resolvedParentSymbol || undefined,
+              resolvedChildSymbol: childSymbol || undefined
+            });
+          }
+        }
+      }
+    }
+
     // 查找接口声明 (TypeScript specific)
-    const interfaceDeclarations = this.treeSitterService.findNodeByType(ast, 'interface_declaration');
+    const interfaceDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].interfaceDeclaration
+    );
+    
     for (const interfaceDecl of interfaceDeclarations) {
       const interfaceName = this.extractInterfaceName(interfaceDecl);
       const heritageClauses = this.findHeritageClauses(interfaceDecl);
@@ -54,6 +138,34 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
       }
     }
 
+    // 查找枚举声明 (TypeScript specific)
+    const enumDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].enumDeclaration
+    );
+    
+    for (const enumDecl of enumDeclarations) {
+      const enumName = this.extractEnumName(enumDecl);
+      if (enumName) {
+        const resolvedSymbol = symbolResolver.resolveSymbol(enumName, filePath, enumDecl);
+
+        // Find references to enum members in the same file
+        const enumMembers = this.findEnumMembers(enumDecl);
+        for (const member of enumMembers) {
+          relationships.push({
+            parentId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(enumName, 'enum', filePath),
+            childId: this.generateNodeId(member, 'enum_member', filePath),
+            inheritanceType: 'enum_member',
+            location: {
+              filePath,
+              lineNumber: enumDecl.startPosition.row + 1
+            },
+            resolvedParentSymbol: resolvedSymbol || undefined,
+            resolvedChildSymbol: undefined
+          });
+        }
+      }
+    }
+
     return relationships;
   }
 
@@ -64,9 +176,39 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
   ): Promise<DependencyRelationship[]> {
     const relationships = await super.extractDependencyRelationships(ast, filePath, symbolResolver);
 
+    // 查找导入和导出语句
+    const importDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].importDeclaration
+    );
+    
+    for (const importStmt of importDeclarations) {
+      const importInfo = this.extractImportInfo(importStmt);
+
+      if (importInfo) {
+        // 使用符号解析器解析导入的模块
+        const resolvedTargetSymbol = symbolResolver.resolveSymbol(importInfo.source, filePath, importStmt);
+
+        relationships.push({
+          sourceId: this.generateNodeId(filePath, 'file', filePath),
+          targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(importInfo.source, 'module', importInfo.source),
+          dependencyType: 'import',
+          target: importInfo.source,
+          importedSymbols: importInfo.importedSymbols,
+          location: {
+            filePath,
+            lineNumber: importStmt.startPosition.row + 1
+          },
+          resolvedTargetSymbol: resolvedTargetSymbol || undefined
+        });
+      }
+    }
+
     // 查找导出语句 (TypeScript specific)
-    const exportStatements = this.treeSitterService.findNodesByTypes(ast, ['export_statement', 'export_declaration']);
-    for (const exportStmt of exportStatements) {
+    const exportDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].exportDeclaration
+    );
+    
+    for (const exportStmt of exportDeclarations) {
       const exportInfo = this.extractExportInfo(exportStmt);
 
       if (exportInfo) {
@@ -119,6 +261,90 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
   ): Promise<ReferenceRelationship[]> {
     const relationships = await super.extractReferenceRelationships(ast, filePath, fileContent, symbolResolver);
 
+    // 查找所有属性标识符和命名导入
+    const propertyIdentifiers = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].propertyIdentifier
+    );
+
+    for (const identifier of propertyIdentifiers) {
+      const identifierName = this.treeSitterService.getNodeText(identifier, fileContent);
+
+      // 使用符号解析器解析引用的符号
+      const resolvedSymbol = symbolResolver.resolveSymbol(identifierName, filePath, identifier);
+
+      if (resolvedSymbol) {
+        // 确定引用类型
+        const referenceType = this.determineReferenceType(identifier, resolvedSymbol) as 'variable' | 'constant' | 'parameter' | 'field' | 'interface' | 'type' | 'enum';
+
+        relationships.push({
+          sourceId: this.generateNodeId(identifierName, 'reference', filePath),
+          targetId: this.generateSymbolId(resolvedSymbol),
+          referenceType,
+          referenceName: identifierName,
+          location: {
+            filePath,
+            lineNumber: identifier.startPosition.row + 1,
+            columnNumber: identifier.startPosition.column + 1
+          },
+          resolvedSymbol
+        });
+      }
+    }
+
+    // 查找函数声明和方法声明的引用
+    const functionDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].functionDeclaration
+    );
+
+    for (const funcDecl of functionDeclarations) {
+      const funcName = this.extractFunctionName(funcDecl);
+      if (funcName) {
+        const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, funcDecl);
+
+        if (resolvedSymbol) {
+          relationships.push({
+            sourceId: this.generateNodeId(funcName, 'function_ref', filePath),
+            targetId: this.generateSymbolId(resolvedSymbol),
+            referenceType: 'function',
+            referenceName: funcName,
+            location: {
+              filePath,
+              lineNumber: funcDecl.startPosition.row + 1,
+              columnNumber: funcDecl.startPosition.column + 1
+            },
+            resolvedSymbol
+          });
+        }
+      }
+    }
+
+    // 查找方法声明的引用
+    const methodDeclarations = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].methodDeclaration
+    );
+
+    for (const methodDecl of methodDeclarations) {
+      const methodName = this.extractMethodName(methodDecl);
+      if (methodName) {
+        const resolvedSymbol = symbolResolver.resolveSymbol(methodName, filePath, methodDecl);
+
+        if (resolvedSymbol) {
+          relationships.push({
+            sourceId: this.generateNodeId(methodName, 'method_ref', filePath),
+            targetId: this.generateSymbolId(resolvedSymbol),
+            referenceType: 'method',
+            referenceName: methodName,
+            location: {
+              filePath,
+              lineNumber: methodDecl.startPosition.row + 1,
+              columnNumber: methodDecl.startPosition.column + 1
+            },
+            resolvedSymbol
+          });
+        }
+      }
+    }
+
     // 查找类型引用 (TypeScript specific)
     const typeReferences = this.treeSitterService.findNodesByTypes(ast, ['type_identifier', 'predefined_type']);
 
@@ -132,7 +358,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
         relationships.push({
           sourceId: this.generateNodeId(typeName, 'typeref', filePath),
           targetId: this.generateSymbolId(resolvedSymbol),
-          referenceType: 'variable',
+          referenceType: 'type',
           referenceName: typeName,
           location: {
             filePath,
@@ -156,7 +382,7 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
           relationships.push({
             sourceId: this.generateNodeId(typeName, 'annotation', filePath),
             targetId: this.generateSymbolId(resolvedSymbol),
-            referenceType: 'variable',
+            referenceType: 'type',
             referenceName: typeName,
             location: {
               filePath,
@@ -180,26 +406,79 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
   ): Promise<CreationRelationship[]> {
     const relationships = await super.extractCreationRelationships(ast, filePath, fileContent, symbolResolver);
 
-    // 查找对象字面量创建（对象创建）
-    const objectLiterals = this.treeSitterService.findNodeByType(ast, 'object');
-    for (const objectLiteral of objectLiterals) {
-      // Extract properties that indicate creation type
-      const objectType = this.inferObjectType(objectLiteral, fileContent);
-      if (objectType) {
-        const resolvedSymbol = symbolResolver.resolveSymbol(objectType, filePath, objectLiteral);
+    // 查找new表达式
+    const newExpressions = this.treeSitterService.findNodeByType(ast, 'new_expression');
+
+    for (const newExpr of newExpressions) {
+      const className = this.extractClassNameFromNewExpression(newExpr, fileContent);
+
+      if (className) {
+        // 使用符号解析器解析类符号
+        const resolvedSymbol = symbolResolver.resolveSymbol(className, filePath, newExpr);
 
         relationships.push({
-          sourceId: this.generateNodeId(`object_creation_${objectLiteral.startPosition.row}`, 'creation', filePath),
-          targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(objectType, 'object', filePath),
+          sourceId: this.generateNodeId(`creation_${newExpr.startPosition.row}`, 'creation', filePath),
+          targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(className, 'class', filePath),
           creationType: 'instantiation',
-          targetName: objectType,
+          targetName: className,
           location: {
             filePath,
-            lineNumber: objectLiteral.startPosition.row + 1,
-            columnNumber: objectLiteral.startPosition.column + 1
+            lineNumber: newExpr.startPosition.row + 1,
+            columnNumber: newExpr.startPosition.column + 1
           },
           resolvedTargetSymbol: resolvedSymbol || undefined
         });
+      }
+    }
+
+    // 查找箭头函数、Lambda表达式
+    const lambdaExpressions = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].lambdaExpression
+    );
+    
+    for (const lambdaExpr of lambdaExpressions) {
+      relationships.push({
+        sourceId: this.generateNodeId(`lambda_creation_${lambdaExpr.startPosition.row}`, 'creation', filePath),
+        targetId: this.generateNodeId('Function', 'builtin', filePath),
+        creationType: 'instantiation',
+        targetName: 'Function',
+        location: {
+          filePath,
+          lineNumber: lambdaExpr.startPosition.row + 1,
+          columnNumber: lambdaExpr.startPosition.column + 1
+        },
+        resolvedTargetSymbol: undefined
+      });
+    }
+
+    // 查找对象字面量创建（对象创建）
+    const objectLiterals = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].variableDeclaration
+        .filter(type => type === 'object' || type === 'pair') // Only include object-related types
+    );
+    
+    if (objectLiterals.length === 0) {
+      // If no specific object literals found, look for generic object patterns
+      const genericObjectLiterals = this.treeSitterService.findNodeByType(ast, 'object');
+      for (const objectLiteral of genericObjectLiterals) {
+        // Extract properties that indicate creation type
+        const objectType = this.inferObjectType(objectLiteral, fileContent);
+        if (objectType) {
+          const resolvedSymbol = symbolResolver.resolveSymbol(objectType, filePath, objectLiteral);
+
+          relationships.push({
+            sourceId: this.generateNodeId(`object_creation_${objectLiteral.startPosition.row}`, 'creation', filePath),
+            targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(objectType, 'object', filePath),
+            creationType: 'instantiation',
+            targetName: objectType,
+            location: {
+              filePath,
+              lineNumber: objectLiteral.startPosition.row + 1,
+              columnNumber: objectLiteral.startPosition.column + 1
+            },
+            resolvedTargetSymbol: resolvedSymbol || undefined
+          });
+        }
       }
     }
 
@@ -230,8 +509,66 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
   ): Promise<AnnotationRelationship[]> {
     const relationships = await super.extractAnnotationRelationships(ast, filePath, symbolResolver);
 
+    // 查找装饰器
+    const decorators = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].decorator
+    );
+
+    for (const decorator of decorators) {
+      const annotationName = this.extractAnnotationName(decorator);
+      const parameters = this.extractAnnotationParameters(decorator);
+
+      if (annotationName) {
+        // 使用符号解析器解析注解符号
+        const resolvedSymbol = symbolResolver.resolveSymbol(annotationName, filePath, decorator);
+
+        relationships.push({
+          sourceId: this.generateNodeId(`annotation_${decorator.startPosition.row}`, 'annotation', filePath),
+          targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(annotationName, 'decorator', filePath),
+          annotationType: 'decorator',
+          annotationName,
+          parameters,
+          location: {
+            filePath,
+            lineNumber: decorator.startPosition.row + 1,
+            columnNumber: decorator.startPosition.column + 1
+          },
+          resolvedAnnotationSymbol: resolvedSymbol || undefined
+        });
+      }
+    }
+
+    // 查找类型注解、类型别名和命名空间声明
+    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].typeAnnotation
+    );
+    
+    for (const typeAnnotation of typeAnnotations) {
+      const annotationName = this.extractTypeName(typeAnnotation);
+      if (annotationName) {
+        const resolvedSymbol = symbolResolver.resolveSymbol(annotationName, filePath, typeAnnotation);
+
+        relationships.push({
+          sourceId: this.generateNodeId(`type_annotation_${typeAnnotation.startPosition.row}`, 'annotation', filePath),
+          targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(annotationName, 'type', filePath),
+          annotationType: 'type_annotation',
+          annotationName,
+          parameters: {},
+          location: {
+            filePath,
+            lineNumber: typeAnnotation.startPosition.row + 1,
+            columnNumber: typeAnnotation.startPosition.column + 1
+          },
+          resolvedAnnotationSymbol: resolvedSymbol || undefined
+        });
+      }
+    }
+
     // 查找类型注解中的泛型参数 (TypeScript specific)
-    const genericTypes = this.treeSitterService.findNodeByType(ast, 'generic_type');
+    const genericTypes = this.treeSitterService.findNodesByTypes(ast, 
+      LANGUAGE_NODE_MAPPINGS['typescript'].genericTypes
+    );
+    
     for (const genericType of genericTypes) {
       const typeName = this.extractGenericTypeName(genericType);
       const typeArguments = this.extractTypeArguments(genericType);
@@ -278,7 +615,19 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     return relationships;
   }
 
-  // TypeScript-specific helper methods
+  // Enhanced helper methods
+  protected extractTypeName(typeNode: Parser.SyntaxNode): string | null {
+    // 从类型注解节点提取类型名
+    if (typeNode.children && typeNode.children.length > 0) {
+      for (const child of typeNode.children) {
+        if (child.type === 'type_identifier' || child.type === 'identifier') {
+          return child.text || null;
+        }
+      }
+    }
+    return null;
+  }
+
   protected extractInterfaceName(interfaceDecl: Parser.SyntaxNode): string | null {
     // 实现提取接口名逻辑
     for (const child of interfaceDecl.children) {
@@ -306,6 +655,37 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     }
 
     return parentNames;
+  }
+
+  protected extractEnumName(enumDecl: Parser.SyntaxNode): string | null {
+    // 提取枚举名
+    for (const child of enumDecl.children) {
+      if (child.type === 'identifier' || child.type === 'type_identifier') {
+        return child.text || null;
+      }
+    }
+    return null;
+  }
+
+  protected findEnumMembers(enumDecl: Parser.SyntaxNode): string[] {
+    // 查找枚举成员
+    const members: string[] = [];
+    
+    for (const child of enumDecl.children) {
+      if (child.type === 'enum_body') {
+        for (const bodyChild of child.children) {
+          if (bodyChild.type === 'enum_assignment' || bodyChild.type === 'pair') {
+            for (const pairChild of bodyChild.children) {
+              if (pairChild.type === 'property_identifier' || pairChild.type === 'identifier') {
+                members.push(pairChild.text || '');
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return members;
   }
 
   protected extractExportInfo(exportStmt: Parser.SyntaxNode): {
@@ -386,6 +766,28 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     return 'Object';
   }
 
+  protected extractFunctionName(funcDecl: Parser.SyntaxNode): string | null {
+    // 提取函数名
+    for (const child of funcDecl.children) {
+      if (child.type === 'identifier' || child.type === 'property_identifier') {
+        return child.text || null;
+      } else if (child.type === 'function_name') {
+        return child.text || null;
+      }
+    }
+    return null;
+  }
+
+  protected extractMethodName(methodDecl: Parser.SyntaxNode): string | null {
+    // 提取方法名
+    for (const child of methodDecl.children) {
+      if (child.type === 'property_identifier' || child.type === 'identifier') {
+        return child.text || null;
+      }
+    }
+    return null;
+  }
+
   protected extractGenericTypeName(genericType: Parser.SyntaxNode): string | null {
     // 提取泛型类型名
     if (genericType.children && genericType.children.length > 0) {
@@ -402,9 +804,9 @@ export class TypeScriptRelationshipExtractor extends JavaScriptRelationshipExtra
     const args: string[] = [];
 
     for (const child of genericType.children) {
-      if (child.type === 'type_arguments') {
+      if (child.type === 'type_arguments' || child.type === 'type_parameters') {
         for (const arg of child.children) {
-          if (arg.type === 'type_identifier' || arg.type === 'identifier') {
+          if (arg.type === 'type_identifier' || arg.type === 'identifier' || arg.type === 'generic_type') {
             args.push(this.treeSitterService.getNodeText(arg, ''));
           }
         }

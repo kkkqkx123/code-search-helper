@@ -26,7 +26,7 @@ export interface CallRelationship {
 export interface InheritanceRelationship {
   parentId: string;
   childId: string;
-  inheritanceType: 'extends' | 'implements' | 'mixin';
+  inheritanceType: 'extends' | 'implements' | 'mixin' | 'enum_member' | 'contains';
   location: {
     filePath: string;
     lineNumber: number;
@@ -56,7 +56,7 @@ export interface DependencyRelationship {
 export interface ReferenceRelationship {
   sourceId: string;
   targetId: string;
-  referenceType: 'variable' | 'constant' | 'parameter' | 'field';
+  referenceType: 'variable' | 'constant' | 'parameter' | 'field' | 'function' | 'method' | 'type' | 'class' | 'interface' | 'enum' | 'namespace';
   referenceName: string;
   location: {
     filePath: string;
@@ -86,7 +86,7 @@ export interface CreationRelationship {
 export interface AnnotationRelationship {
   sourceId: string;
   targetId: string;
-  annotationType: 'decorator' | 'annotation' | 'attribute';
+  annotationType: 'decorator' | 'annotation' | 'attribute' | 'type_annotation';
   annotationName: string;
   location: {
     filePath: string;
