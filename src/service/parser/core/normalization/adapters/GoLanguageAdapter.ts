@@ -14,7 +14,13 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     return [
       'functions-types',
       'variables-imports',
-      'expressions-control-flow'
+      'expressions-control-flow',
+      // 高级关系查询类型
+      'data-flow',
+      'control-flow-relationships',
+      'semantic-relationships',
+      'lifecycle-relationships',
+      'concurrency-relationships'
     ];
   }
 
@@ -340,11 +346,39 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive'> = {
       'functions-types': 'function',
       'variables-imports': 'variable',
-      'expressions-control-flow': 'expression'
+      'expressions-control-flow': 'expression',
+      // 数据流相关
+      'data-flow': 'data-flow',
+      'data.flow.assignment': 'data-flow',
+      'data.flow.parameter': 'parameter-flow',
+      'data.flow.return': 'return-flow',
+      // 控制流相关
+      'control-flow-relationships': 'control-flow',
+      'control.flow.if': 'exception-flow',
+      'control.flow.for': 'control-flow',
+      'control.flow.select': 'exception-flow',
+      'control.flow.switch': 'control-flow',
+      // 语义关系相关
+      'semantic.relationships': 'semantic-relationship',
+      'semantic.relationship.interface.definition': 'semantic-relationship',
+      'semantic.relationship.struct.definition': 'semantic-relationship',
+      'semantic.relationship.method.definition': 'semantic-relationship',
+      // 生命周期相关
+      'lifecycle.relationships': 'lifecycle-event',
+      'lifecycle.relationship.instantiation': 'lifecycle-event',
+      'lifecycle.relationship.initialization': 'lifecycle-event',
+      'lifecycle.relationship.resource.acquisition': 'lifecycle-event',
+      'lifecycle.relationship.resource.release': 'lifecycle-event',
+      // 并发相关
+      'concurrency.relationships': 'concurrency-primitive',
+      'concurrency.relationship.goroutine': 'concurrency-primitive',
+      'concurrency.relationship.channel': 'concurrency-primitive',
+      'concurrency.relationship.mutex': 'concurrency-primitive',
+      'concurrency.relationship.waitgroup': 'concurrency-primitive'
     };
     
     return mapping[queryType] || 'expression';
@@ -491,5 +525,386 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       'type_switch_statement', 'block'
     ];
     return goBlockTypes.includes(node.type) || super.isBlockNode(node);
+  }
+
+  // Go特定的数据流关系提取
+  extractDataFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'assignment' | 'parameter' | 'return';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 从捕获中查找数据流关系
+    for (const capture of result.captures || []) {
+      if (capture.name.includes('source.variable')) {
+        const source = capture.node?.text || '';
+        const targetCapture = result.captures?.find((c: any) => c.name.includes('target.variable'));
+        const target = targetCapture?.node?.text || '';
+
+        if (source && target) {
+          relationships.push({
+            source,
+            target,
+            type: 'assignment'
+          });
+        }
+      } else if (capture.name.includes('source.parameter')) {
+        const source = capture.node?.text || '';
+        const targetCapture = result.captures?.find((c: any) => c.name.includes('target.function'));
+        const target = targetCapture?.node?.text || '';
+
+        if (source && target) {
+          relationships.push({
+            source,
+            target,
+            type: 'parameter'
+          });
+        }
+      } else if (capture.name.includes('source.variable') && result.captures?.some((c: any) => c.name.includes('data.flow.return'))) {
+        const source = capture.node?.text || '';
+        
+        relationships.push({
+          source,
+          target: result.captures?.[0]?.node?.parent?.childForFieldName?.('name')?.text || 'unknown',
+          type: 'return'
+        });
+      }
+    }
+
+    return relationships;
+  }
+
+  // Go特定的控制流关系提取
+  extractControlFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'conditional' | 'loop' | 'exception' | 'callback';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    const nodeType = mainNode.type;
+    
+    // 根据节点类型确定控制流类型
+    let controlFlowType: 'conditional' | 'loop' | 'exception' | 'callback' | null = null;
+    if (nodeType.includes('if')) {
+      controlFlowType = 'conditional';
+    } else if (nodeType.includes('for') || nodeType.includes('range')) {
+      controlFlowType = 'loop';
+    } else if (nodeType.includes('select')) {
+      controlFlowType = 'exception'; // Using exception for select which handles communication errors
+    }
+
+    if (controlFlowType) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('source.condition') || capture.name.includes('source.loop')) {
+          const source = capture.node?.text || '';
+          const targetCapture = result.captures?.find((c: any) => 
+            c.name.includes('target.then') || 
+            c.name.includes('target.loop') || 
+            c.name.includes('target.case')
+          );
+          const target = targetCapture?.node?.text || '';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: controlFlowType
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // Go特定的语义关系提取
+  extractSemanticRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    const nodeType = mainNode.type;
+    
+    // Go中没有传统意义上的方法重写，但可以有接口实现
+    if (nodeType.includes('type_declaration') && mainNode.text.includes('interface')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('implementing.type')) {
+          const source = capture.node?.text || '';
+          const targetCapture = result.captures?.find((c: any) => c.name.includes('implemented.interface'));
+          const target = targetCapture?.node?.text || '';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'configures' // Using configures for interface implementation
+            });
+          }
+        }
+      }
+    }
+    // 函数赋值可以看作是委托关系
+    else if (nodeType.includes('assignment') && mainNode.text.includes('func')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('source.variable')) {
+          const source = capture.node?.text || '';
+          const targetCapture = result.captures?.find((c: any) => c.name.includes('target.function'));
+          const target = targetCapture?.node?.text || '';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'delegates'
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // Go特定的生命周期关系提取
+  extractLifecycleRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    const nodeType = mainNode.type;
+    
+    // 检查对象实例化（使用make/new函数）
+    if (nodeType.includes('call_expression') && 
+        (mainNode.text.includes('make') || mainNode.text.includes('new'))) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('allocated.type') || capture.name.includes('constructed.type')) {
+          const target = capture.node?.text || '';
+          const sourceCapture = result.captures?.find((c: any) => 
+            c.name.includes('initialized.variable') || 
+            c.name.includes('constructor.function'));
+          const source = sourceCapture?.node?.text || 'unknown';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'instantiates'
+            });
+          }
+        }
+      }
+    }
+    // 检查defer语句（资源清理）
+    else if (nodeType.includes('defer_statement')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('cleanup.function')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'resource',
+            type: 'destroys' // Using destroys for cleanup functions
+          });
+        }
+      }
+    }
+    // 检查资源管理（如文件关闭）
+    else if (nodeType.includes('call_expression') && mainNode.text.includes('Close')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('file.object') || capture.name.includes('connection.object')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'resource',
+            type: 'destroys'
+          });
+        }
+      }
+    }
+    // 检查初始化
+    else if (nodeType.includes('var_declaration') || nodeType.includes('short_var_declaration')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('initialized.variable')) {
+          const source = capture.node?.text || '';
+          const valueCapture = result.captures?.find((c: any) => c.name.includes('initial.value'));
+          const target = valueCapture?.node?.text || '';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'initializes'
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // Go特定的并发关系提取
+  extractConcurrencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    const nodeType = mainNode.type;
+    
+    // 检查Goroutine创建
+    if (nodeType.includes('go_statement')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('goroutine.function')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'goroutine',
+            type: 'communicates'
+          });
+        }
+      }
+    }
+    // 检查Channel操作
+    else if (nodeType.includes('send_statement')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('source.value')) {
+          const source = capture.node?.text || '';
+          const targetCapture = result.captures?.find((c: any) => c.name.includes('target.channel'));
+          const target = targetCapture?.node?.text || '';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'communicates'
+            });
+          }
+        }
+      }
+    }
+    // 检查Channel接收
+    else if (nodeType.includes('unary_expression') && mainNode.text.includes('<-')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('source.channel')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'channel',
+            type: 'communicates'
+          });
+        }
+      }
+    }
+    // 检查Mutex操作
+    else if (nodeType.includes('call_expression') && 
+             (mainNode.text.includes('Lock') || mainNode.text.includes('Unlock'))) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('mutex.object')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'mutex',
+            type: 'synchronizes'
+          });
+        }
+      }
+    }
+    // 检查select语句（通信同步）
+    else if (nodeType.includes('select_statement')) {
+      relationships.push({
+        source: 'select_statement',
+        target: 'communication',
+        type: 'synchronizes'
+      });
+    }
+    // 检查WaitGroup操作
+    else if (nodeType.includes('call_expression') && 
+             (mainNode.text.includes('Add') || mainNode.text.includes('Done') || mainNode.text.includes('Wait'))) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('waitgroup.object')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'waitgroup',
+            type: 'synchronizes'
+          });
+        }
+      }
+    }
+    // 检查可能的竞态条件
+    else if (nodeType.includes('assignment_statement') && result.captures?.some((c: any) => c.name.includes('race.condition'))) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('shared.object') || capture.name.includes('shared.field')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'shared_resource',
+            type: 'races'
+          });
+        }
+      }
+    }
+
+    return relationships;
   }
 }

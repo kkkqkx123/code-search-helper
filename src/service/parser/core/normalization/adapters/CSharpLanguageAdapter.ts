@@ -17,7 +17,13 @@ export class CSharpLanguageAdapter extends BaseLanguageAdapter {
       'properties',
       'linq',
       'patterns',
-      'expressions'
+      'expressions',
+      // 高级关系查询类型
+      'data-flow',
+      'control-flow',
+      'semantic-relationships',
+      'lifecycle-relationships',
+      'concurrency-relationships'
     ];
   }
 
@@ -298,14 +304,39 @@ export class CSharpLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive'> = {
       'classes': 'class',
       'methods': 'method',
       'properties': 'variable',  // 属性映射为变量
       'linq': 'expression',  // LINQ映射为表达式
       'patterns': 'expression',  // 模式匹配映射为表达式
-      'expressions': 'expression'
+      'expressions': 'expression',
+      // 数据流相关
+      'data-flow': 'data-flow',
+      'data.flow.assignment': 'data-flow',
+      'data.flow.parameter': 'parameter-flow',
+      'data.flow.return': 'return-flow',
+      // 控制流相关
+      'control-flow': 'control-flow',
+      'control.flow.conditional': 'exception-flow',
+      'control.flow.loop': 'control-flow',
+      'control.flow.exception': 'exception-flow',
+      'control.flow.callback': 'callback-flow',
+      // 语义关系相关
+      'semantic.relationships': 'semantic-relationship',
+      'semantic.relationship.method.override': 'semantic-relationship',
+      'semantic.relationship.interface.implementation': 'semantic-relationship',
+      // 生命周期相关
+      'lifecycle.relationships': 'lifecycle-event',
+      'lifecycle.relationship.constructor.definition': 'lifecycle-event',
+      'lifecycle.relationship.constructor.call': 'lifecycle-event',
+      'lifecycle.relationship.disposable': 'lifecycle-event',
+      // 并发相关
+      'concurrency.relationships': 'concurrency-primitive',
+      'concurrency.relationship.async.method': 'concurrency-primitive',
+      'concurrency.relationship.lock.statement': 'concurrency-primitive',
+      'concurrency.relationship.channel': 'concurrency-primitive'
     };
 
     return mapping[queryType] || 'expression';
@@ -454,5 +485,362 @@ export class CSharpLanguageAdapter extends BaseLanguageAdapter {
       'try_statement', 'catch_clause', 'finally_clause', 'lambda_expression', 'query_expression'
     ];
     return csharpBlockTypes.includes(node.type) || super.isBlockNode(node);
+  }
+
+  // C#特定的数据流关系提取
+  extractDataFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'assignment' | 'parameter' | 'return';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 从捕获中查找数据流关系
+    for (const capture of result.captures || []) {
+      if (capture.name.includes('source.variable')) {
+        const source = capture.node?.text || '';
+        const targetCapture = result.captures?.find((c: any) => c.name.includes('target.variable'));
+        const target = targetCapture?.node?.text || '';
+
+        if (source && target) {
+          relationships.push({
+            source,
+            target,
+            type: 'assignment'
+          });
+        }
+      } else if (capture.name.includes('source.parameter')) {
+        const source = capture.node?.text || '';
+        const targetCapture = result.captures?.find((c: any) => c.name.includes('target.function'));
+        const target = targetCapture?.node?.text || '';
+
+        if (source && target) {
+          relationships.push({
+            source,
+            target,
+            type: 'parameter'
+          });
+        }
+      } else if (capture.name.includes('source.variable') && result.captures?.some((c: any) => c.name.includes('data.flow.return'))) {
+        const source = capture.node?.text || '';
+        
+        relationships.push({
+          source,
+          target: result.captures?.[0]?.node?.parent?.childForFieldName?.('name')?.text || 'unknown',
+          type: 'return'
+        });
+      }
+    }
+
+    return relationships;
+  }
+
+  // C#特定的控制流关系提取
+  extractControlFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'conditional' | 'loop' | 'exception' | 'callback';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    const nodeType = mainNode.type;
+    
+    // 根据节点类型确定控制流类型
+    let controlFlowType: 'conditional' | 'loop' | 'exception' | 'callback' | null = null;
+    if (nodeType.includes('if') || nodeType.includes('switch')) {
+      controlFlowType = 'conditional';
+    } else if (nodeType.includes('for') || nodeType.includes('while') || nodeType.includes('foreach')) {
+      controlFlowType = 'loop';
+    } else if (nodeType.includes('try') || nodeType.includes('catch') || nodeType.includes('throw')) {
+      controlFlowType = 'exception';
+    } else if (nodeType.includes('lambda') || nodeType.includes('delegate')) {
+      controlFlowType = 'callback';
+    }
+
+    if (controlFlowType) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('source.condition') || capture.name.includes('source.loop') || 
+            capture.name.includes('source.exception') || capture.name.includes('source.lambda')) {
+          const source = capture.node?.text || '';
+          const targetCapture = result.captures?.find((c: any) => 
+            c.name.includes('target.consequence') || 
+            c.name.includes('target.loop') || 
+            c.name.includes('target.catch') ||
+            c.name.includes('target.lambda')
+          );
+          const target = targetCapture?.node?.text || '';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: controlFlowType
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // C#特定的语义关系提取
+  extractSemanticRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    const nodeType = mainNode.type;
+    
+    // 检查是否有override修饰符
+    if (nodeType.includes('method_declaration') && mainNode.text.includes('override')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('overridden.method')) {
+          const target = capture.node?.text || '';
+          const sourceCapture = result.captures?.find((c: any) => 
+            c.name.includes('override.modifier') || c.name.includes('method_declaration'));
+          const source = sourceCapture?.node?.childForFieldName?.('name')?.text || 'unknown';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'overrides'
+            });
+          }
+        }
+      }
+    } 
+    // 检查委托关系
+    else if (nodeType.includes('assignment') && mainNode.text.includes('=')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('target.delegate')) {
+          const target = capture.node?.text || '';
+          const sourceCapture = result.captures?.find((c: any) => c.name.includes('source.function'));
+          const source = sourceCapture?.node?.text || '';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'delegates'
+            });
+          }
+        }
+      }
+    }
+    // 检查事件观察关系
+    else if (nodeType.includes('assignment') && 
+             (mainNode.text.includes('+='))) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('subscriber.event')) {
+          const target = capture.node?.text || '';
+          const sourceCapture = result.captures?.find((c: any) => c.name.includes('event.handler'));
+          const source = sourceCapture?.node?.text || '';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'observes'
+            });
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // C#特定的生命周期关系提取
+  extractLifecycleRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    const nodeType = mainNode.type;
+    
+    // 检查对象实例化
+    if (nodeType.includes('object_creation_expression') || 
+        (nodeType.includes('assignment') && mainNode.text.includes('new'))) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('constructed.class')) {
+          const target = capture.node?.text || '';
+          const sourceCapture = result.captures?.find((c: any) => 
+            c.name.includes('target.variable') || 
+            c.name.includes('object_creation_expression'));
+          const source = sourceCapture?.node?.childForFieldName?.('left')?.text || 'unknown';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'instantiates'
+            });
+          }
+        }
+      }
+    }
+    // 检查using语句（资源管理）
+    else if (nodeType.includes('using')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('resource.to.dispose')) {
+          const source = capture.node?.text || '';
+          const targetCapture = result.captures?.find((c: any) => 
+            c.name.includes('using.body') || c.name.includes('using.declaration'));
+          const target = targetCapture?.node?.text || '';
+
+          if (source && target) {
+            relationships.push({
+              source,
+              target,
+              type: 'manages'
+            });
+          }
+        }
+      }
+    }
+    // 检查Dispose调用
+    else if (nodeType.includes('invocation') && mainNode.text.includes('Dispose')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('resource.object')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'resource',
+            type: 'destroys'
+          });
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  // C#特定的并发关系提取
+  extractConcurrencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+    }> = [];
+    const mainNode = result.captures?.[0]?.node;
+
+    if (!mainNode) {
+      return relationships;
+    }
+
+    const nodeType = mainNode.type;
+    
+    // 检查async/await模式
+    if (nodeType.includes('await_expression')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('awaited.expression')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'async_context',
+            type: 'communicates'
+          });
+        }
+      }
+    }
+    // 检查lock语句
+    else if (nodeType.includes('lock_statement')) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('lock.object')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'lock',
+            type: 'synchronizes'
+          });
+        }
+      }
+    }
+    // 检查Monitor方法
+    else if (nodeType.includes('invocation') && 
+             (mainNode.text.includes('Monitor.Enter') || 
+              mainNode.text.includes('Monitor.Exit') ||
+              mainNode.text.includes('Wait') ||
+              mainNode.text.includes('Pulse'))) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('sync.object')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'monitor',
+            type: 'synchronizes'
+          });
+        }
+      }
+    }
+    // 检查Task相关操作
+    else if (nodeType.includes('invocation') && 
+             (mainNode.text.includes('Task.Run') || 
+              mainNode.text.includes('Start') ||
+              mainNode.text.includes('Wait'))) {
+      for (const capture of result.captures || []) {
+        if (capture.name.includes('task.object')) {
+          const source = capture.node?.text || '';
+          
+          relationships.push({
+            source,
+            target: 'task',
+            type: 'communicates'
+          });
+        }
+      }
+    }
+
+    return relationships;
   }
 }
