@@ -38,3 +38,7 @@ txt, csv文件等可能用于存放数据集的需要先检查文件大小，以
 编写专门的检查脚本用于判定src\service\parser\core\normalization\adapters中的适配器与
 src\service\parser\constants\queries目录中导出的查询规则
 与src/service/graph/mapping/LanguageNodeTypes.ts中的图映射定义是否匹配
+
+
+api：调用链完整性分析
+给定json格式的调用链，根据图遍历结果验证

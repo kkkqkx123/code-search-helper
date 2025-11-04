@@ -3,10 +3,10 @@
  * 为TOML、YAML等配置语言提供通用的标准化逻辑
  */
 
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
-import { LRUCache } from '../../../../../utils/LRUCache';
-import { PerformanceMonitor } from '../../../../../infrastructure/monitoring/PerformanceMonitor';
+import { ILanguageAdapter, StandardizedQueryResult } from './types';
+import { LoggerService } from '../../../../utils/LoggerService';
+import { LRUCache } from '../../../../utils/LRUCache';
+import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 
 /**
  * 配置语言适配器选项接口

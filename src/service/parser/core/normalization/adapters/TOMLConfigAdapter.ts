@@ -3,7 +3,7 @@
  * 处理TOML配置文件的查询结果标准化
  */
 
-import { ConfigLanguageAdapter, ConfigAdapterOptions } from './ConfigLanguageAdapter';
+import { ConfigLanguageAdapter, ConfigAdapterOptions } from '../ConfigLanguageAdapter';
 
 /**
  * TOML配置语言适配器
@@ -43,7 +43,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
   extractLanguageSpecificMetadata(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -83,7 +83,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
       'local_time': 'value',
       'array': 'array'
     };
-    
+
     return typeMapping[nodeType] || nodeType;
   }
 
@@ -98,14 +98,14 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
       'dependencies': 'dependency',
       'types': 'type-def'
     };
-    
+
     return mapping[queryType] || 'config-item';
   }
 
   calculateComplexity(result: any): number {
     let complexity = 1;
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return complexity;
     }
@@ -127,14 +127,14 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
   extractDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
 
     // 查找表引用
     this.findTableReferences(mainNode, dependencies);
-    
+
     // 查找数组引用
     this.findArrayReferences(mainNode, dependencies);
 
@@ -144,7 +144,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
   extractModifiers(result: any): string[] {
     const modifiers: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return modifiers;
     }
@@ -171,7 +171,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
 
     // 构建TOML配置路径
     const pathParts: string[] = [];
-    
+
     // 从当前节点向上遍历，构建路径
     let currentNode = mainNode;
     while (currentNode) {
@@ -231,7 +231,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
   protected extractValidationRules(result: any): string[] {
     const rules: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return rules;
     }
@@ -283,7 +283,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
     if (!node.children) {
       return 0;
     }
-    
+
     // 计算数组元素数量
     let count = 0;
     for (const child of node.children) {
@@ -313,7 +313,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
           dependencies.push(tableName);
         }
       }
-      
+
       this.findTableReferences(child, dependencies);
     }
   }
@@ -327,7 +327,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
       if (child.type === 'array') {
         dependencies.push('array');
       }
-      
+
       this.findArrayReferences(child, dependencies);
     }
   }
@@ -341,7 +341,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
         return keyNode.text;
       }
     }
-    
+
     // 尝试从其他位置提取表名
     if (node.children) {
       for (const child of node.children) {
@@ -350,7 +350,7 @@ export class TOMLConfigAdapter extends ConfigLanguageAdapter {
         }
       }
     }
-    
+
     return null;
   }
 }

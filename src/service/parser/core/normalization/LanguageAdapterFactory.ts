@@ -21,7 +21,7 @@ import { CssLanguageAdapter } from './adapters/CssLanguageAdapter';
 import { HtmlLanguageAdapter } from './adapters/HtmlLanguageAdapter';
 import { VueLanguageAdapter } from './adapters/VueLanguageAdapter';
 import { DefaultLanguageAdapter } from './adapters/DefaultLanguageAdapter';
-import { ConfigLanguageAdapter } from './adapters/ConfigLanguageAdapter';
+import { ConfigLanguageAdapter } from './ConfigLanguageAdapter';
 import { TOMLConfigAdapter } from './adapters/TOMLConfigAdapter';
 import { YAMLConfigAdapter } from './adapters/YAMLConfigAdapter';
 import { LoggerService } from '../../../../utils/LoggerService';

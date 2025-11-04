@@ -3,7 +3,7 @@
  * 处理JSON配置文件的查询结果标准化
  */
 
-import { ConfigLanguageAdapter, ConfigAdapterOptions } from './ConfigLanguageAdapter';
+import { ConfigLanguageAdapter, ConfigAdapterOptions } from '../ConfigLanguageAdapter';
 
 /**
  * JSON配置语言适配器
@@ -40,7 +40,7 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
   extractLanguageSpecificMetadata(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -78,7 +78,7 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
       'false': 'value',
       'null': 'value'
     };
-    
+
     return typeMapping[nodeType] || nodeType;
   }
 
@@ -93,14 +93,14 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
       'dependencies': 'dependency',
       'types': 'type-def'
     };
-    
+
     return mapping[queryType] || 'config-item';
   }
 
   calculateComplexity(result: any): number {
     let complexity = 1;
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return complexity;
     }
@@ -126,7 +126,7 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
   extractDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
@@ -140,7 +140,7 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
   extractModifiers(result: any): string[] {
     const modifiers: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return modifiers;
     }
@@ -167,7 +167,7 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
 
     // 构建JSON配置路径
     const pathParts: string[] = [];
-    
+
     // 从当前节点向上遍历，构建路径
     let currentNode = mainNode;
     while (currentNode) {
@@ -222,7 +222,7 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
   protected extractValidationRules(result: any): string[] {
     const rules: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return rules;
     }
@@ -269,17 +269,17 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
     }
 
     const text = node.text.trim();
-    
+
     // 检查是否为整数
     if (/^-?\d+$/.test(text)) {
       return 'integer';
     }
-    
+
     // 检查是否为浮点数
     if (/^-?\d*\.\d+$/.test(text)) {
       return 'float';
     }
-    
+
     return 'number';
   }
 
@@ -287,7 +287,7 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
     if (!node.children) {
       return 0;
     }
-    
+
     // 计算数组元素数量（排除括号和逗号）
     let count = 0;
     for (const child of node.children) {
@@ -338,7 +338,7 @@ export class JSONConfigAdapter extends ConfigLanguageAdapter {
           dependencies.push(text);
         }
       }
-      
+
       this.findStringReferences(child, dependencies);
     }
   }

@@ -3,7 +3,7 @@
  */
 
 import { ConfigLanguageAdapter, ConfigAdapterOptions } from '../ConfigLanguageAdapter';
-import { StandardizedQueryResult } from '../../types';
+import { StandardizedQueryResult } from '../types';
 
 // 创建一个测试用的具体配置语言适配器
 class TestConfigAdapter extends ConfigLanguageAdapter {
@@ -106,7 +106,7 @@ describe('ConfigLanguageAdapter', () => {
       };
 
       const results = await adapter.normalize([mockResult], 'config-items', 'toml');
-      
+
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('config-item');
       expect(results[0].name).toBe('test-config-item');
@@ -159,10 +159,10 @@ describe('ConfigLanguageAdapter', () => {
 
       // 第一次调用
       const results1 = await adapter.normalize([mockResult], 'config-items', 'toml');
-      
+
       // 第二次调用应该使用缓存
       const results2 = await adapter.normalize([mockResult], 'config-items', 'toml');
-      
+
       expect(results1).toEqual(results2);
     });
   });

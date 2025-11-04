@@ -3,7 +3,7 @@
  * 处理YAML配置文件的查询结果标准化
  */
 
-import { ConfigLanguageAdapter, ConfigAdapterOptions } from './ConfigLanguageAdapter';
+import { ConfigLanguageAdapter, ConfigAdapterOptions } from '../ConfigLanguageAdapter';
 
 /**
  * YAML配置语言适配器
@@ -48,7 +48,7 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
   extractLanguageSpecificMetadata(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -109,7 +109,7 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
       'key': 'key',
       'document': 'section'
     };
-    
+
     return typeMapping[nodeType] || nodeType;
   }
 
@@ -124,14 +124,14 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
       'dependencies': 'dependency',
       'types': 'type-def'
     };
-    
+
     return mapping[queryType] || 'config-item';
   }
 
   calculateComplexity(result: any): number {
     let complexity = 1;
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return complexity;
     }
@@ -157,14 +157,14 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
   extractDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
 
     // 查找别名引用
     this.findAliasReferences(mainNode, dependencies);
-    
+
     // 查找锚点定义
     this.findAnchorDefinitions(mainNode, dependencies);
 
@@ -174,7 +174,7 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
   extractModifiers(result: any): string[] {
     const modifiers: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return modifiers;
     }
@@ -207,7 +207,7 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
 
     // 构建YAML配置路径
     const pathParts: string[] = [];
-    
+
     // 从当前节点向上遍历，构建路径
     let currentNode = mainNode;
     while (currentNode) {
@@ -267,7 +267,7 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
   protected extractValidationRules(result: any): string[] {
     const rules: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return rules;
     }
@@ -333,28 +333,28 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
     }
 
     const text = node.text.trim();
-    
+
     // 尝试推断具体的标量类型
     if (text === 'null' || text === '~' || text === '') {
       return 'null';
     }
-    
+
     if (text === 'true' || text === 'false') {
       return 'boolean';
     }
-    
+
     if (/^-?\d+$/.test(text)) {
       return 'integer';
     }
-    
+
     if (/^-?\d*\.\d+$/.test(text)) {
       return 'float';
     }
-    
+
     if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
       return 'date';
     }
-    
+
     return 'string';
   }
 
@@ -417,7 +417,7 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
       if (child.type === 'alias' && child.text) {
         dependencies.push(child.text);
       }
-      
+
       this.findAliasReferences(child, dependencies);
     }
   }
@@ -431,7 +431,7 @@ export class YAMLConfigAdapter extends ConfigLanguageAdapter {
       if (child.type === 'anchor' && child.text) {
         dependencies.push(child.text);
       }
-      
+
       this.findAnchorDefinitions(child, dependencies);
     }
   }

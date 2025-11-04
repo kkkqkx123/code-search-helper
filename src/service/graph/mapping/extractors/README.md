@@ -38,3 +38,25 @@ protected extractParentClassName(parentClass: Parser.SyntaxNode): string | null 
   return null;
 }
 这种方式既高效又符合Tree-Sitter的最佳实践。移除fileContent参数是完全正确的设计决策。
+
+## 关系提取器最佳实践
+
+### 1. 节点文本获取
+- 优先使用 `node.text` 属性直接获取节点文本
+- 避免使用 `treeSitterService.getNodeText()` 方法
+- 不需要传递完整的文件内容参数
+
+### 2. 方法设计原则
+- 接口方法签名应保持简洁，只包含必要的参数
+- 避免传递不必要的参数，减少内存开销
+- 充分利用Tree-Sitter提供的AST节点属性
+
+### 3. 代码一致性
+- 所有关系提取器应遵循相同的设计模式
+- 统一使用 `node.text` 获取节点文本
+- 保持方法命名和参数签名的一致性
+
+### 4. 性能优化
+- 直接使用节点属性比通过服务方法获取更高效
+- 避免传递大对象作为参数
+- 合理利用Tree-Sitter的内置特性
