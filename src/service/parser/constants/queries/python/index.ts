@@ -9,6 +9,9 @@ import imports from './imports';
 import controlFlow from './control-flow';
 import dataStructures from './data-structures';
 import typesDecorators from './types-decorators';
+import dataFlow from './data-flow';
+import semanticRelationships from './semantic-relationships';
+import lifecycleRelationships from './lifecycle-relationships';
 
 export default `
 ${classes}
@@ -24,4 +27,10 @@ ${controlFlow}
 ${dataStructures}
 
 ${typesDecorators}
+
+${dataFlow}
+
+${semanticRelationships}
+
+${lifecycleRelationships}
 `;

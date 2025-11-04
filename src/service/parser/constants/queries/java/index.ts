@@ -5,6 +5,9 @@ Optimized for code chunking and vector embedding
 import classesInterfaces from './classes-interfaces';
 import methodsVariables from './methods-variables';
 import controlFlowPatterns from './control-flow-patterns';
+import dataFlow from './data-flow';
+import semanticRelationships from './semantic-relationships';
+import lifecycleRelationships from './lifecycle-relationships';
 
 export default `
 ${classesInterfaces}
@@ -12,4 +15,10 @@ ${classesInterfaces}
 ${methodsVariables}
 
 ${controlFlowPatterns}
+
+${dataFlow}
+
+${semanticRelationships}
+
+${lifecycleRelationships}
 `;

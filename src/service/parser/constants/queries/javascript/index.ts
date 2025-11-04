@@ -13,6 +13,10 @@ import interfaces from './interfaces';
 import methods from './methods';
 import properties from './properties';
 import types from './types';
+import dataFlow from './data-flow';
+import semanticRelationships from './semantic-relationships';
+import lifecycleRelationships from './lifecycle-relationships';
+import concurrencyRelationships from './concurrency-relationships';
 
 export default `
 ${classes}
@@ -36,4 +40,12 @@ ${methods}
 ${properties}
 
 ${types}
+
+${dataFlow}
+
+${semanticRelationships}
+
+${lifecycleRelationships}
+
+${concurrencyRelationships}
 `;
