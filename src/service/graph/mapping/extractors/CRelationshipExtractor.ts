@@ -7,7 +7,7 @@ import {
   CreationRelationship,
   AnnotationRelationship
 } from '../interfaces/IRelationshipExtractor';
-import { SymbolResolver, Symbol } from '../../symbol/SymbolResolver';
+import { SymbolResolver, Symbol, SymbolType } from '../../symbol/SymbolResolver';
 import { TreeSitterService } from '../../../parser/core/parse/TreeSitterService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { inject, injectable } from 'inversify';
@@ -640,9 +640,9 @@ export class CRelationshipExtractor implements ILanguageRelationshipExtractor {
 
   protected determineReferenceType(identifier: Parser.SyntaxNode, resolvedSymbol: Symbol): 'variable' | 'constant' | 'parameter' | 'field' | 'type' | 'enum' {
     // 实现确定引用类型逻辑
-    if (resolvedSymbol.type === 'type' || resolvedSymbol.type === 'struct') {
+    if (resolvedSymbol.type === SymbolType.TYPE || resolvedSymbol.type === SymbolType.STRUCT) {
       return 'type';
-    } else if (resolvedSymbol.type === 'enum') {
+    } else if (resolvedSymbol.type === SymbolType.ENUM) {
       return 'enum';
     } else if (identifier.parent?.type === 'parameter_declaration') {
       return 'parameter';
@@ -713,7 +713,7 @@ export class CRelationshipExtractor implements ILanguageRelationshipExtractor {
     for (const typeIdent of typeIdentifiers) {
       // 检查类型是否是已定义的结构体
       const resolvedSymbol = symbolResolver.resolveSymbol(typeIdent.text, filePath, typeIdent);
-      if (resolvedSymbol && resolvedSymbol.type === 'struct') {
+      if (resolvedSymbol && resolvedSymbol.type === SymbolType.STRUCT) {
         instances.push({
           structName: typeIdent.text,
           structId: this.generateSymbolId(resolvedSymbol),
@@ -742,7 +742,7 @@ export class CRelationshipExtractor implements ILanguageRelationshipExtractor {
     for (const typeIdent of typeIdentifiers) {
       // 检查类型是否是已定义的枚举
       const resolvedSymbol = symbolResolver.resolveSymbol(typeIdent.text, filePath, typeIdent);
-      if (resolvedSymbol && resolvedSymbol.type === 'enum') {
+      if (resolvedSymbol && resolvedSymbol.type === SymbolType.ENUM) {
         instances.push({
           enumName: typeIdent.text,
           enumId: this.generateSymbolId(resolvedSymbol),

@@ -21,7 +21,7 @@ export default `
     (argument
       (lambda_expression
         parameters: (parameter_list)
-        body: (block) @task.body))) @concurrency.relationship.task.creation
+        body: (block) @task.body)))) @concurrency.relationship.task.creation
 
 ; Task.Run并发关系
 (invocation_expression
@@ -32,7 +32,7 @@ export default `
     (argument
       (lambda_expression
         parameters: (parameter_list)
-        body: (block) @task.action.body))) @concurrency.relationship.task.run
+        body: (block) @task.action.body)))) @concurrency.relationship.task.run
 
 ; Task启动并发关系
 (invocation_expression
@@ -49,7 +49,7 @@ export default `
 ; Task结果获取并发关系
 (member_access_expression
   expression: (identifier) @task.object
-  name: (identifier) @task.result.property)) @concurrency.relationship.task.result
+  name: (identifier) @task.result.property) @concurrency.relationship.task.result
 
 ; 并行任务执行并发关系
 (invocation_expression
@@ -58,7 +58,7 @@ export default `
     name: (identifier) @task.when.all.method)
   arguments: (argument_list
     (argument
-      (identifier) @task.argument1))
+      (identifier) @task.argument1)
     (argument
       (identifier) @task.argument2))) @concurrency.relationship.parallel.tasks
 
@@ -148,7 +148,7 @@ export default `
   type: (identifier) @semaphore.type
   arguments: (argument_list
     (argument
-      (integer_literal) @initial.count))
+      (integer_literal) @initial.count)
     (argument
       (integer_literal) @max.count))) @concurrency.relationship.semaphore.creation
 
@@ -232,7 +232,7 @@ export default `
 ; ConcurrentDictionary访问并发关系
 (member_access_expression
   expression: (identifier) @concurrent.dict.object
-  name: (identifier) @concurrent.dict.method)) @concurrency.relationship.concurrent.dict.access
+  name: (identifier) @concurrent.dict.method) @concurrency.relationship.concurrent.dict.access
 
 ; ConcurrentQueue操作并发关系
 (invocation_expression
@@ -268,7 +268,7 @@ export default `
     name: (identifier) @channel.write.method)
   arguments: (argument_list
     (argument
-      (identifier) @message.to.write)))) @concurrency.relationship.channel.write
+      (identifier) @message.to.write))) @concurrency.relationship.channel.write
 
 ; Channel读取并发关系
 (invocation_expression
@@ -293,7 +293,7 @@ export default `
     name: (identifier) @tcs.set.result.method)
   arguments: (argument_list
     (argument
-      (identifier) @result.value)))) @concurrency.relationship.tcs.set.result
+      (identifier) @result.value))) @concurrency.relationship.tcs.set.result
 
 ; TaskCompletionSource设置异常并发关系
 (invocation_expression
@@ -302,7 +302,7 @@ export default `
     name: (identifier) @tcs.set.exception.method)
   arguments: (argument_list
     (argument
-      (identifier) @exception.to.set)))) @concurrency.relationship.tcs.set.exception
+      (identifier) @exception.to.set))) @concurrency.relationship.tcs.set.exception
 
 ; Parallel.Invoke并发关系
 (invocation_expression
@@ -313,7 +313,7 @@ export default `
     (argument
       (lambda_expression
         parameters: (parameter_list)
-        body: (block) @parallel.action.body))) @concurrency.relationship.parallel.invoke
+        body: (block) @parallel.action.body)))) @concurrency.relationship.parallel.invoke
 
 ; Parallel.For并发关系
 (invocation_expression
@@ -415,7 +415,7 @@ export default `
   left: (member_access_expression
     expression: (identifier) @async.local.object
     name: (identifier) @async.local.value.property)
-  right: (identifier) @async.local.value)) @concurrency.relationship.async.local.set
+  right: (identifier) @async.local.value) @concurrency.relationship.async.local.set
 
 ; Race condition detection - shared variable access without synchronization
 (assignment_expression
@@ -486,7 +486,7 @@ export default `
     (argument
       (lambda_expression
         parameters: (parameter_list)
-        body: (block) @continuation.body))) @concurrency.relationship.task.continuation
+        body: (block) @continuation.body)))) @concurrency.relationship.task.continuation
 
 ; Async method with synchronization context
 (method_declaration
@@ -523,5 +523,5 @@ export default `
 ; ThreadLocal value access concurrent relationship
 (member_access_expression
   expression: (identifier) @thread.local.object
-  name: (identifier) @thread.local.value.property)) @concurrency.relationship.thread.local.value
+  name: (identifier) @thread.local.value.property) @concurrency.relationship.thread.local.value
 `;

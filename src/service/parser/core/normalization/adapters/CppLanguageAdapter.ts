@@ -19,7 +19,11 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
       'namespaces',
       'preprocessor',
       'control-flow',
-      'modern-features'
+      'modern-features',
+      'data-flow',
+      'semantic-relationships',
+      'lifecycle-relationships',
+      'concurrency-relationships'
     ];
   }
 
@@ -308,8 +312,8 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive'> = {
       'classes': 'class',
       'functions': 'function',
       'variables': 'variable',
@@ -317,7 +321,11 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
       'namespaces': 'class',  // 命名空间映射为类
       'preprocessor': 'expression',  // 预处理器映射为表达式
       'control-flow': 'control-flow',
-      'modern-features': 'expression'  // 现代特性映射为表达式
+      'modern-features': 'expression',  // 现代特性映射为表达式
+      'data-flow': 'data-flow',
+      'semantic-relationships': 'semantic-relationship',
+      'lifecycle-relationships': 'lifecycle-event',
+      'concurrency-relationships': 'concurrency-primitive'
     };
 
     return mapping[queryType] || 'expression';
@@ -337,6 +345,10 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     if (nodeType.includes('function') || nodeType.includes('method')) complexity += 1;
     if (nodeType.includes('template')) complexity += 2;
     if (nodeType.includes('operator')) complexity += 1;
+    if (nodeType.includes('data-flow')) complexity += 2;
+    if (nodeType.includes('semantic-relationship')) complexity += 3;
+    if (nodeType.includes('lifecycle-relationship')) complexity += 3;
+    if (nodeType.includes('concurrency-relationship')) complexity += 3;
 
     // C++特定的复杂度因素
     const text = mainNode.text || '';
@@ -351,6 +363,10 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     if (text.includes('co_await') || text.includes('co_yield') || text.includes('co_return')) complexity += 2; // 协程
     if (text.includes('concept')) complexity += 2; // 概念
     if (text.includes('requires')) complexity += 1; // 约束
+    if (text.includes('thread') || text.includes('mutex') || text.includes('condition_variable')) complexity += 2; // 多线程
+    if (text.includes('unique_ptr') || text.includes('shared_ptr') || text.includes('weak_ptr')) complexity += 1; // 智能指针
+    if (text.includes('std::') || text.includes('::')) complexity += 1; // 命名空间使用
+    if (text.includes('try') || text.includes('catch')) complexity += 1; // 异常处理
 
     return complexity;
   }
@@ -371,6 +387,12 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
 
     // 查找模板依赖
     this.findTemplateDependencies(mainNode, dependencies);
+
+    // 查找数据流依赖
+    this.findDataFlowDependencies(mainNode, dependencies);
+
+    // 查找并发相关依赖
+    this.findConcurrencyDependencies(mainNode, dependencies);
 
     return [...new Set(dependencies)]; // 去重
   }
@@ -406,6 +428,12 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     if (text.includes('private:')) modifiers.push('private');
     if (text.includes('protected:')) modifiers.push('protected');
     if (text.includes('friend')) modifiers.push('friend');
+    if (text.includes('co_await')) modifiers.push('coroutine');
+    if (text.includes('co_yield')) modifiers.push('coroutine');
+    if (text.includes('co_return')) modifiers.push('coroutine');
+    if (text.includes('requires')) modifiers.push('requires');
+    if (text.includes('concept')) modifiers.push('concept');
+    if (text.includes('decltype')) modifiers.push('decltype');
 
     return modifiers;
   }
@@ -447,6 +475,317 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
 
       this.findTemplateDependencies(child, dependencies);
     }
+  }
+
+  private findDataFlowDependencies(node: any, dependencies: string[]): void {
+    if (!node || !node.children) {
+      return;
+    }
+
+    for (const child of node.children) {
+      // 查找赋值表达式中的依赖
+      if (child.type === 'assignment_expression') {
+        const rightSide = child.childForFieldName('right');
+        if (rightSide?.type === 'identifier' && rightSide.text) {
+          dependencies.push(rightSide.text);
+        }
+      }
+
+      this.findDataFlowDependencies(child, dependencies);
+    }
+  }
+
+  private findConcurrencyDependencies(node: any, dependencies: string[]): void {
+    if (!node || !node.children) {
+      return;
+    }
+
+    for (const child of node.children) {
+      // 查找并发相关函数
+      if (child.type === 'call_expression') {
+        const functionNode = child.childForFieldName('function');
+        if (functionNode?.text) {
+          const funcText = functionNode.text.toLowerCase();
+          if (funcText.includes('thread') || funcText.includes('mutex') || 
+              funcText.includes('lock') || funcText.includes('future') || 
+              funcText.includes('promise') || funcText.includes('async')) {
+            dependencies.push(funcText);
+          }
+        }
+      }
+
+      this.findConcurrencyDependencies(child, dependencies);
+    }
+  }
+
+  // 高级关系提取方法
+  extractDataFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'assignment' | 'parameter' | 'return';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 提取赋值关系
+    if (mainNode.type === 'assignment_expression') {
+      const leftNode = mainNode.childForFieldName('left');
+      const rightNode = mainNode.childForFieldName('right');
+      if (leftNode?.text && rightNode?.text) {
+        relationships.push({
+          source: rightNode.text,
+          target: leftNode.text,
+          type: 'assignment'
+        });
+      }
+    }
+    
+    // 提取参数传递关系
+    if (mainNode.type === 'call_expression') {
+      const funcNode = mainNode.childForFieldName('function');
+      const argsNode = mainNode.childForFieldName('arguments');
+      
+      if (funcNode?.text && argsNode) {
+        for (const arg of argsNode.children || []) {
+          if (arg.type === 'identifier' && arg.text) {
+            relationships.push({
+              source: arg.text,
+              target: funcNode.text,
+              type: 'parameter'
+            });
+          }
+        }
+      }
+    }
+    
+    // 提取返回值关系
+    if (mainNode.type === 'return_statement') {
+      const valueNode = mainNode.children?.find((child: any) => child.type === 'identifier');
+      if (valueNode?.text) {
+        relationships.push({
+          source: valueNode.text,
+          target: 'function_return',
+          type: 'return'
+        });
+      }
+    }
+    
+    // 提取智能指针关系
+    if (mainNode.type === 'call_expression') {
+      const funcNode = mainNode.childForFieldName('function');
+      if (funcNode?.text && (funcNode.text.includes('make_unique') || funcNode.text.includes('make_shared'))) {
+        const argsNode = mainNode.childForFieldName('arguments');
+        if (argsNode) {
+          for (const arg of argsNode.children || []) {
+            if (arg.type === 'identifier' && arg.text) {
+              relationships.push({
+                source: arg.text,
+                target: funcNode.text,
+                type: 'assignment'
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  extractControlFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'conditional' | 'loop' | 'exception' | 'callback';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 条件控制流
+    if (mainNode.type === 'if_statement' || mainNode.type === 'conditional_expression') {
+      const condition = mainNode.childForFieldName('condition')?.text || 'condition';
+      relationships.push({
+        source: condition,
+        target: 'if_branch',
+        type: 'conditional'
+      });
+    }
+    
+    // 循环控制流
+    if (mainNode.type.includes('for_') || mainNode.type.includes('while_') || mainNode.type === 'do_statement') {
+      relationships.push({
+        source: 'loop_condition',
+        target: 'loop_body',
+        type: 'loop'
+      });
+    }
+    
+    // 异常控制流
+    if (mainNode.type === 'try_statement' || mainNode.type === 'catch_clause') {
+      relationships.push({
+        source: 'exception_source',
+        target: 'catch_handler',
+        type: 'exception'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractSemanticRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 虚函数重写关系
+    const text = mainNode.text || '';
+    if (text.includes('override')) {
+      relationships.push({
+        source: 'derived_method',
+        target: 'base_method',
+        type: 'overrides'
+      });
+    }
+    
+    // 函数重载关系
+    if (mainNode.type === 'function_definition' && text.includes('operator')) {
+      relationships.push({
+        source: 'operator',
+        target: 'operands',
+        type: 'overloads'
+      });
+    }
+    
+    // 模板特化关系
+    if (mainNode.type === 'template_declaration') {
+      relationships.push({
+        source: 'template_specialization',
+        target: 'primary_template',
+        type: 'overloads'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractLifecycleRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    // 构造函数关系
+    if (mainNode.type === 'function_definition' && 
+        (mainNode.text?.includes('constructor') || mainNode.text?.includes('ctor'))) {
+      relationships.push({
+        source: 'constructor',
+        target: 'object_instance',
+        type: 'initializes'
+      });
+    }
+    
+    // 析构函数关系
+    if (mainNode.type === 'function_definition' && 
+        (mainNode.text?.includes('destructor') || mainNode.text?.includes('dtor'))) {
+      relationships.push({
+        source: 'destructor',
+        target: 'object_instance',
+        type: 'destroys'
+      });
+    }
+    
+    // 智能指针管理关系
+    const text = mainNode.text || '';
+    if (text.includes('unique_ptr') || text.includes('shared_ptr')) {
+      relationships.push({
+        source: 'smart_pointer',
+        target: 'managed_object',
+        type: 'manages'
+      });
+    }
+
+    return relationships;
+  }
+
+  extractConcurrencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  }> {
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+    }> = [];
+    
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return relationships;
+    }
+
+    const text = mainNode.text || '';
+    // C++并发关系（如使用std::thread, std::mutex等）
+    if (text.includes('std::mutex') || text.includes('lock_guard') || text.includes('unique_lock')) {
+      relationships.push({
+        source: 'mutex',
+        target: 'critical_section',
+        type: 'locks'
+      });
+    }
+    
+    if (text.includes('std::thread')) {
+      relationships.push({
+        source: 'thread_creator',
+        target: 'new_thread',
+        type: 'synchronizes'
+      });
+    }
+    
+    if (text.includes('std::promise') || text.includes('std::future') || text.includes('std::async')) {
+      relationships.push({
+        source: 'sync_object',
+        target: 'async_operation',
+        type: 'communicates'
+      });
+    }
+
+    return relationships;
   }
 
   // 重写isBlockNode方法以支持C++特定的块节点类型

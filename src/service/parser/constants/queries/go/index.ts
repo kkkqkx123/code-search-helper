@@ -5,6 +5,11 @@ Optimized for code chunking and vector embedding
 import functionsTypes from './functions-types';
 import variablesImports from './variables-imports';
 import expressionsControlFlow from './expressions-control-flow';
+import dataFlow from './data-flow';
+import controlFlowRelationships from './control-flow-relationships';
+import semanticRelationships from './semantic-relationships';
+import lifecycleRelationships from './lifecycle-relationships';
+import concurrencyRelationships from './concurrency-relationships';
 
 export default `
 ${functionsTypes}
@@ -12,4 +17,14 @@ ${functionsTypes}
 ${variablesImports}
 
 ${expressionsControlFlow}
+
+${dataFlow}
+
+${controlFlowRelationships}
+
+${semanticRelationships}
+
+${lifecycleRelationships}
+
+${concurrencyRelationships}
 `;

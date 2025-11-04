@@ -52,7 +52,7 @@ export default `
   (accessor_list
     (accessor_declaration
       name: (identifier) @getter.setter.name
-      body: (block) @getter.setter.body)) @lifecycle.relationship.property.declaration
+      body: (block) @getter.setter.body))) @lifecycle.relationship.property.declaration
 
 ; 自动属性生命周期
 (property_declaration
@@ -61,7 +61,7 @@ export default `
 ; 只读属性生命周期
 (property_declaration
   (modifier) @readonly.modifier
-  name: (identifier) @readonly.property.name)) @lifecycle.relationship.readonly.property
+  name: (identifier) @readonly.property.name) @lifecycle.relationship.readonly.property
 
 ; 事件声明生命周期
 (event_declaration
@@ -74,7 +74,7 @@ export default `
   (accessor_list
     (accessor_declaration
       name: (identifier) @add.remove.name
-      body: (block) @add.remove.body)) @lifecycle.relationship.event.accessor
+      body: (block) @add.remove.body))) @lifecycle.relationship.event.accessor
 
 ; using语句生命周期
 (using_statement
@@ -87,7 +87,7 @@ export default `
     (variable_declarator
       name: (identifier) @using.declaration
       value: (invocation_expression
-        function: (identifier) @resource.factory))) @lifecycle.relationship.using.declaration
+        function: (identifier) @resource.factory)))) @lifecycle.relationship.using.declaration
 
 ; IDisposable实现生命周期
 (class_declaration
@@ -169,7 +169,7 @@ export default `
 
 ; 异步生命周期 - await表达式
 (await_expression
-  (identifier) @awaited.expression)) @lifecycle.relationship.await
+  (identifier) @awaited.expression) @lifecycle.relationship.await
 
 ; 任务创建生命周期
 (object_creation_expression
@@ -190,7 +190,7 @@ export default `
 
 ; 协程生命周期
 (yield_statement
-  (identifier) @yielded.value)) @lifecycle.relationship.coroutine.yield
+  (identifier) @yielded.value) @lifecycle.relationship.coroutine.yield
 
 ; 协程结束生命周期
 (yield_statement) @lifecycle.relationship.coroutine.end
@@ -200,7 +200,7 @@ export default `
   type: (identifier) @lazy.type
   arguments: (argument_list
     (argument
-      (identifier) @lazy.value.factory)))) @lifecycle.relationship.lazy.initialization
+      (identifier) @lazy.value.factory))) @lifecycle.relationship.lazy.initialization
 
 ; 延迟线程安全初始化生命周期
 (invocation_expression
@@ -219,7 +219,7 @@ export default `
 ; 静态类初始化生命周期
 (class_declaration
   (modifier) @static.modifier
-  name: (identifier) @static.class.name)) @lifecycle.relationship.static.class
+  name: (identifier) @static.class.name) @lifecycle.relationship.static.class
 
 ; 局部变量声明生命周期
 (local_declaration_statement
@@ -267,7 +267,7 @@ export default `
   left: (member_access_expression
     expression: (identifier) @nullable.variable
     name: (identifier) @nullable.has.value)
-  operator: (identifier) @null.check.operator)
+  operator: (identifier) @null.check.operator
   right: (true_literal)) @lifecycle.relationship.nullable.check
 
 ; 模式匹配生命周期
@@ -280,13 +280,13 @@ export default `
 (binary_expression
   left: (identifier) @left.operand
   operator: "??"
-  right: (identifier) @right.operand)) @lifecycle.relationship.null.coalescing
+  right: (identifier) @right.operand) @lifecycle.relationship.null.coalescing
 
 ; 空条件操作生命周期
 (member_access_expression
   expression: (identifier) @safe.nav.object
   name: (identifier) @safe.nav.property
-  operator: "?")) @lifecycle.relationship.null.conditional
+  operator: "?") @lifecycle.relationship.null.conditional
 
 ; 内存分配生命周期
 (object_creation_expression
@@ -324,8 +324,9 @@ export default `
 (with_expression
   (identifier) @source.record
   (with_initializer
-    (identifier) @property.to.change)
-    (identifier) @new.property.value)) @lifecycle.relationship.with.expression
+    (assignment_expression
+      left: (identifier) @property.to.change
+      right: (identifier) @new.property.value))) @lifecycle.relationship.with.expression
 
 ; 初始化器表达式生命周期
 (initializer_expression
@@ -338,14 +339,14 @@ export default `
   left: (member_access_expression
     expression: (identifier) @event.source
     name: (identifier) @event.name)
-  right: (identifier) @event.handler)) @lifecycle.relationship.event.subscription
+  right: (identifier) @event.handler) @lifecycle.relationship.event.subscription
 
 ; 委托生命周期 - 事件取消订阅
 (assignment_expression
   left: (member_access_expression
     expression: (identifier) @event.source
     name: (identifier) @event.name)
-  right: (identifier) @event.handler)) @lifecycle.relationship.event.unsubscription
+  right: (identifier) @event.handler) @lifecycle.relationship.event.unsubscription
 
 ; 委托生命周期 - 委托组合
 (invocation_expression

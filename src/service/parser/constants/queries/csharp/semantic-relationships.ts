@@ -35,33 +35,33 @@ export default `
 ; 抽象方法定义关系
 (method_declaration
   (modifier) @abstract.modifier
-  name: (identifier) @abstract.method)) @semantic.relationship.abstract.method
+  name: (identifier) @abstract.method) @semantic.relationship.abstract.method
 
 ; 虚方法定义关系
 (method_declaration
   (modifier) @virtual.modifier
-  name: (identifier) @virtual.method)) @semantic.relationship.virtual.method
+  name: (identifier) @virtual.method) @semantic.relationship.virtual.method
 
 ; 显式接口实现关系
 (method_declaration
   (explicit_interface_specifier
     (identifier) @interface.name)
-  name: (identifier) @implemented.method)) @semantic.relationship.explicit.interface.implementation
+  name: (identifier) @implemented.method) @semantic.relationship.explicit.interface.implementation
 
 ; 属性重写关系
 (property_declaration
   (modifier) @override.modifier
-  name: (identifier) @overridden.property)) @semantic.relationship.property.override
+  name: (identifier) @overridden.property) @semantic.relationship.property.override
 
 ; 索引器重写关系
 (indexer_declaration
   (modifier) @override.modifier
-  type: (identifier) @overridden.indexer.type)) @semantic.relationship.indexer.override
+  type: (identifier) @overridden.indexer.type) @semantic.relationship.indexer.override
 
 ; 事件重写关系
 (event_declaration
   (modifier) @override.modifier
-  name: (identifier) @overridden.event)) @semantic.relationship.event.override
+  name: (identifier) @overridden.event) @semantic.relationship.event.override
 
 ; 泛型类型参数关系
 (class_declaration
@@ -80,19 +80,19 @@ export default `
 ; 泛型约束关系
 (type_parameter_constraints_clause
   (identifier) @constrained.type.parameter)
-  (type_parameter_constraint)) @semantic.relationship.generic.constraint
+  (type_parameter_constraint) @semantic.relationship.generic.constraint
 
 ; 基类约束关系
 (type_parameter_constraints_clause
   (identifier) @constrained.type.parameter)
   (type_parameter_constraint
-    (identifier) @base.class.constraint)) @semantic.relationship.base.class.constraint
+    (identifier) @base.class.constraint) @semantic.relationship.base.class.constraint
 
 ; 接口约束关系
 (type_parameter_constraints_clause
   (identifier) @constrained.type.parameter)
   (type_parameter_constraint
-    (identifier) @interface.constraint)) @semantic.relationship.interface.constraint
+    (identifier) @interface.constraint) @semantic.relationship.interface.constraint
 
 ; 构造函数约束关系
 (type_parameter_constraints_clause
@@ -103,14 +103,14 @@ export default `
 ; 观察者模式 - 事件定义
 (event_declaration
   type: (identifier) @event.handler.type
-  name: (identifier) @event.name)) @semantic.relationship.observer.event
+  name: (identifier) @event.name) @semantic.relationship.observer.event
 
 ; 观察者模式 - 事件订阅
 (assignment_expression
   left: (member_access_expression
     expression: (identifier) @subscriber.object
     name: (identifier) @subscriber.event)
-  right: (identifier) @event.handler)) @semantic.relationship.observer.subscription
+  right: (identifier) @event.handler) @semantic.relationship.observer.subscription
 
 ; 观察者模式 - 事件触发
 (invocation_expression
@@ -126,7 +126,7 @@ export default `
 ; 委托赋值关系
 (assignment_expression
   left: (identifier) @delegate.instance
-  right: (identifier) @delegate.method)) @semantic.relationship.delegate.assignment
+  right: (identifier) @delegate.method) @semantic.relationship.delegate.assignment
 
 ; 委托组合关系
 (invocation_expression
@@ -157,16 +157,16 @@ export default `
       (variable_declaration
         (variable_declarator
           name: (identifier) @strategy.field
-          value: (identifier) @strategy.instance)))) @semantic.relationship.strategy.context
+          value: (identifier) @strategy.instance))))) @semantic.relationship.strategy.context
 
 ; 工厂模式 - 工厂方法
 (method_declaration
   name: (identifier) @factory.method
-  return_type: (identifier) @product.type)) @semantic.relationship.factory.method
+  return_type: (identifier) @product.type) @semantic.relationship.factory.method
 
 ; 工厂模式 - 产品接口
 (interface_declaration
-  name: (identifier) @product.interface)) @semantic.relationship.product.interface
+  name: (identifier) @product.interface) @semantic.relationship.product.interface
 
 ; 抽象工厂模式 - 抽象工厂接口
 (interface_declaration
@@ -182,13 +182,13 @@ export default `
   (variable_declaration
     type: (identifier) @singleton.type
     (variable_declarator
-      name: (identifier) @singleton.instance)) @semantic.relationship.singleton.instance
+      name: (identifier) @singleton.instance))) @semantic.relationship.singleton.instance
 
 ; 单例模式 - 获取实例方法
 (method_declaration
   (modifier) @static.modifier
   name: (identifier) @singleton.get.method
-  return_type: (identifier) @singleton.type)) @semantic.relationship.singleton.access
+  return_type: (identifier) @singleton.type) @semantic.relationship.singleton.access
 
 ; 适配器模式 - 适配器类
 (class_declaration
@@ -204,7 +204,7 @@ export default `
       (variable_declaration
         type: (identifier) @adaptee.field.type
         (variable_declarator
-          name: (identifier) @adaptee.instance)))) @semantic.relationship.adaptee.class
+          name: (identifier) @adaptee.instance))))) @semantic.relationship.adaptee.class
 
 ; 装饰器模式 - 装饰器基类
 (class_declaration
@@ -240,7 +240,7 @@ export default `
 ; 原型模式 - 克隆方法
 (method_declaration
   name: (identifier) @clone.method
-  return_type: (identifier) @cloned.object.type)) @semantic.relationship.prototype.clone
+  return_type: (identifier) @cloned.object.type) @semantic.relationship.prototype.clone
 
 ; 享元模式 - 享元工厂
 (class_declaration
@@ -281,7 +281,7 @@ export default `
       (variable_declaration
         type: (identifier) @command.type
         (variable_declarator
-          name: (identifier) @command.field)))) @semantic.relationship.invoker
+          name: (identifier) @command.field))))) @semantic.relationship.invoker
 
 ; 外观模式 - 外观类
 (class_declaration
@@ -291,11 +291,11 @@ export default `
       (variable_declaration
         type: (identifier) @subsystem.type
         (variable_declarator
-          name: (identifier) @subsystem.instance)))) @semantic.relationship.facade
+          name: (identifier) @subsystem.instance))))) @semantic.relationship.facade
 
 ; 桥接模式 - 实现接口
 (interface_declaration
-  name: (identifier) @implementation.interface)) @semantic.relationship.implementation.interface
+  name: (identifier) @implementation.interface) @semantic.relationship.implementation.interface
 
 ; 桥接模式 - 抽象类
 (class_declaration
@@ -305,7 +305,7 @@ export default `
       (variable_declaration
         type: (identifier) @implementation.type
         (variable_declarator
-          name: (identifier) @implementation.field)))) @semantic.relationship.abstraction.class
+          name: (identifier) @implementation.field))))) @semantic.relationship.abstraction.class
 
 ; 组合模式 - 组件接口
 (interface_declaration
@@ -329,11 +329,11 @@ export default `
       (variable_declaration
         type: (array_type) @children.type
         (variable_declarator
-          name: (identifier) @children.field)))) @semantic.relationship.composite.node
+          name: (identifier) @children.field))))) @semantic.relationship.composite.node
 
 ; 备忘录模式 - 备忘录类
 (class_declaration
-  name: (identifier) @memento.class)) @semantic.relationship.memento
+  name: (identifier) @memento.class) @semantic.relationship.memento
 
 ; 备忘录模式 - 发起者类
 (class_declaration
@@ -350,7 +350,7 @@ export default `
       (variable_declaration
         type: (identifier) @memento.type
         (variable_declarator
-          name: (identifier) @memento.field)))) @semantic.relationship.caretaker
+          name: (identifier) @memento.field))))) @semantic.relationship.caretaker
 
 ; 访问者模式 - 访问者接口
 (interface_declaration
@@ -384,7 +384,7 @@ export default `
       (variable_declaration
         type: (identifier) @next.handler.type
         (variable_declarator
-          name: (identifier) @next.handler.field)))) @semantic.relationship.handler.chain
+          name: (identifier) @next.handler.field))))) @semantic.relationship.handler.chain
 
 ; 迭代器模式 - 迭代器接口
 (interface_declaration
@@ -400,7 +400,7 @@ export default `
 
 ; 中介者模式 - 中介者接口
 (interface_declaration
-  name: (identifier) @mediator.interface)) @semantic.relationship.mediator.interface
+  name: (identifier) @mediator.interface) @semantic.relationship.mediator.interface
 
 ; 中介者模式 - 同事类
 (class_declaration
@@ -410,7 +410,7 @@ export default `
       (variable_declaration
         type: (identifier) @mediator.type
         (variable_declarator
-          name: (identifier) @mediator.field)))) @semantic.relationship.colleague.class
+          name: (identifier) @mediator.field))))) @semantic.relationship.colleague.class
 
 ; 依赖注入关系
 (constructor_declaration
@@ -422,7 +422,7 @@ export default `
 ; 属性注入关系
 (property_declaration
   name: (identifier) @injectable.property
-  type: (identifier) @property.type)) @semantic.relationship.property.injection
+  type: (identifier) @property.type) @semantic.relationship.property.injection
 
 ; 方法注入关系
 (method_declaration
@@ -434,7 +434,7 @@ export default `
 
 ; 特性(Attributes)关系
 (attribute
-  name: (identifier) @attribute.name)) @semantic.relationship.attribute
+  name: (identifier) @attribute.name) @semantic.relationship.attribute
 
 ; 特性参数关系
 (attribute
@@ -446,7 +446,7 @@ export default `
 ; 事件定义关系
 (event_declaration
   type: (identifier) @event.delegate.type
-  name: (identifier) @event.name)) @semantic.relationship.event.definition
+  name: (identifier) @event.name) @semantic.relationship.event.definition
 
 ; 事件处理关系
 (method_declaration
@@ -463,15 +463,15 @@ export default `
     (parameter
       (modifier) @this.modifier
       type: (identifier) @extended.type
-      name: (identifier) @extended.instance)))) @semantic.relationship.extension.method
+      name: (identifier) @extended.instance))) @semantic.relationship.extension.method
 
 ; 部分类关系
 (class_declaration
   (modifier) @partial.modifier
-  name: (identifier) @partial.class.name)) @semantic.relationship.partial.class
+  name: (identifier) @partial.class.name) @semantic.relationship.partial.class
 
 ; 部分方法关系
 (method_declaration
   (modifier) @partial.modifier
-  name: (identifier) @partial.method.name)) @semantic.relationship.partial.method
+  name: (identifier) @partial.method.name) @semantic.relationship.partial.method
 `;

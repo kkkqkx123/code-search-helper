@@ -26,7 +26,7 @@ export interface CallRelationship {
 export interface InheritanceRelationship {
   parentId: string;
   childId: string;
-  inheritanceType: 'extends' | 'implements' | 'mixin' | 'enum_member' | 'contains';
+  inheritanceType: 'extends' | 'implements' | 'mixin' | 'enum_member' | 'contains' | 'embedded_struct';
   location: {
     filePath: string;
     lineNumber: number;
@@ -40,7 +40,7 @@ export interface InheritanceRelationship {
 export interface DependencyRelationship {
   sourceId: string;
   targetId: string;
-  dependencyType: 'import' | 'export' | 'type_dependency' | 'namespace';
+  dependencyType: 'import' | 'export' | 'type_dependency' | 'namespace' | 'include';
   target: string;
   location: {
     filePath: string;

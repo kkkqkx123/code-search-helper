@@ -122,19 +122,19 @@ export default `
 ; 委托赋值数据流
 (assignment_expression
   left: (identifier) @target.delegate
-  right: (identifier) @source.function)) @data.flow.delegate.assignment
+  right: (identifier) @source.function) @data.flow.delegate.assignment
 
 ; 事件订阅数据流
 (assignment_expression
   left: (member_access_expression
     expression: (identifier) @target.object
     name: (identifier) @target.event)
-  right: (identifier) @source.handler)) @data.flow.event.subscriber
+  right: (identifier) @source.handler) @data.flow.event.subscriber
 
 ; 类型转换数据流
 (cast_expression
   value: (identifier) @source.variable
-  type: (identifier) @target.type)) @data.flow.cast
+  type: (identifier) @target.type) @data.flow.cast
 
 ; 显式类型转换数据流
 (invocation_expression
@@ -150,7 +150,7 @@ export default `
   function: (generic_name
     (identifier) @target.method
     (type_argument_list
-      (identifier) @type.argument)))
+      (identifier) @type.argument))
   arguments: (argument_list
     (argument
       (identifier) @source.argument))) @data.flow.generic.method
@@ -166,7 +166,7 @@ export default `
 (conditional_expression
   condition: (identifier) @source.condition
   consequence: (identifier) @source.consequence
-  alternative: (identifier) @source.alternative)) @data.flow.ternary.operator
+  alternative: (identifier) @source.alternative) @data.flow.ternary.operator
 
 ; using声明数据流
 (local_declaration_statement

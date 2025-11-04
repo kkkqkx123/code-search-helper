@@ -54,7 +54,7 @@ If no file is specified, the script will check the default C++ lifecycle-relatio
 
 // Get default file path based on language
 function getDefaultFilePath(language) {
-  const supportedLanguages = ['cpp', 'javascript', 'python', 'java', 'c', 'csharp'];
+  const supportedLanguages = ['cpp', 'javascript', 'python', 'java', 'c', 'csharp', 'go'];
   const lang = language || 'cpp';
   
   if (!supportedLanguages.includes(lang)) {

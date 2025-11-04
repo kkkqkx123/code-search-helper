@@ -10,6 +10,7 @@ export enum SymbolType {
   METHOD = 'method',
   CLASS = 'class',
   INTERFACE = 'interface',
+  STRUCT = 'struct',
   TYPE = 'type',
   ENUM = 'enum',
   VARIABLE = 'variable',

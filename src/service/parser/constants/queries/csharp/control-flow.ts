@@ -111,7 +111,7 @@ export default `
 
 ; throw表达式控制流
 (throw_expression
-  (identifier) @source.throw.exception)) @control.flow.throw.expression
+  (identifier) @source.throw.exception) @control.flow.throw.expression
 
 ; lock语句控制流
 (lock_statement
@@ -121,7 +121,7 @@ export default `
 ; using语句控制流
 (using_statement
   body: (block) @target.using.body
-  (identifier) @source.using.resource)) @control.flow.using.statement
+  (identifier) @source.using.resource) @control.flow.using.statement
 
 ; using声明控制流
 (local_declaration_statement
@@ -132,7 +132,7 @@ export default `
 
 ; 异步await控制流
 (await_expression
-  (identifier) @source.await.expression)) @control.flow.await
+  (identifier) @source.await.expression) @control.flow.await
 
 ; 异步方法控制流
 (method_declaration
@@ -176,7 +176,7 @@ export default `
 
 ; yield return控制流
 (yield_statement
-  (identifier) @source.yield.value)) @control.flow.yield.return
+  (identifier) @source.yield.value) @control.flow.yield.return
 
 ; yield break控制流
 (yield_statement) @control.flow.yield.break

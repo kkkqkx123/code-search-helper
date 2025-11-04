@@ -10,7 +10,7 @@ function parseArgs() {
   for (const arg of args) {
     if (arg.startsWith('--lang=') || arg.startsWith('--language=')) {
       const lang = arg.split('=')[1]?.toLowerCase();
-      if (lang && ['javascript', 'python', 'java', 'c', 'csharp', 'cpp'].includes(lang)) {
+      if (lang && ['javascript', 'python', 'java', 'c', 'csharp', 'cpp', 'go'].includes(lang)) {
         languages.push(lang);
       } else {
         console.error(`Invalid language: ${lang}. Supported languages: javascript, python, java, c, csharp, cpp`);
@@ -40,7 +40,7 @@ Examples:
   }
 
   // If no languages specified, run all
-  return languages.length > 0 ? languages : ['javascript', 'python', 'java', 'c', 'csharp', 'cpp'];
+  return languages.length > 0 ? languages : ['javascript', 'python', 'java', 'c', 'csharp', 'cpp', 'go'];
 }
 
 async function testQueryFilesExistence(selectedLanguages: string[]) {
@@ -166,6 +166,28 @@ async function testQueryFilesExistence(selectedLanguages: string[]) {
     }
   }
 
+  if (selectedLanguages.includes('go')) {
+    // Test Go queries
+  console.log('\nTesting Go query files...');
+  try {
+    const goDataFlow = await import('../../src/service/parser/constants/queries/go/data-flow');
+    console.log(`✓ Go data-flow query loaded: ${goDataFlow.default.length} characters`);
+
+    const goControlFlow = await import('../../src/service/parser/constants/queries/go/control-flow-relationships');
+    console.log(`✓ Go control-flow-relationships query loaded: ${goControlFlow.default.length} characters`);
+
+    const goSemantic = await import('../../src/service/parser/constants/queries/go/semantic-relationships');
+    console.log(`✓ Go semantic-relationships query loaded: ${goSemantic.default.length} characters`);
+
+    const goLifecycle = await import('../../src/service/parser/constants/queries/go/lifecycle-relationships');
+    console.log(`✓ Go lifecycle-relationships query loaded: ${goLifecycle.default.length} characters`);
+
+    const goConcurrency = await import('../../src/service/parser/constants/queries/go/concurrency-relationships');
+    console.log(`✓ Go concurrency-relationships query loaded: ${goConcurrency.default.length} characters`);
+    } catch (error) {
+      console.error('Error loading Go query files:', error);
+    }
+  }
   console.log(`\n✅ Query files for selected languages (${selectedLanguages.join(', ')}) have been successfully tested!`);
 }
 
@@ -346,6 +368,24 @@ async function testQuerySyntax(selectedLanguages: string[]) {
 
     const csConcurrency = await import('../../src/service/parser/constants/queries/csharp/concurrency-relationships');
     await validateQuerySyntax(csConcurrency.default, 'C#', 'concurrency-relationships');
+  }
+
+  if (selectedLanguages.includes('go')) {
+    // Go queries
+    const goDataFlow = await import('../../src/service/parser/constants/queries/go/data-flow');
+    await validateQuerySyntax(goDataFlow.default, 'Go', 'data-flow');
+
+    const goControlFlow = await import('../../src/service/parser/constants/queries/go/control-flow-relationships');
+    await validateQuerySyntax(goControlFlow.default, 'Go', 'control-flow-relationships');
+
+    const goSemantic = await import('../../src/service/parser/constants/queries/go/semantic-relationships');
+    await validateQuerySyntax(goSemantic.default, 'Go', 'semantic-relationships');
+
+    const goLifecycle = await import('../../src/service/parser/constants/queries/go/lifecycle-relationships');
+    await validateQuerySyntax(goLifecycle.default, 'Go', 'lifecycle-relationships');
+
+    const goConcurrency = await import('../../src/service/parser/constants/queries/go/concurrency-relationships');
+    await validateQuerySyntax(goConcurrency.default, 'Go', 'concurrency-relationships');
   }
 
   if (selectedLanguages.includes('cpp')) {
