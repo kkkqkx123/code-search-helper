@@ -1,6 +1,5 @@
 import {
   ReferenceRelationship,
-  SymbolResolver,
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
@@ -12,8 +11,7 @@ import {
 export class ReferenceExtractor extends BaseCRelationshipExtractor {
   async extractReferenceRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ReferenceRelationship[]> {
     const relationships: ReferenceRelationship[] = [];
 
@@ -25,26 +23,20 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
     for (const identifier of identifiers) {
       const identifierName = identifier.text;
 
-      // 使用符号解析器解析引用的符号
-      const resolvedSymbol = symbolResolver.resolveSymbol(identifierName, filePath, identifier);
+      // 确定引用类型
+      const referenceType = this.determineReferenceType(identifier) as 'variable' | 'constant' | 'parameter' | 'field' | 'type' | 'enum';
 
-      if (resolvedSymbol) {
-        // 确定引用类型
-        const referenceType = this.determineReferenceType(identifier, resolvedSymbol) as 'variable' | 'constant' | 'parameter' | 'field' | 'type' | 'enum';
-
-        relationships.push({
-          sourceId: generateDeterministicNodeId(identifier),
-          targetId: this.generateSymbolId(resolvedSymbol),
-          referenceType,
-          referenceName: identifierName,
-          location: {
-            filePath,
-            lineNumber: identifier.startPosition.row + 1,
-            columnNumber: identifier.startPosition.column + 1
-          },
-          resolvedSymbol
-        });
-      }
+      relationships.push({
+        sourceId: generateDeterministicNodeId(identifier),
+        targetId: this.generateNodeId(identifierName, 'identifier', filePath),
+        referenceType,
+        referenceName: identifierName,
+        location: {
+          filePath,
+          lineNumber: identifier.startPosition.row + 1,
+          columnNumber: identifier.startPosition.column + 1
+        }
+      });
     }
 
     // 查找字段表达式引用
@@ -56,25 +48,20 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
       const fieldName = this.extractFieldNameFromFieldExpression(fieldExpr);
 
       if (fieldName) {
-        const resolvedSymbol = symbolResolver.resolveSymbol(fieldName, filePath, fieldExpr);
+        // 确定引用类型
+        const referenceType = this.determineReferenceType(fieldExpr) as 'variable' | 'constant' | 'parameter' | 'field';
 
-        if (resolvedSymbol) {
-          // 确定引用类型
-          const referenceType = this.determineReferenceType(fieldExpr, resolvedSymbol) as 'variable' | 'constant' | 'parameter' | 'field';
-
-          relationships.push({
-            sourceId: generateDeterministicNodeId(fieldExpr),
-            targetId: this.generateSymbolId(resolvedSymbol),
-            referenceType,
-            referenceName: fieldName,
-            location: {
-              filePath,
-              lineNumber: fieldExpr.startPosition.row + 1,
-              columnNumber: fieldExpr.startPosition.column + 1
-            },
-            resolvedSymbol
-          });
-        }
+        relationships.push({
+          sourceId: generateDeterministicNodeId(fieldExpr),
+          targetId: this.generateNodeId(fieldName, 'field', filePath),
+          referenceType,
+          referenceName: fieldName,
+          location: {
+            filePath,
+            lineNumber: fieldExpr.startPosition.row + 1,
+            columnNumber: fieldExpr.startPosition.column + 1
+          }
+        });
       }
     }
 
@@ -86,22 +73,17 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
     for (const funcDecl of functionDeclarations) {
       const funcName = this.extractFunctionName(funcDecl);
       if (funcName) {
-        const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, funcDecl);
-
-        if (resolvedSymbol) {
-          relationships.push({
-            sourceId: generateDeterministicNodeId(funcDecl),
-            targetId: this.generateSymbolId(resolvedSymbol),
-            referenceType: 'function',
-            referenceName: funcName,
-            location: {
-              filePath,
-              lineNumber: funcDecl.startPosition.row + 1,
-              columnNumber: funcDecl.startPosition.column + 1
-            },
-            resolvedSymbol
-          });
-        }
+        relationships.push({
+          sourceId: generateDeterministicNodeId(funcDecl),
+          targetId: this.generateNodeId(funcName, 'function', filePath),
+          referenceType: 'function',
+          referenceName: funcName,
+          location: {
+            filePath,
+            lineNumber: funcDecl.startPosition.row + 1,
+            columnNumber: funcDecl.startPosition.column + 1
+          }
+        });
       }
     }
 
@@ -113,22 +95,17 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
     for (const varDecl of variableDeclarations) {
       const varName = this.extractVariableName(varDecl);
       if (varName) {
-        const resolvedSymbol = symbolResolver.resolveSymbol(varName, filePath, varDecl);
-
-        if (resolvedSymbol) {
-          relationships.push({
-            sourceId: generateDeterministicNodeId(varDecl),
-            targetId: this.generateSymbolId(resolvedSymbol),
-            referenceType: 'variable',
-            referenceName: varName,
-            location: {
-              filePath,
-              lineNumber: varDecl.startPosition.row + 1,
-              columnNumber: varDecl.startPosition.column + 1
-            },
-            resolvedSymbol
-          });
-        }
+        relationships.push({
+          sourceId: generateDeterministicNodeId(varDecl),
+          targetId: this.generateNodeId(varName, 'variable', filePath),
+          referenceType: 'variable',
+          referenceName: varName,
+          location: {
+            filePath,
+            lineNumber: varDecl.startPosition.row + 1,
+            columnNumber: varDecl.startPosition.column + 1
+          }
+        });
       }
     }
 
@@ -137,23 +114,17 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
     for (const typeIdentifier of typeIdentifiers) {
       const typeName = typeIdentifier.text;
 
-      // 使用符号解析器解析类型符号
-      const resolvedSymbol = symbolResolver.resolveSymbol(typeName, filePath, typeIdentifier);
-
-      if (resolvedSymbol) {
-        relationships.push({
-          sourceId: generateDeterministicNodeId(typeIdentifier),
-          targetId: this.generateSymbolId(resolvedSymbol),
-          referenceType: 'type',
-          referenceName: typeName,
-          location: {
-            filePath,
-            lineNumber: typeIdentifier.startPosition.row + 1,
-            columnNumber: typeIdentifier.startPosition.column + 1
-          },
-          resolvedSymbol
-        });
-      }
+      relationships.push({
+        sourceId: generateDeterministicNodeId(typeIdentifier),
+        targetId: this.generateNodeId(typeName, 'type', filePath),
+        referenceType: 'type',
+        referenceName: typeName,
+        location: {
+          filePath,
+          lineNumber: typeIdentifier.startPosition.row + 1,
+          columnNumber: typeIdentifier.startPosition.column + 1
+        }
+      });
     }
 
     // 查找原生类型引用
@@ -161,23 +132,17 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
     for (const primitiveType of primitiveTypes) {
       const typeName = primitiveType.text;
 
-      // 使用符号解析器解析类型符号
-      const resolvedSymbol = symbolResolver.resolveSymbol(typeName, filePath, primitiveType);
-
-      if (resolvedSymbol) {
-        relationships.push({
-          sourceId: generateDeterministicNodeId(primitiveType),
-          targetId: this.generateSymbolId(resolvedSymbol),
-          referenceType: 'type',
-          referenceName: typeName,
-          location: {
-            filePath,
-            lineNumber: primitiveType.startPosition.row + 1,
-            columnNumber: primitiveType.startPosition.column + 1
-          },
-          resolvedSymbol
-        });
-      }
+      relationships.push({
+        sourceId: generateDeterministicNodeId(primitiveType),
+        targetId: this.generateNodeId(typeName, 'primitive_type', filePath),
+        referenceType: 'type',
+        referenceName: typeName,
+        location: {
+          filePath,
+          lineNumber: primitiveType.startPosition.row + 1,
+          columnNumber: primitiveType.startPosition.column + 1
+        }
+      });
     }
 
     return relationships;

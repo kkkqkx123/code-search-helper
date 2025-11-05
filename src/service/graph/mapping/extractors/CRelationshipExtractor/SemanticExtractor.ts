@@ -1,6 +1,5 @@
 import {
   SemanticRelationship,
-  SymbolResolver,
   Parser,
   BaseCRelationshipExtractor,
   injectable,
@@ -11,8 +10,7 @@ import {
 export class SemanticExtractor extends BaseCRelationshipExtractor {
   async extractSemanticRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<SemanticRelationship[]> {
     const relationships: SemanticRelationship[] = [];
 
@@ -38,12 +36,9 @@ export class SemanticExtractor extends BaseCRelationshipExtractor {
             const targetName = targetFunc.node.text;
 
             if (sourceName && targetName) {
-              const resolvedSourceSymbol = symbolResolver.resolveSymbol(sourceName, filePath, sourceFunc.node);
-              const resolvedTargetSymbol = symbolResolver.resolveSymbol(targetName, filePath, targetFunc.node);
-
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(sourceFunc.node),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(targetFunc.node),
+                sourceId: generateDeterministicNodeId(sourceFunc.node),
+                targetId: generateDeterministicNodeId(targetFunc.node),
                 semanticType: 'delegates',
                 pattern: 'function_call',
                 metadata: {
@@ -53,9 +48,7 @@ export class SemanticExtractor extends BaseCRelationshipExtractor {
                   filePath,
                   lineNumber: sourceFunc.node.startPosition.row + 1,
                   columnNumber: sourceFunc.node.startPosition.column + 1
-                },
-                resolvedSourceSymbol: resolvedSourceSymbol || undefined,
-                resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                }
               });
             }
           }
@@ -75,12 +68,9 @@ export class SemanticExtractor extends BaseCRelationshipExtractor {
             const fieldTypeName = fieldType.node.text;
 
             if (structTypeName && fieldTypeName) {
-              const resolvedSourceSymbol = symbolResolver.resolveSymbol(fieldTypeName, filePath, fieldType.node);
-              const resolvedTargetSymbol = symbolResolver.resolveSymbol(structTypeName, filePath, structName.node);
-
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(fieldType.node),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(structName.node),
+                sourceId: generateDeterministicNodeId(fieldType.node),
+                targetId: generateDeterministicNodeId(structName.node),
                 semanticType: 'configures',
                 pattern: 'struct_field',
                 metadata: {
@@ -90,9 +80,7 @@ export class SemanticExtractor extends BaseCRelationshipExtractor {
                   filePath,
                   lineNumber: fieldType.node.startPosition.row + 1,
                   columnNumber: fieldType.node.startPosition.column + 1
-                },
-                resolvedSourceSymbol: resolvedSourceSymbol || undefined,
-                resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                }
               });
             }
           }
@@ -112,12 +100,9 @@ export class SemanticExtractor extends BaseCRelationshipExtractor {
             const aliasTypeName = aliasType.node.text;
 
             if (originalTypeName && aliasTypeName) {
-              const resolvedSourceSymbol = symbolResolver.resolveSymbol(originalTypeName, filePath, originalType.node);
-              const resolvedTargetSymbol = symbolResolver.resolveSymbol(aliasTypeName, filePath, aliasType.node);
-
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(originalType.node),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(aliasType.node),
+                sourceId: generateDeterministicNodeId(originalType.node),
+                targetId: generateDeterministicNodeId(aliasType.node),
                 semanticType: 'overrides',
                 pattern: 'type_alias',
                 metadata: {
@@ -127,9 +112,7 @@ export class SemanticExtractor extends BaseCRelationshipExtractor {
                   filePath,
                   lineNumber: originalType.node.startPosition.row + 1,
                   columnNumber: originalType.node.startPosition.column + 1
-                },
-                resolvedSourceSymbol: resolvedSourceSymbol || undefined,
-                resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                }
               });
             }
           }

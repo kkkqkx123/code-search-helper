@@ -1,10 +1,9 @@
 import {
   ReferenceRelationship,
-  SymbolResolver,
-  Symbol,
   Parser,
   LANGUAGE_NODE_MAPPINGS,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 import { BaseJavaScriptRelationshipExtractor } from './BaseJavaScriptRelationshipExtractor';
 
@@ -12,43 +11,37 @@ import { BaseJavaScriptRelationshipExtractor } from './BaseJavaScriptRelationshi
 export class ReferenceExtractor extends BaseJavaScriptRelationshipExtractor {
   async extractReferenceRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ReferenceRelationship[]> {
     const relationships: ReferenceRelationship[] = [];
 
     // 查找所有标识符引用和属性标识符
-    const identifiers = this.treeSitterService.findNodesByTypes(ast,
+    const identifiers = this.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].propertyIdentifier
     );
 
     for (const identifier of identifiers) {
       const identifierName = identifier.text;
 
-      // 使用符号解析器解析引用的符号
-      const resolvedSymbol = symbolResolver.resolveSymbol(identifierName, filePath, identifier);
+      // 确定引用类型
+      const referenceType = this.determineReferenceType(identifier, null) as 'variable' | 'constant' | 'parameter' | 'field';
 
-      if (resolvedSymbol) {
-        // 确定引用类型
-        const referenceType = this.determineReferenceType(identifier, resolvedSymbol) as 'variable' | 'constant' | 'parameter' | 'field';
-
-        relationships.push({
-          sourceId: this.generateNodeId(identifierName, 'reference', filePath),
-          targetId: this.generateSymbolId(resolvedSymbol),
-          referenceType,
-          referenceName: identifierName,
-          location: {
-            filePath,
-            lineNumber: identifier.startPosition.row + 1,
-            columnNumber: identifier.startPosition.column + 1
-          },
-          resolvedSymbol
-        });
-      }
+      relationships.push({
+        sourceId: generateDeterministicNodeId(identifier),
+        targetId: this.generateNodeId(identifierName, 'reference', filePath),
+        referenceType,
+        referenceName: identifierName,
+        location: {
+          filePath,
+          lineNumber: identifier.startPosition.row + 1,
+          columnNumber: identifier.startPosition.column + 1
+        },
+        resolvedSymbol: undefined
+      });
     }
 
     // 查找成员表达式引用
-    const memberExpressions = this.treeSitterService.findNodesByTypes(ast,
+    const memberExpressions = this.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].memberExpression
     );
 
@@ -56,110 +49,130 @@ export class ReferenceExtractor extends BaseJavaScriptRelationshipExtractor {
       const memberName = this.extractMemberExpressionName(memberExpr);
 
       if (memberName) {
-        const resolvedSymbol = symbolResolver.resolveSymbol(memberName, filePath, memberExpr);
+        // 确定引用类型
+        const referenceType = this.determineReferenceType(memberExpr, null) as 'variable' | 'constant' | 'parameter' | 'field';
 
-        if (resolvedSymbol) {
-          // 确定引用类型
-          const referenceType = this.determineReferenceType(memberExpr, resolvedSymbol) as 'variable' | 'constant' | 'parameter' | 'field';
-
-          relationships.push({
-            sourceId: this.generateNodeId(memberName, 'reference', filePath),
-            targetId: this.generateSymbolId(resolvedSymbol),
-            referenceType,
-            referenceName: memberName,
-            location: {
-              filePath,
-              lineNumber: memberExpr.startPosition.row + 1,
-              columnNumber: memberExpr.startPosition.column + 1
-            },
-            resolvedSymbol
-          });
-        }
+        relationships.push({
+          sourceId: generateDeterministicNodeId(memberExpr),
+          targetId: this.generateNodeId(memberName, 'reference', filePath),
+          referenceType,
+          referenceName: memberName,
+          location: {
+            filePath,
+            lineNumber: memberExpr.startPosition.row + 1,
+            columnNumber: memberExpr.startPosition.column + 1
+          },
+          resolvedSymbol: undefined
+        });
       }
     }
 
     // 查找函数声明和方法声明的引用
-    const functionDeclarations = this.treeSitterService.findNodesByTypes(ast,
+    const functionDeclarations = this.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].functionDeclaration
     );
 
     for (const funcDecl of functionDeclarations) {
       const funcName = this.extractFunctionName(funcDecl);
       if (funcName) {
-        const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, funcDecl);
-
-        if (resolvedSymbol) {
-          relationships.push({
-            sourceId: this.generateNodeId(funcName, 'function_ref', filePath),
-            targetId: this.generateSymbolId(resolvedSymbol),
-            referenceType: 'function',
-            referenceName: funcName,
-            location: {
-              filePath,
-              lineNumber: funcDecl.startPosition.row + 1,
-              columnNumber: funcDecl.startPosition.column + 1
-            },
-            resolvedSymbol
-          });
-        }
+        relationships.push({
+          sourceId: generateDeterministicNodeId(funcDecl),
+          targetId: this.generateNodeId(funcName, 'function_ref', filePath),
+          referenceType: 'function',
+          referenceName: funcName,
+          location: {
+            filePath,
+            lineNumber: funcDecl.startPosition.row + 1,
+            columnNumber: funcDecl.startPosition.column + 1
+          },
+          resolvedSymbol: undefined
+        });
       }
     }
 
     // 查找方法声明的引用
-    const methodDeclarations = this.treeSitterService.findNodesByTypes(ast,
+    const methodDeclarations = this.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].methodDeclaration
     );
 
     for (const methodDecl of methodDeclarations) {
       const methodName = this.extractMethodName(methodDecl);
       if (methodName) {
-        const resolvedSymbol = symbolResolver.resolveSymbol(methodName, filePath, methodDecl);
-
-        if (resolvedSymbol) {
-          relationships.push({
-            sourceId: this.generateNodeId(methodName, 'method_ref', filePath),
-            targetId: this.generateSymbolId(resolvedSymbol),
-            referenceType: 'method',
-            referenceName: methodName,
-            location: {
-              filePath,
-              lineNumber: methodDecl.startPosition.row + 1,
-              columnNumber: methodDecl.startPosition.column + 1
-            },
-            resolvedSymbol
-          });
-        }
+        relationships.push({
+          sourceId: generateDeterministicNodeId(methodDecl),
+          targetId: this.generateNodeId(methodName, 'method_ref', filePath),
+          referenceType: 'method',
+          referenceName: methodName,
+          location: {
+            filePath,
+            lineNumber: methodDecl.startPosition.row + 1,
+            columnNumber: methodDecl.startPosition.column + 1
+          },
+          resolvedSymbol: undefined
+        });
       }
     }
 
     // 查找类型注解
-    const typeAnnotations = this.treeSitterService.findNodesByTypes(ast,
+    const typeAnnotations = this.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].typeAnnotation
     );
 
     for (const typeAnnotation of typeAnnotations) {
-      const typeIdentifier = this.treeSitterService.findNodeByType(typeAnnotation, 'type_identifier')[0];
-      if (typeIdentifier) {
+      const typeIdentifiers = this.findNodeByType(typeAnnotation, 'type_identifier');
+      if (typeIdentifiers.length > 0) {
+        const typeIdentifier = typeIdentifiers[0];
         const typeName = typeIdentifier.text;
-        const resolvedSymbol = symbolResolver.resolveSymbol(typeName, filePath, typeIdentifier);
 
-        if (resolvedSymbol) {
-          relationships.push({
-            sourceId: this.generateNodeId(typeName, 'annotation', filePath),
-            targetId: this.generateSymbolId(resolvedSymbol),
-            referenceType: 'type',
-            referenceName: typeName,
-            location: {
-              filePath,
-              lineNumber: typeIdentifier.startPosition.row + 1,
-              columnNumber: typeIdentifier.startPosition.column + 1
-            },
-            resolvedSymbol
-          });
-        }
+        relationships.push({
+          sourceId: generateDeterministicNodeId(typeIdentifier),
+          targetId: this.generateNodeId(typeName, 'annotation', filePath),
+          referenceType: 'type',
+          referenceName: typeName,
+          location: {
+            filePath,
+            lineNumber: typeIdentifier.startPosition.row + 1,
+            columnNumber: typeIdentifier.startPosition.column + 1
+          },
+          resolvedSymbol: undefined
+        });
       }
     }
 
     return relationships;
+  }
+
+  // 辅助方法：按类型查找节点
+  private findNodesByTypes(ast: Parser.SyntaxNode, types: string[]): Parser.SyntaxNode[] {
+    const nodes: Parser.SyntaxNode[] = [];
+    
+    function traverse(node: Parser.SyntaxNode) {
+      if (types.includes(node.type)) {
+        nodes.push(node);
+      }
+      for (const child of node.children) {
+        traverse(child);
+      }
+    }
+    
+    traverse(ast);
+    return nodes;
+  }
+
+  // 辅助方法：按类型查找单个节点
+  private findNodeByType(node: Parser.SyntaxNode, type: string): Parser.SyntaxNode[] {
+    const nodes: Parser.SyntaxNode[] = [];
+    
+    function traverse(currentNode: Parser.SyntaxNode) {
+      if (currentNode.type === type) {
+        nodes.push(currentNode);
+      }
+      for (const child of currentNode.children) {
+        traverse(child);
+      }
+    }
+    
+    traverse(node);
+    return nodes;
   }
 }

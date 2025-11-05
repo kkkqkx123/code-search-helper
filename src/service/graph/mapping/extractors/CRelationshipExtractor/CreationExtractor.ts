@@ -1,6 +1,5 @@
 import {
   CreationRelationship,
-  SymbolResolver,
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
@@ -12,8 +11,7 @@ import {
 export class CreationExtractor extends BaseCRelationshipExtractor {
   async extractCreationRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<CreationRelationship[]> {
     const relationships: CreationRelationship[] = [];
 
@@ -24,7 +22,7 @@ export class CreationExtractor extends BaseCRelationshipExtractor {
 
     for (const varDecl of variableDeclarations) {
       // 查找结构体变量声明
-      const structInstances = this.findStructInstances(varDecl, filePath, symbolResolver);
+      const structInstances = this.findStructInstances(varDecl, filePath);
       for (const instance of structInstances) {
         relationships.push({
           sourceId: generateDeterministicNodeId(varDecl),
@@ -35,13 +33,12 @@ export class CreationExtractor extends BaseCRelationshipExtractor {
             filePath,
             lineNumber: varDecl.startPosition.row + 1,
             columnNumber: varDecl.startPosition.column + 1
-          },
-          resolvedTargetSymbol: instance.resolvedSymbol
+          }
         });
       }
 
       // 查找枚举变量声明
-      const enumInstances = this.findEnumInstances(varDecl, filePath, symbolResolver);
+      const enumInstances = this.findEnumInstances(varDecl, filePath);
       for (const instance of enumInstances) {
         relationships.push({
           sourceId: generateDeterministicNodeId(varDecl),
@@ -52,8 +49,7 @@ export class CreationExtractor extends BaseCRelationshipExtractor {
             filePath,
             lineNumber: varDecl.startPosition.row + 1,
             columnNumber: varDecl.startPosition.column + 1
-          },
-          resolvedTargetSymbol: instance.resolvedSymbol
+          }
         });
       }
     }

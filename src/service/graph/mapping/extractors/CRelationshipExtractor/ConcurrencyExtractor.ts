@@ -1,6 +1,5 @@
 import {
   ConcurrencyRelationship,
-  SymbolResolver,
   Parser,
   BaseCRelationshipExtractor,
   injectable,
@@ -11,8 +10,7 @@ import {
 export class ConcurrencyExtractor extends BaseCRelationshipExtractor {
   async extractConcurrencyRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ConcurrencyRelationship[]> {
     const relationships: ConcurrencyRelationship[] = [];
 
@@ -38,19 +36,16 @@ export class ConcurrencyExtractor extends BaseCRelationshipExtractor {
             const handleName = threadHandle.node.text;
 
             if (funcName && handleName) {
-              const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, threadCreateFunc.node);
-
               relationships.push({
                 sourceId: generateDeterministicNodeId(threadCreateFunc.node),
-                targetId: generateDeterministicNodeId(handleName, 'thread', filePath),
+                targetId: generateDeterministicNodeId(threadHandle.node),
                 concurrencyType: 'synchronizes',
                 synchronizationMechanism: 'thread_creation',
                 location: {
                   filePath,
                   lineNumber: threadCreateFunc.node.startPosition.row + 1,
                   columnNumber: threadCreateFunc.node.startPosition.column + 1
-                },
-                resolvedSymbol: resolvedSymbol || undefined
+                }
               });
             }
           }
@@ -70,19 +65,16 @@ export class ConcurrencyExtractor extends BaseCRelationshipExtractor {
             const handleName = mutexHandle.node.text;
 
             if (funcName && handleName) {
-              const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, mutexFunc.node);
-
               relationships.push({
                 sourceId: generateDeterministicNodeId(mutexFunc.node),
-                targetId: generateDeterministicNodeId(handleName, 'mutex', filePath),
+                targetId: generateDeterministicNodeId(mutexHandle.node),
                 concurrencyType: 'synchronizes',
                 synchronizationMechanism: 'mutex',
                 location: {
                   filePath,
                   lineNumber: mutexFunc.node.startPosition.row + 1,
                   columnNumber: mutexFunc.node.startPosition.column + 1
-                },
-                resolvedSymbol: resolvedSymbol || undefined
+                }
               });
             }
           }
@@ -102,19 +94,16 @@ export class ConcurrencyExtractor extends BaseCRelationshipExtractor {
             const varName = atomicVar.node.text;
 
             if (funcName && varName) {
-              const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, atomicFunc.node);
-
               relationships.push({
                 sourceId: generateDeterministicNodeId(atomicFunc.node),
-                targetId: generateDeterministicNodeId(varName, 'variable', filePath),
+                targetId: generateDeterministicNodeId(atomicVar.node),
                 concurrencyType: 'synchronizes',
                 synchronizationMechanism: 'atomic_operation',
                 location: {
                   filePath,
                   lineNumber: atomicFunc.node.startPosition.row + 1,
                   columnNumber: atomicFunc.node.startPosition.column + 1
-                },
-                resolvedSymbol: resolvedSymbol || undefined
+                }
               });
             }
           }

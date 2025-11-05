@@ -1,10 +1,9 @@
 import {
   InheritanceRelationship,
-  SymbolResolver,
-  Symbol,
   Parser,
   LANGUAGE_NODE_MAPPINGS,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 import { BaseJavaScriptRelationshipExtractor } from './BaseJavaScriptRelationshipExtractor';
 
@@ -12,13 +11,12 @@ import { BaseJavaScriptRelationshipExtractor } from './BaseJavaScriptRelationshi
 export class InheritanceExtractor extends BaseJavaScriptRelationshipExtractor {
   async extractInheritanceRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<InheritanceRelationship[]> {
     const relationships: InheritanceRelationship[] = [];
 
     // 查找类声明
-    const classDeclarations = this.treeSitterService.findNodesByTypes(ast,
+    const classDeclarations = this.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].classDeclaration
     );
 
@@ -32,20 +30,17 @@ export class InheritanceExtractor extends BaseJavaScriptRelationshipExtractor {
           const inheritanceType = this.getInheritanceType(heritageClause);
 
           if (parentClassName) {
-            // 使用符号解析器解析父类符号
-            const resolvedParentSymbol = symbolResolver.resolveSymbol(parentClassName, filePath, heritageClause);
-            const childSymbol = symbolResolver.resolveSymbol(className, filePath, classDecl);
-
             relationships.push({
-              parentId: resolvedParentSymbol ? this.generateSymbolId(resolvedParentSymbol) : this.generateNodeId(parentClassName, 'class', filePath),
-              childId: childSymbol ? this.generateSymbolId(childSymbol) : this.generateNodeId(className, 'class', filePath),
+              parentId: this.generateNodeId(parentClassName, 'class', filePath),
+              childId: this.generateNodeId(className, 'class', filePath),
               inheritanceType,
               location: {
                 filePath,
-                lineNumber: classDecl.startPosition.row + 1
+                lineNumber: classDecl.startPosition.row + 1,
+                columnNumber: classDecl.startPosition.column + 1
               },
-              resolvedParentSymbol: resolvedParentSymbol || undefined,
-              resolvedChildSymbol: childSymbol || undefined
+              resolvedParentSymbol: undefined,
+              resolvedChildSymbol: undefined
             });
           }
         }
@@ -53,5 +48,22 @@ export class InheritanceExtractor extends BaseJavaScriptRelationshipExtractor {
     }
 
     return relationships;
+  }
+
+  // 辅助方法：按类型查找节点
+  private findNodesByTypes(ast: Parser.SyntaxNode, types: string[]): Parser.SyntaxNode[] {
+    const nodes: Parser.SyntaxNode[] = [];
+    
+    function traverse(node: Parser.SyntaxNode) {
+      if (types.includes(node.type)) {
+        nodes.push(node);
+      }
+      for (const child of node.children) {
+        traverse(child);
+      }
+    }
+    
+    traverse(ast);
+    return nodes;
   }
 }

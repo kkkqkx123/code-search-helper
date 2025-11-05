@@ -1,6 +1,5 @@
 import {
   LifecycleRelationship,
-  SymbolResolver,
   Parser,
   BaseCRelationshipExtractor,
   injectable,
@@ -11,8 +10,7 @@ import {
 export class LifecycleExtractor extends BaseCRelationshipExtractor {
   async extractLifecycleRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<LifecycleRelationship[]> {
     const relationships: LifecycleRelationship[] = [];
 
@@ -38,20 +36,16 @@ export class LifecycleExtractor extends BaseCRelationshipExtractor {
             const varName = allocatedVar.node.text;
 
             if (funcName && varName) {
-              const resolvedSourceSymbol = symbolResolver.resolveSymbol(funcName, filePath, allocationFunc.node);
-              const resolvedTargetSymbol = symbolResolver.resolveSymbol(varName, filePath, allocatedVar.node);
-
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(allocationFunc.node),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(allocatedVar.node),
+                sourceId: generateDeterministicNodeId(allocationFunc.node),
+                targetId: generateDeterministicNodeId(allocatedVar.node),
                 lifecycleType: 'instantiates',
                 lifecyclePhase: 'creation',
                 location: {
                   filePath,
                   lineNumber: allocationFunc.node.startPosition.row + 1,
                   columnNumber: allocationFunc.node.startPosition.column + 1
-                },
-                resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                }
               });
             }
           }
@@ -71,20 +65,16 @@ export class LifecycleExtractor extends BaseCRelationshipExtractor {
             const varName = deallocatedVar.node.text;
 
             if (funcName && varName) {
-              const resolvedSourceSymbol = symbolResolver.resolveSymbol(funcName, filePath, deallocationFunc.node);
-              const resolvedTargetSymbol = symbolResolver.resolveSymbol(varName, filePath, deallocatedVar.node);
-
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(deallocationFunc.node),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(deallocatedVar.node),
+                sourceId: generateDeterministicNodeId(deallocationFunc.node),
+                targetId: generateDeterministicNodeId(deallocatedVar.node),
                 lifecycleType: 'destroys',
                 lifecyclePhase: 'teardown',
                 location: {
                   filePath,
                   lineNumber: deallocationFunc.node.startPosition.row + 1,
                   columnNumber: deallocationFunc.node.startPosition.column + 1
-                },
-                resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                }
               });
             }
           }
@@ -104,20 +94,16 @@ export class LifecycleExtractor extends BaseCRelationshipExtractor {
             const handleName = fileHandle.node.text;
 
             if (funcName && handleName) {
-              const resolvedSourceSymbol = symbolResolver.resolveSymbol(funcName, filePath, fileOpenFunc.node);
-              const resolvedTargetSymbol = symbolResolver.resolveSymbol(handleName, filePath, fileHandle.node);
-
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(fileOpenFunc.node),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(fileHandle.node),
+                sourceId: generateDeterministicNodeId(fileOpenFunc.node),
+                targetId: generateDeterministicNodeId(fileHandle.node),
                 lifecycleType: 'manages',
                 lifecyclePhase: 'setup',
                 location: {
                   filePath,
                   lineNumber: fileOpenFunc.node.startPosition.row + 1,
                   columnNumber: fileOpenFunc.node.startPosition.column + 1
-                },
-                resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                }
               });
             }
           }

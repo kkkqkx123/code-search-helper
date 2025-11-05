@@ -1,4 +1,4 @@
-import { Symbol, SymbolType, Parser } from '../types';
+import { Parser } from '../types';
 
 /**
  * C语言关系提取器的辅助工具类
@@ -94,12 +94,8 @@ export class ExtractorHelpers {
   /**
    * 确定引用类型
    */
-  static determineReferenceType(identifier: Parser.SyntaxNode, resolvedSymbol: Symbol): 'variable' | 'constant' | 'parameter' | 'field' | 'type' | 'enum' {
-    if (resolvedSymbol.type === SymbolType.TYPE || resolvedSymbol.type === SymbolType.STRUCT) {
-      return 'type';
-    } else if (resolvedSymbol.type === SymbolType.ENUM) {
-      return 'enum';
-    } else if (identifier.parent?.type === 'parameter_declaration') {
+  static determineReferenceType(identifier: Parser.SyntaxNode): 'variable' | 'constant' | 'parameter' | 'field' | 'type' | 'enum' {
+    if (identifier.parent?.type === 'parameter_declaration') {
       return 'parameter';
     } else if (identifier.parent?.type === 'field_identifier' ||
       identifier.parent?.parent?.type === 'field_expression') {
@@ -259,13 +255,6 @@ export class ExtractorHelpers {
       }
     }
     return null;
-  }
-
-  /**
-   * 生成符号ID
-   */
-  static generateSymbolId(symbol: Symbol): string {
-    return `${symbol.type}_${Buffer.from(`${symbol.filePath}_${symbol.name}`).toString('hex')}`;
   }
 
   /**

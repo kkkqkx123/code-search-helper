@@ -1,7 +1,5 @@
 import {
   CallRelationship,
-  SymbolResolver,
-  Symbol,
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
@@ -13,8 +11,7 @@ import {
 export class CallExtractor extends BaseCRelationshipExtractor {
   async extractCallRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<CallRelationship[]> {
     const relationships: CallRelationship[] = [];
 
@@ -24,29 +21,23 @@ export class CallExtractor extends BaseCRelationshipExtractor {
     );
 
     for (const callExpr of callExpressions) {
-      // 使用符号解析器查找调用者函数
-      const callerSymbol = this.findCallerSymbol(callExpr, symbolResolver, filePath);
       const calleeName = this.extractCalleeName(callExpr);
 
-      if (callerSymbol && calleeName) {
-        // 使用符号解析器解析被调用函数
-        const resolvedSymbol = symbolResolver.resolveSymbol(calleeName, filePath, callExpr);
-
+      if (calleeName) {
         // 分析调用上下文
         const callContext = this.analyzeCallContext(callExpr);
 
         relationships.push({
-          callerId: this.generateSymbolId(callerSymbol),
-          calleeId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : generateDeterministicNodeId(callExpr),
+          callerId: generateDeterministicNodeId(callExpr.parent || callExpr),
+          calleeId: generateDeterministicNodeId(callExpr),
           callName: calleeName,
           location: {
             filePath,
             lineNumber: callExpr.startPosition.row + 1,
             columnNumber: callExpr.startPosition.column + 1
           },
-          callType: this.determineCallType(callExpr, resolvedSymbol),
-          callContext,
-          resolvedSymbol: resolvedSymbol || undefined
+          callType: this.determineCallType(callExpr, null),
+          callContext
         });
       }
     }

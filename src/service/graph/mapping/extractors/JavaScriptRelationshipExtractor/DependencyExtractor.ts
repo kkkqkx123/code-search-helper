@@ -1,34 +1,22 @@
 import {
-DependencyRelationship,
-SymbolResolver,
-Symbol,
-Parser,
-LANGUAGE_NODE_MAPPINGS,
-injectable,
-  inject,
-  TYPES,
-  TreeSitterService,
-  LoggerService
+  DependencyRelationship,
+  Parser,
+  LANGUAGE_NODE_MAPPINGS,
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 import { BaseJavaScriptRelationshipExtractor } from './BaseJavaScriptRelationshipExtractor';
 
 @injectable()
 export class DependencyExtractor extends BaseJavaScriptRelationshipExtractor {
-  constructor(
-    @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
-    @inject(TYPES.LoggerService) logger: LoggerService
-  ) {
-    super(treeSitterService, logger);
-  }
   async extractDependencyRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DependencyRelationship[]> {
     const relationships: DependencyRelationship[] = [];
 
     // 查找导入语句
-    const importStatements = this.treeSitterService.findNodesByTypes(ast,
+    const importStatements = this.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].importDeclaration
     );
 
@@ -36,26 +24,24 @@ export class DependencyExtractor extends BaseJavaScriptRelationshipExtractor {
       const importInfo = this.extractImportInfo(importStmt);
 
       if (importInfo) {
-        // 使用符号解析器解析导入的模块
-        const resolvedTargetSymbol = symbolResolver.resolveSymbol(importInfo.source, filePath, importStmt);
-
         relationships.push({
-          sourceId: this.generateNodeId(filePath, 'file', filePath),
-          targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(importInfo.source, 'module', importInfo.source),
+          sourceId: generateDeterministicNodeId(importStmt),
+          targetId: this.generateNodeId(importInfo.source, 'module', importInfo.source),
           dependencyType: 'import',
           target: importInfo.source,
           importedSymbols: importInfo.importedSymbols,
           location: {
             filePath,
-            lineNumber: importStmt.startPosition.row + 1
+            lineNumber: importStmt.startPosition.row + 1,
+            columnNumber: importStmt.startPosition.column + 1
           },
-          resolvedTargetSymbol: resolvedTargetSymbol || undefined
+          resolvedTargetSymbol: undefined
         });
       }
     }
 
     // 查找导出语句 (JavaScript also has export statements)
-    const exportStatements = this.treeSitterService.findNodesByTypes(ast,
+    const exportStatements = this.findNodesByTypes(ast,
       LANGUAGE_NODE_MAPPINGS['javascript'].exportDeclaration
     );
 
@@ -63,19 +49,18 @@ export class DependencyExtractor extends BaseJavaScriptRelationshipExtractor {
       const exportInfo = this.extractExportInfo(exportStmt);
 
       if (exportInfo) {
-        const resolvedTargetSymbol = symbolResolver.resolveSymbol(exportInfo.target, filePath, exportStmt);
-
         relationships.push({
-          sourceId: this.generateNodeId(filePath, 'file', filePath),
-          targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(exportInfo.target, 'symbol', filePath),
+          sourceId: generateDeterministicNodeId(exportStmt),
+          targetId: this.generateNodeId(exportInfo.target, 'symbol', filePath),
           dependencyType: 'export',
           target: exportInfo.target,
           importedSymbols: exportInfo.exportedSymbols,
           location: {
             filePath,
-            lineNumber: exportStmt.startPosition.row + 1
+            lineNumber: exportStmt.startPosition.row + 1,
+            columnNumber: exportStmt.startPosition.column + 1
           },
-          resolvedTargetSymbol: resolvedTargetSymbol || undefined
+          resolvedTargetSymbol: undefined
         });
       }
     }
@@ -132,5 +117,22 @@ export class DependencyExtractor extends BaseJavaScriptRelationshipExtractor {
     }
 
     return specifiers;
+  }
+
+  // 辅助方法：按类型查找节点
+  private findNodesByTypes(ast: Parser.SyntaxNode, types: string[]): Parser.SyntaxNode[] {
+    const nodes: Parser.SyntaxNode[] = [];
+    
+    function traverse(node: Parser.SyntaxNode) {
+      if (types.includes(node.type)) {
+        nodes.push(node);
+      }
+      for (const child of node.children) {
+        traverse(child);
+      }
+    }
+    
+    traverse(ast);
+    return nodes;
   }
 }

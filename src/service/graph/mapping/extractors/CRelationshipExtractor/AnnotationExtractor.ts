@@ -1,29 +1,17 @@
 import {
   AnnotationRelationship,
-  SymbolResolver,
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
   injectable,
-  inject,
-  TYPES,
-  TreeSitterService,
-  LoggerService,
   generateDeterministicNodeId
 } from '../types';
 
 @injectable()
 export class AnnotationExtractor extends BaseCRelationshipExtractor {
-  constructor(
-    @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
-    @inject(TYPES.LoggerService) logger: LoggerService
-  ) {
-    super(treeSitterService, logger);
-  }
   async extractAnnotationRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<AnnotationRelationship[]> {
     const relationships: AnnotationRelationship[] = [];
 
@@ -37,12 +25,9 @@ export class AnnotationExtractor extends BaseCRelationshipExtractor {
       const parameters = this.extractAttributeParameters(attribute);
 
       if (attributeName) {
-        // 使用符号解析器解析属性符号
-        const resolvedSymbol = symbolResolver.resolveSymbol(attributeName, filePath, attribute);
-
         relationships.push({
           sourceId: generateDeterministicNodeId(attribute),
-          targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(attributeName, 'attribute', filePath),
+          targetId: this.generateNodeId(attributeName, 'attribute', filePath),
           annotationType: 'attribute',
           annotationName: attributeName,
           parameters,
@@ -50,8 +35,7 @@ export class AnnotationExtractor extends BaseCRelationshipExtractor {
             filePath,
             lineNumber: attribute.startPosition.row + 1,
             columnNumber: attribute.startPosition.column + 1
-          },
-          resolvedAnnotationSymbol: resolvedSymbol || undefined
+          }
         });
       }
     }
@@ -64,11 +48,9 @@ export class AnnotationExtractor extends BaseCRelationshipExtractor {
     for (const typeAnnotation of typeAnnotations) {
       const annotationName = this.extractTypeName(typeAnnotation);
       if (annotationName) {
-        const resolvedSymbol = symbolResolver.resolveSymbol(annotationName, filePath, typeAnnotation);
-
         relationships.push({
           sourceId: generateDeterministicNodeId(typeAnnotation),
-          targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(annotationName, 'type', filePath),
+          targetId: this.generateNodeId(annotationName, 'type', filePath),
           annotationType: 'type_annotation',
           annotationName,
           parameters: {},
@@ -76,8 +58,7 @@ export class AnnotationExtractor extends BaseCRelationshipExtractor {
             filePath,
             lineNumber: typeAnnotation.startPosition.row + 1,
             columnNumber: typeAnnotation.startPosition.column + 1
-          },
-          resolvedAnnotationSymbol: resolvedSymbol || undefined
+          }
         });
       }
     }

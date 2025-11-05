@@ -16,13 +16,6 @@ export {
   ConcurrencyRelationship
 } from '../interfaces/IRelationshipExtractor';
 
-// 符号解析相关
-export {
-  SymbolResolver,
-  Symbol,
-  SymbolType
-} from '../../symbol/SymbolResolver';
-
 // 基础类 - 这里需要为每个语言创建特定的基础类
 // 例如：BaseCRelationshipExtractor, BaseJavaRelationshipExtractor等
 // 这些应该在各自的文件夹中定义
@@ -31,9 +24,6 @@ export { BaseRustRelationshipExtractor } from './RustRelationshipExtractor/BaseR
 export { BaseJavaScriptRelationshipExtractor } from './JavaScriptRelationshipExtractor/BaseJavaScriptRelationshipExtractor';
 
 // 外部依赖
-export { TreeSitterService } from '../../../parser/core/parse/TreeSitterService';
-export { LoggerService } from '../../../../utils/LoggerService';
-export { TYPES } from '../../../../types';
 export { LANGUAGE_NODE_MAPPINGS } from '../LanguageNodeTypes';
 
 // 工具函数

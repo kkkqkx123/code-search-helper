@@ -1,19 +1,10 @@
-import { SymbolResolver, Symbol } from '../../../symbol/SymbolResolver';
-import { TreeSitterService } from '../../../../parser/core/parse/TreeSitterService';
-import { LoggerService } from '../../../../../utils/LoggerService';
-import { inject, injectable } from 'inversify';
-import { TYPES } from '../../../../../types';
-import Parser = require('tree-sitter');
+import { Parser, injectable } from '../types';
 
 @injectable()
 export class BaseJavaScriptRelationshipExtractor {
-  constructor(
-    @inject(TYPES.TreeSitterService) protected treeSitterService: TreeSitterService,
-    @inject(TYPES.LoggerService) protected logger: LoggerService
-  ) { }
 
   // 共享的辅助方法
-  protected generateSymbolId(symbol: Symbol): string {
+  protected generateSymbolId(symbol: any): string {
     return `${symbol.type}_${Buffer.from(`${symbol.filePath}_${symbol.name}`).toString('hex')}`;
   }
 
@@ -21,7 +12,7 @@ export class BaseJavaScriptRelationshipExtractor {
     return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
   }
 
-  protected findCallerSymbol(callExpr: Parser.SyntaxNode, symbolResolver: SymbolResolver, filePath: string): Symbol | null {
+  protected findCallerSymbol(callExpr: Parser.SyntaxNode, filePath: string): any | null {
     // 实现查找调用者符号的逻辑
     // 需要向上遍历AST找到包含当前调用的函数
     let currentNode: Parser.SyntaxNode | null = callExpr.parent;
@@ -35,7 +26,12 @@ export class BaseJavaScriptRelationshipExtractor {
           if (child.type === 'identifier' || child.type === 'property_identifier') {
             const funcName = child.text;
             if (funcName) {
-              return symbolResolver.resolveSymbol(funcName, filePath, child);
+              return {
+                name: funcName,
+                type: 'function',
+                filePath,
+                node: child
+              };
             }
           }
         }
@@ -100,7 +96,7 @@ export class BaseJavaScriptRelationshipExtractor {
     return depth;
   }
 
-  protected determineCallType(callExpr: Parser.SyntaxNode, resolvedSymbol: Symbol | null): 'function' | 'method' | 'constructor' | 'static' | 'callback' | 'decorator' {
+  protected determineCallType(callExpr: Parser.SyntaxNode, resolvedSymbol: any | null): 'function' | 'method' | 'constructor' | 'static' | 'callback' | 'decorator' {
     // 实现确定调用类型逻辑
     if (callExpr.children[0]?.type === 'new_expression') {
       return 'constructor';
@@ -277,7 +273,7 @@ export class BaseJavaScriptRelationshipExtractor {
     return specifiers;
   }
 
-  protected determineReferenceType(identifier: Parser.SyntaxNode, resolvedSymbol: Symbol): 'variable' | 'constant' | 'parameter' | 'field' | 'interface' | 'type' | 'enum' {
+  protected determineReferenceType(identifier: Parser.SyntaxNode, resolvedSymbol: any): 'variable' | 'constant' | 'parameter' | 'field' | 'interface' | 'type' | 'enum' {
     // 实现确定引用类型逻辑
     // Check parent context to determine reference type
     if (identifier.parent?.type === 'parameter') {
@@ -449,9 +445,9 @@ export class BaseJavaScriptRelationshipExtractor {
     let currentNode: Parser.SyntaxNode | null = node;
     while (currentNode) {
       if (currentNode.type === 'function_declaration' ||
-          currentNode.type === 'method_definition' ||
-          currentNode.type === 'arrow_function' ||
-          currentNode.type === 'function') {
+        currentNode.type === 'method_definition' ||
+        currentNode.type === 'arrow_function' ||
+        currentNode.type === 'function') {
         return currentNode;
       }
       currentNode = currentNode.parent;

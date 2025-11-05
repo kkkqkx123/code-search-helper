@@ -1,12 +1,4 @@
 import {
-  SymbolResolver,
-  Symbol,
-  SymbolType,
-  TreeSitterService,
-  LoggerService,
-  inject,
-  injectable,
-  TYPES,
   Parser,
   ILanguageRelationshipExtractor,
   CallRelationship,
@@ -33,7 +25,6 @@ import { SemanticExtractor } from './SemanticExtractor';
 import { LifecycleExtractor } from './LifecycleExtractor';
 import { ConcurrencyExtractor } from './ConcurrencyExtractor';
 
-@injectable()
 export class PythonRelationshipExtractor implements ILanguageRelationshipExtractor {
   private callExtractor: CallExtractor;
   private inheritanceExtractor: InheritanceExtractor;
@@ -48,19 +39,17 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
   private concurrencyExtractor: ConcurrencyExtractor;
 
   constructor(
-    @inject(TYPES.TreeSitterService) protected treeSitterService: TreeSitterService,
-    @inject(TYPES.LoggerService) protected logger: LoggerService,
-    @inject(TYPES.CallExtractor) callExtractor: CallExtractor,
-    @inject(TYPES.InheritanceExtractor) inheritanceExtractor: InheritanceExtractor,
-    @inject(TYPES.DependencyExtractor) dependencyExtractor: DependencyExtractor,
-    @inject(TYPES.ReferenceExtractor) referenceExtractor: ReferenceExtractor,
-    @inject(TYPES.CreationExtractor) creationExtractor: CreationExtractor,
-    @inject(TYPES.AnnotationExtractor) annotationExtractor: AnnotationExtractor,
-    @inject(TYPES.DataFlowExtractor) dataFlowExtractor: DataFlowExtractor,
-    @inject(TYPES.ControlFlowExtractor) controlFlowExtractor: ControlFlowExtractor,
-    @inject(TYPES.SemanticExtractor) semanticExtractor: SemanticExtractor,
-    @inject(TYPES.LifecycleExtractor) lifecycleExtractor: LifecycleExtractor,
-    @inject(TYPES.ConcurrencyExtractor) concurrencyExtractor: ConcurrencyExtractor
+    callExtractor: CallExtractor,
+    inheritanceExtractor: InheritanceExtractor,
+    dependencyExtractor: DependencyExtractor,
+    referenceExtractor: ReferenceExtractor,
+    creationExtractor: CreationExtractor,
+    annotationExtractor: AnnotationExtractor,
+    dataFlowExtractor: DataFlowExtractor,
+    controlFlowExtractor: ControlFlowExtractor,
+    semanticExtractor: SemanticExtractor,
+    lifecycleExtractor: LifecycleExtractor,
+    concurrencyExtractor: ConcurrencyExtractor
   ) {
     this.callExtractor = callExtractor;
     this.inheritanceExtractor = inheritanceExtractor;
@@ -90,50 +79,44 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
 
   async extractCallRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<CallRelationship[]> {
-    return this.callExtractor.extract(ast, filePath, symbolResolver);
+    return this.callExtractor.extract(ast, filePath);
   }
 
   async extractInheritanceRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<InheritanceRelationship[]> {
-    return this.inheritanceExtractor.extract(ast, filePath, symbolResolver);
+    return this.inheritanceExtractor.extract(ast, filePath);
   }
 
   async extractDependencyRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DependencyRelationship[]> {
-    return this.dependencyExtractor.extract(ast, filePath, symbolResolver);
+    return this.dependencyExtractor.extract(ast, filePath);
   }
 
   async extractReferenceRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ReferenceRelationship[]> {
-    return this.referenceExtractor.extract(ast, filePath, symbolResolver);
+    return this.referenceExtractor.extract(ast, filePath);
   }
 
   async extractCreationRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<CreationRelationship[]> {
-    return this.creationExtractor.extract(ast, filePath, symbolResolver);
+    return this.creationExtractor.extract(ast, filePath);
   }
 
   async extractAnnotationRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<AnnotationRelationship[]> {
-    return this.annotationExtractor.extract(ast, filePath, symbolResolver);
+    return this.annotationExtractor.extract(ast, filePath);
   }
 
   async extractDataFlowRelationships(
@@ -145,33 +128,29 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
 
   async extractControlFlowRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ControlFlowRelationship[]> {
-    return this.controlFlowExtractor.extract(ast, filePath, symbolResolver);
+    return this.controlFlowExtractor.extract(ast, filePath);
   }
 
   async extractSemanticRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<SemanticRelationship[]> {
-    return this.semanticExtractor.extract(ast, filePath, symbolResolver);
+    return this.semanticExtractor.extract(ast, filePath);
   }
 
   async extractLifecycleRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<LifecycleRelationship[]> {
-    return this.lifecycleExtractor.extract(ast, filePath, symbolResolver);
+    return this.lifecycleExtractor.extract(ast, filePath);
   }
 
   async extractConcurrencyRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ConcurrencyRelationship[]> {
-    return this.concurrencyExtractor.extract(ast, filePath, symbolResolver);
+    return this.concurrencyExtractor.extract(ast, filePath);
   }
 }

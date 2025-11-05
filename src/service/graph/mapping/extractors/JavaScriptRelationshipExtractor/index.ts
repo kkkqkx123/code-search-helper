@@ -11,12 +11,8 @@ import {
   SemanticRelationship,
   LifecycleRelationship,
   ConcurrencyRelationship,
-  SymbolResolver,
-  TreeSitterService,
-  LoggerService,
-  TYPES
+  injectable
 } from '../types';
-import { inject, injectable } from 'inversify';
 import { BaseJavaScriptRelationshipExtractor } from './BaseJavaScriptRelationshipExtractor';
 import { CallExtractor } from './CallExtractor';
 import { InheritanceExtractor } from './InheritanceExtractor';
@@ -50,33 +46,19 @@ export class JavaScriptRelationshipExtractor extends BaseJavaScriptRelationshipE
   private lifecycleExtractor: LifecycleExtractor;
   private concurrencyExtractor: ConcurrencyExtractor;
 
-  constructor(
-    @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService,
-    @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.CallExtractor) callExtractor: CallExtractor,
-    @inject(TYPES.InheritanceExtractor) inheritanceExtractor: InheritanceExtractor,
-    @inject(TYPES.DependencyExtractor) dependencyExtractor: DependencyExtractor,
-    @inject(TYPES.ReferenceExtractor) referenceExtractor: ReferenceExtractor,
-    @inject(TYPES.CreationExtractor) creationExtractor: CreationExtractor,
-    @inject(TYPES.AnnotationExtractor) annotationExtractor: AnnotationExtractor,
-    @inject(TYPES.DataFlowExtractor) dataFlowExtractor: DataFlowExtractor,
-    @inject(TYPES.ControlFlowExtractor) controlFlowExtractor: ControlFlowExtractor,
-    @inject(TYPES.SemanticExtractor) semanticExtractor: SemanticExtractor,
-    @inject(TYPES.LifecycleExtractor) lifecycleExtractor: LifecycleExtractor,
-    @inject(TYPES.ConcurrencyExtractor) concurrencyExtractor: ConcurrencyExtractor
-  ) {
-    super(treeSitterService, logger);
-    this.callExtractor = callExtractor;
-    this.inheritanceExtractor = inheritanceExtractor;
-    this.dependencyExtractor = dependencyExtractor;
-    this.referenceExtractor = referenceExtractor;
-    this.creationExtractor = creationExtractor;
-    this.annotationExtractor = annotationExtractor;
-    this.dataFlowExtractor = dataFlowExtractor;
-    this.controlFlowExtractor = controlFlowExtractor;
-    this.semanticExtractor = semanticExtractor;
-    this.lifecycleExtractor = lifecycleExtractor;
-    this.concurrencyExtractor = concurrencyExtractor;
+  constructor() {
+    super();
+    this.callExtractor = new CallExtractor();
+    this.inheritanceExtractor = new InheritanceExtractor();
+    this.dependencyExtractor = new DependencyExtractor();
+    this.referenceExtractor = new ReferenceExtractor();
+    this.creationExtractor = new CreationExtractor();
+    this.annotationExtractor = new AnnotationExtractor();
+    this.dataFlowExtractor = new DataFlowExtractor();
+    this.controlFlowExtractor = new ControlFlowExtractor();
+    this.semanticExtractor = new SemanticExtractor();
+    this.lifecycleExtractor = new LifecycleExtractor();
+    this.concurrencyExtractor = new ConcurrencyExtractor();
   }
 
   getSupportedLanguage(): string {
@@ -94,50 +76,44 @@ export class JavaScriptRelationshipExtractor extends BaseJavaScriptRelationshipE
 
   async extractCallRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<CallRelationship[]> {
-    return this.callExtractor.extractCallRelationships(ast, filePath, symbolResolver);
+    return this.callExtractor.extractCallRelationships(ast, filePath);
   }
 
   async extractInheritanceRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<InheritanceRelationship[]> {
-    return this.inheritanceExtractor.extractInheritanceRelationships(ast, filePath, symbolResolver);
+    return this.inheritanceExtractor.extractInheritanceRelationships(ast, filePath);
   }
 
   async extractDependencyRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DependencyRelationship[]> {
-    return this.dependencyExtractor.extractDependencyRelationships(ast, filePath, symbolResolver);
+    return this.dependencyExtractor.extractDependencyRelationships(ast, filePath);
   }
 
   async extractReferenceRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ReferenceRelationship[]> {
-    return this.referenceExtractor.extractReferenceRelationships(ast, filePath, symbolResolver);
+    return this.referenceExtractor.extractReferenceRelationships(ast, filePath);
   }
 
   async extractCreationRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<CreationRelationship[]> {
-    return this.creationExtractor.extractCreationRelationships(ast, filePath, symbolResolver);
+    return this.creationExtractor.extractCreationRelationships(ast, filePath);
   }
 
   async extractAnnotationRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<AnnotationRelationship[]> {
-    return this.annotationExtractor.extractAnnotationRelationships(ast, filePath, symbolResolver);
+    return this.annotationExtractor.extractAnnotationRelationships(ast, filePath);
   }
 
   async extractDataFlowRelationships(
@@ -149,33 +125,29 @@ export class JavaScriptRelationshipExtractor extends BaseJavaScriptRelationshipE
 
   async extractControlFlowRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ControlFlowRelationship[]> {
-    return this.controlFlowExtractor.extractControlFlowRelationships(ast, filePath, symbolResolver);
+    return this.controlFlowExtractor.extractControlFlowRelationships(ast, filePath);
   }
 
   async extractSemanticRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<SemanticRelationship[]> {
-    return this.semanticExtractor.extractSemanticRelationships(ast, filePath, symbolResolver);
+    return this.semanticExtractor.extractSemanticRelationships(ast, filePath);
   }
 
   async extractLifecycleRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<LifecycleRelationship[]> {
-    return this.lifecycleExtractor.extractLifecycleRelationships(ast, filePath, symbolResolver);
+    return this.lifecycleExtractor.extractLifecycleRelationships(ast, filePath);
   }
 
   async extractConcurrencyRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ConcurrencyRelationship[]> {
-    return this.concurrencyExtractor.extractConcurrencyRelationships(ast, filePath, symbolResolver);
+    return this.concurrencyExtractor.extractConcurrencyRelationships(ast, filePath);
   }
 }

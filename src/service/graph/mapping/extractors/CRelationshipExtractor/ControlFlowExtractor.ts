@@ -1,6 +1,5 @@
 import {
   ControlFlowRelationship,
-  SymbolResolver,
   Parser,
   BaseCRelationshipExtractor,
   injectable,
@@ -11,8 +10,7 @@ import {
 export class ControlFlowExtractor extends BaseCRelationshipExtractor {
   async extractControlFlowRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<ControlFlowRelationship[]> {
     const relationships: ControlFlowRelationship[] = [];
 
@@ -38,10 +36,8 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
             const blockType = blockTarget.node.type;
 
             if (conditionName) {
-              const resolvedSymbol = symbolResolver.resolveSymbol(conditionName, filePath, conditionVar.node);
-
               relationships.push({
-                sourceId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : generateDeterministicNodeId(conditionVar.node),
+                sourceId: generateDeterministicNodeId(conditionVar.node),
                 targetId: generateDeterministicNodeId(blockTarget.node),
                 flowType: 'conditional',
                 condition: conditionName,
@@ -50,8 +46,7 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
                   filePath,
                   lineNumber: conditionVar.node.startPosition.row + 1,
                   columnNumber: conditionVar.node.startPosition.column + 1
-                },
-                resolvedSymbol: resolvedSymbol || undefined
+                }
               });
             }
           }
@@ -71,10 +66,8 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
             const blockType = loopBlock.node.type;
 
             if (conditionName) {
-              const resolvedSymbol = symbolResolver.resolveSymbol(conditionName, filePath, loopCondition.node);
-
               relationships.push({
-                sourceId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : generateDeterministicNodeId(loopCondition.node),
+                sourceId: generateDeterministicNodeId(loopCondition.node),
                 targetId: generateDeterministicNodeId(loopBlock.node),
                 flowType: 'loop',
                 condition: conditionName,
@@ -83,8 +76,7 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
                   filePath,
                   lineNumber: loopCondition.node.startPosition.row + 1,
                   columnNumber: loopCondition.node.startPosition.column + 1
-                },
-                resolvedSymbol: resolvedSymbol || undefined
+                }
               });
             }
           }
@@ -97,11 +89,9 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
 
         for (const gotoTarget of gotoTargets) {
           const labelName = gotoTarget.node.text;
-          const resolvedSymbol = symbolResolver.resolveSymbol(labelName, filePath, gotoTarget.node);
-
           relationships.push({
             sourceId: generateDeterministicNodeId(gotoTarget.node),
-            targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(labelName, 'label', filePath),
+            targetId: this.generateNodeId(labelName, 'label', filePath),
             flowType: 'exception',
             condition: `goto ${labelName}`,
             isExceptional: true,
@@ -109,8 +99,7 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
               filePath,
               lineNumber: gotoTarget.node.startPosition.row + 1,
               columnNumber: gotoTarget.node.startPosition.column + 1
-            },
-            resolvedSymbol: resolvedSymbol || undefined
+            }
           });
         }
 
@@ -121,11 +110,9 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
 
         for (const funcCall of funcCalls) {
           const funcName = funcCall.node.text;
-          const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, funcCall.node);
-
           relationships.push({
             sourceId: generateDeterministicNodeId(funcCall.node),
-            targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(funcName, 'function', filePath),
+            targetId: this.generateNodeId(funcName, 'function', filePath),
             flowType: 'callback',
             condition: funcName,
             isExceptional: false,
@@ -133,8 +120,7 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
               filePath,
               lineNumber: funcCall.node.startPosition.row + 1,
               columnNumber: funcCall.node.startPosition.column + 1
-            },
-            resolvedSymbol: resolvedSymbol || undefined
+            }
           });
         }
       }

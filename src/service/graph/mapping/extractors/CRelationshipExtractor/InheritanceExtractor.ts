@@ -1,6 +1,5 @@
 import {
   InheritanceRelationship,
-  SymbolResolver,
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
@@ -12,8 +11,7 @@ import {
 export class InheritanceExtractor extends BaseCRelationshipExtractor {
   async extractInheritanceRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<InheritanceRelationship[]> {
     const relationships: InheritanceRelationship[] = [];
 
@@ -32,19 +30,15 @@ export class InheritanceExtractor extends BaseCRelationshipExtractor {
 
         for (const embeddedStruct of embeddedStructs) {
           const embeddedStructName = embeddedStruct.text;
-          const resolvedParentSymbol = symbolResolver.resolveSymbol(embeddedStructName, filePath, embeddedStruct);
-          const childSymbol = symbolResolver.resolveSymbol(structName, filePath, structDecl);
 
           relationships.push({
-            parentId: resolvedParentSymbol ? this.generateSymbolId(resolvedParentSymbol) : this.generateNodeId(embeddedStructName, 'struct', filePath),
-            childId: childSymbol ? this.generateSymbolId(childSymbol) : this.generateNodeId(structName, 'struct', filePath),
+            parentId: this.generateNodeId(embeddedStructName, 'struct', filePath),
+            childId: this.generateNodeId(structName, 'struct', filePath),
             inheritanceType: 'embedded_struct',
             location: {
               filePath,
               lineNumber: structDecl.startPosition.row + 1
-            },
-            resolvedParentSymbol: resolvedParentSymbol || undefined,
-            resolvedChildSymbol: childSymbol || undefined
+            }
           });
         }
       }
@@ -58,21 +52,17 @@ export class InheritanceExtractor extends BaseCRelationshipExtractor {
     for (const enumDecl of enumDeclarations) {
       const enumName = this.extractEnumName(enumDecl);
       if (enumName) {
-        const resolvedSymbol = symbolResolver.resolveSymbol(enumName, filePath, enumDecl);
-
         // Find references to enum members in the same file
         const enumMembers = this.findEnumMembers(enumDecl);
         for (const member of enumMembers) {
           relationships.push({
-            parentId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(enumName, 'enum', filePath),
+            parentId: this.generateNodeId(enumName, 'enum', filePath),
             childId: this.generateNodeId(member, 'enum_member', filePath),
             inheritanceType: 'enum_member',
             location: {
               filePath,
               lineNumber: enumDecl.startPosition.row + 1
-            },
-            resolvedParentSymbol: resolvedSymbol || undefined,
-            resolvedChildSymbol: undefined
+            }
           });
         }
       }

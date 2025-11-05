@@ -1,32 +1,13 @@
 import {
-  SymbolResolver,
-  Symbol,
-  SymbolType,
-  TreeSitterService,
-  LoggerService,
-  inject,
-  injectable,
-  TYPES,
-  Parser
+  Parser,
+  generateDeterministicNodeId
 } from '../types';
 
-@injectable()
 export class BasePythonRelationshipExtractor {
-  constructor(
-    @inject(TYPES.TreeSitterService) protected treeSitterService: TreeSitterService,
-    @inject(TYPES.LoggerService) protected logger: LoggerService
-  ) { }
 
   // 共享的辅助方法
-  protected generateSymbolId(symbol: Symbol): string {
-    return `${symbol.type}_${Buffer.from(`${symbol.filePath}_${symbol.name}`).toString('hex')}`;
-  }
 
-  protected generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
-
-  protected findCallerSymbol(callExpr: Parser.SyntaxNode, symbolResolver: SymbolResolver, filePath: string): Symbol | null {
+  protected findCallerSymbol(callExpr: Parser.SyntaxNode, filePath: string): string | null {
     // 实现查找调用者符号的逻辑
     // 需要向上遍历AST找到包含当前调用的函数
     let currentNode: Parser.SyntaxNode | null = callExpr.parent;
@@ -39,7 +20,7 @@ export class BasePythonRelationshipExtractor {
           if (child.type === 'identifier') {
             const funcName = child.text;
             if (funcName) {
-              return symbolResolver.resolveSymbol(funcName, filePath, child);
+              return generateDeterministicNodeId(child);
             }
           }
         }
@@ -100,21 +81,10 @@ export class BasePythonRelationshipExtractor {
     return depth;
   }
 
-  protected determineCallType(callExpr: Parser.SyntaxNode, resolvedSymbol: Symbol | null): 'function' | 'method' | 'constructor' | 'static' | 'callback' | 'decorator' {
+  protected determineCallType(callExpr: Parser.SyntaxNode): 'function' | 'method' | 'constructor' | 'static' | 'callback' | 'decorator' {
     // 实现确定调用类型逻辑
     if (callExpr.parent?.type === 'decorator') {
       return 'decorator';
-    }
-
-    // If we have resolved the symbol, check its type
-    if (resolvedSymbol) {
-      if (resolvedSymbol.type === 'method') {
-        return 'method';
-      } else if (resolvedSymbol.type === 'function') {
-        return 'function';
-      } else if (resolvedSymbol.type === 'class') {
-        return 'constructor';
-      }
     }
 
     // Check if it's a constructor call (capitalized name)
@@ -247,7 +217,7 @@ export class BasePythonRelationshipExtractor {
     return null;
   }
 
-  protected determineReferenceType(identifier: Parser.SyntaxNode, resolvedSymbol: Symbol): 'variable' | 'constant' | 'parameter' | 'field' {
+  protected determineReferenceType(identifier: Parser.SyntaxNode): 'variable' | 'constant' | 'parameter' | 'field' {
     // 实现确定引用类型逻辑
     // Check parent context to determine reference type
     if (identifier.parent?.type === 'parameters') {

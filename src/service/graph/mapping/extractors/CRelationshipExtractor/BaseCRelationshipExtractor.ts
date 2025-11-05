@@ -1,4 +1,4 @@
-import { SymbolResolver, Symbol, SymbolType } from '../../../symbol/SymbolResolver';
+import { generateDeterministicNodeId } from '../types';
 import { TreeSitterService } from '../../../../parser/core/parse/TreeSitterService';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { inject, injectable } from 'inversify';
@@ -13,36 +13,8 @@ export class BaseCRelationshipExtractor {
   ) { }
 
   // 共享的辅助方法
-  protected generateSymbolId(symbol: Symbol): string {
-    return `${symbol.type}_${Buffer.from(`${symbol.filePath}_${symbol.name}`).toString('hex')}`;
-  }
-
   protected generateNodeId(name: string, type: string, filePath: string): string {
     return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
-
-  protected findCallerSymbol(callExpr: Parser.SyntaxNode, symbolResolver: SymbolResolver, filePath: string): Symbol | null {
-    // 实现查找调用者符号的逻辑
-    // 需要向上遍历AST找到包含当前调用的函数
-    let currentNode: Parser.SyntaxNode | null = callExpr.parent;
-    while (currentNode) {
-      if (currentNode.type === 'function_definition') {
-        // 查找函数名
-        for (const child of currentNode.children) {
-          if (child.type === 'function_declarator') {
-            const innerChild = child.children.find(c => c.type === 'identifier');
-            if (innerChild) {
-              const funcName = innerChild.text;
-              if (funcName) {
-                return symbolResolver.resolveSymbol(funcName, filePath, innerChild);
-              }
-            }
-          }
-        }
-      }
-      currentNode = currentNode.parent;
-    }
-    return null; // 如果没找到父函数
   }
 
   protected extractCalleeName(callExpr: Parser.SyntaxNode): string | null {
@@ -185,13 +157,9 @@ export class BaseCRelationshipExtractor {
     return null;
   }
 
-  protected determineReferenceType(identifier: Parser.SyntaxNode, resolvedSymbol: Symbol): 'variable' | 'constant' | 'parameter' | 'field' | 'type' | 'enum' {
+  protected determineReferenceType(identifier: Parser.SyntaxNode): 'variable' | 'constant' | 'parameter' | 'field' | 'type' | 'enum' {
     // 实现确定引用类型逻辑
-    if (resolvedSymbol.type === SymbolType.TYPE || resolvedSymbol.type === SymbolType.STRUCT) {
-      return 'type';
-    } else if (resolvedSymbol.type === SymbolType.ENUM) {
-      return 'enum';
-    } else if (identifier.parent?.type === 'parameter_declaration') {
+    if (identifier.parent?.type === 'parameter_declaration') {
       return 'parameter';
     } else if (identifier.parent?.type === 'field_identifier' ||
       identifier.parent?.parent?.type === 'field_expression') {
@@ -243,59 +211,45 @@ export class BaseCRelationshipExtractor {
     return null;
   }
 
-  protected findStructInstances(varDecl: Parser.SyntaxNode, filePath: string, symbolResolver: SymbolResolver): Array<{
+  protected findStructInstances(varDecl: Parser.SyntaxNode, filePath: string): Array<{
     structName: string;
     structId: string;
-    resolvedSymbol: Symbol | undefined;
   }> {
     // 查找结构体实例
     const instances: Array<{
       structName: string;
       structId: string;
-      resolvedSymbol: Symbol | undefined;
     }> = [];
 
     // 检查变量声明中的类型是否是结构体
     const typeIdentifiers = this.treeSitterService.findNodeByType(varDecl, 'type_identifier');
     for (const typeIdent of typeIdentifiers) {
-      // 检查类型是否是已定义的结构体
-      const resolvedSymbol = symbolResolver.resolveSymbol(typeIdent.text, filePath, typeIdent);
-      if (resolvedSymbol && resolvedSymbol.type === SymbolType.STRUCT) {
-        instances.push({
-          structName: typeIdent.text,
-          structId: this.generateSymbolId(resolvedSymbol),
-          resolvedSymbol
-        });
-      }
+      instances.push({
+        structName: typeIdent.text,
+        structId: generateDeterministicNodeId(typeIdent)
+      });
     }
 
     return instances;
   }
 
-  protected findEnumInstances(varDecl: Parser.SyntaxNode, filePath: string, symbolResolver: SymbolResolver): Array<{
+  protected findEnumInstances(varDecl: Parser.SyntaxNode, filePath: string): Array<{
     enumName: string;
     enumId: string;
-    resolvedSymbol: Symbol | undefined;
   }> {
     // 查找枚举实例
     const instances: Array<{
       enumName: string;
       enumId: string;
-      resolvedSymbol: Symbol | undefined;
     }> = [];
 
     // 检查变量声明中的类型是否是枚举
     const typeIdentifiers = this.treeSitterService.findNodeByType(varDecl, 'type_identifier');
     for (const typeIdent of typeIdentifiers) {
-      // 检查类型是否是已定义的枚举
-      const resolvedSymbol = symbolResolver.resolveSymbol(typeIdent.text, filePath, typeIdent);
-      if (resolvedSymbol && resolvedSymbol.type === SymbolType.ENUM) {
-        instances.push({
-          enumName: typeIdent.text,
-          enumId: this.generateSymbolId(resolvedSymbol),
-          resolvedSymbol
-        });
-      }
+      instances.push({
+        enumName: typeIdent.text,
+        enumId: generateDeterministicNodeId(typeIdent)
+      });
     }
 
     return instances;
