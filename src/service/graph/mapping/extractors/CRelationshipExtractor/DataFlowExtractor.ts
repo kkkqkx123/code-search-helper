@@ -5,6 +5,7 @@ import {
   BaseCRelationshipExtractor,
   injectable
 } from '../types';
+import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 
 @injectable()
 export class DataFlowExtractor extends BaseCRelationshipExtractor {
@@ -41,8 +42,8 @@ export class DataFlowExtractor extends BaseCRelationshipExtractor {
               const resolvedTargetSymbol = symbolResolver.resolveSymbol(targetName, filePath, targetVar.node);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(sourceName, 'variable', filePath),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(targetName, 'variable', filePath),
+                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(sourceVar.node),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(targetVar.node),
                 flowType: 'variable_assignment',
                 dataType: 'variable',
                 flowPath: [sourceName, targetName],
@@ -76,8 +77,8 @@ export class DataFlowExtractor extends BaseCRelationshipExtractor {
               const resolvedTargetSymbol = symbolResolver.resolveSymbol(funcName, filePath, targetFunc.node);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(paramName, 'parameter', filePath),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(funcName, 'function', filePath),
+                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(sourceParam.node),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(targetFunc.node),
                 flowType: 'parameter_passing',
                 dataType: 'parameter',
                 flowPath: [paramName, funcName],
@@ -108,8 +109,8 @@ export class DataFlowExtractor extends BaseCRelationshipExtractor {
               const resolvedTargetSymbol = symbolResolver.resolveSymbol(funcName, filePath, containingFunc);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(returnName, 'return_value', filePath),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(funcName, 'function', filePath),
+                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(returnVar.node),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(containingFunc),
                 flowType: 'return_value',
                 dataType: 'return',
                 flowPath: [returnName, funcName],

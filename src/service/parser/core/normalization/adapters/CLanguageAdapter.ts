@@ -1,5 +1,7 @@
 import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
+import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
+import Parser from 'tree-sitter';
 
 /**
  * C 语言适配器
@@ -16,17 +18,13 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
       'structs',
       'variables',
       'preprocessor',
-      'control-flow',
-      'data-flow',
-      'control-flow-relationships',
-      'semantic-relationships',
-      'lifecycle-relationships',
-      'concurrency-relationships'
+      'control-flow'
     ];
   }
 
   mapNodeType(nodeType: string): string {
-    const typeMapping: Record<string, string> = {// 函数相关
+    const typeMapping: Record<string, string> = {
+      // 函数相关
       'function_definition': 'function',
       'function_declarator': 'function',
       'parameter_declaration': 'parameter',
@@ -212,18 +210,13 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive'> = {
+  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
+    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
       'functions': 'function',
       'structs': 'class',  // 结构体映射为类
       'variables': 'variable',
       'preprocessor': 'expression',  // 预处理器映射为表达式
-      'control-flow': 'control-flow',
-      'data-flow': 'data-flow',
-      'control-flow-relationships': 'control-flow',
-      'semantic-relationships': 'semantic-relationship',
-      'lifecycle-relationships': 'lifecycle-event',
-      'concurrency-relationships': 'concurrency-primitive'
+      'control-flow': 'control-flow'
     };
 
     return mapping[queryType] || 'expression';
@@ -241,11 +234,6 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
     const nodeType = mainNode.type;
     if (nodeType.includes('function')) complexity += 1;
     if (nodeType.includes('struct') || nodeType.includes('union') || nodeType.includes('enum')) complexity += 1;
-    if (nodeType.includes('data-flow')) complexity += 2;
-    if (nodeType.includes('control-flow-relationship')) complexity += 2;
-    if (nodeType.includes('semantic-relationship')) complexity += 3;
-    if (nodeType.includes('lifecycle-relationship')) complexity += 3;
-    if (nodeType.includes('concurrency-relationship')) complexity += 3;
 
     // C语言特定的复杂度因素
     const text = mainNode.text || '';
@@ -276,12 +264,6 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
 
     // 查找函数调用引用
     this.findFunctionCalls(mainNode, dependencies);
-
-    // 查找数据流依赖
-    this.findDataFlowDependencies(mainNode, dependencies);
-
-    // 查找并发相关依赖
-    this.findConcurrencyDependencies(mainNode, dependencies);
 
     return [...new Set(dependencies)]; // 去重
   }
@@ -314,6 +296,47 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
     return modifiers;
   }
 
+  // 重写normalize方法以集成nodeId生成
+  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
+    const results: StandardizedQueryResult[] = [];
+
+    for (const result of queryResults) {
+      try {
+        const standardType = this.mapQueryTypeToStandardType(queryType);
+        const name = this.extractName(result);
+        const content = this.extractContent(result);
+        const complexity = this.calculateComplexity(result);
+        const dependencies = this.extractDependencies(result);
+        const modifiers = this.extractModifiers(result);
+        const extra = this.extractLanguageSpecificMetadata(result);
+
+        // 获取AST节点以生成确定性ID
+        const astNode = result.captures?.[0]?.node;
+        const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
+
+        results.push({
+          nodeId,
+          type: standardType,
+          name,
+          startLine: result.startLine || 1,
+          endLine: result.endLine || 1,
+          content,
+          metadata: {
+            language,
+            complexity,
+            dependencies,
+            modifiers,
+            extra
+          }
+        });
+      } catch (error) {
+        this.logger?.error(`Error normalizing C language result: ${error}`);
+      }
+    }
+
+    return results;
+  }
+
   // C语言特定的辅助方法
 
   private findFunctionCalls(node: any, dependencies: string[]): void {
@@ -334,253 +357,21 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
     }
   }
 
-  private findDataFlowDependencies(node: any, dependencies: string[]): void {
+  private findTypeReferences(node: any, dependencies: string[]): void {
     if (!node || !node.children) {
       return;
     }
 
     for (const child of node.children) {
-      // 查找赋值表达式中的依赖
-      if (child.type === 'assignment_expression') {
-        const rightSide = child.childForFieldName('right');
-        if (rightSide?.type === 'identifier' && rightSide.text) {
-          dependencies.push(rightSide.text);
+      // 查找类型引用
+      if (child.type === 'type_identifier' || child.type === 'struct_specifier' || child.type === 'union_specifier') {
+        if (child.text) {
+          dependencies.push(child.text);
         }
       }
 
-      this.findDataFlowDependencies(child, dependencies);
+      this.findTypeReferences(child, dependencies);
     }
-  }
-
-  private findConcurrencyDependencies(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找并发相关函数
-      if (child.type === 'call_expression') {
-        const functionNode = child.childForFieldName('function');
-        if (functionNode?.text) {
-          const funcText = functionNode.text.toLowerCase();
-          if (funcText.includes('thread') || funcText.includes('mutex') || 
-              funcText.includes('lock') || funcText.includes('signal')) {
-            dependencies.push(funcText);
-          }
-        }
-      }
-
-      this.findConcurrencyDependencies(child, dependencies);
-    }
-  }
-
-  // 高级关系提取方法
-  extractDataFlowRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'assignment' | 'parameter' | 'return';
-  }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'assignment' | 'parameter' | 'return';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 提取赋值关系
-    if (mainNode.type === 'assignment_expression') {
-      const leftNode = mainNode.childForFieldName('left');
-      const rightNode = mainNode.childForFieldName('right');
-      if (leftNode?.text && rightNode?.text) {
-        relationships.push({
-          source: rightNode.text,
-          target: leftNode.text,
-          type: 'assignment'
-        });
-      }
-    }
-    
-    // 提取参数传递关系
-    if (mainNode.type === 'call_expression') {
-      const funcNode = mainNode.childForFieldName('function');
-      const argsNode = mainNode.childForFieldName('arguments');
-      
-      if (funcNode?.text && argsNode) {
-        for (const arg of argsNode.children || []) {
-          if (arg.type === 'identifier' && arg.text) {
-            relationships.push({
-              source: arg.text,
-              target: funcNode.text,
-              type: 'parameter'
-            });
-          }
-        }
-      }
-    }
-    
-    // 提取返回值关系
-    if (mainNode.type === 'return_statement') {
-      const valueNode = mainNode.children?.find((child: any) => child.type === 'identifier');
-      if (valueNode?.text) {
-        relationships.push({
-          source: valueNode.text,
-          target: 'function_return',
-          type: 'return'
-        });
-      }
-    }
-
-    return relationships;
-  }
-
-  extractControlFlowRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'conditional' | 'loop' | 'exception' | 'callback';
-  }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'conditional' | 'loop' | 'exception' | 'callback';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 条件控制流
-    if (mainNode.type === 'if_statement' || mainNode.type === 'conditional_expression') {
-      const condition = mainNode.childForFieldName('condition')?.text || 'condition';
-      relationships.push({
-        source: condition,
-        target: 'if_branch',
-        type: 'conditional'
-      });
-    }
-    
-    // 循环控制流
-    if (mainNode.type.includes('for_') || mainNode.type.includes('while_') || mainNode.type === 'do_statement') {
-      relationships.push({
-        source: 'loop_condition',
-        target: 'loop_body',
-        type: 'loop'
-      });
-    }
-
-    return relationships;
-  }
-
-  extractSemanticRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
-  }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 函数指针调用关系
-    if (mainNode.type === 'call_expression') {
-      const funcNode = mainNode.childForFieldName('function');
-      if (funcNode?.type === 'identifier') {
-        // 在C语言中，函数指针赋值可以表示某种语义关系
-        // 这里只是示例，实际实现会更复杂
-        relationships.push({
-          source: 'function_pointer',
-          target: funcNode.text,
-          type: 'delegates'
-        });
-      }
-    }
-
-    return relationships;
-  }
-
-  extractLifecycleRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
-  }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 内存分配关系
-    const text = mainNode.text || '';
-    if (text.includes('malloc') || text.includes('calloc') || text.includes('realloc')) {
-      relationships.push({
-        source: 'memory_allocator',
-        target: 'allocated_memory',
-        type: 'instantiates'
-      });
-    }
-    
-    // 内存释放关系
-    if (text.includes('free')) {
-      relationships.push({
-        source: 'memory_manager',
-        target: 'allocated_memory',
-        type: 'destroys'
-      });
-    }
-
-    return relationships;
-  }
-
-  extractConcurrencyRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-  }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    const text = mainNode.text || '';
-    // C语言并发关系（如使用pthread库）
-    if (text.includes('pthread_mutex_lock') || text.includes('pthread_mutex_unlock')) {
-      relationships.push({
-        source: 'mutex',
-        target: 'critical_section',
-        type: 'locks'
-      });
-    }
-    
-    if (text.includes('pthread_create')) {
-      relationships.push({
-        source: 'thread_creator',
-        target: 'new_thread',
-        type: 'synchronizes'
-      });
-    }
-
-    return relationships;
   }
 
   // 重写isBlockNode方法以支持C语言特定的块节点类型

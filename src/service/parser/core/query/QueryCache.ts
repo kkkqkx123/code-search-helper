@@ -19,6 +19,11 @@ export class QueryCache {
     enableStats: true
   });
 
+  // AST对象缓存
+  private static astCache = createCache<string, Parser.SyntaxNode>('stats-decorated', 200, {
+    enableStats: true
+  });
+
   static getQuery(language: Parser.Language, pattern: string): Parser.Query {
     const key = `${language.name}:${this.hashPattern(pattern)}`;
 
@@ -67,6 +72,7 @@ export class QueryCache {
   static clearCache(): void {
     this.queryCache.clear();
     this.resultCache.clear();
+    this.astCache.clear();
   }
 
   // 结果缓存管理方法
@@ -82,20 +88,35 @@ export class QueryCache {
     return this.resultCache.getStats();
   }
 
+  // AST缓存管理方法
+  static getAst(key: string): Parser.SyntaxNode | undefined {
+    return this.astCache.get(key);
+  }
+
+  static setAst(key: string, ast: Parser.SyntaxNode): void {
+    this.astCache.set(key, ast);
+  }
+
+  static getAstStats(): any {
+    return this.astCache.getStats();
+  }
+
   // 统一的缓存统计信息
   static getAllStats(): {
     queryCache: any;
     resultCache: any;
+    astCache: any;
     combined: any;
   } {
     const queryStats = this.queryCache.getStats();
     const resultStats = this.resultCache.getStats();
+    const astStats = this.astCache.getStats();
     
     // 计算合并的统计信息
     const combined = {
-      totalHits: (queryStats?.hits || 0) + (resultStats?.hits || 0),
-      totalMisses: (queryStats?.misses || 0) + (resultStats?.misses || 0),
-      totalSize: (queryStats?.size || 0) + (resultStats?.size || 0),
+      totalHits: (queryStats?.hits || 0) + (resultStats?.hits || 0) + (astStats?.hits || 0),
+      totalMisses: (queryStats?.misses || 0) + (resultStats?.misses || 0) + (astStats?.misses || 0),
+      totalSize: (queryStats?.size || 0) + (resultStats?.size || 0) + (astStats?.size || 0),
       overallHitRate: '0.00%'
     };
     
@@ -105,6 +126,7 @@ export class QueryCache {
     return {
       queryCache: queryStats,
       resultCache: resultStats,
+      astCache: astStats,
       combined
     };
   }

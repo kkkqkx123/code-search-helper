@@ -8,11 +8,10 @@ import Parser from 'tree-sitter';
  * 标准化查询结果接口
  */
 export interface StandardizedQueryResult {
+  /** 确定性的节点ID，用于与图数据库中的顶点对应 */
+  nodeId: string;
   /** 结构类型 */
-  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def' |
-        'data-flow' | 'parameter-flow' | 'return-flow' | 
-        'exception-flow' | 'callback-flow' | 
-        'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive';
+  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def';
   
   /** 结构名称 */
   name: string;

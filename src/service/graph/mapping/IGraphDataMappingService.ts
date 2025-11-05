@@ -1,5 +1,7 @@
 import { CodeChunk } from '../../parser/types';
 import { QueryResult } from '../../parser/core/query/TreeSitterQueryEngine';
+import { StandardizedQueryResult } from '../../parser/core/normalization/types';
+import Parser = require('tree-sitter');
 
 // 图节点类型枚举
 export enum GraphNodeType {
@@ -199,6 +201,20 @@ export interface GraphEdge {
 
 export interface IGraphDataMappingService {
   /**
+   * 将标准化节点列表和原始AST映射为图数据库节点和关系
+   * @param filePath 文件路径
+   * @param standardizedNodes 标准化节点列表
+   * @param ast 原始AST
+   * @returns 图映射结果
+   */
+  mapToGraph(
+    filePath: string,
+    standardizedNodes: StandardizedQueryResult[],
+    ast: Parser.SyntaxNode
+  ): Promise<GraphMappingResult>;
+
+  /**
+   * @deprecated 请使用新的 mapToGraph 方法
    * 将文件分析结果映射为图数据库节点
    */
   mapFileToGraphNodes(

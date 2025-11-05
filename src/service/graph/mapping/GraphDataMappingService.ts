@@ -23,6 +23,8 @@ import {
   GraphEdge
 } from './IGraphDataMappingService';
 import { CodeChunk } from '../../parser/types';
+import { StandardizedQueryResult } from '../../parser/core/normalization/types';
+import Parser = require('tree-sitter');
 import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
@@ -30,6 +32,7 @@ import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
 import { FaultToleranceHandler } from '../../../utils/FaultToleranceHandler';
 import { QueryResult, QueryMatch } from '../../parser/core/query/TreeSitterQueryEngine';
 import { LANGUAGE_NODE_MAPPINGS } from './LanguageNodeTypes';
+import { RelationshipExtractorFactory } from './RelationshipExtractorFactory';
 
 @injectable()
 export class GraphDataMappingService implements IGraphDataMappingService {
@@ -39,6 +42,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   private unifiedCache: any; // 新的统一缓存服务
   private batchOptimizer: GraphBatchOptimizer;
   private faultToleranceHandler: FaultToleranceHandler;
+  private relationshipExtractorFactory: RelationshipExtractorFactory;
 
   // 新增语言特定的capture映射
   private readonly LANGUAGE_CAPTURE_MAPPINGS: Record<string, Record<string, string>> = {
@@ -82,7 +86,8 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     @inject(TYPES.GraphCacheService) unifiedCache: any,
     @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
-    @inject(TYPES.FaultToleranceHandler) faultToleranceHandler: FaultToleranceHandler
+    @inject(TYPES.FaultToleranceHandler) faultToleranceHandler: FaultToleranceHandler,
+    @inject(TYPES.RelationshipExtractorFactory) relationshipExtractorFactory: RelationshipExtractorFactory
   ) {
     this.logger = logger;
     this.validator = validator;
@@ -90,6 +95,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     this.unifiedCache = unifiedCache;
     this.batchOptimizer = batchOptimizer;
     this.faultToleranceHandler = faultToleranceHandler;
+    this.relationshipExtractorFactory = relationshipExtractorFactory;
 
     this.logger.info('GraphDataMappingService initialized with fault tolerance');
   }
@@ -125,6 +131,122 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       'txt': 'text'
     };
     return languageMap[extension] || 'unknown';
+  }
+
+  async mapToGraph(
+    filePath: string,
+    standardizedNodes: StandardizedQueryResult[],
+    ast: Parser.SyntaxNode
+  ): Promise<GraphMappingResult> {
+    const result = await this.faultToleranceHandler.executeWithFaultTolerance(
+      async () => {
+        this.logger.info(`Starting graph mapping for file: ${filePath}`);
+        
+        // Step 1: Create all vertices from standardized nodes
+        const nodes = this.createVerticesFromStandardizedNodes(standardizedNodes, filePath);
+        
+        // Step 2: Create all edges using extractors and the original AST
+        const language = this.inferLanguageFromFile(filePath);
+        const edges = await this.createEdgesFromAST(ast, language);
+        
+        this.logger.info(`Successfully mapped ${nodes.length} nodes and ${edges.length} edges for file: ${filePath}`);
+        
+        return { nodes, edges };
+      },
+      'mapToGraph',
+      { filePath, standardizedNodeCount: standardizedNodes.length }
+    );
+
+    if (result.success) {
+      return result.data!;
+    } else {
+      throw result.error || new Error(`Failed to map file ${filePath} to graph`);
+    }
+  }
+
+  private createVerticesFromStandardizedNodes(
+    standardizedNodes: StandardizedQueryResult[],
+    filePath: string
+  ): GraphNode[] {
+    const vertices: GraphNode[] = [];
+    
+    for (const node of standardizedNodes) {
+      // Use the deterministic nodeId as the primary key for the graph vertex
+      const graphNode: GraphNode = {
+        id: node.nodeId,
+        type: this.mapStandardizedTypeToGraphType(node.type),
+        properties: {
+          name: node.name,
+          filePath: filePath,
+          ...node.metadata
+        }
+      };
+      vertices.push(graphNode);
+    }
+
+    return vertices;
+  }
+
+  private mapStandardizedTypeToGraphType(standardizedType: string): GraphNodeType {
+    // Map from standardized types to graph node types
+    const typeMapping: Record<string, GraphNodeType> = {
+      'function': GraphNodeType.FUNCTION,
+      'class': GraphNodeType.CLASS,
+      'variable': GraphNodeType.VARIABLE,
+      'import': GraphNodeType.IMPORT,
+      'interface': GraphNodeType.INTERFACE,
+      'method': GraphNodeType.METHOD,
+      'property': GraphNodeType.PROPERTY,
+    };
+    
+    return typeMapping[standardizedType] || GraphNodeType.VARIABLE; // Default to VARIABLE
+  }
+
+  private async createEdgesFromAST(
+    ast: Parser.SyntaxNode,
+    language: string
+  ): Promise<GraphEdge[]> {
+    const edges: GraphEdge[] = [];
+    
+    // Get the appropriate relationship extractor for the language
+    const extractor = this.relationshipExtractorFactory.getExtractor(language);
+    
+    if (!extractor) {
+      this.logger.warn(`No relationship extractor found for language: ${language}`);
+      return edges;
+    }
+
+    // Use the extractor to find relationships in the AST
+    const relationships = extractor.extractAllRelationships(ast);
+    
+    for (const rel of relationships) {
+      const edge: GraphEdge = {
+        id: uuidv4(),
+        type: this.mapRelationshipTypeToGraphType(rel.type),
+        sourceNodeId: rel.fromNodeId,
+        targetNodeId: rel.toNodeId,
+        properties: rel.properties || {}
+      };
+      edges.push(edge);
+    }
+
+    return edges;
+  }
+
+  private mapRelationshipTypeToGraphType(relationshipType: string): GraphRelationshipType {
+    // Map from extractor relationship types to graph relationship types
+    const typeMapping: Record<string, GraphRelationshipType> = {
+      'calls': GraphRelationshipType.CALLS,
+      'data_flows_to': GraphRelationshipType.DATA_FLOWS_TO,
+      'inherits': GraphRelationshipType.INHERITS,
+      'implements': GraphRelationshipType.IMPLEMENTS,
+      'contains': GraphRelationshipType.CONTAINS,
+      'imports': GraphRelationshipType.IMPORTS,
+      'uses': GraphRelationshipType.USES,
+      'defines': GraphRelationshipType.DEFINES,
+    };
+    
+    return typeMapping[relationshipType] || GraphRelationshipType.USES; // Default to USES
   }
 
   async mapFileToGraphNodes(

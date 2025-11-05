@@ -9,6 +9,7 @@ export class CacheKeyGenerator {
   private static readonly SIMPLE_QUERY_PREFIX = 'simple:';
   private static readonly TREE_SITTER_QUERY_PREFIX = 'treesitter:';
   private static readonly BATCH_QUERY_PREFIX = 'batch:';
+  private static readonly AST_PREFIX = 'ast:';
 
   /**
    * 为SimpleQueryEngine生成缓存键
@@ -45,6 +46,16 @@ export class CacheKeyGenerator {
     const contentHash = this.generateContentHash(ast);
     const typesKey = types.sort().join(',');
     return `${this.BATCH_QUERY_PREFIX}${contentHash}:batch:${typesKey}:${language}`;
+  }
+
+  /**
+   * 为AST对象生成缓存键
+   * @param filePath 文件路径
+   * @param contentHash 文件内容哈希
+   * @returns 缓存键
+   */
+  static forAst(filePath: string, contentHash: string): string {
+    return `${this.AST_PREFIX}${filePath}:${contentHash}`;
   }
 
   /**
@@ -106,7 +117,8 @@ export class CacheKeyGenerator {
     const validPrefixes = [
       this.SIMPLE_QUERY_PREFIX,
       this.TREE_SITTER_QUERY_PREFIX,
-      this.BATCH_QUERY_PREFIX
+      this.BATCH_QUERY_PREFIX,
+      this.AST_PREFIX
     ];
     
     return validPrefixes.some(prefix => cacheKey.startsWith(prefix));
