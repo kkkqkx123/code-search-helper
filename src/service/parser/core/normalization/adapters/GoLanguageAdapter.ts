@@ -1,26 +1,36 @@
 import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
-import { StandardizedQueryResult } from '../types';
+import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
+import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
+import Parser from 'tree-sitter';
+type StandardType = StandardizedQueryResult['type'];
 
 /**
  * Go语言适配器
  * 处理Go特定的查询结果标准化
  */
 export class GoLanguageAdapter extends BaseLanguageAdapter {
+  // In-memory symbol table for the current file
+  private symbolTable: SymbolTable | null = null;
+
   constructor(options: AdapterOptions = {}) {
     super(options);
   }
 
   getSupportedQueryTypes(): string[] {
     return [
+      // Entity types
       'functions-types',
       'variables-imports',
       'expressions-control-flow',
-      // 高级关系查询类型
-      'data-flow',
+      // Relationship types
+      'calls',
+      'data-flows',
+      'inheritance',
+      // Advanced relationship types
+      'concurrency-relationships',
       'control-flow-relationships',
-      'semantic-relationships',
       'lifecycle-relationships',
-      'concurrency-relationships'
+      'semantic-relationships'
     ];
   }
 
@@ -346,39 +356,21 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive'> = {
+  mapQueryTypeToStandardType(queryType: string): StandardType {
+    const mapping: Record<string, StandardType> = {
       'functions-types': 'function',
       'variables-imports': 'variable',
       'expressions-control-flow': 'expression',
-      // 数据流相关
-      'data-flow': 'data-flow',
-      'data.flow.assignment': 'data-flow',
-      'data.flow.parameter': 'parameter-flow',
-      'data.flow.return': 'return-flow',
-      // 控制流相关
+      
+      // 关系类型
+      'calls': 'call',
+      'data-flows': 'data-flow',
+      'inheritance': 'inheritance',
+      // ... 其他关系类型
+      'concurrency-relationships': 'concurrency',
       'control-flow-relationships': 'control-flow',
-      'control.flow.if': 'exception-flow',
-      'control.flow.for': 'control-flow',
-      'control.flow.select': 'exception-flow',
-      'control.flow.switch': 'control-flow',
-      // 语义关系相关
-      'semantic.relationships': 'semantic-relationship',
-      'semantic.relationship.interface.definition': 'semantic-relationship',
-      'semantic.relationship.struct.definition': 'semantic-relationship',
-      'semantic.relationship.method.definition': 'semantic-relationship',
-      // 生命周期相关
-      'lifecycle.relationships': 'lifecycle-event',
-      'lifecycle.relationship.instantiation': 'lifecycle-event',
-      'lifecycle.relationship.initialization': 'lifecycle-event',
-      'lifecycle.relationship.resource.acquisition': 'lifecycle-event',
-      'lifecycle.relationship.resource.release': 'lifecycle-event',
-      // 并发相关
-      'concurrency.relationships': 'concurrency-primitive',
-      'concurrency.relationship.goroutine': 'concurrency-primitive',
-      'concurrency.relationship.channel': 'concurrency-primitive',
-      'concurrency.relationship.mutex': 'concurrency-primitive',
-      'concurrency.relationship.waitgroup': 'concurrency-primitive'
+      'lifecycle-relationships': 'lifecycle',
+      'semantic-relationships': 'semantic'
     };
     
     return mapping[queryType] || 'expression';
@@ -906,5 +898,266 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }
 
     return relationships;
+  }
+
+  // 重写normalize方法以集成nodeId生成和符号信息
+  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
+    const results: StandardizedQueryResult[] = [];
+
+    // Initialize symbol table for the current processing context
+    // In a real scenario, filePath would be passed in. For now, we'll use a placeholder.
+    const filePath = 'current_file.go';
+    this.symbolTable = {
+      filePath,
+      globalScope: { symbols: new Map() },
+      imports: new Map()
+    };
+
+    for (const result of queryResults) {
+      try {
+        const standardType = this.mapQueryTypeToStandardType(queryType);
+        const name = this.extractName(result);
+        const content = this.extractContent(result);
+        const complexity = this.calculateComplexity(result);
+        const dependencies = this.extractDependencies(result);
+        const modifiers = this.extractModifiers(result);
+        const extra = this.extractLanguageSpecificMetadata(result);
+
+        // 获取AST节点以生成确定性ID
+        const astNode = result.captures?.[0]?.node;
+        const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
+
+        let symbolInfo: SymbolInfo | null = null;
+        let relationshipMetadata: any = null;
+
+        // Only create symbol info for entity types, not relationships
+        if (['function', 'class', 'method', 'variable', 'import', 'type'].includes(standardType)) {
+          symbolInfo = this.createSymbolInfo(astNode, name, standardType, filePath);
+          if (this.symbolTable && symbolInfo) {
+            this.symbolTable.globalScope.symbols.set(name, symbolInfo);
+          }
+        } else {
+          // For relationships, extract specific metadata
+          relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+        }
+
+        results.push({
+          nodeId,
+          type: standardType,
+          name,
+          startLine: result.startLine || 1,
+          endLine: result.endLine || 1,
+          content,
+          metadata: {
+            language,
+            complexity,
+            dependencies,
+            modifiers,
+            extra: {
+              ...extra,
+              ...relationshipMetadata // Merge relationship-specific metadata
+            }
+          },
+          symbolInfo: symbolInfo || undefined
+        });
+      } catch (error) {
+        this.logger?.error(`Error normalizing Go result: ${error}`);
+      }
+    }
+
+    return results;
+  }
+
+  private createSymbolInfo(node: Parser.SyntaxNode | undefined, name: string, standardType: string, filePath: string): SymbolInfo | null {
+    if (!name || !node) return null;
+
+    const symbolType = this.mapToSymbolType(standardType);
+
+    const symbolInfo: SymbolInfo = {
+      name,
+      type: symbolType,
+      filePath,
+      location: {
+        startLine: node.startPosition.row + 1,
+        startColumn: node.startPosition.column,
+        endLine: node.endPosition.row + 1,
+        endColumn: node.endPosition.column,
+      },
+      scope: this.determineScope(node)
+    };
+
+    // Add parameters for functions
+    if (symbolType === 'function' || symbolType === 'method') {
+      symbolInfo.parameters = this.extractParameters(node);
+    }
+
+    // Add source path for imports
+    if (symbolType === 'import') {
+      symbolInfo.sourcePath = this.extractImportPath(node);
+    }
+
+    return symbolInfo;
+  }
+
+  private mapToSymbolType(standardType: string): SymbolInfo['type'] {
+    const mapping: Record<string, SymbolInfo['type']> = {
+      'function': 'function',
+      'method': 'method',
+      'class': 'class',
+      'interface': 'interface',
+      'variable': 'variable',
+      'import': 'import'
+    };
+    return mapping[standardType] || 'variable';
+  }
+
+  private determineScope(node: Parser.SyntaxNode): SymbolInfo['scope'] {
+    // Simplified scope determination. A real implementation would traverse up the AST.
+    let current = node.parent;
+    while (current) {
+      if (current.type === 'function_declaration' || current.type === 'method_declaration') {
+        return 'function';
+      }
+      if (current.type === 'struct_type' || current.type === 'interface_type') {
+        return 'class';
+      }
+      current = current.parent;
+    }
+    return 'global';
+  }
+
+  private extractParameters(node: Parser.SyntaxNode): string[] {
+    const parameters: string[] = [];
+    const parameterList = node.childForFieldName?.('parameters');
+    if (parameterList) {
+      for (const child of parameterList.children) {
+        if (child.type === 'parameter_declaration') {
+          const identifier = child.childForFieldName('name');
+          if (identifier) {
+            parameters.push(identifier.text);
+          }
+        }
+      }
+    }
+    return parameters;
+  }
+
+  private extractImportPath(node: Parser.SyntaxNode): string | undefined {
+    // For Go imports
+    if (node.type === 'import_spec') {
+      const pathNode = node.childForFieldName('path');
+      return pathNode ? pathNode.text.replace(/"/g, '') : undefined;
+    }
+    return undefined;
+  }
+
+  private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
+    if (!astNode) return null;
+
+    switch (standardType) {
+      case 'call':
+        return this.extractCallMetadata(result, astNode);
+      case 'data-flow':
+        return this.extractDataFlowMetadata(result, astNode);
+      case 'inheritance':
+        return this.extractInheritanceMetadata(result, astNode);
+      case 'concurrency':
+        return this.extractConcurrencyMetadata(result, astNode);
+      case 'lifecycle':
+        return this.extractLifecycleMetadata(result, astNode);
+      case 'semantic':
+        return this.extractSemanticMetadata(result, astNode);
+      default:
+        return null;
+    }
+  }
+
+  private extractCallMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    const functionNode = astNode.childForFieldName('function');
+    const callerNode = this.findCallerFunctionContext(astNode);
+
+    return {
+      fromNodeId: callerNode ? generateDeterministicNodeId(callerNode) : 'unknown',
+      toNodeId: functionNode ? generateDeterministicNodeId(functionNode) : 'unknown',
+      callName: functionNode?.text || 'unknown',
+      location: {
+        filePath: 'current_file.go',
+        lineNumber: astNode.startPosition.row + 1,
+        columnNumber: astNode.startPosition.column,
+      }
+    };
+  }
+
+  private extractDataFlowMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Simplified data flow extraction
+    const left = astNode.childForFieldName('left');
+    const right = astNode.childForFieldName('right');
+
+    return {
+      fromNodeId: right ? generateDeterministicNodeId(right) : 'unknown',
+      toNodeId: left ? generateDeterministicNodeId(left) : 'unknown',
+      flowType: 'assignment',
+      location: {
+        filePath: 'current_file.go',
+        lineNumber: astNode.startPosition.row + 1,
+        columnNumber: astNode.startPosition.column,
+      }
+    };
+  }
+
+  private extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // For Go, this might be for interface implementation
+    // This is a placeholder for more complex logic
+    return null;
+  }
+
+  private findCallerFunctionContext(callNode: Parser.SyntaxNode): Parser.SyntaxNode | null {
+    let current = callNode.parent;
+    while (current) {
+      if (current.type === 'function_declaration' || current.type === 'method_declaration') {
+        return current;
+      }
+      current = current.parent;
+    }
+    return null;
+  }
+
+  private extractConcurrencyMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Placeholder for concurrency metadata extraction
+    // This would analyze goroutine, channel operations from the query result
+    return {
+      type: 'concurrency',
+      operation: 'unknown', // e.g., 'goroutine', 'channel', 'mutex'
+      location: {
+        filePath: 'current_file.go',
+        lineNumber: astNode.startPosition.row + 1,
+      }
+    };
+  }
+
+  private extractLifecycleMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Placeholder for lifecycle metadata extraction
+    // This would analyze object creation, destruction, etc.
+    return {
+      type: 'lifecycle',
+      operation: 'unknown', // e.g., 'create', 'destroy', 'initialize'
+      location: {
+        filePath: 'current_file.go',
+        lineNumber: astNode.startPosition.row + 1,
+      }
+    };
+  }
+
+  private extractSemanticMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Placeholder for semantic metadata extraction
+    // This would analyze design patterns, error handling, etc.
+    return {
+      type: 'semantic',
+      pattern: 'unknown', // e.g., 'singleton', 'factory', 'observer'
+      location: {
+        filePath: 'current_file.go',
+        lineNumber: astNode.startPosition.row + 1,
+      }
+    };
   }
 }

@@ -13,9 +13,19 @@ export class TSXLanguageAdapter extends TypeScriptLanguageAdapter {
 
   getSupportedQueryTypes(): string[] {
     return [
+      // Entity types
       'components',
       'jsx',
-      'types-hooks'
+      'types-hooks',
+      // Relationship types
+      'calls',
+      'data-flows',
+      'inheritance',
+      // Advanced relationship types
+      'concurrency-relationships',
+      'control-flow-relationships',
+      'lifecycle-relationships',
+      'semantic-relationships'
     ];
   }
 

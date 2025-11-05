@@ -13,21 +13,27 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
 
   getSupportedQueryTypes(): string[] {
     return [
-      'classes',
+      // Entity types
       'functions',
-      'exports',
+      'classes',
+      'variables',
       'imports',
+      'exports',
       'interfaces',
       'methods',
       'properties',
       'types',
-      'variables',
       'control-flow',
       'expressions',
-      'data-flow',
-      'semantic-relationships',
+      // Relationship types
+      'calls',
+      'data-flows',
+      'inheritance',
+      // Advanced relationship types
+      'concurrency-relationships',
+      'control-flow-relationships',
       'lifecycle-relationships',
-      'concurrency-relationships'
+      'semantic-relationships'
     ];
   }
 

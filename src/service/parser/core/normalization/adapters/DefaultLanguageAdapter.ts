@@ -1,5 +1,6 @@
 import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
+type StandardType = StandardizedQueryResult['type'];
 
 /**
  * 默认语言适配器
@@ -118,8 +119,8 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  mapQueryTypeToStandardType(queryType: string): StandardType {
+    const mapping: Record<string, StandardType> = {
       'functions': 'function',
       'classes': 'class',
       'methods': 'method',

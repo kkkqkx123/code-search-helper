@@ -1,5 +1,7 @@
 import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
+import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
+import Parser from 'tree-sitter';
 
 /**
  * Java语言适配器
@@ -10,14 +12,205 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     super(options);
   }
 
+  /**
+   * 重写normalize方法以使用generateDeterministicNodeId生成确定性ID
+   * 并确保关系元数据存储在metadata.extra字段中
+   */
+  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
+    const results: StandardizedQueryResult[] = [];
+
+    for (const result of queryResults) {
+      try {
+        const astNode = result.captures?.[0]?.node;
+        const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${queryType}:${Date.now()}`;
+        const standardType = this.mapQueryTypeToStandardType(queryType);
+        
+        // 创建标准化节点
+        const standardizedResult: StandardizedQueryResult = {
+          nodeId,
+          type: standardType,
+          name: this.extractName(result),
+          startLine: this.extractStartLine(result),
+          endLine: this.extractEndLine(result),
+          content: this.extractContent(result),
+          metadata: {
+            language,
+            complexity: this.calculateComplexity(result),
+            dependencies: this.extractDependencies(result),
+            modifiers: this.extractModifiers(result),
+            extra: this.extractLanguageSpecificMetadata(result)
+          }
+        };
+
+        // 对于关系类型，提取关系元数据并存储在metadata.extra中
+        if (this.isRelationshipType(standardType)) {
+          const relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+          if (relationshipMetadata) {
+            standardizedResult.metadata.extra = {
+              ...standardizedResult.metadata.extra,
+              ...relationshipMetadata
+            };
+          }
+        }
+
+        results.push(standardizedResult);
+      } catch (error) {
+        this.logger.error(`Error normalizing Java result: ${error}`);
+        if (!this.options.enableErrorRecovery) {
+          throw error;
+        }
+      }
+    }
+
+    return results;
+  }
+
+  private isRelationshipType(type: StandardizedQueryResult['type']): boolean {
+    return ['call', 'data-flow', 'inheritance', 'implements', 'concurrency', 'lifecycle', 'semantic'].includes(type);
+  }
+
+  private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
+    if (!astNode) return null;
+
+    switch (standardType) {
+      case 'data-flow':
+        return this.extractDataFlowMetadata(result, astNode);
+      case 'semantic':
+        return this.extractSemanticMetadata(result, astNode);
+      case 'lifecycle':
+        return this.extractLifecycleMetadata(result, astNode);
+      case 'concurrency':
+        return this.extractConcurrencyMetadata(result, astNode);
+      default:
+        return null;
+    }
+  }
+
+  private extractDataFlowMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // 从查询结果中提取数据流关系元数据
+    const captures = result.captures || [];
+    const metadata: any = {
+      type: 'data-flow',
+      location: {
+        filePath: 'unknown', // 实际路径应从上层传入
+        lineNumber: astNode.startPosition.row + 1,
+        columnNumber: astNode.startPosition.column
+      }
+    };
+
+    // 提取源和目标节点信息
+    for (const capture of captures) {
+      if (capture.name.includes('source') || capture.name.includes('parameter')) {
+        metadata.fromNodeId = generateDeterministicNodeId(capture.node);
+        metadata.sourceVariable = capture.node.text;
+      } else if (capture.name.includes('target') || capture.name.includes('method')) {
+        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.targetVariable = capture.node.text;
+      }
+    }
+
+    return metadata;
+  }
+
+  private extractSemanticMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // 从查询结果中提取语义关系元数据
+    const captures = result.captures || [];
+    const metadata: any = {
+      type: 'semantic',
+      location: {
+        filePath: 'unknown', // 实际路径应从上层传入
+        lineNumber: astNode.startPosition.row + 1,
+        columnNumber: astNode.startPosition.column
+      }
+    };
+
+    // 提取语义关系类型
+    for (const capture of captures) {
+      if (capture.name.includes('override')) {
+        metadata.semanticType = 'overrides';
+        metadata.overriddenMethod = capture.node.text;
+      } else if (capture.name.includes('implement')) {
+        metadata.semanticType = 'implements';
+        metadata.implementedInterface = capture.node.text;
+      } else if (capture.name.includes('annotation')) {
+        metadata.annotation = capture.node.text;
+      }
+    }
+
+    return metadata;
+  }
+
+  private extractLifecycleMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // 从查询结果中提取生命周期关系元数据
+    const captures = result.captures || [];
+    const metadata: any = {
+      type: 'lifecycle',
+      location: {
+        filePath: 'unknown', // 实际路径应从上层传入
+        lineNumber: astNode.startPosition.row + 1,
+        columnNumber: astNode.startPosition.column
+      }
+    };
+
+    // 提取生命周期操作类型
+    for (const capture of captures) {
+      if (capture.name.includes('instantiated') || capture.name.includes('constructor')) {
+        metadata.lifecycleType = 'instantiates';
+        metadata.instantiatedClass = capture.node.text;
+      } else if (capture.name.includes('close') || capture.name.includes('destroy')) {
+        metadata.lifecycleType = 'destroys';
+        metadata.destroyedResource = capture.node.text;
+      } else if (capture.name.includes('init') || capture.name.includes('initialize')) {
+        metadata.lifecycleType = 'initializes';
+        metadata.initializedResource = capture.node.text;
+      }
+    }
+
+    return metadata;
+  }
+
+  private extractConcurrencyMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // 从查询结果中提取并发关系元数据
+    const captures = result.captures || [];
+    const metadata: any = {
+      type: 'concurrency',
+      location: {
+        filePath: 'unknown', // 实际路径应从上层传入
+        lineNumber: astNode.startPosition.row + 1,
+        columnNumber: astNode.startPosition.column
+      }
+    };
+
+    // 提取并发操作类型
+    for (const capture of captures) {
+      if (capture.name.includes('synchronized') || capture.name.includes('lock')) {
+        metadata.concurrencyType = 'synchronizes';
+        metadata.lockedResource = capture.node.text;
+      } else if (capture.name.includes('thread') || capture.name.includes('start')) {
+        metadata.concurrencyType = 'manages';
+        metadata.managedThread = capture.node.text;
+      } else if (capture.name.includes('wait') || capture.name.includes('notify')) {
+        metadata.concurrencyType = 'communicates';
+        metadata.communicationPoint = capture.node.text;
+      }
+    }
+
+    return metadata;
+  }
+
   getSupportedQueryTypes(): string[] {
     return [
+      // Entity types
       'classes-interfaces',
       'methods-variables',
       'control-flow-patterns',
+      // Relationship types
       'data-flow',
       'semantic-relationships',
-      'lifecycle-relationships'
+      'lifecycle-relationships',
+      // Advanced relationship types
+      'concurrency-relationships',
+      'control-flow-relationships'
     ];
   }
 
@@ -397,14 +590,16 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive'> = {
+  mapQueryTypeToStandardType(queryType: string): StandardizedQueryResult['type'] {
+    const mapping: Record<string, StandardizedQueryResult['type']> = {
       'classes-interfaces': 'class',
       'methods-variables': 'method',
       'control-flow-patterns': 'control-flow',
       'data-flow': 'data-flow',
-      'semantic-relationships': 'semantic-relationship',
-      'lifecycle-relationships': 'lifecycle-event'
+      'semantic-relationships': 'semantic',
+      'lifecycle-relationships': 'lifecycle',
+      'concurrency-relationships': 'concurrency',
+      'control-flow-relationships': 'control-flow'
     };
     
     return mapping[queryType] || 'expression';

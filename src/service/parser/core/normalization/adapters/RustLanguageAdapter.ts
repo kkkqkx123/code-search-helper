@@ -1,5 +1,7 @@
 import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
+import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
+import Parser from 'tree-sitter';
 
 /**
  * Rust语言适配器
@@ -12,6 +14,7 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
 
   getSupportedQueryTypes(): string[] {
     return [
+      // Entity types
       'functions',
       'classes',        // 对应Rust的struct、enum、union
       'interfaces',     // 对应Rust的trait
@@ -22,7 +25,18 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       'types',          // 对应类型别名、类型参数
       'expressions',    // 对应各种表达式
       'macros',         // 对应宏定义和宏调用
-      'modules'         // 对应模块定义
+      'modules',        // 对应模块定义
+      
+      // Relationship types
+      'calls',
+      'data-flows',
+      'inheritance',    // 对应trait实现关系
+      
+      // Advanced relationship types
+      'concurrency-relationships',
+      'control-flow-relationships',
+      'lifecycle-relationships',
+      'semantic-relationships'
     ];
   }
 
@@ -242,8 +256,8 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  mapQueryTypeToStandardType(queryType: string): StandardizedQueryResult['type'] {
+    const mapping: Record<string, StandardizedQueryResult['type']> = {
       'functions': 'function',
       'classes': 'class',         // 对应struct、enum、union
       'interfaces': 'interface',  // 对应trait
@@ -256,6 +270,17 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       'macros': 'function',       // 宏类似函数
       'modules': 'import',        // 模块导入
       'patterns': 'expression',   // 模式匹配
+      
+      // 关系类型
+      'calls': 'call',
+      'data-flows': 'data-flow',
+      'inheritance': 'inheritance',  // 对应trait实现关系
+      
+      // 高级关系类型
+      'concurrency-relationships': 'concurrency',
+      'control-flow-relationships': 'control-flow',
+      'lifecycle-relationships': 'lifecycle',
+      'semantic-relationships': 'semantic'
     };
     
     return mapping[queryType] || 'expression';
@@ -486,10 +511,179 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
   // 重写isBlockNode方法以支持Rust特定的块节点类型
   protected isBlockNode(node: any): boolean {
     const rustBlockTypes = [
-      'block', 'function_body', 'match_arm', 'match_block', 
+      'block', 'function_body', 'match_arm', 'match_block',
       'loop_expression', 'while_expression', 'for_expression',
       'if_expression', 'unsafe_block', 'const_block', 'async_block'
     ];
     return rustBlockTypes.includes(node.type) || super.isBlockNode(node);
+  }
+
+  // 重写normalize方法以集成nodeId生成和符号信息
+  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
+    const results: StandardizedQueryResult[] = [];
+
+    for (const result of queryResults) {
+      try {
+        const standardType = this.mapQueryTypeToStandardType(queryType);
+        const name = this.extractName(result);
+        const content = this.extractContent(result);
+        const complexity = this.calculateComplexity(result);
+        const dependencies = this.extractDependencies(result);
+        const modifiers = this.extractModifiers(result);
+        const extra = this.extractLanguageSpecificMetadata(result);
+
+        // 获取AST节点以生成确定性ID
+        const astNode = result.captures?.[0]?.node;
+        const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
+
+        let relationshipMetadata: any = null;
+
+        // 对于关系类型，提取特定的元数据
+        if (this.isRelationshipType(standardType)) {
+          relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+        }
+
+        results.push({
+          nodeId,
+          type: standardType,
+          name,
+          startLine: result.startLine || 1,
+          endLine: result.endLine || 1,
+          content,
+          metadata: {
+            language,
+            complexity,
+            dependencies,
+            modifiers,
+            extra: {
+              ...extra,
+              ...relationshipMetadata // 合并关系特定的元数据
+            }
+          }
+        });
+      } catch (error) {
+        this.logger?.error(`Error normalizing Rust language result: ${error}`);
+      }
+    }
+
+    return results;
+  }
+
+  private isRelationshipType(type: StandardizedQueryResult['type']): boolean {
+    return ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic'].includes(type);
+  }
+
+  private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
+    if (!astNode) return null;
+
+    switch (standardType) {
+      case 'call':
+        return this.extractCallMetadata(result, astNode);
+      case 'data-flow':
+        return this.extractDataFlowMetadata(result, astNode);
+      case 'inheritance':
+        return this.extractInheritanceMetadata(result, astNode);
+      case 'concurrency':
+        return this.extractConcurrencyMetadata(result, astNode);
+      case 'lifecycle':
+        return this.extractLifecycleMetadata(result, astNode);
+      case 'semantic':
+        return this.extractSemanticMetadata(result, astNode);
+      default:
+        return null;
+    }
+  }
+
+  private extractCallMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Rust特定的调用元数据提取
+    const functionNode = astNode.childForFieldName('function');
+    const callerNode = this.findCallerFunctionContext(astNode);
+
+    return {
+      fromNodeId: callerNode ? generateDeterministicNodeId(callerNode) : 'unknown',
+      toNodeId: functionNode ? generateDeterministicNodeId(functionNode) : 'unknown',
+      callName: functionNode?.text || 'unknown',
+      location: {
+        filePath: 'current_file.rs',
+        lineNumber: astNode.startPosition.row + 1,
+        columnNumber: astNode.startPosition.column,
+      }
+    };
+  }
+
+  private extractDataFlowMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Rust特定的数据流元数据提取
+    const left = astNode.childForFieldName('left');
+    const right = astNode.childForFieldName('right');
+
+    return {
+      fromNodeId: right ? generateDeterministicNodeId(right) : 'unknown',
+      toNodeId: left ? generateDeterministicNodeId(left) : 'unknown',
+      flowType: 'assignment',
+      location: {
+        filePath: 'current_file.rs',
+        lineNumber: astNode.startPosition.row + 1,
+        columnNumber: astNode.startPosition.column,
+      }
+    };
+  }
+
+  private extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Rust继承关系元数据提取（trait实现关系）
+    return {
+      type: 'inheritance',
+      operation: 'trait-impl', // Rust中的trait实现
+      location: {
+        filePath: 'current_file.rs',
+        lineNumber: astNode.startPosition.row + 1,
+      }
+    };
+  }
+
+  private findCallerFunctionContext(callNode: Parser.SyntaxNode): Parser.SyntaxNode | null {
+    let current = callNode.parent;
+    while (current) {
+      if (current.type === 'function_item' || current.type === 'method_definition') {
+        return current;
+      }
+      current = current.parent;
+    }
+    return null;
+  }
+
+  private extractConcurrencyMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Rust并发关系元数据提取（例如线程操作）
+    return {
+      type: 'concurrency',
+      operation: 'thread-operation', // Rust中的线程操作
+      location: {
+        filePath: 'current_file.rs',
+        lineNumber: astNode.startPosition.row + 1,
+      }
+    };
+  }
+
+  private extractLifecycleMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Rust生命周期关系元数据提取
+    return {
+      type: 'lifecycle',
+      operation: 'lifetimes', // Rust生命周期
+      location: {
+        filePath: 'current_file.rs',
+        lineNumber: astNode.startPosition.row + 1,
+      }
+    };
+  }
+
+  private extractSemanticMetadata(result: any, astNode: Parser.SyntaxNode): any {
+    // Rust语义关系元数据提取
+    return {
+      type: 'semantic',
+      pattern: 'trait-pattern', // Rust trait模式
+      location: {
+        filePath: 'current_file.rs',
+        lineNumber: astNode.startPosition.row + 1,
+      }
+    };
   }
 }

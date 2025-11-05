@@ -1,5 +1,6 @@
 import { ILanguageAdapter, StandardizedQueryResult } from '../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
+type StandardType = StandardizedQueryResult['type'];
 
 /**
  * HTML语言适配器
@@ -18,7 +19,11 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
     for (const result of queryResults) {
       try {
         const extraInfo = this.extractExtraInfo(result);
+        const astNode = result.captures?.[0]?.node;
+        const nodeId = astNode ? `${astNode.type}:${astNode.startPosition.row}:${astNode.startPosition.column}` : `fallback_${Date.now()}`;
+
         results.push({
+          nodeId,
           type: this.mapQueryTypeToStandardType(queryType),
           name: this.extractName(result),
           startLine: this.extractStartLine(result),
@@ -254,8 +259,8 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
     return extra;
   }
 
-  private mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  private mapQueryTypeToStandardType(queryType: string): StandardType {
+    const mapping: Record<string, StandardType> = {
       'elements': 'variable',
       'attributes-content': 'variable'
     };

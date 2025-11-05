@@ -1,5 +1,6 @@
 import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
+type StandardType = StandardizedQueryResult['type'];
 
 /**
  * Kotlin语言适配器
@@ -236,8 +237,8 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-    const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+  mapQueryTypeToStandardType(queryType: string): StandardType {
+    const mapping: Record<string, StandardType> = {
       'classes-functions': 'class',
       'constructors-properties': 'method',
       'methods-variables': 'function',

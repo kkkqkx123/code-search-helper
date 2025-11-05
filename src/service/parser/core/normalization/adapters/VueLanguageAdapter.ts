@@ -1,5 +1,7 @@
 import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
+import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
+import Parser from 'tree-sitter';
 
 /**
  * Vue语言适配器
@@ -12,38 +14,50 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
 
     getSupportedQueryTypes(): string[] {
         return [
+            // Entity types
             'components',
-            'template-directives'
+            'template-directives',
+            
+            // Relationship types
+            'calls',
+            'data-flows',
+            'inheritance',
+            
+            // Advanced relationship types
+            'concurrency-relationships',
+            'control-flow-relationships',
+            'lifecycle-relationships',
+            'semantic-relationships'
         ];
     }
 
     mapNodeType(nodeType: string): string {
         const typeMapping: Record<string, string> = {
-            'template_element': 'classDeclaration',
-            'script_element': 'classDeclaration',
-            'style_element': 'classDeclaration',
-            'element': 'classDeclaration',
-            'start_tag': 'classDeclaration',
-            'end_tag': 'classDeclaration',
-            'attribute': 'memberExpression',
-            'attribute_name': 'propertyIdentifier',
-            'comment': 'variableDeclaration',
-            'function_declaration': 'functionDeclaration',
-            'method_definition': 'methodDeclaration',
-            'lifecycle_hook': 'methodDeclaration',
-            'class_declaration': 'classDeclaration',
-            'component_tag': 'classDeclaration',
-            'import_statement': 'importDeclaration',
-            'export_statement': 'exportDeclaration',
-            'variable_declaration': 'variableDeclaration',
-            'interpolation': 'variableDeclaration',
-            'property_identifier': 'propertyIdentifier',
-            'tag_name': 'propertyIdentifier',
-            'rule_set': 'classDeclaration',
-            'stylesheet': 'classDeclaration'
+            'template_element': 'class',
+            'script_element': 'class',
+            'style_element': 'class',
+            'element': 'class',
+            'start_tag': 'class',
+            'end_tag': 'class',
+            'attribute': 'expression',
+            'attribute_name': 'expression',
+            'comment': 'expression',
+            'function_declaration': 'function',
+            'method_definition': 'method',
+            'lifecycle_hook': 'method',
+            'class_declaration': 'class',
+            'component_tag': 'class',
+            'import_statement': 'import',
+            'export_statement': 'export',
+            'variable_declaration': 'variable',
+            'interpolation': 'variable',
+            'property_identifier': 'expression',
+            'tag_name': 'expression',
+            'rule_set': 'class',
+            'stylesheet': 'class'
         };
 
-        return typeMapping[nodeType] || 'classDeclaration';
+        return typeMapping[nodeType] || 'expression';
     }
 
     extractName(result: any): string {
@@ -116,10 +130,21 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
         return extra;
     }
 
-    mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' {
-        const mapping: Record<string, 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression'> = {
+    mapQueryTypeToStandardType(queryType: string): StandardizedQueryResult['type'] {
+        const mapping: Record<string, StandardizedQueryResult['type']> = {
             'components': 'class',
-            'template-directives': 'variable'
+            'template-directives': 'variable',
+            
+            // 关系类型
+            'calls': 'call',
+            'data-flows': 'data-flow',
+            'inheritance': 'inheritance',
+            
+            // 高级关系类型
+            'concurrency-relationships': 'concurrency',
+            'control-flow-relationships': 'control-flow',
+            'lifecycle-relationships': 'lifecycle',
+            'semantic-relationships': 'semantic'
         };
 
         return mapping[queryType] || 'expression';
@@ -178,77 +203,237 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
 
         // 查找类型引用
         this.findTypeReferences(mainNode, dependencies);
-
-        // 查找导入引用
-        this.findImportReferences(mainNode, dependencies);
-
-        // 查找Vue组件引用（大写字母开头的标签名）
-        this.findComponentReferences(mainNode, dependencies);
-
-        // 查找类型引用
-        this.findTypeReferences(mainNode, dependencies);
         
         // 查找导入引用
         this.findImportReferences(mainNode, dependencies);
    
         // 查找Vue组件引用（大写字母开头的标签名）
         this.findComponentReferences(mainNode, dependencies);
-   
+    
         return [...new Set(dependencies)]; // 去重
-    }
+     }
+    
+     extractModifiers(result: any): string[] {
+         const modifiers: string[] = [];
+         const mainNode = result.captures?.[0]?.node;
+         
+         if (!mainNode) {
+             return modifiers;
+         }
    
-        extractModifiers(result: any): string[] {
-            const modifiers: string[] = [];
-            const mainNode = result.captures?.[0]?.node;
-            
-            if (!mainNode) {
-                return modifiers;
-            }
+         // 检查常见的Vue修饰符和属性
+         const text = mainNode.text || '';
    
-            // 检查常见的Vue修饰符和属性
-            const text = mainNode.text || '';
+         if (text.includes('export')) modifiers.push('export');
+         if (text.includes('default')) modifiers.push('default');
+         if (text.includes('async')) modifiers.push('async');
+         if (text.includes('v-')) modifiers.push('vue-directive');
+         if (text.includes('@')) modifiers.push('vue-event');
+         if (text.includes(':')) modifiers.push('vue-binding');
+         if (text.includes('#')) modifiers.push('vue-slot');
+         if (text.includes('computed')) modifiers.push('computed');
+         if (text.includes('watch')) modifiers.push('watch');
+         if (text.includes('methods')) modifiers.push('methods');
+         if (text.includes('data')) modifiers.push('data');
    
-            if (text.includes('export')) modifiers.push('export');
-            if (text.includes('default')) modifiers.push('default');
-            if (text.includes('async')) modifiers.push('async');
-            if (text.includes('v-')) modifiers.push('vue-directive');
-            if (text.includes('@')) modifiers.push('vue-event');
-            if (text.includes(':')) modifiers.push('vue-binding');
-            if (text.includes('#')) modifiers.push('vue-slot');
-            if (text.includes('computed')) modifiers.push('computed');
-            if (text.includes('watch')) modifiers.push('watch');
-            if (text.includes('methods')) modifiers.push('methods');
-            if (text.includes('data')) modifiers.push('data');
+         return modifiers;
+     }
    
-            return modifiers;
-        }
+     // Vue特定的辅助方法
+     private findImportReferences(node: any, dependencies: string[]): void {
+         if (!node || !node.children) {
+             return;
+         }
    
-        // Vue特定的辅助方法
-        private findImportReferences(node: any, dependencies: string[]): void {
-            if (!node || !node.children) {
-                return;
-            }
-   
-            for (const child of node.children) {
-                // 查找导入引用
-                if (child.type === 'identifier' && child.text) {
-                    dependencies.push(child.text);
-                } else if (child.type === 'import_specifier') {
-                    // 处理import { Component } from 'react'这类导入
-                    const importedName = child.childForFieldName('name');
-                    if (importedName && importedName.text) {
-                        dependencies.push(importedName.text);
-                    }
-                } else if (child.type === 'string' && child.text) {
-                    // 查找导入路径
-                    const path = child.text.replace(/['"]/g, '');
-                    if (path.startsWith('./') || path.startsWith('../') || path.startsWith('@/')) {
-                        dependencies.push(path);
-                    }
+         for (const child of node.children) {
+             // 查找导入引用
+             if (child.type === 'identifier' && child.text) {
+                 dependencies.push(child.text);
+             } else if (child.type === 'import_specifier') {
+                 // 处理import { Component } from 'react'这类导入
+                 const importedName = child.childForFieldName('name');
+                 if (importedName && importedName.text) {
+                     dependencies.push(importedName.text);
+                 }
+             } else if (child.type === 'string' && child.text) {
+                 // 查找导入路径
+                 const path = child.text.replace(/['"]/g, '');
+                 if (path.startsWith('./') || path.startsWith('../') || path.startsWith('@/')) {
+                     dependencies.push(path);
+                 }
+             }
+             
+             this.findImportReferences(child, dependencies);
+         }
+     }
+    
+        // 重写normalize方法以集成nodeId生成和符号信息
+        async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
+          const results: StandardizedQueryResult[] = [];
+    
+          for (const result of queryResults) {
+            try {
+              const standardType = this.mapQueryTypeToStandardType(queryType);
+              const name = this.extractName(result);
+              const content = this.extractContent(result);
+              const complexity = this.calculateComplexity(result);
+              const dependencies = this.extractDependencies(result);
+              const modifiers = this.extractModifiers(result);
+              const extra = this.extractLanguageSpecificMetadata(result);
+    
+              // 获取AST节点以生成确定性ID
+              const astNode = result.captures?.[0]?.node;
+              const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
+    
+              let relationshipMetadata: any = null;
+    
+              // 对于关系类型，提取特定的元数据
+              if (this.isRelationshipType(standardType)) {
+                relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+              }
+    
+              results.push({
+                nodeId,
+                type: standardType,
+                name,
+                startLine: result.startLine || 1,
+                endLine: result.endLine || 1,
+                content,
+                metadata: {
+                  language,
+                  complexity,
+                  dependencies,
+                  modifiers,
+                  extra: {
+                    ...extra,
+                    ...relationshipMetadata // 合并关系特定的元数据
+                  }
                 }
-                
-                this.findImportReferences(child, dependencies);
+              });
+            } catch (error) {
+              this.logger?.error(`Error normalizing Vue language result: ${error}`);
             }
+          }
+    
+          return results;
+        }
+    
+        private isRelationshipType(type: StandardizedQueryResult['type']): boolean {
+          return ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic'].includes(type);
+        }
+    
+        private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
+          if (!astNode) return null;
+    
+          switch (standardType) {
+            case 'call':
+              return this.extractCallMetadata(result, astNode);
+            case 'data-flow':
+              return this.extractDataFlowMetadata(result, astNode);
+            case 'inheritance':
+              return this.extractInheritanceMetadata(result, astNode);
+            case 'concurrency':
+              return this.extractConcurrencyMetadata(result, astNode);
+            case 'lifecycle':
+              return this.extractLifecycleMetadata(result, astNode);
+            case 'semantic':
+              return this.extractSemanticMetadata(result, astNode);
+            default:
+              return null;
+          }
+        }
+    
+        private extractCallMetadata(result: any, astNode: Parser.SyntaxNode): any {
+          // Vue特定的调用元数据提取
+          const functionNode = astNode.childForFieldName('function');
+          const callerNode = this.findCallerFunctionContext(astNode);
+    
+          return {
+            fromNodeId: callerNode ? generateDeterministicNodeId(callerNode) : 'unknown',
+            toNodeId: functionNode ? generateDeterministicNodeId(functionNode) : 'unknown',
+            callName: functionNode?.text || 'unknown',
+            location: {
+              filePath: 'current_file.vue',
+              lineNumber: astNode.startPosition.row + 1,
+              columnNumber: astNode.startPosition.column,
+            }
+          };
+        }
+    
+        private extractDataFlowMetadata(result: any, astNode: Parser.SyntaxNode): any {
+          // Vue特定的数据流元数据提取
+          const left = astNode.childForFieldName('left');
+          const right = astNode.childForFieldName('right');
+    
+          return {
+            fromNodeId: right ? generateDeterministicNodeId(right) : 'unknown',
+            toNodeId: left ? generateDeterministicNodeId(left) : 'unknown',
+            flowType: 'assignment',
+            location: {
+              filePath: 'current_file.vue',
+              lineNumber: astNode.startPosition.row + 1,
+              columnNumber: astNode.startPosition.column,
+            }
+          };
+        }
+    
+        private extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode): any {
+          // Vue组件继承关系元数据提取
+          return {
+            type: 'inheritance',
+            operation: 'extends', // Vue组件继承
+            location: {
+              filePath: 'current_file.vue',
+              lineNumber: astNode.startPosition.row + 1,
+            }
+          };
+        }
+    
+        private findCallerFunctionContext(callNode: Parser.SyntaxNode): Parser.SyntaxNode | null {
+          let current = callNode.parent;
+          while (current) {
+            if (current.type === 'function_declaration' || current.type === 'method_definition') {
+              return current;
+            }
+            current = current.parent;
+          }
+          return null;
+        }
+    
+        private extractConcurrencyMetadata(result: any, astNode: Parser.SyntaxNode): any {
+          // Vue并发关系元数据提取（例如异步操作）
+          return {
+            type: 'concurrency',
+            operation: 'async-operation', // Vue中的异步操作
+            location: {
+              filePath: 'current_file.vue',
+              lineNumber: astNode.startPosition.row + 1,
+            }
+          };
+        }
+    
+        private extractLifecycleMetadata(result: any, astNode: Parser.SyntaxNode): any {
+          // Vue生命周期关系元数据提取
+          return {
+            type: 'lifecycle',
+            operation: 'lifecycle-hook', // Vue生命周期钩子
+            location: {
+              filePath: 'current_file.vue',
+              lineNumber: astNode.startPosition.row + 1,
+            }
+          };
+        }
+    
+        private extractSemanticMetadata(result: any, astNode: Parser.SyntaxNode): any {
+          // Vue语义关系元数据提取
+          return {
+            type: 'semantic',
+            pattern: 'component-pattern', // Vue组件模式
+            location: {
+              filePath: 'current_file.vue',
+              lineNumber: astNode.startPosition.row + 1,
+            }
+          };
         }
    
         private findComponentReferences(node: any, dependencies: string[]): void {
