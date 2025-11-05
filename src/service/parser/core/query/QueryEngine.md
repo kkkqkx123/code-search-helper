@@ -26,6 +26,18 @@
   - 提供性能统计和缓存管理
   - 支持详细查询结果返回
 
+  SimpleQueryEngine 是一个简化的查询引擎，它作为 TreeSitterQueryEngine 的包装器，为常见用例提供更易用的接口。TreeSitterQueryEngine 是底层的实现，负责实际的 tree-sitter 语法树查询。
+
+主要关系：
+
+依赖关系：SimpleQueryEngine 通过 QueryEngineFactory 获取 TreeSitterQueryEngine 实例，并调用其 executeQuery 方法执行查询
+接口简化：SimpleQueryEngine 提供静态方法如 findFunctions、findClasses 等，直接返回节点数组；而 TreeSitterQueryEngine 返回详细的 QueryResult 对象
+功能扩展：SimpleQueryEngine 添加了缓存优化、批量查询（findMultiple）、性能统计（getPerformanceStats）等功能
+共享类型：两者都使用 QueryResult 和 QueryMatch 接口，但 SimpleQueryEngine 主要处理节点提取和缓存
+架构层次：TreeSitterQueryEngine 是核心查询执行引擎，SimpleQueryEngine 是其上的便利层，提供更简单的 API 和优化功能。
+
+
+
 ### 支持组件
 
 #### 3. QueryEngineFactory (工厂类)
