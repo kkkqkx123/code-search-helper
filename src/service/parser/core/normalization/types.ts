@@ -7,11 +7,52 @@ import Parser from 'tree-sitter';
 /**
  * 标准化查询结果接口
  */
+/**
+ * 符号信息接口，用于替代独立的 SymbolResolver
+ */
+export interface SymbolInfo {
+  /** 符号名称 */
+  name: string;
+  /** 符号类型 */
+  type: 'function' | 'method' | 'class' | 'interface' | 'struct' | 'type' | 'enum' | 'variable' | 'parameter' | 'import';
+  /** 文件路径 */
+  filePath: string;
+  /** 位置信息 */
+  location: {
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
+  };
+  /** 函数参数（仅函数/方法） */
+  parameters?: string[];
+  /** 类成员（仅类/接口） */
+  members?: SymbolInfo[];
+  /** 导入源路径（仅导入） */
+  sourcePath?: string;
+  /** 作用域 */
+  scope: 'global' | 'module' | 'class' | 'function';
+}
+
+/**
+ * 符号表接口，用于替代独立的 SymbolResolver
+ */
+export interface SymbolTable {
+  /** 文件路径 */
+  filePath: string;
+  /** 全局作用域 */
+  globalScope: {
+    symbols: Map<string, SymbolInfo>;
+  };
+  /** 导入映射 */
+  imports: Map<string, string>;
+}
+
 export interface StandardizedQueryResult {
   /** 确定性的节点ID，用于与图数据库中的顶点对应 */
   nodeId: string;
   /** 结构类型 */
-  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def';
+  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def' | 'call' | 'data-flow' | 'inheritance' | 'implements' | 'concurrency' | 'lifecycle' | 'semantic' | 'union' | 'enum';
   
   /** 结构名称 */
   name: string;
@@ -42,6 +83,9 @@ export interface StandardizedQueryResult {
     /** 额外的语言特定信息 */
     extra?: Record<string, any>;
   };
+
+  /** 符号信息，用于关系提取 */
+  symbolInfo?: SymbolInfo;
 }
 
 /**

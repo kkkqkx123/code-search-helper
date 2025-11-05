@@ -4,6 +4,7 @@
  */
 
 import { ILanguageAdapter, StandardizedQueryResult } from './types';
+type StandardType = StandardizedQueryResult['type'];
 import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
@@ -172,7 +173,11 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    * 创建标准化结果
    */
   protected createStandardizedResult(result: any, queryType: string, language: string): StandardizedQueryResult {
+    const astNode = result.captures?.[0]?.node;
+    const nodeId = astNode ? `${astNode.type}:${astNode.startPosition.row}:${astNode.startPosition.column}` : `fallback_${Date.now()}`;
+    
     return {
+      nodeId,
       type: this.mapQueryTypeToStandardType(queryType),
       name: this.extractName(result),
       startLine: this.extractStartLine(result),
@@ -498,7 +503,9 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     return queryResults.slice(0, 10).map((result, index) => {
       // 确保result不为null或undefined
       const safeResult = result || {};
+      const nodeId = `fallback_${language}_${index}_${Date.now()}`;
       return {
+        nodeId,
         type: 'expression',
         name: `fallback_${index}`,
         startLine: this.extractStartLine(safeResult),
@@ -519,7 +526,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   abstract extractLanguageSpecificMetadata(result: any): Record<string, any>;
   abstract getSupportedQueryTypes(): string[];
   abstract mapNodeType(nodeType: string): string;
-  abstract mapQueryTypeToStandardType(queryType: string): 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'return-flow' | 'exception-flow' | 'callback-flow' | 'semantic-relationship' | 'lifecycle-event' | 'concurrency-primitive';
+  abstract mapQueryTypeToStandardType(queryType: string): StandardType;
   abstract calculateComplexity(result: any): number;
   abstract extractDependencies(result: any): string[];
   abstract extractModifiers(result: any): string[];

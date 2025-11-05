@@ -23,7 +23,7 @@ import {
   GraphEdge
 } from './IGraphDataMappingService';
 import { CodeChunk } from '../../parser/types';
-import { StandardizedQueryResult } from '../../parser/core/normalization/types';
+import { StandardizedQueryResult, SymbolTable } from '../../parser/core/normalization/types';
 import Parser = require('tree-sitter');
 import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from './DataMappingValidator';
@@ -33,6 +33,7 @@ import { FaultToleranceHandler } from '../../../utils/FaultToleranceHandler';
 import { QueryResult, QueryMatch } from '../../parser/core/query/TreeSitterQueryEngine';
 import { LANGUAGE_NODE_MAPPINGS } from './LanguageNodeTypes';
 import { RelationshipExtractorFactory } from './RelationshipExtractorFactory';
+import { CallRelationship, DataFlowRelationship } from './interfaces/IRelationshipExtractor';
 
 @injectable()
 export class GraphDataMappingService implements IGraphDataMappingService {
@@ -136,18 +137,28 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   async mapToGraph(
     filePath: string,
     standardizedNodes: StandardizedQueryResult[],
-    ast: Parser.SyntaxNode
+    ast: Parser.SyntaxNode // AST is no longer used but kept for interface compatibility
   ): Promise<GraphMappingResult> {
     const result = await this.faultToleranceHandler.executeWithFaultTolerance(
       async () => {
         this.logger.info(`Starting graph mapping for file: ${filePath}`);
         
-        // Step 1: Create all vertices from standardized nodes
-        const nodes = this.createVerticesFromStandardizedNodes(standardizedNodes, filePath);
-        
-        // Step 2: Create all edges using extractors and the original AST
-        const language = this.inferLanguageFromFile(filePath);
-        const edges = await this.createEdgesFromAST(ast, language);
+        const nodes: GraphNode[] = [];
+        const edges: GraphEdge[] = [];
+
+        for (const node of standardizedNodes) {
+          if (this.isEntityType(node.type)) {
+            // Create a vertex for entity types
+            const graphNode = this.createVertexFromStandardizedNode(node, filePath);
+            nodes.push(graphNode);
+          } else if (this.isRelationshipType(node.type)) {
+            // Create an edge for relationship types
+            const graphEdge = this.createEdgeFromStandardizedNode(node);
+            if (graphEdge) {
+              edges.push(graphEdge);
+            }
+          }
+        }
         
         this.logger.info(`Successfully mapped ${nodes.length} nodes and ${edges.length} edges for file: ${filePath}`);
         
@@ -164,31 +175,43 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     }
   }
 
-  private createVerticesFromStandardizedNodes(
-    standardizedNodes: StandardizedQueryResult[],
-    filePath: string
-  ): GraphNode[] {
-    const vertices: GraphNode[] = [];
-    
-    for (const node of standardizedNodes) {
-      // Use the deterministic nodeId as the primary key for the graph vertex
-      const graphNode: GraphNode = {
-        id: node.nodeId,
-        type: this.mapStandardizedTypeToGraphType(node.type),
-        properties: {
-          name: node.name,
-          filePath: filePath,
-          ...node.metadata
-        }
-      };
-      vertices.push(graphNode);
+  private isEntityType(type: StandardizedQueryResult['type']): boolean {
+    return ['function', 'class', 'method', 'import', 'variable', 'interface', 'type'].includes(type);
+  }
+
+  private isRelationshipType(type: StandardizedQueryResult['type']): boolean {
+    return ['call', 'data-flow', 'inheritance', 'implements'].includes(type);
+  }
+
+  private createVertexFromStandardizedNode(node: StandardizedQueryResult, filePath: string): GraphNode {
+    return {
+      id: node.nodeId,
+      type: this.mapStandardizedTypeToGraphType(node.type),
+      properties: {
+        name: node.name,
+        filePath: filePath,
+        ...node.metadata
+      }
+    };
+  }
+
+  private createEdgeFromStandardizedNode(node: StandardizedQueryResult): GraphEdge | null {
+    const relationshipData = node.metadata.extra;
+    if (!relationshipData || !relationshipData.fromNodeId || !relationshipData.toNodeId) {
+      this.logger.warn(`Skipping relationship node due to missing metadata: ${node.name}`);
+      return null;
     }
 
-    return vertices;
+    return {
+      id: node.nodeId, // Use the same ID for the edge
+      type: this.mapRelationshipTypeToGraphType(node.type),
+      sourceNodeId: relationshipData.fromNodeId,
+      targetNodeId: relationshipData.toNodeId,
+      properties: relationshipData
+    };
   }
 
   private mapStandardizedTypeToGraphType(standardizedType: string): GraphNodeType {
-    // Map from standardized types to graph node types
     const typeMapping: Record<string, GraphNodeType> = {
       'function': GraphNodeType.FUNCTION,
       'class': GraphNodeType.CLASS,
@@ -196,57 +219,19 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       'import': GraphNodeType.IMPORT,
       'interface': GraphNodeType.INTERFACE,
       'method': GraphNodeType.METHOD,
-      'property': GraphNodeType.PROPERTY,
+      'type': GraphNodeType.PROPERTY, // Map 'type' to property for now
     };
-    
-    return typeMapping[standardizedType] || GraphNodeType.VARIABLE; // Default to VARIABLE
-  }
-
-  private async createEdgesFromAST(
-    ast: Parser.SyntaxNode,
-    language: string
-  ): Promise<GraphEdge[]> {
-    const edges: GraphEdge[] = [];
-    
-    // Get the appropriate relationship extractor for the language
-    const extractor = this.relationshipExtractorFactory.getExtractor(language);
-    
-    if (!extractor) {
-      this.logger.warn(`No relationship extractor found for language: ${language}`);
-      return edges;
-    }
-
-    // Use the extractor to find relationships in the AST
-    const relationships = extractor.extractAllRelationships(ast);
-    
-    for (const rel of relationships) {
-      const edge: GraphEdge = {
-        id: uuidv4(),
-        type: this.mapRelationshipTypeToGraphType(rel.type),
-        sourceNodeId: rel.fromNodeId,
-        targetNodeId: rel.toNodeId,
-        properties: rel.properties || {}
-      };
-      edges.push(edge);
-    }
-
-    return edges;
+    return typeMapping[standardizedType] || GraphNodeType.VARIABLE;
   }
 
   private mapRelationshipTypeToGraphType(relationshipType: string): GraphRelationshipType {
-    // Map from extractor relationship types to graph relationship types
     const typeMapping: Record<string, GraphRelationshipType> = {
-      'calls': GraphRelationshipType.CALLS,
-      'data_flows_to': GraphRelationshipType.DATA_FLOWS_TO,
-      'inherits': GraphRelationshipType.INHERITS,
+      'call': GraphRelationshipType.CALLS,
+      'data-flow': GraphRelationshipType.DATA_FLOWS_TO,
+      'inheritance': GraphRelationshipType.INHERITS,
       'implements': GraphRelationshipType.IMPLEMENTS,
-      'contains': GraphRelationshipType.CONTAINS,
-      'imports': GraphRelationshipType.IMPORTS,
-      'uses': GraphRelationshipType.USES,
-      'defines': GraphRelationshipType.DEFINES,
     };
-    
-    return typeMapping[relationshipType] || GraphRelationshipType.USES; // Default to USES
+    return typeMapping[relationshipType] || GraphRelationshipType.USES;
   }
 
   async mapFileToGraphNodes(

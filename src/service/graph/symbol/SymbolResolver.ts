@@ -53,6 +53,10 @@ export interface SymbolTable {
   imports: Map<string, string>; // 导入的符号映射到源文件
 }
 
+/**
+ * @deprecated This class is deprecated. Symbol resolution functionality has been integrated into the normalization module.
+ * Please use the `symbolInfo` field in `StandardizedQueryResult` instead.
+ */
 @injectable()
 export class SymbolResolver {
   private symbolTables: Map<string, SymbolTable> = new Map();
