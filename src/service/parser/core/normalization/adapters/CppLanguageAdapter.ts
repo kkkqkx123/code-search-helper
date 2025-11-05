@@ -2,6 +2,16 @@ import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import {
+  CallRelationshipExtractor,
+  DataFlowRelationshipExtractor,
+  InheritanceRelationshipExtractor,
+  ConcurrencyRelationshipExtractor,
+  LifecycleRelationshipExtractor,
+  SemanticRelationshipExtractor,
+  ControlFlowRelationshipExtractor,
+  CppHelperMethods
+} from './cpp-utils';
 type StandardType = StandardizedQueryResult['type'];
 
 /**
@@ -11,9 +21,27 @@ type StandardType = StandardizedQueryResult['type'];
 export class CppLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
+  
+  // 关系提取器实例
+  private callExtractor: CallRelationshipExtractor;
+  private dataFlowExtractor: DataFlowRelationshipExtractor;
+  private inheritanceExtractor: InheritanceRelationshipExtractor;
+  private concurrencyExtractor: ConcurrencyRelationshipExtractor;
+  private lifecycleExtractor: LifecycleRelationshipExtractor;
+  private semanticExtractor: SemanticRelationshipExtractor;
+  private controlFlowExtractor: ControlFlowRelationshipExtractor;
 
   constructor(options: AdapterOptions = {}) {
     super(options);
+    
+    // 初始化关系提取器
+    this.callExtractor = new CallRelationshipExtractor();
+    this.dataFlowExtractor = new DataFlowRelationshipExtractor();
+    this.inheritanceExtractor = new InheritanceRelationshipExtractor();
+    this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
+    this.lifecycleExtractor = new LifecycleRelationshipExtractor();
+    this.semanticExtractor = new SemanticRelationshipExtractor();
+    this.controlFlowExtractor = new ControlFlowRelationshipExtractor();
   }
 
   getSupportedQueryTypes(): string[] {
@@ -397,20 +425,12 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
       return dependencies;
     }
 
-    // 查找类型引用
-    this.findTypeReferences(mainNode, dependencies);
-
-    // 查找函数调用引用
-    this.findFunctionCalls(mainNode, dependencies);
-
-    // 查找模板依赖
-    this.findTemplateDependencies(mainNode, dependencies);
-
-    // 查找数据流依赖
-    this.findDataFlowDependencies(mainNode, dependencies);
-
-    // 查找并发相关依赖
-    this.findConcurrencyDependencies(mainNode, dependencies);
+    // 使用辅助方法查找依赖
+    CppHelperMethods.findTypeReferences(mainNode, dependencies);
+    CppHelperMethods.findFunctionCalls(mainNode, dependencies);
+    CppHelperMethods.findTemplateDependencies(mainNode, dependencies);
+    CppHelperMethods.findDataFlowDependencies(mainNode, dependencies);
+    CppHelperMethods.findConcurrencyDependencies(mainNode, dependencies);
 
     return [...new Set(dependencies)]; // 去重
   }
@@ -456,166 +476,13 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     return modifiers;
   }
 
-  // C++特定的辅助方法
-
-  private findFunctionCalls(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找函数调用
-      if (child.type === 'call_expression') {
-        const functionNode = child.childForFieldName('function');
-        if (functionNode?.text) {
-          dependencies.push(functionNode.text);
-        }
-      }
-
-      this.findFunctionCalls(child, dependencies);
-    }
-  }
-
-  private findTemplateDependencies(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找模板实例化
-      if (child.type === 'template_function' || child.type === 'template_type') {
-        const identifier = child.childForFieldName('identifier') ||
-          child.childForFieldName('type_identifier');
-        if (identifier?.text) {
-          dependencies.push(identifier.text);
-        }
-      }
-
-      this.findTemplateDependencies(child, dependencies);
-    }
-  }
-
-  private findDataFlowDependencies(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找赋值表达式中的依赖
-      if (child.type === 'assignment_expression') {
-        const rightSide = child.childForFieldName('right');
-        if (rightSide?.type === 'identifier' && rightSide.text) {
-          dependencies.push(rightSide.text);
-        }
-      }
-
-      this.findDataFlowDependencies(child, dependencies);
-    }
-  }
-
-  private findConcurrencyDependencies(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找并发相关函数
-      if (child.type === 'call_expression') {
-        const functionNode = child.childForFieldName('function');
-        if (functionNode?.text) {
-          const funcText = functionNode.text.toLowerCase();
-          if (funcText.includes('thread') || funcText.includes('mutex') || 
-              funcText.includes('lock') || funcText.includes('future') || 
-              funcText.includes('promise') || funcText.includes('async')) {
-            dependencies.push(funcText);
-          }
-        }
-      }
-
-      this.findConcurrencyDependencies(child, dependencies);
-    }
-  }
-
-  // 高级关系提取方法
+  // 高级关系提取方法 - 委托给专门的提取器
   extractDataFlowRelationships(result: any): Array<{
     source: string;
     target: string;
     type: 'assignment' | 'parameter' | 'return';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'assignment' | 'parameter' | 'return';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 提取赋值关系
-    if (mainNode.type === 'assignment_expression') {
-      const leftNode = mainNode.childForFieldName('left');
-      const rightNode = mainNode.childForFieldName('right');
-      if (leftNode?.text && rightNode?.text) {
-        relationships.push({
-          source: rightNode.text,
-          target: leftNode.text,
-          type: 'assignment'
-        });
-      }
-    }
-    
-    // 提取参数传递关系
-    if (mainNode.type === 'call_expression') {
-      const funcNode = mainNode.childForFieldName('function');
-      const argsNode = mainNode.childForFieldName('arguments');
-      
-      if (funcNode?.text && argsNode) {
-        for (const arg of argsNode.children || []) {
-          if (arg.type === 'identifier' && arg.text) {
-            relationships.push({
-              source: arg.text,
-              target: funcNode.text,
-              type: 'parameter'
-            });
-          }
-        }
-      }
-    }
-    
-    // 提取返回值关系
-    if (mainNode.type === 'return_statement') {
-      const valueNode = mainNode.children?.find((child: any) => child.type === 'identifier');
-      if (valueNode?.text) {
-        relationships.push({
-          source: valueNode.text,
-          target: 'function_return',
-          type: 'return'
-        });
-      }
-    }
-    
-    // 提取智能指针关系
-    if (mainNode.type === 'call_expression') {
-      const funcNode = mainNode.childForFieldName('function');
-      if (funcNode?.text && (funcNode.text.includes('make_unique') || funcNode.text.includes('make_shared'))) {
-        const argsNode = mainNode.childForFieldName('arguments');
-        if (argsNode) {
-          for (const arg of argsNode.children || []) {
-            if (arg.type === 'identifier' && arg.text) {
-              relationships.push({
-                source: arg.text,
-                target: funcNode.text,
-                type: 'assignment'
-              });
-            }
-          }
-        }
-      }
-    }
-
-    return relationships;
+    return this.dataFlowExtractor.extractDataFlowRelationships(result);
   }
 
   extractControlFlowRelationships(result: any): Array<{
@@ -623,46 +490,7 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'conditional' | 'loop' | 'exception' | 'callback';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'conditional' | 'loop' | 'exception' | 'callback';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 条件控制流
-    if (mainNode.type === 'if_statement' || mainNode.type === 'conditional_expression') {
-      const condition = mainNode.childForFieldName('condition')?.text || 'condition';
-      relationships.push({
-        source: condition,
-        target: 'if_branch',
-        type: 'conditional'
-      });
-    }
-    
-    // 循环控制流
-    if (mainNode.type.includes('for_') || mainNode.type.includes('while_') || mainNode.type === 'do_statement') {
-      relationships.push({
-        source: 'loop_condition',
-        target: 'loop_body',
-        type: 'loop'
-      });
-    }
-    
-    // 异常控制流
-    if (mainNode.type === 'try_statement' || mainNode.type === 'catch_clause') {
-      relationships.push({
-        source: 'exception_source',
-        target: 'catch_handler',
-        type: 'exception'
-      });
-    }
-
-    return relationships;
+    return this.controlFlowExtractor.extractControlFlowRelationships(result);
   }
 
   extractSemanticRelationships(result: any): Array<{
@@ -670,46 +498,7 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 虚函数重写关系
-    const text = mainNode.text || '';
-    if (text.includes('override')) {
-      relationships.push({
-        source: 'derived_method',
-        target: 'base_method',
-        type: 'overrides'
-      });
-    }
-    
-    // 函数重载关系
-    if (mainNode.type === 'function_definition' && text.includes('operator')) {
-      relationships.push({
-        source: 'operator',
-        target: 'operands',
-        type: 'overloads'
-      });
-    }
-    
-    // 模板特化关系
-    if (mainNode.type === 'template_declaration') {
-      relationships.push({
-        source: 'template_specialization',
-        target: 'primary_template',
-        type: 'overloads'
-      });
-    }
-
-    return relationships;
+    return this.semanticExtractor.extractSemanticRelationships(result);
   }
 
   extractLifecycleRelationships(result: any): Array<{
@@ -717,48 +506,7 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 构造函数关系
-    if (mainNode.type === 'function_definition' && 
-        (mainNode.text?.includes('constructor') || mainNode.text?.includes('ctor'))) {
-      relationships.push({
-        source: 'constructor',
-        target: 'object_instance',
-        type: 'initializes'
-      });
-    }
-    
-    // 析构函数关系
-    if (mainNode.type === 'function_definition' && 
-        (mainNode.text?.includes('destructor') || mainNode.text?.includes('dtor'))) {
-      relationships.push({
-        source: 'destructor',
-        target: 'object_instance',
-        type: 'destroys'
-      });
-    }
-    
-    // 智能指针管理关系
-    const text = mainNode.text || '';
-    if (text.includes('unique_ptr') || text.includes('shared_ptr')) {
-      relationships.push({
-        source: 'smart_pointer',
-        target: 'managed_object',
-        type: 'manages'
-      });
-    }
-
-    return relationships;
+    return this.lifecycleExtractor.extractLifecycleRelationships(result);
   }
 
   extractConcurrencyRelationships(result: any): Array<{
@@ -766,44 +514,7 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'synchronizes' | 'locks' | 'communicates' | 'races';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    const text = mainNode.text || '';
-    // C++并发关系（如使用std::thread, std::mutex等）
-    if (text.includes('std::mutex') || text.includes('lock_guard') || text.includes('unique_lock')) {
-      relationships.push({
-        source: 'mutex',
-        target: 'critical_section',
-        type: 'locks'
-      });
-    }
-    
-    if (text.includes('std::thread')) {
-      relationships.push({
-        source: 'thread_creator',
-        target: 'new_thread',
-        type: 'synchronizes'
-      });
-    }
-    
-    if (text.includes('std::promise') || text.includes('std::future') || text.includes('std::async')) {
-      relationships.push({
-        source: 'sync_object',
-        target: 'async_operation',
-        type: 'communicates'
-      });
-    }
-
-    return relationships;
+    return this.concurrencyExtractor.extractConcurrencyRelationships(result);
   }
 
   // 重写isBlockNode方法以支持C++特定的块节点类型
@@ -857,6 +568,41 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
           relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
         }
 
+        // 构建元数据，确保关系元数据正确合并
+        const metadata: any = {
+          language,
+          complexity,
+          dependencies,
+          modifiers,
+        };
+
+        // 添加语言特定元数据
+        if (extra && Object.keys(extra).length > 0) {
+          metadata.extra = extra;
+        }
+
+        // 添加关系特定元数据
+        if (relationshipMetadata) {
+          // 如果extra不存在，创建它
+          if (!metadata.extra) {
+            metadata.extra = {};
+          }
+          
+          // 合并关系元数据到extra中
+          Object.assign(metadata.extra, relationshipMetadata);
+          
+          // 对于关系类型，也添加一些顶级属性以便于访问
+          if (relationshipMetadata.type) {
+            metadata.relationshipType = relationshipMetadata.type;
+          }
+          if (relationshipMetadata.fromNodeId) {
+            metadata.fromNodeId = relationshipMetadata.fromNodeId;
+          }
+          if (relationshipMetadata.toNodeId) {
+            metadata.toNodeId = relationshipMetadata.toNodeId;
+          }
+        }
+
         results.push({
           nodeId,
           type: standardType,
@@ -864,16 +610,7 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
           startLine: result.startLine || 1,
           endLine: result.endLine || 1,
           content,
-          metadata: {
-            language,
-            complexity,
-            dependencies,
-            modifiers,
-            extra: {
-              ...extra,
-              ...relationshipMetadata // Merge relationship-specific metadata
-            }
-          },
+          metadata,
           symbolInfo: symbolInfo || undefined
         });
       } catch (error) {
@@ -972,108 +709,21 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
 
     switch (standardType) {
       case 'call':
-        return this.extractCallMetadata(result, astNode);
+        return this.callExtractor.extractCallMetadata(result, astNode, this.symbolTable);
       case 'data-flow':
-        return this.extractDataFlowMetadata(result, astNode);
+        return this.dataFlowExtractor.extractDataFlowMetadata(result, astNode, this.symbolTable);
       case 'inheritance':
-        return this.extractInheritanceMetadata(result, astNode);
+        return this.inheritanceExtractor.extractInheritanceMetadata(result, astNode, this.symbolTable);
       case 'concurrency':
-        return this.extractConcurrencyMetadata(result, astNode);
+        return this.concurrencyExtractor.extractConcurrencyMetadata(result, astNode, this.symbolTable);
       case 'lifecycle':
-        return this.extractLifecycleMetadata(result, astNode);
+        return this.lifecycleExtractor.extractLifecycleMetadata(result, astNode, this.symbolTable);
       case 'semantic':
-        return this.extractSemanticMetadata(result, astNode);
+        return this.semanticExtractor.extractSemanticMetadata(result, astNode, this.symbolTable);
+      case 'control-flow':
+        return this.controlFlowExtractor.extractControlFlowMetadata(result, astNode, this.symbolTable);
       default:
         return null;
     }
-  }
-
-  private extractCallMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    const functionNode = astNode.childForFieldName('function');
-    const callerNode = this.findCallerFunctionContext(astNode);
-
-    return {
-      fromNodeId: callerNode ? generateDeterministicNodeId(callerNode) : 'unknown',
-      toNodeId: functionNode ? generateDeterministicNodeId(functionNode) : 'unknown',
-      callName: functionNode?.text || 'unknown',
-      location: {
-        filePath: 'current_file.cpp',
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column,
-      }
-    };
-  }
-
-  private extractDataFlowMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // Simplified data flow extraction
-    const left = astNode.childForFieldName('left');
-    const right = astNode.childForFieldName('right');
-
-    return {
-      fromNodeId: right ? generateDeterministicNodeId(right) : 'unknown',
-      toNodeId: left ? generateDeterministicNodeId(left) : 'unknown',
-      flowType: 'assignment',
-      location: {
-        filePath: 'current_file.cpp',
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column,
-      }
-    };
-  }
-
-  private extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // For C++, this might be for class inheritance
-    // This is a placeholder for more complex logic
-    return null;
-  }
-
-  private findCallerFunctionContext(callNode: Parser.SyntaxNode): Parser.SyntaxNode | null {
-    let current = callNode.parent;
-    while (current) {
-      if (current.type === 'function_definition') {
-        return current;
-      }
-      current = current.parent;
-    }
-    return null;
-  }
-
-  private extractConcurrencyMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // Placeholder for concurrency metadata extraction
-    // This would analyze thread, mutex, condition_variable operations from the query result
-    return {
-      type: 'concurrency',
-      operation: 'unknown', // e.g., 'thread', 'mutex', 'condition_variable'
-      location: {
-        filePath: 'current_file.cpp',
-        lineNumber: astNode.startPosition.row + 1,
-      }
-    };
-  }
-
-  private extractLifecycleMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // Placeholder for lifecycle metadata extraction
-    // This would analyze object creation, destruction, etc.
-    return {
-      type: 'lifecycle',
-      operation: 'unknown', // e.g., 'create', 'destroy', 'construct', 'destruct'
-      location: {
-        filePath: 'current_file.cpp',
-        lineNumber: astNode.startPosition.row + 1,
-      }
-    };
-  }
-
-  private extractSemanticMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // Placeholder for semantic metadata extraction
-    // This would analyze design patterns, error handling, etc.
-    return {
-      type: 'semantic',
-      pattern: 'unknown', // e.g., 'singleton', 'factory', 'observer'
-      location: {
-        filePath: 'current_file.cpp',
-        lineNumber: astNode.startPosition.row + 1,
-      }
-    };
   }
 }

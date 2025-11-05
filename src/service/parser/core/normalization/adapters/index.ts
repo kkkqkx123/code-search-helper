@@ -21,24 +21,6 @@ export { TOMLConfigAdapter } from './TOMLConfigAdapter';
 export { YAMLConfigAdapter } from './YAMLConfigAdapter';
 export { JSONConfigAdapter } from './JSONConfigAdapter';
 
-import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
-import { JavaScriptLanguageAdapter } from './JavaScriptLanguageAdapter';
-import { PythonLanguageAdapter } from './PythonLanguageAdapter';
-import { CLanguageAdapter } from './CLanguageAdapter';
-import { CppLanguageAdapter } from './CppLanguageAdapter';
-import { CSharpLanguageAdapter } from './CSharpLanguageAdapter';
-import { RustLanguageAdapter } from './RustLanguageAdapter';
-import { GoLanguageAdapter } from './GoLanguageAdapter';
-import { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
-import { HtmlLanguageAdapter } from './HtmlLanguageAdapter';
-import { VueLanguageAdapter } from './VueLanguageAdapter';
-import { JavaLanguageAdapter } from './JavaLanguageAdapter';
-import { KotlinLanguageAdapter } from './KotlinLanguageAdapter';
-import { CssLanguageAdapter } from './CssLanguageAdapter';
-import { ConfigLanguageAdapter } from '../ConfigLanguageAdapter';
-import { TOMLConfigAdapter } from './TOMLConfigAdapter';
-import { YAMLConfigAdapter } from './YAMLConfigAdapter';
-import { JSONConfigAdapter } from './JSONConfigAdapter';
 import { ILanguageAdapter } from '../types';
 import { LanguageAdapterFactory } from '../LanguageAdapterFactory';
 
