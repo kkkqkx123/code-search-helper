@@ -138,10 +138,9 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
 
   async extractDataFlowRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DataFlowRelationship[]> {
-    return this.dataFlowExtractor.extract(ast, filePath, symbolResolver);
+    return this.dataFlowExtractor.extract(ast, filePath);
   }
 
   async extractControlFlowRelationships(

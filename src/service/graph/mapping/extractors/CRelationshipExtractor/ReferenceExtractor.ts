@@ -4,7 +4,8 @@ import {
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()
@@ -32,7 +33,7 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
         const referenceType = this.determineReferenceType(identifier, resolvedSymbol) as 'variable' | 'constant' | 'parameter' | 'field' | 'type' | 'enum';
 
         relationships.push({
-          sourceId: this.generateNodeId(identifierName, 'reference', filePath),
+          sourceId: generateDeterministicNodeId(identifier),
           targetId: this.generateSymbolId(resolvedSymbol),
           referenceType,
           referenceName: identifierName,
@@ -62,7 +63,7 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
           const referenceType = this.determineReferenceType(fieldExpr, resolvedSymbol) as 'variable' | 'constant' | 'parameter' | 'field';
 
           relationships.push({
-            sourceId: this.generateNodeId(fieldName, 'reference', filePath),
+            sourceId: generateDeterministicNodeId(fieldExpr),
             targetId: this.generateSymbolId(resolvedSymbol),
             referenceType,
             referenceName: fieldName,
@@ -89,7 +90,7 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
 
         if (resolvedSymbol) {
           relationships.push({
-            sourceId: this.generateNodeId(funcName, 'function_ref', filePath),
+            sourceId: generateDeterministicNodeId(funcDecl),
             targetId: this.generateSymbolId(resolvedSymbol),
             referenceType: 'function',
             referenceName: funcName,
@@ -116,7 +117,7 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
 
         if (resolvedSymbol) {
           relationships.push({
-            sourceId: this.generateNodeId(varName, 'variable_ref', filePath),
+            sourceId: generateDeterministicNodeId(varDecl),
             targetId: this.generateSymbolId(resolvedSymbol),
             referenceType: 'variable',
             referenceName: varName,
@@ -141,7 +142,7 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
 
       if (resolvedSymbol) {
         relationships.push({
-          sourceId: this.generateNodeId(typeName, 'typeref', filePath),
+          sourceId: generateDeterministicNodeId(typeIdentifier),
           targetId: this.generateSymbolId(resolvedSymbol),
           referenceType: 'type',
           referenceName: typeName,
@@ -165,7 +166,7 @@ export class ReferenceExtractor extends BaseCRelationshipExtractor {
 
       if (resolvedSymbol) {
         relationships.push({
-          sourceId: this.generateNodeId(typeName, 'primitive_typeref', filePath),
+          sourceId: generateDeterministicNodeId(primitiveType),
           targetId: this.generateSymbolId(resolvedSymbol),
           referenceType: 'type',
           referenceName: typeName,

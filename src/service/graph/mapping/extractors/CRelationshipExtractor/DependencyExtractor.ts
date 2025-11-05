@@ -4,7 +4,8 @@ import {
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()
@@ -29,7 +30,7 @@ export class DependencyExtractor extends BaseCRelationshipExtractor {
         const resolvedTargetSymbol = symbolResolver.resolveSymbol(includeInfo.source, filePath, includeStmt);
 
         relationships.push({
-          sourceId: this.generateNodeId(filePath, 'file', filePath),
+          sourceId: generateDeterministicNodeId(includeStmt),
           targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(includeInfo.source, 'header', includeInfo.source),
           dependencyType: 'include',
           target: includeInfo.source,

@@ -155,7 +155,7 @@ export class BatchRelationshipProcessor {
               relationships = await extractor.extractAnnotationRelationships(ast, filePath, this.symbolResolver);
               break;
             case 'data_flow':
-              relationships = await extractor.extractDataFlowRelationships(ast, filePath, this.symbolResolver);
+              relationships = await extractor.extractDataFlowRelationships(ast, filePath);
               break;
             case 'control_flow':
               relationships = await extractor.extractControlFlowRelationships(ast, filePath, this.symbolResolver);

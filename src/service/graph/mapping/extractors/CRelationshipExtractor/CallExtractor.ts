@@ -5,7 +5,8 @@ import {
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()
@@ -36,7 +37,7 @@ export class CallExtractor extends BaseCRelationshipExtractor {
 
         relationships.push({
           callerId: this.generateSymbolId(callerSymbol),
-          calleeId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(calleeName, 'function', filePath),
+          calleeId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : generateDeterministicNodeId(callExpr),
           callName: calleeName,
           location: {
             filePath,

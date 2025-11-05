@@ -36,6 +36,9 @@ export { LoggerService } from '../../../../utils/LoggerService';
 export { TYPES } from '../../../../types';
 export { LANGUAGE_NODE_MAPPINGS } from '../LanguageNodeTypes';
 
+// 工具函数
+export { generateDeterministicNodeId } from '../../../../utils/deterministic-node-id';
+
 // Tree-sitter
 import Parser = require('tree-sitter');
 export { Parser };

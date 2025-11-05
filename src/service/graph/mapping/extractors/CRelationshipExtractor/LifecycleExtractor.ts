@@ -3,7 +3,8 @@ import {
   SymbolResolver,
   Parser,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()
@@ -41,8 +42,8 @@ export class LifecycleExtractor extends BaseCRelationshipExtractor {
               const resolvedTargetSymbol = symbolResolver.resolveSymbol(varName, filePath, allocatedVar.node);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(funcName, 'function', filePath),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(varName, 'variable', filePath),
+                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(allocationFunc.node),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(allocatedVar.node),
                 lifecycleType: 'instantiates',
                 lifecyclePhase: 'creation',
                 location: {
@@ -74,8 +75,8 @@ export class LifecycleExtractor extends BaseCRelationshipExtractor {
               const resolvedTargetSymbol = symbolResolver.resolveSymbol(varName, filePath, deallocatedVar.node);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(funcName, 'function', filePath),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(varName, 'variable', filePath),
+                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(deallocationFunc.node),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(deallocatedVar.node),
                 lifecycleType: 'destroys',
                 lifecyclePhase: 'teardown',
                 location: {
@@ -107,8 +108,8 @@ export class LifecycleExtractor extends BaseCRelationshipExtractor {
               const resolvedTargetSymbol = symbolResolver.resolveSymbol(handleName, filePath, fileHandle.node);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(funcName, 'function', filePath),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(handleName, 'variable', filePath),
+                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(fileOpenFunc.node),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(fileHandle.node),
                 lifecycleType: 'manages',
                 lifecyclePhase: 'setup',
                 location: {

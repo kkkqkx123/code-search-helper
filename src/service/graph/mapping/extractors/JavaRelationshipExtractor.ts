@@ -821,8 +821,7 @@ export class JavaRelationshipExtractor implements ILanguageRelationshipExtractor
   // 新增：数据流关系提取
     async extractDataFlowRelationships(
       ast: Parser.SyntaxNode,
-      filePath: string,
-      symbolResolver: SymbolResolver
+      filePath: string
     ): Promise<DataFlowRelationship[]> {
       const relationships: DataFlowRelationship[] = [];
       

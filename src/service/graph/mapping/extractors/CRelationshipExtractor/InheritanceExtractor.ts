@@ -4,7 +4,8 @@ import {
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()

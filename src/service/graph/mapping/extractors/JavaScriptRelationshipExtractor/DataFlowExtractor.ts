@@ -11,8 +11,7 @@ import { BaseJavaScriptRelationshipExtractor } from './BaseJavaScriptRelationshi
 export class DataFlowExtractor extends BaseJavaScriptRelationshipExtractor {
   async extractDataFlowRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DataFlowRelationship[]> {
     const relationships: DataFlowRelationship[] = [];
     

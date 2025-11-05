@@ -143,10 +143,9 @@ export class TypeScriptRelationshipExtractor extends BaseJavaScriptRelationshipE
 
   async extractDataFlowRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DataFlowRelationship[]> {
-    return this.dataFlowExtractor.extractDataFlowRelationships(ast, filePath, symbolResolver);
+    return this.dataFlowExtractor.extractDataFlowRelationships(ast, filePath);
   }
 
   async extractControlFlowRelationships(

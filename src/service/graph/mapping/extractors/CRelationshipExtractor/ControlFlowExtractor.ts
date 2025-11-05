@@ -3,7 +3,8 @@ import {
   SymbolResolver,
   Parser,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()
@@ -40,8 +41,8 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
               const resolvedSymbol = symbolResolver.resolveSymbol(conditionName, filePath, conditionVar.node);
 
               relationships.push({
-                sourceId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(conditionName, 'condition', filePath),
-                targetId: this.generateNodeId(`block_${blockTarget.node.startPosition.row}`, 'control_block', filePath),
+                sourceId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : generateDeterministicNodeId(conditionVar.node),
+                targetId: generateDeterministicNodeId(blockTarget.node),
                 flowType: 'conditional',
                 condition: conditionName,
                 isExceptional: false,
@@ -73,8 +74,8 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
               const resolvedSymbol = symbolResolver.resolveSymbol(conditionName, filePath, loopCondition.node);
 
               relationships.push({
-                sourceId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(conditionName, 'loop_condition', filePath),
-                targetId: this.generateNodeId(`loop_block_${loopBlock.node.startPosition.row}`, 'loop_block', filePath),
+                sourceId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : generateDeterministicNodeId(loopCondition.node),
+                targetId: generateDeterministicNodeId(loopBlock.node),
                 flowType: 'loop',
                 condition: conditionName,
                 isExceptional: false,
@@ -99,7 +100,7 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
           const resolvedSymbol = symbolResolver.resolveSymbol(labelName, filePath, gotoTarget.node);
 
           relationships.push({
-            sourceId: this.generateNodeId(`goto_${gotoTarget.node.startPosition.row}`, 'goto', filePath),
+            sourceId: generateDeterministicNodeId(gotoTarget.node),
             targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(labelName, 'label', filePath),
             flowType: 'exception',
             condition: `goto ${labelName}`,
@@ -123,7 +124,7 @@ export class ControlFlowExtractor extends BaseCRelationshipExtractor {
           const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, funcCall.node);
 
           relationships.push({
-            sourceId: this.generateNodeId(`call_${funcCall.node.startPosition.row}`, 'function_call', filePath),
+            sourceId: generateDeterministicNodeId(funcCall.node),
             targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(funcName, 'function', filePath),
             flowType: 'callback',
             condition: funcName,

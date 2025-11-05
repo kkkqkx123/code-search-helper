@@ -111,8 +111,6 @@ export interface DataFlowRelationship {
     lineNumber: number;
     columnNumber: number;
   };
-  resolvedSourceSymbol?: Symbol;
-  resolvedTargetSymbol?: Symbol;
 }
 
 // 新增：控制流关系
@@ -233,8 +231,7 @@ export interface ILanguageRelationshipExtractor {
   // 扩展的关系提取方法
   extractDataFlowRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DataFlowRelationship[]>;
   
   extractControlFlowRelationships(

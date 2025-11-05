@@ -3,7 +3,8 @@ import {
   SymbolResolver,
   Parser,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()
@@ -40,8 +41,8 @@ export class ConcurrencyExtractor extends BaseCRelationshipExtractor {
               const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, threadCreateFunc.node);
 
               relationships.push({
-                sourceId: this.generateNodeId(funcName, 'function', filePath),
-                targetId: this.generateNodeId(handleName, 'thread', filePath),
+                sourceId: generateDeterministicNodeId(threadCreateFunc.node),
+                targetId: generateDeterministicNodeId(handleName, 'thread', filePath),
                 concurrencyType: 'synchronizes',
                 synchronizationMechanism: 'thread_creation',
                 location: {
@@ -72,8 +73,8 @@ export class ConcurrencyExtractor extends BaseCRelationshipExtractor {
               const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, mutexFunc.node);
 
               relationships.push({
-                sourceId: this.generateNodeId(funcName, 'function', filePath),
-                targetId: this.generateNodeId(handleName, 'mutex', filePath),
+                sourceId: generateDeterministicNodeId(mutexFunc.node),
+                targetId: generateDeterministicNodeId(handleName, 'mutex', filePath),
                 concurrencyType: 'synchronizes',
                 synchronizationMechanism: 'mutex',
                 location: {
@@ -104,8 +105,8 @@ export class ConcurrencyExtractor extends BaseCRelationshipExtractor {
               const resolvedSymbol = symbolResolver.resolveSymbol(funcName, filePath, atomicFunc.node);
 
               relationships.push({
-                sourceId: this.generateNodeId(funcName, 'function', filePath),
-                targetId: this.generateNodeId(varName, 'variable', filePath),
+                sourceId: generateDeterministicNodeId(atomicFunc.node),
+                targetId: generateDeterministicNodeId(varName, 'variable', filePath),
                 concurrencyType: 'synchronizes',
                 synchronizationMechanism: 'atomic_operation',
                 location: {

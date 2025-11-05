@@ -4,7 +4,8 @@ import {
   Parser,
   LANGUAGE_NODE_MAPPINGS,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()
@@ -26,7 +27,7 @@ export class CreationExtractor extends BaseCRelationshipExtractor {
       const structInstances = this.findStructInstances(varDecl, filePath, symbolResolver);
       for (const instance of structInstances) {
         relationships.push({
-          sourceId: this.generateNodeId(`struct_creation_${varDecl.startPosition.row}`, 'creation', filePath),
+          sourceId: generateDeterministicNodeId(varDecl),
           targetId: instance.structId,
           creationType: 'instantiation',
           targetName: instance.structName,
@@ -43,7 +44,7 @@ export class CreationExtractor extends BaseCRelationshipExtractor {
       const enumInstances = this.findEnumInstances(varDecl, filePath, symbolResolver);
       for (const instance of enumInstances) {
         relationships.push({
-          sourceId: this.generateNodeId(`enum_creation_${varDecl.startPosition.row}`, 'creation', filePath),
+          sourceId: generateDeterministicNodeId(varDecl),
           targetId: instance.enumId,
           creationType: 'instantiation',
           targetName: instance.enumName,

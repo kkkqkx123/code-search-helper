@@ -472,8 +472,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
   // 新增：数据流关系提取
   async extractDataFlowRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DataFlowRelationship[]> {
     const relationships: DataFlowRelationship[] = [];
 
@@ -484,7 +483,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
 
     for (const assignment of assignments) {
       const dataFlowRelations = this.extractAssignmentDataFlow(
-        assignment, filePath, symbolResolver
+        assignment, filePath
       );
       relationships.push(...dataFlowRelations);
     }
@@ -496,7 +495,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
 
     for (const call of functionCalls) {
       const parameterFlows = this.extractParameterDataFlow(
-        call, filePath, symbolResolver
+        call, filePath
       );
       relationships.push(...parameterFlows);
     }
@@ -508,7 +507,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
 
     for (const returnStmt of returnStatements) {
       const returnFlows = this.extractReturnDataFlow(
-        returnStmt, filePath, symbolResolver
+        returnStmt, filePath
       );
       relationships.push(...returnFlows);
     }
@@ -1054,8 +1053,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
   // 数据流关系提取辅助方法
   protected extractAssignmentDataFlow(
     assignment: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): DataFlowRelationship[] {
     const relationships: DataFlowRelationship[] = [];
 
@@ -1067,18 +1065,13 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
       const targetVar = leftHandSide.text;
       const sourceExpr = rightHandSide.text;
 
-      // 解析目标变量符号
-      const resolvedTargetSymbol = symbolResolver.resolveSymbol(targetVar, filePath, leftHandSide);
-
       // 递归查找源表达式中的变量
       const sourceVars = this.findVariablesInExpression(rightHandSide);
-      
-      for (const sourceVar of sourceVars) {
-        const resolvedSourceSymbol = symbolResolver.resolveSymbol(sourceVar, filePath, rightHandSide);
 
+      for (const sourceVar of sourceVars) {
         relationships.push({
           sourceId: this.generateNodeId(sourceVar, 'variable', filePath),
-          targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(targetVar, 'variable', filePath),
+          targetId: this.generateNodeId(targetVar, 'variable', filePath),
           flowType: 'variable_assignment',
           dataType: 'variable',
           flowPath: [sourceVar, targetVar],
@@ -1086,9 +1079,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
             filePath,
             lineNumber: assignment.startPosition.row + 1,
             columnNumber: assignment.startPosition.column + 1
-          },
-          resolvedSourceSymbol: resolvedSourceSymbol || undefined,
-          resolvedTargetSymbol: resolvedTargetSymbol || undefined
+          }
         });
       }
     }
@@ -1098,16 +1089,13 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
 
   protected extractParameterDataFlow(
     callExpr: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): DataFlowRelationship[] {
     const relationships: DataFlowRelationship[] = [];
 
     // 提取函数调用的参数传递
     const calleeName = this.extractCalleeName(callExpr);
     if (calleeName) {
-      const resolvedTargetSymbol = symbolResolver.resolveSymbol(calleeName, filePath, callExpr);
-
       // 查找参数
       const args = this.extractCallArguments(callExpr);
       for (let i = 0; i < args.length; i++) {
@@ -1115,11 +1103,9 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
         const sourceVars = this.findVariablesInExpression(arg.node);
 
         for (const sourceVar of sourceVars) {
-          const resolvedSourceSymbol = symbolResolver.resolveSymbol(sourceVar, filePath, arg.node);
-
           relationships.push({
             sourceId: this.generateNodeId(sourceVar, 'parameter', filePath),
-            targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(calleeName, 'function', filePath),
+            targetId: this.generateNodeId(calleeName, 'function', filePath),
             flowType: 'parameter_passing',
             dataType: arg.type,
             flowPath: [sourceVar, calleeName],
@@ -1127,9 +1113,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
               filePath,
               lineNumber: callExpr.startPosition.row + 1,
               columnNumber: callExpr.startPosition.column + 1
-            },
-            resolvedSourceSymbol: resolvedSourceSymbol || undefined,
-            resolvedTargetSymbol: resolvedTargetSymbol || undefined
+            }
           });
         }
       }
@@ -1140,8 +1124,7 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
 
   protected extractReturnDataFlow(
     returnStmt: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): DataFlowRelationship[] {
     const relationships: DataFlowRelationship[] = [];
 
@@ -1154,29 +1137,23 @@ export class PythonRelationshipExtractor implements ILanguageRelationshipExtract
       // 找到包含return语句的函数
       const containingFunction = this.findContainingFunction(returnStmt);
       if (containingFunction) {
-        const funcName = this.extractFunctionName(containingFunction);
-        if (funcName) {
-          const resolvedFuncSymbol = symbolResolver.resolveSymbol(funcName, filePath, containingFunction);
-
-          for (const returnVar of returnVars) {
-            const resolvedReturnSymbol = symbolResolver.resolveSymbol(returnVar, filePath, returnExpr);
-
+      const funcName = this.extractFunctionName(containingFunction);
+      if (funcName) {
+      for (const returnVar of returnVars) {
             relationships.push({
-              sourceId: this.generateNodeId(returnVar, 'return_value', filePath),
-              targetId: resolvedFuncSymbol ? this.generateSymbolId(resolvedFuncSymbol) : this.generateNodeId(funcName, 'function', filePath),
+          sourceId: this.generateNodeId(returnVar, 'return_value', filePath),
+        targetId: this.generateNodeId(funcName, 'function', filePath),
               flowType: 'return_value',
-              dataType: 'return',
-              flowPath: [returnVar, funcName],
-              location: {
-                filePath,
-                lineNumber: returnStmt.startPosition.row + 1,
-                columnNumber: returnStmt.startPosition.column + 1
-              },
-              resolvedSourceSymbol: resolvedReturnSymbol || undefined,
-              resolvedTargetSymbol: resolvedFuncSymbol || undefined
-            });
-          }
-        }
+        dataType: 'return',
+      flowPath: [returnVar, funcName],
+      location: {
+        filePath,
+        lineNumber: returnStmt.startPosition.row + 1,
+        columnNumber: returnStmt.startPosition.column + 1
+      }
+      });
+      }
+      }
       }
     }
 

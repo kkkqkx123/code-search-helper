@@ -8,7 +8,8 @@ import {
   inject,
   TYPES,
   TreeSitterService,
-  LoggerService
+  LoggerService,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()
@@ -40,7 +41,7 @@ export class AnnotationExtractor extends BaseCRelationshipExtractor {
         const resolvedSymbol = symbolResolver.resolveSymbol(attributeName, filePath, attribute);
 
         relationships.push({
-          sourceId: this.generateNodeId(`attribute_${attribute.startPosition.row}`, 'annotation', filePath),
+          sourceId: generateDeterministicNodeId(attribute),
           targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(attributeName, 'attribute', filePath),
           annotationType: 'attribute',
           annotationName: attributeName,
@@ -66,7 +67,7 @@ export class AnnotationExtractor extends BaseCRelationshipExtractor {
         const resolvedSymbol = symbolResolver.resolveSymbol(annotationName, filePath, typeAnnotation);
 
         relationships.push({
-          sourceId: this.generateNodeId(`type_annotation_${typeAnnotation.startPosition.row}`, 'annotation', filePath),
+          sourceId: generateDeterministicNodeId(typeAnnotation),
           targetId: resolvedSymbol ? this.generateSymbolId(resolvedSymbol) : this.generateNodeId(annotationName, 'type', filePath),
           annotationType: 'type_annotation',
           annotationName,

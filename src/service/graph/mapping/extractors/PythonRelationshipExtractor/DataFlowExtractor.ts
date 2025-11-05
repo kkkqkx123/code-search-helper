@@ -16,8 +16,7 @@ import { BasePythonRelationshipExtractor } from './BasePythonRelationshipExtract
 export class DataFlowExtractor extends BasePythonRelationshipExtractor {
   async extract(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DataFlowRelationship[]> {
     const relationships: DataFlowRelationship[] = [];
 
@@ -28,7 +27,7 @@ export class DataFlowExtractor extends BasePythonRelationshipExtractor {
 
     for (const assignment of assignments) {
       const dataFlowRelations = this.extractAssignmentDataFlow(
-        assignment, filePath, symbolResolver
+        assignment, filePath
       );
       relationships.push(...dataFlowRelations);
     }
@@ -40,7 +39,7 @@ export class DataFlowExtractor extends BasePythonRelationshipExtractor {
 
     for (const call of functionCalls) {
       const parameterFlows = this.extractParameterDataFlow(
-        call, filePath, symbolResolver
+        call, filePath
       );
       relationships.push(...parameterFlows);
     }
@@ -49,7 +48,7 @@ export class DataFlowExtractor extends BasePythonRelationshipExtractor {
     const returnStatements = this.treeSitterService.findNodeByType(ast, 'return_statement');
     for (const returnStmt of returnStatements) {
       const returnFlows = this.extractReturnDataFlow(
-        returnStmt, filePath, symbolResolver
+        returnStmt, filePath
       );
       relationships.push(...returnFlows);
     }

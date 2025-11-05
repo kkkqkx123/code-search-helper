@@ -1,18 +1,16 @@
 import {
   DataFlowRelationship,
-  SymbolResolver,
   Parser,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
-import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 
 @injectable()
 export class DataFlowExtractor extends BaseCRelationshipExtractor {
   async extractDataFlowRelationships(
     ast: Parser.SyntaxNode,
-    filePath: string,
-    symbolResolver: SymbolResolver
+    filePath: string
   ): Promise<DataFlowRelationship[]> {
     const relationships: DataFlowRelationship[] = [];
 
@@ -38,12 +36,9 @@ export class DataFlowExtractor extends BaseCRelationshipExtractor {
             const targetName = targetVar.node.text;
 
             if (sourceName && targetName) {
-              const resolvedSourceSymbol = symbolResolver.resolveSymbol(sourceName, filePath, sourceVar.node);
-              const resolvedTargetSymbol = symbolResolver.resolveSymbol(targetName, filePath, targetVar.node);
-
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(sourceVar.node),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(targetVar.node),
+                sourceId: generateDeterministicNodeId(sourceVar.node),
+                targetId: generateDeterministicNodeId(targetVar.node),
                 flowType: 'variable_assignment',
                 dataType: 'variable',
                 flowPath: [sourceName, targetName],
@@ -51,9 +46,7 @@ export class DataFlowExtractor extends BaseCRelationshipExtractor {
                   filePath,
                   lineNumber: sourceVar.node.startPosition.row + 1,
                   columnNumber: sourceVar.node.startPosition.column + 1
-                },
-                resolvedSourceSymbol: resolvedSourceSymbol || undefined,
-                resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                }
               });
             }
           }
@@ -73,12 +66,9 @@ export class DataFlowExtractor extends BaseCRelationshipExtractor {
             const funcName = targetFunc.node.text;
 
             if (paramName && funcName) {
-              const resolvedSourceSymbol = symbolResolver.resolveSymbol(paramName, filePath, sourceParam.node);
-              const resolvedTargetSymbol = symbolResolver.resolveSymbol(funcName, filePath, targetFunc.node);
-
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(sourceParam.node),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(targetFunc.node),
+                sourceId: generateDeterministicNodeId(sourceParam.node),
+                targetId: generateDeterministicNodeId(targetFunc.node),
                 flowType: 'parameter_passing',
                 dataType: 'parameter',
                 flowPath: [paramName, funcName],
@@ -86,9 +76,7 @@ export class DataFlowExtractor extends BaseCRelationshipExtractor {
                   filePath,
                   lineNumber: sourceParam.node.startPosition.row + 1,
                   columnNumber: sourceParam.node.startPosition.column + 1
-                },
-                resolvedSourceSymbol: resolvedSourceSymbol || undefined,
-                resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                }
               });
             }
           }
@@ -105,12 +93,10 @@ export class DataFlowExtractor extends BaseCRelationshipExtractor {
           if (funcName) {
             for (const returnVar of returnVars) {
               const returnName = returnVar.node.text;
-              const resolvedSourceSymbol = symbolResolver.resolveSymbol(returnName, filePath, returnVar.node);
-              const resolvedTargetSymbol = symbolResolver.resolveSymbol(funcName, filePath, containingFunc);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(returnVar.node),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(containingFunc),
+                sourceId: generateDeterministicNodeId(returnVar.node),
+                targetId: generateDeterministicNodeId(containingFunc),
                 flowType: 'return_value',
                 dataType: 'return',
                 flowPath: [returnName, funcName],
@@ -118,9 +104,7 @@ export class DataFlowExtractor extends BaseCRelationshipExtractor {
                   filePath,
                   lineNumber: returnVar.node.startPosition.row + 1,
                   columnNumber: returnVar.node.startPosition.column + 1
-                },
-                resolvedSourceSymbol: resolvedSourceSymbol || undefined,
-                resolvedTargetSymbol: resolvedTargetSymbol || undefined
+                }
               });
             }
           }

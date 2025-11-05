@@ -3,7 +3,8 @@ import {
   SymbolResolver,
   Parser,
   BaseCRelationshipExtractor,
-  injectable
+  injectable,
+  generateDeterministicNodeId
 } from '../types';
 
 @injectable()
@@ -41,8 +42,8 @@ export class SemanticExtractor extends BaseCRelationshipExtractor {
               const resolvedTargetSymbol = symbolResolver.resolveSymbol(targetName, filePath, targetFunc.node);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(sourceName, 'function', filePath),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(targetName, 'function', filePath),
+                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(sourceFunc.node),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(targetFunc.node),
                 semanticType: 'delegates',
                 pattern: 'function_call',
                 metadata: {
@@ -78,8 +79,8 @@ export class SemanticExtractor extends BaseCRelationshipExtractor {
               const resolvedTargetSymbol = symbolResolver.resolveSymbol(structTypeName, filePath, structName.node);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(fieldTypeName, 'type', filePath),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(structTypeName, 'struct', filePath),
+                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(fieldType.node),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(structName.node),
                 semanticType: 'configures',
                 pattern: 'struct_field',
                 metadata: {
@@ -115,8 +116,8 @@ export class SemanticExtractor extends BaseCRelationshipExtractor {
               const resolvedTargetSymbol = symbolResolver.resolveSymbol(aliasTypeName, filePath, aliasType.node);
 
               relationships.push({
-                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : this.generateNodeId(originalTypeName, 'type', filePath),
-                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : this.generateNodeId(aliasTypeName, 'type', filePath),
+                sourceId: resolvedSourceSymbol ? this.generateSymbolId(resolvedSourceSymbol) : generateDeterministicNodeId(originalType.node),
+                targetId: resolvedTargetSymbol ? this.generateSymbolId(resolvedTargetSymbol) : generateDeterministicNodeId(aliasType.node),
                 semanticType: 'overrides',
                 pattern: 'type_alias',
                 metadata: {
