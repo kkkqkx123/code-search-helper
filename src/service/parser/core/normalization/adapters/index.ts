@@ -1,71 +1,13 @@
 /**
- * 语言适配器模块导出
+ * 语言适配器统一导出
  */
 
-export { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
-export { JavaScriptLanguageAdapter } from './JavaScriptLanguageAdapter';
-export { PythonLanguageAdapter } from './PythonLanguageAdapter';
+// C语言适配器
 export { CLanguageAdapter } from './CLanguageAdapter';
-export { CppLanguageAdapter } from './CppLanguageAdapter';
-export { CSharpLanguageAdapter } from './CSharpLanguageAdapter';
-export { RustLanguageAdapter } from './RustLanguageAdapter';
-export { GoLanguageAdapter } from './GoLanguageAdapter';
-export { DefaultLanguageAdapter } from './DefaultLanguageAdapter';
-export { HtmlLanguageAdapter } from './HtmlLanguageAdapter';
-export { VueLanguageAdapter } from './VueLanguageAdapter';
-export { JavaLanguageAdapter } from './JavaLanguageAdapter';
-export { KotlinLanguageAdapter } from './KotlinLanguageAdapter';
-export { CssLanguageAdapter } from './CssLanguageAdapter';
-export { ConfigLanguageAdapter } from '../ConfigLanguageAdapter';
-export { TOMLConfigAdapter } from './TOMLConfigAdapter';
-export { YAMLConfigAdapter } from './YAMLConfigAdapter';
-export { JSONConfigAdapter } from './JSONConfigAdapter';
 
-import { ILanguageAdapter } from '../types';
-import { LanguageAdapterFactory } from '../LanguageAdapterFactory';
-
-/**
- * 重新导出增强的语言适配器工厂
- * 保持向后兼容性
- */
-export { LanguageAdapterFactory } from '../LanguageAdapterFactory';
-
-/**
- * @deprecated 请使用新的 LanguageAdapterFactory.getAdapter() 方法
- * 获取指定语言的适配器
- * @param language 编程语言
- * @returns 语言适配器实例
- */
-export async function getAdapter(language: string): Promise<ILanguageAdapter> {
-  return LanguageAdapterFactory.getAdapter(language);
-}
-
-/**
- * @deprecated 请使用新的 LanguageAdapterFactory.registerAdapter() 方法
- * 注册新的语言适配器
- * @param language 编程语言
- * @param adapterFactory 适配器工厂函数
- */
-export function registerAdapter(language: string, adapterFactory: () => ILanguageAdapter): void {
-  // 注意：新工厂不支持这种注册方式，这里仅保持兼容性
-  console.warn('registerAdapter is deprecated, please use LanguageAdapterFactory.registerCustomAdapter');
-}
-
-/**
- * @deprecated 请使用新的 LanguageAdapterFactory.getSupportedLanguages() 方法
- * 获取所有支持的语言
- * @returns 支持的语言列表
- */
-export function getSupportedLanguages(): string[] {
-  return LanguageAdapterFactory.getSupportedLanguages();
-}
-
-/**
- * @deprecated 请使用新的 LanguageAdapterFactory.isLanguageSupported() 方法
- * 检查是否支持指定语言
- * @param language 编程语言
- * @returns 是否支持
- */
-export function isSupported(language: string): boolean {
-  return LanguageAdapterFactory.isLanguageSupported(language);
-}
+// 其他语言适配器可以在这里添加
+// export { JavaScriptLanguageAdapter } from './JavaScriptLanguageAdapter';
+// export { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
+// export { PythonLanguageAdapter } from './PythonLanguageAdapter';
+// export { JavaLanguageAdapter } from './JavaLanguageAdapter';
+// export { RustLanguageAdapter } from './RustLanguageAdapter';

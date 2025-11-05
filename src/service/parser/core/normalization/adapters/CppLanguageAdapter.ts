@@ -10,7 +10,14 @@ import {
   LifecycleRelationshipExtractor,
   SemanticRelationshipExtractor,
   ControlFlowRelationshipExtractor,
-  CppHelperMethods
+  CppHelperMethods,
+  CPP_NODE_TYPE_MAPPING,
+  CPP_QUERY_TYPE_MAPPING,
+  CPP_SUPPORTED_QUERY_TYPES,
+  CPP_NAME_CAPTURES,
+  CPP_BLOCK_NODE_TYPES,
+  CPP_MODIFIERS,
+  CPP_COMPLEXITY_KEYWORDS
 } from './cpp-utils';
 type StandardType = StandardizedQueryResult['type'];
 
@@ -45,213 +52,16 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
   }
 
   getSupportedQueryTypes(): string[] {
-    return [
-      // Entity types
-      'functions',
-      'classes',
-      'variables',
-      'types',
-      'namespaces',
-      'preprocessor',
-      'control-flow',
-      'modern-features',
-      // Relationship types
-      'calls',
-      'data-flows',
-      'inheritance',
-      // Advanced relationship types
-      'concurrency-relationships',
-      'control-flow-relationships',
-      'lifecycle-relationships',
-      'semantic-relationships'
-    ];
+    return CPP_SUPPORTED_QUERY_TYPES;
   }
 
   mapNodeType(nodeType: string): string {
-    const typeMapping: Record<string, string> = {// 类和结构体相关
-      'struct_specifier': 'class',
-      'union_specifier': 'class',
-      'class_specifier': 'class',
-      'template_declaration': 'template',
-      'access_specifier': 'access_specifier',
-      'base_class_clause': 'base_class',
-      'member_initializer': 'member_initializer',
-      'friend_declaration': 'friend',
-
-      // 函数相关
-      'function_definition': 'function',
-      'function_declarator': 'function',
-      'field_declarator': 'method',  // 类方法
-      'declaration': 'function',  // 函数声明
-      'lambda_expression': 'lambda',
-      'operator_name': 'operator',
-      'constructor_initializer': 'constructor',
-      'destructor_name': 'destructor',
-      'virtual_specifier': 'virtual_specifier',
-      'co_await_expression': 'co_await_expression',
-      'co_yield_expression': 'co_yield_expression',
-      'co_return_statement': 'co_return_statement',
-
-      // 变量相关
-      'init_declarator': 'variable',
-      'structured_binding_declarator': 'binding',
-      'parameter_pack_expansion': 'parameter_pack',
-      'assignment_expression': 'assignment',
-      'call_expression': 'call',
-      'field_expression': 'member',
-
-      // 类型相关
-      'type_definition': 'type',
-      'type_alias_declaration': 'type_alias',
-      'enum_specifier': 'enum',
-      'concept_definition': 'concept',
-      'template_function': 'template',
-      'template_type': 'template',
-      'auto': 'auto_var',
-      'type_qualifier': 'type_qualifier',
-      'primitive_type': 'primitive_type',
-
-      // 命名空间相关
-      'namespace_definition': 'namespace',
-      'using_declaration': 'using',
-
-      // 预处理器相关
-      'preproc_function_def': 'macro',
-      'preproc_def': 'macro',
-      'preproc_include': 'include',
-      'preproc_if': 'preproc_condition',
-      'preproc_ifdef': 'preproc_ifdef',
-      'preproc_elif': 'preproc_condition',
-      'preproc_else': 'preproc_else',
-      'preproc_endif': 'preproc_endif',
-      'preproc_call': 'preproc_call',
-
-      // 控制流相关
-      'try_statement': 'try_statement',
-      'catch_clause': 'catch_clause',
-      'throw_specifier': 'throw_specifier',
-      'noexcept_specifier': 'noexcept_specifier',
-      'range_based_for_statement': 'range_for',
-      'if_statement': 'control_statement',
-      'for_statement': 'control_statement',
-      'while_statement': 'control_statement',
-      'do_statement': 'control_statement',
-      'switch_statement': 'control_statement',
-      'case_statement': 'control_statement',
-      'break_statement': 'control_statement',
-      'continue_statement': 'control_statement',
-      'return_statement': 'control_statement',
-      'goto_statement': 'control_statement',
-      'labeled_statement': 'label',
-      'compound_statement': 'compound_statement',
-
-      // 表达式相关
-      'binary_expression': 'binary_expression',
-      'unary_expression': 'unary_expression',
-      'update_expression': 'update_expression',
-      'cast_expression': 'cast_expression',
-      'sizeof_expression': 'sizeof_expression',
-      'typeid_expression': 'typeid_expression',
-      'parenthesized_expression': 'parenthesized_expression',
-      'conditional_expression': 'conditional_expression',
-      'new_expression': 'new_expression',
-      'delete_expression': 'delete_expression',
-      'comment': 'comment',
-      'number_literal': 'number_literal',
-      'string_literal': 'string_literal',
-      'char_literal': 'char_literal',
-      'true': 'boolean_literal',
-      'false': 'boolean_literal',
-
-      // 现代特性
-      'explicit_specialization': 'explicit_specialization',
-      'static_assert_declaration': 'static_assert',
-      'attribute_declaration': 'attribute_declaration',
-      'attribute_specifier': 'attribute_specifier',
-      'requires_clause': 'requires_clause',
-      'alignas_specifier': 'alignas_specifier',
-      'literal_suffix': 'literal_suffix',
-      // 通用标识符映射
-      'identifier': 'identifier',
-      'type_identifier': 'type_identifier',
-      'field_identifier': 'field_identifier',
-      'template_parameter_list': 'template_parameter_list',
-      'storage_class_specifier': 'storage_class_specifier',
-      'explicit_specifier': 'explicit_specifier',
-      'namespace_identifier': 'namespace_identifier',
-      'statement_identifier': 'statement_identifier',
-      'system_lib_string': 'system_lib_string',
-      '_': 'wildcard',
-    };
-
-    return typeMapping[nodeType] || nodeType;
+    return CPP_NODE_TYPE_MAPPING[nodeType] || nodeType;
   }
 
   extractName(result: any): string {
     // 尝试从不同的捕获中提取名称
-    const nameCaptures = [
-      'name.definition.class',
-      'name.definition.template.class',
-      'name.definition.template.struct',
-      'name.definition.function',
-      'name.definition.method',
-      'name.definition.template.function',
-      'name.definition.constructor',
-      'name.definition.destructor',
-      'name.definition.operator',
-      'name.definition.operator.new',
-      'name.definition.operator.delete',
-      'name.definition.variable',
-      'name.definition.binding',
-      'name.definition.assignment',
-      'name.definition.call',
-      'name.definition.member',
-      'name.definition.type',
-      'name.definition.type_alias',
-      'name.definition.enum',
-      'name.definition.template.enum',
-      'name.definition.concept',
-      'name.definition.template.instantiation',
-      'name.definition.auto_var',
-      'name.definition.namespace',
-      'name.definition.using',
-      'name.definition.macro',
-      'name.definition.include',
-      'name.definition.preproc_condition',
-      'name.definition.preproc_ifdef',
-      'name.definition.label',
-      'name.definition.try_statement',
-      'name.definition.catch_clause',
-      'name.definition.range_for',
-      'name.definition.control_statement',
-      'name.definition.compound_statement',
-      'name.definition.binary_expression',
-      'name.definition.unary_expression',
-      'name.definition.update_expression',
-      'name.definition.cast_expression',
-      'name.definition.sizeof_expression',
-      'name.definition.typeid_expression',
-      'name.definition.parenthesized_expression',
-      'name.definition.conditional_expression',
-      'name.definition.new_expression',
-      'name.definition.delete_expression',
-      'name.definition.comment',
-      'name.definition.number_literal',
-      'name.definition.string_literal',
-      'name.definition.char_literal',
-      'name.definition.boolean_literal',
-      'name.definition.explicit_specialization',
-      'name.definition.static_assert',
-      'name.definition.attribute_declaration',
-      'name.definition.attribute_specifier',
-      'name.definition.requires_clause',
-      'name.definition.alignas_specifier',
-      'name.definition.literal_suffix',
-      'name',
-      'identifier'
-    ];
-
-    for (const captureName of nameCaptures) {
+    for (const captureName of CPP_NAME_CAPTURES) {
       const capture = result.captures?.find((c: any) => c.name === captureName);
       if (capture?.node?.text) {
         return capture.node.text;
@@ -353,28 +163,7 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
   }
 
   mapQueryTypeToStandardType(queryType: string): StandardType {
-    const mapping: Record<string, StandardType> = {
-      'functions': 'function',
-      'classes': 'class',
-      'variables': 'variable',
-      'types': 'type',
-      'namespaces': 'class',  // 命名空间映射为类
-      'preprocessor': 'expression',  // 预处理器映射为表达式
-      'control-flow': 'control-flow',
-      'modern-features': 'expression',  // 现代特性映射为表达式
-      
-      // 关系类型
-      'calls': 'call',
-      'data-flows': 'data-flow',
-      'inheritance': 'inheritance',
-      // ... 其他关系类型
-      'concurrency-relationships': 'concurrency',
-      'control-flow-relationships': 'control-flow',
-      'lifecycle-relationships': 'lifecycle',
-      'semantic-relationships': 'semantic'
-    };
-    
-    return mapping[queryType] || 'expression';
+    return CPP_QUERY_TYPE_MAPPING[queryType] as StandardType || 'expression';
   }
 
   calculateComplexity(result: any): number {
@@ -398,21 +187,11 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
 
     // C++特定的复杂度因素
     const text = mainNode.text || '';
-    if (text.includes('template')) complexity += 2; // 模板
-    if (text.includes('virtual')) complexity += 1; // 虚函数
-    if (text.includes('override')) complexity += 1; // 重写
-    if (text.includes('constexpr')) complexity += 1; // 常量表达式
-    if (text.includes('consteval')) complexity += 1; // 立即函数
-    if (text.includes('constinit')) complexity += 1; // 常量初始化
-    if (text.includes('noexcept')) complexity += 1; // 异常规范
-    if (text.includes('lambda') || text.includes('[]')) complexity += 1; // Lambda表达式
-    if (text.includes('co_await') || text.includes('co_yield') || text.includes('co_return')) complexity += 2; // 协程
-    if (text.includes('concept')) complexity += 2; // 概念
-    if (text.includes('requires')) complexity += 1; // 约束
-    if (text.includes('thread') || text.includes('mutex') || text.includes('condition_variable')) complexity += 2; // 多线程
-    if (text.includes('unique_ptr') || text.includes('shared_ptr') || text.includes('weak_ptr')) complexity += 1; // 智能指针
-    if (text.includes('std::') || text.includes('::')) complexity += 1; // 命名空间使用
-    if (text.includes('try') || text.includes('catch')) complexity += 1; // 异常处理
+    for (const keyword of CPP_COMPLEXITY_KEYWORDS) {
+      if (new RegExp(keyword.pattern).test(text)) {
+        complexity += keyword.weight;
+      }
+    }
 
     return complexity;
   }
@@ -446,32 +225,19 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
     // 检查C++常见的修饰符
     const text = mainNode.text || '';
 
-    if (text.includes('virtual')) modifiers.push('virtual');
-    if (text.includes('static')) modifiers.push('static');
-    if (text.includes('const')) modifiers.push('const');
-    if (text.includes('volatile')) modifiers.push('volatile');
-    if (text.includes('inline')) modifiers.push('inline');
-    if (text.includes('extern')) modifiers.push('extern');
-    if (text.includes('mutable')) modifiers.push('mutable');
-    if (text.includes('thread_local')) modifiers.push('thread_local');
-    if (text.includes('constexpr')) modifiers.push('constexpr');
-    if (text.includes('consteval')) modifiers.push('consteval');
-    if (text.includes('constinit')) modifiers.push('constinit');
-    if (text.includes('explicit')) modifiers.push('explicit');
-    if (text.includes('override')) modifiers.push('override');
-    if (text.includes('final')) modifiers.push('final');
-    if (text.includes('noexcept')) modifiers.push('noexcept');
-    if (text.includes('throw')) modifiers.push('throw');
-    if (text.includes('public:')) modifiers.push('public');
-    if (text.includes('private:')) modifiers.push('private');
-    if (text.includes('protected:')) modifiers.push('protected');
-    if (text.includes('friend')) modifiers.push('friend');
-    if (text.includes('co_await')) modifiers.push('coroutine');
-    if (text.includes('co_yield')) modifiers.push('coroutine');
-    if (text.includes('co_return')) modifiers.push('coroutine');
-    if (text.includes('requires')) modifiers.push('requires');
-    if (text.includes('concept')) modifiers.push('concept');
-    if (text.includes('decltype')) modifiers.push('decltype');
+    for (const modifier of CPP_MODIFIERS) {
+      if (modifier === 'coroutine') {
+        if (text.includes('co_await') || text.includes('co_yield') || text.includes('co_return')) {
+          modifiers.push(modifier);
+        }
+      } else if (modifier === 'public' || modifier === 'private' || modifier === 'protected') {
+        if (text.includes(`${modifier}:`)) {
+          modifiers.push(modifier);
+        }
+      } else if (text.includes(modifier)) {
+        modifiers.push(modifier);
+      }
+    }
 
     return modifiers;
   }
@@ -519,12 +285,7 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
 
   // 重写isBlockNode方法以支持C++特定的块节点类型
   protected isBlockNode(node: any): boolean {
-    const cppBlockTypes = [
-      'compound_statement', 'class_specifier', 'struct_specifier', 'function_definition',
-      'method_declaration', 'namespace_definition', 'if_statement', 'for_statement',
-      'while_statement', 'do_statement', 'switch_statement', 'try_statement', 'template_declaration'
-    ];
-    return cppBlockTypes.includes(node.type) || super.isBlockNode(node);
+    return CPP_BLOCK_NODE_TYPES.includes(node.type) || super.isBlockNode(node);
   }
 
   // 重写normalize方法以集成nodeId生成和符号信息

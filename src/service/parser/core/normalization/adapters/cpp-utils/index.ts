@@ -11,3 +11,6 @@ export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor
 export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { ControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
 export { CppHelperMethods } from './CppHelperMethods';
+
+// 导出常量
+export * from './constants';
