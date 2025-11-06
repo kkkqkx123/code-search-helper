@@ -106,9 +106,13 @@ export const GO_QUERY_TYPE_MAPPING: Record<string, string> = {
   'expressions-control-flow': 'expression',
   
   // 关系类型
+  'annotations': 'annotation',
   'calls': 'call',
+  'creations': 'creation',
   'data-flows': 'data-flow',
+  'dependencies': 'dependency',
   'inheritance': 'inheritance',
+  'references': 'reference',
   'concurrency-relationships': 'concurrency',
   'control-flow-relationships': 'control-flow',
   'lifecycle-relationships': 'lifecycle',
@@ -121,9 +125,13 @@ export const GO_SUPPORTED_QUERY_TYPES = [
   'variables-imports',
   'expressions-control-flow',
   // Relationship types
+  'annotations',
   'calls',
+  'creations',
   'data-flows',
+  'dependencies',
   'inheritance',
+  'references',
   // Advanced relationship types
   'concurrency-relationships',
   'control-flow-relationships',

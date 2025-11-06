@@ -259,13 +259,105 @@ export class GoHelperMethods {
   }
 
   /**
-   * 提取导入路径
-   */
+  * 提取导入路径
+  */
   static extractImportPath(node: Parser.SyntaxNode): string | undefined {
-    if (node.type === 'import_spec') {
-      const pathNode = node.childForFieldName('path');
-      return pathNode ? pathNode.text.replace(/"/g, '') : undefined;
+  if (node.type === 'import_spec') {
+  const pathNode = node.childForFieldName('path');
+  return pathNode ? pathNode.text.replace(/"/g, '') : undefined;
+  }
+  return undefined;
+  }
+
+  /**
+   * 查找包含函数
+   */
+  static findContainingFunction(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
+    let current = node.parent;
+    while (current) {
+      if (current.type === 'function_declaration' || current.type === 'method_declaration') {
+        return current;
+      }
+      current = current.parent;
     }
-    return undefined;
+    return null;
+  }
+
+  /**
+   * 查找父函数声明
+   */
+  static findParentFunctionDeclaration(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
+    let current = node.parent;
+    while (current) {
+      if (current.type === 'function_declaration' || current.type === 'method_declaration') {
+        return current;
+      }
+      current = current.parent;
+    }
+    return null;
+  }
+
+  /**
+   * 查找变量声明
+   */
+  static findVariableDeclaration(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
+    if (node.type === 'identifier') {
+      const name = node.text;
+      if (!name) return null;
+
+      // 向上查找变量声明
+      let current = node.parent;
+      while (current) {
+        if (current.type === 'var_declaration' || current.type === 'short_var_declaration') {
+          // 检查是否是这个变量的声明
+          for (const child of current.children) {
+            if (child.type === 'identifier' && child.text === name) {
+              return current;
+            }
+          }
+        }
+        current = current.parent;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 查找类型声明
+   */
+  static findTypeDeclaration(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
+    if (node.type === 'type_identifier') {
+      const name = node.text;
+      if (!name) return null;
+
+      // 向上查找类型声明
+      let current = node.parent;
+      while (current) {
+        if (current.type === 'type_declaration') {
+          // 检查是否是这个类型的声明
+          for (const child of current.children) {
+            if (child.type === 'type_identifier' && child.text === name) {
+              return current;
+            }
+          }
+        }
+        current = current.parent;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 查找包含块
+   */
+  static findContainingBlock(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
+    let current = node.parent;
+    while (current) {
+      if (current.type === 'block') {
+        return current;
+      }
+      current = current.parent;
+    }
+    return null;
   }
 }

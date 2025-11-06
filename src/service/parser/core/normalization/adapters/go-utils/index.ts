@@ -3,16 +3,17 @@
  * 统一导出所有关系提取器和辅助方法
  */
 
+export { AnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
 export { CallRelationshipExtractor } from './CallRelationshipExtractor';
-export { DataFlowRelationshipExtractor } from './DataFlowRelationshipExtractor';
-export { InheritanceRelationshipExtractor } from './InheritanceRelationshipExtractor';
 export { ConcurrencyRelationshipExtractor } from './ConcurrencyRelationshipExtractor';
-export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor';
-export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { ControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
-export { ExpressionsControlFlowRelationshipExtractor } from './ExpressionsControlFlowRelationshipExtractor';
-export { FunctionsTypesRelationshipExtractor } from './FunctionsTypesRelationshipExtractor';
-export { VariablesImportsRelationshipExtractor } from './VariablesImportsRelationshipExtractor';
+export { CreationRelationshipExtractor } from './CreationRelationshipExtractor';
+export { DataFlowRelationshipExtractor } from './DataFlowRelationshipExtractor';
+export { DependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
+export { InheritanceRelationshipExtractor } from './InheritanceRelationshipExtractor';
+export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor';
+export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
+export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { GoHelperMethods } from './GoHelperMethods';
 
 // 导出常量

@@ -105,7 +105,7 @@ export class DataFlowRelationshipExtractor {
     const relationships: Array<{
       source: string;
       target: string;
-      type: 'assignment' | 'parameter' | 'return' | 'field_access';
+      type: 'assignment' | 'parameter' | 'return';
     }> = [];
     
     const mainNode = result.captures?.[0]?.node;

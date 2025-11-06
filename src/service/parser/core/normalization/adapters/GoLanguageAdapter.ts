@@ -3,9 +3,13 @@ import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 import {
+  AnnotationRelationshipExtractor,
   CallRelationshipExtractor,
+  CreationRelationshipExtractor,
   DataFlowRelationshipExtractor,
+  DependencyRelationshipExtractor,
   InheritanceRelationshipExtractor,
+  ReferenceRelationshipExtractor,
   ConcurrencyRelationshipExtractor,
   LifecycleRelationshipExtractor,
   SemanticRelationshipExtractor,
@@ -30,9 +34,13 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
   private symbolTable: SymbolTable | null = null;
   
   // 关系提取器实例
+  private annotationExtractor: AnnotationRelationshipExtractor;
   private callExtractor: CallRelationshipExtractor;
+  private creationExtractor: CreationRelationshipExtractor;
   private dataFlowExtractor: DataFlowRelationshipExtractor;
+  private dependencyExtractor: DependencyRelationshipExtractor;
   private inheritanceExtractor: InheritanceRelationshipExtractor;
+  private referenceExtractor: ReferenceRelationshipExtractor;
   private concurrencyExtractor: ConcurrencyRelationshipExtractor;
   private lifecycleExtractor: LifecycleRelationshipExtractor;
   private semanticExtractor: SemanticRelationshipExtractor;
@@ -42,9 +50,13 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     super(options);
     
     // 初始化关系提取器
+    this.annotationExtractor = new AnnotationRelationshipExtractor();
     this.callExtractor = new CallRelationshipExtractor();
+    this.creationExtractor = new CreationRelationshipExtractor();
     this.dataFlowExtractor = new DataFlowRelationshipExtractor();
+    this.dependencyExtractor = new DependencyRelationshipExtractor();
     this.inheritanceExtractor = new InheritanceRelationshipExtractor();
+    this.referenceExtractor = new ReferenceRelationshipExtractor();
     this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
     this.lifecycleExtractor = new LifecycleRelationshipExtractor();
     this.semanticExtractor = new SemanticRelationshipExtractor();
@@ -264,6 +276,34 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
   }
 
   // 高级关系提取方法 - 委托给专门的提取器
+  extractAnnotationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'struct_tag' | 'comment' | 'directive';
+  }> {
+    const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapAnnotationType(rel.type)
+    }));
+  }
+
+  extractCreationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'struct_instance' | 'slice' | 'map' | 'channel' | 'function' | 'goroutine_instance';
+  }> {
+    const relationships = this.creationExtractor.extractCreationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapCreationType(rel.type)
+    }));
+  }
+
   extractDataFlowRelationships(result: any): Array<{
     source: string;
     target: string;
@@ -275,6 +315,34 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       source: rel.source,
       target: rel.target,
       type: this.mapDataFlowType(rel.type)
+    }));
+  }
+
+  extractDependencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'import' | 'package' | 'qualified_identifier';
+  }> {
+    const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapDependencyType(rel.type)
+    }));
+  }
+
+  extractReferenceRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'read' | 'write' | 'declaration' | 'usage';
+  }> {
+    const relationships = this.referenceExtractor.extractReferenceRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapReferenceType(rel.type)
     }));
   }
 
@@ -335,6 +403,30 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
   }
 
   // 类型映射辅助方法
+  private mapAnnotationType(type: string): 'struct_tag' | 'comment' | 'directive' {
+    switch (type) {
+      case 'struct_tag': return 'struct_tag';
+      case 'comment': return 'comment';
+      case 'build_directive': return 'directive';
+      default: return 'comment';
+    }
+  }
+
+  private mapCreationType(type: string): 'struct_instance' | 'slice' | 'map' | 'channel' | 'function' | 'goroutine_instance' {
+    switch (type) {
+      case 'struct_instance': return 'struct_instance';
+      case 'slice': return 'slice';
+      case 'map': return 'map';
+      case 'channel': return 'channel';
+      case 'function': return 'function';
+      case 'goroutine_instance': return 'goroutine_instance';
+      case 'composite_literal': return 'struct_instance';
+      case 'make_call': return 'slice';
+      case 'new_call': return 'struct_instance';
+      default: return 'struct_instance';
+    }
+  }
+
   private mapDataFlowType(type: string): 'assignment' | 'parameter' | 'return' {
     switch (type) {
       case 'variable_assignment': return 'assignment';
@@ -343,6 +435,25 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       case 'field_access': return 'assignment';
       case 'channel_operation': return 'assignment';
       default: return 'assignment';
+    }
+  }
+
+  private mapDependencyType(type: string): 'import' | 'package' | 'qualified_identifier' {
+    switch (type) {
+      case 'import': return 'import';
+      case 'package': return 'package';
+      case 'qualified_identifier': return 'qualified_identifier';
+      default: return 'import';
+    }
+  }
+
+  private mapReferenceType(type: string): 'read' | 'write' | 'declaration' | 'usage' {
+    switch (type) {
+      case 'read': return 'read';
+      case 'write': return 'write';
+      case 'declaration': return 'declaration';
+      case 'usage': return 'usage';
+      default: return 'usage';
     }
   }
 
@@ -558,12 +669,20 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     if (!astNode) return null;
 
     switch (standardType) {
+      case 'annotation':
+        return this.annotationExtractor.extractAnnotationMetadata(result, astNode, this.symbolTable);
       case 'call':
         return this.callExtractor.extractCallMetadata(result, astNode, this.symbolTable);
+      case 'creation':
+        return this.creationExtractor.extractCreationMetadata(result, astNode, this.symbolTable);
       case 'data-flow':
         return this.dataFlowExtractor.extractDataFlowMetadata(result, astNode, this.symbolTable);
+      case 'dependency':
+        return this.dependencyExtractor.extractDependencyMetadata(result, astNode, this.symbolTable);
       case 'inheritance':
         return this.inheritanceExtractor.extractInheritanceMetadata(result, astNode, this.symbolTable);
+      case 'reference':
+        return this.referenceExtractor.extractReferenceMetadata(result, astNode, this.symbolTable);
       case 'concurrency':
         return this.concurrencyExtractor.extractConcurrencyMetadata(result, astNode, this.symbolTable);
       case 'lifecycle':
@@ -577,45 +696,6 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }
   }
 
-  private extractCallMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    const functionNode = astNode.childForFieldName('function');
-    const callerNode = this.findCallerFunctionContext(astNode);
-
-    return {
-      fromNodeId: callerNode ? generateDeterministicNodeId(callerNode) : 'unknown',
-      toNodeId: functionNode ? generateDeterministicNodeId(functionNode) : 'unknown',
-      callName: functionNode?.text || 'unknown',
-      location: {
-        filePath: 'current_file.go',
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column,
-      }
-    };
-  }
-
-  private extractDataFlowMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // Simplified data flow extraction
-    const left = astNode.childForFieldName('left');
-    const right = astNode.childForFieldName('right');
-
-    return {
-      fromNodeId: right ? generateDeterministicNodeId(right) : 'unknown',
-      toNodeId: left ? generateDeterministicNodeId(left) : 'unknown',
-      flowType: 'assignment',
-      location: {
-        filePath: 'current_file.go',
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column,
-      }
-    };
-  }
-
-  private extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // For Go, this might be for interface implementation
-    // This is a placeholder for more complex logic
-    return null;
-  }
-
   private findCallerFunctionContext(callNode: Parser.SyntaxNode): Parser.SyntaxNode | null {
     let current = callNode.parent;
     while (current) {
@@ -625,44 +705,5 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       current = current.parent;
     }
     return null;
-  }
-
-  private extractConcurrencyMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // Placeholder for concurrency metadata extraction
-    // This would analyze goroutine, channel operations from the query result
-    return {
-      type: 'concurrency',
-      operation: 'unknown', // e.g., 'goroutine', 'channel', 'mutex'
-      location: {
-        filePath: 'current_file.go',
-        lineNumber: astNode.startPosition.row + 1,
-      }
-    };
-  }
-
-  private extractLifecycleMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // Placeholder for lifecycle metadata extraction
-    // This would analyze object creation, destruction, etc.
-    return {
-      type: 'lifecycle',
-      operation: 'unknown', // e.g., 'create', 'destroy', 'initialize'
-      location: {
-        filePath: 'current_file.go',
-        lineNumber: astNode.startPosition.row + 1,
-      }
-    };
-  }
-
-  private extractSemanticMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // Placeholder for semantic metadata extraction
-    // This would analyze design patterns, error handling, etc.
-    return {
-      type: 'semantic',
-      pattern: 'unknown', // e.g., 'singleton', 'factory', 'observer'
-      location: {
-        filePath: 'current_file.go',
-        lineNumber: astNode.startPosition.row + 1,
-      }
-    };
   }
 }
