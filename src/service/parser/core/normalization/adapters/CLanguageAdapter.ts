@@ -14,6 +14,10 @@ import {
   CLifecycleRelationshipExtractor,
   CSemanticRelationshipExtractor,
   CControlFlowRelationshipExtractor,
+  CAnnotationRelationshipExtractor,
+  CCreationRelationshipExtractor,
+  CDependencyRelationshipExtractor,
+  CReferenceRelationshipExtractor,
   C_SUPPORTED_QUERY_TYPES,
   C_QUERY_TYPE_MAPPING,
   C_NODE_TYPE_MAPPING
@@ -28,9 +32,13 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
   private symbolTable: SymbolTable | null = null;
 
   // 关系提取器实例
+  private annotationExtractor: CAnnotationRelationshipExtractor;
   private callExtractor: CCallRelationshipExtractor;
+  private creationExtractor: CCreationRelationshipExtractor;
   private dataFlowExtractor: CDataFlowRelationshipExtractor;
+  private dependencyExtractor: CDependencyRelationshipExtractor;
   private inheritanceExtractor: CInheritanceRelationshipExtractor;
+  private referenceExtractor: CReferenceRelationshipExtractor;
   private concurrencyExtractor: CConcurrencyRelationshipExtractor;
   private lifecycleExtractor: CLifecycleRelationshipExtractor;
   private semanticExtractor: CSemanticRelationshipExtractor;
@@ -40,9 +48,13 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
     super(options);
     
     // 初始化关系提取器
+    this.annotationExtractor = new CAnnotationRelationshipExtractor();
     this.callExtractor = new CCallRelationshipExtractor();
+    this.creationExtractor = new CCreationRelationshipExtractor();
     this.dataFlowExtractor = new CDataFlowRelationshipExtractor();
+    this.dependencyExtractor = new CDependencyRelationshipExtractor();
     this.inheritanceExtractor = new CInheritanceRelationshipExtractor();
+    this.referenceExtractor = new CReferenceRelationshipExtractor();
     this.concurrencyExtractor = new CConcurrencyRelationshipExtractor();
     this.lifecycleExtractor = new CLifecycleRelationshipExtractor();
     this.semanticExtractor = new CSemanticRelationshipExtractor();
@@ -94,6 +106,146 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
 
   extractModifiers(result: any): string[] {
     return CHelperMethods.extractModifiers(result);
+  }
+  // 高级关系提取方法 - 委托给专门的提取器
+  extractAnnotationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'struct_tag' | 'comment' | 'directive';
+  }> {
+    const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapAnnotationType(rel.type)
+    }));
+  }
+
+  extractCreationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'struct_instance' | 'slice' | 'map' | 'channel' | 'function' | 'goroutine_instance';
+  }> {
+    const relationships = this.creationExtractor.extractCreationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapCreationType(rel.type)
+    }));
+  }
+
+  extractReferenceRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'read' | 'write' | 'declaration' | 'usage';
+  }> {
+    const relationships = this.referenceExtractor.extractReferenceRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapReferenceType(rel.type)
+    }));
+  }
+
+  extractDependencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'import' | 'package' | 'qualified_identifier';
+  }> {
+    const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapDependencyType(rel.type)
+    }));
+  }
+
+  extractDataFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'assignment' | 'parameter' | 'return';
+  }> {
+    return this.dataFlowExtractor.extractDataFlowRelationships(result);
+  }
+
+  extractControlFlowRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'conditional' | 'loop' | 'exception' | 'callback';
+  }> {
+    return this.controlFlowExtractor.extractControlFlowRelationships(result);
+  }
+
+  extractSemanticRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
+  }> {
+    return this.semanticExtractor.extractSemanticRelationships(result);
+  }
+
+  extractLifecycleRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
+  }> {
+    return this.lifecycleExtractor.extractLifecycleRelationships(result);
+  }
+
+  extractConcurrencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+  }> {
+    return this.concurrencyExtractor.extractConcurrencyRelationships(result);
+  }
+
+  // 类型映射辅助方法
+  private mapAnnotationType(type: string): 'struct_tag' | 'comment' | 'directive' {
+    switch (type) {
+      case 'struct_tag': return 'struct_tag';
+      case 'comment': return 'comment';
+      case 'build_directive': return 'directive';
+      default: return 'comment';
+    }
+  }
+
+  private mapCreationType(type: string): 'struct_instance' | 'slice' | 'map' | 'channel' | 'function' | 'goroutine_instance' {
+    switch (type) {
+      case 'struct_instance': return 'struct_instance';
+      case 'slice': return 'slice';
+      case 'map': return 'map';
+      case 'channel': return 'channel';
+      case 'function': return 'function';
+      case 'goroutine_instance': return 'goroutine_instance';
+      case 'composite_literal': return 'struct_instance';
+      case 'make_call': return 'slice';
+      case 'new_call': return 'struct_instance';
+      default: return 'struct_instance';
+    }
+  }
+
+  private mapReferenceType(type: string): 'read' | 'write' | 'declaration' | 'usage' {
+    switch (type) {
+      case 'read': return 'read';
+      case 'write': return 'write';
+      case 'declaration': return 'declaration';
+      case 'usage': return 'usage';
+      default: return 'usage';
+    }
+  }
+
+  private mapDependencyType(type: string): 'import' | 'package' | 'qualified_identifier' {
+    switch (type) {
+      case 'import': return 'import';
+      case 'package': return 'package';
+      case 'qualified_identifier': return 'qualified_identifier';
+      default: return 'import';
+    }
   }
 
   // 重写normalize方法以集成nodeId生成和符号信息
@@ -169,12 +321,20 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
 
     try {
       switch (standardType) {
+        case 'annotation':
+          return this.annotationExtractor.extractAnnotationMetadata(result, astNode, this.symbolTable);
         case 'call':
           return this.callExtractor.extractCallMetadata(result, astNode, this.symbolTable);
+        case 'creation':
+          return this.creationExtractor.extractCreationMetadata(result, astNode, this.symbolTable);
         case 'data-flow':
           return this.dataFlowExtractor.extractDataFlowMetadata(result, astNode, this.symbolTable);
+        case 'dependency':
+          return this.dependencyExtractor.extractDependencyMetadata(result, astNode, this.symbolTable);
         case 'inheritance':
           return this.inheritanceExtractor.extractInheritanceMetadata(result, astNode, this.symbolTable);
+        case 'reference':
+          return this.referenceExtractor.extractReferenceMetadata(result, astNode, this.symbolTable);
         case 'concurrency':
           return this.concurrencyExtractor.extractConcurrencyMetadata(result, astNode, this.symbolTable);
         case 'lifecycle':
