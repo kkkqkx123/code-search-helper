@@ -1,5 +1,6 @@
 import { JavaScriptLanguageAdapter } from './JavaScriptLanguageAdapter';
 import { AdapterOptions } from '../BaseLanguageAdapter';
+import { JS_SUPPORTED_QUERY_TYPES } from './js-utils';
 
 /**
  * TypeScript语言适配器
@@ -12,28 +13,13 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
   }
 
   getSupportedQueryTypes(): string[] {
+    // 基于JavaScript支持的查询类型，添加TypeScript特定的类型
     return [
-      // Entity types
-      'functions',
-      'classes',
-      'variables',
-      'imports',
-      'exports',
-      'interfaces',
-      'methods',
-      'properties',
-      'types',
-      'control-flow',
-      'expressions',
-      // Relationship types
-      'calls',
-      'data-flows',
-      'inheritance',
-      // Advanced relationship types
-      'concurrency-relationships',
-      'control-flow-relationships',
-      'lifecycle-relationships',
-      'semantic-relationships'
+      ...JS_SUPPORTED_QUERY_TYPES,
+      'annotation-relationships',
+      'creation-relationships',
+      'reference-relationships',
+      'dependency-relationships'
     ];
   }
 

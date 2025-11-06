@@ -2,6 +2,30 @@ import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import {
+  JsAnnotationRelationshipExtractor,
+  JsCreationRelationshipExtractor,
+  JsDependencyRelationshipExtractor,
+  JsReferenceRelationshipExtractor,
+  JsHelperMethods,
+  JS_NODE_TYPE_MAPPING,
+  JS_QUERY_TYPE_MAPPING,
+  JS_SUPPORTED_QUERY_TYPES,
+  JS_NAME_CAPTURES,
+  JS_BLOCK_NODE_TYPES,
+  JS_MODIFIERS,
+  JS_COMPLEXITY_KEYWORDS
+} from './js-utils';
+import {
+  CallRelationshipExtractor,
+  DataFlowRelationshipExtractor,
+  InheritanceRelationshipExtractor,
+  ConcurrencyRelationshipExtractor,
+  LifecycleRelationshipExtractor,
+  SemanticRelationshipExtractor,
+  ControlFlowRelationshipExtractor
+} from './cpp-utils';
+
 type StandardType = StandardizedQueryResult['type'];
 
 /**
@@ -11,265 +35,48 @@ type StandardType = StandardizedQueryResult['type'];
 export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
+  
+  // 关系提取器实例
+  private annotationExtractor: JsAnnotationRelationshipExtractor;
+  private callExtractor: CallRelationshipExtractor;
+  private creationExtractor: JsCreationRelationshipExtractor;
+  private dataFlowExtractor: DataFlowRelationshipExtractor;
+  private dependencyExtractor: JsDependencyRelationshipExtractor;
+  private inheritanceExtractor: InheritanceRelationshipExtractor;
+  private referenceExtractor: JsReferenceRelationshipExtractor;
+  private concurrencyExtractor: ConcurrencyRelationshipExtractor;
+  private lifecycleExtractor: LifecycleRelationshipExtractor;
+  private semanticExtractor: SemanticRelationshipExtractor;
+  private controlFlowExtractor: ControlFlowRelationshipExtractor;
 
   constructor(options: AdapterOptions = {}) {
     super(options);
+    
+    // 初始化关系提取器
+    this.annotationExtractor = new JsAnnotationRelationshipExtractor();
+    this.callExtractor = new CallRelationshipExtractor();
+    this.creationExtractor = new JsCreationRelationshipExtractor();
+    this.dataFlowExtractor = new DataFlowRelationshipExtractor();
+    this.dependencyExtractor = new JsDependencyRelationshipExtractor();
+    this.inheritanceExtractor = new InheritanceRelationshipExtractor();
+    this.referenceExtractor = new JsReferenceRelationshipExtractor();
+    this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
+    this.lifecycleExtractor = new LifecycleRelationshipExtractor();
+    this.semanticExtractor = new SemanticRelationshipExtractor();
+    this.controlFlowExtractor = new ControlFlowRelationshipExtractor();
   }
 
   getSupportedQueryTypes(): string[] {
-    return [
-      // Entity types
-      'functions',
-      'classes',
-      'variables',
-      'imports',
-      'exports',
-      'interfaces',
-      'methods',
-      'properties',
-      'types',
-      'control-flow',
-      'expressions',
-      // Relationship types
-      'calls',
-      'data-flows',
-      'inheritance',
-      // Advanced relationship types
-      'concurrency-relationships',
-      'control-flow-relationships',
-      'lifecycle-relationships',
-      'semantic-relationships'
-    ];
+    return JS_SUPPORTED_QUERY_TYPES;
   }
 
   mapNodeType(nodeType: string): string {
-    const typeMapping: Record<string, string> = {
-      // Functions
-      'function_declaration': 'functionDeclaration',
-      'arrow_function': 'lambdaExpression',
-      'function_expression': 'functionDeclaration',
-      'generator_function': 'functionDeclaration',
-      'generator_function_declaration': 'functionDeclaration',
-      'async_function_declaration': 'functionDeclaration',
-      'async_function_expression': 'functionDeclaration',
-      
-      // Classes
-      'class_declaration': 'classDeclaration',
-      'class_expression': 'classDeclaration',
-      'class': 'classDeclaration',
-      
-      // Methods
-      'method_definition': 'methodDeclaration',
-      
-      // Imports and Exports
-      'import_statement': 'importDeclaration',
-      'export_statement': 'exportDeclaration',
-      
-      // Variables
-      'variable_declaration': 'variableDeclaration',
-      'lexical_declaration': 'variableDeclaration',
-      
-      // Properties
-      'property_definition': 'variableDeclaration',
-      'public_field_definition': 'variableDeclaration',
-      'private_field_definition': 'variableDeclaration',
-      'pair': 'propertyIdentifier',
-      
-      // Control Flow
-      'if_statement': 'controlFlow',
-      'for_statement': 'controlFlow',
-      'while_statement': 'controlFlow',
-      'do_statement': 'controlFlow',
-      'switch_statement': 'controlFlow',
-      'switch_case': 'controlFlow',
-      'switch_default': 'controlFlow',
-      'try_statement': 'controlFlow',
-      'catch_clause': 'controlFlow',
-      'finally_clause': 'controlFlow',
-      'return_statement': 'controlFlow',
-      'break_statement': 'controlFlow',
-      'continue_statement': 'controlFlow',
-      'labeled_statement': 'controlFlow',
-      'with_statement': 'controlFlow',
-      'debugger_statement': 'controlFlow',
-      
-      // Expressions
-      'expression_statement': 'expression',
-      'binary_expression': 'expression',
-      'unary_expression': 'expression',
-      'update_expression': 'expression',
-      'logical_expression': 'expression',
-      'conditional_expression': 'expression',
-      'assignment_expression': 'expression',
-      'augmented_assignment_expression': 'expression',
-      'sequence_expression': 'expression',
-      'yield_expression': 'expression',
-      'await_expression': 'expression',
-      'new_expression': 'callExpression',
-      'optional_chain': 'memberExpression',
-      'call_expression': 'callExpression',
-      'member_expression': 'memberExpression',
-      
-      // Literals
-      'string': 'literal',
-      'template_string': 'literal',
-      'regex': 'literal',
-      'number': 'literal',
-      'true': 'literal',
-      'false': 'literal',
-      'null': 'literal',
-      
-      // Patterns
-      'array_pattern': 'pattern',
-      'object_pattern': 'pattern',
-      'assignment_pattern': 'pattern',
-      'spread_element': 'pattern',
-      '_': 'pattern',
-      
-      // Types
-      'type_alias_declaration': 'typeAnnotation',
-      'namespace_declaration': 'typeAnnotation',
-      'type_parameters': 'genericTypes',
-      'type_arguments': 'genericTypes',
-      
-      // JSX
-      'jsx_element': 'classDeclaration',
-      'jsx_self_closing_element': 'classDeclaration',
-      'jsx_fragment': 'classDeclaration',
-      'jsx_attribute': 'propertyIdentifier',
-      'jsx_expression': 'expression',
-      
-      // Comments
-      'comment': 'comment',
-      
-      // Identifiers
-      'private_property_identifier': 'propertyIdentifier',
-      'identifier': 'propertyIdentifier',
-      'property_identifier': 'propertyIdentifier',
-      
-      // Objects and Arrays
-      'object': 'variableDeclaration',
-      'array': 'variableDeclaration',
-      
-      // Function
-      'function': 'functionDeclaration'
-    };
-
-    return typeMapping[nodeType] || nodeType;
+    return JS_NODE_TYPE_MAPPING[nodeType] || nodeType;
   }
 
   extractName(result: any): string {
     // 尝试从不同的捕获中提取名称
-    const nameCaptures = [
-      'name', // Simple name capture from queries like (class name: (_) @name)
-      'name.definition.function',
-      'name.definition.method',
-      'name.definition.class',
-      'name.definition.interface',
-      'name.definition.type',
-      'name.definition.variable',
-      'name.definition.property',
-      'name.definition.constant',
-      'name.definition.let_variable',
-      'name.assignment',
-      'name.definition.import',
-      'name.definition.export',
-      // Support for definition.xxx format (used in both TS and JS queries)
-      'definition.function',
-      'definition.method',
-      'definition.class',
-      'definition.interface',
-      'definition.type',
-      'definition.variable',
-      'definition.property',
-      'definition.constant',
-      'definition.constructor',
-      'definition.getter',
-      'definition.setter',
-      'definition.static',
-      'definition.private_property',
-      'definition.private_method',
-      'definition.async_function',
-      'definition.async_method',
-      'definition.generator_function',
-      'definition.generator_method',
-      'definition.arrow_function',
-      'definition.function_expression',
-      'definition.import',
-      'definition.export',
-      'definition.if',
-      'definition.for',
-      'definition.for_in',
-      'definition.for_of',
-      'definition.while',
-      'definition.do_while',
-      'definition.switch',
-      'definition.switch_case',
-      'definition.switch_default',
-      'definition.try',
-      'definition.catch',
-      'definition.finally',
-      'definition.throw',
-      'definition.return',
-      'definition.break',
-      'definition.continue',
-      'definition.labeled',
-      'definition.debugger',
-      'definition.yield',
-      'definition.await',
-      'definition.ternary',
-      'definition.call',
-      'definition.new_expression',
-      'definition.member_expression',
-      'definition.optional_chain',
-      'definition.binary_expression',
-      'definition.unary_expression',
-      'definition.update_expression',
-      'definition.logical_expression',
-      'definition.assignment',
-      'definition.augmented_assignment',
-      'definition.subscript_expression',
-      'definition.template_string',
-      'definition.regex',
-      // JavaScript-specific captures
-      'definition.accessor',
-      'definition.private_field',
-      'definition.test',
-      'definition.lexical_declaration',
-      'definition.variable_declaration',
-      'definition.computed_method',
-      'definition.static_property',
-      'definition.object_property',
-      'definition.computed_property',
-      'definition.object_method',
-      'definition.object_getter',
-      'definition.object_setter',
-      'definition.pattern_property',
-      'definition.with',
-      'definition.expression',
-      'definition.conditional',
-      'definition.sequence',
-      'definition.async_function_expression',
-      'definition.async_arrow_function',
-      'definition.array_pattern',
-      'definition.object_pattern',
-      'definition.assignment_pattern',
-      'definition.spread_element',
-      'definition.jsx_self_closing_element',
-      'definition.jsx_fragment',
-      'definition.jsx_attribute',
-      'definition.jsx_expression',
-      'definition.comment',
-      'definition.jsdoc',
-      'definition.public_api',
-      'definition.error_handling',
-      'definition.promise_method',
-      // Additional captures
-      'export',
-      'default'
-    ];
-
-    for (const captureName of nameCaptures) {
+    for (const captureName of JS_NAME_CAPTURES) {
       const capture = result.captures?.find((c: any) => c.name === captureName);
       if (capture?.node?.text) {
         return capture.node.text;
@@ -277,8 +84,26 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     }
 
     // 如果没有找到名称捕获，尝试从主节点提取
-    if (result.captures?.[0]?.node?.childForFieldName('name')?.text) {
+    if (result.captures?.[0]?.node?.childForFieldName?.('name')?.text) {
       return result.captures[0].node.childForFieldName('name').text;
+    }
+
+    // 对于JavaScript，尝试从特定字段提取名称
+    const mainNode = result.captures?.[0]?.node;
+    if (mainNode) {
+      // 尝试获取标识符
+      const identifier = mainNode.childForFieldName?.('name') ||
+        mainNode.childForFieldName?.('identifier') ||
+        mainNode.childForFieldName?.('property_identifier');
+      if (identifier?.text) {
+        return identifier.text;
+      }
+
+      // 尝试获取name字段
+      const nameNode = mainNode.childForFieldName?.('name');
+      if (nameNode?.text) {
+        return nameNode.text;
+      }
     }
 
     return 'unnamed';
@@ -315,31 +140,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
   }
 
   mapQueryTypeToStandardType(queryType: string): StandardType {
-    const mapping: Record<string, StandardType> = {
-      'functions': 'function',
-      'classes': 'class',
-      'variables': 'variable',
-      'imports': 'import',
-      'exports': 'export',
-      'interfaces': 'interface',
-      'methods': 'method',
-      'properties': 'variable',
-      'types': 'type',
-      'control-flow': 'control-flow',
-      'expressions': 'expression',
-      
-      // 关系类型
-      'calls': 'call',
-      'data-flows': 'data-flow',
-      'inheritance': 'inheritance',
-      // ... 其他关系类型
-      'concurrency-relationships': 'concurrency',
-      'control-flow-relationships': 'control-flow',
-      'lifecycle-relationships': 'lifecycle',
-      'semantic-relationships': 'semantic'
-    };
-    
-    return mapping[queryType] || 'expression';
+    return JS_QUERY_TYPE_MAPPING[queryType] as StandardType || 'expression';
   }
 
   calculateComplexity(result: any): number {
@@ -352,16 +153,17 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
 
     // 基于节点类型增加复杂度
     const nodeType = mainNode.type;
-    if (nodeType.includes('class')) complexity += 2;
-    if (nodeType.includes('function')) complexity += 1;
+    if (nodeType.includes('class') || nodeType.includes('struct')) complexity += 2;
+    if (nodeType.includes('function') || nodeType.includes('method')) complexity += 1;
     if (nodeType.includes('interface')) complexity += 1;
 
-    // JavaScript特有的复杂度因素
+    // JavaScript特定的复杂度因素
     const text = mainNode.text || '';
-    if (text.includes('async')) complexity += 1; // 异步函数
-    if (text.includes('await')) complexity += 1; // 异步等待
-    if (text.includes('extends')) complexity += 1; // 继承
-    if (text.includes('JSX') || text.includes('jsx')) complexity += 1; // JSX
+    for (const keyword of JS_COMPLEXITY_KEYWORDS) {
+      if (new RegExp(keyword.pattern).test(text)) {
+        complexity += keyword.weight;
+      }
+    }
 
     return complexity;
   }
@@ -374,26 +176,15 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       return dependencies;
     }
 
-    // 首先检查捕获中的依赖项
-    if (result.captures && Array.isArray(result.captures)) {
-      for (const capture of result.captures) {
-        if (capture.name && capture.name.includes('import') && capture.node?.text) {
-          // 提取导入的标识符
-          const importText = capture.node.text;
-          // 例如从 \"Component\" 提取标识符
-          const identifierMatch = importText.match(/[A-Za-z_][A-Za-z0-9_]*/g);
-          if (identifierMatch) {
-            dependencies.push(...identifierMatch);
-          }
-        }
-      }
-    }
-
-    // 查找类型引用
-    this.findTypeReferences(mainNode, dependencies);
-
-    // 查找导入引用
-    this.findImportReferences(mainNode, dependencies);
+    // 使用辅助方法查找依赖
+    JsHelperMethods.findTypeReferences(mainNode, dependencies);
+    JsHelperMethods.findFunctionCalls(mainNode, dependencies);
+    JsHelperMethods.findImportDependencies(mainNode, dependencies);
+    JsHelperMethods.findDataFlowDependencies(mainNode, dependencies);
+    JsHelperMethods.findConcurrencyDependencies(mainNode, dependencies);
+    JsHelperMethods.findInheritanceDependencies(mainNode, dependencies);
+    JsHelperMethods.findInterfaceDependencies(mainNode, dependencies);
+    JsHelperMethods.findTypeAliasDependencies(mainNode, dependencies);
 
     return [...new Set(dependencies)]; // 去重
   }
@@ -406,13 +197,19 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       return modifiers;
     }
 
-    // 检查常见的修饰符
+    // 检查JavaScript常见的修饰符
     const text = mainNode.text || '';
 
-    if (text.includes('async')) modifiers.push('async');
-    if (text.includes('export')) modifiers.push('export');
-    if (text.includes('default')) modifiers.push('default');
-    if (text.includes('static')) modifiers.push('static');
+    for (const modifier of JS_MODIFIERS) {
+      if (modifier === 'async' || modifier === 'export' || modifier === 'default' ||
+          modifier === 'static' || modifier === 'public' || modifier === 'private' ||
+          modifier === 'protected' || modifier === 'readonly' || modifier === 'abstract' ||
+          modifier === 'override') {
+        if (text.includes(modifier)) {
+          modifiers.push(modifier);
+        }
+      }
+    }
 
     return modifiers;
   }
@@ -459,8 +256,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
 
   // 重写isBlockNode方法以支持JavaScript特定的块节点类型
   protected isBlockNode(node: any): boolean {
-    const jsBlockTypes = ['block', 'statement_block', 'class_body', 'object'];
-    return jsBlockTypes.includes(node.type) || super.isBlockNode(node);
+    return JS_BLOCK_NODE_TYPES.includes(node.type) || super.isBlockNode(node);
   }
 
   // 重写normalize方法以集成nodeId生成和符号信息
@@ -1097,28 +893,105 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'synchronizes' | 'locks' | 'communicates' | 'races';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 提取JavaScript中的并发关系（如Promise、async/await）
-    const text = mainNode.text || '';
-    
-    if (text.includes('Promise') || text.includes('await') || text.includes('.then')) {
-      relationships.push({
-        source: 'async-operation',
-        target: 'result',
-        type: 'communicates'
-      });
-    }
-
+    const relationships = this.concurrencyExtractor.extractConcurrencyRelationships(result);
     return relationships;
+  }
+
+  // 高级关系提取方法 - 委托给专门的提取器
+  extractAnnotationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'comment' | 'jsdoc' | 'directive';
+  }> {
+    const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapAnnotationType(rel.type)
+    }));
+  }
+
+  extractCreationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'object_instance' | 'array' | 'function' | 'class_instance' | 'promise';
+  }> {
+    const relationships = this.creationExtractor.extractCreationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapCreationType(rel.type)
+    }));
+  }
+
+  extractReferenceRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'read' | 'write' | 'declaration' | 'usage';
+  }> {
+    const relationships = this.referenceExtractor.extractReferenceRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapReferenceType(rel.type)
+    }));
+  }
+
+  extractDependencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'import' | 'export' | 'require' | 'dynamic_import';
+  }> {
+    const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapDependencyType(rel.type)
+    }));
+ }
+
+  // 类型映射辅助方法
+  private mapAnnotationType(type: string): 'comment' | 'jsdoc' | 'directive' {
+    switch (type) {
+      case 'comment': return 'comment';
+      case 'jsdoc': return 'comment'; // 映射到comment类型
+      case 'directive': return 'directive';
+      default: return 'comment';
+    }
+  }
+
+  private mapCreationType(type: string): 'object_instance' | 'array' | 'function' | 'class_instance' | 'promise' {
+    switch (type) {
+      case 'object_instance': return 'object_instance';
+      case 'array': return 'array';
+      case 'function': return 'function';
+      case 'class_instance': return 'class_instance';
+      case 'promise': return 'function';
+      default: return 'object_instance';
+    }
+  }
+
+ private mapReferenceType(type: string): 'read' | 'write' | 'declaration' | 'usage' {
+    switch (type) {
+      case 'read': return 'read';
+      case 'write': return 'write';
+      case 'declaration': return 'declaration';
+      case 'usage': return 'usage';
+      default: return 'usage';
+    }
+  }
+
+  private mapDependencyType(type: string): 'import' | 'export' | 'require' | 'dynamic_import' {
+    switch (type) {
+      case 'import': return 'import';
+      case 'export': return 'import'; // 映射到import类型
+      case 'require': return 'import';
+      case 'dynamic_import': return 'import';
+      default: return 'import';
+    }
   }
 }
