@@ -2,7 +2,7 @@
  * JavaScript/TypeScript 注解关系提取器
  * 提取代码中的注解、注释和指令关系
  */
-export class JsAnnotationRelationshipExtractor {
+export class AnnotationRelationshipExtractor {
   extractAnnotationRelationships(result: any): Array<{
     source: string;
     target: string;
@@ -29,7 +29,7 @@ export class JsAnnotationRelationshipExtractor {
             type: 'comment'
           });
         }
-        
+
         // 提取JSDoc关系
         if (capture.name.includes('jsdoc') || (capture.node.type === 'comment' && capture.node.text.includes('@'))) {
           relationships.push({
@@ -38,7 +38,7 @@ export class JsAnnotationRelationshipExtractor {
             type: 'jsdoc'
           });
         }
-        
+
         // 提取指令关系（如 "use strict"）
         if (capture.name.includes('directive') || capture.node.type === 'expression_statement') {
           const text = capture.node.text;
@@ -54,7 +54,7 @@ export class JsAnnotationRelationshipExtractor {
     }
 
     return relationships;
- }
+  }
 
   private extractTargetFromComment(node: any): string {
     // 从注释中提取目标信息
@@ -72,12 +72,12 @@ export class JsAnnotationRelationshipExtractor {
     if (paramMatch) {
       return paramMatch[1];
     }
-    
+
     const returnMatch = text.match(/@return\s+\{[^\}]+\}\s+(\w+)?/);
     if (returnMatch) {
       return returnMatch[1] || 'return-value';
     }
-    
+
     return 'jsdoc-target';
   }
 
@@ -96,7 +96,7 @@ export class JsAnnotationRelationshipExtractor {
 
   private getAnnotationType(node: any): string {
     if (!node) return 'comment';
-    
+
     const text = node.text || '';
     if (text.includes('/**') && text.includes('@')) {
       return 'jsdoc';

@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C语言语义关系提取器
  * 分析设计模式、错误处理、代码结构等语义关系
  */
-export class CSemanticRelationshipExtractor {
+export class SemanticRelationshipExtractor {
   /**
    * 提取语义关系元数据
    */

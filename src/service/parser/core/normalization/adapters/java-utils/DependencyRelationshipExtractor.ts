@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * Java依赖关系提取器
  * 处理导入指令、包依赖、命名空间使用等
  */
-export class JavaDependencyRelationshipExtractor {
+export class DependencyRelationshipExtractor {
   /**
    * 提取依赖关系元数据
    */
@@ -137,13 +137,13 @@ export class JavaDependencyRelationshipExtractor {
    */
   private extractTarget(astNode: Parser.SyntaxNode): string | null {
     const dependencyType = this.determineDependencyType(astNode);
-    
+
     if (dependencyType === 'import' || dependencyType === 'static_import') {
       return this.extractImportPath(astNode);
     } else if (dependencyType === 'package') {
       return this.extractPackageName(astNode);
     }
-    
+
     return null;
   }
 
@@ -153,7 +153,7 @@ export class JavaDependencyRelationshipExtractor {
   private extractImportedSymbols(astNode: Parser.SyntaxNode): string[] {
     const dependencyType = this.determineDependencyType(astNode);
     const symbols: string[] = [];
-    
+
     if (dependencyType === 'import' || dependencyType === 'static_import') {
       // 对于导入声明，提取具体的符号
       const nameNode = astNode.childForFieldName('name');
@@ -166,7 +166,7 @@ export class JavaDependencyRelationshipExtractor {
         }
       }
     }
-    
+
     return symbols;
   }
 
@@ -175,14 +175,14 @@ export class JavaDependencyRelationshipExtractor {
    */
   private extractNamespaceInfo(astNode: Parser.SyntaxNode): any {
     const dependencyType = this.determineDependencyType(astNode);
-    
+
     if (dependencyType === 'package') {
       return {
         name: this.extractPackageName(astNode),
         isQualified: this.isQualifiedPackage(astNode)
       };
     }
-    
+
     return null;
   }
 
@@ -232,7 +232,7 @@ export class JavaDependencyRelationshipExtractor {
     const nameNode = importStmt.childForFieldName('name');
     if (nameNode) {
       source = nameNode.text || '';
-      
+
       // 从完全限定名中提取最后一个部分作为符号名
       const parts = source.split('.');
       if (parts.length > 0) {
@@ -280,13 +280,13 @@ export class JavaDependencyRelationshipExtractor {
    */
   findImportStatements(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const importStatements: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'import_declaration') {
         importStatements.push(node);
       }
     });
-    
+
     return importStatements;
   }
 
@@ -295,13 +295,13 @@ export class JavaDependencyRelationshipExtractor {
    */
   findPackageDeclarations(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const packageDeclarations: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'package_declaration') {
         packageDeclarations.push(node);
       }
     });
-    
+
     return packageDeclarations;
   }
 
@@ -310,7 +310,7 @@ export class JavaDependencyRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);
@@ -344,7 +344,7 @@ export class JavaDependencyRelationshipExtractor {
 
       if (importInfo) {
         const dependencyType = importInfo.isStatic ? 'static_import' : 'import';
-        
+
         dependencies.push({
           sourceId: generateDeterministicNodeId(importStmt),
           targetId: this.generateNodeId(importInfo.source, dependencyType, importInfo.source),

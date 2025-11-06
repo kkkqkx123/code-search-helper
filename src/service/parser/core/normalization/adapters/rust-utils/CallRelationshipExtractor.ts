@@ -179,10 +179,10 @@ export class CallRelationshipExtractor {
                      callExpr.parent?.type === 'field_expression';
     
     const isAsync = RustHelperMethods.isAsyncNode(callExpr) ||
-                   (callExpr.text && callExpr.text.includes('await'));
+    !!(callExpr.text && callExpr.text.includes('await'));
     
     const isUnsafe = RustHelperMethods.isUnsafeNode(callExpr) ||
-                    (callExpr.text && callExpr.text.includes('unsafe'));
+    !!(callExpr.text && callExpr.text.includes('unsafe'));
 
     // 检查是否在循环中
     let isInLoop = false;

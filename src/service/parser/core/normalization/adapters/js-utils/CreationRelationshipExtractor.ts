@@ -2,8 +2,8 @@
  * JavaScript/TypeScript 创建关系提取器
  * 提取代码中的实例化和创建关系
  */
-export class JsCreationRelationshipExtractor {
- extractCreationRelationships(result: any): Array<{
+export class CreationRelationshipExtractor {
+  extractCreationRelationships(result: any): Array<{
     source: string;
     target: string;
     type: 'object_instance' | 'array' | 'function' | 'class_instance' | 'promise';
@@ -22,7 +22,7 @@ export class JsCreationRelationshipExtractor {
     for (const capture of captures) {
       if (capture.name && capture.node?.text) {
         const node = capture.node;
-        
+
         // 提取对象创建关系
         if (node.type === 'object' || node.type === 'object_pattern') {
           relationships.push({
@@ -31,7 +31,7 @@ export class JsCreationRelationshipExtractor {
             type: 'object_instance'
           });
         }
-        
+
         // 提取数组创建关系
         if (node.type === 'array' || node.type === 'array_pattern') {
           relationships.push({
@@ -40,7 +40,7 @@ export class JsCreationRelationshipExtractor {
             type: 'array'
           });
         }
-        
+
         // 提取类实例化关系
         if (node.type === 'new_expression') {
           const constructor = node.childForFieldName('constructor');
@@ -52,17 +52,17 @@ export class JsCreationRelationshipExtractor {
             });
           }
         }
-        
+
         // 提取函数创建关系
-        if (node.type === 'function' || node.type === 'arrow_function' || 
-            node.type === 'function_declaration' || node.type === 'function_expression') {
+        if (node.type === 'function' || node.type === 'arrow_function' ||
+          node.type === 'function_declaration' || node.type === 'function_expression') {
           relationships.push({
             source: 'function-creation',
             target: this.extractFunctionName(node) || 'anonymous-function',
             type: 'function'
           });
         }
-        
+
         // 提取Promise创建关系
         if (node.type === 'call_expression') {
           const func = node.childForFieldName('function');
@@ -86,17 +86,17 @@ export class JsCreationRelationshipExtractor {
       const name = node.childForFieldName('name');
       return name?.text || null;
     }
-    
+
     // 对于方法定义
     if (node.type === 'method_definition') {
       const name = node.childForFieldName('name');
       return name?.text || null;
     }
-    
+
     return null;
   }
 
- extractCreationMetadata(result: any, astNode: any, symbolTable: any): any {
+  extractCreationMetadata(result: any, astNode: any, symbolTable: any): any {
     // 提取创建关系元数据
     return {
       type: 'creation',
@@ -111,7 +111,7 @@ export class JsCreationRelationshipExtractor {
 
   private getCreationType(node: any): string {
     if (!node) return 'object_instance';
-    
+
     switch (node.type) {
       case 'new_expression':
         return 'class_instance';
@@ -136,7 +136,7 @@ export class JsCreationRelationshipExtractor {
 
   private getCreationTarget(node: any): string {
     if (!node) return 'unknown';
-    
+
     switch (node.type) {
       case 'new_expression':
         const constructor = node.childForFieldName('constructor');
@@ -147,5 +147,5 @@ export class JsCreationRelationshipExtractor {
       default:
         return node.text.substring(0, 50) + (node.text.length > 50 ? '...' : '');
     }
- }
+  }
 }

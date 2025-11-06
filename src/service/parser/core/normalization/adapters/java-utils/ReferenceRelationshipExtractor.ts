@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * Java引用关系提取器
  * 处理标识符引用、字段表达式引用、方法引用等
  */
-export class JavaReferenceRelationshipExtractor {
+export class ReferenceRelationshipExtractor {
   /**
    * 提取引用关系元数据
    */
@@ -213,15 +213,15 @@ export class JavaReferenceRelationshipExtractor {
    */
   findIdentifierReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
-      if (node.type === 'identifier' || 
-          node.type === 'field_identifier' || 
-          node.type === 'type_identifier') {
+      if (node.type === 'identifier' ||
+        node.type === 'field_identifier' ||
+        node.type === 'type_identifier') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -230,13 +230,13 @@ export class JavaReferenceRelationshipExtractor {
    */
   findFieldExpressionReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'field_access') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -245,13 +245,13 @@ export class JavaReferenceRelationshipExtractor {
    */
   findMethodDeclarationReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'method_declarator') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -260,13 +260,13 @@ export class JavaReferenceRelationshipExtractor {
    */
   findVariableDeclarationReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'variable_declarator') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -275,13 +275,13 @@ export class JavaReferenceRelationshipExtractor {
    */
   findTypeReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'type_identifier') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -290,13 +290,13 @@ export class JavaReferenceRelationshipExtractor {
    */
   findTemplateReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'generic_type') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -305,13 +305,13 @@ export class JavaReferenceRelationshipExtractor {
    */
   findPackageReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'scoped_identifier') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -320,13 +320,13 @@ export class JavaReferenceRelationshipExtractor {
    */
   findAnnotationReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'annotation' || node.type === 'marker_annotation') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -335,7 +335,7 @@ export class JavaReferenceRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

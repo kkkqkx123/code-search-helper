@@ -2,8 +2,8 @@
  * JavaScript/TypeScript 引用关系提取器
  * 提取代码中的读取、写入、声明和使用关系
  */
-export class JsReferenceRelationshipExtractor {
- extractReferenceRelationships(result: any): Array<{
+export class ReferenceRelationshipExtractor {
+  extractReferenceRelationships(result: any): Array<{
     source: string;
     target: string;
     type: 'read' | 'write' | 'declaration' | 'usage';
@@ -22,7 +22,7 @@ export class JsReferenceRelationshipExtractor {
     for (const capture of captures) {
       if (capture.name && capture.node?.text) {
         const node = capture.node;
-        
+
         // 提取变量声明关系
         if (node.type === 'variable_declarator' || node.type === 'lexical_declaration') {
           const name = node.childForFieldName('name');
@@ -34,12 +34,12 @@ export class JsReferenceRelationshipExtractor {
             });
           }
         }
-        
+
         // 提取赋值（写入）关系
         if (node.type === 'assignment_expression') {
           const left = node.childForFieldName('left');
           const right = node.childForFieldName('right');
-          
+
           if (left?.text) {
             relationships.push({
               source: right?.text || 'unknown-value',
@@ -48,7 +48,7 @@ export class JsReferenceRelationshipExtractor {
             });
           }
         }
-        
+
         // 提取标识符使用（读取）关系
         if (node.type === 'identifier') {
           relationships.push({
@@ -57,12 +57,12 @@ export class JsReferenceRelationshipExtractor {
             type: 'usage'
           });
         }
-        
+
         // 提取成员表达式（可能是读取或写入）
         if (node.type === 'member_expression') {
           const object = node.childForFieldName('object');
           const property = node.childForFieldName('property');
-          
+
           if (object?.text && property?.text) {
             relationships.push({
               source: object.text,
@@ -92,7 +92,7 @@ export class JsReferenceRelationshipExtractor {
 
   private getReferenceType(node: any): string {
     if (!node) return 'usage';
-    
+
     switch (node.type) {
       case 'variable_declarator':
       case 'lexical_declaration':
@@ -108,9 +108,9 @@ export class JsReferenceRelationshipExtractor {
     }
   }
 
- private getReferenceTarget(node: any): string {
+  private getReferenceTarget(node: any): string {
     if (!node) return 'unknown';
-    
+
     switch (node.type) {
       case 'variable_declarator':
       case 'lexical_declaration':

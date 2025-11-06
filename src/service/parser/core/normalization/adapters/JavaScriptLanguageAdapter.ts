@@ -3,10 +3,17 @@ import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 import {
-  JsAnnotationRelationshipExtractor,
-  JsCreationRelationshipExtractor,
-  JsDependencyRelationshipExtractor,
-  JsReferenceRelationshipExtractor,
+  AnnotationRelationshipExtractor,
+  CallRelationshipExtractor,
+  CreationRelationshipExtractor,
+  DataFlowRelationshipExtractor,
+  DependencyRelationshipExtractor,
+  InheritanceRelationshipExtractor,
+  ConcurrencyRelationshipExtractor,
+  LifecycleRelationshipExtractor,
+  ReferenceRelationshipExtractor,
+  SemanticRelationshipExtractor,
+  ControlFlowRelationshipExtractor,
   JsHelperMethods,
   JS_NODE_TYPE_MAPPING,
   JS_QUERY_TYPE_MAPPING,
@@ -16,15 +23,6 @@ import {
   JS_MODIFIERS,
   JS_COMPLEXITY_KEYWORDS
 } from './js-utils';
-import {
-  CallRelationshipExtractor,
-  DataFlowRelationshipExtractor,
-  InheritanceRelationshipExtractor,
-  ConcurrencyRelationshipExtractor,
-  LifecycleRelationshipExtractor,
-  SemanticRelationshipExtractor,
-  ControlFlowRelationshipExtractor
-} from './cpp-utils';
 
 type StandardType = StandardizedQueryResult['type'];
 
@@ -35,15 +33,15 @@ type StandardType = StandardizedQueryResult['type'];
 export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
-  
+
   // 关系提取器实例
-  private annotationExtractor: JsAnnotationRelationshipExtractor;
+  private annotationExtractor: AnnotationRelationshipExtractor;
   private callExtractor: CallRelationshipExtractor;
-  private creationExtractor: JsCreationRelationshipExtractor;
+  private creationExtractor: CreationRelationshipExtractor;
   private dataFlowExtractor: DataFlowRelationshipExtractor;
-  private dependencyExtractor: JsDependencyRelationshipExtractor;
+  private dependencyExtractor: DependencyRelationshipExtractor;
   private inheritanceExtractor: InheritanceRelationshipExtractor;
-  private referenceExtractor: JsReferenceRelationshipExtractor;
+  private referenceExtractor: ReferenceRelationshipExtractor;
   private concurrencyExtractor: ConcurrencyRelationshipExtractor;
   private lifecycleExtractor: LifecycleRelationshipExtractor;
   private semanticExtractor: SemanticRelationshipExtractor;
@@ -51,15 +49,15 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
 
   constructor(options: AdapterOptions = {}) {
     super(options);
-    
+
     // 初始化关系提取器
-    this.annotationExtractor = new JsAnnotationRelationshipExtractor();
+    this.annotationExtractor = new AnnotationRelationshipExtractor();
     this.callExtractor = new CallRelationshipExtractor();
-    this.creationExtractor = new JsCreationRelationshipExtractor();
+    this.creationExtractor = new CreationRelationshipExtractor();
     this.dataFlowExtractor = new DataFlowRelationshipExtractor();
-    this.dependencyExtractor = new JsDependencyRelationshipExtractor();
+    this.dependencyExtractor = new DependencyRelationshipExtractor();
     this.inheritanceExtractor = new InheritanceRelationshipExtractor();
-    this.referenceExtractor = new JsReferenceRelationshipExtractor();
+    this.referenceExtractor = new ReferenceRelationshipExtractor();
     this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
     this.lifecycleExtractor = new LifecycleRelationshipExtractor();
     this.semanticExtractor = new SemanticRelationshipExtractor();
@@ -202,9 +200,9 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
 
     for (const modifier of JS_MODIFIERS) {
       if (modifier === 'async' || modifier === 'export' || modifier === 'default' ||
-          modifier === 'static' || modifier === 'public' || modifier === 'private' ||
-          modifier === 'protected' || modifier === 'readonly' || modifier === 'abstract' ||
-          modifier === 'override') {
+        modifier === 'static' || modifier === 'public' || modifier === 'private' ||
+        modifier === 'protected' || modifier === 'readonly' || modifier === 'abstract' ||
+        modifier === 'override') {
         if (text.includes(modifier)) {
           modifiers.push(modifier);
         }
@@ -529,12 +527,12 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       target: string;
       type: 'assignment' | 'parameter' | 'return';
     }> = [];
-    
+
     // 从查询结果中提取捕获的数据流关系
     if (result.captures && Array.isArray(result.captures)) {
       for (const capture of result.captures) {
         if (!capture.name || !capture.node?.text) continue;
-        
+
         // 根据捕获名称提取数据流关系
         if (capture.name.includes('source.') || capture.name.includes('target.')) {
           const parts = capture.name.split('.');
@@ -542,12 +540,12 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
             const flowType = parts[2]; // 例如 'assignment', 'parameter', 'return'
             const direction = parts[0]; // 'source' 或 'target'
             const context = parts[1]; // 例如 'variable', 'function', 'method'
-            
+
             // 查找对应的源或目标
-            const counterpart = result.captures.find((c: any) => 
+            const counterpart = result.captures.find((c: any) =>
               c.name === `${direction === 'source' ? 'target' : 'source'}.${context}.${flowType}`
             );
-            
+
             if (counterpart?.node?.text) {
               const dataFlowType = this.determineDataFlowType(flowType);
               if (direction === 'source') {
@@ -562,20 +560,20 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
         }
       }
     }
-    
+
     // 如果没有从查询结果中提取到关系，使用传统的AST分析方法
     if (relationships.length === 0) {
       this.extractDataFlowFromAST(result, relationships);
     }
-    
+
     return relationships;
   }
-  
+
   private determineDataFlowType(flowType: string): 'assignment' | 'parameter' | 'return' {
-    if (flowType === 'assignment' || flowType === 'property.assignment' || 
-        flowType === 'array.assignment' || flowType === 'function.assignment' ||
-        flowType === 'arrow.assignment' || flowType === 'destructuring.object' ||
-        flowType === 'destructuring.array') {
+    if (flowType === 'assignment' || flowType === 'property.assignment' ||
+      flowType === 'array.assignment' || flowType === 'function.assignment' ||
+      flowType === 'arrow.assignment' || flowType === 'destructuring.object' ||
+      flowType === 'destructuring.array') {
       return 'assignment';
     } else if (flowType === 'parameter' || flowType === 'method.parameter') {
       return 'parameter';
@@ -584,7 +582,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     }
     return 'assignment'; // 默认值
   }
-  
+
   private extractDataFlowFromAST(result: any, relationships: Array<{
     source: string;
     target: string;
@@ -599,7 +597,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     if (mainNode.type === 'assignment_expression') {
       const left = mainNode.childForFieldName('left');
       const right = mainNode.childForFieldName('right');
-      
+
       if (left?.text && right?.text) {
         relationships.push({
           source: right.text,
@@ -613,7 +611,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     if (mainNode.type === 'call_expression') {
       const args = mainNode.childForFieldName('arguments');
       const func = mainNode.childForFieldName('function');
-      
+
       if (args && func?.text) {
         for (const arg of args.children || []) {
           if (arg.type === 'identifier' && arg.text) {
@@ -650,12 +648,12 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       target: string;
       type: 'conditional' | 'loop' | 'exception' | 'callback';
     }> = [];
-    
+
     // 从查询结果中提取捕获的关系
     if (result.captures && Array.isArray(result.captures)) {
       for (const capture of result.captures) {
         if (!capture.name || !capture.node?.text) continue;
-        
+
         // 根据捕获名称提取关系
         if (capture.name.includes('source.') || capture.name.includes('target.')) {
           const parts = capture.name.split('.');
@@ -663,12 +661,12 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
             const relationType = parts[2]; // 例如 'condition', 'loop', 'exception'
             const direction = parts[0]; // 'source' 或 'target'
             const context = parts[1]; // 例如 'if', 'for', 'try'
-            
+
             // 查找对应的源或目标
-            const counterpart = result.captures.find((c: any) => 
+            const counterpart = result.captures.find((c: any) =>
               c.name === `${direction === 'source' ? 'target' : 'source'}.${context}.${relationType}`
             );
-            
+
             if (counterpart?.node?.text) {
               const flowType = this.determineFlowType(context, relationType);
               if (direction === 'source') {
@@ -683,15 +681,15 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
         }
       }
     }
-    
+
     // 如果没有从查询结果中提取到关系，使用传统的AST分析方法
     if (relationships.length === 0) {
       this.extractControlFlowFromAST(result, relationships);
     }
-    
+
     return relationships;
   }
-  
+
   private determineFlowType(context: string, relationType: string): 'conditional' | 'loop' | 'exception' | 'callback' {
     if (context === 'if' || context === 'switch' || context === 'ternary') {
       return 'conditional';
@@ -704,7 +702,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     }
     return 'conditional'; // 默认值
   }
-  
+
   private extractControlFlowFromAST(result: any, relationships: Array<{
     source: string;
     target: string;
@@ -720,7 +718,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       const condition = mainNode.childForFieldName('condition');
       const consequence = mainNode.childForFieldName('consequence');
       const alternative = mainNode.childForFieldName('alternative');
-      
+
       if (condition?.text) {
         if (consequence?.text) {
           relationships.push({
@@ -743,7 +741,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     if (mainNode.type === 'for_statement') {
       const condition = mainNode.childForFieldName('condition');
       const body = mainNode.childForFieldName('body');
-      
+
       if (condition?.text && body?.text) {
         relationships.push({
           source: condition.text,
@@ -752,11 +750,11 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
         });
       }
     }
-    
+
     if (mainNode.type === 'while_statement') {
       const condition = mainNode.childForFieldName('condition');
       const body = mainNode.childForFieldName('body');
-      
+
       if (condition?.text && body?.text) {
         relationships.push({
           source: condition.text,
@@ -771,7 +769,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       const body = mainNode.childForFieldName('body');
       const catchClause = mainNode.childForFieldName('catch_clause');
       const finallyClause = mainNode.childForFieldName('finally_clause');
-      
+
       if (body?.text && catchClause?.text) {
         relationships.push({
           source: 'try-body',
@@ -779,7 +777,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
           type: 'exception'
         });
       }
-      
+
       if (body?.text && finallyClause?.text) {
         relationships.push({
           source: 'try-body',
@@ -788,7 +786,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
         });
       }
     }
-    
+
     // 提取回调控制流
     if (mainNode.type === 'call_expression') {
       const args = mainNode.childForFieldName('arguments');
@@ -816,7 +814,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       target: string;
       type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
     }> = [];
-    
+
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
       return relationships;
@@ -826,7 +824,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     // 比如方法重写（在类继承中）
     // 比如观察者模式（通过on/emit等模式）
     const text = mainNode.text || '';
-    
+
     // 简单的观察者模式检测
     if (text.includes('.on(') || text.includes('.addListener(')) {
       relationships.push({
@@ -858,7 +856,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
       target: string;
       type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
     }> = [];
-    
+
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
       return relationships;
@@ -893,7 +891,27 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'synchronizes' | 'locks' | 'communicates' | 'races';
   }> {
-    const relationships = this.concurrencyExtractor.extractConcurrencyRelationships(result);
+    // 使用新的关系提取器提取元数据
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) return [];
+    
+    const metadata = this.concurrencyExtractor.extractConcurrencyMetadata(result, mainNode, 'javascript');
+    
+    // 将元数据转换为关系数组
+    const relationships: Array<{
+      source: string;
+      target: string;
+      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
+    }> = [];
+    
+    if (metadata.operation) {
+      relationships.push({
+        source: metadata.operation.text || 'unknown',
+        target: 'async_context',
+        type: 'communicates' as const
+      });
+    }
+    
     return relationships;
   }
 
@@ -905,7 +923,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
   }> {
     const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
     // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
+    return relationships.map((rel: any) => ({
       source: rel.source,
       target: rel.target,
       type: this.mapAnnotationType(rel.type)
@@ -919,7 +937,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
   }> {
     const relationships = this.creationExtractor.extractCreationRelationships(result);
     // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
+    return relationships.map((rel: any) => ({
       source: rel.source,
       target: rel.target,
       type: this.mapCreationType(rel.type)
@@ -933,7 +951,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
   }> {
     const relationships = this.referenceExtractor.extractReferenceRelationships(result);
     // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
+    return relationships.map((rel: any) => ({
       source: rel.source,
       target: rel.target,
       type: this.mapReferenceType(rel.type)
@@ -947,12 +965,12 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
   }> {
     const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
     // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
+    return relationships.map((rel: any) => ({
       source: rel.source,
       target: rel.target,
       type: this.mapDependencyType(rel.type)
     }));
- }
+  }
 
   // 类型映射辅助方法
   private mapAnnotationType(type: string): 'comment' | 'jsdoc' | 'directive' {
@@ -975,7 +993,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     }
   }
 
- private mapReferenceType(type: string): 'read' | 'write' | 'declaration' | 'usage' {
+  private mapReferenceType(type: string): 'read' | 'write' | 'declaration' | 'usage' {
     switch (type) {
       case 'read': return 'read';
       case 'write': return 'write';

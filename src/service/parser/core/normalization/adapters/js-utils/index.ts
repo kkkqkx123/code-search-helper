@@ -3,19 +3,19 @@
  * 统一导出所有关系提取器和辅助方法
  */
 
-export { CallRelationshipExtractor } from '../cpp-utils/CallRelationshipExtractor';
-export { DataFlowRelationshipExtractor } from '../cpp-utils/DataFlowRelationshipExtractor';
-export { InheritanceRelationshipExtractor } from '../cpp-utils/InheritanceRelationshipExtractor';
-export { ConcurrencyRelationshipExtractor } from '../cpp-utils/ConcurrencyRelationshipExtractor';
-export { LifecycleRelationshipExtractor } from '../cpp-utils/LifecycleRelationshipExtractor';
-export { SemanticRelationshipExtractor } from '../cpp-utils/SemanticRelationshipExtractor';
-export { ControlFlowRelationshipExtractor } from '../cpp-utils/ControlFlowRelationshipExtractor';
+export { CallRelationshipExtractor } from './CallRelationshipExtractor';
+export { DataFlowRelationshipExtractor } from './DataFlowRelationshipExtractor';
+export { InheritanceRelationshipExtractor } from './InheritanceRelationshipExtractor';
+export { ConcurrencyRelationshipExtractor } from './ConcurrencyRelationshipExtractor';
+export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor';
+export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
+export { ControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
 
 // JavaScript/TypeScript 特有的关系提取器
-export { JsAnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
-export { JsCreationRelationshipExtractor } from './CreationRelationshipExtractor';
-export { JsDependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
-export { JsReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
+export { AnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
+export { CreationRelationshipExtractor } from './CreationRelationshipExtractor';
+export { DependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
+export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
 
 export { JsHelperMethods } from './JsHelperMethods';
 

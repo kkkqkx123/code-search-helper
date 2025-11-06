@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C语言引用关系提取器
  * 处理标识符引用、字段表达式引用等
  */
-export class CReferenceRelationshipExtractor {
+export class ReferenceRelationshipExtractor {
   /**
    * 提取引用关系元数据
    */
@@ -129,13 +129,13 @@ export class CReferenceRelationshipExtractor {
    */
   findIdentifierReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'identifier' || node.type === 'field_identifier' || node.type === 'type_identifier') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -144,13 +144,13 @@ export class CReferenceRelationshipExtractor {
    */
   findFieldExpressionReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'field_expression') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -159,13 +159,13 @@ export class CReferenceRelationshipExtractor {
    */
   findFunctionDeclarationReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'function_declarator') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -174,13 +174,13 @@ export class CReferenceRelationshipExtractor {
    */
   findVariableDeclarationReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'declaration' || node.type === 'init_declarator') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -189,13 +189,13 @@ export class CReferenceRelationshipExtractor {
    */
   findTypeReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'type_identifier') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -204,13 +204,13 @@ export class CReferenceRelationshipExtractor {
    */
   findPrimitiveTypeReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'primitive_type') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -219,7 +219,7 @@ export class CReferenceRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

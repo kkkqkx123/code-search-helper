@@ -244,6 +244,27 @@ export class JsHelperMethods {
   }
 
   /**
+  * 查找变量引用
+  */
+  static findVariableReferences(node: any, dependencies: string[]): void {
+  if (!node || !node.children) {
+      return;
+  }
+
+  for (const child of node.children) {
+      // 查找变量标识符
+    if (child.type === 'identifier') {
+    const text = child.text;
+      if (text && text[0] === text[0].toLowerCase()) { // 变量通常小写开头
+          dependencies.push(text);
+        }
+      }
+
+      this.findVariableReferences(child, dependencies);
+    }
+  }
+
+  /**
    * 从类型节点中提取类型标识符
    */
   private static extractTypeIdentifiers(node: any, dependencies: string[]): void {

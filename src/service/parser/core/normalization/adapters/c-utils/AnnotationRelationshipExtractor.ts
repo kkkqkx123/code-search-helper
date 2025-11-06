@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C语言注解关系提取器
  * 处理C11属性说明符和类型注解
  */
-export class CAnnotationRelationshipExtractor {
+export class AnnotationRelationshipExtractor {
   /**
    * 提取注解关系元数据
    */

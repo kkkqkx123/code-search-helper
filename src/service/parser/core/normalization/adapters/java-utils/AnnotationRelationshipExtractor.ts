@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * Java注解关系提取器
  * 处理Java注解(Annotations)、元数据注解和编译器指令
  */
-export class JavaAnnotationRelationshipExtractor {
+export class AnnotationRelationshipExtractor {
   /**
    * 提取注解关系元数据
    */
@@ -162,13 +162,13 @@ export class JavaAnnotationRelationshipExtractor {
    */
   findAnnotationDeclarations(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const annotations: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'annotation' || node.type === 'marker_annotation') {
         annotations.push(node);
       }
     });
-    
+
     return annotations;
   }
 
@@ -177,7 +177,7 @@ export class JavaAnnotationRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

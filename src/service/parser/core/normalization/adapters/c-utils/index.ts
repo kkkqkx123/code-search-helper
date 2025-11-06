@@ -5,19 +5,19 @@
 export { CHelperMethods } from './HelperMethods';
 
 // 关系提取器
-export { CCallRelationshipExtractor } from './CallRelationshipExtractor';
-export { CDataFlowRelationshipExtractor } from './DataFlowRelationshipExtractor';
-export { CInheritanceRelationshipExtractor } from './InheritanceRelationshipExtractor';
-export { CConcurrencyRelationshipExtractor } from './ConcurrencyRelationshipExtractor';
-export { CLifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor';
-export { CSemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
-export { CControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
+export { CallRelationshipExtractor } from './CallRelationshipExtractor';
+export { DataFlowRelationshipExtractor } from './DataFlowRelationshipExtractor';
+export { InheritanceRelationshipExtractor } from './InheritanceRelationshipExtractor';
+export { ConcurrencyRelationshipExtractor } from './ConcurrencyRelationshipExtractor';
+export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor';
+export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
+export { ControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
 
 // 新增的关系提取器
-export { CAnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
-export { CCreationRelationshipExtractor } from './CreationRelationshipExtractor';
-export { CDependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
-export { CReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
+export { AnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
+export { CreationRelationshipExtractor } from './CreationRelationshipExtractor';
+export { DependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
+export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
 
 // 重新导出常用常量
 export {

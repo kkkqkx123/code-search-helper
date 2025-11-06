@@ -2,37 +2,64 @@ import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import {
+  JsHelperMethods,
+  JS_SUPPORTED_QUERY_TYPES,
+  JS_NODE_TYPE_MAPPING,
+  JS_NAME_CAPTURES,
+  JS_COMPLEXITY_KEYWORDS,
+  CallRelationshipExtractor,
+  DataFlowRelationshipExtractor,
+  InheritanceRelationshipExtractor,
+  ConcurrencyRelationshipExtractor,
+  LifecycleRelationshipExtractor,
+  SemanticRelationshipExtractor,
+  ControlFlowRelationshipExtractor
+} from './js-utils';
 
 /**
  * Vue语言适配器
  * 处理Vue文件的查询结果标准化
  */
 export class VueLanguageAdapter extends BaseLanguageAdapter {
+    // 关系提取器实例
+    private callExtractor: CallRelationshipExtractor;
+    private dataFlowExtractor: DataFlowRelationshipExtractor;
+    private inheritanceExtractor: InheritanceRelationshipExtractor;
+    private concurrencyExtractor: ConcurrencyRelationshipExtractor;
+    private lifecycleExtractor: LifecycleRelationshipExtractor;
+    private semanticExtractor: SemanticRelationshipExtractor;
+    private controlFlowExtractor: ControlFlowRelationshipExtractor;
+
     constructor(options: AdapterOptions = {}) {
         super(options);
+        
+        // 初始化关系提取器
+        this.callExtractor = new CallRelationshipExtractor();
+        this.dataFlowExtractor = new DataFlowRelationshipExtractor();
+        this.inheritanceExtractor = new InheritanceRelationshipExtractor();
+        this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
+        this.lifecycleExtractor = new LifecycleRelationshipExtractor();
+        this.semanticExtractor = new SemanticRelationshipExtractor();
+        this.controlFlowExtractor = new ControlFlowRelationshipExtractor();
     }
 
     getSupportedQueryTypes(): string[] {
+        // 基于JavaScript支持的查询类型，添加Vue特定的类型
         return [
-            // Entity types
+            ...JS_SUPPORTED_QUERY_TYPES,
             'components',
             'template-directives',
-            
-            // Relationship types
-            'calls',
-            'data-flows',
-            'inheritance',
-            
-            // Advanced relationship types
-            'concurrency-relationships',
-            'control-flow-relationships',
-            'lifecycle-relationships',
-            'semantic-relationships'
+            'annotation-relationships',
+            'creation-relationships',
+            'reference-relationships',
+            'dependency-relationships'
         ];
     }
 
     mapNodeType(nodeType: string): string {
-        const typeMapping: Record<string, string> = {
+        // 首先尝试Vue特定的映射
+        const vueTypeMapping: Record<string, string> = {
             'template_element': 'class',
             'script_element': 'class',
             'style_element': 'class',
@@ -57,15 +84,21 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
             'stylesheet': 'class'
         };
 
-        return typeMapping[nodeType] || 'expression';
+        // 如果Vue特定映射存在，使用它；否则使用JavaScript的映射；最后返回默认值
+        return vueTypeMapping[nodeType] || JS_NODE_TYPE_MAPPING[nodeType] || 'expression';
     }
 
     extractName(result: any): string {
-        // 尝试从不同的捕获中提取名称
-        const nameCaptures = [
-            'name.definition.function',
-            'name.definition.method',
-            'name.definition.class',
+        // 尝试从JavaScript的名称捕获中提取名称
+        for (const captureName of JS_NAME_CAPTURES) {
+            const capture = result.captures?.find((c: any) => c.name === captureName);
+            if (capture?.node?.text) {
+                return capture.node.text;
+            }
+        }
+
+        // 尝试从Vue特定的捕获中提取名称
+        const vueNameCaptures = [
             'name.definition.component',
             'name.definition.directive',
             'name.definition.tag',
@@ -81,7 +114,7 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
             'name.definition.for_loop'
         ];
 
-        for (const captureName of nameCaptures) {
+        for (const captureName of vueNameCaptures) {
             const capture = result.captures?.find((c: any) => c.name === captureName);
             if (capture?.node?.text) {
                 return capture.node.text;
@@ -89,12 +122,12 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
         }
 
         // 如果没有找到名称捕获，尝试从主节点提取
-        if (result.captures?.[0]?.node?.childForFieldName('name')?.text) {
+        if (result.captures?.[0]?.node?.childForFieldName?.('name')?.text) {
             return result.captures[0].node.childForFieldName('name').text;
         }
 
         // 尝试从tag_name提取
-        if (result.captures?.[0]?.node?.childForFieldName('tag_name')?.text) {
+        if (result.captures?.[0]?.node?.childForFieldName?.('tag_name')?.text) {
             return result.captures[0].node.childForFieldName('tag_name').text;
         }
 
@@ -165,13 +198,19 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
         if (nodeType && nodeType.includes('component')) complexity += 2;
         if (nodeType && nodeType.includes('directive')) complexity += 0.5;
 
-        // Vue特定的复杂度因素
+        // JavaScript/TypeScript特定的复杂度因素
         const text = mainNode.text || '';
+        for (const keyword of JS_COMPLEXITY_KEYWORDS) {
+          if (new RegExp(keyword.pattern).test(text)) {
+            complexity += keyword.weight;
+          }
+        }
+
+        // Vue特定的复杂度因素
         if (text.includes('v-for')) complexity += 1; // 循环
         if (text.includes('v-if') || text.includes('v-else')) complexity += 1; // 条件
         if (text.includes('computed')) complexity += 1; // 计算属性
         if (text.includes('watch')) complexity += 1; // 监听器
-        if (text.includes('async') || text.includes('await')) complexity += 1; // 异步
         if (text.includes('vuex') || text.includes('vue-router')) complexity += 1; // 复杂框架集成
 
         return complexity;
@@ -185,28 +224,16 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
             return dependencies;
         }
 
-        // 首先检查捕获中的依赖项
-        if (result.captures && Array.isArray(result.captures)) {
-            for (const capture of result.captures) {
-                if (capture.name && capture.name.includes('import') && capture.node?.text) {
-                    // 提取导入的标识符
-                    const importText = capture.node.text;
-                    // 例如从 "Component" 提取标识符
-                    const identifierMatch = importText.match(/[A-Za-z_][A-Za-z0-9_]*/g);
-                    if (identifierMatch) {
-                        dependencies.push(...identifierMatch);
-                    }
-                }
-            }
-        }
+        // 使用辅助方法查找依赖
+        JsHelperMethods.findTypeReferences(mainNode, dependencies);
+        JsHelperMethods.findFunctionCalls(mainNode, dependencies);
+        JsHelperMethods.findImportDependencies(mainNode, dependencies);
+        JsHelperMethods.findDataFlowDependencies(mainNode, dependencies);
+        JsHelperMethods.findConcurrencyDependencies(mainNode, dependencies);
+        JsHelperMethods.findInheritanceDependencies(mainNode, dependencies);
+        JsHelperMethods.findInterfaceDependencies(mainNode, dependencies);
+        JsHelperMethods.findTypeAliasDependencies(mainNode, dependencies);
 
-
-        // 查找类型引用
-        this.findTypeReferences(mainNode, dependencies);
-        
-        // 查找导入引用
-        this.findImportReferences(mainNode, dependencies);
-   
         // 查找Vue组件引用（大写字母开头的标签名）
         this.findComponentReferences(mainNode, dependencies);
     
@@ -319,122 +346,9 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
         }
     
         private isRelationshipType(type: StandardizedQueryResult['type']): boolean {
-          return ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic'].includes(type);
+          return ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic', 'control-flow'].includes(type);
         }
     
-        private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
-          if (!astNode) return null;
-    
-          switch (standardType) {
-            case 'call':
-              return this.extractCallMetadata(result, astNode);
-            case 'data-flow':
-              return this.extractDataFlowMetadata(result, astNode);
-            case 'inheritance':
-              return this.extractInheritanceMetadata(result, astNode);
-            case 'concurrency':
-              return this.extractConcurrencyMetadata(result, astNode);
-            case 'lifecycle':
-              return this.extractLifecycleMetadata(result, astNode);
-            case 'semantic':
-              return this.extractSemanticMetadata(result, astNode);
-            default:
-              return null;
-          }
-        }
-    
-        private extractCallMetadata(result: any, astNode: Parser.SyntaxNode): any {
-          // Vue特定的调用元数据提取
-          const functionNode = astNode.childForFieldName('function');
-          const callerNode = this.findCallerFunctionContext(astNode);
-    
-          return {
-            fromNodeId: callerNode ? generateDeterministicNodeId(callerNode) : 'unknown',
-            toNodeId: functionNode ? generateDeterministicNodeId(functionNode) : 'unknown',
-            callName: functionNode?.text || 'unknown',
-            location: {
-              filePath: 'current_file.vue',
-              lineNumber: astNode.startPosition.row + 1,
-              columnNumber: astNode.startPosition.column,
-            }
-          };
-        }
-    
-        private extractDataFlowMetadata(result: any, astNode: Parser.SyntaxNode): any {
-          // Vue特定的数据流元数据提取
-          const left = astNode.childForFieldName('left');
-          const right = astNode.childForFieldName('right');
-    
-          return {
-            fromNodeId: right ? generateDeterministicNodeId(right) : 'unknown',
-            toNodeId: left ? generateDeterministicNodeId(left) : 'unknown',
-            flowType: 'assignment',
-            location: {
-              filePath: 'current_file.vue',
-              lineNumber: astNode.startPosition.row + 1,
-              columnNumber: astNode.startPosition.column,
-            }
-          };
-        }
-    
-        private extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode): any {
-          // Vue组件继承关系元数据提取
-          return {
-            type: 'inheritance',
-            operation: 'extends', // Vue组件继承
-            location: {
-              filePath: 'current_file.vue',
-              lineNumber: astNode.startPosition.row + 1,
-            }
-          };
-        }
-    
-        private findCallerFunctionContext(callNode: Parser.SyntaxNode): Parser.SyntaxNode | null {
-          let current = callNode.parent;
-          while (current) {
-            if (current.type === 'function_declaration' || current.type === 'method_definition') {
-              return current;
-            }
-            current = current.parent;
-          }
-          return null;
-        }
-    
-        private extractConcurrencyMetadata(result: any, astNode: Parser.SyntaxNode): any {
-          // Vue并发关系元数据提取（例如异步操作）
-          return {
-            type: 'concurrency',
-            operation: 'async-operation', // Vue中的异步操作
-            location: {
-              filePath: 'current_file.vue',
-              lineNumber: astNode.startPosition.row + 1,
-            }
-          };
-        }
-    
-        private extractLifecycleMetadata(result: any, astNode: Parser.SyntaxNode): any {
-          // Vue生命周期关系元数据提取
-          return {
-            type: 'lifecycle',
-            operation: 'lifecycle-hook', // Vue生命周期钩子
-            location: {
-              filePath: 'current_file.vue',
-              lineNumber: astNode.startPosition.row + 1,
-            }
-          };
-        }
-    
-        private extractSemanticMetadata(result: any, astNode: Parser.SyntaxNode): any {
-          // Vue语义关系元数据提取
-          return {
-            type: 'semantic',
-            pattern: 'component-pattern', // Vue组件模式
-            location: {
-              filePath: 'current_file.vue',
-              lineNumber: astNode.startPosition.row + 1,
-            }
-          };
-        }
    
         private findComponentReferences(node: any, dependencies: string[]): void {
             if (!node || !node.children) {
@@ -466,5 +380,28 @@ export class VueLanguageAdapter extends BaseLanguageAdapter {
    
                 this.findComponentReferences(child, dependencies);
             }
+        }
+
+        private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
+          if (!astNode) return null;
+
+          switch (standardType) {
+            case 'call':
+              return this.callExtractor.extractCallMetadata(result, astNode, null);
+            case 'data-flow':
+              return this.dataFlowExtractor.extractDataFlowMetadata(result, astNode, null);
+            case 'inheritance':
+              return this.inheritanceExtractor.extractInheritanceMetadata(result, astNode, null);
+            case 'concurrency':
+              return this.concurrencyExtractor.extractConcurrencyMetadata(result, astNode, null);
+            case 'lifecycle':
+              return this.lifecycleExtractor.extractLifecycleMetadata(result, astNode, null);
+            case 'semantic':
+              return this.semanticExtractor.extractSemanticMetadata(result, astNode, null);
+            case 'control-flow':
+              return this.controlFlowExtractor.extractControlFlowMetadata(result, astNode, null);
+            default:
+              return null;
+          }
         }
     }

@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C#注解关系提取器
  * 处理C#特性(Attributes)、元数据注解和编译器指令
  */
-export class CSharpAnnotationRelationshipExtractor {
+export class AnnotationRelationshipExtractor {
   /**
    * 提取注解关系元数据
    */
@@ -170,7 +170,7 @@ export class CSharpAnnotationRelationshipExtractor {
           const attributeName = this.extractAnnotationName(child);
           const argumentList = child.childForFieldName('arguments');
           const args = argumentList ? this.extractAttributeArguments(argumentList) : [];
-          
+
           attributes.push({
             name: attributeName,
             arguments: args
@@ -233,13 +233,13 @@ export class CSharpAnnotationRelationshipExtractor {
    */
   findAttributeDeclarations(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const attributes: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'attribute' || node.type === 'attribute_list') {
         attributes.push(node);
       }
     });
-    
+
     return attributes;
   }
 
@@ -248,13 +248,13 @@ export class CSharpAnnotationRelationshipExtractor {
    */
   findPreprocessorDirectives(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const directives: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'preproc_directive') {
         directives.push(node);
       }
     });
-    
+
     return directives;
   }
 
@@ -263,13 +263,13 @@ export class CSharpAnnotationRelationshipExtractor {
    */
   findExternAliasDirectives(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const externAliases: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'extern_alias_directive') {
         externAliases.push(node);
       }
     });
-    
+
     return externAliases;
   }
 
@@ -278,7 +278,7 @@ export class CSharpAnnotationRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

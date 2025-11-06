@@ -2,7 +2,7 @@
  * JavaScript/TypeScript 依赖关系提取器
  * 提取代码中的导入、导出和依赖关系
  */
-export class JsDependencyRelationshipExtractor {
+export class DependencyRelationshipExtractor {
   extractDependencyRelationships(result: any): Array<{
     source: string;
     target: string;
@@ -22,7 +22,7 @@ export class JsDependencyRelationshipExtractor {
     for (const capture of captures) {
       if (capture.name && capture.node?.text) {
         const node = capture.node;
-        
+
         // 提取ES6导入关系
         if (node.type === 'import_statement') {
           const sourcePath = node.childForFieldName('source');
@@ -34,7 +34,7 @@ export class JsDependencyRelationshipExtractor {
             });
           }
         }
-        
+
         // 提取ES6导出关系
         if (node.type === 'export_statement') {
           const sourcePath = node.childForFieldName('source');
@@ -46,7 +46,7 @@ export class JsDependencyRelationshipExtractor {
             });
           }
         }
-        
+
         // 提取CommonJS require关系
         if (node.type === 'call_expression') {
           const func = node.childForFieldName('function');
@@ -65,7 +65,7 @@ export class JsDependencyRelationshipExtractor {
             }
           }
         }
-        
+
         // 提取动态导入关系
         if (node.type === 'import_expression') {
           const sourcePath = node.childForFieldName('source');
@@ -98,7 +98,7 @@ export class JsDependencyRelationshipExtractor {
 
   private getDependencyType(node: any): string {
     if (!node) return 'import';
-    
+
     switch (node.type) {
       case 'import_statement':
         return 'import';
@@ -116,7 +116,7 @@ export class JsDependencyRelationshipExtractor {
 
   private getDependencyTarget(node: any): string {
     if (!node) return 'unknown';
-    
+
     switch (node.type) {
       case 'import_statement':
       case 'export_statement':

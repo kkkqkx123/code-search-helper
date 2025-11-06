@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C语言依赖关系提取器
  * 处理预处理器包含指令和模块依赖
  */
-export class CDependencyRelationshipExtractor {
+export class DependencyRelationshipExtractor {
   /**
    * 提取依赖关系元数据
    */
@@ -169,13 +169,13 @@ export class CDependencyRelationshipExtractor {
    */
   findIncludeStatements(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const includeStatements: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'preproc_include') {
         includeStatements.push(node);
       }
     });
-    
+
     return includeStatements;
   }
 
@@ -184,7 +184,7 @@ export class CDependencyRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

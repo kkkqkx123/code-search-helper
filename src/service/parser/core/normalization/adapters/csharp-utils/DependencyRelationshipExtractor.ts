@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C#依赖关系提取器
  * 处理using指令、命名空间引用、程序集引用等
  */
-export class CSharpDependencyRelationshipExtractor {
+export class DependencyRelationshipExtractor {
   /**
    * 提取依赖关系元数据
    */
@@ -174,7 +174,7 @@ export class CSharpDependencyRelationshipExtractor {
    */
   private extractTarget(astNode: Parser.SyntaxNode): string | null {
     const dependencyType = this.determineDependencyType(astNode);
-    
+
     if (dependencyType === 'using') {
       return this.extractUsingTarget(astNode);
     } else if (dependencyType === 'namespace') {
@@ -184,7 +184,7 @@ export class CSharpDependencyRelationshipExtractor {
     } else if (dependencyType === 'assembly') {
       return this.extractAssemblyName(astNode);
     }
-    
+
     return null;
   }
 
@@ -194,21 +194,21 @@ export class CSharpDependencyRelationshipExtractor {
   private extractImportedSymbols(astNode: Parser.SyntaxNode): string[] {
     const dependencyType = this.determineDependencyType(astNode);
     const symbols: string[] = [];
-    
+
     if (dependencyType === 'using') {
       // 对于using指令，提取具体的符号
       const nameNode = astNode.childForFieldName('name');
       if (nameNode) {
         symbols.push(nameNode.text || '');
       }
-      
+
       // 检查是否是静态using
       const staticModifier = astNode.childForFieldName('static');
       if (staticModifier) {
         symbols.push('static');
       }
     }
-    
+
     return symbols;
   }
 
@@ -217,12 +217,12 @@ export class CSharpDependencyRelationshipExtractor {
    */
   private extractNamespaceInfoForNode(astNode: Parser.SyntaxNode): any {
     const dependencyType = this.determineDependencyType(astNode);
-    
+
     if (dependencyType === 'namespace') {
       // 使用现有的公共方法
       return this.extractNamespaceInfoFromNode(astNode);
     }
-    
+
     return null;
   }
 
@@ -278,7 +278,7 @@ export class CSharpDependencyRelationshipExtractor {
     // 检查是否是别名
     const nameNode = usingStmt.childForFieldName('name');
     const aliasNode = usingStmt.childForFieldName('alias');
-    
+
     if (aliasNode) {
       type = 'alias';
       symbols.push(aliasNode.text || '');
@@ -331,13 +331,13 @@ export class CSharpDependencyRelationshipExtractor {
    */
   findUsingDirectives(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const usingDirectives: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'using_directive') {
         usingDirectives.push(node);
       }
     });
-    
+
     return usingDirectives;
   }
 
@@ -346,13 +346,13 @@ export class CSharpDependencyRelationshipExtractor {
    */
   findNamespaceDeclarations(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const namespaceDeclarations: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'namespace_declaration' || node.type === 'file_scoped_namespace_declaration') {
         namespaceDeclarations.push(node);
       }
     });
-    
+
     return namespaceDeclarations;
   }
 
@@ -361,13 +361,13 @@ export class CSharpDependencyRelationshipExtractor {
    */
   findExternAliasDirectives(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const externAliasDirectives: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'extern_alias_directive') {
         externAliasDirectives.push(node);
       }
     });
-    
+
     return externAliasDirectives;
   }
 
@@ -376,13 +376,13 @@ export class CSharpDependencyRelationshipExtractor {
    */
   findAssemblyAttributes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const assemblyAttributes: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'assembly_attribute') {
         assemblyAttributes.push(node);
       }
     });
-    
+
     return assemblyAttributes;
   }
 
@@ -391,7 +391,7 @@ export class CSharpDependencyRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

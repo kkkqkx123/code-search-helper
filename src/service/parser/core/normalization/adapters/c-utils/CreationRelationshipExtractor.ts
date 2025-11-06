@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C语言创建关系提取器
  * 处理结构体实例化和变量声明
  */
-export class CCreationRelationshipExtractor {
+export class CreationRelationshipExtractor {
   /**
    * 提取创建关系元数据
    */
@@ -224,17 +224,17 @@ export class CCreationRelationshipExtractor {
    */
   private findNodeByType(node: Parser.SyntaxNode, nodeType: string): Parser.SyntaxNode[] {
     const results: Parser.SyntaxNode[] = [];
-    
+
     if (node.type === nodeType) {
       results.push(node);
     }
-    
+
     if (node.children) {
       for (const child of node.children) {
         results.push(...this.findNodeByType(child, nodeType));
       }
     }
-    
+
     return results;
   }
 }

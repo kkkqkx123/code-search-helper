@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C++引用关系提取器
  * 处理标识符引用、字段表达式引用、模板引用等
  */
-export class CppReferenceRelationshipExtractor {
+export class ReferenceRelationshipExtractor {
   /**
    * 提取引用关系元数据
    */
@@ -214,16 +214,16 @@ export class CppReferenceRelationshipExtractor {
    */
   findIdentifierReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
-      if (node.type === 'identifier' || 
-          node.type === 'field_identifier' || 
-          node.type === 'type_identifier' ||
-          node.type === 'namespace_identifier') {
+      if (node.type === 'identifier' ||
+        node.type === 'field_identifier' ||
+        node.type === 'type_identifier' ||
+        node.type === 'namespace_identifier') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -232,13 +232,13 @@ export class CppReferenceRelationshipExtractor {
    */
   findFieldExpressionReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'field_expression') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -247,13 +247,13 @@ export class CppReferenceRelationshipExtractor {
    */
   findFunctionDeclarationReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'function_declarator') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -262,13 +262,13 @@ export class CppReferenceRelationshipExtractor {
    */
   findVariableDeclarationReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'declaration' || node.type === 'init_declarator') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -277,13 +277,13 @@ export class CppReferenceRelationshipExtractor {
    */
   findTypeReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'type_identifier') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -292,13 +292,13 @@ export class CppReferenceRelationshipExtractor {
    */
   findTemplateReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'template_type' || node.type === 'template_function') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -307,15 +307,15 @@ export class CppReferenceRelationshipExtractor {
    */
   findNamespaceReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
-      if (node.type === 'namespace_identifier' || 
-          node.type === 'scoped_identifier' || 
-          node.type === 'qualified_name') {
+      if (node.type === 'namespace_identifier' ||
+        node.type === 'scoped_identifier' ||
+        node.type === 'qualified_name') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -324,14 +324,14 @@ export class CppReferenceRelationshipExtractor {
    */
   findConceptReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
-      if (node.type === 'concept_definition' || 
-          (node.type === 'identifier' && this.isConceptReference(node))) {
+      if (node.type === 'concept_definition' ||
+        (node.type === 'identifier' && this.isConceptReference(node))) {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -355,13 +355,13 @@ export class CppReferenceRelationshipExtractor {
    */
   findPrimitiveTypeReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'primitive_type') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -370,7 +370,7 @@ export class CppReferenceRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

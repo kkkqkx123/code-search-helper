@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C语言并发关系提取器
  * 分析线程、互斥锁、信号量等并发操作
  */
-export class CConcurrencyRelationshipExtractor {
+export class ConcurrencyRelationshipExtractor {
   /**
    * 提取并发关系元数据
    */

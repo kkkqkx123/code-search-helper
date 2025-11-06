@@ -12,10 +12,10 @@ export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { ControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
 
 // 新增的关系提取器
-export { CppAnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
-export { CppCreationRelationshipExtractor } from './CreationRelationshipExtractor';
-export { CppDependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
-export { CppReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
+export { AnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
+export { CreationRelationshipExtractor } from './CreationRelationshipExtractor';
+export { DependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
+export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
 
 export { CppHelperMethods } from './CppHelperMethods';
 

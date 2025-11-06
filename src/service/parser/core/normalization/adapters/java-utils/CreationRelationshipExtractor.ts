@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * Java创建关系提取器
  * 处理对象实例化、内存分配、构造函数调用等
  */
-export class JavaCreationRelationshipExtractor {
+export class CreationRelationshipExtractor {
   /**
    * 提取创建关系元数据
    */
@@ -113,9 +113,9 @@ export class JavaCreationRelationshipExtractor {
     // 查找类型标识符
     if (astNode.children) {
       for (const child of astNode.children) {
-        if (child.type === 'type_identifier' || 
-            child.type === 'class_literal' || 
-            child.type === 'array_type') {
+        if (child.type === 'type_identifier' ||
+          child.type === 'class_literal' ||
+          child.type === 'array_type') {
           return child;
         }
       }
@@ -188,7 +188,7 @@ export class JavaCreationRelationshipExtractor {
    */
   private extractConstructorArguments(astNode: Parser.SyntaxNode): any[] {
     const args: any[] = [];
-    
+
     for (const child of astNode.children) {
       if (child.type === 'argument_list') {
         for (const arg of child.children) {
@@ -202,7 +202,7 @@ export class JavaCreationRelationshipExtractor {
         break;
       }
     }
-    
+
     return args;
   }
 
@@ -211,7 +211,7 @@ export class JavaCreationRelationshipExtractor {
    */
   private extractConstructorParameters(astNode: Parser.SyntaxNode): any[] {
     const parameters: any[] = [];
-    
+
     for (const child of astNode.children) {
       if (child.type === 'formal_parameters') {
         for (const param of child.children) {
@@ -225,7 +225,7 @@ export class JavaCreationRelationshipExtractor {
         break;
       }
     }
-    
+
     return parameters;
   }
 
@@ -234,7 +234,7 @@ export class JavaCreationRelationshipExtractor {
    */
   private extractArrayDimensions(astNode: Parser.SyntaxNode): any[] {
     const dimensions: any[] = [];
-    
+
     for (const child of astNode.children) {
       if (child.type === 'dimensions' || child.type === 'array_initializer') {
         dimensions.push({
@@ -243,7 +243,7 @@ export class JavaCreationRelationshipExtractor {
         });
       }
     }
-    
+
     return dimensions;
   }
 
@@ -303,13 +303,13 @@ export class JavaCreationRelationshipExtractor {
    */
   findObjectCreations(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const objectCreations: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'object_creation_expression') {
         objectCreations.push(node);
       }
     });
-    
+
     return objectCreations;
   }
 
@@ -318,13 +318,13 @@ export class JavaCreationRelationshipExtractor {
    */
   findConstructorDeclarations(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const constructorDeclarations: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'constructor_declaration') {
         constructorDeclarations.push(node);
       }
     });
-    
+
     return constructorDeclarations;
   }
 
@@ -333,17 +333,17 @@ export class JavaCreationRelationshipExtractor {
    */
   private findNodeByType(node: Parser.SyntaxNode, nodeType: string): Parser.SyntaxNode[] {
     const results: Parser.SyntaxNode[] = [];
-    
+
     if (node.type === nodeType) {
       results.push(node);
     }
-    
+
     if (node.children) {
       for (const child of node.children) {
         results.push(...this.findNodeByType(child, nodeType));
       }
     }
-    
+
     return results;
   }
 
@@ -352,7 +352,7 @@ export class JavaCreationRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

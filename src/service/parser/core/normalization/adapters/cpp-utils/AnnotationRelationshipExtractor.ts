@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C++注解关系提取器
  * 处理C++属性说明符、现代特性注解和类型注解
  */
-export class CppAnnotationRelationshipExtractor {
+export class AnnotationRelationshipExtractor {
   /**
    * 提取注解关系元数据
    */
@@ -257,13 +257,13 @@ export class CppAnnotationRelationshipExtractor {
    */
   findAttributeDeclarations(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const attributes: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'attribute_declaration' || node.type === 'attribute_specifier') {
         attributes.push(node);
       }
     });
-    
+
     return attributes;
   }
 
@@ -272,13 +272,13 @@ export class CppAnnotationRelationshipExtractor {
    */
   findAlignasSpecifiers(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const alignasSpecifiers: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'alignas_specifier') {
         alignasSpecifiers.push(node);
       }
     });
-    
+
     return alignasSpecifiers;
   }
 
@@ -287,13 +287,13 @@ export class CppAnnotationRelationshipExtractor {
    */
   findModernFeatureAnnotations(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const modernFeatures: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'requires_clause' || node.type === 'concept_definition') {
         modernFeatures.push(node);
       }
     });
-    
+
     return modernFeatures;
   }
 
@@ -302,7 +302,7 @@ export class CppAnnotationRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

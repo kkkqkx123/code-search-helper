@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C语言生命周期关系提取器
  * 分析内存分配、文件操作、资源管理等生命周期操作
  */
-export class CLifecycleRelationshipExtractor {
+export class LifecycleRelationshipExtractor {
   /**
    * 提取生命周期关系元数据
    */

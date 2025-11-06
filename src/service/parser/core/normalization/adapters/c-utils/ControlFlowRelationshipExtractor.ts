@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C语言控制流关系提取器
  * 分析条件语句、循环、跳转语句等控制流关系
  */
-export class CControlFlowRelationshipExtractor {
+export class ControlFlowRelationshipExtractor {
   /**
    * 提取控制流关系元数据
    */

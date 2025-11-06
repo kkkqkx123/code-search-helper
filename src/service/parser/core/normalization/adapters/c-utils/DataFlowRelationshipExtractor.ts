@@ -4,7 +4,7 @@ import Parser from 'tree-sitter';
 /**
  * C语言数据流关系提取器
  */
-export class CDataFlowRelationshipExtractor {
+export class DataFlowRelationshipExtractor {
   /**
    * 提取数据流关系元数据
    */

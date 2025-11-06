@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C++依赖关系提取器
  * 处理预处理器包含指令、模块依赖、命名空间使用等
  */
-export class CppDependencyRelationshipExtractor {
+export class DependencyRelationshipExtractor {
   /**
    * 提取依赖关系元数据
    */
@@ -185,7 +185,7 @@ export class CppDependencyRelationshipExtractor {
    */
   private extractTarget(astNode: Parser.SyntaxNode): string | null {
     const dependencyType = this.determineDependencyType(astNode);
-    
+
     if (dependencyType === 'include') {
       return this.extractIncludePath(astNode);
     } else if (dependencyType === 'import') {
@@ -197,7 +197,7 @@ export class CppDependencyRelationshipExtractor {
     } else if (dependencyType === 'module') {
       return this.extractModuleName(astNode);
     }
-    
+
     return null;
   }
 
@@ -207,7 +207,7 @@ export class CppDependencyRelationshipExtractor {
   private extractImportedSymbols(astNode: Parser.SyntaxNode): string[] {
     const dependencyType = this.determineDependencyType(astNode);
     const symbols: string[] = [];
-    
+
     if (dependencyType === 'using') {
       // 对于using声明，提取具体的符号
       for (const child of astNode.children) {
@@ -216,7 +216,7 @@ export class CppDependencyRelationshipExtractor {
         }
       }
     }
-    
+
     return symbols;
   }
 
@@ -225,7 +225,7 @@ export class CppDependencyRelationshipExtractor {
    */
   private extractNamespaceInfo(astNode: Parser.SyntaxNode): any {
     const dependencyType = this.determineDependencyType(astNode);
-    
+
     if (dependencyType === 'namespace') {
       return {
         name: this.extractNamespaceName(astNode),
@@ -233,7 +233,7 @@ export class CppDependencyRelationshipExtractor {
         isInline: this.isInlineNamespace(astNode)
       };
     }
-    
+
     return null;
   }
 
@@ -356,13 +356,13 @@ export class CppDependencyRelationshipExtractor {
    */
   findIncludeStatements(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const includeStatements: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'preproc_include') {
         includeStatements.push(node);
       }
     });
-    
+
     return includeStatements;
   }
 
@@ -371,13 +371,13 @@ export class CppDependencyRelationshipExtractor {
    */
   findUsingStatements(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const usingStatements: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'using_declaration' || node.type === 'using_directive') {
         usingStatements.push(node);
       }
     });
-    
+
     return usingStatements;
   }
 
@@ -386,13 +386,13 @@ export class CppDependencyRelationshipExtractor {
    */
   findNamespaceDefinitions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const namespaceDefinitions: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'namespace_definition') {
         namespaceDefinitions.push(node);
       }
     });
-    
+
     return namespaceDefinitions;
   }
 
@@ -401,7 +401,7 @@ export class CppDependencyRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

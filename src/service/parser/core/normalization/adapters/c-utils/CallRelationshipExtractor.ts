@@ -5,7 +5,7 @@ import { CHelperMethods } from '.';
 /**
  * C语言调用关系提取器
  */
-export class CCallRelationshipExtractor {
+export class CallRelationshipExtractor {
   /**
    * 提取调用关系元数据
    */

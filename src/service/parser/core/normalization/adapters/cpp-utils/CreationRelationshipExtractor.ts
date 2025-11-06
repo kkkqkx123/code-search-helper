@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C++创建关系提取器
  * 处理对象实例化、内存分配、构造函数调用等
  */
-export class CppCreationRelationshipExtractor {
+export class CreationRelationshipExtractor {
   /**
    * 提取创建关系元数据
    */
@@ -129,11 +129,11 @@ export class CppCreationRelationshipExtractor {
     // 查找类型标识符
     if (astNode.children) {
       for (const child of astNode.children) {
-        if (child.type === 'type_identifier' || 
-            child.type === 'class_specifier' || 
-            child.type === 'struct_specifier' || 
-            child.type === 'enum_specifier' ||
-            child.type === 'template_type') {
+        if (child.type === 'type_identifier' ||
+          child.type === 'class_specifier' ||
+          child.type === 'struct_specifier' ||
+          child.type === 'enum_specifier' ||
+          child.type === 'template_type') {
           return child;
         }
       }
@@ -148,8 +148,8 @@ export class CppCreationRelationshipExtractor {
     // 查找模板类型
     if (astNode.children) {
       for (const child of astNode.children) {
-        if (child.type === 'template_type' || 
-            child.type === 'template_function') {
+        if (child.type === 'template_type' ||
+          child.type === 'template_function') {
           return child;
         }
       }
@@ -248,7 +248,7 @@ export class CppCreationRelationshipExtractor {
    */
   private extractConstructorArguments(astNode: Parser.SyntaxNode): any[] {
     const args: any[] = [];
-    
+
     for (const child of astNode.children) {
       if (child.type === 'argument_list') {
         for (const arg of child.children) {
@@ -262,7 +262,7 @@ export class CppCreationRelationshipExtractor {
         break;
       }
     }
-    
+
     return args;
   }
 
@@ -271,7 +271,7 @@ export class CppCreationRelationshipExtractor {
    */
   private extractCallArguments(astNode: Parser.SyntaxNode): any[] {
     const args: any[] = [];
-    
+
     for (const child of astNode.children) {
       if (child.type === 'argument_list') {
         for (const arg of child.children) {
@@ -285,7 +285,7 @@ export class CppCreationRelationshipExtractor {
         break;
       }
     }
-    
+
     return args;
   }
 
@@ -294,7 +294,7 @@ export class CppCreationRelationshipExtractor {
    */
   private extractNewExpressionArguments(astNode: Parser.SyntaxNode): any[] {
     const args: any[] = [];
-    
+
     for (const child of astNode.children) {
       if (child.type === 'argument_list') {
         for (const arg of child.children) {
@@ -308,7 +308,7 @@ export class CppCreationRelationshipExtractor {
         break;
       }
     }
-    
+
     return args;
   }
 
@@ -424,13 +424,13 @@ export class CppCreationRelationshipExtractor {
    */
   findNewExpressions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const newExpressions: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'new_expression') {
         newExpressions.push(node);
       }
     });
-    
+
     return newExpressions;
   }
 
@@ -439,13 +439,13 @@ export class CppCreationRelationshipExtractor {
    */
   findConstructorInitializers(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const constructorInitializers: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'constructor_initializer') {
         constructorInitializers.push(node);
       }
     });
-    
+
     return constructorInitializers;
   }
 
@@ -454,17 +454,17 @@ export class CppCreationRelationshipExtractor {
    */
   private findNodeByType(node: Parser.SyntaxNode, nodeType: string): Parser.SyntaxNode[] {
     const results: Parser.SyntaxNode[] = [];
-    
+
     if (node.type === nodeType) {
       results.push(node);
     }
-    
+
     if (node.children) {
       for (const child of node.children) {
         results.push(...this.findNodeByType(child, nodeType));
       }
     }
-    
+
     return results;
   }
 
@@ -473,7 +473,7 @@ export class CppCreationRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C#引用关系提取器
  * 处理标识符引用、成员访问、类型引用等
  */
-export class CSharpReferenceRelationshipExtractor {
+export class ReferenceRelationshipExtractor {
   /**
    * 提取引用关系元数据
    */
@@ -124,9 +124,9 @@ export class CSharpReferenceRelationshipExtractor {
    * 提取引用名称
    */
   private extractReferenceName(astNode: Parser.SyntaxNode): string | null {
-    if (astNode.type === 'identifier' || 
-        astNode.type === 'generic_name' ||
-        astNode.type === 'qualified_name') {
+    if (astNode.type === 'identifier' ||
+      astNode.type === 'generic_name' ||
+      astNode.type === 'qualified_name') {
       return astNode.text || null;
     } else if (astNode.type === 'member_access_expression') {
       return this.extractMemberNameFromExpression(astNode);
@@ -286,14 +286,14 @@ export class CSharpReferenceRelationshipExtractor {
    */
   findIdentifierReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
-      if (node.type === 'identifier' || 
-          node.type === 'generic_name') {
+      if (node.type === 'identifier' ||
+        node.type === 'generic_name') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -302,13 +302,13 @@ export class CSharpReferenceRelationshipExtractor {
    */
   findMemberAccessReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'member_access_expression') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -317,14 +317,14 @@ export class CSharpReferenceRelationshipExtractor {
    */
   findTypeReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
-      if (node.type === 'generic_name' || 
-          node.type === 'qualified_name') {
+      if (node.type === 'generic_name' ||
+        node.type === 'qualified_name') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -333,13 +333,13 @@ export class CSharpReferenceRelationshipExtractor {
    */
   findNamespaceReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'qualified_name' && this.isLikelyNamespace(node)) {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -352,7 +352,7 @@ export class CSharpReferenceRelationshipExtractor {
     if (!text.includes('.')) {
       return false;
     }
-    
+
     // 检查是否以常见命名空间前缀开头
     const commonNamespacePrefixes = ['System', 'Microsoft', 'Newtonsoft', 'UnityEngine'];
     return commonNamespacePrefixes.some(prefix => text.startsWith(prefix));
@@ -363,13 +363,13 @@ export class CSharpReferenceRelationshipExtractor {
    */
   findThisBaseReferences(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     const references: Parser.SyntaxNode[] = [];
-    
+
     this.traverseTree(ast, (node) => {
       if (node.type === 'this_expression' || node.type === 'base_expression') {
         references.push(node);
       }
     });
-    
+
     return references;
   }
 
@@ -378,7 +378,7 @@ export class CSharpReferenceRelationshipExtractor {
    */
   private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
     callback(node);
-    
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseTree(child, callback);

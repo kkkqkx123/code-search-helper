@@ -259,21 +259,21 @@ export class RustHelperMethods {
   }
 
   /**
-   * 判断是否为异步节点
-   */
+  * 判断是否为异步节点
+  */
   static isAsyncNode(node: Parser.SyntaxNode): boolean {
-    return node.type === 'async_function' ||
-           node.type === 'async_block' ||
-           node.type === 'await_expression' ||
-           (node.text && node.text.includes('async'));
+  return node.type === 'async_function' ||
+  node.type === 'async_block' ||
+  node.type === 'await_expression' ||
+  !!(node.text && node.text.includes('async'));
   }
 
   /**
-   * 判断是否为不安全节点
-   */
+  * 判断是否为不安全节点
+  */
   static isUnsafeNode(node: Parser.SyntaxNode): boolean {
-    return node.type === 'unsafe_block' ||
-           (node.text && node.text.includes('unsafe'));
+  return node.type === 'unsafe_block' ||
+  !!(node.text && node.text.includes('unsafe'));
   }
 
   /**

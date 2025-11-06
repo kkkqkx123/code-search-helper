@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C语言继承关系提取器
  * 在C语言中，继承关系主要通过结构体嵌套和函数指针模拟
  */
-export class CInheritanceRelationshipExtractor {
+export class InheritanceRelationshipExtractor {
   /**
    * 提取继承关系元数据
    */

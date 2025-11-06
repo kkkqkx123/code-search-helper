@@ -5,7 +5,7 @@ import Parser from 'tree-sitter';
  * C#创建关系提取器
  * 处理对象实例化、数组创建、委托创建等
  */
-export class CSharpCreationRelationshipExtractor {
+export class CreationRelationshipExtractor {
   /**
    * 提取创建关系元数据
    */

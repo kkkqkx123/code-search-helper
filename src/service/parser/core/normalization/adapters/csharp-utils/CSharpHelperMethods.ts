@@ -136,9 +136,9 @@ export class CSharpHelperMethods {
         const functionNode = child.childForFieldName('function');
         if (functionNode?.text) {
           const funcText = functionNode.text.toLowerCase();
-          if (funcText.includes('task') || funcText.includes('thread') || 
-              funcText.includes('async') || funcText.includes('await') || 
-              funcText.includes('lock') || funcText.includes('monitor')) {
+          if (funcText.includes('task') || funcText.includes('thread') ||
+            funcText.includes('async') || funcText.includes('await') ||
+            funcText.includes('lock') || funcText.includes('monitor')) {
             dependencies.push(funcText);
           }
         }
