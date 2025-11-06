@@ -66,7 +66,7 @@ export class TreeSitterQueryFacade {
       return nodes;
     } catch (error) {
       // 查询系统失败，直接返回空数组
-      // 回退逻辑由上层服务（如 TreeSitterCoreService）统一处理
+      // 回退逻辑由上层服务（TreeSitterCoreService）统一处理
       return [];
     }
   }

@@ -1,6 +1,6 @@
 import Parser from 'tree-sitter';
 import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryExecutor';
-import { SimpleQueryEngine } from '../../query/TreeSitterQueryFacade';
+import { TreeSitterQueryFacade } from '../../query/TreeSitterQueryFacade';
 import { TestDataGenerator } from './TestDataGenerator';
 
 /**
@@ -19,7 +19,7 @@ describe('Edge Case Tests', () => {
   beforeEach(() => {
     // 清理缓存以确保测试独立性
     queryEngine.clearCache();
-    SimpleQueryEngine.clearCache();
+    TreeSitterQueryFacade.clearCache();
   });
 
   describe('Empty AST Tests', () => {
@@ -33,11 +33,11 @@ describe('Edge Case Tests', () => {
       expect(result.executionTime).toBeGreaterThanOrEqual(0);
     });
 
-    test('should handle empty AST in SimpleQueryEngine', async () => {
+    test('should handle empty AST in TreeSitterQueryFacade', async () => {
       const emptyAST = TestDataGenerator.createEmptyAST();
 
-      const functions = await SimpleQueryEngine.findFunctions(emptyAST, 'typescript');
-      const classes = await SimpleQueryEngine.findClasses(emptyAST, 'typescript');
+      const functions = await TreeSitterQueryFacade.findFunctions(emptyAST, 'typescript');
+      const classes = await TreeSitterQueryFacade.findClasses(emptyAST, 'typescript');
 
       expect(functions).toEqual([]);
       expect(classes).toEqual([]);
@@ -46,7 +46,7 @@ describe('Edge Case Tests', () => {
     test('should handle empty AST in batch queries', async () => {
       const emptyAST = TestDataGenerator.createEmptyAST();
 
-      const results = await SimpleQueryEngine.findAllMainStructures(emptyAST, 'typescript');
+      const results = await TreeSitterQueryFacade.findAllMainStructures(emptyAST, 'typescript');
 
       expect(results.functions).toEqual([]);
       expect(results.classes).toEqual([]);
@@ -66,11 +66,11 @@ describe('Edge Case Tests', () => {
       expect(result.matches).toEqual([]);
     });
 
-    test('should handle invalid query types in SimpleQueryEngine', async () => {
+    test('should handle invalid query types in TreeSitterQueryFacade', async () => {
       const ast = TestDataGenerator.createRealisticTypeScriptAST(5);
 
-      // SimpleQueryEngine应该优雅地处理不支持的查询类型
-      const results = await SimpleQueryEngine.findMultiple(ast, 'typescript', ['nonexistent_query']);
+      // TreeSitterQueryFacade应该优雅地处理不支持的查询类型
+      const results = await TreeSitterQueryFacade.findMultiple(ast, 'typescript', ['nonexistent_query']);
 
       expect(results.get('nonexistent_query')).toEqual([]);
     });
@@ -86,10 +86,10 @@ describe('Edge Case Tests', () => {
       expect(result.error).toBeDefined();
     });
 
-    test('should handle unsupported languages in SimpleQueryEngine', async () => {
+    test('should handle unsupported languages in TreeSitterQueryFacade', async () => {
       const ast = TestDataGenerator.createRealisticTypeScriptAST(5);
 
-      const functions = await SimpleQueryEngine.findFunctions(ast, 'unsupported_language');
+      const functions = await TreeSitterQueryFacade.findFunctions(ast, 'unsupported_language');
 
       expect(functions).toEqual([]);
     });
@@ -227,7 +227,7 @@ describe('Edge Case Tests', () => {
       // 创建大量AST并执行查询
       for (let i = 0; i < 50; i++) {
         const ast = TestDataGenerator.createRealisticTypeScriptAST(30);
-        await SimpleQueryEngine.findAllMainStructures(ast, 'typescript');
+        await TreeSitterQueryFacade.findAllMainStructures(ast, 'typescript');
 
         // 每10次迭代检查一次内存使用
         if (i % 10 === 0) {
@@ -242,12 +242,12 @@ describe('Edge Case Tests', () => {
   });
 
   describe('Concurrent Access Tests', () => {
-    test('should handle simultaneous access to SimpleQueryEngine', async () => {
+    test('should handle simultaneous access to TreeSitterQueryFacade', async () => {
       const ast = TestDataGenerator.createRealisticTypeScriptAST(15);
 
       // 创建多个并发任务
       const tasks = Array.from({ length: 20 }, async (_, i) => {
-        const results = await SimpleQueryEngine.findAllMainStructures(ast, 'typescript');
+        const results = await TreeSitterQueryFacade.findAllMainStructures(ast, 'typescript');
         return {
           taskId: i,
           functionCount: results.functions.length,
@@ -277,9 +277,9 @@ describe('Edge Case Tests', () => {
 
       // 混合不同类型的并发操作
       const operations = [
-        ...Array.from({ length: 10 }, () => SimpleQueryEngine.findFunctions(ast, 'typescript')),
-        ...Array.from({ length: 10 }, () => SimpleQueryEngine.findClasses(ast, 'typescript')),
-        ...Array.from({ length: 10 }, () => SimpleQueryEngine.findAllMainStructures(ast, 'typescript')),
+        ...Array.from({ length: 10 }, () => TreeSitterQueryFacade.findFunctions(ast, 'typescript')),
+        ...Array.from({ length: 10 }, () => TreeSitterQueryFacade.findClasses(ast, 'typescript')),
+        ...Array.from({ length: 10 }, () => TreeSitterQueryFacade.findAllMainStructures(ast, 'typescript')),
         ...Array.from({ length: 10 }, () => queryEngine.executeQuery(ast, 'functions', 'typescript'))
       ];
 
@@ -288,7 +288,7 @@ describe('Edge Case Tests', () => {
       // 所有操作都应该成功
       results.forEach(result => {
         if (Array.isArray(result)) {
-          // SimpleQueryEngine结果 (findFunctions, findClasses)
+          // TreeSitterQueryFacade结果 (findFunctions, findClasses)
           expect(Array.isArray(result)).toBe(true);
         } else if ('success' in result) {
           // TreeSitterQueryEngine结果
@@ -306,7 +306,7 @@ describe('Edge Case Tests', () => {
       const ast = TestDataGenerator.createRealisticTypeScriptAST(20);
 
       // 执行一些查询以填充缓存
-      await SimpleQueryEngine.findAllMainStructures(ast, 'typescript');
+      await TreeSitterQueryFacade.findAllMainStructures(ast, 'typescript');
       await queryEngine.executeQuery(ast, 'functions', 'typescript');
 
       // 检查缓存有内容
@@ -314,7 +314,7 @@ describe('Edge Case Tests', () => {
       expect(stats.engineCacheSize).toBeGreaterThanOrEqual(0);
 
       // 清理缓存
-      SimpleQueryEngine.clearCache();
+      TreeSitterQueryFacade.clearCache();
       queryEngine.clearCache();
 
       // 检查缓存已清空
@@ -327,12 +327,12 @@ describe('Edge Case Tests', () => {
 
       // 多次填充和清理缓存
       for (let i = 0; i < 10; i++) {
-        await SimpleQueryEngine.findAllMainStructures(ast, 'typescript');
+        await TreeSitterQueryFacade.findAllMainStructures(ast, 'typescript');
 
         const stats = queryEngine.getPerformanceStats();
         expect(stats.engineCacheSize).toBeGreaterThanOrEqual(0);
 
-        SimpleQueryEngine.clearCache();
+        TreeSitterQueryFacade.clearCache();
         queryEngine.clearCache();
 
         const clearedStats = queryEngine.getPerformanceStats();

@@ -1,6 +1,6 @@
 import Parser from 'tree-sitter';
 import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryExecutor';
-import { SimpleQueryEngine } from '../../query/TreeSitterQueryFacade';
+import { TreeSitterQueryFacade } from '../../query/TreeSitterQueryFacade';
 import { QueryPerformanceMonitor } from '../../query/QueryPerformanceMonitor';
 import { QueryCache } from '../../query/QueryCache';
 import { TestDataGenerator } from './TestDataGenerator';
@@ -54,7 +54,7 @@ describe('Performance Validation Tests', () => {
     await new Promise(resolve => setTimeout(resolve, 100)); // Wait for initialization
     QueryPerformanceMonitor.clearMetrics();
     QueryCache.clearCache();
-    SimpleQueryEngine.clearCache(); // Also clear SimpleQueryEngine cache
+    TreeSitterQueryFacade.clearCache(); // Also clear TreeSitterQueryFacade cache
   });
 
   describe('Query Execution Performance', () => {
@@ -189,13 +189,13 @@ describe('Performance Validation Tests', () => {
     });
   });
 
-  describe('SimpleQueryEngine Performance', () => {
+  describe('TreeSitterQueryFacade Performance', () => {
     test('should provide simplified interface without performance penalty', async () => {
       const ast = TestDataGenerator.createRealisticTypeScriptAST(15);
 
-      // Test SimpleQueryEngine
+      // Test TreeSitterQueryFacade
       const startTime1 = performance.now();
-      const simpleResults = await SimpleQueryEngine.findAllMainStructures(ast, 'typescript');
+      const simpleResults = await TreeSitterQueryFacade.findAllMainStructures(ast, 'typescript');
       const endTime1 = performance.now();
       const simpleTime = endTime1 - startTime1;
 
@@ -210,7 +210,7 @@ describe('Performance Validation Tests', () => {
       const complexTime = endTime2 - startTime2;
 
       console.log(`Interface Comparison Results:`);
-      console.log(`  SimpleQueryEngine: ${simpleTime.toFixed(2)}ms`);
+      console.log(`  TreeSitterQueryFacade: ${simpleTime.toFixed(2)}ms`);
       console.log(`  TreeSitterQueryEngine: ${complexTime.toFixed(2)}ms`);
       console.log(`  Overhead: ${((simpleTime - complexTime) / complexTime * 100).toFixed(2)}%`);
 
@@ -226,13 +226,13 @@ describe('Performance Validation Tests', () => {
       const ast = TestDataGenerator.createRealisticTypeScriptAST(10);
 
       // Count lines of code needed for common operations
-      // SimpleQueryEngine approach (1 line per operation):
+      // TreeSitterQueryFacade approach (1 line per operation):
       const simpleLines = 4; // 4 method calls
       const simpleStartTime = performance.now();
-      await SimpleQueryEngine.findFunctions(ast, 'typescript');
-      await SimpleQueryEngine.findClasses(ast, 'typescript');
-      await SimpleQueryEngine.findImports(ast, 'typescript');
-      await SimpleQueryEngine.findExports(ast, 'typescript');
+      await TreeSitterQueryFacade.findFunctions(ast, 'typescript');
+      await TreeSitterQueryFacade.findClasses(ast, 'typescript');
+      await TreeSitterQueryFacade.findImports(ast, 'typescript');
+      await TreeSitterQueryFacade.findExports(ast, 'typescript');
       const simpleEndTime = performance.now();
 
       // Direct approach would require more lines:
@@ -243,7 +243,7 @@ describe('Performance Validation Tests', () => {
       const directLines = 12;
 
       console.log(`Code Complexity Reduction:`);
-      console.log(`  SimpleQueryEngine: ${simpleLines} lines`);
+      console.log(`  TreeSitterQueryFacade: ${simpleLines} lines`);
       console.log(`  Direct approach: ${directLines} lines`);
       console.log(`  Reduction: ${((directLines - simpleLines) / directLines * 100).toFixed(1)}%`);
 

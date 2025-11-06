@@ -1,6 +1,6 @@
 import Parser from 'tree-sitter';
 import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryExecutor';
-import { SimpleQueryEngine } from '../../query/TreeSitterQueryFacade';
+import { TreeSitterQueryFacade } from '../../query/TreeSitterQueryFacade';
 import { TestDataGenerator } from './TestDataGenerator';
 
 /**
@@ -37,7 +37,7 @@ export class PerformanceBenchmark {
     // 4. 缓存效率测试
     results.tests.push(await this.benchmarkCacheEfficiency());
 
-    // 5. SimpleQueryEngine vs TreeSitterQueryEngine对比
+    // 5. TreeSitterQueryFacade vs TreeSitterQueryEngine对比
     results.tests.push(await this.benchmarkEngineComparison());
 
     // 6. 内存使用测试
@@ -178,7 +178,7 @@ export class PerformanceBenchmark {
 
     // 清理缓存
     this.queryEngine.clearCache();
-    SimpleQueryEngine.clearCache();
+    TreeSitterQueryFacade.clearCache();
 
     const measurements: {
       firstRun: number;
@@ -240,10 +240,10 @@ export class PerformanceBenchmark {
     const simpleMeasurements: number[] = [];
     const complexMeasurements: number[] = [];
 
-    // SimpleQueryEngine测试
+    // TreeSitterQueryFacade测试
     for (let i = 0; i < iterations; i++) {
       const startTime = performance.now();
-      await SimpleQueryEngine.findAllMainStructures(ast, 'typescript');
+      await TreeSitterQueryFacade.findAllMainStructures(ast, 'typescript');
       const endTime = performance.now();
       simpleMeasurements.push(endTime - startTime);
     }
@@ -262,7 +262,7 @@ export class PerformanceBenchmark {
 
     return {
       name: 'Engine Comparison',
-      description: 'SimpleQueryEngine vs TreeSitterQueryEngine',
+      description: 'TreeSitterQueryFacade vs TreeSitterQueryEngine',
       iterations,
       queryTypes,
       averageTime: simpleStats.averageTime,

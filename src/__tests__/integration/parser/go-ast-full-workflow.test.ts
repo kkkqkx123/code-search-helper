@@ -4,7 +4,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import * as fs from 'fs';
 import * as path from 'path';
 import { QueryLoader } from '../../../service/parser/core/query/QueryLoader';
-import { SimpleQueryEngine } from '../../../service/parser/core/query/TreeSitterQueryFacade';
+import { TreeSitterQueryFacade } from '../../../service/parser/core/query/TreeSitterQueryFacade';
 
 describe('Go AST Full Workflow Test', () => {
   let treeSitterService: TreeSitterService;
@@ -51,9 +51,9 @@ describe('Go AST Full Workflow Test', () => {
 
     logger.info('Parse result success:', parseResult.success);
 
-    // 使用SimpleQueryEngine提取函数
-    const functions = await SimpleQueryEngine.findFunctions(parseResult.ast, detectedLanguage?.name.toLowerCase() || 'go');
-    logger.info(`SimpleQueryEngine found ${functions.length} functions`);
+    // 使用TreeSitterQueryFacade提取函数
+    const functions = await TreeSitterQueryFacade.findFunctions(parseResult.ast, detectedLanguage?.name.toLowerCase() || 'go');
+    logger.info(`TreeSitterQueryFacade found ${functions.length} functions`);
     expect(functions.length).toBeGreaterThan(0);
 
     // 验证函数节点
@@ -104,9 +104,9 @@ describe('Go AST Full Workflow Test', () => {
     expect(parseResult.success).toBe(true);
     expect(parseResult.ast).toBeDefined();
 
-    // 使用SimpleQueryEngine提取类
-    const classes = await SimpleQueryEngine.findClasses(parseResult.ast, 'go');
-    logger.info(`SimpleQueryEngine found ${classes.length} classes`);
+    // 使用TreeSitterQueryFacade提取类
+    const classes = await TreeSitterQueryFacade.findClasses(parseResult.ast, 'go');
+    logger.info(`TreeSitterQueryFacade found ${classes.length} classes`);
 
     // 使用TreeSitterService提取类
     const serviceClasses = await treeSitterService.extractClasses(parseResult.ast, 'go');
