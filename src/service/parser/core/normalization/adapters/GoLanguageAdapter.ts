@@ -2,6 +2,23 @@ import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import {
+  CallRelationshipExtractor,
+  DataFlowRelationshipExtractor,
+  InheritanceRelationshipExtractor,
+  ConcurrencyRelationshipExtractor,
+  LifecycleRelationshipExtractor,
+  SemanticRelationshipExtractor,
+  ControlFlowRelationshipExtractor,
+  GoHelperMethods,
+  GO_NODE_TYPE_MAPPING,
+  GO_QUERY_TYPE_MAPPING,
+  GO_SUPPORTED_QUERY_TYPES,
+  GO_NAME_CAPTURES,
+  GO_BLOCK_NODE_TYPES,
+  GO_MODIFIERS,
+  GO_COMPLEXITY_KEYWORDS
+} from './go-utils';
 type StandardType = StandardizedQueryResult['type'];
 
 /**
@@ -11,225 +28,40 @@ type StandardType = StandardizedQueryResult['type'];
 export class GoLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
+  
+  // 关系提取器实例
+  private callExtractor: CallRelationshipExtractor;
+  private dataFlowExtractor: DataFlowRelationshipExtractor;
+  private inheritanceExtractor: InheritanceRelationshipExtractor;
+  private concurrencyExtractor: ConcurrencyRelationshipExtractor;
+  private lifecycleExtractor: LifecycleRelationshipExtractor;
+  private semanticExtractor: SemanticRelationshipExtractor;
+  private controlFlowExtractor: ControlFlowRelationshipExtractor;
 
   constructor(options: AdapterOptions = {}) {
     super(options);
+    
+    // 初始化关系提取器
+    this.callExtractor = new CallRelationshipExtractor();
+    this.dataFlowExtractor = new DataFlowRelationshipExtractor();
+    this.inheritanceExtractor = new InheritanceRelationshipExtractor();
+    this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
+    this.lifecycleExtractor = new LifecycleRelationshipExtractor();
+    this.semanticExtractor = new SemanticRelationshipExtractor();
+    this.controlFlowExtractor = new ControlFlowRelationshipExtractor();
   }
 
   getSupportedQueryTypes(): string[] {
-    return [
-      // Entity types
-      'functions-types',
-      'variables-imports',
-      'expressions-control-flow',
-      // Relationship types
-      'calls',
-      'data-flows',
-      'inheritance',
-      // Advanced relationship types
-      'concurrency-relationships',
-      'control-flow-relationships',
-      'lifecycle-relationships',
-      'semantic-relationships'
-    ];
+    return GO_SUPPORTED_QUERY_TYPES;
   }
 
   mapNodeType(nodeType: string): string {
-    const typeMapping: Record<string, string> = {
-      // Function related
-      'function_declaration': 'functionDeclaration',
-      'method_declaration': 'methodDeclaration',
-      'func_literal': 'lambdaExpression', // Anonymous functions
-      'function_type': 'typeAnnotation',
-
-      // Type related
-      'type_declaration': 'classDeclaration', // Go structs/interfaces as class-like
-      'struct_type': 'structDeclaration',
-      'interface_type': 'interfaceDeclaration',
-      'type_alias': 'typeAnnotation',
-      'type_identifier': 'propertyIdentifier',
-      'field_declaration': 'memberExpression',
-      'field_identifier': 'propertyIdentifier',
-      'qualified_type': 'typeAnnotation', // Qualified types (package.Type)
-
-      // Import related
-      'import_declaration': 'importDeclaration',
-      'import_spec': 'importDeclaration',
-      'package_clause': 'importDeclaration',
-      'dot': 'importDeclaration', // Dot import identifier
-
-      // Variable related
-      'var_declaration': 'variableDeclaration',
-      'var_spec': 'variableDeclaration',
-      'const_declaration': 'variableDeclaration',
-      'const_spec': 'variableDeclaration',
-      'assignment_statement': 'variableDeclaration',
-      'short_var_declaration': 'variableDeclaration',
-      'parameter_declaration': 'variableDeclaration',
-      'variadic_parameter_declaration': 'variableDeclaration',
-      'identifier': 'propertyIdentifier',
-
-      // Control flow - map to variableDeclaration since there's no control-flow category
-      'if_statement': 'variableDeclaration',
-      'for_statement': 'variableDeclaration',
-      'range_clause': 'variableDeclaration',
-      'select_statement': 'variableDeclaration',
-      'expression_case': 'variableDeclaration',
-      'default_case': 'variableDeclaration',
-      'type_case': 'variableDeclaration',
-      'type_switch_statement': 'variableDeclaration',
-      'return_statement': 'variableDeclaration',
-      'defer_statement': 'variableDeclaration',
-      'go_statement': 'variableDeclaration',
-      'break_statement': 'variableDeclaration',
-      'continue_statement': 'variableDeclaration',
-      'fallthrough_statement': 'variableDeclaration',
-      'block': 'variableDeclaration',
-      'labeled_statement': 'variableDeclaration', // Labeled statements
-
-      // Expressions
-      'call_expression': 'callExpression',
-      'selector_expression': 'memberExpression',
-      'composite_literal': 'variableDeclaration',
-      'slice_expression': 'variableDeclaration',
-      'index_expression': 'variableDeclaration',
-      'send_statement': 'variableDeclaration',
-      'unary_expression': 'variableDeclaration',
-      'binary_expression': 'variableDeclaration',
-      'type_assertion_expression': 'variableDeclaration',
-      'type_conversion_expression': 'variableDeclaration',
-      'expression_statement': 'variableDeclaration',
-      'parenthesized_expression': 'variableDeclaration',
-      'argument_list': 'variableDeclaration',
-      'expression_list': 'variableDeclaration',
-      'literal_value': 'variableDeclaration',
-      'keyed_element': 'variableDeclaration',
-      'literal_element': 'variableDeclaration',
-      'inc_statement': 'variableDeclaration', // Increment statements
-      'dec_statement': 'variableDeclaration', // Decrement statements
-      'variadic_argument': 'variableDeclaration', // Variadic arguments
-      'escape_sequence': 'variableDeclaration', // Escape sequences
-
-      // Literals
-      'int_literal': 'variableDeclaration',
-      'float_literal': 'variableDeclaration',
-      'interpreted_string_literal': 'variableDeclaration',
-      'raw_string_literal': 'variableDeclaration',
-      'rune_literal': 'variableDeclaration',
-
-      // Types
-      'array_type': 'typeAnnotation',
-      'slice_type': 'typeAnnotation',
-      'map_type': 'typeAnnotation',
-      'pointer_type': 'typeAnnotation',
-      'channel_type': 'typeAnnotation',
-      'type_parameter_list': 'genericTypes',
-
-      // Others
-      'comment': 'variableDeclaration',
-      'blank_identifier': 'variableDeclaration',
-      'iota': 'variableDeclaration',
-      'package_identifier': 'propertyIdentifier'
-    };
-
-    return typeMapping[nodeType] || 'variableDeclaration';
+    return GO_NODE_TYPE_MAPPING[nodeType] || 'variableDeclaration';
   }
 
   extractName(result: any): string {
     // 尝试从不同的捕获中提取名称
-    const nameCaptures = [
-      'name.definition.function',
-      'name.definition.method',
-      'name.definition.type',
-      'name.definition.interface',
-      'name.definition.struct',
-      'name.definition.var',
-      'name.definition.const',
-      'name.definition.import',
-      'name.definition.package',
-      'name.definition.call',
-      'name.definition.field',
-      'name.definition.field_identifier',
-      'name.definition.identifier',
-      'name.definition.type_identifier',
-      'name.definition.package_identifier',
-      'name.definition.test',
-      'name.definition.benchmark',
-      'name.definition.example',
-      'name.definition.selector',
-      'name.definition.composite_literal',
-      'name.definition.channel',
-      'name.definition.if',
-      'name.definition.for',
-      'name.definition.return',
-      'name.definition.defer',
-      'name.definition.goroutine',
-      'name.definition.block',
-      'name.definition.expression',
-      'name.definition.string_literal',
-      'name.definition.int_literal',
-      'name.definition.float_literal',
-      'name.definition.rune_literal',
-      'name.definition.comment',
-      'name.definition.type_alias',
-      'name.definition.func_literal',
-      'name.definition.function_type',
-      'name.definition.type_parameter_list',
-      'name.definition.generic_type',
-      'name.definition.field_declaration',
-      'name.definition.parameter',
-      'name.definition.variadic_parameter',
-      'name.definition.import_spec',
-      'name.definition.var_spec',
-      'name.definition.const_spec',
-      'name.definition.assignment',
-      'name.definition.short_var',
-      'name.definition.embedded_field',
-      'name.definition.qualified_embedded_field',
-      'name.definition.variadic',
-      'name.definition.blank_identifier',
-      'name.definition.iota',
-      'name.definition.dot_import',
-      'name.definition.import_path',
-      'name.definition.type_assertion',
-      'name.definition.type_conversion',
-      'name.definition.slice',
-      'name.definition.index',
-      'name.definition.send',
-      'name.definition.receive',
-      'name.definition.range',
-      'name.definition.select',
-      'name.definition.case',
-      'name.definition.default_case',
-      'name.definition.type_switch',
-      'name.definition.type_case',
-      'name.definition.binary',
-      'name.definition.unary',
-      'name.definition.inc',
-      'name.definition.dec',
-      'name.definition.raw_string_literal',
-      'name.definition.qualified_type',
-      'name.definition.array_type',
-      'name.definition.slice_type',
-      'name.definition.map_type',
-      'name.definition.pointer_type',
-      'name.definition.label',
-      'name.definition.break',
-      'name.definition.continue',
-      'name.definition.fallthrough',
-      'name.definition.parenthesized',
-      'name.definition.builtin',
-      'name.definition.generic_call',
-      'name.definition.variadic_argument',
-      'name.definition.argument_list',
-      'name.definition.expression_list',
-      'name.definition.literal_value',
-      'name.definition.keyed_element',
-      'name.definition.literal_element',
-      'name.definition.escape_sequence'
-    ];
-
-    for (const captureName of nameCaptures) {
+    for (const captureName of GO_NAME_CAPTURES) {
       const capture = result.captures?.find((c: any) => c.name === captureName);
       if (capture?.node?.text) {
         return capture.node.text;
@@ -244,13 +76,10 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     // 对于Go，尝试从特定字段提取名称
     const mainNode = result.captures?.[0]?.node;
     if (mainNode) {
-      // 尝试获取标识符
-      const identifier = mainNode.childForFieldName?.('identifier') ||
-                        mainNode.childForFieldName?.('type_identifier') ||
-                        mainNode.childForFieldName?.('field_identifier') ||
-                        mainNode.childForFieldName?.('package_identifier');
-      if (identifier?.text) {
-        return identifier.text;
+      // 使用辅助方法提取名称
+      const name = GoHelperMethods.extractNameFromNode(mainNode);
+      if (name) {
+        return name;
       }
 
       // 尝试获取name字段
@@ -345,10 +174,10 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
 
     // 检查是否是内置函数
     if (mainNode.type === 'call_expression') {
-      const funcNode = mainNode.childForFieldName?.('function') || 
+      const funcNode = mainNode.childForFieldName?.('function') ||
                       mainNode.childForFieldName?.('name') ||
                       (mainNode.children?.[0]?.type === 'identifier' ? mainNode.children[0] : null);
-      if (funcNode && this.isBuiltinFunction(funcNode.text)) {
+      if (funcNode && GoHelperMethods.isBuiltinFunction(funcNode.text)) {
         extra.isBuiltinCall = true;
       }
     }
@@ -357,23 +186,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
   }
 
   mapQueryTypeToStandardType(queryType: string): StandardType {
-    const mapping: Record<string, StandardType> = {
-      'functions-types': 'function',
-      'variables-imports': 'variable',
-      'expressions-control-flow': 'expression',
-      
-      // 关系类型
-      'calls': 'call',
-      'data-flows': 'data-flow',
-      'inheritance': 'inheritance',
-      // ... 其他关系类型
-      'concurrency-relationships': 'concurrency',
-      'control-flow-relationships': 'control-flow',
-      'lifecycle-relationships': 'lifecycle',
-      'semantic-relationships': 'semantic'
-    };
-    
-    return mapping[queryType] || 'expression';
+    return GO_QUERY_TYPE_MAPPING[queryType] as StandardType || 'expression';
   }
 
   calculateComplexity(result: any): number {
@@ -392,16 +205,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
 
     // Go特定复杂度因素
     const text = this.extractContent(result);
-    if (text.includes('goroutine') || text.includes('go ')) complexity += 1; // Goroutines
-    if (text.includes('channel') || text.includes('<-')) complexity += 1; // Channels
-    if (text.includes('select')) complexity += 1; // Select statements
-    if (text.includes('interface{}')) complexity += 1; // Empty interface
-    if (text.includes('defer')) complexity += 1; // Defer statements
-    if (text.includes('range')) complexity += 1; // Range loops
-    if (text.includes('panic') || text.includes('recover')) complexity += 1; // Error handling
-    if (text.includes('context')) complexity += 1; // Context usage
-    if (text.includes('mutex') || text.includes('sync')) complexity += 1; // Synchronization
-    if (text.includes('error')) complexity += 0.5; // Error handling
+    for (const keyword of GO_COMPLEXITY_KEYWORDS) {
+      if (new RegExp(keyword.pattern).test(text)) {
+        complexity += keyword.weight;
+      }
+    }
 
     return complexity;
   }
@@ -414,26 +222,12 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       return dependencies;
     }
 
-    // 首先检查捕获中的依赖项
-    if (result.captures && Array.isArray(result.captures)) {
-      for (const capture of result.captures) {
-        if (capture.name && capture.name.includes('import') && capture.node?.text) {
-          // 提取导入的包
-          const importText = capture.node.text;
-          // 例如从 "import \"fmt\"" 提取包名
-          const packageMatch = importText.match(/["']([^"']+)["']/);
-          if (packageMatch) {
-            dependencies.push(packageMatch[1]);
-          }
-        }
-      }
-    }
-
-    // 查找类型引用
-    this.findTypeReferences(mainNode, dependencies);
-
-    // 查找函数调用引用
-    this.findFunctionCalls(mainNode, dependencies);
+    // 使用辅助方法查找依赖
+    GoHelperMethods.findPackageDependencies(mainNode, dependencies);
+    GoHelperMethods.findTypeReferences(mainNode, dependencies);
+    GoHelperMethods.findFunctionCalls(mainNode, dependencies);
+    GoHelperMethods.findDataFlowDependencies(mainNode, dependencies);
+    GoHelperMethods.findConcurrencyDependencies(mainNode, dependencies);
 
     return [...new Set(dependencies)]; // 去重
   }
@@ -444,461 +238,170 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     // 使用extractContent方法获取内容，这样可以正确处理mock的情况
     const text = this.extractContent(result);
     
-    // Go特定的修饰符/特性
-    if (text.includes('func')) modifiers.push('function');
-    if (text.includes('type')) modifiers.push('type');
-    if (text.includes('interface')) modifiers.push('interface');
-    if (text.includes('struct')) modifiers.push('struct');
-    if (text.includes('var')) modifiers.push('variable');
-    if (text.includes('const')) modifiers.push('constant');
-    if (text.includes('import')) modifiers.push('import');
-    if (text.includes('package')) modifiers.push('package');
-    
-    // Go并发特性
-    if (text.includes('go ')) modifiers.push('goroutine');
-    if (text.includes('<-')) modifiers.push('channel');
-    if (text.includes('select')) modifiers.push('select');
-    if (text.includes('defer')) modifiers.push('defer');
-    if (text.includes('range')) modifiers.push('range');
-    
-    // Go错误处理特性
-    if (text.includes('error')) modifiers.push('error-handling');
-    if (text.includes('panic')) modifiers.push('panic');
-    if (text.includes('recover')) modifiers.push('recover');
-    
-    // Go包导出特性
-    if (text.match(/\b[A-Z]\w*/)) modifiers.push('exported'); // Exported identifiers start with capital letter
-    
-    // Go特殊标识符
-    if (text.includes('_')) modifiers.push('blank-identifier');
-    if (text.includes('iota')) modifiers.push('iota');
+    // 使用预定义的修饰符列表
+    for (const modifier of GO_MODIFIERS) {
+      if (modifier === 'exported') {
+        // 特殊处理导出标识符
+        if (text.match(/\b[A-Z]\w*/)) {
+          modifiers.push(modifier);
+        }
+      } else if (modifier === 'goroutine') {
+        // 特殊处理goroutine
+        if (text.includes('go ')) {
+          modifiers.push(modifier);
+        }
+      } else if (modifier === 'channel') {
+        // 特殊处理channel
+        if (text.includes('<-')) {
+          modifiers.push(modifier);
+        }
+      } else if (text.includes(modifier)) {
+        modifiers.push(modifier);
+      }
+    }
     
     return modifiers;
   }
 
-  // Go特定的辅助方法
-
-  private isBuiltinFunction(funcName: string): boolean {
-    const builtinFunctions = [
-      'append', 'cap', 'close', 'complex', 'copy', 'delete', 'imag', 'len', 
-      'make', 'new', 'panic', 'print', 'println', 'real', 'recover'
-    ];
-    return builtinFunctions.includes(funcName);
-  }
-
-  private findFunctionCalls(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找函数调用
-      if (child.type === 'call_expression') {
-        const funcNode = child.childForFieldName?.('function') || 
-                        child.childForFieldName?.('name') ||
-                        (child.children?.[0] || null);
-        if (funcNode?.text) {
-          dependencies.push(funcNode.text);
-        }
-      } else if (child.type === 'identifier' && child.text) {
-        // Also add identifiers that might be function calls
-        dependencies.push(child.text);
-      }
-      
-      this.findFunctionCalls(child, dependencies);
-    }
-  }
-
-  // 重写isBlockNode方法以支持Go特定的块节点类型
-  protected isBlockNode(node: any): boolean {
-    const goBlockTypes = [
-      'block', 'function_declaration', 'method_declaration', 'func_literal',
-      'if_statement', 'for_statement', 'switch_statement', 'select_statement',
-      'type_switch_statement', 'block'
-    ];
-    return goBlockTypes.includes(node.type) || super.isBlockNode(node);
-  }
-
-  // Go特定的数据流关系提取
+  // 高级关系提取方法 - 委托给专门的提取器
   extractDataFlowRelationships(result: any): Array<{
     source: string;
     target: string;
     type: 'assignment' | 'parameter' | 'return';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'assignment' | 'parameter' | 'return';
-    }> = [];
-    const mainNode = result.captures?.[0]?.node;
-
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 从捕获中查找数据流关系
-    for (const capture of result.captures || []) {
-      if (capture.name.includes('source.variable')) {
-        const source = capture.node?.text || '';
-        const targetCapture = result.captures?.find((c: any) => c.name.includes('target.variable'));
-        const target = targetCapture?.node?.text || '';
-
-        if (source && target) {
-          relationships.push({
-            source,
-            target,
-            type: 'assignment'
-          });
-        }
-      } else if (capture.name.includes('source.parameter')) {
-        const source = capture.node?.text || '';
-        const targetCapture = result.captures?.find((c: any) => c.name.includes('target.function'));
-        const target = targetCapture?.node?.text || '';
-
-        if (source && target) {
-          relationships.push({
-            source,
-            target,
-            type: 'parameter'
-          });
-        }
-      } else if (capture.name.includes('source.variable') && result.captures?.some((c: any) => c.name.includes('data.flow.return'))) {
-        const source = capture.node?.text || '';
-        
-        relationships.push({
-          source,
-          target: result.captures?.[0]?.node?.parent?.childForFieldName?.('name')?.text || 'unknown',
-          type: 'return'
-        });
-      }
-    }
-
-    return relationships;
+    const relationships = this.dataFlowExtractor.extractDataFlowRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapDataFlowType(rel.type)
+    }));
   }
 
-  // Go特定的控制流关系提取
   extractControlFlowRelationships(result: any): Array<{
     source: string;
     target: string;
     type: 'conditional' | 'loop' | 'exception' | 'callback';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'conditional' | 'loop' | 'exception' | 'callback';
-    }> = [];
-    const mainNode = result.captures?.[0]?.node;
-
-    if (!mainNode) {
-      return relationships;
-    }
-
-    const nodeType = mainNode.type;
-    
-    // 根据节点类型确定控制流类型
-    let controlFlowType: 'conditional' | 'loop' | 'exception' | 'callback' | null = null;
-    if (nodeType.includes('if')) {
-      controlFlowType = 'conditional';
-    } else if (nodeType.includes('for') || nodeType.includes('range')) {
-      controlFlowType = 'loop';
-    } else if (nodeType.includes('select')) {
-      controlFlowType = 'exception'; // Using exception for select which handles communication errors
-    }
-
-    if (controlFlowType) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('source.condition') || capture.name.includes('source.loop')) {
-          const source = capture.node?.text || '';
-          const targetCapture = result.captures?.find((c: any) => 
-            c.name.includes('target.then') || 
-            c.name.includes('target.loop') || 
-            c.name.includes('target.case')
-          );
-          const target = targetCapture?.node?.text || '';
-
-          if (source && target) {
-            relationships.push({
-              source,
-              target,
-              type: controlFlowType
-            });
-          }
-        }
-      }
-    }
-
-    return relationships;
+    const relationships = this.controlFlowExtractor.extractControlFlowRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapControlFlowType(rel.type)
+    }));
   }
 
-  // Go特定的语义关系提取
   extractSemanticRelationships(result: any): Array<{
     source: string;
     target: string;
     type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
-    }> = [];
-    const mainNode = result.captures?.[0]?.node;
-
-    if (!mainNode) {
-      return relationships;
-    }
-
-    const nodeType = mainNode.type;
-    
-    // Go中没有传统意义上的方法重写，但可以有接口实现
-    if (nodeType.includes('type_declaration') && mainNode.text.includes('interface')) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('implementing.type')) {
-          const source = capture.node?.text || '';
-          const targetCapture = result.captures?.find((c: any) => c.name.includes('implemented.interface'));
-          const target = targetCapture?.node?.text || '';
-
-          if (source && target) {
-            relationships.push({
-              source,
-              target,
-              type: 'configures' // Using configures for interface implementation
-            });
-          }
-        }
-      }
-    }
-    // 函数赋值可以看作是委托关系
-    else if (nodeType.includes('assignment') && mainNode.text.includes('func')) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('source.variable')) {
-          const source = capture.node?.text || '';
-          const targetCapture = result.captures?.find((c: any) => c.name.includes('target.function'));
-          const target = targetCapture?.node?.text || '';
-
-          if (source && target) {
-            relationships.push({
-              source,
-              target,
-              type: 'delegates'
-            });
-          }
-        }
-      }
-    }
-
-    return relationships;
+    const relationships = this.semanticExtractor.extractSemanticRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapSemanticType(rel.type)
+    }));
   }
 
-  // Go特定的生命周期关系提取
   extractLifecycleRelationships(result: any): Array<{
     source: string;
     target: string;
     type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
-    }> = [];
-    const mainNode = result.captures?.[0]?.node;
-
-    if (!mainNode) {
-      return relationships;
-    }
-
-    const nodeType = mainNode.type;
-    
-    // 检查对象实例化（使用make/new函数）
-    if (nodeType.includes('call_expression') && 
-        (mainNode.text.includes('make') || mainNode.text.includes('new'))) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('allocated.type') || capture.name.includes('constructed.type')) {
-          const target = capture.node?.text || '';
-          const sourceCapture = result.captures?.find((c: any) => 
-            c.name.includes('initialized.variable') || 
-            c.name.includes('constructor.function'));
-          const source = sourceCapture?.node?.text || 'unknown';
-
-          if (source && target) {
-            relationships.push({
-              source,
-              target,
-              type: 'instantiates'
-            });
-          }
-        }
-      }
-    }
-    // 检查defer语句（资源清理）
-    else if (nodeType.includes('defer_statement')) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('cleanup.function')) {
-          const source = capture.node?.text || '';
-          
-          relationships.push({
-            source,
-            target: 'resource',
-            type: 'destroys' // Using destroys for cleanup functions
-          });
-        }
-      }
-    }
-    // 检查资源管理（如文件关闭）
-    else if (nodeType.includes('call_expression') && mainNode.text.includes('Close')) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('file.object') || capture.name.includes('connection.object')) {
-          const source = capture.node?.text || '';
-          
-          relationships.push({
-            source,
-            target: 'resource',
-            type: 'destroys'
-          });
-        }
-      }
-    }
-    // 检查初始化
-    else if (nodeType.includes('var_declaration') || nodeType.includes('short_var_declaration')) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('initialized.variable')) {
-          const source = capture.node?.text || '';
-          const valueCapture = result.captures?.find((c: any) => c.name.includes('initial.value'));
-          const target = valueCapture?.node?.text || '';
-
-          if (source && target) {
-            relationships.push({
-              source,
-              target,
-              type: 'initializes'
-            });
-          }
-        }
-      }
-    }
-
-    return relationships;
+    const relationships = this.lifecycleExtractor.extractLifecycleRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapLifecycleType(rel.type)
+    }));
   }
 
-  // Go特定的并发关系提取
   extractConcurrencyRelationships(result: any): Array<{
     source: string;
     target: string;
     type: 'synchronizes' | 'locks' | 'communicates' | 'races';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-    }> = [];
-    const mainNode = result.captures?.[0]?.node;
-
-    if (!mainNode) {
-      return relationships;
-    }
-
-    const nodeType = mainNode.type;
-    
-    // 检查Goroutine创建
-    if (nodeType.includes('go_statement')) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('goroutine.function')) {
-          const source = capture.node?.text || '';
-          
-          relationships.push({
-            source,
-            target: 'goroutine',
-            type: 'communicates'
-          });
-        }
-      }
-    }
-    // 检查Channel操作
-    else if (nodeType.includes('send_statement')) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('source.value')) {
-          const source = capture.node?.text || '';
-          const targetCapture = result.captures?.find((c: any) => c.name.includes('target.channel'));
-          const target = targetCapture?.node?.text || '';
-
-          if (source && target) {
-            relationships.push({
-              source,
-              target,
-              type: 'communicates'
-            });
-          }
-        }
-      }
-    }
-    // 检查Channel接收
-    else if (nodeType.includes('unary_expression') && mainNode.text.includes('<-')) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('source.channel')) {
-          const source = capture.node?.text || '';
-          
-          relationships.push({
-            source,
-            target: 'channel',
-            type: 'communicates'
-          });
-        }
-      }
-    }
-    // 检查Mutex操作
-    else if (nodeType.includes('call_expression') && 
-             (mainNode.text.includes('Lock') || mainNode.text.includes('Unlock'))) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('mutex.object')) {
-          const source = capture.node?.text || '';
-          
-          relationships.push({
-            source,
-            target: 'mutex',
-            type: 'synchronizes'
-          });
-        }
-      }
-    }
-    // 检查select语句（通信同步）
-    else if (nodeType.includes('select_statement')) {
-      relationships.push({
-        source: 'select_statement',
-        target: 'communication',
-        type: 'synchronizes'
-      });
-    }
-    // 检查WaitGroup操作
-    else if (nodeType.includes('call_expression') && 
-             (mainNode.text.includes('Add') || mainNode.text.includes('Done') || mainNode.text.includes('Wait'))) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('waitgroup.object')) {
-          const source = capture.node?.text || '';
-          
-          relationships.push({
-            source,
-            target: 'waitgroup',
-            type: 'synchronizes'
-          });
-        }
-      }
-    }
-    // 检查可能的竞态条件
-    else if (nodeType.includes('assignment_statement') && result.captures?.some((c: any) => c.name.includes('race.condition'))) {
-      for (const capture of result.captures || []) {
-        if (capture.name.includes('shared.object') || capture.name.includes('shared.field')) {
-          const source = capture.node?.text || '';
-          
-          relationships.push({
-            source,
-            target: 'shared_resource',
-            type: 'races'
-          });
-        }
-      }
-    }
-
-    return relationships;
+    const relationships = this.concurrencyExtractor.extractConcurrencyRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapConcurrencyType(rel.type)
+    }));
   }
+
+  // 类型映射辅助方法
+  private mapDataFlowType(type: string): 'assignment' | 'parameter' | 'return' {
+    switch (type) {
+      case 'variable_assignment': return 'assignment';
+      case 'parameter_passing': return 'parameter';
+      case 'return_value': return 'return';
+      case 'field_access': return 'assignment';
+      case 'channel_operation': return 'assignment';
+      default: return 'assignment';
+    }
+  }
+
+  private mapControlFlowType(type: string): 'conditional' | 'loop' | 'exception' | 'callback' {
+    switch (type) {
+      case 'conditional': return 'conditional';
+      case 'loop': return 'loop';
+      case 'exception': return 'exception';
+      case 'callback': return 'callback';
+      case 'select': return 'exception';
+      case 'switch': return 'conditional';
+      case 'jump': return 'exception';
+      default: return 'conditional';
+    }
+  }
+
+  private mapSemanticType(type: string): 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures' {
+    switch (type) {
+      case 'overrides': return 'overrides';
+      case 'overloads': return 'overloads';
+      case 'delegates': return 'delegates';
+      case 'observes': return 'observes';
+      case 'configures': return 'configures';
+      case 'implements': return 'configures';
+      case 'decorates': return 'delegates';
+      case 'composes': return 'delegates';
+      default: return 'configures';
+    }
+  }
+
+  private mapLifecycleType(type: string): 'instantiates' | 'initializes' | 'destroys' | 'manages' {
+    switch (type) {
+      case 'instantiates': return 'instantiates';
+      case 'initializes': return 'initializes';
+      case 'destroys': return 'destroys';
+      case 'manages': return 'manages';
+      case 'allocates': return 'instantiates';
+      case 'releases': return 'destroys';
+      default: return 'manages';
+    }
+  }
+
+  private mapConcurrencyType(type: string): 'synchronizes' | 'locks' | 'communicates' | 'races' {
+    switch (type) {
+      case 'synchronizes': return 'synchronizes';
+      case 'locks': return 'locks';
+      case 'communicates': return 'communicates';
+      case 'races': return 'races';
+      case 'waits': return 'synchronizes';
+      case 'coordinates': return 'communicates';
+      default: return 'synchronizes';
+    }
+  }
+
+  // 重写isBlockNode方法以支持Go特定的块节点类型
+  protected isBlockNode(node: any): boolean {
+    return GO_BLOCK_NODE_TYPES.includes(node.type) || super.isBlockNode(node);
+  }
+
 
   // 重写normalize方法以集成nodeId生成和符号信息
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
@@ -1056,17 +559,19 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
 
     switch (standardType) {
       case 'call':
-        return this.extractCallMetadata(result, astNode);
+        return this.callExtractor.extractCallMetadata(result, astNode, this.symbolTable);
       case 'data-flow':
-        return this.extractDataFlowMetadata(result, astNode);
+        return this.dataFlowExtractor.extractDataFlowMetadata(result, astNode, this.symbolTable);
       case 'inheritance':
-        return this.extractInheritanceMetadata(result, astNode);
+        return this.inheritanceExtractor.extractInheritanceMetadata(result, astNode, this.symbolTable);
       case 'concurrency':
-        return this.extractConcurrencyMetadata(result, astNode);
+        return this.concurrencyExtractor.extractConcurrencyMetadata(result, astNode, this.symbolTable);
       case 'lifecycle':
-        return this.extractLifecycleMetadata(result, astNode);
+        return this.lifecycleExtractor.extractLifecycleMetadata(result, astNode, this.symbolTable);
       case 'semantic':
-        return this.extractSemanticMetadata(result, astNode);
+        return this.semanticExtractor.extractSemanticMetadata(result, astNode, this.symbolTable);
+      case 'control-flow':
+        return this.controlFlowExtractor.extractControlFlowMetadata(result, astNode, this.symbolTable);
       default:
         return null;
     }
