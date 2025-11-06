@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
 import Parser from 'tree-sitter';
 import { TreeSitterUtils } from '../../utils/TreeSitterUtils';
+import { FallbackExtractor } from '../../utils/FallbackExtractor';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { LanguageDetector } from '../language-detection/LanguageDetector';
@@ -259,9 +260,9 @@ export class TreeSitterCoreService {
 
     this.cacheStats.misses++;
 
-    // 对于同步方法，直接使用 TreeSitterUtils 作为主要实现
+    // 对于同步方法，使用 FallbackExtractor 作为主要实现
     // TreeSitterQueryFacade 主要用于异步查询场景
-    const nodes = TreeSitterUtils.findNodeByType(ast, type);
+    const nodes = FallbackExtractor.extractNodesByTypes(ast, new Set([type]));
 
     // 缓存结果
     if (this.dynamicManager['nodeCache']) {
@@ -287,7 +288,7 @@ export class TreeSitterCoreService {
 
     this.cacheStats.misses++;
 
-    // 优先使用 TreeSitterQueryFacade，它内置回退机制
+    // 优先使用 TreeSitterQueryFacade
     const lang = this.detectLanguageFromAST(ast);
     if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
       try {
@@ -301,12 +302,12 @@ export class TreeSitterCoreService {
 
         return nodes;
       } catch (error) {
-        this.logger.warn('异步查询失败，回退到 TreeSitterUtils:', error);
+        this.logger.warn('异步查询失败，回退到 FallbackExtractor:', error);
       }
     }
 
-    // 回退到 TreeSitterUtils
-    const nodes = TreeSitterUtils.findNodeByType(ast, type);
+    // 回退到 FallbackExtractor
+    const nodes = FallbackExtractor.extractNodesByTypes(ast, new Set([type]));
 
     // 缓存结果
     if (this.dynamicManager['nodeCache']) {
@@ -407,40 +408,29 @@ export class TreeSitterCoreService {
         }
       }
 
-      if (!lang) {
-        this.logger.warn('无法检测语言，使用回退机制');
-        return this.legacyExtractFunctions(ast);
-      }
-
-      this.logger.debug(`使用语言参数: ${lang}`);
+      this.logger.debug(`使用语言参数: ${lang || '未知'}`);
 
       // 使用优化后的查询系统
-      if (this.useOptimizedQueries && this.querySystemInitialized) {
+      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
         try {
           const result = await TreeSitterQueryFacade.findFunctions(ast, lang);
-          // 如果优化查询系统返回空结果，尝试使用回退机制
+          // 如果优化查询系统返回空结果，使用 FallbackExtractor
           if (result.length === 0) {
-            this.logger.warn('优化查询系统返回空结果，尝试回退机制');
-            return this.legacyExtractFunctions(ast);
+            this.logger.warn('优化查询系统返回空结果，使用 FallbackExtractor');
+            return await FallbackExtractor.extractFunctions(ast, lang);
           }
           return result;
         } catch (error) {
-          this.logger.warn('优化查询系统失败，回退到动态管理器:', error);
-          return await this.dynamicManager.extractFunctions(ast, lang);
+          this.logger.warn('优化查询系统失败，使用 FallbackExtractor:', error);
+          return await FallbackExtractor.extractFunctions(ast, lang);
         }
       }
 
-      // 使用动态管理器提取
-      const dynamicResult = await this.dynamicManager.extractFunctions(ast, lang);
-      // 如果动态管理器返回空结果，尝试使用回退机制
-      if (dynamicResult.length === 0) {
-        this.logger.warn('动态管理器返回空结果，尝试回退机制');
-        return this.legacyExtractFunctions(ast);
-      }
-      return dynamicResult;
+      // 直接使用 FallbackExtractor（包含语言特定查询和回退机制）
+      return await FallbackExtractor.extractFunctions(ast, lang);
     } catch (error) {
       this.logger.error('函数提取失败:', error);
-      return this.legacyExtractFunctions(ast);
+      return await FallbackExtractor.extractFunctions(ast, language);
     }
   }
 
@@ -459,62 +449,70 @@ export class TreeSitterCoreService {
         }
       }
 
-      if (!lang) {
-        this.logger.warn('无法检测语言，使用回退机制');
-        return this.legacyExtractClasses(ast);
-      }
-
-      this.logger.debug(`使用语言参数: ${lang}`);
+      this.logger.debug(`使用语言参数: ${lang || '未知'}`);
 
       // 使用优化后的查询系统
-      if (this.useOptimizedQueries && this.querySystemInitialized) {
+      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
         try {
           const result = await TreeSitterQueryFacade.findClasses(ast, lang);
-          // 如果优化查询系统返回空结果，尝试使用回退机制
+          // 如果优化查询系统返回空结果，使用 FallbackExtractor
           if (result.length === 0) {
-            this.logger.warn('优化查询系统返回空结果，尝试回退机制');
-            return this.legacyExtractClasses(ast);
+            this.logger.warn('优化查询系统返回空结果，使用 FallbackExtractor');
+            return await FallbackExtractor.extractClasses(ast, lang);
           }
           return result;
         } catch (error) {
-          this.logger.warn('优化查询系统失败，回退到动态管理器:', error);
-          return await this.dynamicManager.extractClasses(ast, lang);
+          this.logger.warn('优化查询系统失败，使用 FallbackExtractor:', error);
+          return await FallbackExtractor.extractClasses(ast, lang);
         }
       }
 
-      // 使用动态管理器提取
-      const dynamicResult = await this.dynamicManager.extractClasses(ast, lang);
-      // 如果动态管理器返回空结果，尝试使用回退机制
-      if (dynamicResult.length === 0) {
-        this.logger.warn('动态管理器返回空结果，尝试回退机制');
-        return this.legacyExtractClasses(ast);
-      }
-      return dynamicResult;
+      // 直接使用 FallbackExtractor（包含语言特定查询和回退机制）
+      return await FallbackExtractor.extractClasses(ast, lang);
     } catch (error) {
       this.logger.error('类提取失败:', error);
-      return this.legacyExtractClasses(ast);
+      return await FallbackExtractor.extractClasses(ast, language);
     }
   }
 
   /**
    * 提取导入 - 使用优化后的查询系统
-   * TreeSitterQueryFacade 现在内置了回退机制，无需手动处理回退逻辑
    */
   async extractImports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
-      const lang = language || this.detectLanguageFromAST(ast);
+      let lang = language;
 
-      // 优先使用优化后的查询系统，TreeSitterQueryFacade 内置回退机制
-      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
-        return await TreeSitterQueryFacade.findImports(ast, lang);
+      // 如果没有提供语言参数，尝试从AST检测
+      if (!lang) {
+        const detectedLang = this.detectLanguageFromAST(ast);
+        if (detectedLang) {
+          lang = detectedLang;
+        }
       }
 
-      // 如果语言检测失败或查询系统未初始化，直接使用 TreeSitterQueryFacade（它会自动回退）
-      return await TreeSitterQueryFacade.findImports(ast, lang || 'unknown');
+      this.logger.debug(`使用语言参数: ${lang || '未知'}`);
+
+      // 使用优化后的查询系统
+      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
+        try {
+          const result = await TreeSitterQueryFacade.findImports(ast, lang);
+          // 如果优化查询系统返回空结果，使用 FallbackExtractor
+          if (result.length === 0) {
+            this.logger.warn('优化查询系统返回空结果，使用 FallbackExtractor');
+            return await FallbackExtractor.extractImports(ast, lang);
+          }
+          return result;
+        } catch (error) {
+          this.logger.warn('优化查询系统失败，使用 FallbackExtractor:', error);
+          return await FallbackExtractor.extractImports(ast, lang);
+        }
+      }
+
+      // 直接使用 FallbackExtractor（包含语言特定查询和回退机制）
+      return await FallbackExtractor.extractImports(ast, lang);
     } catch (error) {
       this.logger.error('导入提取失败:', error);
-      // 最后的回退保障
-      return TreeSitterUtils.extractImportNodes(ast);
+      return await FallbackExtractor.extractImports(ast, language);
     }
   }
 
@@ -523,30 +521,39 @@ export class TreeSitterCoreService {
    */
   async extractExports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
-      const lang = language || this.detectLanguageFromAST(ast);
-      if (!lang) {
-        this.logger.warn('无法检测语言，使用回退机制');
-        return this.legacyExtractExports(ast);
-      }
+      let lang = language;
 
-      // 使用优化后的查询系统
-      if (this.useOptimizedQueries && this.querySystemInitialized) {
-        try {
-          return await TreeSitterQueryFacade.findExports(ast, lang);
-        } catch (error) {
-          this.logger.warn('优化查询系统失败，回退到动态管理器:', error);
-          // 转换动态管理器的字符串结果为节点数组
-          const exportStrings = await this.dynamicManager.extractExports(ast, '', lang);
-          return this.convertExportStringsToNodes(exportStrings, ast);
+      // 如果没有提供语言参数，尝试从AST检测
+      if (!lang) {
+        const detectedLang = this.detectLanguageFromAST(ast);
+        if (detectedLang) {
+          lang = detectedLang;
         }
       }
 
-      // 使用动态管理器提取并转换结果
-      const exportStrings = await this.dynamicManager.extractExports(ast, '', lang);
-      return this.convertExportStringsToNodes(exportStrings, ast);
+      this.logger.debug(`使用语言参数: ${lang || '未知'}`);
+
+      // 使用优化后的查询系统
+      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
+        try {
+          const result = await TreeSitterQueryFacade.findExports(ast, lang);
+          // 如果优化查询系统返回空结果，使用 FallbackExtractor
+          if (result.length === 0) {
+            this.logger.warn('优化查询系统返回空结果，使用 FallbackExtractor');
+            return await FallbackExtractor.extractExports(ast, lang);
+          }
+          return result;
+        } catch (error) {
+          this.logger.warn('优化查询系统失败，使用 FallbackExtractor:', error);
+          return await FallbackExtractor.extractExports(ast, lang);
+        }
+      }
+
+      // 直接使用 FallbackExtractor（包含语言特定查询和回退机制）
+      return await FallbackExtractor.extractExports(ast, lang);
     } catch (error) {
       this.logger.error('导出提取失败:', error);
-      return this.legacyExtractExports(ast);
+      return await FallbackExtractor.extractExports(ast, language);
     }
   }
 
@@ -591,14 +598,16 @@ export class TreeSitterCoreService {
    * 获取节点名称
    */
   getNodeName(node: Parser.SyntaxNode): string {
-    return TreeSitterUtils.getNodeName(node);
+    // 尝试从AST检测语言
+    const language = this.detectLanguageFromAST(node);
+    return FallbackExtractor.getNodeName(node, language || undefined);
   }
 
   /**
    * 提取导入节点 - 同步版本
    */
   extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    return TreeSitterUtils.extractImportNodes(ast);
+    return FallbackExtractor.extractImportNodes(ast);
   }
 
   /**
@@ -612,12 +621,12 @@ export class TreeSitterCoreService {
       try {
         return await TreeSitterQueryFacade.findImports(ast, lang);
       } catch (error) {
-        this.logger.warn('异步导入提取失败，回退到 TreeSitterUtils:', error);
+        this.logger.warn('异步导入提取失败，回退到 FallbackExtractor:', error);
       }
     }
 
-    // 回退到 TreeSitterUtils
-    return TreeSitterUtils.extractImportNodes(ast);
+    // 回退到 FallbackExtractor
+    return FallbackExtractor.extractImportNodes(ast);
   }
 
   /**

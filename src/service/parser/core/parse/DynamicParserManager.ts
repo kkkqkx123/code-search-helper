@@ -8,6 +8,7 @@ import { languageExtensionMap } from '../../utils';
 import { LanguageDetectionService } from '../../processing/detection/LanguageDetectionService';
 import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
 import { languageMappingManager } from '../../config/LanguageMappingManager';
+import { FallbackExtractor } from '../../utils/FallbackExtractor';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -254,7 +255,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
     const lang = language || this.detectLanguageFromAST(ast);
     if (!lang) {
       this.logger.warn('无法检测语言，使用回退机制');
-      return this.legacyExtractFunctions(ast);
+      return FallbackExtractor.extractFunctions(ast);
     }
 
     try {
@@ -265,7 +266,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
       const functionQuery = await QueryRegistryImpl.getPattern(lang, 'functions');
       if (!functionQuery) {
         this.logger.warn(`未找到 ${lang} 语言的函数查询模式，使用回退机制`);
-        return this.legacyExtractFunctions(ast);
+        return FallbackExtractor.extractFunctions(ast, lang);
       }
 
       const parser = await this.getParser(lang);
@@ -282,7 +283,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
       return functions;
     } catch (error) {
       this.logger.error('函数提取失败:', error);
-      return this.legacyExtractFunctions(ast);
+      return FallbackExtractor.extractFunctions(ast, lang);
     }
   }
 
@@ -293,7 +294,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
     const lang = language || this.detectLanguageFromAST(ast);
     if (!lang) {
       this.logger.warn('无法检测语言，使用回退机制');
-      return this.legacyExtractClasses(ast);
+      return FallbackExtractor.extractClasses(ast);
     }
 
     try {
@@ -304,7 +305,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
       const classQuery = await QueryRegistryImpl.getPattern(lang, 'classes');
       if (!classQuery) {
         this.logger.warn(`未找到 ${lang} 语言的类查询模式，使用回退机制`);
-        return this.legacyExtractClasses(ast);
+        return FallbackExtractor.extractClasses(ast, lang);
       }
 
       const parser = await this.getParser(lang);
@@ -325,7 +326,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
       return classes;
     } catch (error) {
       this.logger.error('类提取失败:', error);
-      return this.legacyExtractClasses(ast);
+      return FallbackExtractor.extractClasses(ast, lang);
     }
   }
 
@@ -346,7 +347,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
       const exportQuery = await QueryRegistryImpl.getPattern(lang, 'exports');
       if (!exportQuery) {
         this.logger.warn(`未找到 ${lang} 语言的导出查询模式，使用回退机制`);
-        return this.legacyExtractExports(ast, sourceCode);
+        return FallbackExtractor.extractImportTexts(ast, sourceCode);
       }
 
       const parser = await this.getParser(lang);

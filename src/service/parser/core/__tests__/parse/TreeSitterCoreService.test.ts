@@ -1,6 +1,7 @@
 import Parser from 'tree-sitter';
 import { TreeSitterCoreService, ParserLanguage, ParseResult } from '../../parse/TreeSitterCoreService';
 import { TreeSitterUtils } from '../../../utils/TreeSitterUtils';
+import { FallbackExtractor } from '../../../utils/FallbackExtractor';
 
 describe('TreeSitterCoreService', () => {
   let treeSitterService: TreeSitterCoreService;
