@@ -433,5 +433,103 @@ describe('FileHashManagerImpl', () => {
       expect((fileHashManager as any).cacheHitCount).toBe(0);
       expect((fileHashManager as any).cacheMissCount).toBe(0);
     });
- });
+  });
+
+  describe('renameFile', () => {
+    it('should rename file hash in database and memory cache', async () => {
+      const projectId = 'test-project';
+      const oldPath = '/path/to/oldFile.ts';
+      const newPath = '/path/to/newFile.ts';
+      const testHash = 'testhash123';
+
+      // Mock database update result
+      mockRun.mockReturnValue({ changes: 1 });
+
+      // Add entry to memory cache for old path
+      const oldCacheKey = `${projectId}:${oldPath}`;
+      const cacheEntry: FileHashEntry = {
+        projectId,
+        filePath: oldPath,
+        hash: testHash,
+        lastModified: new Date(),
+        fileSize: 1024,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      (fileHashManager as any).memoryCache.set(oldCacheKey, cacheEntry);
+
+      await fileHashManager.renameFile(projectId, oldPath, newPath);
+
+      // Verify database update
+      expect(mockPrepare).toHaveBeenCalledWith(expect.stringContaining('UPDATE file_index_states'));
+      expect(mockRun).toHaveBeenCalledWith(newPath, newPath, projectId, oldPath);
+
+      // Verify memory cache update
+      expect((fileHashManager as any).memoryCache.has(oldCacheKey)).toBe(false);
+      const newCacheKey = `${projectId}:${newPath}`;
+      expect((fileHashManager as any).memoryCache.has(newCacheKey)).toBe(true);
+      
+      const newCacheEntry = (fileHashManager as any).memoryCache.get(newCacheKey);
+      expect(newCacheEntry.filePath).toBe(newPath);
+      expect(newCacheEntry.hash).toBe(testHash);
+    });
+
+    it('should handle rename when no existing record found', async () => {
+      const projectId = 'test-project';
+      const oldPath = '/path/to/oldFile.ts';
+      const newPath = '/path/to/newFile.ts';
+
+      // Mock database update result (no changes)
+      mockRun.mockReturnValue({ changes: 0 });
+
+      await fileHashManager.renameFile(projectId, oldPath, newPath);
+
+      // Verify database update was attempted
+      expect(mockPrepare).toHaveBeenCalledWith(expect.stringContaining('UPDATE file_index_states'));
+      expect(mockRun).toHaveBeenCalledWith(newPath, newPath, projectId, oldPath);
+
+      // Verify warning was logged
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        `No existing record found for rename operation: ${oldPath} -> ${newPath}`
+      );
+    });
+
+    it('should handle rename when entry not in memory cache', async () => {
+      const projectId = 'test-project';
+      const oldPath = '/path/to/oldFile.ts';
+      const newPath = '/path/to/newFile.ts';
+
+      // Mock database update result
+      mockRun.mockReturnValue({ changes: 1 });
+
+      await fileHashManager.renameFile(projectId, oldPath, newPath);
+
+      // Verify database update
+      expect(mockPrepare).toHaveBeenCalledWith(expect.stringContaining('UPDATE file_index_states'));
+      expect(mockRun).toHaveBeenCalledWith(newPath, newPath, projectId, oldPath);
+
+      // Verify no cache entry was created (since original wasn't in cache)
+      const newCacheKey = `${projectId}:${newPath}`;
+      expect((fileHashManager as any).memoryCache.has(newCacheKey)).toBe(false);
+    });
+
+    it('should handle database error during rename', async () => {
+      const projectId = 'test-project';
+      const oldPath = '/path/to/oldFile.ts';
+      const newPath = '/path/to/newFile.ts';
+
+      // Mock database error
+      mockRun.mockImplementation(() => {
+        throw new Error('Database error');
+      });
+
+      await expect(fileHashManager.renameFile(projectId, oldPath, newPath)).rejects.toThrow('Database error');
+
+      // Verify error was logged
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        `Failed to rename file hash in database: ${oldPath} -> ${newPath}`,
+        expect.any(Error)
+      );
+    });
+  });
 });

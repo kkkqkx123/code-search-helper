@@ -47,7 +47,7 @@ export interface ChangeDetectionOptions {
 }
 
 export interface FileChangeEvent {
-  type: 'created' | 'modified' | 'deleted';
+  type: 'created' | 'modified' | 'deleted' | 'renamed';
   path: string;
   relativePath: string;
   previousHash?: string;
@@ -55,12 +55,15 @@ export interface FileChangeEvent {
   timestamp: Date;
   size?: number;
   language?: string;
+  oldPath?: string; // 改名前的路径
+  oldRelativePath?: string; // 改名前的相对路径
 }
 
 export interface ChangeDetectionCallbacks {
   onFileCreated?: (event: FileChangeEvent) => void;
   onFileModified?: (event: FileChangeEvent) => void;
   onFileDeleted?: (event: FileChangeEvent) => void;
+  onFileRenamed?: (event: FileChangeEvent) => void;
   onError?: (error: Error) => void;
 }
 
@@ -160,6 +163,7 @@ export class ChangeDetectionService extends EventEmitter {
         onFileAdded: fileInfo => this.handleFileAdded(fileInfo),
         onFileChanged: fileInfo => this.handleFileChanged(fileInfo),
         onFileDeleted: filePath => this.handleFileDeleted(filePath),
+        onFileRenamed: (oldPath, newPath, fileInfo) => this.handleFileRenamed(oldPath, newPath, fileInfo),
         onError: error => this.handleWatcherError(error),
         onReady: () => this.handleWatcherReady(),
       };
@@ -453,6 +457,53 @@ export class ChangeDetectionService extends EventEmitter {
       }
     } catch (error) {
       this.handleFileEventError('delete', filePath, error);
+    }
+  }
+
+  private async handleFileRenamed(oldPath: string, newPath: string, fileInfo: FileInfo): Promise<void> {
+    try {
+      this.logger.debug(`File renamed: ${oldPath} -> ${newPath}`);
+
+      // Convert to relative paths for consistency
+      const relativeOldPath = path.relative(process.cwd(), oldPath);
+      const relativeNewPath = path.relative(process.cwd(), newPath);
+      
+      // 获取实际的项目ID
+      const projectId = await this.getProjectIdForPath(newPath);
+      const previousHash = await this.fileHashManager.getFileHash(projectId, relativeOldPath);
+
+      if (previousHash !== null) {
+        // 更新文件哈希记录（保持哈希不变）
+        await this.fileHashManager.renameFile(projectId, relativeOldPath, relativeNewPath);
+
+        const event: FileChangeEvent = {
+          type: 'renamed',
+          path: newPath,
+          relativePath: fileInfo.relativePath, // 使用fileInfo中的相对路径
+          oldPath: relativeOldPath,
+          oldRelativePath: relativeOldPath,
+          previousHash,
+          currentHash: fileInfo.hash,
+          timestamp: new Date(),
+          size: fileInfo.size,
+          language: fileInfo.language,
+        };
+
+        this.emit('fileRenamed', event);
+
+        if (this.callbacks.onFileRenamed) {
+          try {
+            this.callbacks.onFileRenamed(event);
+          } catch (error) {
+            this.logger.error('Error in onFileRenamed callback', error);
+          }
+        }
+      } else {
+        // 如果没有找到旧文件记录，将新文件作为添加处理
+        await this.handleFileAdded(fileInfo);
+      }
+    } catch (error) {
+      this.handleFileEventError('rename', `${oldPath} -> ${newPath}`, error);
     }
   }
 

@@ -22,6 +22,7 @@ export interface FileHashManager {
   getFileHashes(projectId: string, filePaths: string[]): Promise<Map<string, string>>;
   batchUpdateHashes(updates: Array<{projectId: string, filePath: string, hash: string, fileSize?: number, lastModified?: Date, language?: string, fileType?: string}>): Promise<void>;
   deleteFileHash(projectId: string, filePath: string): Promise<void>;
+  renameFile(projectId: string, oldPath: string, newPath: string): Promise<void>;
   getChangedFiles(projectId: string, since: Date): Promise<FileHashEntry[]>;
   cleanupExpiredHashes(expiryDays?: number): Promise<number>;
 }
@@ -269,7 +270,7 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
     // 从数据库中删除
     try {
       const stmt = this.sqliteService.prepare(`
-        DELETE FROM file_index_states 
+        DELETE FROM file_index_states
         WHERE project_id = ? AND file_path = ?
       `);
       
@@ -277,6 +278,54 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
       this.emit('hashDeleted', { projectId, filePath });
     } catch (error) {
       this.logger.error(`Failed to delete file hash from database: ${filePath}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 重命名文件哈希
+   */
+  async renameFile(projectId: string, oldPath: string, newPath: string): Promise<void> {
+    const oldCacheKey = `${projectId}:${oldPath}`;
+    const newCacheKey = `${projectId}:${newPath}`;
+    
+    try {
+      // 更新数据库中的文件路径
+      const stmt = this.sqliteService.prepare(`
+        UPDATE file_index_states
+        SET file_path = ?, relative_path = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE project_id = ? AND file_path = ?
+      `);
+      
+      const result = stmt.run(newPath, newPath, projectId, oldPath);
+      
+      if (result.changes === 0) {
+        // 如果没有找到记录，可能是新文件，执行添加操作
+        this.logger.warn(`No existing record found for rename operation: ${oldPath} -> ${newPath}`);
+        return;
+      }
+      
+      // 更新内存缓存
+      const cachedEntry = this.memoryCache.get(oldCacheKey);
+      if (cachedEntry) {
+        // 更新缓存条目
+        const updatedEntry: FileHashEntry = {
+          ...cachedEntry,
+          filePath: newPath,
+          updatedAt: new Date()
+        };
+        
+        // 删除旧缓存条目
+        this.memoryCache.delete(oldCacheKey);
+        
+        // 添加新缓存条目
+        this.updateCache(newCacheKey, updatedEntry);
+      }
+      
+      this.emit('hashRenamed', { projectId, oldPath, newPath });
+      this.logger.debug(`File hash renamed: ${oldPath} -> ${newPath}`);
+    } catch (error) {
+      this.logger.error(`Failed to rename file hash in database: ${oldPath} -> ${newPath}`, error);
       throw error;
     }
   }

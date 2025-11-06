@@ -8,7 +8,7 @@ import { CacheKeyGenerator } from './CacheKeyGenerator';
  * 简化查询引擎
  * 为常见用例提供简单易用的接口
  */
-export class SimpleQueryEngine {
+export class TreeSitterQueryFacade {
   private static queryEngine = QueryEngineFactory.getInstance();
 
   // 缓存键前缀，避免与其他引擎冲突

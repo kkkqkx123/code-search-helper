@@ -46,15 +46,18 @@ export interface FileWatcherOptions {
 }
 
 export interface FileChangeEvent {
-  type: 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
+  type: 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir' | 'rename';
   path: string;
   stats?: any;
+  oldPath?: string; // 用于改名事件
+  hash?: string; // 文件哈希，用于改名检测
 }
 
 export interface FileWatcherCallbacks {
   onFileAdded?: (fileInfo: FileInfo) => void;
   onFileChanged?: (fileInfo: FileInfo) => void;
   onFileDeleted?: (filePath: string) => void;
+  onFileRenamed?: (oldPath: string, newPath: string, fileInfo: FileInfo) => void;
   onDirectoryAdded?: (dirPath: string) => void;
   onDirectoryDeleted?: (dirPath: string) => void;
   onError?: (error: Error) => void;
@@ -81,6 +84,15 @@ export class FileWatcherService {
   private allIgnorePatterns: string[] = [];
   private gitignorePatterns: string[] = [];
   private indexignorePatterns: string[] = [];
+  
+  // 改名检测相关属性
+  private pendingUnlinks: Map<string, {
+    path: string,
+    timestamp: number,
+    hash: string,
+    size: number
+  }> = new Map();
+  private readonly RENAME_TIMEOUT = 1000; // 1秒内的 unlink+add 视为改名
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -280,6 +292,28 @@ export class FileWatcherService {
     try {
       this.logger.debug(`File added: ${filePath}`, { size: stats?.size });
 
+      // 获取新文件的哈希
+      const fullPath = path.resolve(watchPath, filePath);
+      const hash = await this.fileSystemTraversal['calculateFileHash'](fullPath);
+      
+      // 检查是否有匹配的待处理删除事件
+      const matchedUnlink = this.findMatchingUnlink(filePath, hash, stats?.size || 0);
+      
+      if (matchedUnlink) {
+        // 检测到改名操作
+        this.pendingUnlinks.delete(matchedUnlink.path);
+        await this.processFileRename(matchedUnlink.path, filePath, watchPath, matchedUnlink.hash);
+      } else {
+        // 普通的文件添加
+        await this.processActualFileAdd(filePath, stats, watchPath);
+      }
+    } catch (error) {
+      this.handleFileEventError('add', filePath, error);
+    }
+  }
+
+  private async processActualFileAdd(filePath: string, stats: any, watchPath: string): Promise<void> {
+    try {
       // Get file info using FileSystemTraversal
       const fileInfo = await this.getFileInfo(filePath, watchPath);
 
@@ -292,6 +326,42 @@ export class FileWatcherService {
       }
     } catch (error) {
       this.handleFileEventError('add', filePath, error);
+    }
+  }
+
+  private findMatchingUnlink(newPath: string, newHash: string, newSize: number): { path: string, timestamp: number, hash: string, size: number } | null {
+    // 基于文件哈希和大小匹配
+    for (const [oldPath, unlinkInfo] of this.pendingUnlinks.entries()) {
+      const timeDiff = Date.now() - unlinkInfo.timestamp;
+      if (timeDiff > this.RENAME_TIMEOUT) continue;
+      
+      // 主要匹配条件：哈希值相同
+      if (unlinkInfo.hash === newHash) {
+        // 可选：进一步验证文件大小
+        if (unlinkInfo.size === newSize) {
+          return unlinkInfo;
+        }
+      }
+    }
+    return null;
+  }
+
+  private async processFileRename(oldPath: string, newPath: string, watchPath: string, hash: string): Promise<void> {
+    try {
+      this.logger.debug(`File renamed: ${oldPath} -> ${newPath}`);
+
+      // Get file info for the new path
+      const fileInfo = await this.getFileInfo(newPath, watchPath);
+
+      if (fileInfo && this.callbacks.onFileRenamed) {
+        try {
+          this.callbacks.onFileRenamed(oldPath, newPath, fileInfo);
+        } catch (error) {
+          this.logger.error('Error in onFileRenamed callback', error);
+        }
+      }
+    } catch (error) {
+      this.handleFileEventError('rename', `${oldPath} -> ${newPath}`, error);
     }
   }
 
@@ -314,10 +384,43 @@ export class FileWatcherService {
     }
   }
 
-  private handleFileDelete(filePath: string, watchPath: string): void {
+  private async handleFileDelete(filePath: string, watchPath: string): Promise<void> {
     try {
       this.logger.debug(`File deleted: ${filePath}`);
 
+      // 在删除前获取文件哈希和大小信息（如果文件仍然存在）
+      try {
+        const fullPath = path.resolve(watchPath, filePath);
+        const stats = await fs.stat(fullPath);
+        const hash = await this.fileSystemTraversal['calculateFileHash'](fullPath);
+        
+        // 记录待处理的删除事件，包含哈希和大小信息
+        this.pendingUnlinks.set(filePath, {
+          path: filePath,
+          timestamp: Date.now(),
+          hash: hash,
+          size: stats.size
+        });
+
+        // 延迟处理，等待可能的匹配 add 事件
+        setTimeout(() => {
+          if (this.pendingUnlinks.has(filePath)) {
+            // 没有匹配的 add 事件，执行真正的删除处理
+            this.pendingUnlinks.delete(filePath);
+            this.processActualFileDelete(filePath, watchPath);
+          }
+        }, this.RENAME_TIMEOUT);
+      } catch (error) {
+        // 文件已经不存在，直接处理删除
+        this.processActualFileDelete(filePath, watchPath);
+      }
+    } catch (error) {
+      this.handleFileEventError('delete', filePath, error);
+    }
+  }
+
+  private processActualFileDelete(filePath: string, watchPath: string): void {
+    try {
       if (this.callbacks.onFileDeleted) {
         try {
           this.callbacks.onFileDeleted(filePath);
@@ -476,13 +579,16 @@ export class FileWatcherService {
             await this.handleFileChange(event.path, event.stats, watchPath);
             break;
           case 'unlink':
-            this.handleFileDelete(event.path, watchPath);
+            await this.handleFileDelete(event.path, watchPath);
             break;
           case 'addDir':
             this.handleDirectoryAdd(event.path, watchPath);
             break;
           case 'unlinkDir':
             this.handleDirectoryDelete(event.path, watchPath);
+            break;
+          case 'rename':
+            // 改名事件在内部处理，不需要在这里处理
             break;
         }
 
@@ -641,6 +747,9 @@ export class FileWatcherService {
         clearTimeout(this.eventProcessingTimer);
         this.eventProcessingTimer = null;
       }
+
+      // Clear pending unlinks for rename detection
+      this.pendingUnlinks.clear();
 
       const closePromises: Promise<void>[] = [];
 

@@ -93,6 +93,7 @@ describe('ChangeDetectionService', () => {
             getFileHashes: jest.fn(),
             batchUpdateHashes: jest.fn(),
             deleteFileHash: jest.fn(),
+            renameFile: jest.fn(),
             getChangedFiles: jest.fn(),
             cleanupExpiredHashes: jest.fn(),
         } as any;
@@ -175,6 +176,7 @@ describe('ChangeDetectionService', () => {
                     onFileAdded: expect.any(Function),
                     onFileChanged: expect.any(Function),
                     onFileDeleted: expect.any(Function),
+                    onFileRenamed: expect.any(Function),
                     onError: expect.any(Function),
                     onReady: expect.any(Function),
                 })
@@ -499,6 +501,109 @@ describe('ChangeDetectionService', () => {
             });
 
             await expect(changeDetectionService.getProjectIdForPath('/test/path')).rejects.toThrow('Project ID not found');
+        });
+    });
+
+    describe('file rename handling', () => {
+        let mockFileInfo: FileInfo;
+        let callbacks: ChangeDetectionCallbacks;
+
+        beforeEach(() => {
+            mockFileInfo = {
+                path: '/test/newFile.ts',
+                relativePath: 'newFile.ts',
+                name: 'newFile.ts',
+                extension: '.ts',
+                size: 1024,
+                hash: 'testhash123',
+                lastModified: new Date(),
+                language: 'typescript',
+                isBinary: false,
+            };
+
+            callbacks = {
+                onFileCreated: jest.fn(),
+                onFileModified: jest.fn(),
+                onFileDeleted: jest.fn(),
+                onFileRenamed: jest.fn(),
+                onError: jest.fn(),
+            };
+
+            changeDetectionService.setCallbacks(callbacks);
+        });
+
+        it('should handle file renamed event', async () => {
+            const oldPath = '/test/oldFile.ts';
+            const newPath = '/test/newFile.ts';
+            const mockProjectId = 'test-project-id';
+            const mockPreviousHash = 'oldhash123';
+
+            // Mock project ID and file hash
+            (mockProjectIdManager.getProjectId as jest.Mock).mockReturnValue(mockProjectId);
+            (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue(mockPreviousHash);
+            (mockFileHashManager.renameFile as jest.Mock).mockResolvedValue(undefined);
+
+            // Simulate file rename event
+            await (changeDetectionService as any).handleFileRenamed(oldPath, newPath, mockFileInfo);
+
+            // Verify rename was handled
+            expect(mockFileHashManager.renameFile).toHaveBeenCalledWith(
+                mockProjectId,
+                expect.stringContaining('oldFile.ts'),
+                expect.stringContaining('newFile.ts')
+            );
+            expect(callbacks.onFileRenamed).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'renamed',
+                    path: newPath,
+                    relativePath: 'newFile.ts',
+                    oldPath: expect.stringContaining('oldFile.ts'),
+                    oldRelativePath: expect.stringContaining('oldFile.ts'),
+                    previousHash: mockPreviousHash,
+                    currentHash: mockFileInfo.hash,
+                    timestamp: expect.any(Date),
+                    size: mockFileInfo.size,
+                    language: mockFileInfo.language,
+                })
+            );
+        });
+
+        it('should handle rename when old file is not tracked', async () => {
+            const oldPath = '/test/oldFile.ts';
+            const newPath = '/test/newFile.ts';
+            const mockProjectId = 'test-project-id';
+
+            // Mock project ID and file hash (not found)
+            (mockProjectIdManager.getProjectId as jest.Mock).mockReturnValue(mockProjectId);
+            (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue(null);
+            (mockFileHashManager.updateFileHash as jest.Mock).mockResolvedValue(undefined);
+
+            // Simulate file rename event
+            await (changeDetectionService as any).handleFileRenamed(oldPath, newPath, mockFileInfo);
+
+            // Verify rename was not handled, but file was added
+            expect(mockFileHashManager.renameFile).not.toHaveBeenCalled();
+            expect(mockFileHashManager.updateFileHash).toHaveBeenCalled();
+            expect(callbacks.onFileRenamed).not.toHaveBeenCalled();
+            expect(callbacks.onFileCreated).toHaveBeenCalled();
+        });
+
+        it('should handle rename event errors', async () => {
+            const oldPath = '/test/oldFile.ts';
+            const newPath = '/test/newFile.ts';
+            const mockProjectId = 'test-project-id';
+
+            // Mock project ID and file hash
+            (mockProjectIdManager.getProjectId as jest.Mock).mockReturnValue(mockProjectId);
+            (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue('oldhash123');
+            (mockFileHashManager.renameFile as jest.Mock).mockRejectedValue(new Error('Database error'));
+
+            // Simulate file rename event
+            await (changeDetectionService as any).handleFileRenamed(oldPath, newPath, mockFileInfo);
+
+            // Verify error was handled
+            expect(mockErrorHandler.handleError).toHaveBeenCalled();
+            expect(callbacks.onFileRenamed).not.toHaveBeenCalled();
         });
     });
 });

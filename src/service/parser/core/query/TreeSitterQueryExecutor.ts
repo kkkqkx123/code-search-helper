@@ -357,8 +357,6 @@ export class TreeSitterQueryEngine {
         }
       }
 
-
-
       const query = QueryCache.getQuery(languageObj, pattern.pattern);
       const matches = query.matches(ast);
 

@@ -8,7 +8,7 @@ import { languageExtensionMap } from '../../utils';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { DynamicParserManager, DynamicParserLanguage, DynamicParseResult } from './DynamicParserManager';
-import { SimpleQueryEngine } from '../query/TreeSitterQueryFacade';
+import { TreeSitterQueryFacade } from '../query/TreeSitterQueryFacade';
 import { TreeSitterQueryEngine } from '../query/TreeSitterQueryExecutor';
 import { QueryEngineFactory } from '../query/QueryEngineFactory';
 import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
@@ -260,7 +260,7 @@ export class TreeSitterCoreService {
     this.cacheStats.misses++;
 
     // 对于同步方法，直接使用 TreeSitterUtils 作为主要实现
-    // SimpleQueryEngine 主要用于异步查询场景
+    // TreeSitterQueryFacade 主要用于异步查询场景
     const nodes = TreeSitterUtils.findNodeByType(ast, type);
 
     // 缓存结果
@@ -272,7 +272,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 异步版本的按类型查找节点 - 优先使用 SimpleQueryEngine
+   * 异步版本的按类型查找节点 - 优先使用 TreeSitterQueryFacade
    */
   async findNodeByTypeAsync(ast: Parser.SyntaxNode, type: string): Promise<Parser.SyntaxNode[]> {
     // 生成缓存键
@@ -287,11 +287,11 @@ export class TreeSitterCoreService {
 
     this.cacheStats.misses++;
 
-    // 优先使用 SimpleQueryEngine，它内置回退机制
+    // 优先使用 TreeSitterQueryFacade，它内置回退机制
     const lang = this.detectLanguageFromAST(ast);
     if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
       try {
-        const queryResults = await SimpleQueryEngine.findMultiple(ast, lang, [type]);
+        const queryResults = await TreeSitterQueryFacade.findMultiple(ast, lang, [type]);
         const nodes = queryResults.get(type) || [];
 
         // 缓存结果
@@ -417,7 +417,7 @@ export class TreeSitterCoreService {
       // 使用优化后的查询系统
       if (this.useOptimizedQueries && this.querySystemInitialized) {
         try {
-          const result = await SimpleQueryEngine.findFunctions(ast, lang);
+          const result = await TreeSitterQueryFacade.findFunctions(ast, lang);
           // 如果优化查询系统返回空结果，尝试使用回退机制
           if (result.length === 0) {
             this.logger.warn('优化查询系统返回空结果，尝试回退机制');
@@ -469,7 +469,7 @@ export class TreeSitterCoreService {
       // 使用优化后的查询系统
       if (this.useOptimizedQueries && this.querySystemInitialized) {
         try {
-          const result = await SimpleQueryEngine.findClasses(ast, lang);
+          const result = await TreeSitterQueryFacade.findClasses(ast, lang);
           // 如果优化查询系统返回空结果，尝试使用回退机制
           if (result.length === 0) {
             this.logger.warn('优化查询系统返回空结果，尝试回退机制');
@@ -498,19 +498,19 @@ export class TreeSitterCoreService {
 
   /**
    * 提取导入 - 使用优化后的查询系统
-   * SimpleQueryEngine 现在内置了回退机制，无需手动处理回退逻辑
+   * TreeSitterQueryFacade 现在内置了回退机制，无需手动处理回退逻辑
    */
   async extractImports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
       const lang = language || this.detectLanguageFromAST(ast);
 
-      // 优先使用优化后的查询系统，SimpleQueryEngine 内置回退机制
+      // 优先使用优化后的查询系统，TreeSitterQueryFacade 内置回退机制
       if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
-        return await SimpleQueryEngine.findImports(ast, lang);
+        return await TreeSitterQueryFacade.findImports(ast, lang);
       }
 
-      // 如果语言检测失败或查询系统未初始化，直接使用 SimpleQueryEngine（它会自动回退）
-      return await SimpleQueryEngine.findImports(ast, lang || 'unknown');
+      // 如果语言检测失败或查询系统未初始化，直接使用 TreeSitterQueryFacade（它会自动回退）
+      return await TreeSitterQueryFacade.findImports(ast, lang || 'unknown');
     } catch (error) {
       this.logger.error('导入提取失败:', error);
       // 最后的回退保障
@@ -532,7 +532,7 @@ export class TreeSitterCoreService {
       // 使用优化后的查询系统
       if (this.useOptimizedQueries && this.querySystemInitialized) {
         try {
-          return await SimpleQueryEngine.findExports(ast, lang);
+          return await TreeSitterQueryFacade.findExports(ast, lang);
         } catch (error) {
           this.logger.warn('优化查询系统失败，回退到动态管理器:', error);
           // 转换动态管理器的字符串结果为节点数组
@@ -602,7 +602,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 提取导入节点 - 异步版本，优先使用 SimpleQueryEngine
+   * 提取导入节点 - 异步版本，优先使用 TreeSitterQueryFacade
    */
   async extractImportNodesAsync(ast: Parser.SyntaxNode): Promise<Parser.SyntaxNode[]> {
     const lang = this.detectLanguageFromAST(ast);
@@ -610,7 +610,7 @@ export class TreeSitterCoreService {
     // 优先使用优化后的查询系统
     if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
       try {
-        return await SimpleQueryEngine.findImports(ast, lang);
+        return await TreeSitterQueryFacade.findImports(ast, lang);
       } catch (error) {
         this.logger.warn('异步导入提取失败，回退到 TreeSitterUtils:', error);
       }

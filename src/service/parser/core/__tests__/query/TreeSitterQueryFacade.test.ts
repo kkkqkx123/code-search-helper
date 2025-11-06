@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { SimpleQueryEngine } from '../../query/TreeSitterQueryFacade';
+import { TreeSitterQueryFacade } from '../../query/TreeSitterQueryFacade';
 
 // Mock Parser.SyntaxNode for testing
 const mockSyntaxNode = {
@@ -18,61 +18,61 @@ const mockSyntaxNode = {
   }
 } as unknown as Parser.SyntaxNode;
 
-describe('SimpleQueryEngine', () => {
+describe('TreeSitterQueryFacade', () => {
   beforeEach(() => {
-    SimpleQueryEngine.clearCache();
+    TreeSitterQueryFacade.clearCache();
   });
 
   describe('Basic Query Methods', () => {
     test('should find functions', async () => {
-      const functions = await SimpleQueryEngine.findFunctions(mockSyntaxNode, 'typescript');
+      const functions = await TreeSitterQueryFacade.findFunctions(mockSyntaxNode, 'typescript');
       expect(Array.isArray(functions)).toBe(true);
     });
 
     test('should find classes', async () => {
-      const classes = await SimpleQueryEngine.findClasses(mockSyntaxNode, 'typescript');
+      const classes = await TreeSitterQueryFacade.findClasses(mockSyntaxNode, 'typescript');
       expect(Array.isArray(classes)).toBe(true);
     });
 
     test('should find imports', async () => {
-      const imports = await SimpleQueryEngine.findImports(mockSyntaxNode, 'typescript');
+      const imports = await TreeSitterQueryFacade.findImports(mockSyntaxNode, 'typescript');
       expect(Array.isArray(imports)).toBe(true);
     });
 
     test('should find exports', async () => {
-      const exports = await SimpleQueryEngine.findExports(mockSyntaxNode, 'typescript');
+      const exports = await TreeSitterQueryFacade.findExports(mockSyntaxNode, 'typescript');
       expect(Array.isArray(exports)).toBe(true);
     });
 
     test('should find methods', async () => {
-      const methods = await SimpleQueryEngine.findMethods(mockSyntaxNode, 'typescript');
+      const methods = await TreeSitterQueryFacade.findMethods(mockSyntaxNode, 'typescript');
       expect(Array.isArray(methods)).toBe(true);
     });
 
     test('should find interfaces', async () => {
-      const interfaces = await SimpleQueryEngine.findInterfaces(mockSyntaxNode, 'typescript');
+      const interfaces = await TreeSitterQueryFacade.findInterfaces(mockSyntaxNode, 'typescript');
       expect(Array.isArray(interfaces)).toBe(true);
     });
 
     test('should find types', async () => {
-      const types = await SimpleQueryEngine.findTypes(mockSyntaxNode, 'typescript');
+      const types = await TreeSitterQueryFacade.findTypes(mockSyntaxNode, 'typescript');
       expect(Array.isArray(types)).toBe(true);
     });
 
     test('should find properties', async () => {
-      const properties = await SimpleQueryEngine.findProperties(mockSyntaxNode, 'typescript');
+      const properties = await TreeSitterQueryFacade.findProperties(mockSyntaxNode, 'typescript');
       expect(Array.isArray(properties)).toBe(true);
     });
 
     test('should find variables', async () => {
-      const variables = await SimpleQueryEngine.findVariables(mockSyntaxNode, 'typescript');
+      const variables = await TreeSitterQueryFacade.findVariables(mockSyntaxNode, 'typescript');
       expect(Array.isArray(variables)).toBe(true);
     });
   });
 
   describe('Advanced Query Methods', () => {
     test('should find multiple types', async () => {
-      const results = await SimpleQueryEngine.findMultiple(
+      const results = await TreeSitterQueryFacade.findMultiple(
         mockSyntaxNode,
         'typescript',
         ['functions', 'classes', 'imports']
@@ -90,7 +90,7 @@ describe('SimpleQueryEngine', () => {
     });
 
     test('should handle unsupported query types gracefully', async () => {
-      const results = await SimpleQueryEngine.findMultiple(
+      const results = await TreeSitterQueryFacade.findMultiple(
         mockSyntaxNode,
         'typescript',
         ['functions', 'nonexistent']
@@ -102,7 +102,7 @@ describe('SimpleQueryEngine', () => {
     });
 
     test('should find all main structures', async () => {
-      const structures = await SimpleQueryEngine.findAllMainStructures(mockSyntaxNode, 'typescript');
+      const structures = await TreeSitterQueryFacade.findAllMainStructures(mockSyntaxNode, 'typescript');
 
       expect(structures).toHaveProperty('functions');
       expect(structures).toHaveProperty('classes');
@@ -118,7 +118,7 @@ describe('SimpleQueryEngine', () => {
 
   describe('Utility Methods', () => {
     test('should provide performance statistics', () => {
-      const stats = SimpleQueryEngine.getPerformanceStats();
+      const stats = TreeSitterQueryFacade.getPerformanceStats();
 
       expect(stats).toHaveProperty('queryMetrics');
       expect(stats).toHaveProperty('querySummary');
@@ -128,29 +128,29 @@ describe('SimpleQueryEngine', () => {
     });
 
     test('should clear cache', () => {
-      expect(() => SimpleQueryEngine.clearCache()).not.toThrow();
+      expect(() => TreeSitterQueryFacade.clearCache()).not.toThrow();
     });
   });
 
   describe('Error Handling', () => {
     test('should handle invalid language gracefully', async () => {
-      const functions = await SimpleQueryEngine.findFunctions(mockSyntaxNode, 'nonexistent');
+      const functions = await TreeSitterQueryFacade.findFunctions(mockSyntaxNode, 'nonexistent');
       expect(Array.isArray(functions)).toBe(true);
     });
 
     test('should handle invalid AST gracefully', async () => {
       const invalidAST = null as any;
-      const functions = await SimpleQueryEngine.findFunctions(invalidAST, 'typescript');
+      const functions = await TreeSitterQueryFacade.findFunctions(invalidAST, 'typescript');
       expect(Array.isArray(functions)).toBe(true);
     });
   });
 
   describe('Performance Comparison', () => {
     test('should provide simplified interface with less code', async () => {
-      // Using SimpleQueryEngine requires less code than using TreeSitterQueryEngine directly
+      // Using TreeSitterQueryFacade requires less code than using TreeSitterQueryEngine directly
 
       // Simple approach (1 line):
-      const functions1 = await SimpleQueryEngine.findFunctions(mockSyntaxNode, 'typescript');
+      const functions1 = await TreeSitterQueryFacade.findFunctions(mockSyntaxNode, 'typescript');
 
       // Complex approach would require:
       // 1. Getting query engine instance
@@ -164,7 +164,7 @@ describe('SimpleQueryEngine', () => {
     test('should maintain performance benefits', async () => {
       const startTime = performance.now();
 
-      await SimpleQueryEngine.findAllMainStructures(mockSyntaxNode, 'typescript');
+      await TreeSitterQueryFacade.findAllMainStructures(mockSyntaxNode, 'typescript');
 
       const endTime = performance.now();
       const executionTime = endTime - startTime;
@@ -177,11 +177,11 @@ describe('SimpleQueryEngine', () => {
   describe('Integration with Advanced Features', () => {
     test('should leverage caching from underlying engine', async () => {
       // First call
-      await SimpleQueryEngine.findFunctions(mockSyntaxNode, 'typescript');
+      await TreeSitterQueryFacade.findFunctions(mockSyntaxNode, 'typescript');
 
       // Second call should benefit from caching
       const startTime = performance.now();
-      await SimpleQueryEngine.findFunctions(mockSyntaxNode, 'typescript');
+      await TreeSitterQueryFacade.findFunctions(mockSyntaxNode, 'typescript');
       const endTime = performance.now();
 
       const secondCallTime = endTime - startTime;
@@ -191,9 +191,9 @@ describe('SimpleQueryEngine', () => {
     });
 
     test('should provide access to performance monitoring', async () => {
-      await SimpleQueryEngine.findFunctions(mockSyntaxNode, 'typescript');
+      await TreeSitterQueryFacade.findFunctions(mockSyntaxNode, 'typescript');
 
-      const stats = SimpleQueryEngine.getPerformanceStats();
+      const stats = TreeSitterQueryFacade.getPerformanceStats();
       expect(stats.queryMetrics).toBeDefined();
       expect(stats.cacheStats).toBeDefined();
     });

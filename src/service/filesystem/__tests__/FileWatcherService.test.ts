@@ -208,6 +208,7 @@ describe('FileWatcherService', () => {
         onFileAdded: jest.fn(),
         onFileChanged: jest.fn(),
         onFileDeleted: jest.fn(),
+        onFileRenamed: jest.fn(),
       };
 
       fileWatcherService.setCallbacks(callbacks);
@@ -233,11 +234,103 @@ describe('FileWatcherService', () => {
       expect(callbacks.onFileChanged).toHaveBeenCalledWith(mockFileInfo);
     });
 
-    it('should handle file deleted event', () => {
+    it('should handle file deleted event', async () => {
+      // Mock fs.stat to throw error (file doesn't exist)
+      mockedFs.stat.mockRejectedValue(new Error('ENOENT: no such file or directory'));
+
       // Simulate file delete event
-      (fileWatcherService as any).handleFileDelete('/test/file.ts', '/test');
+      await (fileWatcherService as any).handleFileDelete('/test/file.ts', '/test');
 
       expect(callbacks.onFileDeleted).toHaveBeenCalledWith('/test/file.ts');
+    });
+
+    it('should detect file rename operation', async () => {
+      const oldPath = '/test/oldFile.ts';
+      const newPath = '/test/newFile.ts';
+      const fileHash = 'testhash123';
+      const fileSize = 1024;
+
+      // Mock fs.stat for the old file (during delete)
+      mockedFs.stat.mockResolvedValue({
+        size: fileSize,
+        mtime: new Date(),
+      } as any);
+
+      // Mock calculateFileHash for the old file
+      (mockFileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue(fileHash);
+
+      // Mock getFileInfo for the new file
+      const newFileInfo: FileInfo = {
+        path: path.resolve(newPath),
+        relativePath: 'newFile.ts',
+        name: 'newFile.ts',
+        extension: '.ts',
+        size: fileSize,
+        hash: fileHash,
+        lastModified: new Date(),
+        language: 'typescript',
+        isBinary: false,
+      };
+      (fileWatcherService as any).getFileInfo = jest.fn().mockResolvedValue(newFileInfo);
+
+      // Simulate file delete event (first part of rename)
+      await (fileWatcherService as any).handleFileDelete(oldPath, '/test');
+
+      // Simulate file add event (second part of rename)
+      await (fileWatcherService as any).handleFileAdd(newPath, { size: fileSize }, '/test');
+
+      // Wait for rename timeout
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify rename was detected
+      expect(callbacks.onFileRenamed).toHaveBeenCalledWith(oldPath, newPath, newFileInfo);
+      expect(callbacks.onFileDeleted).not.toHaveBeenCalled();
+      expect(callbacks.onFileAdded).not.toHaveBeenCalled();
+    });
+
+    it('should handle separate delete and add operations (not rename)', async () => {
+      const oldPath = '/test/oldFile.ts';
+      const newPath = '/test/newFile.ts';
+      const oldFileHash = 'oldhash123';
+      const newFileHash = 'newhash456';
+      const fileSize = 1024;
+
+      // Mock fs.stat for the old file (during delete)
+      mockedFs.stat.mockResolvedValue({
+        size: fileSize,
+        mtime: new Date(),
+      } as any);
+
+      // Mock calculateFileHash for the old file
+      (mockFileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue(oldFileHash);
+
+      // Mock getFileInfo for the new file
+      const newFileInfo: FileInfo = {
+        path: path.resolve(newPath),
+        relativePath: 'newFile.ts',
+        name: 'newFile.ts',
+        extension: '.ts',
+        size: fileSize,
+        hash: newFileHash,
+        lastModified: new Date(),
+        language: 'typescript',
+        isBinary: false,
+      };
+      (fileWatcherService as any).getFileInfo = jest.fn().mockResolvedValue(newFileInfo);
+
+      // Simulate file delete event
+      await (fileWatcherService as any).handleFileDelete(oldPath, '/test');
+
+      // Wait for rename timeout to expire
+      await new Promise(resolve => setTimeout(resolve, 1100));
+
+      // Simulate file add event (after timeout, so not a rename)
+      await (fileWatcherService as any).handleFileAdd(newPath, { size: fileSize }, '/test');
+
+      // Verify separate operations were handled
+      expect(callbacks.onFileDeleted).toHaveBeenCalledWith(oldPath);
+      expect(callbacks.onFileAdded).toHaveBeenCalledWith(newFileInfo);
+      expect(callbacks.onFileRenamed).not.toHaveBeenCalled();
     });
   });
 

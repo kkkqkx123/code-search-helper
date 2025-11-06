@@ -164,15 +164,15 @@ graph TD
 sequenceDiagram
     participant Client
     participant CoreService as TreeSitterCoreService
-    participant SimpleEngine as SimpleQueryEngine
-    participant QueryEngine as TreeSitterQueryEngine
+    participant Facade as TreeSitterQueryFacade
+    participant Executor as TreeSitterQueryExecutor
     participant Utils as TreeSitterUtils
 
     Client->>CoreService: extractImports(ast, language)
     CoreService->>Facade: findImports(ast, language)
     Facade->>Executor: executeQuery(ast, 'imports', language)
-    QueryEngine-->>SimpleEngine: QueryResult
-    SimpleEngine-->>CoreService: SyntaxNode[]
+    Executor-->>Facade: QueryResult
+    Facade-->>CoreService: SyntaxNode[]
     CoreService-->>Client: SyntaxNode[]
 ```
 
@@ -182,8 +182,8 @@ sequenceDiagram
 sequenceDiagram
     participant Client
     participant CoreService as TreeSitterCoreService
-    participant SimpleEngine as SimpleQueryEngine
-    participant QueryEngine as TreeSitterQueryEngine
+    participant Facade as TreeSitterQueryFacade
+    participant Executor as TreeSitterQueryExecutor
     participant Utils as TreeSitterUtils
 
     Client->>CoreService: extractImports(ast, language)
@@ -191,8 +191,8 @@ sequenceDiagram
     Facade->>Executor: executeQuery(ast, 'imports', language)
     Executor-->>Facade: Error
     // 回退逻辑由 CoreService 统一处理
-    Utils-->>SimpleEngine: SyntaxNode[]
-    SimpleEngine-->>CoreService: SyntaxNode[]
+    Utils-->>Facade: SyntaxNode[]
+    Facade-->>CoreService: SyntaxNode[]
     CoreService-->>Client: SyntaxNode[]
 ```
 
