@@ -11,6 +11,12 @@ export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor
 export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { ControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
 
+// 新增的关系提取器
+export { AnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
+export { CreationRelationshipExtractor } from './CreationRelationshipExtractor';
+export { DependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
+export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
+
 export { RustHelperMethods } from './RustHelperMethods';
 
 // 导出常量

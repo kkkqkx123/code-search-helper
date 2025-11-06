@@ -122,7 +122,7 @@ export class SmartCacheManager {
       memoryLimit: config.memoryLimit
     };
 
-    this.debugMode = this.config.debug;
+    this.debugMode = this.config.debug ?? false;
     this.stats = this.initializeStats();
     this.initializeCaches();
   }

@@ -53,7 +53,7 @@ export class TypeMapper<T = string> {
       debug: config.debug ?? false,
       defaultValue: config.defaultValue
     };
-    this.debugMode = this.config.debug;
+    this.debugMode = this.config.debug ?? false;
   }
 
   /**
@@ -278,7 +278,9 @@ export class TypeMapper<T = string> {
     if (this.cache.size >= this.config.cacheSize!) {
       // 简单的LRU：删除第一个元素
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      if (firstKey) {
+        this.cache.delete(firstKey);
+      }
     }
   }
 

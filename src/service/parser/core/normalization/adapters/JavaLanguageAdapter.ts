@@ -10,10 +10,10 @@ import {
   LifecycleRelationshipExtractor,
   SemanticRelationshipExtractor,
   ControlFlowRelationshipExtractor,
-  JavaAnnotationRelationshipExtractor,
-  JavaCreationRelationshipExtractor,
-  JavaDependencyRelationshipExtractor,
-  JavaReferenceRelationshipExtractor,
+  AnnotationRelationshipExtractor,
+  CreationRelationshipExtractor,
+  DependencyRelationshipExtractor,
+  ReferenceRelationshipExtractor,
   JavaHelperMethods,
   JAVA_NODE_TYPE_MAPPING,
   JAVA_QUERY_TYPE_MAPPING,
@@ -34,13 +34,13 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   private symbolTable: SymbolTable | null = null;
   
   // 关系提取器实例
-  private annotationExtractor: JavaAnnotationRelationshipExtractor;
+  private annotationExtractor: AnnotationRelationshipExtractor;
   private callExtractor: CallRelationshipExtractor;
-  private creationExtractor: JavaCreationRelationshipExtractor;
+  private creationExtractor: CreationRelationshipExtractor;
   private dataFlowExtractor: DataFlowRelationshipExtractor;
-  private dependencyExtractor: JavaDependencyRelationshipExtractor;
+  private dependencyExtractor: DependencyRelationshipExtractor;
   private inheritanceExtractor: InheritanceRelationshipExtractor;
-  private referenceExtractor: JavaReferenceRelationshipExtractor;
+  private referenceExtractor: ReferenceRelationshipExtractor;
   private concurrencyExtractor: ConcurrencyRelationshipExtractor;
   private lifecycleExtractor: LifecycleRelationshipExtractor;
   private semanticExtractor: SemanticRelationshipExtractor;
@@ -50,13 +50,13 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     super(options);
     
     // 初始化关系提取器
-    this.annotationExtractor = new JavaAnnotationRelationshipExtractor();
+    this.annotationExtractor = new AnnotationRelationshipExtractor();
     this.callExtractor = new CallRelationshipExtractor();
-    this.creationExtractor = new JavaCreationRelationshipExtractor();
+    this.creationExtractor = new CreationRelationshipExtractor();
     this.dataFlowExtractor = new DataFlowRelationshipExtractor();
-    this.dependencyExtractor = new JavaDependencyRelationshipExtractor();
+    this.dependencyExtractor = new DependencyRelationshipExtractor();
     this.inheritanceExtractor = new InheritanceRelationshipExtractor();
-    this.referenceExtractor = new JavaReferenceRelationshipExtractor();
+    this.referenceExtractor = new ReferenceRelationshipExtractor();
     this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
     this.lifecycleExtractor = new LifecycleRelationshipExtractor();
     this.semanticExtractor = new SemanticRelationshipExtractor();
@@ -488,7 +488,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   }> {
     const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
     // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
+    return relationships.map((rel: any) => ({
       source: rel.source,
       target: rel.target,
       type: this.mapAnnotationType(rel.type)
@@ -502,7 +502,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   }> {
     const relationships = this.creationExtractor.extractCreationRelationships(result);
     // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
+    return relationships.map((rel: any) => ({
       source: rel.source,
       target: rel.target,
       type: this.mapCreationType(rel.type)
@@ -516,7 +516,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   }> {
     const relationships = this.referenceExtractor.extractReferenceRelationships(result);
     // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
+    return relationships.map((rel: any) => ({
       source: rel.source,
       target: rel.target,
       type: this.mapReferenceType(rel.type)
@@ -530,7 +530,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   }> {
     const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
     // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
+    return relationships.map((rel: any) => ({
       source: rel.source,
       target: rel.target,
       type: this.mapDependencyType(rel.type)

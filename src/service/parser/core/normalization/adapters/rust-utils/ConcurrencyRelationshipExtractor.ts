@@ -1,6 +1,6 @@
 import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
 import { RustHelperMethods } from './RustHelperMethods';
-import Parser from 'tree-sitter';
+import * as Parser from 'tree-sitter';
 
 /**
  * Rust 并发关系提取器
@@ -65,7 +65,7 @@ export class ConcurrencyRelationshipExtractor {
       const channelInfo = this.extractChannelInfo(mainNode);
       if (channelInfo) {
         relationships.push({
-          source: channelInfo.sender || channelInfo.receiver,
+          source: channelInfo.sender || channelInfo.receiver || 'unknown',
           target: channelInfo.channel,
           type: 'channel_comm'
         });
@@ -138,7 +138,7 @@ export class ConcurrencyRelationshipExtractor {
       const threadInfo = this.extractThreadSpawnInfo(node);
       return {
         operation: 'thread_creation',
-        fromNodeId: threadInfo ? generateDeterministicNodeIdFromString(threadInfo.handler) : 'unknown',
+        fromNodeId: threadInfo ? this.generateDeterministicNodeIdFromString(threadInfo.handler) : 'unknown',
         toNodeId: 'thread_pool',
         concurrencyType: 'thread',
         syncPrimitive: 'std::thread',
@@ -150,8 +150,8 @@ export class ConcurrencyRelationshipExtractor {
       const channelInfo = this.extractChannelInfo(node);
       return {
         operation: channelInfo?.operation || 'channel_operation',
-        fromNodeId: channelInfo ? generateDeterministicNodeIdFromString(channelInfo.sender || channelInfo.receiver) : 'unknown',
-        toNodeId: channelInfo ? generateDeterministicNodeIdFromString(channelInfo.channel) : 'unknown',
+        fromNodeId: channelInfo ? this.generateDeterministicNodeIdFromString(channelInfo.sender || channelInfo.receiver || 'unknown') : 'unknown',
+        toNodeId: channelInfo ? this.generateDeterministicNodeIdFromString(channelInfo.channel || 'unknown') : 'unknown',
         concurrencyType: 'channel',
         syncPrimitive: 'std::sync::mpsc',
         isAsync: false
@@ -162,8 +162,8 @@ export class ConcurrencyRelationshipExtractor {
       const lockInfo = this.extractLockInfo(node);
       return {
         operation: lockInfo?.operation || 'lock_operation',
-        fromNodeId: lockInfo ? generateDeterministicNodeIdFromString(lockInfo.locker) : 'unknown',
-        toNodeId: lockInfo ? generateDeterministicNodeIdFromString(lockInfo.lockable) : 'unknown',
+        fromNodeId: lockInfo ? this.generateDeterministicNodeIdFromString(lockInfo.locker) : 'unknown',
+        toNodeId: lockInfo ? this.generateDeterministicNodeIdFromString(lockInfo.lockable) : 'unknown',
         concurrencyType: 'lock',
         syncPrimitive: lockInfo?.lockType,
         isAsync: false
@@ -174,8 +174,8 @@ export class ConcurrencyRelationshipExtractor {
       const asyncInfo = this.extractAsyncInfo(node);
       return {
         operation: 'async_operation',
-        fromNodeId: asyncInfo ? generateDeterministicNodeIdFromString(asyncInfo.awaiter) : 'unknown',
-        toNodeId: asyncInfo ? generateDeterministicNodeIdFromString(asyncInfo.awaited) : 'unknown',
+        fromNodeId: asyncInfo ? this.generateDeterministicNodeIdFromString(asyncInfo.awaiter) : 'unknown',
+        toNodeId: asyncInfo ? this.generateDeterministicNodeIdFromString(asyncInfo.awaited) : 'unknown',
         concurrencyType: 'async',
         isAsync: true
       };
@@ -185,8 +185,8 @@ export class ConcurrencyRelationshipExtractor {
       const atomicInfo = this.extractAtomicInfo(node);
       return {
         operation: 'atomic_operation',
-        fromNodeId: atomicInfo ? generateDeterministicNodeIdFromString(atomicInfo.operator) : 'unknown',
-        toNodeId: atomicInfo ? generateDeterministicNodeIdFromString(atomicInfo.atomic) : 'unknown',
+        fromNodeId: atomicInfo ? this.generateDeterministicNodeIdFromString(atomicInfo.operator) : 'unknown',
+        toNodeId: atomicInfo ? this.generateDeterministicNodeIdFromString(atomicInfo.atomic) : 'unknown',
         concurrencyType: 'atomic',
         syncPrimitive: 'std::sync::atomic',
         isAsync: false
@@ -325,9 +325,9 @@ export class ConcurrencyRelationshipExtractor {
    * 判断是否是异步操作
    */
   private isAsyncOperation(node: Parser.SyntaxNode): boolean {
-    return node.type === 'await_expression' || 
+    return node.type === 'await_expression' ||
            node.type === 'async_block' ||
-           (node.text && (node.text.includes('await') || node.text.includes('async')));
+           !!(node.text && (node.text.includes('await') || node.text.includes('async')));
   }
 
   /**

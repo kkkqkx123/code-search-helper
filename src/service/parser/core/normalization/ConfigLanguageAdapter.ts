@@ -214,16 +214,24 @@ export abstract class ConfigLanguageAdapter implements ILanguageAdapter {
   }
 
   /**
-   * 创建标准化结果
-   */
+  * 创建标准化结果
+  */
   protected createStandardizedResult(result: any, queryType: string, language: string): StandardizedQueryResult {
+    const type = this.mapQueryTypeToStandardType(queryType);
+    const name = this.extractName(result);
+    const startLine = this.extractStartLine(result);
+    const endLine = this.extractEndLine(result);
+    const content = this.extractContent(result);
+    const metadata = this.createConfigMetadata(result, language);
+
     return {
-      type: this.mapQueryTypeToStandardType(queryType),
-      name: this.extractName(result),
-      startLine: this.extractStartLine(result),
-      endLine: this.extractEndLine(result),
-      content: this.extractContent(result),
-      metadata: this.createConfigMetadata(result, language)
+      nodeId: this.generateNodeId(type, name, startLine, endLine, content, language),
+      type,
+      name,
+      startLine,
+      endLine,
+      content,
+      metadata
     };
   }
 
@@ -436,6 +444,15 @@ export abstract class ConfigLanguageAdapter implements ILanguageAdapter {
   }
 
   /**
+  * 生成节点ID
+  */
+  protected generateNodeId(type: string, name: string, startLine: number, endLine: number, content: string, language: string): string {
+    // 生成确定性的节点ID
+    const contentHash = this.simpleHash(content);
+    return `${language}:${type}:${name}:${startLine}:${endLine}:${contentHash}`;
+  }
+
+  /**
    * 生成缓存键
    */
   protected generateCacheKey(queryResults: any[], queryType: string, language: string): string {
@@ -472,23 +489,31 @@ export abstract class ConfigLanguageAdapter implements ILanguageAdapter {
 
     return queryResults.slice(0, 10).map((result, index) => {
       const safeResult = result || {};
+      const type = 'config-item';
+      const name = `fallback_config_${index}`;
+      const startLine = this.extractStartLine(safeResult);
+      const endLine = this.extractEndLine(safeResult);
+      const content = this.extractContent(safeResult);
+      const metadata = {
+        language,
+        complexity: 1,
+        dependencies: [],
+        modifiers: [],
+        dataType: 'unknown',
+        validationRules: [],
+        isRequired: false,
+        configPath: '',
+        nestingDepth: 0
+      };
+
       return {
-        type: 'config-item',
-        name: `fallback_config_${index}`,
-        startLine: this.extractStartLine(safeResult),
-        endLine: this.extractEndLine(safeResult),
-        content: this.extractContent(safeResult),
-        metadata: {
-          language,
-          complexity: 1,
-          dependencies: [],
-          modifiers: [],
-          dataType: 'unknown',
-          validationRules: [],
-          isRequired: false,
-          configPath: '',
-          nestingDepth: 0
-        }
+        nodeId: this.generateNodeId(type, name, startLine, endLine, content, language),
+        type,
+        name,
+        startLine,
+        endLine,
+        content,
+        metadata
       };
     });
   }

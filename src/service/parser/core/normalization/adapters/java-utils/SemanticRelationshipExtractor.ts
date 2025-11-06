@@ -138,7 +138,7 @@ export class SemanticRelationshipExtractor {
         for (const methodChild of child.children) {
           if (methodChild.type === 'method_declaration') {
             const nameNode = methodChild.childForFieldName('name');
-            if (nameNode?.text === methodName && methodChild !== this) {
+            if (nameNode?.text === methodName) {
               overloadedMethods.push(methodChild);
             }
           }

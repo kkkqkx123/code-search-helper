@@ -142,8 +142,8 @@ export class ControlFlowRelationshipExtractor {
       const conditionalInfo = this.extractConditionalInfo(node);
       return {
         operation: 'conditional_branch',
-        fromNodeId: conditionalInfo ? generateDeterministicNodeIdFromString(conditionalInfo.condition) : 'unknown',
-        toNodeId: conditionalInfo ? generateDeterministicNodeIdFromString(conditionalInfo.branches.join('_')) : 'unknown',
+        fromNodeId: conditionalInfo ? this.generateDeterministicNodeIdFromString(conditionalInfo.condition) : 'unknown',
+        toNodeId: conditionalInfo ? this.generateDeterministicNodeIdFromString(conditionalInfo.branches.join('_')) : 'unknown',
         controlFlowType: 'conditional',
         condition: conditionalInfo?.condition,
         isLoop: false
@@ -154,8 +154,8 @@ export class ControlFlowRelationshipExtractor {
       const loopInfo = this.extractLoopInfo(node);
       return {
         operation: 'loop_iteration',
-        fromNodeId: loopInfo ? generateDeterministicNodeIdFromString(loopInfo.loopVariable || 'loop') : 'unknown',
-        toNodeId: loopInfo ? generateDeterministicNodeIdFromString(loopInfo.loopBody) : 'unknown',
+        fromNodeId: loopInfo ? this.generateDeterministicNodeIdFromString(loopInfo.loopVariable || 'loop') : 'unknown',
+        toNodeId: loopInfo ? this.generateDeterministicNodeIdFromString(loopInfo.loopBody) : 'unknown',
         controlFlowType: 'loop',
         condition: loopInfo?.condition,
         isLoop: true
@@ -166,8 +166,8 @@ export class ControlFlowRelationshipExtractor {
       const exceptionInfo = this.extractExceptionInfo(node);
       return {
         operation: 'exception_handling',
-        fromNodeId: exceptionInfo ? generateDeterministicNodeIdFromString(exceptionInfo.tryBlock) : 'unknown',
-        toNodeId: exceptionInfo ? generateDeterministicNodeIdFromString(exceptionInfo.catchBlock) : 'unknown',
+        fromNodeId: exceptionInfo ? this.generateDeterministicNodeIdFromString(exceptionInfo.tryBlock) : 'unknown',
+        toNodeId: exceptionInfo ? this.generateDeterministicNodeIdFromString(exceptionInfo.catchBlock) : 'unknown',
         controlFlowType: 'exception',
         isLoop: false
       };
@@ -177,8 +177,8 @@ export class ControlFlowRelationshipExtractor {
       const branchInfo = this.extractBranchInfo(node);
       return {
         operation: 'pattern_matching',
-        fromNodeId: branchInfo ? generateDeterministicNodeIdFromString(branchInfo.matcher) : 'unknown',
-        toNodeId: branchInfo ? generateDeterministicNodeIdFromString(branchInfo.branches.join('_')) : 'unknown',
+        fromNodeId: branchInfo ? this.generateDeterministicNodeIdFromString(branchInfo.matcher) : 'unknown',
+        toNodeId: branchInfo ? this.generateDeterministicNodeIdFromString(branchInfo.branches.join('_')) : 'unknown',
         controlFlowType: 'branch',
         condition: branchInfo?.matcher,
         isLoop: false

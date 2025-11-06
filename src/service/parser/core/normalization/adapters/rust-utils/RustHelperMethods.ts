@@ -1,4 +1,4 @@
-import Parser from 'tree-sitter';
+import * as Parser from 'tree-sitter';
 
 /**
  * Rust 辅助方法集合

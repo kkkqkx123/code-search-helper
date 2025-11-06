@@ -52,7 +52,7 @@ export class PythonHelperMethods {
       // 查找类引用
       if (child.type === 'identifier') {
         const text = child.text;
-        if (text && text[0] === textText[0].toUpperCase()) {
+        if (text && text[0] === text[0].toUpperCase()) {
           dependencies.push(text);
         }
       }
@@ -182,15 +182,15 @@ export class PythonHelperMethods {
    * 判断是否为异步函数
    */
   static isAsyncFunction(node: Parser.SyntaxNode): boolean {
-    return node.type === 'async_function_definition' || 
-           (node.text && node.text.includes('async'));
+    return node.type === 'async_function_definition' ||
+           !!(node.text && node.text.includes('async'));
   }
 
   /**
    * 判断是否为生成器函数
    */
   static isGeneratorFunction(node: Parser.SyntaxNode): boolean {
-    return node.text && node.text.includes('yield');
+    return !!(node.text && node.text.includes('yield'));
   }
 
   /**

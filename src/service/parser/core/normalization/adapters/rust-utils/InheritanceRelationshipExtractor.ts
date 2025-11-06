@@ -155,8 +155,8 @@ export class InheritanceRelationshipExtractor {
       
       return {
         operation: 'trait_bound',
-        fromNodeId: firstBound ? generateDeterministicNodeIdFromString(firstBound.type) : 'unknown',
-        toNodeId: firstBound ? generateDeterministicNodeIdFromString(firstBound.trait) : 'unknown',
+        fromNodeId: firstBound ? this.generateDeterministicNodeIdFromString(firstBound.type) : 'unknown',
+        toNodeId: firstBound ? this.generateDeterministicNodeIdFromString(firstBound.trait) : 'unknown',
         traitName: firstBound?.trait,
         typeName: firstBound?.type,
         isGeneric: false,

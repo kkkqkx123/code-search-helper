@@ -9,6 +9,11 @@ import {
   SemanticRelationshipExtractor,
   LifecycleRelationshipExtractor,
   ConcurrencyRelationshipExtractor,
+  AnnotationRelationshipExtractor,
+  CreationRelationshipExtractor,
+  DependencyRelationshipExtractor,
+  InheritanceRelationshipExtractor,
+  ReferenceRelationshipExtractor,
   PythonHelperMethods,
   PYTHON_NODE_TYPE_MAPPING,
   PYTHON_QUERY_TYPE_MAPPING,
@@ -35,6 +40,11 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
   private semanticExtractor: SemanticRelationshipExtractor;
   private lifecycleExtractor: LifecycleRelationshipExtractor;
   private concurrencyExtractor: ConcurrencyRelationshipExtractor;
+  private annotationExtractor: AnnotationRelationshipExtractor;
+  private creationExtractor: CreationRelationshipExtractor;
+  private dependencyExtractor: DependencyRelationshipExtractor;
+  private inheritanceExtractor: InheritanceRelationshipExtractor;
+  private referenceExtractor: ReferenceRelationshipExtractor;
 
   constructor(options: AdapterOptions = {}) {
     super(options);
@@ -46,6 +56,11 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
     this.semanticExtractor = new SemanticRelationshipExtractor();
     this.lifecycleExtractor = new LifecycleRelationshipExtractor();
     this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
+    this.annotationExtractor = new AnnotationRelationshipExtractor();
+    this.creationExtractor = new CreationRelationshipExtractor();
+    this.dependencyExtractor = new DependencyRelationshipExtractor();
+    this.inheritanceExtractor = new InheritanceRelationshipExtractor();
+    this.referenceExtractor = new ReferenceRelationshipExtractor();
   }
 
   getSupportedQueryTypes(): string[] {
@@ -485,6 +500,16 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
         return this.lifecycleExtractor.extractLifecycleMetadata(result, astNode, this.symbolTable);
       case 'concurrency':
         return this.concurrencyExtractor.extractConcurrencyMetadata(result, astNode, this.symbolTable);
+      case 'annotation':
+        return this.annotationExtractor.extractAnnotationMetadata(result, astNode, this.symbolTable);
+      case 'creation':
+        return this.creationExtractor.extractCreationMetadata(result, astNode, this.symbolTable);
+      case 'dependency':
+        return this.dependencyExtractor.extractDependencyMetadata(result, astNode, this.symbolTable);
+      case 'inheritance':
+        return this.inheritanceExtractor.extractInheritanceMetadata(result, astNode, this.symbolTable);
+      case 'reference':
+        return this.referenceExtractor.extractReferenceMetadata(result, astNode, this.symbolTable);
       default:
         return null;
     }
@@ -538,5 +563,131 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
     type: 'function' | 'method' | 'constructor' | 'static' | 'callback' | 'decorator';
   }> {
     return this.callExtractor.extractCallRelationships(result);
+  }
+
+  // 新增的关系提取方法
+
+  extractAnnotationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'decorator' | 'type_annotation' | 'docstring';
+  }> {
+    const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapAnnotationType(rel.type)
+    }));
+  }
+
+  extractCreationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiation' | 'function_object' | 'comprehension' | 'generator' | 'closure';
+  }> {
+    const relationships = this.creationExtractor.extractCreationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapCreationType(rel.type)
+    }));
+  }
+
+  extractDependencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'import' | 'from_import' | 'relative_import' | 'wildcard_import';
+  }> {
+    const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapDependencyType(rel.type)
+    }));
+  }
+
+  extractInheritanceRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'class_inheritance' | 'interface_implementation' | 'mixin' | 'protocol';
+  }> {
+    const relationships = this.inheritanceExtractor.extractInheritanceRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapInheritanceType(rel.type)
+    }));
+  }
+
+  extractReferenceRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'read' | 'write' | 'declaration' | 'usage' | 'attribute' | 'import';
+  }> {
+    const relationships = this.referenceExtractor.extractReferenceRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapReferenceType(rel.type)
+    }));
+  }
+
+  // 类型映射辅助方法
+
+  private mapAnnotationType(type: string): 'decorator' | 'type_annotation' | 'docstring' {
+    switch (type) {
+      case 'decorator': return 'decorator';
+      case 'type_annotation': return 'type_annotation';
+      case 'docstring': return 'docstring';
+      default: return 'decorator';
+    }
+  }
+
+  private mapCreationType(type: string): 'instantiation' | 'function_object' | 'comprehension' | 'generator' | 'closure' {
+    switch (type) {
+      case 'instantiation': return 'instantiation';
+      case 'function_object': return 'function_object';
+      case 'comprehension': return 'comprehension';
+      case 'generator': return 'generator';
+      case 'closure': return 'closure';
+      default: return 'instantiation';
+    }
+  }
+
+  private mapDependencyType(type: string): 'import' | 'from_import' | 'relative_import' | 'wildcard_import' {
+    switch (type) {
+      case 'import': return 'import';
+      case 'from_import': return 'from_import';
+      case 'relative_import': return 'relative_import';
+      case 'wildcard_import': return 'wildcard_import';
+      default: return 'import';
+    }
+  }
+
+  private mapInheritanceType(type: string): 'class_inheritance' | 'interface_implementation' | 'mixin' | 'protocol' {
+    switch (type) {
+      case 'class_inheritance': return 'class_inheritance';
+      case 'interface_implementation': return 'interface_implementation';
+      case 'mixin': return 'mixin';
+      case 'protocol': return 'protocol';
+      default: return 'class_inheritance';
+    }
+  }
+
+  private mapReferenceType(type: string): 'read' | 'write' | 'declaration' | 'usage' | 'attribute' | 'import' {
+    switch (type) {
+      case 'read': return 'read';
+      case 'write': return 'write';
+      case 'declaration': return 'declaration';
+      case 'usage': return 'usage';
+      case 'attribute': return 'attribute';
+      case 'import': return 'import';
+      default: return 'usage';
+    }
   }
 }

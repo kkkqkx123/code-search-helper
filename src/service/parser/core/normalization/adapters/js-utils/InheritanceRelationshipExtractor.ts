@@ -212,7 +212,7 @@ export class InheritanceRelationshipExtractor {
       return node;
     }
     
-    return this.findClassNode(node.parent);
+    return this.findClassNode(node.parent!);
   }
 
   /**

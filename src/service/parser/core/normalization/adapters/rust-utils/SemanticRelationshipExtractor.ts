@@ -150,8 +150,8 @@ export class SemanticRelationshipExtractor {
       const implInfo = this.extractTraitImplementationInfo(node);
       return {
         operation: 'trait_implementation',
-        fromNodeId: implInfo ? generateDeterministicNodeIdFromString(implInfo.implType) : 'unknown',
-        toNodeId: implInfo ? generateDeterministicNodeIdFromString(implInfo.traitName) : 'unknown',
+        fromNodeId: implInfo ? this.generateDeterministicNodeIdFromString(implInfo.implType) : 'unknown',
+        toNodeId: implInfo ? this.generateDeterministicNodeIdFromString(implInfo.traitName) : 'unknown',
         semanticType: 'implementation',
         pattern: 'trait_impl',
         confidence: 0.9
@@ -162,8 +162,8 @@ export class SemanticRelationshipExtractor {
       const overrideInfo = this.extractOverrideInfo(node);
       return {
         operation: 'method_override',
-        fromNodeId: overrideInfo ? generateDeterministicNodeIdFromString(overrideInfo.method) : 'unknown',
-        toNodeId: overrideInfo ? generateDeterministicNodeIdFromString(overrideInfo.baseMethod) : 'unknown',
+        fromNodeId: overrideInfo ? this.generateDeterministicNodeIdFromString(overrideInfo.method) : 'unknown',
+        toNodeId: overrideInfo ? this.generateDeterministicNodeIdFromString(overrideInfo.baseMethod) : 'unknown',
         semanticType: 'override',
         pattern: 'method_override',
         confidence: 0.8
@@ -174,8 +174,8 @@ export class SemanticRelationshipExtractor {
       const delegationInfo = this.extractDelegationInfo(node);
       return {
         operation: 'delegation',
-        fromNodeId: delegationInfo ? generateDeterministicNodeIdFromString(delegationInfo.delegator) : 'unknown',
-        toNodeId: delegationInfo ? generateDeterministicNodeIdFromString(delegationInfo.delegatee) : 'unknown',
+        fromNodeId: delegationInfo ? this.generateDeterministicNodeIdFromString(delegationInfo.delegator) : 'unknown',
+        toNodeId: delegationInfo ? this.generateDeterministicNodeIdFromString(delegationInfo.delegatee) : 'unknown',
         semanticType: 'delegation',
         pattern: 'delegation',
         confidence: 0.7
@@ -290,11 +290,11 @@ export class SemanticRelationshipExtractor {
    */
   private isDelegation(node: Parser.SyntaxNode): boolean {
     if (node.type !== 'function_item') return false;
-    
+
     // 检查函数体是否只是调用另一个方法
     const body = node.childForFieldName('body');
     if (!body) return false;
-    
+
     // 简化实现：检查函数体中是否有方法调用
     const text = body.text || '';
     return /self\.\w+\(/.test(text) || /\w+\.\w+\(/.test(text);
@@ -316,7 +316,7 @@ export class SemanticRelationshipExtractor {
     // 简化实现：从函数体中提取被调用的方法
     const text = body.text || '';
     const match = text.match(/(\w+)\.(\w+)\(/);
-    
+
     if (match) {
       return {
         delegator: methodName,
@@ -332,8 +332,8 @@ export class SemanticRelationshipExtractor {
    */
   private isObserverPattern(node: Parser.SyntaxNode): boolean {
     const text = node.text || '';
-    return text.includes('subscribe') || text.includes('notify') || 
-           text.includes('observer') || text.includes('listener');
+    return text.includes('subscribe') || text.includes('notify') ||
+      text.includes('observer') || text.includes('listener');
   }
 
   /**
@@ -344,7 +344,7 @@ export class SemanticRelationshipExtractor {
     observable: string;
   } | null {
     const text = node.text || '';
-    
+
     // 简化实现：从文本中提取观察者和被观察者
     if (text.includes('subscribe')) {
       const match = text.match(/(\w+)\.subscribe\((\w+)\)/);
@@ -355,7 +355,7 @@ export class SemanticRelationshipExtractor {
         };
       }
     }
-    
+
     if (text.includes('notify')) {
       const match = text.match(/(\w+)\.notify\((\w+)\)/);
       if (match) {
@@ -365,7 +365,7 @@ export class SemanticRelationshipExtractor {
         };
       }
     }
-    
+
     return null;
   }
 
@@ -374,8 +374,8 @@ export class SemanticRelationshipExtractor {
    */
   private isConfiguration(node: Parser.SyntaxNode): boolean {
     const text = node.text || '';
-    return text.includes('config') || text.includes('configure') || 
-           text.includes('setup') || text.includes('init');
+    return text.includes('config') || text.includes('configure') ||
+      text.includes('setup') || text.includes('init');
   }
 
   /**
@@ -386,7 +386,7 @@ export class SemanticRelationshipExtractor {
     configuration: string;
   } | null {
     const text = node.text || '';
-    
+
     // 简化实现：从文本中提取配置关系
     const match = text.match(/(\w+)\.configure?\((\w+)\)/);
     if (match) {
@@ -395,7 +395,7 @@ export class SemanticRelationshipExtractor {
         configuration: match[2]
       };
     }
-    
+
     return null;
   }
 
@@ -452,7 +452,7 @@ export class SemanticRelationshipExtractor {
     roles: string[];
   } {
     const text = node.text || '';
-    
+
     // 检查各种设计模式
     if (this.isBuilderPattern(node)) {
       return {
@@ -461,7 +461,7 @@ export class SemanticRelationshipExtractor {
         roles: ['builder', 'product']
       };
     }
-    
+
     if (this.isFactoryPattern(node)) {
       return {
         pattern: 'factory',
@@ -469,7 +469,7 @@ export class SemanticRelationshipExtractor {
         roles: ['factory', 'product']
       };
     }
-    
+
     if (this.isSingletonPattern(node)) {
       return {
         pattern: 'singleton',
@@ -477,7 +477,7 @@ export class SemanticRelationshipExtractor {
         roles: ['singleton']
       };
     }
-    
+
     if (this.isStrategyPattern(node)) {
       return {
         pattern: 'strategy',
@@ -485,7 +485,7 @@ export class SemanticRelationshipExtractor {
         roles: ['context', 'strategy']
       };
     }
-    
+
     return {
       pattern: 'unknown',
       confidence: 0.0,
@@ -514,8 +514,8 @@ export class SemanticRelationshipExtractor {
    */
   private isSingletonPattern(node: Parser.SyntaxNode): boolean {
     const text = node.text || '';
-    return text.includes('static') && text.includes('instance') && 
-           text.includes('once_cell') || text.includes('lazy_static');
+    return text.includes('static') && text.includes('instance') &&
+      text.includes('once_cell') || text.includes('lazy_static');
   }
 
   /**
@@ -549,7 +549,7 @@ export class SemanticRelationshipExtractor {
           confidence: 0.9
         });
         break;
-        
+
       case 'struct_item':
         roles.push({
           role: 'data_structure',
@@ -557,7 +557,7 @@ export class SemanticRelationshipExtractor {
           confidence: 0.9
         });
         break;
-        
+
       case 'trait_item':
         roles.push({
           role: 'interface',
@@ -565,11 +565,11 @@ export class SemanticRelationshipExtractor {
           confidence: 0.9
         });
         break;
-        
+
       case 'impl_item':
         const traitNode = node.childForFieldName('trait');
         const typeNode = node.childForFieldName('type');
-        
+
         if (traitNode) {
           roles.push({
             role: 'implementation',
@@ -595,14 +595,14 @@ export class SemanticRelationshipExtractor {
   private calculateSemanticSimilarity(node1: Parser.SyntaxNode, node2: Parser.SyntaxNode): number {
     // 简化实现：基于节点类型和文本计算相似度
     if (node1.type !== node2.type) return 0.0;
-    
+
     const text1 = node1.text || '';
     const text2 = node2.text || '';
-    
+
     // 简单的文本相似度计算
     const commonWords = this.getCommonWords(text1, text2);
     const totalWords = Math.max(this.getWordCount(text1), this.getWordCount(text2));
-    
+
     return totalWords > 0 ? commonWords.length / totalWords : 0.0;
   }
 
@@ -612,7 +612,7 @@ export class SemanticRelationshipExtractor {
   private getCommonWords(text1: string, text2: string): string[] {
     const words1 = this.getWords(text1);
     const words2 = this.getWords(text2);
-    
+
     return words1.filter(word => words2.includes(word));
   }
 

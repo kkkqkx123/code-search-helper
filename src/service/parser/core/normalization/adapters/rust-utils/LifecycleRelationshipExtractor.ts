@@ -128,8 +128,8 @@ export class LifecycleRelationshipExtractor {
       
       return {
         operation: 'lifetime_annotation',
-        fromNodeId: firstAnnotation ? generateDeterministicNodeIdFromString(firstAnnotation.variable) : 'unknown',
-        toNodeId: firstAnnotation ? generateDeterministicNodeIdFromString(firstAnnotation.lifetime) : 'unknown',
+        fromNodeId: firstAnnotation ? this.generateDeterministicNodeIdFromString(firstAnnotation.variable) : 'unknown',
+        toNodeId: firstAnnotation ? this.generateDeterministicNodeIdFromString(firstAnnotation.lifetime) : 'unknown',
         lifetimeName: firstAnnotation?.lifetime,
         lifetimeType: 'annotation',
         isStatic: firstAnnotation?.lifetime === "'static"
@@ -142,8 +142,8 @@ export class LifecycleRelationshipExtractor {
       
       return {
         operation: 'lifetime_bound',
-        fromNodeId: firstBound ? generateDeterministicNodeIdFromString(firstBound.lifetime) : 'unknown',
-        toNodeId: firstBound ? generateDeterministicNodeIdFromString(firstBound.bound) : 'unknown',
+        fromNodeId: firstBound ? this.generateDeterministicNodeIdFromString(firstBound.lifetime) : 'unknown',
+        toNodeId: firstBound ? this.generateDeterministicNodeIdFromString(firstBound.bound) : 'unknown',
         lifetimeName: firstBound?.lifetime,
         lifetimeType: 'bound',
         isStatic: firstBound?.bound === "'static"

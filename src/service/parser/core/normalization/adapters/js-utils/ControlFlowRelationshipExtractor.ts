@@ -228,7 +228,7 @@ export class ControlFlowRelationshipExtractor {
     const context: any = {};
     
     // 查找父控制流结构
-    const parentControlFlow = this.findParentControlFlow(node);
+    const parentControlFlow = this.findParentControlFlow(astNode);
     if (parentControlFlow) {
       context.parentControlFlow = {
         type: parentControlFlow.type,
@@ -237,10 +237,10 @@ export class ControlFlowRelationshipExtractor {
     }
     
     // 检查嵌套级别
-    context.nestingLevel = this.calculateNestingLevel(node);
+    context.nestingLevel = this.calculateNestingLevel(astNode);
     
     // 检查是否在函数内
-    const parentFunction = this.findParentFunction(node);
+    const parentFunction = this.findParentFunction(astNode);
     if (parentFunction) {
       context.inFunction = true;
       context.functionName = this.getFunctionName(parentFunction);

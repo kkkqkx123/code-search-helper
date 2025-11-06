@@ -1,4 +1,4 @@
-import Parser from 'tree-sitter';
+import * as Parser from 'tree-sitter';
 
 /**
  * 为任意AST节点生成唯一且可预测的确定性ID。

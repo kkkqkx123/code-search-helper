@@ -10,10 +10,10 @@ import {
   LifecycleRelationshipExtractor,
   SemanticRelationshipExtractor,
   ControlFlowRelationshipExtractor,
-  CSharpAnnotationRelationshipExtractor,
-  CSharpCreationRelationshipExtractor,
-  CSharpDependencyRelationshipExtractor,
-  CSharpReferenceRelationshipExtractor,
+  AnnotationRelationshipExtractor,
+  CreationRelationshipExtractor,
+  DependencyRelationshipExtractor,
+  ReferenceRelationshipExtractor,
   CSharpHelperMethods,
   CSHARP_NODE_TYPE_MAPPING,
   CSHARP_QUERY_TYPE_MAPPING,
@@ -32,15 +32,15 @@ type StandardType = StandardizedQueryResult['type'];
 export class CSharpLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
-  
+
   // 关系提取器实例
-  private annotationExtractor: CSharpAnnotationRelationshipExtractor;
+  private annotationExtractor: AnnotationRelationshipExtractor;
   private callExtractor: CallRelationshipExtractor;
-  private creationExtractor: CSharpCreationRelationshipExtractor;
+  private creationExtractor: CreationRelationshipExtractor;
   private dataFlowExtractor: DataFlowRelationshipExtractor;
-  private dependencyExtractor: CSharpDependencyRelationshipExtractor;
+  private dependencyExtractor: DependencyRelationshipExtractor;
   private inheritanceExtractor: InheritanceRelationshipExtractor;
-  private referenceExtractor: CSharpReferenceRelationshipExtractor;
+  private referenceExtractor: ReferenceRelationshipExtractor;
   private concurrencyExtractor: ConcurrencyRelationshipExtractor;
   private lifecycleExtractor: LifecycleRelationshipExtractor;
   private semanticExtractor: SemanticRelationshipExtractor;
@@ -48,15 +48,15 @@ export class CSharpLanguageAdapter extends BaseLanguageAdapter {
 
   constructor(options: AdapterOptions = {}) {
     super(options);
-    
+
     // 初始化关系提取器
-    this.annotationExtractor = new CSharpAnnotationRelationshipExtractor();
+    this.annotationExtractor = new AnnotationRelationshipExtractor();
     this.callExtractor = new CallRelationshipExtractor();
-    this.creationExtractor = new CSharpCreationRelationshipExtractor();
+    this.creationExtractor = new CreationRelationshipExtractor();
     this.dataFlowExtractor = new DataFlowRelationshipExtractor();
-    this.dependencyExtractor = new CSharpDependencyRelationshipExtractor();
+    this.dependencyExtractor = new DependencyRelationshipExtractor();
     this.inheritanceExtractor = new InheritanceRelationshipExtractor();
-    this.referenceExtractor = new CSharpReferenceRelationshipExtractor();
+    this.referenceExtractor = new ReferenceRelationshipExtractor();
     this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
     this.lifecycleExtractor = new LifecycleRelationshipExtractor();
     this.semanticExtractor = new SemanticRelationshipExtractor();

@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { languageMappingManager } from '../../../config/LanguageMappingManager';
+import { languageMappingManager } from '../../config/LanguageMappingManager';
 
 /**
  * 语言扩展名映射接口

@@ -7,17 +7,17 @@ import Parser from 'tree-sitter';
 // 导入C语言工具模块
 import {
   CHelperMethods,
-  CCallRelationshipExtractor,
-  CDataFlowRelationshipExtractor,
-  CInheritanceRelationshipExtractor,
-  CConcurrencyRelationshipExtractor,
-  CLifecycleRelationshipExtractor,
-  CSemanticRelationshipExtractor,
-  CControlFlowRelationshipExtractor,
-  CAnnotationRelationshipExtractor,
-  CCreationRelationshipExtractor,
-  CDependencyRelationshipExtractor,
-  CReferenceRelationshipExtractor,
+  CallRelationshipExtractor,
+  DataFlowRelationshipExtractor,
+  InheritanceRelationshipExtractor,
+  ConcurrencyRelationshipExtractor,
+  LifecycleRelationshipExtractor,
+  SemanticRelationshipExtractor,
+  ControlFlowRelationshipExtractor,
+  AnnotationRelationshipExtractor,
+  CreationRelationshipExtractor,
+  DependencyRelationshipExtractor,
+  ReferenceRelationshipExtractor,
   C_SUPPORTED_QUERY_TYPES,
   C_QUERY_TYPE_MAPPING,
   C_NODE_TYPE_MAPPING
@@ -32,33 +32,33 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
   private symbolTable: SymbolTable | null = null;
 
   // 关系提取器实例
-  private annotationExtractor: CAnnotationRelationshipExtractor;
-  private callExtractor: CCallRelationshipExtractor;
-  private creationExtractor: CCreationRelationshipExtractor;
-  private dataFlowExtractor: CDataFlowRelationshipExtractor;
-  private dependencyExtractor: CDependencyRelationshipExtractor;
-  private inheritanceExtractor: CInheritanceRelationshipExtractor;
-  private referenceExtractor: CReferenceRelationshipExtractor;
-  private concurrencyExtractor: CConcurrencyRelationshipExtractor;
-  private lifecycleExtractor: CLifecycleRelationshipExtractor;
-  private semanticExtractor: CSemanticRelationshipExtractor;
-  private controlFlowExtractor: CControlFlowRelationshipExtractor;
+  private annotationExtractor: AnnotationRelationshipExtractor;
+  private callExtractor: CallRelationshipExtractor;
+  private creationExtractor: CreationRelationshipExtractor;
+  private dataFlowExtractor: DataFlowRelationshipExtractor;
+  private dependencyExtractor: DependencyRelationshipExtractor;
+  private inheritanceExtractor: InheritanceRelationshipExtractor;
+  private referenceExtractor: ReferenceRelationshipExtractor;
+  private concurrencyExtractor: ConcurrencyRelationshipExtractor;
+  private lifecycleExtractor: LifecycleRelationshipExtractor;
+  private semanticExtractor: SemanticRelationshipExtractor;
+  private controlFlowExtractor: ControlFlowRelationshipExtractor;
 
   constructor(options: AdapterOptions = {}) {
     super(options);
-    
+
     // 初始化关系提取器
-    this.annotationExtractor = new CAnnotationRelationshipExtractor();
-    this.callExtractor = new CCallRelationshipExtractor();
-    this.creationExtractor = new CCreationRelationshipExtractor();
-    this.dataFlowExtractor = new CDataFlowRelationshipExtractor();
-    this.dependencyExtractor = new CDependencyRelationshipExtractor();
-    this.inheritanceExtractor = new CInheritanceRelationshipExtractor();
-    this.referenceExtractor = new CReferenceRelationshipExtractor();
-    this.concurrencyExtractor = new CConcurrencyRelationshipExtractor();
-    this.lifecycleExtractor = new CLifecycleRelationshipExtractor();
-    this.semanticExtractor = new CSemanticRelationshipExtractor();
-    this.controlFlowExtractor = new CControlFlowRelationshipExtractor();
+    this.annotationExtractor = new AnnotationRelationshipExtractor();
+    this.callExtractor = new CallRelationshipExtractor();
+    this.creationExtractor = new CreationRelationshipExtractor();
+    this.dataFlowExtractor = new DataFlowRelationshipExtractor();
+    this.dependencyExtractor = new DependencyRelationshipExtractor();
+    this.inheritanceExtractor = new InheritanceRelationshipExtractor();
+    this.referenceExtractor = new ReferenceRelationshipExtractor();
+    this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
+    this.lifecycleExtractor = new LifecycleRelationshipExtractor();
+    this.semanticExtractor = new SemanticRelationshipExtractor();
+    this.controlFlowExtractor = new ControlFlowRelationshipExtractor();
   }
 
   getSupportedQueryTypes(): string[] {

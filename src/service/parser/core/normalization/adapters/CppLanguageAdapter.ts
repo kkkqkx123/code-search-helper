@@ -10,10 +10,10 @@ import {
   LifecycleRelationshipExtractor,
   SemanticRelationshipExtractor,
   ControlFlowRelationshipExtractor,
-  CppAnnotationRelationshipExtractor,
-  CppCreationRelationshipExtractor,
-  CppDependencyRelationshipExtractor,
-  CppReferenceRelationshipExtractor,
+  AnnotationRelationshipExtractor,
+  CreationRelationshipExtractor,
+  DependencyRelationshipExtractor,
+  ReferenceRelationshipExtractor,
   CppHelperMethods,
   CPP_NODE_TYPE_MAPPING,
   CPP_QUERY_TYPE_MAPPING,
@@ -32,15 +32,15 @@ type StandardType = StandardizedQueryResult['type'];
 export class CppLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
-  
+
   // 关系提取器实例
-  private annotationExtractor: CppAnnotationRelationshipExtractor;
+  private annotationExtractor: AnnotationRelationshipExtractor;
   private callExtractor: CallRelationshipExtractor;
-  private creationExtractor: CppCreationRelationshipExtractor;
+  private creationExtractor: CreationRelationshipExtractor;
   private dataFlowExtractor: DataFlowRelationshipExtractor;
-  private dependencyExtractor: CppDependencyRelationshipExtractor;
+  private dependencyExtractor: DependencyRelationshipExtractor;
   private inheritanceExtractor: InheritanceRelationshipExtractor;
-  private referenceExtractor: CppReferenceRelationshipExtractor;
+  private referenceExtractor: ReferenceRelationshipExtractor;
   private concurrencyExtractor: ConcurrencyRelationshipExtractor;
   private lifecycleExtractor: LifecycleRelationshipExtractor;
   private semanticExtractor: SemanticRelationshipExtractor;
@@ -48,15 +48,15 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
 
   constructor(options: AdapterOptions = {}) {
     super(options);
-    
+
     // 初始化关系提取器
-    this.annotationExtractor = new CppAnnotationRelationshipExtractor();
+    this.annotationExtractor = new AnnotationRelationshipExtractor();
     this.callExtractor = new CallRelationshipExtractor();
-    this.creationExtractor = new CppCreationRelationshipExtractor();
+    this.creationExtractor = new CreationRelationshipExtractor();
     this.dataFlowExtractor = new DataFlowRelationshipExtractor();
-    this.dependencyExtractor = new CppDependencyRelationshipExtractor();
+    this.dependencyExtractor = new DependencyRelationshipExtractor();
     this.inheritanceExtractor = new InheritanceRelationshipExtractor();
-    this.referenceExtractor = new CppReferenceRelationshipExtractor();
+    this.referenceExtractor = new ReferenceRelationshipExtractor();
     this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
     this.lifecycleExtractor = new LifecycleRelationshipExtractor();
     this.semanticExtractor = new SemanticRelationshipExtractor();
@@ -460,10 +460,10 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
           if (!metadata.extra) {
             metadata.extra = {};
           }
-          
+
           // 合并关系元数据到extra中
           Object.assign(metadata.extra, relationshipMetadata);
-          
+
           // 对于关系类型，也添加一些顶级属性以便于访问
           if (relationshipMetadata.type) {
             metadata.relationshipType = relationshipMetadata.type;

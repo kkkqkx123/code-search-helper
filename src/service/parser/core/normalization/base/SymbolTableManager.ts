@@ -71,7 +71,7 @@ export class SymbolTableManager {
       debug: config.debug ?? false,
       symbolTableTTL: config.symbolTableTTL ?? 300000 // 5分钟
     };
-    this.debugMode = this.config.debug;
+    this.debugMode = this.config.debug ?? false;
   }
 
   /**
@@ -88,7 +88,7 @@ export class SymbolTableManager {
 
     this.symbolTables.set(filePath, symbolTable);
     this.logDebug(`Symbol table created for file: ${filePath}`);
-    
+
     return symbolTable;
   }
 
@@ -104,7 +104,7 @@ export class SymbolTableManager {
    */
   updateSymbolTable(filePath: string, symbols: SymbolInfo[]): void {
     let symbolTable = this.symbolTables.get(filePath);
-    
+
     if (!symbolTable) {
       symbolTable = this.createSymbolTable(filePath);
     }
@@ -119,7 +119,7 @@ export class SymbolTableManager {
 
     // 清空相关缓存
     this.invalidateCacheForFile(filePath);
-    
+
     this.logDebug(`Symbol table updated for file: ${filePath}`, {
       symbolCount: symbols.length
     });
@@ -130,16 +130,16 @@ export class SymbolTableManager {
    */
   addSymbol(filePath: string, symbol: SymbolInfo): void {
     let symbolTable = this.symbolTables.get(filePath);
-    
+
     if (!symbolTable) {
       symbolTable = this.createSymbolTable(filePath);
     }
 
     symbolTable.globalScope.symbols.set(symbol.name, symbol);
-    
+
     // 清空相关缓存
     this.invalidateCacheForFile(filePath);
-    
+
     this.logDebug(`Symbol added: ${symbol.name} in file: ${filePath}`);
   }
 
@@ -148,19 +148,19 @@ export class SymbolTableManager {
    */
   removeSymbol(filePath: string, symbolName: string): boolean {
     const symbolTable = this.symbolTables.get(filePath);
-    
+
     if (!symbolTable) {
       return false;
     }
 
     const removed = symbolTable.globalScope.symbols.delete(symbolName);
-    
+
     if (removed) {
       // 清空相关缓存
       this.invalidateCacheForFile(filePath);
       this.logDebug(`Symbol removed: ${symbolName} in file: ${filePath}`);
     }
-    
+
     return removed;
   }
 
@@ -169,16 +169,16 @@ export class SymbolTableManager {
    */
   addImport(filePath: string, alias: string, importPath: string): void {
     let symbolTable = this.symbolTables.get(filePath);
-    
+
     if (!symbolTable) {
       symbolTable = this.createSymbolTable(filePath);
     }
 
     symbolTable.imports.set(alias, importPath);
-    
+
     // 清空相关缓存
     this.invalidateCacheForFile(filePath);
-    
+
     this.logDebug(`Import added: ${alias} -> ${importPath} in file: ${filePath}`);
   }
 
@@ -191,10 +191,10 @@ export class SymbolTableManager {
     searchPaths: string[] = []
   ): SymbolResolutionResult {
     const startTime = Date.now();
-    
+
     // 生成缓存键
     const cacheKey = `${name}:${filePath}:${searchPaths.join(',')}`;
-    
+
     // 检查缓存
     if (this.config.enableCache && this.cache.has(cacheKey)) {
       this.cacheStats.hits++;
@@ -207,7 +207,7 @@ export class SymbolTableManager {
     }
 
     this.cacheStats.misses++;
-    
+
     // 执行解析
     const result = this.performSymbolResolution(name, filePath, searchPaths);
     result.resolutionTime = Date.now() - startTime;
@@ -236,7 +236,7 @@ export class SymbolTableManager {
     searchPaths: string[]
   ): SymbolResolutionResult {
     const resolutionPath: string[] = [];
-    
+
     // 1. 在当前文件中查找
     const currentFileTable = this.symbolTables.get(filePath);
     if (currentFileTable) {
@@ -403,13 +403,13 @@ export class SymbolTableManager {
    */
   removeSymbolTable(filePath: string): boolean {
     const removed = this.symbolTables.delete(filePath);
-    
+
     if (removed) {
       // 清空相关缓存
       this.invalidateCacheForFile(filePath);
       this.logDebug(`Symbol table removed for file: ${filePath}`);
     }
-    
+
     return removed;
   }
 
@@ -430,7 +430,9 @@ export class SymbolTableManager {
     if (this.cache.size >= this.config.cacheSize!) {
       // 简单的LRU：删除第一个元素
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      if (firstKey) {
+        this.cache.delete(firstKey);
+      }
     }
   }
 
@@ -439,13 +441,13 @@ export class SymbolTableManager {
    */
   private invalidateCacheForFile(filePath: string): void {
     const keysToDelete: string[] = [];
-    
+
     for (const key of this.cache.keys()) {
       if (key.includes(`:${filePath}:`) || key.endsWith(`:${filePath}`)) {
         keysToDelete.push(key);
       }
     }
-    
+
     for (const key of keysToDelete) {
       this.cache.delete(key);
     }
@@ -466,7 +468,7 @@ export class SymbolTableManager {
   getCacheStats(): { size: number; hitRate: number; hits: number; misses: number } {
     const total = this.cacheStats.hits + this.cacheStats.misses;
     const hitRate = total > 0 ? this.cacheStats.hits / total : 0;
-    
+
     return {
       size: this.cache.size,
       hitRate,
@@ -505,7 +507,7 @@ export class SymbolTableManager {
    */
   exportSymbolTables(): Record<string, SymbolTable> {
     const exported: Record<string, SymbolTable> = {};
-    
+
     for (const [filePath, table] of this.symbolTables) {
       exported[filePath] = {
         filePath: table.filePath,
@@ -515,7 +517,7 @@ export class SymbolTableManager {
         imports: new Map(table.imports)
       };
     }
-    
+
     return exported;
   }
 
@@ -524,7 +526,7 @@ export class SymbolTableManager {
    */
   importSymbolTables(exported: Record<string, SymbolTable>): void {
     this.clearAllSymbolTables();
-    
+
     for (const [filePath, table] of Object.entries(exported)) {
       this.symbolTables.set(filePath, {
         filePath: table.filePath,
@@ -534,7 +536,7 @@ export class SymbolTableManager {
         imports: new Map(table.imports)
       });
     }
-    
+
     this.logDebug('Symbol tables imported', {
       fileCount: Object.keys(exported).length
     });

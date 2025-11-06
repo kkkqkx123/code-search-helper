@@ -10,6 +10,13 @@ export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor';
 export { ConcurrencyRelationshipExtractor } from './ConcurrencyRelationshipExtractor';
 
+// 新增的关系提取器
+export { AnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
+export { CreationRelationshipExtractor } from './CreationRelationshipExtractor';
+export { DependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
+export { InheritanceRelationshipExtractor } from './InheritanceRelationshipExtractor';
+export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
+
 export { PythonHelperMethods } from './PythonHelperMethods';
 
 // 导出常量

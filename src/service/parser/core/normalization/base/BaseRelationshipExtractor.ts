@@ -54,7 +54,7 @@ export abstract class BaseRelationshipExtractor<TMetadata = any> {
       debug: config.debug ?? false,
       customConfig: config.customConfig ?? {}
     };
-    this.debugMode = this.config.debug;
+    this.debugMode = this.config.debug ?? false;
   }
 
   /**
@@ -328,9 +328,11 @@ export abstract class BaseRelationshipExtractor<TMetadata = any> {
     
     // 存储到缓存
     if (this.cache.size >= this.config.cacheSize!) {
-      // 简单的LRU：删除第一个元素
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+    // 简单的LRU：删除第一个元素
+    const firstKey = this.cache.keys().next().value;
+    if (firstKey) {
+        this.cache.delete(firstKey);
+      }
     }
     
     this.cache.set(cacheKey, relationships);

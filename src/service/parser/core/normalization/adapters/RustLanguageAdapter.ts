@@ -10,6 +10,10 @@ import {
   LifecycleRelationshipExtractor,
   SemanticRelationshipExtractor,
   ControlFlowRelationshipExtractor,
+  AnnotationRelationshipExtractor,
+  CreationRelationshipExtractor,
+  DependencyRelationshipExtractor,
+  ReferenceRelationshipExtractor,
   RustHelperMethods,
   RUST_NODE_TYPE_MAPPING,
   RUST_QUERY_TYPE_MAPPING,
@@ -36,6 +40,10 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
   private lifecycleExtractor: LifecycleRelationshipExtractor;
   private semanticExtractor: SemanticRelationshipExtractor;
   private controlFlowExtractor: ControlFlowRelationshipExtractor;
+  private annotationExtractor: AnnotationRelationshipExtractor;
+  private creationExtractor: CreationRelationshipExtractor;
+  private dependencyExtractor: DependencyRelationshipExtractor;
+  private referenceExtractor: ReferenceRelationshipExtractor;
 
   constructor(options: AdapterOptions = {}) {
     super(options);
@@ -48,6 +56,10 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     this.lifecycleExtractor = new LifecycleRelationshipExtractor();
     this.semanticExtractor = new SemanticRelationshipExtractor();
     this.controlFlowExtractor = new ControlFlowRelationshipExtractor();
+    this.annotationExtractor = new AnnotationRelationshipExtractor();
+    this.creationExtractor = new CreationRelationshipExtractor();
+    this.dependencyExtractor = new DependencyRelationshipExtractor();
+    this.referenceExtractor = new ReferenceRelationshipExtractor();
   }
 
   getSupportedQueryTypes(): string[] {
@@ -373,6 +385,14 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
         return this.extractLifecycleMetadata(result, astNode);
       case 'semantic':
         return this.extractSemanticMetadata(result, astNode);
+      case 'annotation':
+        return this.annotationExtractor.extractAnnotationMetadata(result, astNode, this.symbolTable);
+      case 'creation':
+        return this.creationExtractor.extractCreationMetadata(result, astNode, this.symbolTable);
+      case 'dependency':
+        return this.dependencyExtractor.extractDependencyMetadata(result, astNode, this.symbolTable);
+      case 'reference':
+        return this.referenceExtractor.extractReferenceMetadata(result, astNode, this.symbolTable);
       default:
         return null;
     }
@@ -582,6 +602,113 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       target: rel.target,
       type: this.mapRustControlFlowTypeToBaseType(rel.type)
     }));
+  }
+
+  // 新增的关系提取方法
+
+  extractAnnotationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'attribute' | 'derive' | 'macro' | 'doc_comment';
+  }> {
+    const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapAnnotationType(rel.type)
+    }));
+  }
+
+  extractCreationRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'instantiation' | 'enum_creation' | 'closure' | 'function_object' | 'iterator' | 'collection';
+  }> {
+    const relationships = this.creationExtractor.extractCreationRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapCreationType(rel.type)
+    }));
+  }
+
+  extractDependencyRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'use' | 'extern_crate' | 'mod' | 'macro_use' | 'macro_export';
+  }> {
+    const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapDependencyType(rel.type)
+    }));
+  }
+
+  extractReferenceRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'read' | 'write' | 'declaration' | 'usage' | 'field' | 'method' | 'module' | 'type';
+  }> {
+    const relationships = this.referenceExtractor.extractReferenceRelationships(result);
+    // 转换类型以匹配基类接口
+    return relationships.map(rel => ({
+      source: rel.source,
+      target: rel.target,
+      type: this.mapReferenceType(rel.type)
+    }));
+  }
+
+  // 新的类型映射辅助方法
+
+  private mapAnnotationType(type: string): 'attribute' | 'derive' | 'macro' | 'doc_comment' {
+    switch (type) {
+      case 'attribute': return 'attribute';
+      case 'derive': return 'derive';
+      case 'macro': return 'macro';
+      case 'doc_comment': return 'doc_comment';
+      default: return 'attribute';
+    }
+  }
+
+  private mapCreationType(type: string): 'instantiation' | 'enum_creation' | 'closure' | 'function_object' | 'iterator' | 'collection' {
+    switch (type) {
+      case 'instantiation': return 'instantiation';
+      case 'enum_creation': return 'enum_creation';
+      case 'closure': return 'closure';
+      case 'function_object': return 'function_object';
+      case 'iterator': return 'iterator';
+      case 'collection': return 'collection';
+      default: return 'instantiation';
+    }
+  }
+
+  private mapDependencyType(type: string): 'use' | 'extern_crate' | 'mod' | 'macro_use' | 'macro_export' {
+    switch (type) {
+      case 'use': return 'use';
+      case 'extern_crate': return 'extern_crate';
+      case 'mod': return 'mod';
+      case 'macro_use': return 'macro_use';
+      case 'macro_export': return 'macro_export';
+      default: return 'use';
+    }
+  }
+
+  private mapReferenceType(type: string): 'read' | 'write' | 'declaration' | 'usage' | 'field' | 'method' | 'module' | 'type' {
+    switch (type) {
+      case 'read': return 'read';
+      case 'write': return 'write';
+      case 'declaration': return 'declaration';
+      case 'usage': return 'usage';
+      case 'field': return 'field';
+      case 'method': return 'method';
+      case 'module': return 'module';
+      case 'type': return 'type';
+      default: return 'usage';
+    }
   }
 
   // 类型映射辅助方法

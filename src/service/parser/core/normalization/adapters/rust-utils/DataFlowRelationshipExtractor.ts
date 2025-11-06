@@ -382,8 +382,8 @@ export class DataFlowRelationshipExtractor {
    */
   private isMoveExpression(node: Parser.SyntaxNode): boolean {
     // 检查是否是移动语义的表达式
-    return node.type === 'move_expression' || 
-           (node.text && node.text.includes('move'));
+    return node.type === 'move_expression' ||
+           !!(node.text && node.text.includes('move'));
   }
 
   /**

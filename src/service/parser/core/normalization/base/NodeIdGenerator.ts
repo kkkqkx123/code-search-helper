@@ -55,7 +55,7 @@ export class NodeIdGenerator {
       idPrefix: config.idPrefix ?? 'node',
       hashAlgorithm: config.hashAlgorithm ?? 'djb2'
     };
-    this.debugMode = this.config.debug;
+    this.debugMode = this.config.debug ?? false;
   }
 
   /**
@@ -305,10 +305,12 @@ export class NodeIdGenerator {
    * 管理缓存大小
    */
   private manageCacheSize(): void {
-    if (this.cache.size >= this.config.cacheSize!) {
-      // 简单的LRU：删除第一个元素
-      const firstKey = this.cache.keys().next().value;
+  if (this.cache.size >= this.config.cacheSize!) {
+  // 简单的LRU：删除第一个元素
+  const firstKey = this.cache.keys().next().value;
+  if (firstKey) {
       this.cache.delete(firstKey);
+      }
     }
   }
 
@@ -348,7 +350,7 @@ export class NodeIdGenerator {
    */
   updateConfig(newConfig: Partial<NodeIdGeneratorConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    this.debugMode = this.config.debug;
+    this.debugMode = this.config.debug ?? false;
     
     // 如果禁用了缓存，清空现有缓存
     if (!this.config.enableCache) {

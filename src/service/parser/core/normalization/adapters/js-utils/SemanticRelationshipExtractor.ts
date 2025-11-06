@@ -272,7 +272,7 @@ export class SemanticRelationshipExtractor {
           return source;
         }
       }
-      currentNode = currentNode.parent;
+      currentNode = currentNode.parent!;
     }
     
     return null;
@@ -303,10 +303,10 @@ export class SemanticRelationshipExtractor {
         const functionName = this.getFunctionName(currentNode);
         if (this.isReactFunction(functionName)) return 'react';
         if (this.isVueFunction(functionName)) return 'vue';
-        if (this.isAngularFunction(functionName)) return 'angular';
+        // if (this.isAngularFunction(functionName)) return 'angular'; // Method not implemented
         if (this.isJQueryFunction(functionName)) return 'jquery';
       }
-      currentNode = currentNode.parent;
+      currentNode = currentNode.parent!;
     }
     
     return null;
