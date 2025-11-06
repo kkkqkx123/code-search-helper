@@ -13,6 +13,12 @@ export { CLifecycleRelationshipExtractor } from './LifecycleRelationshipExtracto
 export { CSemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { CControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
 
+// 新增的关系提取器
+export { CAnnotationRelationshipExtractor } from './AnnotationRelationshipExtractor';
+export { CCreationRelationshipExtractor } from './CreationRelationshipExtractor';
+export { CDependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
+export { CReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
+
 // 重新导出常用常量
 export {
   C_NODE_TYPE_MAPPING,

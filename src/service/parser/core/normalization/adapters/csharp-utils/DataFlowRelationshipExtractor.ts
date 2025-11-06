@@ -141,7 +141,7 @@ export class DataFlowRelationshipExtractor {
             case 'parameter':
                 return node.childForFieldName('name');
             case 'return_statement':
-                return node.parent?.childForFieldName('name');
+                return node.parent?.childForFieldName('name') ?? null;
             case 'member_access_expression':
                 return node.childForFieldName('name');
             case 'property_declaration':
@@ -156,7 +156,7 @@ export class DataFlowRelationshipExtractor {
      */
     private extractFlowPath(node: Parser.SyntaxNode): string[] {
         const path: string[] = [];
-        let current = node;
+        let current: Parser.SyntaxNode | null = node;
 
         while (current) {
             if (current.type === 'identifier' || current.type === 'member_access_expression') {

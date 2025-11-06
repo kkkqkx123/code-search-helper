@@ -10,6 +10,9 @@ export { ConcurrencyRelationshipExtractor } from './ConcurrencyRelationshipExtra
 export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor';
 export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { ControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
+export { ExpressionsControlFlowRelationshipExtractor } from './ExpressionsControlFlowRelationshipExtractor';
+export { FunctionsTypesRelationshipExtractor } from './FunctionsTypesRelationshipExtractor';
+export { VariablesImportsRelationshipExtractor } from './VariablesImportsRelationshipExtractor';
 export { GoHelperMethods } from './GoHelperMethods';
 
 // 导出常量
