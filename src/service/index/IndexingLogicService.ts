@@ -26,7 +26,7 @@ import { PerformanceDashboard } from '../monitoring/PerformanceDashboard';
 import { AutoOptimizationAdvisor } from '../optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../optimization/BatchProcessingOptimizer';
 import { TreeSitterService } from '../parser/core/parse/TreeSitterService';
-import { TreeSitterQueryEngine } from '../parser/core/query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from '../parser/core/query/TreeSitterQueryExecutor';
 import { NebulaNode, NebulaRelationship } from '../../database/nebula/NebulaTypes';
 import { StandardizedQueryResult } from '../parser/core/normalization/types';
 
@@ -490,7 +490,7 @@ export class IndexingLogicService {
     try {
       // 读取文件内容
       const content = await fs.readFile(filePath, 'utf8');
-      
+
       // 检测语言
       const language = await this.treeSitterService.detectLanguage(filePath);
       if (!language) {
@@ -500,7 +500,7 @@ export class IndexingLogicService {
 
       // 解析为 AST
       const parseResult = await this.treeSitterService.parseCode(content, language.name);
-      
+
       // 执行图索引查询
       const queryResults = await this.treeSitterQueryEngine.executeGraphQueries(parseResult.ast, language.name);
 
@@ -508,7 +508,7 @@ export class IndexingLogicService {
       // 首先将查询结果转换为标准化格式
       const queryResultsArray = Array.from(queryResults.values());
       const standardizedNodes = this.convertQueryResultsToStandardized(queryResultsArray);
-      
+
       // 使用新的mapToGraph方法
       const graphElements = await this.graphMappingService.mapToGraph(filePath, standardizedNodes);
 

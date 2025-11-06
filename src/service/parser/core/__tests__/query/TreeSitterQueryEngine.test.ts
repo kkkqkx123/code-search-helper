@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryExecutor';
 import { QueryEngineFactory } from '../../query/QueryEngineFactory';
 import { QueryPerformanceMonitor } from '../../query/QueryPerformanceMonitor';
 import { QueryCache } from '../../query/QueryCache';
@@ -35,7 +35,7 @@ describe('TreeSitterQueryEngine', () => {
   describe('Constructor', () => {
     it('should initialize with default patterns', () => {
       expect(queryEngine).toBeInstanceOf(TreeSitterQueryEngine);
-      
+
       const patterns = queryEngine.getSupportedPatterns();
       expect(patterns.length).toBeGreaterThan(0);
       expect(patterns.some(p => p.name === 'typescript_functions')).toBe(true);
@@ -56,7 +56,7 @@ describe('TreeSitterQueryEngine', () => {
       };
 
       queryEngine.addPattern(newPattern);
-      
+
       const patterns = queryEngine.getSupportedPatterns();
       expect(patterns.some(p => p.name === 'test_pattern')).toBe(true);
     });
@@ -146,7 +146,7 @@ describe('TreeSitterQueryEngine', () => {
       expect(result.size).toBe(2);
       expect(result.has('functions')).toBe(true);
       expect(result.has('non_existent_pattern')).toBe(true);
-      
+
       const invalidResult = result.get('non_existent_pattern');
       expect(invalidResult?.success).toBe(false);
     });
@@ -163,7 +163,7 @@ describe('TreeSitterQueryEngine', () => {
       const tsPatterns = queryEngine.getSupportedPatterns('typescript');
       expect(Array.isArray(tsPatterns)).toBe(true);
       expect(tsPatterns.length).toBeGreaterThan(0);
-      
+
       // All returned patterns should support TypeScript
       tsPatterns.forEach(pattern => {
         expect(pattern.languages).toContain('typescript');
@@ -199,14 +199,14 @@ describe('TreeSitterQueryEngine', () => {
   describe('Performance Monitoring', () => {
     it('should record query performance metrics', async () => {
       await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
-      
+
       const metrics = QueryPerformanceMonitor.getMetrics();
       expect(Object.keys(metrics)).toContain('typescript_functions');
     });
 
     it('should provide performance statistics', async () => {
       await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
-      
+
       const stats = queryEngine.getPerformanceStats();
       expect(stats).toHaveProperty('queryMetrics');
       expect(stats).toHaveProperty('querySummary');
@@ -217,10 +217,10 @@ describe('TreeSitterQueryEngine', () => {
     it('should record cache hit/miss statistics', async () => {
       // First query - should be a miss
       await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
-      
+
       // Second query with same parameters - should be a hit
       await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
-      
+
       const cacheStats = QueryCache.getStats();
       expect(cacheStats.hits).toBeGreaterThanOrEqual(0);
       expect(cacheStats.misses).toBeGreaterThanOrEqual(0);
@@ -232,7 +232,7 @@ describe('QueryEngineFactory', () => {
   it('should return singleton instance', () => {
     const instance1 = QueryEngineFactory.getInstance();
     const instance2 = QueryEngineFactory.getInstance();
-    
+
     expect(instance1).toBe(instance2);
   });
 
@@ -282,21 +282,21 @@ describe('Performance Tests', () => {
       const startTime = performance.now();
       const result = await queryEngine.executeQuery(largeMockNode, 'functions', 'javascript');
       const endTime = performance.now();
-      
+
       expect(result.success).toBe(true);
       times.push(endTime - startTime);
     }
 
     const averageTime = times.reduce((sum, time) => sum + time, 0) / times.length;
     console.log(`Average query time: ${averageTime.toFixed(2)}ms`);
-    
+
     // Verify performance is within reasonable bounds
     expect(averageTime).toBeLessThan(50); // 50ms threshold
   });
 
   test('should provide performance metrics', async () => {
     await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
-    
+
     const metrics = QueryPerformanceMonitor.getMetrics();
     expect(metrics).toHaveProperty('typescript_functions');
   });
@@ -304,10 +304,10 @@ describe('Performance Tests', () => {
   test('should track cache efficiency', async () => {
     // First query
     await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
-    
+
     // Second query (should hit cache)
     await queryEngine.executeQuery(mockSyntaxNode, 'functions', 'typescript');
-    
+
     const stats = queryEngine.getPerformanceStats();
     expect(stats.cacheStats.hits).toBeGreaterThanOrEqual(0);
     expect(stats.cacheStats.misses).toBeGreaterThanOrEqual(0);

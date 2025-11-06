@@ -19,7 +19,7 @@ import { IGraphDataMappingService } from '../../graph/mapping/IGraphDataMappingS
 import { PerformanceDashboard } from '../../monitoring/PerformanceDashboard';
 import { AutoOptimizationAdvisor } from '../../optimization/AutoOptimizationAdvisor';
 import { TreeSitterService } from '../../parser/core/parse/TreeSitterService';
-import { TreeSitterQueryEngine } from '../../parser/core/query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from '../../parser/core/query/TreeSitterQueryExecutor';
 import { NebulaNode, NebulaRelationship } from '../../../database/nebula/NebulaTypes';
 import { CodeChunk } from '../../parser/types';
 

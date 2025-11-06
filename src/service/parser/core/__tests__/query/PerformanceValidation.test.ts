@@ -1,6 +1,6 @@
 import Parser from 'tree-sitter';
-import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryEngine';
-import { SimpleQueryEngine } from '../../query/SimpleQueryEngine';
+import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryExecutor';
+import { SimpleQueryEngine } from '../../query/TreeSitterQueryFacade';
 import { QueryPerformanceMonitor } from '../../query/QueryPerformanceMonitor';
 import { QueryCache } from '../../query/QueryCache';
 import { TestDataGenerator } from './TestDataGenerator';

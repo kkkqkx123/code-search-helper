@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { QueryPattern, QueryMatch } from '../../query/TreeSitterQueryEngine';
+import { QueryPattern, QueryMatch } from '../../query/TreeSitterQueryExecutor';
 
 /**
  * 测试查询执行器

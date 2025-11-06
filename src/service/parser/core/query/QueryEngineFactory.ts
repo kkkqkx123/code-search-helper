@@ -1,4 +1,4 @@
-import { TreeSitterQueryEngine } from './TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from './TreeSitterQueryExecutor';
 
 /**
  * 查询引擎工厂类

@@ -1,17 +1,15 @@
 import { injectable, inject } from 'inversify';
 import Parser from 'tree-sitter';
 import { TreeSitterUtils } from '../../utils/TreeSitterUtils';
-import { ConfigService } from '../../../../config/ConfigService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
-import { TYPES } from '../../../../types';
 import { LanguageDetector } from '../language-detection/LanguageDetector';
 import { languageExtensionMap } from '../../utils';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { DynamicParserManager, DynamicParserLanguage, DynamicParseResult } from './DynamicParserManager';
-import { SimpleQueryEngine } from '../query/SimpleQueryEngine';
-import { TreeSitterQueryEngine } from '../query/TreeSitterQueryEngine';
+import { SimpleQueryEngine } from '../query/TreeSitterQueryFacade';
+import { TreeSitterQueryEngine } from '../query/TreeSitterQueryExecutor';
 import { QueryEngineFactory } from '../query/QueryEngineFactory';
 import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
 
@@ -119,7 +117,7 @@ export class TreeSitterCoreService {
       const foundLanguage = supportedLanguages.find(lang =>
         lang.name.toLowerCase() === detectionResult.language?.toLowerCase()
       );
-      
+
       if (foundLanguage) {
         return foundLanguage;
       }
@@ -246,7 +244,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 按类型查找节点
+   * 按类型查找节点 - 保持同步特性，优先使用优化查询
    */
   findNodeByType(ast: Parser.SyntaxNode, type: string): Parser.SyntaxNode[] {
     // 生成缓存键
@@ -260,6 +258,54 @@ export class TreeSitterCoreService {
     }
 
     this.cacheStats.misses++;
+
+    // 对于同步方法，直接使用 TreeSitterUtils 作为主要实现
+    // SimpleQueryEngine 主要用于异步查询场景
+    const nodes = TreeSitterUtils.findNodeByType(ast, type);
+
+    // 缓存结果
+    if (this.dynamicManager['nodeCache']) {
+      this.dynamicManager['nodeCache'].set(cacheKey, nodes);
+    }
+
+    return nodes;
+  }
+
+  /**
+   * 异步版本的按类型查找节点 - 优先使用 SimpleQueryEngine
+   */
+  async findNodeByTypeAsync(ast: Parser.SyntaxNode, type: string): Promise<Parser.SyntaxNode[]> {
+    // 生成缓存键
+    const cacheKey = `${this.getNodeHash(ast)}:${type}`;
+
+    // 使用动态管理器的缓存机制
+    const result = this.dynamicManager['nodeCache']?.get(cacheKey);
+    if (result) {
+      this.cacheStats.hits++;
+      return result;
+    }
+
+    this.cacheStats.misses++;
+
+    // 优先使用 SimpleQueryEngine，它内置回退机制
+    const lang = this.detectLanguageFromAST(ast);
+    if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
+      try {
+        const queryResults = await SimpleQueryEngine.findMultiple(ast, lang, [type]);
+        const nodes = queryResults.get(type) || [];
+
+        // 缓存结果
+        if (this.dynamicManager['nodeCache']) {
+          this.dynamicManager['nodeCache'].set(cacheKey, nodes);
+        }
+
+        return nodes;
+      } catch (error) {
+        this.logger.warn('异步查询失败，回退到 TreeSitterUtils:', error);
+      }
+    }
+
+    // 回退到 TreeSitterUtils
     const nodes = TreeSitterUtils.findNodeByType(ast, type);
 
     // 缓存结果
@@ -352,7 +398,7 @@ export class TreeSitterCoreService {
   async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
       let lang = language;
-      
+
       // 如果没有提供语言参数，尝试从AST检测
       if (!lang) {
         const detectedLang = this.detectLanguageFromAST(ast);
@@ -360,12 +406,12 @@ export class TreeSitterCoreService {
           lang = detectedLang;
         }
       }
-      
+
       if (!lang) {
         this.logger.warn('无法检测语言，使用回退机制');
         return this.legacyExtractFunctions(ast);
       }
-      
+
       this.logger.debug(`使用语言参数: ${lang}`);
 
       // 使用优化后的查询系统
@@ -404,7 +450,7 @@ export class TreeSitterCoreService {
   async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
       let lang = language;
-      
+
       // 如果没有提供语言参数，尝试从AST检测
       if (!lang) {
         const detectedLang = this.detectLanguageFromAST(ast);
@@ -412,12 +458,12 @@ export class TreeSitterCoreService {
           lang = detectedLang;
         }
       }
-      
+
       if (!lang) {
         this.logger.warn('无法检测语言，使用回退机制');
         return this.legacyExtractClasses(ast);
       }
-      
+
       this.logger.debug(`使用语言参数: ${lang}`);
 
       // 使用优化后的查询系统
@@ -452,28 +498,22 @@ export class TreeSitterCoreService {
 
   /**
    * 提取导入 - 使用优化后的查询系统
+   * SimpleQueryEngine 现在内置了回退机制，无需手动处理回退逻辑
    */
   async extractImports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
     try {
       const lang = language || this.detectLanguageFromAST(ast);
-      if (!lang) {
-        this.logger.warn('无法检测语言，使用回退机制');
-        return TreeSitterUtils.extractImportNodes(ast);
+
+      // 优先使用优化后的查询系统，SimpleQueryEngine 内置回退机制
+      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
+        return await SimpleQueryEngine.findImports(ast, lang);
       }
 
-      // 使用优化后的查询系统
-      if (this.useOptimizedQueries && this.querySystemInitialized) {
-        try {
-          return await SimpleQueryEngine.findImports(ast, lang);
-        } catch (error) {
-          this.logger.warn('优化查询系统失败，回退到工具方法:', error);
-          return TreeSitterUtils.extractImportNodes(ast);
-        }
-      }
-
-      return TreeSitterUtils.extractImportNodes(ast);
+      // 如果语言检测失败或查询系统未初始化，直接使用 SimpleQueryEngine（它会自动回退）
+      return await SimpleQueryEngine.findImports(ast, lang || 'unknown');
     } catch (error) {
       this.logger.error('导入提取失败:', error);
+      // 最后的回退保障
       return TreeSitterUtils.extractImportNodes(ast);
     }
   }
@@ -555,9 +595,28 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 提取导入节点
+   * 提取导入节点 - 同步版本
    */
   extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    return TreeSitterUtils.extractImportNodes(ast);
+  }
+
+  /**
+   * 提取导入节点 - 异步版本，优先使用 SimpleQueryEngine
+   */
+  async extractImportNodesAsync(ast: Parser.SyntaxNode): Promise<Parser.SyntaxNode[]> {
+    const lang = this.detectLanguageFromAST(ast);
+
+    // 优先使用优化后的查询系统
+    if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
+      try {
+        return await SimpleQueryEngine.findImports(ast, lang);
+      } catch (error) {
+        this.logger.warn('异步导入提取失败，回退到 TreeSitterUtils:', error);
+      }
+    }
+
+    // 回退到 TreeSitterUtils
     return TreeSitterUtils.extractImportNodes(ast);
   }
 

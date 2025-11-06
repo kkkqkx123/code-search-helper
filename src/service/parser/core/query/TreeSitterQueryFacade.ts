@@ -1,9 +1,8 @@
 import Parser from 'tree-sitter';
-import { TreeSitterQueryEngine, QueryResult } from './TreeSitterQueryEngine';
+import { QueryResult } from './TreeSitterQueryExecutor';
 import { QueryEngineFactory } from './QueryEngineFactory';
 import { QueryCache } from './QueryCache';
 import { CacheKeyGenerator } from './CacheKeyGenerator';
-import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 
 /**
  * 简化查询引擎
@@ -11,7 +10,7 @@ import { GlobalQueryInitializer } from './GlobalQueryInitializer';
  */
 export class SimpleQueryEngine {
   private static queryEngine = QueryEngineFactory.getInstance();
-  
+
   // 缓存键前缀，避免与其他引擎冲突
   private static readonly CACHE_PREFIX = 'simple:';
   private static readonly BATCH_CACHE_PREFIX = 'batch:';
@@ -30,9 +29,9 @@ export class SimpleQueryEngine {
     return CacheKeyGenerator.forBatchQuery(ast, types, language);
   }
 
-  
+
   /**
-   * 通用优化查询方法 - 减少重复代码和对象创建
+   * 通用优化查询方法 - 减少重复代码和对象创建，支持回退机制
    */
   private static async optimizedQuery(
     ast: Parser.SyntaxNode,
@@ -43,9 +42,9 @@ export class SimpleQueryEngine {
     if (!ast) {
       return [];
     }
-    
+
     const cacheKey = this.CACHE_PREFIX + this.generateCacheKey(ast, queryType, language);
-    
+
     // 检查缓存
     const cached = QueryCache.getResult(cacheKey);
     if (cached) {
@@ -54,19 +53,20 @@ export class SimpleQueryEngine {
 
     try {
       const result = await this.queryEngine.executeQuery(ast, queryType, language);
-      
+
       // 直接提取节点，避免创建中间数组
       const nodes: Parser.SyntaxNode[] = new Array(result.matches.length);
       for (let i = 0; i < result.matches.length; i++) {
         nodes[i] = result.matches[i].node;
       }
-      
+
       // 预缓存结果
       QueryCache.setResult(cacheKey, nodes);
-      
+
       return nodes;
     } catch (error) {
-      // 如果查询执行失败，返回空数组
+      // 查询系统失败，直接返回空数组
+      // 回退逻辑由上层服务（如 TreeSitterCoreService）统一处理
       return [];
     }
   }
@@ -137,7 +137,7 @@ export class SimpleQueryEngine {
   /**
    * 批量查找多种类型的节点 - 优化版本，使用轻量级数据结构
    */
- static async findMultiple(
+  static async findMultiple(
     ast: Parser.SyntaxNode,
     language: string,
     types: string[]
@@ -151,9 +151,9 @@ export class SimpleQueryEngine {
       }
       return resultMap;
     }
-    
+
     const batchCacheKey = this.BATCH_CACHE_PREFIX + this.generateBatchCacheKey(ast, types, language);
-    
+
     // 检查批量缓存
     const batchCached = QueryCache.getResult(batchCacheKey);
     if (batchCached) {
@@ -162,54 +162,54 @@ export class SimpleQueryEngine {
 
     // 使用Map预分配容量
     const resultMap = new Map<string, Parser.SyntaxNode[]>();
-    
+
     // 使用并行查询提升性能，同时利用单个查询的缓存
     const queryPromises = types.map(async (type) => {
       // 首先检查单个查询缓存
       const singleCacheKey = this.CACHE_PREFIX + this.generateCacheKey(ast, type, language);
       const singleCached = QueryCache.getResult(singleCacheKey);
-      
+
       if (singleCached) {
         return { type, nodes: singleCached };
       }
-      
+
       try {
         const result = await this.queryEngine.executeQuery(ast, type, language);
-        
+
         // 直接提取节点，避免创建中间数组，预分配数组大小
         const nodes: Parser.SyntaxNode[] = new Array(result.matches.length);
         for (let i = 0; i < result.matches.length; i++) {
           nodes[i] = result.matches[i].node;
         }
-        
+
         // 缓存单个查询结果
         QueryCache.setResult(singleCacheKey, nodes);
-        
+
         return { type, nodes };
       } catch (error) {
         // 如果某个类型不支持，返回空数组
         return { type, nodes: [] };
       }
     });
-    
+
     const queryResults = await Promise.all(queryPromises);
-    
+
     // 填充Map
     for (let i = 0; i < queryResults.length; i++) {
       const { type, nodes } = queryResults[i];
       resultMap.set(type, nodes);
     }
-    
+
     // 缓存批量查询结果
     QueryCache.setResult(batchCacheKey, resultMap);
-    
+
     return resultMap;
- }
+  }
 
   /**
    * 查找所有主要结构（函数、类、导入、导出）
    */
- static async findAllMainStructures(ast: Parser.SyntaxNode, language: string): Promise<{
+  static async findAllMainStructures(ast: Parser.SyntaxNode, language: string): Promise<{
     functions: Parser.SyntaxNode[];
     classes: Parser.SyntaxNode[];
     imports: Parser.SyntaxNode[];
@@ -224,16 +224,16 @@ export class SimpleQueryEngine {
         exports: []
       };
     }
-    
+
     const results = await this.findMultiple(ast, language, ['functions', 'classes', 'imports', 'exports']);
-    
+
     return {
       functions: results.get('functions') || [],
       classes: results.get('classes') || [],
       imports: results.get('imports') || [],
       exports: results.get('exports') || []
     };
- }
+  }
 
   /**
    * 获取性能统计信息
@@ -241,7 +241,7 @@ export class SimpleQueryEngine {
   static getPerformanceStats() {
     const engineStats = this.queryEngine.getPerformanceStats();
     const allCacheStats = QueryCache.getAllStats();
-    
+
     return {
       ...engineStats,
       allCacheStats: allCacheStats
@@ -259,21 +259,21 @@ export class SimpleQueryEngine {
   /**
    * 预热缓存 - 为常见的查询类型预加载结果
    */
- static async warmupCache(ast: Parser.SyntaxNode, language: string): Promise<void> {
+  static async warmupCache(ast: Parser.SyntaxNode, language: string): Promise<void> {
     // 检查AST是否有效
     if (!ast) {
       return; // 如果AST无效，直接返回，无需预热缓存
     }
-    
+
     const commonTypes = ['functions', 'classes', 'imports', 'exports'];
-    
+
     // 并行预热所有常见查询类型
     const warmupPromises = commonTypes.map(type =>
       this.findMultiple(ast, language, [type])
     );
-    
+
     await Promise.all(warmupPromises);
- }
+  }
 
   /**
    * 执行详细查询 - 返回完整的QueryResult对象
@@ -282,11 +282,11 @@ export class SimpleQueryEngine {
    * @param language 语言
    * @returns 完整的QueryResult对象
    */
- static async executeQueryDetailed(
+  static async executeQueryDetailed(
     ast: Parser.SyntaxNode,
     queryType: string,
     language: string
- ): Promise<QueryResult> {
+  ): Promise<QueryResult> {
     // 检查AST是否有效
     if (!ast) {
       return {
@@ -296,9 +296,9 @@ export class SimpleQueryEngine {
         error: 'Invalid AST provided'
       };
     }
-    
+
     const cacheKey = this.CACHE_PREFIX + this.generateCacheKey(ast, queryType, language);
-    
+
     // 检查缓存
     const cached = QueryCache.getResult(cacheKey);
     if (cached && typeof cached === 'object' && 'matches' in cached) {
@@ -307,12 +307,12 @@ export class SimpleQueryEngine {
 
     // 使用底层查询引擎执行查询
     const result = await this.queryEngine.executeQuery(ast, queryType, language);
-    
+
     // 缓存完整结果
     QueryCache.setResult(cacheKey, result);
-    
+
     return result;
- }
+  }
 
   /**
    * 批量详细查询 - 返回完整的QueryResult对象映射
@@ -321,7 +321,7 @@ export class SimpleQueryEngine {
    * @param types 查询类型数组
    * @returns QueryResult对象映射
    */
- static async executeMultipleDetailed(
+  static async executeMultipleDetailed(
     ast: Parser.SyntaxNode,
     language: string,
     types: string[]
@@ -340,9 +340,9 @@ export class SimpleQueryEngine {
       }
       return resultMap;
     }
-    
+
     const batchCacheKey = this.BATCH_CACHE_PREFIX + this.generateBatchCacheKey(ast, types, language);
-    
+
     // 检查批量缓存
     const batchCached = QueryCache.getResult(batchCacheKey);
     if (batchCached) {
@@ -350,23 +350,23 @@ export class SimpleQueryEngine {
     }
 
     const resultMap = new Map<string, QueryResult>();
-    
+
     // 使用并行查询提升性能
     const queryPromises = types.map(async (type) => {
       // 首先检查单个查询缓存
       const singleCacheKey = this.CACHE_PREFIX + this.generateCacheKey(ast, type, language);
       const singleCached = QueryCache.getResult(singleCacheKey);
-      
+
       if (singleCached && typeof singleCached === 'object' && 'matches' in singleCached) {
         return { type, result: singleCached as QueryResult };
       }
-      
+
       try {
         const result = await this.queryEngine.executeQuery(ast, type, language);
-        
+
         // 缓存单个查询结果
         QueryCache.setResult(singleCacheKey, result);
-        
+
         return { type, result };
       } catch (error) {
         // 如果某个类型不支持，返回空结果
@@ -381,17 +381,17 @@ export class SimpleQueryEngine {
         };
       }
     });
-    
+
     const queryResults = await Promise.all(queryPromises);
-    
+
     // 填充Map
     for (const { type, result } of queryResults) {
       resultMap.set(type, result);
     }
-    
+
     // 缓存批量查询结果
     QueryCache.setResult(batchCacheKey, resultMap);
-    
+
     return resultMap;
- }
+  }
 }

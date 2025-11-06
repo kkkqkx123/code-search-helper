@@ -54,7 +54,7 @@ import { IgnoreRuleManager } from './service/ignore/IgnoreRuleManager';
 // 11. Tree-sitter 解析模块
 import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from './service/parser/core/parse/TreeSitterCoreService';
-import { TreeSitterQueryEngine } from './service/parser/core/query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from './service/parser/core/query/TreeSitterQueryExecutor';
 import { ChunkToVectorCoordinationService } from './service/parser/ChunkToVectorCoordinationService';
 import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
 import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';
@@ -317,7 +317,7 @@ export const TYPES = {
   TypeScriptSymbolExtractor: Symbol.for('TypeScriptSymbolExtractor'),
   PythonSymbolExtractor: Symbol.for('PythonSymbolExtractor'),
   JavaSymbolExtractor: Symbol.for('JavaSymbolExtractor'),
-  
+
   // 26. 关系提取器相关
   RelationshipExtractorFactory: Symbol.for('RelationshipExtractorFactory'),
   // @deprecated ILanguageRelationshipExtractor is deprecated
@@ -326,20 +326,20 @@ export const TYPES = {
   TypeScriptRelationshipExtractor: Symbol.for('TypeScriptRelationshipExtractor'),
   PythonRelationshipExtractor: Symbol.for('PythonRelationshipExtractor'),
   JavaRelationshipExtractor: Symbol.for('JavaRelationshipExtractor'),
-   RustRelationshipExtractor: Symbol.for('RustRelationshipExtractor'),
-   // 子提取器
-   CallExtractor: Symbol.for('CallExtractor'),
-   InheritanceExtractor: Symbol.for('InheritanceExtractor'),
-   DependencyExtractor: Symbol.for('DependencyExtractor'),
-   ReferenceExtractor: Symbol.for('ReferenceExtractor'),
-   CreationExtractor: Symbol.for('CreationExtractor'),
-   AnnotationExtractor: Symbol.for('AnnotationExtractor'),
-   DataFlowExtractor: Symbol.for('DataFlowExtractor'),
-   ControlFlowExtractor: Symbol.for('ControlFlowExtractor'),
-   SemanticExtractor: Symbol.for('SemanticExtractor'),
-   LifecycleExtractor: Symbol.for('LifecycleExtractor'),
-   ConcurrencyExtractor: Symbol.for('ConcurrencyExtractor'),
-  
+  RustRelationshipExtractor: Symbol.for('RustRelationshipExtractor'),
+  // 子提取器
+  CallExtractor: Symbol.for('CallExtractor'),
+  InheritanceExtractor: Symbol.for('InheritanceExtractor'),
+  DependencyExtractor: Symbol.for('DependencyExtractor'),
+  ReferenceExtractor: Symbol.for('ReferenceExtractor'),
+  CreationExtractor: Symbol.for('CreationExtractor'),
+  AnnotationExtractor: Symbol.for('AnnotationExtractor'),
+  DataFlowExtractor: Symbol.for('DataFlowExtractor'),
+  ControlFlowExtractor: Symbol.for('ControlFlowExtractor'),
+  SemanticExtractor: Symbol.for('SemanticExtractor'),
+  LifecycleExtractor: Symbol.for('LifecycleExtractor'),
+  ConcurrencyExtractor: Symbol.for('ConcurrencyExtractor'),
+
   // 27. 新增的关系类型
   ReferenceRelationship: Symbol.for('ReferenceRelationship'),
   CreationRelationship: Symbol.for('CreationRelationship'),

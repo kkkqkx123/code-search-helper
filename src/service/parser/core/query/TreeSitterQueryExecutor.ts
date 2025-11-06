@@ -1,14 +1,11 @@
 import Parser from 'tree-sitter';
-import { CodeChunk } from '../types';
 import { QueryRegistryImpl } from './QueryRegistry';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { QueryCache } from './QueryCache';
 import { QueryPerformanceMonitor } from './QueryPerformanceMonitor';
-import { createCache } from '../../../../utils/cache';
 import { CacheKeyGenerator } from './CacheKeyGenerator';
 import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 import { LANGUAGE_QUERY_MAPPINGS } from '../normalization/QueryTypeMappings';
-
 
 /**
  * Tree-sitter查询模式定义
@@ -379,16 +376,6 @@ export class TreeSitterQueryEngine {
       throw error;
     }
   }
-
-  /**
-   * 检查是否为测试环境
-   * 注意：真实的tree-sitter语言对象也有query方法，所以不能仅凭这个判断
-   * 这里我们检查是否是模拟对象（没有name属性）
-   */
-  private isTestEnvironment(language: any): boolean {
-    return language && !language.name && language.query && typeof language.query === 'function';
-  }
-
 
   /**
    * 获取节点位置

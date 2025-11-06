@@ -37,7 +37,7 @@ import { PerformanceOptimizerService } from '../../infrastructure/batching/Perfo
 // 解析服务
 import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
-import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryExecutor';
 import { ASTCodeSplitter } from '../../service/parser/processing/strategies/impl/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
 import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
