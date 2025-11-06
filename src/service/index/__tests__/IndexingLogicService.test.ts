@@ -173,7 +173,7 @@ describe('IndexingLogicService', () => {
     } as any;
     graphMappingService = {
       mapChunksToGraphNodes: jest.fn(),
-      mapQueryResultsToGraph: jest.fn()
+      mapToGraph: jest.fn()
     } as any;
     performanceDashboard = {
       recordMetric: jest.fn().mockResolvedValue(undefined)
@@ -558,7 +558,7 @@ describe('IndexingLogicService', () => {
       treeSitterService.detectLanguage.mockResolvedValue(language);
       treeSitterService.parseCode.mockResolvedValue(parseResult);
       treeSitterQueryEngine.executeGraphQueries.mockResolvedValue(queryResults);
-      graphMappingService.mapQueryResultsToGraph.mockReturnValue(graphElements);
+      graphMappingService.mapToGraph.mockResolvedValue(graphElements);
       (indexingLogicService as any).convertToNebulaNodes = jest.fn().mockReturnValue(nebulaNodes);
       (indexingLogicService as any).convertToNebulaRelationships = jest.fn().mockReturnValue(nebulaRelationships);
       nebulaService.insertNodes.mockResolvedValue(true as any);
@@ -571,7 +571,7 @@ describe('IndexingLogicService', () => {
       expect(treeSitterService.detectLanguage).toHaveBeenCalledWith(filePath);
       expect(treeSitterService.parseCode).toHaveBeenCalledWith(fileContent, 'javascript');
       expect(treeSitterQueryEngine.executeGraphQueries).toHaveBeenCalledWith(parseResult.ast, 'javascript');
-      expect(graphMappingService.mapQueryResultsToGraph).toHaveBeenCalledWith(queryResults);
+      expect(graphMappingService.mapToGraph).toHaveBeenCalledWith(filePath, expect.any(Array));
       expect(nebulaService.insertNodes).toHaveBeenCalledWith(nebulaNodes);
       expect(nebulaService.insertRelationships).toHaveBeenCalledWith(nebulaRelationships);
       expect(loggerService.info).toHaveBeenCalled();

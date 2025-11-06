@@ -160,7 +160,7 @@ export class LifecycleRelationshipExtractor {
   private extractManagerNode(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
     switch (node.type) {
       case 'object_creation_expression':
-        return node.parent?.childForFieldName('left');
+        return node.parent?.childForFieldName('left') ?? null;
       case 'using_statement':
         return node.childForFieldName('body');
       case 'invocation_expression':

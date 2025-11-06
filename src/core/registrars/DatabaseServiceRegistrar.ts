@@ -47,6 +47,9 @@ import { NebulaDataOperations, INebulaDataOperations } from '../../database/nebu
 import { NebulaSchemaManager, INebulaSchemaManager } from '../../database/nebula/NebulaSchemaManager';
 import { NebulaIndexManager, INebulaIndexManager } from '../../database/nebula/NebulaIndexManager';
 import { SpaceNameUtils, ISpaceNameUtils } from '../../database/nebula/SpaceNameUtils';
+import { NebulaTransactionService, INebulaTransactionService } from '../../database/nebula/transaction/NebulaTransactionService';
+import { NebulaBatchService, INebulaBatchService } from '../../database/nebula/batch/NebulaBatchService';
+import { NebulaFileDataService, INebulaFileDataService } from '../../database/nebula/file/NebulaFileDataService';
 // SQLite数据库服务
 import { SqliteDatabaseService } from '../../database/splite/SqliteDatabaseService';
 import { SqliteConnectionManager } from '../../database/splite/SqliteConnectionManager';
@@ -110,6 +113,14 @@ export class DatabaseServiceRegistrar {
       container.bind<INebulaIndexManager>(TYPES.INebulaIndexManager).to(NebulaIndexManager).inSingletonScope();
       container.bind<SpaceNameUtils>(TYPES.SpaceNameUtils).to(SpaceNameUtils).inSingletonScope();
       container.bind<ISpaceNameUtils>(TYPES.ISpaceNameUtils).to(SpaceNameUtils).inSingletonScope();
+      
+      // Nebula 事务和批量处理服务
+      container.bind<NebulaTransactionService>(TYPES.NebulaTransactionService).to(NebulaTransactionService).inSingletonScope();
+      container.bind<INebulaTransactionService>(TYPES.INebulaTransactionService).to(NebulaTransactionService).inSingletonScope();
+      container.bind<NebulaBatchService>(TYPES.NebulaBatchService).to(NebulaBatchService).inSingletonScope();
+      container.bind<INebulaBatchService>(TYPES.INebulaBatchService).to(NebulaBatchService).inSingletonScope();
+      container.bind<NebulaFileDataService>(TYPES.NebulaFileDataService).to(NebulaFileDataService).inSingletonScope();
+      container.bind<INebulaFileDataService>(TYPES.INebulaFileDataService).to(NebulaFileDataService).inSingletonScope();
 
       // 工具类服务
       container.bind<NebulaQueryUtils>(TYPES.NebulaQueryUtils).to(NebulaQueryUtils).inSingletonScope();

@@ -51,6 +51,7 @@ describe('StandardizationSegmentationStrategy', () => {
   // Create mock standardized results
   const createMockStandardizedResults = (language: string): StandardizedQueryResult[] => [
     {
+      nodeId: 'mock-function-1',
       type: 'function',
       name: 'testFunction',
       startLine: 1,
@@ -64,6 +65,7 @@ describe('StandardizationSegmentationStrategy', () => {
       }
     },
     {
+      nodeId: 'mock-class-1',
       type: 'class',
       name: 'TestClass',
       startLine: 7,

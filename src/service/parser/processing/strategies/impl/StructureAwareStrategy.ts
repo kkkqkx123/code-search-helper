@@ -210,6 +210,7 @@ export class StructureAwareStrategy implements ISplitStrategy {
       'concurrency': 31,
       'union': 33,
       'enum': 34,
+      'annotation': 35,
       'concurrency-primitive': 32
     };
 

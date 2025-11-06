@@ -149,12 +149,15 @@ export class StandardizationSegmentationStrategy implements IProcessingStrategy 
       // 高级关系类型映射
       'data-flow': 'code',
       'parameter-flow': 'code',
-      'return-flow': 'code',
-      'exception-flow': 'code',
-      'callback-flow': 'code',
-      'semantic-relationship': 'code',
-      'lifecycle-event': 'code',
-      'concurrency-primitive': 'code',
+      'call': 'code',
+      'inheritance': 'code',
+      'implements': 'code',
+      'concurrency': 'code',
+      'lifecycle': 'code',
+      'semantic': 'code',
+      'annotation': 'code',
+      'union': 'code',
+      'enum': 'code',
       // 配置语言类型映射
       'config-item': 'code',
       'section': 'code',
@@ -252,6 +255,7 @@ export class StandardizationSegmentationStrategy implements IProcessingStrategy 
     }
 
     return {
+      nodeId: first.nodeId, // 使用第一个结果的节点ID
       startLine: first.startLine,
       endLine: last.endLine,
       name: first.name, // 使用第一个结果的名称

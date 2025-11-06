@@ -128,7 +128,7 @@ export class BracketSegmentationStrategy implements ISegmentationStrategy, IProc
   }
 
   getSupportedLanguages(): string[] {
-    return ['javascript', 'typescript', 'python', 'java', 'cpp', 'go', 'rust', 'xml'];
+    return ['javascript', 'typescript', 'python', 'java', 'c', 'cpp', 'go', 'rust', 'xml'];
   }
 
   /**

@@ -1,6 +1,6 @@
 import { GraphDataMappingService } from '../GraphDataMappingService';
-import { GraphRelationshipType } from '../IGraphDataMappingService';
-import { StandardizedQueryResult } from '../../parser/core/normalization/types';
+import { GraphRelationshipType, GraphNodeType } from '../IGraphDataMappingService';
+import { StandardizedQueryResult } from '../../../parser/core/normalization/types';
 import { TYPE_MAPPING_CONFIG } from '../TypeMappingConfig';
 
 describe('GraphDataMappingService New Architecture Tests', () => {
@@ -66,13 +66,13 @@ describe('GraphDataMappingService New Architecture Tests', () => {
 
     test('should recognize all relationship types from TYPE_MAPPING_CONFIG', () => {
       for (const relationshipType of TYPE_MAPPING_CONFIG.relationshipTypes) {
-        expect(mappingService['isRelationshipType'](relationshipType)).toBe(true);
+        expect(mappingService['isRelationshipType'](relationshipType as StandardizedQueryResult['type'])).toBe(true);
       }
     });
 
     test('should recognize all entity types from TYPE_MAPPING_CONFIG', () => {
       for (const entityType of TYPE_MAPPING_CONFIG.entityTypes) {
-        expect(mappingService['isEntityType'](entityType)).toBe(true);
+        expect(mappingService['isEntityType'](entityType as StandardizedQueryResult['type'])).toBe(true);
       }
     });
 
@@ -81,7 +81,7 @@ describe('GraphDataMappingService New Architecture Tests', () => {
         { input: 'call', expected: GraphRelationshipType.CALLS },
         { input: 'data-flow', expected: GraphRelationshipType.DATA_FLOWS_TO },
         { input: 'inheritance', expected: GraphRelationshipType.INHERITS },
-        { { input: 'implements', expected: GraphRelationshipType.IMPLEMENTS },
+        { input: 'implements', expected: GraphRelationshipType.IMPLEMENTS },
         { input: 'annotation', expected: GraphRelationshipType.ANNOTATES },
         { input: 'creation', expected: GraphRelationshipType.CREATES },
         { input: 'dependency', expected: GraphRelationshipType.DEPENDS_ON },
@@ -93,7 +93,7 @@ describe('GraphDataMappingService New Architecture Tests', () => {
       ];
 
       for (const testCase of testCases) {
-        expect(mappingService['mapRelationshipTypeToGraphType'](testCase.input)).toBe(testCase.expected);
+        expect(mappingService['mapRelationshipTypeToGraphType'](testCase.input as StandardizedQueryResult['type'])).toBe(testCase.expected);
       }
     });
 
@@ -254,7 +254,7 @@ describe('GraphDataMappingService New Architecture Tests', () => {
         }
       };
 
-      const edge = mappingService['createEdgeFromStandardNode'](unknownNode);
+      const edge = mappingService['createEdgeFromStandardizedNode'](unknownNode);
       expect(edge).toBeNull();
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'No processor found for relationship type: unknown-type'
@@ -338,13 +338,19 @@ describe('GraphDataMappingService New Architecture Tests', () => {
 
   describe('Backward Compatibility', () => {
     test('should handle deprecated mapQueryResultsToGraph method', async () => {
-      const result = mappingService.mapQueryResultsToResults({} as any);
-      
+      const result = mappingService['mapQueryResultsToGraph']({} as any);
+
       expect(result).toEqual({
         nodes: [],
-        edges: []
+        relationships: [],
+        stats: {
+          fileNodes: 0,
+          functionNodes: 0,
+          classNodes: 0,
+          relationships: 0
+        }
       });
-      
+
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'mapQueryResultsToGraph is deprecated. Please use the new mapToGraph method with standardized results.'
       );

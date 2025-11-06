@@ -52,7 +52,7 @@ export interface StandardizedQueryResult {
   /** 确定性的节点ID，用于与图数据库中的顶点对应 */
   nodeId: string;
   /** 结构类型 */
-  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def' | 'call' | 'data-flow' | 'inheritance' | 'implements' | 'concurrency' | 'lifecycle' | 'semantic' | 'union' | 'enum';
+  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 'control-flow' | 'expression' | 'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def' | 'call' | 'data-flow' | 'parameter-flow' | 'inheritance' | 'implements' | 'concurrency' | 'lifecycle' | 'semantic' | 'union' | 'enum' | 'annotation';
   
   /** 结构名称 */
   name: string;
