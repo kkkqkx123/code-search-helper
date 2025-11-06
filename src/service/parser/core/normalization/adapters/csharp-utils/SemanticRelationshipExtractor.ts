@@ -145,21 +145,21 @@ export class SemanticRelationshipExtractor {
       case 'method_declaration':
         if (node.text.includes('override')) {
           return {
-            from: node.childForFieldName('name'),
-            to: this.findBaseMethod(node)
+            from: node.childForFieldName('name') || undefined,
+            to: this.findBaseMethod(node) || undefined
           };
         }
         break;
       case 'assignment_expression':
         if (node.text.includes('+=')) {
           return {
-            from: node.childForFieldName('right'),
-            to: node.childForFieldName('left')
+            from: node.childForFieldName('right') || undefined,
+            to: node.childForFieldName('left') || undefined
           };
         }
         break;
     }
-    
+
     return {};
   }
 

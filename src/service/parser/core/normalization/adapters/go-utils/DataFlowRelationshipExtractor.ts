@@ -124,7 +124,7 @@ export class DataFlowRelationshipExtractor {
    */
   private extractFlowPath(astNode: Parser.SyntaxNode): string[] {
     const path: string[] = [];
-    let current = astNode;
+    let current: Parser.SyntaxNode | null = astNode;
     
     // 向上遍历AST，构建数据流路径
     while (current) {

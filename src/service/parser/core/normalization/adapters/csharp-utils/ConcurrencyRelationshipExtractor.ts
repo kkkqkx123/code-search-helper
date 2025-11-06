@@ -149,25 +149,25 @@ export class ConcurrencyRelationshipExtractor {
     switch (node.type) {
       case 'await_expression':
         return {
-          from: node.childForFieldName('expression'),
-          to: node.parent?.childForFieldName('name')
+          from: node.childForFieldName('expression') || undefined,
+          to: node.parent?.childForFieldName('name') || undefined
         };
       case 'lock_statement':
         return {
-          from: node.childForFieldName('expression'),
-          to: node.childForFieldName('body')
+          from: node.childForFieldName('expression') || undefined,
+          to: node.childForFieldName('body') || undefined
         };
       case 'invocation_expression':
         const functionNode = node.childForFieldName('function');
         if (functionNode?.text.includes('Monitor') || functionNode?.text.includes('Task')) {
           return {
-            from: node.childForFieldName('arguments'),
-            to: functionNode
+            from: node.childForFieldName('arguments') || undefined,
+            to: functionNode || undefined
           };
         }
         break;
     }
-    
+
     return {};
   }
 

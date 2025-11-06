@@ -258,7 +258,7 @@ export class ControlFlowRelationshipExtractor {
    * 查找下一个case
    */
   private findNextCase(fallthroughStmt: Parser.SyntaxNode): Parser.SyntaxNode | null {
-    let current = fallthroughStmt;
+    let current: Parser.SyntaxNode | null = fallthroughStmt;
     while (current) {
       const nextSibling = current.nextSibling;
       if (nextSibling) {

@@ -1,483 +1,268 @@
 import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
-import { StandardizedQueryResult } from '../types';
+import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import {
+  CallRelationshipExtractor,
+  DataFlowRelationshipExtractor,
+  InheritanceRelationshipExtractor,
+  ConcurrencyRelationshipExtractor,
+  LifecycleRelationshipExtractor,
+  SemanticRelationshipExtractor,
+  ControlFlowRelationshipExtractor,
+  JavaHelperMethods,
+  JAVA_NODE_TYPE_MAPPING,
+  JAVA_QUERY_TYPE_MAPPING,
+  JAVA_SUPPORTED_QUERY_TYPES,
+  JAVA_NAME_CAPTURES,
+  JAVA_BLOCK_NODE_TYPES,
+  JAVA_MODIFIERS,
+  JAVA_COMPLEXITY_KEYWORDS
+} from './java-utils';
+type StandardType = StandardizedQueryResult['type'];
 
 /**
  * Java语言适配器
  * 处理Java特定的查询结果标准化
  */
 export class JavaLanguageAdapter extends BaseLanguageAdapter {
+  // In-memory symbol table for the current file
+  private symbolTable: SymbolTable | null = null;
+  
+  // 关系提取器实例
+  private callExtractor: CallRelationshipExtractor;
+  private dataFlowExtractor: DataFlowRelationshipExtractor;
+  private inheritanceExtractor: InheritanceRelationshipExtractor;
+  private concurrencyExtractor: ConcurrencyRelationshipExtractor;
+  private lifecycleExtractor: LifecycleRelationshipExtractor;
+  private semanticExtractor: SemanticRelationshipExtractor;
+  private controlFlowExtractor: ControlFlowRelationshipExtractor;
+
   constructor(options: AdapterOptions = {}) {
     super(options);
+    
+    // 初始化关系提取器
+    this.callExtractor = new CallRelationshipExtractor();
+    this.dataFlowExtractor = new DataFlowRelationshipExtractor();
+    this.inheritanceExtractor = new InheritanceRelationshipExtractor();
+    this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
+    this.lifecycleExtractor = new LifecycleRelationshipExtractor();
+    this.semanticExtractor = new SemanticRelationshipExtractor();
+    this.controlFlowExtractor = new ControlFlowRelationshipExtractor();
   }
 
-  /**
-   * 重写normalize方法以使用generateDeterministicNodeId生成确定性ID
-   * 并确保关系元数据存储在metadata.extra字段中
-   */
+  // 重写normalize方法以集成nodeId生成和符号信息
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const results: StandardizedQueryResult[] = [];
 
+    // Initialize symbol table for the current processing context
+    // In a real scenario, filePath would be passed in. For now, we'll use a placeholder.
+    const filePath = 'current_file.java';
+    this.symbolTable = {
+      filePath,
+      globalScope: { symbols: new Map() },
+      imports: new Map()
+    };
+
     for (const result of queryResults) {
       try {
-        const astNode = result.captures?.[0]?.node;
-        const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${queryType}:${Date.now()}`;
         const standardType = this.mapQueryTypeToStandardType(queryType);
-        
-        // 创建标准化节点
-        const standardizedResult: StandardizedQueryResult = {
-          nodeId,
-          type: standardType,
-          name: this.extractName(result),
-          startLine: this.extractStartLine(result),
-          endLine: this.extractEndLine(result),
-          content: this.extractContent(result),
-          metadata: {
-            language,
-            complexity: this.calculateComplexity(result),
-            dependencies: this.extractDependencies(result),
-            modifiers: this.extractModifiers(result),
-            extra: this.extractLanguageSpecificMetadata(result)
+        const name = this.extractName(result);
+        const content = this.extractContent(result);
+        const complexity = this.calculateComplexity(result);
+        const dependencies = this.extractDependencies(result);
+        const modifiers = this.extractModifiers(result);
+        const extra = this.extractLanguageSpecificMetadata(result);
+
+        // 获取AST节点以生成确定性ID
+        const astNode = result.captures?.[0]?.node;
+        const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
+
+        let symbolInfo: SymbolInfo | null = null;
+        let relationshipMetadata: any = null;
+
+        // Only create symbol info for entity types, not relationships
+        if (['function', 'class', 'method', 'variable', 'import', 'type'].includes(standardType)) {
+          symbolInfo = this.createSymbolInfo(astNode, name, standardType, filePath);
+          if (this.symbolTable && symbolInfo) {
+            this.symbolTable.globalScope.symbols.set(name, symbolInfo);
           }
+        } else {
+          // For relationships, extract specific metadata
+          relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+        }
+
+        // 构建元数据，确保关系元数据正确合并
+        const metadata: any = {
+          language,
+          complexity,
+          dependencies,
+          modifiers,
         };
 
-        // 对于关系类型，提取关系元数据并存储在metadata.extra中
-        if (this.isRelationshipType(standardType)) {
-          const relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
-          if (relationshipMetadata) {
-            standardizedResult.metadata.extra = {
-              ...standardizedResult.metadata.extra,
-              ...relationshipMetadata
-            };
+        // 添加语言特定元数据
+        if (extra && Object.keys(extra).length > 0) {
+          metadata.extra = extra;
+        }
+
+        // 添加关系特定元数据
+        if (relationshipMetadata) {
+          // 如果extra不存在，创建它
+          if (!metadata.extra) {
+            metadata.extra = {};
+          }
+          
+          // 合并关系元数据到extra中
+          Object.assign(metadata.extra, relationshipMetadata);
+          
+          // 对于关系类型，也添加一些顶级属性以便于访问
+          if (relationshipMetadata.type) {
+            metadata.relationshipType = relationshipMetadata.type;
+          }
+          if (relationshipMetadata.fromNodeId) {
+            metadata.fromNodeId = relationshipMetadata.fromNodeId;
+          }
+          if (relationshipMetadata.toNodeId) {
+            metadata.toNodeId = relationshipMetadata.toNodeId;
           }
         }
 
-        results.push(standardizedResult);
+        results.push({
+          nodeId,
+          type: standardType,
+          name,
+          startLine: result.startLine || 1,
+          endLine: result.endLine || 1,
+          content,
+          metadata,
+          symbolInfo: symbolInfo || undefined
+        });
       } catch (error) {
-        this.logger.error(`Error normalizing Java result: ${error}`);
-        if (!this.options.enableErrorRecovery) {
-          throw error;
-        }
+        this.logger?.error(`Error normalizing Java result: ${error}`);
       }
     }
 
     return results;
   }
 
-  private isRelationshipType(type: StandardizedQueryResult['type']): boolean {
-    return ['call', 'data-flow', 'inheritance', 'implements', 'concurrency', 'lifecycle', 'semantic'].includes(type);
+  private createSymbolInfo(node: Parser.SyntaxNode | undefined, name: string, standardType: string, filePath: string): SymbolInfo | null {
+    if (!name || !node) return null;
+
+    const symbolType = this.mapToSymbolType(standardType);
+
+    const symbolInfo: SymbolInfo = {
+      name,
+      type: symbolType,
+      filePath,
+      location: {
+        startLine: node.startPosition.row + 1,
+        startColumn: node.startPosition.column,
+        endLine: node.endPosition.row + 1,
+        endColumn: node.endPosition.column,
+      },
+      scope: this.determineScope(node)
+    };
+
+    // Add parameters for functions
+    if (symbolType === 'function' || symbolType === 'method') {
+      symbolInfo.parameters = this.extractParameters(node);
+    }
+
+    // Add source path for imports
+    if (symbolType === 'import') {
+      symbolInfo.sourcePath = this.extractImportPath(node);
+    }
+
+    return symbolInfo;
+  }
+
+  private mapToSymbolType(standardType: string): SymbolInfo['type'] {
+    const mapping: Record<string, SymbolInfo['type']> = {
+      'function': 'function',
+      'method': 'method',
+      'class': 'class',
+      'interface': 'interface',
+      'variable': 'variable',
+      'import': 'import'
+    };
+    return mapping[standardType] || 'variable';
+  }
+
+  private determineScope(node: Parser.SyntaxNode): SymbolInfo['scope'] {
+    // Simplified scope determination. A real implementation would traverse up the AST.
+    let current = node.parent;
+    while (current) {
+      if (current.type === 'method_declaration') {
+        return 'function';
+      }
+      if (current.type === 'class_declaration' || current.type === 'interface_declaration') {
+        return 'class';
+      }
+      current = current.parent;
+    }
+    return 'global';
+  }
+
+  private extractParameters(node: Parser.SyntaxNode): string[] {
+    const parameters: string[] = [];
+    const parameterList = node.childForFieldName?.('parameters');
+    if (parameterList) {
+      for (const child of parameterList.children) {
+        if (child.type === 'formal_parameter') {
+          const declarator = child.childForFieldName('declarator');
+          if (declarator?.text) {
+            parameters.push(declarator.text);
+          }
+        }
+      }
+    }
+    return parameters;
+  }
+
+  private extractImportPath(node: Parser.SyntaxNode): string | undefined {
+    // For Java imports
+    if (node.type === 'import_declaration') {
+      const pathNode = node.childForFieldName('name');
+      return pathNode ? pathNode.text : undefined;
+    }
+    return undefined;
   }
 
   private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
     if (!astNode) return null;
 
     switch (standardType) {
+      case 'call':
+        return this.callExtractor.extractCallMetadata(result, astNode, this.symbolTable);
       case 'data-flow':
-        return this.extractDataFlowMetadata(result, astNode);
-      case 'semantic':
-        return this.extractSemanticMetadata(result, astNode);
-      case 'lifecycle':
-        return this.extractLifecycleMetadata(result, astNode);
+        return this.dataFlowExtractor.extractDataFlowMetadata(result, astNode, this.symbolTable);
+      case 'inheritance':
+        return this.inheritanceExtractor.extractInheritanceMetadata(result, astNode, this.symbolTable);
       case 'concurrency':
-        return this.extractConcurrencyMetadata(result, astNode);
+        return this.concurrencyExtractor.extractConcurrencyMetadata(result, astNode, this.symbolTable);
+      case 'lifecycle':
+        return this.lifecycleExtractor.extractLifecycleMetadata(result, astNode, this.symbolTable);
+      case 'semantic':
+        return this.semanticExtractor.extractSemanticMetadata(result, astNode, this.symbolTable);
+      case 'control-flow':
+        return this.controlFlowExtractor.extractControlFlowMetadata(result, astNode, this.symbolTable);
       default:
         return null;
     }
   }
 
-  private extractDataFlowMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // 从查询结果中提取数据流关系元数据
-    const captures = result.captures || [];
-    const metadata: any = {
-      type: 'data-flow',
-      location: {
-        filePath: 'unknown', // 实际路径应从上层传入
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column
-      }
-    };
-
-    // 提取源和目标节点信息
-    for (const capture of captures) {
-      if (capture.name.includes('source') || capture.name.includes('parameter')) {
-        metadata.fromNodeId = generateDeterministicNodeId(capture.node);
-        metadata.sourceVariable = capture.node.text;
-      } else if (capture.name.includes('target') || capture.name.includes('method')) {
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
-        metadata.targetVariable = capture.node.text;
-      }
-    }
-
-    return metadata;
-  }
-
-  private extractSemanticMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // 从查询结果中提取语义关系元数据
-    const captures = result.captures || [];
-    const metadata: any = {
-      type: 'semantic',
-      location: {
-        filePath: 'unknown', // 实际路径应从上层传入
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column
-      }
-    };
-
-    // 提取语义关系类型
-    for (const capture of captures) {
-      if (capture.name.includes('override')) {
-        metadata.semanticType = 'overrides';
-        metadata.overriddenMethod = capture.node.text;
-      } else if (capture.name.includes('implement')) {
-        metadata.semanticType = 'implements';
-        metadata.implementedInterface = capture.node.text;
-      } else if (capture.name.includes('annotation')) {
-        metadata.annotation = capture.node.text;
-      }
-    }
-
-    return metadata;
-  }
-
-  private extractLifecycleMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // 从查询结果中提取生命周期关系元数据
-    const captures = result.captures || [];
-    const metadata: any = {
-      type: 'lifecycle',
-      location: {
-        filePath: 'unknown', // 实际路径应从上层传入
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column
-      }
-    };
-
-    // 提取生命周期操作类型
-    for (const capture of captures) {
-      if (capture.name.includes('instantiated') || capture.name.includes('constructor')) {
-        metadata.lifecycleType = 'instantiates';
-        metadata.instantiatedClass = capture.node.text;
-      } else if (capture.name.includes('close') || capture.name.includes('destroy')) {
-        metadata.lifecycleType = 'destroys';
-        metadata.destroyedResource = capture.node.text;
-      } else if (capture.name.includes('init') || capture.name.includes('initialize')) {
-        metadata.lifecycleType = 'initializes';
-        metadata.initializedResource = capture.node.text;
-      }
-    }
-
-    return metadata;
-  }
-
-  private extractConcurrencyMetadata(result: any, astNode: Parser.SyntaxNode): any {
-    // 从查询结果中提取并发关系元数据
-    const captures = result.captures || [];
-    const metadata: any = {
-      type: 'concurrency',
-      location: {
-        filePath: 'unknown', // 实际路径应从上层传入
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column
-      }
-    };
-
-    // 提取并发操作类型
-    for (const capture of captures) {
-      if (capture.name.includes('synchronized') || capture.name.includes('lock')) {
-        metadata.concurrencyType = 'synchronizes';
-        metadata.lockedResource = capture.node.text;
-      } else if (capture.name.includes('thread') || capture.name.includes('start')) {
-        metadata.concurrencyType = 'manages';
-        metadata.managedThread = capture.node.text;
-      } else if (capture.name.includes('wait') || capture.name.includes('notify')) {
-        metadata.concurrencyType = 'communicates';
-        metadata.communicationPoint = capture.node.text;
-      }
-    }
-
-    return metadata;
-  }
 
   getSupportedQueryTypes(): string[] {
-    return [
-      // Entity types
-      'classes-interfaces',
-      'methods-variables',
-      'control-flow-patterns',
-      // Relationship types
-      'data-flow',
-      'semantic-relationships',
-      'lifecycle-relationships',
-      // Advanced relationship types
-      'concurrency-relationships',
-      'control-flow-relationships'
-    ];
+    return JAVA_SUPPORTED_QUERY_TYPES;
   }
 
   mapNodeType(nodeType: string): string {
-    const typeMapping: Record<string, string> = {
-      // Java specific - 映射到图映射中定义的类别
-      'class_declaration': 'classDeclaration',
-      'interface_declaration': 'interfaceDeclaration',
-      'enum_declaration': 'enumDeclaration',
-      'record_declaration': 'classDeclaration',
-      'annotation_type_declaration': 'interfaceDeclaration',
-      'module_declaration': 'classDeclaration',
-      'package_declaration': 'importDeclaration',
-      
-      // Methods and constructors
-      'method_declaration': 'methodDeclaration',
-      'constructor_declaration': 'functionDeclaration',
-      'lambda_expression': 'lambdaExpression',
-      
-      // Variables and fields
-      'field_declaration': 'variableDeclaration',
-      'local_variable_declaration': 'variableDeclaration',
-      'variable_declarator': 'variableDeclaration',
-      'formal_parameter': 'variableDeclaration',
-      
-      // Imports
-      'import_declaration': 'importDeclaration',
-      
-      // Control flow
-      'if_statement': 'controlFlow',
-      'for_statement': 'controlFlow',
-      'enhanced_for_statement': 'controlFlow',
-      'while_statement': 'controlFlow',
-      'do_statement': 'controlFlow',
-      'switch_statement': 'controlFlow',
-      'switch_expression': 'controlFlow',
-      'try_statement': 'controlFlow',
-      'catch_clause': 'controlFlow',
-      'finally_clause': 'controlFlow',
-      'return_statement': 'controlFlow',
-      'yield_statement': 'controlFlow',
-      'break_statement': 'controlFlow',
-      'continue_statement': 'controlFlow',
-      'throw_statement': 'controlFlow',
-      'assert_statement': 'controlFlow',
-      'synchronized_statement': 'controlFlow',
-      'labeled_statement': 'controlFlow',
-      
-      // Expressions
-      'assignment_expression': 'expression',
-      'binary_expression': 'expression',
-      'unary_expression': 'expression',
-      'instanceof_expression': 'expression',
-      'method_invocation': 'callExpression',
-      'object_creation_expression': 'expression',
-      'update_expression': 'expression',
-      
-      // Types
-      'type_identifier': 'typeAnnotation',
-      'generic_type': 'genericTypes',
-      'array_type': 'typeAnnotation',
-      'integral_type': 'typeAnnotation',
-      'floating_point_type': 'typeAnnotation',
-      'boolean_type': 'typeAnnotation',
-      'void_type': 'typeAnnotation',
-      
-      // Annotations
-      'annotation': 'decorator',
-      'marker_annotation': 'decorator',
-      
-      // Modifiers
-      'modifiers': 'modifier',
-      
-      // Type system
-      'superclass': 'typeSystem',
-      'super_interfaces': 'typeSystem',
-      'type_arguments': 'typeSystem',
-      'type_parameters': 'typeSystem',
-      'dimensions': 'typeSystem',
-      'formal_parameters': 'typeSystem',
-      'class_literal': 'typeSystem',
-      'this': 'typeSystem',
-      'super': 'typeSystem',
-      
-      // Pattern matching
-      'record_pattern': 'pattern',
-      'type_pattern': 'pattern',
-      'underscore_pattern': 'pattern',
-      'guard': 'pattern',
-      'switch_rule': 'pattern',
-      'switch_label': 'pattern',
-      'switch_block_statement_group': 'pattern',
-      'record_pattern_component': 'pattern',
-      'catch_formal_parameter': 'pattern',
-      
-      // Blocks
-      'class_body': 'block',
-      'interface_body': 'block',
-      'enum_body': 'block',
-      'annotation_type_body': 'block',
-      'switch_block': 'block',
-      'record_pattern_body': 'block',
-      'block': 'block',
-      'expression_statement': 'block',
-      
-      // Literals
-      'string_literal': 'literal',
-      'string_fragment': 'literal',
-      'escape_sequence': 'literal',
-      'character_literal': 'literal',
-      'decimal_integer_literal': 'literal',
-      'hex_integer_literal': 'literal',
-      'octal_integer_literal': 'literal',
-      'binary_integer_literal': 'literal',
-      'decimal_floating_point_literal': 'literal',
-      'hex_floating_point_literal': 'literal',
-      'true': 'literal',
-      'false': 'literal',
-      'null_literal': 'literal',
-      
-      // Special statements
-      'try_with_resources_statement': 'specialStatement',
-      
-      // Comments
-      'line_comment': 'comment',
-      'block_comment': 'comment',
-      
-      // Member expressions
-      'field_access': 'memberExpression',
-      'scoped_identifier': 'memberExpression',
-      'scoped_type_identifier': 'memberExpression',
-      
-      // Property identifiers
-      'identifier': 'propertyIdentifier',
-      'enum_constant': 'propertyIdentifier'
-    };
-    
-    return typeMapping[nodeType] || nodeType;
+    return JAVA_NODE_TYPE_MAPPING[nodeType] || nodeType;
   }
 
   extractName(result: any): string {
     // 尝试从不同的捕获中提取名称
-    const nameCaptures = [
-      'name.definition.class',
-      'name.definition.interface',
-      'name.definition.enum',
-      'name.definition.record',
-      'name.definition.annotation',
-      'name.definition.method',
-      'name.definition.constructor',
-      'name.definition.field',
-      'name.definition.local_variable',
-      'name.definition.parameter',
-      'name.definition.import',
-      'name.definition.static_import',
-      'name.definition.package',
-      'name.definition.module',
-      'name.definition.lambda_parameter',
-      'name.definition.enum_constant',
-      'name.definition.type_parameter',
-      'name.definition.annotation_name',
-      'name.definition.marker_annotation',
-      'name.definition.method_call',
-      'name.definition.constructor_call',
-      'name.definition.generic_type',
-      'name.definition.array_type',
-      'name.definition.type_identifier',
-      'name.definition.scoped_identifier',
-      'name.definition.superclass',
-      'name.definition.super_interface',
-      'name.definition.exception_variable',
-      'name.definition.for_variable',
-      'name.definition.pattern_variable',
-      'name.definition.record_pattern_component',
-      'name.definition.variable_declarator',
-      'name.definition.identifier',
-      // 新增的捕获名称
-      'name.definition.annotation_body',
-      'name.definition.assert_statement',
-      'name.definition.assignment_expression',
-      'name.definition.assignment_target',
-      'name.definition.binary_expression',
-      'name.definition.binary_integer_literal',
-      'name.definition.block',
-      'name.definition.block_comment',
-      'name.definition.boolean_type',
-      'name.definition.break_statement',
-      'name.definition.cast_expression',
-      'name.definition.cast_value',
-      'name.definition.catch_clause',
-      'name.definition.catch_parameter',
-      'name.definition.character_literal',
-      'name.definition.class_body',
-      'name.definition.class_literal',
-      'name.definition.continue_statement',
-      'name.definition.decimal_floating_point_literal',
-      'name.definition.decimal_integer_literal',
-      'name.definition.dimensions',
-      'name.definition.do_statement',
-      'name.definition.enhanced_for_statement',
-      'name.definition.enhanced_for_variable',
-      'name.definition.enhanced_for_with_iterable',
-      'name.definition.enum_body',
-      'name.definition.escape_sequence',
-      'name.definition.expression_statement',
-      'name.definition.false_literal',
-      'name.definition.floating_point_type',
-      'name.definition.for_iterable',
-      'name.definition.for_statement',
-      'name.definition.formal_parameters',
-      'name.definition.guard',
-      'name.definition.hex_floating_point_literal',
-      'name.definition.hex_integer_literal',
-      'name.definition.if_condition',
-      'name.definition.if_statement',
-      'name.definition.if_with_condition',
-      'name.definition.instanceof_expression',
-      'name.definition.instanceof_with_pattern',
-      'name.definition.integral_type',
-      'name.definition.interface_body',
-      'name.definition.labeled_statement',
-      'name.definition.lambda',
-      'name.definition.lambda_body',
-      'name.definition.lambda_with_body',
-      'name.definition.lambda_with_params',
-      'name.definition.line_comment',
-      'name.definition.method_invocation',
-      'name.definition.modifiers',
-      'name.definition.null_literal',
-      'name.definition.object_creation',
-      'name.definition.octal_integer_literal',
-      'name.definition.parenthesized_expression',
-      'name.definition.record_body',
-      'name.definition.record_pattern',
-      'name.definition.record_pattern_body',
-      'name.definition.record_with_body',
-      'name.definition.return_statement',
-      'name.definition.scoped_type_identifier',
-      'name.definition.string_fragment',
-      'name.definition.string_literal',
-      'name.definition.super_expression',
-      'name.definition.super_interfaces',
-      'name.definition.switch_block',
-      'name.definition.switch_block_statement_group',
-      'name.definition.switch_expression',
-      'name.definition.switch_label',
-      'name.definition.switch_rule',
-      'name.definition.synchronized_statement',
-      'name.definition.this_expression',
-      'name.definition.throw_statement',
-      'name.definition.true_literal',
-      'name.definition.try_block',
-      'name.definition.try_statement',
-      'name.definition.try_with_block',
-      'name.definition.try_with_resources',
-      'name.definition.type_argument',
-      'name.definition.type_pattern',
-      'name.definition.type_pattern_with_variable',
-      'name.definition.unary_expression',
-      'name.definition.underscore_pattern',
-      'name.definition.update_expression',
-      'name.definition.void_type',
-      'name.definition.while_statement',
-      'name.definition.yield_statement'
-    ];
-
-    for (const captureName of nameCaptures) {
+    for (const captureName of JAVA_NAME_CAPTURES) {
       const capture = result.captures?.find((c: any) => c.name === captureName);
       if (capture?.node?.text) {
         return capture.node.text;
@@ -572,7 +357,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     }
 
     // 提取注解信息
-    const annotations = this.extractAnnotations(mainNode);
+    const annotations = JavaHelperMethods.extractAnnotations(mainNode);
     if (annotations.length > 0) {
       extra.annotations = annotations;
     }
@@ -590,19 +375,8 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     return extra;
   }
 
-  mapQueryTypeToStandardType(queryType: string): StandardizedQueryResult['type'] {
-    const mapping: Record<string, StandardizedQueryResult['type']> = {
-      'classes-interfaces': 'class',
-      'methods-variables': 'method',
-      'control-flow-patterns': 'control-flow',
-      'data-flow': 'data-flow',
-      'semantic-relationships': 'semantic',
-      'lifecycle-relationships': 'lifecycle',
-      'concurrency-relationships': 'concurrency',
-      'control-flow-relationships': 'control-flow'
-    };
-    
-    return mapping[queryType] || 'expression';
+  mapQueryTypeToStandardType(queryType: string): StandardType {
+    return JAVA_QUERY_TYPE_MAPPING[queryType] as StandardType || 'expression';
   }
 
   calculateComplexity(result: any): number {
@@ -622,18 +396,11 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
 
     // Java特定复杂度因素
     const text = this.extractContent(result);
-    if (text.includes('@Override')) complexity += 1; // 重写方法
-    if (text.includes('abstract')) complexity += 1; // 抽象类/方法
-    if (text.includes('synchronized')) complexity += 1; // 同步方法
-    if (text.includes('native')) complexity += 1; // 本地方法
-    if (text.includes('volatile')) complexity += 1; // 易失变量
-    if (text.includes('transient')) complexity += 1; // 瞬时变量
-    if (text.includes('final')) complexity += 0.5; // 最终变量/类
-    if (text.includes('static')) complexity += 0.5; // 静态成员
-    if (text.includes('throws')) complexity += 1; // 异常声明
-    if (text.includes('try') || text.includes('catch') || text.includes('finally')) complexity += 1; // 异常处理
-    if (text.includes('stream') || text.includes('Stream')) complexity += 1; // 流式API
-    if (text.includes('lambda') || text.includes('->')) complexity += 1; // Lambda表达式
+    for (const keyword of JAVA_COMPLEXITY_KEYWORDS) {
+      if (new RegExp(keyword.pattern).test(text)) {
+        complexity += keyword.weight;
+      }
+    }
 
     return complexity;
   }
@@ -661,11 +428,13 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
       }
     }
 
-    // 查找类型引用
-    this.findTypeReferences(mainNode, dependencies);
-    
-    // 查找方法调用引用
-    this.findMethodCalls(mainNode, dependencies);
+    // 使用辅助方法查找依赖
+    JavaHelperMethods.findTypeReferences(mainNode, dependencies);
+    JavaHelperMethods.findMethodCalls(mainNode, dependencies);
+    JavaHelperMethods.findGenericDependencies(mainNode, dependencies);
+    JavaHelperMethods.findDataFlowDependencies(mainNode, dependencies);
+    JavaHelperMethods.findConcurrencyDependencies(mainNode, dependencies);
+    JavaHelperMethods.findDependencies(mainNode, dependencies);
 
     return [...new Set(dependencies)]; // 去重
   }
@@ -676,139 +445,28 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     // 使用extractContent方法获取内容，这样可以正确处理mock的情况
     const text = this.extractContent(result);
     
-    if (text.includes('public')) modifiers.push('public');
-    if (text.includes('private')) modifiers.push('private');
-    if (text.includes('protected')) modifiers.push('protected');
-    if (text.includes('static')) modifiers.push('static');
-    if (text.includes('final')) modifiers.push('final');
-    if (text.includes('abstract')) modifiers.push('abstract');
-    if (text.includes('synchronized')) modifiers.push('synchronized');
-    if (text.includes('volatile')) modifiers.push('volatile');
-    if (text.includes('transient')) modifiers.push('transient');
-    if (text.includes('native')) modifiers.push('native');
-    if (text.includes('strictfp')) modifiers.push('strictfp');
-    if (text.includes('default')) modifiers.push('default'); // 接口默认方法
-
-    // 检查注解
-    if (text.includes('@Override')) modifiers.push('override');
-    if (text.includes('@Deprecated')) modifiers.push('deprecated');
-    if (text.includes('@SuppressWarnings')) modifiers.push('suppress-warnings');
-    if (text.includes('@FunctionalInterface')) modifiers.push('functional-interface');
+    for (const modifier of JAVA_MODIFIERS) {
+      if (text.includes(modifier)) {
+        modifiers.push(modifier);
+      }
+    }
 
     return modifiers;
   }
 
-  // Java特定的辅助方法
-
-  private extractAnnotations(node: any): string[] {
-    const annotations: string[] = [];
-    
-    if (!node || !node.children) {
-      return annotations;
-    }
-
-    for (const child of node.children) {
-      if (child.type === 'annotation' || child.type === 'marker_annotation') {
-        annotations.push(child.text);
-      }
-      annotations.push(...this.extractAnnotations(child));
-    }
-
-    return annotations;
-  }
-
-  private findMethodCalls(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      // 查找方法调用
-      if (child.type === 'method_invocation') {
-        const methodNode = child.childForFieldName('name');
-        if (methodNode?.text) {
-          dependencies.push(methodNode.text);
-        }
-      }
-      
-      this.findMethodCalls(child, dependencies);
-    }
-  }
 
   // 重写isBlockNode方法以支持Java特定的块节点类型
   protected isBlockNode(node: any): boolean {
-    const javaBlockTypes = [
-      'block', 'class_body', 'interface_body', 'enum_body', 'annotation_type_body',
-      'method_declaration', 'constructor_declaration', 'for_statement', 'enhanced_for_statement',
-      'while_statement', 'do_statement', 'if_statement', 'switch_statement', 'switch_expression',
-      'try_statement', 'catch_clause', 'finally_clause', 'synchronized_statement'
-    ];
-    return javaBlockTypes.includes(node.type) || super.isBlockNode(node);
+    return JAVA_BLOCK_NODE_TYPES.includes(node.type) || super.isBlockNode(node);
   }
 
-  // 高级关系提取方法
-
+  // 高级关系提取方法 - 委托给专门的提取器
   extractDataFlowRelationships(result: any): Array<{
     source: string;
     target: string;
     type: 'assignment' | 'parameter' | 'return';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'assignment' | 'parameter' | 'return';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 提取赋值数据流关系
-    if (mainNode.type === 'assignment_expression') {
-      const left = mainNode.childForFieldName('left');
-      const right = mainNode.childForFieldName('right');
-      
-      if (left?.text && right?.text) {
-        relationships.push({
-          source: right.text,
-          target: left.text,
-          type: 'assignment'
-        });
-      }
-    }
-
-    // 提取参数数据流关系
-    if (mainNode.type === 'method_invocation') {
-      const args = mainNode.childForFieldName('arguments');
-      const method = mainNode.childForFieldName('name');
-      
-      if (args && method?.text) {
-        for (const arg of args.children || []) {
-          if (arg.type === 'identifier' && arg.text) {
-            relationships.push({
-              source: arg.text,
-              target: method.text,
-              type: 'parameter'
-            });
-          }
-        }
-      }
-    }
-
-    // 提取返回值数据流关系
-    if (mainNode.type === 'return_statement') {
-      const value = mainNode.childForFieldName('value');
-      if (value?.text) {
-        relationships.push({
-          source: value.text,
-          target: 'return',
-          type: 'return'
-        });
-      }
-    }
-
-    return relationships;
+    return this.dataFlowExtractor.extractDataFlowRelationships(result);
   }
 
   extractControlFlowRelationships(result: any): Array<{
@@ -816,52 +474,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'conditional' | 'loop' | 'exception' | 'callback';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'conditional' | 'loop' | 'exception' | 'callback';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 提取条件控制流
-    if (mainNode.type === 'if_statement') {
-      const condition = mainNode.childForFieldName('condition');
-      if (condition?.text) {
-        relationships.push({
-          source: condition.text,
-          target: 'if-block',
-          type: 'conditional'
-        });
-      }
-    }
-
-    // 提取循环控制流
-    if (mainNode.type === 'for_statement' || mainNode.type === 'while_statement' || 
-        mainNode.type === 'enhanced_for_statement' || mainNode.type === 'do_statement') {
-      const condition = mainNode.childForFieldName('condition');
-      if (condition?.text) {
-        relationships.push({
-          source: condition.text,
-          target: 'loop-body',
-          type: 'loop'
-        });
-      }
-    }
-
-    // 提取异常控制流
-    if (mainNode.type === 'try_statement') {
-      relationships.push({
-        source: 'try-block',
-        target: 'catch-block',
-        type: 'exception'
-      });
-    }
-
-    return relationships;
+    return this.controlFlowExtractor.extractControlFlowRelationships(result);
   }
 
   extractSemanticRelationships(result: any): Array<{
@@ -869,47 +482,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 提取Java中的语义关系
-    const text = mainNode.text || '';
-    
-    // 检查是否是重写方法（包含@Overide注解）
-    if (text.includes('@Override')) {
-      relationships.push({
-        source: 'base-method',
-        target: 'overriding-method',
-        type: 'overrides'
-      });
-    }
-
-    // 检查是否是配置或观察者模式（通过注解）
-    if (text.includes('@Configuration') || text.includes('@Bean')) {
-      relationships.push({
-        source: 'configuration',
-        target: 'configurable',
-        type: 'configures'
-      });
-    }
-
-    if (text.includes('@EventListener') || text.includes('@Subscribe')) {
-      relationships.push({
-        source: 'event-emitter',
-        target: 'listener',
-        type: 'observes'
-      });
-    }
-
-    return relationships;
+    return this.semanticExtractor.extractSemanticRelationships(result);
   }
 
   extractLifecycleRelationships(result: any): Array<{
@@ -917,48 +490,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
-
-    // 提取实例化关系
-    if (mainNode.type === 'object_creation_expression') {
-      const type = mainNode.childForFieldName('type');
-      if (type?.text) {
-        relationships.push({
-          source: 'new-instance',
-          target: type.text,
-          type: 'instantiates'
-        });
-      }
-    }
-
-    // 提取初始化关系
-    if (mainNode.type === 'constructor_declaration') {
-      relationships.push({
-        source: 'constructor',
-        target: 'instance',
-        type: 'initializes'
-      });
-    }
-
-    // 提取析构关系（finalizer）
-    if (mainNode.type === 'method_declaration' && mainNode.text?.includes('finalize')) {
-      relationships.push({
-        source: 'instance',
-        target: 'finalize',
-        type: 'destroys'
-      });
-    }
-
-    return relationships;
+    return this.lifecycleExtractor.extractLifecycleRelationships(result);
   }
 
   extractConcurrencyRelationships(result: any): Array<{
@@ -966,38 +498,14 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     target: string;
     type: 'synchronizes' | 'locks' | 'communicates' | 'races';
   }> {
-    const relationships: Array<{
-      source: string;
-      target: string;
-      type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-    }> = [];
-    
-    const mainNode = result.captures?.[0]?.node;
-    if (!mainNode) {
-      return relationships;
-    }
+    return this.concurrencyExtractor.extractConcurrencyRelationships(result);
+  }
 
-    // 提取Java中的并发关系
-    const text = mainNode.text || '';
-    
-    // 检查同步机制
-    if (text.includes('synchronized') || text.includes('ReentrantLock') || text.includes('synchronized_statement')) {
-      relationships.push({
-        source: 'lock',
-        target: 'critical-section',
-        type: 'synchronizes'
-      });
-    }
-
-    // 检查线程间通信
-    if (text.includes('.wait()') || text.includes('.notify()') || text.includes('.notifyAll()')) {
-      relationships.push({
-        source: 'thread',
-        target: 'communication-point',
-        type: 'communicates'
-      });
-    }
-
-    return relationships;
+  extractInheritanceRelationships(result: any): Array<{
+    source: string;
+    target: string;
+    type: 'extends' | 'implements' | 'mixin' | 'enum_member' | 'contains' | 'embedded_struct';
+  }> {
+    return this.inheritanceExtractor.extractInheritanceRelationships(result);
   }
 }

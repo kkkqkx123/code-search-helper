@@ -161,9 +161,9 @@ export class SemanticRelationshipExtractor {
    */
   private extractSemanticContext(astNode: Parser.SyntaxNode): Record<string, any> {
     const context: Record<string, any> = {};
-    
+
     // 提取包信息
-    let current = astNode;
+    let current: Parser.SyntaxNode | null = astNode;
     while (current) {
       if (current.type === 'source_file') {
         const packageClause = current.childForFieldName('package');
@@ -357,7 +357,7 @@ export class SemanticRelationshipExtractor {
    */
   private extractImports(astNode: Parser.SyntaxNode): string[] {
     const imports: string[] = [];
-    let current = astNode;
+    let current: Parser.SyntaxNode | null = astNode;
     
     // 向上遍历到文件级别
     while (current && current.type !== 'source_file') {

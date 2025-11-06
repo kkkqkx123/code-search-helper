@@ -76,9 +76,9 @@ export class LifecycleRelationshipExtractor {
       for (const capture of result.captures || []) {
         if (capture.name.includes('resource.to.dispose')) {
           const source = capture.node?.text || '';
-          const targetCapture = result.captures?.find((c: any) => 
+          const targetCapture = result.captures?.find((c: any) =>
             c.name.includes('using.body') || c.name.includes('using.declaration'));
-          const target = targetCapture?.node?.text || '';
+          const target = (targetCapture?.node as Parser.SyntaxNode | null)?.text || '';
 
           if (source && target) {
             relationships.push({

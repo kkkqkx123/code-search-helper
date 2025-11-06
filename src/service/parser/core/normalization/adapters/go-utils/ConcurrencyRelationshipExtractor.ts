@@ -286,7 +286,7 @@ export class ConcurrencyRelationshipExtractor {
         channel: channel?.text || 'unknown',
         direction: 'send',
         dataType: value?.type,
-        sender: GoHelperMethods.extractNameFromNode(channelNode.parent) || 'unknown'
+        sender: channelNode.parent ? GoHelperMethods.extractNameFromNode(channelNode.parent) || 'unknown' : 'unknown'
       };
     } else if (channelNode.type === 'unary_expression' && channelNode.text.includes('<-')) {
       const channel = channelNode.childForFieldName('operand');
@@ -294,7 +294,7 @@ export class ConcurrencyRelationshipExtractor {
       return {
         channel: channel?.text || 'unknown',
         direction: 'receive',
-        receiver: GoHelperMethods.extractNameFromNode(channelNode.parent) || 'unknown'
+        receiver: channelNode.parent ? GoHelperMethods.extractNameFromNode(channelNode.parent) || 'unknown' : 'unknown'
       };
     }
     
