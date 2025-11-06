@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { languageMappingManager } from '../../../config/LanguageMappingManager';
 
 /**
  * 语言扩展名映射接口
@@ -16,90 +17,13 @@ export interface ILanguageExtensionMap {
  * 统一管理文件扩展名到编程语言的映射关系
  */
 export class LanguageExtensionMap implements ILanguageExtensionMap {
-  private static readonly EXTENSION_TO_LANGUAGE: Record<string, string> = {
-    '.js': 'javascript',
-    '.ts': 'typescript',
-    '.jsx': 'javascript',
-    '.tsx': 'typescript',
-    '.py': 'python',
-    '.java': 'java',
-    '.cpp': 'cpp',
-    '.cc': 'cpp',
-    '.cxx': 'cpp',
-    '.c++': 'cpp',
-    '.c': 'c',
-    '.h': 'c',  // C头文件
-    '.hpp': 'cpp', // C++头文件
-    '.cs': 'csharp',
-    '.go': 'go',
-    '.rs': 'rust',
-    '.php': 'php',
-    '.rb': 'ruby',
-    '.swift': 'swift',
-    '.kt': 'kotlin',
-    '.scala': 'scala',
-    '.md': 'markdown',
-    '.txt': 'text',
-    '.json': 'json',
-    '.xml': 'xml',
-    '.yaml': 'yaml',
-    '.yml': 'yaml',
-    '.sql': 'sql',
-    '.sh': 'shell',
-    '.bash': 'shell',
-    '.zsh': 'shell',
-    '.fish': 'shell',
-    '.html': 'html',
-    '.css': 'css',
-    '.scss': 'scss',
-    '.sass': 'sass',
-    '.less': 'less',
-    '.vue': 'vue',
-    '.svelte': 'svelte'
-  };
-
-  private static readonly LANGUAGE_TO_EXTENSIONS: Record<string, string[]> = {
-    'javascript': ['.js', '.jsx'],
-    'typescript': ['.ts', '.tsx'],
-    'python': ['.py'],
-    'java': ['.java'],
-    'cpp': ['.cpp', '.cc', '.cxx', '.c++', '.hpp'],
-    'c': ['.c', '.h'],
-    'csharp': ['.cs'],
-    'go': ['.go'],
-    'rust': ['.rs'],
-    'php': ['.php'],
-    'ruby': ['.rb'],
-    'swift': ['.swift'],
-    'kotlin': ['.kt'],
-    'scala': ['.scala'],
-    'markdown': ['.md'],
-    'text': ['.txt'],
-    'json': ['.json'],
-    'xml': ['.xml'],
-    'yaml': ['.yaml', '.yml'],
-    'sql': ['.sql'],
-    'shell': ['.sh', '.bash', '.zsh', '.fish'],
-    'html': ['.html'],
-    'css': ['.css'],
-    'scss': ['.scss'],
-    'sass': ['.sass'],
-    'less': ['.less'],
-    'vue': ['.vue'],
-    'svelte': ['.svelte']
-  };
-
   /**
    * 根据文件扩展名获取编程语言
    * @param ext 文件扩展名（包含点号，如 '.js'）
    * @returns 编程语言名称或undefined
    */
   getLanguageByExtension(ext: string): string | undefined {
-    if (!ext) return undefined;
-
-    // 标准化扩展名为小写
-    const normalizedExt = ext.toLowerCase();
-    return LanguageExtensionMap.EXTENSION_TO_LANGUAGE[normalizedExt];
+    return languageMappingManager.getLanguageByExtension(ext);
   }
 
   /**
@@ -108,10 +32,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    * @returns 文件扩展名数组
    */
   getExtensionsByLanguage(language: string): string[] {
-    if (!language) return [];
-
-    const normalizedLanguage = language.toLowerCase();
-    return LanguageExtensionMap.LANGUAGE_TO_EXTENSIONS[normalizedLanguage] || [];
+    return languageMappingManager.getExtensions(language);
   }
 
   /**
@@ -119,7 +40,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    * @returns 编程语言名称数组
    */
   getAllSupportedLanguages(): string[] {
-    return Object.keys(LanguageExtensionMap.LANGUAGE_TO_EXTENSIONS);
+    return languageMappingManager.getAllSupportedLanguages();
   }
 
   /**
@@ -128,10 +49,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    * @returns 是否支持
    */
   isLanguageSupported(language: string): boolean {
-    if (!language) return false;
-
-    const normalizedLanguage = language.toLowerCase();
-    return normalizedLanguage in LanguageExtensionMap.LANGUAGE_TO_EXTENSIONS;
+    return languageMappingManager.isLanguageSupported(language);
   }
 
   /**
@@ -140,10 +58,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    * @returns 是否支持
    */
   isExtensionSupported(ext: string): boolean {
-    if (!ext) return false;
-
-    const normalizedExt = ext.toLowerCase();
-    return normalizedExt in LanguageExtensionMap.EXTENSION_TO_LANGUAGE;
+    return languageMappingManager.isExtensionSupported(ext);
   }
 
   /**
@@ -152,10 +67,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    * @returns 编程语言名称或undefined
    */
   getLanguageFromPath(filePath: string): string | undefined {
-    if (!filePath) return undefined;
-
-    const ext = path.extname(filePath);
-    return this.getLanguageByExtension(ext);
+    return languageMappingManager.getLanguageByPath(filePath);
   }
 
   /**
@@ -163,7 +75,7 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    * @returns 扩展名到语言的映射对象
    */
   getExtensionToLanguageMap(): Readonly<Record<string, string>> {
-    return { ...LanguageExtensionMap.EXTENSION_TO_LANGUAGE };
+    return languageMappingManager.getExtensionMappings();
   }
 
   /**
@@ -171,7 +83,11 @@ export class LanguageExtensionMap implements ILanguageExtensionMap {
    * @returns 语言到扩展名的映射对象
    */
   getLanguageToExtensionsMap(): Readonly<Record<string, string[]>> {
-    return { ...LanguageExtensionMap.LANGUAGE_TO_EXTENSIONS };
+    const mappings: Record<string, string[]> = {};
+    for (const language of languageMappingManager.getAllSupportedLanguages()) {
+      mappings[language] = languageMappingManager.getExtensions(language);
+    }
+    return mappings;
   }
 }
 

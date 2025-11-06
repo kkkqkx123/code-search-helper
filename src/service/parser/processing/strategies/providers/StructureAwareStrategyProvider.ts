@@ -5,6 +5,7 @@ import { ISplitStrategy, IStrategyProvider, ChunkingOptions, CodeChunk } from '.
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { StructureAwareStrategy as ImplStructureAwareStrategy, StructureAwareStrategy } from '../impl/StructureAwareStrategy';
 import { IQueryResultNormalizer } from '../../../core/normalization/types';
+import { languageMappingManager } from '../../../config/LanguageMappingManager';
 
 /**
  * 结构感知分段策略实现
@@ -118,30 +119,7 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
   }
 
   getSupportedLanguages(): string[] {
-    // 支持所有有语言适配器的语言
-    return [
-      'typescript',
-      'javascript',
-      'tsx',
-      'jsx',
-      'python',
-      'java',
-      'go',
-      'rust',
-      'cpp',
-      'c',
-      'c-sharp',
-      'kotlin',
-      'swift',
-      'php',
-      'ruby',
-      'lua',
-      'toml',
-      'yaml',
-      'json',
-      'html',
-      'css',
-      'vue'
-    ];
+    // 使用统一映射管理器获取支持结构感知策略的语言
+    return languageMappingManager.getLanguagesByStrategy('structure-aware');
   }
 }

@@ -3,6 +3,8 @@
  * 包含查询类型定义、关键词映射和复合查询配置
  */
 
+import { languageMappingManager } from '../../config/LanguageMappingManager';
+
 // 常见查询类型
 export const COMMON_QUERY_TYPES = [
   'functions', 'classes', 'methods', 'imports', 'exports', 'variables', 'types', 'interfaces'
@@ -69,14 +71,7 @@ export const BASIC_QUERY_TYPES = ['functions', 'classes'] as const;
 // 默认查询类型
 export const DEFAULT_QUERY_TYPES = ['functions', 'classes', 'methods', 'imports', 'variables'] as const;
 
-// 常用语言列表
+// 常用语言列表 - 使用统一映射管理器
 export const COMMON_LANGUAGES = [
-  'javascript',
-  'typescript',
-  'python',
-  'java',
-  'go',
-  'rust',
-  'cpp',
-  'c',
+  ...languageMappingManager.getCommonLanguages()
 ] as const;

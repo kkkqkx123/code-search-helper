@@ -8,6 +8,7 @@ import {
   DEFAULT_QUERY_TYPES,
   COMMON_LANGUAGES
 } from './query-config';
+import { languageMappingManager } from '../../config/LanguageMappingManager';
 
 /**
  * 查询发现错误类
@@ -428,8 +429,8 @@ export class QueryLoader {
   private static getQueryFileName(language: string): string {
     const fileMap: Record<string, string> = {
       'c++': 'cpp',
-      'c#': 'c-sharp',
-      'csharp': 'c-sharp',
+      'c#': 'csharp',
+      'csharp': 'csharp',
       'ts': 'typescript',
       'js': 'javascript',
       'py': 'python',

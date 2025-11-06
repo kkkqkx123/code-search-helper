@@ -7,6 +7,7 @@ import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageExtensionMap } from '../../utils';
 import { LanguageDetectionService } from '../../processing/detection/LanguageDetectionService';
 import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
+import { languageMappingManager } from '../../config/LanguageMappingManager';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -63,42 +64,18 @@ export class DynamicParserManager {
    * 初始化语言加载器配置
    */
   private initializeLanguageLoaders(): void {
-    const supportedLanguages = this.extensionMap.getAllSupportedLanguages();
-
-    // 配置动态导入加载器
-    const languageLoaders: Record<string, () => Promise<any>> = {
-      javascript: () => import('tree-sitter-javascript').then(m => m.default),
-      typescript: () => import('tree-sitter-typescript').then(m => m.typescript),
-      python: () => import('tree-sitter-python').then(m => m.default),
-      java: () => import('tree-sitter-java').then(m => m.default),
-      go: () => import('tree-sitter-go').then(m => m.default),
-      rust: () => import('tree-sitter-rust').then(m => m.default),
-      cpp: () => import('tree-sitter-cpp').then(m => m.default),
-      c: () => import('tree-sitter-c').then(m => m.default),
-      css: () => import('tree-sitter-css').then(m => m.default),
-      html: () => import('tree-sitter-html').then(m => m.default),
-      vue: () => import('tree-sitter-vue').then(m => m.default),
-      tsx: () => import('tree-sitter-typescript').then(m => m.tsx),
-      json: () => import('tree-sitter-json').then(m => m.default),
-    };
+    const supportedLanguages = languageMappingManager.getAllSupportedLanguages();
 
     // 初始化语言配置
     for (const language of supportedLanguages) {
-      this.parsers.set(language, {
-        name: this.getLanguageDisplayName(language),
-        fileExtensions: this.extensionMap.getExtensionsByLanguage(language),
-        supported: !!languageLoaders[language],
-        loader: languageLoaders[language],
-      });
-    }
+      const mapping = languageMappingManager.getLanguageMapping(language);
+      if (!mapping || !mapping.supported) continue;
 
-    // 特殊处理：C语言使用C++解析器
-    if (this.parsers.has('cpp')) {
-      this.parsers.set('c', {
-        name: 'C',
-        fileExtensions: this.extensionMap.getExtensionsByLanguage('c'),
-        supported: true,
-        loader: languageLoaders.cpp, // 使用C++解析器
+      this.parsers.set(language, {
+        name: mapping.displayName,
+        fileExtensions: mapping.extensions,
+        supported: mapping.supported,
+        loader: languageMappingManager.getTreeSitterLoader(language),
       });
     }
 
