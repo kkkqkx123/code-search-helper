@@ -1,6 +1,41 @@
 import Parser from 'tree-sitter';
 import { IQueryResultNormalizer, StandardizedQueryResult, NormalizationOptions, NormalizationStats } from './types';
-import { LanguageAdapterFactory } from './adapters';
+import { CLanguageAdapter } from './adapters';
+
+// 简单的语言适配器工厂
+class LanguageAdapterFactory {
+  private static adapters = new Map<string, any>();
+
+  static async getAdapter(language: string): Promise<any> {
+    if (this.adapters.has(language)) {
+      return this.adapters.get(language);
+    }
+
+    // 根据语言返回相应的适配器
+    switch (language.toLowerCase()) {
+      case 'c':
+      case 'cpp':
+        return new CLanguageAdapter();
+      default:
+        return null; // 返回默认适配器或null
+    }
+  }
+
+  static getAdapterSync(language: string): any {
+    if (this.adapters.has(language)) {
+      return this.adapters.get(language);
+    }
+
+    // 根据语言返回相应的适配器
+    switch (language.toLowerCase()) {
+      case 'c':
+      case 'cpp':
+        return new CLanguageAdapter();
+      default:
+        return null; // 返回默认适配器或null
+    }
+  }
+}
 import { QueryManager } from '../query/QueryManager';
 import { QueryLoader } from '../query/QueryLoader';
 import { QueryTypeMapper } from './QueryTypeMappings';
@@ -357,6 +392,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     const structureType = this.identifyBasicStructure(node, language);
     if (structureType) {
       const result: StandardizedQueryResult = {
+        nodeId: `node_${node.id}_${Date.now()}`,
         type: structureType,
         name: this.extractBasicName(node),
         startLine: node.startPosition.row + 1,

@@ -28,6 +28,7 @@ import { BatchProcessingOptimizer } from '../optimization/BatchProcessingOptimiz
 import { TreeSitterService } from '../parser/core/parse/TreeSitterService';
 import { TreeSitterQueryEngine } from '../parser/core/query/TreeSitterQueryEngine';
 import { NebulaNode, NebulaRelationship } from '../../database/nebula/NebulaTypes';
+import { StandardizedQueryResult } from '../parser/core/normalization/types';
 
 export interface MemoryUsage {
   used: number;
@@ -503,8 +504,13 @@ export class IndexingLogicService {
       // 执行图索引查询
       const queryResults = await this.treeSitterQueryEngine.executeGraphQueries(parseResult.ast, language.name);
 
-      // 映射为图元素
-      const graphElements = await this.graphMappingService.mapQueryResultsToGraph(queryResults);
+      // 映射为图元素 - 使用新的标准化方法
+      // 首先将查询结果转换为标准化格式
+      const queryResultsArray = Array.from(queryResults.values());
+      const standardizedNodes = this.convertQueryResultsToStandardized(queryResultsArray);
+      
+      // 使用新的mapToGraph方法
+      const graphElements = await this.graphMappingService.mapToGraph(filePath, standardizedNodes);
 
       // 转换为 Nebula 格式
       const nebulaNodes = this.convertToNebulaNodes(graphElements.nodes);
@@ -640,6 +646,63 @@ export class IndexingLogicService {
    */
   recordError(filePath: string, error: any): void {
     this.logger.error(`Indexing error for ${filePath}:`, { error });
+  }
+
+  /**
+   * 将查询结果转换为标准化格式
+   * @param queryResults 查询结果
+   * @returns 标准化查询结果
+   */
+  private convertQueryResultsToStandardized(queryResults: any[]): StandardizedQueryResult[] {
+    return queryResults.map(result => ({
+      nodeId: result.id || `node_${Date.now()}_${Math.random()}`,
+      name: result.name || result.type || 'unknown',
+      type: this.mapQueryResultTypeToStandardized(result.type),
+      startLine: result.startLine || 0,
+      endLine: result.endLine || 0,
+      content: result.content || '',
+      metadata: {
+        language: result.language || 'unknown',
+        complexity: result.complexity || 0,
+        dependencies: result.dependencies || [],
+        modifiers: result.modifiers || [],
+        extra: result.extra || result.properties || {}
+      }
+    }));
+  }
+
+  /**
+   * 将查询结果类型映射到标准化类型
+   * @param queryType 查询结果类型
+   * @returns 标准化类型
+   */
+  private mapQueryResultTypeToStandardized(queryType: string): StandardizedQueryResult['type'] {
+    const typeMapping: Record<string, StandardizedQueryResult['type']> = {
+      'function': 'function',
+      'method': 'method',
+      'class': 'class',
+      'interface': 'interface',
+      'variable': 'variable',
+      'import': 'import',
+      'export': 'export',
+      'call': 'call',
+      'call_expression': 'call',
+      'method_invocation': 'call',
+      'inheritance': 'inheritance',
+      'extends': 'inheritance',
+      'implements': 'implements',
+      'dependency': 'dependency',
+      'data-flow': 'data-flow',
+      'control-flow': 'control-flow',
+      'semantic': 'semantic',
+      'lifecycle': 'lifecycle',
+      'concurrency': 'concurrency',
+      'reference': 'dependency',
+      'creation': 'dependency',
+      'annotation': 'dependency'
+    };
+
+    return typeMapping[queryType] || 'variable';
   }
 
   /**

@@ -320,8 +320,9 @@ export const TYPES = {
   
   // 26. 关系提取器相关
   RelationshipExtractorFactory: Symbol.for('RelationshipExtractorFactory'),
-  ILanguageRelationshipExtractor: Symbol.for('ILanguageRelationshipExtractor'),
-  JavaScriptRelationshipExtractor: Symbol.for('JavaScriptRelationshipExtractor'),
+  // @deprecated ILanguageRelationshipExtractor is deprecated
+  // ILanguageRelationshipExtractor: Symbol.for('ILanguageRelationshipExtractor'),
+  // JavaScriptRelationshipExtractor: Symbol.for('JavaScriptRelationshipExtractor'),
   TypeScriptRelationshipExtractor: Symbol.for('TypeScriptRelationshipExtractor'),
   PythonRelationshipExtractor: Symbol.for('PythonRelationshipExtractor'),
   JavaRelationshipExtractor: Symbol.for('JavaRelationshipExtractor'),

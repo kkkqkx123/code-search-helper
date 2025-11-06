@@ -74,8 +74,7 @@ describe('GraphDataMappingService', () => {
       mockGraphMappingCache as unknown as GraphMappingCache,
       mockUnifiedCache as any,
       mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
-      mockFaultToleranceHandler as unknown as FaultToleranceHandler,
-      mockRelationshipExtractorFactory as unknown as RelationshipExtractorFactory
+      mockFaultToleranceHandler as unknown as FaultToleranceHandler
     );
   });
 

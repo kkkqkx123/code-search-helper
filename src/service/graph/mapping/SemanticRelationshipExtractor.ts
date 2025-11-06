@@ -14,9 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
-import { TreeSitterService } from '../../parser/core/parse/TreeSitterService';
-import { LANGUAGE_NODE_MAPPINGS } from './LanguageNodeTypes';
-import Parser = require('tree-sitter');
+import { StandardizedQueryResult } from '../../parser/core/normalization/types';
 
 export interface AdvancedMappingOptions {
   includeInheritance: boolean;
@@ -44,22 +42,19 @@ export class AdvancedMappingService {
   private validator: DataMappingValidator;
   private cache: GraphMappingCache;
   private batchOptimizer: GraphBatchOptimizer;
-  private treeSitterService: TreeSitterService;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.DataMappingValidator) validator: DataMappingValidator,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
-    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
-    @inject(TYPES.TreeSitterService) treeSitterService: TreeSitterService
+    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer
   ) {
     this.logger = logger;
     this.validator = validator;
     this.cache = cache;
     this.batchOptimizer = batchOptimizer;
-    this.treeSitterService = treeSitterService;
 
-    this.logger.info('AdvancedMappingService initialized');
+    this.logger.info('AdvancedMappingService initialized - TreeSitter dependencies removed');
   }
 
   /**
@@ -111,13 +106,17 @@ export class AdvancedMappingService {
     }
 
     if (opts.includeMethodCalls) {
-      const callRels = await this.extractCallRelationships(analysisResult, fileContent);
-      relationships.push(...callRels);
+      // 使用新的标准化方法
+      this.logger.warn('Method calls extraction is now handled by standardized modules');
+      // const callRels = await this.extractCallRelationshipsFromStandardized(analysisResult, standardizedNodes);
+      // relationships.push(...callRels);
     }
 
     if (opts.includePropertyAccesses) {
-      const propertyRels = await this.extractPropertyAccessRelationships(analysisResult, fileContent);
-      relationships.push(...propertyRels);
+      // 使用新的标准化方法
+      this.logger.warn('Property access extraction is now handled by standardized modules');
+      // const propertyRels = await this.extractPropertyAccessRelationshipsFromStandardized(analysisResult, standardizedNodes);
+      // relationships.push(...propertyRels);
     }
 
     if (opts.includeInterfaceImplementations) {
@@ -198,213 +197,144 @@ export class AdvancedMappingService {
     return relationships;
   }
 
+
   /**
-   * 提取调用关系
+   * 从标准化结果中提取调用关系
+   * @param analysisResult 文件分析结果
+   * @param standardizedNodes 标准化查询结果
+   * @returns 调用关系列表
    */
-  async extractCallRelationships(analysisResult: FileAnalysisResult, fileContent: string): Promise<GraphRelationship[]> {
+  async extractCallRelationshipsFromStandardized(
+    analysisResult: FileAnalysisResult,
+    standardizedNodes: StandardizedQueryResult[]
+  ): Promise<GraphRelationship[]> {
     const relationships: GraphRelationship[] = [];
 
-    // 在函数之间创建调用关系（这需要从AST中提取实际的调用信息）
-    for (const func of analysisResult.functions) {
-      // 获取调用者函数的ID
-      const callerId = this.computeNodeId(func.name, GraphNodeType.FUNCTION, analysisResult.filePath);
+    // 筛选出调用关系节点
+    const callNodes = standardizedNodes.filter(node => node.type === 'call');
 
-      // 查找函数内部调用的其他函数
-      const calledFunctions = await this.extractCalledFunctionsFromAST(func, analysisResult, fileContent);
-
-      for (const calledFunc of calledFunctions) {
-        // 计算被调用函数的ID
-        const calleeId = this.computeNodeId(calledFunc, GraphNodeType.FUNCTION, analysisResult.filePath);
-
+    for (const callNode of callNodes) {
+      const callData = callNode.metadata.extra;
+      if (callData && callData.fromNodeId && callData.toNodeId) {
         relationships.push({
-          id: `rel_${uuidv4()}`,
+          id: callNode.nodeId,
           type: GraphRelationshipType.CALLS,
-          fromNodeId: callerId,
-          toNodeId: calleeId,
+          fromNodeId: callData.fromNodeId,
+          toNodeId: callData.toNodeId,
           properties: {
-            callType: 'function',
+            callName: callData.callName,
+            callType: callData.callType,
             created: new Date().toISOString()
           }
         });
       }
     }
 
-    this.logger.debug('Extracted call relationships', { count: relationships.length });
+    this.logger.debug('Extracted call relationships from standardized results', { count: relationships.length });
     return relationships;
   }
 
   /**
    /**
-    * 从函数AST中提取被调用的函数信息
+    * 从标准化结果中提取被调用的函数
+    * @param functionInfo 当前函数信息
+    * @param standardizedNodes 标准化查询结果
+    * @returns 被调用的函数名列表
     */
-   private async extractCalledFunctionsFromAST(functionInfo: FunctionInfo, analysisResult: FileAnalysisResult, fileContent: string): Promise<string[]> {
-     if (!analysisResult.ast) {
-       return [];
-     }
+   private extractCalledFunctionsFromStandardizedResults(
+     functionInfo: FunctionInfo,
+     standardizedNodes: StandardizedQueryResult[]
+   ): string[] {
+     const calledFunctions: string[] = [];
  
-     const language = analysisResult.language.toLowerCase();
-     const nodeMapping = LANGUAGE_NODE_MAPPINGS[language];
-     
-     if (!nodeMapping) {
-       this.logger.warn(`No node mapping found for language: ${language}`);
-       return [];
-     }
+     // 筛选出调用关系且在当前函数范围内的节点
+     const callNodes = standardizedNodes.filter(node =>
+       node.type === 'call' &&
+       node.startLine >= functionInfo.startLine &&
+       node.endLine <= functionInfo.endLine
+     );
  
-     try {
-       const calledFunctions: string[] = [];
-       
-       // 使用语言特定的节点类型
-       for (const callType of nodeMapping.callExpression) {
-         const callExpressions = this.treeSitterService.findNodeByType(analysisResult.ast, callType);
-         
-         for (const callExpr of callExpressions) {
-           // 检查调用是否在当前函数内部
-           if (this.isNodeInFunction(callExpr, functionInfo)) {
-             const functionName = this.extractFunctionNameFromCall(callExpr, fileContent, language);
-             if (functionName) {
-               calledFunctions.push(functionName);
-             }
-           }
-         }
+     for (const callNode of callNodes) {
+       const callName = callNode.metadata.extra?.callName;
+       if (callName) {
+         calledFunctions.push(callName);
        }
- 
-       return [...new Set(calledFunctions)]; // 去重
-     } catch (error) {
-       this.logger.warn('Failed to extract function calls from AST', {
-         error: (error as Error).message,
-         language
-       });
-       return [];
      }
+ 
+     return [...new Set(calledFunctions)]; // 去重
    }
  
-   // 新增：检查节点是否在指定函数内部
-   private isNodeInFunction(node: Parser.SyntaxNode, functionInfo: FunctionInfo): boolean {
-     const functionStartLine = functionInfo.startLine;
-     const functionEndLine = functionInfo.endLine;
-     
-     const nodeLocation = this.treeSitterService.getNodeLocation(node);
-     return nodeLocation.startLine >= functionStartLine &&
-            nodeLocation.endLine <= functionEndLine;
+   /**
+    * 从标准化结果中提取访问的属性
+    * @param functionInfo 当前函数信息
+    * @param standardizedNodes 标准化查询结果
+    * @returns 访问的属性名列表
+    */
+   private extractAccessedPropertiesFromStandardizedResults(
+     functionInfo: FunctionInfo,
+     standardizedNodes: StandardizedQueryResult[]
+   ): string[] {
+     const accessedProperties: string[] = [];
+ 
+     // 筛选出依赖关系且在当前函数范围内的节点（作为引用关系的替代）
+     const referenceNodes = standardizedNodes.filter(node =>
+       node.type === 'dependency' &&
+       node.startLine >= functionInfo.startLine &&
+       node.endLine <= functionInfo.endLine
+     );
+ 
+     for (const refNode of referenceNodes) {
+       const referenceName = refNode.metadata.extra?.target || refNode.name;
+       if (referenceName) {
+         accessedProperties.push(referenceName);
+       }
+     }
+ 
+     return [...new Set(accessedProperties)]; // 去重
    }
- 
-   // 新增：从调用表达式中提取函数名
-   private extractFunctionNameFromCall(
-     callExpr: Parser.SyntaxNode,
-     fileContent: string,
-     language: string
-   ): string | null {
-     const nodeMapping = LANGUAGE_NODE_MAPPINGS[language];
-     
-     if (!callExpr.children || callExpr.children.length === 0) {
-       return null;
-     }
- 
-     const funcNameNode = callExpr.children[0];
-     
-     // 处理简单标识符
-     if (funcNameNode.type === 'identifier') {
-       return this.treeSitterService.getNodeText(funcNameNode, fileContent);
-     }
-     
-     // 处理成员表达式 (obj.method())
-     if (nodeMapping.memberExpression.includes(funcNameNode.type)) {
-       return this.extractMethodNameFromMemberExpression(funcNameNode, fileContent, language);
-     }
-     
-     return null;
-   }
- 
-   // 新增：从成员表达式中提取方法名
-   private extractMethodNameFromMemberExpression(
-     memberExpr: Parser.SyntaxNode,
-     fileContent: string,
-     language: string
-   ): string | null {
-     const nodeMapping = LANGUAGE_NODE_MAPPINGS[language];
-     
-     if (!memberExpr.children || memberExpr.children.length === 0) {
-       return null;
-     }
- 
-     // 获取最后一个子节点（通常是属性标识符）
-     const lastChild = memberExpr.children[memberExpr.children.length - 1];
-     
-     if (nodeMapping.propertyIdentifier.includes(lastChild.type)) {
-       return this.treeSitterService.getNodeText(lastChild, fileContent);
-     }
-     
-     return null;
-   }
+
   /**
-   * 提取属性访问关系
+   * 从标准化结果中提取属性访问关系
+   * @param analysisResult 文件分析结果
+   * @param standardizedNodes 标准化查询结果
+   * @returns 属性访问关系列表
    */
-  async extractPropertyAccessRelationships(analysisResult: FileAnalysisResult, fileContent: string): Promise<GraphRelationship[]> {
+  async extractPropertyAccessRelationshipsFromStandardized(
+    analysisResult: FileAnalysisResult,
+    standardizedNodes: StandardizedQueryResult[]
+  ): Promise<GraphRelationship[]> {
     const relationships: GraphRelationship[] = [];
 
-    // 提取函数中对类属性的访问关系
-    for (const func of analysisResult.functions) {
-      // 获取访问函数的ID
-      const accessorId = this.computeNodeId(func.name, GraphNodeType.FUNCTION, analysisResult.filePath);
+    // 筛选出依赖关系节点（作为引用关系的替代）
+    const referenceNodes = standardizedNodes.filter(node => node.type === 'dependency');
 
-      const accessedProperties = await this.extractAccessedPropertiesFromAST(func, analysisResult, fileContent);
-
-      for (const prop of accessedProperties) {
-        // 查找属性所属的类
-        const classWithProperty = this.findClassWithProperty(prop, analysisResult);
-        if (classWithProperty) {
-          const classId = this.computeNodeId(classWithProperty.name, GraphNodeType.CLASS, analysisResult.filePath);
-
-          relationships.push({
-            id: `rel_${uuidv4()}`,
-            type: GraphRelationshipType.USES,
-            fromNodeId: accessorId,
-            toNodeId: classId,
-            properties: {
-              property: prop,
-              accessType: 'read',
-              created: new Date().toISOString()
-            }
-          });
-        }
+    for (const refNode of referenceNodes) {
+      const refData = refNode.metadata.extra;
+      if (refData && refData.source && refData.target) {
+        relationships.push({
+          id: refNode.nodeId,
+          type: GraphRelationshipType.ACCESSES,
+          fromNodeId: refData.source,
+          toNodeId: refData.target,
+          properties: {
+            referenceType: refData.type,
+            referenceName: refData.referenceName,
+            accessType: 'read',
+            created: new Date().toISOString()
+          }
+        });
       }
     }
 
-    this.logger.debug('Extracted property access relationships', { count: relationships.length });
+    this.logger.debug('Extracted property access relationships from standardized results', { count: relationships.length });
     return relationships;
   }
 
   /**
-   * 从函数AST中提取被访问的属性信息
+   * @deprecated 此方法已废弃，属性访问提取现在通过标准化模块处理
    */
   private async extractAccessedPropertiesFromAST(functionInfo: FunctionInfo, analysisResult: FileAnalysisResult, fileContent: string): Promise<string[]> {
-    // 如果AST存在，使用TreeSitterService来提取属性访问
-    if (analysisResult.ast) {
-      try {
-        // 使用TreeSitterService查询属性访问表达式
-        const memberExpressions = this.treeSitterService.findNodeByType(analysisResult.ast, 'member_expression');
-
-        const accessedProperties: string[] = [];
-        for (const memberExpr of memberExpressions) {
-          // 在member_expression中，属性名通常是最后一个子节点
-          if (memberExpr.children && memberExpr.children.length > 0) {
-            const lastChild = memberExpr.children[memberExpr.children.length - 1];
-            if (lastChild && lastChild.type === 'property_identifier') {
-              const propertyText = this.treeSitterService.getNodeText(lastChild, fileContent);
-              accessedProperties.push(propertyText);
-            }
-          }
-        }
-
-        return accessedProperties;
-      } catch (error) {
-        this.logger.warn('Failed to extract property accesses from AST', { error: (error as Error).message });
-        // 如果提取失败，返回空数组
-        return [];
-      }
-    }
-
-    // 如果没有AST，返回空数组
+    this.logger.warn('extractAccessedPropertiesFromAST is deprecated. Property access extraction is now handled by standardized modules.');
     return [];
   }
 

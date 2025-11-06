@@ -1,5 +1,4 @@
-import { SymbolResolver, Symbol } from '../../symbol/SymbolResolver';
-import Parser = require('tree-sitter');
+// 注意：此接口已废弃，关系提取现在通过标准化模块和关系元数据处理器处理
 
 // 扩展的调用关系
 export interface CallRelationship {
@@ -190,72 +189,75 @@ export interface RelationshipExtractionResult {
 }
 
 // 扩展的关系提取器接口
+/**
+ * @deprecated 此接口已废弃，关系提取现在通过标准化模块和关系元数据处理器处理
+ */
 export interface ILanguageRelationshipExtractor {
   extractCallRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<CallRelationship[]>;
   
   extractInheritanceRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<InheritanceRelationship[]>;
   
   extractDependencyRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<DependencyRelationship[]>;
   
   // 新增的关系提取方法
   extractReferenceRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<ReferenceRelationship[]>;
   
   extractCreationRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<CreationRelationship[]>;
   
   extractAnnotationRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<AnnotationRelationship[]>;
   
   // 扩展的关系提取方法
   extractDataFlowRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string
   ): Promise<DataFlowRelationship[]>;
   
   extractControlFlowRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<ControlFlowRelationship[]>;
   
   extractSemanticRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<SemanticRelationship[]>;
   
   extractLifecycleRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<LifecycleRelationship[]>;
   
   extractConcurrencyRelationships(
-    ast: Parser.SyntaxNode,
+    ast: any,
     filePath: string,
-    symbolResolver: SymbolResolver
+    symbolResolver: any
   ): Promise<ConcurrencyRelationship[]>;
   
   getSupportedLanguage(): string;

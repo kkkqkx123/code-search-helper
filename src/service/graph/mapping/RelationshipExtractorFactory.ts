@@ -1,72 +1,108 @@
-import { ILanguageRelationshipExtractor } from './interfaces/IRelationshipExtractor';
-import { JavaScriptRelationshipExtractor } from './extractors/JavaScriptRelationshipExtractor';
-import { SymbolResolver } from '../symbol/SymbolResolver';
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
+import { IRelationshipMetadataProcessor } from './interfaces/IRelationshipMetadataProcessor';
+import {
+  CallRelationshipProcessor,
+  InheritanceRelationshipProcessor,
+  DependencyRelationshipProcessor,
+  ReferenceRelationshipProcessor,
+  CreationRelationshipProcessor,
+  AnnotationRelationshipProcessor,
+  DataFlowRelationshipProcessor,
+  ControlFlowRelationshipProcessor,
+  SemanticRelationshipProcessor,
+  LifecycleRelationshipProcessor,
+  ConcurrencyRelationshipProcessor,
+  ImplementsRelationshipProcessor
+} from './interfaces/IRelationshipMetadataProcessor';
 
+/**
+ * @deprecated 此类已废弃，关系提取现在通过标准化模块和关系元数据处理器处理
+ * 保留此类以确保向后兼容性，但所有功能已迁移到新的架构
+ */
 @injectable()
 export class RelationshipExtractorFactory {
-  private extractors: Map<string, ILanguageRelationshipExtractor> = new Map();
+  private logger: LoggerService;
+  
+  // 关系元数据处理器映射
+  private relationshipProcessors: Map<string, IRelationshipMetadataProcessor> = new Map();
 
   constructor(
-    @inject(TYPES.LoggerService) private logger: LoggerService,
-    @inject(TYPES.TreeSitterService) private treeSitterService: any,
-    @inject(TYPES.JavaScriptRelationshipExtractor) private jsExtractor: JavaScriptRelationshipExtractor
+    @inject(TYPES.LoggerService) logger: LoggerService
   ) {
-    this.initializeExtractors();
+    this.logger = logger;
+    this.initializeProcessors();
+    this.logger.warn('RelationshipExtractorFactory is deprecated. All relationship extraction is now handled by standardized modules and metadata processors.');
   }
 
-  private initializeExtractors(): void {
-    // 注册语言特定的关系提取器
-    // 使用依赖注入容器来创建提取器实例，确保所有依赖都正确注入
-    try {
-      this.extractors.set('javascript', this.jsExtractor);
-      // 注意：其他语言的提取器需要在后续实现并注册
-      // this.extractors.set('typescript', this.container.get<TypeScriptRelationshipExtractor>(TYPES.TypeScriptRelationshipExtractor));
-      // this.extractors.set('python', this.container.get<PythonRelationshipExtractor>(TYPES.PythonRelationshipExtractor));
-      // this.extractors.set('java', this.container.get<JavaRelationshipExtractor>(TYPES.JavaRelationshipExtractor));
-
-      this.logger.info(`Initialized ${this.extractors.size} language relationship extractors`);
-    } catch (error) {
-      this.logger.error('Failed to initialize relationship extractors', { error: (error as Error).message });
-    }
+  private initializeProcessors(): void {
+    // 初始化关系元数据处理器
+    this.relationshipProcessors.set('call', new CallRelationshipProcessor());
+    this.relationshipProcessors.set('inheritance', new InheritanceRelationshipProcessor());
+    this.relationshipProcessors.set('dependency', new DependencyRelationshipProcessor());
+    this.relationshipProcessors.set('reference', new ReferenceRelationshipProcessor());
+    this.relationshipProcessors.set('creation', new CreationRelationshipProcessor());
+    this.relationshipProcessors.set('annotation', new AnnotationRelationshipProcessor());
+    this.relationshipProcessors.set('data-flow', new DataFlowRelationshipProcessor());
+    this.relationshipProcessors.set('control-flow', new ControlFlowRelationshipProcessor());
+    this.relationshipProcessors.set('semantic', new SemanticRelationshipProcessor());
+    this.relationshipProcessors.set('lifecycle', new LifecycleRelationshipProcessor());
+    this.relationshipProcessors.set('concurrency', new ConcurrencyRelationshipProcessor());
+    this.relationshipProcessors.set('implements', new ImplementsRelationshipProcessor());
   }
 
-  getExtractor(language: string): ILanguageRelationshipExtractor | null {
-    const normalizedLanguage = language.toLowerCase();
-    return this.extractors.get(normalizedLanguage) || null;
+  /**
+   * @deprecated 此方法已废弃，请使用GraphDataMappingService中的关系处理器
+   */
+  getExtractor(language: string): null {
+    this.logger.warn('getExtractor is deprecated. Relationship extraction is now handled by standardized modules.');
+    return null;
   }
 
+  /**
+   * @deprecated 此方法已废弃
+   */
   getSupportedLanguages(): string[] {
-    return Array.from(this.extractors.keys());
+    this.logger.warn('getSupportedLanguages is deprecated.');
+    return [];
   }
 
-  registerExtractor(language: string, extractor: ILanguageRelationshipExtractor): void {
-    this.extractors.set(language.toLowerCase(), extractor);
-    this.logger.info(`Registered relationship extractor for language: ${language}`);
+  /**
+   * @deprecated 此方法已废弃
+   */
+  registerExtractor(language: string, extractor: any): void {
+    this.logger.warn('registerExtractor is deprecated. All relationship extraction is now handled by standardized modules.');
   }
 
-  // 新增：获取支持的关系类型
-  getSupportedRelationshipTypes(language: string): string[] {
-    const extractor = this.getExtractor(language);
-    return extractor ? extractor.getSupportedRelationshipTypes() : [];
+  /**
+   * 获取关系元数据处理器
+   * @param relationshipType 关系类型
+   * @returns 关系元数据处理器
+   */
+  getRelationshipProcessor(relationshipType: string): IRelationshipMetadataProcessor | null {
+    return this.relationshipProcessors.get(relationshipType) || null;
   }
 
-  // 新增：检查是否支持某种关系类型
-  supportsRelationshipType(language: string, relationshipType: string): boolean {
-    const supportedTypes = this.getSupportedRelationshipTypes(language);
-    return supportedTypes.includes(relationshipType);
+  /**
+   * 获取支持的关系类型
+   */
+  getSupportedRelationshipTypes(): string[] {
+    return Array.from(this.relationshipProcessors.keys());
   }
 
-  // 新增：获取所有支持的关系类型
+  /**
+   * 检查是否支持某种关系类型
+   */
+  supportsRelationshipType(relationshipType: string): boolean {
+    return this.relationshipProcessors.has(relationshipType);
+  }
+
+  /**
+   * 获取所有支持的关系类型（包括遗留方法兼容性）
+   * @deprecated 使用 getSupportedRelationshipTypes() 替代
+   */
   getAllSupportedRelationshipTypes(): string[] {
-    const allTypes = new Set<string>();
-    for (const extractor of this.extractors.values()) {
-      for (const type of extractor.getSupportedRelationshipTypes()) {
-        allTypes.add(type);
-      }
-    }
-    return Array.from(allTypes);
+    return this.getSupportedRelationshipTypes();
   }
 }

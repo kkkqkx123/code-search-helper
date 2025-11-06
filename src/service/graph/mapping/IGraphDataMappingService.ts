@@ -1,7 +1,5 @@
 import { CodeChunk } from '../../parser/types';
-import { QueryResult } from '../../parser/core/query/TreeSitterQueryEngine';
 import { StandardizedQueryResult } from '../../parser/core/normalization/types';
-import Parser = require('tree-sitter');
 
 // 图节点类型枚举
 export enum GraphNodeType {
@@ -50,7 +48,23 @@ export enum GraphRelationshipType {
   SYNCHRONIZES_WITH = 'SYNCHRONIZES_WITH',
   LOCKS = 'LOCKS',
   COMMUNICATES_WITH = 'COMMUNICATES_WITH',
-  RACES_WITH = 'RACES_WITH'
+  RACES_WITH = 'RACES_WITH',
+  // 注解/装饰关系
+  ANNOTATES = 'ANNOTATES',
+  DECORATES = 'DECORATES',
+  TAGS = 'TAGS',
+  // 创建关系
+  CREATES = 'CREATES',
+  ALLOCATES = 'ALLOCATES',
+  // 依赖关系
+  DEPENDS_ON = 'DEPENDS_ON',
+  REFERENCES = 'REFERENCES',
+  ACCESSES = 'ACCESSES',
+  // 引用关系
+  READS = 'READS',
+  WRITES = 'WRITES',
+  DECLARES = 'DECLARES',
+  USES_VARIABLE = 'USES_VARIABLE'
 }
 
 // 基础图节点接口
@@ -209,8 +223,7 @@ export interface IGraphDataMappingService {
    */
   mapToGraph(
     filePath: string,
-    standardizedNodes: StandardizedQueryResult[],
-    ast: Parser.SyntaxNode
+    standardizedNodes: StandardizedQueryResult[]
   ): Promise<GraphMappingResult>;
 
   /**
@@ -281,11 +294,7 @@ export interface IGraphDataMappingService {
 
   /**
    * 从AST中提取代码元素
+   * @deprecated 此方法已废弃，请使用标准化模块
    */
   extractCodeElementsFromAST(ast: any, filePath: string): Promise<FileAnalysisResult>;
-
-  /**
-   * 将查询结果映射为图元素
-   */
-  mapQueryResultsToGraph(queryResults: Map<string, QueryResult>): GraphMappingResult;
 }
