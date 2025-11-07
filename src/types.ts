@@ -98,7 +98,7 @@ import { NebulaIndexManager, INebulaIndexManager } from './database/nebula/Nebul
 import { SpaceNameUtils, ISpaceNameUtils } from './database/nebula/SpaceNameUtils';
 
 // 14. Nebula 监控模块
-import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
+import { NebulaConnectionMonitor } from './service/graph/performance/NebulaConnectionMonitor';
 
 // 15. 图服务模块
 import { GraphCacheService } from './service/caching/GraphCacheService';

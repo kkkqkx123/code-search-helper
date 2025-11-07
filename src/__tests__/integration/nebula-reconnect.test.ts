@@ -2,7 +2,7 @@ import { diContainer } from '../../core/DIContainer';
 import { TYPES } from '../../types';
 import { NebulaService } from '../../database/nebula/NebulaService';
 import { INebulaService } from '../../database/nebula/NebulaService';
-import { NebulaConnectionMonitor } from '../../service/graph/monitoring/NebulaConnectionMonitor';
+import { NebulaConnectionMonitor } from '../../service/graph/performance/NebulaConnectionMonitor';
 
 describe('Nebula Reconnection Integration Test', () => {
   let nebulaService: INebulaService;
@@ -29,7 +29,7 @@ describe('Nebula Reconnection Integration Test', () => {
   it('should handle connection errors gracefully', async () => {
     // 由于这是集成测试，我们不实际断开数据库连接
     // 而是检查服务是否能正确处理错误情况
-    
+
     // 模拟一个查询错误
     try {
       // 这个查询会失败，因为服务未初始化或数据库不可用
@@ -44,13 +44,13 @@ describe('Nebula Reconnection Integration Test', () => {
     // 检查监控器是否实现了必要的方法
     expect(connectionMonitor.startMonitoring).toBeDefined();
     expect(typeof connectionMonitor.startMonitoring).toBe('function');
-    
+
     expect(connectionMonitor.stopMonitoring).toBeDefined();
     expect(typeof connectionMonitor.stopMonitoring).toBe('function');
-    
+
     expect(connectionMonitor.getConnectionStatus).toBeDefined();
     expect(typeof connectionMonitor.getConnectionStatus).toBe('function');
-    
+
     expect(connectionMonitor.reconnect).toBeDefined();
     expect(typeof connectionMonitor.reconnect).toBe('function');
   });

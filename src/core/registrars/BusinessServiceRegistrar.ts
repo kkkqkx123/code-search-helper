@@ -110,7 +110,7 @@ import { FileQueryIntentClassifier } from '../../service/filesearch/FileQueryInt
 import { FileSearchCache } from '../../service/filesearch/FileSearchCache';
 
 // Nebula监控服务
-import { NebulaConnectionMonitor } from '../../service/graph/monitoring/NebulaConnectionMonitor';
+import { NebulaConnectionMonitor } from '../../service/graph/performance/NebulaConnectionMonitor';
 
 // 内存监控服务
 import { MemoryMonitorService } from '../../service/memory/MemoryMonitorService';

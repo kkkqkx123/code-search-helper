@@ -199,59 +199,55 @@ export interface StrategySelectionResult {
  * 策略性能统计构建器类
  */
 export class StrategyPerformanceStatsBuilder {
-  private stats: Partial<StrategyPerformanceStats> = {};
+  private stats: StrategyPerformanceStats;
 
   constructor() {
-    this.stats.totalExecutions = 0;
-    this.stats.successCount = 0;
-    this.stats.failureCount = 0;
-    this.stats.averageExecutionTime = 0;
-    this.stats.fastestExecutionTime = Infinity;
-    this.stats.slowestExecutionTime = 0;
-    this.stats.totalChunksProcessed = 0;
-    this.stats.averageTimePerChunk = 0;
+    this.stats = {
+      totalExecutions: 0,
+      successCount: 0,
+      failureCount: 0,
+      averageExecutionTime: 0,
+      fastestExecutionTime: Infinity,
+      slowestExecutionTime: 0,
+      totalChunksProcessed: 0,
+      averageTimePerChunk: 0,
+      lastExecutionTime: 0,
+      lastExecutionSuccess: false
+    };
   }
 
   recordExecution(executionTime: number, success: boolean, chunkCount: number): StrategyPerformanceStatsBuilder {
-    this.stats.totalExecutions = (this.stats.totalExecutions || 0) + 1;
-    
+    this.stats.totalExecutions += 1;
+
     if (success) {
-      this.stats.successCount = (this.stats.successCount || 0) + 1;
+      this.stats.successCount += 1;
     } else {
-      this.stats.failureCount = (this.stats.failureCount || 0) + 1;
+      this.stats.failureCount += 1;
     }
-    
-    this.stats.totalChunksProcessed = (this.stats.totalChunksProcessed || 0) + chunkCount;
+
+    this.stats.totalChunksProcessed += chunkCount;
     this.stats.lastExecutionTime = Date.now();
     this.stats.lastExecutionSuccess = success;
-    
+
     // 更新执行时间统计
     const currentTotal = this.stats.averageExecutionTime * (this.stats.totalExecutions - 1);
     this.stats.averageExecutionTime = (currentTotal + executionTime) / this.stats.totalExecutions;
-    
+
     this.stats.fastestExecutionTime = Math.min(this.stats.fastestExecutionTime, executionTime);
     this.stats.slowestExecutionTime = Math.max(this.stats.slowestExecutionTime, executionTime);
-    
+
     // 更新平均每块处理时间
-    this.stats.averageTimePerChunk = this.stats.totalChunksProcessed > 0 
-      ? (this.stats.averageExecutionTime * this.stats.totalExecutions) / this.stats.totalChunksProcessed 
+    this.stats.averageTimePerChunk = this.stats.totalChunksProcessed > 0
+      ? (this.stats.averageExecutionTime * this.stats.totalExecutions) / this.stats.totalChunksProcessed
       : 0;
-    
+
     return this;
   }
 
   build(): StrategyPerformanceStats {
     return {
-      totalExecutions: this.stats.totalExecutions || 0,
-      successCount: this.stats.successCount || 0,
-      failureCount: this.stats.failureCount || 0,
-      averageExecutionTime: this.stats.averageExecutionTime || 0,
+      ...this.stats,
       fastestExecutionTime: this.stats.fastestExecutionTime === Infinity ? 0 : this.stats.fastestExecutionTime,
-      slowestExecutionTime: this.stats.slowestExecutionTime || 0,
-      totalChunksProcessed: this.stats.totalChunksProcessed || 0,
-      averageTimePerChunk: this.stats.averageTimePerChunk || 0,
-      lastExecutionTime: this.stats.lastExecutionTime || 0,
-      lastExecutionSuccess: this.stats.lastExecutionSuccess || false
     };
   }
 }

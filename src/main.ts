@@ -16,7 +16,7 @@ import { TYPES } from './types';
 import { EmbeddingConfigService } from './config/service/EmbeddingConfigService';
 import { ProjectIdManager } from './database/ProjectIdManager';
 import { NebulaService } from './database/nebula/NebulaService';
-import { NebulaConnectionMonitor } from './service/graph/monitoring/NebulaConnectionMonitor';
+import { NebulaConnectionMonitor } from './service/graph/performance/NebulaConnectionMonitor';
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
 import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
 import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';

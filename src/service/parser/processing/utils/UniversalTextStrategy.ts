@@ -14,7 +14,7 @@ import { SegmentationStrategyCoordinator } from '../coordination/SegmentationStr
 import { ConfigurationManager } from '../config/ConfigurationManager';
 import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
 import { TYPES } from '../../../../types';
-import { FileFeatureDetector } from '../detection/FileFeatureDetector';
+import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
 import { PriorityManager } from '../strategies/priority/PriorityManager';
 
 /**
@@ -30,7 +30,7 @@ export class UniversalTextStrategy implements ITextSplitter {
   private options: UniversalChunkingOptions;
   private logger?: LoggerService;
   private fileFeatureDetector: FileFeatureDetector;
- private priorityManager: PriorityManager;
+  private priorityManager: PriorityManager;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -68,7 +68,7 @@ export class UniversalTextStrategy implements ITextSplitter {
   ): Promise<CodeChunk[]> {
     const context = this.createSegmentationContext(content, filePath, language);
     return this.executeSegmentation('semantic', context);
- }
+  }
 
   /**
    * 基于括号和行数的分段
@@ -82,9 +82,9 @@ export class UniversalTextStrategy implements ITextSplitter {
     return this.executeSegmentation('bracket', context);
   }
 
- /**
-   * 基于行数的分段
-   */
+  /**
+    * 基于行数的分段
+    */
   async chunkByLines(
     content: string,
     filePath?: string,
@@ -144,9 +144,9 @@ export class UniversalTextStrategy implements ITextSplitter {
     return [...this.processors];
   }
 
- /**
-   * 创建分段上下文
-   */
+  /**
+    * 创建分段上下文
+    */
   private createSegmentationContext(
     content: string,
     filePath?: string,
@@ -235,9 +235,9 @@ export class UniversalTextStrategy implements ITextSplitter {
     return processedChunks;
   }
 
- /**
-   * 小文件处理
-   */
+  /**
+    * 小文件处理
+    */
   private chunkSmallFile(context: SegmentationContext): CodeChunk[] {
     const { content, filePath, language } = context;
     const lines = content.split('\n');
@@ -334,7 +334,7 @@ export class UniversalTextStrategy implements ITextSplitter {
   /**
    * 获取可用的策略列表
    */
- getAvailableStrategies(): Array<{ name: string; priority: number; supportedLanguages?: string[] }> {
+  getAvailableStrategies(): Array<{ name: string; priority: number; supportedLanguages?: string[] }> {
     const strategies = this.contextManager.getStrategies();
 
     return strategies.map((strategy) => {
@@ -343,7 +343,7 @@ export class UniversalTextStrategy implements ITextSplitter {
         filePath: undefined
       };
       const priority = this.priorityManager.getPriority(strategy.getName(), priorityContext);
-      
+
       return {
         name: strategy.getName(),
         priority,
@@ -364,7 +364,7 @@ export class UniversalTextStrategy implements ITextSplitter {
     duration: number;
     chunkCount: number;
     averageChunkSize: number;
- }[]> {
+  }[]> {
     const strategies = this.contextManager.getStrategies();
     const results = [];
 
