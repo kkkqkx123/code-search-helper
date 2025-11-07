@@ -1,6 +1,6 @@
 import { OverlapDecorator } from '../OverlapDecorator';
 import { ISplitStrategy } from '../../../interfaces/ISplitStrategy';
-import { IOverlapCalculator } from '../../../types/splitting-types';
+import { OverlapCalculator, IOverlapCalculator } from '../../../types/splitting-types';
 import { CodeChunk, ChunkingOptions } from '../../../../types/core-types';
 
 // Mock strategy

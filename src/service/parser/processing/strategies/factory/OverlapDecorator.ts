@@ -1,15 +1,24 @@
 import { ISplitStrategy } from '../../interfaces/ISplitStrategy';
-import { CodeChunk, ChunkingOptions } from '../../types/splitting-types';
-import { IOverlapCalculator } from '../../interfaces/IOverlapCalculator';
+import { CodeChunk, ChunkingOptions, OverlapCalculator, IOverlapCalculator } from '../../types/splitting-types';
+import { OverlapCalculatorAdapter } from '../../adapters/OverlapCalculatorAdapter';
 
 /**
  * 重叠装饰器 - 使用装饰器模式添加重叠功能
  */
 export class OverlapDecorator implements ISplitStrategy {
+  private overlapCalculatorAdapter: IOverlapCalculator;
+
   constructor(
     private strategy: ISplitStrategy,
-    private overlapCalculator: IOverlapCalculator
-  ) { }
+    overlapCalculator: OverlapCalculator | IOverlapCalculator
+  ) {
+    // 如果传入的是 OverlapCalculator，使用适配器包装
+    if ('extractOverlapContent' in overlapCalculator) {
+      this.overlapCalculatorAdapter = new OverlapCalculatorAdapter(overlapCalculator as OverlapCalculator);
+    } else {
+      this.overlapCalculatorAdapter = overlapCalculator as IOverlapCalculator;
+    }
+  }
 
   async split(
     content: string,
@@ -40,7 +49,7 @@ export class OverlapDecorator implements ISplitStrategy {
 
       // 如果有超大块，需要应用重叠策略进行重新处理
       if (hasOversizedChunks) {
-        return this.overlapCalculator.addOverlap(chunks, content);
+        return this.overlapCalculatorAdapter.addOverlap(chunks, content);
       }
 
       // 否则返回原始块（无重叠）
@@ -48,7 +57,7 @@ export class OverlapDecorator implements ISplitStrategy {
     }
 
     // 非代码文件：添加重叠内容
-    return this.overlapCalculator.addOverlap(chunks, content);
+    return this.overlapCalculatorAdapter.addOverlap(chunks, content);
   }
 
   getName(): string {
@@ -336,7 +345,7 @@ export class SplitStrategyDecoratorBuilder {
   /**
    * 添加重叠装饰器
    */
-  withOverlap(overlapCalculator: IOverlapCalculator): SplitStrategyDecoratorBuilder {
+  withOverlap(overlapCalculator: OverlapCalculator | IOverlapCalculator): SplitStrategyDecoratorBuilder {
     this.strategy = new OverlapDecorator(this.strategy, overlapCalculator);
     return this;
   }

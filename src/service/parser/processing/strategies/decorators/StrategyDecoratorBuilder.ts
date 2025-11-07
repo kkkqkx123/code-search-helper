@@ -1,5 +1,5 @@
 import { ISplitStrategy } from '../../../interfaces/CoreISplitStrategy';
-import { IOverlapCalculator } from '../../types/splitting-types';
+import { OverlapCalculator, IOverlapCalculator } from '../../types/splitting-types';
 import { OverlapDecorator } from './OverlapDecorator';
 import { PerformanceMonitorDecorator } from './PerformanceMonitorDecorator';
 import { CacheDecorator } from './CacheDecorator';
@@ -10,7 +10,7 @@ import { CacheDecorator } from './CacheDecorator';
 export interface DecoratorOptions {
   overlap?: {
     enabled: boolean;
-    calculator: IOverlapCalculator;
+    calculator: OverlapCalculator | IOverlapCalculator;
   };
   cache?: {
     enabled: boolean;
@@ -44,7 +44,7 @@ export class StrategyDecoratorBuilder {
   /**
    * 添加重叠装饰器
    */
-  withOverlap(overlapCalculator: IOverlapCalculator): StrategyDecoratorBuilder {
+  withOverlap(overlapCalculator: OverlapCalculator | IOverlapCalculator): StrategyDecoratorBuilder {
     this.options.overlap = {
       enabled: true,
       calculator: overlapCalculator
@@ -78,7 +78,7 @@ export class StrategyDecoratorBuilder {
   /**
    * 启用所有装饰器
    */
-  withAllDecorators(overlapCalculator: IOverlapCalculator, logger?: any): StrategyDecoratorBuilder {
+  withAllDecorators(overlapCalculator: OverlapCalculator | IOverlapCalculator, logger?: any): StrategyDecoratorBuilder {
     return this
       .withOverlap(overlapCalculator)
       .withPerformanceMonitor(logger)
@@ -144,7 +144,7 @@ export class DecoratorFactory {
    */
   static createFullyDecoratedStrategy(
     strategy: ISplitStrategy,
-    overlapCalculator: IOverlapCalculator,
+    overlapCalculator: OverlapCalculator | IOverlapCalculator,
     logger?: any,
     cacheOptions?: { maxSize?: number; ttl?: number }
   ): ISplitStrategy {
@@ -172,7 +172,7 @@ export class DecoratorFactory {
    */
   static createOverlapStrategy(
     strategy: ISplitStrategy,
-    overlapCalculator: IOverlapCalculator
+    overlapCalculator: OverlapCalculator | IOverlapCalculator
   ): ISplitStrategy {
     return new StrategyDecoratorBuilder(strategy)
       .withOverlap(overlapCalculator)
