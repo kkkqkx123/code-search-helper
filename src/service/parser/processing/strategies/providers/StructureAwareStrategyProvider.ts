@@ -120,6 +120,6 @@ export class StructureAwareStrategyProvider implements IStrategyProvider {
 
   getSupportedLanguages(): string[] {
     // 使用统一映射管理器获取支持结构感知策略的语言
-    return languageMappingManager.getLanguagesByStrategy('structure-aware');
+    return languageMappingManager.getLanguageStrategy('structure-aware');
   }
 }

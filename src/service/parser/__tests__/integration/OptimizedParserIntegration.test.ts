@@ -2,6 +2,8 @@ import { TreeSitterCoreService } from '../../core/parse/TreeSitterCoreService';
 import { DynamicParserManager } from '../../core/parse/DynamicParserManager';
 import { QueryManager } from '../../core/query/QueryManager';
 import { QueryRegistryImpl } from '../../core/query/QueryRegistry';
+import { TreeSitterService } from '../../core/parse/TreeSitterService';
+import { CodeStructureService } from '../../core/structure/CodeStructureService';
 
 /**
  * 优化后的解析器集成测试
@@ -10,11 +12,15 @@ import { QueryRegistryImpl } from '../../core/query/QueryRegistry';
 describe('Optimized Parser Integration Tests', () => {
   let coreService: TreeSitterCoreService;
   let dynamicManager: DynamicParserManager;
+  let treeSitterService: TreeSitterService;
+  let structureService: CodeStructureService;
 
   beforeAll(async () => {
     // 初始化服务
     coreService = new TreeSitterCoreService();
     dynamicManager = new DynamicParserManager();
+    treeSitterService = new TreeSitterService(coreService);
+    structureService = new CodeStructureService(coreService);
     
     // 等待初始化完成
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -156,7 +162,7 @@ public class Calculator {
       const dynamicParse = await dynamicManager.parseCode(code, language);
       
       // 提取函数
-      const coreFunctions = await coreService.extractFunctions(coreParse.ast, language);
+      const coreFunctions = await structureService.extractFunctions(coreParse.ast, language);
       const dynamicFunctions = await dynamicManager.extractFunctions(dynamicParse.ast, language);
       
       // 验证结果
@@ -173,7 +179,7 @@ public class Calculator {
       const dynamicParse = await dynamicManager.parseCode(code, language);
       
       // 提取类
-      const coreClasses = await coreService.extractClasses(coreParse.ast, language);
+      const coreClasses = await structureService.extractClasses(coreParse.ast, language);
       const dynamicClasses = await dynamicManager.extractClasses(dynamicParse.ast, language);
       
       // 验证结果
@@ -225,11 +231,11 @@ class TestClass {
       expect(parseResult.success).toBe(true);
       
       // 执行函数查询
-      const functions = await coreService.extractFunctions(parseResult.ast, 'javascript');
+      const functions = await structureService.extractFunctions(parseResult.ast, 'javascript');
       expect(functions.length).toBeGreaterThan(0);
       
       // 执行类查询
-      const classes = await coreService.extractClasses(parseResult.ast, 'javascript');
+      const classes = await structureService.extractClasses(parseResult.ast, 'javascript');
       expect(classes.length).toBeGreaterThan(0);
     });
   });
@@ -421,10 +427,10 @@ function test() {
       // 验证所有公共方法都存在
       expect(typeof coreService.parseCode).toBe('function');
       expect(typeof coreService.parseFile).toBe('function');
-      expect(typeof coreService.extractFunctions).toBe('function');
-      expect(typeof coreService.extractClasses).toBe('function');
-      expect(typeof coreService.extractImports).toBe('function');
-      expect(typeof coreService.extractExports).toBe('function');
+      expect(typeof structureService.extractFunctions).toBe('function');
+      expect(typeof structureService.extractClasses).toBe('function');
+      expect(typeof structureService.extractImports).toBe('function');
+      expect(typeof structureService.extractExports).toBe('function');
       expect(typeof coreService.getSupportedLanguages).toBe('function');
       expect(typeof coreService.detectLanguage).toBe('function');
       expect(typeof coreService.isInitialized).toBe('function');

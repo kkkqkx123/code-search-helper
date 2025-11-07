@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
 import Parser from 'tree-sitter';
 import { TreeSitterCoreService, ParserLanguage, ParseResult } from './TreeSitterCoreService';
+import { CodeStructureService } from '../structure/CodeStructureService';
 
 // Re-export for backward compatibility
 export type { ParserLanguage, ParseResult };
@@ -17,12 +18,16 @@ export interface SnippetChunk extends CodeChunk {
 
 @injectable()
 export class TreeSitterService {
+  private structureService: CodeStructureService;
+
   constructor(
     @inject(TYPES.TreeSitterCoreService)
     private readonly coreService: TreeSitterCoreService
     // @inject(TYPES.SnippetExtractionService)
     // private readonly snippetExtractionService: any
-  ) { }
+  ) {
+    this.structureService = new CodeStructureService(coreService);
+  }
 
   getSupportedLanguages(): ParserLanguage[] {
     return this.coreService.getSupportedLanguages();
@@ -41,31 +46,28 @@ export class TreeSitterService {
   }
 
   async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    // 如果没有提供language参数，不传递undefined，让coreService自己处理
-    if (language !== undefined) {
-      return this.coreService.extractFunctions(ast, language);
-    }
-    return this.coreService.extractFunctions(ast);
+    // 委托给CodeStructureService处理
+    return this.structureService.extractFunctions(ast, language);
   }
 
   async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    // 如果没有提供language参数，不传递undefined，让coreService自己处理
-    if (language !== undefined) {
-      return this.coreService.extractClasses(ast, language);
-    }
-    return this.coreService.extractClasses(ast);
+    // 委托给CodeStructureService处理
+    return this.structureService.extractClasses(ast, language);
   }
 
   extractImports(ast: Parser.SyntaxNode, sourceCode?: string): Parser.SyntaxNode[] {
-    return this.coreService.extractImportNodes(ast);
+    // 委托给CodeStructureService处理
+    return this.structureService.extractImportNodes(ast);
   }
 
   extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    return this.coreService.extractImportNodes(ast);
+    // 委托给CodeStructureService处理
+    return this.structureService.extractImportNodes(ast);
   }
 
   async extractExports(ast: Parser.SyntaxNode, sourceCode?: string): Promise<Parser.SyntaxNode[]> {
-    return this.coreService.extractExports(ast, sourceCode);
+    // 委托给CodeStructureService处理
+    return this.structureService.extractExports(ast);
   }
 
   extractSnippets(ast: Parser.SyntaxNode, sourceCode: string): SnippetChunk[] {

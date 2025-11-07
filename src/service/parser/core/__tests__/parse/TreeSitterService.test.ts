@@ -1,6 +1,7 @@
 import Parser from 'tree-sitter';
 import { TreeSitterService } from '../../parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../parse/TreeSitterCoreService';
+import { CodeStructureService } from '../../structure/CodeStructureService';
 
 // Mock the dependency injection
 jest.mock('../../parse/TreeSitterCoreService', () => {
@@ -13,30 +14,42 @@ jest.mock('../../parse/TreeSitterCoreService', () => {
       detectLanguage: jest.fn(() => Promise.resolve(null)),
       parseCode: jest.fn(() => Promise.resolve({ ast: {}, success: true, parseTime: 0 })),
       parseFile: jest.fn(() => Promise.resolve({ ast: {}, success: true, parseTime: 0 })),
-      extractFunctions: jest.fn(() => Promise.resolve([])),
-      extractClasses: jest.fn(() => Promise.resolve([])),
-      extractImports: jest.fn(() => []),
-      extractImportNodes: jest.fn(() => []),
-      extractExports: jest.fn(() => Promise.resolve([])),
       isInitialized: jest.fn(() => true),
       getNodeText: jest.fn(() => ''),
       getNodeLocation: jest.fn(() => ({ startLine: 1, endLine: 1, startColumn: 1, endColumn: 1 })),
       getNodeName: jest.fn(() => ''),
       findNodeByType: jest.fn(() => []),
+      findNodesByTypes: jest.fn(() => []),
       queryTree: jest.fn(() => [])
     }))
   };
 });
 
+// Mock the CodeStructureService
+jest.mock('../../structure/CodeStructureService', () => ({
+  CodeStructureService: jest.fn(() => ({
+    extractFunctions: jest.fn(() => Promise.resolve([])),
+    extractClasses: jest.fn(() => Promise.resolve([])),
+    extractImports: jest.fn(() => Promise.resolve([])),
+    extractImportNodes: jest.fn(() => []),
+    extractExports: jest.fn(() => Promise.resolve([]))
+  }))
+}));
+
 describe('TreeSitterService', () => {
   let treeSitterService: TreeSitterService;
   let mockCoreService: jest.Mocked<TreeSitterCoreService>;
+  let mockStructureService: jest.Mocked<CodeStructureService>;
 
   beforeEach(() => {
     // Since TreeSitterService uses dependency injection, we need to create a mock
     // For this test, we'll test the methods that simply delegate to the core service
     mockCoreService = new TreeSitterCoreService() as jest.Mocked<TreeSitterCoreService>;
+    mockStructureService = new CodeStructureService(mockCoreService) as jest.Mocked<CodeStructureService>;
     treeSitterService = new TreeSitterService(mockCoreService);
+    
+    // Replace the internal structureService with our mock
+    (treeSitterService as any).structureService = mockStructureService;
   });
 
   describe('Constructor', () => {
@@ -90,63 +103,81 @@ describe('TreeSitterService', () => {
   });
 
   describe('extractFunctions', () => {
-    it('should delegate to core service', async () => {
+    it('should delegate to structure service', async () => {
       const mockNodes = [{} as Parser.SyntaxNode];
-      (mockCoreService.extractFunctions as jest.Mock).mockResolvedValue(mockNodes);
+      (mockStructureService.extractFunctions as jest.Mock).mockResolvedValue(mockNodes);
 
       const result = await treeSitterService.extractFunctions({} as Parser.SyntaxNode);
-      expect(mockCoreService.extractFunctions).toHaveBeenCalledWith({} as Parser.SyntaxNode);
+      expect(mockStructureService.extractFunctions).toHaveBeenCalledWith({} as Parser.SyntaxNode, undefined);
+      expect(result).toEqual(mockNodes);
+    });
+
+    it('should pass language parameter to structure service', async () => {
+      const mockNodes = [{} as Parser.SyntaxNode];
+      (mockStructureService.extractFunctions as jest.Mock).mockResolvedValue(mockNodes);
+
+      const result = await treeSitterService.extractFunctions({} as Parser.SyntaxNode, 'typescript');
+      expect(mockStructureService.extractFunctions).toHaveBeenCalledWith({} as Parser.SyntaxNode, 'typescript');
       expect(result).toEqual(mockNodes);
     });
   });
 
   describe('extractClasses', () => {
-    it('should delegate to core service', async () => {
+    it('should delegate to structure service', async () => {
       const mockNodes = [{} as Parser.SyntaxNode];
-      (mockCoreService.extractClasses as jest.Mock).mockResolvedValue(mockNodes);
+      (mockStructureService.extractClasses as jest.Mock).mockResolvedValue(mockNodes);
 
       const result = await treeSitterService.extractClasses({} as Parser.SyntaxNode);
-      expect(mockCoreService.extractClasses).toHaveBeenCalledWith({} as Parser.SyntaxNode);
+      expect(mockStructureService.extractClasses).toHaveBeenCalledWith({} as Parser.SyntaxNode, undefined);
+      expect(result).toEqual(mockNodes);
+    });
+
+    it('should pass language parameter to structure service', async () => {
+      const mockNodes = [{} as Parser.SyntaxNode];
+      (mockStructureService.extractClasses as jest.Mock).mockResolvedValue(mockNodes);
+
+      const result = await treeSitterService.extractClasses({} as Parser.SyntaxNode, 'typescript');
+      expect(mockStructureService.extractClasses).toHaveBeenCalledWith({} as Parser.SyntaxNode, 'typescript');
       expect(result).toEqual(mockNodes);
     });
   });
 
   describe('extractImports', () => {
-    it('should delegate to core service', () => {
+    it('should delegate to structure service', () => {
       const mockImportNodes = [{} as Parser.SyntaxNode];
-      (mockCoreService.extractImportNodes as jest.Mock).mockReturnValue(mockImportNodes);
+      (mockStructureService.extractImportNodes as jest.Mock).mockReturnValue(mockImportNodes);
 
       const result = treeSitterService.extractImports({} as Parser.SyntaxNode, 'source code');
-      expect(mockCoreService.extractImportNodes).toHaveBeenCalledWith({} as Parser.SyntaxNode);
+      expect(mockStructureService.extractImportNodes).toHaveBeenCalledWith({} as Parser.SyntaxNode);
       expect(result).toEqual(mockImportNodes);
     });
 
     it('should work without source code', () => {
       const mockImportNodes: any[] = [];
-      (mockCoreService.extractImportNodes as jest.Mock).mockReturnValue(mockImportNodes);
+      (mockStructureService.extractImportNodes as jest.Mock).mockReturnValue(mockImportNodes);
 
       const result = treeSitterService.extractImports({} as Parser.SyntaxNode);
-      expect(mockCoreService.extractImportNodes).toHaveBeenCalledWith({} as Parser.SyntaxNode);
+      expect(mockStructureService.extractImportNodes).toHaveBeenCalledWith({} as Parser.SyntaxNode);
       expect(result).toEqual(mockImportNodes);
     });
   });
 
   describe('extractExports', () => {
-    it('should delegate to core service', async () => {
-      const mockExports = ['export { test };'];
-      (mockCoreService.extractExports as jest.Mock).mockResolvedValue(mockExports);
+    it('should delegate to structure service', async () => {
+      const mockExports = [{} as Parser.SyntaxNode];
+      (mockStructureService.extractExports as jest.Mock).mockResolvedValue(mockExports);
 
       const result = await treeSitterService.extractExports({} as Parser.SyntaxNode, 'source code');
-      expect(mockCoreService.extractExports).toHaveBeenCalledWith({} as Parser.SyntaxNode, 'source code');
+      expect(mockStructureService.extractExports).toHaveBeenCalledWith({} as Parser.SyntaxNode);
       expect(result).toEqual(mockExports);
     });
 
     it('should work without source code', async () => {
       const mockExports: any[] = [];
-      (mockCoreService.extractExports as jest.Mock).mockResolvedValue(mockExports);
+      (mockStructureService.extractExports as jest.Mock).mockResolvedValue(mockExports);
 
       const result = await treeSitterService.extractExports({} as Parser.SyntaxNode);
-      expect(mockCoreService.extractExports).toHaveBeenCalledWith({} as Parser.SyntaxNode, undefined);
+      expect(mockStructureService.extractExports).toHaveBeenCalledWith({} as Parser.SyntaxNode);
       expect(result).toEqual(mockExports);
     });
   });

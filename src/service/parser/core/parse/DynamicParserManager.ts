@@ -9,6 +9,9 @@ import { LanguageDetectionService } from '../../processing/detection/LanguageDet
 import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { FallbackExtractor } from '../../utils/FallbackExtractor';
+import { QueryTypeMapper } from '../normalization/QueryTypeMappings';
+import { LANGUAGE_MAPPINGS } from '../../config/LanguageMappingConfig';
+import { TREE_SITTER_LANGUAGE_MAP } from '../../config/LanguageConstants';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -69,13 +72,13 @@ export class DynamicParserManager {
 
     // 初始化语言配置
     for (const language of supportedLanguages) {
-      const mapping = languageMappingManager.getLanguageMapping(language);
-      if (!mapping || !mapping.supported) continue;
+      const mapping = QueryTypeMapper.getLanguageMapping(language);
+      if (!mapping) continue;
 
       this.parsers.set(language, {
-        name: mapping.displayName,
-        fileExtensions: mapping.extensions,
-        supported: mapping.supported,
+        name: languageMappingManager.getDisplayName(language),
+        fileExtensions: languageMappingManager.getExtensions(language),
+        supported: languageMappingManager.isLanguageSupported(language),
         loader: languageMappingManager.getTreeSitterLoader(language),
       });
     }
@@ -365,7 +368,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
       return exports;
     } catch (error) {
       this.logger.error('导出提取失败:', error);
-      return this.legacyExtractExports(ast, sourceCode);
+      return FallbackExtractor.extractImportTexts(ast, sourceCode);
     }
   }
 
@@ -376,18 +379,8 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
     const tree = (ast as any).tree;
     if (tree && tree.language && tree.language.name) {
       const languageName = tree.language.name;
-      const languageMap: Record<string, string> = {
-        'typescript': 'typescript',
-        'javascript': 'javascript',
-        'python': 'python',
-        'java': 'java',
-        'go': 'go',
-        'rust': 'rust',
-        'cpp': 'cpp',
-        'c': 'c',
-      };
-
-      return languageMap[languageName] || languageName;
+      
+      return TREE_SITTER_LANGUAGE_MAP[languageName] || languageName;
     }
 
     return null;
@@ -408,108 +401,6 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
     }
   }
 
-  /**
-   * 回退机制：函数提取
-   */
-  private legacyExtractFunctions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const functions: Parser.SyntaxNode[] = [];
-    const functionTypes = new Set([
-      'function_declaration',
-      'function_definition',
-      'method_definition',
-      'arrow_function',
-      'function_expression',
-      'generator_function',
-      'generator_function_declaration',
-      'method_signature',
-      'method_declaration',
-      'constructor_declaration',
-    ]);
-
-    const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
-      if (depth > 100) return;
-      if (functionTypes.has(node.type)) {
-        functions.push(node);
-      }
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) {
-          traverse(child, depth + 1);
-        }
-      }
-    };
-
-    traverse(ast);
-    return functions;
-  }
-
-  /**
-   * 回退机制：类提取
-   */
-  private legacyExtractClasses(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const classes: Parser.SyntaxNode[] = [];
-    const classTypes = new Set([
-      'class_declaration',
-      'class_definition',
-      'class_expression',
-      'interface_declaration',
-      'interface_definition',
-      'struct_definition',
-      'enum_declaration',
-      'type_alias_declaration',
-    ]);
-
-    const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
-      if (depth > 100) return;
-      if (classTypes.has(node.type)) {
-        classes.push(node);
-      }
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) {
-          traverse(child, depth + 1);
-        }
-      }
-    };
-
-    traverse(ast);
-    return classes;
-  }
-
-  /**
-   * 回退机制：导出提取
-   */
-  private legacyExtractExports(ast: Parser.SyntaxNode, sourceCode?: string): string[] {
-    const exports: string[] = [];
-    if (!sourceCode) {
-      return exports;
-    }
-
-    const exportTypes = new Set([
-      'export_statement',
-      'export_clause',
-      'export_specifier',
-      'export_default_declaration',
-      'export_named_declaration',
-      'export_all_declaration',
-    ]);
-
-    const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
-      if (depth > 100) return;
-      if (exportTypes.has(node.type)) {
-        const exportText = this.getNodeText(node, sourceCode);
-        if (exportText.trim().length > 0) {
-          exports.push(exportText);
-        }
-      }
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) {
-          traverse(child, depth + 1);
-        }
-      }
-    };
-
-    traverse(ast);
-    return exports;
-  }
 
   /**
    * 获取节点文本
@@ -599,24 +490,9 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
    * 获取语言显示名称
    */
   private getLanguageDisplayName(language: string): string {
-    const displayNames: Record<string, string> = {
-      javascript: 'JavaScript',
-      typescript: 'TypeScript',
-      python: 'Python',
-      java: 'Java',
-      go: 'Go',
-      rust: 'Rust',
-      cpp: 'C++',
-      c: 'C',
-      csharp: 'C#',
-      swift: 'Swift',
-      kotlin: 'Kotlin',
-      ruby: 'Ruby',
-      php: 'PHP',
-      scala: 'Scala',
-    };
-
-    return displayNames[language] || language;
+    // 使用LANGUAGE_MAPPINGS配置中的displayName
+    const languageConfig = LANGUAGE_MAPPINGS[language];
+    return languageConfig ? languageConfig.displayName : language;
   }
 
   /**

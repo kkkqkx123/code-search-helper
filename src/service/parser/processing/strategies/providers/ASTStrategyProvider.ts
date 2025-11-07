@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
-import { TreeSitterCoreService } from '../../../core/parse/TreeSitterCoreService';
+import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 
 /**
  * AST策略实现
@@ -11,7 +11,7 @@ import { TreeSitterCoreService } from '../../../core/parse/TreeSitterCoreService
 @injectable()
 export class ASTSplitStrategy implements ISplitStrategy {
   constructor(
-    @inject(TYPES.TreeSitterCoreService) private treeSitterService?: TreeSitterCoreService,
+    @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -286,7 +286,7 @@ export class ASTSplitStrategy implements ISplitStrategy {
 @injectable()
 export class ASTStrategyProvider implements IStrategyProvider {
   constructor(
-    @inject(TYPES.TreeSitterCoreService) private treeSitterService?: TreeSitterCoreService,
+    @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.LoggerService) private logger?: LoggerService
   ) { }
 
@@ -302,7 +302,7 @@ export class ASTStrategyProvider implements IStrategyProvider {
   }
 
   getDependencies(): string[] {
-    return ['TreeSitterCoreService'];
+    return ['TreeSitterService'];
   }
 
   supportsLanguage(language: string): boolean {

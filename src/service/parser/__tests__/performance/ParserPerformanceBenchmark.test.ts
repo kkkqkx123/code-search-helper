@@ -1,5 +1,7 @@
 import { TreeSitterCoreService } from '../../core/parse/TreeSitterCoreService';
 import { DynamicParserManager } from '../../core/parse/DynamicParserManager';
+import { TreeSitterService } from '../../core/parse/TreeSitterService';
+import { CodeStructureService } from '../../core/structure/CodeStructureService';
 
 /**
  * 解析器性能基准测试
@@ -122,10 +124,14 @@ public class UserServiceImpl implements UserService {
 
   let originalService: TreeSitterCoreService;
   let dynamicManager: DynamicParserManager;
+  let treeSitterService: TreeSitterService;
+  let structureService: CodeStructureService;
 
   beforeAll(async () => {
     // 初始化原始服务
     originalService = new TreeSitterCoreService();
+    treeSitterService = new TreeSitterService(originalService);
+    structureService = new CodeStructureService(originalService);
 
     // 初始化动态管理器
     dynamicManager = new DynamicParserManager();
@@ -194,7 +200,7 @@ public class UserServiceImpl implements UserService {
 
       // 测试函数提取性能
       const originalStartTime = performance.now();
-      const originalFunctions = await originalService.extractFunctions(originalParse.ast, language);
+      const originalFunctions = await structureService.extractFunctions(originalParse.ast, language);
       const originalTime = performance.now() - originalStartTime;
 
       const dynamicStartTime = performance.now();
@@ -221,7 +227,7 @@ public class UserServiceImpl implements UserService {
 
       // 测试类提取性能
       const originalStartTime = performance.now();
-      const originalClasses = await originalService.extractClasses(originalParse.ast, language);
+      const originalClasses = await structureService.extractClasses(originalParse.ast, language);
       const originalTime = performance.now() - originalStartTime;
 
       const dynamicStartTime = performance.now();

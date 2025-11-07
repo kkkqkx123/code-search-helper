@@ -2,12 +2,18 @@ import Parser from 'tree-sitter';
 import { TreeSitterCoreService, ParserLanguage, ParseResult } from '../../parse/TreeSitterCoreService';
 import { TreeSitterUtils } from '../../../utils/TreeSitterUtils';
 import { FallbackExtractor } from '../../../utils/FallbackExtractor';
+import { TreeSitterService } from '../../parse/TreeSitterService';
+import { CodeStructureService } from '../../structure/CodeStructureService';
 
 describe('TreeSitterCoreService', () => {
   let treeSitterService: TreeSitterCoreService;
+  let codeStructureService: CodeStructureService;
+  let treeSitterWrapper: TreeSitterService;
 
   beforeEach(() => {
     treeSitterService = new TreeSitterCoreService();
+    codeStructureService = new CodeStructureService(treeSitterService);
+    treeSitterWrapper = new TreeSitterService(treeSitterService);
   });
 
   describe('Constructor', () => {
@@ -326,7 +332,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
-        const functions = await treeSitterService.extractFunctions(result.ast);
+        const functions = await codeStructureService.extractFunctions(result.ast);
         expect(Array.isArray(functions)).toBe(true);
         expect(functions.length).toBeGreaterThanOrEqual(0);
       }
@@ -340,7 +346,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
-        const functions = await treeSitterService.extractFunctions(result.ast);
+        const functions = await codeStructureService.extractFunctions(result.ast);
         expect(Array.isArray(functions)).toBe(true);
         expect(functions.length).toBeGreaterThanOrEqual(2);
       }
@@ -353,7 +359,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
-        const classes = await treeSitterService.extractClasses(result.ast);
+        const classes = await codeStructureService.extractClasses(result.ast);
         expect(Array.isArray(classes)).toBe(true);
         expect(classes.length).toBeGreaterThanOrEqual(0);
       }
@@ -367,7 +373,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
-        const classes = await treeSitterService.extractClasses(result.ast);
+        const classes = await codeStructureService.extractClasses(result.ast);
         expect(Array.isArray(classes)).toBe(true);
         expect(classes.length).toBeGreaterThanOrEqual(2);
       }
@@ -380,7 +386,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
-        const imports = await treeSitterService.extractImports(result.ast);
+        const imports = await codeStructureService.extractImports(result.ast);
         expect(Array.isArray(imports)).toBe(true);
         expect(imports.length).toBeGreaterThanOrEqual(0);
       }
@@ -391,7 +397,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
-        const imports = await treeSitterService.extractImports(result.ast);
+        const imports = await codeStructureService.extractImports(result.ast);
         expect(Array.isArray(imports)).toBe(true);
         expect(imports.length).toBeGreaterThanOrEqual(1);
       }
@@ -404,7 +410,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
-        const exports = await treeSitterService.extractExports(result.ast);
+        const exports = await codeStructureService.extractExports(result.ast);
         expect(Array.isArray(exports)).toBe(true);
         expect(exports.length).toBeGreaterThanOrEqual(0);
       }
@@ -415,7 +421,7 @@ describe('TreeSitterCoreService', () => {
       const result = await treeSitterService.parseCode(code, 'typescript');
 
       if (result.success) {
-        const exports = await treeSitterService.extractExports(result.ast);
+        const exports = await codeStructureService.extractExports(result.ast);
         expect(Array.isArray(exports)).toBe(true);
         expect(exports.length).toBeGreaterThanOrEqual(1);
       }
