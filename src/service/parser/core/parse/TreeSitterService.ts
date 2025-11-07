@@ -5,16 +5,9 @@ import { CodeStructureService } from '../structure/CodeStructureService';
 
 // Re-export for backward compatibility
 export type { ParserLanguage, ParseResult };
-// import { SnippetExtractionService } from '../../treesitter-rule/SnippetExtractionService';
-// import { SnippetChunk } from '../../types';
+export type SyntaxNode = Parser.SyntaxNode;
 import { TYPES } from '../../../../types';
 import { CodeChunk } from '../../types';
-
-export interface SnippetChunk extends CodeChunk {
-  snippetType?: string;
-  parentId?: string;
-  children?: SnippetChunk[];
-}
 
 @injectable()
 export class TreeSitterService {
@@ -23,8 +16,6 @@ export class TreeSitterService {
   constructor(
     @inject(TYPES.TreeSitterCoreService)
     private readonly coreService: TreeSitterCoreService
-    // @inject(TYPES.SnippetExtractionService)
-    // private readonly snippetExtractionService: any
   ) {
     this.structureService = new CodeStructureService(coreService);
   }
@@ -68,11 +59,6 @@ export class TreeSitterService {
   async extractExports(ast: Parser.SyntaxNode, sourceCode?: string): Promise<Parser.SyntaxNode[]> {
     // 委托给CodeStructureService处理
     return this.structureService.extractExports(ast);
-  }
-
-  extractSnippets(ast: Parser.SyntaxNode, sourceCode: string): SnippetChunk[] {
-    // return this.snippetExtractionService.extractSnippets(ast, sourceCode);
-    return [];
   }
 
   isInitialized(): boolean {

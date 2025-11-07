@@ -47,7 +47,7 @@ describe('TreeSitterService', () => {
     mockCoreService = new TreeSitterCoreService() as jest.Mocked<TreeSitterCoreService>;
     mockStructureService = new CodeStructureService(mockCoreService) as jest.Mocked<CodeStructureService>;
     treeSitterService = new TreeSitterService(mockCoreService);
-    
+
     // Replace the internal structureService with our mock
     (treeSitterService as any).structureService = mockStructureService;
   });
@@ -179,13 +179,6 @@ describe('TreeSitterService', () => {
       const result = await treeSitterService.extractExports({} as Parser.SyntaxNode);
       expect(mockStructureService.extractExports).toHaveBeenCalledWith({} as Parser.SyntaxNode);
       expect(result).toEqual(mockExports);
-    });
-  });
-
-  describe('extractSnippets', () => {
-    it('should return empty array', () => {
-      const result = treeSitterService.extractSnippets({} as Parser.SyntaxNode, 'source code');
-      expect(result).toEqual([]);
     });
   });
 

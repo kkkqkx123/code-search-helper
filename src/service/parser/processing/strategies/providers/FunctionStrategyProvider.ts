@@ -3,8 +3,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import { ISplitStrategy, IStrategyProvider, ChunkingOptions } from '../../../interfaces/CoreISplitStrategy';
 import { CodeChunk } from '../../../types/core-types';
-import { TreeSitterService } from '../../../core/parse/TreeSitterService';
-import Parser from 'tree-sitter';
+import { TreeSitterService, SyntaxNode } from '../../../core/parse/TreeSitterService';
 import { FunctionStrategy as ImportedFunctionStrategy } from '../impl/FunctionStrategy';
 
 /**
@@ -60,7 +59,7 @@ export class FunctionSplitStrategy implements ISplitStrategy {
     return 1; // 高优先级
   }
 
-  canHandleNode?(language: string, node: Parser.SyntaxNode): boolean {
+  canHandleNode?(language: string, node: SyntaxNode): boolean {
     return this.functionStrategy.supportsLanguage(language);
   }
 
