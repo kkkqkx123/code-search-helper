@@ -1,9 +1,10 @@
-import { CodeChunk, CodeChunkMetadata } from '../../types/splitting-types';
+import { CodeChunk, ChunkMetadata } from '../../core/types/ResultTypes';
+import { OverlapStrategy } from '../../core/interfaces/IOverlapCalculator';
 
 export interface OverlapResult {
   content: string;
   lines: number;
-  strategy: 'semantic' | 'syntactic' | 'size-based' | 'hybrid';
+  strategy: OverlapStrategy;
   quality: number;
 }
 

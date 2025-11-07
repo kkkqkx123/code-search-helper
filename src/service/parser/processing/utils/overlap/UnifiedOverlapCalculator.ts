@@ -1,16 +1,20 @@
-import { CodeChunk, ASTNode, OverlapCalculator } from '../../types/splitting-types';
+import { CodeChunk, ASTNodeInfo } from '../../core/types/ResultTypes';
+import {
+  IOverlapCalculator,
+  OverlapOptions,
+  OverlapResult,
+  OverlapStrategy
+} from '../../core/interfaces/IOverlapCalculator';
 import { ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { SemanticBoundaryAnalyzer } from '../SemanticBoundaryAnalyzer';
 import { BalancedChunker } from '../chunking/BalancedChunker';
-import { ContextAwareOverlapOptimizer, OverlapResult } from './ContextAwareOverlapOptimizer';
+import { ContextAwareOverlapOptimizer } from './ContextAwareOverlapOptimizer';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { SimilarityDetector } from '../similarity/SimilarityDetector';
 import { CodeQualityAssessmentUtils } from '../quality/CodeQualityAssessmentUtils';
 import { OverlapStrategyUtils } from './OverlapStrategyUtils';
 import { ChunkSimilarityUtils } from '../chunk-processing/ChunkSimilarityUtils';
-
-export type OverlapStrategy = 'semantic' | 'syntactic' | 'size-based' | 'hybrid' | 'ast-boundary' | 'node-aware' | 'smart-deduplication';
 
 export interface UnifiedOverlapOptions {
   maxSize: number;
@@ -41,7 +45,11 @@ export interface UnifiedOverlapResult {
  * 统一的重叠计算器 - 整合所有重叠计算策略
  * 合并了EnhancedOverlapCalculator、NodeAwareOverlapCalculator和SmartOverlapController的功能
  */
-export class UnifiedOverlapCalculator implements OverlapCalculator {
+export class UnifiedOverlapCalculator implements IOverlapCalculator {
+  readonly name = 'UnifiedOverlapCalculator';
+  readonly version = '1.0.0';
+  readonly supportedLanguages = ['*']; // 支持所有语言
+  
   private semanticAnalyzer: SemanticBoundaryAnalyzer;
   private balancedChunker: BalancedChunker;
   private contextAnalyzer: ContextAwareOverlapOptimizer;
@@ -178,7 +186,12 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       metadata: {
         startLine: startLine,
         endLine: startLine + currentChunk.length - 1,
-        language: 'unknown'
+        language: 'unknown',
+        strategy: 'unified-overlap',
+        timestamp: Date.now(),
+        type: 'generic' as any,
+        size: currentChunk.join('\n').length,
+        lineCount: currentChunk.length
       }
     };
 
@@ -187,7 +200,12 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       metadata: {
         startLine: startLine + currentChunk.length,
         endLine: startLine + currentChunk.length,
-        language: 'unknown'
+        language: 'unknown',
+        strategy: 'unified-overlap',
+        timestamp: Date.now(),
+        type: 'generic' as any,
+        size: 0,
+        lineCount: 0
       }
     };
 
@@ -235,7 +253,11 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         endLine: currentChunk.metadata.endLine,
         language: currentChunk.metadata.language,
         filePath: currentChunk.metadata.filePath,
-        type: 'overlap'
+        strategy: 'unified-overlap',
+        timestamp: Date.now(),
+        type: 'generic' as any,
+        size: overlapContent.length,
+        lineCount: overlapContent.split('\n').length
       }
     };
 
@@ -330,8 +352,9 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     const overlapResult: OverlapResult = {
       content: baseOverlap.content,
       lines: baseOverlap.lines,
-      strategy: baseOverlap.strategy as 'semantic' | 'syntactic' | 'size-based' | 'hybrid',
-      quality: baseOverlap.quality
+      strategy: baseOverlap.strategy as OverlapStrategy,
+      quality: baseOverlap.quality,
+      overlapRatio: baseOverlap.overlapRatio
     };
 
     const optimizedOverlap = this.contextAnalyzer.optimizeOverlapForContext(
@@ -362,7 +385,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     nextChunk: CodeChunk
   ): OverlapStrategy {
     // 使用新的工具类方法
-    return OverlapStrategyUtils.selectUnifiedOverlapStrategy(currentChunk, nextChunk, this.options);
+    return OverlapStrategyUtils.selectUnifiedOverlapStrategy(currentChunk, nextChunk, this.options) as OverlapStrategy;
   }
 
   /**
@@ -427,7 +450,11 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         endLine: currentChunk.metadata.endLine,
         language: currentChunk.metadata.language,
         filePath: currentChunk.metadata.filePath,
-        type: 'overlap'
+        strategy: 'unified-overlap',
+        timestamp: Date.now(),
+        type: 'generic' as any,
+        size: semanticResult.content.length,
+        lineCount: semanticResult.lines
       }
     };
 
@@ -438,7 +465,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
         return {
           content: alternativeOverlap,
           lines: alternativeOverlap.split('\n').length,
-          strategy: 'smart-deduplication',
+          strategy: OverlapStrategy.SMART_DEDUPLICATION,
           quality: 0.7,
           astNodesUsed: [],
           overlapRatio: alternativeOverlap.length / currentChunk.content.length
@@ -467,12 +494,12 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     const gapLines = nextStartLine - currentEndLine - 1;
 
     if (gapLines <= 0) {
-      return { content: '', lines: 0, strategy: 'node-aware', quality: 0, astNodesUsed: [], overlapRatio: 0 };
+      return { content: '', lines: 0, strategy: OverlapStrategy.NODE_AWARE, quality: 0, astNodesUsed: [], overlapRatio: 0 };
     }
 
     const maxPossibleOverlap = Math.min(gapLines, this.options.maxOverlapLines);
     if (maxPossibleOverlap <= 0) {
-      return { content: '', lines: 0, strategy: 'node-aware', quality: 0, astNodesUsed: [], overlapRatio: 0 };
+      return { content: '', lines: 0, strategy: OverlapStrategy.NODE_AWARE, quality: 0, astNodesUsed: [], overlapRatio: 0 };
     }
 
     const overlapContent = this.extractOverlapFromOriginal(
@@ -487,28 +514,29 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       nextStartLine - 1
     );
 
-    const unusedNodes = overlapNodes.filter(node => !this.nodeTracker!.isUsed(node));
+    // 临时类型断言，直到ASTNodeTracker适配新类型系统
+    const unusedNodes = overlapNodes.filter(node => !this.nodeTracker!.isUsed(node as any));
 
     if (unusedNodes.length === 0) {
       const reducedOverlap = this.findReducedOverlap(overlapContent, originalCode, currentEndLine);
       return {
         content: reducedOverlap,
         lines: reducedOverlap.split('\n').length,
-        strategy: 'node-aware',
+        strategy: OverlapStrategy.NODE_AWARE,
         quality: reducedOverlap ? 0.5 : 0,
         astNodesUsed: [],
         overlapRatio: reducedOverlap.length / currentChunk.content.length
       };
     }
 
-    unusedNodes.forEach(node => this.nodeTracker!.markUsed(node));
+    unusedNodes.forEach(node => this.nodeTracker!.markUsed(node as any));
 
     return {
       content: overlapContent,
       lines: overlapContent.split('\n').length,
-      strategy: 'node-aware',
+      strategy: OverlapStrategy.NODE_AWARE,
       quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapContent.split('\n'), currentChunk, nextChunk),
-      astNodesUsed: unusedNodes.map(n => n.id),
+      astNodesUsed: unusedNodes.map(n => (n as any).id || n.type),
       overlapRatio: overlapContent.length / currentChunk.content.length
     };
   }
@@ -542,7 +570,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
 
         if (boundaryScore.score > 0.6 || overlapLines.length < this.options.minLines) {
           overlapLines.unshift(line);
-          lineNodes.forEach(node => this.nodeTracker!.markUsed(node));
+          lineNodes.forEach(node => this.nodeTracker!.markUsed(node as any));
           astNodesUsed.push(...lineNodes.map(n => n.type));
         }
       }
@@ -556,7 +584,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     return {
       content: overlapLines.join('\n'),
       lines: overlapLines.length,
-      strategy: 'ast-boundary',
+      strategy: OverlapStrategy.AST_BOUNDARY,
       quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
       astNodesUsed,
       overlapRatio: overlapLines.join('\n').length / currentChunk.content.length
@@ -598,7 +626,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     return {
       content: overlapLines.join('\n'),
       lines: overlapLines.length,
-      strategy: 'semantic',
+      strategy: OverlapStrategy.SEMANTIC,
       quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
       astNodesUsed: [],
       overlapRatio: overlapLines.join('\n').length / currentChunk.content.length
@@ -644,7 +672,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     return {
       content: overlapLines.join('\n'),
       lines: overlapLines.length,
-      strategy: 'syntactic',
+      strategy: OverlapStrategy.SYNTACTIC,
       quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
       astNodesUsed: [],
       overlapRatio: overlapLines.join('\n').length / currentChunk.content.length
@@ -685,7 +713,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     return {
       content: overlapContent,
       lines: overlapLines.length,
-      strategy: 'size-based',
+      strategy: OverlapStrategy.SIZE_BASED,
       quality: CodeQualityAssessmentUtils.calculateOverlapQuality(overlapLines, currentChunk, nextChunk),
       astNodesUsed: [],
       overlapRatio: overlapContent.length / currentChunk.content.length
@@ -874,7 +902,11 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
             endLine: currentEndLine,
             language: currentChunk.metadata.language,
             filePath: currentChunk.metadata.filePath,
-            type: 'overlap'
+            strategy: 'unified-overlap',
+            timestamp: Date.now(),
+            type: 'generic' as any,
+            size: alternativeOverlap.length,
+            lineCount: alternativeOverlap.split('\n').length
           }
         };
 
@@ -953,7 +985,7 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     content: string,
     startLine: number,
     endLine: number
-  ): ASTNode[] {
+  ): ASTNodeInfo[] {
     return [];
   }
 
@@ -970,10 +1002,10 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
       const testEndLine = currentEndLine + i + 1;
 
       const testNodes = this.extractNodesFromContent(testOverlap, testStartLine, testEndLine);
-      const unusedNodes = testNodes.filter(node => !this.nodeTracker!.isUsed(node));
+      const unusedNodes = testNodes.filter(node => !this.nodeTracker!.isUsed(node as any));
 
       if (unusedNodes.length > 0) {
-        unusedNodes.forEach(node => this.nodeTracker!.markUsed(node));
+        unusedNodes.forEach(node => this.nodeTracker!.markUsed(node as any));
         return testOverlap;
       }
     }
@@ -981,13 +1013,13 @@ export class UnifiedOverlapCalculator implements OverlapCalculator {
     return '';
   }
 
-  private filterUnusedNodesFromTree(tree: any, startLine: number, endLine: number): ASTNode[] {
+  private filterUnusedNodesFromTree(tree: any, startLine: number, endLine: number): ASTNodeInfo[] {
     return [];
   }
 
-  private hasUsedNodes(nodes: ASTNode[]): boolean {
+  private hasUsedNodes(nodes: ASTNodeInfo[]): boolean {
     if (!this.nodeTracker) return false;
-    return nodes.some(node => this.nodeTracker!.isUsed(node));
+    return nodes.some(node => this.nodeTracker!.isUsed(node as any));
   }
 
   private hasUsedNodesInOverlap(lines: string[], currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {

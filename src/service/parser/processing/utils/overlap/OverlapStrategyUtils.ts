@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../types/splitting-types';
+import { CodeChunk } from '../../core/types/ResultTypes';
 
 export type OverlapStrategy = 'semantic' | 'syntactic' | 'size-based' | 'hybrid' | 'ast-boundary' | 'node-aware' | 'smart-deduplication';
 
@@ -93,9 +93,12 @@ export class OverlapStrategyUtils {
     const lines2 = new Set(content2.split('\n').map(line => line.trim()));
 
     const commonLines = Array.from(lines1).filter(line => lines2.has(line) && line.length > 0);
-    const totalLines = Array.from(new Set([...lines1, ...lines2])).filter(line => line.length > 0);
+    const lines1Array = Array.from(lines1);
+    const lines2Array = Array.from(lines2);
+    const allLines = [...lines1Array, ...lines2Array];
+    const uniqueLines = allLines.filter((line, index) => allLines.indexOf(line) === index && line.length > 0);
 
-    return totalLines.length === 0 ? 0 : commonLines.length / totalLines.length;
+    return uniqueLines.length === 0 ? 0 : commonLines.length / uniqueLines.length;
   }
 
   /**

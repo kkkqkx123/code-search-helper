@@ -8,49 +8,49 @@ export interface IConfigManager {
    * @returns 处理配置
    */
   getConfig(): ProcessingConfig;
-  
+
   /**
    * 获取指定语言的配置
    * @param language 编程语言
    * @returns 语言配置
    */
   getLanguageConfig(language: string): LanguageConfig;
-  
+
   /**
    * 更新配置
    * @param updates 配置更新
    */
   updateConfig(updates: Partial<ProcessingConfig>): void;
-  
+
   /**
    * 重置为默认配置
    */
   resetToDefaults(): void;
-  
+
   /**
    * 验证配置
    * @param config 要验证的配置
    * @returns 验证结果
    */
   validateConfig(config: ProcessingConfig): ConfigValidationResult;
-  
+
   /**
    * 添加配置变更监听器
    * @param listener 监听器函数
    */
   addConfigListener(listener: ConfigChangeListener): void;
-  
+
   /**
    * 移除配置变更监听器
    * @param listener 监听器函数
    */
   removeConfigListener(listener: ConfigChangeListener): void;
-  
+
   /**
    * 保存配置到持久化存储（可选实现）
    */
   saveConfig?(): Promise<void>;
-  
+
   /**
    * 从持久化存储加载配置（可选实现）
    */
@@ -63,10 +63,10 @@ export interface IConfigManager {
 export interface ConfigValidationResult {
   /** 是否有效 */
   isValid: boolean;
-  
+
   /** 错误信息列表 */
   errors: ConfigValidationError[];
-  
+
   /** 警告信息列表 */
   warnings: ConfigValidationWarning[];
 }
@@ -77,10 +77,10 @@ export interface ConfigValidationResult {
 export interface ConfigValidationError {
   /** 错误路径 */
   path: string;
-  
+
   /** 错误消息 */
   message: string;
-  
+
   /** 错误代码 */
   code: string;
 }
@@ -91,10 +91,10 @@ export interface ConfigValidationError {
 export interface ConfigValidationWarning {
   /** 警告路径 */
   path: string;
-  
+
   /** 警告消息 */
   message: string;
-  
+
   /** 警告代码 */
   code: string;
 }
@@ -114,13 +114,13 @@ export type ConfigChangeListener = (
 export interface ConfigChange {
   /** 变更路径 */
   path: string;
-  
+
   /** 旧值 */
   oldValue: any;
-  
+
   /** 新值 */
   newValue: any;
-  
+
   /** 变更类型 */
   type: 'add' | 'update' | 'delete';
 }

@@ -9,28 +9,28 @@
 export class ProcessingContext implements IProcessingContext {
   /** 要处理的代码内容 */
   content: string;
-  
+
   /** 编程语言 */
   language: string;
-  
+
   /** 文件路径（可选） */
   filePath?: string;
-  
+
   /** 处理配置 */
   config: ProcessingConfig;
-  
+
   /** 文件特征信息 */
   features: FileFeatures;
-  
+
   /** 上下文元数据 */
   metadata: ContextMetadata;
-  
+
   /** AST节点（如果可用） */
   ast?: any;
-  
+
   /** 节点跟踪器（如果可用） */
   nodeTracker?: any;
-  
+
   /**
    * 构造函数
    * @param data 上下文数据
@@ -45,7 +45,7 @@ export class ProcessingContext implements IProcessingContext {
     this.ast = data.ast;
     this.nodeTracker = data.nodeTracker;
   }
-  
+
   /**
    * 克隆上下文
    * @returns 克隆的上下文
@@ -57,7 +57,7 @@ export class ProcessingContext implements IProcessingContext {
       features: { ...this.features }
     });
   }
-  
+
   /**
    * 更新元数据
    * @param updates 更新数据
@@ -65,7 +65,7 @@ export class ProcessingContext implements IProcessingContext {
   updateMetadata(updates: Partial<ContextMetadata>): void {
     this.metadata = { ...this.metadata, ...updates };
   }
-  
+
   /**
    * 更新特征
    * @param updates 更新数据
@@ -81,25 +81,25 @@ export class ProcessingContext implements IProcessingContext {
 export interface ProcessingContextData {
   /** 要处理的代码内容 */
   content: string;
-  
+
   /** 编程语言 */
   language: string;
-  
+
   /** 文件路径（可选） */
   filePath?: string;
-  
+
   /** 处理配置 */
   config: ProcessingConfig;
-  
+
   /** 文件特征信息 */
   features: FileFeatures;
-  
+
   /** 上下文元数据 */
   metadata: ContextMetadata;
-  
+
   /** AST节点（如果可用） */
   ast?: any;
-  
+
   /** 节点跟踪器（如果可用） */
   nodeTracker?: any;
 }
@@ -109,7 +109,7 @@ export interface ProcessingContextData {
  */
 export class ContextBuilder {
   private context: Partial<ProcessingContextData> = {};
-  
+
   /**
    * 构造函数
    * @param content 代码内容
@@ -118,7 +118,7 @@ export class ContextBuilder {
     this.context.content = content;
     this.context.metadata = this.initializeMetadata(content);
   }
-  
+
   /**
    * 设置文件路径
    * @param filePath 文件路径
@@ -128,7 +128,7 @@ export class ContextBuilder {
     this.context.filePath = filePath;
     return this;
   }
-  
+
   /**
    * 设置编程语言
    * @param language 编程语言
@@ -138,7 +138,7 @@ export class ContextBuilder {
     this.context.language = language;
     return this;
   }
-  
+
   /**
    * 设置配置
    * @param config 处理配置
@@ -148,7 +148,7 @@ export class ContextBuilder {
     this.context.config = config;
     return this;
   }
-  
+
   /**
    * 设置AST
    * @param ast AST节点
@@ -158,7 +158,7 @@ export class ContextBuilder {
     this.context.ast = ast;
     return this;
   }
-  
+
   /**
    * 设置节点跟踪器
    * @param nodeTracker 节点跟踪器
@@ -168,7 +168,7 @@ export class ContextBuilder {
     this.context.nodeTracker = nodeTracker;
     return this;
   }
-  
+
   /**
    * 设置文件特征
    * @param features 文件特征
@@ -178,7 +178,7 @@ export class ContextBuilder {
     this.context.features = features;
     return this;
   }
-  
+
   /**
    * 添加元数据
    * @param key 键
@@ -192,7 +192,7 @@ export class ContextBuilder {
     (this.context.metadata as any)[key] = value;
     return this;
   }
-  
+
   /**
    * 构建处理上下文
    * @returns 处理上下文实例
@@ -210,10 +210,10 @@ export class ContextBuilder {
     if (!this.context.features) {
       this.context.features = this.initializeFeatures(this.context.content, this.context.language);
     }
-    
+
     return new ProcessingContext(this.context as ProcessingContextData);
   }
-  
+
   /**
    * 初始化元数据
    * @param content 代码内容
@@ -236,7 +236,7 @@ export class ContextBuilder {
       timestamp: Date.now()
     };
   }
-  
+
   /**
    * 初始化文件特征
    * @param content 代码内容

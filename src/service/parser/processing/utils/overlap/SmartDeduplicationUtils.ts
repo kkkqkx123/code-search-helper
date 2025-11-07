@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../types/splitting-types';
+import { CodeChunk } from '../../core/types/ResultTypes';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { ChunkSimilarityUtils } from '../chunk-processing/ChunkSimilarityUtils';
 

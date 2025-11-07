@@ -9,6 +9,7 @@ export * from './interfaces/IStrategyFactory';
 export * from './interfaces/IProcessingContext';
 export * from './interfaces/IPostProcessor';
 export * from './interfaces/IConfigManager';
+export * from './interfaces/IOverlapCalculator';
 
 // 导出所有类型
 export * from './types/ProcessingTypes';
