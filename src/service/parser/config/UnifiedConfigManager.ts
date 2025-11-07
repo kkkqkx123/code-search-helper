@@ -1,6 +1,5 @@
 import { injectable, inject } from 'inversify';
 import { ChunkingOptions, ChunkingPreset, ChunkingPresetFactory } from '../processing/types/splitting-types';
-import { StrategyConfiguration } from '../interfaces/CoreISplitStrategy';
 import { LanguageConfiguration } from './LanguageConfigManager';
 
 /**
@@ -29,13 +28,13 @@ export interface UniversalProcessingConfig {
   };
 
   // 分段参数配置
-chunking: {
-   minChunkSize: number;
-   maxChunkSize: number;
-   chunkOverlap: number;
-   minLinesPerChunk: number;
-   maxLinesPerChunk: number;
- };
+  chunking: {
+    minChunkSize: number;
+    maxChunkSize: number;
+    chunkOverlap: number;
+    minLinesPerChunk: number;
+    maxLinesPerChunk: number;
+  };
 
   // 备份文件处理配置
   backup: {
