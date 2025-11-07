@@ -30,6 +30,7 @@ export interface DetectionResult {
   detectionMethod: 'extension' | 'content' | 'backup' | 'hybrid';
   fileType?: 'backup' | 'normal' | 'extensionless' | 'unknown'; // 添加fileType字段
   processingStrategy?: string; // 添加processingStrategy字段
+  filePath?: string; // 添加filePath字段
   metadata: {
     originalExtension?: string;
     overrideReason?: string;
@@ -112,6 +113,7 @@ export class UnifiedDetectionService {
       // 1. 检查是否为备份文件
       const backupResult = this.detectBackupFile(filePath, content);
       if (backupResult) {
+        backupResult.filePath = filePath; // 添加filePath
         this.logger?.info(`Detected backup file: ${backupResult.language} (confidence: ${backupResult.confidence})`);
         return backupResult;
       }
@@ -124,6 +126,7 @@ export class UnifiedDetectionService {
 
       // 4. 智能决策
       const finalResult = this.makeDetectionDecision(filePath, content, extensionResult, contentResult);
+      finalResult.filePath = filePath; // 添加filePath
 
       // 5. 文件特征分析
       const fileFeatures = this.analyzeFileFeatures(content, finalResult.language);
@@ -154,6 +157,7 @@ export class UnifiedDetectionService {
       this.eventBus?.emit(ParserEvents.FILE_DETECTION_FAILED, errorEventData);
 
       const fallbackResult = this.createFallbackResult(filePath, content);
+      fallbackResult.filePath = filePath; // 添加filePath
       return fallbackResult;
     }
   }

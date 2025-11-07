@@ -175,11 +175,6 @@ export class BusinessServiceRegistrar {
 
         return new UnifiedStrategyFactory(
           logger,
-          configManager,
-          treeSitterService,
-          universalTextStrategy,
-          markdownTextStrategy,
-          xmlTextStrategy
         );
       }).inSingletonScope();
       container.bind<UnifiedStrategyManager>(TYPES.UnifiedStrategyManager).to(UnifiedStrategyManager).inSingletonScope();
@@ -204,7 +199,7 @@ export class BusinessServiceRegistrar {
       container.bind<PriorityManager>(TYPES.PriorityManager).to(PriorityManager).inSingletonScope();
       container.bind<SmartStrategySelector>(TYPES.SmartStrategySelector).to(SmartStrategySelector).inSingletonScope();
       container.bind<FallbackManager>(TYPES.FallbackManager).to(FallbackManager).inSingletonScope();
-      
+
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
       container.bind<SegmentationStrategyCoordinator>(TYPES.SegmentationStrategyCoordinator).to(SegmentationStrategyCoordinator).inSingletonScope();
 
@@ -366,7 +361,7 @@ export class BusinessServiceRegistrar {
       // 特殊格式文本分割器
       container.bind<MarkdownTextStrategy>(TYPES.MarkdownTextStrategy).to(MarkdownTextStrategy).inSingletonScope();
       container.bind<XMLTextStrategy>(TYPES.XMLTextStrategy).to(XMLTextStrategy).inSingletonScope();
-      
+
       // HTML分层处理策略
       container.bind<LayeredHTMLStrategy>(TYPES.LayeredHTMLStrategy).to(LayeredHTMLStrategy).inSingletonScope();
       container.bind<HTMLContentExtractor>(TYPES.HTMLContentExtractor).to(HTMLContentExtractor).inSingletonScope();

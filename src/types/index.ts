@@ -97,4 +97,11 @@ export const TYPES = {
   IntelligentStrategyProvider: Symbol.for('IntelligentStrategyProvider'),
   StructureAwareStrategyProvider: Symbol.for('StructureAwareStrategyProvider'),
   SemanticStrategyProvider: Symbol.for('SemanticStrategyProvider'),
+
+  // 策略注册和配置管理
+  StrategyRegistry: Symbol.for('StrategyRegistry'),
+  
+  StrategyConfigManager: Symbol.for('StrategyConfigManager'),
+  MarkdownTextStrategy: Symbol.for('MarkdownTextStrategy'),
+  XMLTextStrategy: Symbol.for('XMLTextStrategy'),
 };
