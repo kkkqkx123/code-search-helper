@@ -4,9 +4,7 @@ import { TYPES } from '../../../types';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
-import { UnifiedDetectionService, DetectionResult, ProcessingStrategyType } from '../processing/detection/UnifiedDetectionService';
-import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
-import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
+import { DetectionResult, ProcessingStrategyType } from '../processing/detection/UnifiedDetectionService';
 
 import {
   IUnifiedGuardCoordinator,
@@ -19,6 +17,7 @@ import {
   GuardStatus
 } from './IUnifiedGuardCoordinator';
 import { ICleanupContext } from '../../../infrastructure/cleanup/ICleanupStrategy';
+import { IServiceContainer } from '../../../interfaces/IServiceContainer';
 
 /**
  * 统一的保护机制协调器
@@ -26,17 +25,11 @@ import { ICleanupContext } from '../../../infrastructure/cleanup/ICleanupStrateg
  */
 @injectable()
 export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
-  private static instance: UnifiedGuardCoordinator;
-
   // 核心依赖组件
   private memoryMonitor: IMemoryMonitorService;
   private errorThresholdManager: ErrorThresholdInterceptor;
   private cleanupManager: CleanupManager;
-
-  // ProcessingGuard 整合的依赖组件
-  private detectionService: UnifiedDetectionService;
-  private strategyFactory: ProcessingStrategyFactory;
-  private fallbackEngine: IntelligentFallbackEngine;
+  private serviceContainer: IServiceContainer;
 
   // 配置参数
   private memoryLimitMB: number;
@@ -46,62 +39,25 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
   private isMonitoring: boolean = false;
   private memoryCheckTimer?: NodeJS.Timeout;
 
-  /**
-   * 私有构造函数 - 强制使用单例模式
-   */
-  private constructor(
-    memoryMonitor: IMemoryMonitorService,
-    errorThresholdManager: ErrorThresholdInterceptor,
-    cleanupManager: CleanupManager,
-    detectionService: UnifiedDetectionService,
-    strategyFactory: ProcessingStrategyFactory,
-    fallbackEngine: IntelligentFallbackEngine,
+  constructor(
+    @inject(TYPES.MemoryMonitorService) memoryMonitor: IMemoryMonitorService,
+    @inject(TYPES.ErrorThresholdInterceptor) errorThresholdManager: ErrorThresholdInterceptor,
+    @inject(TYPES.CleanupManager) cleanupManager: CleanupManager,
+    @inject(TYPES.ServiceContainer) serviceContainer: IServiceContainer,
     memoryLimitMB: number = 500,
     memoryCheckIntervalMs: number = 5000,
-    logger?: LoggerService
+    @inject(TYPES.LoggerService) logger?: LoggerService
   ) {
     this.memoryMonitor = memoryMonitor;
     this.errorThresholdManager = errorThresholdManager;
     this.cleanupManager = cleanupManager;
-    this.detectionService = detectionService;
-    this.strategyFactory = strategyFactory;
-    this.fallbackEngine = fallbackEngine;
+    this.serviceContainer = serviceContainer;
     this.memoryLimitMB = memoryLimitMB;
     this.memoryCheckIntervalMs = memoryCheckIntervalMs;
     this.logger = logger;
 
     // 初始化内部状态
     this.initializeInternal();
-  }
-
-  /**
-   * 静态工厂方法 - 单例模式
-   */
-  public static getInstance(
-    memoryMonitor: IMemoryMonitorService,
-    errorThresholdManager: ErrorThresholdInterceptor,
-    cleanupManager: CleanupManager,
-    detectionService: UnifiedDetectionService,
-    strategyFactory: ProcessingStrategyFactory,
-    fallbackEngine: IntelligentFallbackEngine,
-    memoryLimitMB: number = 500,
-    memoryCheckIntervalMs: number = 5000,
-    logger?: LoggerService
-  ): UnifiedGuardCoordinator {
-    if (!UnifiedGuardCoordinator.instance) {
-      UnifiedGuardCoordinator.instance = new UnifiedGuardCoordinator(
-        memoryMonitor,
-        errorThresholdManager,
-        cleanupManager,
-        detectionService,
-        strategyFactory,
-        fallbackEngine,
-        memoryLimitMB,
-        memoryCheckIntervalMs,
-        logger
-      );
-    }
-    return UnifiedGuardCoordinator.instance;
   }
 
   /**
@@ -391,9 +347,11 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
         const memoryLimitBytes = this.memoryLimitMB * 1024 * 1024;
         this.logger?.warn(`Memory limit exceeded before processing: ${memoryStatus.heapUsed} > ${memoryLimitBytes}`);
 
-        // 使用智能降级引擎处理内存限制情况
-        const detection = await this.detectionService.detectFile(filePath, content);
-        const fallbackStrategy = await this.fallbackEngine.determineFallbackStrategy(filePath, new Error('Memory limit exceeded'), detection);
+        // 延迟获取依赖并使用智能降级引擎处理内存限制情况
+        const detectionService = this.serviceContainer.get<any>(TYPES.UnifiedDetectionService);
+        const fallbackEngine = this.serviceContainer.get<any>(TYPES.IntelligentFallbackEngine);
+        const detection = await detectionService.detectFile(filePath, content);
+        const fallbackStrategy = await fallbackEngine.determineFallbackStrategy(filePath, new Error('Memory limit exceeded'), detection);
 
         return {
           chunks: [{
@@ -417,9 +375,11 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
       if (this.errorThresholdManager.shouldUseFallback()) {
         this.logger?.warn('Error threshold reached, using fallback processing');
 
-        // 使用智能降级引擎处理错误阈值情况
-        const detection = await this.detectionService.detectFile(filePath, content);
-        const fallbackStrategy = await this.fallbackEngine.determineFallbackStrategy(filePath, new Error('Error threshold exceeded'), detection);
+        // 延迟获取依赖并使用智能降级引擎处理错误阈值情况
+        const detectionService = this.serviceContainer.get<any>(TYPES.UnifiedDetectionService);
+        const fallbackEngine = this.serviceContainer.get<any>(TYPES.IntelligentFallbackEngine);
+        const detection = await detectionService.detectFile(filePath, content);
+        const fallbackStrategy = await fallbackEngine.determineFallbackStrategy(filePath, new Error('Error threshold exceeded'), detection);
 
         return {
           chunks: [{
@@ -439,11 +399,13 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
         };
       }
 
-      // 3. 使用检测服务进行语言检测
-      const detection = await this.detectionService.detectFile(filePath, content);
+      // 3. 延迟获取依赖并使用检测服务进行语言检测
+      const detectionService = this.serviceContainer.get<any>(TYPES.UnifiedDetectionService);
+      const strategyFactory = this.serviceContainer.get<any>(TYPES.ProcessingStrategyFactory);
+      const detection = await detectionService.detectFile(filePath, content);
 
       // 4. 使用策略工厂创建策略
-      const strategy = this.strategyFactory.createStrategy(detection);
+      const strategy = strategyFactory.createStrategy(detection);
 
       // 5. 执行处理
       const result = await strategy.execute(filePath, content, detection);
@@ -458,26 +420,49 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
       this.logger?.error(`Error in unified file processing: ${error}`);
       this.errorThresholdManager.recordError(error as Error, `processFile: ${filePath}`);
 
-      // 使用智能降级引擎处理错误情况
-      const detection = await this.detectionService.detectFile(filePath, content);
-      const fallbackStrategy = await this.fallbackEngine.determineFallbackStrategy(filePath, error as Error, detection);
+      // 延迟获取依赖并使用智能降级引擎处理错误情况
+      try {
+        const detectionService = this.serviceContainer.get<any>(TYPES.UnifiedDetectionService);
+        const fallbackEngine = this.serviceContainer.get<any>(TYPES.IntelligentFallbackEngine);
+        const detection = await detectionService.detectFile(filePath, content);
+        const fallbackStrategy = await fallbackEngine.determineFallbackStrategy(filePath, error as Error, detection);
 
-      return {
-        chunks: [{
-          content: content,
-          metadata: {
-            startLine: 1,
-            endLine: content.split('\n').length,
-            language: 'text',
-            filePath: filePath,
-            fallback: true,
-            reason: (error as Error).message
-          }
-        }],
-        language: 'text',
-        processingStrategy: fallbackStrategy.strategy,
-        fallbackReason: `Processing error: ${(error as Error).message} (${fallbackStrategy.reason})`
-      };
+        return {
+          chunks: [{
+            content: content,
+            metadata: {
+              startLine: 1,
+              endLine: content.split('\n').length,
+              language: 'text',
+              filePath: filePath,
+              fallback: true,
+              reason: (error as Error).message
+            }
+          }],
+          language: 'text',
+          processingStrategy: fallbackStrategy.strategy,
+          fallbackReason: `Processing error: ${(error as Error).message} (${fallbackStrategy.reason})`
+        };
+      } catch (fallbackError) {
+        this.logger?.error(`Fallback processing also failed: ${fallbackError}`);
+        return {
+          chunks: [{
+            content: content,
+            metadata: {
+              startLine: 1,
+              endLine: content.split('\n').length,
+              language: 'text',
+              filePath: filePath,
+              fallback: true,
+              reason: (error as Error).message,
+              error: (fallbackError as Error).message
+            }
+          }],
+          language: 'text',
+          processingStrategy: 'emergency-single-chunk',
+          fallbackReason: `Processing error: ${(error as Error).message} (fallback also failed: ${(fallbackError as Error).message})`
+        };
+      }
     }
   }
 
@@ -551,7 +536,8 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
     // 2. 统一检测（一次性完成所有检测）
     let detection;
     try {
-      detection = await this.detectionService.detectFile(filePath, content);
+      const detectionService = this.serviceContainer.get<any>(TYPES.UnifiedDetectionService);
+      detection = await detectionService.detectFile(filePath, content);
     } catch (detectionError) {
       // 如果检测失败，直接进入fallback
       const duration = Date.now() - startTime;
@@ -587,7 +573,8 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
 
     try {
       // 3. 策略选择（基于检测结果）
-      const strategy = this.strategyFactory.createStrategy(detection);
+      const strategyFactory = this.serviceContainer.get<any>(TYPES.ProcessingStrategyFactory);
+      const strategy = strategyFactory.createStrategy(detection);
 
       // 4. 执行处理
       const result = await strategy.execute(filePath, content, detection);
@@ -670,14 +657,19 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
 
     try {
       // 使用智能降级引擎确定最佳降级策略
+      // 延迟获取依赖
+      const detectionService = this.serviceContainer.get<any>(TYPES.UnifiedDetectionService);
+      const fallbackEngine = this.serviceContainer.get<any>(TYPES.IntelligentFallbackEngine);
+      const strategyFactory = this.serviceContainer.get<any>(TYPES.ProcessingStrategyFactory);
+      
       // 如果已经有检测结果，则避免重复检测
-      const detection = cachedDetection || await this.detectionService.detectFile(filePath, content);
-      const fallbackStrategy = await this.fallbackEngine.determineFallbackStrategy(filePath, new Error(reason), detection);
+      const detection = cachedDetection || await detectionService.detectFile(filePath, content);
+      const fallbackStrategy = await fallbackEngine.determineFallbackStrategy(filePath, new Error(reason), detection);
 
       this.logger?.info(`Using intelligent fallback strategy: ${fallbackStrategy.strategy} for ${filePath}`);
 
       // 创建对应策略并执行
-      const strategy = this.strategyFactory.createStrategy({
+      const strategy = strategyFactory.createStrategy({
         language: detection.language,
         confidence: detection.confidence,
         detectionMethod: detection.detectionMethod,
@@ -749,7 +741,12 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
    * 清理检测缓存
    */
   clearDetectionCache(): void {
-    this.detectionService.clearCache();
-    this.logger?.debug('Detection cache cleared');
+    try {
+      const detectionService = this.serviceContainer.get<any>(TYPES.UnifiedDetectionService);
+      detectionService.clearCache();
+      this.logger?.debug('Detection cache cleared');
+    } catch (error) {
+      this.logger?.error(`Failed to clear detection cache: ${error}`);
+    }
   }
 }

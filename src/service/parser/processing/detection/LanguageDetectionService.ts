@@ -2,8 +2,8 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { BackupFileProcessor } from './BackupFileProcessor';
-import { FileFeatureDetector } from './FileFeatureDetector';
-import { languageExtensionMap, fileUtils, languageFeatureDetector } from '../../utils';
+import { IFileFeatureDetector } from './IFileFeatureDetector';
+import { fileUtils, languageFeatureDetector } from '../../utils';
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 
 /**
@@ -29,16 +29,17 @@ export interface LanguageDetectionResult {
 @injectable()
 export class LanguageDetectionService {
   private backupProcessor: BackupFileProcessor;
-  private fileFeatureDetector: FileFeatureDetector;
+  private fileFeatureDetector: IFileFeatureDetector;
   private logger?: LoggerService;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.BackupFileProcessor) backupProcessor?: BackupFileProcessor
+    @inject(TYPES.BackupFileProcessor) backupProcessor?: BackupFileProcessor,
+    @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: IFileFeatureDetector
   ) {
     this.logger = logger;
     this.backupProcessor = backupProcessor || new BackupFileProcessor(logger);
-    this.fileFeatureDetector = FileFeatureDetector.getInstance(logger);
+    this.fileFeatureDetector = fileFeatureDetector!;
   }
 
   /**
@@ -133,7 +134,7 @@ export class LanguageDetectionService {
   async detectLanguageByExtensionAsync(filePath: string): Promise<LanguageDetectionResult> {
     const language = languageMappingManager.getLanguageByPath(filePath);
     const extension = fileUtils.extractFileExtension(filePath);
-    
+
     return {
       language,
       confidence: language ? 0.9 : 0.1,
@@ -152,7 +153,7 @@ export class LanguageDetectionService {
   detectLanguageByContent(content: string): LanguageDetectionResult {
     // 使用工具类的内容检测
     const detection = languageFeatureDetector.detectLanguageByContent(content);
-    
+
     if (detection.language && detection.confidence > 0.5 && languageMappingManager.isLanguageSupported(detection.language)) {
       return {
         language: detection.language,
@@ -163,7 +164,7 @@ export class LanguageDetectionService {
         }
       };
     }
-    
+
     return detection;
   }
 
@@ -306,7 +307,7 @@ export class LanguageDetectionService {
 
       // 使用公共的特征检测器验证
       const isValid = languageFeatureDetector.validateLanguageDetection(content, detectedLanguage.name.toLowerCase());
-      
+
       if (isValid) {
         return detectedLanguage;
       }
@@ -328,7 +329,7 @@ export class LanguageDetectionService {
     try {
       // 使用语言特征检测器进行内容检测
       const detectionResult = languageFeatureDetector.detectLanguageByContent(content);
-      
+
       if (detectionResult.language && detectionResult.confidence > 0.5 && languageMappingManager.isLanguageSupported(detectionResult.language)) {
         return parsers.get(detectionResult.language) || null;
       }

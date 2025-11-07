@@ -68,6 +68,16 @@ import { UnifiedStrategyFactory } from '../../service/parser/processing/strategi
 import { UnifiedDetectionService } from '../../service/parser/processing/detection/UnifiedDetectionService';
 import { LanguageDetector } from '../../service/parser/core/language-detection/LanguageDetector';
 
+// 新增的依赖倒置和事件系统
+import { IServiceContainer } from '../../interfaces/IServiceContainer';
+import { ServiceContainerAdapter } from '../../infrastructure/container/ServiceContainerAdapter';
+import { IEventBus } from '../../interfaces/IEventBus';
+import { EventBus } from '../../infrastructure/events/EventBus';
+import { IStrategyRegistry } from '../../service/parser/processing/strategies/providers/IStrategyRegistry';
+import { StrategyRegistry } from '../../service/parser/processing/strategies/providers/StrategyRegistry';
+import { IFileFeatureDetector } from '../../service/parser/processing/detection/IFileFeatureDetector';
+import { FileFeatureDetector } from '../../service/parser/processing/detection/FileFeatureDetector';
+
 // 分段器模块服务
 import { SegmentationStrategyCoordinator } from '../../service/parser/processing/coordination/SegmentationStrategyCoordinator';
 import { ConfigurationManager } from '../../service/parser/processing/config/ConfigurationManager';
@@ -262,6 +272,20 @@ export class BusinessServiceRegistrar {
         return context.get<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator);
       }).inSingletonScope();
 
+      // 服务容器适配器
+      container.bind<IServiceContainer>(TYPES.ServiceContainer).toDynamicValue(context => {
+        return new ServiceContainerAdapter(context.container);
+      }).inSingletonScope();
+
+      // 事件总线
+      container.bind<IEventBus>(TYPES.EventBus).to(EventBus).inSingletonScope();
+
+      // 策略注册表
+      container.bind<IStrategyRegistry>(TYPES.StrategyRegistry).to(StrategyRegistry).inSingletonScope();
+
+      // 文件特征检测器（移除单例模式）
+      container.bind<IFileFeatureDetector>(TYPES.FileFeatureDetector).to(FileFeatureDetector).inSingletonScope();
+
       // 统一检测服务
       container.bind<UnifiedDetectionService>(TYPES.UnifiedDetectionService).to(UnifiedDetectionService).inSingletonScope();
 
@@ -274,39 +298,33 @@ export class BusinessServiceRegistrar {
         return new IntelligentFallbackEngine(logger);
       }).inSingletonScope();
 
-      // 处理策略工厂
+      // 处理策略工厂（使用注册表模式）
       container.bind<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory).toDynamicValue(context => {
+        const registry = context.get<IStrategyRegistry>(TYPES.StrategyRegistry);
         const logger = context.get<LoggerService>(TYPES.LoggerService);
-        const universalTextSplitter = context.get<UniversalTextStrategy>(TYPES.UniversalTextStrategy);
         const treeSitterService = context.get<TreeSitterService>(TYPES.TreeSitterService);
         const markdownSplitter = context.get<MarkdownTextStrategy>(TYPES.MarkdownTextStrategy);
         const xmlSplitter = context.get<XMLTextStrategy>(TYPES.XMLTextStrategy);
 
-        return new ProcessingStrategyFactory(logger, treeSitterService, markdownSplitter, xmlSplitter);
+        return new ProcessingStrategyFactory(registry, logger, treeSitterService, markdownSplitter, xmlSplitter);
       }).inSingletonScope();
 
-      // UnifiedGuardCoordinator - 新的统一保护机制协调器
+      // UnifiedGuardCoordinator - 使用依赖倒置的统一保护机制协调器
       container.bind<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator).toDynamicValue(context => {
         const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
         const errorThresholdInterceptor = context.get<ErrorThresholdInterceptor>(TYPES.ErrorThresholdManager);
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
+        const serviceContainer = context.get<IServiceContainer>(TYPES.ServiceContainer);
         const logger = context.get<LoggerService>(TYPES.LoggerService);
-
-        // 获取 ProcessingGuard 整合的依赖
-        const detectionService = context.get<UnifiedDetectionService>(TYPES.UnifiedDetectionService);
-        const strategyFactory = context.get<ProcessingStrategyFactory>(TYPES.ProcessingStrategyFactory);
-        const fallbackEngine = context.get<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine);
 
         const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
         const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
 
-        return UnifiedGuardCoordinator.getInstance(
+        return new UnifiedGuardCoordinator(
           memoryMonitorService,
           errorThresholdInterceptor,
           cleanupManager,
-          detectionService,
-          strategyFactory,
-          fallbackEngine,
+          serviceContainer,
           memoryLimitMB,
           memoryCheckIntervalMs,
           logger

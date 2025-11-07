@@ -3,11 +3,12 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
 import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { FileFeatureDetector } from './FileFeatureDetector';
-import { LanguageDetectionService } from './LanguageDetectionService';
+import { IFileFeatureDetector } from './IFileFeatureDetector';
 import { BackupFileProcessor } from './BackupFileProcessor';
 import { LanguageDetector } from '../../core/language-detection/LanguageDetector';
 import { languageFeatureDetector } from '../../utils';
+import { IEventBus } from '../../../../interfaces/IEventBus';
+import { ParserEvents, FileDetectedEvent, FileDetectionFailedEvent } from '../../events/ParserEvents';
 
 export enum ProcessingStrategyType {
   TREESITTER_AST = 'treesitter_ast',
@@ -77,23 +78,26 @@ export class UnifiedDetectionService {
   private configManager: UnifiedConfigManager;
   private detectionCache: Map<string, DetectionResult> = new Map();
   private readonly cacheSizeLimit = 1000; // 限制缓存大小
-  private fileFeatureDetector: FileFeatureDetector;
+  private fileFeatureDetector: IFileFeatureDetector;
   private backupFileProcessor: BackupFileProcessor;
   private languageDetector: LanguageDetector;
+  private eventBus?: IEventBus;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.UnifiedConfigManager) configManager?: UnifiedConfigManager,
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
-    @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: FileFeatureDetector,
+    @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: IFileFeatureDetector,
     @inject(TYPES.BackupFileProcessor) backupFileProcessor?: BackupFileProcessor,
-    @inject(TYPES.LanguageDetector) languageDetector?: LanguageDetector
+    @inject(TYPES.LanguageDetector) languageDetector?: LanguageDetector,
+    @inject(TYPES.EventBus) eventBus?: IEventBus
   ) {
     this.logger = logger;
     this.configManager = configManager || new UnifiedConfigManager();
-    this.fileFeatureDetector = fileFeatureDetector || FileFeatureDetector.getInstance(logger);
+    this.fileFeatureDetector = fileFeatureDetector!;
     this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
     this.languageDetector = languageDetector || new LanguageDetector();
+    this.eventBus = eventBus;
     this.logger?.debug('UnifiedDetectionService initialized');
   }
 
@@ -101,7 +105,11 @@ export class UnifiedDetectionService {
    * 智能文件检测（主要入口）
    */
   async detectFile(filePath: string, content: string): Promise<DetectionResult> {
+    const startTime = Date.now();
     this.logger?.debug(`Detecting file: ${filePath}`);
+
+    // 发布检测开始事件
+    this.eventBus?.emit(ParserEvents.FILE_DETECTION_STARTED, { filePath, contentLength: content.length });
 
     // 创建缓存键，包含文件路径和内容长度以确保一致性
     const cacheKey = `${filePath}:${content.length}:${this.getContentHash(content)}`;
@@ -109,8 +117,21 @@ export class UnifiedDetectionService {
     // 检查缓存
     if (this.detectionCache.has(cacheKey)) {
       this.logger?.debug(`Cache hit for detection: ${filePath}`);
-      return this.detectionCache.get(cacheKey)!;
+      this.eventBus?.emit(ParserEvents.CACHE_HIT, { filePath, cacheKey });
+      const result = this.detectionCache.get(cacheKey)!;
+
+      // 发布检测完成事件
+      const eventData: FileDetectedEvent = {
+        filePath,
+        result,
+        duration: Date.now() - startTime
+      };
+      this.eventBus?.emit(ParserEvents.FILE_DETECTED, eventData);
+
+      return result;
     }
+
+    this.eventBus?.emit(ParserEvents.CACHE_MISS, { filePath, cacheKey });
 
     try {
       // 1. 检查是否为备份文件
@@ -150,7 +171,7 @@ export class UnifiedDetectionService {
       // 7. 处理策略推荐
       finalResult.metadata.processingStrategy = this.recommendProcessingStrategy(finalResult, fileFeatures);
       finalResult.processingStrategy = finalResult.metadata.processingStrategy;
-      
+
       // 确保fileType有值
       if (!finalResult.fileType) {
         finalResult.fileType = 'normal';
@@ -165,6 +186,15 @@ export class UnifiedDetectionService {
 
     } catch (error) {
       this.logger?.error(`File detection failed for ${filePath}:`, error);
+
+      // 发布检测失败事件
+      const errorEventData: FileDetectionFailedEvent = {
+        filePath,
+        error: error as Error,
+        duration: Date.now() - startTime
+      };
+      this.eventBus?.emit(ParserEvents.FILE_DETECTION_FAILED, errorEventData);
+
       const fallbackResult = this.createFallbackResult(filePath, content);
       // 缓存降级结果
       this.cacheDetectionResult(cacheKey, fallbackResult);
@@ -243,7 +273,7 @@ export class UnifiedDetectionService {
   ): DetectionResult {
     // 如果扩展名检测置信度高，且内容检测不冲突，使用扩展名结果
     if (extensionResult.confidence >= 0.8 &&
-        (contentResult.language === 'unknown' || contentResult.language === extensionResult.language)) {
+      (contentResult.language === 'unknown' || contentResult.language === extensionResult.language)) {
       return {
         language: extensionResult.language,
         confidence: extensionResult.confidence,

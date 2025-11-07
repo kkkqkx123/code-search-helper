@@ -81,9 +81,6 @@ describe('UnifiedDetectionService', () => {
       detectLanguageByExtension: jest.fn()
     } as any;
 
-    // Mock FileFeatureDetector.getInstance
-    (FileFeatureDetector.getInstance as jest.Mock) = jest.fn().mockReturnValue(mockFileFeatureDetector);
-
     // Create service instance
     service = new UnifiedDetectionService(
       mockLogger,
@@ -98,7 +95,7 @@ describe('UnifiedDetectionService', () => {
   describe('constructor', () => {
     it('should initialize with provided dependencies', () => {
       expect(service).toBeDefined();
-      // 当提供了fileFeatureDetector参数时，不会调用FileFeatureDetector.getInstance
+      // 使用依赖注入模式，不再使用单例模式
       expect(mockLogger.debug).toHaveBeenCalledWith('UnifiedDetectionService initialized');
     });
 

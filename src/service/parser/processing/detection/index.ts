@@ -1,6 +1,7 @@
 // 文件检测识别模块
 export { UnifiedDetectionService } from './UnifiedDetectionService';
 export { FileFeatureDetector } from './FileFeatureDetector';
+export { IFileFeatureDetector } from './IFileFeatureDetector';
 export { BackupFileProcessor } from './BackupFileProcessor';
 export { LanguageDetectionService, LanguageDetectionResult } from './LanguageDetectionService';
 

@@ -1,29 +1,19 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { TYPES } from '../../../../types';
+import { IFileFeatureDetector } from './IFileFeatureDetector';
 
 /**
  * 统一的文件特征检测器
- * 提供单例模式的文件特征检测，避免重复实例化
+ * 提供依赖注入模式的文件特征检测，支持测试隔离
  */
 @injectable()
-export class FileFeatureDetector {
-  private static instance: FileFeatureDetector;
+export class FileFeatureDetector implements IFileFeatureDetector {
   private logger?: LoggerService;
 
-  private constructor(logger?: LoggerService) {
+  constructor(@inject(TYPES.LoggerService) logger?: LoggerService) {
     this.logger = logger;
     this.logger?.debug('FileFeatureDetector initialized');
-  }
-
-  /**
-   * 获取单例实例
-   */
-  static getInstance(logger?: LoggerService): FileFeatureDetector {
-    if (!FileFeatureDetector.instance) {
-      FileFeatureDetector.instance = new FileFeatureDetector(logger);
-    }
-    return FileFeatureDetector.instance;
   }
 
   /**

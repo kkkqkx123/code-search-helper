@@ -448,6 +448,12 @@ export const TYPES = {
   // 41. 优先级管理系统
   PriorityManager: Symbol.for('PriorityManager'),
   SmartStrategySelector: Symbol.for('SmartStrategySelector'),
+
+  // 43. 服务容器和依赖倒置
+  ServiceContainer: Symbol.for('ServiceContainer'),
+  ErrorThresholdInterceptor: Symbol.for('ErrorThresholdInterceptor'),
+  StrategyRegistry: Symbol.for('StrategyRegistry'),
+  EventBus: Symbol.for('EventBus'),
   FallbackManager: Symbol.for('FallbackManager'),
 
   // 43. 协调器
