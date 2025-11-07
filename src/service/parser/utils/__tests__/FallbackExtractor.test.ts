@@ -1,6 +1,5 @@
 import Parser from 'tree-sitter';
 import { FallbackExtractor } from '../FallbackExtractor';
-import { TreeSitterUtils } from '../TreeSitterUtils';
 
 // Mock TreeSitterQueryFacade
 jest.mock('../../core/query/TreeSitterQueryFacade', () => ({
@@ -8,183 +7,240 @@ jest.mock('../../core/query/TreeSitterQueryFacade', () => ({
     findFunctions: jest.fn(),
     findClasses: jest.fn(),
     findImports: jest.fn(),
+    findExports: jest.fn(),
   }
+}));
+
+// Mock LoggerService
+jest.mock('../../../../utils/LoggerService', () => ({
+  LoggerService: jest.fn().mockImplementation(() => ({
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  }))
 }));
 
 describe('FallbackExtractor', () => {
   let mockAST: Parser.SyntaxNode;
+  let mockTree: any;
 
   beforeEach(() => {
-    // Create a mock AST node
+    // 创建模拟的 AST 节点
+    mockTree = {
+      language: {
+        name: 'typescript'
+      }
+    };
+
     mockAST = {
-      id: 1,
-      type: 'program',
+      tree: mockTree,
       startIndex: 0,
       endIndex: 100,
       startPosition: { row: 0, column: 0 },
       endPosition: { row: 10, column: 0 },
-      text: 'function test() { return "hello"; }',
+      text: 'mock text',
+      type: 'function_declaration',
       children: [],
-      parent: null,
       childForFieldName: jest.fn(),
     } as any;
+
+    // 清除所有 mock 调用
+    jest.clearAllMocks();
   });
 
-  describe('基础工具方法', () => {
-    it('应该正确提取节点文本', () => {
-      const sourceCode = 'function test() { return "hello"; }';
-      const text = FallbackExtractor.getNodeText(mockAST, sourceCode);
-      expect(text).toBe(sourceCode);
+  describe('detectLanguageFromAST', () => {
+    test('应该检测并返回标准化的语言名称', () => {
+      const result = FallbackExtractor.detectLanguageFromAST(mockAST);
+      expect(result).toBe('typescript');
     });
 
-    it('应该正确获取节点位置', () => {
-      const location = FallbackExtractor.getNodeLocation(mockAST);
-      expect(location).toEqual({
+    test('应该处理 c_sharp 语言映射', () => {
+      mockTree.language.name = 'c_sharp';
+      const result = FallbackExtractor.detectLanguageFromAST(mockAST);
+      expect(result).toBe('csharp');
+    });
+
+    test('应该处理未知语言', () => {
+      mockTree.language.name = 'unknown_language';
+      const result = FallbackExtractor.detectLanguageFromAST(mockAST);
+      expect(result).toBe('unknown_language');
+    });
+
+    test('应该处理没有语言信息的 AST', () => {
+      mockAST = {} as any;
+      const result = FallbackExtractor.detectLanguageFromAST(mockAST);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('特殊语言处理', () => {
+    test('配置文件语言应该跳过函数提取', async () => {
+      mockTree.language.name = 'json';
+      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      
+      const result = await FallbackExtractor.extractFunctions(mockAST);
+      
+      expect(result).toEqual([]);
+      expect(TreeSitterQueryFacade.findFunctions).not.toHaveBeenCalled();
+    });
+
+    test('前端语言应该正常提取函数', async () => {
+      mockTree.language.name = 'tsx';
+      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      TreeSitterQueryFacade.findFunctions.mockResolvedValue([]);
+      
+      await FallbackExtractor.extractFunctions(mockAST);
+      
+      expect(TreeSitterQueryFacade.findFunctions).toHaveBeenCalledWith(mockAST, 'tsx');
+    });
+
+    test('配置文件语言应该跳过类提取', async () => {
+      mockTree.language.name = 'yaml';
+      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      
+      const result = await FallbackExtractor.extractClasses(mockAST);
+      
+      expect(result).toEqual([]);
+      expect(TreeSitterQueryFacade.findClasses).not.toHaveBeenCalled();
+    });
+
+    test('标记语言应该跳过导入提取', async () => {
+      mockTree.language.name = 'html';
+      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      
+      const result = await FallbackExtractor.extractImports(mockAST);
+      
+      expect(result).toEqual([]);
+      expect(TreeSitterQueryFacade.findImports).not.toHaveBeenCalled();
+    });
+
+    test('后端语言应该跳过导出提取', async () => {
+      mockTree.language.name = 'python';
+      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      
+      const result = await FallbackExtractor.extractExports(mockAST);
+      
+      expect(result).toEqual([]);
+      expect(TreeSitterQueryFacade.findExports).not.toHaveBeenCalled();
+    });
+
+    test('JavaScript 应该正常提取导出', async () => {
+      mockTree.language.name = 'javascript';
+      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      TreeSitterQueryFacade.findExports.mockResolvedValue([]);
+      
+      await FallbackExtractor.extractExports(mockAST);
+      
+      expect(TreeSitterQueryFacade.findExports).toHaveBeenCalledWith(mockAST, 'javascript');
+    });
+  });
+
+  describe('getNodeText', () => {
+    test('应该返回节点的文本内容', () => {
+      const sourceCode = 'function test() { return "hello"; }';
+      const result = FallbackExtractor.getNodeText(mockAST, sourceCode);
+      expect(result).toBe(sourceCode.substring(0, 100));
+    });
+  });
+
+  describe('getNodeLocation', () => {
+    test('应该返回节点的位置信息（从1开始）', () => {
+      const result = FallbackExtractor.getNodeLocation(mockAST);
+      expect(result).toEqual({
         startLine: 1,
         endLine: 11,
         startColumn: 1,
         endColumn: 1,
       });
     });
-
-    it('应该生成片段ID', () => {
-      const content = 'function test() { return "hello"; }';
-      const snippetId = TreeSitterUtils.generateSnippetId(content, 5);
-      expect(snippetId).toMatch(/^snippet_5_[a-z0-9]+$/);
-    });
-
-    it('应该生成简单哈希', () => {
-      const hash = TreeSitterUtils.simpleHash('test');
-      expect(typeof hash).toBe('string');
-      expect(hash.length).toBeGreaterThan(0);
-    });
   });
 
-  describe('语言检测', () => {
-    it('应该从AST检测语言', () => {
-      const mockASTWithLanguage = {
-        ...mockAST,
-        tree: {
-          language: {
-            name: 'javascript'
-          }
-        }
-      } as any;
-
-      // 由于这是私有方法，我们通过公共方法间接测试
-      const language = (FallbackExtractor as any).detectLanguageFromAST(mockASTWithLanguage);
-      expect(language).toBe('javascript');
-    });
-
-    it('应该处理未知语言', () => {
-      const mockASTWithUnknownLanguage = {
-        ...mockAST,
-        tree: {
-          language: {
-            name: 'unknown_language'
-          }
-        }
-      } as any;
-
-      const language = (FallbackExtractor as any).detectLanguageFromAST(mockASTWithUnknownLanguage);
-      expect(language).toBe('unknown_language');
-    });
-  });
-
-  describe('节点名称提取', () => {
-    it('应该为JavaScript函数提取名称', () => {
-      const functionNode = {
-        ...mockAST,
+  describe('getNodeName', () => {
+    test('应该根据语言提取节点名称', () => {
+      const mockNode = {
         type: 'function_declaration',
         children: [
-          {
-            type: 'identifier',
-            text: 'testFunction'
-          }
-        ]
+          { type: 'identifier', text: 'testFunction' }
+        ],
+        childForFieldName: jest.fn(),
       } as any;
 
-      const name = FallbackExtractor.getNodeName(functionNode, 'javascript');
-      expect(name).toBe('testFunction');
+      const result = FallbackExtractor.getNodeName(mockNode, 'javascript');
+      expect(result).toBe('testFunction');
     });
 
-    it('应该为TypeScript类提取名称', () => {
-      const classNode = {
-        ...mockAST,
+    test('应该处理类声明节点', () => {
+      const mockNode = {
         type: 'class_declaration',
         children: [
-          {
-            type: 'type_identifier',
-            text: 'TestClass'
-          }
-        ]
+          { type: 'type_identifier', text: 'TestClass' }
+        ],
+        childForFieldName: jest.fn(),
       } as any;
 
-      const name = FallbackExtractor.getNodeName(classNode, 'typescript');
-      expect(name).toBe('TestClass');
+      const result = FallbackExtractor.getNodeName(mockNode, 'typescript');
+      expect(result).toBe('TestClass');
     });
 
-    it('应该回退到节点类型', () => {
-      const unknownNode = {
-        ...mockAST,
-        type: 'unknown_type',
-        children: []
+    test('应该回退到节点类型', () => {
+      const mockNode = {
+        type: 'unknown_node',
+        children: [],
+        childForFieldName: jest.fn(),
       } as any;
 
-      const name = FallbackExtractor.getNodeName(unknownNode);
-      expect(name).toBe('unknown_type');
+      const result = FallbackExtractor.getNodeName(mockNode, 'javascript');
+      expect(result).toBe('unknown_node');
     });
   });
 
-  describe('回退提取功能', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
+  describe('extractNodesByTypes', () => {
+    test('应该按类型提取节点', () => {
+      const mockChild1 = { type: 'function_declaration', children: [], tree: mockTree } as any;
+      const mockChild2 = { type: 'variable_declaration', children: [], tree: mockTree } as any;
+      const mockChild3 = { type: 'function_declaration', children: [], tree: mockTree } as any;
 
-    it('应该在查询失败时使用回退机制', async () => {
-      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
-      TreeSitterQueryFacade.findFunctions.mockRejectedValue(new Error('Query failed'));
+      mockAST.children = [mockChild1, mockChild2, mockChild3];
+      // 修改根节点类型，避免与子节点类型冲突
+      mockAST.type = 'program';
 
-      const functions = await FallbackExtractor.extractFunctions(mockAST, 'javascript');
-      expect(Array.isArray(functions)).toBe(true);
-      expect(TreeSitterQueryFacade.findFunctions).toHaveBeenCalledWith(mockAST, 'javascript');
-    });
+      const types = new Set(['function_declaration']);
+      const result = FallbackExtractor.extractNodesByTypes(mockAST, types);
 
-    it('应该在查询成功时返回结果', async () => {
-      const mockFunctions = [{ type: 'function_declaration' }] as any;
-      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
-      TreeSitterQueryFacade.findFunctions.mockResolvedValue(mockFunctions);
-
-      const functions = await FallbackExtractor.extractFunctions(mockAST, 'javascript');
-      expect(functions).toBe(mockFunctions);
-      expect(TreeSitterQueryFacade.findFunctions).toHaveBeenCalledWith(mockAST, 'javascript');
+      expect(result).toHaveLength(2);
+      expect(result).toContain(mockChild1);
+      expect(result).toContain(mockChild3);
     });
   });
 
-  describe('导入提取', () => {
-    it('应该提取导入文本', () => {
-      const sourceCode = 'import { Component } from "react";\nimport axios from "axios";';
-      const importNode = {
-        ...mockAST,
+  describe('同步方法兼容性', () => {
+    test('extractImportTexts 应该正常工作', () => {
+      const mockImportNode = {
         type: 'import_statement',
-        startIndex: 0,
-        endIndex: 34,
-        text: 'import { Component } from "react";'
+        text: 'import { test } from "test";',
+        tree: mockTree
       } as any;
 
-      const imports = FallbackExtractor.extractImportTexts(importNode, sourceCode);
-      expect(imports).toHaveLength(1);
-      expect(imports[0]).toBe('import { Component } from "react";');
+      mockAST.children = [mockImportNode];
+
+      const sourceCode = 'import { test } from "test";';
+      const result = FallbackExtractor.extractImportTexts(mockAST, sourceCode);
+
+      expect(result).toContain('import { test } from "test";');
     });
 
-    it('应该提取导入节点', () => {
-      const importNode = {
-        ...mockAST,
-        type: 'import_statement'
+    test('extractImportNodes 应该正常工作', () => {
+      const mockImportNode = {
+        type: 'import_statement',
+        children: [],
+        tree: mockTree
       } as any;
 
-      const imports = FallbackExtractor.extractImportNodes(importNode);
-      expect(Array.isArray(imports)).toBe(true);
+      mockAST.children = [mockImportNode];
+
+      const result = FallbackExtractor.extractImportNodes(mockAST);
+
+      expect(result).toContain(mockImportNode);
     });
   });
 });

@@ -290,7 +290,7 @@ export class TreeSitterCoreService {
     this.cacheStats.misses++;
 
     // 优先使用 TreeSitterQueryFacade
-    const lang = this.detectLanguageFromAST(ast);
+    const lang = FallbackExtractor.detectLanguageFromAST(ast);
     if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
       try {
         const queryResults = await TreeSitterQueryFacade.findMultiple(ast, lang, [type]);
@@ -368,30 +368,16 @@ export class TreeSitterCoreService {
     }
 
     this.cacheStats.misses++;
-    const results: Parser.SyntaxNode[] = [];
 
-    const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
-      if (depth > 100) return;
-
-      if (types.includes(node.type)) {
-        results.push(node);
-      }
-
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) {
-          traverse(child, depth + 1);
-        }
-      }
-    };
-
-    traverse(ast);
+    // 使用FallbackExtractor进行节点提取
+    const nodes = FallbackExtractor.extractNodesByTypes(ast, new Set(types));
 
     // 缓存结果
     if (this.dynamicManager['nodeCache']) {
-      this.dynamicManager['nodeCache'].set(cacheKey, results);
+      this.dynamicManager['nodeCache'].set(cacheKey, nodes);
     }
 
-    return results;
+    return nodes;
   }
 
 
@@ -436,9 +422,8 @@ export class TreeSitterCoreService {
    * 获取节点名称
    */
   getNodeName(node: Parser.SyntaxNode): string {
-    // 尝试从AST检测语言
-    const language = this.detectLanguageFromAST(node);
-    return FallbackExtractor.getNodeName(node, language || undefined);
+    // 使用FallbackExtractor检测语言并获取节点名称
+    return FallbackExtractor.getNodeName(node);
   }
 
   /**
@@ -478,148 +463,6 @@ export class TreeSitterCoreService {
     }
   }
 
-  /**
-   * 从AST检测语言
-   */
-  private detectLanguageFromAST(ast: Parser.SyntaxNode): string | null {
-    const tree = (ast as any).tree;
-    if (tree && tree.language && tree.language.name) {
-      const languageName = tree.language.name;
-      const languageMap: Record<string, string> = {
-        'typescript': 'typescript',
-        'javascript': 'javascript',
-        'python': 'python',
-        'java': 'java',
-        'go': 'go',
-        'rust': 'rust',
-        'cpp': 'cpp',
-        'c': 'c',
-        'c_sharp': 'csharp',
-        'swift': 'swift',
-        'kotlin': 'kotlin',
-        'ruby': 'ruby',
-        'php': 'php',
-        'scala': 'scala'
-      };
-
-      return languageMap[languageName] || languageName;
-    }
-
-    return null;
-  }
-
-  /**
-   * 遗留函数提取方法 - 用于回退机制
-   */
-  private legacyExtractFunctions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    this.logger.warn('使用回退机制提取函数');
-    const functions: Parser.SyntaxNode[] = [];
-
-    const functionTypes = new Set([
-      'function_declaration',
-      'function_definition',
-      'method_definition',
-      'arrow_function',
-      'function_expression',
-      'generator_function',
-      'generator_function_declaration',
-      'method_signature',
-      'method_declaration',
-      'constructor_declaration',
-      'destructor_declaration',
-      'operator_declaration',
-    ]);
-
-    const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
-      if (depth > 100) return;
-
-      if (functionTypes.has(node.type)) {
-        functions.push(node);
-      }
-
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) {
-          traverse(child, depth + 1);
-        }
-      }
-    };
-
-    traverse(ast);
-    return functions;
-  }
-
-  /**
-   * 遗留类提取方法 - 用于回退机制
-   */
-  private legacyExtractClasses(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    this.logger.warn('使用回退机制提取类');
-    const classes: Parser.SyntaxNode[] = [];
-
-    const classTypes = new Set([
-      'class_declaration',
-      'class_definition',
-      'class_expression',
-      'interface_declaration',
-      'interface_definition',
-      'struct_definition',
-      'enum_declaration',
-      'type_alias_declaration',
-      'trait_definition',
-      'object_definition',
-    ]);
-
-    const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
-      if (depth > 100) return;
-
-      if (classTypes.has(node.type)) {
-        classes.push(node);
-      }
-
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) {
-          traverse(child, depth + 1);
-        }
-      }
-    };
-
-    traverse(ast);
-    return classes;
-  }
-
-  /**
-   * 遗留导出提取方法 - 用于回退机制
-   */
-  private legacyExtractExports(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    this.logger.warn('使用回退机制提取导出');
-    const exports: Parser.SyntaxNode[] = [];
-
-    const exportTypes = new Set([
-      'export_statement',
-      'export_clause',
-      'export_specifier',
-      'export_default_declaration',
-      'export_named_declaration',
-      'export_all_declaration',
-      'export_as_clause',
-    ]);
-
-    const traverse = (node: Parser.SyntaxNode, depth: number = 0) => {
-      if (depth > 100) return;
-
-      if (exportTypes.has(node.type)) {
-        exports.push(node);
-      }
-
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) {
-          traverse(child, depth + 1);
-        }
-      }
-    };
-
-    traverse(ast);
-    return exports;
-  }
 
   /**
    * 获取缓存统计信息

@@ -1,6 +1,13 @@
 import Parser from 'tree-sitter';
 import { TreeSitterQueryFacade } from '../core/query/TreeSitterQueryFacade';
 import { LoggerService } from '../../../utils/LoggerService';
+import {
+  getStandardLanguageName,
+  isConfigLanguage,
+  isFrontendLanguage,
+  isEmbeddedTemplateLanguage,
+  getLanguageCategory
+} from '../config/LanguageConstants';
 
 /**
  * 回退提取器
@@ -44,28 +51,37 @@ export class FallbackExtractor {
    * @param ast AST节点
    * @returns 语言名称或null
    */
-  private static detectLanguageFromAST(ast: Parser.SyntaxNode): string | null {
+  /**
+   * 从AST检测语言
+   * @param ast AST节点
+   * @returns 语言名称或null
+   */
+  static detectLanguageFromAST(ast: Parser.SyntaxNode): string | null {
     const tree = (ast as any).tree;
     if (tree && tree.language && tree.language.name) {
       const languageName = tree.language.name;
-      const languageMap: Record<string, string> = {
-        'typescript': 'typescript',
-        'javascript': 'javascript',
-        'python': 'python',
-        'java': 'java',
-        'go': 'go',
-        'rust': 'rust',
-        'cpp': 'cpp',
-        'c': 'c',
-        'c_sharp': 'csharp',
-        'swift': 'swift',
-        'kotlin': 'kotlin',
-        'ruby': 'ruby',
-        'php': 'php',
-        'scala': 'scala'
-      };
-
-      return languageMap[languageName] || languageName;
+      
+      // 使用新的语言常量配置进行标准化
+      const standardLanguageName = getStandardLanguageName(languageName);
+      
+      // 记录语言检测信息
+      const category = getLanguageCategory(standardLanguageName);
+      this.logger.debug(`检测到语言: ${languageName} -> ${standardLanguageName} (分类: ${category})`);
+      
+      // 特殊语言处理
+      if (isConfigLanguage(standardLanguageName)) {
+        this.logger.debug(`检测到配置文件语言: ${standardLanguageName}`);
+      }
+      
+      if (isFrontendLanguage(standardLanguageName)) {
+        this.logger.debug(`检测到前端语言: ${standardLanguageName}`);
+      }
+      
+      if (isEmbeddedTemplateLanguage(standardLanguageName)) {
+        this.logger.debug(`检测到嵌入式模板语言: ${standardLanguageName}`);
+      }
+      
+      return standardLanguageName;
     }
 
     return null;
@@ -82,6 +98,12 @@ export class FallbackExtractor {
       // 尝试使用语言特定查询
       const lang = language || this.detectLanguageFromAST(ast);
       if (lang) {
+        // 特殊语言处理
+        if (this.shouldSkipFunctionExtraction(lang)) {
+          this.logger.debug(`跳过函数提取 (${lang}): 该语言类型通常不包含函数定义`);
+          return [];
+        }
+        
         try {
           const functions = await TreeSitterQueryFacade.findFunctions(ast, lang);
           if (functions.length > 0) {
@@ -112,6 +134,12 @@ export class FallbackExtractor {
       // 尝试使用语言特定查询
       const lang = language || this.detectLanguageFromAST(ast);
       if (lang) {
+        // 特殊语言处理
+        if (this.shouldSkipClassExtraction(lang)) {
+          this.logger.debug(`跳过类提取 (${lang}): 该语言类型通常不包含类定义`);
+          return [];
+        }
+        
         try {
           const classes = await TreeSitterQueryFacade.findClasses(ast, lang);
           if (classes.length > 0) {
@@ -142,6 +170,12 @@ export class FallbackExtractor {
       // 尝试使用语言特定查询
       const lang = language || this.detectLanguageFromAST(ast);
       if (lang) {
+        // 特殊语言处理
+        if (this.shouldSkipImportExtraction(lang)) {
+          this.logger.debug(`跳过导入提取 (${lang}): 该语言类型通常不包含导入语句`);
+          return [];
+        }
+        
         try {
           const imports = await TreeSitterQueryFacade.findImports(ast, lang);
           if (imports.length > 0) {
@@ -172,6 +206,12 @@ export class FallbackExtractor {
       // 尝试使用语言特定查询
       const lang = language || this.detectLanguageFromAST(ast);
       if (lang) {
+        // 特殊语言处理
+        if (this.shouldSkipExportExtraction(lang)) {
+          this.logger.debug(`跳过导出提取 (${lang}): 该语言类型通常不包含导出语句`);
+          return [];
+        }
+        
         try {
           const exports = await TreeSitterQueryFacade.findExports(ast, lang);
           if (exports.length > 0) {
@@ -189,6 +229,87 @@ export class FallbackExtractor {
       this.logger.error('导出提取失败:', error);
       return [];
     }
+  }
+
+  /**
+   * 判断是否应该跳过函数提取
+   * @param language 语言名称
+   * @returns 是否应该跳过
+   */
+  private static shouldSkipFunctionExtraction(language: string): boolean {
+    // 配置文件语言通常不包含函数定义
+    if (isConfigLanguage(language)) {
+      return true;
+    }
+    
+    // 标记语言通常不包含函数定义
+    if (['html', 'css', 'markdown'].includes(language)) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * 判断是否应该跳过类提取
+   * @param language 语言名称
+   * @returns 是否应该跳过
+   */
+  private static shouldSkipClassExtraction(language: string): boolean {
+    // 配置文件语言通常不包含类定义
+    if (isConfigLanguage(language)) {
+      return true;
+    }
+    
+    // 标记语言通常不包含类定义
+    if (['html', 'css', 'markdown', 'json', 'yaml', 'toml'].includes(language)) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * 判断是否应该跳过导入提取
+   * @param language 语言名称
+   * @returns 是否应该跳过
+   */
+  private static shouldSkipImportExtraction(language: string): boolean {
+    // 配置文件语言通常不包含导入语句
+    if (isConfigLanguage(language)) {
+      return true;
+    }
+    
+    // 某些标记语言不包含导入语句
+    if (['html', 'css', 'markdown'].includes(language)) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * 判断是否应该跳过导出提取
+   * @param language 语言名称
+   * @returns 是否应该跳过
+   */
+  private static shouldSkipExportExtraction(language: string): boolean {
+    // 配置文件语言通常不包含导出语句
+    if (isConfigLanguage(language)) {
+      return true;
+    }
+    
+    // 某些标记语言不包含导出语句
+    if (['html', 'css', 'markdown', 'json', 'yaml', 'toml'].includes(language)) {
+      return true;
+    }
+    
+    // 大多数后端语言不使用导出语句
+    if (['python', 'java', 'go', 'rust', 'cpp', 'c', 'csharp', 'swift', 'kotlin', 'ruby', 'php', 'scala'].includes(language)) {
+      return true;
+    }
+    
+    return false;
   }
 
   /**
