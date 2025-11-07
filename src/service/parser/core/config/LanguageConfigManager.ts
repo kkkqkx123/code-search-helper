@@ -1,4 +1,5 @@
 import { StrategyConfiguration } from '../../interfaces/CoreISplitStrategy';
+import { languageMappingManager } from '../../config/LanguageMappingManager';
 
 /**
  * 语言特定配置接口
@@ -129,7 +130,28 @@ export class LanguageConfigManager {
    * 初始化语言特定配置
    */
   private initializeLanguageConfigs(): void {
-    // TypeScript 配置
+    // Use the new language classification system to initialize configs
+    const allLanguages = languageMappingManager.getAllSupportedLanguages();
+    
+    for (const lang of allLanguages) {
+      const langConfig = languageMappingManager.getLanguageConfig(lang);
+      if (langConfig) {
+        // Create a base config based on the new classification system
+        const config: LanguageConfiguration = {
+          language: lang,
+          fileExtensions: langConfig.extensions,
+          chunkTypes: this.getDefaultChunkTypes(lang, langConfig.strategy.supportedQueryTypes || []),
+          defaultChunkConfig: this.getDefaultChunkConfig(lang),
+          syntaxRules: [],
+          specialRules: [],
+          performanceConfig: this.getDefaultPerformanceConfig(lang)
+        };
+        
+        this.configs.set(lang, config);
+      }
+    }
+    
+    // Override specific configurations with more detailed settings
     this.addLanguageConfig({
       language: 'typescript',
       fileExtensions: ['.ts', '.tsx'],
@@ -192,7 +214,6 @@ export class LanguageConfigManager {
       }
     });
 
-    // JavaScript 配置
     this.addLanguageConfig({
       language: 'javascript',
       fileExtensions: ['.js', '.jsx'],
@@ -246,7 +267,6 @@ export class LanguageConfigManager {
       }
     });
 
-    // Python 配置
     this.addLanguageConfig({
       language: 'python',
       fileExtensions: ['.py'],
@@ -301,7 +321,6 @@ export class LanguageConfigManager {
       }
     });
 
-    // Java 配置
     this.addLanguageConfig({
       language: 'java',
       fileExtensions: ['.java'],
@@ -356,7 +375,6 @@ export class LanguageConfigManager {
       }
     });
 
-    // Go 配置
     this.addLanguageConfig({
       language: 'go',
       fileExtensions: ['.go'],
@@ -412,6 +430,96 @@ export class LanguageConfigManager {
   }
 
   /**
+   * Gets default chunk types based on supported query types from the classification system
+   */
+  private getDefaultChunkTypes(language: string, supportedQueryTypes: string[]): string[] {
+    // Map query types to chunk types
+    const queryToChunkMap: Record<string, string> = {
+      'functions': 'function',
+      'classes': 'class',
+      'methods': 'method',
+      'imports': 'import_statement',
+      'exports': 'export_statement',
+      'variables': 'variable_declaration',
+      'types': 'type_alias_declaration',
+      'interfaces': 'interface_declaration',
+      'elements': 'element',
+      'attributes': 'attribute',
+      'rules': 'rule',
+      'selectors': 'selector',
+      'components': 'component'
+    };
+
+    const chunkTypes = ['function', 'class', 'module']; // Default fallback
+    const mappedTypes = supportedQueryTypes
+      .map(queryType => queryToChunkMap[queryType] || queryType)
+      .filter(Boolean);
+
+    return mappedTypes.length > 0 ? mappedTypes : chunkTypes;
+  }
+
+  /**
+   * Gets performance config based on language classification
+   */
+  private getDefaultPerformanceConfig(language: string): PerformanceConfig {
+    const langConfig = languageMappingManager.getLanguageConfig(language);
+    
+    if (langConfig) {
+      // Use the classification system's parameters to determine performance config
+      const maxFileSize = langConfig.strategy.maxQueryDepth > 5 ? 2 * 1024 * 1024 : 1024 * 1024;
+      const maxParseTime = langConfig.strategy.maxQueryDepth > 5 ? 8000 : 5000;
+      const cacheSize = langConfig.strategy.maxQueryDepth > 5 ? 1500 : 1000;
+      const parallelThreads = langConfig.strategy.maxQueryDepth > 5 ? 4 : 3;
+      
+      return {
+        maxFileSize,
+        maxParseTime,
+        cacheSize,
+        enableParallel: true,
+        parallelThreads
+      };
+    }
+    
+    // Default performance config
+    return {
+      maxFileSize: 1024 * 1024, // 1MB
+      maxParseTime: 5000, // 5秒
+      cacheSize: 1000,
+      enableParallel: true,
+      parallelThreads: 4
+    };
+  }
+
+  /**
+   * Gets default chunk config based on language classification
+   */
+  private getDefaultChunkConfig(language: string): StrategyConfiguration {
+    const langConfig = languageMappingManager.getLanguageConfig(language);
+    
+    if (langConfig) {
+      // Adjust max chunk size based on language complexity
+      const baseSize = langConfig.strategy.maxQueryDepth > 5 ? 2000 : 1500;
+      
+      return {
+        maxChunkSize: baseSize,
+        minChunkSize: baseSize * 0.1,
+        preserveComments: true,
+        preserveEmptyLines: false,
+        maxNestingLevel: Math.min(langConfig.strategy.maxQueryDepth * 2, 20)
+      };
+    }
+    
+    // Default chunk config
+    return {
+      maxChunkSize: 2000,
+      minChunkSize: 100,
+      preserveComments: true,
+      preserveEmptyLines: false,
+      maxNestingLevel: 10
+    };
+  }
+
+  /**
    * 添加语言配置
    */
   addLanguageConfig(config: LanguageConfiguration): void {
@@ -429,6 +537,13 @@ export class LanguageConfigManager {
    * 根据文件扩展名获取语言配置
    */
   getLanguageConfigByExtension(extension: string): LanguageConfiguration {
+    // Use the new classification system first
+    const language = languageMappingManager.getLanguageByExtension(extension);
+    if (language) {
+      return this.getLanguageConfig(language);
+    }
+    
+    // Fallback to the old method
     for (const config of this.configs.values()) {
       if (config.fileExtensions.includes(extension)) {
         return config;
@@ -441,7 +556,8 @@ export class LanguageConfigManager {
    * 获取所有支持的语言
    */
   getSupportedLanguages(): string[] {
-    return Array.from(this.configs.keys());
+    // Use the new classification system
+    return languageMappingManager.getAllSupportedLanguages();
   }
 
   /**
@@ -488,7 +604,8 @@ export class LanguageConfigManager {
    * 检查语言是否支持
    */
   isLanguageSupported(language: string): boolean {
-    return this.configs.has(language);
+    // Use the new classification system
+    return languageMappingManager.isLanguageSupported(language);
   }
 
   /**

@@ -58,6 +58,8 @@ import { IntelligentFallbackEngine } from '../../service/parser/guard/Intelligen
 import { ProcessingStrategyFactory } from '../../service/parser/processing/strategies/providers/ProcessingStrategyFactory';
 import { MarkdownTextStrategy } from '../../service/parser/processing/utils/md/MarkdownTextStrategy';
 import { XMLTextStrategy } from '../../service/parser/processing/utils/xml/XMLTextStrategy';
+import { LayeredHTMLStrategy } from '../../service/parser/processing/strategies/segmentation/LayeredHTMLStrategy';
+import { HTMLContentExtractor } from '../../service/parser/processing/utils/html/HTMLContentExtractor';
 import { ConfigCoordinator } from '../../service/parser/processing/coordination/ConfigCoordinator';
 import { PerformanceMonitoringCoordinator } from '../../service/parser/processing/coordination/PerformanceMonitoringCoordinator';
 import { UnifiedProcessingCoordinator } from '../../service/parser/processing/coordination/UnifiedProcessingCoordinator';
@@ -350,6 +352,10 @@ export class BusinessServiceRegistrar {
       // 特殊格式文本分割器
       container.bind<MarkdownTextStrategy>(TYPES.MarkdownTextStrategy).to(MarkdownTextStrategy).inSingletonScope();
       container.bind<XMLTextStrategy>(TYPES.XMLTextStrategy).to(XMLTextStrategy).inSingletonScope();
+      
+      // HTML分层处理策略
+      container.bind<LayeredHTMLStrategy>(TYPES.LayeredHTMLStrategy).to(LayeredHTMLStrategy).inSingletonScope();
+      container.bind<HTMLContentExtractor>(TYPES.HTMLContentExtractor).to(HTMLContentExtractor).inSingletonScope();
 
       // 搜索服务
       container.bind<FileSearchService>(TYPES.FileSearchService).to(FileSearchService).inSingletonScope();

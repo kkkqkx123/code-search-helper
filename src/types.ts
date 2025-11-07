@@ -425,6 +425,8 @@ export const TYPES = {
   // 38. 特殊格式文本分割器
   MarkdownTextStrategy: Symbol.for('MarkdownTextStrategy'),
   XMLTextStrategy: Symbol.for('XMLTextStrategy'),
+  LayeredHTMLStrategy: Symbol.for('LayeredHTMLStrategy'),
+  HTMLContentExtractor: Symbol.for('HTMLContentExtractor'),
 
   // 39. 统一配置管理器
   UnifiedConfigManager: Symbol.for('UnifiedConfigManager'),

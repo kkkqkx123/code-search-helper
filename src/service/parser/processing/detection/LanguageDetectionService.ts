@@ -4,6 +4,7 @@ import { TYPES } from '../../../../types';
 import { BackupFileProcessor } from './BackupFileProcessor';
 import { FileFeatureDetector } from './FileFeatureDetector';
 import { languageExtensionMap, fileUtils, languageFeatureDetector } from '../../utils';
+import { languageMappingManager } from '../../config/LanguageMappingManager';
 
 /**
  * 语言检测结果接口（兼容core目录的接口）
@@ -11,17 +12,19 @@ import { languageExtensionMap, fileUtils, languageFeatureDetector } from '../../
 export interface LanguageDetectionResult {
   language: string | undefined;
   confidence: number;
-  method: 'extension' | 'content' | 'backup' | 'hybrid' | 'fallback';
+  method: 'extension' | 'content' | 'backup' | 'hybrid' | 'fallback' | 'query_analysis';
   metadata?: {
     originalExtension?: string;
     indicators?: string[];
     processingStrategy?: string;
+    queryMatches?: number;
+    totalQueries?: number;
   };
 }
 
 /**
  * 统一的语言检测服务
- * 整合了core目录和processing/detection目录的所有功能
+ * 整合了core目录和processing/detection目录的所有功能，使用基于查询规则的分类系统
  */
 @injectable()
 export class LanguageDetectionService {
@@ -64,9 +67,9 @@ export class LanguageDetectionService {
         }
       }
 
-      // 2. 尝试通过扩展名检测
+      // 2. 尝试通过扩展名检测 using the new classification system
       const extensionResult = await this.detectLanguageByExtensionAsync(filePath);
-      if (extensionResult.language && extensionResult.language !== 'unknown') {
+      if (extensionResult.language && extensionResult.language !== 'unknown' && languageMappingManager.isLanguageSupported(extensionResult.language)) {
         return extensionResult;
       }
 
@@ -80,7 +83,7 @@ export class LanguageDetectionService {
 
       // 如果所有检测都失败，尝试基于文件路径的简单检测
       const simpleDetection = this.detectLanguageSync(filePath);
-      if (simpleDetection && simpleDetection !== 'unknown') {
+      if (simpleDetection && simpleDetection !== 'unknown' && languageMappingManager.isLanguageSupported(simpleDetection)) {
         return {
           language: simpleDetection,
           confidence: 0.3,
@@ -89,7 +92,7 @@ export class LanguageDetectionService {
       }
 
       return {
-        language: 'unknown',
+        language: undefined,
         confidence: 0.0,
         method: 'fallback'
       };
@@ -97,7 +100,7 @@ export class LanguageDetectionService {
       this.logger?.error(`Language detection failed for ${filePath}:`, error);
       // 如果所有检测都失败，尝试基于文件路径的简单检测
       const simpleDetection = this.detectLanguageSync(filePath);
-      if (simpleDetection && simpleDetection !== 'unknown') {
+      if (simpleDetection && simpleDetection !== 'unknown' && languageMappingManager.isLanguageSupported(simpleDetection)) {
         return {
           language: simpleDetection,
           confidence: 0.3,
@@ -106,7 +109,7 @@ export class LanguageDetectionService {
       }
 
       return {
-        language: 'unknown',
+        language: undefined,
         confidence: 0.0,
         method: 'fallback'
       };
@@ -119,7 +122,7 @@ export class LanguageDetectionService {
    * @returns 编程语言名称或undefined
    */
   detectLanguageSync(filePath: string): string | undefined {
-    return languageExtensionMap.getLanguageFromPath(filePath);
+    return languageMappingManager.getLanguageByPath(filePath);
   }
 
   /**
@@ -128,7 +131,7 @@ export class LanguageDetectionService {
    * @returns 语言检测结果
    */
   async detectLanguageByExtensionAsync(filePath: string): Promise<LanguageDetectionResult> {
-    const language = languageExtensionMap.getLanguageFromPath(filePath);
+    const language = languageMappingManager.getLanguageByPath(filePath);
     const extension = fileUtils.extractFileExtension(filePath);
     
     return {
@@ -150,7 +153,7 @@ export class LanguageDetectionService {
     // 使用工具类的内容检测
     const detection = languageFeatureDetector.detectLanguageByContent(content);
     
-    if (detection.language && detection.confidence > 0.5) {
+    if (detection.language && detection.confidence > 0.5 && languageMappingManager.isLanguageSupported(detection.language)) {
       return {
         language: detection.language,
         confidence: detection.confidence,
@@ -169,7 +172,7 @@ export class LanguageDetectionService {
    * @returns 支持的语言列表
    */
   getSupportedLanguages(): string[] {
-    return languageExtensionMap.getAllSupportedLanguages();
+    return languageMappingManager.getAllSupportedLanguages();
   }
 
   /**
@@ -178,7 +181,8 @@ export class LanguageDetectionService {
    * @returns 是否支持AST解析
    */
   isLanguageSupportedForAST(language: string | undefined): boolean {
-    return languageFeatureDetector.isLanguageSupportedForAST(language);
+    if (!language) return false;
+    return languageMappingManager.isLanguageSupported(language) && !languageMappingManager.getLanguageConfig(language)?.strategy.skipASTParsing;
   }
 
   /**
@@ -197,7 +201,7 @@ export class LanguageDetectionService {
    * @returns 编程语言名称或undefined
    */
   detectLanguageByExtension(ext: string): string | undefined {
-    return languageExtensionMap.getLanguageByExtension(ext);
+    return languageMappingManager.getLanguageByExtension(ext);
   }
 
   /**
@@ -226,7 +230,7 @@ export class LanguageDetectionService {
       const backupMetadata = this.backupProcessor.getBackupFileMetadata(filePath);
       if (backupMetadata.isBackup && backupMetadata.originalInfo) {
         const language = backupMetadata.originalInfo.language;
-        if (language && language !== 'unknown') {
+        if (language && language !== 'unknown' && languageMappingManager.isLanguageSupported(language)) {
           const parser = parsers.get(language);
           return parser && parser.supported ? parser : null;
         }
@@ -238,7 +242,7 @@ export class LanguageDetectionService {
         // 如果没有扩展名，尝试内容检测
         if (content) {
           const contentDetection = languageFeatureDetector.detectLanguageByContent(content);
-          if (contentDetection.language && contentDetection.confidence > 0.5) {
+          if (contentDetection.language && contentDetection.confidence > 0.5 && languageMappingManager.isLanguageSupported(contentDetection.language)) {
             const parser = parsers.get(contentDetection.language);
             return parser && parser.supported ? parser : null;
           }
@@ -246,7 +250,7 @@ export class LanguageDetectionService {
         return null;
       }
 
-      // 2. 基于扩展名的初步检测
+      // 2. 基于扩展名的初步检测 using new classification system
       let language = parsers.get(this.getLanguageKeyByExtension(ext));
 
       // 3. 基于内容的二次验证（如果提供了内容）
@@ -287,7 +291,7 @@ export class LanguageDetectionService {
    * @returns 语言键
    */
   private getLanguageKeyByExtension(ext: string): string {
-    return languageExtensionMap.getLanguageByExtension(ext) || '';
+    return languageMappingManager.getLanguageByExtension(ext) || '';
   }
 
   /**
@@ -325,7 +329,7 @@ export class LanguageDetectionService {
       // 使用语言特征检测器进行内容检测
       const detectionResult = languageFeatureDetector.detectLanguageByContent(content);
       
-      if (detectionResult.language && detectionResult.confidence > 0.5) {
+      if (detectionResult.language && detectionResult.confidence > 0.5 && languageMappingManager.isLanguageSupported(detectionResult.language)) {
         return parsers.get(detectionResult.language) || null;
       }
 

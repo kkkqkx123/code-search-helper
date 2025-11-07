@@ -17,6 +17,7 @@ export enum ProcessingStrategyType {
   UNIVERSAL_LINE = 'universal_line',
   MARKDOWN_SPECIALIZED = 'markdown_specialized',
   XML_SPECIALIZED = 'xml_specialized',
+  HTML_LAYERED = 'html_layered',
   EMERGENCY_SINGLE_CHUNK = 'emergency_single_chunk'
 }
 /**
@@ -382,6 +383,10 @@ export class UnifiedDetectionService {
 
     // XML文件使用专门策略
     if (features.isXMLFile) {
+      // HTML文件使用分层处理策略
+      if (language.toLowerCase() === 'html' || language.toLowerCase() === 'xhtml') {
+        return 'html_layered';
+      }
       return 'xml-specialized';
     }
 

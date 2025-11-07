@@ -1,3 +1,7 @@
+import { LoggerService } from '../../../../utils/LoggerService';
+import { languageMappingManager } from '../../config/LanguageMappingManager';
+import { LanguageClassificationDetector } from '../../config/LanguageClassificationDetector';
+
 /**
  * 核心语言检测服务接口
  */
@@ -52,16 +56,18 @@ export interface ILanguageDetector {
 export interface LanguageDetectionResult {
   language: string | undefined;
   confidence: number;
-  method: 'extension' | 'content' | 'backup' | 'hybrid' | 'fallback';
+  method: 'extension' | 'content' | 'backup' | 'hybrid' | 'fallback' | 'query_analysis';
   metadata?: {
     originalExtension?: string;
     indicators?: string[];
+    queryMatches?: number;
+    totalQueries?: number;
   };
 }
 
 /**
  * 核心语言检测服务实现
- * 提供基础的语言检测功能，不包含高级业务逻辑
+ * 提供基础的语言检测功能，集成了基于查询规则目录的语言分类
  */
 export class LanguageDetector implements ILanguageDetector {
   private static readonly languageExtensionMap = new Map<string, string[]>([
@@ -88,6 +94,13 @@ export class LanguageDetector implements ILanguageDetector {
     ['markdown', ['.md', '.markdown']],
     ['text', ['.txt']]
   ]);
+  private logger: LoggerService;
+  private classificationDetector: LanguageClassificationDetector;
+
+  constructor() {
+    this.logger = new LoggerService();
+    this.classificationDetector = new LanguageClassificationDetector();
+  }
 
   /**
    * 检测语言
@@ -95,7 +108,7 @@ export class LanguageDetector implements ILanguageDetector {
   async detectLanguage(filePath: string, content?: string): Promise<LanguageDetectionResult> {
     // 1. 尝试通过扩展名检测
     const extensionResult = this.detectLanguageSync(filePath);
-    if (extensionResult && extensionResult !== 'unknown') {
+    if (extensionResult && extensionResult !== 'unknown' && languageMappingManager.isLanguageSupported(extensionResult)) {
       return {
         language: extensionResult,
         confidence: 0.9,
@@ -108,8 +121,8 @@ export class LanguageDetector implements ILanguageDetector {
 
     // 2. 如果扩展名检测失败，尝试内容检测
     if (content) {
-      const contentDetection = this.detectLanguageByContent(content);
-      if (contentDetection.confidence > 0.5) {
+      const contentDetection = await this.classificationDetector.detectByContent(content);
+      if (contentDetection && contentDetection.confidence > 0.5) {
         return contentDetection;
       }
     }
@@ -125,36 +138,21 @@ export class LanguageDetector implements ILanguageDetector {
    * 同步检测语言 - 仅基于文件扩展名
    */
   detectLanguageSync(filePath: string): string | undefined {
-    const ext = this.getFileExtension(filePath);
-    if (!ext) return undefined;
-
-    for (const [language, extensions] of LanguageDetector.languageExtensionMap) {
-      if (extensions.includes(ext.toLowerCase())) {
-        return language;
-      }
-    }
-
-    return undefined;
+    return languageMappingManager.getLanguageByPath(filePath);
   }
 
   /**
    * 根据扩展名检测语言
    */
- detectLanguageByExtension(ext: string): string | undefined {
-    for (const [language, extensions] of LanguageDetector.languageExtensionMap) {
-      if (extensions.includes(ext.toLowerCase())) {
-        return language;
-      }
-    }
-
-    return undefined;
+  detectLanguageByExtension(ext: string): string | undefined {
+    return languageMappingManager.getLanguageByExtension(ext);
   }
 
   /**
    * 获取支持的语言列表
    */
   getSupportedLanguages(): string[] {
-    return Array.from(LanguageDetector.languageExtensionMap.keys());
+    return languageMappingManager.getAllSupportedLanguages();
   }
 
   /**
@@ -162,9 +160,12 @@ export class LanguageDetector implements ILanguageDetector {
    */
   isLanguageSupportedForAST(language: string | undefined): boolean {
     if (!language) return false;
-    
-    // 假设所有已知语言都支持AST解析
-    return this.getSupportedLanguages().includes(language.toLowerCase());
+
+    const config = languageMappingManager.getLanguageConfig(language);
+    if (!config) return false;
+
+    // 检查该语言的策略是否跳过AST解析
+    return !config.strategy.skipASTParsing;
   }
 
   /**
@@ -212,115 +213,9 @@ export class LanguageDetector implements ILanguageDetector {
    * 根据内容检测语言
    */
   detectLanguageByContent(content: string): LanguageDetectionResult {
-    const lines = content.split('\n').slice(0, 50); // 只检查前50行
-    let bestMatch = { language: 'unknown', confidence: 0 };
-
-    const contentPatterns: Record<string, RegExp[]> = {
-      typescript: [
-        /^import\s+.*from\s+['"][^'"]+['"];?$/,
-        /^export\s+(interface|type|class|function|const|let|var)\s+/,
-        /^interface\s+\w+/,
-        /^type\s+\w+/,
-        /^\s*\w+\s*:\s*\w+/,
-        /<[^>]*>/g
-      ],
-      javascript: [
-        /^import\s+.*from\s+['"][^'"]+['"];?$/,
-        /^export\s+(class|function|const|let|var)\s+/,
-        /^const\s+\w+\s*=\s*\(/,
-        /^function\s+\w+/,
-        /=>\s*\{/
-      ],
-      python: [
-        /^import\s+/,
-        /^from\s+.*\s+import\s+/,
-        /^def\s+\w+/,
-        /^class\s+\w+/,
-        /^\s+\w+\s*:/,
-        /f["'][^"']*["']/
-      ],
-      java: [
-        /^import\s+/,
-        /^package\s+/,
-        /^public\s+(class|interface|enum)\s+\w+/,
-        /^private|protected|public\s+\w+\s+\w+\s*\(/,
-        /@\w+/
-      ],
-      go: [
-        /^package\s+/,
-        /^import\s+/,
-        /^func\s+\w+/,
-        /^type\s+\w+\s+struct/,
-        /^var\s+\w+/,
-        /^const\s+\w+/
-      ],
-      rust: [
-        /^use\s+/,
-        /^fn\s+\w+/,
-        /^struct\s+\w+/,
-        /^impl\s+\w+/,
-        /^let\s+(mut\s+)?\w+/,
-        /#\w+/
-      ],
-      html: [
-        /^<!DOCTYPE\s+html>/i,
-        /<html[^>]*>/i,
-        /<head[^>]*>/i,
-        /<body[^>]*>/i,
-        /<div[^>]*>/i,
-        /<script[^>]*>/i
-      ],
-      markdown: [
-        /^#\s+/,
-        /^\*\s+/,
-        /^-\s+/,
-        /^\d+\.\s+/,
-        /```[\w]*$/,
-        /\*\*[^*]+\*\*/,
-        /\[([^\]]+)\]\(([^)]+)\)/
-      ],
-      json: [
-        /^\s*\{/,
-        /^\s*\[/,
-        /"\w+"\s*:/,
-        /^\s*"/,
-        /true|false|null/
-      ],
-      yaml: [
-        /^\w+\s*:/,
-        /^\s*-\s+/,
-        /^---/,
-        /^\.\.\./,
-        /true|false|null/
-      ],
-      xml: [
-        /^<\?xml/,
-        /<[^>]+>/,
-        /<\/[^>]+>/,
-        /<[^>]+\/>/
-      ]
-    };
-
-    for (const [language, patterns] of Object.entries(contentPatterns)) {
-      let languageMatches = 0;
-      for (const pattern of patterns) {
-        const matches = lines.filter(line => pattern.test(line)).length;
-        languageMatches += matches;
-      }
-      // Increase confidence calculation to make content detection more effective
-      // Base confidence is matches/lines, but we add a bonus for multiple pattern matches
-      const baseConfidence = languageMatches / lines.length;
-      const patternBonus = Math.min(languageMatches * 0.1, 0.3); // Max 0.3 bonus
-      const confidence = Math.min(baseConfidence + patternBonus, 1.0);
-
-      if (confidence > bestMatch.confidence) {
-        bestMatch = { language, confidence };
-      }
-    }
-
     return {
-      language: bestMatch.language !== 'unknown' ? bestMatch.language : undefined,
-      confidence: bestMatch.confidence,
+      language: undefined,
+      confidence: 0.0,
       method: 'content',
       metadata: { indicators: [] } // 简化返回值
     };

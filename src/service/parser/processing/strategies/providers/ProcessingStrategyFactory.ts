@@ -12,6 +12,7 @@ import { LineSegmentationStrategy } from '../segmentation/LineSegmentationStrate
 import { MarkdownSegmentationStrategy } from '../segmentation/MarkdownSegmentationStrategy';
 import { SemanticSegmentationStrategy } from '../segmentation/SemanticSegmentationStrategy';
 import { XMLStrategy } from '../segmentation/XMLSegmentationStrategy';
+import { LayeredHTMLStrategy } from '../segmentation/LayeredHTMLStrategy';
 
 @injectable()
 export class ProcessingStrategyFactory {
@@ -42,6 +43,9 @@ export class ProcessingStrategyFactory {
 
       case ProcessingStrategyType.XML_SPECIALIZED:
         return new XMLStrategy(this.xmlStrategy, this.logger);
+
+      case ProcessingStrategyType.HTML_LAYERED:
+        return new LayeredHTMLStrategy(this.logger, this.xmlStrategy);
 
       case ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE:
         // 使用精细模式的语义分段策略
@@ -90,6 +94,9 @@ export class ProcessingStrategyFactory {
 
       case ProcessingStrategyType.XML_SPECIALIZED:
         return new XMLStrategy(dependencies.xmlStrategy || this.xmlStrategy, this.logger);
+
+      case ProcessingStrategyType.HTML_LAYERED:
+        return new LayeredHTMLStrategy(this.logger, dependencies.xmlStrategy || this.xmlStrategy);
 
       case ProcessingStrategyType.UNIVERSAL_SEMANTIC_FINE:
         const fineSemanticStrategy = new SemanticSegmentationStrategy(this.logger);
