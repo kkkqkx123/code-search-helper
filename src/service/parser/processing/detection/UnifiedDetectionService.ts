@@ -27,14 +27,13 @@ export enum ProcessingStrategyType {
 export interface DetectionResult {
   language: string;
   confidence: number;
-  detectionMethod: 'extension' | 'content' | 'backup' | 'treesitter' | 'hybrid';
+  detectionMethod: 'extension' | 'content' | 'backup' | 'hybrid';
   fileType?: 'backup' | 'normal' | 'extensionless' | 'unknown'; // 添加fileType字段
   processingStrategy?: string; // 添加processingStrategy字段
   metadata: {
     originalExtension?: string;
     overrideReason?: string;
     fileFeatures?: FileFeatures;
-    astInfo?: any;
     processingStrategy?: string;
   };
 }
@@ -76,8 +75,6 @@ export interface LanguageDetectionInfo {
 export class UnifiedDetectionService {
   private logger?: LoggerService;
   private configManager: UnifiedConfigManager;
-  private detectionCache: Map<string, DetectionResult> = new Map();
-  private readonly cacheSizeLimit = 1000; // 限制缓存大小
   private fileFeatureDetector: IFileFeatureDetector;
   private backupFileProcessor: BackupFileProcessor;
   private languageDetector: LanguageDetector;
@@ -111,28 +108,6 @@ export class UnifiedDetectionService {
     // 发布检测开始事件
     this.eventBus?.emit(ParserEvents.FILE_DETECTION_STARTED, { filePath, contentLength: content.length });
 
-    // 创建缓存键，包含文件路径和内容长度以确保一致性
-    const cacheKey = `${filePath}:${content.length}:${this.getContentHash(content)}`;
-
-    // 检查缓存
-    if (this.detectionCache.has(cacheKey)) {
-      this.logger?.debug(`Cache hit for detection: ${filePath}`);
-      this.eventBus?.emit(ParserEvents.CACHE_HIT, { filePath, cacheKey });
-      const result = this.detectionCache.get(cacheKey)!;
-
-      // 发布检测完成事件
-      const eventData: FileDetectedEvent = {
-        filePath,
-        result,
-        duration: Date.now() - startTime
-      };
-      this.eventBus?.emit(ParserEvents.FILE_DETECTED, eventData);
-
-      return result;
-    }
-
-    this.eventBus?.emit(ParserEvents.CACHE_MISS, { filePath, cacheKey });
-
     try {
       // 1. 检查是否为备份文件
       const backupResult = this.detectBackupFile(filePath, content);
@@ -154,21 +129,7 @@ export class UnifiedDetectionService {
       const fileFeatures = this.analyzeFileFeatures(content, finalResult.language);
       finalResult.metadata.fileFeatures = fileFeatures;
 
-      // 6. AST生成（如果适用）
-      if (this.shouldGenerateAST(finalResult, fileFeatures) && this.treeSitterService) {
-        try {
-          const astInfo = await this.generateAST(content, finalResult.language);
-          if (astInfo) {
-            finalResult.metadata.astInfo = astInfo;
-            this.logger?.debug(`AST generated successfully for ${filePath}`);
-          }
-        } catch (error) {
-          this.logger?.warn(`Failed to generate AST for ${filePath}:`, error);
-          // AST生成失败不应该影响整个检测过程
-        }
-      }
-
-      // 7. 处理策略推荐
+      // 6. 处理策略推荐
       finalResult.metadata.processingStrategy = this.recommendProcessingStrategy(finalResult, fileFeatures);
       finalResult.processingStrategy = finalResult.metadata.processingStrategy;
 
@@ -178,9 +139,6 @@ export class UnifiedDetectionService {
       }
 
       this.logger?.debug(`Final detection result: ${finalResult.language} (confidence: ${finalResult.confidence})`);
-
-      // 缓存结果
-      this.cacheDetectionResult(cacheKey, finalResult);
 
       return finalResult;
 
@@ -196,8 +154,6 @@ export class UnifiedDetectionService {
       this.eventBus?.emit(ParserEvents.FILE_DETECTION_FAILED, errorEventData);
 
       const fallbackResult = this.createFallbackResult(filePath, content);
-      // 缓存降级结果
-      this.cacheDetectionResult(cacheKey, fallbackResult);
       return fallbackResult;
     }
   }
@@ -475,131 +431,7 @@ export class UnifiedDetectionService {
     return this.fileFeatureDetector.calculateComplexity(content);
   }
 
-  /**
-   * 判断是否应该生成AST
-   */
-  private shouldGenerateAST(detection: DetectionResult, features: FileFeatures): boolean {
-    // 只为代码文件生成AST
-    if (!features.isCodeFile) {
-      return false;
-    }
 
-    // 只为高置信度的检测生成AST
-    if (detection.confidence < 0.7) {
-      return false;
-    }
-
-    // 只为结构化文件生成AST
-    if (!features.isStructuredFile) {
-      return false;
-    }
-
-    // 文件大小限制（避免为过大的文件生成AST）
-    if (features.size > 100000) { // 100KB
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * 生成AST信息
-   */
-  private async generateAST(content: string, language: string): Promise<any> {
-    if (!this.treeSitterService) {
-      return null;
-    }
-
-    try {
-      // 检测语言 - 使用更宽松的匹配方式
-      const supportedLanguages = this.treeSitterService.getSupportedLanguages();
-      const detectedLanguage = supportedLanguages.find(lang =>
-        lang.name.toLowerCase() === language.toLowerCase()
-      );
-      if (!detectedLanguage) {
-        this.logger?.warn(`TreeSitter does not support language: ${language}`);
-        return null;
-      }
-
-      // 解析代码
-      const parseResult = await this.treeSitterService.parseCode(content, detectedLanguage.name);
-      if (!parseResult.success || !parseResult.ast) {
-        this.logger?.warn(`Failed to parse ${language} code with TreeSitter`);
-        return null;
-      }
-
-      // 提取函数和类信息
-      const functions = await this.treeSitterService.extractFunctions(parseResult.ast);
-      const classes = await this.treeSitterService.extractClasses(parseResult.ast);
-
-      return {
-        ast: parseResult.ast,
-        language: detectedLanguage.name,
-        functions: functions.length,
-        classes: classes.length,
-        parseSuccess: true,
-        timestamp: Date.now()
-      };
-
-    } catch (error) {
-      this.logger?.error(`AST generation failed for ${language}:`, error);
-      return null;
-    }
-  }
-
-  /**
-   * 生成内容哈希
-   */
-  private getContentHash(content: string): string {
-    // 简单的哈希算法，基于内容的前100个字符和后100个字符
-    const prefix = content.substring(0, 100);
-    const suffix = content.length > 100 ? content.substring(content.length - 100) : '';
-    const combined = prefix + suffix;
-
-    let hash = 0;
-    for (let i = 0; i < combined.length; i++) {
-      const char = combined.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return Math.abs(hash).toString(36);
-  }
-
-  /**
-   * 缓存检测结果
-   */
-  private cacheDetectionResult(cacheKey: string, result: DetectionResult): void {
-    // 管理缓存大小
-    if (this.detectionCache.size >= this.cacheSizeLimit) {
-      // 删除最旧的条目（简单的FIFO策略）
-      const firstKey = this.detectionCache.keys().next().value;
-      if (firstKey) {
-        this.detectionCache.delete(firstKey);
-      }
-    }
-
-    // 缓存结果
-    this.detectionCache.set(cacheKey, result);
-    this.logger?.debug(`Detection result cached for key: ${cacheKey}`);
-  }
-
-  /**
-   * 清除检测缓存
-   */
-  clearCache(): void {
-    this.detectionCache.clear();
-    this.logger?.info('UnifiedDetectionService cache cleared');
-  }
-
-  /**
-   * 获取缓存统计信息
-   */
-  getCacheStats(): { size: number; limit: number } {
-    return {
-      size: this.detectionCache.size,
-      limit: this.cacheSizeLimit
-    };
-  }
 
   /**
    * 批量检测文件

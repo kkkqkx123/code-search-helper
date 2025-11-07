@@ -97,8 +97,7 @@ describe('SegmentationStrategyCoordinator', () => {
     mockPriorityManager.getPerformanceStats = jest.fn().mockReturnValue(new Map());
     mockPriorityManager.reloadConfig = jest.fn();
 
-    // Mock FileFeatureDetector.getInstance
-    (FileFeatureDetector.getInstance as jest.Mock).mockReturnValue(mockFileFeatureDetector);
+    // FileFeatureDetector no longer uses singleton pattern, so we don't need to mock getInstance
 
     MockSegmentationContextFactory.create = jest.fn().mockImplementation((content, filePath, language, options) => ({
       content,

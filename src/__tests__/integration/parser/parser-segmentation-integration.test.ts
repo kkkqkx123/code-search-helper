@@ -17,6 +17,7 @@ import { SmartStrategySelector } from '../../../service/parser/processing/strate
 import { FallbackManager } from '../../../service/parser/processing/strategies/priority/FallbackManager';
 import { ConfigurationManagerAdapter } from './ConfigurationManagerAdapter';
 import { UnifiedDetectionServiceAdapter } from './UnifiedDetectionServiceAdapter';
+import { FileFeatureDetector } from '../../../service/parser/processing/detection/FileFeatureDetector';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -31,7 +32,8 @@ describe('Parser Segmentation Integration Test', () => {
     const treeSitterCoreService = new TreeSitterCoreService();
     const treeSitterService = new TreeSitterService(treeSitterCoreService);
     const configManager = new UnifiedConfigManager();
-    const detectionService = new UnifiedDetectionService(logger, configManager, treeSitterService);
+    const fileFeatureDetector = new FileFeatureDetector(logger);
+    const detectionService = new UnifiedDetectionService(logger, configManager, treeSitterService, fileFeatureDetector);
     
     // 初始化策略相关组件
     const strategyFactory = new UnifiedStrategyFactory(logger);
@@ -86,16 +88,47 @@ describe('Parser Segmentation Integration Test', () => {
       performCleanup: async () => ({ success: true, memoryFreed: 0, cleanedCaches: [] })
     };
 
+    // 创建模拟的IStrategyRegistry
+    const mockStrategyRegistry = {
+      registerStrategy: jest.fn(),
+      createStrategy: jest.fn().mockReturnValue({
+        execute: jest.fn().mockResolvedValue({
+          chunks: [],
+          metadata: {}
+        })
+      }),
+      getSupportedTypes: jest.fn().mockReturnValue([]),
+      isStrategyTypeSupported: jest.fn().mockReturnValue(false),
+      unregisterStrategy: jest.fn(),
+      clearStrategies: jest.fn()
+    };
+
+    // 创建模拟的IServiceContainer
+    const mockServiceContainer = {
+      get: jest.fn().mockImplementation((type) => {
+        switch (type) {
+          case 'UnifiedDetectionService':
+            return detectionService;
+          case 'IntelligentFallbackEngine':
+            return new IntelligentFallbackEngine(logger);
+          case 'ProcessingStrategyFactory':
+            return new ProcessingStrategyFactory(mockStrategyRegistry, logger);
+          default:
+            return null;
+        }
+      }),
+      isBound: jest.fn().mockReturnValue(true),
+      getContainer: jest.fn()
+    };
+
     // 创建UnifiedGuardCoordinator
-    const guardCoordinator = UnifiedGuardCoordinator.getInstance(
+    const guardCoordinator = new UnifiedGuardCoordinator(
       memoryMonitor,
       errorThresholdManager,
       cleanupManager,
-      detectionService,
-      new ProcessingStrategyFactory(logger),
-      new IntelligentFallbackEngine(logger),
+      mockServiceContainer,
       500, // memoryLimitMB
-      500, // memoryCheckIntervalMs
+      5000, // memoryCheckIntervalMs
       logger
     );
 

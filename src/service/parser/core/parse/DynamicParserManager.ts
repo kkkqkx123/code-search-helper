@@ -76,7 +76,7 @@ export class DynamicParserManager {
       if (!mapping) continue;
 
       this.parsers.set(language, {
-        name: languageMappingManager.getDisplayName(language),
+        name: language, // 使用原始语言名称，保持小写格式
         fileExtensions: languageMappingManager.getExtensions(language),
         supported: languageMappingManager.isLanguageSupported(language),
         loader: languageMappingManager.getTreeSitterLoader(language),

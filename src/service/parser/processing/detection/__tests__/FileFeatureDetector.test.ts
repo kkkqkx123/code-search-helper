@@ -13,30 +13,20 @@ describe('FileFeatureDetector', () => {
       error: jest.fn()
     } as any;
 
-    // Reset singleton before each test
-    (FileFeatureDetector as any).instance = undefined;
-    detector = FileFeatureDetector.getInstance(mockLogger);
+    // Create new instance for each test
+    detector = new FileFeatureDetector(mockLogger);
   });
 
-  describe('getInstance', () => {
-    it('should return singleton instance', () => {
-      const instance1 = FileFeatureDetector.getInstance();
-      const instance2 = FileFeatureDetector.getInstance();
-      
-      expect(instance1).toBe(instance2);
-    });
-
-    it('should create new instance if none exists', () => {
-      (FileFeatureDetector as any).instance = undefined;
-      const instance = FileFeatureDetector.getInstance(mockLogger);
+  describe('constructor', () => {
+    it('should create new instance', () => {
+      const instance = new FileFeatureDetector(mockLogger);
       
       expect(instance).toBeDefined();
       expect(instance).toBeInstanceOf(FileFeatureDetector);
     });
 
     it('should log debug message on initialization', () => {
-      (FileFeatureDetector as any).instance = undefined;
-      FileFeatureDetector.getInstance(mockLogger);
+      new FileFeatureDetector(mockLogger);
       
       expect(mockLogger.debug).toHaveBeenCalledWith('FileFeatureDetector initialized');
     });

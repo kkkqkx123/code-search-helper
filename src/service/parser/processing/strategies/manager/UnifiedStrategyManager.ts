@@ -205,6 +205,20 @@ export class UnifiedStrategyManager {
   }
 
   /**
+   * 创建指定类型的策略
+   */
+  createStrategyFromType(strategyType: string, options?: ChunkingOptions): ISplitStrategy {
+    try {
+      const strategy = this.factory.createStrategyFromType(strategyType, options);
+      this.logger?.info(`Created strategy: ${strategyType}`);
+      return strategy;
+    } catch (error) {
+      this.logger?.error(`Failed to create strategy ${strategyType}:`, error);
+      return this.factory.createStrategyFromType('minimal_fallback', options);
+    }
+  }
+
+  /**
    * 创建降级策略（来自universal）
    */
   createFallbackStrategy(
@@ -242,6 +256,7 @@ export class UnifiedStrategyManager {
     }
 
     try {
+      this.logger?.info(`UnifiedStrategyManager executing strategy: ${strategy.getName()}`);
       // 执行策略
       const chunks = await strategy.split(
         context.sourceCode,
@@ -251,6 +266,7 @@ export class UnifiedStrategyManager {
         undefined,
         context.ast
       );
+      this.logger?.info(`UnifiedStrategyManager strategy ${strategy.getName()} returned ${chunks.length} chunks`);
 
       const executionTime = Date.now() - startTime;
       const result: StrategyExecutionResult = {

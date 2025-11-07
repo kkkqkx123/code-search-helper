@@ -75,13 +75,12 @@ describe('LanguageDetectionService', () => {
       getFileStats: jest.fn()
     } as any;
 
-    // Mock FileFeatureDetector.getInstance
-    (FileFeatureDetector.getInstance as jest.Mock) = jest.fn().mockReturnValue(mockFileFeatureDetector);
-
     // Create service instance
     service = new LanguageDetectionService(
       mockLogger,
-      mockBackupProcessor
+      mockBackupProcessor,
+      undefined,
+      mockFileFeatureDetector
     );
   });
 

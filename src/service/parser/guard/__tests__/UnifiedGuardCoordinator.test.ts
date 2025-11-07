@@ -139,6 +139,24 @@ const mockFallbackEngine: IntelligentFallbackEngine = {
   })
 } as unknown as IntelligentFallbackEngine;
 
+// Mock IServiceContainer
+const mockServiceContainer = {
+  get: jest.fn().mockImplementation((type) => {
+    switch (type) {
+      case 'UnifiedDetectionService':
+        return mockDetectionService;
+      case 'IntelligentFallbackEngine':
+        return mockFallbackEngine;
+      case 'ProcessingStrategyFactory':
+        return mockStrategyFactory;
+      default:
+        return null;
+    }
+  }),
+  isBound: jest.fn().mockReturnValue(true),
+  getContainer: jest.fn()
+};
+
 describe('UnifiedGuardCoordinator', () => {
   let coordinator: UnifiedGuardCoordinator;
   let mockProcessMemoryUsage: jest.SpyInstance;
@@ -156,13 +174,11 @@ describe('UnifiedGuardCoordinator', () => {
       arrayBuffers: 0
     });
 
-    coordinator = UnifiedGuardCoordinator.getInstance(
+    coordinator = new UnifiedGuardCoordinator(
       mockMemoryMonitor,
       mockErrorManager,
       mockCleanupManager,
-      mockDetectionService,
-      mockStrategyFactory,
-      mockFallbackEngine,
+      mockServiceContainer,
       500, // 500MB limit
       5000, // 5 second interval
       mockLogger

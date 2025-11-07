@@ -178,13 +178,7 @@ export class Logger {
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
     ).join(' ');
 
-    // 在测试环境中，只输出到控制台
-    if (process.env.NODE_ENV === 'test') {
-      console.log(`[${timestamp}] [${level}] ${message}`);
-      return;
-    }
-
-    // 非测试环境中尝试写入文件
+    // 尝试写入文件
     const logLine = `[${timestamp}] [${level}] ${message}\n`;
 
     // 如果已经标记为正常退出，则不再写入文件，只输出到控制台

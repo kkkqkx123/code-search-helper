@@ -261,7 +261,8 @@ export class FallbackManager {
     strategy: ISplitStrategy,
     context: StrategyContext
   ): Promise<any[]> {
-    return await strategy.split(
+    this.logger?.info(`FallbackManager executing strategy: ${strategy.getName()}`);
+    const result = await strategy.split(
       context.content || '',
       context.language || 'unknown',
       context.filePath,
@@ -269,6 +270,8 @@ export class FallbackManager {
       undefined, // nodeTracker
       undefined  // ast
     );
+    this.logger?.info(`FallbackManager strategy ${strategy.getName()} returned ${result.length} chunks`);
+    return result;
   }
 
   private isStrategyApplicable(strategy: ISplitStrategy, context: StrategyContext): boolean {

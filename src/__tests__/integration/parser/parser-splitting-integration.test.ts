@@ -8,6 +8,7 @@ import { ProcessingStrategyFactory } from '../../../service/parser/processing/st
 import { UnifiedDetectionService } from '../../../service/parser/processing/detection/UnifiedDetectionService';
 import { IntelligentFallbackEngine } from '../../../service/parser/guard/IntelligentFallbackEngine';
 import { LoggerService } from '../../../utils/LoggerService';
+import { FileFeatureDetector } from '../../../service/parser/processing/detection/FileFeatureDetector';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -57,14 +58,45 @@ describe('Parser Splitting Integration Test', () => {
       performCleanup: async () => ({ success: true, memoryFreed: 0, cleanedCaches: [] })
     };
 
+    // 创建模拟的IStrategyRegistry
+    const mockStrategyRegistry = {
+      registerStrategy: jest.fn(),
+      createStrategy: jest.fn().mockReturnValue({
+        execute: jest.fn().mockResolvedValue({
+          chunks: [],
+          metadata: {}
+        })
+      }),
+      getSupportedTypes: jest.fn().mockReturnValue([]),
+      isStrategyTypeSupported: jest.fn().mockReturnValue(false),
+      unregisterStrategy: jest.fn(),
+      clearStrategies: jest.fn()
+    };
+
+    // 创建模拟的IServiceContainer
+    const mockServiceContainer = {
+      get: jest.fn().mockImplementation((type) => {
+        switch (type) {
+          case 'UnifiedDetectionService':
+            return new UnifiedDetectionService(logger);
+          case 'IntelligentFallbackEngine':
+            return new IntelligentFallbackEngine(logger);
+          case 'ProcessingStrategyFactory':
+            return new ProcessingStrategyFactory(mockStrategyRegistry, logger);
+          default:
+            return null;
+        }
+      }),
+      isBound: jest.fn().mockReturnValue(true),
+      getContainer: jest.fn()
+    };
+
     // 创建UnifiedGuardCoordinator
-    processingGuard = UnifiedGuardCoordinator.getInstance(
+    processingGuard = new UnifiedGuardCoordinator(
       memoryMonitor,
       errorThresholdManager,
       cleanupManager,
-      new UnifiedDetectionService(logger),
-      new ProcessingStrategyFactory(logger),
-      new IntelligentFallbackEngine(logger),
+      mockServiceContainer,
       500, // memoryLimitMB
       5000, // memoryCheckIntervalMs
       logger

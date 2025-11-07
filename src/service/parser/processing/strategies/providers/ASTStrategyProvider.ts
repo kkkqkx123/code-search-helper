@@ -23,8 +23,17 @@ export class ASTSplitStrategy implements ISplitStrategy {
     nodeTracker?: any,
     ast?: any
   ) {
+    this.logger?.info(`ASTSplitStrategy.split called with language: ${language}, filePath: ${filePath}`);
+    this.logger?.info(`ASTSplitStrategy.split - treeSitterService available: ${!!this.treeSitterService}`);
+    
+    // 确保logger存在
+    if (!this.logger) {
+      console.log('ASTSplitStrategy: Logger is not available');
+    }
+    
     if (!this.treeSitterService) {
       this.logger?.warn('TreeSitterService not available, falling back to semantic strategy');
+      this.logger?.info('TreeSitterService is undefined, returning fallback chunk');
       throw new Error('TreeSitterService not available');
     }
 
@@ -92,11 +101,11 @@ export class ASTSplitStrategy implements ISplitStrategy {
       this.logger?.info(`detectedLanguage.name: ${detectedLanguage?.name}, fallback language: ${language}`);
       this.logger?.info(`Parse result success: ${parseResult.success}, AST exists: ${!!parseResult.ast}`);
       
-      // 使用不传递语言参数的方式，让系统自动从AST检测语言
-      this.logger?.info(`Using AST-based language detection for function extraction...`);
-      const functions = await this.treeSitterService.extractFunctions(parseResult.ast);
-      const classes = await this.treeSitterService.extractClasses(parseResult.ast);
-      this.logger?.info(`Extracted ${functions.length} functions and ${classes.length} classes using AST-based detection`);
+      // 传递语言参数以确保正确提取
+      this.logger?.info(`Using language-specific extraction for ${languageName}...`);
+      const functions = await this.treeSitterService.extractFunctions(parseResult.ast, languageName);
+      const classes = await this.treeSitterService.extractClasses(parseResult.ast, languageName);
+      this.logger?.info(`Extracted ${functions.length} functions and ${classes.length} classes using language-specific extraction`);
 
       this.logger?.info(`TreeSitter extracted ${functions.length} functions and ${classes.length} classes`);
       
@@ -194,7 +203,7 @@ export class ASTSplitStrategy implements ISplitStrategy {
       }
 
       this.logger?.debug(`Generated ${chunks.length} chunks from AST`);
-
+      
       // 如果没有提取到任何函数或类，返回包含整个文件的chunk
       if (chunks.length === 0) {
         this.logger?.info('No functions or classes found by TreeSitter, returning full content as single chunk');
@@ -214,10 +223,13 @@ export class ASTSplitStrategy implements ISplitStrategy {
       }
 
       this.logger?.info(`Successfully created ${chunks.length} chunks from AST extraction`);
+      this.logger?.info(`ASTSplitStrategy.split returning ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
       this.logger?.error(`AST strategy failed: ${error}`);
       this.logger?.error(`Error stack: ${(error as Error).stack}`);
+      this.logger?.error(`Error name: ${(error as Error).name}`);
+      this.logger?.error(`Error message: ${(error as Error).message}`);
 
       // 如果失败，返回一个简单的块
       const fallbackChunk = [{
@@ -295,6 +307,7 @@ export class ASTStrategyProvider implements IStrategyProvider {
   }
 
   createStrategy(options?: ChunkingOptions): ISplitStrategy {
+    this.logger?.info('Creating ASTSplitStrategy instance with treeSitterService:', !!this.treeSitterService);
     return new ASTSplitStrategy(
       this.treeSitterService,
       this.logger

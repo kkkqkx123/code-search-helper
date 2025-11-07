@@ -94,7 +94,6 @@ import { ASTSegmentationStrategy } from '../../service/parser/processing/strateg
 import { PriorityManager } from '../../service/parser/processing/strategies/priority/PriorityManager';
 import { SmartStrategySelector } from '../../service/parser/processing/strategies/priority/SmartStrategySelector';
 import { FallbackManager } from '../../service/parser/processing/strategies/priority/FallbackManager';
-import { FileFeatureDetector } from '../../service/parser/processing/detection/FileFeatureDetector';
 
 // 新增的策略提供者
 import { ImportStrategyProvider } from '../../service/parser/processing/strategies/providers/ImportStrategyProvider';
@@ -205,10 +204,7 @@ export class BusinessServiceRegistrar {
       container.bind<PriorityManager>(TYPES.PriorityManager).to(PriorityManager).inSingletonScope();
       container.bind<SmartStrategySelector>(TYPES.SmartStrategySelector).to(SmartStrategySelector).inSingletonScope();
       container.bind<FallbackManager>(TYPES.FallbackManager).to(FallbackManager).inSingletonScope();
-      container.bind<FileFeatureDetector>(TYPES.FileFeatureDetector).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return FileFeatureDetector.getInstance(logger);
-      }).inSingletonScope();
+      
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
       container.bind<SegmentationStrategyCoordinator>(TYPES.SegmentationStrategyCoordinator).to(SegmentationStrategyCoordinator).inSingletonScope();
 
@@ -274,7 +270,7 @@ export class BusinessServiceRegistrar {
 
       // 服务容器适配器
       container.bind<IServiceContainer>(TYPES.ServiceContainer).toDynamicValue(context => {
-        return new ServiceContainerAdapter(context.container);
+        return new ServiceContainerAdapter((context as any).container);
       }).inSingletonScope();
 
       // 事件总线

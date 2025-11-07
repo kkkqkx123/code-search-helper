@@ -112,8 +112,7 @@ describe('UnifiedProcessingCoordinator', () => {
           hasFunctions: true,
           hasClasses: false
         },
-        processingStrategy: 'semantic',
-        astInfo: {}
+        processingStrategy: 'semantic'
       }
     });
 

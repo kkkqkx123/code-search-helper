@@ -23,15 +23,23 @@ export class CodeStructureService {
       const lang = language || this.detectLanguageFromAST(ast);
       if (!lang) {
         this.logger.warn('无法检测语言，使用通用查询');
-        return this.coreService.findNodeByType(ast, 'function');
+        return this.coreService.findNodeByType(ast, 'function_declaration');
       }
       
       // 使用通用查询接口，通过查询系统获取结果
-      return await this.coreService.findNodeByTypeAsync(ast, 'functions');
+      const result = await this.coreService.findNodeByTypeAsync(ast, 'functions');
+      
+      // 如果查询系统返回空结果，回退到直接使用节点类型
+      if (result.length === 0) {
+        this.logger.warn('查询系统未找到函数，回退到节点类型匹配');
+        return this.coreService.findNodeByType(ast, 'function_declaration');
+      }
+      
+      return result;
     } catch (error) {
       this.logger.error('提取函数失败:', error);
-      // 回退到通用节点查找
-      return this.coreService.findNodeByType(ast, 'function');
+      // 回退到通用节点查找，使用Go语言的具体节点类型
+      return this.coreService.findNodeByType(ast, 'function_declaration');
     }
   }
 
@@ -46,15 +54,23 @@ export class CodeStructureService {
       const lang = language || this.detectLanguageFromAST(ast);
       if (!lang) {
         this.logger.warn('无法检测语言，使用通用查询');
-        return this.coreService.findNodeByType(ast, 'class');
+        return this.coreService.findNodeByType(ast, 'type_declaration');
       }
       
       // 使用通用查询接口，通过查询系统获取结果
-      return await this.coreService.findNodeByTypeAsync(ast, 'classes');
+      const result = await this.coreService.findNodeByTypeAsync(ast, 'classes');
+      
+      // 如果查询系统返回空结果，回退到直接使用节点类型
+      if (result.length === 0) {
+        this.logger.warn('查询系统未找到类，回退到节点类型匹配');
+        return this.coreService.findNodeByType(ast, 'type_declaration');
+      }
+      
+      return result;
     } catch (error) {
       this.logger.error('提取类失败:', error);
-      // 回退到通用节点查找
-      return this.coreService.findNodeByType(ast, 'class');
+      // 回退到通用节点查找，使用Go语言的具体节点类型
+      return this.coreService.findNodeByType(ast, 'type_declaration');
     }
   }
 

@@ -16,7 +16,7 @@ import { PriorityManager } from '../../../service/parser/processing/strategies/p
 import { SmartStrategySelector } from '../../../service/parser/processing/strategies/priority/SmartStrategySelector';
 import { FallbackManager } from '../../../service/parser/processing/strategies/priority/FallbackManager';
 import { ConfigurationManagerAdapter } from './ConfigurationManagerAdapter';
-import { UnifiedDetectionServiceAdapter } from './UnifiedDetectionServiceAdapter';
+import { FileFeatureDetector } from '../../../service/parser/processing/detection/FileFeatureDetector';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -26,15 +26,16 @@ describe('Go AST Segmentation Integration Test', () => {
 
   beforeAll(() => {
     logger = new LoggerService();
-    
+
     // 初始化核心服务
     const treeSitterCoreService = new TreeSitterCoreService();
     const treeSitterService = new TreeSitterService(treeSitterCoreService);
     const configManager = new UnifiedConfigManager();
-    const detectionService = new UnifiedDetectionService(logger, configManager, treeSitterService);
-    
+    const fileFeatureDetector = new FileFeatureDetector(logger);
+    const detectionService = new UnifiedDetectionService(logger, configManager, treeSitterService, fileFeatureDetector);
+
     // 初始化策略相关组件
-    const strategyFactory = new UnifiedStrategyFactory(logger);
+    const strategyFactory = new UnifiedStrategyFactory(logger, configManager, treeSitterService);
     const priorityManager = new PriorityManager(logger);
     const smartSelector = new SmartStrategySelector(priorityManager, logger);
     const fallbackManager = new FallbackManager(priorityManager, logger);
@@ -46,11 +47,11 @@ describe('Go AST Segmentation Integration Test', () => {
       smartSelector,
       fallbackManager
     );
-    
+
     // 初始化协调器
     const configManagerAdapter = new ConfigurationManagerAdapter(configManager);
     const segmentationStrategyCoordinator = new SegmentationStrategyCoordinator(logger, configManagerAdapter, priorityManager);
-    
+
     // 创建ProcessingGuard的依赖
     const errorThresholdManager = new ErrorThresholdInterceptor({ maxErrorCount: 5 }, logger);
 
@@ -86,14 +87,45 @@ describe('Go AST Segmentation Integration Test', () => {
       performCleanup: async () => ({ success: true, memoryFreed: 0, cleanedCaches: [] })
     };
 
+    // 创建模拟的IStrategyRegistry
+    const mockStrategyRegistry = {
+      registerStrategy: jest.fn(),
+      createStrategy: jest.fn().mockReturnValue({
+        execute: jest.fn().mockResolvedValue({
+          chunks: [],
+          metadata: {}
+        })
+      }),
+      getSupportedTypes: jest.fn().mockReturnValue([]),
+      isStrategyTypeSupported: jest.fn().mockReturnValue(false),
+      unregisterStrategy: jest.fn(),
+      clearStrategies: jest.fn()
+    };
+
+    // 创建模拟的IServiceContainer
+    const mockServiceContainer = {
+      get: jest.fn().mockImplementation((type) => {
+        switch (type) {
+          case 'UnifiedDetectionService':
+            return detectionService;
+          case 'IntelligentFallbackEngine':
+            return new IntelligentFallbackEngine(logger);
+          case 'ProcessingStrategyFactory':
+            return new ProcessingStrategyFactory(mockStrategyRegistry, logger);
+          default:
+            return null;
+        }
+      }),
+      isBound: jest.fn().mockReturnValue(true),
+      getContainer: jest.fn()
+    };
+
     // 创建UnifiedGuardCoordinator
-    const guardCoordinator = UnifiedGuardCoordinator.getInstance(
+    const guardCoordinator = new UnifiedGuardCoordinator(
       memoryMonitor,
       errorThresholdManager,
       cleanupManager,
-      detectionService,
-      new ProcessingStrategyFactory(logger),
-      new IntelligentFallbackEngine(logger),
+      mockServiceContainer,
       500, // memoryLimitMB
       5000, // memoryCheckIntervalMs
       logger
@@ -104,17 +136,17 @@ describe('Go AST Segmentation Integration Test', () => {
 
     // 创建处理协调器
     // 创建简化的性能监控和配置协调器
-    const performanceMonitor = { 
+    const performanceMonitor = {
       monitorAsyncOperation: async (name: string, fn: () => Promise<any>) => await fn(),
-      setThreshold: () => {},
+      setThreshold: () => { },
       getPerformanceStats: () => ({})
     } as any;
-    
+
     const configCoordinator = {
-      onConfigUpdate: (callback: (event: any) => void) => {},
-      emitConfigUpdate: (event: any) => {}
+      onConfigUpdate: (callback: (event: any) => void) => { },
+      emitConfigUpdate: (event: any) => { }
     } as any;
-    
+
     const segmentationCoordinator = {
       selectStrategy: () => ({ getName: () => 'default' } as any),
       executeStrategy: async () => [],
@@ -137,7 +169,7 @@ describe('Go AST Segmentation Integration Test', () => {
     // 读取测试文件
     const filePath = path.join(process.cwd(), 'test-files', 'dataStructure', 'datastructure', 'linked_list.go');
     const content = fs.readFileSync(filePath, 'utf-8');
-    
+
     const context = {
       filePath,
       content,
@@ -145,41 +177,41 @@ describe('Go AST Segmentation Integration Test', () => {
     };
 
     const result = await processingCoordinator.processFile(context);
-    
+
     console.log('Processing result:', JSON.stringify(result, null, 2));
-    
+
     expect(result.success).toBe(true);
     expect(result.chunks.length).toBeGreaterThan(1); // 应该生成多个分段
     expect(result.language).toBe('go');
     expect(result.processingStrategy).toBe('treesitter_ast');
-    
+
     // 验证分段包含结构体和函数
     const chunkContents = result.chunks.map((chunk: any) => chunk.content);
-    
+
     // 应该包含node结构体定义
     expect(chunkContents.some(c => c.includes('type node struct'))).toBe(true);
-    
+
     // 应该包含linkedList结构体定义
     expect(chunkContents.some(c => c.includes('type linkedList struct'))).toBe(true);
-    
+
     // 应该包含NewLinkedList函数
     expect(chunkContents.some(c => c.includes('func NewLinkedList()'))).toBe(true);
-    
+
     // 应该包含ListIsEmpty函数
     expect(chunkContents.some(c => c.includes('func ListIsEmpty('))).toBe(true);
-    
+
     // 应该包含Append函数
     expect(chunkContents.some(c => c.includes('func Append('))).toBe(true);
-    
+
     // 应该包含PrintList函数
     expect(chunkContents.some(c => c.includes('func PrintList('))).toBe(true);
-    
+
     // 应该包含DeleteNode函数
     expect(chunkContents.some(c => c.includes('func DeleteNode('))).toBe(true);
-    
+
     // 应该包含main函数
     expect(chunkContents.some(c => c.includes('func main()'))).toBe(true);
-    
+
     // 验证每个分段都有正确的元数据
     for (const chunk of result.chunks) {
       expect(chunk.metadata).toBeDefined();
@@ -195,60 +227,65 @@ describe('Go AST Segmentation Integration Test', () => {
     // 读取测试文件
     const filePath = path.join(process.cwd(), 'test-files', 'dataStructure', 'datastructure', 'linked_list.go');
     const content = fs.readFileSync(filePath, 'utf-8');
-    
+
     // 直接测试TreeSitter服务
     const treeSitterCoreService = new TreeSitterCoreService();
     const treeSitterService = new TreeSitterService(treeSitterCoreService);
-    
+
     // 等待初始化完成
     const maxWaitTime = 10000;
     const startTime = Date.now();
     while (!treeSitterCoreService.isInitialized() && Date.now() - startTime < maxWaitTime) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    
+
     expect(treeSitterCoreService.isInitialized()).toBe(true);
-    
+
     // 检测语言
     const detectedLanguage = await treeSitterService.detectLanguage(filePath);
     expect(detectedLanguage).toBeDefined();
     expect(detectedLanguage?.name).toBe('go');
-    
+
     // 解析代码
     const parseResult = await treeSitterService.parseCode(content, 'go');
     expect(parseResult.success).toBe(true);
     expect(parseResult.ast).toBeDefined();
-    
+
     // 提取函数和类
     const functions = await treeSitterService.extractFunctions(parseResult.ast, 'go');
     const classes = await treeSitterService.extractClasses(parseResult.ast, 'go');
-    
+
     console.log(`Extracted ${functions.length} functions and ${classes.length} classes`);
-    
+
     // 应该提取到多个函数和结构体
     expect(functions.length).toBeGreaterThan(0);
     expect(classes.length).toBeGreaterThan(0);
-    
+
     // 验证函数节点
     for (const func of functions) {
       const location = treeSitterService.getNodeLocation(func);
       const text = treeSitterService.getNodeText(func, content);
-      
+
       expect(location.startLine).toBeGreaterThan(0);
       expect(location.endLine).toBeGreaterThan(0);
       expect(text.length).toBeGreaterThan(0);
       expect(func.type).toBe('function_declaration');
     }
-    
+
     // 验证类（结构体）节点
     for (const cls of classes) {
       const location = treeSitterService.getNodeLocation(cls);
       const text = treeSitterService.getNodeText(cls, content);
-      
+
       expect(location.startLine).toBeGreaterThan(0);
       expect(location.endLine).toBeGreaterThan(0);
       expect(text.length).toBeGreaterThan(0);
       expect(cls.type).toBe('type_declaration');
     }
   }, 30000);
+
+  afterAll(() => {
+    // 强制退出，避免定时器导致的测试挂起
+    process.exit(0);
+  });
 });

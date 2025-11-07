@@ -271,13 +271,7 @@ export class UnifiedProcessingCoordinator {
     // 使用推荐的处理策略
     const recommendedStrategy = detection.metadata.processingStrategy;
     if (recommendedStrategy) {
-      const strategy = this.strategyManager.selectOptimalStrategy(
-        detection.language,
-        '',
-        '',
-        undefined,
-        config
-      );
+      const strategy = this.strategyManager.createStrategyFromType(recommendedStrategy, config);
       return { strategy, strategyName: recommendedStrategy };
     }
 
@@ -410,7 +404,7 @@ export class UnifiedProcessingCoordinator {
           language: detection.language,
           sourceCode: content,
           filePath,
-          ast: detection.metadata.astInfo,
+          ast: undefined, // AST generation moved to dedicated services
           customParams: config
         };
 
