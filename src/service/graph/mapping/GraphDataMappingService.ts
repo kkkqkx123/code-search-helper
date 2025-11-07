@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
+import { MetadataBuilder } from '../../parser/core/normalization/utils/MetadataBuilder';
 import {
   IGraphDataMappingService,
   GraphNodeType,
@@ -191,13 +192,22 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   }
 
   private createVertexFromStandardizedNode(node: StandardizedQueryResult, filePath: string): GraphNode {
+    // 使用 MetadataBuilder 处理元数据
+    const metadataBuilder = MetadataBuilder.fromComplete(node.metadata);
+    
+    // 添加图数据库特定字段
+    metadataBuilder
+      .setLocation(filePath, node.startLine, 0)
+      .addTag('graph-vertex')
+      .setTimestamp('indexedAt', Date.now());
+    
     return {
       id: node.nodeId,
       type: this.mapStandardizedTypeToGraphType(node.type),
       properties: {
         name: node.name,
         filePath: filePath,
-        ...node.metadata
+        ...metadataBuilder.build()
       }
     };
   }

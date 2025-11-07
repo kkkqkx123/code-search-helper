@@ -31,8 +31,9 @@ export interface ParseResult {
 }
 
 /**
- * Tree-sitter 核心服务 - 优化版本
- * 集成了新的查询系统和性能监控
+ * Tree-sitter 核心服务
+ * 统一管理Tree-sitter解析、查询和语言检测功能
+ * 作为高层服务协调DynamicParserManager、Query系统和LanguageDetector
  */
 @injectable()
 export class TreeSitterCoreService {
@@ -52,7 +53,7 @@ export class TreeSitterCoreService {
   };
   private languageDetector: LanguageDetector;
   private extensionMap = languageExtensionMap;
-  private useOptimizedQueries: boolean = true; // 优化查询系统开关
+  private useOptimizedQueries: boolean = true; // 查询系统开关
   private queryRegistry = QueryRegistryImpl;
   private querySystemInitialized = false;
   private logger = new LoggerService();
@@ -245,7 +246,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 按类型查找节点 - 保持同步特性，优先使用优化查询
+   * 按类型查找节点 - 保持同步特性，使用回退机制
    */
   findNodeByType(ast: Parser.SyntaxNode, type: string): Parser.SyntaxNode[] {
     // 生成缓存键
@@ -318,7 +319,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 查询语法树 - 使用优化后的查询引擎
+   * 查询语法树 - 使用原生Tree-sitter查询引擎
    */
   queryTree(
     ast: Parser.SyntaxNode,
@@ -393,169 +394,6 @@ export class TreeSitterCoreService {
     return results;
   }
 
-  /**
-   * 提取函数 - 使用优化后的查询系统
-   */
-  async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    try {
-      let lang = language;
-
-      // 如果没有提供语言参数，尝试从AST检测
-      if (!lang) {
-        const detectedLang = this.detectLanguageFromAST(ast);
-        if (detectedLang) {
-          lang = detectedLang;
-        }
-      }
-
-      this.logger.debug(`使用语言参数: ${lang || '未知'}`);
-
-      // 使用优化后的查询系统
-      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
-        try {
-          const result = await TreeSitterQueryFacade.findFunctions(ast, lang);
-          // 如果优化查询系统返回空结果，使用 FallbackExtractor
-          if (result.length === 0) {
-            this.logger.warn('优化查询系统返回空结果，使用 FallbackExtractor');
-            return await FallbackExtractor.extractFunctions(ast, lang);
-          }
-          return result;
-        } catch (error) {
-          this.logger.warn('优化查询系统失败，使用 FallbackExtractor:', error);
-          return await FallbackExtractor.extractFunctions(ast, lang);
-        }
-      }
-
-      // 直接使用 FallbackExtractor（包含语言特定查询和回退机制）
-      return await FallbackExtractor.extractFunctions(ast, lang);
-    } catch (error) {
-      this.logger.error('函数提取失败:', error);
-      return await FallbackExtractor.extractFunctions(ast, language);
-    }
-  }
-
-  /**
-   * 提取类 - 使用优化后的查询系统
-   */
-  async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    try {
-      let lang = language;
-
-      // 如果没有提供语言参数，尝试从AST检测
-      if (!lang) {
-        const detectedLang = this.detectLanguageFromAST(ast);
-        if (detectedLang) {
-          lang = detectedLang;
-        }
-      }
-
-      this.logger.debug(`使用语言参数: ${lang || '未知'}`);
-
-      // 使用优化后的查询系统
-      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
-        try {
-          const result = await TreeSitterQueryFacade.findClasses(ast, lang);
-          // 如果优化查询系统返回空结果，使用 FallbackExtractor
-          if (result.length === 0) {
-            this.logger.warn('优化查询系统返回空结果，使用 FallbackExtractor');
-            return await FallbackExtractor.extractClasses(ast, lang);
-          }
-          return result;
-        } catch (error) {
-          this.logger.warn('优化查询系统失败，使用 FallbackExtractor:', error);
-          return await FallbackExtractor.extractClasses(ast, lang);
-        }
-      }
-
-      // 直接使用 FallbackExtractor（包含语言特定查询和回退机制）
-      return await FallbackExtractor.extractClasses(ast, lang);
-    } catch (error) {
-      this.logger.error('类提取失败:', error);
-      return await FallbackExtractor.extractClasses(ast, language);
-    }
-  }
-
-  /**
-   * 提取导入 - 使用优化后的查询系统
-   */
-  async extractImports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    try {
-      let lang = language;
-
-      // 如果没有提供语言参数，尝试从AST检测
-      if (!lang) {
-        const detectedLang = this.detectLanguageFromAST(ast);
-        if (detectedLang) {
-          lang = detectedLang;
-        }
-      }
-
-      this.logger.debug(`使用语言参数: ${lang || '未知'}`);
-
-      // 使用优化后的查询系统
-      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
-        try {
-          const result = await TreeSitterQueryFacade.findImports(ast, lang);
-          // 如果优化查询系统返回空结果，使用 FallbackExtractor
-          if (result.length === 0) {
-            this.logger.warn('优化查询系统返回空结果，使用 FallbackExtractor');
-            return await FallbackExtractor.extractImports(ast, lang);
-          }
-          return result;
-        } catch (error) {
-          this.logger.warn('优化查询系统失败，使用 FallbackExtractor:', error);
-          return await FallbackExtractor.extractImports(ast, lang);
-        }
-      }
-
-      // 直接使用 FallbackExtractor（包含语言特定查询和回退机制）
-      return await FallbackExtractor.extractImports(ast, lang);
-    } catch (error) {
-      this.logger.error('导入提取失败:', error);
-      return await FallbackExtractor.extractImports(ast, language);
-    }
-  }
-
-  /**
-   * 提取导出 - 使用优化后的查询系统
-   */
-  async extractExports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
-    try {
-      let lang = language;
-
-      // 如果没有提供语言参数，尝试从AST检测
-      if (!lang) {
-        const detectedLang = this.detectLanguageFromAST(ast);
-        if (detectedLang) {
-          lang = detectedLang;
-        }
-      }
-
-      this.logger.debug(`使用语言参数: ${lang || '未知'}`);
-
-      // 使用优化后的查询系统
-      if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
-        try {
-          const result = await TreeSitterQueryFacade.findExports(ast, lang);
-          // 如果优化查询系统返回空结果，使用 FallbackExtractor
-          if (result.length === 0) {
-            this.logger.warn('优化查询系统返回空结果，使用 FallbackExtractor');
-            return await FallbackExtractor.extractExports(ast, lang);
-          }
-          return result;
-        } catch (error) {
-          this.logger.warn('优化查询系统失败，使用 FallbackExtractor:', error);
-          return await FallbackExtractor.extractExports(ast, lang);
-        }
-      }
-
-      // 直接使用 FallbackExtractor（包含语言特定查询和回退机制）
-      return await FallbackExtractor.extractExports(ast, lang);
-    } catch (error) {
-      this.logger.error('导出提取失败:', error);
-      return await FallbackExtractor.extractExports(ast, language);
-    }
-  }
 
   /**
    * 将导出字符串转换为节点数组
@@ -601,32 +439,6 @@ export class TreeSitterCoreService {
     // 尝试从AST检测语言
     const language = this.detectLanguageFromAST(node);
     return FallbackExtractor.getNodeName(node, language || undefined);
-  }
-
-  /**
-   * 提取导入节点 - 同步版本
-   */
-  extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    return FallbackExtractor.extractImportNodes(ast);
-  }
-
-  /**
-   * 提取导入节点 - 异步版本，优先使用 TreeSitterQueryFacade
-   */
-  async extractImportNodesAsync(ast: Parser.SyntaxNode): Promise<Parser.SyntaxNode[]> {
-    const lang = this.detectLanguageFromAST(ast);
-
-    // 优先使用优化后的查询系统
-    if (this.useOptimizedQueries && this.querySystemInitialized && lang) {
-      try {
-        return await TreeSitterQueryFacade.findImports(ast, lang);
-      } catch (error) {
-        this.logger.warn('异步导入提取失败，回退到 FallbackExtractor:', error);
-      }
-    }
-
-    // 回退到 FallbackExtractor
-    return FallbackExtractor.extractImportNodes(ast);
   }
 
   /**
@@ -697,7 +509,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 回退机制：函数提取
+   * 遗留函数提取方法 - 用于回退机制
    */
   private legacyExtractFunctions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     this.logger.warn('使用回退机制提取函数');
@@ -737,7 +549,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 回退机制：类提取
+   * 遗留类提取方法 - 用于回退机制
    */
   private legacyExtractClasses(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     this.logger.warn('使用回退机制提取类');
@@ -775,7 +587,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 回退机制：导出提取
+   * 遗留导出提取方法 - 用于回退机制
    */
   private legacyExtractExports(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
     this.logger.warn('使用回退机制提取导出');
@@ -826,7 +638,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 获取性能统计信息 - 包含优化查询系统的统计
+   * 获取性能统计信息 - 包含查询系统的统计
    */
   getPerformanceStats() {
     const dynamicStats = this.dynamicManager.getPerformanceStats();
@@ -884,7 +696,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 启用优化查询系统
+   * 启用查询系统
    */
   enableOptimizedQueries(): void {
     this.useOptimizedQueries = true;
@@ -892,7 +704,7 @@ export class TreeSitterCoreService {
   }
 
   /**
-   * 禁用优化查询系统（回退到动态管理器）
+   * 禁用查询系统（使用回退机制）
    */
   disableOptimizedQueries(): void {
     this.useOptimizedQueries = false;

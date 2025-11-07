@@ -1,0 +1,235 @@
+import Parser from 'tree-sitter';
+import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
+import { LoggerService } from '../../../../utils/LoggerService';
+
+/**
+ * 代码结构服务
+ * 专门负责具体的代码结构提取业务逻辑
+ * 将业务逻辑从TreeSitterCoreService中分离出来，遵循单一职责原则
+ */
+export class CodeStructureService {
+  private logger = new LoggerService();
+
+  constructor(private coreService: TreeSitterCoreService) {}
+
+  /**
+   * 提取函数节点
+   * @param ast AST节点
+   * @param language 可选的语言参数
+   * @returns 函数节点数组
+   */
+  async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用通用查询');
+        return this.coreService.findNodeByType(ast, 'function');
+      }
+      
+      // 使用通用查询接口，通过查询系统获取结果
+      return await this.coreService.findNodeByTypeAsync(ast, 'functions');
+    } catch (error) {
+      this.logger.error('提取函数失败:', error);
+      // 回退到通用节点查找
+      return this.coreService.findNodeByType(ast, 'function');
+    }
+  }
+
+  /**
+   * 提取类节点
+   * @param ast AST节点
+   * @param language 可选的语言参数
+   * @returns 类节点数组
+   */
+  async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用通用查询');
+        return this.coreService.findNodeByType(ast, 'class');
+      }
+      
+      // 使用通用查询接口，通过查询系统获取结果
+      return await this.coreService.findNodeByTypeAsync(ast, 'classes');
+    } catch (error) {
+      this.logger.error('提取类失败:', error);
+      // 回退到通用节点查找
+      return this.coreService.findNodeByType(ast, 'class');
+    }
+  }
+
+  /**
+   * 提取导入节点
+   * @param ast AST节点
+   * @param language 可选的语言参数
+   * @returns 导入节点数组
+   */
+  async extractImports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用通用查询');
+        return this.coreService.findNodeByType(ast, 'import');
+      }
+      
+      // 使用通用查询接口，通过查询系统获取结果
+      return await this.coreService.findNodeByTypeAsync(ast, 'imports');
+    } catch (error) {
+      this.logger.error('提取导入失败:', error);
+      // 回退到通用节点查找
+      return this.coreService.findNodeByType(ast, 'import');
+    }
+  }
+
+  /**
+   * 提取导出节点
+   * @param ast AST节点
+   * @param language 可选的语言参数
+   * @returns 导出节点数组
+   */
+  async extractExports(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用通用查询');
+        return this.coreService.findNodeByType(ast, 'export');
+      }
+      
+      // 使用通用查询接口，通过查询系统获取结果
+      return await this.coreService.findNodeByTypeAsync(ast, 'exports');
+    } catch (error) {
+      this.logger.error('提取导出失败:', error);
+      // 回退到通用节点查找
+      return this.coreService.findNodeByType(ast, 'export');
+    }
+  }
+
+  /**
+   * 提取导入节点（同步版本）
+   * @param ast AST节点
+   * @returns 导入节点数组
+   */
+  extractImportNodes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
+    try {
+      return this.coreService.findNodeByType(ast, 'import');
+    } catch (error) {
+      this.logger.error('提取导入节点失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 提取导入节点（异步版本）
+   * @param ast AST节点
+   * @returns 导入节点数组
+   */
+  async extractImportNodesAsync(ast: Parser.SyntaxNode): Promise<Parser.SyntaxNode[]> {
+    try {
+      return await this.coreService.findNodeByTypeAsync(ast, 'import');
+    } catch (error) {
+      this.logger.error('提取导入节点失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 从AST检测语言
+   * @param ast AST节点
+   * @returns 语言名称或null
+   */
+  private detectLanguageFromAST(ast: Parser.SyntaxNode): string | null {
+    const tree = (ast as any).tree;
+    if (tree && tree.language && tree.language.name) {
+      const languageName = tree.language.name;
+      const languageMap: Record<string, string> = {
+        'typescript': 'typescript',
+        'javascript': 'javascript',
+        'python': 'python',
+        'java': 'java',
+        'go': 'go',
+        'rust': 'rust',
+        'cpp': 'cpp',
+        'c': 'c',
+        'c_sharp': 'csharp',
+        'swift': 'swift',
+        'kotlin': 'kotlin',
+        'ruby': 'ruby',
+        'php': 'php',
+        'scala': 'scala'
+      };
+
+      return languageMap[languageName] || languageName;
+    }
+
+    return null;
+  }
+
+  /**
+   * 提取方法节点
+   * @param ast AST节点
+   * @param language 可选的语言参数
+   * @returns 方法节点数组
+   */
+  async extractMethods(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用通用查询');
+        return this.coreService.findNodeByType(ast, 'method');
+      }
+      
+      // 使用通用查询接口，通过查询系统获取结果
+      return await this.coreService.findNodeByTypeAsync(ast, 'methods');
+    } catch (error) {
+      this.logger.error('提取方法失败:', error);
+      // 回退到通用节点查找
+      return this.coreService.findNodeByType(ast, 'method');
+    }
+  }
+
+  /**
+   * 提取接口节点
+   * @param ast AST节点
+   * @param language 可选的语言参数
+   * @returns 接口节点数组
+   */
+  async extractInterfaces(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用通用查询');
+        return this.coreService.findNodeByType(ast, 'interface');
+      }
+      
+      // 使用通用查询接口，通过查询系统获取结果
+      return await this.coreService.findNodeByTypeAsync(ast, 'interfaces');
+    } catch (error) {
+      this.logger.error('提取接口失败:', error);
+      // 回退到通用节点查找
+      return this.coreService.findNodeByType(ast, 'interface');
+    }
+  }
+
+  /**
+   * 提取类型定义节点
+   * @param ast AST节点
+   * @param language 可选的语言参数
+   * @returns 类型定义节点数组
+   */
+  async extractTypes(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，使用通用查询');
+        return this.coreService.findNodeByType(ast, 'type');
+      }
+      
+      // 使用通用查询接口，通过查询系统获取结果
+      return await this.coreService.findNodeByTypeAsync(ast, 'types');
+    } catch (error) {
+      this.logger.error('提取类型定义失败:', error);
+      // 回退到通用节点查找
+      return this.coreService.findNodeByType(ast, 'type');
+    }
+  }
+}

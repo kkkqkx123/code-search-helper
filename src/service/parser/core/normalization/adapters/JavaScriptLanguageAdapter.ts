@@ -2,6 +2,7 @@ import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import { MetadataBuilder } from '../utils/MetadataBuilder';
 import {
   AnnotationRelationshipExtractor,
   CallRelationshipExtractor,
@@ -260,6 +261,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
   // 重写normalize方法以集成nodeId生成和符号信息
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const results: StandardizedQueryResult[] = [];
+    const processingStartTime = Date.now();
 
     // Initialize symbol table for the current processing context
     // In a real scenario, filePath would be passed in. For now, we'll use a placeholder.
@@ -284,8 +286,22 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
         const astNode = result.captures?.[0]?.node;
         const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
 
+        // 使用 MetadataBuilder 创建增强的元数据
+        const builder = this.createMetadataBuilder(result, language)
+          .setProcessingStartTime(processingStartTime)
+          .addDependencies(dependencies)
+          .addModifiers(modifiers)
+          .addCustomFields(extra);
+
+        // 如果是关系类型，添加关系元数据
+        if (this.isRelationshipType(standardType)) {
+          const relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+          if (relationshipMetadata) {
+            builder.addCustomFields(relationshipMetadata);
+          }
+        }
+
         let symbolInfo: SymbolInfo | null = null;
-        let relationshipMetadata: any = null;
 
         // Only create symbol info for entity types, not relationships
         if (['function', 'class', 'method', 'variable', 'import', 'interface', 'type'].includes(standardType)) {
@@ -293,9 +309,6 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
           if (this.symbolTable && symbolInfo) {
             this.symbolTable.globalScope.symbols.set(name, symbolInfo);
           }
-        } else {
-          // For relationships, extract specific metadata
-          relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
         }
 
         results.push({
@@ -305,24 +318,36 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
           startLine: result.startLine || 1,
           endLine: result.endLine || 1,
           content,
-          metadata: {
-            language,
-            complexity,
-            dependencies,
-            modifiers,
-            extra: {
-              ...extra,
-              ...relationshipMetadata // Merge relationship-specific metadata
-            }
-          },
+          metadata: builder.build(),
           symbolInfo: symbolInfo || undefined
         });
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger?.error(`Error normalizing JavaScript result: ${error}`);
+        // 使用 MetadataFactory 创建错误元数据
+        const errorForMetadata = error instanceof Error ? error : new Error(String(error));
+        const errorBuilder = MetadataBuilder.fromComplete(this.createMetadata(result, language))
+          .setError(errorForMetadata, { phase: 'normalization', queryType, filePath });
+        results.push({
+          nodeId: `error_${Date.now()}`,
+          type: 'expression',
+          name: 'error',
+          startLine: 0,
+          endLine: 0,
+          content: '',
+          metadata: errorBuilder.build()
+        });
       }
     }
 
     return results;
+  }
+
+  /**
+   * 检查是否为关系类型
+   */
+  private isRelationshipType(type: string): boolean {
+    const relationshipTypes = ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'];
+    return relationshipTypes.includes(type);
   }
 
   private createSymbolInfo(node: Parser.SyntaxNode | undefined, name: string, standardType: string, filePath: string): SymbolInfo | null {
@@ -894,16 +919,16 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
     // 使用新的关系提取器提取元数据
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) return [];
-    
+
     const metadata = this.concurrencyExtractor.extractConcurrencyMetadata(result, mainNode, 'javascript');
-    
+
     // 将元数据转换为关系数组
     const relationships: Array<{
       source: string;
       target: string;
       type: 'synchronizes' | 'locks' | 'communicates' | 'races';
     }> = [];
-    
+
     if (metadata.operation) {
       relationships.push({
         source: metadata.operation.text || 'unknown',
@@ -911,7 +936,7 @@ export class JavaScriptLanguageAdapter extends BaseLanguageAdapter {
         type: 'communicates' as const
       });
     }
-    
+
     return relationships;
   }
 

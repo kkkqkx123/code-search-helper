@@ -41,7 +41,7 @@ export class MetadataBuilder extends BaseMetadataBuilder {
   /**
    * 获取内存使用情况
    */
-  private getMemoryUsage(): number {
+  getMemoryUsage(): number {
     if (typeof process !== 'undefined' && process.memoryUsage) {
       return process.memoryUsage().heapUsed;
     }

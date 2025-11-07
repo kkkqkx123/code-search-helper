@@ -2,6 +2,7 @@ import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import { MetadataBuilder } from '../utils/MetadataBuilder';
 import {
   AnnotationRelationshipExtractor,
   CallRelationshipExtractor,
@@ -32,7 +33,7 @@ type StandardType = StandardizedQueryResult['type'];
 export class GoLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
-  
+
   // 关系提取器实例
   private annotationExtractor: AnnotationRelationshipExtractor;
   private callExtractor: CallRelationshipExtractor;
@@ -48,7 +49,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
 
   constructor(options: AdapterOptions = {}) {
     super(options);
-    
+
     // 初始化关系提取器
     this.annotationExtractor = new AnnotationRelationshipExtractor();
     this.callExtractor = new CallRelationshipExtractor();
@@ -99,7 +100,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       if (nameNode?.text) {
         return nameNode.text;
       }
-      
+
       // For function declarations, try to get the name of the function
       if (mainNode.type === 'function_declaration') {
         // Look for the name identifier in the function declaration
@@ -119,7 +120,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
   extractLanguageSpecificMetadata(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -187,8 +188,8 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     // 检查是否是内置函数
     if (mainNode.type === 'call_expression') {
       const funcNode = mainNode.childForFieldName?.('function') ||
-                      mainNode.childForFieldName?.('name') ||
-                      (mainNode.children?.[0]?.type === 'identifier' ? mainNode.children[0] : null);
+        mainNode.childForFieldName?.('name') ||
+        (mainNode.children?.[0]?.type === 'identifier' ? mainNode.children[0] : null);
       if (funcNode && GoHelperMethods.isBuiltinFunction(funcNode.text)) {
         extra.isBuiltinCall = true;
       }
@@ -203,7 +204,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
 
   calculateComplexity(result: any): number {
     let complexity = this.calculateBaseComplexity(result);
-    
+
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
       return complexity;
@@ -229,7 +230,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
   extractDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
@@ -246,10 +247,10 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
 
   extractModifiers(result: any): string[] {
     const modifiers: string[] = [];
-    
+
     // 使用extractContent方法获取内容，这样可以正确处理mock的情况
     const text = this.extractContent(result);
-    
+
     // 使用预定义的修饰符列表
     for (const modifier of GO_MODIFIERS) {
       if (modifier === 'exported') {
@@ -271,7 +272,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
         modifiers.push(modifier);
       }
     }
-    
+
     return modifiers;
   }
 
@@ -517,6 +518,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
   // 重写normalize方法以集成nodeId生成和符号信息
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const results: StandardizedQueryResult[] = [];
+    const processingStartTime = Date.now();
 
     // Initialize symbol table for the current processing context
     // In a real scenario, filePath would be passed in. For now, we'll use a placeholder.
@@ -541,8 +543,22 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
         const astNode = result.captures?.[0]?.node;
         const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
 
+        // 使用 MetadataBuilder 创建增强的元数据
+        const builder = this.createMetadataBuilder(result, language)
+          .setProcessingStartTime(processingStartTime)
+          .addDependencies(dependencies)
+          .addModifiers(modifiers)
+          .addCustomFields(extra);
+
+        // 如果是关系类型，添加关系元数据
+        if (this.isRelationshipType(standardType)) {
+          const relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+          if (relationshipMetadata) {
+            builder.addCustomFields(relationshipMetadata);
+          }
+        }
+
         let symbolInfo: SymbolInfo | null = null;
-        let relationshipMetadata: any = null;
 
         // Only create symbol info for entity types, not relationships
         if (['function', 'class', 'method', 'variable', 'import', 'type'].includes(standardType)) {
@@ -550,9 +566,6 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
           if (this.symbolTable && symbolInfo) {
             this.symbolTable.globalScope.symbols.set(name, symbolInfo);
           }
-        } else {
-          // For relationships, extract specific metadata
-          relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
         }
 
         results.push({
@@ -562,20 +575,24 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
           startLine: result.startLine || 1,
           endLine: result.endLine || 1,
           content,
-          metadata: {
-            language,
-            complexity,
-            dependencies,
-            modifiers,
-            extra: {
-              ...extra,
-              ...relationshipMetadata // Merge relationship-specific metadata
-            }
-          },
+          metadata: builder.build(),
           symbolInfo: symbolInfo || undefined
         });
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger?.error(`Error normalizing Go result: ${error}`);
+        // 使用 MetadataBuilder 创建错误元数据
+        const errorForMetadata = error instanceof Error ? error : new Error(String(error));
+        const errorBuilder = MetadataBuilder.fromComplete(this.createMetadata(result, language))
+          .setError(errorForMetadata, { phase: 'normalization', queryType, filePath });
+        results.push({
+          nodeId: `error_${Date.now()}`,
+          type: 'expression',
+          name: 'error',
+          startLine: 0,
+          endLine: 0,
+          content: '',
+          metadata: errorBuilder.build()
+        });
       }
     }
 
@@ -663,6 +680,14 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       return pathNode ? pathNode.text.replace(/"/g, '') : undefined;
     }
     return undefined;
+  }
+
+  /**
+   * 检查是否为关系类型
+   */
+  private isRelationshipType(type: string): boolean {
+    const relationshipTypes = ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'];
+    return relationshipTypes.includes(type);
   }
 
   private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {

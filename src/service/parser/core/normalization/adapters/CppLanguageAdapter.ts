@@ -2,6 +2,7 @@ import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import { MetadataBuilder } from '../utils/MetadataBuilder';
 import {
   CallRelationshipExtractor,
   DataFlowRelationshipExtractor,
@@ -403,6 +404,7 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
   // 重写normalize方法以集成nodeId生成和符号信息
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const results: StandardizedQueryResult[] = [];
+    const processingStartTime = Date.now();
 
     // Initialize symbol table for the current processing context
     // In a real scenario, filePath would be passed in. For now, we'll use a placeholder.
@@ -427,52 +429,28 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
         const astNode = result.captures?.[0]?.node;
         const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
 
+        // 使用 MetadataBuilder 创建增强的元数据
+        const builder = this.createMetadataBuilder(result, language)
+          .setProcessingStartTime(processingStartTime)
+          .addDependencies(dependencies)
+          .addModifiers(modifiers)
+          .addCustomFields(extra);
+
+        // 如果是关系类型，添加关系元数据
+        if (this.isRelationshipType(standardType)) {
+          const relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+          if (relationshipMetadata) {
+            builder.addCustomFields(relationshipMetadata);
+          }
+        }
+
         let symbolInfo: SymbolInfo | null = null;
-        let relationshipMetadata: any = null;
 
         // Only create symbol info for entity types, not relationships
         if (['function', 'class', 'method', 'variable', 'import', 'type'].includes(standardType)) {
           symbolInfo = this.createSymbolInfo(astNode, name, standardType, filePath);
           if (this.symbolTable && symbolInfo) {
             this.symbolTable.globalScope.symbols.set(name, symbolInfo);
-          }
-        } else {
-          // For relationships, extract specific metadata
-          relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
-        }
-
-        // 构建元数据，确保关系元数据正确合并
-        const metadata: any = {
-          language,
-          complexity,
-          dependencies,
-          modifiers,
-        };
-
-        // 添加语言特定元数据
-        if (extra && Object.keys(extra).length > 0) {
-          metadata.extra = extra;
-        }
-
-        // 添加关系特定元数据
-        if (relationshipMetadata) {
-          // 如果extra不存在，创建它
-          if (!metadata.extra) {
-            metadata.extra = {};
-          }
-
-          // 合并关系元数据到extra中
-          Object.assign(metadata.extra, relationshipMetadata);
-
-          // 对于关系类型，也添加一些顶级属性以便于访问
-          if (relationshipMetadata.type) {
-            metadata.relationshipType = relationshipMetadata.type;
-          }
-          if (relationshipMetadata.fromNodeId) {
-            metadata.fromNodeId = relationshipMetadata.fromNodeId;
-          }
-          if (relationshipMetadata.toNodeId) {
-            metadata.toNodeId = relationshipMetadata.toNodeId;
           }
         }
 
@@ -483,11 +461,24 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
           startLine: result.startLine || 1,
           endLine: result.endLine || 1,
           content,
-          metadata,
+          metadata: builder.build(),
           symbolInfo: symbolInfo || undefined
         });
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger?.error(`Error normalizing C++ result: ${error}`);
+        // 使用 MetadataBuilder 创建错误元数据
+        const errorForMetadata = error instanceof Error ? error : new Error(String(error));
+        const errorBuilder = MetadataBuilder.fromComplete(this.createMetadata(result, language))
+          .setError(errorForMetadata, { phase: 'normalization', queryType, filePath });
+        results.push({
+          nodeId: `error_${Date.now()}`,
+          type: 'expression',
+          name: 'error',
+          startLine: 0,
+          endLine: 0,
+          content: '',
+          metadata: errorBuilder.build()
+        });
       }
     }
 
@@ -575,6 +566,14 @@ export class CppLanguageAdapter extends BaseLanguageAdapter {
       return pathNode ? pathNode.text.replace(/[<>"]/g, '') : undefined;
     }
     return undefined;
+  }
+
+  /**
+   * 检查是否为关系类型
+   */
+  private isRelationshipType(type: string): boolean {
+    const relationshipTypes = ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'];
+    return relationshipTypes.includes(type);
   }
 
   private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {

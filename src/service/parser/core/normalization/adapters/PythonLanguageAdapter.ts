@@ -2,6 +2,7 @@ import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import { MetadataBuilder } from '../utils/MetadataBuilder';
 import {
   CallRelationshipExtractor,
   DataFlowRelationshipExtractor,
@@ -32,7 +33,7 @@ type StandardType = StandardizedQueryResult['type'];
 export class PythonLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
-  
+
   // 关系提取器实例
   private callExtractor: CallRelationshipExtractor;
   private dataFlowExtractor: DataFlowRelationshipExtractor;
@@ -48,7 +49,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
 
   constructor(options: AdapterOptions = {}) {
     super(options);
-    
+
     // 初始化关系提取器
     this.callExtractor = new CallRelationshipExtractor();
     this.dataFlowExtractor = new DataFlowRelationshipExtractor();
@@ -91,7 +92,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
   extractLanguageSpecificMetadata(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -100,10 +101,10 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
     const capturedDecorators = result.captures?.filter((capture: any) =>
       capture.name === 'decorator' && capture.node?.text
     ).map((capture: any) => capture.node.text) || [];
-    
+
     const nodeDecorators = PythonHelperMethods.extractDecorators(mainNode);
     const allDecorators = [...new Set([...capturedDecorators, ...nodeDecorators])]; // 合并并去重
-    
+
     if (allDecorators.length > 0) {
       extra.decorators = allDecorators;
     }
@@ -148,7 +149,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
 
   calculateComplexity(result: any): number {
     let complexity = this.calculateBaseComplexity(result);
-    
+
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
       return complexity;
@@ -175,7 +176,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
   extractDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
@@ -193,7 +194,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
   extractModifiers(result: any): string[] {
     const modifiers: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return modifiers;
     }
@@ -233,7 +234,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
   private extractDecorators(node: any): string[] {
     const decorators: string[] = [];
     const decoratorsNode = node.children?.find((child: any) => child.type === 'decorators');
-    
+
     if (decoratorsNode) {
       for (const child of decoratorsNode.children) {
         if (child.type === 'decorator' && child.text) {
@@ -241,7 +242,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
         }
       }
     }
-    
+
     return decorators;
   }
 
@@ -275,15 +276,15 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
     if (!parameters || !parameters.children) {
       return false;
     }
-    
-    return parameters.children.some((child: any) => 
+
+    return parameters.children.some((child: any) =>
       child.type === 'typed_parameter' || child.type === 'type_annotation'
     );
   }
 
   private extractSuperclassNames(superclasses: any): string[] {
     const names: string[] = [];
-    
+
     if (superclasses && superclasses.children) {
       for (const child of superclasses.children) {
         if (child.type === 'identifier' || child.type === 'dotted_name') {
@@ -291,7 +292,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
         }
       }
     }
-    
+
     return names;
   }
 
@@ -305,7 +306,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
       if (child.type === 'identifier' || child.type === 'dotted_name') {
         dependencies.push(child.text);
       }
-      
+
       this.findImportReferences(child, dependencies);
     }
   }
@@ -323,7 +324,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
           dependencies.push(functionNode.text);
         }
       }
-      
+
       this.findFunctionCalls(child, dependencies);
     }
   }
@@ -336,6 +337,7 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
   // 重写normalize方法以集成nodeId生成和符号信息
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const results: StandardizedQueryResult[] = [];
+    const processingStartTime = Date.now();
 
     // Initialize symbol table for the current processing context
     // In a real scenario, filePath would be passed in. For now, we'll use a placeholder.
@@ -360,8 +362,22 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
         const astNode = result.captures?.[0]?.node;
         const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
 
+        // 使用 MetadataBuilder 创建增强的元数据
+        const builder = this.createMetadataBuilder(result, language)
+          .setProcessingStartTime(processingStartTime)
+          .addDependencies(dependencies)
+          .addModifiers(modifiers)
+          .addCustomFields(extra);
+
+        // 如果是关系类型，添加关系元数据
+        if (this.isRelationshipType(standardType)) {
+          const relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+          if (relationshipMetadata) {
+            builder.addCustomFields(relationshipMetadata);
+          }
+        }
+
         let symbolInfo: SymbolInfo | null = null;
-        let relationshipMetadata: any = null;
 
         // Only create symbol info for entity types, not relationships
         if (['function', 'class', 'method', 'variable', 'import', 'type'].includes(standardType)) {
@@ -369,9 +385,6 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
           if (this.symbolTable && symbolInfo) {
             this.symbolTable.globalScope.symbols.set(name, symbolInfo);
           }
-        } else {
-          // For relationships, extract specific metadata
-          relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
         }
 
         results.push({
@@ -381,24 +394,36 @@ export class PythonLanguageAdapter extends BaseLanguageAdapter {
           startLine: result.startLine || 1,
           endLine: result.endLine || 1,
           content,
-          metadata: {
-            language,
-            complexity,
-            dependencies,
-            modifiers,
-            extra: {
-              ...extra,
-              ...relationshipMetadata // Merge relationship-specific metadata
-            }
-          },
+          metadata: builder.build(),
           symbolInfo: symbolInfo || undefined
         });
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger?.error(`Error normalizing Python result: ${error}`);
+        // 使用 MetadataFactory 创建错误元数据
+        const errorForMetadata = error instanceof Error ? error : new Error(String(error));
+        const errorBuilder = MetadataBuilder.fromComplete(this.createMetadata(result, language))
+          .setError(errorForMetadata, { phase: 'normalization', queryType, filePath });
+        results.push({
+          nodeId: `error_${Date.now()}`,
+          type: 'expression',
+          name: 'error',
+          startLine: 0,
+          endLine: 0,
+          content: '',
+          metadata: errorBuilder.build()
+        });
       }
     }
 
     return results;
+  }
+
+  /**
+   * 检查是否为关系类型
+   */
+  private isRelationshipType(type: string): boolean {
+    const relationshipTypes = ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'];
+    return relationshipTypes.includes(type);
   }
 
   private createSymbolInfo(node: Parser.SyntaxNode | undefined, name: string, standardType: string, filePath: string): SymbolInfo | null {

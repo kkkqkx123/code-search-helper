@@ -29,6 +29,7 @@ import { TreeSitterService } from '../parser/core/parse/TreeSitterService';
 import { TreeSitterQueryEngine } from '../parser/core/query/TreeSitterQueryExecutor';
 import { NebulaNode, NebulaRelationship } from '../../database/nebula/NebulaTypes';
 import { StandardizedQueryResult } from '../parser/core/normalization/types';
+import { MetadataBuilder, MetadataFactory } from '../parser/core/normalization/utils/MetadataBuilder';
 
 export interface MemoryUsage {
   used: number;
@@ -654,21 +655,26 @@ export class IndexingLogicService {
    * @returns 标准化查询结果
    */
   private convertQueryResultsToStandardized(queryResults: any[]): StandardizedQueryResult[] {
-    return queryResults.map(result => ({
-      nodeId: result.id || `node_${Date.now()}_${Math.random()}`,
-      name: result.name || result.type || 'unknown',
-      type: this.mapQueryResultTypeToStandardized(result.type),
-      startLine: result.startLine || 0,
-      endLine: result.endLine || 0,
-      content: result.content || '',
-      metadata: {
-        language: result.language || 'unknown',
-        complexity: result.complexity || 0,
-        dependencies: result.dependencies || [],
-        modifiers: result.modifiers || [],
-        extra: result.extra || result.properties || {}
-      }
-    }));
+    return queryResults.map(result => {
+      const builder = MetadataFactory.createBasic(
+        result.language || 'unknown',
+        result.complexity || 0
+      );
+      
+      return {
+        nodeId: result.id || `node_${Date.now()}_${Math.random()}`,
+        name: result.name || result.type || 'unknown',
+        type: this.mapQueryResultTypeToStandardized(result.type),
+        startLine: result.startLine || 0,
+        endLine: result.endLine || 0,
+        content: result.content || '',
+        metadata: builder
+          .addDependencies(result.dependencies || [])
+          .addModifiers(result.modifiers || [])
+          .addCustomField('extra', result.extra || result.properties || {})
+          .build()
+      };
+    });
   }
 
   /**

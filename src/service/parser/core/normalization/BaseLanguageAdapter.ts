@@ -4,10 +4,12 @@
  */
 
 import { ILanguageAdapter, StandardizedQueryResult } from './types';
+import { ExtensibleMetadata } from './types/ExtensibleMetadata';
 type StandardType = StandardizedQueryResult['type'];
 import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
+import { MetadataBuilder } from './utils/MetadataBuilder';
 
 /**
  * 适配器选项接口
@@ -176,6 +178,9 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     const astNode = result.captures?.[0]?.node;
     const nodeId = astNode ? `${astNode.type}:${astNode.startPosition.row}:${astNode.startPosition.column}` : `fallback_${Date.now()}`;
     
+    // Use MetadataBuilder to create enhanced metadata
+    const metadataBuilder = this.createMetadataBuilder(result, language);
+    
     return {
       nodeId,
       type: this.mapQueryTypeToStandardType(queryType),
@@ -183,27 +188,68 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
       startLine: this.extractStartLine(result),
       endLine: this.extractEndLine(result),
       content: this.extractContent(result),
-      metadata: this.createMetadata(result, language)
+      metadata: metadataBuilder.build()
     };
+  }
+
+  /**
+   * 创建增强的元数据构建器
+   */
+  protected createMetadataBuilder(result: any, language: string): MetadataBuilder {
+    const builder = new MetadataBuilder()
+      .setLanguage(language)
+      .setComplexity(this.calculateComplexity(result))
+      .addDependencies(this.extractDependencies(result))
+      .addModifiers(this.extractModifiers(result))
+      .setLocation(result.filePath || '', this.extractStartLine(result), this.extractStartColumn(result) || 0)
+      .setRange(
+        this.extractStartLine(result),
+        this.extractEndLine(result),
+        this.extractStartColumn(result) || 0,
+        this.extractEndColumn(result) || 0
+      )
+      .setCodeSnippet(this.extractContent(result));
+
+    const languageSpecificMetadata = this.extractLanguageSpecificMetadata(result);
+    
+    // Add language-specific metadata as custom fields
+    builder.addCustomFields(languageSpecificMetadata);
+
+    return builder;
+  }
+
+  /**
+   * 提取起始列号
+   */
+  protected extractStartColumn(result: any): number {
+    const mainNode = result.captures?.[0]?.node;
+    return mainNode?.startPosition?.column || 0;
+  }
+
+  /**
+   * 提取结束列号
+   */
+  protected extractEndColumn(result: any): number {
+    const mainNode = result.captures?.[0]?.node;
+    return mainNode?.endPosition?.column || 0;
   }
 
   /**
    * 创建元数据
    */
   protected createMetadata(result: any, language: string): QueryResultMetadata {
-    const baseMetadata = {
-      language,
-      complexity: this.calculateComplexity(result),
-      dependencies: this.extractDependencies(result),
-      modifiers: this.extractModifiers(result)
-    };
+    const builder = new MetadataBuilder()
+      .setLanguage(language)
+      .setComplexity(this.calculateComplexity(result))
+      .addDependencies(this.extractDependencies(result))
+      .addModifiers(this.extractModifiers(result));
 
     const languageSpecificMetadata = this.extractLanguageSpecificMetadata(result);
+    
+    // Add language-specific metadata as custom fields
+    builder.addCustomFields(languageSpecificMetadata);
 
-    return {
-      ...baseMetadata,
-      ...languageSpecificMetadata
-    };
+    return builder.build();
   }
 
   /**
@@ -262,21 +308,15 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    * 合并元数据
    */
   protected mergeMetadata(existing: StandardizedQueryResult, newResult: StandardizedQueryResult): void {
-    // 合并依赖项
-    const mergedDependencies = [
-      ...new Set([...existing.metadata.dependencies, ...newResult.metadata.dependencies])
-    ];
-
-    // 合并修饰符
-    const mergedModifiers = [
-      ...new Set([...existing.metadata.modifiers, ...newResult.metadata.modifiers])
-    ];
-
-    existing.metadata.dependencies = mergedDependencies;
-    existing.metadata.modifiers = mergedModifiers;
-
-    // 合并语言特定元数据
-    Object.assign(existing.metadata, newResult.metadata);
+    // Use MetadataBuilder to properly merge metadata
+    const existingBuilder = MetadataBuilder.fromComplete(existing.metadata);
+    const newBuilder = MetadataBuilder.fromComplete(newResult.metadata);
+    
+    // Merge the metadata using the builder's merge method
+    existingBuilder.merge(newBuilder);
+    
+    // Update the existing result with merged metadata
+    existing.metadata = existingBuilder.build();
   }
 
   // 通用工具方法
@@ -504,6 +544,14 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
       // 确保result不为null或undefined
       const safeResult = result || {};
       const nodeId = `fallback_${language}_${index}_${Date.now()}`;
+      const builder = new MetadataBuilder()
+        .setLanguage(language)
+        .setComplexity(1)
+        .addDependencies([])
+        .addModifiers([])
+        .setFlag('isFallback', true)  // 添加标记表示这是降级的结果
+        .setTimestamp('fallbackTime', Date.now()); // 添加时间戳
+
       return {
         nodeId,
         type: 'expression',
@@ -511,12 +559,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
         startLine: this.extractStartLine(safeResult),
         endLine: this.extractEndLine(safeResult),
         content: this.extractContent(safeResult),
-        metadata: {
-          language,
-          complexity: 1,
-          dependencies: [],
-          modifiers: []
-        }
+        metadata: builder.build()
       };
     });
   }

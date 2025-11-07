@@ -3,6 +3,7 @@
  */
 
 import Parser from 'tree-sitter';
+import { ExtensibleMetadata } from './types/ExtensibleMetadata';
 
 /**
  * 标准化查询结果接口
@@ -67,22 +68,7 @@ export interface StandardizedQueryResult {
   content: string;
   
   /** 元数据信息 */
-  metadata: {
-    /** 编程语言 */
-    language: string;
-    
-    /** 复杂度评分 */
-    complexity: number;
-    
-    /** 依赖项列表 */
-    dependencies: string[];
-    
-    /** 修饰符列表 */
-    modifiers: string[];
-    
-    /** 额外的语言特定信息 */
-    extra?: Record<string, any>;
-  };
+  metadata: ExtensibleMetadata;
 
   /** 符号信息，用于关系提取 */
   symbolInfo?: SymbolInfo;

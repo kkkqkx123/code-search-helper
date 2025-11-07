@@ -2,6 +2,7 @@ import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import { MetadataBuilder } from '../utils/MetadataBuilder';
 import {
   CallRelationshipExtractor,
   DataFlowRelationshipExtractor,
@@ -32,7 +33,7 @@ type StandardType = StandardizedQueryResult['type'];
 export class JavaLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
-  
+
   // 关系提取器实例
   private annotationExtractor: AnnotationRelationshipExtractor;
   private callExtractor: CallRelationshipExtractor;
@@ -48,7 +49,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
 
   constructor(options: AdapterOptions = {}) {
     super(options);
-    
+
     // 初始化关系提取器
     this.annotationExtractor = new AnnotationRelationshipExtractor();
     this.callExtractor = new CallRelationshipExtractor();
@@ -66,6 +67,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   // 重写normalize方法以集成nodeId生成和符号信息
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const results: StandardizedQueryResult[] = [];
+    const processingStartTime = Date.now();
 
     // Initialize symbol table for the current processing context
     // In a real scenario, filePath would be passed in. For now, we'll use a placeholder.
@@ -90,52 +92,28 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
         const astNode = result.captures?.[0]?.node;
         const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
 
+        // 使用 MetadataBuilder 创建增强的元数据
+        const builder = this.createMetadataBuilder(result, language)
+          .setProcessingStartTime(processingStartTime)
+          .addDependencies(dependencies)
+          .addModifiers(modifiers)
+          .addCustomFields(extra);
+
+        // 如果是关系类型，添加关系元数据
+        if (this.isRelationshipType(standardType)) {
+          const relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
+          if (relationshipMetadata) {
+            builder.addCustomFields(relationshipMetadata);
+          }
+        }
+
         let symbolInfo: SymbolInfo | null = null;
-        let relationshipMetadata: any = null;
 
         // Only create symbol info for entity types, not relationships
-        if (['function', 'class', 'method', 'variable', 'import', 'type'].includes(standardType)) {
+        if (['function', 'class', 'method', 'variable', 'import', 'interface', 'type'].includes(standardType)) {
           symbolInfo = this.createSymbolInfo(astNode, name, standardType, filePath);
           if (this.symbolTable && symbolInfo) {
             this.symbolTable.globalScope.symbols.set(name, symbolInfo);
-          }
-        } else {
-          // For relationships, extract specific metadata
-          relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
-        }
-
-        // 构建元数据，确保关系元数据正确合并
-        const metadata: any = {
-          language,
-          complexity,
-          dependencies,
-          modifiers,
-        };
-
-        // 添加语言特定元数据
-        if (extra && Object.keys(extra).length > 0) {
-          metadata.extra = extra;
-        }
-
-        // 添加关系特定元数据
-        if (relationshipMetadata) {
-          // 如果extra不存在，创建它
-          if (!metadata.extra) {
-            metadata.extra = {};
-          }
-          
-          // 合并关系元数据到extra中
-          Object.assign(metadata.extra, relationshipMetadata);
-          
-          // 对于关系类型，也添加一些顶级属性以便于访问
-          if (relationshipMetadata.type) {
-            metadata.relationshipType = relationshipMetadata.type;
-          }
-          if (relationshipMetadata.fromNodeId) {
-            metadata.fromNodeId = relationshipMetadata.fromNodeId;
-          }
-          if (relationshipMetadata.toNodeId) {
-            metadata.toNodeId = relationshipMetadata.toNodeId;
           }
         }
 
@@ -146,11 +124,24 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
           startLine: result.startLine || 1,
           endLine: result.endLine || 1,
           content,
-          metadata,
+          metadata: builder.build(),
           symbolInfo: symbolInfo || undefined
         });
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger?.error(`Error normalizing Java result: ${error}`);
+        // 使用 MetadataBuilder 创建错误元数据
+        const errorForMetadata = error instanceof Error ? error : new Error(String(error));
+        const errorBuilder = MetadataBuilder.fromComplete(this.createMetadata(result, language))
+          .setError(errorForMetadata, { phase: 'normalization', queryType, filePath });
+        results.push({
+          nodeId: `error_${Date.now()}`,
+          type: 'expression',
+          name: 'error',
+          startLine: 0,
+          endLine: 0,
+          content: '',
+          metadata: errorBuilder.build()
+        });
       }
     }
 
@@ -271,6 +262,14 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     }
   }
 
+  /**
+   * 检查是否为关系类型
+   */
+  private isRelationshipType(type: string): boolean {
+    const relationshipTypes = ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'];
+    return relationshipTypes.includes(type);
+  }
+
 
   getSupportedQueryTypes(): string[] {
     return JAVA_SUPPORTED_QUERY_TYPES;
@@ -293,18 +292,18 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     if (result.captures?.[0]?.node?.childForFieldName?.('name')?.text) {
       return result.captures[0].node.childForFieldName('name').text;
     }
-    
+
     // 对于Java，尝试从特定字段提取名称
     const mainNode = result.captures?.[0]?.node;
     if (mainNode) {
       // 尝试获取标识符
       const identifier = mainNode.childForFieldName?.('identifier') ||
-                        mainNode.childForFieldName?.('type_identifier') ||
-                        mainNode.childForFieldName?.('field_identifier');
+        mainNode.childForFieldName?.('type_identifier') ||
+        mainNode.childForFieldName?.('field_identifier');
       if (identifier?.text) {
         return identifier.text;
       }
-      
+
       // 尝试获取name字段
       const nameNode = mainNode.childForFieldName?.('name');
       if (nameNode?.text) {
@@ -318,7 +317,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   extractLanguageSpecificMetadata(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -401,7 +400,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
 
   calculateComplexity(result: any): number {
     let complexity = this.calculateBaseComplexity(result);
-    
+
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
       return complexity;
@@ -428,7 +427,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   extractDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
@@ -461,10 +460,10 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
 
   extractModifiers(result: any): string[] {
     const modifiers: string[] = [];
-    
+
     // 使用extractContent方法获取内容，这样可以正确处理mock的情况
     const text = this.extractContent(result);
-    
+
     for (const modifier of JAVA_MODIFIERS) {
       if (text.includes(modifier)) {
         modifiers.push(modifier);
