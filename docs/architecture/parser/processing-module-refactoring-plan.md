@@ -21,38 +21,26 @@ src/service/parser/processing/
 │   │   ├── IProcessingStrategy.ts  # 处理策略接口
 │   │   ├── IStrategyFactory.ts     # 策略工厂接口
 │   │   ├── IProcessingContext.ts   # 处理上下文接口
-│   │   ├── IConfigManager.ts       # 配置管理器接口
 │   │   └── IPostProcessor.ts       # 后处理器接口
 │   ├── types/                      # 核心类型定义
 │   │   ├── ProcessingTypes.ts      # 处理相关类型
 │   │   ├── ContextTypes.ts         # 上下文类型
-│   │   ├── ConfigTypes.ts          # 配置类型
 │   │   └── ResultTypes.ts          # 结果类型
 │   └── index.ts                    # 核心模块导出
 ├── strategies/                     # 策略实现
 │   ├── base/                       # 基础策略类
-│   │   ├── BaseStrategy.ts         # 策略基类
-│   │   └── index.ts
+│   │   └── BaseStrategy.ts         # 策略基类
 │   ├── implementations/            # 具体策略实现
 │   │   ├── LineStrategy.ts         # 行级策略
 │   │   ├── SemanticStrategy.ts     # 语义策略
 │   │   ├── ASTStrategy.ts          # AST策略
-│   │   ├── BracketStrategy.ts      # 括号策略
-│   │   └── index.ts
+│   │   └── BracketStrategy.ts      # 括号策略
 │   └── index.ts                    # 策略模块导出
 ├── factory/                        # 策略工厂
 │   ├── StrategyFactory.ts          # 策略工厂实现
-│   ├── FactoryRegistry.ts          # 工厂注册表
 │   └── index.ts
-├── coordination/                   # 协调器
+├── coordinator/                    # 协调器（简化）
 │   ├── ProcessingCoordinator.ts    # 主协调器
-│   ├── StrategySelector.ts         # 策略选择器
-│   └── index.ts
-├── config/                         # 统一配置管理
-│   ├── ProcessingConfig.ts         # 配置接口定义
-│   ├── ConfigManager.ts            # 配置管理器实现
-│   ├── LanguageConfigs.ts          # 语言特定配置
-│   ├── DefaultConfigs.ts           # 默认配置
 │   └── index.ts
 ├── post-processing/                # 后处理（复用现有）
 │   ├── processors/                 # 后处理器实现
@@ -65,37 +53,85 @@ src/service/parser/processing/
 │   ├── PostProcessorCoordinator.ts # 后处理协调器
 │   ├── IChunkPostProcessor.ts      # 后处理器接口
 │   └── index.ts
-├── detection/                      # 文件检测（复用现有）
-│   ├── FileFeatureDetector.ts      # 文件特征检测器
-│   ├── LanguageDetectionService.ts # 语言检测服务
-│   ├── BackupFileProcessor.ts      # 备份文件处理器
-│   ├── UnifiedDetectionService.ts  # 统一检测服务
-│   ├── IFileFeatureDetector.ts     # 检测器接口
-│   └── index.ts
-├── utils/                          # 工具类（复用现有）
-│   ├── core/                       # 核心工具
-│   │   ├── ContentHashIDGenerator.ts
-│   │   ├── SemanticBoundaryAnalyzer.ts
-│   │   ├── SyntaxValidator.ts
-│   │   └── ChunkRebalancer.ts
-│   ├── performance/                # 性能工具
-│   │   ├── PerformanceMonitor.ts
-│   │   └── PerformanceOptimizer.ts
-│   ├── protection/                 # 保护机制
-│   │   ├── ErrorThresholdInterceptor.ts
-│   │   ├── MemoryLimitInterceptor.ts
-│   │   └── ProtectionCoordinator.ts
-│   ├── quality/                    # 质量评估
-│   │   ├── CodeQualityAssessmentUtils.ts
-│   │   └── ComplexityCalculator.ts
-│   └── index.ts
 ├── constants/                      # 常量（复用现有）
-│   ├── language-constants.ts       # 语言常量
 │   ├── processing-constants.ts     # 处理常量
 │   ├── priority-constants.ts       # 优先级常量
-│   ├── backup-constants.ts         # 备份文件常量
 │   └── index.ts
 └── index.ts                        # 主入口文件
+```
+
+### 移出processing目录的模块
+
+#### 1. config 模块 → 移至 `src/service/parser/config/`
+**理由**: 配置管理是parser级别的通用功能，不应局限于processing
+```
+src/service/parser/config/
+├── ProcessingConfig.ts         # 配置接口定义
+├── ConfigManager.ts            # 配置管理器实现
+├── LanguageConfigs.ts          # 语言特定配置
+├── DefaultConfigs.ts           # 默认配置
+└── index.ts
+```
+
+#### 2. detection 模块 → 移至 `src/service/parser/detection/`
+**理由**: 文件检测是parser的通用功能，不仅用于processing
+```
+src/service/parser/detection/
+├── FileFeatureDetector.ts      # 文件特征检测器
+├── LanguageDetectionService.ts # 语言检测服务
+├── BackupFileProcessor.ts      # 备份文件处理器
+├── UnifiedDetectionService.ts  # 统一检测服务
+├── IFileFeatureDetector.ts     # 检测器接口
+└── index.ts
+```
+
+#### 3. utils 模块 → 拆分并移至合适位置
+**理由**: 工具类应该按功能分类，部分是parser通用工具
+
+**parser通用工具 → `src/service/parser/utils/`**
+```
+src/service/parser/utils/
+├── language/                    # 语言工具（从parser/utils/language迁移）
+│   ├── FileUtils.ts
+│   ├── LanguageExtensionMap.ts
+│   ├── LanguageFeatureDetector.ts
+│   ├── LanguageWeights.ts
+│   └── index.ts
+├── ContentHashIDGenerator.ts    # 内容哈希生成
+├── SyntaxValidator.ts           # 语法验证
+└── index.ts
+```
+
+**processing专用工具 → `src/service/parser/processing/utils/`**
+```
+src/service/parser/processing/utils/
+├── SemanticBoundaryAnalyzer.ts  # 语义边界分析
+├── ChunkRebalancer.ts          # 块重平衡
+└── index.ts
+```
+
+**基础设施工具 → `src/infrastructure/`（已存在）**
+- performance/ → 移至 `src/infrastructure/monitoring/`
+- protection/ → 移至 `src/infrastructure/`
+- quality/ → 移至 `src/infrastructure/`
+
+#### 4. constants 模块 → 拆分并移至合适位置
+**理由**: 常量应该按功能分类
+
+**parser通用常量 → `src/service/parser/constants/`**
+```
+src/service/parser/constants/
+├── language-constants.ts       # 语言常量
+├── backup-constants.ts         # 备份文件常量
+└── index.ts
+```
+
+**processing专用常量 → 保留在 `src/service/parser/processing/constants/`**
+```
+src/service/parser/processing/constants/
+├── processing-constants.ts     # 处理常量
+├── priority-constants.ts       # 优先级常量
+└── index.ts
 ```
 
 ## 🔧 核心接口定义
@@ -649,90 +685,194 @@ export interface PostProcessingConfig {
 
 ## 🎯 各模块职责划分
 
-### 1. core 模块
+### processing目录内模块
+
+#### 1. core 模块
 **职责**: 定义核心接口和类型，提供整个处理系统的基础抽象
 - **interfaces**: 定义所有核心接口，确保模块间的契约一致性
 - **types**: 定义所有数据类型，提供类型安全保障
 - **index.ts**: 统一导出核心接口和类型
 
-### 2. strategies 模块
+#### 2. strategies 模块
 **职责**: 实现各种代码分割策略
 - **base**: 提供策略基类，封装通用逻辑
 - **implementations**: 实现具体的分割策略（行级、语义、AST等）
 - **index.ts**: 统一导出所有策略
 
-### 3. factory 模块
+#### 3. factory 模块
 **职责**: 创建和管理策略实例
 - **StrategyFactory**: 策略工厂实现，负责策略的创建和缓存
-- **FactoryRegistry**: 工厂注册表，管理策略类型的注册
 - **index.ts**: 导出工厂相关接口和实现
 
-### 4. coordination 模块
+#### 4. coordinator 模块
 **职责**: 协调各个组件的工作，管理处理流程
 - **ProcessingCoordinator**: 主协调器，负责整个处理流程的协调
-- **StrategySelector**: 策略选择器，根据上下文选择最适合的策略
 - **index.ts**: 导出协调器相关组件
 
-### 5. config 模块
-**职责**: 统一配置管理
-- **ProcessingConfig**: 配置接口定义
-- **ConfigManager**: 配置管理器实现，负责配置的加载、验证和更新
-- **LanguageConfigs**: 语言特定配置
-- **DefaultConfigs**: 默认配置定义
-- **index.ts**: 导出配置相关组件
-
-### 6. post-processing 模块（复用现有）
+#### 5. post-processing 模块（复用现有）
 **职责**: 对分割结果进行后处理优化
 - **processors**: 各种后处理器实现
 - **PostProcessorCoordinator**: 后处理协调器
 - **IChunkPostProcessor**: 后处理器接口
 - **index.ts**: 导出后处理相关组件
 
-### 7. detection 模块（复用现有）
-**职责**: 文件特征检测和语言识别
+#### 6. utils 模块（简化后）
+**职责**: 提供processing专用的工具类
+- **SemanticBoundaryAnalyzer**: 语义边界分析
+- **ChunkRebalancer**: 块重平衡
+- **index.ts**: 导出processing专用工具
+
+#### 7. constants 模块（简化后）
+**职责**: 定义processing专用常量
+- **processing-constants**: 处理相关常量
+- **priority-constants**: 优先级常量
+- **index.ts**: 导出processing专用常量
+
+### 移出processing目录的模块
+
+#### 8. config 模块 → `src/service/parser/config/`
+**职责**: parser级别的统一配置管理
+- **ProcessingConfig**: 配置接口定义
+- **ConfigManager**: 配置管理器实现
+- **LanguageConfigs**: 语言特定配置
+- **DefaultConfigs**: 默认配置定义
+- **index.ts**: 导出配置相关组件
+
+#### 9. detection 模块 → `src/service/parser/detection/`
+**职责**: parser级别的文件特征检测和语言识别
 - **FileFeatureDetector**: 文件特征检测器
 - **LanguageDetectionService**: 语言检测服务
 - **BackupFileProcessor**: 备份文件处理器
 - **UnifiedDetectionService**: 统一检测服务
+- **IFileFeatureDetector**: 检测器接口
 - **index.ts**: 导出检测相关组件
 
-### 8. utils 模块（复用现有）
-**职责**: 提供各种工具类和辅助功能
-- **core**: 核心工具类（哈希生成、边界分析、语法验证等）
-- **performance**: 性能监控和优化工具
-- **protection**: 保护机制（错误拦截、内存限制等）
-- **quality**: 质量评估工具
-- **index.ts**: 导出所有工具类
+#### 10. parser通用工具 → `src/service/parser/utils/`
+**职责**: parser级别的通用工具类
+- **language/**: 语言工具（从parser/utils/language迁移）
+  - **FileUtils.ts**: 文件路径处理
+  - **LanguageExtensionMap.ts**: 语言映射管理
+  - **LanguageFeatureDetector.ts**: 智能语言检测
+  - **LanguageWeights.ts**: 语言权重配置
+  - **index.ts**: 统一导出
+- **ContentHashIDGenerator.ts**: 内容哈希生成
+- **SyntaxValidator.ts**: 语法验证
+- **index.ts**: 导出parser通用工具
 
-### 9. constants 模块（复用现有）
-**职责**: 定义各种常量
+#### 11. parser通用常量 → `src/service/parser/constants/`
+**职责**: parser级别的通用常量
 - **language-constants**: 语言相关常量
-- **processing-constants**: 处理相关常量
-- **priority-constants**: 优先级常量
 - **backup-constants**: 备份文件常量
-- **index.ts**: 导出所有常量
+- **index.ts**: 导出parser通用常量
+
+#### 12. 基础设施工具 → `src/infrastructure/`
+**职责**: 系统级别的基础设施服务
+- **monitoring/**: 性能监控工具
+- **protection/**: 保护机制
+- **caching/**: 缓存服务
 
 ## 🔄 现有组件复用策略
 
-### 1. constants 模块复用
-- **完全保留**: 所有现有的常量定义
-- **整合方式**: 通过 `index.ts` 统一导出，其他模块直接引用
-- **复用价值**: 提供一致的语言映射、处理参数和优先级定义
+### processing目录内组件复用
 
-### 2. post-processing 模块复用
+#### 1. constants 模块复用（简化后）
+- **保留内容**: 仅保留processing专用常量
+  - `processing-constants.ts`: 处理相关常量
+  - `priority-constants.ts`: 优先级常量
+- **移出内容**: 语言常量和备份常量移至parser级别
+- **复用价值**: 提供processing专用的配置参数
+
+#### 2. post-processing 模块复用
 - **完全保留**: 所有现有的后处理器实现
 - **整合方式**: 重新组织目录结构，将处理器移至 `processors/` 子目录
 - **复用价值**: 提供成熟的块优化、合并、过滤等后处理功能
 
-### 3. detection 模块复用
-- **完全保留**: 所有现有的检测服务实现
-- **整合方式**: 保持现有结构，通过 `index.ts` 统一导出
+#### 3. utils 模块复用（简化后）
+- **保留内容**: 仅保留processing专用工具
+  - `SemanticBoundaryAnalyzer.ts`: 语义边界分析
+  - `ChunkRebalancer.ts`: 块重平衡
+- **移出内容**: 通用工具移至parser级别，基础设施工具移至infrastructure
+- **复用价值**: 提供processing专用的核心算法
+
+### 移出processing目录的组件复用
+
+#### 4. config 模块 → `src/service/parser/config/`
+- **完全保留**: 所有配置管理实现
+- **整合方式**: 移至parser级别，服务整个parser模块
+- **复用价值**: 提供统一的配置管理，不仅限于processing
+
+#### 5. detection 模块 → `src/service/parser/detection/`
+- **完全保留**: 所有检测服务实现
+- **整合方式**: 移至parser级别，服务整个parser模块
 - **复用价值**: 提供完整的文件特征检测和语言识别功能
 
-### 4. utils 模块复用
-- **完全保留**: 所有现有的工具类实现
-- **整合方式**: 按功能重新组织目录结构（core、performance、protection、quality）
-- **复用价值**: 提供丰富的辅助功能，避免重复开发
+#### 6. language 工具类 → `src/service/parser/utils/language/`
+
+##### 6.1 需要保留的文件
+**FileUtils.ts** - ✅ **保留**
+- **功能**: 提供文件路径和扩展名处理的通用方法
+- **复用价值**: 完整的文件路径处理功能
+- **整合方式**: 移至 `src/service/parser/utils/language/`
+
+**LanguageExtensionMap.ts** - ✅ **保留**
+- **功能**: 统一管理文件扩展名到编程语言的映射关系
+- **复用价值**: 完整的语言映射管理
+- **整合方式**: 移至 `src/service/parser/utils/language/`
+
+**LanguageFeatureDetector.ts** - ✅ **保留**
+- **功能**: 智能语言检测，结合文件路径和内容特征
+- **复用价值**: 成熟的语言检测算法
+- **整合方式**: 移至 `src/service/parser/utils/language/`
+
+**LanguageWeights.ts** - ✅ **保留**
+- **功能**: 提供不同编程语言的权重配置
+- **复用价值**: 完整的语言权重体系
+- **整合方式**: 移至 `src/service/parser/utils/language/`
+
+**index.ts** - ✅ **保留**
+- **功能**: 统一导出语言相关工具类
+- **整合方式**: 更新导出路径，保持API兼容性
+
+##### 6.2 复用策略
+**目录迁移**:
+```
+src/service/parser/utils/language/ → src/service/parser/utils/language/（保持位置）
+├── FileUtils.ts
+├── LanguageExtensionMap.ts
+├── LanguageFeatureDetector.ts
+├── LanguageWeights.ts
+└── index.ts
+```
+
+**依赖关系处理**:
+- 保持现有依赖关系不变
+- 更新相对路径引用
+- 确保与其他模块的集成
+
+##### 6.3 与现有模块的整合
+**与 detection 模块整合**:
+- `LanguageFeatureDetector` 与 `UnifiedDetectionService` 功能互补
+- 可以作为 `UnifiedDetectionService` 的底层实现
+
+**与 config 模块整合**:
+- `LanguageWeights` 作为语言特定配置的基础
+- 在 `LanguageConfigs` 中集成权重配置
+
+**与 strategies 模块整合**:
+- 策略选择器使用 `LanguageFeatureDetector` 进行语言检测
+- 权重配置影响策略选择的优先级
+
+#### 7. 基础设施工具 → `src/infrastructure/`
+- **performance工具**: 移至 `src/infrastructure/monitoring/`
+- **protection工具**: 移至 `src/infrastructure/`
+- **quality工具**: 移至 `src/infrastructure/`
+- **复用价值**: 利用现有的基础设施服务，避免重复建设
+
+#### 8. parser通用常量 → `src/service/parser/constants/`
+- **保留内容**:
+  - `language-constants.ts`: 语言相关常量
+  - `backup-constants.ts`: 备份文件常量
+- **复用价值**: 提供parser级别的通用常量定义
 
 ## 📋 实施步骤
 
