@@ -58,7 +58,7 @@ export interface ScriptBlock {
   /** Script内容 */
   content: string;
   /** 语言类型 */
-  language: 'javascript' | 'typescript' | 'json' | 'unknown';
+  language: string;
   /** 在文件中的位置 */
   position: {
     start: number;
@@ -66,7 +66,7 @@ export interface ScriptBlock {
     line: number;
     column: number;
   };
-  /** Script标签属性 */
+  /** 标签属性 */
   attributes: Record<string, string>;
   /** 内容哈希 */
   contentHash: string;
@@ -81,7 +81,7 @@ export interface StyleBlock {
   /** Style内容 */
   content: string;
   /** 样式类型 */
-  styleType: 'css' | 'scss' | 'less' | 'unknown';
+  styleType: string;
   /** 在文件中的位置 */
   position: {
     start: number;
@@ -89,7 +89,7 @@ export interface StyleBlock {
     line: number;
     column: number;
   };
-  /** Style标签属性 */
+  /** 标签属性 */
   attributes: Record<string, string>;
   /** 内容哈希 */
   contentHash: string;

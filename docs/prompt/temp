@@ -2,6 +2,7 @@ src\service\parser\processing\utils\html\HTMLContentExtractor.ts是否越权
 
 src\service\parser\processing\strategies\implementations\ClassStrategy.ts等模拟实现
 hash是否越权？是否应当在基类定义？
+
 stragety的supportedLanguages硬编码，需要统一为src\service\parser\constants\language-constants.ts
 
 ast解析是否不全？标准化查询模块与提取模块是否对应？

@@ -9,7 +9,6 @@
 export * from './backup-constants';
 export * from './language-constants';
 export * from './processing-constants';
-export * from './priority-constants';
 
 // ==================== 导出查询模式 ====================
 export { solidityQuery } from "./queries/solidity"

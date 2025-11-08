@@ -1,12 +1,14 @@
-import { ILanguageAdapter, StandardizedQueryResult } from '../types';
+import { StandardizedQueryResult, IEnhancedHtmlLanguageAdapter } from '../types';
+import { ScriptBlock, StyleBlock } from '../../../processing/utils/html/LayeredHTMLConfig';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
 type StandardType = StandardizedQueryResult['type'];
 
 /**
  * HTML语言适配器
  * 处理HTML特定的查询结果标准化
  */
-export class HtmlLanguageAdapter implements ILanguageAdapter {
+export class HtmlLanguageAdapter implements IEnhancedHtmlLanguageAdapter {
   private logger: LoggerService;
 
   constructor() {
@@ -15,7 +17,7 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
 
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const results: (StandardizedQueryResult | null)[] = [];
-    
+
     for (const result of queryResults) {
       try {
         const extraInfo = this.extractExtraInfo(result);
@@ -41,7 +43,7 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
         this.logger.warn(`Failed to normalize HTML result for ${queryType}:`, error);
       }
     }
-    
+
     return results.filter((result): result is StandardizedQueryResult => result !== null);
   }
 
@@ -73,7 +75,7 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
       'tag_name': 'propertyIdentifier',
       'erroneous_end_tag': 'variableDeclaration'
     };
-    
+
     return typeMapping[nodeType] || 'classDeclaration';
   }
 
@@ -139,7 +141,7 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
     if (!mainNode) {
       return '';
     }
-    
+
     return mainNode.text || '';
   }
 
@@ -148,7 +150,7 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
     if (!mainNode) {
       return 1;
     }
-    
+
     return (mainNode.startPosition?.row || 0) + 1; // 转换为1-based
   }
 
@@ -157,13 +159,13 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
     if (!mainNode) {
       return 1;
     }
-    
+
     return (mainNode.endPosition?.row || 0) + 1; // 转换为1-based
   }
 
   calculateComplexity(result: any): number {
     let complexity = 1; // 基础复杂度
-    
+
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
       return complexity;
@@ -189,15 +191,15 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
   extractDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
 
     // 查找自定义元素（可能的组件依赖）
     if (mainNode.type === 'element' || mainNode.type === 'start_tag') {
-      const tagNameNode = mainNode.childForFieldName('tag_name') || 
-                          mainNode.childForFieldName('name');
+      const tagNameNode = mainNode.childForFieldName('tag_name') ||
+        mainNode.childForFieldName('name');
       if (tagNameNode && tagNameNode.text) {
         const tagName = tagNameNode.text;
         // 检查是否是自定义元素（包含连字符或大写字母开头）
@@ -209,21 +211,21 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
 
     // 查找src和href属性值（资源依赖）
     this.findResourceReferences(mainNode, dependencies);
-    
+
     return [...new Set(dependencies)]; // 去重
   }
 
   extractModifiers(result: any): string[] {
     const modifiers: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return modifiers;
     }
 
     // 检查常见的HTML属性
     const text = mainNode.text || '';
-    
+
     if (text.includes('id=')) modifiers.push('has-id');
     if (text.includes('class=')) modifiers.push('has-class');
     if (text.includes('data-')) modifiers.push('has-data-attribute');
@@ -236,7 +238,7 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
   extractExtraInfo(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -259,12 +261,216 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
     return extra;
   }
 
+  /**
+   * 提取Script块
+   * @param content HTML内容
+   * @returns Script块数组
+   */
+  extractScripts(content: string): ScriptBlock[] {
+    const scriptBlocks: ScriptBlock[] = [];
+
+    // 使用正则表达式匹配script标签
+    const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+    let match;
+    let index = 0;
+
+    while ((match = scriptRegex.exec(content)) !== null) {
+      const fullMatch = match[0];
+      const scriptContent = match[1];
+      const startPosition = match.index;
+      const endPosition = startPosition + fullMatch.length;
+
+      // 计算行号和列号
+      const position = this.calculatePosition(content, startPosition);
+
+      // 检测语言类型
+      const language = this.detectScriptLanguage(fullMatch);
+
+      // 提取script标签属性
+      const attributes = this.extractScriptAttributes(fullMatch);
+
+      // 生成内容哈希
+      const contentHash = ContentHashUtils.generateContentHash(scriptContent.trim());
+
+      const scriptBlock: ScriptBlock = {
+        id: `script_${index}`,
+        content: scriptContent.trim(),
+        language,
+        position: {
+          start: startPosition,
+          end: endPosition,
+          line: position.line,
+          column: position.column
+        },
+        attributes,
+        contentHash
+      };
+
+      scriptBlocks.push(scriptBlock);
+      index++;
+    }
+
+    return scriptBlocks;
+  }
+
+  /**
+   * 提取Style块
+   * @param content HTML内容
+   * @returns Style块数组
+   */
+  extractStyles(content: string): StyleBlock[] {
+    const styleBlocks: StyleBlock[] = [];
+
+    // 使用正则表达式匹配style标签
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    let match;
+    let index = 0;
+
+    while ((match = styleRegex.exec(content)) !== null) {
+      const fullMatch = match[0];
+      const styleContent = match[1];
+      const startPosition = match.index;
+      const endPosition = startPosition + fullMatch.length;
+
+      // 计算行号和列号
+      const position = this.calculatePosition(content, startPosition);
+
+      // 检测样式类型
+      const styleType = this.detectStyleType(fullMatch);
+
+      // 提取style标签属性
+      const attributes = this.extractStyleAttributes(fullMatch);
+
+      // 生成内容哈希
+      const contentHash = ContentHashUtils.generateContentHash(styleContent.trim());
+
+      const styleBlock: StyleBlock = {
+        id: `style_${index}`,
+        content: styleContent.trim(),
+        styleType,
+        position: {
+          start: startPosition,
+          end: endPosition,
+          line: position.line,
+          column: position.column
+        },
+        attributes,
+        contentHash
+      };
+
+      styleBlocks.push(styleBlock);
+      index++;
+    }
+
+    return styleBlocks;
+  }
+
+  /**
+   * 检测脚本语言类型
+   * @param scriptTag Script标签内容
+   * @returns 语言类型
+   */
+  detectScriptLanguage(scriptTag: string): string {
+    // 检查type属性
+    const typeMatch = scriptTag.match(/type=["']([^"']+)["']/i);
+    if (typeMatch) {
+      const type = typeMatch[1].toLowerCase();
+
+      if (type.includes('javascript') || type.includes('babel')) {
+        return 'javascript';
+      }
+      if (type.includes('typescript')) {
+        return 'typescript';
+      }
+      if (type.includes('json')) {
+        return 'json';
+      }
+    }
+
+    // 检查lang属性
+    const langMatch = scriptTag.match(/lang=["']([^"']+)["']/i);
+    if (langMatch) {
+      const lang = langMatch[1].toLowerCase();
+      if (lang.includes('ts') || lang.includes('typescript')) {
+        return 'typescript';
+      }
+    }
+
+    // 检查src属性中的文件扩展名
+    const srcMatch = scriptTag.match(/src=["']([^"']+)["']/i);
+    if (srcMatch) {
+      const src = srcMatch[1].toLowerCase();
+      if (src.endsWith('.ts') || src.includes('typescript')) {
+        return 'typescript';
+      }
+      if (src.endsWith('.mjs') || src.includes('module')) {
+        return 'javascript';
+      }
+    }
+
+    // 默认为JavaScript
+    return 'javascript';
+  }
+
+  /**
+   * 检测样式类型
+   * @param styleTag Style标签内容
+   * @returns 样式类型
+   */
+  detectStyleType(styleTag: string): string {
+    // 检查type属性
+    const typeMatch = styleTag.match(/type=["']([^"']+)["']/i);
+    if (typeMatch) {
+      const type = typeMatch[1].toLowerCase();
+
+      if (type.includes('scss')) {
+        return 'scss';
+      }
+      if (type.includes('less')) {
+        return 'less';
+      }
+      if (type.includes('css') || type.includes('text/css')) {
+        return 'css';
+      }
+    }
+
+    // 检查lang属性
+    const langMatch = styleTag.match(/lang=["']([^"']+)["']/i);
+    if (langMatch) {
+      const lang = langMatch[1].toLowerCase();
+      if (lang.includes('scss')) {
+        return 'scss';
+      }
+      if (lang.includes('less')) {
+        return 'less';
+      }
+    }
+
+    // 默认为CSS
+    return 'css';
+  }
+
+  /**
+   * 计算文本位置
+   * @param content 完整内容
+   * @param index 偏移量
+   * @returns 位置信息
+   */
+  calculatePosition(content: string, index: number): { line: number; column: number } {
+    const beforeOffset = content.substring(0, index);
+    const lines = beforeOffset.split('\n');
+    const line = lines.length;
+    const column = lines[lines.length - 1].length + 1;
+
+    return { line, column };
+  }
+
   private mapQueryTypeToStandardType(queryType: string): StandardType {
     const mapping: Record<string, StandardType> = {
       'elements': 'variable',
       'attributes-content': 'variable'
     };
-    
+
     return mapping[queryType] || 'expression';
   }
 
@@ -274,7 +480,7 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
     }
 
     let maxDepth = currentDepth;
-    
+
     for (const child of node.children) {
       if (this.isBlockNode(child)) {
         const childDepth = this.calculateNestingDepth(child, currentDepth + 1);
@@ -287,8 +493,8 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
 
   private isBlockNode(node: any): boolean {
     const blockTypes = [
-      'element', 
-      'script_element', 
+      'element',
+      'script_element',
       'style_element',
       'document',
       'nested_elements'
@@ -306,7 +512,7 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
       if (child.type === 'attribute' && child.children && child.children.length >= 2) {
         const attrName = child.children[0]?.text;
         const attrValue = child.children[1]?.text;
-        
+
         if (attrName && attrValue && (attrName === 'src' || attrName === 'href' || attrName === 'data-src')) {
           // 提取路径或URL
           const pathMatch = attrValue.match(/["']([^"']+)["']/);
@@ -315,14 +521,14 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
           }
         }
       }
-      
+
       this.findResourceReferences(child, dependencies);
     }
   }
 
   private extractAttributes(node: any): string[] {
     const attributes: string[] = [];
-    
+
     if (!node || !node.children) {
       return attributes;
     }
@@ -336,6 +542,56 @@ export class HtmlLanguageAdapter implements ILanguageAdapter {
       } else if (child.children) {
         attributes.push(...this.extractAttributes(child));
       }
+    }
+
+    return attributes;
+  }
+
+  /**
+   * 提取script标签属性
+   */
+  private extractScriptAttributes(scriptTag: string): Record<string, string> {
+    const attributes: Record<string, string> = {};
+
+    // 匹配标签内的所有属性
+    const attrRegex = /(\w+(?:-\w+)*)\s*=\s*["']([^"']*)["']/g;
+    let match;
+
+    while ((match = attrRegex.exec(scriptTag)) !== null) {
+      const attrName = match[1];
+      const attrValue = match[2];
+      attributes[attrName] = attrValue;
+    }
+
+    // 处理布尔属性（如 async, defer）
+    const booleanAttrRegex = /\b(async|defer|crossorigin|nomodule)\b(?!\s*=)/g;
+    while ((match = booleanAttrRegex.exec(scriptTag)) !== null) {
+      attributes[match[1]] = 'true';
+    }
+
+    return attributes;
+  }
+
+  /**
+   * 提取style标签属性
+   */
+  private extractStyleAttributes(styleTag: string): Record<string, string> {
+    const attributes: Record<string, string> = {};
+
+    // 匹配标签内的所有属性
+    const attrRegex = /(\w+(?:-\w+)*)\s*=\s*["']([^"']*)["']/g;
+    let match;
+
+    while ((match = attrRegex.exec(styleTag)) !== null) {
+      const attrName = match[1];
+      const attrValue = match[2];
+      attributes[attrName] = attrValue;
+    }
+
+    // 处理布尔属性（如 scoped）
+    const booleanAttrRegex = /\b(scoped)\b(?!\s*=)/g;
+    while ((match = booleanAttrRegex.exec(styleTag)) !== null) {
+      attributes[match[1]] = 'true';
     }
 
     return attributes;

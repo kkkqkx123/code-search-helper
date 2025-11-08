@@ -16,6 +16,12 @@ import { CodeChunk } from '../types/CodeChunk';
 import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
 import { PostProcessingContext } from '../post-processing/IChunkPostProcessor';
 import { LoggerService } from '../../../../utils/LoggerService';
+import {
+  UNIFIED_STRATEGY_PRIORITIES,
+  getPrioritizedStrategies,
+  getLanguageSpecificStrategies,
+  getFileTypeSpecificStrategy
+} from '../../constants/StrategyPriorities';
 
 /**
  * 处理协调器类
@@ -193,9 +199,20 @@ export class ProcessingCoordinator {
    * @returns 处理策略
    */
   private selectStrategy(context: ProcessingContext): IProcessingStrategy {
-    const availableStrategies = this.strategyFactory.getAvailableStrategies();
+    const language = context.language || 'unknown';
+    const filePath = context.filePath || '';
 
-    // 如果配置中指定了默认策略，优先使用
+    // 1. 检查文件类型特定策略（最高优先级）
+    const fileTypeStrategy = getFileTypeSpecificStrategy(filePath);
+    if (fileTypeStrategy && this.strategyFactory.supportsStrategy(fileTypeStrategy)) {
+      const strategy = this.strategyFactory.createStrategy(fileTypeStrategy, context.config);
+      if (strategy.canHandle(context)) {
+        this.logger?.debug(`使用文件类型特定策略: ${fileTypeStrategy} (文件: ${filePath})`);
+        return strategy;
+      }
+    }
+
+    // 2. 如果配置中指定了默认策略，优先使用
     if (context.config.chunking.defaultStrategy &&
       this.strategyFactory.supportsStrategy(context.config.chunking.defaultStrategy)) {
       const defaultStrategy = this.strategyFactory.createStrategy(
@@ -204,25 +221,57 @@ export class ProcessingCoordinator {
       );
 
       if (defaultStrategy.canHandle(context)) {
+        this.logger?.debug(`使用配置的默认策略: ${context.config.chunking.defaultStrategy}`);
         return defaultStrategy;
       }
     }
 
-    // 根据上下文特征选择最佳策略
-    for (const strategyType of availableStrategies) {
-      const strategy = this.strategyFactory.createStrategy(strategyType, context.config);
+    // 3. 获取语言特定的策略推荐
+    const languageStrategies = getLanguageSpecificStrategies(language);
+    const prioritizedStrategies = getPrioritizedStrategies(languageStrategies);
 
+    // 4. 按优先级尝试策略
+    for (const strategyType of prioritizedStrategies) {
+      if (!this.strategyFactory.supportsStrategy(strategyType)) {
+        continue;
+      }
+
+      const strategy = this.strategyFactory.createStrategy(strategyType, context.config);
       if (strategy.canHandle(context)) {
-        this.logger?.debug(`策略 ${strategyType} 可以处理当前上下文`);
+        this.logger?.debug(`选择策略: ${strategyType} (语言: ${language}, 优先级: ${UNIFIED_STRATEGY_PRIORITIES[strategyType]})`);
         return strategy;
       }
     }
 
-    // 如果没有策略可以处理，使用第一个可用策略作为降级
-    const fallbackStrategy = this.strategyFactory.createStrategy(availableStrategies[0], context.config);
-    this.logger?.warn(`没有策略可以处理当前上下文，使用降级策略: ${availableStrategies[0]}`);
+    // 5. 如果没有语言特定策略可用，尝试所有可用策略
+    const allStrategies = this.strategyFactory.getAvailableStrategies();
+    const allPrioritizedStrategies = getPrioritizedStrategies(allStrategies);
 
-    return fallbackStrategy;
+    for (const strategyType of allPrioritizedStrategies) {
+      const strategy = this.strategyFactory.createStrategy(strategyType, context.config);
+      if (strategy.canHandle(context)) {
+        this.logger?.debug(`使用通用策略: ${strategyType} (优先级: ${UNIFIED_STRATEGY_PRIORITIES[strategyType]})`);
+        return strategy;
+      }
+    }
+
+    // 6. 最后降级到行分段策略
+    if (this.strategyFactory.supportsStrategy('line-segmentation')) {
+      const fallbackStrategy = this.strategyFactory.createStrategy('line-segmentation', context.config);
+      this.logger?.warn(`所有策略失败，使用行分段策略作为最后保障`);
+      return fallbackStrategy;
+    }
+
+    // 7. 如果连行分段策略都不可用，使用第一个可用策略
+    const availableStrategies = this.strategyFactory.getAvailableStrategies();
+    if (availableStrategies.length > 0) {
+      const emergencyStrategy = this.strategyFactory.createStrategy(availableStrategies[0], context.config);
+      this.logger?.error(`紧急降级到第一个可用策略: ${availableStrategies[0]}`);
+      return emergencyStrategy;
+    }
+
+    // 8. 如果没有任何策略可用，抛出错误
+    throw new Error('没有可用的处理策略');
   }
 
   /**
@@ -268,12 +317,12 @@ export class ProcessingCoordinator {
   ): Promise<ProcessingResult> {
     const availableStrategies = this.strategyFactory.getAvailableStrategies();
 
-    // 尝试使用行级策略作为降级
-    if (this.strategyFactory.supportsStrategy('line')) {
-      const lineStrategy = this.strategyFactory.createStrategy('line', context.config);
+    // 尝试使用行数分段策略作为降级
+    if (this.strategyFactory.supportsStrategy('line-segmentation')) {
+      const lineStrategy = this.strategyFactory.createStrategy('line-segmentation', context.config);
 
       if (lineStrategy.canHandle(context)) {
-        this.logger?.warn(`使用行级策略作为降级，原策略 ${failedStrategyName} 失败`);
+        this.logger?.warn(`使用行数分段策略作为降级，原策略 ${failedStrategyName} 失败`);
         return await lineStrategy.execute(context);
       }
     }
@@ -381,7 +430,7 @@ export class ProcessingCoordinator {
     const crlfCount = (content.match(/\r\n/g) || []).length;
     const lfCount = (content.match(/(?<!\r)\n/g) || []).length;
     const crCount = (content.match(/\r(?!\n)/g) || []).length;
-    
+
     if (crlfCount > 0 && lfCount === 0 && crCount === 0) {
       return LineEndingType.CRLF;
     } else if (lfCount > 0 && crlfCount === 0 && crCount === 0) {
@@ -399,21 +448,21 @@ export class ProcessingCoordinator {
   private detectIndentationType(content: string): { type: IndentType; size: number } {
     const lines = content.split('\n');
     const indentPatterns: string[] = [];
-    
+
     for (const line of lines) {
       const match = line.match(/^(\s+)/);
       if (match) {
         indentPatterns.push(match[1]);
       }
     }
-    
+
     if (indentPatterns.length === 0) {
       return { type: IndentType.NONE, size: 0 };
     }
-    
+
     const tabCount = indentPatterns.filter(pattern => pattern.includes('\t')).length;
     const spaceCount = indentPatterns.filter(pattern => /^[ ]+$/.test(pattern)).length;
-    
+
     let type: IndentType;
     if (tabCount > 0 && spaceCount === 0) {
       type = IndentType.TABS;
@@ -424,13 +473,13 @@ export class ProcessingCoordinator {
     } else {
       type = IndentType.NONE;
     }
-    
+
     // 计算平均缩进大小
     const spaceIndents = indentPatterns.filter(pattern => /^[ ]+$/.test(pattern));
     const averageIndentSize = spaceIndents.length > 0
       ? spaceIndents.reduce((sum, pattern) => sum + pattern.length, 0) / spaceIndents.length
       : 0;
-    
+
     return { type, size: Math.round(averageIndentSize) };
   }
 
@@ -466,19 +515,19 @@ export class ProcessingCoordinator {
 
     // 检测换行符类型
     const lineEndingType = this.detectLineEndingType(content);
-    
+
     // 检测缩进类型
     const { type: indentType, size: averageIndentSize } = this.detectIndentationType(content);
-    
+
     // 检测是否为二进制文件
     const isBinary = this.isBinaryContent(content);
-    
+
     // 检测是否包含非ASCII字符
     const hasNonASCII = /[^\x00-\x7F]/.test(content);
-    
+
     // 检测是否包含BOM
     const hasBOM = content.charCodeAt(0) === 0xFEFF ||
-                   content.charCodeAt(0) === 0xFFFE;
+      content.charCodeAt(0) === 0xFFFE;
 
     return {
       size,

@@ -6,6 +6,7 @@
 import { IStrategyFactory, StrategyConstructor } from '../core/interfaces/IStrategyFactory';
 import { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';
 import { ProcessingConfig } from '../core/types/ConfigTypes';
+import { getPrioritizedStrategies } from '../../constants/StrategyPriorities';
 
 /**
  * 策略工厂类
@@ -14,10 +15,10 @@ import { ProcessingConfig } from '../core/types/ConfigTypes';
 export class StrategyFactory implements IStrategyFactory {
   /** 策略构造函数映射 */
   private strategies: Map<string, StrategyConstructor> = new Map();
-  
+
   /** 策略实例缓存 */
   private instances: Map<string, IProcessingStrategy> = new Map();
-  
+
   /** 处理配置 */
   private config: ProcessingConfig;
 
@@ -48,12 +49,12 @@ export class StrategyFactory implements IStrategyFactory {
     }
 
     const instance = new StrategyClass(config || this.config);
-    
+
     // 如果启用了缓存，则缓存实例
     if (this.config.performance.enableCaching) {
       this.instances.set(strategyType, instance);
     }
-    
+
     return instance;
   }
 
@@ -81,7 +82,7 @@ export class StrategyFactory implements IStrategyFactory {
    */
   registerStrategy(strategyType: string, strategyClass: StrategyConstructor): void {
     this.strategies.set(strategyType, strategyClass);
-    
+
     // 如果已经有该类型的缓存实例，清除它
     if (this.instances.has(strategyType)) {
       this.instances.delete(strategyType);
@@ -120,7 +121,7 @@ export class StrategyFactory implements IStrategyFactory {
   private registerDefaultStrategies(): void {
     // 这里暂时不注册具体的策略，因为需要导入具体的策略类
     // 在实际使用时，可以通过registerStrategy方法注册具体策略
-    
+
     // 示例注册方式（需要导入具体的策略类）：
     // this.registerStrategy('line', LineStrategy);
     // this.registerStrategy('semantic', SemanticStrategy);

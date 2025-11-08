@@ -7,7 +7,6 @@
 export { BaseStrategy } from './base/BaseStrategy';
 
 // 策略实现导出
-export { LineStrategy } from './implementations/LineStrategy';
 export { SemanticStrategy } from './implementations/SemanticStrategy';
 export { ASTStrategy } from './implementations/ASTStrategy';
 export { BracketStrategy } from './implementations/BracketStrategy';
@@ -29,6 +28,9 @@ export { ASTCodeSplitter } from './implementations/ASTCodeSplitter';
 export type { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';
 export type { StrategyConfig, StrategyPerformanceStats } from '../types/Strategy';
 
+// 导入统一优先级常量
+import { UNIFIED_STRATEGY_PRIORITIES } from '../../constants/StrategyPriorities';
+
 /**
  * 策略工厂函数
  * 根据策略名称创建策略实例
@@ -37,7 +39,7 @@ export function createStrategy(strategyName: string, config?: any): any {
   switch (strategyName) {
     case 'line':
     case 'line-strategy':
-      return new (require('./implementations/LineStrategy').LineStrategy)(config);
+      return new (require('./implementations/LineSegmentationStrategy').LineSegmentationStrategy)(config);
 
     case 'semantic':
     case 'semantic-strategy':
@@ -96,15 +98,7 @@ export function createStrategy(strategyName: string, config?: any): any {
  * 获取所有可用策略名称
  */
 export function getAvailableStrategies(): string[] {
-  return [
-    'line-strategy',
-    'semantic-strategy',
-    'ast-strategy',
-    'bracket-strategy',
-    'function-strategy',
-    'class-strategy',
-    'import-strategy'
-  ];
+  return Object.keys(UNIFIED_STRATEGY_PRIORITIES);
 }
 
 /**
@@ -112,14 +106,9 @@ export function getAvailableStrategies(): string[] {
  */
 export const StrategyPresets = {
   /**
-   * 小文件策略配置
-   */
+  * 小文件策略配置
+  */
   smallFile: {
-    'line-strategy': {
-      maxLinesPerChunk: 20,
-      minLinesPerChunk: 3,
-      overlapLines: 2
-    },
     'semantic-strategy': {
       maxChunkSize: 500,
       minChunkSize: 50,
@@ -154,14 +143,9 @@ export const StrategyPresets = {
   },
 
   /**
-   * 中等文件策略配置
-   */
+  * 中等文件策略配置
+  */
   mediumFile: {
-    'line-strategy': {
-      maxLinesPerChunk: 50,
-      minLinesPerChunk: 5,
-      overlapLines: 5
-    },
     'semantic-strategy': {
       maxChunkSize: 1000,
       minChunkSize: 100,
@@ -196,14 +180,9 @@ export const StrategyPresets = {
   },
 
   /**
-   * 大文件策略配置
-   */
+  * 大文件策略配置
+  */
   largeFile: {
-    'line-strategy': {
-      maxLinesPerChunk: 100,
-      minLinesPerChunk: 10,
-      overlapLines: 10
-    },
     'semantic-strategy': {
       maxChunkSize: 2000,
       minChunkSize: 200,
@@ -249,49 +228,4 @@ export function selectStrategyPreset(fileSize: number): any {
   } else {
     return StrategyPresets.largeFile;
   }
-}
-
-/**
- * 策略优先级映射
- */
-export const StrategyPriorities = {
-  'line-strategy': 100,
-  'semantic-strategy': 80,
-  'bracket-strategy': 70,
-  'ast-strategy': 60,
-  'function-strategy': 50,
-  'class-strategy': 45,
-  'import-strategy': 30,
-  'ast-segmentation': 85,
-  'bracket-segmentation': 75,
-  'semantic-segmentation': 82,
-  'standardization-segmentation': 78,
-  'xml-segmentation': 65,
-  'layered-html': 70,
-  'line-segmentation': 90,
-  'markdown-segmentation': 75
-};
-
-/**
- * 根据语言获取推荐的策略
- */
-export function getRecommendedStrategies(language: string): string[] {
-  const languageStrategies: Record<string, string[]> = {
-    'typescript': ['ast-strategy', 'function-strategy', 'class-strategy', 'semantic-strategy', 'bracket-strategy', 'import-strategy', 'line-strategy'],
-    'javascript': ['ast-strategy', 'function-strategy', 'class-strategy', 'semantic-strategy', 'bracket-strategy', 'import-strategy', 'line-strategy'],
-    'python': ['function-strategy', 'class-strategy', 'semantic-strategy', 'ast-strategy', 'import-strategy', 'line-strategy'],
-    'java': ['ast-strategy', 'function-strategy', 'class-strategy', 'bracket-strategy', 'import-strategy', 'semantic-strategy', 'line-strategy'],
-    'c': ['bracket-strategy', 'function-strategy', 'semantic-strategy', 'import-strategy', 'line-strategy'],
-    'cpp': ['bracket-strategy', 'function-strategy', 'class-strategy', 'ast-strategy', 'import-strategy', 'semantic-strategy', 'line-strategy'],
-    'csharp': ['ast-strategy', 'function-strategy', 'class-strategy', 'bracket-strategy', 'import-strategy', 'semantic-strategy', 'line-strategy'],
-    'go': ['function-strategy', 'class-strategy', 'semantic-strategy', 'ast-strategy', 'import-strategy', 'line-strategy'],
-    'rust': ['bracket-strategy', 'function-strategy', 'class-strategy', 'semantic-strategy', 'ast-strategy', 'import-strategy', 'line-strategy'],
-    'php': ['function-strategy', 'class-strategy', 'semantic-strategy', 'ast-strategy', 'import-strategy', 'line-strategy'],
-    'ruby': ['function-strategy', 'class-strategy', 'semantic-strategy', 'import-strategy', 'line-strategy'],
-    'swift': ['ast-strategy', 'function-strategy', 'class-strategy', 'bracket-strategy', 'import-strategy', 'semantic-strategy', 'line-strategy'],
-    'kotlin': ['ast-strategy', 'function-strategy', 'class-strategy', 'semantic-strategy', 'bracket-strategy', 'import-strategy', 'line-strategy'],
-    'scala': ['ast-strategy', 'function-strategy', 'class-strategy', 'bracket-strategy', 'semantic-strategy', 'import-strategy', 'line-strategy']
-  };
-
-  return languageStrategies[language.toLowerCase()] || ['semantic-strategy', 'line-strategy'];
 }

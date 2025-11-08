@@ -401,3 +401,44 @@ export interface ConfigQueryResult extends StandardizedQueryResult {
   /** 配置语言特有的元数据 */
   metadata: ConfigMetadata;
 }
+/**
+ * 增强型HTML语言适配器接口
+ * 扩展基础语言适配器，增加HTML内容提取能力
+ */
+export interface IEnhancedHtmlLanguageAdapter extends ILanguageAdapter {
+  /**
+   * 提取Script块
+   * @param content HTML内容
+   * @returns Script块数组
+   */
+  extractScripts(content: string): import('../../processing/utils/html/LayeredHTMLConfig').ScriptBlock[];
+  
+  /**
+   * 提取Style块
+   * @param content HTML内容
+   * @returns Style块数组
+   */
+  extractStyles(content: string): import('../../processing/utils/html/LayeredHTMLConfig').StyleBlock[];
+  
+  /**
+   * 检测脚本语言类型
+   * @param scriptTag Script标签内容
+   * @returns 语言类型
+   */
+  detectScriptLanguage(scriptTag: string): string;
+  
+  /**
+   * 检测样式类型
+   * @param styleTag Style标签内容
+   * @returns 样式类型
+   */
+  detectStyleType(styleTag: string): string;
+  
+  /**
+   * 计算文本位置
+   * @param content 完整内容
+   * @param index 偏移量
+   * @returns 位置信息
+   */
+  calculatePosition(content: string, index: number): { line: number; column: number };
+}

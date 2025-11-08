@@ -4,38 +4,9 @@ import { CodeChunk } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
 import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
-
-/**
- * HTML分层处理策略配置
- */
-export interface LayeredHTMLConfig extends StrategyConfig {
-  /** 启用的层类型 */
-  enabledLayers?: string[];
-  /** 错误处理模式 */
-  errorHandling?: 'fail-fast' | 'continue';
-  /** 合并策略 */
-  mergeStrategy?: 'position' | 'type';
-}
-
-/**
- * 脚本块
- */
-export interface ScriptBlock {
-  id: string;
-  content: string;
-  language: string;
-  position: { line: number; column: number };
-}
-
-/**
- * 样式块
- */
-export interface StyleBlock {
-  id: string;
-  content: string;
-  styleType: string;
-  position: { line: number; column: number };
-}
+import { HtmlLanguageAdapter } from '../../../core/normalization/adapters/HtmlLanguageAdapter';
+import { ScriptBlock, StyleBlock } from '../../../processing/utils/html/LayeredHTMLConfig';
+import { HTMLContentExtractor } from '../../../processing/utils/html/HTMLContentExtractor';
 
 /**
  * 层类型
@@ -52,10 +23,16 @@ export enum LayerType {
  */
 export class LayeredHTMLStrategy extends BaseStrategy {
   private logger: Logger;
+  private htmlAdapter: HtmlLanguageAdapter;
+  private htmlExtractor: HTMLContentExtractor;
+  private scriptCache: Map<string, any> = new Map();
+  private styleCache: Map<string, any> = new Map();
 
-  constructor(config: StrategyConfig) {
+  constructor(config: StrategyConfig, htmlAdapter?: HtmlLanguageAdapter) {
     super(config);
     this.logger = Logger.getInstance();
+    this.htmlAdapter = htmlAdapter || new HtmlLanguageAdapter();
+    this.htmlExtractor = new HTMLContentExtractor();
   }
 
   async execute(context: IProcessingContext): Promise<ProcessingResult> {
@@ -97,9 +74,9 @@ export class LayeredHTMLStrategy extends BaseStrategy {
       // 1. 结构层处理
       const structureResult = await this.processStructureLayer(context);
 
-      // 2. 提取嵌入式内容
-      const scripts = this.extractScripts(context.content);
-      const styles = this.extractStyles(context.content);
+      // 2. 提取嵌入式内容（使用HTMLContentExtractor以获得完整的attributes和contentHash）
+      const scripts = this.htmlExtractor.extractScripts(context.content);
+      const styles = this.htmlExtractor.extractStyles(context.content);
 
       // 3. 处理Script和Style内容
       const scriptResults = await this.processScriptLayers(scripts, context);
@@ -228,56 +205,16 @@ export class LayeredHTMLStrategy extends BaseStrategy {
    * 提取脚本块
    */
   private extractScripts(content: string): ScriptBlock[] {
-    const scripts: ScriptBlock[] = [];
-    const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
-    let match;
-    let id = 0;
-
-    while ((match = scriptRegex.exec(content)) !== null) {
-      const fullMatch = match[0];
-      const scriptContent = match[1];
-      const position = this.findPosition(content, match.index);
-
-      // 检测脚本语言
-      const language = this.detectScriptLanguage(fullMatch);
-
-      scripts.push({
-        id: `script_${id++}`,
-        content: scriptContent,
-        language,
-        position
-      });
-    }
-
-    return scripts;
+    // 使用适配器提供的方法
+    return this.htmlAdapter.extractScripts(content);
   }
 
   /**
    * 提取样式块
    */
   private extractStyles(content: string): StyleBlock[] {
-    const styles: StyleBlock[] = [];
-    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-    let match;
-    let id = 0;
-
-    while ((match = styleRegex.exec(content)) !== null) {
-      const fullMatch = match[0];
-      const styleContent = match[1];
-      const position = this.findPosition(content, match.index);
-
-      // 检测样式类型
-      const styleType = this.detectStyleType(fullMatch);
-
-      styles.push({
-        id: `style_${id++}`,
-        content: styleContent,
-        styleType,
-        position
-      });
-    }
-
-    return styles;
+    // 使用适配器提供的方法
+    return this.htmlAdapter.extractStyles(content);
   }
 
   /**
@@ -375,11 +312,30 @@ export class LayeredHTMLStrategy extends BaseStrategy {
     chunks: CodeChunk[];
     metadata: any;
   }> {
+    // 生成缓存键
+    const cacheKey = this.generateScriptCacheKey(script);
+
+    // 检查缓存
+    const cached = this.scriptCache.get(cacheKey);
+    if (cached) {
+      this.logger.debug(`Using cached result for script ${script.id}`);
+      return {
+        ...cached,
+        metadata: {
+          ...cached.metadata,
+          processingFromCache: true
+        }
+      };
+    }
+
+    // 分析脚本属性
+    const scriptAnalysis = this.analyzeScriptAttributes(script.attributes);
+
     // 创建脚本代码块
     const chunks = [this.createChunk(
       script.content,
       script.position.line,
-      script.position.line + script.content.split('\\n').length - 1,
+      script.position.line + script.content.split('\n').length - 1,
       script.language,
       undefined,
       {
@@ -388,11 +344,14 @@ export class LayeredHTMLStrategy extends BaseStrategy {
         type: 'script',
         complexity: this.calculateComplexity(script.content),
         scriptId: script.id,
-        scriptLanguage: script.language
+        scriptLanguage: script.language,
+        scriptAttributes: script.attributes,
+        contentHash: script.contentHash,
+        ...scriptAnalysis
       }
     )];
 
-    return {
+    const result = {
       scriptBlock: script,
       chunks,
       metadata: {
@@ -400,9 +359,20 @@ export class LayeredHTMLStrategy extends BaseStrategy {
         processor: 'JavaScriptExtractor',
         scriptLanguage: script.language,
         chunkCount: chunks.length,
-        contentSize: script.content.length
+        contentSize: script.content.length,
+        scriptAttributes: script.attributes,
+        contentHash: script.contentHash,
+        attributeCount: Object.keys(script.attributes).length,
+        hasExternalSource: scriptAnalysis.hasSrc,
+        processingFromCache: false,
+        ...scriptAnalysis
       }
     };
+
+    // 缓存结果
+    this.scriptCache.set(cacheKey, result);
+
+    return result;
   }
 
   /**
@@ -416,11 +386,30 @@ export class LayeredHTMLStrategy extends BaseStrategy {
     chunks: CodeChunk[];
     metadata: any;
   }> {
+    // 生成缓存键
+    const cacheKey = this.generateStyleCacheKey(style);
+
+    // 检查缓存
+    const cached = this.styleCache.get(cacheKey);
+    if (cached) {
+      this.logger.debug(`Using cached result for style ${style.id}`);
+      return {
+        ...cached,
+        metadata: {
+          ...cached.metadata,
+          processingFromCache: true
+        }
+      };
+    }
+
+    // 分析样式属性
+    const styleAnalysis = this.analyzeStyleAttributes(style.attributes);
+
     // 创建样式代码块
     const chunks = [this.createChunk(
       style.content,
       style.position.line,
-      style.position.line + style.content.split('\\n').length - 1,
+      style.position.line + style.content.split('\n').length - 1,
       style.styleType,
       undefined,
       {
@@ -429,11 +418,14 @@ export class LayeredHTMLStrategy extends BaseStrategy {
         type: 'style',
         complexity: this.calculateComplexity(style.content),
         styleId: style.id,
-        styleType: style.styleType
+        styleType: style.styleType,
+        styleAttributes: style.attributes,
+        contentHash: style.contentHash,
+        ...styleAnalysis
       }
     )];
 
-    return {
+    const result = {
       styleBlock: style,
       chunks,
       metadata: {
@@ -441,9 +433,19 @@ export class LayeredHTMLStrategy extends BaseStrategy {
         processor: 'CSSExtractor',
         styleType: style.styleType,
         chunkCount: chunks.length,
-        contentSize: style.content.length
+        contentSize: style.content.length,
+        styleAttributes: style.attributes,
+        contentHash: style.contentHash,
+        attributeCount: Object.keys(style.attributes).length,
+        processingFromCache: false,
+        ...styleAnalysis
       }
     };
+
+    // 缓存结果
+    this.styleCache.set(cacheKey, result);
+
+    return result;
   }
 
   /**
@@ -509,49 +511,6 @@ export class LayeredHTMLStrategy extends BaseStrategy {
   }
 
   /**
-   * 查找文本位置
-   */
-  private findPosition(content: string, index: number): { line: number; column: number } {
-    const before = content.substring(0, index);
-    const lines = before.split('\n');
-    return {
-      line: lines.length,
-      column: lines[lines.length - 1].length + 1
-    };
-  }
-
-  /**
-   * 检测脚本语言
-   */
-  private detectScriptLanguage(scriptTag: string): string {
-    const typeMatch = scriptTag.match(/type=["']([^"']+)["']/);
-    if (typeMatch) {
-      const type = typeMatch[1];
-      if (type.includes('typescript')) return 'typescript';
-      if (type.includes('javascript')) return 'javascript';
-    }
-
-    const langMatch = scriptTag.match(/lang=["']([^"']+)["']/);
-    if (langMatch) {
-      return langMatch[1];
-    }
-
-    return 'javascript'; // 默认
-  }
-
-  /**
-   * 检测样式类型
-   */
-  private detectStyleType(styleTag: string): string {
-    const typeMatch = styleTag.match(/type=["']([^"']+)["']/);
-    if (typeMatch) {
-      return typeMatch[1];
-    }
-
-    return 'css'; // 默认
-  }
-
-  /**
    * 计算复杂度
    */
   protected calculateComplexity(content: string): number {
@@ -595,11 +554,74 @@ export class LayeredHTMLStrategy extends BaseStrategy {
   }
 
   /**
-   * 获取策略配置
+   * 生成脚本缓存键
    */
-  getConfig(): LayeredHTMLConfig {
-    return { ...this.config };
+  private generateScriptCacheKey(script: ScriptBlock): string {
+    const attrSignature = Object.keys(script.attributes)
+      .sort()
+      .map(key => `${key}:${script.attributes[key]}`)
+      .join('|');
+    return `${script.contentHash}_${script.language}_${attrSignature}`;
   }
 
+  /**
+   * 生成样式缓存键
+   */
+  private generateStyleCacheKey(style: StyleBlock): string {
+    const attrSignature = Object.keys(style.attributes)
+      .sort()
+      .map(key => `${key}:${style.attributes[key]}`)
+      .join('|');
+    return `${style.contentHash}_${style.styleType}_${attrSignature}`;
+  }
 
+  /**
+   * 分析脚本属性
+   */
+  private analyzeScriptAttributes(attributes: Record<string, string>) {
+    return {
+      isModule: attributes.type === 'module',
+      isAsync: attributes.async === 'true',
+      isDefer: attributes.defer === 'true',
+      hasSrc: !!attributes.src,
+      isTypeScript: attributes.lang === 'ts' || attributes.type?.includes('typescript'),
+      isJSON: attributes.type === 'json',
+      hasCrossorigin: !!attributes.crossorigin,
+      isNomodule: attributes.nomodule === 'true'
+    };
+  }
+
+  /**
+   * 分析样式属性
+   */
+  private analyzeStyleAttributes(attributes: Record<string, string>) {
+    return {
+      isSCSS: attributes.lang === 'scss' || attributes.type?.includes('scss'),
+      isLESS: attributes.lang === 'less' || attributes.type?.includes('less'),
+      isInline: attributes.type === 'inline',
+      hasMedia: !!attributes.media,
+      hasScope: !!attributes.scoped,
+      isPreprocessor: attributes.lang === 'scss' || attributes.lang === 'less' ||
+        attributes.type?.includes('scss') || attributes.type?.includes('less')
+    };
+  }
+
+  /**
+   * 清理缓存
+   */
+  public clearCache(): void {
+    this.scriptCache.clear();
+    this.styleCache.clear();
+    this.logger.debug('Cleared HTML processing cache');
+  }
+
+  /**
+   * 获取缓存统计
+   */
+  public getCacheStats(): { scriptCache: number; styleCache: number } {
+    return {
+      scriptCache: this.scriptCache.size,
+      styleCache: this.styleCache.size
+    };
+  }
 }
