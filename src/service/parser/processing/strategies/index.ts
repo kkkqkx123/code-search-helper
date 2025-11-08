@@ -6,21 +6,11 @@
 // 基类导出
 export { BaseStrategy } from './base/BaseStrategy';
 
-// 策略实现导出
-export { SemanticStrategy } from './implementations/SemanticStrategy';
-export { ASTStrategy } from './implementations/ASTStrategy';
-export { BracketStrategy } from './implementations/BracketStrategy';
-export { FunctionStrategy } from './implementations/FunctionStrategy';
-export { ClassStrategy } from './implementations/ClassStrategy';
-export { ImportStrategy } from './implementations/ImportStrategy';
-// 导出额外的策略实现
-export { ASTSegmentationStrategy } from './implementations/ASTSegmentationStrategy';
+// 策略实现导出 - 优化后保留的策略
 export { BracketSegmentationStrategy } from './implementations/BracketSegmentationStrategy';
 export { LayeredHTMLStrategy } from './implementations/LayeredHTMLStrategy';
 export { LineSegmentationStrategy } from './implementations/LineSegmentationStrategy';
 export { MarkdownSegmentationStrategy } from './implementations/MarkdownSegmentationStrategy';
-export { SemanticSegmentationStrategy } from './implementations/SemanticSegmentationStrategy';
-export { StandardizationSegmentationStrategy } from './implementations/StandardizationSegmentationStrategy';
 export { XMLSegmentationStrategy } from './implementations/XMLSegmentationStrategy';
 export { ASTCodeSplitter } from './implementations/ASTCodeSplitter';
 
@@ -41,32 +31,7 @@ export function createStrategy(strategyName: string, config?: any): any {
     case 'line-strategy':
       return new (require('./implementations/LineSegmentationStrategy').LineSegmentationStrategy)(config);
 
-    case 'semantic':
-    case 'semantic-strategy':
-      return new (require('./implementations/SemanticStrategy').SemanticStrategy)(config);
-
-    case 'ast':
-    case 'ast-strategy':
-      return new (require('./implementations/ASTStrategy').ASTStrategy)(config);
-
-    case 'bracket':
-    case 'bracket-strategy':
-      return new (require('./implementations/BracketStrategy').BracketStrategy)(config);
-
-    case 'function':
-    case 'function-strategy':
-      return new (require('./implementations/FunctionStrategy').FunctionStrategy)(config);
-
-    case 'class':
-    case 'class-strategy':
-      return new (require('./implementations/ClassStrategy').ClassStrategy)(config);
-
-    case 'import':
-    case 'import-strategy':
-      return new (require('./implementations/ImportStrategy').ImportStrategy)(config);
-    // 新增的策略
-    case 'ast-segmentation':
-      return new (require('./implementations/ASTSegmentationStrategy').ASTSegmentationStrategy)(config);
+    // 移除的策略: semantic, ast, function, class, import, ast-segmentation
 
     case 'bracket-segmentation':
       return new (require('./implementations/BracketSegmentationStrategy').BracketSegmentationStrategy)(config);
@@ -79,12 +44,6 @@ export function createStrategy(strategyName: string, config?: any): any {
 
     case 'markdown-segmentation':
       return new (require('./implementations/MarkdownSegmentationStrategy').MarkdownSegmentationStrategy)(config);
-
-    case 'semantic-segmentation':
-      return new (require('./implementations/SemanticSegmentationStrategy').SemanticSegmentationStrategy)(config);
-
-    case 'standardization-segmentation':
-      return new (require('./implementations/StandardizationSegmentationStrategy').StandardizationSegmentationStrategy)(config);
 
     case 'xml-segmentation':
       return new (require('./implementations/XMLSegmentationStrategy').XMLSegmentationStrategy)(config);
@@ -106,113 +65,47 @@ export function getAvailableStrategies(): string[] {
  */
 export const StrategyPresets = {
   /**
-  * 小文件策略配置
+  * 小文件策略配置 - 优化后
   */
   smallFile: {
-    'semantic-strategy': {
-      maxChunkSize: 500,
-      minChunkSize: 50,
-      semanticThreshold: 0.6
-    },
-    'ast-strategy': {
-      maxFunctionSize: 1000,
-      maxClassSize: 1500,
-      minFunctionLines: 3,
-      minClassLines: 2
-    },
-    'bracket-strategy': {
+    'bracket-segmentation': {
       maxChunkSize: 800,
       minChunkSize: 50,
       maxImbalance: 1
     },
-    'function-strategy': {
-      maxFunctionSize: 1000,
-      maxClassSize: 1500,
-      minFunctionLines: 3,
-      minClassLines: 2
-    },
-    'class-strategy': {
-      maxClassSize: 1500,
-      minClassLines: 2,
-      keepMethodsTogether: true
-    },
-    'import-strategy': {
-      maxImportGroupSize: 200,
-      groupImports: true
+    'line-segmentation': {
+      maxChunkSize: 500,
+      minChunkSize: 50
     }
   },
 
   /**
-  * 中等文件策略配置
+  * 中等文件策略配置 - 优化后
   */
   mediumFile: {
-    'semantic-strategy': {
-      maxChunkSize: 1000,
-      minChunkSize: 100,
-      semanticThreshold: 0.7
-    },
-    'ast-strategy': {
-      maxFunctionSize: 2000,
-      maxClassSize: 3000,
-      minFunctionLines: 5,
-      minClassLines: 3
-    },
-    'bracket-strategy': {
+    'bracket-segmentation': {
       maxChunkSize: 1500,
       minChunkSize: 100,
       maxImbalance: 2
     },
-    'function-strategy': {
-      maxFunctionSize: 2000,
-      maxClassSize: 3000,
-      minFunctionLines: 5,
-      minClassLines: 3
-    },
-    'class-strategy': {
-      maxClassSize: 3000,
-      minClassLines: 3,
-      keepMethodsTogether: true
-    },
-    'import-strategy': {
-      maxImportGroupSize: 500,
-      groupImports: true
+    'line-segmentation': {
+      maxChunkSize: 1000,
+      minChunkSize: 100
     }
   },
 
   /**
-  * 大文件策略配置
+  * 大文件策略配置 - 优化后
   */
   largeFile: {
-    'semantic-strategy': {
-      maxChunkSize: 2000,
-      minChunkSize: 200,
-      semanticThreshold: 0.8
-    },
-    'ast-strategy': {
-      maxFunctionSize: 3000,
-      maxClassSize: 5000,
-      minFunctionLines: 10,
-      minClassLines: 5
-    },
-    'bracket-strategy': {
+    'bracket-segmentation': {
       maxChunkSize: 3000,
       minChunkSize: 200,
       maxImbalance: 3
     },
-    'function-strategy': {
-      maxFunctionSize: 3000,
-      maxClassSize: 5000,
-      minFunctionLines: 10,
-      minClassLines: 5
-    },
-    'class-strategy': {
-      maxClassSize: 5000,
-      minClassLines: 5,
-      keepMethodsTogether: true
-    },
-    'import-strategy': {
-      maxImportGroupSize: 1000,
-      groupImports: true
+    'line-segmentation': {
+      maxChunkSize: 2000,
+      minChunkSize: 200
     }
   }
 };

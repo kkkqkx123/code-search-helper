@@ -1,6 +1,7 @@
 /**
  * 策略工厂实现
  * 负责创建和管理策略实例，提供策略的注册、创建和缓存功能
+ * 优化后版本：支持精简的策略架构，专注于向量嵌入优化
  */
 
 import { IStrategyFactory, StrategyConstructor } from '../core/interfaces/IStrategyFactory';
@@ -138,17 +139,109 @@ export class StrategyFactory implements IStrategyFactory {
   }
 
   /**
+   * 验证策略是否在优化后的策略列表中
+   * @param strategyType 策略类型
+   * @returns 是否为有效的优化后策略
+   */
+  isValidOptimizedStrategy(strategyType: string): boolean {
+    return UNIFIED_STRATEGY_PRIORITIES.hasOwnProperty(strategyType);
+  }
+
+  /**
+   * 获取优化后的策略列表
+   * @returns 优化后的策略类型数组
+   */
+  getOptimizedStrategies(): string[] {
+    return Object.keys(UNIFIED_STRATEGY_PRIORITIES);
+  }
+
+  /**
+   * 创建策略实例（带验证）
+   * @param strategyType 策略类型
+   * @param config 可选的处理配置
+   * @returns 策略实例
+   */
+  createValidatedStrategy(strategyType: string, config?: ProcessingConfig): IProcessingStrategy {
+    if (!this.isValidOptimizedStrategy(strategyType)) {
+      throw new Error(`Strategy '${strategyType}' is not in the optimized strategy list. Available strategies: ${this.getOptimizedStrategies().join(', ')}`);
+    }
+    
+    return this.createStrategy(strategyType, config);
+  }
+
+  /**
    * 注册默认策略
-   * 注意：具体的策略类需要在实际实现时导入和注册
+   * 优化后版本：暂时不注册具体策略，保持原有设计
+   * 策略注册通过外部调用registerStrategy方法进行
    */
   private registerDefaultStrategies(): void {
-    // 这里暂时不注册具体的策略，因为需要导入具体的策略类
-    // 在实际使用时，可以通过registerStrategy方法注册具体策略
+    // 不在工厂中直接注册策略，避免类型不匹配问题
+    // 策略应该在应用初始化时通过registerStrategy方法注册
+    
+    // 优化后的策略列表（供参考）：
+    // - line-segmentation: LineSegmentationStrategy
+    // - bracket-segmentation: BracketSegmentationStrategy  
+    // - ast-codesplitter: ASTCodeSplitter
+    // - markdown-segmentation: MarkdownSegmentationStrategy
+    // - layered-html: LayeredHTMLStrategy
+    // - xml-segmentation: XMLSegmentationStrategy
+  }
 
-    // 示例注册方式（需要导入具体的策略类）：
-    // this.registerStrategy('line', LineStrategy);
-    // this.registerStrategy('semantic', SemanticStrategy);
-    // this.registerStrategy('ast', ASTStrategy);
-    // this.registerStrategy('bracket', BracketStrategy);
+  /**
+   * 为特定策略类型创建配置
+   * @param strategyType 策略类型
+   * @param config 处理配置
+   * @returns 策略特定配置
+   */
+  private createStrategyConfig(strategyType: string, config: ProcessingConfig): any {
+    const baseConfig = {
+      name: strategyType,
+      supportedLanguages: this.getSupportedLanguagesForStrategy(strategyType),
+      enabled: true
+    };
+
+    // 根据策略类型添加特定配置
+    switch (strategyType) {
+      case 'ast-codesplitter':
+        return {
+          ...baseConfig,
+          maxFunctionSize: config.chunking?.maxChunkSize || 3000,
+          maxClassSize: config.chunking?.maxChunkSize || 5000,
+          minFunctionLines: 3,
+          minClassLines: 2,
+          maxChunkSize: config.chunking?.maxChunkSize || 1000,
+          minChunkSize: config.chunking?.minChunkSize || 50
+        };
+      default:
+        return {
+          ...baseConfig,
+          maxChunkSize: config.chunking?.maxChunkSize || 1000,
+          minChunkSize: config.chunking?.minChunkSize || 50
+        };
+    }
+  }
+
+  /**
+   * 获取策略支持的语言列表
+   * @param strategyType 策略类型
+   * @returns 支持的语言列表
+   */
+  private getSupportedLanguagesForStrategy(strategyType: string): string[] {
+    switch (strategyType) {
+      case 'markdown-segmentation':
+        return ['markdown', 'md'];
+      case 'xml-segmentation':
+        return ['xml', 'html', 'htm', 'xhtml', 'svg'];
+      case 'layered-html':
+        return ['html', 'htm'];
+      case 'ast-codesplitter':
+        return ['typescript', 'javascript', 'python', 'java', 'c', 'cpp', 'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'];
+      case 'bracket-segmentation':
+        return ['javascript', 'typescript', 'python', 'java', 'c', 'cpp', 'go', 'rust', 'xml'];
+      case 'line-segmentation':
+        return ['*']; // 支持所有语言
+      default:
+        return ['*'];
+    }
   }
 }

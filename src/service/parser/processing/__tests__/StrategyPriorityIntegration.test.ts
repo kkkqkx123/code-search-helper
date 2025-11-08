@@ -91,15 +91,8 @@ describe('Strategy Priority Integration Tests', () => {
     strategyFactory.registerStrategy('markdown-segmentation', MockStrategy as any);
     strategyFactory.registerStrategy('xml-segmentation', MockStrategy as any);
     strategyFactory.registerStrategy('layered-html', MockStrategy as any);
-    strategyFactory.registerStrategy('ast-segmentation', MockStrategy as any);
-    strategyFactory.registerStrategy('semantic-segmentation', MockStrategy as any);
-    strategyFactory.registerStrategy('standardization-segmentation', MockStrategy as any);
-    strategyFactory.registerStrategy('semantic-strategy', MockStrategy as any);
-    strategyFactory.registerStrategy('bracket-strategy', MockStrategy as any);
-    strategyFactory.registerStrategy('ast-strategy', MockStrategy as any);
-    strategyFactory.registerStrategy('function-strategy', MockStrategy as any);
-    strategyFactory.registerStrategy('class-strategy', MockStrategy as any);
-    strategyFactory.registerStrategy('import-strategy', MockStrategy as any);
+    strategyFactory.registerStrategy('ast-codesplitter', MockStrategy as any);
+    strategyFactory.registerStrategy('bracket-segmentation', MockStrategy as any);
     strategyFactory.registerStrategy('line-segmentation', MockStrategy as any);
 
     coordinator = new ProcessingCoordinator(
@@ -114,35 +107,36 @@ describe('Strategy Priority Integration Tests', () => {
       expect(UNIFIED_STRATEGY_PRIORITIES['markdown-segmentation']).toBe(0);
       expect(UNIFIED_STRATEGY_PRIORITIES['xml-segmentation']).toBe(1);
       expect(UNIFIED_STRATEGY_PRIORITIES['layered-html']).toBe(2);
-      expect(UNIFIED_STRATEGY_PRIORITIES['ast-segmentation']).toBe(3);
-      expect(UNIFIED_STRATEGY_PRIORITIES['line-segmentation']).toBe(12);
+      expect(UNIFIED_STRATEGY_PRIORITIES['ast-codesplitter']).toBe(3);
+      expect(UNIFIED_STRATEGY_PRIORITIES['bracket-segmentation']).toBe(4);
+      expect(UNIFIED_STRATEGY_PRIORITIES['line-segmentation']).toBe(5);
     });
 
-    it('应该按优先级正确排序策略', () => {
-      const strategies = ['line-segmentation', 'markdown-segmentation', 'ast-segmentation'];
+    it('应该按优先级正确排序策略（优化后）', () => {
+      const strategies = ['line-segmentation', 'markdown-segmentation', 'ast-codesplitter'];
       const sorted = getPrioritizedStrategies(strategies);
 
       expect(sorted[0]).toBe('markdown-segmentation'); // 优先级 0
-      expect(sorted[1]).toBe('ast-segmentation');      // 优先级 3
-      expect(sorted[2]).toBe('line-segmentation');     // 优先级 12
+      expect(sorted[1]).toBe('ast-codesplitter');      // 优先级 3
+      expect(sorted[2]).toBe('line-segmentation');     // 优先级 5
     });
   });
 
   describe('Language Specific Strategies', () => {
-    it('应该为TypeScript返回正确的策略顺序', () => {
+    it('应该为TypeScript返回正确的策略顺序（优化后）', () => {
       const strategies = getLanguageSpecificStrategies('typescript');
 
-      expect(strategies).toContain('ast-segmentation');
-      expect(strategies).toContain('function-strategy');
-      expect(strategies).toContain('class-strategy');
+      expect(strategies).toContain('ast-codesplitter');
+      expect(strategies).toContain('bracket-segmentation');
+      expect(strategies).toContain('line-segmentation');
     });
 
-    it('应该为Python返回正确的策略顺序', () => {
+    it('应该为Python返回正确的策略顺序（优化后）', () => {
       const strategies = getLanguageSpecificStrategies('python');
 
-      expect(strategies).toContain('function-strategy');
-      expect(strategies).toContain('class-strategy');
-      expect(strategies).toContain('semantic-strategy');
+      expect(strategies).toContain('ast-codesplitter');
+      expect(strategies).toContain('bracket-segmentation');
+      expect(strategies).toContain('line-segmentation');
     });
 
     it('应该为未知语言返回所有策略', () => {

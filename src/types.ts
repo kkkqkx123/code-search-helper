@@ -279,12 +279,12 @@ export const TYPES = {
   ConfigurationManager: Symbol.for('ConfigurationManager'),
   ProtectionCoordinator: Symbol.for('ProtectionCoordinator'),
   ComplexityCalculator: Symbol.for('ComplexityCalculator'),
-  SemanticSegmentationStrategy: Symbol.for('SemanticSegmentationStrategy'),
+  
   BracketSegmentationStrategy: Symbol.for('BracketSegmentationStrategy'),
   LineSegmentationStrategy: Symbol.for('LineSegmentationStrategy'),
   MarkdownSegmentationStrategy: Symbol.for('MarkdownSegmentationStrategy'),
-  StandardizationSegmentationStrategy: Symbol.for('StandardizationSegmentationStrategy'),
-  ASTSegmentationStrategy: Symbol.for('ASTSegmentationStrategy'),
+  
+  
   OverlapProcessor: Symbol.for('OverlapProcessor'),
   OverlapPostProcessor: Symbol.for('OverlapPostProcessor'),
   ASTNodeTracker: Symbol.for('ASTNodeTracker'),
@@ -317,7 +317,7 @@ export const TYPES = {
   SyntaxAwareStrategyProvider: Symbol.for('SyntaxAwareStrategyProvider'),
   IntelligentStrategyProvider: Symbol.for('IntelligentStrategyProvider'),
   StructureAwareStrategyProvider: Symbol.for('StructureAwareStrategyProvider'),
-  SemanticStrategyProvider: Symbol.for('SemanticStrategyProvider'),
+  
   // 41. 优先级管理系统
   PriorityManager: Symbol.for('PriorityManager'),
   SmartStrategySelector: Symbol.for('SmartStrategySelector'),

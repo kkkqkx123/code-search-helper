@@ -1,6 +1,7 @@
 /**
  * 统一的策略优先级常量
  * 数值越小优先级越高
+ * 优化后版本：移除了冗余和过度设计的策略
  */
 
 export const UNIFIED_STRATEGY_PRIORITIES: Record<string, number> = {
@@ -9,133 +10,87 @@ export const UNIFIED_STRATEGY_PRIORITIES: Record<string, number> = {
   'xml-segmentation': 1,
   'layered-html': 2,
   
-  // 3-5: 复杂分析策略
-  'ast-segmentation': 3,
-  'semantic-segmentation': 4,
-  'standardization-segmentation': 5,
+  // 3-4: 核心分段策略（优化后）
+  'ast-codesplitter': 3,
+  'bracket-segmentation': 4,
   
-  // 6-8: 结构化策略
-  'semantic-strategy': 6,
-  'bracket-strategy': 7,
-  'ast-strategy': 8,
-  
-  // 9-11: 代码元素策略
-  'function-strategy': 9,
-  'class-strategy': 10,
-  'import-strategy': 11,
-  
-  // 12: 降级策略（最低优先级）
-  'line-segmentation': 12
+  // 5: 降级策略（最低优先级）
+  'line-segmentation': 5
 };
 
 /**
  * 语言特定策略推荐
  * 按优先级从高到低排序
+ * 优化后版本：简化策略选择
  */
 export const LANGUAGE_SPECIFIC_STRATEGIES: Record<string, string[]> = {
   'typescript': [
-    'ast-segmentation',
-    'function-strategy', 
-    'class-strategy',
-    'semantic-strategy',
-    'bracket-strategy',
-    'import-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'javascript': [
-    'ast-segmentation',
-    'function-strategy',
-    'class-strategy', 
-    'semantic-strategy',
-    'bracket-strategy',
-    'import-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'python': [
-    'function-strategy',
-    'class-strategy',
-    'semantic-strategy',
-    'ast-segmentation',
-    'import-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'java': [
-    'ast-segmentation',
-    'function-strategy',
-    'class-strategy',
-    'bracket-strategy',
-    'import-strategy',
-    'semantic-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'c': [
-    'bracket-strategy',
-    'function-strategy',
-    'semantic-strategy',
-    'import-strategy'
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'cpp': [
-    'bracket-strategy',
-    'function-strategy',
-    'class-strategy',
-    'ast-segmentation',
-    'import-strategy',
-    'semantic-strategy'
+    'bracket-segmentation',
+    'ast-codesplitter',
+    'line-segmentation'
   ],
   'csharp': [
-    'ast-segmentation',
-    'function-strategy',
-    'class-strategy',
-    'bracket-strategy',
-    'import-strategy',
-    'semantic-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'go': [
-    'function-strategy',
-    'class-strategy',
-    'semantic-strategy',
-    'ast-segmentation',
-    'import-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'rust': [
-    'bracket-strategy',
-    'function-strategy',
-    'class-strategy',
-    'semantic-strategy',
-    'ast-segmentation',
-    'import-strategy'
+    'bracket-segmentation',
+    'ast-codesplitter',
+    'line-segmentation'
   ],
   'php': [
-    'function-strategy',
-    'class-strategy',
-    'semantic-strategy',
-    'ast-segmentation',
-    'import-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'ruby': [
-    'function-strategy',
-    'class-strategy',
-    'semantic-strategy',
-    'import-strategy'
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'swift': [
-    'ast-segmentation',
-    'function-strategy',
-    'class-strategy',
-    'bracket-strategy',
-    'import-strategy',
-    'semantic-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'kotlin': [
-    'ast-segmentation',
-    'function-strategy',
-    'class-strategy',
-    'semantic-strategy',
-    'bracket-strategy',
-    'import-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ],
   'scala': [
-    'ast-segmentation',
-    'function-strategy',
-    'class-strategy',
-    'bracket-strategy',
-    'semantic-strategy'
+    'ast-codesplitter',
+    'bracket-segmentation',
+    'line-segmentation'
   ]
 };
 
@@ -198,11 +153,9 @@ export const BRACKET_SEGMENTATION_SUPPORTED_LANGUAGES: string[] = [
   'javascript', 'typescript', 'python', 'java', 'c', 'cpp', 'go', 'rust', 'xml'
 ];
 
-// 以下策略使用 PROGRAMMING_LANGUAGES
-export const FUNCTION_STRATEGY_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
-export const CLASS_STRATEGY_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
-export const IMPORT_STRATEGY_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
-export const AST_STRATEGY_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
-export const AST_SEGMENTATION_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
-export const STANDARDIZATION_SEGMENTATION_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
-export const SEMANTIC_SEGMENTATION_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
+// 优化后的策略支持语言
+export const AST_CODESPLITTER_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
+export const MARKDOWN_SEGMENTATION_SUPPORTED_LANGUAGES = ['markdown'];
+export const XML_SEGMENTATION_SUPPORTED_LANGUAGES = ['xml', 'html'];
+export const LAYERED_HTML_SUPPORTED_LANGUAGES = ['html', 'htm'];
+export const LINE_SEGMENTATION_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;

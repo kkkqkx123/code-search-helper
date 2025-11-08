@@ -16,7 +16,7 @@ import {
   isListItem,
   calculateSemanticSimilarity
 } from './markdown-rules';
-import { SemanticStrategy } from '../../strategies/implementations/SemanticStrategy';
+import { BracketSegmentationStrategy } from '../../strategies/implementations/BracketSegmentationStrategy';
 import { OverlapCalculator } from '../overlap/OverlapCalculator';
 
 /**
@@ -711,18 +711,10 @@ export class MarkdownTextStrategy {
   }
 
   /**
-   * 拆分代码块（复用SemanticStrategy）
+   * 拆分代码块（复用BracketSegmentationStrategy）
    */
   private async splitCodeBlock(block: MarkdownBlock): Promise<MarkdownBlock[]> {
     try {
-      // 使用SemanticStrategy进行语义拆分
-      const semanticStrategy = new SemanticStrategy({
-        parameters: {
-          maxChunkSize: this.config.maxChunkSize * 0.8, // 留出重叠空间
-          minChunkSize: this.config.minChunkSize
-        }
-      });
-
       // 提取代码内容（去除```标记）
       const lines = block.lines;
       let contentLines = lines;
@@ -738,6 +730,20 @@ export class MarkdownTextStrategy {
       }
 
       const content = contentLines.join('\n');
+
+      // 创建BracketStrategyConfig配置
+      const bracketConfig = {
+        name: 'bracket-segmentation',
+        supportedLanguages: ['javascript', 'typescript', 'python', 'java', 'c', 'cpp', 'go', 'rust', 'xml'],
+        enabled: true,
+        maxChunkSize: this.config.maxChunkSize * 0.8,
+        minChunkSize: this.config.minChunkSize,
+        maxImbalance: 3,
+        enableBracketBalance: true
+      };
+
+      // 使用BracketSegmentationStrategy进行拆分
+      const bracketSegmentationStrategy = new BracketSegmentationStrategy(bracketConfig);
 
       // 创建上下文并执行策略
       const context = {
@@ -756,14 +762,13 @@ export class MarkdownTextStrategy {
         }
       } as any;
 
-      const strategyResult = await semanticStrategy.execute(context);
-      const chunks = strategyResult.chunks || [];
+      const strategyChunks = await bracketSegmentationStrategy.process(context);
 
       // 转换回MarkdownBlock格式
       const result: MarkdownBlock[] = [];
       let currentLine = block.startLine + 1; // 跳过开头的```
 
-      for (const chunk of chunks) {
+      for (const chunk of strategyChunks) {
         const chunkLines = chunk.content.split('\n');
         const blockContent = '```' + (language ? language : '') + '\n' +
           chunk.content + '\n```';
