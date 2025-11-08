@@ -19,7 +19,7 @@ import { IQdrantCollectionManager } from '../../../database/qdrant/QdrantCollect
 import { IQdrantVectorOperations } from '../../../database/qdrant/QdrantVectorOperations';
 import { IQdrantQueryUtils } from '../../../database/qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../../database/qdrant/QdrantProjectManager';
-import { ASTCodeSplitter } from '../../parser/processing/strategies/impl/ASTCodeSplitter';
+import { ASTCodeSplitter } from '../../parser/processing/strategies/implementations/ASTCodeSplitter';
 import { ProjectStateManager } from '../../project/ProjectStateManager';
 import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
 import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';

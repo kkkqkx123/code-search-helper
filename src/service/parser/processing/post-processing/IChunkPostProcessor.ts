@@ -1,10 +1,12 @@
 import { CodeChunk } from '../types/CodeChunk';
 import { ChunkingOptions } from '../strategies/types/SegmentationTypes';
+import { ProcessingConfig } from '../core/types/ConfigTypes';
 
 export interface PostProcessingContext {
   originalContent: string;
   language: string;
   filePath?: string;
+  config: ProcessingConfig;
   options: ChunkingOptions;
 }
 

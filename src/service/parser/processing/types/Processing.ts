@@ -36,22 +36,22 @@ export interface ProcessingOptions {
  * 结果元数据接口
  */
 export interface ResultMetadata {
-  /** 编程语言 */
-  language: string;
+  /** 编程语言（可选） */
+  language?: string;
   /** 文件路径（可选） */
   filePath?: string;
   /** 代码块数量 */
   chunkCount: number;
-  /** 平均块大小 */
-  averageChunkSize: number;
-  /** 总大小 */
-  totalSize: number;
+  /** 平均块大小（可选） */
+  averageChunkSize?: number;
+  /** 总大小（可选） */
+  totalSize?: number;
   /** 处理开始时间 */
   startTime?: number;
   /** 处理结束时间 */
   endTime?: number;
-  /** 使用的策略 */
-  strategy: string;
+  /** 使用的策略（可选） */
+  strategy?: string;
   /** 扩展属性 */
   [key: string]: any;
 }

@@ -74,12 +74,12 @@ export interface GuardStatus {
 /**
  * 统一的保护机制协调器接口
  */
-export interface IUnifiedGuardCoordinator {
+export interface IGuardCoordinator {
   // 生命周期管理
   initialize(): void;
   destroy(): void;
   reset(): void;
-  
+
   // 内存保护功能
   startMonitoring(): void;
   stopMonitoring(): void;
@@ -91,19 +91,19 @@ export interface IUnifiedGuardCoordinator {
   clearHistory(): void;
   setMemoryLimit(limitMB: number): void;
   forceGarbageCollection(): void;
-  
+
   // 错误保护功能
   shouldUseFallback(): boolean;
   recordError(error: Error, context?: string): void;
-  
+
   // 文件处理协调
   processFile(filePath: string, content: string): Promise<FileProcessingResult>;
-  
+
   // ProcessingGuard 兼容方法
   processFileWithDetection(filePath: string, content: string): Promise<ProcessingResult>;
   getProcessingStats(): ProcessingStats;
   clearDetectionCache(): void;
-  
+
   // 状态查询
   getStatus(): GuardStatus;
 }

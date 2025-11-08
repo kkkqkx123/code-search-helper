@@ -1,4 +1,4 @@
-import { UnifiedGuardCoordinator } from '../UnifiedGuardCoordinator';
+import { GuardCoordinator } from '../GuardCoordinator';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { IMemoryMonitorService } from '../../../memory/interfaces/IMemoryMonitorService';
 import { ErrorThresholdInterceptor } from '../../processing/utils/protection/ErrorThresholdInterceptor';
@@ -158,13 +158,13 @@ const mockServiceContainer = {
 };
 
 describe('UnifiedGuardCoordinator', () => {
-  let coordinator: UnifiedGuardCoordinator;
+  let coordinator: GuardCoordinator;
   let mockProcessMemoryUsage: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    
+
     // Mock process.memoryUsage
     mockProcessMemoryUsage = jest.spyOn(process, 'memoryUsage').mockReturnValue({
       rss: 300 * 1024 * 1024,
@@ -174,7 +174,7 @@ describe('UnifiedGuardCoordinator', () => {
       arrayBuffers: 0
     });
 
-    coordinator = new UnifiedGuardCoordinator(
+    coordinator = new GuardCoordinator(
       mockMemoryMonitor,
       mockErrorManager,
       mockCleanupManager,
@@ -193,7 +193,7 @@ describe('UnifiedGuardCoordinator', () => {
 
   describe('singleton pattern', () => {
     it('should return singleton instance', () => {
-      const instance1 = UnifiedGuardCoordinator.getInstance(
+      const instance1 = GuardCoordinator.getInstance(
         mockMemoryMonitor,
         mockErrorManager,
         mockCleanupManager,
@@ -202,7 +202,7 @@ describe('UnifiedGuardCoordinator', () => {
         mockFallbackEngine
       );
 
-      const instance2 = UnifiedGuardCoordinator.getInstance(
+      const instance2 = GuardCoordinator.getInstance(
         mockMemoryMonitor,
         mockErrorManager,
         mockCleanupManager,
@@ -314,7 +314,7 @@ describe('UnifiedGuardCoordinator', () => {
     });
 
     it('should handle cleanup without cleanup manager', async () => {
-      const coordinatorWithoutCleanup = UnifiedGuardCoordinator.getInstance(
+      const coordinatorWithoutCleanup = GuardCoordinator.getInstance(
         mockMemoryMonitor,
         mockErrorManager,
         null as any, // No cleanup manager
@@ -327,10 +327,10 @@ describe('UnifiedGuardCoordinator', () => {
 
       // 检查是否包含预期的警告消息，检查所有调用
       const warnCalls = (mockLogger.warn as jest.Mock).mock.calls;
-      const hasCleanupMessage = warnCalls.some(call => 
+      const hasCleanupMessage = warnCalls.some(call =>
         call[0] && call[0].includes('CleanupManager not available')
       );
-      
+
       // 如果实现中没有记录这个消息，我们跳过这个检查
       // expect(hasCleanupMessage).toBe(true);
     });
@@ -430,7 +430,7 @@ describe('UnifiedGuardCoordinator', () => {
       expect(result.language).toBe('text');
       expect(result.fallbackReason).toBeDefined();
       expect(result.fallbackReason).toContain('Memory limit exceeded');
-      
+
       checkMemoryUsageSpy.mockRestore();
     });
 
@@ -525,7 +525,7 @@ describe('UnifiedGuardCoordinator', () => {
   describe('memory pressure handling', () => {
     it('should handle memory pressure event', async () => {
       const event = { type: 'memory-pressure' };
-      
+
       await (coordinator as any).handleMemoryPressure(event);
 
       expect(mockLogger.warn).toHaveBeenCalledWith('Memory pressure detected', event);

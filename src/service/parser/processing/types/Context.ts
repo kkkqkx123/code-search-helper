@@ -74,7 +74,7 @@ export class ContextBuilder {
   /**
    * 设置文件路径
    */
-  setFilePath(filePath: string): ContextBuilder {
+  setFilePath(filePath?: string): ContextBuilder {
     this.context.filePath = filePath;
     return this;
   }

@@ -13,7 +13,7 @@ import { PerformanceOptimizerService } from '../../infrastructure/batching/Perfo
 import { VectorPoint } from '../../database/qdrant/IVectorStore';
 import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 // Tree-sitter AST分段支持
-import { ASTCodeSplitter } from '../parser/processing/strategies/impl/ASTCodeSplitter';
+import { ASTCodeSplitter } from '../parser/processing/strategies/implementations/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
 import { IndexingLogicService } from './IndexingLogicService';
 import { NebulaService, INebulaService } from '../../database/nebula/NebulaService';

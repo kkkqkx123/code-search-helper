@@ -1,4 +1,4 @@
-import { UnifiedDetectionService, DetectionResult, ProcessingStrategyType } from '../UnifiedDetectionService';
+import { DetectionService, DetectionResult, ProcessingStrategyType } from '../DetectionService';
 import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { FileFeatureDetector } from '../FileFeatureDetector';
@@ -7,7 +7,7 @@ import { LanguageDetector } from '../../../core/language-detection/LanguageDetec
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 describe('UnifiedDetectionService', () => {
-  let service: UnifiedDetectionService;
+  let service: DetectionService;
   let mockLogger: LoggerService;
   let mockConfigManager: jest.Mocked<UnifiedConfigManager>;
   let mockTreeSitterService: jest.Mocked<TreeSitterService>;
@@ -82,7 +82,7 @@ describe('UnifiedDetectionService', () => {
     } as any;
 
     // Create service instance
-    service = new UnifiedDetectionService(
+    service = new DetectionService(
       mockLogger,
       mockConfigManager,
       mockTreeSitterService,
@@ -100,7 +100,7 @@ describe('UnifiedDetectionService', () => {
     });
 
     it('should create default dependencies if not provided', () => {
-      const serviceWithoutDeps = new UnifiedDetectionService();
+      const serviceWithoutDeps = new DetectionService();
       expect(serviceWithoutDeps).toBeDefined();
     });
   });

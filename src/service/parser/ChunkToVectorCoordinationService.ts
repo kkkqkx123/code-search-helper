@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { ASTCodeSplitter } from './processing/strategies/impl/ASTCodeSplitter';
+import { ASTCodeSplitter } from './processing/strategies/implementations/ASTCodeSplitter';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { TYPES } from '../../types';
@@ -11,7 +11,7 @@ import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { CodeChunk } from './types';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { UnifiedGuardCoordinator } from './guard/UnifiedGuardCoordinator';
+import { GuardCoordinator } from './guard/GuardCoordinator';
 import { UniversalTextStrategy } from './processing/utils/UniversalTextStrategy';
 import { BackupFileProcessor } from './processing/detection/BackupFileProcessor';
 import { VectorBatchOptimizer } from '../optimization/VectorBatchOptimizer';
@@ -44,7 +44,7 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.ProcessingGuard) private processingGuard: UnifiedGuardCoordinator,
+    @inject(TYPES.ProcessingGuard) private processingGuard: GuardCoordinator,
     @inject(TYPES.UniversalTextStrategy) private universalTextSplitter: UniversalTextStrategy,
     @inject(TYPES.BackupFileProcessor) private backupFileProcessor: BackupFileProcessor,
     @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer,

@@ -4,10 +4,10 @@ import { TYPES } from '../../../types';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
-import { DetectionResult, ProcessingStrategyType } from '../processing/detection/UnifiedDetectionService';
+import { DetectionResult, ProcessingStrategyType } from '../detection/DetectionService';
 
 import {
-  IUnifiedGuardCoordinator,
+  IGuardCoordinator,
   MemoryStatus,
   MemoryStats,
   MemoryHistory,
@@ -15,7 +15,7 @@ import {
   ProcessingResult,
   ProcessingStats,
   GuardStatus
-} from './IUnifiedGuardCoordinator';
+} from './IGuardCoordinator';
 import { ICleanupContext } from '../../../infrastructure/cleanup/ICleanupStrategy';
 import { IServiceContainer } from '../../../interfaces/IServiceContainer';
 
@@ -24,7 +24,7 @@ import { IServiceContainer } from '../../../interfaces/IServiceContainer';
  * 合并 MemoryGuard 和 ProcessingGuard 的功能，提供统一的保护机制协调服务
  */
 @injectable()
-export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
+export class GuardCoordinator implements IGuardCoordinator {
   // 核心依赖组件
   private memoryMonitor: IMemoryMonitorService;
   private errorThresholdManager: ErrorThresholdInterceptor;
@@ -661,7 +661,7 @@ export class UnifiedGuardCoordinator implements IUnifiedGuardCoordinator {
       const detectionService = this.serviceContainer.get<any>(TYPES.UnifiedDetectionService);
       const fallbackEngine = this.serviceContainer.get<any>(TYPES.IntelligentFallbackEngine);
       const strategyFactory = this.serviceContainer.get<any>(TYPES.ProcessingStrategyFactory);
-      
+
       // 如果已经有检测结果，则避免重复检测
       const detection = cachedDetection || await detectionService.detectFile(filePath, content);
       const fallbackStrategy = await fallbackEngine.determineFallbackStrategy(filePath, new Error(reason), detection);

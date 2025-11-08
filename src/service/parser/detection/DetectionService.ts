@@ -1,14 +1,14 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
-import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
+import { LoggerService } from '../../../utils/LoggerService';
+import { TYPES } from '../../../types';
+import { UnifiedConfigManager } from '../config/UnifiedConfigManager';
+import { TreeSitterService } from '../core/parse/TreeSitterService';
 import { IFileFeatureDetector } from './IFileFeatureDetector';
 import { BackupFileProcessor } from './BackupFileProcessor';
-import { LanguageDetector } from '../../core/language-detection/LanguageDetector';
-import { languageFeatureDetector } from '../../utils';
-import { IEventBus } from '../../../../interfaces/IEventBus';
-import { ParserEvents, FileDetectedEvent, FileDetectionFailedEvent } from '../../events/ParserEvents';
+import { LanguageDetector } from '../core/language-detection/LanguageDetector';
+import { languageFeatureDetector } from '../utils';
+import { IEventBus } from '../../../interfaces/IEventBus';
+import { ParserEvents, FileDetectedEvent, FileDetectionFailedEvent } from '../events/ParserEvents';
 
 export enum ProcessingStrategyType {
   TREESITTER_AST = 'treesitter_ast',
@@ -70,10 +70,9 @@ export interface LanguageDetectionInfo {
 
 /**
  * 统一检测服务
- * 整合了 UnifiedDetectionCenter、LanguageDetector 和 FileFeatureDetector 的功能
  */
 @injectable()
-export class UnifiedDetectionService {
+export class DetectionService {
   private logger?: LoggerService;
   private configManager: UnifiedConfigManager;
   private fileFeatureDetector: IFileFeatureDetector;

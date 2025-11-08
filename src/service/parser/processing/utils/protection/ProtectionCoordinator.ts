@@ -3,7 +3,7 @@ import { IProtectionCoordinator, SegmentationContext } from '../../strategies/ty
 import { ProtectionInterceptorChain, ProtectionContext } from './ProtectionInterceptor';
 import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { SegmentationContextFactory } from '../../coordination/SegmentationContextFactory';
+import { CodeChunk } from '../../types/CodeChunk';
 
 /**
  * 保护协调器
@@ -29,6 +29,22 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       errors: 0
     };
     this.logger?.debug('ProtectionCoordinator initialized');
+  }
+
+  /**
+  * 检查是否应该保护 (实现 IProtectionCoordinator 接口)
+  */
+  shouldProtect(context: SegmentationContext): boolean {
+  // 简单实现：检查内容长度或其他条件
+  return context.content.length > 10000; // 示例：超过10KB的内容进行保护检查
+  }
+
+  /**
+   * 应用保护措施 (实现 IProtectionCoordinator 接口)
+   */
+  applyProtection(chunks: CodeChunk[], context: SegmentationContext): CodeChunk[] {
+    // 简单实现：返回原始块
+    return chunks;
   }
 
   /**
@@ -82,11 +98,17 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
     segmentationContext: SegmentationContext,
     additionalMetadata?: Record<string, any>
   ): ProtectionContext {
-    return SegmentationContextFactory.createProtectionContext(
+    return {
       operation,
-      segmentationContext,
-      additionalMetadata
-    );
+      content: segmentationContext.content,
+      filePath: segmentationContext.filePath,
+      language: segmentationContext.language,
+      metadata: {
+        ...segmentationContext.metadata,
+        ...additionalMetadata,
+        options: segmentationContext.options
+      }
+    };
   }
 
   /**
@@ -143,7 +165,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       segmentationContext,
       {
         currentMemoryUsage,
-        memoryLimit: segmentationContext.options.memoryLimitMB * 1024 * 1024,
+        memoryLimit: (segmentationContext.options.memoryLimitMB || 512) * 1024 * 1024,
         checkType: 'memory'
       }
     );
@@ -163,7 +185,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       segmentationContext,
       {
         errorCount,
-        errorThreshold: segmentationContext.options.errorThreshold,
+        errorThreshold: segmentationContext.options.errorThreshold || 10,
         checkType: 'error_threshold'
       }
     );
@@ -181,7 +203,7 @@ export class ProtectionCoordinator implements IProtectionCoordinator {
       'file_size_check',
       segmentationContext,
       {
-        fileSize: segmentationContext.metadata.contentLength,
+        fileSize: segmentationContext.metadata?.contentLength || segmentationContext.content.length,
         checkType: 'file_size'
       }
     );

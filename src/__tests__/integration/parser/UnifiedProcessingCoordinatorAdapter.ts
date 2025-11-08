@@ -2,7 +2,7 @@ import { UnifiedProcessingCoordinator } from '../../../service/parser/processing
 import { UnifiedStrategyManager } from '../../../service/parser/processing/strategies/manager/UnifiedStrategyManager';
 import { UnifiedDetectionService } from '../../../service/parser/processing/detection/UnifiedDetectionService';
 import { UnifiedConfigManager } from '../../../service/parser/config/UnifiedConfigManager';
-import { UnifiedGuardCoordinator } from '../../../service/parser/guard/UnifiedGuardCoordinator';
+import { GuardCoordinator } from '../../../service/parser/guard/GuardCoordinator';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ProcessingResult, ProcessingContext } from '../../../service/parser/processing/coordination/UnifiedProcessingCoordinator';
 
@@ -14,14 +14,14 @@ export class UnifiedProcessingCoordinatorAdapter {
   private strategyManager: UnifiedStrategyManager;
   private detectionService: UnifiedDetectionService;
   private configManager: UnifiedConfigManager;
-  private guardCoordinator: UnifiedGuardCoordinator;
+  private guardCoordinator: GuardCoordinator;
   private logger?: LoggerService;
 
   constructor(
     strategyManager: UnifiedStrategyManager,
     detectionService: UnifiedDetectionService,
     configManager: UnifiedConfigManager,
-    guardCoordinator: UnifiedGuardCoordinator,
+    guardCoordinator: GuardCoordinator,
     logger?: LoggerService
   ) {
     this.strategyManager = strategyManager;
@@ -36,17 +36,17 @@ export class UnifiedProcessingCoordinatorAdapter {
    */
   createCoordinator(): UnifiedProcessingCoordinator {
     // 创建简化的性能监控和配置协调器
-    const performanceMonitor = { 
+    const performanceMonitor = {
       monitorAsyncOperation: async (name: string, fn: () => Promise<any>) => await fn(),
-      setThreshold: () => {},
+      setThreshold: () => { },
       getPerformanceStats: () => ({})
     } as any;
-    
+
     const configCoordinator = {
-      onConfigUpdate: (callback: (event: any) => void) => {},
-      emitConfigUpdate: (event: any) => {}
+      onConfigUpdate: (callback: (event: any) => void) => { },
+      emitConfigUpdate: (event: any) => { }
     } as any;
-    
+
     const segmentationCoordinator = {
       selectStrategy: () => ({ getName: () => 'default' } as any),
       executeStrategy: async () => [],

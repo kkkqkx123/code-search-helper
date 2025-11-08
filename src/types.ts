@@ -1,131 +1,6 @@
 // 1. 工具类型
 export type EventListener<T = any> = (data: T) => void;
 
-// 2. 配置模块
-import { ConfigService } from './config/ConfigService';
-
-// 3. 核心服务模块
-import { LoggerService } from './utils/LoggerService';
-import { ErrorHandlerService } from './utils/ErrorHandlerService';
-import { ProjectIdManager } from './database/ProjectIdManager';
-import { DatabaseLoggerService } from './database/common/DatabaseLoggerService';
-import { ProjectPathMappingService } from './database/ProjectPathMappingService';
-import { EventToLogBridge } from './database/common/EventToLogBridge';
-
-// 4. Qdrant 数据库模块
-import { QdrantService } from './database/qdrant/QdrantService';
-import { IQdrantConnectionManager } from './database/qdrant/QdrantConnectionManager';
-import { IQdrantCollectionManager } from './database/qdrant/QdrantCollectionManager';
-import { IQdrantVectorOperations } from './database/qdrant/QdrantVectorOperations';
-import { IQdrantQueryUtils } from './database/qdrant/QdrantQueryUtils';
-import { IQdrantProjectManager } from './database/qdrant/QdrantProjectManager';
-
-// 5. 文件系统模块
-import { FileSystemTraversal } from './service/filesystem/FileSystemTraversal';
-import { FileWatcherService } from './service/filesystem/FileWatcherService';
-import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
-import { HotReloadRecoveryService } from './service/filesystem/HotReloadRecoveryService';
-import { ProjectHotReloadService } from './service/filesystem/ProjectHotReloadService';
-import { HotReloadConfigService } from './service/filesystem/HotReloadConfigService';
-import { HotReloadMonitoringService } from './service/filesystem/HotReloadMonitoringService';
-import { HotReloadErrorPersistenceService } from './service/filesystem/HotReloadErrorPersistenceService';
-import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
-
-// 6. 索引模块
-import { IndexService } from './service/index/IndexService';
-import { IndexingLogicService } from './service/index/IndexingLogicService';
-import { VectorIndexService } from './service/index/VectorIndexService';
-
-// 7. 项目状态管理模块
-import { ProjectStateManager } from './service/project/ProjectStateManager';
-import { CoreStateService } from './service/project/services/CoreStateService';
-import { StorageStateService } from './service/project/services/StorageStateService';
-
-// 8. 性能优化模块
-import { PerformanceOptimizerService } from './infrastructure/batching/PerformanceOptimizerService';
-
-// 9. 嵌入器模块
-import { EmbedderFactory } from './embedders/EmbedderFactory';
-import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
-
-// 10. 忽略规则模块
-import { IgnoreRuleManager } from './service/ignore/IgnoreRuleManager';
-
-// 11. Tree-sitter 解析模块
-import { TreeSitterService } from './service/parser/core/parse/TreeSitterService';
-import { TreeSitterCoreService } from './service/parser/core/parse/TreeSitterCoreService';
-import { TreeSitterQueryEngine } from './service/parser/core/query/TreeSitterQueryExecutor';
-import { ChunkToVectorCoordinationService } from './service/parser/ChunkToVectorCoordinationService';
-import { UnifiedGuardCoordinator } from './service/parser/guard/UnifiedGuardCoordinator';
-import { IUnifiedGuardCoordinator } from './service/parser/guard/IUnifiedGuardCoordinator';
-// ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名
-type ProcessingGuard = UnifiedGuardCoordinator;
-import { UnifiedDetectionService } from './service/parser/processing/detection/UnifiedDetectionService';
-import { IntelligentFallbackEngine } from './service/parser/guard/IntelligentFallbackEngine';
-import { ProcessingStrategyFactory } from './service/parser/processing/strategies/providers/ProcessingStrategyFactory';
-import { MarkdownTextStrategy } from './service/parser/processing/utils/md/MarkdownTextStrategy';
-import { XMLTextStrategy } from './service/parser/processing/utils/xml/XMLTextStrategy';
-import { UnifiedConfigManager } from './service/parser/config/UnifiedConfigManager';
-import { ASTCodeSplitter } from './service/parser/processing/strategies/impl/ASTCodeSplitter';
-import { ImportStrategyProvider } from './service/parser/processing/strategies/providers/ImportStrategyProvider';
-import { SyntaxAwareStrategyProvider } from './service/parser/processing/strategies/providers/SyntaxAwareStrategyProvider';
-import { IntelligentStrategyProvider } from './service/parser/processing/strategies/providers/IntelligentStrategyProvider';
-import { StructureAwareStrategyProvider } from './service/parser/processing/strategies/providers/StructureAwareStrategyProvider';
-import { SemanticStrategyProvider } from './service/parser/processing/strategies/providers/SemanticStrategyProvider';
-
-// 12. 文件搜索模块
-import { FileSearchService } from './service/filesearch/FileSearchService';
-import { FileVectorIndexer } from './service/filesearch/FileVectorIndexer';
-import { FileQueryProcessor } from './service/filesearch/FileQueryProcessor';
-import { FileQueryIntentClassifier } from './service/filesearch/FileQueryIntentClassifier';
-import { FileSearchCache } from './service/filesearch/FileSearchCache';
-
-// 13. Nebula 数据库模块
-import { NebulaService, INebulaService } from './database/nebula/NebulaService';
-import { NebulaConnectionManager } from './database/nebula/NebulaConnectionManager';
-import { NebulaQueryBuilder } from './database/nebula/query/NebulaQueryBuilder';
-import { NebulaSpaceManager } from './database/nebula/space/NebulaSpaceManager';
-import { INebulaSpaceManager } from './database/nebula/space/NebulaSpaceManager';
-import { NebulaGraphOperations } from './database/nebula/operation/NebulaGraphOperations';
-import { ConnectionStateManager } from './database/nebula/ConnectionStateManager';
-import { NebulaQueryUtils } from './database/nebula/query/NebulaQueryUtils';
-import { NebulaResultFormatter } from './database/nebula/NebulaResultFormatter';
-import { NebulaEventManager } from './database/nebula/NebulaEventManager';
-import { NebulaQueryService, INebulaQueryService } from './database/nebula/query/NebulaQueryService';
-import { NebulaDataOperations, INebulaDataOperations } from './database/nebula/operation/NebulaDataOperations';
-import { NebulaSchemaManager, INebulaSchemaManager } from './database/nebula/NebulaSchemaManager';
-import { NebulaIndexManager, INebulaIndexManager } from './database/nebula/NebulaIndexManager';
-import { SpaceNameUtils, ISpaceNameUtils } from './database/nebula/SpaceNameUtils';
-
-// 14. Nebula 监控模块
-import { NebulaConnectionMonitor } from './service/graph/performance/NebulaConnectionMonitor';
-
-// 15. 图服务模块
-import { GraphCacheService } from './service/caching/GraphCacheService';
-import { GraphQueryBuilder, IGraphQueryBuilder } from './database/nebula/query/GraphQueryBuilder';
-import { GraphPerformanceMonitor } from './service/graph/performance/GraphPerformanceMonitor';
-import { GraphBatchOptimizer } from './service/graph/performance/GraphBatchOptimizer';
-import { GraphQueryValidator } from './service/graph/query/GraphQueryValidator';
-import { IGraphSearchService } from './service/graph/core/IGraphSearchService';
-import { GraphAnalysisService } from './service/graph/core/GraphAnalysisService';
-import { GraphDataService } from './service/graph/core/GraphDataService';
-import { GraphSearchServiceNew } from './service/graph/core/GraphSearchService';
-
-// 16. 图数据库模块
-import { GraphDatabaseService } from './database/graph/GraphDatabaseService';
-
-// 17. 基础设施模块
-import { DatabaseHealthChecker } from './service/monitoring/DatabaseHealthChecker';
-
-// 18. 图数据映射模块
-import { GraphDataMappingService } from './service/graph/mapping/GraphDataMappingService';
-
-// 19. SQLite 数据库模块
-import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
-import { SqliteStateManager } from './database/splite/SqliteStateManager';
-import { MigrationManager } from './database/splite/migrations/MigrationManager';
-import { DatabaseMigrationRunner } from './database/splite/migrations/DatabaseMigrationRunner';
-
 export const TYPES = {
   // 1. 工具类型
   EventListener: Symbol.for('EventListener'),
@@ -459,4 +334,9 @@ export const TYPES = {
   // 43. 协调器
   PerformanceMonitoringCoordinator: Symbol.for('PerformanceMonitoringCoordinator'),
   ConfigCoordinator: Symbol.for('ConfigCoordinator'),
+
+  // 44. Processing模块组件
+  StrategyFactory: Symbol.for('StrategyFactory'),
+  UnifiedPerformanceMonitoringSystem: Symbol.for('UnifiedPerformanceMonitoringSystem'),
+  ChunkPostProcessorCoordinator: Symbol.for('ChunkPostProcessorCoordinator'),
 };

@@ -23,6 +23,7 @@ export { MarkdownSegmentationStrategy } from './implementations/MarkdownSegmenta
 export { SemanticSegmentationStrategy } from './implementations/SemanticSegmentationStrategy';
 export { StandardizationSegmentationStrategy } from './implementations/StandardizationSegmentationStrategy';
 export { XMLSegmentationStrategy } from './implementations/XMLSegmentationStrategy';
+export { ASTCodeSplitter } from './implementations/ASTCodeSplitter';
 
 // 策略类型导出
 export type { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';

@@ -57,8 +57,18 @@ import { UnifiedDetectionService, DetectionResult, FileFeatures, LanguageDetecti
 export { UnifiedDetectionService, DetectionResult, FileFeatures, LanguageDetectionInfo };
 
 // 处理协调器导入和导出
-// import { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext } from './coordination/UnifiedProcessingCoordinator';
-// export { UnifiedProcessingCoordinator, ProcessingResult, ProcessingContext };
+import { ProcessingCoordinator, ProcessingRequest, ProcessingPerformanceStats } from './coordinator';
+export { ProcessingCoordinator, ProcessingRequest, ProcessingPerformanceStats };
+
+// 重新导出协调器相关类型
+export type {
+  ProcessingContext,
+  ContextMetadata
+} from './types/Context';
+
+export type {
+  FileFeatures
+} from './types/Utils';
 
 // 工具函数导出
 export * from './utils';
@@ -75,7 +85,7 @@ export default {
   // UnifiedStrategyFactory,
   // UnifiedStrategyManager,
   UnifiedDetectionService,
-  // UnifiedProcessingCoordinator,
+  ProcessingCoordinator,
 
   // 接口（作为类型导出，不作为值）
 };

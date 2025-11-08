@@ -1,10 +1,10 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
+import { LoggerService } from '../../../utils/LoggerService';
+import { TYPES } from '../../../types';
 import { BackupFileProcessor } from './BackupFileProcessor';
 import { IFileFeatureDetector } from './IFileFeatureDetector';
-import { fileUtils, languageFeatureDetector } from '../../utils';
-import { languageMappingManager } from '../../config/LanguageMappingManager';
+import { fileUtils, languageFeatureDetector } from '../utils';
+import { languageMappingManager } from '../config/LanguageMappingManager';
 
 /**
  * 语言检测结果接口（兼容core目录的接口）

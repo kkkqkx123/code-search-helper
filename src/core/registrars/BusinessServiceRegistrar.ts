@@ -53,7 +53,7 @@ import { ASTNodeTracker } from '../../service/parser/processing/utils/AST/ASTNod
 import { ChunkRebalancer } from '../../service/parser/processing/utils/ChunkRebalancer';
 // ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名，通过类型定义处理
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
-import { UnifiedGuardCoordinator } from '../../service/parser/guard/UnifiedGuardCoordinator';
+import { GuardCoordinator } from '../../service/parser/guard/GuardCoordinator';
 import { IntelligentFallbackEngine } from '../../service/parser/guard/IntelligentFallbackEngine';
 
 import { MarkdownTextStrategy } from '../../service/parser/processing/utils/md/MarkdownTextStrategy';
@@ -74,6 +74,12 @@ import { FileFeatureDetector } from '../../service/parser/detection/FileFeatureD
 // 分段器模块服务
 import { ProtectionCoordinator } from '../../service/parser/processing/utils/protection/ProtectionCoordinator';
 import { ChunkFilter } from '../../service/parser/processing/utils/chunking/ChunkFilter';
+
+// 新增的processing模块替代组件
+import { StrategyFactory } from '../../service/parser/processing/factory/StrategyFactory';
+import { UnifiedPerformanceMonitoringSystem } from '../../service/parser/processing/utils/performance/UnifiedPerformanceMonitoringSystem';
+import { ChunkPostProcessorCoordinator } from '../../service/parser/processing/post-processing/ChunkPostProcessorCoordinator';
+import { ProcessingConfig } from '../../service/parser/processing/core/types/ConfigTypes';
 
 // 文件搜索服务
 import { FileSearchService } from '../../service/filesearch/FileSearchService';
@@ -157,6 +163,86 @@ export class BusinessServiceRegistrar {
       // 分段器模块服务
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
 
+      // 新增的processing模块替代组件
+      container.bind<StrategyFactory>(TYPES.StrategyFactory).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        const configManager = context.get<UnifiedConfigManager>(TYPES.UnifiedConfigManager);
+
+        // 创建默认的ProcessingConfig
+        const processingConfig: ProcessingConfig = {
+          chunking: {
+            maxChunkSize: 2000,
+            minChunkSize: 200,
+            overlapSize: 100,
+            maxLinesPerChunk: 50,
+            minLinesPerChunk: 5,
+            maxOverlapRatio: 0.2,
+            defaultStrategy: 'semantic',
+            strategyPriorities: {
+              'semantic': 10,
+              'bracket': 8,
+              'line': 6,
+              'ast': 9
+            },
+            enableIntelligentChunking: true,
+            enableSemanticBoundaryDetection: true
+          },
+          features: {
+            enableAST: true,
+            enableSemanticDetection: true,
+            enableBracketBalance: true,
+            enableCodeOverlap: true,
+            enableStandardization: true,
+            standardizationFallback: true,
+            enableComplexityCalculation: true,
+            enableLanguageFeatureDetection: true,
+            featureDetectionThresholds: {}
+          },
+          performance: {
+            memoryLimitMB: 500,
+            maxExecutionTime: 30000,
+            enableCaching: true,
+            cacheSizeLimit: 100,
+            enablePerformanceMonitoring: true,
+            concurrencyLimit: 10,
+            queueSizeLimit: 100,
+            enableBatchProcessing: true,
+            batchSize: 50,
+            enableLazyLoading: true
+          },
+          languages: {},
+          postProcessing: {
+            enabled: true,
+            enabledProcessors: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
+            processorConfigs: {},
+            processorOrder: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
+            maxProcessingRounds: 3,
+            enableParallelProcessing: false,
+            parallelProcessingLimit: 5
+          },
+          global: {
+            debugMode: false,
+            logLevel: 'info',
+            enableMetrics: true,
+            enableStatistics: true,
+            configVersion: '1.0.0',
+            compatibilityMode: false,
+            strictMode: false,
+            experimentalFeatures: [],
+            customProperties: {}
+          }
+        };
+
+        return new StrategyFactory(processingConfig);
+      }).inSingletonScope();
+
+      container.bind<UnifiedPerformanceMonitoringSystem>(TYPES.UnifiedPerformanceMonitoringSystem).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        return new UnifiedPerformanceMonitoringSystem(logger);
+      }).inSingletonScope();
+
+      container.bind<ChunkPostProcessorCoordinator>(TYPES.ChunkPostProcessorCoordinator).to(ChunkPostProcessorCoordinator).inSingletonScope();
+
       // 处理器
       container.bind<ChunkFilter>(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();
       container.bind<OverlapPostProcessor>(TYPES.OverlapPostProcessor).to(OverlapPostProcessor).inSingletonScope();
@@ -188,7 +274,7 @@ export class BusinessServiceRegistrar {
       }).inSingletonScope();
       // 将 ProcessingGuard 直接绑定到 UnifiedGuardCoordinator（直接迁移策略）
       container.bind(TYPES.ProcessingGuard).toDynamicValue(context => {
-        return context.get<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator);
+        return context.get<GuardCoordinator>(TYPES.UnifiedGuardCoordinator);
       }).inSingletonScope();
 
       // 服务容器适配器
@@ -212,7 +298,7 @@ export class BusinessServiceRegistrar {
       }).inSingletonScope();
 
       // UnifiedGuardCoordinator - 使用依赖倒置的统一保护机制协调器
-      container.bind<UnifiedGuardCoordinator>(TYPES.UnifiedGuardCoordinator).toDynamicValue(context => {
+      container.bind<GuardCoordinator>(TYPES.UnifiedGuardCoordinator).toDynamicValue(context => {
         const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
         const errorThresholdInterceptor = context.get<ErrorThresholdInterceptor>(TYPES.ErrorThresholdManager);
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
@@ -222,7 +308,7 @@ export class BusinessServiceRegistrar {
         const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
         const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
 
-        return new UnifiedGuardCoordinator(
+        return new GuardCoordinator(
           memoryMonitorService,
           errorThresholdInterceptor,
           cleanupManager,
@@ -266,5 +352,5 @@ export class BusinessServiceRegistrar {
     }
   }
 
-  
+
 }

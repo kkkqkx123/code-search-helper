@@ -24,6 +24,12 @@ export interface ChunkingOptions {
   /** 是否启用智能分块 */
   enableIntelligentChunking?: boolean;
   
+  /** 内存限制（MB） */
+  memoryLimitMB?: number;
+  
+  /** 错误阈值 */
+  errorThreshold?: number;
+  
   /** 自定义参数 */
   customParams?: Record<string, any>;
 }
@@ -135,6 +141,8 @@ export const DEFAULT_CHUNKING_OPTIONS: Required<ChunkingOptions> = {
   maxLinesPerChunk: 50,
   minLinesPerChunk: 5,
   enableIntelligentChunking: true,
+  memoryLimitMB: 512,
+  errorThreshold: 10,
   customParams: {}
 };
 

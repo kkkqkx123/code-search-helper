@@ -42,3 +42,5 @@ src\service\parser\constants\queries目录中导出的查询规则
 
 api：调用链完整性分析
 给定json格式的调用链，根据图遍历结果验证
+
+图查询：返回三元组

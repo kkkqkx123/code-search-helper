@@ -1,17 +1,17 @@
 
-import { IUnifiedGuardCoordinator } from '../IUnifiedGuardCoordinator';
-import { UnifiedGuardCoordinator } from '../UnifiedGuardCoordinator';
+import { IGuardCoordinator } from '../IGuardCoordinator';
+import { GuardCoordinator } from '../GuardCoordinator';
 
 describe('IUnifiedGuardCoordinator Interface', () => {
-  let coordinator: IUnifiedGuardCoordinator;
+  let coordinator: IGuardCoordinator;
 
   // Mock implementations for testing interface compliance
-  const mockCoordinator: IUnifiedGuardCoordinator = {
+  const mockCoordinator: IGuardCoordinator = {
     // 生命周期管理
     initialize: jest.fn(),
     destroy: jest.fn(),
     reset: jest.fn(),
-    
+
     // 内存保护功能
     startMonitoring: jest.fn(),
     stopMonitoring: jest.fn(),
@@ -43,11 +43,11 @@ describe('IUnifiedGuardCoordinator Interface', () => {
     clearHistory: jest.fn(),
     setMemoryLimit: jest.fn(),
     forceGarbageCollection: jest.fn(),
-    
+
     // 错误保护功能
     shouldUseFallback: jest.fn().mockReturnValue(false),
     recordError: jest.fn(),
-    
+
     // 文件处理协调
     processFile: jest.fn().mockResolvedValue({
       chunks: [{ content: 'chunk1' }],
@@ -55,7 +55,7 @@ describe('IUnifiedGuardCoordinator Interface', () => {
       processingStrategy: 'treesitter-ast',
       fallbackReason: undefined
     }),
-    
+
     // ProcessingGuard 兼容方法
     processFileWithDetection: jest.fn().mockResolvedValue({
       chunks: [{ content: 'chunk1' }],
@@ -74,7 +74,7 @@ describe('IUnifiedGuardCoordinator Interface', () => {
       errorRate: 0
     }),
     clearDetectionCache: jest.fn(),
-    
+
     // 状态查询
     getStatus: jest.fn().mockReturnValue({
       errorThreshold: {
@@ -205,7 +205,7 @@ describe('IUnifiedGuardCoordinator Interface', () => {
   describe('interface types', () => {
     it('should have correct MemoryStatus type', () => {
       const memoryStatus = coordinator.checkMemoryUsage();
-      
+
       // Check required properties
       expect(memoryStatus.isWithinLimit).toBeDefined();
       expect(memoryStatus.usagePercent).toBeDefined();
@@ -225,7 +225,7 @@ describe('IUnifiedGuardCoordinator Interface', () => {
 
     it('should have correct MemoryStats type', () => {
       const memoryStats = coordinator.getMemoryStats();
-      
+
       expect(memoryStats.current).toBeDefined();
       expect(memoryStats.limit).toBeDefined();
       expect(memoryStats.usagePercent).toBeDefined();
@@ -242,7 +242,7 @@ describe('IUnifiedGuardCoordinator Interface', () => {
 
     it('should have correct ProcessingResult type', async () => {
       const result = await coordinator.processFileWithDetection('test.js', 'content');
-      
+
       expect(result.success).toBeDefined();
       expect(result.duration).toBeDefined();
       expect(result.chunks).toBeDefined();
@@ -258,7 +258,7 @@ describe('IUnifiedGuardCoordinator Interface', () => {
 
     it('should have correct GuardStatus type', () => {
       const status = coordinator.getStatus();
-      
+
       expect(status.errorThreshold).toBeDefined();
       expect(status.memoryGuard).toBeDefined();
       expect(status.isInitialized).toBeDefined();
@@ -273,16 +273,16 @@ describe('IUnifiedGuardCoordinator Interface', () => {
     it('should implement IUnifiedGuardCoordinator interface', () => {
       // This is a type check - if UnifiedGuardCoordinator implements the interface,
       // TypeScript will not throw compilation errors
-      const instance: IUnifiedGuardCoordinator = {} as UnifiedGuardCoordinator;
-      
+      const instance: IGuardCoordinator = {} as GuardCoordinator;
+
       // The instance should be assignable to the interface
       expect(instance).toBeDefined();
     });
 
     it('should have all interface methods implemented', () => {
       // Check that UnifiedGuardCoordinator has all the required methods
-      const coordinatorProto = UnifiedGuardCoordinator.prototype;
-      
+      const coordinatorProto = GuardCoordinator.prototype;
+
       const requiredMethods = [
         'initialize', 'destroy', 'reset',
         'startMonitoring', 'stopMonitoring', 'checkMemoryUsage',
@@ -294,7 +294,7 @@ describe('IUnifiedGuardCoordinator Interface', () => {
       ];
 
       requiredMethods.forEach(method => {
-        expect(typeof coordinatorProto[method as keyof UnifiedGuardCoordinator]).toBe('function');
+        expect(typeof coordinatorProto[method as keyof GuardCoordinator]).toBe('function');
       });
     });
   });

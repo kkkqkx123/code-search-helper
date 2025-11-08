@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { TYPES } from '../../../../types';
+import { LoggerService } from '../../../utils/LoggerService';
+import { TYPES } from '../../../types';
 import { IFileFeatureDetector } from './IFileFeatureDetector';
 
 /**
@@ -75,7 +75,7 @@ export class FileFeatureDetector implements IFileFeatureDetector {
     const totalLength = content.length;
 
     const isStructured = (bracketCount / totalLength > 0.01) || (tagCount / totalLength > 0.005);
-    
+
     if (isStructured) {
       this.logger?.debug(`Detected structured content: brackets=${bracketCount}, tags=${tagCount}, ratio=${(bracketCount / totalLength).toFixed(3)}`, {
         brackets: bracketCount,
@@ -213,7 +213,7 @@ export class FileFeatureDetector implements IFileFeatureDetector {
     const lines = content.split('\n');
     const bracketCount = (content.match(/[{}()\[\]]/g) || []).length;
     const tagCount = (content.match(/<[^>]+>/g) || []).length;
-    
+
     return {
       contentLength: content.length,
       lineCount: lines.length,
