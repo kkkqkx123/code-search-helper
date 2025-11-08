@@ -77,11 +77,12 @@ export interface ChunkMetadata {
 }
 
 /**
- * 代码块类型枚举
- */
+* 代码块类型枚举
+*/
 export enum ChunkType {
   FUNCTION = 'function',
   CLASS = 'class',
+  METHOD = 'method',
   IMPORT = 'import',
   EXPORT = 'export',
   GENERIC = 'generic',

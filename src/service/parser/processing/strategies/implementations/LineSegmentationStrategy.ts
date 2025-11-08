@@ -4,6 +4,7 @@ import { ProcessingResult } from '../../core/types/ResultTypes';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
+import { ChunkFactory } from '../../../../../utils/processing/ChunkFactory';
 
 /**
  * 行数分段策略配置
@@ -89,15 +90,13 @@ export class LineSegmentationStrategy extends BaseStrategy {
           const chunkLines = lines.slice(startLine, endLine + 1);
           const chunkContent = chunkLines.join('\n');
 
-          chunks.push(this.createChunk(
+          chunks.push(ChunkFactory.createLineChunk(
             chunkContent,
             startLine + 1, // 转换为1基索引
             endLine + 1,
             context.language || 'unknown',
-            ChunkType.LINE,
             {
-              filePath: context.filePath,
-              complexity: this.calculateComplexity(chunkContent)
+              filePath: context.filePath
             }
           ));
         }
@@ -201,38 +200,18 @@ export class LineSegmentationStrategy extends BaseStrategy {
     const chunkContent = chunkLines.join('\n');
     const complexity = this.calculateComplexity(chunkContent);
 
-    return this.createChunk(
+    return ChunkFactory.createLineChunk(
       chunkContent,
       actualStartLine + 1, // 转换为1基索引
       endLine + 1,
       context.language || 'unknown',
-      ChunkType.LINE,
       {
         filePath: context.filePath,
-        complexity,
         overlap: this.config.overlapLines! > 0
       }
     );
   }
 
-  /**
-   * 计算复杂度
-   */
-  protected calculateComplexity(content: string): number {
-    let complexity = 0;
-
-    // 基于代码结构计算复杂度
-    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
-    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
-    complexity += (content.match(/[{}]/g) || []).length;
-    complexity += (content.match(/[()]/g) || []).length * 0.5;
-
-    // 基于代码长度调整
-    const lines = content.split('\n').length;
-    complexity += Math.log10(lines + 1) * 2;
-
-    return Math.round(complexity);
-  }
 
   /**
    * 获取策略配置

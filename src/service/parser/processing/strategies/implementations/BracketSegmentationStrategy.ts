@@ -5,6 +5,8 @@ import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
 import { BRACKET_SEGMENTATION_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
+import { ComplexityCalculator } from '../../../../../utils/processing/ComplexityCalculator';
+import { ChunkFactory } from '../../../../../utils/processing/ChunkFactory';
 
 /**
  * 括号分段策略配置
@@ -126,15 +128,13 @@ export class BracketSegmentationStrategy extends BaseStrategy {
         );
 
         if (shouldSplit) {
-          chunks.push(this.createChunk(
+          chunks.push(ChunkFactory.createBlockChunk(
             chunkContent,
             currentLine,
             currentLine + currentChunk.length - 1,
             context.language || 'unknown',
-            ChunkType.BLOCK,
             {
               filePath: context.filePath,
-              complexity: this.calculateComplexity(chunkContent),
               type: 'bracket'
             }
           ));
@@ -150,15 +150,13 @@ export class BracketSegmentationStrategy extends BaseStrategy {
       if (currentChunk.length > 0) {
         const chunkContent = currentChunk.join('\n');
         const endLine = context.content === '' ? 0 : currentLine + currentChunk.length - 1;
-        chunks.push(this.createChunk(
+        chunks.push(ChunkFactory.createBlockChunk(
           chunkContent,
           currentLine,
           endLine,
           context.language || 'unknown',
-          ChunkType.BLOCK,
           {
             filePath: context.filePath,
-            complexity: this.calculateComplexity(chunkContent),
             type: 'bracket'
           }
         ));
@@ -275,24 +273,6 @@ export class BracketSegmentationStrategy extends BaseStrategy {
     return codeLanguages.includes(language.toLowerCase());
   }
 
-  /**
-   * 计算复杂度
-   */
-  protected calculateComplexity(content: string): number {
-    let complexity = 0;
-
-    // 基于代码结构计算复杂度
-    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
-    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
-    complexity += (content.match(/[{}]/g) || []).length;
-    complexity += (content.match(/[()]/g) || []).length * 0.5;
-
-    // 基于代码长度调整
-    const lines = content.split('\n').length;
-    complexity += Math.log10(lines + 1) * 2;
-
-    return Math.round(complexity);
-  }
 
   /**
    * 获取策略配置

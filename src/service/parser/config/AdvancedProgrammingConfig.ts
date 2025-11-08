@@ -129,7 +129,7 @@ export const ADVANCED_PROGRAMMING_LANGUAGES: LanguageConfig[] = [
     hasSubdir: true,
     category: 'advanced_programming',
     extensions: ['.cs'],
-    aliases: ['c#', 'csharp'],
+    aliases: ['c#', 'cs', 'csharp'],
     strategy: {
       ...ADVANCED_PROGRAMMING_STRATEGY,
       supportedQueryTypes: [

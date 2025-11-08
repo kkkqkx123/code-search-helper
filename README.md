@@ -1,0 +1,244 @@
+# 代码库索引与检索MCP服务
+
+## 📖 项目概述
+
+本项目是一个基于Model Context Protocol (MCP) 的智能代码库索引和检索服务，旨在为LLM提供高效的代码库分析和搜索能力。系统采用模块化架构设计，集成了多种先进技术栈，提供多维度代码分析和检索功能。
+
+## 🎯 核心功能
+
+### 1. 多技术栈集成
+- **向量数据库**: Qdrant集成，支持语义相似性搜索
+- **图数据库**: Nebula Graph集成，支持代码关系分析
+- **Tree-sitter**: 多语言语法解析，支持智能代码片段提取
+
+### 2. 智能检索能力
+- 语义搜索（基于嵌入向量）
+- 关键词搜索
+- 混合搜索（语义+关键词+图关系）
+- 代码结构分析
+- 跨文件引用追踪
+
+### 3. 多嵌入器支持
+- OpenAI Embeddings
+- Ollama本地模型
+- Gemini API
+- Mistral AI
+- SiliconFlow
+- 自定义嵌入器
+
+## 🚀 快速开始
+
+### 1. 安装依赖
+
+```bash
+# 安装主项目依赖
+npm install
+
+# 安装前端依赖
+cd frontend
+npm install
+cd ..
+```
+
+### 2. 开发模式运行
+
+```bash
+# 启动后端开发服务器
+npm run dev
+```
+端口为3010
+
+```bash
+# 启动前端开发服务器
+cd frontend; npm run dev
+```
+访问 http://localhost:3011 查看前端界面
+
+### 3. 构建项目
+
+```bash
+# 构建主项目
+npm run build
+
+# 构建前端
+cd frontend
+npm run build
+cd ..
+```
+
+### 4. 新增开发依赖
+
+```bash
+npm i -D 依赖 --legacy-peer-deps
+```
+
+## 🧪 测试
+
+### 运行集成测试
+
+```bash
+npm run test:integration
+```
+
+### 测试工具模块
+
+```bash
+npm run test:utils
+```
+
+## 数据库操作指南
+nebula graph和qdrant都部署在docker上，你不需要修改docker相关配置文件，也不需要启动/关闭docker/docker-compose。
+
+### 使用nebula-console连接nebula graph
+nebula-console在宿主机的本地，使用命令：nebula-console -u root -p nebula --address=127.0.0.1 --port=9669 -e 查询语句
+
+## 📁 项目结构
+
+```
+code-search-helper/
+├── 📁 config/                 # 配置文件
+├── 📁 src/                    # 主项目源代码
+│   ├── 📁 api/               # API路由和控制器
+│   ├── 📁 database/          # 数据库服务
+│   ├── 📁 embedders/         # 嵌入器提供商
+│   ├── 📁 mcp/              # MCP协议处理
+│   ├── 📁 utils/            # 工具函数
+│   └── main.ts              # 应用入口
+├── 📁 ref/                  # 参考模块（从其他项目迁移）
+│   ├── 📁 database/         # 数据库服务
+│   ├── 📁 embedders/        # 嵌入器提供商
+│   ├── 📁 mcp/             # MCP协议实现
+│   ├── 📁 service/         # 各种服务实现
+│   └── 📁 utils/           # 工具函数
+├── 📁 frontend/             # 前端代码（独立package.json）
+│   ├── 📁 src/              # 前端源代码
+│   │   ├── 📁 pages/        # 页面组件
+│   │   ├── 📁 router/       # 路由管理
+│   │   ├── 📁 services/     # 服务层
+│   │   └── 📁 styles/       # 样式文件
+│   └── index.html           # 前端入口文件
+├── 📁 data/                # 数据文件
+│   └── 📁 mock/            # 模拟数据文件
+├── 📁 docs/                # 项目文档
+│   ├── 📁 architecture/     # 架构设计文档
+│   ├── 📁 plan/            # 实施计划
+│   └── 📁 ref/             # 参考文档
+├── 📁 scripts/             # 脚本文件
+└── package.json            # 主项目依赖配置
+```
+
+## 🔄 模块集成计划
+
+系统采用分阶段集成策略，详细计划请参考 [模块集成计划](docs/plan/module-integration-plan.md)。
+
+### 阶段一：基础框架与核心服务（1-2周）
+- 配置管理系统
+- 日志和错误处理
+- 基础工具函数
+- MCP服务器框架
+
+### 阶段二：数据存储与嵌入器（2-3周）
+- 向量数据库集成 (Qdrant)
+- 嵌入器服务集成
+
+### 阶段三：代码解析与搜索（3-4周）
+- 代码解析基础功能
+- 基本搜索工作流
+
+### 阶段四：高级功能集成（4-6周）
+- 图数据库服务
+- LSP集成
+- 静态分析
+- 高级搜索算法
+
+## 🛠️ 开发指南
+
+### 环境要求
+- Node.js 18.0+
+- npm 8.0+
+- Docker (用于数据库服务)
+
+### 技术栈
+- **后端**: TypeScript, Express.js, 各种AI和数据库集成
+- **前端**: 原生HTML + CSS + TypeScript (仅用于测试)
+- **构建工具**: Vite
+- **数据库**: Qdrant (向量数据库), Nebula Graph (图数据库)
+- **AI集成**: OpenAI, Ollama, Gemini, Mistral, SiliconFlow等嵌入器
+
+### 代码规范
+- 使用TypeScript
+- 遵循ESLint规则
+- 使用Prettier格式化代码
+- 前端保持轻量级，无框架依赖
+
+### 模块复用
+src\utils\cache\
+src\utils\LRUCache.ts
+src\infrastructure\caching\
+这是当前项目已有的cache模块，cache应该尽可能复用现有的实现
+
+src\infrastructure\monitoring
+这是当前项目已有的监控模块，监控应该尽可能复用现有的实现
+
+### 前端开发
+
+前端采用模块化架构设计，基于原生TypeScript和Vite构建工具实现。详细架构说明请参考 [前端架构设计文档](docs/architecture/frontend-architecture.md)。
+
+#### 前端目录结构
+
+```
+frontend/
+├── index.html                 # 应用入口HTML文件
+├── src/                       # TypeScript源代码
+│   ├── App.ts                 # 主应用类
+│   ├── pages/                 # 页面组件
+│   │   ├── SearchPage.ts      # 搜索页面
+│   │   ├── IndexProjectPage.ts # 项目索引页面
+│   │   └── ProjectsPage.ts    # 已索引项目页面
+│   ├── router/                # 路由管理
+│   │   └── router.ts          # 路由器实现
+│   ├── services/              # 服务层
+│   │   └── api.ts             # API客户端
+│   ├── styles/                # 样式文件
+│   │   └── main.css           # 主样式文件
+│   └── __tests__/             # 测试文件
+├── vite.config.ts             # Vite配置文件
+├── tsconfig.json              # TypeScript配置
+└── package.json               # 项目依赖配置
+```
+
+#### 前端开发流程
+
+1. **安装依赖**:
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+2. **启动开发服务器**:
+   ```bash
+   npm run dev
+   ```
+   访问 http://localhost:3011 查看前端界面
+
+3. **构建生产版本**:
+   ```bash
+   npm run build
+   ```
+
+#### 前端架构特点
+
+- **组件化设计**: 每个功能页面都是独立的组件
+- **路由管理**: 支持页面间导航和浏览器历史记录
+- **服务分离**: API调用封装在独立的服务层
+- **样式独立**: CSS样式集中管理，避免样式污染
+- **类型安全**: 全面使用TypeScript类型系统
+
+## nebula-nodejs目录说明
+该目录是node_modules中相应依赖的复制。你可以修改该目录中的文件，在tests目录中测试，然后把修改的文件使用cp命令同步到node_modules的相应文件夹中。
+由于修改的流程较繁琐，必须尽量避免不必要的、大规模的修改。一个阶段的修改必须仅限于一个文件
+
+## 补充说明
+由于开发环境资源紧张，如果没有明确要求就不要使用npm test运行完整测试。需要验证时只需要运行与当前任务相关的测试即可。
+测试时使用命令：npm test 文件名/路径名【或它们的相对路径】，不要使用pattern，否则无法匹配且会运行完整测试
+如果我没有明确要求，不要管ref目录，这里的相关内容已经过时了。只有在我让你参考ref的相关实现时才需要查看该目录

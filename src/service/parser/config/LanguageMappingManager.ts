@@ -278,11 +278,38 @@ export class LanguageMappingManager {
   }
 
   /**
-   * 检查是否为混合处理语言
-   */
+  * 检查是否为混合处理语言
+  */
   isHybridProcessingLanguage(language: string): boolean {
-    return this.getCategory(language) === 'hybrid_processing';
+  return this.getCategory(language) === 'hybrid_processing';
   }
+
+   /**
+    * 检查是否为配置文件语言
+    */
+   isConfigLanguage(language: string): boolean {
+     const normalized = this.normalizeLanguageName(language);
+     const configLanguages = ['json', 'yaml', 'toml', 'xml'];
+     return configLanguages.includes(normalized);
+   }
+
+   /**
+    * 检查是否为前端语言
+    */
+   isFrontendLanguage(language: string): boolean {
+     const normalized = this.normalizeLanguageName(language);
+     const frontendLanguages = ['vue', 'jsx', 'tsx', 'html'];
+     return frontendLanguages.includes(normalized);
+   }
+
+   /**
+    * 检查是否为嵌入式模板语言
+    */
+   isEmbeddedTemplateLanguage(language: string): boolean {
+     const normalized = this.normalizeLanguageName(language);
+     const embeddedLanguages = ['embedded_template', 'html', 'vue', 'jsx', 'tsx'];
+     return embeddedLanguages.includes(normalized);
+   }
 
   /**
    * 检查语言是否具有子目录（高级规则语言）

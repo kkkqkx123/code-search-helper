@@ -2,12 +2,7 @@ import { injectable, inject } from 'inversify';
 import Parser from 'tree-sitter';
 import { TreeSitterCoreService, ParserLanguage, ParseResult } from './TreeSitterCoreService';
 import { CodeStructureService } from '../structure/CodeStructureService';
-
-// Re-export for backward compatibility
-export type { ParserLanguage, ParseResult };
-export type SyntaxNode = Parser.SyntaxNode;
 import { TYPES } from '../../../../types';
-import { CodeChunk } from '../../types';
 
 @injectable()
 export class TreeSitterService {

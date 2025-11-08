@@ -11,6 +11,7 @@ import { ContentHashUtils } from '../../../../utils/ContentHashUtils';
 export enum ChunkType {
   FUNCTION = 'function',
   CLASS = 'class',
+  METHOD = 'method',
   IMPORT = 'import',
   EXPORT = 'export',
   GENERIC = 'generic',

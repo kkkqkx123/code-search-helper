@@ -9,7 +9,11 @@ import { CodeChunk, ChunkMetadata, ChunkType } from '../../types/CodeChunk';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TreeSitterService } from '../../../../parser/core/parse/TreeSitterService';
 import { LanguageDetectionService } from '../../../detection/LanguageDetectionService';
+import { QueryResultNormalizer } from '../../../../parser/core/normalization/QueryResultNormalizer';
+import { StandardizedQueryResult } from '../../../../parser/core/normalization/types';
 import { TYPES } from '../../../../../types';
+import { ComplexityCalculator } from '../../../../../utils/processing/ComplexityCalculator';
+import { ChunkFactory } from '../../../../../utils/processing/ChunkFactory';
 
 interface ASTSplitterConfig {
   maxFunctionSize?: number;
@@ -67,7 +71,7 @@ export class ASTCodeSplitter {
       }
 
       // 提取代码块
-      const chunks = this.extractChunksFromAST(ast.ast, content, filePath, language);
+      const chunks = await this.extractChunksFromAST(ast.ast, content, filePath, language);
 
       this.logger.debug(`ASTCodeSplitter produced ${chunks.length} chunks for ${filePath}`);
       return chunks;
@@ -80,67 +84,40 @@ export class ASTCodeSplitter {
   /**
    * 从AST中提取代码块
    */
-  private extractChunksFromAST(ast: Parser.SyntaxNode, content: string, filePath: string, language: string): CodeChunk[] {
+  private async extractChunksFromAST(ast: Parser.SyntaxNode, content: string, filePath: string, language: string): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
 
     try {
-      // 提取函数和类定义
-      const functions = this.extractFunctions(ast, language);
-      const classes = this.extractClasses(ast, language);
+      // 使用QueryResultNormalizer获取标准化结果
+      const normalizer = new QueryResultNormalizer();
+      const standardizedResults = await normalizer.normalize(ast, language, ['functions', 'classes']);
 
-      this.logger.debug(`Extracted ${functions.length} functions and ${classes.length} classes`);
+      this.logger.debug(`Extracted ${standardizedResults.length} standardized results`);
 
-      // 处理函数定义
-      for (const func of functions) {
+      // 将StandardizedQueryResult转换为CodeChunk
+      for (const result of standardizedResults) {
         try {
-          const location = func.location;
-          const funcText = func.text;
+          if (result.content && result.content.trim().length > 0) {
+            const chunkType = this.mapStandardizedTypeToChunkType(result.type);
+            const chunkName = result.metadata?.extra?.name || result.name;
 
-          if (funcText && funcText.trim().length > 0) {
-            chunks.push(this.createChunk(
-              funcText,
-              location.startLine,
-              location.endLine,
+            chunks.push(ChunkFactory.createCodeChunk(
+              result.content,
+              result.startLine,
+              result.endLine,
               language,
-              ChunkType.FUNCTION,
+              chunkType,
               {
                 filePath,
-                complexity: this.calculateComplexity(funcText),
-                functionName: func.name,
-                strategy: 'ast-splitter'
+                [this.getEntityKey(result.type)]: chunkName,
+                strategy: 'ast-splitter',
+                nodeId: result.nodeId
               }
             ));
           }
         } catch (error) {
-          this.logger.warn(`Failed to process function node: ${error}`);
-          continue;
-        }
-      }
-
-      // 处理类定义
-      for (const cls of classes) {
-        try {
-          const location = cls.location;
-          const clsText = cls.text;
-
-          if (clsText && clsText.trim().length > 0) {
-            chunks.push(this.createChunk(
-              clsText,
-              location.startLine,
-              location.endLine,
-              language,
-              ChunkType.CLASS,
-              {
-                filePath,
-                complexity: this.calculateComplexity(clsText),
-                className: cls.name,
-                strategy: 'ast-splitter'
-              }
-            ));
-          }
-        } catch (error) {
-          this.logger.warn(`Failed to process class node: ${error}`);
+          this.logger.warn(`Failed to process standardized result: ${error}`);
           continue;
         }
       }
@@ -148,15 +125,13 @@ export class ASTCodeSplitter {
       // 如果没有提取到任何函数或类，返回包含整个文件的chunk
       if (chunks.length === 0) {
         this.logger.info('No functions or classes found by AST, returning full content as single chunk');
-        chunks.push(this.createChunk(
+        chunks.push(ChunkFactory.createGenericChunk(
           content,
           1,
           lines.length,
           language,
-          ChunkType.GENERIC,
           {
             filePath,
-            complexity: this.calculateComplexity(content),
             reason: 'no_functions_or_classes_found',
             strategy: 'ast-splitter'
           }
@@ -168,15 +143,14 @@ export class ASTCodeSplitter {
       this.logger.error(`Failed to extract chunks from AST: ${error}`);
 
       // 降级到简单分段
-      return [this.createChunk(
+      return [ChunkFactory.createFallbackChunk(
         content,
         1,
         lines.length,
         language,
-        ChunkType.GENERIC,
+        'ast_processing_failed',
         {
           filePath,
-          fallback: true,
           strategy: 'ast-splitter'
         }
       )];
@@ -184,126 +158,48 @@ export class ASTCodeSplitter {
   }
 
   /**
-   * 提取函数（基于AST节点遍历）
+   * 将StandardizedQueryResult类型映射到ChunkType
    */
-  private extractFunctions(ast: Parser.SyntaxNode, language: string): Array<{
-    name: string;
-    text: string;
-    location: { startLine: number; endLine: number };
-  }> {
-    const functions: Array<{
-      name: string;
-      text: string;
-      location: { startLine: number; endLine: number };
-    }> = [];
-
-    // 根据语言定义不同的函数查询模式
-    const functionQueries = this.getFunctionQueries(language);
-
-    for (const query of functionQueries) {
-      try {
-        const matches = query.matches(ast);
-        for (const match of matches) {
-          for (const node of match.captures) {
-            if (node.node.type.includes('function') || node.node.type.includes('method')) {
-              const name = this.extractFunctionName(node.node);
-              const text = node.node.text;
-              const location = {
-                startLine: node.node.startPosition.row + 1,
-                endLine: node.node.endPosition.row + 1
-              };
-
-              if (name && text && this.isValidFunction(text, location)) {
-                functions.push({ name, text, location });
-              }
-            }
-          }
-        }
-      } catch (error) {
-        this.logger.warn(`Function query failed for language ${language}: ${error}`);
-      }
+  private mapStandardizedTypeToChunkType(type: StandardizedQueryResult['type']): ChunkType {
+    switch (type) {
+      case 'function':
+        return ChunkType.FUNCTION;
+      case 'class':
+        return ChunkType.CLASS;
+      case 'method':
+        return ChunkType.FUNCTION; // 方法也作为函数类型处理
+      case 'interface':
+        return ChunkType.INTERFACE;
+      case 'type':
+      case 'type-def':
+        return ChunkType.TYPE;
+      default:
+        return ChunkType.GENERIC;
     }
-
-    return functions;
   }
 
   /**
-   * 提取类（基于AST节点遍历）
+   * 获取实体键名（用于元数据）
    */
-  private extractClasses(ast: Parser.SyntaxNode, language: string): Array<{
-    name: string;
-    text: string;
-    location: { startLine: number; endLine: number };
-  }> {
-    const classes: Array<{
-      name: string;
-      text: string;
-      location: { startLine: number; endLine: number };
-    }> = [];
-
-    // 根据语言定义不同的类查询模式
-    const classQueries = this.getClassQueries(language);
-
-    for (const query of classQueries) {
-      try {
-        const matches = query.matches(ast);
-        for (const match of matches) {
-          for (const node of match.captures) {
-            if (node.node.type.includes('class') || node.node.type.includes('interface') || node.node.type.includes('struct')) {
-              const name = this.extractClassName(node.node);
-              const text = node.node.text;
-              const location = {
-                startLine: node.node.startPosition.row + 1,
-                endLine: node.node.endPosition.row + 1
-              };
-
-              if (name && text && this.isValidClass(text, location)) {
-                classes.push({ name, text, location });
-              }
-            }
-          }
-        }
-      } catch (error) {
-        this.logger.warn(`Class query failed for language ${language}: ${error}`);
-      }
+  private getEntityKey(type: StandardizedQueryResult['type']): string {
+    switch (type) {
+      case 'function':
+        return 'functionName';
+      case 'class':
+        return 'className';
+      case 'method':
+        return 'methodName';
+      case 'interface':
+        return 'interfaceName';
+      case 'type':
+      case 'type-def':
+        return 'typeName';
+      default:
+        return 'entityName';
     }
-
-    return classes;
   }
 
-  /**
-   * 获取函数查询模式
-   */
-  private getFunctionQueries(language: string): Parser.Query[] {
-    // 这里应该根据语言返回不同的查询模式
-    // 简化实现，实际应该使用Tree-sitter查询语言
-    return [];
-  }
 
-  /**
-   * 获取类查询模式
-   */
-  private getClassQueries(language: string): Parser.Query[] {
-    // 这里应该根据语言返回不同的查询模式
-    // 简化实现，实际应该使用Tree-sitter查询语言
-    return [];
-  }
-
-  /**
-   * 提取函数名称
-   */
-  private extractFunctionName(node: Parser.SyntaxNode): string {
-    // 简化实现，实际应该遍历AST节点找到函数名
-    return 'function';
-  }
-
-  /**
-   * 提取类名称
-   */
-  private extractClassName(node: Parser.SyntaxNode): string {
-    // 简化实现，实际应该遍历AST节点找到类名
-    return 'class';
-  }
 
   /**
    * 验证函数是否有效
@@ -333,52 +229,6 @@ export class ASTCodeSplitter {
     );
   }
 
-  /**
-   * 创建代码块
-   */
-  private createChunk(
-    content: string,
-    startLine: number,
-    endLine: number,
-    language: string,
-    type: ChunkType,
-    additionalMetadata: any = {}
-  ): CodeChunk {
-    const metadata: ChunkMetadata = {
-      startLine,
-      endLine,
-      language,
-      type,
-      size: content.length,
-      lineCount: endLine - startLine + 1,
-      timestamp: Date.now(),
-      ...additionalMetadata
-    };
-
-    return {
-      content,
-      metadata
-    };
-  }
-
-  /**
-   * 计算复杂度
-   */
-  private calculateComplexity(content: string): number {
-    let complexity = 0;
-
-    // 基于代码结构计算复杂度
-    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
-    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
-    complexity += (content.match(/[{}]/g) || []).length;
-    complexity += (content.match(/[()]/g) || []).length * 0.5;
-
-    // 基于代码长度调整
-    const lines = content.split('\n').length;
-    complexity += Math.log10(lines + 1) * 2;
-
-    return Math.round(complexity);
-  }
 
   /**
    * 更新配置
