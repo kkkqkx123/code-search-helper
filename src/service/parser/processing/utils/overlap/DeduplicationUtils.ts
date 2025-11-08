@@ -6,7 +6,7 @@ import { ChunkSimilarityUtils } from '../chunk-processing/ChunkSimilarityUtils';
  * 智能去重工具类
  * 提取 OverlapCalculator 中的独特去重逻辑
  */
-export class SmartDeduplicationUtils {
+export class DeduplicationUtils {
   private processedChunks: Map<string, CodeChunk>;
   private overlapHistory: Map<string, string[]>;
 

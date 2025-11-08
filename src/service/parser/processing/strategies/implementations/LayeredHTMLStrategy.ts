@@ -1,5 +1,5 @@
 import { BaseStrategy } from '../base/BaseStrategy';
-import { ProcessingResult } from '../../types/Processing';
+import { ProcessingResult } from '../../core/types/ResultTypes';
 import { CodeChunk } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';

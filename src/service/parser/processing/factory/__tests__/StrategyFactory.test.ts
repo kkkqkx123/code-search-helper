@@ -12,15 +12,15 @@ class MockStrategy implements IProcessingStrategy {
   readonly name: string = 'mock-strategy';
   readonly priority: number = 100;
   readonly supportedLanguages: string[] = ['*'];
-  
+
   constructor(config: ProcessingConfig) {
     // 模拟构造函数
   }
-  
+
   canHandle(context: any): boolean {
     return true;
   }
-  
+
   async execute(context: any): Promise<any> {
     return { success: true, chunks: [], executionTime: 0, strategy: this.name };
   }
@@ -83,7 +83,10 @@ const testConfig: ProcessingConfig = {
     strictMode: false,
     experimentalFeatures: [],
     customProperties: {}
-  }
+  },
+  version: '1.0.0',
+  createdAt: Date.now(),
+  updatedAt: Date.now()
 };
 
 describe('StrategyFactory', () => {
@@ -97,11 +100,11 @@ describe('StrategyFactory', () => {
     it('应该能够注册和创建策略', () => {
       // 注册策略
       factory.registerStrategy('mock', MockStrategy as any);
-      
+
       // 验证策略是否已注册
       expect(factory.supportsStrategy('mock')).toBe(true);
       expect(factory.getAvailableStrategies()).toContain('mock');
-      
+
       // 创建策略实例
       const strategy = factory.createStrategy('mock');
       expect(strategy).toBeDefined();
@@ -118,29 +121,29 @@ describe('StrategyFactory', () => {
   describe('策略缓存', () => {
     it('应该能够缓存策略实例', () => {
       factory.registerStrategy('mock', MockStrategy as any);
-      
+
       // 创建第一个实例
       const strategy1 = factory.createStrategy('mock');
-      
+
       // 创建第二个实例（应该从缓存中获取）
       const strategy2 = factory.createStrategy('mock');
-      
+
       // 验证是否为同一实例
       expect(strategy1).toBe(strategy2);
     });
 
     it('应该能够清除缓存', () => {
       factory.registerStrategy('mock', MockStrategy as any);
-      
+
       // 创建实例
       const strategy1 = factory.createStrategy('mock');
-      
+
       // 清除缓存
       factory.clearCache();
-      
+
       // 创建新实例（应该不是同一个实例）
       const strategy2 = factory.createStrategy('mock');
-      
+
       // 验证是否为不同实例
       expect(strategy1).not.toBe(strategy2);
     });
@@ -150,7 +153,7 @@ describe('StrategyFactory', () => {
     it('应该能够注销策略', () => {
       factory.registerStrategy('mock', MockStrategy as any);
       expect(factory.supportsStrategy('mock')).toBe(true);
-      
+
       // 注销策略
       factory.unregisterStrategy('mock');
       expect(factory.supportsStrategy('mock')).toBe(false);

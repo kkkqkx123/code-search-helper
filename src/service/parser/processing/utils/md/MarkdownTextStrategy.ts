@@ -17,7 +17,7 @@ import {
   calculateSemanticSimilarity
 } from './markdown-rules';
 import { SemanticStrategy } from '../../strategies/implementations/SemanticStrategy';
-import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
+import { OverlapCalculator } from '../overlap/OverlapCalculator';
 
 /**
  * Markdown 专用文本分段器
@@ -924,7 +924,7 @@ export class MarkdownTextStrategy {
     }
 
     try {
-      const overlapCalculator = new UnifiedOverlapCalculator({
+      const overlapCalculator = new OverlapCalculator({
         maxSize: this.config.overlapSize || 200,
         minLines: 1,
         maxOverlapRatio: 0.3,

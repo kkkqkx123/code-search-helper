@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { CodeChunk, ChunkType, CodeChunkBuilder } from '../types/CodeChunk';
 import { ChunkingOptions, ChunkingPreset, DEFAULT_CHUNKING_OPTIONS } from '../strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { UnifiedOverlapCalculator } from '../utils/overlap/UnifiedOverlapCalculator';
+import { OverlapCalculator } from '../utils/overlap/OverlapCalculator';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ASTNodeTracker } from '../utils/AST/ASTNodeTracker';
 import { TYPES } from '../../../../types';
@@ -15,7 +15,7 @@ import { TYPES } from '../../../../types';
 @injectable()
 export class OverlapPostProcessor implements IChunkPostProcessor {
   private logger?: LoggerService;
-  private unifiedOverlapCalculator?: UnifiedOverlapCalculator;
+  private unifiedOverlapCalculator?: OverlapCalculator;
   private nodeTracker?: ASTNodeTracker;
 
   constructor(
@@ -129,7 +129,7 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
       return;
     }
 
-    this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
+    this.unifiedOverlapCalculator = new OverlapCalculator({
       maxSize: options.overlapSize || 200,
       minLines: 1,
       maxOverlapRatio: options.customParams?.maxOverlapRatio || 0.3,
@@ -361,7 +361,7 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
 
     const lines = originalContent.split('\n');
     const overlapLines = [];
-    
+
     // 计算最大重叠行数
     const estimatedLineLength = 50; // 假设平均每行50字符
     const maxOverlapLinesBySize = Math.floor(overlapSize / estimatedLineLength);

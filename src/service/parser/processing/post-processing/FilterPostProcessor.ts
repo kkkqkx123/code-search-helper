@@ -7,7 +7,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
  * 智能过滤后处理器
  * 使用ChunkFilter的高级过滤逻辑来移除无意义的小块并智能合并相邻块
  */
-export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
+export class FilterPostProcessor implements IChunkPostProcessor {
   private chunkFilter: ChunkFilter;
   private logger?: LoggerService;
 
@@ -73,7 +73,7 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
       'yaml', 'yml', 'toml', 'ini', 'dockerfile', 'shell',
       'bash', 'zsh', 'fish', 'powershell', 'batch'
     ];
-    
+
     return codeLanguages.includes(language?.toLowerCase() || '');
   }
 

@@ -4,9 +4,9 @@ import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcesso
 import { ChunkMerger } from '../utils/chunk-processing/ChunkMerger';
 import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';
 import { SymbolBalancePostProcessor } from './SymbolBalancePostProcessor';
-import { IntelligentFilterPostProcessor } from './IntelligentFilterPostProcessor';
-import { SmartRebalancingPostProcessor } from './SmartRebalancingPostProcessor';
-import { AdvancedMergingPostProcessor } from './AdvancedMergingPostProcessor';
+import { FilterPostProcessor } from './FilterPostProcessor';
+import { RebalancingPostProcessor } from './RebalancingPostProcessor';
+import { MergingPostProcessor } from './MergingPostProcessor';
 import { BoundaryOptimizationPostProcessor } from './BoundaryOptimizationPostProcessor';
 import { OverlapPostProcessor } from './OverlapPostProcessor';
 import { LoggerService } from '../../../../utils/LoggerService';
@@ -111,19 +111,19 @@ export class ChunkPostProcessorCoordinator {
 
     if (advancedOptions?.enableIntelligentFiltering) {
       // 使用专用的智能过滤处理器
-      const intelligentFilterProcessor = new IntelligentFilterPostProcessor(this.logger);
+      const intelligentFilterProcessor = new FilterPostProcessor(this.logger);
       this.addChunkingProcessor(intelligentFilterProcessor);
     }
 
     if (advancedOptions?.enableSmartRebalancing) {
       // 使用专用的智能再平衡处理器
-      const smartRebalancingProcessor = new SmartRebalancingPostProcessor(this.logger, this.complexityCalculator);
+      const smartRebalancingProcessor = new RebalancingPostProcessor(this.logger, this.complexityCalculator);
       this.addChunkingProcessor(smartRebalancingProcessor);
     }
 
     if (advancedOptions?.enableAdvancedMerging) {
       // 使用专用的高级合并处理器
-      const advancedMergingProcessor = new AdvancedMergingPostProcessor(this.logger);
+      const advancedMergingProcessor = new MergingPostProcessor(this.logger);
       this.addChunkProcessingProcessor(advancedMergingProcessor);
     }
 

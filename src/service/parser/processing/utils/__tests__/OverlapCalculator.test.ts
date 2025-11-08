@@ -1,11 +1,11 @@
-import { UnifiedOverlapCalculator } from '../overlap/UnifiedOverlapCalculator';
+import { OverlapCalculator } from '../overlap/OverlapCalculator';
 import { CodeChunk, ChunkMetadata } from '../../types/CodeChunk';
 
 describe('UnifiedOverlapCalculator', () => {
-  let calculator: UnifiedOverlapCalculator;
+  let calculator: OverlapCalculator;
 
   beforeEach(() => {
-    calculator = new UnifiedOverlapCalculator({
+    calculator = new OverlapCalculator({
       maxSize: 200,
       minLines: 1,
       maxOverlapRatio: 0.3,

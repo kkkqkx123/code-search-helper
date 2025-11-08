@@ -8,7 +8,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
  * 高级合并后处理器
  * 集成ChunkMerger的智能合并决策逻辑
  */
-export class AdvancedMergingPostProcessor implements IChunkPostProcessor {
+export class MergingPostProcessor implements IChunkPostProcessor {
   private logger?: LoggerService;
 
   constructor(logger?: LoggerService) {
@@ -44,7 +44,7 @@ export class AdvancedMergingPostProcessor implements IChunkPostProcessor {
       const mergedChunks = await merger.mergeOverlappingChunks(chunks);
 
       this.logger?.debug(`Advanced merging completed: ${chunks.length} -> ${mergedChunks.length} chunks`);
-      
+
       return mergedChunks;
     } catch (error) {
       this.logger?.error('Error during advanced merging:', error);

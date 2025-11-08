@@ -1,6 +1,6 @@
 import { BaseStrategy } from '../base/BaseStrategy';
 import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
-import { ProcessingResult } from '../../types/Processing';
+import { ProcessingResult } from '../../core/types/ResultTypes';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';

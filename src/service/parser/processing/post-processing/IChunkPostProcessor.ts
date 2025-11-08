@@ -1,5 +1,5 @@
 import { CodeChunk } from '../types/CodeChunk';
-import { ChunkingOptions, EnhancedChunkingOptions } from '../strategies/types/SegmentationTypes';
+import { EnhancedChunkingOptions } from '../strategies/types/SegmentationTypes';
 import { ProcessingConfig } from '../core/types/ConfigTypes';
 
 export interface PostProcessingContext {

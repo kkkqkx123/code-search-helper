@@ -11,7 +11,6 @@ import { BalancedChunker } from '../chunking/BalancedChunker';
 import { ContextAwareOverlapOptimizer } from './ContextAwareOverlapOptimizer';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
-import { SimilarityDetector } from '../similarity/SimilarityDetector';
 import { CodeQualityAssessmentUtils } from '../quality/CodeQualityAssessmentUtils';
 import { OverlapStrategyUtils } from './OverlapStrategyUtils';
 import { ChunkSimilarityUtils } from '../chunk-processing/ChunkSimilarityUtils';
@@ -45,11 +44,11 @@ export interface UnifiedOverlapResult {
  * 统一的重叠计算器 - 整合所有重叠计算策略
  * 合并了EnhancedOverlapCalculator、NodeAwareOverlapCalculator和SmartOverlapController的功能
  */
-export class UnifiedOverlapCalculator implements IOverlapCalculator {
+export class OverlapCalculator implements IOverlapCalculator {
   readonly name = 'UnifiedOverlapCalculator';
   readonly version = '1.0.0';
   readonly supportedLanguages = ['*']; // 支持所有语言
-  
+
   private semanticAnalyzer: SemanticBoundaryAnalyzer;
   private balancedChunker: BalancedChunker;
   private contextAnalyzer: ContextAwareOverlapOptimizer;

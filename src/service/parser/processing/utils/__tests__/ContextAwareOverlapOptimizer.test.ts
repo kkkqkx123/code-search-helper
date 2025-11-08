@@ -1,4 +1,5 @@
 import { ContextAwareOverlapOptimizer } from '../overlap/ContextAwareOverlapOptimizer';
+import { OverlapStrategy } from '../../core/interfaces/IOverlapCalculator';
 import { CodeChunk, ChunkMetadata } from '../../types/CodeChunk';
 
 describe('ContextAwareOverlapOptimizer', () => {
@@ -115,7 +116,7 @@ describe('ContextAwareOverlapOptimizer', () => {
       const overlap = {
         content: 'function test() {\n  return "test";\n}\n\nfunction next() {',
         lines: 3,
-        strategy: 'semantic' as const,
+        strategy: OverlapStrategy.SEMANTIC,
         quality: 0.7
       };
 
@@ -158,7 +159,7 @@ describe('ContextAwareOverlapOptimizer', () => {
       const overlap = {
         content: 'class TestClass {\n prop: string;\n  method1() {',
         lines: 3,
-        strategy: 'semantic' as const,
+        strategy: OverlapStrategy.SEMANTIC,
         quality: 0.6
       };
 

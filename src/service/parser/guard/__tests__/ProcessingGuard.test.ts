@@ -2,7 +2,7 @@ import { ProcessingGuard } from '../ProcessingGuard';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorThresholdInterceptor } from '../../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../MemoryGuard';
-import { UnifiedDetectionService, DetectionResult, ProcessingStrategyType } from '../../processing/detection/UnifiedDetectionService';
+import { DetectionService, DetectionResult, ProcessingStrategyType } from '../../detection/DetectionService';
 import { IntelligentFallbackEngine } from '../IntelligentFallbackEngine';
 import { IProcessingStrategy } from '../../processing/core/interfaces/IProcessingStrategy';
 
@@ -55,14 +55,12 @@ const mockMemoryGuard: MemoryGuard = {
 } as unknown as MemoryGuard;
 
 
-// Mock UnifiedDetectionService
-const mockDetectionService: UnifiedDetectionService = {
-  detectFile: jest.fn().mockResolvedValue({
+// Mock LanguageDetectionService
+const mockDetectionService = {
+  detectLanguage: jest.fn().mockResolvedValue({
     language: 'javascript',
     confidence: 0.9,
-    detectionMethod: 'hybrid',
-    fileType: 'normal',
-    processingStrategy: ProcessingStrategyType.TREESITTER_AST,
+    method: 'hybrid',
     metadata: {
       fileFeatures: {
         isCodeFile: true,
@@ -81,8 +79,16 @@ const mockDetectionService: UnifiedDetectionService = {
       }
     }
   }),
-  clearCache: jest.fn()
-} as unknown as UnifiedDetectionService;
+  detectLanguageSync: jest.fn().mockReturnValue('javascript'),
+  detectLanguageByExtensionAsync: jest.fn().mockResolvedValue({
+    language: 'javascript',
+    confidence: 0.9,
+    method: 'extension'
+  }),
+  backupProcessor: {
+    getBackupFileMetadata: jest.fn().mockReturnValue({ isBackup: false })
+  }
+} as any;
 
 // Mock IntelligentFallbackEngine
 const mockFallbackEngine: IntelligentFallbackEngine = {
@@ -94,12 +100,14 @@ const mockFallbackEngine: IntelligentFallbackEngine = {
 
 // Mock IProcessingStrategy
 const mockStrategy: IProcessingStrategy = {
+  name: 'MockStrategy',
+  priority: 1,
+  supportedLanguages: ['*'],
+  canHandle: jest.fn().mockReturnValue(true),
   execute: jest.fn().mockResolvedValue({
     chunks: [{ content: 'fallback chunk' }],
     metadata: { fallback: true }
-  }),
-  getName: jest.fn().mockReturnValue('MockStrategy'),
-  getDescription: jest.fn().mockReturnValue('Mock processing strategy for testing')
+  })
 };
 
 describe('ProcessingGuard', () => {
@@ -205,7 +213,7 @@ describe('ProcessingGuard', () => {
 
     it('should handle detection failure with fallback', async () => {
       (mockDetectionService.detectFile as jest.Mock).mockRejectedValue(new Error('Detection failed'));
-      
+
       // 确保shouldUseImmediateFallback返回false，让代码执行检测逻辑
       (mockMemoryGuard.checkMemoryUsage as jest.Mock).mockReturnValue({
         isWithinLimit: true,
@@ -331,7 +339,7 @@ describe('ProcessingGuard', () => {
   describe('memory pressure handling', () => {
     it('should handle memory pressure event', () => {
       const event = { type: 'memory-pressure' };
-      
+
       (processingGuard as any).handleMemoryPressure(event);
 
       expect(mockMemoryGuard.forceCleanup).toHaveBeenCalled();
@@ -356,7 +364,6 @@ describe('ProcessingGuard', () => {
 
       expect(mockErrorManager.resetCounter).toHaveBeenCalled();
       expect(mockMemoryGuard.clearHistory).toHaveBeenCalled();
-      expect(mockDetectionService.clearCache).toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith('ProcessingGuard reset completed');
     });
   });

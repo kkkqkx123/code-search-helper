@@ -232,7 +232,7 @@ export class PostProcessingContextBuilder {
     this.context.strategyName = strategyName;
   }
 
-  setFilePath(filePath: string): PostProcessingContextBuilder {
+  setFilePath(filePath?: string): PostProcessingContextBuilder {
     this.context.filePath = filePath;
     return this;
   }

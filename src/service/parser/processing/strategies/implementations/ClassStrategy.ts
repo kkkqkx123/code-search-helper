@@ -5,7 +5,7 @@
 
 import { BaseStrategy } from '../base/BaseStrategy';
 import type { IProcessingContext } from '../../core/interfaces/IProcessingContext';
-import type { ProcessingResult } from '../../types/Processing';
+import type { ProcessingResult } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
 import { ChunkType } from '../../types/CodeChunk';
 

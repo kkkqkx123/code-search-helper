@@ -3,12 +3,12 @@
  * 提供策略实现的通用逻辑和性能统计功能
  */
 
-import type { IProcessingStrategy } from '../../core/interfaces/IProcessingStrategy';
+import type { IProcessingStrategy, StrategyPerformanceStats } from '../../core/interfaces/IProcessingStrategy';
 import type { IProcessingContext } from '../../core/interfaces/IProcessingContext';
-import type { ProcessingResult } from '../../types/Processing';
-import type { StrategyConfig, StrategyPerformanceStats } from '../../types/Strategy';
-import { ProcessingUtils } from '../../types/Processing';
-import { CodeChunkBuilder, ChunkType } from '../../types/CodeChunk';
+import type { ProcessingResult, ResultMetadata, CodeChunk } from '../../core/types/ResultTypes';
+import { ChunkType } from '../../core/types/ResultTypes';
+import type { StrategyConfig } from '../../types/Strategy';
+import { CodeChunkBuilder } from '../../types/CodeChunk';
 
 /**
  * 策略基类抽象实现
@@ -115,87 +115,88 @@ export abstract class BaseStrategy implements IProcessingStrategy {
   }
 
   /**
-   * 创建成功的处理结果
-   */
+  * 创建成功的处理结果
+  */
   protected createSuccessResult(
-    chunks: any[],
-    executionTime: number,
-    additionalMetadata?: Record<string, any>
+  chunks: any[],
+  executionTime: number,
+  additionalMetadata?: Record<string, any>
   ): ProcessingResult {
-    return ProcessingUtils.createSuccessResult(
-      chunks,
-      this.name,
-      executionTime,
-      additionalMetadata
-    );
-  }
+  const totalSize = chunks.reduce((sum, chunk) => sum + chunk.content.length, 0);
+  const averageChunkSize = chunks.length > 0 ? totalSize / chunks.length : 0;
+  const originalSize = additionalMetadata?.originalSize || totalSize;
+  const compressionRatio = originalSize > 0 ? totalSize / originalSize : 1;
+
+  const metadata: ResultMetadata = {
+      language: additionalMetadata?.language || 'unknown',
+       filePath: additionalMetadata?.filePath,
+       chunkCount: chunks.length,
+       averageChunkSize,
+       totalSize,
+       originalSize,
+       compressionRatio,
+       startTime: additionalMetadata?.startTime || Date.now() - executionTime,
+       endTime: additionalMetadata?.endTime || Date.now(),
+       ...additionalMetadata
+     };
+
+     return {
+       chunks,
+       success: true,
+       executionTime,
+       strategy: this.name,
+       metadata
+     };
+   }
 
   /**
-   * 创建失败的处理结果
-   */
+  * 创建失败的处理结果
+  */
   protected createFailureResult(
-    executionTime: number,
-    error: string
+  executionTime: number,
+  error: string
   ): ProcessingResult {
-    return ProcessingUtils.createFailureResult(
-      this.name,
-      executionTime,
+  return {
+  chunks: [],
+  success: false,
+  executionTime,
+    strategy: this.name,
       error
-    );
-  }
+     };
+   }
 
   /**
-   * 更新性能统计
-   */
+  * 更新性能统计
+  */
   protected updatePerformanceStats(executionTime: number, success: boolean, chunkCount: number): void {
-    const totalExecutions = this.performanceStats.totalExecutions + 1;
-    const successCount = success ? this.performanceStats.successCount + 1 : this.performanceStats.successCount;
-    const failureCount = success ? this.performanceStats.failureCount : this.performanceStats.failureCount + 1;
-    const totalChunksProcessed = this.performanceStats.totalChunksProcessed + chunkCount;
-    
-    // 计算新的平均执行时间
-    const currentTotalTime = this.performanceStats.averageExecutionTime * this.performanceStats.totalExecutions;
-    const averageExecutionTime = (currentTotalTime + executionTime) / totalExecutions;
-    
-    // 更新最快和最慢执行时间
-    const fastestExecutionTime = Math.min(this.performanceStats.fastestExecutionTime, executionTime);
-    const slowestExecutionTime = Math.max(this.performanceStats.slowestExecutionTime, executionTime);
-    
-    // 计算平均每块处理时间
-    const averageTimePerChunk = totalChunksProcessed > 0 
-      ? (averageExecutionTime * totalExecutions) / totalChunksProcessed 
-      : 0;
+  const totalExecutions = this.performanceStats.totalExecutions + 1;
+  const successfulExecutions = success ? this.performanceStats.successfulExecutions + 1 : this.performanceStats.successfulExecutions;
+  const errorCount = success ? this.performanceStats.errorCount : this.performanceStats.errorCount + 1;
 
-    this.performanceStats = {
-      totalExecutions,
-      successCount,
-      failureCount,
-      averageExecutionTime,
-      fastestExecutionTime,
-      slowestExecutionTime,
-      totalChunksProcessed,
-      averageTimePerChunk,
-      lastExecutionTime: Date.now(),
-      lastExecutionSuccess: success
-    };
+  // 计算新的平均执行时间
+  const currentTotalTime = this.performanceStats.averageExecutionTime * this.performanceStats.totalExecutions;
+  const averageExecutionTime = (currentTotalTime + executionTime) / totalExecutions;
+
+  this.performanceStats = {
+    totalExecutions,
+    successfulExecutions,
+    averageExecutionTime,
+    lastExecutionTime: Date.now(),
+    errorCount
+  };
   }
 
   /**
-   * 初始化性能统计
-   */
+  * 初始化性能统计
+  */
   private initializeStats(): StrategyPerformanceStats {
-    return {
-      totalExecutions: 0,
-      successCount: 0,
-      failureCount: 0,
-      averageExecutionTime: 0,
-      fastestExecutionTime: 0,
-      slowestExecutionTime: 0,
-      totalChunksProcessed: 0,
-      averageTimePerChunk: 0,
-      lastExecutionTime: 0,
-      lastExecutionSuccess: false
-    };
+  return {
+  totalExecutions: 0,
+  successfulExecutions: 0,
+  averageExecutionTime: 0,
+  lastExecutionTime: 0,
+  errorCount: 0
+  };
   }
 
   /**

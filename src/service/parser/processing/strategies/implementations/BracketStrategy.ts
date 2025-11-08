@@ -5,7 +5,7 @@
 
 import { BaseStrategy } from '../base/BaseStrategy';
 import type { IProcessingContext } from '../../core/interfaces/IProcessingContext';
-import type { ProcessingResult } from '../../types/Processing';
+import type { ProcessingResult } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
 import { ChunkType } from '../../types/CodeChunk';
 
@@ -51,7 +51,7 @@ export class BracketStrategy extends BaseStrategy {
 
     // 检查内容是否包含括号
     const bracketPairs = this.config.parameters?.bracketPairs || ['{}', '()', '[]'];
-    const hasBrackets = bracketPairs.some(pair => {
+    const hasBrackets = bracketPairs.some((pair: { split: (arg0: string) => [any, any]; }) => {
       const [open, close] = pair.split('');
       return context.content.includes(open) && context.content.includes(close);
     });
@@ -86,8 +86,8 @@ export class BracketStrategy extends BaseStrategy {
           filePath: context.filePath,
           strategy: this.name,
           chunkCount: chunks.length,
-          averageChunkSize: chunks.length > 0 
-            ? chunks.reduce((sum, chunk) => sum + chunk.content.length, 0) / chunks.length 
+          averageChunkSize: chunks.length > 0
+            ? chunks.reduce((sum, chunk) => sum + chunk.content.length, 0) / chunks.length
             : 0,
           totalSize: chunks.reduce((sum, chunk) => sum + chunk.content.length, 0)
         }
@@ -95,7 +95,7 @@ export class BracketStrategy extends BaseStrategy {
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       return this.createFailureResult(executionTime, errorMessage);
     }
   }
@@ -106,7 +106,7 @@ export class BracketStrategy extends BaseStrategy {
   private splitByBracketBalance(context: IProcessingContext): any[] {
     const { content, language, filePath } = context;
     const lines = content.split('\n');
-    
+
     const maxChunkSize = this.config.parameters?.maxChunkSize || 1500;
     const minChunkSize = this.config.parameters?.minChunkSize || 100;
     const bracketPairs = this.config.parameters?.bracketPairs || ['{}', '()', '[]'];
@@ -121,7 +121,7 @@ export class BracketStrategy extends BaseStrategy {
     let bracketBalance: Record<string, number> = {};
 
     // 初始化括号平衡计数器
-    bracketPairs.forEach(pair => {
+    bracketPairs.forEach((pair: { split: (arg0: string) => [any, any]; }) => {
       const [open, close] = pair.split('');
       bracketBalance[open] = 0;
       bracketBalance[close] = 0;
@@ -129,7 +129,7 @@ export class BracketStrategy extends BaseStrategy {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
+
       // 更新括号平衡
       if (enableBracketBalance) {
         this.updateBracketBalance(line, bracketBalance, bracketPairs);
@@ -142,18 +142,18 @@ export class BracketStrategy extends BaseStrategy {
       const shouldSplit = (
         currentSize + line.length > maxChunkSize && currentSize >= minChunkSize
       ) || (
-        enableBracketBalance && imbalance <= maxImbalance && currentSize >= minChunkSize
-      ) || (
-        enableLineBalance && this.isGoodLineBoundary(line, currentChunk) && currentSize >= minChunkSize
-      ) || (
-        i === lines.length - 1 // 到达文件末尾
-      );
+          enableBracketBalance && imbalance <= maxImbalance && currentSize >= minChunkSize
+        ) || (
+          enableLineBalance && this.isGoodLineBoundary(line, currentChunk) && currentSize >= minChunkSize
+        ) || (
+          i === lines.length - 1 // 到达文件末尾
+        );
 
       if (shouldSplit && currentChunk.length > 0) {
         // 创建当前块
         const chunkContent = currentChunk.join('\n');
         const complexity = this.calculateComplexity(chunkContent);
-        
+
         const chunk = this.createChunk(
           chunkContent,
           currentLine,
@@ -169,15 +169,15 @@ export class BracketStrategy extends BaseStrategy {
         );
 
         chunks.push(chunk);
-        
+
         // 开始新块
         currentChunk = [];
         currentSize = 0;
         currentLine = i + 1;
-        
+
         // 重置括号平衡计数器
         if (enableBracketBalance) {
-          bracketPairs.forEach(pair => {
+          bracketPairs.forEach((pair: { split: (arg0: string) => [any, any]; }) => {
             const [open, close] = pair.split('');
             bracketBalance[open] = 0;
             bracketBalance[close] = 0;
@@ -194,7 +194,7 @@ export class BracketStrategy extends BaseStrategy {
       const chunkContent = currentChunk.join('\n');
       const complexity = this.calculateComplexity(chunkContent);
       const imbalance = this.calculateImbalance(bracketBalance, bracketPairs);
-      
+
       const chunk = this.createChunk(
         chunkContent,
         currentLine,
@@ -225,11 +225,11 @@ export class BracketStrategy extends BaseStrategy {
   ): void {
     bracketPairs.forEach(pair => {
       const [open, close] = pair.split('');
-      
+
       // 计算开括号数量
       const openCount = (line.match(new RegExp('\\' + open, 'g')) || []).length;
       bracketBalance[open] = (bracketBalance[open] || 0) + openCount;
-      
+
       // 计算闭括号数量
       const closeCount = (line.match(new RegExp('\\' + close, 'g')) || []).length;
       bracketBalance[close] = (bracketBalance[close] || 0) + closeCount;
@@ -260,7 +260,7 @@ export class BracketStrategy extends BaseStrategy {
    */
   private isGoodLineBoundary(line: string, currentChunk: string[]): boolean {
     const trimmedLine = line.trim();
-    
+
     // 空行是良好的边界
     if (trimmedLine === '') {
       return true;
@@ -324,7 +324,7 @@ export class BracketStrategy extends BaseStrategy {
     // 检查内容大小
     const contentSize = context.content.length;
     const minChunkSize = this.config.parameters?.minChunkSize || 100;
-    
+
     if (contentSize < minChunkSize) {
       return false;
     }

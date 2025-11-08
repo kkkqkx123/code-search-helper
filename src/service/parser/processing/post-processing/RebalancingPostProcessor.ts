@@ -7,7 +7,7 @@ import { IComplexityCalculator } from '../strategies/types/SegmentationTypes';
  * 智能再平衡后处理器
  * 实现ChunkRebalancer的智能再平衡算法，防止产生过小的最后一块
  */
-export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
+export class RebalancingPostProcessor implements IChunkPostProcessor {
   private logger?: LoggerService;
   private complexityCalculator?: IComplexityCalculator;
 
