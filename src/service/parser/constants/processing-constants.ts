@@ -4,10 +4,10 @@
 
 // 块大小限制常量（基于kilocode经验，但根据文件大小动态调整）
 export const BLOCK_SIZE_LIMITS = {
-  MIN_BLOCK_CHARS: 20,                    // 小文件最小块大小（原50太大）
+  MIN_BLOCK_CHARS: 20,                    // 小文件最小块大小
   MAX_BLOCK_CHARS: 1000,                  // 避免AI处理超长上下文
   MAX_CHARS_TOLERANCE_FACTOR: 1.2,        // 允许1200字符的弹性空间
-  MIN_CHUNK_REMAINDER_CHARS: 100          // 小文件最后一块最小大小（原200太大）
+  MIN_CHUNK_REMAINDER_CHARS: 100          // 小文件最后一块最小大小
 } as const;
 
 // 根据文件大小动态调整块大小限制

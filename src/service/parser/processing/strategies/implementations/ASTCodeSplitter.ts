@@ -17,7 +17,7 @@ import { ValidationUtils } from '../../../../../utils/processing/validation/Vali
 import { ContentAnalyzer } from '../../../../../utils/processing/ContentAnalyzer';
 import { TypeMappingUtils } from '../../../../../utils/processing/TypeMappingUtils';
 import { QueryResultToChunkConverter } from '../../../../../utils/processing/QueryResultConverter';
-import { ASTSplitterConfig, ASTSplitterConfigFactory, FallbackStrategy } from '../../../../../utils/processing/ASTSplitterConfig';
+import { ASTSplitterConfig, ASTSplitterConfigFactory } from '../../../../../utils/processing/ASTSplitterConfig';
 import { ConfigurationManager } from '../../../../../utils/processing/ConfigurationManager';
 import { ComplexityCalculator } from '../../../../../utils/processing/ComplexityCalculator';
 import { ICacheService } from '../../../../../infrastructure/caching/types';
@@ -107,7 +107,7 @@ export class ASTCodeSplitter {
       const ast = await this.treeSitterService.parseCode(content, language);
       if (!ast) {
         this.logger.warn(`Failed to parse AST for ${filePath}`);
-        return this.handleFallback(content, filePath, language, 'ast_parse_failed');
+        throw new Error(`AST parsing failed for ${filePath}`);
       }
 
       // 提取代码块（分层提取）
@@ -156,7 +156,7 @@ export class ASTCodeSplitter {
       return enhancedChunks;
     } catch (error) {
       this.logger.error(`ASTCodeSplitter failed for ${filePath}: ${error}`);
-      return this.handleFallback(content, filePath, language || 'unknown', 'exception');
+      throw error;
     }
   }
 
@@ -242,7 +242,8 @@ export class ASTCodeSplitter {
       return chunks;
     } catch (error) {
       this.logger.error(`Failed to extract chunks from AST: ${error}`);
-      return this.handleFallback(content, filePath, language, 'extraction_failed');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`AST extraction failed: ${errorMessage}`);
     }
   }
 
@@ -506,347 +507,6 @@ export class ASTCodeSplitter {
     }
   }
 
-  /**
-   * 处理降级策略
-   */
-  private handleFallback(
-    content: string,
-    filePath: string,
-    language: string,
-    reason: string
-  ): CodeChunk[] {
-    if (!this.config.enableFallback) {
-      return [];
-    }
-
-    // 根据内容复杂度选择合适的降级策略
-    const fallbackComplexity = ComplexityCalculator.calculateGenericComplexity(content);
-    let strategies = this.config.fallbackStrategies || [FallbackStrategy.LINE_BASED];
-
-    // 根据复杂度调整策略顺序
-    if (fallbackComplexity.score > 100) {
-      // 对于高复杂度内容，优先使用语义边界分割
-      strategies = [FallbackStrategy.SEMANTIC_BOUNDARY, FallbackStrategy.BRACKET_BALANCING, FallbackStrategy.LINE_BASED];
-    } else if (fallbackComplexity.score < 20) {
-      // 对于低复杂度内容，使用简单分割
-      strategies = [FallbackStrategy.SIMPLE_SPLIT, FallbackStrategy.LINE_BASED];
-    }
-
-    for (const strategy of strategies) {
-      try {
-        switch (strategy) {
-          case FallbackStrategy.LINE_BASED:
-            return this.lineBasedSplit(content, filePath, language);
-          case FallbackStrategy.BRACKET_BALANCING:
-            return this.bracketBalancingSplit(content, filePath, language);
-          case FallbackStrategy.SEMANTIC_BOUNDARY:
-            return this.semanticBoundarySplit(content, filePath, language);
-          case FallbackStrategy.SIMPLE_SPLIT:
-            return this.simpleSplit(content, filePath, language);
-        }
-      } catch (error) {
-        this.logger.warn(`Fallback strategy ${strategy} failed: ${error}`);
-        continue;
-      }
-    }
-
-    // 所有降级策略都失败，返回单个块
-    this.logger.warn(`All fallback strategies failed for ${filePath}, returning single chunk`);
-    const chunk = ChunkFactory.createFallbackChunk(
-      content,
-      1,
-      content.split('\n').length,
-      language,
-      reason,
-      { filePath, strategy: 'ast-splitter' }
-    );
-    
-    // 计算复杂度并添加到元数据
-    const fallbackChunkComplexity = ComplexityCalculator.calculateComplexityByType(
-      chunk.content,
-      chunk.metadata.type,
-      this.config
-    );
-    
-    chunk.metadata = {
-      ...chunk.metadata,
-      complexity: fallbackChunkComplexity.score,
-      complexityAnalysis: fallbackChunkComplexity.analysis
-    };
-    
-    return [chunk];
-  }
-
-  /**
-   * 基于行的分割
-   */
-  private lineBasedSplit(content: string, filePath: string, language: string): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-    const lines = content.split('\n');
-    const maxChunkSize = this.config.maxChunkSize || 1500;
-
-    let currentChunk = '';
-    let startLine = 1;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      if (currentChunk.length + line.length > maxChunkSize && currentChunk.length > 0) {
-        // 创建当前块
-        const chunk = ChunkFactory.createCodeChunk(
-          currentChunk.trim(),
-          startLine,
-          i,
-          language,
-          ChunkType.BLOCK,
-          { filePath, strategy: 'line-based' }
-        );
-        
-        // 计算复杂度并添加到元数据
-        const lineBasedComplexity = ComplexityCalculator.calculateComplexityByType(
-          chunk.content,
-          chunk.metadata.type,
-          this.config
-        );
-        
-        chunk.metadata = {
-          ...chunk.metadata,
-          complexity: lineBasedComplexity.score,
-          complexityAnalysis: lineBasedComplexity.analysis
-        };
-        
-        chunks.push(chunk);
-
-        currentChunk = line;
-        startLine = i + 1;
-      } else {
-        currentChunk += (currentChunk ? '\n' : '') + line;
-      }
-    }
-
-    // 添加最后一个块
-    if (currentChunk.trim()) {
-      const chunk = ChunkFactory.createCodeChunk(
-        currentChunk.trim(),
-        startLine,
-        lines.length,
-        language,
-        ChunkType.BLOCK,
-        { filePath, strategy: 'line-based' }
-      );
-      
-      // 计算复杂度并添加到元数据
-      const lineBasedComplexity2 = ComplexityCalculator.calculateComplexityByType(
-        chunk.content,
-        chunk.metadata.type,
-        this.config
-      );
-      
-      chunk.metadata = {
-        ...chunk.metadata,
-        complexity: lineBasedComplexity2.score,
-        complexityAnalysis: lineBasedComplexity2.analysis
-      };
-      
-      chunks.push(chunk);
-    }
-
-    return chunks;
-  }
-
-  /**
-   * 基于括号平衡的分割
-   */
-  private bracketBalancingSplit(content: string, filePath: string, language: string): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-    const lines = content.split('\n');
-    const maxChunkSize = this.config.maxChunkSize || 1500;
-
-    let currentChunk = '';
-    let startLine = 1;
-    let braceCount = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const openBraces = (line.match(/\{/g) || []).length;
-      const closeBraces = (line.match(/\}/g) || []).length;
-
-      braceCount += openBraces - closeBraces;
-
-      if (currentChunk.length + line.length > maxChunkSize && braceCount === 0 && currentChunk.length > 0) {
-        // 在括号平衡时分割
-        const chunk = ChunkFactory.createCodeChunk(
-          currentChunk.trim(),
-          startLine,
-          i,
-          language,
-          ChunkType.BLOCK,
-          { filePath, strategy: 'bracket-balancing' }
-        );
-        
-        // 计算复杂度并添加到元数据
-        const bracketComplexity = ComplexityCalculator.calculateComplexityByType(
-          chunk.content,
-          chunk.metadata.type,
-          this.config
-        );
-        
-        chunk.metadata = {
-          ...chunk.metadata,
-          complexity: bracketComplexity.score,
-          complexityAnalysis: bracketComplexity.analysis
-        };
-        
-        chunks.push(chunk);
-
-        currentChunk = line;
-        startLine = i + 1;
-        braceCount = openBraces - closeBraces;
-      } else {
-        currentChunk += (currentChunk ? '\n' : '') + line;
-      }
-    }
-
-    // 添加最后一个块
-    if (currentChunk.trim()) {
-      const chunk = ChunkFactory.createCodeChunk(
-        currentChunk.trim(),
-        startLine,
-        lines.length,
-        language,
-        ChunkType.BLOCK,
-        { filePath, strategy: 'bracket-balancing' }
-      );
-      
-      // 计算复杂度并添加到元数据
-      const bracketComplexity2 = ComplexityCalculator.calculateComplexityByType(
-        chunk.content,
-        chunk.metadata.type,
-        this.config
-      );
-      
-      chunk.metadata = {
-        ...chunk.metadata,
-        complexity: bracketComplexity2.score,
-        complexityAnalysis: bracketComplexity2.analysis
-      };
-      
-      chunks.push(chunk);
-    }
-
-    return chunks;
-  }
-
-  /**
-   * 基于语义边界的分割
-   */
-  private semanticBoundarySplit(content: string, filePath: string, language: string): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-    const lines = content.split('\n');
-    const maxChunkSize = this.config.maxChunkSize || 1500;
-
-    let currentChunk = '';
-    let startLine = 1;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // 检查是否为语义边界
-      const isBoundary = /^(?:function|class|interface|struct|namespace|module|def|func)\s+\w+/.test(line) ||
-        /^\s*\}/.test(line) ||
-        /^\s*$/.test(line);
-
-      if (isBoundary && currentChunk.length > (this.config.minChunkSize || 50)) {
-        const chunk = ChunkFactory.createCodeChunk(
-          currentChunk.trim(),
-          startLine,
-          i,
-          language,
-          ChunkType.BLOCK,
-          { filePath, strategy: 'semantic-boundary' }
-        );
-        
-        // 计算复杂度并添加到元数据
-        const semanticComplexity = ComplexityCalculator.calculateComplexityByType(
-          chunk.content,
-          chunk.metadata.type,
-          this.config
-        );
-        
-        chunk.metadata = {
-          ...chunk.metadata,
-          complexity: semanticComplexity.score,
-          complexityAnalysis: semanticComplexity.analysis
-        };
-        
-        chunks.push(chunk);
-
-        currentChunk = line;
-        startLine = i + 1;
-      } else {
-        currentChunk += (currentChunk ? '\n' : '') + line;
-      }
-    }
-
-    // 添加最后一个块
-    if (currentChunk.trim()) {
-      const chunk = ChunkFactory.createCodeChunk(
-        currentChunk.trim(),
-        startLine,
-        lines.length,
-        language,
-        ChunkType.BLOCK,
-        { filePath, strategy: 'semantic-boundary' }
-      );
-      
-      // 计算复杂度并添加到元数据
-      const semanticComplexity2 = ComplexityCalculator.calculateComplexityByType(
-        chunk.content,
-        chunk.metadata.type,
-        this.config
-      );
-      
-      chunk.metadata = {
-        ...chunk.metadata,
-        complexity: semanticComplexity2.score,
-        complexityAnalysis: semanticComplexity2.analysis
-      };
-      
-      chunks.push(chunk);
-    }
-
-    return chunks;
-  }
-
-  /**
-   * 简单分割
-   */
-  private simpleSplit(content: string, filePath: string, language: string): CodeChunk[] {
-    const lines = content.split('\n');
-    const chunk = ChunkFactory.createCodeChunk(
-      content,
-      1,
-      lines.length,
-      language,
-      ChunkType.GENERIC,
-      { filePath, strategy: 'simple-split' }
-    );
-    
-    // 计算复杂度并添加到元数据
-    const simpleComplexity = ComplexityCalculator.calculateComplexityByType(
-      chunk.content,
-      chunk.metadata.type,
-      this.config
-    );
-    
-    chunk.metadata = {
-      ...chunk.metadata,
-      complexity: simpleComplexity.score,
-      complexityAnalysis: simpleComplexity.analysis
-    };
-    
-    return [chunk];
-  }
 
   /**
    * 检查内容是否有有效结构

@@ -9,29 +9,29 @@ export interface LanguageMapping {
   displayName: string;
   extensions: string[];
   aliases: string[];
-  
+
   // Tree-sitter 相关
   treeSitterModule: string;
   treeSitterImport: string;
-  treeSitterLanguageName?: string; // 如 c_sharp
-  
+  treeSitterLanguageName?: string;
+
   // 查询系统相关
   queryDir: string;
   supportedQueryTypes: string[];
-  
+
   // 处理相关
   supported: boolean;
   priority: number;
-  
+
   // 配置相关
   maxChunkSize?: number;
   maxLinesPerChunk?: number;
   enableSemanticDetection?: boolean;
   enableBracketBalance?: boolean;
-  
+
   // 策略支持
   supportedStrategies: string[];
-  
+
   // 分类
   category: 'programming' | 'markup' | 'data' | 'config';
 }
@@ -59,7 +59,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   typescript: {
     name: 'typescript',
     displayName: 'TypeScript',
@@ -78,7 +78,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   python: {
     name: 'python',
     displayName: 'Python',
@@ -97,7 +97,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'structure-aware'],
     category: 'programming'
   },
-  
+
   java: {
     name: 'java',
     displayName: 'Java',
@@ -116,7 +116,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   go: {
     name: 'go',
     displayName: 'Go',
@@ -135,7 +135,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   rust: {
     name: 'rust',
     displayName: 'Rust',
@@ -154,7 +154,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   cpp: {
     name: 'cpp',
     displayName: 'C++',
@@ -173,7 +173,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   c: {
     name: 'c',
     displayName: 'C',
@@ -192,7 +192,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   csharp: {
     name: 'csharp',
     displayName: 'C#',
@@ -212,7 +212,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   swift: {
     name: 'swift',
     displayName: 'Swift',
@@ -231,7 +231,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   kotlin: {
     name: 'kotlin',
     displayName: 'Kotlin',
@@ -250,7 +250,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   ruby: {
     name: 'ruby',
     displayName: 'Ruby',
@@ -269,7 +269,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'structure-aware'],
     category: 'programming'
   },
-  
+
   php: {
     name: 'php',
     displayName: 'PHP',
@@ -288,7 +288,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   scala: {
     name: 'scala',
     displayName: 'Scala',
@@ -307,7 +307,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'programming'
   },
-  
+
   html: {
     name: 'html',
     displayName: 'HTML',
@@ -326,7 +326,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['bracket'],
     category: 'markup'
   },
-  
+
   css: {
     name: 'css',
     displayName: 'CSS',
@@ -345,7 +345,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['bracket'],
     category: 'markup'
   },
-  
+
   vue: {
     name: 'vue',
     displayName: 'Vue',
@@ -364,7 +364,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket', 'structure-aware'],
     category: 'markup'
   },
-  
+
   json: {
     name: 'json',
     displayName: 'JSON',
@@ -383,7 +383,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['bracket'],
     category: 'data'
   },
-  
+
   yaml: {
     name: 'yaml',
     displayName: 'YAML',
@@ -402,7 +402,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['structure-aware'],
     category: 'data'
   },
-  
+
   toml: {
     name: 'toml',
     displayName: 'TOML',
@@ -421,7 +421,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['structure-aware'],
     category: 'data'
   },
-  
+
   xml: {
     name: 'xml',
     displayName: 'XML',
@@ -440,7 +440,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['bracket'],
     category: 'markup'
   },
-  
+
   markdown: {
     name: 'markdown',
     displayName: 'Markdown',
@@ -459,7 +459,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['structure-aware'],
     category: 'markup'
   },
-  
+
   shell: {
     name: 'shell',
     displayName: 'Shell',
@@ -478,7 +478,7 @@ export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = {
     supportedStrategies: ['ast', 'bracket'],
     category: 'programming'
   },
-  
+
   sql: {
     name: 'sql',
     displayName: 'SQL',
