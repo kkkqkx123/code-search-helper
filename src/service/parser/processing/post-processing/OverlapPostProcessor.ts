@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
-import { CodeChunk } from '../types/CodeChunk';
-import { ChunkingOptions, ChunkingPreset } from '../strategies/types/SegmentationTypes';
+import { CodeChunk, ChunkType, CodeChunkBuilder } from '../types/CodeChunk';
+import { ChunkingOptions, ChunkingPreset, DEFAULT_CHUNKING_OPTIONS } from '../strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { UnifiedOverlapCalculator } from '../utils/overlap/UnifiedOverlapCalculator';
 import { LoggerService } from '../../../../utils/LoggerService';
@@ -32,96 +32,19 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
 
   shouldApply(chunks: CodeChunk[], context: PostProcessingContext): boolean {
     // 应用条件：
-    // 1. 启用了重叠处理
-    // 2. 有多个代码块
-    // 3. 配置了重叠大小
-    return context.options.basic?.addOverlap === true &&
-      chunks.length > 1 &&
-      (context.options.basic?.overlapSize || 0) > 0;
+    // 1. 有多个代码块
+    // 2. 配置了重叠大小
+    return chunks.length > 1 && (context.options.overlapSize || 0) > 0;
   }
 
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {
     this.logger?.debug(`Starting overlap processing for ${chunks.length} chunks`);
 
     try {
-      // 确保传递给UnifiedOverlapCalculator的options是完整类型
+      // 使用默认配置合并用户提供的选项
       const completeOptions: Required<ChunkingOptions> = {
-        preset: context.options.preset || ChunkingPreset.BALANCED,
-        basic: {
-          maxChunkSize: context.options.basic?.maxChunkSize ?? 1000,
-          minChunkSize: context.options.basic?.minChunkSize ?? 100,
-          overlapSize: context.options.basic?.overlapSize ?? 200,
-          preserveFunctionBoundaries: context.options.basic?.preserveFunctionBoundaries ?? true,
-          preserveClassBoundaries: context.options.basic?.preserveClassBoundaries ?? true,
-          includeComments: context.options.basic?.includeComments ?? false,
-          extractSnippets: context.options.basic?.extractSnippets ?? true,
-          addOverlap: context.options.basic?.addOverlap ?? false,
-          optimizationLevel: context.options.basic?.optimizationLevel ?? 'medium',
-          maxLines: context.options.basic?.maxLines ?? 10000
-        },
-        advanced: {
-          adaptiveBoundaryThreshold: context.options.advanced?.adaptiveBoundaryThreshold ?? false,
-          contextAwareOverlap: context.options.advanced?.contextAwareOverlap ?? false,
-          semanticWeight: context.options.advanced?.semanticWeight ?? 0.7,
-          syntacticWeight: context.options.advanced?.syntacticWeight ?? 0.3,
-          enableASTBoundaryDetection: context.options.advanced?.enableASTBoundaryDetection ?? false,
-          astNodeTracking: context.options.advanced?.astNodeTracking ?? false,
-          enableChunkDeduplication: context.options.advanced?.enableChunkDeduplication ?? false,
-          maxOverlapRatio: context.options.advanced?.maxOverlapRatio ?? 0.3,
-          deduplicationThreshold: context.options.advanced?.deduplicationThreshold ?? 0.8,
-          chunkMergeStrategy: context.options.advanced?.chunkMergeStrategy ?? 'conservative',
-          minChunkSimilarity: context.options.advanced?.minChunkSimilarity ?? 0.6,
-          enableSmartDeduplication: context.options.advanced?.enableSmartDeduplication ?? false,
-          similarityThreshold: context.options.advanced?.similarityThreshold ?? 0.8,
-          overlapMergeStrategy: context.options.advanced?.overlapMergeStrategy ?? 'conservative',
-          maxOverlapLines: context.options.advanced?.maxOverlapLines ?? 50,
-          enableEnhancedBalancing: context.options.advanced?.enableEnhancedBalancing ?? true,
-          balancedChunkerThreshold: context.options.advanced?.balancedChunkerThreshold ?? 100,
-          enableIntelligentFiltering: context.options.advanced?.enableIntelligentFiltering ?? true,
-          minChunkSizeThreshold: context.options.advanced?.minChunkSizeThreshold ?? 50,
-          maxChunkSizeThreshold: context.options.advanced?.maxChunkSizeThreshold ?? 2000,
-          enableSmartRebalancing: context.options.advanced?.enableSmartRebalancing ?? true,
-          rebalancingStrategy: context.options.advanced?.rebalancingStrategy ?? 'conservative',
-          enableBoundaryOptimization: context.options.advanced?.enableBoundaryOptimization ?? true,
-          boundaryOptimizationThreshold: context.options.advanced?.boundaryOptimizationThreshold ?? 0.7,
-          enableAdvancedMerging: context.options.advanced?.enableAdvancedMerging ?? true,
-          mergeDecisionThreshold: context.options.advanced?.mergeDecisionThreshold ?? 0.75
-        },
-        performance: {
-          enablePerformanceOptimization: context.options.performance?.enablePerformanceOptimization ?? false,
-          enablePerformanceMonitoring: context.options.performance?.enablePerformanceMonitoring ?? false,
-          enableChunkingCoordination: context.options.performance?.enableChunkingCoordination ?? false,
-          strategyExecutionOrder: context.options.performance?.strategyExecutionOrder ?? ['ImportSplitter', 'ClassSplitter', 'FunctionSplitter', 'SyntaxAwareSplitter', 'IntelligentSplitter'],
-          enableNodeTracking: context.options.performance?.enableNodeTracking ?? false
-        },
-        quality: {
-          boundaryScoring: context.options.quality?.boundaryScoring ?? {
-            enableSemanticScoring: true,
-            minBoundaryScore: 0.5,
-            maxSearchDistance: 10,
-            languageSpecificWeights: true
-          },
-          overlapStrategy: context.options.quality?.overlapStrategy ?? {
-            preferredStrategy: 'semantic',
-            enableContextOptimization: true,
-            qualityThreshold: 0.7
-          },
-          functionSpecificOptions: context.options.quality?.functionSpecificOptions ?? {
-            preferWholeFunctions: true,
-            minFunctionOverlap: 50,
-            maxFunctionSize: 2000,
-            maxFunctionLines: 30,
-            minFunctionLines: 5,
-            enableSubFunctionExtraction: true
-          },
-          classSpecificOptions: context.options.quality?.classSpecificOptions ?? {
-            keepMethodsTogether: true,
-            classHeaderOverlap: 100,
-            maxClassSize: 3000
-          }
-        },
-        treeSitterService: context.options.treeSitterService,
-        universalTextStrategy: context.options.universalTextStrategy
+        ...DEFAULT_CHUNKING_OPTIONS,
+        ...context.options
       };
 
       // 初始化统一重叠计算器
@@ -129,7 +52,7 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
 
       // 判断文件类型并应用相应的重叠策略
       const isCodeFile = this.isCodeFile(context.language);
-      const hasLargeChunks = chunks.some(chunk => chunk.content.length > (context.options.basic?.maxChunkSize || 1000));
+      const hasLargeChunks = chunks.some(chunk => chunk.content.length > (completeOptions.maxChunkSize || 1000));
 
       this.logger?.debug(`File type: ${context.language}, isCodeFile: ${isCodeFile}, hasLargeChunks: ${hasLargeChunks}`);
 
@@ -150,8 +73,12 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
       }
 
       // 使用统一重叠计算器进行智能合并（如果启用去重）
-      if (context.options.advanced?.enableChunkDeduplication && this.unifiedOverlapCalculator) {
-        processedChunks = this.unifiedOverlapCalculator.mergeSimilarChunks(processedChunks);
+      if (completeOptions.customParams?.enableChunkDeduplication && this.unifiedOverlapCalculator) {
+        // 转换为UnifiedOverlapCalculator期望的格式
+        const convertedChunks = this.convertToUnifiedFormat(processedChunks);
+        const mergedChunks = this.unifiedOverlapCalculator.mergeSimilarChunks(convertedChunks);
+        // 转换回我们的格式
+        processedChunks = this.convertFromUnifiedFormat(mergedChunks);
       }
 
       this.logger?.debug(`Overlap processing completed: ${chunks.length} -> ${processedChunks.length} chunks`);
@@ -165,23 +92,53 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
   }
 
   /**
+   * 转换为UnifiedOverlapCalculator期望的格式
+   */
+  private convertToUnifiedFormat(chunks: CodeChunk[]): any[] {
+    return chunks.map(chunk => ({
+      content: chunk.content,
+      metadata: {
+        ...chunk.metadata,
+        size: chunk.content.length,
+        lineCount: chunk.metadata.endLine - chunk.metadata.startLine + 1
+      }
+    }));
+  }
+
+  /**
+   * 从UnifiedOverlapCalculator格式转换回我们的格式
+   */
+  private convertFromUnifiedFormat(chunks: any[]): CodeChunk[] {
+    return chunks.map(chunk => new CodeChunkBuilder()
+      .setContent(chunk.content)
+      .setStartLine(chunk.metadata.startLine)
+      .setEndLine(chunk.metadata.endLine)
+      .setLanguage(chunk.metadata.language)
+      .setFilePath(chunk.metadata.filePath || '')
+      .setStrategy(chunk.metadata.strategy)
+      .setType(chunk.metadata.type || ChunkType.GENERIC)
+      .setComplexity(chunk.metadata.complexity || 0)
+      .build());
+  }
+
+  /**
    * 初始化统一重叠计算器
    */
   private initializeOverlapCalculator(options: Required<ChunkingOptions>): void {
-    if (!options.advanced.enableChunkDeduplication) {
+    if (!options.customParams?.enableChunkDeduplication) {
       return;
     }
 
     this.unifiedOverlapCalculator = new UnifiedOverlapCalculator({
-      maxSize: options.basic?.overlapSize || 200,
+      maxSize: options.overlapSize || 200,
       minLines: 1,
-      maxOverlapRatio: options.advanced?.maxOverlapRatio || 0.3,
-      maxOverlapLines: options.advanced?.maxOverlapLines || 50,
-      enableASTBoundaryDetection: options.advanced?.enableASTBoundaryDetection || false,
-      enableNodeAwareOverlap: options.advanced?.astNodeTracking || false,
+      maxOverlapRatio: options.customParams?.maxOverlapRatio || 0.3,
+      maxOverlapLines: options.customParams?.maxOverlapLines || 50,
+      enableASTBoundaryDetection: options.customParams?.enableASTBoundaryDetection || false,
+      enableNodeAwareOverlap: options.customParams?.astNodeTracking || false,
       enableSmartDeduplication: true,
-      similarityThreshold: options.advanced?.deduplicationThreshold || 0.8,
-      mergeStrategy: options.advanced?.chunkMergeStrategy || 'conservative',
+      similarityThreshold: options.customParams?.deduplicationThreshold || 0.8,
+      mergeStrategy: options.customParams?.chunkMergeStrategy || 'conservative',
       nodeTracker: this.nodeTracker,
       logger: this.logger
     });
@@ -208,7 +165,7 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
     context: PostProcessingContext
   ): CodeChunk[] {
     const finalChunks: CodeChunk[] = [];
-    const maxChunkSize = context.options.basic?.maxChunkSize || 1000;
+    const maxChunkSize = context.options.maxChunkSize || 1000;
 
     for (const chunk of chunks) {
       // 只对过大的块进行重叠拆分
@@ -233,7 +190,7 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
     context: PostProcessingContext
   ): CodeChunk[] {
     const overlappedChunks: CodeChunk[] = [];
-    const overlapSize = context.options.basic?.overlapSize || 200;
+    const overlapSize = context.options.overlapSize || 200;
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
@@ -270,9 +227,9 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
     context: PostProcessingContext
   ): CodeChunk[] {
     const content = chunk.content;
-    const maxChunkSize = context.options.basic?.maxChunkSize || 1000;
-    const overlapSize = context.options.basic?.overlapSize || 200;
-    const maxOverlapRatio = context.options.advanced?.maxOverlapRatio || 0.3;
+    const maxChunkSize = context.options.maxChunkSize || 1000;
+    const overlapSize = context.options.overlapSize || 200;
+    const maxOverlapRatio = context.options.customParams?.maxOverlapRatio || 0.3;
 
     // 调试信息
     this.logger?.debug(`Splitting chunk: content length=${content.length}, maxChunkSize=${maxChunkSize}`);
@@ -491,19 +448,18 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
     startLine: number,
     endLine: number
   ): CodeChunk {
-    return {
-      content,
-      metadata: {
-        startLine,
-        endLine,
-        language: parentChunk.metadata.language,
-        filePath: parentChunk.metadata.filePath,
-        type: parentChunk.metadata.type || 'overlap-split',
-        complexity: parentChunk.metadata.complexity || 0,
-        functionName: parentChunk.metadata.functionName,
-        className: parentChunk.metadata.className
-      }
-    };
+    return new CodeChunkBuilder()
+      .setContent(content)
+      .setStartLine(startLine)
+      .setEndLine(endLine)
+      .setLanguage(parentChunk.metadata.language)
+      .setFilePath(parentChunk.metadata.filePath || '')
+      .setStrategy(parentChunk.metadata.strategy)
+      .setType(parentChunk.metadata.type || ChunkType.GENERIC)
+      .setComplexity(parentChunk.metadata.complexity || 0)
+      .addMetadata('functionName', parentChunk.metadata.functionName)
+      .addMetadata('className', parentChunk.metadata.className)
+      .build();
   }
 
   /**

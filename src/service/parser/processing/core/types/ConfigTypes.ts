@@ -22,8 +22,35 @@ export interface ProcessingConfig {
   /** 后处理配置 */
   postProcessing: PostProcessingConfig;
 
+  /** 高级配置 */
+  advanced?: {
+    enableEnhancedBalancing?: boolean;
+    enableIntelligentFiltering?: boolean;
+    enableSmartRebalancing?: boolean;
+    enableAdvancedMerging?: boolean;
+    enableBoundaryOptimization?: boolean;
+    addOverlap?: boolean;
+    minChunkSizeThreshold?: number;
+    maxChunkSizeThreshold?: number;
+    rebalancingStrategy?: string;
+    semanticWeight?: number;
+    syntacticWeight?: number;
+    structuralWeight?: number;
+    enableChunkDeduplication?: boolean;
+    deduplicationThreshold?: number;
+  };
+
   /** 全局设置 */
   global: GlobalConfig;
+
+  /** 配置版本 */
+  version: string;
+
+  /** 配置创建时间 */
+  createdAt: number;
+
+  /** 配置更新时间 */
+  updatedAt: number;
 }
 
 /**

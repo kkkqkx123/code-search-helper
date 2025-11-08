@@ -13,7 +13,14 @@ export enum ChunkType {
   EXPORT = 'export',
   GENERIC = 'generic',
   COMMENT = 'comment',
-  DOCUMENTATION = 'documentation'
+  DOCUMENTATION = 'documentation',
+  VARIABLE = 'variable',
+  INTERFACE = 'interface',
+  TYPE = 'type',
+  ENUM = 'enum',
+  MODULE = 'module',
+  BLOCK = 'block',
+  LINE = 'line'
 }
 
 /**
@@ -38,6 +45,24 @@ export interface ChunkMetadata {
   timestamp: number;
   /** 代码块类型 */
   type: ChunkType;
+  /** 代码块大小（字符数） */
+  size: number;
+  /** 代码块行数 */
+  lineCount: number;
+  /** 是否包含导入语句 */
+  hasImports?: boolean;
+  /** 是否包含导出语句 */
+  hasExports?: boolean;
+  /** 是否包含函数定义 */
+  hasFunctions?: boolean;
+  /** 是否包含类定义 */
+  hasClasses?: boolean;
+  /** 语义边界信息（可选） */
+  semanticBoundary?: any;
+  /** AST节点信息（可选） */
+  astNodes?: any[];
+  /** 重叠信息（可选） */
+  overlapInfo?: any;
   /** 扩展属性 */
   [key: string]: any;
 }
@@ -142,6 +167,11 @@ export class CodeChunkBuilder {
   }
 
   build(): CodeChunk {
+    // 验证必需字段
+    if (!this.chunk.content) {
+      throw new Error('CodeChunk content is required');
+    }
+
     // 设置默认时间戳
     if (!this.chunk.metadata) {
       this.chunk.metadata = {} as ChunkMetadata;
@@ -149,11 +179,14 @@ export class CodeChunkBuilder {
     if (!this.chunk.metadata.timestamp) {
       this.chunk.metadata.timestamp = Date.now();
     }
-
-    // 验证必需字段
-    if (!this.chunk.content) {
-      throw new Error('CodeChunk content is required');
+    // 设置 size 和 lineCount
+    if (!this.chunk.metadata.size) {
+      this.chunk.metadata.size = this.chunk.content.length;
     }
+    if (!this.chunk.metadata.lineCount) {
+      this.chunk.metadata.lineCount = this.chunk.content.split('\n').length;
+    }
+
     if (!this.chunk.metadata.startLine || !this.chunk.metadata.endLine) {
       throw new Error('CodeChunk startLine and endLine are required');
     }

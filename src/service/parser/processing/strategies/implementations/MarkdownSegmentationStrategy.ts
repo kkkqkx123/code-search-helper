@@ -1,11 +1,14 @@
 import { BaseStrategy } from '../base/BaseStrategy';
-import { IProcessingContext, ICodeChunk, IStrategyConfig } from '../../types/Strategy';
-import { Logger } from '../../../../../../../utils/Logger';
+import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
+import { ProcessingResult } from '../../types/Processing';
+import { CodeChunk, ChunkType } from '../../types/CodeChunk';
+import { StrategyConfig } from '../../types/Strategy';
+import { Logger } from '../../../../../utils/logger';
 
 /**
  * Markdown分段策略配置
  */
-export interface MarkdownStrategyConfig extends IStrategyConfig {
+export interface MarkdownStrategyConfig extends StrategyConfig {
   /** 最大块大小 */
   maxChunkSize?: number;
   /** 最大行数 */
@@ -21,11 +24,18 @@ export interface MarkdownStrategyConfig extends IStrategyConfig {
  * Markdown文件的特殊处理
  */
 export class MarkdownSegmentationStrategy extends BaseStrategy {
-  private config: MarkdownStrategyConfig;
+  protected config: MarkdownStrategyConfig;
   private logger: Logger;
 
-  constructor(config: MarkdownStrategyConfig = {}) {
-    super('markdown-segmentation', 'Markdown Segmentation Strategy');
+  constructor(config: MarkdownStrategyConfig) {
+    const defaultConfig: StrategyConfig = {
+      name: 'markdown-segmentation',
+      priority: 35,
+      supportedLanguages: ['markdown', 'md'],
+      enabled: true,
+      description: 'Markdown Segmentation Strategy',
+    };
+    super({ ...defaultConfig, ...config });
     this.config = {
       maxChunkSize: 3000,
       maxLinesPerChunk: 100,
@@ -41,17 +51,30 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
    */
   canHandle(context: IProcessingContext): boolean {
     const { language, content } = context;
-    
+
     // 检查是否为Markdown文件
     const isMarkdownByLanguage = !!(language && ['markdown', 'md'].includes(language.toLowerCase()));
-    
+
     return isMarkdownByLanguage || this.hasMarkdownStructure(content);
+  }
+
+  /**
+   * 执行策略
+   */
+  async execute(context: IProcessingContext): Promise<ProcessingResult> {
+    const startTime = Date.now();
+    try {
+      const chunks = await this.process(context);
+      return this.createSuccessResult(chunks, Date.now() - startTime);
+    } catch (error) {
+      return this.createFailureResult(Date.now() - startTime, error instanceof Error ? error.message : String(error));
+    }
   }
 
   /**
    * 执行分段处理
    */
-  async process(context: IProcessingContext): Promise<ICodeChunk[]> {
+  async process(context: IProcessingContext): Promise<CodeChunk[]> {
     const startTime = Date.now();
     this.logger.debug(`Using Markdown segmentation strategy for ${context.filePath}`);
 
@@ -64,7 +87,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
         this.logger.debug('Context validation passed for markdown strategy');
       }
 
-      const chunks: ICodeChunk[] = [];
+      const chunks: CodeChunk[] = [];
       const lines = context.content.split('\n');
 
       let currentChunk: string[] = [];
@@ -103,11 +126,12 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
           const chunkContent = currentChunk.join('\n');
           chunks.push(this.createChunk(
             chunkContent,
-            context,
+            currentLine,
+            currentLine + currentChunk.length - 1,
+            context.language || 'markdown',
+            this.getChunkType(currentSection, inCodeBlock),
             {
-              startLine: currentLine,
-              endLine: currentLine + currentChunk.length - 1,
-              type: this.getChunkType(currentSection, inCodeBlock),
+              filePath: context.filePath,
               complexity: this.calculateComplexity(chunkContent),
               section: currentSection || undefined,
               codeLanguage: codeBlockLang || undefined
@@ -136,11 +160,12 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
         const chunkContent = currentChunk.join('\n');
         chunks.push(this.createChunk(
           chunkContent,
-          context,
+          currentLine,
+          currentLine + currentChunk.length - 1,
+          context.language || 'markdown',
+          this.getChunkType(currentSection, inCodeBlock),
           {
-            startLine: currentLine,
-            endLine: currentLine + currentChunk.length - 1,
-            type: this.getChunkType(currentSection, inCodeBlock),
+            filePath: context.filePath,
             complexity: this.calculateComplexity(chunkContent),
             section: currentSection || undefined,
             codeLanguage: codeBlockLang || undefined
@@ -150,11 +175,12 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
         // 对于完全空的内容，创建一个空块
         chunks.push(this.createChunk(
           '',
-          context,
+          1,
+          0,
+          context.language || 'markdown',
+          ChunkType.DOCUMENTATION,
           {
-            startLine: 1,
-            endLine: 0,
-            type: 'paragraph',
+            filePath: context.filePath,
             complexity: 0,
             section: undefined,
             codeLanguage: undefined
@@ -168,7 +194,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
         finalChunks = this.mergeRelatedChunks(chunks);
       }
 
-      this.updatePerformanceStats(Date.now() - startTime, finalChunks.length);
+      this.updatePerformanceStats(Date.now() - startTime, true, finalChunks.length);
       this.logger.debug(`Markdown segmentation created ${finalChunks.length} chunks`);
       return finalChunks;
     } catch (error) {
@@ -187,7 +213,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
   /**
    * 验证上下文是否适合Markdown分段
    */
-  private validateContext(context: IProcessingContext): boolean {
+  validateContext(context: IProcessingContext): boolean {
     if (!context.content || context.content.trim().length === 0) {
       return false;
     }
@@ -321,22 +347,22 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
   /**
    * 获取分块类型
    */
-  private getChunkType(section: string, inCodeBlock: boolean): string {
+  private getChunkType(section: string, inCodeBlock: boolean): ChunkType {
     if (inCodeBlock) {
-      return 'code_block';
+      return ChunkType.BLOCK;
     }
 
     if (section) {
-      return 'heading';
+      return ChunkType.DOCUMENTATION;
     }
 
-    return 'paragraph';
+    return ChunkType.DOCUMENTATION;
   }
 
   /**
    * 计算复杂度
    */
-  private calculateComplexity(content: string): number {
+  protected calculateComplexity(content: string): number {
     let complexity = 0;
 
     // 基于内容长度计算基础复杂度
@@ -358,11 +384,11 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
   /**
    * 智能合并相关内容
    */
-  private mergeRelatedChunks(chunks: ICodeChunk[]): ICodeChunk[] {
+  private mergeRelatedChunks(chunks: CodeChunk[]): CodeChunk[] {
     if (chunks.length <= 1) return chunks;
 
-    const mergedChunks: ICodeChunk[] = [];
-    let currentMerge: ICodeChunk[] = [chunks[0]];
+    const mergedChunks: CodeChunk[] = [];
+    let currentMerge: CodeChunk[] = [chunks[0]];
 
     for (let i = 1; i < chunks.length; i++) {
       const currentChunk = chunks[i];
@@ -393,9 +419,9 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
   /**
    * 判断是否应该合并两个分块
    */
-  private shouldMergeChunks(chunk1: ICodeChunk, chunk2: ICodeChunk): boolean {
+  private shouldMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
     // 如果都是代码块，且总大小不太大，则合并
-    if (chunk1.metadata?.type === 'code_block' && chunk2.metadata?.type === 'code_block') {
+    if (chunk1.metadata?.type === ChunkType.BLOCK && chunk2.metadata?.type === ChunkType.BLOCK) {
       const combinedSize = chunk1.content.length + chunk2.content.length;
       return combinedSize < this.config.mergeThreshold!;
     }
@@ -412,7 +438,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
   /**
    * 合并分块组
    */
-  private mergeChunkGroup(chunks: ICodeChunk[]): ICodeChunk {
+  private mergeChunkGroup(chunks: CodeChunk[]): CodeChunk {
     if (chunks.length === 1) return chunks[0];
 
     const firstChunk = chunks[0];
@@ -422,11 +448,12 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
 
     return this.createChunk(
       mergedContent,
-      { filePath: firstChunk.metadata?.filePath, language: firstChunk.metadata?.language, content: mergedContent },
+      firstChunk.metadata?.startLine || 1,
+      lastChunk.metadata?.endLine || 1,
+      firstChunk.metadata?.language || 'markdown',
+      firstChunk.metadata?.type || ChunkType.GENERIC,
       {
-        startLine: firstChunk.metadata?.startLine,
-        endLine: lastChunk.metadata?.endLine,
-        type: firstChunk.metadata?.type,
+        filePath: firstChunk.metadata?.filePath,
         complexity,
         section: firstChunk.metadata?.section,
         codeLanguage: firstChunk.metadata?.codeLanguage

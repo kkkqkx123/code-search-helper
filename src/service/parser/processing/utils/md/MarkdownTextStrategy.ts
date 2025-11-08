@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { CodeChunk, CodeChunkMetadata } from '../../../types/core-types';
+import { CodeChunk } from '../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import {
@@ -16,7 +16,7 @@ import {
   isListItem,
   calculateSemanticSimilarity
 } from './markdown-rules';
-import { SemanticStrategy } from '../../strategies/impl/SemanticStrategy';
+import { SemanticStrategy } from '../../strategies/implementations/SemanticStrategy';
 import { UnifiedOverlapCalculator } from '../../utils/overlap/UnifiedOverlapCalculator';
 
 /**
@@ -515,13 +515,17 @@ export class MarkdownTextStrategy {
       // 将 MarkdownBlockType 映射到 CodeChunkMetadata 的 type
       const chunkType = this.mapMarkdownTypeToChunkType(block.type);
 
-      const metadata: CodeChunkMetadata = {
+      const metadata: any = {
         startLine: block.startLine,
         endLine: block.endLine,
         language: 'markdown',
         filePath,
         type: chunkType,
-        complexity
+        complexity,
+        strategy: 'markdown',
+        timestamp: Date.now(),
+        size: block.content.length,
+        lineCount: block.lines.length
       };
 
       chunks.push({
@@ -536,8 +540,8 @@ export class MarkdownTextStrategy {
   /**
    * 将 Markdown 块类型映射到 CodeChunk 类型
    */
-  private mapMarkdownTypeToChunkType(markdownType: MarkdownBlockType): CodeChunkMetadata['type'] {
-    const typeMap: Record<MarkdownBlockType, CodeChunkMetadata['type']> = {
+  private mapMarkdownTypeToChunkType(markdownType: MarkdownBlockType): any {
+    const typeMap: Record<MarkdownBlockType, any> = {
       [MarkdownBlockType.HEADING]: 'heading',
       [MarkdownBlockType.PARAGRAPH]: 'semantic',
       [MarkdownBlockType.CODE_BLOCK]: 'code',
@@ -610,8 +614,12 @@ export class MarkdownTextStrategy {
           language: 'markdown',
           filePath: filePath,
           type: 'semantic',
-          complexity
-        }
+          complexity,
+          strategy: 'markdown',
+          timestamp: Date.now(),
+          size: paragraph.length,
+          lineCount: lines.length
+        } as any
       });
 
       lineNumber += lines.length + 1; // +1 for empty line
@@ -709,7 +717,7 @@ export class MarkdownTextStrategy {
     try {
       // 使用SemanticStrategy进行语义拆分
       const semanticStrategy = new SemanticStrategy({
-        basic: {
+        parameters: {
           maxChunkSize: this.config.maxChunkSize * 0.8, // 留出重叠空间
           minChunkSize: this.config.minChunkSize
         }
@@ -731,18 +739,25 @@ export class MarkdownTextStrategy {
 
       const content = contentLines.join('\n');
 
-      // 使用语义策略拆分
-      const chunks = await semanticStrategy.split(
+      // 创建上下文并执行策略
+      const context = {
         content,
-        language || 'text',
-        undefined,
-        {
+        language: language || 'text',
+        filePath: undefined,
+        metadata: {
+          isStructuredFile: true,
+          isCodeFile: true
+        },
+        config: {
           basic: {
             maxChunkSize: this.config.maxChunkSize * 0.8,
             minChunkSize: this.config.minChunkSize
           }
         }
-      );
+      } as any;
+
+      const strategyResult = await semanticStrategy.execute(context);
+      const chunks = strategyResult.chunks || [];
 
       // 转换回MarkdownBlock格式
       const result: MarkdownBlock[] = [];
@@ -967,12 +982,12 @@ export class MarkdownTextStrategy {
    */
   private shouldAddOverlap(currentChunk: CodeChunk, nextChunk: CodeChunk): boolean {
     // 如果下一个块是标题，不添加重叠
-    if (nextChunk.metadata.type === 'heading') {
+    if (nextChunk.metadata.type === ('heading' as any) || nextChunk.metadata.type === ('function' as any) || nextChunk.metadata.type === ('class' as any)) {
       return false;
     }
 
     // 如果当前块是标题且配置不允许向后合并，不添加重叠
-    if (currentChunk.metadata.type === 'heading' && !this.config.allowBackwardHeadingMerge) {
+    if ((currentChunk.metadata.type === ('heading' as any) || currentChunk.metadata.type === ('function' as any) || currentChunk.metadata.type === ('class' as any)) && !this.config.allowBackwardHeadingMerge) {
       return false;
     }
 

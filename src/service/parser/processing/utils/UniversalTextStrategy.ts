@@ -234,7 +234,9 @@ export class UniversalTextStrategy implements ITextSplitter {
       strategy: 'small-file',
       complexity: this.fileFeatureDetector.calculateComplexity(content),
       timestamp: Date.now(),
-      type: ChunkType.FUNCTION // 使用正确的枚举值
+      type: ChunkType.FUNCTION, // 使用正确的枚举值
+      size: content.length,
+      lineCount: lines.length
     };
 
     this.logger?.info(`Small file detected (${content.length} chars, ${lines.length} lines), using single chunk`);

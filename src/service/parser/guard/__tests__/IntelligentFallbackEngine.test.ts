@@ -1,6 +1,6 @@
 import { IntelligentFallbackEngine } from '../IntelligentFallbackEngine';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { DetectionResult, ProcessingStrategyType } from '../../processing/detection/UnifiedDetectionService';
+import { DetectionResult, ProcessingStrategyType } from '../../detection/DetectionService';
 
 // Mock LoggerService
 const mockLogger = {

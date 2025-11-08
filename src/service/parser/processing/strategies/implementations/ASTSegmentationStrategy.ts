@@ -1,11 +1,14 @@
 import { BaseStrategy } from '../base/BaseStrategy';
-import { IProcessingContext, ICodeChunk, IStrategyConfig } from '../../types/Strategy';
-import { Logger } from '../../../../../../../utils/Logger';
+import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
+import { ProcessingResult } from '../../types/Processing';
+import { CodeChunk, ChunkType } from '../../types/CodeChunk';
+import { StrategyConfig } from '../../types/Strategy';
+import { Logger } from '../../../../../utils/logger';
 
 /**
  * AST分段策略配置
  */
-export interface ASTStrategyConfig extends IStrategyConfig {
+export interface ASTStrategyConfig extends StrategyConfig {
   /** 最大函数大小 */
   maxFunctionSize?: number;
   /** 最大类大小 */
@@ -21,11 +24,21 @@ export interface ASTStrategyConfig extends IStrategyConfig {
  * 使用TreeSitter进行AST解析来分段代码
  */
 export class ASTSegmentationStrategy extends BaseStrategy {
-  private config: ASTStrategyConfig;
+  protected config: ASTStrategyConfig;
   private logger: Logger;
 
-  constructor(config: ASTStrategyConfig = {}) {
-    super('ast-segmentation', 'AST Segmentation Strategy');
+  constructor(config: ASTStrategyConfig) {
+    const defaultConfig: StrategyConfig = {
+      name: 'ast-segmentation',
+      priority: 20,
+      supportedLanguages: [
+        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
+        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
+      ],
+      enabled: true,
+      description: 'AST Segmentation Strategy',
+    };
+    super({ ...defaultConfig, ...config });
     this.config = {
       maxFunctionSize: 3000,
       maxClassSize: 5000,
@@ -53,9 +66,22 @@ export class ASTSegmentationStrategy extends BaseStrategy {
   }
 
   /**
+   * 执行策略
+   */
+  async execute(context: IProcessingContext): Promise<ProcessingResult> {
+    const startTime = Date.now();
+    try {
+      const chunks = await this.process(context);
+      return this.createSuccessResult(chunks, Date.now() - startTime);
+    } catch (error) {
+      return this.createFailureResult(Date.now() - startTime, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
    * 执行分段处理
    */
-  async process(context: IProcessingContext): Promise<ICodeChunk[]> {
+  async process(context: IProcessingContext): Promise<CodeChunk[]> {
     const startTime = Date.now();
     this.logger.debug(`Starting AST segmentation for language: ${context.language}, file: ${context.filePath}`);
     
@@ -87,7 +113,7 @@ export class ASTSegmentationStrategy extends BaseStrategy {
       this.logger.debug(`TreeSitter extracted ${functions.length} functions and ${classes.length} classes`);
 
       // 将AST节点转换为CodeChunk
-      const chunks: ICodeChunk[] = [];
+      const chunks: CodeChunk[] = [];
 
       // 处理函数定义
       for (const func of functions) {
@@ -98,11 +124,12 @@ export class ASTSegmentationStrategy extends BaseStrategy {
           if (funcText && funcText.trim().length > 0) {
             chunks.push(this.createChunk(
               funcText,
-              context,
+              location.startLine,
+              location.endLine,
+              context.language || 'unknown',
+              ChunkType.FUNCTION,
               {
-                startLine: location.startLine,
-                endLine: location.endLine,
-                type: 'function',
+                filePath: context.filePath,
                 complexity: this.calculateComplexity(funcText),
                 functionName: func.name
               }
@@ -123,11 +150,12 @@ export class ASTSegmentationStrategy extends BaseStrategy {
           if (clsText && clsText.trim().length > 0) {
             chunks.push(this.createChunk(
               clsText,
-              context,
+              location.startLine,
+              location.endLine,
+              context.language || 'unknown',
+              ChunkType.CLASS,
               {
-                startLine: location.startLine,
-                endLine: location.endLine,
-                type: 'class',
+                filePath: context.filePath,
                 complexity: this.calculateComplexity(clsText),
                 className: cls.name
               }
@@ -144,18 +172,19 @@ export class ASTSegmentationStrategy extends BaseStrategy {
         this.logger.info('No functions or classes found by TreeSitter, returning full content as single chunk');
         chunks.push(this.createChunk(
           context.content,
-          context,
+          1,
+          context.content.split('\n').length,
+          context.language || 'unknown',
+          ChunkType.GENERIC,
           {
-            startLine: 1,
-            endLine: context.content.split('\n').length,
-            type: 'full_content',
+            filePath: context.filePath,
             complexity: this.calculateComplexity(context.content),
             reason: 'no_functions_or_classes_found'
           }
         ));
       }
 
-      this.updatePerformanceStats(Date.now() - startTime, chunks.length);
+      this.updatePerformanceStats(Date.now() - startTime, true, chunks.length);
       this.logger.debug(`Successfully created ${chunks.length} chunks from AST segmentation`);
       return chunks;
     } catch (error) {
@@ -180,7 +209,7 @@ export class ASTSegmentationStrategy extends BaseStrategy {
   /**
    * 验证上下文
    */
-  private validateContext(context: IProcessingContext): boolean {
+  validateContext(context: IProcessingContext): boolean {
     return !!context.content && !!context.language;
   }
 
@@ -255,14 +284,15 @@ export class ASTSegmentationStrategy extends BaseStrategy {
   /**
    * 创建降级块
    */
-  private createFallbackChunks(context: IProcessingContext): ICodeChunk[] {
+  private createFallbackChunks(context: IProcessingContext): CodeChunk[] {
     return [this.createChunk(
       context.content,
-      context,
+      1,
+      context.content.split('\n').length,
+      context.language || 'unknown',
+      ChunkType.GENERIC,
       {
-        startLine: 1,
-        endLine: context.content.split('\n').length,
-        type: 'fallback',
+        filePath: context.filePath,
         fallback: true
       }
     )];
@@ -271,7 +301,7 @@ export class ASTSegmentationStrategy extends BaseStrategy {
   /**
    * 计算复杂度
    */
-  private calculateComplexity(content: string): number {
+  protected calculateComplexity(content: string): number {
     let complexity = 0;
 
     // 基于代码结构计算复杂度

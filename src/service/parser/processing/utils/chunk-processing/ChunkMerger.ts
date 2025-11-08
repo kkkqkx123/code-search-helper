@@ -1,6 +1,6 @@
-import { CodeChunk, CodeChunkMetadata } from '../../types/CodeChunk';
+import { CodeChunk } from '../../types/CodeChunk';
 import { ChunkingOptions } from '../../strategies/types/SegmentationTypes';
-import { ASTNode, ASTNodeTracker } from '../AST/ASTNodeTracker';
+import { ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
 export class ChunkMerger extends BaseChunkProcessor {
@@ -66,7 +66,7 @@ export class ChunkMerger extends BaseChunkProcessor {
 
     // 检查合并后的块大小是否合理
     const mergedSize = chunk1.content.length + chunk2.content.length;
-    const maxSize = this.options.basic?.maxChunkSize || 1000;
+    const maxSize = this.options.maxChunkSize || 1000;
     
     if (mergedSize > maxSize) {
       return false;
@@ -83,7 +83,7 @@ export class ChunkMerger extends BaseChunkProcessor {
     }
 
     // 使用合并决策阈值
-    const mergeThreshold = this.options.advanced?.mergeDecisionThreshold || 0.75;
+    const mergeThreshold = 0.75;
     const similarityScore = this.calculateSimilarity(chunk1, chunk2);
     
     return similarityScore >= mergeThreshold;
@@ -107,7 +107,7 @@ export class ChunkMerger extends BaseChunkProcessor {
     const mergedMetadata = {
       ...firstChunk.metadata,
       endLine: lastChunk.metadata.endLine,
-      type: 'merged' as const,
+      type: 'merged' as any,
       complexity: chunks.reduce((sum, chunk) => sum + (chunk.metadata.complexity || 0), 0),
       mergedTypes: chunks.map(chunk => chunk.metadata.type || 'code'),
       mergedCount: chunks.length
@@ -127,7 +127,7 @@ export class ChunkMerger extends BaseChunkProcessor {
     const start2 = chunk2.metadata.startLine;
     
     // 允许一定的间隔重叠
-    const overlapThreshold = this.options.advanced?.maxOverlapLines || 50;
+    const overlapThreshold = 50;
     return (start2 - end1) <= overlapThreshold;
   }
 
@@ -192,7 +192,7 @@ export class ChunkMerger extends BaseChunkProcessor {
 
     // 基于位置的相似度（距离越近越相似）
     const distance = chunk2.metadata.startLine - chunk1.metadata.endLine;
-    const maxDistance = this.options.advanced?.maxOverlapLines || 50;
+    const maxDistance = 50;
     if (distance >= 0 && distance <= maxDistance) {
       similarity += (1 - distance / maxDistance) * 0.3;
     }
@@ -242,8 +242,8 @@ export class ChunkMerger extends BaseChunkProcessor {
         if (used.has(j)) continue;
 
         const similarity = this.calculateSimilarity(chunks[i], chunks[j]);
-        const threshold = this.options.advanced?.similarityThreshold || 0.8;
-
+        const threshold = 0.8;
+        
         if (similarity >= threshold) {
           group.push(chunks[j]);
           used.add(j);

@@ -21,7 +21,7 @@ export class BoundaryOptimizationPostProcessor implements IChunkPostProcessor {
 
   shouldApply(chunks: CodeChunk[], context: PostProcessingContext): boolean {
     // 只有启用边界优化且有代码块时才应用
-    return chunks.length > 0 && context.options.advanced?.enableBoundaryOptimization === true;
+    return chunks.length > 0 && context.advancedOptions?.enableBoundaryOptimization === true;
   }
 
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {

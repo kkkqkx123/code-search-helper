@@ -165,9 +165,17 @@ describe('GraphDataMappingService', () => {
   describe('mapChunkToGraphNodes', () => {
     it('should map code chunk to graph nodes correctly', async () => {
       const chunk: CodeChunk = {
-        id: 'chunk_123',
         content: 'console.log("hello world");',
-        metadata: { startLine: 1, endLine: 1, language: 'javascript' }
+        metadata: {
+          startLine: 1,
+          endLine: 1,
+          language: 'javascript',
+          strategy: 'test',
+          timestamp: Date.now(),
+          type: 'function' as any,
+          size: 25,
+          lineCount: 1
+        }
       };
       const filePath = 'test.js';
       const language = 'javascript';
@@ -196,9 +204,17 @@ describe('GraphDataMappingService', () => {
       (mockUnifiedCache.getGraphData as jest.Mock).mockResolvedValueOnce(cachedResult);
 
       const chunk: CodeChunk = {
-        id: 'chunk_123',
         content: 'console.log("hello world");',
-        metadata: { startLine: 1, endLine: 1, language: 'javascript' }
+        metadata: {
+          startLine: 1,
+          endLine: 1,
+          language: 'javascript',
+          strategy: 'test',
+          timestamp: Date.now(),
+          type: 'function' as any,
+          size: 25,
+          lineCount: 1
+        }
       };
       const filePath = 'test.js';
       const language = 'javascript';

@@ -1,5 +1,5 @@
 import { CodeChunk } from '../../types/CodeChunk';
-import { ChunkingOptions } from '../../strategies/types/SegmentationTypes';
+import { EnhancedChunkingOptions } from '../../strategies/types/SegmentationTypes';
 import { ASTNodeTracker } from '../AST/ASTNodeTracker';
 import { BasePerformanceTracker } from '../base/BasePerformanceTracker';
 
@@ -39,7 +39,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
    */
   optimizeChunks(
     chunks: CodeChunk[],
-    options: ChunkingOptions,
+    options: EnhancedChunkingOptions,
     nodeTracker?: ASTNodeTracker
   ): OptimizationResult {
     const startTime = Date.now();
@@ -131,7 +131,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
    */
   private optimizeBatchProcessing(
     chunks: CodeChunk[],
-    options: ChunkingOptions
+    options: EnhancedChunkingOptions
   ): CodeChunk[] {
     // 如果块数量很大，分批处理
     if (chunks.length > 100) {
@@ -152,7 +152,7 @@ export class PerformanceOptimizer extends BasePerformanceTracker {
   /**
    * 处理单个批次
    */
-  private processBatch(batch: CodeChunk[], options: ChunkingOptions): CodeChunk[] {
+  private processBatch(batch: CodeChunk[], options: EnhancedChunkingOptions): CodeChunk[] {
     // 应用批量优化逻辑
     return batch.map(chunk => {
       // 移除多余的空白行

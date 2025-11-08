@@ -2,10 +2,9 @@ import { ProcessingGuard } from '../ProcessingGuard';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorThresholdInterceptor } from '../../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../MemoryGuard';
-import { ProcessingStrategyFactory } from '../../processing/strategies/providers/ProcessingStrategyFactory';
 import { UnifiedDetectionService, DetectionResult, ProcessingStrategyType } from '../../processing/detection/UnifiedDetectionService';
 import { IntelligentFallbackEngine } from '../IntelligentFallbackEngine';
-import { IProcessingStrategy } from '../../processing/strategies/impl/base/IProcessingStrategy';
+import { IProcessingStrategy } from '../../processing/core/interfaces/IProcessingStrategy';
 
 // Mock LoggerService
 const mockLogger = {
@@ -55,15 +54,6 @@ const mockMemoryGuard: MemoryGuard = {
   clearHistory: jest.fn()
 } as unknown as MemoryGuard;
 
-// Mock ProcessingStrategyFactory
-const mockStrategyFactory: ProcessingStrategyFactory = {
-  createStrategy: jest.fn().mockReturnValue({
-    execute: jest.fn().mockResolvedValue({
-      chunks: [{ content: 'chunk1' }, { content: 'chunk2' }],
-      metadata: { processed: true }
-    })
-  })
-} as unknown as ProcessingStrategyFactory;
 
 // Mock UnifiedDetectionService
 const mockDetectionService: UnifiedDetectionService = {
@@ -121,7 +111,6 @@ describe('ProcessingGuard', () => {
       mockLogger,
       mockErrorManager,
       mockMemoryGuard,
-      mockStrategyFactory,
       mockDetectionService,
       mockFallbackEngine
     );
@@ -186,7 +175,6 @@ describe('ProcessingGuard', () => {
       expect(result.chunks).toHaveLength(2);
       expect(result.language).toBe('javascript');
       expect(mockDetectionService.detectFile).toHaveBeenCalledWith(testFilePath, testContent);
-      expect(mockStrategyFactory.createStrategy).toHaveBeenCalled();
     });
 
     it('should use immediate fallback when memory limit exceeded', async () => {
@@ -242,9 +230,12 @@ describe('ProcessingGuard', () => {
     });
 
     it('should handle processing failure with fallback', async () => {
-      (mockStrategyFactory.createStrategy as jest.Mock).mockReturnValue({
-        execute: jest.fn().mockRejectedValue(new Error('Processing failed'))
-      });
+      // Mock createStrategy to return a failing strategy
+      jest.doMock('../../processing/strategies/index', () => ({
+        createStrategy: jest.fn().mockReturnValue({
+          execute: jest.fn().mockRejectedValue(new Error('Processing failed'))
+        })
+      }));
 
       // 确保shouldUseImmediateFallback返回false，让代码执行检测逻辑
       (mockMemoryGuard.checkMemoryUsage as jest.Mock).mockReturnValue({
@@ -376,7 +367,6 @@ describe('ProcessingGuard', () => {
         mockLogger,
         mockErrorManager,
         mockMemoryGuard,
-        mockStrategyFactory,
         mockDetectionService
       );
 
@@ -384,7 +374,6 @@ describe('ProcessingGuard', () => {
         mockLogger,
         mockErrorManager,
         mockMemoryGuard,
-        mockStrategyFactory,
         mockDetectionService
       );
 

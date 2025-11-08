@@ -101,39 +101,39 @@ export class ChunkPostProcessorCoordinator {
   /**
    * 初始化默认处理器
    */
-  initializeDefaultProcessors(options: ChunkingOptions): void {
+  initializeDefaultProcessors(options: ChunkingOptions, advancedOptions?: PostProcessingContext['advancedOptions']): void {
     // 创建基于选项的处理器实例
-    if (options.advanced?.enableEnhancedBalancing) {
+    if (advancedOptions?.enableEnhancedBalancing) {
       // 使用专用的符号平衡处理器
       const symbolBalanceProcessor = new SymbolBalancePostProcessor(this.logger);
       this.addChunkingProcessor(symbolBalanceProcessor);
     }
 
-    if (options.advanced?.enableIntelligentFiltering) {
+    if (advancedOptions?.enableIntelligentFiltering) {
       // 使用专用的智能过滤处理器
       const intelligentFilterProcessor = new IntelligentFilterPostProcessor(this.logger);
       this.addChunkingProcessor(intelligentFilterProcessor);
     }
 
-    if (options.advanced?.enableSmartRebalancing) {
+    if (advancedOptions?.enableSmartRebalancing) {
       // 使用专用的智能再平衡处理器
       const smartRebalancingProcessor = new SmartRebalancingPostProcessor(this.logger, this.complexityCalculator);
       this.addChunkingProcessor(smartRebalancingProcessor);
     }
 
-    if (options.advanced?.enableAdvancedMerging) {
+    if (advancedOptions?.enableAdvancedMerging) {
       // 使用专用的高级合并处理器
       const advancedMergingProcessor = new AdvancedMergingPostProcessor(this.logger);
       this.addChunkProcessingProcessor(advancedMergingProcessor);
     }
 
-    if (options.advanced?.enableBoundaryOptimization) {
+    if (advancedOptions?.enableBoundaryOptimization) {
       // 使用专用的边界优化处理器
       const boundaryOptimizationProcessor = new BoundaryOptimizationPostProcessor(this.logger);
       this.addChunkProcessingProcessor(boundaryOptimizationProcessor);
     }
 
-    if (options.basic?.addOverlap) {
+    if (advancedOptions?.addOverlap) {
       // 使用专用的重叠处理器
       const overlapProcessor = new OverlapPostProcessor(this.logger);
       this.addChunkProcessingProcessor(overlapProcessor);

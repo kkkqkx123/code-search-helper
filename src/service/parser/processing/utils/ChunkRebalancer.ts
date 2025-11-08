@@ -86,7 +86,7 @@ export class ChunkRebalancer implements IChunkRebalancer {
           metadata: {
             ...currentChunk.metadata,
             endLine: nextChunk.metadata.endLine,
-            type: 'merged'
+            type: 'merged' as any
           }
         };
 

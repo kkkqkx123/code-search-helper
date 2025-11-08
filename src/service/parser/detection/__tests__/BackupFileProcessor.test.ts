@@ -1,5 +1,5 @@
 import { BackupFileProcessor } from '../BackupFileProcessor';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 import { BACKUP_FILE_PATTERNS, LANGUAGE_MAP, CODE_LANGUAGES } from '../../constants';
 
 describe('BackupFileProcessor', () => {

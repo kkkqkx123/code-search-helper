@@ -4,9 +4,10 @@
  */
 
 import { injectable, inject } from 'inversify';
-import { CodeChunk, ChunkMetadata, ChunkType } from '../types/CodeChunk';
-import { Logger } from '../../../../../utils/Logger';
-import { TreeSitterService } from '../../../core/TreeSitterService';
+import Parser from 'tree-sitter';
+import { CodeChunk, ChunkMetadata, ChunkType } from '../../types/CodeChunk';
+import { LoggerService } from '../../../../../utils/LoggerService';
+import { TreeSitterService } from '../../../../parser/core/parse/TreeSitterService';
 import { LanguageDetectionService } from '../../../detection/LanguageDetectionService';
 import { TYPES } from '../../../../../types';
 
@@ -15,8 +16,8 @@ export class ASTCodeSplitter {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService: TreeSitterService,
     @inject(TYPES.LanguageDetectionService) private languageDetectionService: LanguageDetectionService,
-    @inject(TYPES.Logger) private logger: Logger
-  ) {}
+    @inject(TYPES.LoggerService) private logger: LoggerService
+  ) { }
 
   /**
    * 分割代码内容
@@ -30,14 +31,14 @@ export class ASTCodeSplitter {
       }
 
       // 使用Tree-sitter解析AST
-      const ast = await this.treeSitterService.parse(content, language);
+      const ast = await this.treeSitterService.parseCode(content, language);
       if (!ast) {
         this.logger.warn(`Failed to parse AST for ${filePath}`);
         return [];
       }
 
       // 提取代码块
-      const chunks = this.extractChunksFromAST(ast, content, filePath, language);
+      const chunks = this.extractChunksFromAST(ast.ast, content, filePath, language);
 
       this.logger.debug(`ASTCodeSplitter produced ${chunks.length} chunks for ${filePath}`);
       return chunks;
@@ -50,7 +51,7 @@ export class ASTCodeSplitter {
   /**
    * 从AST中提取代码块
    */
-  private extractChunksFromAST(ast: any, content: string, filePath: string, language: string): CodeChunk[] {
+  private extractChunksFromAST(ast: Parser.SyntaxNode, content: string, filePath: string, language: string): CodeChunk[] {
     const chunks: CodeChunk[] = [];
     const lines = content.split('\n');
 
@@ -64,7 +65,9 @@ export class ASTCodeSplitter {
       filePath,
       strategy: 'ast-splitter',
       timestamp: Date.now(),
-      type: ChunkType.GENERIC
+      type: ChunkType.GENERIC,
+      size: content.length,
+      lineCount: lines.length
     };
 
     chunks.push({

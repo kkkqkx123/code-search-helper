@@ -22,7 +22,7 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
 
   shouldApply(chunks: CodeChunk[], context: PostProcessingContext): boolean {
     // 只在启用智能再平衡且有多个块时应用
-    return context.options.advanced?.enableSmartRebalancing === true && chunks.length > 1;
+    return context.advancedOptions?.enableSmartRebalancing === true && chunks.length > 1;
   }
 
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {
@@ -32,9 +32,9 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
 
     this.logger?.debug(`Applying smart rebalancing post-processing to ${chunks.length} chunks`);
 
-    const minChunkSize = context.options.advanced?.minChunkSizeThreshold || context.options.basic?.minChunkSize || 100;
-    const maxChunkSize = context.options.advanced?.maxChunkSizeThreshold || context.options.basic?.maxChunkSize || 1000;
-    const rebalancingStrategy = context.options.advanced?.rebalancingStrategy || 'conservative';
+    const minChunkSize = context.advancedOptions?.minChunkSizeThreshold || context.options.minChunkSize || 100;
+    const maxChunkSize = context.advancedOptions?.maxChunkSizeThreshold || context.options.maxChunkSize || 1000;
+    const rebalancingStrategy = context.advancedOptions?.rebalancingStrategy || 'conservative';
 
     let rebalancedChunks = [...chunks];
 
@@ -185,8 +185,8 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
     const averageSize = totalSize / chunks.length;
 
     // 使用加权平均，考虑配置的最大和最小值
-    const minSize = context.options.advanced?.minChunkSizeThreshold || context.options.basic?.minChunkSize || 100;
-    const maxSize = context.options.advanced?.maxChunkSizeThreshold || context.options.basic?.maxChunkSize || 1000;
+    const minSize = context.advancedOptions?.minChunkSizeThreshold || context.options.minChunkSize || 100;
+    const maxSize = context.advancedOptions?.maxChunkSizeThreshold || context.options.maxChunkSize || 1000;
 
     // 目标大小应该是平均值的80%，但不超过配置范围
     const targetSize = Math.max(minSize, Math.min(maxSize, averageSize * 0.8));
@@ -198,7 +198,7 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
    * 检查块是否过小
    */
   private isUnderSized(chunk: CodeChunk, context: PostProcessingContext): boolean {
-    const minChunkSize = context.options.advanced?.minChunkSizeThreshold || context.options.basic?.minChunkSize || 100;
+    const minChunkSize = context.advancedOptions?.minChunkSizeThreshold || context.options.minChunkSize || 100;
     return chunk.content.length < minChunkSize;
   }
 
@@ -206,7 +206,7 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
    * 检查块是否过大
    */
   private isOverSized(chunk: CodeChunk, context: PostProcessingContext): boolean {
-    const maxChunkSize = context.options.advanced?.maxChunkSizeThreshold || context.options.basic?.maxChunkSize || 1000;
+    const maxChunkSize = context.advancedOptions?.maxChunkSizeThreshold || context.options.maxChunkSize || 1000;
     return chunk.content.length > maxChunkSize;
   }
 
@@ -215,7 +215,7 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
    */
   private canSafelyMerge(chunk1: CodeChunk, chunk2: CodeChunk, context: PostProcessingContext): boolean {
     const combinedSize = chunk1.content.length + chunk2.content.length;
-    const maxChunkSize = context.options.advanced?.maxChunkSizeThreshold || context.options.basic?.maxChunkSize || 1000;
+    const maxChunkSize = context.advancedOptions?.maxChunkSizeThreshold || context.options.maxChunkSize || 1000;
 
     // 大小限制
     if (combinedSize > maxChunkSize) {
@@ -369,8 +369,12 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
         language: parentChunk.metadata.language,
         filePath: parentChunk.metadata.filePath,
         type: parentChunk.metadata.type,
-        complexity: this.complexityCalculator ? 
-          this.complexityCalculator.calculate(content) : 
+        strategy: parentChunk.metadata.strategy,
+        timestamp: Date.now(),
+        size: content.length,
+        lineCount: content.split('\n').length,
+        complexity: this.complexityCalculator ?
+          this.complexityCalculator.calculate(content) :
           (parentChunk.metadata.complexity || 0),
         functionName: parentChunk.metadata.functionName,
         className: parentChunk.metadata.className
@@ -384,7 +388,7 @@ export class SmartRebalancingPostProcessor implements IChunkPostProcessor {
   private balanceChunkSizes(chunks: CodeChunk[], context: PostProcessingContext): CodeChunk[] {
     const targetSize = this.calculateOptimalChunkSize(chunks, context);
     const balancedChunks: CodeChunk[] = [];
-    const maxChunkSize = context.options.advanced?.maxChunkSizeThreshold || context.options.basic?.maxChunkSize || 1000;
+    const maxChunkSize = context.advancedOptions?.maxChunkSizeThreshold || context.options.maxChunkSize || 1000;
 
     for (const chunk of chunks) {
       if (chunk.content.length > targetSize * 1.5) {

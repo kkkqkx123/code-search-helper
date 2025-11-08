@@ -1,8 +1,8 @@
-import { ChunkOptimizer as ChunkOptimizerInterface, CodeChunk } from '../base/BaseChunkProcessor';
-import { ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../strategies/types/SegmentationTypes';
+import { CodeChunk } from '../../types/CodeChunk';
+import { ChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../../strategies/types/SegmentationTypes';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 
-export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizerInterface {
+export class ChunkOptimizer extends BaseChunkProcessor {
   private options: Required<ChunkingOptions>;
 
   constructor(options?: ChunkingOptions) {
@@ -44,9 +44,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
     optimizedChunks.push(currentChunk);
 
     // 应用重叠
-    if (this.options.basic?.addOverlap) {
-      return this.addOverlapToChunks(optimizedChunks, originalCode);
-    }
+    return optimizedChunks;
 
     return optimizedChunks;
   }
@@ -60,7 +58,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
     const totalSize = chunk1.content.length + chunk2.content.length;
 
     // 大小检查
-    if (totalSize > (this.options.basic?.maxChunkSize || 1000)) {
+    if (totalSize > (this.options.maxChunkSize || 1000)) {
       return false;
     }
 
@@ -95,11 +93,8 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
     }
 
     // 新增：使用边界优化阈值
-    if (this.options.advanced?.enableBoundaryOptimization) {
-      const boundaryOptimizationThreshold = this.options.advanced?.boundaryOptimizationThreshold || 0.7;
-      // 这里可以添加更复杂的边界优化逻辑
-      // 例如：检查合并后是否破坏了语义边界
-    }
+    // 这里可以添加更复杂的边界优化逻辑
+    // 例如：检查合并后是否破坏了语义边界
 
     return true;
   }
@@ -164,7 +159,7 @@ export class ChunkOptimizer extends BaseChunkProcessor implements ChunkOptimizer
       const charsUntilNextChunk = linesUntilNextChunk.join('\n').length + (linesUntilNextChunk.length > 0 ? 1 : 0) - 1;
 
       // Calculate the starting position for overlap in the original code
-      const overlapStartPosition = Math.max(0, charsUntilNextChunk - (this.options.basic?.overlapSize || 200));
+      const overlapStartPosition = Math.max(0, charsUntilNextChunk - (this.options.overlapSize || 200));
 
       // Find which line this overlap position corresponds to
       let currentPos = 0;

@@ -62,6 +62,7 @@ import { XMLTextStrategy } from '../../service/parser/processing/utils/xml/XMLTe
 import { HTMLContentExtractor } from '../../service/parser/processing/utils/html/HTMLContentExtractor';
 
 import { LanguageDetector } from '../../service/parser/core/language-detection/LanguageDetector';
+import { DetectionService } from '../../service/parser/detection/DetectionService';
 
 // 新增的依赖倒置和事件系统
 import { IServiceContainer } from '../../interfaces/IServiceContainer';
@@ -230,7 +231,10 @@ export class BusinessServiceRegistrar {
             strictMode: false,
             experimentalFeatures: [],
             customProperties: {}
-          }
+          },
+          version: '1.0.0',
+          createdAt: Date.now(),
+          updatedAt: Date.now()
         };
 
         return new StrategyFactory(processingConfig);
@@ -290,6 +294,9 @@ export class BusinessServiceRegistrar {
 
       // 语言检测服务
       container.bind<LanguageDetector>(TYPES.LanguageDetector).to(LanguageDetector).inSingletonScope();
+
+      // 文件检测服务
+      container.bind<DetectionService>(TYPES.DetectionService).to(DetectionService).inSingletonScope();
 
       // 智能降级引擎
       container.bind<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine).toDynamicValue(context => {

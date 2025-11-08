@@ -1,4 +1,6 @@
-import { CodeChunk, CodeChunkMetadata, ChunkingOptions } from './types/core-types';
+import { CodeChunk } from './processing/types/CodeChunk';
+import { CodeChunkMetadata } from './core/types';
+import { ChunkingOptions } from './processing/strategies/types/SegmentationTypes';
 
 // 重新导出核心类型
 export { CodeChunk, CodeChunkMetadata, ChunkingOptions };

@@ -20,15 +20,7 @@ export {
   STRONG_FEATURE_LANGUAGES,
   SMALL_FILE_THRESHOLD,
   getDynamicBlockLimits
-} from '../constants';
+} from '../../constants';
 
 // 保护机制
 export { ErrorThresholdInterceptor } from './protection/ErrorThresholdInterceptor';
-
-// 重新导出已移动的模块以保持向后兼容性
-export { BackupFileProcessor } from '../detection/BackupFileProcessor';
-export { FileFeatureDetector } from '../detection/FileFeatureDetector';
-export { UnifiedDetectionService } from '../detection/UnifiedDetectionService';
-export { UniversalProcessingConfig } from '../config/UniversalProcessingConfig';
-export { CodeQualityAssessmentUtils } from './quality/CodeQualityAssessmentUtils';
-export { ComplexityCalculator } from './quality/ComplexityCalculator';

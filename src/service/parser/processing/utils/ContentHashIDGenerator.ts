@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { ASTNode } from '..';
+import { ASTNode } from '../types/ASTNode';
 
 /**
  * 内容哈希ID生成器 - 基于代码内容生成唯一ID

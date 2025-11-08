@@ -172,7 +172,7 @@ function test10() {
     const chunks = await strategy.chunkMarkdown(content, 'test.md');
 
     // 验证代码块被拆分
-    const codeChunks = chunks.filter(chunk => chunk.metadata.type === 'code');
+    const codeChunks = chunks.filter(chunk => chunk.metadata.type === ('code' as any));
     
     // 输出调试信息
     console.log('=== 大块代码块拆分测试调试信息 ===');
@@ -239,7 +239,7 @@ ${listItems}`;
     // 验证标题块前面没有重叠内容
     for (let i = 1; i < chunks.length; i++) {
       const currentChunk = chunks[i];
-      if (currentChunk.metadata.type === 'heading') {
+      if (currentChunk.metadata.type === ('heading' as any)) {
         // 检查前一个块的内容是否没有重复到当前块中
         const prevChunk = chunks[i - 1];
         // 简单检查：如果当前块以标题开头，说明没有重叠

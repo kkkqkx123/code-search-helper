@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { LoggerService } from '../../../utils/LoggerService';
 import * as path from 'path';
 import { BACKUP_FILE_PATTERNS, LANGUAGE_MAP, CODE_LANGUAGES } from '../constants';
 
@@ -72,7 +72,7 @@ export class BackupFileProcessor {
         if (baseName.endsWith(pattern)) {
           originalFileName = baseName.slice(0, -pattern.length);
           originalExtension = path.extname(originalFileName);
-          
+
           // 只有当原始文件名有扩展名时才使用0.8置信度，否则使用0.5
           if (originalExtension) {
             // 对于某些扩展名，使用更高的置信度（基于测试期望）
@@ -163,21 +163,21 @@ export class BackupFileProcessor {
 
     // 保持原始路径的分隔符格式和前缀
     let result = path.join(dir, inferred.originalFileName);
-    
+
     // 如果原始路径以 ./ 开头，确保结果也以 ./ 开头
     if (backupFilePath.startsWith('./')) {
       if (!result.startsWith('./')) {
         result = './' + result;
       }
     }
-    
+
     // 统一路径分隔符
     if (backupFilePath.includes('/')) {
       result = result.replace(/\\/g, '/');
     } else {
       result = result.replace(/\//g, '\\');
     }
-    
+
     return result;
   }
 
@@ -186,7 +186,7 @@ export class BackupFileProcessor {
    */
   isLikelyCodeFile(filePath: string): boolean {
     const inferred = this.inferOriginalType(filePath);
-    return CODE_LANGUAGES.includes(inferred.originalLanguage);
+    return (CODE_LANGUAGES as readonly string[]).includes(inferred.originalLanguage);
   }
 
   /**

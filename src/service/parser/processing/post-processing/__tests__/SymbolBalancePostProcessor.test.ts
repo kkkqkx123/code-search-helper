@@ -1,67 +1,100 @@
 import { SymbolBalancePostProcessor } from '../SymbolBalancePostProcessor';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk } from '../../types/CodeChunk';
-import { EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../strategies/types/SegmentationTypes';
+import { CodeChunk, ChunkType } from '../../types/CodeChunk';
+import { EnhancedChunkingOptions, ChunkingPreset } from '../../strategies/types/SegmentationTypes';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { ProcessingConfig } from '../../core/types/ConfigTypes';
 
 describe('SymbolBalancePostProcessor', () => {
   let processor: SymbolBalancePostProcessor;
   let logger: LoggerService;
   let mockOptions: EnhancedChunkingOptions;
+  let mockConfig: ProcessingConfig;
 
   beforeEach(() => {
     logger = new LoggerService();
     processor = new SymbolBalancePostProcessor(logger);
     
     mockOptions = {
-      preset: ChunkingPreset.BALANCED,
-      basic: {
-        minChunkSize: 100,
-        maxChunkSize: 1000,
-        overlapSize: 50,
-        preserveFunctionBoundaries: true,
-        preserveClassBoundaries: true,
-        includeComments: false,
-        extractSnippets: true,
-        addOverlap: false,
-        optimizationLevel: 'medium' as const,
-        maxLines: 10000
-      },
+      maxChunkSize: 1000,
+      minChunkSize: 100,
+      overlapSize: 50,
+      maxLinesPerChunk: 100,
+      minLinesPerChunk: 10,
+      enableIntelligentChunking: true,
+      memoryLimitMB: 512,
+      errorThreshold: 10,
+      customParams: {},
       advanced: {
-        maxOverlapRatio: 0.3,
-        enableASTBoundaryDetection: false,
-        deduplicationThreshold: 0.8,
-        astNodeTracking: false,
-        chunkMergeStrategy: 'conservative' as const,
-        enableChunkDeduplication: true,
-        maxOverlapLines: 10,
-        minChunkSimilarity: 0.7,
-        enableSmartDeduplication: true,
-        similarityThreshold: 0.8,
-        overlapMergeStrategy: 'conservative' as const,
-        enableEnhancedBalancing: true, // 启用增强平衡
-        enableIntelligentFiltering: false,
-        enableSmartRebalancing: false,
-        enableAdvancedMerging: false,
-        enableBoundaryOptimization: false,
-        balancedChunkerThreshold: 0.8,
-        minChunkSizeThreshold: 50,
-        maxChunkSizeThreshold: 1500,
-        rebalancingStrategy: 'conservative' as const,
-        boundaryOptimizationThreshold: 0.9,
-        mergeDecisionThreshold: 0.85,
-        adaptiveBoundaryThreshold: false,
-        contextAwareOverlap: false,
         semanticWeight: 0.5,
-        syntacticWeight: 0.5
+        syntacticWeight: 0.5,
+        structuralWeight: 0.0,
+        enableChunkDeduplication: true,
+        deduplicationThreshold: 0.8
+      }
+    };
+
+    // 创建模拟的 ProcessingConfig
+    mockConfig = {
+      chunking: {
+        maxChunkSize: 1000,
+        minChunkSize: 100,
+        overlapSize: 50,
+        maxLinesPerChunk: 100,
+        minLinesPerChunk: 10,
+        maxOverlapRatio: 0.3,
+        defaultStrategy: 'balanced',
+        strategyPriorities: {},
+        enableIntelligentChunking: true,
+        enableSemanticBoundaryDetection: true
+      },
+      features: {
+        enableAST: true,
+        enableSemanticDetection: true,
+        enableBracketBalance: true,
+        enableCodeOverlap: true,
+        enableStandardization: true,
+        standardizationFallback: true,
+        enableComplexityCalculation: true,
+        enableLanguageFeatureDetection: true,
+        featureDetectionThresholds: {}
       },
       performance: {
-        enablePerformanceOptimization: true,
+        memoryLimitMB: 512,
+        maxExecutionTime: 30000,
+        enableCaching: true,
+        cacheSizeLimit: 1000,
         enablePerformanceMonitoring: false,
-        enableChunkingCoordination: true,
-        strategyExecutionOrder: [],
-        enableNodeTracking: false
-      }
+        concurrencyLimit: 4,
+        queueSizeLimit: 100,
+        enableBatchProcessing: true,
+        batchSize: 10,
+        enableLazyLoading: true
+      },
+      languages: {},
+      postProcessing: {
+        enabled: true,
+        enabledProcessors: ['symbol-balance-post-processor'],
+        processorConfigs: {},
+        processorOrder: ['symbol-balance-post-processor'],
+        maxProcessingRounds: 3,
+        enableParallelProcessing: false,
+        parallelProcessingLimit: 2
+      },
+      global: {
+        debugMode: false,
+        logLevel: 'info',
+        enableMetrics: false,
+        enableStatistics: false,
+        configVersion: '1.0.0',
+        compatibilityMode: false,
+        strictMode: false,
+        experimentalFeatures: [],
+        customProperties: {}
+      },
+      version: '1.0.0',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
     };
   });
 
@@ -72,14 +105,30 @@ describe('SymbolBalancePostProcessor', () => {
 
     test('应该在启用增强平衡且有代码块时应用', () => {
       const chunks: CodeChunk[] = [
-        { content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } }
+        {
+          content: 'chunk1',
+          metadata: {
+            startLine: 1,
+            endLine: 1,
+            language: 'typescript',
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.LINE,
+            size: 6,
+            lineCount: 1
+          }
+        }
       ];
 
       const context: PostProcessingContext = {
         originalContent: 'chunk1',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       expect(processor.shouldApply(chunks, context)).toBe(true);
@@ -87,19 +136,29 @@ describe('SymbolBalancePostProcessor', () => {
 
     test('应该在禁用增强平衡时不应用', () => {
       const chunks: CodeChunk[] = [
-        { content: 'chunk1', metadata: { startLine: 1, endLine: 1, language: 'typescript' } }
+        {
+          content: 'chunk1',
+          metadata: {
+            startLine: 1,
+            endLine: 1,
+            language: 'typescript',
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.LINE,
+            size: 6,
+            lineCount: 1
+          }
+        }
       ];
 
       const context: PostProcessingContext = {
         originalContent: 'chunk1',
         language: 'typescript',
         filePath: 'test.ts',
-        options: {
-          ...mockOptions,
-          advanced: {
-            ...mockOptions.advanced,
-            enableEnhancedBalancing: false
-          }
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: false
         }
       };
 
@@ -113,7 +172,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: '',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       expect(processor.shouldApply(chunks, context)).toBe(false);
@@ -129,7 +192,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 3,
             language: 'typescript',
-            type: 'function'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.FUNCTION,
+            size: 33,
+            lineCount: 3
           }
         }
       ];
@@ -138,7 +205,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'function test() {\n  return "hello";\n}',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -156,7 +227,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 3,
             language: 'typescript',
-            type: 'function'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.FUNCTION,
+            size: 33,
+            lineCount: 3
           }
         }
       ];
@@ -165,12 +240,10 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'function test() {\n  return "hello";\n}',
         language: 'typescript',
         filePath: 'test.ts',
-        options: {
-          ...mockOptions,
-          advanced: {
-            ...mockOptions.advanced,
-            enableEnhancedBalancing: false
-          }
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: false
         }
       };
 
@@ -188,7 +261,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'function'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.FUNCTION,
+            size: 33,
+            lineCount: 1
           }
         }
       ];
@@ -197,7 +274,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'function test() { return "hello"; }',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -205,7 +286,7 @@ describe('SymbolBalancePostProcessor', () => {
       // 应该保持单个块不变
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe(chunks[0].content);
-      expect(result[0].metadata.type).toBe('function');
+      expect(result[0].metadata.type).toBe(ChunkType.FUNCTION);
     });
 
     test('应该优雅处理空内容', async () => {
@@ -216,7 +297,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'code'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.LINE,
+            size: 0,
+            lineCount: 1
           }
         }
       ];
@@ -225,7 +310,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: '',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -244,7 +333,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'code'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.LINE,
+            size: 39,
+            lineCount: 1
           }
         }
       ];
@@ -253,7 +346,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'const result = calculateSum(1, 2, (3 + 4));',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -271,7 +368,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 3,
             language: 'typescript',
-            type: 'code'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.BLOCK,
+            size: 39,
+            lineCount: 3
           }
         }
       ];
@@ -280,7 +381,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'if (condition) {\n  console.log("hello");\n}',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -298,7 +403,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'code'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.LINE,
+            size: 26,
+            lineCount: 1
           }
         }
       ];
@@ -307,7 +416,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'const array = [1, 2, [3, 4]];',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -325,7 +438,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'code'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.LINE,
+            size: 28,
+            lineCount: 1
           }
         }
       ];
@@ -334,7 +451,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'const str = "hello \\"world\\"";',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -354,7 +475,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 3,
             language: 'typescript',
-            type: 'function'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.FUNCTION,
+            size: 33,
+            lineCount: 3
           }
         },
         {
@@ -363,7 +488,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 4,
             endLine: 6,
             language: 'typescript',
-            type: 'function'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.FUNCTION,
+            size: 33,
+            lineCount: 3
           }
         }
       ];
@@ -372,7 +501,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'function test1() {\n  return "hello";\n}\nfunction test2() {\n  return "world";\n}',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -393,7 +526,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 5,
             language: 'typescript',
-            type: 'object'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.CLASS,
+            size: 63,
+            lineCount: 5
           }
         }
       ];
@@ -402,7 +539,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'const obj = {\n  method: function() {\n    return [1, 2, 3];\n  }\n};',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -424,7 +565,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'code'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.LINE,
+            size: 0,
+            lineCount: 1
           }
         }
       ];
@@ -433,7 +578,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: '',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -450,7 +599,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 0,
             endLine: 0,
             language: 'typescript',
-            type: 'code'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.LINE,
+            size: 12,
+            lineCount: 1
           }
         }
       ];
@@ -459,7 +612,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'test content',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       const result = await processor.process(chunks, context);
@@ -478,7 +635,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'function'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.FUNCTION,
+            size: 33,
+            lineCount: 1
           }
         }
       ];
@@ -487,12 +648,12 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'function test() { return "hello"; }',
         language: 'typescript',
         filePath: 'test.ts',
-        options: {
-          ...mockOptions,
-          advanced: {
-            ...mockOptions.advanced,
-            balancedChunkerThreshold: 0.95
-          }
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true,
+          semanticWeight: 0.95,
+          syntacticWeight: 0.05
         }
       };
 
@@ -511,7 +672,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'code'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.LINE,
+            size: 12,
+            lineCount: 1
           }
         }
       ];
@@ -520,13 +685,12 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'const x = 1;',
         language: 'typescript',
         filePath: 'test.ts',
-        options: {
-          ...mockOptions,
-          advanced: {
-            ...mockOptions.advanced,
-            minChunkSizeThreshold: 10,
-            maxChunkSizeThreshold: 1000
-          }
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true,
+          semanticWeight: 0.5,
+          syntacticWeight: 0.5
         }
       };
 
@@ -549,7 +713,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'function'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.FUNCTION,
+            size: 33,
+            lineCount: 1
           }
         }
       ];
@@ -558,7 +726,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'function test() { return "hello"; }',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       await processor.process(chunks, context);
@@ -579,7 +751,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'function'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.FUNCTION,
+            size: 17,
+            lineCount: 1
           }
         }
       ];
@@ -588,7 +764,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'function test() {\n  return "hello";\n}', // 完整的内容
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       await processor.process(chunks, context);
@@ -608,7 +788,11 @@ describe('SymbolBalancePostProcessor', () => {
             startLine: 1,
             endLine: 1,
             language: 'typescript',
-            type: 'function'
+            strategy: 'test',
+            timestamp: Date.now(),
+            type: ChunkType.FUNCTION,
+            size: 33,
+            lineCount: 1
           }
         }
       ];
@@ -617,7 +801,11 @@ describe('SymbolBalancePostProcessor', () => {
         originalContent: 'function test() { return "hello"; }',
         language: 'typescript',
         filePath: 'test.ts',
-        options: mockOptions
+        config: mockConfig,
+        options: mockOptions,
+        advancedOptions: {
+          enableEnhancedBalancing: true
+        }
       };
 
       try {

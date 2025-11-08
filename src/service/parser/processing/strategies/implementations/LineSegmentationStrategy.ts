@@ -1,11 +1,14 @@
 import { BaseStrategy } from '../base/BaseStrategy';
-import { IProcessingContext, ICodeChunk, IStrategyConfig } from '../../types/Strategy';
-import { Logger } from '../../../../../../../utils/Logger';
+import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
+import { ProcessingResult } from '../../types/Processing';
+import { CodeChunk, ChunkType } from '../../types/CodeChunk';
+import { StrategyConfig } from '../../types/Strategy';
+import { Logger } from '../../../../../utils/logger';
 
 /**
  * 行数分段策略配置
  */
-export interface LineStrategyConfig extends IStrategyConfig {
+export interface LineStrategyConfig extends StrategyConfig {
   /** 每块最大行数 */
   maxLinesPerChunk?: number;
   /** 每块最小行数 */
@@ -21,11 +24,18 @@ export interface LineStrategyConfig extends IStrategyConfig {
  * 基于行数的简单分段，作为最终的降级方案
  */
 export class LineSegmentationStrategy extends BaseStrategy {
-  private config: LineStrategyConfig;
+  protected config: LineStrategyConfig;
   private logger: Logger;
 
-  constructor(config: LineStrategyConfig = {}) {
-    super('line-segmentation', 'Line Segmentation Strategy');
+  constructor(config: LineStrategyConfig) {
+    const defaultConfig: StrategyConfig = {
+      name: 'line-segmentation',
+      priority: 100,
+      supportedLanguages: ['*'],
+      enabled: true,
+      description: 'Line Segmentation Strategy',
+    };
+    super({ ...defaultConfig, ...config });
     this.config = {
       maxLinesPerChunk: 50,
       minLinesPerChunk: 5,
@@ -45,14 +55,27 @@ export class LineSegmentationStrategy extends BaseStrategy {
   }
 
   /**
+   * 执行策略
+   */
+  async execute(context: IProcessingContext): Promise<ProcessingResult> {
+    const startTime = Date.now();
+    try {
+      const chunks = await this.process(context);
+      return this.createSuccessResult(chunks, Date.now() - startTime);
+    } catch (error) {
+      return this.createFailureResult(Date.now() - startTime, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
    * 执行分段处理
    */
-  async process(context: IProcessingContext): Promise<ICodeChunk[]> {
+  async process(context: IProcessingContext): Promise<CodeChunk[]> {
     const startTime = Date.now();
     this.logger.debug(`Using Line segmentation strategy for ${context.filePath}`);
 
     try {
-      const chunks: ICodeChunk[] = [];
+      const chunks: CodeChunk[] = [];
       const lines = context.content.split('\n');
 
       // 使用智能行数分段
@@ -69,18 +92,19 @@ export class LineSegmentationStrategy extends BaseStrategy {
 
           chunks.push(this.createChunk(
             chunkContent,
-            context,
+            startLine + 1, // 转换为1基索引
+            endLine + 1,
+            context.language || 'unknown',
+            ChunkType.LINE,
             {
-              startLine: startLine + 1, // 转换为1基索引
-              endLine: endLine + 1,
-              type: 'line',
+              filePath: context.filePath,
               complexity: this.calculateComplexity(chunkContent)
             }
           ));
         }
       }
 
-      this.updatePerformanceStats(Date.now() - startTime, chunks.length);
+      this.updatePerformanceStats(Date.now() - startTime, true, chunks.length);
       this.logger.debug(`Line segmentation created ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
@@ -172,7 +196,7 @@ export class LineSegmentationStrategy extends BaseStrategy {
     startLine: number,
     endLine: number,
     context: IProcessingContext
-  ): ICodeChunk {
+  ): CodeChunk {
     const actualStartLine = Math.max(0, startLine - this.config.overlapLines!);
     const chunkLines = lines.slice(actualStartLine, endLine + 1);
     const chunkContent = chunkLines.join('\n');
@@ -180,11 +204,12 @@ export class LineSegmentationStrategy extends BaseStrategy {
 
     return this.createChunk(
       chunkContent,
-      context,
+      actualStartLine + 1, // 转换为1基索引
+      endLine + 1,
+      context.language || 'unknown',
+      ChunkType.LINE,
       {
-        startLine: actualStartLine + 1, // 转换为1基索引
-        endLine: endLine + 1,
-        type: 'line',
+        filePath: context.filePath,
         complexity,
         overlap: this.config.overlapLines! > 0
       }
@@ -194,7 +219,7 @@ export class LineSegmentationStrategy extends BaseStrategy {
   /**
    * 计算复杂度
    */
-  private calculateComplexity(content: string): number {
+  protected calculateComplexity(content: string): number {
     let complexity = 0;
 
     // 基于代码结构计算复杂度

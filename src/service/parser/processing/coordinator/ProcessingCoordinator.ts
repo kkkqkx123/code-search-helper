@@ -10,7 +10,8 @@ import { IConfigManager } from '../core/interfaces/IConfigManager';
 import { ProcessingConfig } from '../core/types/ConfigTypes';
 import { ProcessingResult, ProcessingUtils } from '../types/Processing';
 import { ProcessingContext, ContextBuilder, ContextUtils } from '../types/Context';
-import { FileFeatures, LineEndingType, IndentType } from '../types/Utils';
+import { FileFeatures } from '../core/interfaces/IProcessingContext';
+import { LineEndingType, IndentType } from '../types/Utils';
 import { CodeChunk } from '../types/CodeChunk';
 import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
 import { PostProcessingContext } from '../post-processing/IChunkPostProcessor';
@@ -293,7 +294,8 @@ export class ProcessingCoordinator {
       performance: config.performance,
       languages: config.languages,
       postProcessing: config.postProcessing,
-      global: {
+      advanced: config.advanced,
+      global: config.global || {
         debugMode: false,
         logLevel: 'info',
         enableMetrics: true,
@@ -303,7 +305,10 @@ export class ProcessingCoordinator {
         strictMode: false,
         experimentalFeatures: [],
         customProperties: {}
-      }
+      },
+      version: config.version || '1.0.0',
+      createdAt: config.createdAt || Date.now(),
+      updatedAt: config.updatedAt || Date.now()
     };
   }
 
@@ -335,7 +340,8 @@ export class ProcessingCoordinator {
           maxLinesPerChunk: context.config.chunking.maxLinesPerChunk,
           minLinesPerChunk: context.config.chunking.minLinesPerChunk,
           enableIntelligentChunking: true
-        }
+        },
+        advancedOptions: context.config.advanced
       };
 
       // 执行后处理
@@ -437,11 +443,11 @@ export class ProcessingCoordinator {
   }
 
   /**
-   * 创建默认文件特征
-   * @param content 代码内容
-   * @param filePath 文件路径
-   * @returns 文件特征
-   */
+  * 创建默认文件特征
+  * @param content 代码内容
+  * @param filePath 文件路径
+  * @returns 文件特征
+  */
   private createDefaultFileFeatures(content: string, filePath?: string): FileFeatures {
     const lines = content.split('\n');
     const lineCount = lines.length;
@@ -477,16 +483,25 @@ export class ProcessingCoordinator {
     return {
       size,
       lineCount,
-      characterCount,
-      isBinary,
-      isText: !isBinary,
-      isCode: this.isCodeContent(content),
-      extension,
-      hasNonASCII,
-      hasBOM,
-      lineEndingType,
-      indentType,
-      averageIndentSize
+      isSmallFile: size < 1024,
+      isCodeFile: this.isCodeContent(content),
+      isStructuredFile: hasFunctions || hasClasses,
+      complexity: this.calculateBasicComplexity(content),
+      hasImports,
+      hasExports,
+      hasFunctions,
+      hasClasses,
+      languageFeatures: {
+        characterCount,
+        isBinary,
+        isText: !isBinary,
+        extension,
+        hasNonASCII,
+        hasBOM,
+        lineEndingType,
+        indentType,
+        averageIndentSize
+      }
     };
   }
 
@@ -561,7 +576,9 @@ export class ProcessingCoordinator {
           strategy: 'basic-line-fallback',
           complexity: 1,
           timestamp: Date.now(),
-          type: 'generic' as any
+          type: 'generic' as any,
+          size: chunkContent.length,
+          lineCount: chunkLines.length
         }
       });
     }

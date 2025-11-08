@@ -8,7 +8,7 @@ import { LRUCache } from '../../../../utils/LRUCache';
 import { ErrorHandlingManager, ErrorType } from './ErrorHandlingManager';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { StandardizedQueryResult } from './types';
-import { CodeChunk } from '../../processing/types/CodeChunk';
+import { CodeChunk, ChunkType } from '../../processing/types/CodeChunk';
 import { NormalizationPerformanceAdapter } from './PerformanceAdapter';
 
 /**
@@ -190,7 +190,7 @@ export class NormalizationIntegrationService {
             });
             return Promise.resolve({
               success: true,
-              chunks: [{ content, metadata: { startLine: 1, endLine: content.split('\n').length, language: language || 'unknown', filePath } }],
+              chunks: [{ content, metadata: { startLine: 1, endLine: content.split('\n').length, language: language || 'unknown', filePath, strategy: 'fallback', timestamp: Date.now(), type: ChunkType.GENERIC, size: content.length, lineCount: content.split('\n').length } }],
               normalizedResults: [],
               metrics: {
                 processingTime: 0,

@@ -1,4 +1,4 @@
-import { ASTNode } from '../..';
+import { ASTNode } from '../../types/ASTNode';
 import { CodeChunk } from '../..';
 import { TreeSitterService } from '../../../core/parse/TreeSitterService';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';

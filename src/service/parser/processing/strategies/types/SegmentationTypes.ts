@@ -42,18 +42,21 @@ export interface EnhancedChunkingOptions extends ChunkingOptions {
   advanced?: {
     /** 语义权重 */
     semanticWeight?: number;
-    
+
     /** 语法权重 */
     syntacticWeight?: number;
-    
+
     /** 结构权重 */
     structuralWeight?: number;
-    
+
     /** 是否启用去重 */
     enableChunkDeduplication?: boolean;
-    
+
     /** 去重阈值 */
     deduplicationThreshold?: number;
+
+    /** 是否启用AST节点跟踪 */
+    astNodeTracking?: boolean;
   };
 }
 
@@ -166,7 +169,7 @@ export const DEFAULT_ENHANCED_CHUNKING_OPTIONS: Required<EnhancedChunkingOptions
 export interface UniversalChunkingOptions extends EnhancedChunkingOptions {
   /** 策略类型 */
   strategy?: string;
-  
+
   /** 语言特定配置 */
   languageConfig?: Record<string, ChunkingOptions>;
 }
@@ -317,6 +320,107 @@ export interface IConfigurationManager {
    * @returns 合并后的选项
    */
   mergeOptions(baseOptions: any, overrideOptions: any): any;
+}
+
+/**
+ * 复杂度计算器接口
+ */
+export interface IComplexityCalculator {
+  /**
+   * 计算代码复杂度
+   * @param content 代码内容
+   */
+  calculate(content: string): number;
+
+  /**
+   * 快速估算复杂度（用于性能优化）
+   * @param content 代码内容
+   */
+  estimate(content: string): number;
+
+  /**
+   * 计算语义分数
+   * @param line 单行代码
+   */
+  calculateSemanticScore(line: string): number;
+}
+
+/**
+ * 块重新平衡器接口
+ */
+export interface IChunkRebalancer {
+  /**
+   * 重新平衡块
+   * @param context 重新平衡上下文
+   * @returns 重新平衡结果
+   */
+  rebalance(context: ChunkRebalancerContext): Promise<RebalancerResult>;
+  
+  /**
+   * 检查是否应该应用此重新平衡器
+   * @param chunks 代码块数组
+   * @param context 重新平衡上下文
+   * @returns 是否应该应用
+   */
+  shouldApply(chunks: CodeChunk[], context: ChunkRebalancerContext): boolean;
+  
+  /**
+   * 获取重新平衡器名称
+   * @returns 重新平衡器名称
+   */
+  getName(): string;
+}
+
+/**
+ * 块重新平衡上下文接口
+ */
+export interface ChunkRebalancerContext {
+  /** 代码块数组 */
+  chunks: CodeChunk[];
+  
+  /** 重新平衡选项 */
+  options: {
+    /** 是否启用块重新平衡 */
+    enableChunkRebalancing?: boolean;
+    
+    /** 是否启用小块过滤 */
+    enableSmallChunkFilter?: boolean;
+    
+    /** 最小块大小 */
+    minChunkSize?: number;
+    
+    /** 最大块大小 */
+    maxChunkSize?: number;
+    
+    /** 其他自定义选项 */
+    [key: string]: any;
+  };
+}
+
+/**
+ * 重新平衡结果接口
+ */
+export interface RebalancerResult {
+  /** 重新平衡后的代码块数组 */
+  chunks: CodeChunk[];
+  
+  /** 重新平衡的块数量 */
+  rebalanced: number;
+  
+  /** 元数据信息 */
+  metadata: {
+    /** 重新平衡原因 */
+    rebalanceReason: string;
+    
+    /** 原始大小 */
+    originalSize: number;
+    
+    /** 重新平衡后大小 */
+    rebalancedSize: number;
+    
+    /** 其他元数据 */
+    [key: string]: any;
+  };
 }
 
 // 导入相关类型，避免循环依赖

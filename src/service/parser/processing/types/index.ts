@@ -112,6 +112,9 @@ export {
     FeatureUtils
 } from './Utils';
 
+// AST节点类型
+export { ASTNode } from './ASTNode';
+
 // 重新导出处理相关类型
 export {
     ResultMetadata

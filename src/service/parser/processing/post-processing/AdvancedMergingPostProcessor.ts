@@ -21,7 +21,7 @@ export class AdvancedMergingPostProcessor implements IChunkPostProcessor {
 
   shouldApply(chunks: CodeChunk[], context: PostProcessingContext): boolean {
     // 只有多个代码块时才需要合并处理
-    return chunks.length > 1 && context.options.advanced?.enableAdvancedMerging === true;
+    return chunks.length > 1 && context.advancedOptions?.enableAdvancedMerging === true;
   }
 
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {

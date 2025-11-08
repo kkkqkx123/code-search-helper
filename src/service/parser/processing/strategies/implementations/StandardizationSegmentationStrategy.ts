@@ -1,6 +1,9 @@
 import { BaseStrategy } from '../base/BaseStrategy';
-import { IProcessingContext, ICodeChunk, IStrategyConfig } from '../../types/Strategy';
-import { Logger } from '../../../../../../../utils/Logger';
+import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
+import { ProcessingResult } from '../../types/Processing';
+import { CodeChunk, ChunkType } from '../../types/CodeChunk';
+import { StrategyConfig } from '../../types/Strategy';
+import { Logger } from '../../../../../utils/logger';
 
 /**
  * 标准化查询结果
@@ -10,10 +13,10 @@ export interface StandardizedQueryResult {
   startLine: number;
   endLine: number;
   name: string;
-  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' | 
-        'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'call' | 'inheritance' | 
-        'implements' | 'concurrency' | 'lifecycle' | 'semantic' | 'annotation' | 'union' | 'enum' |
-        'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def';
+  type: 'function' | 'class' | 'method' | 'import' | 'variable' | 'interface' | 'type' | 'export' |
+  'control-flow' | 'expression' | 'data-flow' | 'parameter-flow' | 'call' | 'inheritance' |
+  'implements' | 'concurrency' | 'lifecycle' | 'semantic' | 'annotation' | 'union' | 'enum' |
+  'config-item' | 'section' | 'key' | 'value' | 'array' | 'table' | 'dependency' | 'type-def';
   content: string;
   metadata: {
     language: string;
@@ -26,7 +29,7 @@ export interface StandardizedQueryResult {
 /**
  * 标准化分段策略配置
  */
-export interface StandardizationStrategyConfig extends IStrategyConfig {
+export interface StandardizationStrategyConfig extends StrategyConfig {
   /** 是否启用降级处理 */
   enableFallback?: boolean;
   /** 合并相邻块的最大行数 */
@@ -40,11 +43,21 @@ export interface StandardizationStrategyConfig extends IStrategyConfig {
  * 基于标准化结果的分段
  */
 export class StandardizationSegmentationStrategy extends BaseStrategy {
-  private config: StandardizationStrategyConfig;
+  protected config: StandardizationStrategyConfig;
   private logger: Logger;
 
-  constructor(config: StandardizationStrategyConfig = {}) {
-    super('standardization-segmentation', 'Standardization Segmentation Strategy');
+  constructor(config: StandardizationStrategyConfig) {
+    const defaultConfig: StrategyConfig = {
+      name: 'standardization-segmentation',
+      priority: 50,
+      supportedLanguages: [
+        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
+        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
+      ],
+      enabled: true,
+      description: 'Standardization Segmentation Strategy',
+    };
+    super({ ...defaultConfig, ...config });
     this.config = {
       enableFallback: true,
       maxAdjacentLines: 20,
@@ -64,16 +77,29 @@ export class StandardizationSegmentationStrategy extends BaseStrategy {
   }
 
   /**
+   * 执行策略
+   */
+  async execute(context: IProcessingContext): Promise<ProcessingResult> {
+    const startTime = Date.now();
+    try {
+      const chunks = await this.process(context);
+      return this.createSuccessResult(chunks, Date.now() - startTime);
+    } catch (error) {
+      return this.createFailureResult(Date.now() - startTime, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
    * 执行分段处理
    */
-  async process(context: IProcessingContext): Promise<ICodeChunk[]> {
+  async process(context: IProcessingContext): Promise<CodeChunk[]> {
     const startTime = Date.now();
     this.logger.debug(`Using Standardization segmentation strategy for ${context.filePath}`);
 
     try {
       // 检查是否有必要的标准化服务（模拟）
       const hasStandardizationService = this.hasStandardizationService();
-      
+
       if (!hasStandardizationService || !context.language) {
         this.logger.warn('Required services not available for standardization, falling back to simple segmentation');
         return this.fallbackSegmentation(context);
@@ -95,7 +121,7 @@ export class StandardizationSegmentationStrategy extends BaseStrategy {
       // 基于标准化结果创建分块
       const chunks = this.chunkByStandardizedResults(standardizedResults, context);
 
-      this.updatePerformanceStats(Date.now() - startTime, chunks.length);
+      this.updatePerformanceStats(Date.now() - startTime, true, chunks.length);
       this.logger.debug(`Standardization segmentation created ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
@@ -146,24 +172,25 @@ export class StandardizationSegmentationStrategy extends BaseStrategy {
   private async simulateStandardization(ast: any, language: string): Promise<StandardizedQueryResult[]> {
     // 模拟标准化结果，实际应该调用标准化服务
     const results: StandardizedQueryResult[] = [];
-    
+
     // 这里可以根据语言和内容生成一些模拟的标准化结果
     // 实际实现中应该使用真实的标准化服务
-    
+
     return results;
   }
 
   /**
    * 降级分段方法
    */
-  private fallbackSegmentation(context: IProcessingContext): ICodeChunk[] {
+  private fallbackSegmentation(context: IProcessingContext): CodeChunk[] {
     return [this.createChunk(
       context.content,
-      context,
+      1,
+      context.content.split('\n').length,
+      context.language || 'unknown',
+      ChunkType.GENERIC,
       {
-        startLine: 1,
-        endLine: context.content.split('\n').length,
-        type: 'code',
+        filePath: context.filePath,
         complexity: this.calculateComplexity(context.content),
         fallback: true
       }
@@ -176,8 +203,8 @@ export class StandardizationSegmentationStrategy extends BaseStrategy {
   private chunkByStandardizedResults(
     standardizedResults: StandardizedQueryResult[],
     context: IProcessingContext
-  ): ICodeChunk[] {
-    const chunks: ICodeChunk[] = [];
+  ): CodeChunk[] {
+    const chunks: CodeChunk[] = [];
     const lines = context.content.split('\n');
 
     // 按行号排序标准化结果
@@ -191,11 +218,12 @@ export class StandardizationSegmentationStrategy extends BaseStrategy {
 
       chunks.push(this.createChunk(
         chunkContent,
-        context,
+        result.startLine,
+        result.endLine,
+        context.language || 'unknown',
+        this.mapStandardizedTypeToChunkType(result.type),
         {
-          startLine: result.startLine,
-          endLine: result.endLine,
-          type: this.mapStandardizedTypeToChunkType(result.type),
+          filePath: context.filePath,
           complexity: result.metadata.complexity || this.calculateComplexity(chunkContent),
           functionName: result.type === 'function' ? result.name : undefined,
           className: result.type === 'class' ? result.name : undefined,
@@ -213,42 +241,42 @@ export class StandardizationSegmentationStrategy extends BaseStrategy {
   /**
    * 将标准化结果类型映射到分块类型
    */
-  private mapStandardizedTypeToChunkType(standardizedType: StandardizedQueryResult['type']): string {
-    const typeMap: Record<StandardizedQueryResult['type'], string> = {
-      'function': 'function',
-      'class': 'class',
-      'method': 'method',
-      'import': 'import',
-      'variable': 'code',
-      'interface': 'interface',
-      'type': 'code',
-      'export': 'import',
-      'control-flow': 'code',
-      'expression': 'code',
+  private mapStandardizedTypeToChunkType(standardizedType: StandardizedQueryResult['type']): ChunkType {
+    const typeMap: Record<StandardizedQueryResult['type'], ChunkType> = {
+      'function': ChunkType.FUNCTION,
+      'class': ChunkType.CLASS,
+      'method': ChunkType.FUNCTION,
+      'import': ChunkType.IMPORT,
+      'variable': ChunkType.VARIABLE,
+      'interface': ChunkType.INTERFACE,
+      'type': ChunkType.TYPE,
+      'export': ChunkType.EXPORT,
+      'control-flow': ChunkType.GENERIC,
+      'expression': ChunkType.GENERIC,
       // 高级关系类型映射
-      'data-flow': 'code',
-      'parameter-flow': 'code',
-      'call': 'code',
-      'inheritance': 'code',
-      'implements': 'code',
-      'concurrency': 'code',
-      'lifecycle': 'code',
-      'semantic': 'code',
-      'annotation': 'code',
-      'union': 'code',
-      'enum': 'code',
+      'data-flow': ChunkType.GENERIC,
+      'parameter-flow': ChunkType.GENERIC,
+      'call': ChunkType.GENERIC,
+      'inheritance': ChunkType.GENERIC,
+      'implements': ChunkType.GENERIC,
+      'concurrency': ChunkType.GENERIC,
+      'lifecycle': ChunkType.GENERIC,
+      'semantic': ChunkType.GENERIC,
+      'annotation': ChunkType.COMMENT,
+      'union': ChunkType.TYPE,
+      'enum': ChunkType.ENUM,
       // 配置语言类型映射
-      'config-item': 'code',
-      'section': 'code',
-      'key': 'code',
-      'value': 'code',
-      'array': 'code',
-      'table': 'code',
-      'dependency': 'code',
-      'type-def': 'code'
+      'config-item': ChunkType.GENERIC,
+      'section': ChunkType.GENERIC,
+      'key': ChunkType.GENERIC,
+      'value': ChunkType.GENERIC,
+      'array': ChunkType.GENERIC,
+      'table': ChunkType.GENERIC,
+      'dependency': ChunkType.GENERIC,
+      'type-def': ChunkType.TYPE
     };
 
-    return typeMap[standardizedType] || 'semantic';
+    return typeMap[standardizedType] || ChunkType.GENERIC;
   }
 
   /**
@@ -352,7 +380,7 @@ export class StandardizationSegmentationStrategy extends BaseStrategy {
   /**
    * 计算复杂度
    */
-  private calculateComplexity(content: string): number {
+  protected calculateComplexity(content: string): number {
     let complexity = 0;
 
     // 基于代码结构计算复杂度

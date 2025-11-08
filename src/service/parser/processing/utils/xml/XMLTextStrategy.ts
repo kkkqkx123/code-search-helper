@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { CodeChunk, CodeChunkMetadata } from '../../../types';
+import { CodeChunk, ChunkMetadata, ChunkType } from '../../types/CodeChunk';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
 import {
@@ -480,12 +480,16 @@ export class XMLTextStrategy {
       // 将 XMLBlockType 映射到 CodeChunkMetadata 的 type
       const chunkType = this.mapXMLTypeToChunkType(block.type);
 
-      const metadata: CodeChunkMetadata = {
+      const metadata: ChunkMetadata = {
         startLine: block.startLine,
         endLine: block.endLine,
         language: 'xml',
         filePath,
+        strategy: 'xml-strategy',
+        timestamp: Date.now(),
         type: chunkType,
+        size: block.content.length,
+        lineCount: block.endLine - block.startLine + 1,
         complexity,
         elementName: block.elementName,
         attributes: block.attributes
@@ -503,21 +507,21 @@ export class XMLTextStrategy {
   /**
    * 将 XML 块类型映射到 CodeChunk 类型
    */
-  private mapXMLTypeToChunkType(xmlType: XMLBlockType): CodeChunkMetadata['type'] {
-    const typeMap: Record<XMLBlockType, CodeChunkMetadata['type']> = {
-      [XMLBlockType.XML_DECLARATION]: 'declaration',
-      [XMLBlockType.DOCTYPE]: 'doctype',
-      [XMLBlockType.ROOT_ELEMENT]: 'root',
-      [XMLBlockType.ELEMENT]: 'element',
-      [XMLBlockType.SELF_CLOSING_ELEMENT]: 'element',
-      [XMLBlockType.EMPTY_ELEMENT]: 'element',
-      [XMLBlockType.PROCESSING_INSTRUCTION]: 'instruction',
-      [XMLBlockType.COMMENT]: 'comment',
-      [XMLBlockType.CDATA]: 'cdata',
-      [XMLBlockType.TEXT]: 'text'
+  private mapXMLTypeToChunkType(xmlType: XMLBlockType): ChunkType {
+    const typeMap: Record<XMLBlockType, ChunkType> = {
+      [XMLBlockType.XML_DECLARATION]: ChunkType.GENERIC,
+      [XMLBlockType.DOCTYPE]: ChunkType.GENERIC,
+      [XMLBlockType.ROOT_ELEMENT]: ChunkType.GENERIC,
+      [XMLBlockType.ELEMENT]: ChunkType.GENERIC,
+      [XMLBlockType.SELF_CLOSING_ELEMENT]: ChunkType.GENERIC,
+      [XMLBlockType.EMPTY_ELEMENT]: ChunkType.GENERIC,
+      [XMLBlockType.PROCESSING_INSTRUCTION]: ChunkType.GENERIC,
+      [XMLBlockType.COMMENT]: ChunkType.COMMENT,
+      [XMLBlockType.CDATA]: ChunkType.GENERIC,
+      [XMLBlockType.TEXT]: ChunkType.GENERIC
     };
 
-    return typeMap[xmlType] || 'element';
+    return typeMap[xmlType] || ChunkType.GENERIC;
   }
 
   /**
@@ -585,7 +589,11 @@ export class XMLTextStrategy {
           endLine: lineNumber + lines.length - 1,
           language: 'xml',
           filePath: filePath,
-          type: 'element',
+          strategy: 'xml-strategy',
+          timestamp: Date.now(),
+          type: ChunkType.GENERIC,
+          size: element.length,
+          lineCount: lines.length,
           complexity
         }
       });

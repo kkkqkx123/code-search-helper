@@ -4,7 +4,7 @@
  */
 
 import { ProcessingConfig } from './Config';
-import { FileFeatures } from './Utils';
+import { FileFeatures } from '../core/interfaces/IProcessingContext';
 
 /**
  * 上下文元数据接口

@@ -457,11 +457,11 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     const result = await this.faultToleranceHandler.executeWithFaultTolerance(
       async () => {
         // 尝试从新缓存服务获取结果
-        const cacheKey = `chunk_mapping_${chunk.id}_${filePath}`;
+        const cacheKey = `chunk_mapping_${chunk.metadata.startLine}_${filePath}`;
         const cachedResult = await this.unifiedCache.getGraphData(cacheKey);
 
         if (cachedResult) {
-          this.logger.debug('Returning cached chunk mapping result', { chunkId: chunk.id });
+          this.logger.debug('Returning cached chunk mapping result', { chunkId: chunk.metadata.startLine });
           return {
             nodes: cachedResult.nodes,
             relationships: cachedResult.relationships,
@@ -475,7 +475,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
         // 如果新缓存中没有，则使用旧缓存
         const oldCachedResult = await this.cache.getFileAnalysis(cacheKey);
         if (oldCachedResult) {
-          this.logger.debug('Returning cached chunk mapping result from old cache', { chunkId: chunk.id });
+          this.logger.debug('Returning cached chunk mapping result from old cache', { chunkId: chunk.metadata.startLine });
           return oldCachedResult as ChunkNodeMappingResult;
         }
 
@@ -509,10 +509,10 @@ export class GraphDataMappingService implements IGraphDataMappingService {
 
     // 创建块节点
     const chunkNode: GraphNode = {
-      id: chunk.id || uuidv4(),
+      id: uuidv4(),
       type: GraphNodeType.CHUNK,
       properties: {
-        name: `Chunk_${chunk.id || uuidv4()}`,
+        name: `Chunk_${uuidv4()}`,
         filePath: filePath,
         language: language,
         content: chunk.content,

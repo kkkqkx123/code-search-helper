@@ -10,13 +10,12 @@ import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { CodeChunk } from './types';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import { GuardCoordinator } from './guard/GuardCoordinator';
 import { UniversalTextStrategy } from './processing/utils/UniversalTextStrategy';
-import { BackupFileProcessor } from './processing/detection/BackupFileProcessor';
+import { BackupFileProcessor } from './detection/BackupFileProcessor';
 import { VectorBatchOptimizer } from '../optimization/VectorBatchOptimizer';
-import { LanguageDetectionService } from './processing/detection/LanguageDetectionService';
-import { UnifiedDetectionService } from './processing/detection/UnifiedDetectionService';
+import { LanguageDetectionService } from './detection/LanguageDetectionService';
+import { DetectionService } from './detection/DetectionService';
 
 export interface ProcessingOptions {
   maxChunkSize?: number;
@@ -48,7 +47,7 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.UniversalTextStrategy) private universalTextSplitter: UniversalTextStrategy,
     @inject(TYPES.BackupFileProcessor) private backupFileProcessor: BackupFileProcessor,
     @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer,
-    @inject(TYPES.UnifiedDetectionService) private detectionService: UnifiedDetectionService
+    @inject(TYPES.DetectionService) private detectionService: DetectionService
   ) {
     this.languageDetectionService = new LanguageDetectionService(this.logger);
   }

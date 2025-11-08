@@ -294,8 +294,8 @@ export const TYPES = {
   // 37. 优化的降级处理相关服务
   OptimizedProcessingGuard: Symbol.for('OptimizedProcessingGuard'),
   UnifiedDetectionService: Symbol.for('UnifiedDetectionService'),
+  DetectionService: Symbol.for('DetectionService'),
   IntelligentFallbackEngine: Symbol.for('IntelligentFallbackEngine'),
-  ProcessingStrategyFactory: Symbol.for('ProcessingStrategyFactory'),
 
   // 38. 特殊格式文本分割器
   MarkdownTextStrategy: Symbol.for('MarkdownTextStrategy'),
@@ -306,12 +306,10 @@ export const TYPES = {
   // 39. 统一配置管理器
   UnifiedConfigManager: Symbol.for('UnifiedConfigManager'),
 
-  // 40. 统一策略工厂和管理器
-  UnifiedStrategyFactory: Symbol.for('UnifiedStrategyFactory'),
-  UnifiedStrategyManager: Symbol.for('UnifiedStrategyManager'),
   UnifiedProcessingCoordinator: Symbol.for('UnifiedProcessingCoordinator'),
 
   LanguageDetector: Symbol.for('LanguageDetector'),
+   LanguageDetectionService: Symbol.for('LanguageDetectionService'),
 
   // 42. 分段策略提供者
   ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),

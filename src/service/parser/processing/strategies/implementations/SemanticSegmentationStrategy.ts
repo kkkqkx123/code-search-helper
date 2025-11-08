@@ -1,11 +1,14 @@
 import { BaseStrategy } from '../base/BaseStrategy';
-import { IProcessingContext, ICodeChunk, IStrategyConfig } from '../../types/Strategy';
-import { Logger } from '../../../../../../../utils/Logger';
+import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
+import { ProcessingResult } from '../../types/Processing';
+import { CodeChunk, ChunkType } from '../../types/CodeChunk';
+import { StrategyConfig } from '../../types/Strategy';
+import { Logger } from '../../../../../utils/logger';
 
 /**
  * 语义分段策略配置
  */
-export interface SemanticStrategyConfig extends IStrategyConfig {
+export interface SemanticStrategyConfig extends StrategyConfig {
   /** 最大块大小 */
   maxChunkSize?: number;
   /** 最小块大小 */
@@ -25,11 +28,21 @@ export interface SemanticStrategyConfig extends IStrategyConfig {
  * 基于语义边界进行分段，支持普通和精细两种模式
  */
 export class SemanticSegmentationStrategy extends BaseStrategy {
-  private config: SemanticStrategyConfig;
+  protected config: SemanticStrategyConfig;
   private logger: Logger;
 
-  constructor(config: SemanticStrategyConfig = {}) {
-    super('semantic-segmentation', 'Semantic Segmentation Strategy');
+  constructor(config: SemanticStrategyConfig) {
+    const defaultConfig: StrategyConfig = {
+      name: 'semantic-segmentation',
+      priority: 40,
+      supportedLanguages: [
+        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
+        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
+      ],
+      enabled: true,
+      description: 'Semantic Segmentation Strategy',
+    };
+    super({ ...defaultConfig, ...config });
     this.config = {
       maxChunkSize: 2000,
       minChunkSize: 200,
@@ -47,7 +60,7 @@ export class SemanticSegmentationStrategy extends BaseStrategy {
    */
   canHandle(context: IProcessingContext): boolean {
     const { content } = context;
-    
+
     // 验证内容是否适合语义分段
     if (!content || content.trim().length === 0) {
       return false;
@@ -62,9 +75,22 @@ export class SemanticSegmentationStrategy extends BaseStrategy {
   }
 
   /**
+   * 执行策略
+   */
+  async execute(context: IProcessingContext): Promise<ProcessingResult> {
+    const startTime = Date.now();
+    try {
+      const chunks = await this.process(context);
+      return this.createSuccessResult(chunks, Date.now() - startTime);
+    } catch (error) {
+      return this.createFailureResult(Date.now() - startTime, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
    * 执行分段处理
    */
-  async process(context: IProcessingContext): Promise<ICodeChunk[]> {
+  async process(context: IProcessingContext): Promise<CodeChunk[]> {
     const startTime = Date.now();
     this.logger.debug(`Using Semantic segmentation strategy for ${context.filePath}`);
 
@@ -77,7 +103,7 @@ export class SemanticSegmentationStrategy extends BaseStrategy {
         this.logger.debug('Context validation passed for semantic strategy');
       }
 
-      const chunks: ICodeChunk[] = [];
+      const chunks: CodeChunk[] = [];
       const lines = context.content.split('\n');
 
       let currentChunk: string[] = [];
@@ -121,13 +147,15 @@ export class SemanticSegmentationStrategy extends BaseStrategy {
           const chunkContent = currentChunk.join('\n');
           chunks.push(this.createChunk(
             chunkContent,
-            context,
+            currentLine,
+            currentLine + currentChunk.length - 1,
+            context.language || 'unknown',
+            ChunkType.GENERIC,
             {
-              startLine: currentLine,
-              endLine: currentLine + currentChunk.length - 1,
-              type: 'semantic',
+              filePath: context.filePath,
               complexity: this.calculateComplexity(chunkContent),
-              fineMode: isFineMode
+              fineMode: isFineMode,
+              type: 'semantic'
             }
           ));
 
@@ -144,18 +172,20 @@ export class SemanticSegmentationStrategy extends BaseStrategy {
         const chunkContent = currentChunk.join('\n');
         chunks.push(this.createChunk(
           chunkContent,
-          context,
+          currentLine,
+          currentLine + currentChunk.length - 1,
+          context.language || 'unknown',
+          ChunkType.GENERIC,
           {
-            startLine: currentLine,
-            endLine: currentLine + currentChunk.length - 1,
-            type: 'semantic',
+            filePath: context.filePath,
             complexity: this.calculateComplexity(chunkContent),
-            fineMode: isFineMode
+            fineMode: isFineMode,
+            type: 'semantic'
           }
         ));
       }
 
-      this.updatePerformanceStats(Date.now() - startTime, chunks.length);
+      this.updatePerformanceStats(Date.now() - startTime, true, chunks.length);
       this.logger.debug(`Semantic segmentation (${isFineMode ? 'fine' : 'normal'} mode) created ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
@@ -178,7 +208,7 @@ export class SemanticSegmentationStrategy extends BaseStrategy {
   /**
    * 验证上下文是否适合语义分段
    */
-  private validateContext(context: IProcessingContext): boolean {
+  validateContext(context: IProcessingContext): boolean {
     if (!context.content || context.content.trim().length === 0) {
       return false;
     }
@@ -198,7 +228,7 @@ export class SemanticSegmentationStrategy extends BaseStrategy {
     if (!this.config.enableFineMode) {
       return false;
     }
-    
+
     // 根据文件大小自动决定：中等大小文件使用精细模式
     const lineCount = content.split('\n').length;
     return lineCount >= 50 && lineCount <= 500;
@@ -296,7 +326,7 @@ export class SemanticSegmentationStrategy extends BaseStrategy {
   /**
    * 计算复杂度
    */
-  private calculateComplexity(content: string): number {
+  protected calculateComplexity(content: string): number {
     let complexity = 0;
 
     // 基于代码结构计算复杂度

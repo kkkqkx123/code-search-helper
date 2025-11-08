@@ -21,8 +21,7 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
     super(
       new MockLoggerService(),
       { get: () => ({}) } as any,
-      { shouldProtect: () => false } as any,
-      { selectStrategy: () => ({ executeStrategy: async () => [] }) } as any
+      { shouldProtect: () => false } as any
     );
   }
 
@@ -37,7 +36,9 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
         filePath,
         strategy: 'semantic',
         timestamp: Date.now(),
-        type: ChunkType.FUNCTION
+        type: ChunkType.FUNCTION,
+        size: content.length,
+        lineCount: lines.length
       }
     }];
   }
@@ -53,7 +54,9 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
         filePath,
         strategy: 'bracket',
         timestamp: Date.now(),
-        type: ChunkType.GENERIC
+        type: ChunkType.GENERIC,
+        size: content.length,
+        lineCount: lines.length
       }
     }];
   }
@@ -69,7 +72,9 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
         filePath,
         strategy: 'line',
         timestamp: Date.now(),
-        type: ChunkType.GENERIC
+        type: ChunkType.GENERIC,
+        size: line.length,
+        lineCount: 1
       }
     }));
   }

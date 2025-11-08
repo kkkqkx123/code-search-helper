@@ -1,3 +1,3 @@
-export { ISplitStrategy, IStrategyProvider, StrategyConfiguration } from '../processing/interfaces/ISplitStrategy';
-export { CodeChunk, CodeChunkMetadata } from '../processing/types/CodeChunk';
+export { IStrategyProvider, StrategyConfiguration, ISplitStrategy } from './CoreISplitStrategy';
+export { CodeChunk, ChunkMetadata } from '../processing/types/CodeChunk';
 export { ChunkingOptions } from '../processing/strategies/types/SegmentationTypes';

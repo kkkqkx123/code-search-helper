@@ -7,18 +7,50 @@
  * 边界配置接口
  */
 export interface BoundaryConfig {
-  /** 函数边界模式 */
-  functionPatterns: string[];
-  /** 类边界模式 */
-  classPatterns: string[];
-  /** 块边界模式 */
-  blockPatterns: string[];
-  /** 导入边界模式 */
-  importPatterns: string[];
-  /** 导出边界模式 */
-  exportPatterns: string[];
-  /** 自定义边界模式 */
-  customPatterns?: string[];
+  /** 强边界模式 */
+  strongBoundaries: string[];
+
+  /** 弱边界模式 */
+  weakBoundaries: string[];
+
+  /** 忽略边界模式 */
+  ignoreBoundaries: string[];
+
+  /** 自定义边界规则 */
+  customRules: BoundaryRule[];
+}
+
+/** 边界规则接口 */
+export interface BoundaryRule {
+  /** 规则名称 */
+  name: string;
+
+  /** 正则表达式 */
+  pattern: RegExp;
+
+  /** 边界强度（0-1） */
+  strength: number;
+
+  /** 规则描述 */
+  description?: string;
+}
+
+/** 语言特定规则接口 */
+export interface LanguageSpecificRule {
+  /** 规则名称 */
+  name: string;
+
+  /** 规则类型 */
+  type: 'chunking' | 'boundary' | 'post-processing';
+
+  /** 规则条件 */
+  condition: string;
+
+  /** 规则动作 */
+  action: string;
+
+  /** 规则优先级 */
+  priority: number;
 }
 
 /**
@@ -35,74 +67,95 @@ export interface WeightConfig {
   length: number;
   /** 复杂度权重 */
   complexity: number;
+  /** 自定义权重 */
+  custom: Record<string, number>;
 }
 
 /**
  * 语言特定分块配置接口
  */
 export interface LanguageChunkingConfig {
+  /** 默认块大小 */
+  defaultChunkSize: number;
+
   /** 最大块大小 */
   maxChunkSize: number;
+
   /** 最小块大小 */
   minChunkSize: number;
-  /** 重叠大小 */
-  overlapSize: number;
-  /** 每块最大行数 */
-  maxLinesPerChunk: number;
-  /** 每块最小行数 */
-  minLinesPerChunk: number;
-  /** 最大重叠比例 */
-  maxOverlapRatio: number;
-  /** 是否启用智能分割 */
-  enableIntelligentSplitting: boolean;
-  /** 是否保持语义完整性 */
-  preserveSemanticIntegrity: boolean;
+
+  /** 首选策略 */
+  preferredStrategy: string;
+
+  /** 语言特定规则 */
+  specificRules: LanguageSpecificRule[];
 }
 
 /**
  * 分块配置接口
  */
 export interface ChunkingConfig {
-  /** 最大块大小 */
+  /** 最大块大小（字符数） */
   maxChunkSize: number;
-  /** 最小块大小 */
+
+  /** 最小块大小（字符数） */
   minChunkSize: number;
-  /** 重叠大小 */
+
+  /** 重叠大小（字符数） */
   overlapSize: number;
+
   /** 每块最大行数 */
   maxLinesPerChunk: number;
+
   /** 每块最小行数 */
   minLinesPerChunk: number;
-  /** 最大重叠比例 */
+
+  /** 最大重叠比例（0-1） */
   maxOverlapRatio: number;
+
   /** 默认策略 */
   defaultStrategy: string;
-  /** 可用策略列表 */
-  availableStrategies: string[];
-  /** 是否启用自适应策略选择 */
-  enableAdaptiveStrategy: boolean;
+
+  /** 策略优先级 */
+  strategyPriorities: Record<string, number>;
+
+  /** 启用智能分块 */
+  enableIntelligentChunking: boolean;
+
+  /** 启用语义边界检测 */
+  enableSemanticBoundaryDetection: boolean;
 }
 
 /**
  * 特征配置接口
  */
 export interface FeatureConfig {
-  /** 是否启用AST */
+  /** 启用AST解析 */
   enableAST: boolean;
-  /** 是否启用语义检测 */
+
+  /** 启用语义检测 */
   enableSemanticDetection: boolean;
-  /** 是否启用括号平衡 */
+
+  /** 启用括号平衡检测 */
   enableBracketBalance: boolean;
-  /** 是否启用代码重叠 */
+
+  /** 启用代码重叠检测 */
   enableCodeOverlap: boolean;
-  /** 是否启用标准化 */
+
+  /** 启用标准化 */
   enableStandardization: boolean;
+
   /** 标准化回退 */
   standardizationFallback: boolean;
-  /** 是否启用复杂度分析 */
-  enableComplexityAnalysis: boolean;
-  /** 是否启用依赖分析 */
-  enableDependencyAnalysis: boolean;
+
+  /** 启用复杂度计算 */
+  enableComplexityCalculation: boolean;
+
+  /** 启用语言特征检测 */
+  enableLanguageFeatureDetection: boolean;
+
+  /** 特征检测阈值 */
+  featureDetectionThresholds: Record<string, number>;
 }
 
 /**
@@ -111,54 +164,88 @@ export interface FeatureConfig {
 export interface PerformanceConfig {
   /** 内存限制（MB） */
   memoryLimitMB: number;
+
   /** 最大执行时间（毫秒） */
   maxExecutionTime: number;
-  /** 是否启用缓存 */
+
+  /** 启用缓存 */
   enableCaching: boolean;
+
   /** 缓存大小限制 */
   cacheSizeLimit: number;
-  /** 是否启用性能监控 */
+
+  /** 启用性能监控 */
   enablePerformanceMonitoring: boolean;
+
   /** 并发处理限制 */
   concurrencyLimit: number;
-  /** 是否启用批处理 */
+
+  /** 队列大小限制 */
+  queueSizeLimit: number;
+
+  /** 启用批处理 */
   enableBatchProcessing: boolean;
+
   /** 批处理大小 */
   batchSize: number;
+
+  /** 启用懒加载 */
+  enableLazyLoading: boolean;
 }
 
 /**
  * 语言配置接口
  */
 export interface LanguageConfig {
+  /** 语言名称 */
+  name: string;
+
   /** 边界配置 */
   boundaries: BoundaryConfig;
+
   /** 权重配置 */
   weights: WeightConfig;
-  /** 分块配置 */
+
+  /** 语言特定分块配置 */
   chunking: LanguageChunkingConfig;
-  /** 语言特定扩展 */
-  extensions?: string[];
-  /** 语言特定忽略模式 */
-  ignorePatterns?: string[];
-  /** 语言特定处理规则 */
-  processingRules?: Record<string, any>;
+
+  /** 语言特征配置 */
+  features: LanguageFeatureConfig;
+
+  /** 文件扩展名 */
+  extensions: string[];
+
+  /** MIME类型 */
+  mimeTypes: string[];
+
+  /** 是否启用 */
+  enabled: boolean;
 }
 
 /**
  * 后处理配置接口
  */
 export interface PostProcessingConfig {
-  /** 是否启用后处理 */
+  /** 是否启用 */
   enabled: boolean;
+
   /** 启用的处理器列表 */
   enabledProcessors: string[];
-  /** 处理器配置映射 */
+
+  /** 处理器配置 */
   processorConfigs: Record<string, any>;
-  /** 最大后处理轮次 */
+
+  /** 处理器执行顺序 */
+  processorOrder: string[];
+
+  /** 最大处理轮数 */
   maxProcessingRounds: number;
-  /** 是否启用并行处理 */
+
+  /** 启用并行处理 */
   enableParallelProcessing: boolean;
+
+  /** 并行处理限制 */
+  parallelProcessingLimit: number;
 }
 
 /**
@@ -175,12 +262,76 @@ export interface ProcessingConfig {
   languages: Record<string, LanguageConfig>;
   /** 后处理配置 */
   postProcessing: PostProcessingConfig;
+  /** 全局设置 */
+  global: GlobalConfig;
+  /** 高级配置 */
+  advanced?: {
+    enableEnhancedBalancing?: boolean;
+    enableIntelligentFiltering?: boolean;
+    enableSmartRebalancing?: boolean;
+    enableAdvancedMerging?: boolean;
+    enableBoundaryOptimization?: boolean;
+    addOverlap?: boolean;
+    minChunkSizeThreshold?: number;
+    maxChunkSizeThreshold?: number;
+    rebalancingStrategy?: string;
+    semanticWeight?: number;
+    syntacticWeight?: number;
+    structuralWeight?: number;
+    enableChunkDeduplication?: boolean;
+    deduplicationThreshold?: number;
+  };
   /** 配置版本 */
   version: string;
   /** 配置创建时间 */
   createdAt: number;
   /** 配置更新时间 */
   updatedAt: number;
+}
+
+/** 全局配置接口 */
+export interface GlobalConfig {
+  /** 调试模式 */
+  debugMode: boolean;
+
+  /** 日志级别 */
+  logLevel: 'error' | 'warn' | 'info' | 'debug' | 'trace';
+
+  /** 启用指标收集 */
+  enableMetrics: boolean;
+
+  /** 启用统计信息 */
+  enableStatistics: boolean;
+
+  /** 配置版本 */
+  configVersion: string;
+
+  /** 兼容性模式 */
+  compatibilityMode: boolean;
+
+  /** 严格模式 */
+  strictMode: boolean;
+
+  /** 实验性功能 */
+  experimentalFeatures: string[];
+
+  /** 自定义属性 */
+  customProperties: Record<string, any>;
+}
+
+/** 语言特征配置接口 */
+export interface LanguageFeatureConfig {
+  /** 启用的特征 */
+  enabledFeatures: string[];
+
+  /** 禁用的特征 */
+  disabledFeatures: string[];
+
+  /** 特征参数 */
+  featureParams: Record<string, any>;
+
+  /** 自定义特征检测器 */
+  customDetectors: string[];
 }
 
 /**
@@ -216,8 +367,15 @@ export class DefaultConfigFactory {
       minLinesPerChunk: 5,
       maxOverlapRatio: 0.2,
       defaultStrategy: 'hybrid',
-      availableStrategies: ['line', 'semantic', 'ast', 'bracket', 'hybrid'],
-      enableAdaptiveStrategy: true
+      strategyPriorities: {
+        'hybrid': 10,
+        'semantic': 8,
+        'ast': 7,
+        'bracket': 6,
+        'line': 5
+      },
+      enableIntelligentChunking: true,
+      enableSemanticBoundaryDetection: true
     };
   }
 
@@ -232,8 +390,15 @@ export class DefaultConfigFactory {
       enableCodeOverlap: true,
       enableStandardization: true,
       standardizationFallback: true,
-      enableComplexityAnalysis: true,
-      enableDependencyAnalysis: false
+      enableComplexityCalculation: true,
+      enableLanguageFeatureDetection: true,
+      featureDetectionThresholds: {
+        complexity: 0.5,
+        imports: 0.3,
+        exports: 0.2,
+        functions: 0.4,
+        classes: 0.3
+      }
     };
   }
 
@@ -248,8 +413,10 @@ export class DefaultConfigFactory {
       cacheSizeLimit: 1000,
       enablePerformanceMonitoring: true,
       concurrencyLimit: 4,
+      queueSizeLimit: 100,
       enableBatchProcessing: false,
-      batchSize: 10
+      batchSize: 10,
+      enableLazyLoading: false
     };
   }
 
@@ -258,47 +425,24 @@ export class DefaultConfigFactory {
    */
   static createDefaultBoundaryConfig(): BoundaryConfig {
     return {
-      functionPatterns: [
-        /function\s+\w+\s*\(/,
-        /def\s+\w+\s*\(/,
-        /\w+\s*:\s*function/,
-        /\w+\s*=>\s*/,
-        /func\s+\w+\s*\(/,
-        /fn\s+\w+\s*\(/,
-        /public\s+\w+\s*\(/,
-        /private\s+\w+\s*\(/,
-        /protected\s+\w+\s*\(/
+      strongBoundaries: [
+        'function\\s+\\w+\\s*\\(',
+        'class\\s+\\w+',
+        'interface\\s+\\w+',
+        'def\\s+\\w+\\s*\\('
       ],
-      classPatterns: [
-        /class\s+\w+/,
-        /interface\s+\w+/,
-        /struct\s+\w+/,
-        /enum\s+\w+/,
-        /type\s+\w+\s*=/,
-        /protocol\s+\w+/,
-        /abstract\s+class\s+\w+/
+      weakBoundaries: [
+        '\\w+\\s*=>\\s*',
+        'public\\s+\\w+\\s*\\(',
+        'private\\s+\\w+\\s*\\(',
+        'protected\\s+\\w+\\s*\\('
       ],
-      blockPatterns: [
-        /\{[\s\S]*?\}/,
-        /\[[\s\S]*?\]/,
-        /\([\s\S]*?\)/
+      ignoreBoundaries: [
+        '\\{[\\s\\S]*?\\}',
+        '\\[[\\s\\S]*?\\]',
+        '\\([\\s\\S]*?\\)'
       ],
-      importPatterns: [
-        /import\s+.*from/,
-        /require\s*\(/,
-        /#include/,
-        /using\s+/,
-        /use\s+/,
-        /import\s+/
-      ],
-      exportPatterns: [
-        /export\s+/,
-        /module\.exports/,
-        /exports\./,
-        /export\s+default/,
-        /public\s+class/,
-        /__all__\s*=/
-      ]
+      customRules: []
     };
   }
 
@@ -311,7 +455,8 @@ export class DefaultConfigFactory {
       syntax: 0.3,
       structure: 0.2,
       length: 0.05,
-      complexity: 0.05
+      complexity: 0.05,
+      custom: {}
     };
   }
 
@@ -320,14 +465,11 @@ export class DefaultConfigFactory {
    */
   static createDefaultLanguageChunkingConfig(): LanguageChunkingConfig {
     return {
-      maxChunkSize: 1500,
+      defaultChunkSize: 1000,
+      maxChunkSize: 2000,
       minChunkSize: 100,
-      overlapSize: 50,
-      maxLinesPerChunk: 80,
-      minLinesPerChunk: 5,
-      maxOverlapRatio: 0.2,
-      enableIntelligentSplitting: true,
-      preserveSemanticIntegrity: true
+      preferredStrategy: 'hybrid',
+      specificRules: []
     };
   }
 
@@ -336,12 +478,26 @@ export class DefaultConfigFactory {
    */
   static createDefaultLanguageConfig(): LanguageConfig {
     return {
+      name: 'unknown',
       boundaries: this.createDefaultBoundaryConfig(),
       weights: this.createDefaultWeightConfig(),
       chunking: this.createDefaultLanguageChunkingConfig(),
+      features: this.createDefaultLanguageFeatureConfig(),
       extensions: [],
-      ignorePatterns: [],
-      processingRules: {}
+      mimeTypes: [],
+      enabled: true
+    };
+  }
+
+  /**
+   * 创建默认语言特征配置
+   */
+  static createDefaultLanguageFeatureConfig(): LanguageFeatureConfig {
+    return {
+      enabledFeatures: ['syntax-highlighting', 'semantic-analysis'],
+      disabledFeatures: [],
+      featureParams: {},
+      customDetectors: []
     };
   }
 
@@ -360,8 +516,34 @@ export class DefaultConfigFactory {
         'overlap-processor'
       ],
       processorConfigs: {},
+      processorOrder: [
+        'symbol-balance-processor',
+        'intelligent-filter-processor',
+        'smart-rebalancing-processor',
+        'advanced-merging-processor',
+        'boundary-optimization-processor',
+        'overlap-processor'
+      ],
       maxProcessingRounds: 3,
-      enableParallelProcessing: false
+      enableParallelProcessing: false,
+      parallelProcessingLimit: 2
+    };
+  }
+
+  /**
+   * 创建默认全局配置
+   */
+  static createDefaultGlobalConfig(): GlobalConfig {
+    return {
+      debugMode: false,
+      logLevel: 'info',
+      enableMetrics: true,
+      enableStatistics: true,
+      configVersion: '1.0.0',
+      compatibilityMode: false,
+      strictMode: false,
+      experimentalFeatures: [],
+      customProperties: {}
     };
   }
 
@@ -385,6 +567,7 @@ export class DefaultConfigFactory {
         rust: this.createDefaultLanguageConfig()
       },
       postProcessing: this.createDefaultPostProcessingConfig(),
+      global: this.createDefaultGlobalConfig(),
       version: '1.0.0',
       createdAt: now,
       updatedAt: now
@@ -468,10 +651,11 @@ export class ConfigUtils {
       for (const [lang, langConfig] of Object.entries(override.languages)) {
         if (base.languages[lang]) {
           merged.languages[lang] = {
+            ...base.languages[lang],
+            ...langConfig,
             boundaries: { ...base.languages[lang].boundaries, ...langConfig.boundaries },
             weights: { ...base.languages[lang].weights, ...langConfig.weights },
-            chunking: { ...base.languages[lang].chunking, ...langConfig.chunking },
-            ...langConfig
+            chunking: { ...base.languages[lang].chunking, ...langConfig.chunking }
           };
         } else {
           merged.languages[lang] = langConfig;

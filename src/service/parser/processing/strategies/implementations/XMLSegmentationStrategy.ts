@@ -1,11 +1,14 @@
 import { BaseStrategy } from '../base/BaseStrategy';
-import { IProcessingContext, ICodeChunk, IStrategyConfig } from '../../types/Strategy';
-import { Logger } from '../../../../../../../utils/Logger';
+import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
+import { ProcessingResult } from '../../types/Processing';
+import { CodeChunk, ChunkType } from '../../types/CodeChunk';
+import { StrategyConfig } from '../../types/Strategy';
+import { Logger } from '../../../../../utils/logger';
 
 /**
  * XML分段策略配置
  */
-export interface XMLStrategyConfig extends IStrategyConfig {
+export interface XMLStrategyConfig extends StrategyConfig {
   /** 最大块大小 */
   maxChunkSize?: number;
   /** 最小块大小 */
@@ -21,11 +24,18 @@ export interface XMLStrategyConfig extends IStrategyConfig {
  * 使用专门的XML分段器
  */
 export class XMLSegmentationStrategy extends BaseStrategy {
-  private config: XMLStrategyConfig;
+  protected config: XMLStrategyConfig;
   private logger: Logger;
 
-  constructor(config: XMLStrategyConfig = {}) {
-    super('xml-segmentation', 'XML Segmentation Strategy');
+  constructor(config: XMLStrategyConfig) {
+    const defaultConfig: StrategyConfig = {
+      name: 'xml-segmentation',
+      priority: 30,
+      supportedLanguages: ['xml', 'html', 'htm', 'xhtml', 'svg'],
+      enabled: true,
+      description: 'XML Segmentation Strategy',
+    };
+    super({ ...defaultConfig, ...config });
     this.config = {
       maxChunkSize: 3000,
       minChunkSize: 200,
@@ -41,37 +51,50 @@ export class XMLSegmentationStrategy extends BaseStrategy {
    */
   canHandle(context: IProcessingContext): boolean {
     const { language, content } = context;
-    
+
     // 检查是否为XML相关文件
     if (!language || !['xml', 'html', 'htm', 'xhtml', 'svg'].includes(language.toLowerCase())) {
       return false;
     }
-    
+
     // 检查内容是否包含XML结构
     return /<[^>]+>/.test(content);
   }
 
   /**
+   * 执行策略
+   */
+  async execute(context: IProcessingContext): Promise<ProcessingResult> {
+    const startTime = Date.now();
+    try {
+      const chunks = await this.process(context);
+      return this.createSuccessResult(chunks, Date.now() - startTime);
+    } catch (error) {
+      return this.createFailureResult(Date.now() - startTime, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
    * 执行分段处理
    */
-  async process(context: IProcessingContext): Promise<ICodeChunk[]> {
+  async process(context: IProcessingContext): Promise<CodeChunk[]> {
     const startTime = Date.now();
     this.logger.debug(`Using XML segmentation strategy for ${context.filePath}`);
 
     try {
-      const chunks: ICodeChunk[] = [];
+      const chunks: CodeChunk[] = [];
       const lines = context.content.split('\n');
-      
+
       // 简单的XML标签平衡分段
       let currentChunk: string[] = [];
       let currentLine = 1;
       let tagDepth = 0;
       let currentTagStack: string[] = [];
-      
+
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         currentChunk.push(line);
-        
+
         // 解析标签
         const tags = this.extractTags(line);
         for (const tag of tags) {
@@ -93,7 +116,7 @@ export class XMLSegmentationStrategy extends BaseStrategy {
             }
           }
         }
-        
+
         // 分段条件：标签平衡且达到最小大小
         const chunkContent = currentChunk.join('\n');
         const shouldSplit = this.shouldSplit(
@@ -104,51 +127,55 @@ export class XMLSegmentationStrategy extends BaseStrategy {
           i,
           lines.length
         );
-        
+
         if (shouldSplit) {
           chunks.push(this.createChunk(
             chunkContent,
-            context,
+            currentLine,
+            currentLine + currentChunk.length - 1,
+            context.language || 'xml',
+            ChunkType.BLOCK,
             {
-              startLine: currentLine,
-              endLine: currentLine + currentChunk.length - 1,
-              type: 'xml_element',
+              filePath: context.filePath,
               complexity: this.calculateComplexity(chunkContent),
               tagDepth: tagDepth,
-              openTags: [...currentTagStack]
+              openTags: [...currentTagStack],
+              type: 'xml_element'
             }
           ));
-          
+
           currentChunk = [];
           currentLine = i + 1;
           tagDepth = 0;
           currentTagStack = [];
         }
       }
-      
+
       // 处理剩余内容
       if (currentChunk.length > 0) {
         const chunkContent = currentChunk.join('\n');
         chunks.push(this.createChunk(
           chunkContent,
-          context,
+          currentLine,
+          currentLine + currentChunk.length - 1,
+          context.language || 'xml',
+          ChunkType.BLOCK,
           {
-            startLine: currentLine,
-            endLine: currentLine + currentChunk.length - 1,
-            type: 'xml_element',
+            filePath: context.filePath,
             complexity: this.calculateComplexity(chunkContent),
             tagDepth: tagDepth,
-            openTags: [...currentTagStack]
+            openTags: [...currentTagStack],
+            type: 'xml_element'
           }
         ));
       }
 
-      this.updatePerformanceStats(Date.now() - startTime, chunks.length);
+      this.updatePerformanceStats(Date.now() - startTime, true, chunks.length);
       this.logger.debug(`XML segmentation created ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
       this.logger.error(`XML segmentation failed: ${error}`);
-      
+
       // 降级到简单的行分段
       this.logger.warn(`Falling back to line-based segmentation for ${context.filePath}`);
       return this.createFallbackChunks(context);
@@ -169,11 +196,11 @@ export class XMLSegmentationStrategy extends BaseStrategy {
     const tagRegex = /<\/?[^>]+>/g;
     const tags: string[] = [];
     let match;
-    
+
     while ((match = tagRegex.exec(line)) !== null) {
       tags.push(match[0]);
     }
-    
+
     return tags;
   }
 
@@ -220,24 +247,24 @@ export class XMLSegmentationStrategy extends BaseStrategy {
     // 标签平衡且达到最小大小
     const isBalanced = tagDepth === 0 && tagStack.length === 0;
     const hasMinSize = currentChunk.length >= 3 && chunkContent.length >= this.config.minChunkSize!;
-    
+
     // 块大小限制
-    const exceedsMaxSize = chunkContent.length >= this.config.maxChunkSize! || 
-                          currentChunk.length >= 50;
-    
+    const exceedsMaxSize = chunkContent.length >= this.config.maxChunkSize! ||
+      currentChunk.length >= 50;
+
     // 深度限制
     const exceedsMaxDepth = tagDepth > this.config.maxTagDepth!;
-    
+
     // 到达文件末尾
     const isEndOfFile = currentIndex === totalLines - 1;
-    
+
     return (isBalanced && hasMinSize) || exceedsMaxSize || exceedsMaxDepth || isEndOfFile;
   }
 
   /**
    * 计算复杂度
    */
-  private calculateComplexity(content: string): number {
+  protected calculateComplexity(content: string): number {
     let complexity = 0;
 
     // 基于标签数量计算复杂度
@@ -264,29 +291,30 @@ export class XMLSegmentationStrategy extends BaseStrategy {
   /**
    * 创建降级块
    */
-  private createFallbackChunks(context: IProcessingContext): ICodeChunk[] {
-    const chunks: ICodeChunk[] = [];
+  private createFallbackChunks(context: IProcessingContext): CodeChunk[] {
+    const chunks: CodeChunk[] = [];
     const lines = context.content.split('\n');
-    
+
     // 简单的行分段
     const maxLinesPerChunk = 50;
     for (let i = 0; i < lines.length; i += maxLinesPerChunk) {
       const chunkLines = lines.slice(i, Math.min(i + maxLinesPerChunk, lines.length));
       const chunkContent = chunkLines.join('\n');
-      
+
       chunks.push(this.createChunk(
         chunkContent,
-        context,
+        i + 1,
+        Math.min(i + maxLinesPerChunk, lines.length),
+        context.language || 'xml',
+        ChunkType.GENERIC,
         {
-          startLine: i + 1,
-          endLine: Math.min(i + maxLinesPerChunk, lines.length),
-          type: 'xml_fallback',
+          filePath: context.filePath,
           complexity: this.calculateComplexity(chunkContent),
           fallback: true
         }
       ));
     }
-    
+
     return chunks;
   }
 

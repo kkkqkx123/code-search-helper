@@ -22,7 +22,7 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
 
   shouldApply(chunks: CodeChunk[], context: PostProcessingContext): boolean {
     // 只在启用智能过滤时应用
-    return context.options.advanced?.enableIntelligentFiltering === true && chunks.length > 0;
+    return context.advancedOptions?.enableIntelligentFiltering === true && chunks.length > 0;
   }
 
   async process(chunks: CodeChunk[], context: PostProcessingContext): Promise<CodeChunk[]> {
@@ -37,8 +37,8 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
       options: {
         filterConfig: {
           enableSmallChunkFilter: true,
-          minChunkSize: context.options.advanced?.minChunkSizeThreshold || context.options.basic?.minChunkSize || 100,
-          maxChunkSize: context.options.advanced?.maxChunkSizeThreshold || context.options.basic?.maxChunkSize || 1000
+          minChunkSize: context.advancedOptions?.minChunkSizeThreshold || context.options.minChunkSize || 100,
+          maxChunkSize: context.advancedOptions?.maxChunkSizeThreshold || context.options.maxChunkSize || 1000
         }
       },
       metadata: {
@@ -48,10 +48,10 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
     };
 
     // 使用ChunkFilter的智能过滤功能
-    const filteredChunks = await this.chunkFilter.process(chunks, filterContext);
+    const filteredChunks = await this.chunkFilter.processWithChunks(chunks, filterContext);
 
     // 如果启用了高级合并，应用智能合并
-    if (context.options.advanced?.enableIntelligentFiltering) {
+    if (context.advancedOptions?.enableIntelligentFiltering) {
       const mergedChunks = await this.chunkFilter.intelligentMerge(filteredChunks, filterContext);
       this.logger?.debug(`Intelligent filter: ${chunks.length} -> ${filteredChunks.length} -> ${mergedChunks.length} chunks`);
       return mergedChunks;
@@ -99,7 +99,7 @@ export class IntelligentFilterPostProcessor implements IChunkPostProcessor {
    */
   private isHighQualityChunk(chunk: CodeChunk, context: PostProcessingContext): boolean {
     const content = chunk.content.trim();
-    const minChunkSize = context.options.advanced?.minChunkSizeThreshold || context.options.basic?.minChunkSize || 100;
+    const minChunkSize = context.advancedOptions?.minChunkSizeThreshold || context.options.minChunkSize || 100;
     const verySmallThreshold = Math.min(minChunkSize * 0.3, 15);
 
     // 基本长度检查

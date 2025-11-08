@@ -1,13 +1,18 @@
 import { injectable, inject } from 'inversify';
-import { ChunkingOptions, ChunkingPreset, ChunkingPresetFactory } from '../processing';
+import { ChunkingOptions, ChunkingPreset, ChunkingPresetFactory, UniversalChunkingOptions, EnhancedChunkingOptions } from '../processing/strategies/types/SegmentationTypes';
 import { LanguageConfiguration } from './LanguageConfigManager';
 
 /**
  * 统一配置管理器
  * 整合了 ChunkingConfigManager、UniversalProcessingConfig 和 LanguageConfigManager 的功能
  */
+export interface GlobalChunkingConfig {
+  basic: ChunkingOptions; // 基本分段配置
+  advanced?: EnhancedChunkingOptions['advanced']; // 高级分段配置，使用已定义的类型
+}
+
 export interface UnifiedConfig {
-  global: ChunkingOptions; // 全局分段配置
+  global: GlobalChunkingConfig; // 全局分段配置
   language: Map<string, ChunkingOptions>; // 语言特定分段配置
   strategy: Map<string, ChunkingOptions>; // 策略特定分段配置
   universal: UniversalProcessingConfig; // 通用处理配置
@@ -71,7 +76,13 @@ export class UnifiedConfigManager {
 
   constructor(@inject('unmanaged') initialConfig?: Partial<UnifiedConfig>) {
     this.config = {
-      global: ChunkingPresetFactory.createPreset(ChunkingPreset.BALANCED),
+      global: {
+        basic: ChunkingPresetFactory.createPreset(ChunkingPreset.BALANCED),
+        advanced: {
+          semanticWeight: 0.5,
+          syntacticWeight: 0.5
+        }
+      },
       language: new Map(),
       strategy: new Map(),
       universal: { ...this.defaultUniversalConfig },
@@ -83,7 +94,7 @@ export class UnifiedConfigManager {
   /**
    * 获取全局分段配置
    */
-  getGlobalConfig(): ChunkingOptions {
+  getGlobalConfig(): GlobalChunkingConfig {
     return { ...this.config.global };
   }
 
@@ -93,9 +104,9 @@ export class UnifiedConfigManager {
   getLanguageConfig(language: string): ChunkingOptions {
     const languageConfig = this.config.language.get(language);
     if (languageConfig) {
-      return { ...this.config.global, ...languageConfig };
+      return { ...this.config.global.basic, ...languageConfig };
     }
-    return { ...this.config.global };
+    return { ...this.config.global.basic };
   }
 
   /**
@@ -104,16 +115,16 @@ export class UnifiedConfigManager {
   getStrategyConfig(strategyType: string): ChunkingOptions {
     const strategyConfig = this.config.strategy.get(strategyType);
     if (strategyConfig) {
-      return { ...this.config.global, ...strategyConfig };
+      return { ...this.config.global.basic, ...strategyConfig };
     }
-    return { ...this.config.global };
+    return { ...this.config.global.basic };
   }
 
   /**
    * 获取合并分段配置（全局 + 语言 + 策略）
    */
   getMergedConfig(language?: string, strategyType?: string): ChunkingOptions {
-    let config = { ...this.config.global };
+    let config = { ...this.config.global.basic };
 
     // 应用语言特定配置
     if (language) {
@@ -135,10 +146,50 @@ export class UnifiedConfigManager {
   }
 
   /**
-   * 获取通用处理配置
-   */
+  * 获取通用处理配置
+  */
   getUniversalConfig(): UniversalProcessingConfig {
     return { ...this.config.universal };
+  }
+
+  /**
+
+   * 获取配置 (实现 IConfigurationManager 接口)
+
+   */
+
+  getConfig(): any {
+
+    return this.getGlobalConfig();
+
+  }
+
+
+
+  /**
+
+   * 合并选项 (实现 IConfigurationManager 接口)
+
+   */
+
+  mergeOptions(baseOptions: any, overrideOptions: any): any {
+
+    return { ...baseOptions, ...overrideOptions };
+
+  }
+
+
+
+  /**
+
+   * 获取默认选项 (实现 IConfigurationManager 接口)
+
+   */
+
+  getDefaultOptions(): UniversalChunkingOptions {
+
+    return this.getGlobalConfig();
+
   }
 
   /**
@@ -178,7 +229,7 @@ export class UnifiedConfigManager {
   /**
    * 更新全局分段配置
    */
-  updateGlobalConfig(newOptions: Partial<ChunkingOptions>): void {
+  updateGlobalConfig(newOptions: Partial<GlobalChunkingConfig>): void {
     this.config.global = { ...this.config.global, ...newOptions };
     this.notifyListeners();
   }
@@ -247,7 +298,13 @@ export class UnifiedConfigManager {
    */
   resetToDefaults(): void {
     this.config = {
-      global: ChunkingPresetFactory.createPreset(ChunkingPreset.BALANCED),
+      global: {
+        basic: ChunkingPresetFactory.createPreset(ChunkingPreset.BALANCED),
+        advanced: {
+          semanticWeight: 0.5,
+          syntacticWeight: 0.5
+        }
+      },
       language: new Map(),
       strategy: new Map(),
       universal: { ...this.defaultUniversalConfig },

@@ -1,10 +1,10 @@
 import { DetectionService, DetectionResult, ProcessingStrategyType } from '../DetectionService';
-import { UnifiedConfigManager } from '../../../config/UnifiedConfigManager';
-import { TreeSitterService } from '../../../core/parse/TreeSitterService';
+import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';
+import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { FileFeatureDetector } from '../FileFeatureDetector';
 import { BackupFileProcessor } from '../BackupFileProcessor';
-import { LanguageDetector } from '../../../core/language-detection/LanguageDetector';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { LanguageDetector } from '../../core/language-detection/LanguageDetector';
+import { LoggerService } from '../../../../utils/LoggerService';
 
 describe('UnifiedDetectionService', () => {
   let service: DetectionService;

@@ -3,10 +3,10 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from './MemoryGuard';
-import { ProcessingStrategyFactory } from '../processing/strategies/providers/ProcessingStrategyFactory';
-import { UnifiedDetectionService, DetectionResult } from '../processing/detection/UnifiedDetectionService';
-import { IProcessingStrategy } from '../processing/strategies/impl/base/IProcessingStrategy';
+import { LanguageDetectionService, LanguageDetectionResult } from '../detection/LanguageDetectionService';
+import { DetectionResult, ProcessingStrategyType } from '../detection/DetectionService';
 import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
+import { createStrategy } from '../processing/strategies/index';
 
 export interface ProcessingResult {
   chunks: any[];
@@ -23,18 +23,16 @@ export class ProcessingGuard {
    private static instance: ProcessingGuard;
    private errorManager: ErrorThresholdInterceptor;
    private memoryGuard: MemoryGuard;
-   private strategyFactory: ProcessingStrategyFactory;
-   private detectionService: UnifiedDetectionService;
-   private fallbackEngine: IntelligentFallbackEngine;
    private logger?: LoggerService;
+   private detectionService: LanguageDetectionService;
+   private fallbackEngine: IntelligentFallbackEngine;
    private isInitialized: boolean = false;
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.ErrorThresholdManager) errorManager?: ErrorThresholdInterceptor,
     @inject(TYPES.MemoryGuard) memoryGuard?: MemoryGuard,
-    @inject(TYPES.ProcessingStrategyFactory) strategyFactory?: ProcessingStrategyFactory,
-    @inject(TYPES.UnifiedDetectionService) detectionService?: UnifiedDetectionService,
+    @inject(TYPES.LanguageDetectionService) detectionService?: LanguageDetectionService,
     @inject(TYPES.IntelligentFallbackEngine) fallbackEngine?: IntelligentFallbackEngine
   ) {
     this.logger = logger;
@@ -68,8 +66,7 @@ export class ProcessingGuard {
       } as any,
       100, 1000, logger || new LoggerService()
     );
-    this.strategyFactory = strategyFactory || new ProcessingStrategyFactory(logger);
-    this.detectionService = detectionService || new UnifiedDetectionService(logger);
+    this.detectionService = detectionService || new LanguageDetectionService(logger);
     this.fallbackEngine = fallbackEngine || new IntelligentFallbackEngine(logger);
   }
 
@@ -81,15 +78,13 @@ export class ProcessingGuard {
     logger?: LoggerService,
     errorManager?: ErrorThresholdInterceptor,
     memoryGuard?: MemoryGuard,
-    strategyFactory?: ProcessingStrategyFactory,
-    detectionService?: UnifiedDetectionService
+    detectionService?: LanguageDetectionService
   ): ProcessingGuard {
     if (!ProcessingGuard.instance) {
       ProcessingGuard.instance = new ProcessingGuard(
         logger,
         errorManager,
         memoryGuard,
-        strategyFactory,
         detectionService
       );
     }
@@ -180,7 +175,31 @@ export class ProcessingGuard {
     // 2. 统一检测（一次性完成所有检测）
     let detection;
     try {
-      detection = await this.detectionService.detectFile(filePath, content);
+      const languageDetection = await this.detectionService.detectLanguage(filePath, content);
+      detection = {
+        language: languageDetection.language || 'text',
+        confidence: languageDetection.confidence,
+        detectionMethod: this.mapDetectionMethod(languageDetection.method),
+        fileType: 'normal' as const,
+        processingStrategy: this.selectProcessingStrategy(languageDetection),
+        metadata: {
+          fileFeatures: {
+            isCodeFile: this.isCodeFile(languageDetection.language),
+            isTextFile: true,
+            isMarkdownFile: this.isMarkdownFile(filePath),
+            isXMLFile: this.isXMLFile(filePath),
+            isStructuredFile: this.isStructuredFile(content, languageDetection.language),
+            isHighlyStructured: this.isHighlyStructured(content, languageDetection.language),
+            complexity: this.calculateComplexity(content),
+            lineCount: content.split('\n').length,
+            size: content.length,
+            hasImports: this.hasImports(content),
+            hasExports: this.hasExports(content),
+            hasFunctions: this.hasFunctions(content),
+            hasClasses: this.hasClasses(content)
+          }
+        }
+      };
     } catch (detectionError) {
       // 如果检测失败，直接进入fallback
       const duration = Date.now() - startTime;
@@ -216,10 +235,42 @@ export class ProcessingGuard {
 
     try {
       // 3. 策略选择（基于检测结果）
-      const strategy = this.strategyFactory.createStrategy(detection);
+      const strategy = createStrategy(detection.processingStrategy || 'universal-line');
 
       // 4. 执行处理
-      const result = await strategy.execute(filePath, content, detection);
+      const context = {
+        content,
+        language: detection.language,
+        filePath,
+        config: this.createDefaultProcessingConfig(detection),
+        features: {
+          size: detection.metadata?.fileFeatures?.size || content.length,
+          lineCount: detection.metadata?.fileFeatures?.lineCount || content.split('\n').length,
+          isSmallFile: (content.length < 1000),
+          isCodeFile: detection.metadata?.fileFeatures?.isCodeFile || false,
+          isStructuredFile: detection.metadata?.fileFeatures?.isStructuredFile || false,
+          complexity: detection.metadata?.fileFeatures?.complexity || 0,
+          hasImports: detection.metadata?.fileFeatures?.hasImports || false,
+          hasExports: detection.metadata?.fileFeatures?.hasExports || false,
+          hasFunctions: detection.metadata?.fileFeatures?.hasFunctions || false,
+          hasClasses: detection.metadata?.fileFeatures?.hasClasses || false
+        },
+        metadata: {
+          contentLength: content.length,
+          lineCount: content.split('\n').length,
+          size: content.length,
+          isSmallFile: content.length < 1000,
+          isCodeFile: detection.metadata?.fileFeatures?.isCodeFile || false,
+          isStructuredFile: detection.metadata?.fileFeatures?.isStructuredFile || false,
+          complexity: detection.metadata?.fileFeatures?.complexity || 0,
+          hasImports: detection.metadata?.fileFeatures?.hasImports || false,
+          hasExports: detection.metadata?.fileFeatures?.hasExports || false,
+          hasFunctions: detection.metadata?.fileFeatures?.hasFunctions || false,
+          hasClasses: detection.metadata?.fileFeatures?.hasClasses || false,
+          timestamp: Date.now()
+        }
+      };
+      const result = await strategy.execute(context);
 
       const duration = Date.now() - startTime;
       this.logger?.info(`File processing completed in ${duration}ms, generated ${result.chunks.length} chunks`);
@@ -295,35 +346,80 @@ export class ProcessingGuard {
     try {
       // 使用智能降级引擎确定最佳降级策略
       // 如果已经有检测结果，则避免重复检测
-      const detection = cachedDetection || await this.detectionService.detectFile(filePath, content);
+      let detection: DetectionResult;
+      
+      if (cachedDetection) {
+        detection = cachedDetection;
+      } else {
+        const languageDetection = await this.detectionService.detectLanguage(filePath, content);
+        detection = {
+          language: languageDetection.language || 'text',
+          confidence: languageDetection.confidence,
+          detectionMethod: this.mapDetectionMethod(languageDetection.method),
+          fileType: 'normal',
+          processingStrategy: this.selectProcessingStrategy(languageDetection),
+          metadata: {
+            fileFeatures: {
+              isCodeFile: this.isCodeFile(languageDetection.language),
+              isTextFile: true,
+              isMarkdownFile: this.isMarkdownFile(filePath),
+              isXMLFile: this.isXMLFile(filePath),
+              isStructuredFile: this.isStructuredFile(content, languageDetection.language),
+              isHighlyStructured: this.isHighlyStructured(content, languageDetection.language),
+              complexity: this.calculateComplexity(content),
+              lineCount: content.split('\n').length,
+              size: content.length,
+              hasImports: this.hasImports(content),
+              hasExports: this.hasExports(content),
+              hasFunctions: this.hasFunctions(content),
+              hasClasses: this.hasClasses(content)
+            }
+          }
+        };
+      }
       const fallbackStrategy = await this.fallbackEngine.determineFallbackStrategy(filePath, new Error(reason), detection);
 
       this.logger?.info(`Using intelligent fallback strategy: ${fallbackStrategy.strategy} for ${filePath}`);
 
       // 创建对应策略并执行
-      const strategy = this.strategyFactory.createStrategy({
-        language: detection.language,
-        confidence: detection.confidence,
-        detectionMethod: detection.detectionMethod || 'hybrid',
-        fileType: detection.fileType,
-        processingStrategy: fallbackStrategy.strategy,
-        metadata: {
-          ...detection.metadata,
-          processingStrategy: fallbackStrategy.strategy
-        }
-      });
+      const strategy = createStrategy(fallbackStrategy.strategy || 'universal-line');
 
-      const result = await strategy.execute(filePath, content, {
+      const context = {
+        content,
         language: detection.language,
-        confidence: detection.confidence,
-        detectionMethod: detection.detectionMethod || 'hybrid',
-        fileType: detection.fileType,
-        processingStrategy: fallbackStrategy.strategy,
-        metadata: {
-          ...detection.metadata,
+        filePath,
+        config: this.createDefaultProcessingConfig({
+          ...detection,
           processingStrategy: fallbackStrategy.strategy
+        }),
+        features: {
+          size: detection.metadata?.fileFeatures?.size || content.length,
+          lineCount: detection.metadata?.fileFeatures?.lineCount || content.split('\n').length,
+          isSmallFile: (content.length < 1000),
+          isCodeFile: detection.metadata?.fileFeatures?.isCodeFile || false,
+          isStructuredFile: detection.metadata?.fileFeatures?.isStructuredFile || false,
+          complexity: detection.metadata?.fileFeatures?.complexity || 0,
+          hasImports: detection.metadata?.fileFeatures?.hasImports || false,
+          hasExports: detection.metadata?.fileFeatures?.hasExports || false,
+          hasFunctions: detection.metadata?.fileFeatures?.hasFunctions || false,
+          hasClasses: detection.metadata?.fileFeatures?.hasClasses || false
+        },
+        metadata: {
+          contentLength: content.length,
+          lineCount: content.split('\n').length,
+          size: content.length,
+          isSmallFile: content.length < 1000,
+          isCodeFile: detection.metadata?.fileFeatures?.isCodeFile || false,
+          isStructuredFile: detection.metadata?.fileFeatures?.isStructuredFile || false,
+          complexity: detection.metadata?.fileFeatures?.complexity || 0,
+          hasImports: detection.metadata?.fileFeatures?.hasImports || false,
+          hasExports: detection.metadata?.fileFeatures?.hasExports || false,
+          hasFunctions: detection.metadata?.fileFeatures?.hasFunctions || false,
+          hasClasses: detection.metadata?.fileFeatures?.hasClasses || false,
+          timestamp: Date.now()
         }
-      });
+      };
+      const result = await strategy.execute(context);
 
       return {
         chunks: result.chunks,
@@ -397,7 +493,121 @@ export class ProcessingGuard {
   reset(): void {
     this.errorManager.resetCounter();
     this.memoryGuard.clearHistory();
-    this.detectionService.clearCache();
+    // LanguageDetectionService doesn't have clearCache method, but we can add it if needed
+    // this.detectionService.clearCache();
     this.logger?.info('ProcessingGuard reset completed');
+  }
+
+  // 辅助方法
+  private createDefaultProcessingConfig(detection: DetectionResult): any {
+    return {
+      chunking: {
+        maxChunkSize: 2000,
+        minChunkSize: 100,
+        overlapSize: 50,
+        strategy: detection.processingStrategy || 'universal-line'
+      },
+      features: {
+        enableSyntaxAnalysis: true,
+        enableSemanticAnalysis: true,
+        enableStructureAnalysis: true
+      },
+      performance: {
+        enableCaching: true,
+        enableParallelProcessing: false,
+        maxConcurrency: 1
+      },
+      languages: {
+        [detection.language]: {
+          enabled: true,
+          priority: 1
+        }
+      },
+      postProcessing: {
+        enableMerging: true,
+        enableFiltering: true,
+        enableBalancing: true
+      },
+      global: {
+        debug: false,
+        verbose: false
+      },
+      version: '1.0.0',
+      createdAt: Date.now()
+    };
+  }
+
+  private mapDetectionMethod(method: 'extension' | 'content' | 'backup' | 'hybrid' | 'fallback' | 'query_analysis'): 'extension' | 'content' | 'backup' | 'hybrid' {
+    switch (method) {
+      case 'fallback':
+      case 'query_analysis':
+        return 'hybrid';
+      default:
+        return method;
+    }
+  }
+
+  private selectProcessingStrategy(languageDetection: LanguageDetectionResult): ProcessingStrategyType {
+    if (!languageDetection.language || languageDetection.language === 'text') {
+      return ProcessingStrategyType.UNIVERSAL_LINE;
+    }
+    
+    if (languageDetection.confidence > 0.8 && this.isCodeFile(languageDetection.language)) {
+      return ProcessingStrategyType.TREESITTER_AST;
+    }
+    
+    return ProcessingStrategyType.UNIVERSAL_SEMANTIC;
+  }
+
+  private isCodeFile(language?: string): boolean {
+    if (!language) return false;
+    const codeLanguages = ['javascript', 'typescript', 'python', 'java', 'c', 'cpp', 'csharp', 'go', 'rust', 'php', 'ruby'];
+    return codeLanguages.includes(language.toLowerCase());
+  }
+
+  private isMarkdownFile(filePath: string): boolean {
+    return filePath.endsWith('.md');
+  }
+
+  private isXMLFile(filePath: string): boolean {
+    const xmlExtensions = ['.xml', '.html', '.xhtml', '.svg'];
+    return xmlExtensions.some(ext => filePath.endsWith(ext));
+  }
+
+  private isStructuredFile(content: string, language?: string): boolean {
+    if (!language) return false;
+    return this.isCodeFile(language) || this.isXMLFile('') || content.includes('{') || content.includes('}');
+  }
+
+  private isHighlyStructured(content: string, language?: string): boolean {
+    if (!language) return false;
+    const structuredLanguages = ['typescript', 'java', 'csharp', 'python'];
+    return structuredLanguages.includes(language.toLowerCase()) &&
+           content.split('\n').length > 10 &&
+           (content.includes('class ') || content.includes('function ') || content.includes('import '));
+  }
+
+  private calculateComplexity(content: string): number {
+    let complexity = 0;
+    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
+    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
+    complexity += (content.match(/[{}]/g) || []).length;
+    return Math.min(complexity, 10); // 限制在0-10范围内
+  }
+
+  private hasImports(content: string): boolean {
+    return /\b(import|require|include)\b/.test(content);
+  }
+
+  private hasExports(content: string): boolean {
+    return /\b(export|module\.exports)\b/.test(content);
+  }
+
+  private hasFunctions(content: string): boolean {
+    return /\b(function|def|func|fn)\b/.test(content);
+  }
+
+  private hasClasses(content: string): boolean {
+    return /\b(class|struct|interface)\b/.test(content);
   }
 }

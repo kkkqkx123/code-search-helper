@@ -3,7 +3,7 @@ import { ISegmentationProcessor, SegmentationContext } from '../../strategies/ty
 import { CodeChunk } from '../../types/CodeChunk';
 import { TYPES } from '../../../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { BLOCK_SIZE_LIMITS } from '../../constants';
+import { BLOCK_SIZE_LIMITS } from '../../../constants';
 
 /**
  * 块过滤器
@@ -17,13 +17,28 @@ export class ChunkFilter implements ISegmentationProcessor {
     this.logger = logger;
   }
 
-  async process(chunks: CodeChunk[], context: SegmentationContext): Promise<CodeChunk[]> {
-    if (!context.options.filterConfig.enableSmallChunkFilter) {
+  async process(context: SegmentationContext): Promise<any[]> {
+    // 为ISegmentationProcessor接口实现的process方法
+    // 由于接口限制，这里简单返回空数组
+    return [];
+  }
+
+  getName(): string {
+    return 'chunk-filter';
+  }
+
+  validateContext(context: SegmentationContext): boolean {
+    return !!context.content && context.content.length > 0;
+  }
+
+  // 为后处理器使用添加的方法
+  async processWithChunks(chunks: CodeChunk[], context: any): Promise<CodeChunk[]> {
+    if (!context.options?.filterConfig?.enableSmallChunkFilter) {
       return chunks;
     }
 
     const result: CodeChunk[] = [];
-    const minChunkSize = context.options.filterConfig.minChunkSize;
+    const minChunkSize = context.options.filterConfig.minChunkSize || 100;
 
     // 处理每个块
     for (let i = 0; i < chunks.length; i++) {
@@ -93,19 +108,15 @@ export class ChunkFilter implements ISegmentationProcessor {
     return result;
   }
 
-  getName(): string {
-    return 'chunk-filter';
-  }
-
   shouldApply(chunks: CodeChunk[], context: SegmentationContext): boolean {
-    if (!context.options.filterConfig.enableSmallChunkFilter || chunks.length === 0) {
+    if (!context.options.enableIntelligentChunking || chunks.length === 0) {
       return false;
     }
 
     // 检查是否有需要过滤的小块
     return chunks.some(chunk => {
       const chunkSize = chunk.content.length;
-      const minChunkSize = context.options.filterConfig.minChunkSize;
+      const minChunkSize = context.options.minChunkSize || 100;
 
       // 检查是否是"正常大小"的块（基于内容特征）
       const isNormalSized = chunkSize >= 20 || // 长度大于等于20
@@ -141,7 +152,7 @@ export class ChunkFilter implements ISegmentationProcessor {
     const content = chunk.content.trim();
 
     // 基本长度检查 - 恢复最小长度要求，但使用更宽松的阈值
-    const minChunkSize = context.options.filterConfig.minChunkSize;
+    const minChunkSize = context.options.minChunkSize || 100;
     const verySmallThreshold = Math.min(minChunkSize * 0.3, 15); // 与process方法保持一致
 
     if (content.length < verySmallThreshold) {
@@ -244,7 +255,7 @@ export class ChunkFilter implements ISegmentationProcessor {
       const combinedSize = this.calculateGroupSize(currentGroup) + currentChunk.content.length;
 
       // 如果相似性高且合并后大小不超过限制，则合并
-      if (similarity > 0.6 && combinedSize < context.options.filterConfig.maxChunkSize) {
+      if (similarity > 0.6 && combinedSize < (context.options.maxChunkSize || 1000)) {
         currentGroup.push(currentChunk);
       } else {
         // 完成当前组，开始新组
@@ -335,8 +346,12 @@ export class ChunkFilter implements ISegmentationProcessor {
         endLine: lastChunk.metadata.endLine,
         language: firstChunk.metadata.language,
         filePath: firstChunk.metadata.filePath,
+        strategy: firstChunk.metadata.strategy,
         type: firstChunk.metadata.type,
-        complexity: group.reduce((sum, chunk) => sum + (chunk.metadata.complexity || 0), 0)
+        complexity: group.reduce((sum, chunk) => sum + (chunk.metadata.complexity || 0), 0),
+        timestamp: Date.now(),
+        size: 0, // 将在构建时计算
+        lineCount: 0 // 将在构建时计算
       }
     };
   }

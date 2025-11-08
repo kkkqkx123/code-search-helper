@@ -2,6 +2,7 @@ import { Tree } from 'tree-sitter';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { SimilarityUtils } from '../similarity/SimilarityUtils';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { ASTNode } from '../../types/ASTNode';
 
 export interface TrackingStats {
   totalNodes: number;
@@ -9,20 +10,6 @@ export interface TrackingStats {
   reuseCount: number;
   similarityHits: number;
   contentHashCollisions: number;
-}
-
-export interface ASTNode {
-  id: string;
-  type: string;
-  startByte: number;
-  endByte: number;
-  startLine: number;
-  endLine: number;
-  text: string;
-  parent?: ASTNode;
-  children?: ASTNode[];
-  contentHash?: string;
-  similarityGroup?: string;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../types/CodeChunk';
+import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 
 /**
  * 代码块处理基类
@@ -101,15 +101,41 @@ export abstract class BaseChunkProcessor {
   }
 
   /**
-   * 合并类型
-   */
-  private static mergeTypes(type1?: string, type2?: string): 'function' | 'code' | 'method' | 'semantic' | 'class' | 'interface' | 'import' | 'generic' | 'bracket' | 'line' | 'overlap' | 'merged' | 'sub_function' | undefined {
-    if (type1 === type2) return type1 as any || 'merged';
-    if (!type1) return (type2 as any) || 'merged';
-    if (!type2) return (type1 as any) || 'merged';
+  * 合并类型
+  */
+  private static mergeTypes(type1?: string, type2?: string): ChunkType {
+  const mapToChunkType = (type?: string): ChunkType => {
+  switch (type) {
+  case 'function':
+  case 'method':
+  case 'sub_function':
+  return ChunkType.FUNCTION;
+  case 'class':
+  return ChunkType.CLASS;
+  case 'interface':
+  return ChunkType.INTERFACE;
+  case 'import':
+  return ChunkType.IMPORT;
+  case 'generic':
+  return ChunkType.GENERIC;
+  case 'line':
+  return ChunkType.LINE;
+  case 'code':
+  case 'semantic':
+  case 'bracket':
+  case 'overlap':
+  case 'merged':
+  default:
+  return ChunkType.BLOCK;
+  }
+  };
 
-    // 如果两个类型都存在但不同，则返回'merged'
-    return 'merged';
+    if (type1 === type2) return mapToChunkType(type1);
+    if (!type1) return mapToChunkType(type2);
+    if (!type2) return mapToChunkType(type1);
+
+    // 如果两个类型都存在但不同，则返回合并后的块类型
+    return ChunkType.BLOCK;
   }
 
   /**

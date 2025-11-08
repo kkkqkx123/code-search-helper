@@ -50,6 +50,7 @@ export class ChunkSimilarityUtils extends BaseChunkProcessor {
       mergedContent = this.mergeContents(chunk2.content, chunk1.content, chunk2.metadata.startLine, chunk1.metadata.startLine);
     }
 
+    const mergedLines = mergedContent.split('\n').length;
     return {
       content: mergedContent,
       metadata: {
@@ -58,7 +59,11 @@ export class ChunkSimilarityUtils extends BaseChunkProcessor {
         language: chunk1.metadata.language,
         filePath: chunk1.metadata.filePath,
         type: chunk1.metadata.type || chunk2.metadata.type || 'merged',
-        complexity: Math.max(chunk1.metadata.complexity || 0, chunk2.metadata.complexity || 0)
+        complexity: Math.max(chunk1.metadata.complexity || 0, chunk2.metadata.complexity || 0),
+        size: mergedContent.length,
+        lineCount: mergedLines,
+        timestamp: Date.now(),
+        strategy: chunk1.metadata.strategy
       }
     };
   }

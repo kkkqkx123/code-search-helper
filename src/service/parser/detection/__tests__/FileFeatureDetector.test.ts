@@ -1,5 +1,5 @@
 import { FileFeatureDetector } from '../FileFeatureDetector';
-import { LoggerService } from '../../../../../utils/LoggerService';
+import { LoggerService } from '../../../../utils/LoggerService';
 
 describe('FileFeatureDetector', () => {
   let detector: FileFeatureDetector;
@@ -20,14 +20,14 @@ describe('FileFeatureDetector', () => {
   describe('constructor', () => {
     it('should create new instance', () => {
       const instance = new FileFeatureDetector(mockLogger);
-      
+
       expect(instance).toBeDefined();
       expect(instance).toBeInstanceOf(FileFeatureDetector);
     });
 
     it('should log debug message on initialization', () => {
       new FileFeatureDetector(mockLogger);
-      
+
       expect(mockLogger.debug).toHaveBeenCalledWith('FileFeatureDetector initialized');
     });
   });
