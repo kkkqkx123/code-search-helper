@@ -2,6 +2,7 @@ import { CodeChunk } from '../../types/CodeChunk';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
 import { SimilarityUtils } from '../similarity/SimilarityUtils';
+import { DeduplicationUtils } from '../overlap/DeduplicationUtils';
 
 /**
  * 代码块相似性检测工具类
@@ -92,10 +93,11 @@ export class ChunkSimilarityUtils extends BaseChunkProcessor {
 
   /**
    * 检查是否为重复块
+   * 委托给 DeduplicationUtils 进行统一的智能重复检测
    */
   static isDuplicateChunk(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
-    // 使用基类的重复检查方法
-    return BaseChunkProcessor.isDuplicateChunk(chunk1, chunk2);
+    // 使用 DeduplicationUtils 的统一重复检测逻辑
+    return DeduplicationUtils.isDuplicateChunk(chunk1, chunk2);
   }
 
   /**

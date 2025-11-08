@@ -6,6 +6,7 @@ import { OverlapCalculator } from '../utils/overlap/OverlapCalculator';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ASTNodeTracker } from '../utils/AST/ASTNodeTracker';
 import { TYPES } from '../../../../types';
+import { DeduplicationUtils } from '../utils/overlap/DeduplicationUtils';
 
 /**
  * 重叠后处理器
@@ -171,10 +172,25 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
       // 只对过大的块进行重叠拆分
       if (chunk.content.length > maxChunkSize) {
         const overlappedChunks = this.splitLargeChunkWithOverlap(chunk, context);
-        finalChunks.push(...overlappedChunks);
-        this.logger?.debug(`Split large code chunk (${chunk.content.length} chars) into ${overlappedChunks.length} parts`);
+        // 对拆分后的块进行去重
+        const deduplicatedChunks = DeduplicationUtils.deduplicateChunks(overlappedChunks);
+        finalChunks.push(...deduplicatedChunks);
+        this.logger?.debug(`Split large code chunk (${chunk.content.length} chars) into ${overlappedChunks.length} parts, deduplicated to ${deduplicatedChunks.length} parts`);
       } else {
-        finalChunks.push(chunk);
+        // 检查是否与已处理的块重复
+        let isDuplicate = false;
+        for (const existingChunk of finalChunks) {
+          if (DeduplicationUtils.isDuplicateChunk(chunk, existingChunk)) {
+            isDuplicate = true;
+            break;
+          }
+        }
+        
+        if (!isDuplicate) {
+          finalChunks.push(chunk);
+        } else {
+          this.logger?.debug(`Skipping duplicate code chunk at lines ${chunk.metadata.startLine}-${chunk.metadata.endLine}`);
+        }
       }
     }
 
@@ -194,6 +210,20 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
+
+      // 检查是否与已处理的块重复
+      let isDuplicate = false;
+      for (const existingChunk of overlappedChunks) {
+        if (DeduplicationUtils.isDuplicateChunk(chunk, existingChunk)) {
+          isDuplicate = true;
+          break;
+        }
+      }
+      
+      if (isDuplicate) {
+        this.logger?.debug(`Skipping duplicate text chunk at lines ${chunk.metadata.startLine}-${chunk.metadata.endLine}`);
+        continue;
+      }
 
       if (i < chunks.length - 1) {
         const overlapContent = this.calculateOverlapContent(
@@ -216,7 +246,13 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
       }
     }
 
-    return overlappedChunks;
+    // 对最终结果进行去重
+    const deduplicatedChunks = DeduplicationUtils.deduplicateChunks(overlappedChunks);
+    if (deduplicatedChunks.length < overlappedChunks.length) {
+      this.logger?.debug(`Deduplicated text chunks: ${overlappedChunks.length} -> ${deduplicatedChunks.length}`);
+    }
+
+    return deduplicatedChunks;
   }
 
   /**

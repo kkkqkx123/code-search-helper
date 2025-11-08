@@ -4,7 +4,6 @@ import { ChunkSimilarityUtils } from '../chunk-processing/ChunkSimilarityUtils';
 
 /**
  * 智能去重工具类
- * 提取 OverlapCalculator 中的独特去重逻辑
  */
 export class DeduplicationUtils {
   private processedChunks: Map<string, CodeChunk>;
@@ -16,40 +15,49 @@ export class DeduplicationUtils {
   }
 
   /**
-   * 智能重复检测 - 检查是否应该跳过重复块
+   * 智能重复检测 - 检查是否应该判定为重复块
+   * 这是统一的重复检查入口点
    */
   static shouldSkipDuplicate(chunk: CodeChunk, nextChunk: CodeChunk): boolean {
+    return this.isDuplicateChunk(chunk, nextChunk);
+  }
+
+  /**
+   * 统一的重复块检测方法
+   * 提供全面的重复检测逻辑
+   */
+  static isDuplicateChunk(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
     // 1. 内容哈希快速检测
-    const chunk1Hash = ContentHashIDGenerator.getContentHashPrefix(chunk.content);
-    const chunk2Hash = ContentHashIDGenerator.getContentHashPrefix(nextChunk.content);
+    const chunk1Hash = ContentHashIDGenerator.getContentHashPrefix(chunk1.content);
+    const chunk2Hash = ContentHashIDGenerator.getContentHashPrefix(chunk2.content);
 
     if (chunk1Hash === chunk2Hash) {
-      return true; // 内容完全相同，跳过
+      return true; // 内容完全相同，判定为重复块
     }
 
     // 2. 位置关系检查
-    const start1 = chunk.metadata.startLine;
-    const end1 = chunk.metadata.endLine;
-    const start2 = nextChunk.metadata.startLine;
-    const end2 = nextChunk.metadata.endLine;
+    const start1 = chunk1.metadata.startLine;
+    const end1 = chunk1.metadata.endLine;
+    const start2 = chunk2.metadata.startLine;
+    const end2 = chunk2.metadata.endLine;
 
-    // 如果两个块完全重叠，跳过
+    // 如果两个块完全重叠，判定为重复块
     if (start1 === start2 && end1 === end2) {
       return true;
     }
 
     // 3. 节点ID检查（如果有AST节点信息）
-    if (chunk.metadata.nodeIds && nextChunk.metadata.nodeIds) {
-      const hasCommonNodes = chunk.metadata.nodeIds.some((id: string) =>
-        nextChunk.metadata.nodeIds!.includes(id)
+    if (chunk1.metadata.nodeIds && chunk2.metadata.nodeIds) {
+      const hasCommonNodes = chunk1.metadata.nodeIds.some((id: string) =>
+        chunk2.metadata.nodeIds!.includes(id)
       );
       if (hasCommonNodes) {
         return true;
       }
     }
 
-    // 4. 内容相似度检查
-    return ChunkSimilarityUtils.isDuplicateChunk(chunk, nextChunk);
+    // 4. 基础内容检查
+    return chunk1.content === chunk2.content;
   }
 
   /**
@@ -98,71 +106,7 @@ export class DeduplicationUtils {
     return repeatCount >= 2;
   }
 
-  /**
-   * 智能重叠大小计算
-   */
-  static calculateOptimalOverlapSize(
-    chunk1: CodeChunk,
-    chunk2: CodeChunk,
-    maxOverlapRatio: number,
-    mergeStrategy: 'aggressive' | 'conservative'
-  ): number {
-    const chunk1Size = chunk1.metadata.endLine - chunk1.metadata.startLine + 1;
-    const chunk2Size = chunk2.metadata.endLine - chunk2.metadata.startLine + 1;
 
-    // 基于块大小和最大重叠比例计算
-    const maxOverlap = Math.min(chunk1Size, chunk2Size) * maxOverlapRatio;
-
-    // 保守策略：使用较小的重叠
-    // 激进策略：使用较大的重叠
-    const overlapMultiplier = mergeStrategy === 'conservative' ? 0.7 : 1.0;
-
-    return Math.max(1, Math.floor(maxOverlap * overlapMultiplier));
-  }
-
-  /**
-   * 生成替代重叠内容策略
-   */
-  static generateAlternativeOverlapStrategies(
-    currentChunk: CodeChunk,
-    nextChunk: CodeChunk,
-    originalContent: string,
-    maxOverlapLines: number
-  ): Array<() => string> {
-    const lines = originalContent.split('\n');
-    const currentEndLine = currentChunk.metadata.endLine;
-    const nextStartLine = nextChunk.metadata.startLine;
-
-    return [
-      // 策略1：减少重叠大小
-      () => {
-        const smallerOverlap = Math.max(1, Math.floor(maxOverlapLines * 0.5));
-        const startLine = Math.max(0, currentEndLine - smallerOverlap);
-        const overlapLines = lines.slice(startLine, currentEndLine);
-        return overlapLines.join('\n');
-      },
-
-      // 策略2：调整重叠起始位置
-      () => {
-        const offset = Math.max(0, currentEndLine - 2);
-        const availableLines = lines.slice(Math.max(0, offset - 1), currentEndLine);
-        return availableLines.join('\n');
-      },
-
-      // 策略3：使用语法边界
-      () => {
-        // 查找语义边界，如函数结束、类结束等
-        for (let i = currentEndLine - 1; i >= Math.max(0, currentEndLine - 5); i--) {
-          const line = lines[i];
-          if (line.includes('}') || line.includes('return') || line.trim() === '') {
-            const overlapLines = lines.slice(i, currentEndLine);
-            return overlapLines.join('\n');
-          }
-        }
-        return '';
-      }
-    ];
-  }
 
   /**
    * 清理历史记录
@@ -170,6 +114,33 @@ export class DeduplicationUtils {
   clearHistory(): void {
     this.overlapHistory.clear();
     this.processedChunks.clear();
+  }
+
+  /**
+   * 对代码块数组进行去重
+   * @param chunks 需要去重的代码块数组
+   * @returns 去重后的代码块数组
+   */
+  static deduplicateChunks(chunks: CodeChunk[]): CodeChunk[] {
+    const uniqueChunks: CodeChunk[] = [];
+
+    for (const chunk of chunks) {
+      let isDuplicate = false;
+
+      // 检查是否与已添加的块重复
+      for (const existingChunk of uniqueChunks) {
+        if (this.isDuplicateChunk(chunk, existingChunk)) {
+          isDuplicate = true;
+          break;
+        }
+      }
+
+      if (!isDuplicate) {
+        uniqueChunks.push(chunk);
+      }
+    }
+
+    return uniqueChunks;
   }
 
   /**

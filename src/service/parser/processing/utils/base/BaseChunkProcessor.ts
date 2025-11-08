@@ -80,24 +80,12 @@ export abstract class BaseChunkProcessor {
 
   /**
    * 检查是否为重复块
+   * 委托给 DeduplicationUtils 进行智能重复检测
    */
   static isDuplicateChunk(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
-    if (chunk1.content === chunk2.content) {
-      return true;
-    }
-
-    if (chunk1.metadata.nodeIds && chunk2.metadata.nodeIds) {
-      const commonNodes = chunk1.metadata.nodeIds.filter((id: any) =>
-        chunk2.metadata.nodeIds!.includes(id)
-      );
-
-      const maxNodes = Math.max(chunk1.metadata.nodeIds.length, chunk2.metadata.nodeIds.length);
-      if (commonNodes.length / maxNodes > 0.5) {
-        return true;
-      }
-    }
-
-    return false;
+    // 导入 DeduplicationUtils 进行智能重复检测
+    const { DeduplicationUtils } = require('../overlap/DeduplicationUtils');
+    return DeduplicationUtils.shouldSkipDuplicate(chunk1, chunk2);
   }
 
   /**

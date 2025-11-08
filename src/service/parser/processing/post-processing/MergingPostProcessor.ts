@@ -3,6 +3,7 @@ import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../strategies/types/S
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { ChunkMerger } from '../utils/chunk-processing/ChunkMerger';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { DeduplicationUtils } from '../utils/overlap/DeduplicationUtils';
 
 /**
  * 高级合并后处理器
@@ -33,6 +34,10 @@ export class MergingPostProcessor implements IChunkPostProcessor {
       return chunks;
     }
 
+    // 在合并前进行去重检查
+    const deduplicatedChunks = DeduplicationUtils.deduplicateChunks(chunks);
+    this.logger?.debug(`Deduplication completed: ${chunks.length} -> ${deduplicatedChunks.length} chunks`);
+
     try {
       // 确保传递给ChunkMerger的options是完整类型
       const completeOptions: ChunkingOptions = {
@@ -41,15 +46,15 @@ export class MergingPostProcessor implements IChunkPostProcessor {
       };
 
       const merger = new ChunkMerger(completeOptions);
-      const mergedChunks = await merger.mergeOverlappingChunks(chunks);
+      const mergedChunks = await merger.mergeOverlappingChunks(deduplicatedChunks);
 
-      this.logger?.debug(`Advanced merging completed: ${chunks.length} -> ${mergedChunks.length} chunks`);
+      this.logger?.debug(`Advanced merging completed: ${deduplicatedChunks.length} -> ${mergedChunks.length} chunks`);
 
       return mergedChunks;
     } catch (error) {
       this.logger?.error('Error during advanced merging:', error);
-      // 如果合并失败，返回原始块
-      return chunks;
+      // 如果合并失败，返回去重后的块
+      return deduplicatedChunks;
     }
   }
 }
