@@ -9,6 +9,7 @@ import type { ProcessingResult, ResultMetadata, CodeChunk } from '../../core/typ
 import { ChunkType } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
 import { CodeChunkBuilder } from '../../types/CodeChunk';
+import { UNIFIED_STRATEGY_PRIORITIES } from '../../../constants/StrategyPriorities';
 
 /**
  * 策略基类抽象实现
@@ -31,7 +32,8 @@ export abstract class BaseStrategy implements IProcessingStrategy {
 
   constructor(config: StrategyConfig) {
     this.name = config.name;
-    this.priority = config.priority;
+    // 从 UNIFIED_STRATEGY_PRIORITIES 中获取优先级，不再从 config 中读取
+    this.priority = UNIFIED_STRATEGY_PRIORITIES[config.name] || 999; // 默认优先级为999（最低）
     this.supportedLanguages = config.supportedLanguages;
     this.config = config;
     this.performanceStats = this.initializeStats();

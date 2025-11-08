@@ -180,3 +180,29 @@ export function getFileTypeSpecificStrategy(filePath: string): string | null {
   const ext = filePath.toLowerCase().substring(filePath.lastIndexOf('.'));
   return FILE_TYPE_STRATEGIES[ext] || null;
 }
+
+/**
+ * 策略支持的语言常量
+ */
+export const PROGRAMMING_LANGUAGES: string[] = [
+  'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
+  'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
+];
+
+export const BRACKET_STRATEGY_SUPPORTED_LANGUAGES: string[] = [
+  'typescript', 'javascript', 'java', 'c', 'cpp',
+  'csharp', 'go', 'rust', 'php', 'swift', 'kotlin', 'scala'
+];
+
+export const BRACKET_SEGMENTATION_SUPPORTED_LANGUAGES: string[] = [
+  'javascript', 'typescript', 'python', 'java', 'c', 'cpp', 'go', 'rust', 'xml'
+];
+
+// 以下策略使用 PROGRAMMING_LANGUAGES
+export const FUNCTION_STRATEGY_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
+export const CLASS_STRATEGY_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
+export const IMPORT_STRATEGY_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
+export const AST_STRATEGY_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
+export const AST_SEGMENTATION_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
+export const STANDARDIZATION_SEGMENTATION_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
+export const SEMANTIC_SEGMENTATION_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;

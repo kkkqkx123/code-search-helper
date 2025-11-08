@@ -9,6 +9,7 @@ import type { ProcessingResult } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
 import { ChunkType } from '../../types/CodeChunk';
 import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
+import { FUNCTION_STRATEGY_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 
 /**
  * 函数分割策略实现
@@ -17,11 +18,7 @@ export class FunctionStrategy extends BaseStrategy {
   constructor(config?: Partial<StrategyConfig>) {
     const defaultConfig: StrategyConfig = {
       name: 'function-strategy',
-      priority: 50,
-      supportedLanguages: [
-        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
-        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
-      ],
+      supportedLanguages: FUNCTION_STRATEGY_SUPPORTED_LANGUAGES,
       enabled: true,
       description: 'Function extraction strategy',
       parameters: {

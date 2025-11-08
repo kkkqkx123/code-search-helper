@@ -30,7 +30,6 @@ export class LineSegmentationStrategy extends BaseStrategy {
   constructor(config: LineStrategyConfig) {
     const defaultConfig: StrategyConfig = {
       name: 'line-segmentation',
-      priority: 100,
       supportedLanguages: ['*'],
       enabled: true,
       description: 'Line Segmentation Strategy',

@@ -6,7 +6,7 @@
 import { IStrategyFactory, StrategyConstructor } from '../core/interfaces/IStrategyFactory';
 import { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';
 import { ProcessingConfig } from '../core/types/ConfigTypes';
-import { getPrioritizedStrategies } from '../../constants/StrategyPriorities';
+import { UNIFIED_STRATEGY_PRIORITIES, getPrioritizedStrategies } from '../../constants/StrategyPriorities';
 
 /**
  * 策略工厂类
@@ -48,6 +48,7 @@ export class StrategyFactory implements IStrategyFactory {
       throw new Error(`Unknown strategy type: ${strategyType}`);
     }
 
+    // 创建策略实例，优先级现在由 BaseStrategy 从 UNIFIED_STRATEGY_PRIORITIES 中获取
     const instance = new StrategyClass(config || this.config);
 
     // 如果启用了缓存，则缓存实例
@@ -59,11 +60,16 @@ export class StrategyFactory implements IStrategyFactory {
   }
 
   /**
-   * 获取所有可用的策略类型列表
-   * @returns 策略类型数组
+   * 获取所有可用的策略类型列表（按优先级排序）
+   * @returns 按优先级排序的策略类型数组
    */
   getAvailableStrategies(): string[] {
-    return Array.from(this.strategies.keys());
+    const strategies = Array.from(this.strategies.keys());
+    const prioritizedStrategies = getPrioritizedStrategies(strategies);
+    const nonPrioritizedStrategies = strategies.filter(s => !UNIFIED_STRATEGY_PRIORITIES.hasOwnProperty(s));
+    
+    // 将有优先级的策略和无优先级的策略合并，无优先级的放在最后
+    return [...prioritizedStrategies, ...nonPrioritizedStrategies];
   }
 
   /**
@@ -112,6 +118,23 @@ export class StrategyFactory implements IStrategyFactory {
    */
   clearCache(): void {
     this.instances.clear();
+  }
+
+  /**
+   * 获取策略的优先级
+   * @param strategyType 策略类型
+   * @returns 策略优先级
+   */
+  getStrategyPriority(strategyType: string): number {
+    return UNIFIED_STRATEGY_PRIORITIES[strategyType] || 999;
+  }
+
+  /**
+   * 按优先级获取可用的策略类型列表
+   * @returns 按优先级排序的策略类型数组
+   */
+  getPrioritizedStrategies(): string[] {
+    return getPrioritizedStrategies(this.getAvailableStrategies());
   }
 
   /**

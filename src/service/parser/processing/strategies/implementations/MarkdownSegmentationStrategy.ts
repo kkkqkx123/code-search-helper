@@ -30,7 +30,6 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
   constructor(config: MarkdownStrategyConfig) {
     const defaultConfig: StrategyConfig = {
       name: 'markdown-segmentation',
-      priority: 35,
       supportedLanguages: ['markdown', 'md'],
       enabled: true,
       description: 'Markdown Segmentation Strategy',

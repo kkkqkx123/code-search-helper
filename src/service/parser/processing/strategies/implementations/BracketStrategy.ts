@@ -8,6 +8,7 @@ import type { IProcessingContext } from '../../core/interfaces/IProcessingContex
 import type { ProcessingResult } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
 import { ChunkType } from '../../types/CodeChunk';
+import { BRACKET_STRATEGY_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 
 /**
  * 括号平衡策略实现
@@ -16,11 +17,7 @@ export class BracketStrategy extends BaseStrategy {
   constructor(config?: Partial<StrategyConfig>) {
     const defaultConfig: StrategyConfig = {
       name: 'bracket-strategy',
-      priority: 70,
-      supportedLanguages: [
-        'typescript', 'javascript', 'java', 'c', 'cpp',
-        'csharp', 'go', 'rust', 'php', 'swift', 'kotlin', 'scala'
-      ],
+      supportedLanguages: BRACKET_STRATEGY_SUPPORTED_LANGUAGES,
       enabled: true,
       description: 'Bracket balance-based code splitting strategy',
       parameters: {

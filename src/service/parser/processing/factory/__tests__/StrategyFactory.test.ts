@@ -22,7 +22,18 @@ class MockStrategy implements IProcessingStrategy {
   }
 
   async execute(context: any): Promise<any> {
-    return { success: true, chunks: [], executionTime: 0, strategy: this.name };
+    return {
+      chunks: [],
+      success: true,
+      executionTime: 0,
+      strategy: this.name,
+      metadata: {
+        language: 'unknown',
+        chunkCount: 0,
+        averageChunkSize: 0,
+        totalSize: 0
+      }
+    };
   }
 }
 

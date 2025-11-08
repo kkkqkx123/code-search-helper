@@ -8,6 +8,7 @@ import type { IProcessingContext } from '../../core/interfaces/IProcessingContex
 import type { ProcessingResult } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
 import { ChunkType } from '../../types/CodeChunk';
+import { AST_STRATEGY_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 
 /**
  * AST分割策略实现
@@ -16,11 +17,7 @@ export class ASTStrategy extends BaseStrategy {
   constructor(config?: Partial<StrategyConfig>) {
     const defaultConfig: StrategyConfig = {
       name: 'ast-strategy',
-      priority: 60,
-      supportedLanguages: [
-        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
-        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
-      ],
+      supportedLanguages: AST_STRATEGY_SUPPORTED_LANGUAGES,
       enabled: true,
       description: 'AST-based code splitting strategy',
       parameters: {

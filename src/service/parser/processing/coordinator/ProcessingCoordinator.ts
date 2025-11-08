@@ -4,7 +4,6 @@
  */
 
 import { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';
-import { IProcessingContext } from '../core/interfaces/IProcessingContext';
 import { IStrategyFactory } from '../core/interfaces/IStrategyFactory';
 import { IConfigManager } from '../core/interfaces/IConfigManager';
 import { ProcessingConfig } from '../core/types/ConfigTypes';
@@ -195,6 +194,7 @@ export class ProcessingCoordinator {
 
   /**
    * 选择合适的处理策略
+   * 策略选择完全基于 UNIFIED_STRATEGY_PRIORITIES
    * @param context 处理上下文
    * @returns 处理策略
    */
@@ -226,7 +226,7 @@ export class ProcessingCoordinator {
       }
     }
 
-    // 3. 获取语言特定的策略推荐
+    // 3. 获取语言特定的策略推荐，并按 UNIFIED_STRATEGY_PRIORITIES 排序
     const languageStrategies = getLanguageSpecificStrategies(language);
     const prioritizedStrategies = getPrioritizedStrategies(languageStrategies);
 
@@ -243,7 +243,7 @@ export class ProcessingCoordinator {
       }
     }
 
-    // 5. 如果没有语言特定策略可用，尝试所有可用策略
+    // 5. 如果没有语言特定策略可用，尝试所有可用策略，按 UNIFIED_STRATEGY_PRIORITIES 排序
     const allStrategies = this.strategyFactory.getAvailableStrategies();
     const allPrioritizedStrategies = getPrioritizedStrategies(allStrategies);
 
@@ -255,10 +255,10 @@ export class ProcessingCoordinator {
       }
     }
 
-    // 6. 最后降级到行分段策略
+    // 6. 最后降级到行分段策略（最低优先级）
     if (this.strategyFactory.supportsStrategy('line-segmentation')) {
       const fallbackStrategy = this.strategyFactory.createStrategy('line-segmentation', context.config);
-      this.logger?.warn(`所有策略失败，使用行分段策略作为最后保障`);
+      this.logger?.warn(`所有策略失败，使用行分段策略作为最后保障 (优先级: ${UNIFIED_STRATEGY_PRIORITIES['line-segmentation']})`);
       return fallbackStrategy;
     }
 

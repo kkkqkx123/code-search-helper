@@ -9,6 +9,7 @@ import type { ProcessingResult } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
 import { ChunkType } from '../../types/CodeChunk';
 import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
+import { IMPORT_STRATEGY_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 
 /**
  * 导入分割策略实现
@@ -17,11 +18,7 @@ export class ImportStrategy extends BaseStrategy {
   constructor(config?: Partial<StrategyConfig>) {
     const defaultConfig: StrategyConfig = {
       name: 'import-strategy',
-      priority: 30,
-      supportedLanguages: [
-        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
-        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
-      ],
+      supportedLanguages: IMPORT_STRATEGY_SUPPORTED_LANGUAGES,
       enabled: true,
       description: 'Import statement extraction strategy',
       parameters: {

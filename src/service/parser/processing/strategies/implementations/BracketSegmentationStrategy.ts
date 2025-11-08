@@ -4,6 +4,7 @@ import { ProcessingResult } from '../../core/types/ResultTypes';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
+import { BRACKET_SEGMENTATION_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 
 /**
  * 括号分段策略配置
@@ -30,8 +31,7 @@ export class BracketSegmentationStrategy extends BaseStrategy {
   constructor(config: BracketStrategyConfig) {
     const defaultConfig: StrategyConfig = {
       name: 'bracket-segmentation',
-      priority: 60,
-      supportedLanguages: ['javascript', 'typescript', 'python', 'java', 'c', 'cpp', 'go', 'rust', 'xml'],
+      supportedLanguages: BRACKET_SEGMENTATION_SUPPORTED_LANGUAGES,
       enabled: true,
       description: 'Bracket Segmentation Strategy',
     };

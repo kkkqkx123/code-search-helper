@@ -11,8 +11,8 @@ import { ProcessingConfig } from './Config';
 export interface StrategyConfig {
   /** 策略名称 */
   name: string;
-  /** 策略优先级 */
-  priority: number;
+  /** 策略优先级（可选，现在由 UNIFIED_STRATEGY_PRIORITIES 统一管理） */
+  priority?: number;
   /** 支持的编程语言列表 */
   supportedLanguages: string[];
   /** 策略特定参数 */
@@ -293,7 +293,7 @@ export class StrategyUtils {
   static validateStrategyConfig(config: StrategyConfig): boolean {
     if (!config) return false;
     if (!config.name || typeof config.name !== 'string') return false;
-    if (typeof config.priority !== 'number') return false;
+    // priority 现在是可选的，不再需要验证
     if (!Array.isArray(config.supportedLanguages)) return false;
     if (typeof config.enabled !== 'boolean') return false;
     

@@ -9,7 +9,6 @@ describe('LayeredHTMLStrategy', () => {
     strategy = new LayeredHTMLStrategy({
       name: 'layered-html',
       enabled: true,
-      priority: 1,
       supportedLanguages: ['html', 'htm']
     });
 

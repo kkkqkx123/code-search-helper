@@ -9,6 +9,7 @@ import type { ProcessingResult } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
 import { ChunkType } from '../../types/CodeChunk';
 import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
+import { CLASS_STRATEGY_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 
 /**
  * 类分割策略实现
@@ -17,11 +18,7 @@ export class ClassStrategy extends BaseStrategy {
   constructor(config?: Partial<StrategyConfig>) {
     const defaultConfig: StrategyConfig = {
       name: 'class-strategy',
-      priority: 45,
-      supportedLanguages: [
-        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
-        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
-      ],
+      supportedLanguages: CLASS_STRATEGY_SUPPORTED_LANGUAGES,
       enabled: true,
       description: 'Class extraction strategy',
       parameters: {

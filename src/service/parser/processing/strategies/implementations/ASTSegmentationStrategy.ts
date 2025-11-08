@@ -4,6 +4,7 @@ import { ProcessingResult } from '../../core/types/ResultTypes';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
+import { AST_SEGMENTATION_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 
 /**
  * AST分段策略配置
@@ -30,11 +31,7 @@ export class ASTSegmentationStrategy extends BaseStrategy {
   constructor(config: ASTStrategyConfig) {
     const defaultConfig: StrategyConfig = {
       name: 'ast-segmentation',
-      priority: 20,
-      supportedLanguages: [
-        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
-        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
-      ],
+      supportedLanguages: AST_SEGMENTATION_SUPPORTED_LANGUAGES,
       enabled: true,
       description: 'AST Segmentation Strategy',
     };

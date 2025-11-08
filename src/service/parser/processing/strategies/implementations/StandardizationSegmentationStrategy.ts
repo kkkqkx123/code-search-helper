@@ -4,6 +4,7 @@ import { ProcessingResult } from '../../core/types/ResultTypes';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
+import { STANDARDIZATION_SEGMENTATION_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 
 /**
  * 标准化查询结果
@@ -49,11 +50,7 @@ export class StandardizationSegmentationStrategy extends BaseStrategy {
   constructor(config: StandardizationStrategyConfig) {
     const defaultConfig: StrategyConfig = {
       name: 'standardization-segmentation',
-      priority: 50,
-      supportedLanguages: [
-        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
-        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
-      ],
+      supportedLanguages: STANDARDIZATION_SEGMENTATION_SUPPORTED_LANGUAGES,
       enabled: true,
       description: 'Standardization Segmentation Strategy',
     };

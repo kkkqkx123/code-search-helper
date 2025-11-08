@@ -17,7 +17,6 @@ export class SemanticStrategy extends BaseStrategy {
   constructor(config?: Partial<StrategyConfig>) {
     const defaultConfig: StrategyConfig = {
       name: 'semantic-strategy',
-      priority: 80,
       supportedLanguages: ['*'],
       enabled: true,
       description: 'Semantic-based code splitting strategy',

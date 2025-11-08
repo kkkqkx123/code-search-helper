@@ -4,6 +4,7 @@ import { ProcessingResult } from '../../core/types/ResultTypes';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
+import { SEMANTIC_SEGMENTATION_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 
 /**
  * 语义分段策略配置
@@ -34,11 +35,7 @@ export class SemanticSegmentationStrategy extends BaseStrategy {
   constructor(config: SemanticStrategyConfig) {
     const defaultConfig: StrategyConfig = {
       name: 'semantic-segmentation',
-      priority: 40,
-      supportedLanguages: [
-        'typescript', 'javascript', 'python', 'java', 'c', 'cpp',
-        'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala'
-      ],
+      supportedLanguages: SEMANTIC_SEGMENTATION_SUPPORTED_LANGUAGES,
       enabled: true,
       description: 'Semantic Segmentation Strategy',
     };
