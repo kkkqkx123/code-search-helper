@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { ChunkingOptions, ChunkingPreset, ChunkingPresetFactory } from '../processing/types/splitting-types';
+import { ChunkingOptions, ChunkingPreset, ChunkingPresetFactory } from '../processing';
 import { LanguageConfiguration } from './LanguageConfigManager';
 
 /**

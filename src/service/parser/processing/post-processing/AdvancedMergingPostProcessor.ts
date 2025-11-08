@@ -1,4 +1,5 @@
-import { CodeChunk, ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../types/splitting-types';
+import { CodeChunk } from '../types/CodeChunk';
+import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { ChunkMerger } from '../utils/chunk-processing/ChunkMerger';
 import { LoggerService } from '../../../../utils/LoggerService';

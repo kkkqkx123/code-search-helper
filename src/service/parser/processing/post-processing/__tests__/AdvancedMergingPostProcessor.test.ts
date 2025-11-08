@@ -1,5 +1,6 @@
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, ChunkingOptions, ChunkingPreset } from '../../types/splitting-types';
+import { CodeChunk } from '../../types/CodeChunk';
+import { ChunkingOptions, ChunkingPreset } from '../../strategies/types/SegmentationTypes';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { AdvancedMergingPostProcessor } from '../AdvancedMergingPostProcessor';
 

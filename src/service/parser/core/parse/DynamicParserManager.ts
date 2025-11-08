@@ -5,7 +5,7 @@ import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageExtensionMap } from '../../utils';
-import { LanguageDetectionService } from '../../processing/detection/LanguageDetectionService';
+import { LanguageDetectionService } from '../../detection/LanguageDetectionService';
 import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { FallbackExtractor } from '../../utils/FallbackExtractor';
@@ -228,7 +228,7 @@ export class DynamicParserManager {
   /**
    * 检测语言
    */
-async detectLanguage(filePath: string, content?: string): Promise<string | null> {
+  async detectLanguage(filePath: string, content?: string): Promise<string | null> {
     // 使用语言检测器进行智能检测
     const detectionResult = await this.languageDetectionService.detectLanguage(filePath, content);
     if (detectionResult.language) {
@@ -379,7 +379,7 @@ async detectLanguage(filePath: string, content?: string): Promise<string | null>
     const tree = (ast as any).tree;
     if (tree && tree.language && tree.language.name) {
       const languageName = tree.language.name;
-      
+
       return TREE_SITTER_LANGUAGE_MAP[languageName] || languageName;
     }
 

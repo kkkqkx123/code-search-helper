@@ -1,4 +1,4 @@
-import { CodeChunk } from '../types/splitting-types';
+import { CodeChunk } from '../types/CodeChunk';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { IComplexityCalculator } from '../strategies/types/SegmentationTypes';

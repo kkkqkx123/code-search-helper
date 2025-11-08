@@ -7,7 +7,7 @@ import { PerformanceMonitor } from '../../../../../infrastructure/monitoring/Per
 import { ErrorHandlingManager } from '../ErrorHandlingManager';
 import { TreeSitterCoreService, ParserLanguage } from '../../parse/TreeSitterCoreService';
 import { NormalizationIntegrationService } from '../NormalizationIntegrationService';
-import { CodeChunk } from '../../../processing/types/splitting-types';
+import { CodeChunk, ChunkType } from '../../../processing/types';
 
 // 创建模拟实现，避免依赖注入问题
 class MockLoggerService extends LoggerService {
@@ -29,14 +29,15 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
   async chunkBySemanticBoundaries(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     const lines = content.split('\n');
     return [{
-      id: 'test-chunk-semantic',
       content,
       metadata: {
         startLine: 1,
         endLine: lines.length,
         language: language || 'unknown',
         filePath,
-        type: 'bracket'
+        strategy: 'semantic',
+        timestamp: Date.now(),
+        type: ChunkType.FUNCTION
       }
     }];
   }
@@ -44,14 +45,15 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
   async chunkByBracketsAndLines(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     const lines = content.split('\n');
     return [{
-      id: 'test-chunk-bracket-line',
       content,
       metadata: {
         startLine: 1,
         endLine: lines.length,
         language: language || 'unknown',
         filePath,
-        type: 'line'
+        strategy: 'bracket',
+        timestamp: Date.now(),
+        type: ChunkType.GENERIC
       }
     }];
   }
@@ -59,13 +61,15 @@ class MockUniversalTextStrategy extends UniversalTextStrategy {
   async chunkByLines(content: string, filePath?: string, language?: string): Promise<CodeChunk[]> {
     const lines = content.split('\n');
     return lines.map((line, index) => ({
-      id: `test-chunk-line-${index}`,
       content: line,
       metadata: {
         startLine: index + 1,
         endLine: index + 1,
         language: language || 'unknown',
-        filePath
+        filePath,
+        strategy: 'line',
+        timestamp: Date.now(),
+        type: ChunkType.GENERIC
       }
     }));
   }

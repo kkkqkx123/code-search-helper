@@ -13,23 +13,32 @@ export {
   IStrategyProvider as IStrategyProviderInterface
 } from './interfaces/IStrategyProvider';
 
-// 从splitting-types.ts导出所有类型
+// 从各个类型文件导出所有类型
+export { CodeChunk, CodeChunkMetadata, ChunkType } from './types/CodeChunk';
+export { ChunkingOptions, EnhancedChunkingOptions, ChunkingPreset, ChunkingPresetFactory, DEFAULT_CHUNKING_OPTIONS, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from './strategies/types/SegmentationTypes';
+
+// 重新导出处理相关类型
 export {
-  CodeChunk,
-  CodeChunkMetadata,
-  ASTNode,
-  Splitter,
-  ComplexityCalculator,
-  SyntaxValidator,
-  ChunkOptimizer,
-  OverlapCalculator,
-  PerformanceStats,
-  PerformanceMonitor,
-  DEFAULT_CHUNKING_OPTIONS,
-  DEFAULT_ENHANCED_CHUNKING_OPTIONS,
-  SplitStrategy,
-  EnhancedChunkingOptions
-} from './types/splitting-types';
+  ProcessingResult,
+  ProcessingStrategy,
+  ProcessingOptions,
+  ProcessingStatus,
+  ProcessingTask,
+  ProcessingStats
+} from './core/types/ResultTypes';
+
+// 重新导出配置相关类型
+export {
+  ProcessingConfig,
+  ChunkingConfig,
+  FeatureConfig,
+  PerformanceConfig,
+  LanguageConfig,
+  PostProcessingConfig,
+  BoundaryConfig,
+  WeightConfig,
+  LanguageChunkingConfig
+} from './core/types/ConfigTypes';
 
 // 配置管理导入和导出
 import { UnifiedConfigManager, UnifiedConfig, UniversalProcessingConfig } from '../config/UnifiedConfigManager';

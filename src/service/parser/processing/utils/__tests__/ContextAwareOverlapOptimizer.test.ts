@@ -1,5 +1,5 @@
 import { ContextAwareOverlapOptimizer } from '../overlap/ContextAwareOverlapOptimizer';
-import { CodeChunk, CodeChunkMetadata } from '../../types/splitting-types';
+import { CodeChunk, CodeChunkMetadata } from '../../types/CodeChunk';
 
 describe('ContextAwareOverlapOptimizer', () => {
   let optimizer: ContextAwareOverlapOptimizer;

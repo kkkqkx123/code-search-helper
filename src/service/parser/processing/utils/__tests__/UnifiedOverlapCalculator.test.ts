@@ -1,5 +1,5 @@
 import { UnifiedOverlapCalculator } from '../overlap/UnifiedOverlapCalculator';
-import { CodeChunk, CodeChunkMetadata } from '../../types/splitting-types';
+import { CodeChunk, CodeChunkMetadata } from '../../types/CodeChunk';
 
 describe('UnifiedOverlapCalculator', () => {
   let calculator: UnifiedOverlapCalculator;

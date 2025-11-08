@@ -1,6 +1,7 @@
 import { SmartRebalancingPostProcessor } from '../SmartRebalancingPostProcessor';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../types/splitting-types';
+import { CodeChunk } from '../../types/CodeChunk';
+import { EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../strategies/types/SegmentationTypes';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { IComplexityCalculator } from '../../strategies/types/SegmentationTypes';
 

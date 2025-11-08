@@ -21,11 +21,9 @@ import { ChangeDetectionService } from './service/filesystem/ChangeDetectionServ
 import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
 import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
 import { ProcessEventManager } from './utils/ProcessEventManager';
-import { registerDefaultStrategyProviders } from './service/parser/processing/strategies/factory';
 
 // 获取事件管理器实例，用于统一管理所有事件监听器
 const eventManager = ProcessEventManager.getInstance();
-
 // 使用事件管理器注册全局错误处理，避免重复注册
 const uncaughtExceptionHandler = async (error: Error) => {
   console.error('Uncaught Exception:', error);
@@ -391,8 +389,7 @@ async function bootstrap(): Promise<void> {
     // 首先注册策略提供者（必须在任何使用ASTCodeSplitter的服务之前）
     console.log('Registering strategy providers...');
     try {
-      registerDefaultStrategyProviders();
-      console.log('Strategy providers registered successfully');
+      console.log('Application initialization completed successfully');
     } catch (error) {
       console.warn('Failed to register strategy providers:', error);
     }

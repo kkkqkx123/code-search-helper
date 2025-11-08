@@ -1,4 +1,5 @@
-import { CodeChunk, ChunkingOptions } from '../types/splitting-types';
+import { CodeChunk } from '../types/CodeChunk';
+import { ChunkingOptions } from '../strategies/types/SegmentationTypes';
 
 export interface PostProcessingContext {
   originalContent: string;

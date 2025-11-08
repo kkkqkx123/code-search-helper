@@ -1,4 +1,5 @@
-import { CodeChunk, ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../types/splitting-types';
+import { CodeChunk } from '../types/CodeChunk';
+import { ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { ChunkMerger } from '../utils/chunk-processing/ChunkMerger';
 import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';

@@ -1,5 +1,5 @@
 import { IChunkRebalancer, ChunkRebalancerContext, RebalancerResult } from '../strategies/types/SegmentationTypes';
-import { CodeChunk } from '../types/splitting-types';
+import { CodeChunk } from '../types/CodeChunk';
 import { injectable } from 'inversify';
 
 /**

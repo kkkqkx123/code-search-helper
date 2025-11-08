@@ -1,5 +1,6 @@
 import { injectable, inject } from 'inversify';
-import { CodeChunk, ChunkingOptions, ChunkingPreset } from '../types/splitting-types';
+import { CodeChunk } from '../types/CodeChunk';
+import { ChunkingOptions, ChunkingPreset } from '../strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
 import { UnifiedOverlapCalculator } from '../utils/overlap/UnifiedOverlapCalculator';
 import { LoggerService } from '../../../../utils/LoggerService';

@@ -1,6 +1,7 @@
 import { OverlapPostProcessor } from '../OverlapPostProcessor';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../types/splitting-types';
+import { CodeChunk } from '../../types/CodeChunk';
+import { EnhancedChunkingOptions, ChunkingOptions, ChunkingPreset } from '../../strategies/types/SegmentationTypes';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 describe('OverlapPostProcessor', () => {

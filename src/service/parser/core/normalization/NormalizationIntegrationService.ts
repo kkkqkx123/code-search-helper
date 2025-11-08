@@ -8,7 +8,7 @@ import { LRUCache } from '../../../../utils/LRUCache';
 import { ErrorHandlingManager, ErrorType } from './ErrorHandlingManager';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { StandardizedQueryResult } from './types';
-import { CodeChunk } from '../../processing/types/splitting-types';
+import { CodeChunk } from '../../processing/types/CodeChunk';
 import { NormalizationPerformanceAdapter } from './PerformanceAdapter';
 
 /**

@@ -1,4 +1,4 @@
-import { PerformanceStats } from '../../types/splitting-types';
+import { PerformanceStats } from '../../strategies/types/SegmentationTypes';
 
 /**
  * 操作指标接口

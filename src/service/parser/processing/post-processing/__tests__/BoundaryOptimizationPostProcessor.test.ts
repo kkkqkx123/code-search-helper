@@ -1,6 +1,7 @@
 import { BoundaryOptimizationPostProcessor } from '../BoundaryOptimizationPostProcessor';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, EnhancedChunkingOptions } from '../../types/splitting-types';
+import { CodeChunk } from '../../types/CodeChunk';
+import { EnhancedChunkingOptions } from '../../strategies/types/SegmentationTypes';
 import { LoggerService } from '../../../../../utils/LoggerService';
 
 describe('BoundaryOptimizationPostProcessor', () => {
