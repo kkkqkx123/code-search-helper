@@ -2,7 +2,6 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
-import { GraphCacheStats } from '../graph/caching/GraphMappingCache';
 
 export interface PerformanceMetric {
   timestamp: number;
