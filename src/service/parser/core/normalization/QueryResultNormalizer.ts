@@ -40,8 +40,8 @@ import { QueryManager } from '../query/QueryManager';
 import { QueryLoader } from '../query/QueryLoader';
 import { QueryTypeMapper } from './QueryTypeMappings';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { NormalizationCacheAdapter } from './CacheAdapter';
-import { NormalizationPerformanceAdapter } from './PerformanceAdapter';
+import { createCache, LRUCache } from '../../../../utils/cache';
+
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { DefaultLanguageAdapter } from './adapters/DefaultLanguageAdapter';
 import { HashUtils } from '../../../../utils/HashUtils';
@@ -54,8 +54,8 @@ import { HashUtils } from '../../../../utils/HashUtils';
 export class QueryResultNormalizer implements IQueryResultNormalizer {
   private logger: LoggerService;
   private options: Required<NormalizationOptions>;
-  private cacheAdapter: NormalizationCacheAdapter;
-  private performanceAdapter: NormalizationPerformanceAdapter;
+  private cacheAdapter: LRUCache<string, any>;
+
   private stats: NormalizationStats;
   private treeSitterService?: TreeSitterCoreService;
   private errorCount: number = 0;
@@ -73,8 +73,14 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       debug: options.debug ?? false
     };
 
-    this.cacheAdapter = new NormalizationCacheAdapter(this.options.cacheSize, this.options.cacheTTL);
-    this.performanceAdapter = new NormalizationPerformanceAdapter();
+    this.cacheAdapter = createCache('memory-aware', this.options.cacheSize, {
+      defaultTTL: this.options.cacheTTL,
+      enableDetailedStats: true,
+      maxMemory: 50 * 1024 * 1024, // 50MB 内存限制
+      enableCompression: true,
+      compressionThreshold: 2048 // 2KB 以上压缩
+    });
+
     this.stats = {
       totalNodes: 0,
       successfulNormalizations: 0,
@@ -90,13 +96,6 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     */
   setTreeSitterService(service: TreeSitterCoreService): void {
     this.treeSitterService = service;
-  }
-
-  /**
-   * 设置性能监控适配器
-   */
-  setPerformanceAdapter(adapter: NormalizationPerformanceAdapter): void {
-    this.performanceAdapter = adapter;
   }
 
   /**
@@ -120,26 +119,14 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
   ): Promise<StandardizedQueryResult[]> {
     const startTime = Date.now();
 
-    // 使用性能监控适配器开始操作计时
-    let timerKey: string | null = null;
-    if (this.options.enablePerformanceMonitoring) {
-      timerKey = this.performanceAdapter.startOperation('normalization', language, queryTypes?.join(',') || 'auto');
-    }
-
     try {
       // 生成缓存键
       const cacheKey = this.generateCacheKey(ast, language, queryTypes);
 
       // 检查缓存
       if (this.options.enableCache) {
-        const cachedResult = this.cacheAdapter.get<StandardizedQueryResult[]>(cacheKey);
-        if (cachedResult) {
-          // 使用性能监控适配器记录缓存命中
-          if (this.options.enablePerformanceMonitoring) {
-            this.performanceAdapter.recordCacheHit(queryTypes?.join(',') || 'auto');
-          }
-          return cachedResult;
-        }
+        const cachedResult = this.cacheAdapter.get(cacheKey) as StandardizedQueryResult[];
+        return cachedResult;
       }
 
       // 获取查询类型（使用统一映射）
@@ -154,14 +141,14 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
         try {
           const queryResults = await this.executeQueryForType(ast, language, queryType);
           const normalized = await this.normalizeQueryResults(queryResults, language, queryType);
-          
+
           // 更新统计信息（在并行处理中需要考虑线程安全）
           if (this.stats.typeStats[queryType]) {
             this.stats.typeStats[queryType] += normalized.length;
           } else {
             this.stats.typeStats[queryType] = normalized.length;
           }
-          
+
           return normalized;
         } catch (error) {
           this.handleQueryError(error, language, queryType);
@@ -189,26 +176,12 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
         this.logger.debug(`Normalized ${results.length} structures for ${language}`);
       }
 
-      // 使用性能监控适配器记录操作
-      if (this.options.enablePerformanceMonitoring && timerKey) {
-        const duration = this.performanceAdapter.endOperation(timerKey);
-        if (duration !== null) {
-          this.performanceAdapter.recordOperation('normalization', results.length, duration, language);
-        }
-      }
-
       return results;
     } catch (error) {
-      // 记录错误到性能监控适配器
-      if (this.options.enablePerformanceMonitoring) {
-        this.performanceAdapter.recordError('normalization', error as Error, language);
-      }
-
       if (this.fallbackEnabled) {
         this.logger.warn(`Using fallback normalization for ${language}:`, error);
         return this.fallbackNormalization(ast, language, queryTypes);
       }
-
       throw error;
     } finally {
       const endTime = Date.now();
@@ -283,14 +256,21 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
    * 获取详细性能统计
    */
   getPerformanceStats(): any {
-    const cacheStats = this.cacheAdapter.getStats();
+    const cacheStats = this.cacheAdapter.getStats() || {
+      hits: 0,
+      misses: 0,
+      evictions: 0,
+      sets: 0,
+      size: 0,
+      memoryUsage: 0
+    };
     return {
       normalization: this.stats,
       cache: cacheStats,
       errorCount: this.errorCount,
       errorRate: this.stats.totalNodes > 0 ? (this.errorCount / this.stats.totalNodes) : 0,
       averageProcessingTime: this.stats.totalNodes > 0 ? (this.stats.processingTime / this.stats.totalNodes) : 0,
-      cacheHitRate: this.cacheAdapter.calculateHitRate()
+      cacheHitRate: cacheStats.hits > 0 ? cacheStats.hits / (cacheStats.hits + cacheStats.misses) : 0
     };
   }
 
@@ -326,7 +306,13 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     // 如果缓存大小或TTL发生变化，重新创建缓存适配器
     if (options.cacheSize !== undefined || options.cacheTTL !== undefined) {
       this.options = { ...this.options, ...options };
-      this.cacheAdapter = new NormalizationCacheAdapter(this.options.cacheSize, this.options.cacheTTL);
+      this.cacheAdapter = createCache('memory-aware', this.options.cacheSize, {
+        defaultTTL: this.options.cacheTTL,
+        enableDetailedStats: true,
+        maxMemory: 50 * 1024 * 1024, // 50MB 内存限制
+        enableCompression: true,
+        compressionThreshold: 1024 // 1KB 以上压缩
+      });
     }
   }
 
@@ -628,7 +614,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
    */
   private async shouldInvalidateCache(cacheKey: string, filePath: string): Promise<boolean> {
     const currentFileHash = await this.getFileContextHash(filePath);
-    const cachedFileHash = this.cacheAdapter.get<string>(`${cacheKey}:file_hash`);
+    const cachedFileHash = this.cacheAdapter.get(`${cacheKey}:file_hash`) as string;
 
     // 如果文件哈希发生变化，需要失效缓存
     if (cachedFileHash && cachedFileHash !== currentFileHash) {
