@@ -2,6 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { IFileFeatureDetector } from './IFileFeatureDetector';
+import { CODE_LANGUAGES, STRUCTURED_LANGUAGES, TREE_SITTER_SUPPORTED_LANGUAGES } from '../constants/language-constants';
 
 /**
  * 统一的文件特征检测器
@@ -17,14 +18,10 @@ export class FileFeatureDetector implements IFileFeatureDetector {
   }
 
   /**
-   * 检查是否为代码语言
-   */
+  * 检查是否为代码语言
+  */
   isCodeLanguage(language: string): boolean {
-    const codeLanguages = [
-      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-      'go', 'rust', 'php', 'ruby', 'css', 'html', 'json', 'yaml', 'xml'
-    ];
-    return codeLanguages.includes(language.toLowerCase());
+  return CODE_LANGUAGES.includes(language.toLowerCase());
   }
 
   /**
@@ -49,25 +46,20 @@ export class FileFeatureDetector implements IFileFeatureDetector {
   }
 
   /**
-   * 检查是否可以使用TreeSitter
-   */
+  * 检查是否可以使用TreeSitter
+  */
   canUseTreeSitter(language: string): boolean {
-    const treeSitterLanguages = [
-      'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-      'go', 'rust', 'php', 'ruby'
-    ];
-    return treeSitterLanguages.includes(language.toLowerCase());
+  return TREE_SITTER_SUPPORTED_LANGUAGES.includes(language.toLowerCase());
   }
 
   /**
-   * 检查是否为结构化文件
-   */
+  * 检查是否为结构化文件
+  */
   isStructuredFile(content: string, language: string): boolean {
-    // 如果是已知结构化语言，直接返回true
-    const structuredLanguages = ['json', 'xml', 'html', 'yaml', 'css', 'sql'];
-    if (structuredLanguages.includes(language.toLowerCase())) {
-      return true;
-    }
+  // 如果是已知结构化语言，直接返回true
+  if (STRUCTURED_LANGUAGES.includes(language.toLowerCase())) {
+    return true;
+  }
 
     // 检查内容是否包含大量括号或标签
     const bracketCount = (content.match(/[{}()\[\]]/g) || []).length;

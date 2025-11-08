@@ -11,7 +11,8 @@ import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { FallbackExtractor } from '../../utils/FallbackExtractor';
 import { QueryTypeMapper } from '../normalization/QueryTypeMappings';
 import { LANGUAGE_MAPPINGS } from '../../config/LanguageMappingConfig';
-import { TREE_SITTER_LANGUAGE_MAP } from '../../config/LanguageConstants';
+import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
+import { CacheKeyUtils } from '../../../../utils/CacheKeyUtils';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -477,13 +478,7 @@ export class DynamicParserManager {
    * 计算代码哈希值
    */
   private hashCode(code: string): string {
-    let hash = 0;
-    for (let i = 0; i < code.length; i++) {
-      const char = code.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(36);
+    return CacheKeyUtils.generateCacheKey(code);
   }
 
   /**

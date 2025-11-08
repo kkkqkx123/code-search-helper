@@ -92,6 +92,8 @@ export interface CacheStats {
 /**
  * 智能缓存管理器
  */
+import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
+
 export class SmartCacheManager {
   private caches: Map<CacheType, Map<string, CacheEntry<any>>> = new Map();
   private config: SmartCacheManagerConfig;
@@ -508,13 +510,7 @@ export class SmartCacheManager {
    * 简单哈希函数
    */
   private simpleHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash >>> 0; // 转为无符号32位整数
-    }
-    return hash.toString(36);
+    return ContentHashUtils.generateContentHash(str);
   }
 
   /**

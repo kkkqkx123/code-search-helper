@@ -1,5 +1,6 @@
 import { CodeChunk } from '../../types/CodeChunk';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
+import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
 
 /**
  * 相似度计算工具类
@@ -113,14 +114,7 @@ export class SimilarityUtils {
    * 计算内容哈希
    */
   static calculateContentHash(content: string): string {
-    // 简单的哈希函数，用于快速比较
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return hash.toString(36);
+    return ContentHashUtils.generateContentHash(content);
   }
 
   /**

@@ -10,6 +10,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { MetadataBuilder } from './utils/MetadataBuilder';
+import { ContentHashUtils } from '../../../../utils/ContentHashUtils';
 
 /**
  * 适配器选项接口
@@ -525,13 +526,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     * 简单哈希函数
     */
    protected simpleHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash >>> 0; // 转为无符号32位整数
-    }
-    return hash.toString(36);
+    return ContentHashUtils.generateContentHash(str);
   }
 
   /**

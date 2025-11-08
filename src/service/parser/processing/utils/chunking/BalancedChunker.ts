@@ -1,5 +1,6 @@
 
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
 
 /**
  * 符号栈接口
@@ -222,14 +223,7 @@ export class BalancedChunker {
    * 简单哈希函数
    */
   private simpleHash(str: string): string {
-    let hash = 0;
-    if (str.length === 0) return hash.toString();
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return hash.toString();
+    return ContentHashUtils.generateContentHash(str);
   }
 
   /**

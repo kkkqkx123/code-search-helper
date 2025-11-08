@@ -8,6 +8,7 @@ import type { IProcessingContext } from '../../core/interfaces/IProcessingContex
 import type { ProcessingResult } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
 import { ChunkType } from '../../types/CodeChunk';
+import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
 
 /**
  * 类分割策略实现
@@ -422,14 +423,7 @@ export class ClassStrategy extends BaseStrategy {
    * 生成内容哈希
    */
   private generateContentHash(content: string): string {
-    // 简单的哈希实现，实际项目中应该使用更强大的哈希算法
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return hash.toString(16);
+    return ContentHashUtils.generateContentHash(content);
   }
 
   /**

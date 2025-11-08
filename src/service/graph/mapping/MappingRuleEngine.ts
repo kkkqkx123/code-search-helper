@@ -8,6 +8,7 @@ import {
   GraphRelationshipType,
   FileAnalysisResult
 } from './IGraphDataMappingService';
+import { CacheKeyUtils } from '../../../utils/CacheKeyUtils';
 
 export interface MappingRule {
   id: string;
@@ -352,13 +353,7 @@ export class MappingRuleEngine {
   }
 
   private simpleHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return hash.toString();
+    return CacheKeyUtils.generateCacheKey(str);
   }
 
   private getRuleVersion(): string {

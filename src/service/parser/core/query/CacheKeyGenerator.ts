@@ -1,4 +1,5 @@
 import Parser from 'tree-sitter';
+import { CacheKeyUtils } from '../../../../utils/CacheKeyUtils';
 
 /**
  * 统一的缓存键生成器

@@ -7,6 +7,7 @@ import { ILanguageAdapter, StandardizedQueryResult } from './types';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
+import { ContentHashUtils } from '../../../../utils/ContentHashUtils';
 
 /**
  * 配置语言适配器选项接口
@@ -472,13 +473,7 @@ export abstract class ConfigLanguageAdapter implements ILanguageAdapter {
    * 简单哈希函数
    */
   protected simpleHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(36);
+    return ContentHashUtils.generateContentHash(str);
   }
 
   /**

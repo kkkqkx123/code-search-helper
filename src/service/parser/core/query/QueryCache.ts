@@ -1,5 +1,6 @@
 import Parser from 'tree-sitter';
 import { createCache } from '../../../../utils/cache';
+import { CacheKeyUtils } from '../../../../utils/CacheKeyUtils';
 
 /**
  * 统一查询缓存管理器
@@ -132,13 +133,6 @@ export class QueryCache {
   }
 
   private static hashPattern(pattern: string): string {
-    // 简单的哈希算法，用于生成缓存键
-    let hash = 0;
-    for (let i = 0; i < pattern.length; i++) {
-      const char = pattern.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return hash.toString();
+    return CacheKeyUtils.generateCacheKey(pattern);
   }
 }

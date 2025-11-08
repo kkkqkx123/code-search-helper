@@ -15,6 +15,7 @@ import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
 import { StandardizedQueryResult } from '../../parser/core/normalization/types';
+import { ContentHashUtils } from '../../../utils/ContentHashUtils';
 
 export interface AdvancedMappingOptions {
   includeInheritance: boolean;
@@ -509,12 +510,6 @@ export class AdvancedMappingService {
    * 简单哈希函数
    */
   private simpleHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash).toString(36);
+    return ContentHashUtils.generateContentHash(str);
   }
 }

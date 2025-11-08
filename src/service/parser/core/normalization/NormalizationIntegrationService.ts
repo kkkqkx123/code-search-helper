@@ -10,6 +10,7 @@ import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { StandardizedQueryResult } from './types';
 import { CodeChunk, ChunkType } from '../../processing/types/CodeChunk';
 import { NormalizationPerformanceAdapter } from './PerformanceAdapter';
+import { CacheKeyUtils } from '../../../../utils/CacheKeyUtils';
 
 /**
  * 集成服务配置
@@ -390,13 +391,7 @@ export class NormalizationIntegrationService {
    * 哈希内容
    */
   private hashContent(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(36);
+    return CacheKeyUtils.generateCacheKey(content);
   }
 
   /**
@@ -407,13 +402,7 @@ export class NormalizationIntegrationService {
 
     try {
       const optionsStr = JSON.stringify(options);
-      let hash = 0;
-      for (let i = 0; i < optionsStr.length; i++) {
-        const char = optionsStr.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
-      }
-      return Math.abs(hash).toString(36);
+      return CacheKeyUtils.generateCacheKey(optionsStr);
     } catch {
       return 'invalid';
     }

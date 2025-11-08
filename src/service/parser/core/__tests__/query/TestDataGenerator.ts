@@ -165,7 +165,7 @@ class JSClass${i} extends ${i % 2 === 0 ? 'EventEmitter' : 'Object'} {
   private static createMockASTFromCode(code: string, language: string): Parser.SyntaxNode {
     // 为AST对象添加一个稳定的标识符，用于缓存键生成
     const astId = this.generateStableId(code, language);
-    
+
     return {
       type: 'program',
       startIndex: 0,
@@ -178,7 +178,7 @@ class JSClass${i} extends ${i % 2 === 0 ? 'EventEmitter' : 'Object'} {
       nextSibling: null,
       previousSibling: null,
       tree: {
-        language: { 
+        language: {
           name: language,
           query: (pattern: string) => ({
             matches: () => this.generateMockMatches(code, pattern)
@@ -213,7 +213,7 @@ class JSClass${i} extends ${i % 2 === 0 ? 'EventEmitter' : 'Object'} {
    */
   private static generateMockMatches(code: string, pattern: string): any[] {
     const matches: any[] = [];
-    
+
     // 根据查询模式生成相应的匹配结果
     if (pattern.includes('function') || pattern.includes('function_declaration')) {
       const functionRegex = /(?:async\s+)?function\s+(\w+)|const\s+(\w+)\s*=\s*\([^)]*\)\s*=>|(\w+)\s*:\s*\([^)]*\)\s*=>/g;
@@ -222,7 +222,7 @@ class JSClass${i} extends ${i % 2 === 0 ? 'EventEmitter' : 'Object'} {
         const startPos = match.index;
         const matchedText = match[0];
         const lineNum = code.substring(0, startPos).split('\n').length - 1;
-        
+
         matches.push({
           captures: [
             {
@@ -254,7 +254,7 @@ class JSClass${i} extends ${i % 2 === 0 ? 'EventEmitter' : 'Object'} {
         const startPos = match.index;
         const matchedText = match[0];
         const lineNum = code.substring(0, startPos).split('\n').length - 1;
-        
+
         matches.push({
           captures: [
             {
@@ -286,7 +286,7 @@ class JSClass${i} extends ${i % 2 === 0 ? 'EventEmitter' : 'Object'} {
         const startPos = match.index;
         const matchedText = match[0];
         const lineNum = code.substring(0, startPos).split('\n').length - 1;
-        
+
         matches.push({
           captures: [
             {
@@ -318,7 +318,7 @@ class JSClass${i} extends ${i % 2 === 0 ? 'EventEmitter' : 'Object'} {
         const startPos = match.index;
         const matchedText = match[0];
         const lineNum = code.substring(0, startPos).split('\n').length - 1;
-        
+
         matches.push({
           captures: [
             {
@@ -371,7 +371,7 @@ class JSClass${i} extends ${i % 2 === 0 ? 'EventEmitter' : 'Object'} {
       nextSibling: null,
       previousSibling: null,
       tree: {
-        language: { 
+        language: {
           name: 'typescript',
           query: (pattern: string) => ({
             matches: () => [] // 空AST应该返回空匹配
@@ -412,7 +412,7 @@ class BrokenClass {
       nextSibling: null,
       previousSibling: null,
       tree: {
-        language: { 
+        language: {
           name: 'typescript',
           query: (pattern: string) => {
             // 模拟查询错误

@@ -16,8 +16,7 @@ jest.mock('../../../utils/HashUtils', () => ({
     calculateDirectoryHash: jest.fn(),
     calculateStringHash: jest.fn(),
     generateId: jest.fn(),
-    getFileExtension: jest.fn(),
-    isValidCodeFile: jest.fn()
+    getFileExtension: jest.fn()
   }
 }));
 

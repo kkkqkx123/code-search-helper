@@ -22,6 +22,7 @@ import {
   QdrantEventType,
   QdrantEvent
 } from './QdrantTypes';
+import { HashUtils } from '../../utils/HashUtils';
 
 /**
  * Qdrant 向量操作接口
@@ -621,13 +622,8 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
       } else {
         // 非UUID格式的字符串ID，需要转换为数字ID以满足Qdrant要求
         // 使用字符串的哈希值转换为数字
-        let hash = 0;
-        for (let i = 0; i < point.id.length; i++) {
-          const char = point.id.charCodeAt(i);
-          hash = ((hash << 5) - hash) + char;
-          hash = hash & hash; // 转换为32位整数
-        }
-        processedId = Math.abs(hash); // 确保是正数
+        const hash = HashUtils.simpleHash(point.id);
+        processedId = Math.abs(parseInt(hash, 36)); // 确保是正数
       }
     } else if (typeof point.id === 'number') {
       // 确保是无符号整数

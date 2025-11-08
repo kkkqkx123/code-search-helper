@@ -78,7 +78,7 @@ import { ChunkFilter } from '../../service/parser/processing/utils/chunking/Chun
 
 // 新增的processing模块替代组件
 import { StrategyFactory } from '../../service/parser/processing/factory/StrategyFactory';
-import { UnifiedPerformanceMonitoringSystem } from '../../service/parser/processing/utils/performance/UnifiedPerformanceMonitoringSystem';
+
 import { ChunkPostProcessorCoordinator } from '../../service/parser/processing/post-processing/ChunkPostProcessorCoordinator';
 import { ProcessingConfig } from '../../service/parser/processing/core/types/ConfigTypes';
 
@@ -240,10 +240,7 @@ export class BusinessServiceRegistrar {
         return new StrategyFactory(processingConfig);
       }).inSingletonScope();
 
-      container.bind<UnifiedPerformanceMonitoringSystem>(TYPES.UnifiedPerformanceMonitoringSystem).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return new UnifiedPerformanceMonitoringSystem(logger);
-      }).inSingletonScope();
+
 
       container.bind<ChunkPostProcessorCoordinator>(TYPES.ChunkPostProcessorCoordinator).to(ChunkPostProcessorCoordinator).inSingletonScope();
 

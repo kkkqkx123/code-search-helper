@@ -7,7 +7,7 @@ import {
   isFrontendLanguage,
   isEmbeddedTemplateLanguage,
   getLanguageCategory
-} from '../config/LanguageConstants';
+} from '../constants/language-constants';
 
 /**
  * 回退提取器

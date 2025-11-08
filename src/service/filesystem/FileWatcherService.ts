@@ -8,7 +8,7 @@ import { HotReloadRecoveryService } from './HotReloadRecoveryService';
 import { HotReloadError, HotReloadErrorCode } from './HotReloadError';
 import { GitignoreParser } from '../ignore/GitignoreParser';
 import { DEFAULT_IGNORE_PATTERNS } from '../ignore/defaultIgnorePatterns';
-import { LANGUAGE_MAP, DEFAULT_SUPPORTED_EXTENSIONS } from './languageConstants';
+import { LANGUAGE_MAP, DEFAULT_SUPPORTED_EXTENSIONS } from '../parser/constants/language-constants';
 
 // 定义错误上下文接口
 interface ErrorContext {

@@ -1,4 +1,5 @@
 import Parser from 'tree-sitter';
+import { ContentHashUtils } from '../../../utils/ContentHashUtils';
 
 /**
  * TreeSitter 基础工具类
@@ -54,13 +55,7 @@ export class TreeSitterUtils {
    * @returns 哈希值
    */
   static simpleHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash >>> 0; // 正确地保持为无符号32位整数
-    }
-    return hash.toString(36);
+    return ContentHashUtils.generateContentHash(str);
   }
 
   /**

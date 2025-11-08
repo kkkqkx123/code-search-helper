@@ -6,6 +6,7 @@ import {
   ScriptBlock,
   StyleBlock
 } from './LayeredHTMLConfig';
+import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
 
 /**
  * HTML内容提取器
@@ -260,13 +261,7 @@ export class HTMLContentExtractor implements IHTMLContentExtractor {
    * 生成内容哈希
    */
   private generateContentHash(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return Math.abs(hash).toString(36);
+    return ContentHashUtils.generateContentHash(content);
   }
 
   /**

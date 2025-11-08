@@ -1,6 +1,7 @@
 import { injectable } from 'inversify';
 import * as Joi from 'joi';
 import { BaseConfigService } from './BaseConfigService';
+import { TREE_SITTER_SUPPORTED_LANGUAGES } from '../../service/parser/constants/language-constants';
 
 export interface TreeSitterConfig {
   enabled: boolean;
@@ -17,9 +18,9 @@ export class TreeSitterConfigService extends BaseConfigService<TreeSitterConfig>
       enabled: process.env.TREE_SITTER_ENABLED !== 'false',
       cacheSize: parseInt(process.env.TREE_SITTER_CACHE_SIZE || '1000'),
       timeout: parseInt(process.env.TREE_SITTER_TIMEOUT || '30000'),
-      supportedLanguages: process.env.TREE_SITTER_SUPPORTED_LANGUAGES 
+      supportedLanguages: process.env.TREE_SITTER_SUPPORTED_LANGUAGES
         ? process.env.TREE_SITTER_SUPPORTED_LANGUAGES.split(',')
-        : ['typescript', 'javascript', 'python', 'java', 'go', 'rust', 'cpp', 'c'],
+        : TREE_SITTER_SUPPORTED_LANGUAGES,
       useOptimizedQueries: process.env.USE_OPTIMIZED_QUERIES !== 'false',
     };
 
@@ -33,16 +34,7 @@ export class TreeSitterConfigService extends BaseConfigService<TreeSitterConfig>
       timeout: Joi.number().positive().default(30000),
       supportedLanguages: Joi.array()
         .items(Joi.string())
-        .default([
-          'typescript',
-          'javascript',
-          'python',
-          'java',
-          'go',
-          'rust',
-          'cpp',
-          'c'
-        ]),
+        .default(TREE_SITTER_SUPPORTED_LANGUAGES),
       useOptimizedQueries: Joi.boolean().default(true)
     });
 

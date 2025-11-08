@@ -1,3 +1,5 @@
+import { ContentHashUtils } from '../../../../utils/ContentHashUtils';
+
 /**
  * 代码块核心类型定义
  * 提供统一的代码块结构和元数据定义
@@ -268,14 +270,7 @@ export class CodeChunkUtils {
    * 生成代码块的内容哈希
    */
   static generateHash(chunk: CodeChunk): string {
-    // 简单的哈希实现，实际项目中应该使用更强大的哈希算法
     const content = chunk.content + chunk.metadata.startLine + chunk.metadata.endLine;
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return hash.toString(16);
+    return ContentHashUtils.generateContentHash(content);
   }
 }

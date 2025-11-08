@@ -86,17 +86,17 @@ export class HashUtils {
   static normalizePath(filePath: string): string {
     // 标准化路径，转换反斜杠为正斜杠，并移除尾斜杠（除非是根路径）
     let normalized = path.normalize(filePath).replace(/\\/g, '/');
-    
+
     // 移除尾斜杠，但保留根路径的斜杠
     if (normalized.length > 1 && normalized.endsWith('/')) {
       normalized = normalized.slice(0, -1);
     }
-    
+
     // 处理双斜杠问题（Windows UNC路径）
     if (normalized.startsWith('//') && !normalized.startsWith('///')) {
       normalized = '/' + normalized.substring(2);
     }
-    
+
     return normalized;
   }
 
@@ -105,34 +105,34 @@ export class HashUtils {
    */
   static deepNormalizePath(filePath: string): string {
     if (!filePath) return '';
-    
+
     // 1. 标准化路径分隔符
     let normalized = filePath.replace(/\\/g, '/');
-    
+
     // 2. 处理相对路径部分
     normalized = path.normalize(normalized);
-    
+
     // 3. 移除尾部斜杠（除非是根路径）
     if (normalized.length > 1 && normalized.endsWith('/')) {
       normalized = normalized.slice(0, -1);
     }
-    
+
     // 4. 处理Windows UNC路径
     if (normalized.startsWith('//') && !normalized.startsWith('///')) {
       normalized = '/' + normalized.substring(2);
     }
-    
+
     // 5. 移除多余的斜杠
     normalized = normalized.replace(/\/+/g, '/');
-    
+
     // 6. 处理当前目录引用
     normalized = normalized.replace(/\/\.\//g, '/');
-    
+
     // 7. 移除开头的"./"
     if (normalized.startsWith('./')) {
       normalized = normalized.substring(2);
     }
-    
+
     return normalized;
   }
 
@@ -141,7 +141,7 @@ export class HashUtils {
    */
   static arePathsEqual(path1: string, path2: string): boolean {
     if (!path1 || !path2) return path1 === path2;
-    
+
     // 使用深度标准化进行比较
     return this.deepNormalizePath(path1) === this.deepNormalizePath(path2);
   }
@@ -158,8 +158,8 @@ export class HashUtils {
    * @returns 符合命名规范的安全名称
    */
   static generateSafeProjectName(
-    projectId: string, 
-    prefix: string = 'project', 
+    projectId: string,
+    prefix: string = 'project',
     maxLength: number = 63,
     saveMapping: boolean = false,
     mappingService?: any
@@ -209,28 +209,34 @@ export class HashUtils {
     return ext.startsWith('.') ? ext.substr(1) : ext;
   }
 
-  static isValidCodeFile(filePath: string, allowedExtensions: string[] = []): boolean {
-    const extension = this.getFileExtension(filePath);
-    const defaultExtensions = [
-      'ts',
-      'js',
-      'jsx',
-      'tsx',
-      'py',
-      'java',
-      'go',
-      'rs',
-      'cpp',
-      'c',
-      'h',
-      'cs',
-      'php',
-      'rb',
-      'swift',
-      'kt',
-    ];
-    const extensions = allowedExtensions.length > 0 ? allowedExtensions : defaultExtensions;
+  /**
+   * 简单hash实现 - 用于低敏感度场景
+   * 算法: hash = ((hash << 5) - hash) + char
+   */
+  static simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash >>> 0; // 确保为无符号32位整数
+    }
+    return Math.abs(hash).toString(36);
+  }
 
-    return extensions.includes(extension);
+  /**
+   * FNV-1a hash实现 - 用于中等敏感度场景
+   * 算法: hash ^= char; hash *= FNV_PRIME
+   */
+  static fnv1aHash(str: string): string {
+    const FNV_PRIME = 16777619;
+    const FNV_OFFSET_BASIS = 2166136261;
+
+    let hash = FNV_OFFSET_BASIS;
+    for (let i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash *= FNV_PRIME;
+      hash = hash >>> 0; // 转为无符号32位整数
+    }
+    return hash === FNV_OFFSET_BASIS ? '0' : Math.abs(hash).toString(36);
   }
 }
