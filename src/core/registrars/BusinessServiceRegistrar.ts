@@ -78,6 +78,7 @@ import { ChunkFilter } from '../../service/parser/processing/utils/chunking/Chun
 
 // 新增的processing模块替代组件
 import { StrategyFactory } from '../../service/parser/processing/factory/StrategyFactory';
+import { ProcessingCoordinator } from '../../service/parser/processing/coordinator/ProcessingCoordinator';
 
 import { ChunkPostProcessorCoordinator } from '../../service/parser/processing/post-processing/ChunkPostProcessorCoordinator';
 import { ProcessingConfig } from '../../service/parser/processing/core/types/ConfigTypes';
@@ -257,6 +258,9 @@ export class BusinessServiceRegistrar {
 
 
       container.bind<ChunkPostProcessorCoordinator>(TYPES.ChunkPostProcessorCoordinator).to(ChunkPostProcessorCoordinator).inSingletonScope();
+
+      // 注册 ProcessingCoordinator
+      container.bind<ProcessingCoordinator>(TYPES.UnifiedProcessingCoordinator).to(ProcessingCoordinator).inSingletonScope();
 
       // 处理器
       container.bind<ChunkFilter>(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();

@@ -15,6 +15,8 @@ import { CodeChunk } from '../types/CodeChunk';
 import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
 import { PostProcessingContext } from '../post-processing/IChunkPostProcessor';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { injectable, inject, optional } from 'inversify';
+import { TYPES } from '../../../../types';
 import {
   UNIFIED_STRATEGY_PRIORITIES,
   getPrioritizedStrategies,
@@ -26,6 +28,7 @@ import {
  * 处理协调器类
  * 负责协调整个代码处理流程
  */
+@injectable()
 export class ProcessingCoordinator {
   /** 策略工厂 */
   private strategyFactory: IStrategyFactory;
@@ -50,10 +53,10 @@ export class ProcessingCoordinator {
    * @param logger 日志服务
    */
   constructor(
-    strategyFactory: IStrategyFactory,
-    configManager: IConfigManager,
-    postProcessorCoordinator: ChunkPostProcessorCoordinator,
-    logger?: LoggerService
+    @inject(TYPES.StrategyFactory) strategyFactory: IStrategyFactory,
+    @inject(TYPES.ConfigurationManager) configManager: IConfigManager,
+    @inject(TYPES.ChunkPostProcessorCoordinator) postProcessorCoordinator: ChunkPostProcessorCoordinator,
+    @inject(TYPES.LoggerService) @optional() logger?: LoggerService
   ) {
     this.strategyFactory = strategyFactory;
     this.configManager = configManager;
