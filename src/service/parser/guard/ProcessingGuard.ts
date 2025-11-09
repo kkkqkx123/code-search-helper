@@ -235,7 +235,7 @@ export class ProcessingGuard {
 
     try {
       // 3. 策略选择（基于检测结果）
-      const strategy = createStrategy(detection.processingStrategy || 'universal-line');
+      const strategy = createStrategy(detection.processingStrategy || 'universal-text-segmentation');
 
       // 4. 执行处理
       const context = {
@@ -382,7 +382,7 @@ export class ProcessingGuard {
       this.logger?.info(`Using intelligent fallback strategy: ${fallbackStrategy.strategy} for ${filePath}`);
 
       // 创建对应策略并执行
-      const strategy = createStrategy(fallbackStrategy.strategy || 'universal-line');
+      const strategy = createStrategy(fallbackStrategy.strategy || 'universal-text-segmentation');
 
       const context = {
         content,
@@ -505,7 +505,7 @@ export class ProcessingGuard {
         maxChunkSize: 2000,
         minChunkSize: 100,
         overlapSize: 50,
-        strategy: detection.processingStrategy || 'universal-line'
+        strategy: detection.processingStrategy || 'universal-text-segmentation'
       },
       features: {
         enableSyntaxAnalysis: true,
@@ -549,14 +549,20 @@ export class ProcessingGuard {
 
   private selectProcessingStrategy(languageDetection: LanguageDetectionResult): ProcessingStrategyType {
     if (!languageDetection.language || languageDetection.language === 'text') {
-      return ProcessingStrategyType.UNIVERSAL_LINE;
+      return ProcessingStrategyType.UNIVERSAL_TEXT;
+    }
+    
+    // 对于纯文本格式文件，直接使用通用文本策略，跳过复杂处理
+    const textFormatLanguages = ['text', 'ini', 'csv', 'log', 'env', 'properties', 'dockerfile', 'gitignore', 'makefile', 'readme'];
+    if (textFormatLanguages.includes(languageDetection.language.toLowerCase())) {
+      return ProcessingStrategyType.UNIVERSAL_TEXT;
     }
     
     if (languageDetection.confidence > 0.8 && this.isCodeFile(languageDetection.language)) {
       return ProcessingStrategyType.TREESITTER_AST;
     }
     
-    return ProcessingStrategyType.UNIVERSAL_SEMANTIC;
+    return ProcessingStrategyType.UNIVERSAL_TEXT;
   }
 
   private isCodeFile(language?: string): boolean {

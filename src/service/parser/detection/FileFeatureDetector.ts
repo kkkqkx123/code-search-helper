@@ -2,7 +2,14 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { IFileFeatureDetector } from './IFileFeatureDetector';
-import { CODE_LANGUAGES, STRUCTURED_LANGUAGES, TREE_SITTER_SUPPORTED_LANGUAGES } from '../constants/language-constants';
+import {
+  CODE_LANGUAGES,
+  STRUCTURED_LANGUAGES,
+  TREE_SITTER_SUPPORTED_LANGUAGES,
+  MARKDOWN_LANGUAGES,
+  XML_LANGUAGES,
+  TEXT_LANGUAGES
+} from '../constants/language-constants';
 
 /**
  * 统一的文件特征检测器
@@ -28,21 +35,21 @@ export class FileFeatureDetector implements IFileFeatureDetector {
    * 检查是否为文本类语言（需要智能分段的非代码文件）
    */
   isTextLanguage(language: string): boolean {
-    return ['markdown', 'text', 'log', 'ini', 'cfg', 'conf', 'toml'].includes(language.toLowerCase());
+    return TEXT_LANGUAGES.includes(language.toLowerCase());
   }
 
   /**
    * 检查是否为Markdown
    */
   isMarkdown(language: string): boolean {
-    return ['markdown', 'md'].includes(language.toLowerCase());
+    return MARKDOWN_LANGUAGES.includes(language.toLowerCase());
   }
 
   /**
    * 检查是否为XML类语言
    */
   isXML(language: string): boolean {
-    return ['xml', 'html', 'svg', 'xhtml'].includes(language.toLowerCase());
+    return XML_LANGUAGES.includes(language.toLowerCase());
   }
 
   /**

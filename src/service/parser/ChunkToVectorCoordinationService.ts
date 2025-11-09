@@ -11,7 +11,7 @@ import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { CodeChunk } from './types';
 import * as fs from 'fs/promises';
 import { GuardCoordinator } from './guard/GuardCoordinator';
-import { UniversalTextStrategy } from './processing/utils/UniversalTextStrategy';
+import { UniversalTextStrategy } from './processing/strategies/implementations/UniversalTextStrategy';
 import { BackupFileProcessor } from './detection/BackupFileProcessor';
 import { VectorBatchOptimizer } from '../optimization/VectorBatchOptimizer';
 import { LanguageDetectionService } from './detection/LanguageDetectionService';

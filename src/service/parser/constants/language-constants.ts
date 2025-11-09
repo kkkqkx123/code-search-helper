@@ -79,7 +79,7 @@ export const CODE_LANGUAGES = [
 
 // 结构化文件语言列表
 export const STRUCTURED_LANGUAGES = [
-  'toml', 'json', 'xml', 'yaml', 'html', 'css', 'scss', 'sass'
+  'json', 'xml', 'html', 'yaml', 'css', 'sql', 'toml', 'scss', 'sass'
 ];
 
 // 默认支持的文件扩展名列表（带点号）
@@ -87,8 +87,8 @@ export const DEFAULT_SUPPORTED_EXTENSIONS = Object.keys(LANGUAGE_MAP);
 
 // 支持 Tree-sitter 解析的语言列表
 export const TREE_SITTER_SUPPORTED_LANGUAGES = [
-  'c', 'cpp', 'csharp', 'css', 'go', 'html', 'java', 'javascript',
-  'kotlin', 'python', 'rust', 'tsx', 'typescript', 'vue', 'toml', 'yaml'
+  'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
+  'go', 'rust', 'php', 'ruby', 'css', 'kotlin', 'tsx', 'vue'
 ];
 
 // 具有强特征的语言列表
@@ -200,4 +200,146 @@ export const LANGUAGES_BY_CATEGORY = {
     'embedded_template', 'vue', 'jsx', 'tsx'
   ]
 };
+
+// 文本类语言列表（需要智能分段的非代码文件）
+export const TEXT_LANGUAGES = [
+  'markdown', 'text', 'log', 'ini', 'cfg', 'conf', 'toml'
+];
+
+// Markdown语言别名列表
+export const MARKDOWN_LANGUAGES = [
+  'markdown', 'md'
+];
+
+// XML类语言列表
+// 注意：HTML虽然语法上类似XML，但有专门的分层处理策略，因此不包含在此列表中
+// XHTML是HTML的XML版本，同样使用HTML的分层处理策略
+export const XML_LANGUAGES = [
+  'xml', 'svg'
+];
+
+// 文本格式策略和语言配置
+import { LanguageConfig, LanguageStrategy } from '../config/LanguageCore';
+
+export const TEXT_FORMAT_STRATEGY: LanguageStrategy = {
+  primary: 'universal-text-segmentation',
+  fallback: ['line-segmentation'],
+  skipComplexQueries: true,
+  skipASTParsing: true,
+  maxQueryDepth: 1,
+  skipSyntaxAnalysis: true,
+  skipSemanticAnalysis: true
+};
+
+export const TEXT_FORMAT_LANGUAGES: LanguageConfig[] = [
+  {
+    name: 'text',
+    displayName: 'Plain Text',
+    queryDir: 'text',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: ['.txt'],
+    aliases: ['text', 'plain'],
+    strategy: TEXT_FORMAT_STRATEGY
+  },
+
+  {
+    name: 'ini',
+    displayName: 'INI Configuration',
+    queryDir: 'ini',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: ['.ini', '.cfg', '.conf'],
+    aliases: ['ini', 'config', 'configuration'],
+    strategy: TEXT_FORMAT_STRATEGY
+  },
+
+  {
+    name: 'csv',
+    displayName: 'CSV Data',
+    queryDir: 'csv',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: ['.csv'],
+    aliases: ['csv', 'comma-separated'],
+    strategy: TEXT_FORMAT_STRATEGY
+  },
+
+  {
+    name: 'log',
+    displayName: 'Log File',
+    queryDir: 'log',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: ['.log'],
+    aliases: ['log', 'logfile'],
+    strategy: TEXT_FORMAT_STRATEGY
+  },
+
+  {
+    name: 'env',
+    displayName: 'Environment File',
+    queryDir: 'env',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: ['.env'],
+    aliases: ['env', 'environment'],
+    strategy: TEXT_FORMAT_STRATEGY
+  },
+
+  {
+    name: 'properties',
+    displayName: 'Properties File',
+    queryDir: 'properties',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: ['.properties'],
+    aliases: ['properties', 'props'],
+    strategy: TEXT_FORMAT_STRATEGY
+  },
+
+  {
+    name: 'dockerfile',
+    displayName: 'Dockerfile',
+    queryDir: 'dockerfile',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: ['dockerfile'],
+    aliases: ['dockerfile', 'docker'],
+    strategy: TEXT_FORMAT_STRATEGY
+  },
+
+  {
+    name: 'gitignore',
+    displayName: 'Git Ignore File',
+    queryDir: 'gitignore',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: ['.gitignore', '.gitkeep', '.gitattributes'],
+    aliases: ['gitignore', 'git'],
+    strategy: TEXT_FORMAT_STRATEGY
+  },
+
+  {
+    name: 'makefile',
+    displayName: 'Makefile',
+    queryDir: 'makefile',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: ['makefile', 'make'],
+    aliases: ['makefile', 'make'],
+    strategy: TEXT_FORMAT_STRATEGY
+  },
+
+  {
+    name: 'readme',
+    displayName: 'README File',
+    queryDir: 'readme',
+    hasSubdir: false,
+    category: 'text_format',
+    extensions: [],
+    aliases: ['readme'],
+    strategy: TEXT_FORMAT_STRATEGY
+  }
+];
 

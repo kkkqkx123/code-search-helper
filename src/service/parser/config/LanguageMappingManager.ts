@@ -5,6 +5,7 @@ import { BASIC_PROGRAMMING_LANGUAGES } from './BasicProgrammingConfig';
 import { DATA_FORMAT_LANGUAGES } from './DataFormatConfig';
 import { SPECIAL_PROCESSING_LANGUAGES } from './SpecialProcessingConfig';
 import { HYBRID_PROCESSING_LANGUAGES } from './HybridProcessingConfig';
+import { TEXT_FORMAT_LANGUAGES } from './TextFormatConfig';
 
 /**
  * 基于查询规则目录的语言映射管理系统
@@ -46,7 +47,8 @@ export class LanguageMappingManager {
       ...BASIC_PROGRAMMING_LANGUAGES,
       ...DATA_FORMAT_LANGUAGES,
       ...SPECIAL_PROCESSING_LANGUAGES,
-      ...HYBRID_PROCESSING_LANGUAGES
+      ...HYBRID_PROCESSING_LANGUAGES,
+      ...TEXT_FORMAT_LANGUAGES
     ];
 
     // 将所有语言添加到映射中

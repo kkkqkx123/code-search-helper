@@ -15,6 +15,7 @@ export enum ProcessingStrategyType {
   UNIVERSAL_SEMANTIC = 'universal_semantic',
   UNIVERSAL_BRACKET = 'universal_bracket',
   UNIVERSAL_LINE = 'universal_line',
+  UNIVERSAL_TEXT = 'universal-text-segmentation',
   MARKDOWN_SPECIALIZED = 'markdown_specialized',
   XML_SPECIALIZED = 'xml_specialized',
   HTML_LAYERED = 'html_layered',

@@ -14,8 +14,11 @@ export const UNIFIED_STRATEGY_PRIORITIES: Record<string, number> = {
   'ast-codesplitter': 3,
   'bracket-segmentation': 4,
   
-  // 5: 降级策略（最低优先级）
-  'line-segmentation': 5
+  // 5: 通用文本策略（中等优先级）
+  'universal-text-segmentation': 5,
+  
+  // 6: 降级策略（最低优先级）
+  'line-segmentation': 6
 };
 
 /**
@@ -27,69 +30,129 @@ export const LANGUAGE_SPECIFIC_STRATEGIES: Record<string, string[]> = {
   'typescript': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'javascript': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'python': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'java': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'c': [
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'cpp': [
     'bracket-segmentation',
     'ast-codesplitter',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'csharp': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'go': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'rust': [
     'bracket-segmentation',
     'ast-codesplitter',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'php': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'ruby': [
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'swift': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'kotlin': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
     'line-segmentation'
   ],
   'scala': [
     'ast-codesplitter',
     'bracket-segmentation',
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  // 通用语言支持
+  'text': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  'unknown': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  // 纯文本格式语言 - 直接使用通用文本策略，跳过复杂处理
+  'ini': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  'csv': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  'log': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  'env': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  'properties': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  'dockerfile': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  'gitignore': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  'makefile': [
+    'universal-text-segmentation',
+    'line-segmentation'
+  ],
+  'readme': [
+    'universal-text-segmentation',
     'line-segmentation'
   ]
 };
@@ -102,7 +165,8 @@ export const FILE_TYPE_STRATEGIES: Record<string, string> = {
   '.markdown': 'markdown-segmentation',
   '.xml': 'xml-segmentation',
   '.html': 'layered-html',
-  '.htm': 'layered-html'
+  '.htm': 'layered-html',
+  '.xhtml': 'layered-html'
 };
 
 /**
@@ -156,6 +220,7 @@ export const BRACKET_SEGMENTATION_SUPPORTED_LANGUAGES: string[] = [
 // 优化后的策略支持语言
 export const AST_CODESPLITTER_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
 export const MARKDOWN_SEGMENTATION_SUPPORTED_LANGUAGES = ['markdown'];
-export const XML_SEGMENTATION_SUPPORTED_LANGUAGES = ['xml', 'html'];
+export const XML_SEGMENTATION_SUPPORTED_LANGUAGES = ['xml'];
 export const LAYERED_HTML_SUPPORTED_LANGUAGES = ['html', 'htm'];
 export const LINE_SEGMENTATION_SUPPORTED_LANGUAGES = PROGRAMMING_LANGUAGES;
+export const UNIVERSAL_TEXT_SEGMENTATION_SUPPORTED_LANGUAGES = ['*']; // 支持所有语言

@@ -1,5 +1,4 @@
 // 核心处理逻辑 - 保留在 utils
-export { UniversalTextStrategy } from './UniversalTextStrategy';
 export { IntelligentFallbackEngine } from '../../guard/IntelligentFallbackEngine';
 
 // 通用工具 - 保留在 utils

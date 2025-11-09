@@ -12,6 +12,8 @@ export interface LanguageStrategy {
   maxQueryDepth: number;
   skipComplexQueries?: boolean;
   skipASTParsing?: boolean;
+  skipSyntaxAnalysis?: boolean;
+  skipSemanticAnalysis?: boolean;
   specializedProcessor?: string;
 }
 
@@ -21,7 +23,7 @@ export interface LanguageConfig {
   queryDir: string;
   hasSubdir: boolean;
   strategy: LanguageStrategy;
-  category: 'advanced_programming' | 'basic_programming' | 'data_format' | 'special_processing' | 'hybrid_processing';
+  category: 'advanced_programming' | 'basic_programming' | 'data_format' | 'special_processing' | 'hybrid_processing' | 'text_format';
   extensions: string[];
   aliases: string[];
 }

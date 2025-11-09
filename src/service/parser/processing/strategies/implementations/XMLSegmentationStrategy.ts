@@ -30,7 +30,7 @@ export class XMLSegmentationStrategy extends BaseStrategy {
   constructor(config: XMLStrategyConfig) {
     const defaultConfig: StrategyConfig = {
       name: 'xml-segmentation',
-      supportedLanguages: ['xml', 'html', 'htm', 'xhtml', 'svg'],
+      supportedLanguages: ['xml', 'xhtml', 'svg'],
       enabled: true,
       description: 'XML Segmentation Strategy',
     };

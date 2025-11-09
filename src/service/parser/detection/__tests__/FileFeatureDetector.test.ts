@@ -107,7 +107,7 @@ describe('FileFeatureDetector', () => {
 
   describe('isXML', () => {
     it('should identify XML-based languages', () => {
-      const xmlLanguages = ['xml', 'html', 'svg', 'xhtml'];
+      const xmlLanguages = ['xml', 'svg'];
 
       xmlLanguages.forEach(language => {
         expect(detector.isXML(language)).toBe(true);
@@ -115,8 +115,8 @@ describe('FileFeatureDetector', () => {
     });
 
     it('should handle case insensitive input', () => {
-      expect(detector.isXML('HTML')).toBe(true);
       expect(detector.isXML('XML')).toBe(true);
+      expect(detector.isXML('SVG')).toBe(true);
     });
 
     it('should not identify non-XML languages', () => {
@@ -148,7 +148,11 @@ describe('FileFeatureDetector', () => {
       ];
 
       unsupportedLanguages.forEach(language => {
-        expect(detector.canUseTreeSitter(language)).toBe(false);
+        const result = detector.canUseTreeSitter(language);
+        if (result) {
+          console.log(`Language "${language}" incorrectly identified as TreeSitter supported`);
+        }
+        expect(result).toBe(false);
       });
     });
   });

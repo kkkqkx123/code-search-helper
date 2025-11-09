@@ -8,7 +8,7 @@ import type { IProcessingContext } from '../../core/interfaces/IProcessingContex
 import type { ProcessingResult, ResultMetadata, CodeChunk } from '../../core/types/ResultTypes';
 import { ChunkType } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
-import { CodeChunkBuilder } from '../../types/CodeChunk';
+import { ChunkFactory, ChunkCreationConfig } from '../../../../../utils/processing/ChunkFactory';
 import { UNIFIED_STRATEGY_PRIORITIES } from '../../../constants/StrategyPriorities';
 
 /**
@@ -99,21 +99,23 @@ export abstract class BaseStrategy implements IProcessingStrategy {
     language: string,
     type: ChunkType = ChunkType.GENERIC,
     additionalMetadata?: Record<string, any>
-  ) {
-    return new CodeChunkBuilder()
-      .setContent(content)
-      .setStartLine(startLine)
-      .setEndLine(endLine)
-      .setLanguage(language)
-      .setStrategy(this.name)
-      .setType(type)
-      .addMetadata('filePath', additionalMetadata?.filePath)
-      .addMetadata('complexity', additionalMetadata?.complexity)
-      .addMetadata('hash', additionalMetadata?.hash)
-      .addMetadata('functionName', additionalMetadata?.functionName)
-      .addMetadata('className', additionalMetadata?.className)
-      .addMetadata('nodeIds', additionalMetadata?.nodeIds)
-      .build();
+  ): CodeChunk {
+    // 合并元数据
+    const metadata = {
+      ...additionalMetadata,
+      strategy: this.name
+    };
+
+    // 使用ChunkFactory创建代码块，提供自动复杂度计算和验证
+    return ChunkFactory.createCodeChunk(
+      content,
+      startLine,
+      endLine,
+      language,
+      type,
+      metadata,
+      this.getChunkCreationConfig()
+    );
   }
 
   /**
@@ -227,6 +229,18 @@ export abstract class BaseStrategy implements IProcessingStrategy {
     complexity += Math.log10(lines + 1) * 2;
 
     return Math.round(complexity);
+  }
+
+  /**
+   * 获取代码块创建配置
+   */
+  protected getChunkCreationConfig(): ChunkCreationConfig {
+    return {
+      autoCalculateComplexity: true,
+      autoGenerateHash: true,
+      defaultStrategy: this.name,
+      validateRequired: true
+    };
   }
 
   /**

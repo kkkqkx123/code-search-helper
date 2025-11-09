@@ -13,6 +13,7 @@ export { LineSegmentationStrategy } from './implementations/LineSegmentationStra
 export { MarkdownSegmentationStrategy } from './implementations/MarkdownSegmentationStrategy';
 export { XMLSegmentationStrategy } from './implementations/XMLSegmentationStrategy';
 export { ASTCodeSplitter } from './implementations/ASTCodeSplitter';
+export { UniversalTextStrategy } from './implementations/UniversalTextStrategy';
 
 // 策略类型导出
 export type { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';
@@ -47,6 +48,9 @@ export function createStrategy(strategyName: string, config?: any): any {
 
     case 'xml-segmentation':
       return new (require('./implementations/XMLSegmentationStrategy').XMLSegmentationStrategy)(config);
+
+    case 'universal-text-segmentation':
+      return new (require('./implementations/UniversalTextStrategy').UniversalTextStrategy)(config);
 
     default:
       throw new Error(`Unknown strategy: ${strategyName}`);

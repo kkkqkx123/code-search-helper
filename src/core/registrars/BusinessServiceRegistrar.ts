@@ -44,7 +44,7 @@ import { QueryResultNormalizer } from '../../service/parser/core/normalization/Q
 import { SegmentationConfigService } from '../../config/service/SegmentationConfigService';
 
 // 通用文件处理服务
-import { UniversalTextStrategy } from '../../service/parser/processing/utils/UniversalTextStrategy';
+import { UniversalTextStrategy } from '../../service/parser/processing/strategies/implementations/UniversalTextStrategy';
 import { ErrorThresholdInterceptor } from '../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../service/parser/detection/BackupFileProcessor';
@@ -160,8 +160,23 @@ export class BusinessServiceRegistrar {
       InfrastructureServiceRegistrar.register()在BusinessServiceRegistrar.register()之前调用
       */
 
-      // 分段器模块服务
-      container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
+      // 分段器模块服务 - 注意：UniversalTextStrategy 现在不使用 @injectable，需要手动实例化
+      container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).toDynamicValue(() => {
+        return new UniversalTextStrategy({
+          name: 'universal-text-segmentation',
+          supportedLanguages: ['*'],
+          enabled: true,
+          description: 'Universal Text Segmentation Strategy',
+          maxChunkSize: 3000,
+          minChunkSize: 200,
+          maxLinesPerChunk: 100,
+          minLinesPerChunk: 5,
+          overlapSize: 100,
+          enableIntelligentChunking: true,
+          memoryLimitMB: 512,
+          errorThreshold: 10
+        });
+      }).inSingletonScope();
 
       // 新增的processing模块替代组件
      container.bind<StrategyFactory>(TYPES.StrategyFactory).toDynamicValue(context => {
