@@ -1,5 +1,6 @@
 import { Container } from 'inversify';
 import { TYPES } from '../../types';
+import { LoggerService } from '../../utils/LoggerService';
 import { SimilarityService } from '../../service/similarity/SimilarityService';
 import { SimilarityCacheManager } from '../../service/similarity/cache/SimilarityCacheManager';
 import { SimilarityPerformanceMonitor } from '../../service/similarity/monitoring/SimilarityPerformanceMonitor';
@@ -17,8 +18,8 @@ import { HybridSimilarityStrategy } from '../../service/similarity/strategies/Hy
  */
 export class SimilarityServiceRegistrar {
   static register(container: Container): void {
-    const logger = container.isBound(TYPES.LoggerService) 
-      ? container.get(TYPES.LoggerService) 
+    const logger: LoggerService | undefined = container.isBound(TYPES.LoggerService)
+      ? container.get<LoggerService>(TYPES.LoggerService)
       : undefined;
 
     try {
@@ -31,17 +32,23 @@ export class SimilarityServiceRegistrar {
 
       // 注册缓存管理器
       container.bind<SimilarityCacheManager>(TYPES.SimilarityCacheManager)
-        .toDynamicValue(context => {
-          const logger = context.container.isBound(TYPES.LoggerService) 
-            ? context.container.get(TYPES.LoggerService) 
-            : undefined;
+        .toDynamicValue((context: any) => {
+          let logger: LoggerService | undefined;
+          let cacheService: any | undefined;
+          try {
+            logger = context.container.get(TYPES.LoggerService);
+            cacheService = context.container.get(TYPES.CacheService);
+          } catch {
+            logger = undefined;
+            cacheService = undefined;
+          }
           
-          // 从配置中获取缓存大小，如果没有则使用默认值
-          const cacheSize = process.env.SIMILARITY_CACHE_SIZE 
-            ? parseInt(process.env.SIMILARITY_CACHE_SIZE, 10) 
-            : 1000;
+          // 从配置中获取缓存TTL，如果没有则使用默认值
+          const cacheTTL = process.env.SIMILARITY_CACHE_TTL
+            ? parseInt(process.env.SIMILARITY_CACHE_TTL, 10)
+            : 300000; // 5分钟
           
-          return new SimilarityCacheManager(logger, cacheSize);
+          return new SimilarityCacheManager(logger, cacheService, cacheTTL);
         })
         .inSingletonScope();
 

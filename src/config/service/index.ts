@@ -14,6 +14,7 @@ export { TreeSitterConfigService, TreeSitterConfig } from './TreeSitterConfigSer
 export { NebulaConfigService, NebulaConfig } from './NebulaConfigService';
 export { ProjectNamingConfigService } from './ProjectNamingConfigService';
 export { GraphCacheConfigService } from './GraphCacheConfigService';
+export { SimilarityConfigService } from './SimilarityConfigService';
 export type { GraphCacheConfig } from '../ConfigTypes';
 
 // 导出工具类

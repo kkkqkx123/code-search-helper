@@ -72,10 +72,10 @@ export class SimilarityService implements ISimilarityService {
         this.generateCacheKey(content1, content2, strategy.type, options) : null;
 
       // 检查缓存
-      let similarity: number;
+      let similarity: number | undefined;
       let cacheHit = false;
       
-      if (cacheKey) {
+      if (cacheKey && this.cacheManager) {
         const cachedResult = await this.cacheManager.get(cacheKey);
         if (cachedResult !== null) {
           similarity = cachedResult;

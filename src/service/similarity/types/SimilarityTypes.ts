@@ -9,6 +9,7 @@ export interface SimilarityOptions {
   threshold?: number;
   enableCache?: boolean;
   strategy?: SimilarityStrategyType;
+  embedderProvider?: string; // 指定用于语义相似度的嵌入提供者
 }
 
 // 高级相似度选项
@@ -151,5 +152,14 @@ export interface ISimilarityPerformanceMonitor {
     averageExecutionTime: number;
     cacheHitRate: number;
     strategyUsage: Record<SimilarityStrategyType, number>;
+  };
+  reset(): void;
+  getDetailedReport(): {
+    summary: ReturnType<ISimilarityPerformanceMonitor['getMetrics']>;
+    details: {
+      fastestStrategy?: SimilarityStrategyType;
+      slowestStrategy?: SimilarityStrategyType;
+      mostUsedStrategy?: SimilarityStrategyType;
+    };
   };
 }

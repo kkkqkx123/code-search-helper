@@ -130,6 +130,14 @@ export const treeSitterSchema = Joi.object({
     ])
 }).optional();
 
+// Similarity配置验证模式
+export const similaritySchema = Joi.object({
+  apiKey: Joi.string().optional().allow(''),
+  baseUrl: Joi.string().uri().default('http://localhost:11434'),
+  model: Joi.string().default('default'),
+  dimensions: Joi.number().integer().positive().default(512),
+});
+
 // 分段配置验证模式
 export const segmentationSchema = Joi.object({
   global: Joi.object({
@@ -186,4 +194,5 @@ export const mainConfigSchema = Joi.object({
   project: projectSchema,
   indexing: indexingSchema,
   treeSitter: treeSitterSchema,
+  similarity: similaritySchema,
 });

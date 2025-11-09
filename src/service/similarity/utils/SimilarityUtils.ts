@@ -1,15 +1,15 @@
 import { injectable, inject } from 'inversify';
-import { 
-  SimilarityOptions, 
-  SimilarityResult, 
+import {
+  SimilarityOptions,
+  SimilarityResult,
   BatchSimilarityResult,
   ISimilarityService,
-  SimilarityError 
+  SimilarityError
 } from '../types/SimilarityTypes';
 import { TYPES } from '../../../types';
 import { CodeChunk } from '../../parser/processing/types/CodeChunk';
 import { ContentHashIDGenerator } from '../../parser/processing/utils/ContentHashIDGenerator';
-import { ContentHashUtils } from '../../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../utils/ContentHashUtils';
 
 /**
  * 相似度计算工具类（重构为全异步）
@@ -43,8 +43,8 @@ export class SimilarityUtils {
    * 计算两个代码片段的相似度（0-1之间）
    */
   static async calculateSimilarity(
-    content1: string, 
-    content2: string, 
+    content1: string,
+    content2: string,
     options?: SimilarityOptions
   ): Promise<number> {
     const result = await this.getService().calculateSimilarity(content1, content2, options);
@@ -55,8 +55,8 @@ export class SimilarityUtils {
    * 检查两个代码片段是否相似（基于阈值）
    */
   static async isSimilar(
-    content1: string, 
-    content2: string, 
+    content1: string,
+    content2: string,
     threshold: number = 0.8,
     options?: SimilarityOptions
   ): Promise<boolean> {
@@ -116,8 +116,8 @@ export class SimilarityUtils {
    * 检查两个块是否可以合并
    */
   static async canMergeChunks(
-    chunk1: CodeChunk, 
-    chunk2: CodeChunk, 
+    chunk1: CodeChunk,
+    chunk2: CodeChunk,
     similarityThreshold: number
   ): Promise<boolean> {
     // 检查相似度
@@ -221,12 +221,7 @@ export class SimilarityUtils {
     return await this.getService().calculateAdvancedSimilarity(content1, content2, options);
   }
 
-  /**
-   * 获取服务统计信息
-   */
-  static async getServiceStats(): Promise<any> {
-    return await this.getService().getServiceStats();
-  }
+
 
   /**
    * 获取可用策略列表
@@ -235,12 +230,12 @@ export class SimilarityUtils {
     if (!this.similarityService) {
       return [];
     }
-    
+
     // 假设SimilarityService有这个方法
     if ('getAvailableStrategies' in this.similarityService) {
       return (this.similarityService as any).getAvailableStrategies();
     }
-    
+
     return [];
   }
 

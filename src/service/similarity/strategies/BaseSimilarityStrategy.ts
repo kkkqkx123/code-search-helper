@@ -1,10 +1,11 @@
 import { injectable } from 'inversify';
-import { 
-  ISimilarityStrategy, 
-  SimilarityOptions, 
+import {
+  ISimilarityStrategy,
+  SimilarityOptions,
   SimilarityStrategyType,
-  SimilarityError 
+  SimilarityError
 } from '../types/SimilarityTypes';
+import { HashUtils } from '../../../utils/HashUtils';
 
 /**
  * 相似度策略基类
@@ -80,14 +81,7 @@ export abstract class BaseSimilarityStrategy implements ISimilarityStrategy {
    * 计算内容哈希用于缓存键
    */
   protected generateContentHash(content: string): string {
-    // 简单的哈希实现，实际项目中可以使用更复杂的哈希算法
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return hash.toString(36);
+    return HashUtils.simpleHash(content);
   }
 
   /**

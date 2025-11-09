@@ -18,6 +18,7 @@ export interface EmbeddingBatchConfig {
     custom1: number;
     custom2: number;
     custom3: number;
+    similarity: number;
   };
 }
 
@@ -41,6 +42,7 @@ export class EmbeddingBatchConfigService extends BaseConfigService<EmbeddingBatc
       custom1: EnvironmentUtils.parseNumber('EMBEDDING_PROVIDER_CUSTOM1_BATCH_SIZE', 100),
       custom2: EnvironmentUtils.parseNumber('EMBEDDING_PROVIDER_CUSTOM2_BATCH_SIZE', 100),
       custom3: EnvironmentUtils.parseNumber('EMBEDDING_PROVIDER_CUSTOM3_BATCH_SIZE', 100),
+      similarity: EnvironmentUtils.parseNumber('EMBEDDING_PROVIDER_SIMILARITY_BATCH_SIZE', 64),
     };
 
     const rawConfig = {
@@ -63,6 +65,7 @@ export class EmbeddingBatchConfigService extends BaseConfigService<EmbeddingBatc
         custom1: ValidationUtils.rangeNumberSchema(1, 10000, 100),
         custom2: ValidationUtils.rangeNumberSchema(1, 10000, 100),
         custom3: ValidationUtils.rangeNumberSchema(1, 10000, 100),
+        similarity: ValidationUtils.rangeNumberSchema(1, 10000, 64),
       }).required(),
     });
 
@@ -81,6 +84,7 @@ export class EmbeddingBatchConfigService extends BaseConfigService<EmbeddingBatc
         custom1: 100,
         custom2: 100,
         custom3: 100,
+        similarity: 64,
       },
     };
   }

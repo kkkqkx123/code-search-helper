@@ -180,6 +180,13 @@ export interface NebulaConfig {
   vidTypeLength?: number;
 }
 
+export interface SimilarityConfig {
+  apiKey?: string;
+  baseUrl: string;
+  model: string;
+  dimensions: number;
+}
+
 export interface EmbeddingBatchConfig {
   defaultBatchSize: number;
   providerBatchLimits: {
@@ -191,6 +198,7 @@ export interface EmbeddingBatchConfig {
     custom1: number;
     custom2: number;
     custom3: number;
+    similarity: number;
   };
 }
 
@@ -225,11 +233,12 @@ export interface AppConfig {
   fusion?: FusionConfig;
   project?: ProjectConfig;
   projectNaming?: ProjectNamingConfig;
-   treeSitter?: TreeSitterConfig;
-   embeddingBatch: EmbeddingBatchConfig;
-   hotReload: HotReloadConfig;
-   graphCache?: GraphCacheConfig;
- }
+  treeSitter?: TreeSitterConfig;
+  embeddingBatch: EmbeddingBatchConfig;
+  hotReload: HotReloadConfig;
+  graphCache?: GraphCacheConfig;
+  similarity: SimilarityConfig;
+}
 // ==================== Segmentation Configuration ====================
 
 /**
@@ -286,7 +295,7 @@ export interface SegmentationConfig {
     /** 每个分段的最大行数 */
     maxLinesPerChunk: number;
   };
-  
+
   // 性能设置 (合并自 UnifiedConfigManager 和 ASTSplitterConfig)
   performance: {
     /** 最大文件大小（字节） */
@@ -319,7 +328,7 @@ export interface SegmentationConfig {
     [language: string]: LanguageSpecificSegmentationConfig;
   };
 }
-  
+
 // 导出工具类类型
 export { EnvironmentUtils } from './utils/EnvironmentUtils';
 export { ValidationUtils } from './utils/ValidationUtils';

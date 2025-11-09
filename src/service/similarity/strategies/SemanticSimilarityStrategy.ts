@@ -2,8 +2,8 @@ import { inject, injectable } from 'inversify';
 import { BaseSimilarityStrategy } from './BaseSimilarityStrategy';
 import { SimilarityOptions, SimilarityStrategyType, SimilarityError } from '../types/SimilarityTypes';
 import { TYPES } from '../../../types';
-import { EmbedderFactory } from '../../embedders/EmbedderFactory';
-import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
+import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
+import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
 
 /**
  * 语义相似度策略
@@ -38,9 +38,10 @@ export class SemanticSimilarityStrategy extends BaseSimilarityStrategy {
     }
 
     try {
-      // 获取嵌入器
-      const embedder = this.embedderFactory.getEmbedder(options?.language || 'default');
-      
+      // 获取嵌入器 - 使用指定的提供者或默认值
+      const provider = options?.embedderProvider || options?.language || 'default';
+      const embedder = await this.embedderFactory.getEmbedder(provider);
+
       // 生成嵌入向量
       const [embedding1, embedding2] = await Promise.all([
         this.getEmbedding(embedder, content1, options),
@@ -66,20 +67,19 @@ export class SemanticSimilarityStrategy extends BaseSimilarityStrategy {
     options?: SimilarityOptions
   ): Promise<number[]> {
     // 检查缓存
-    const cacheKey = this.generateEmbeddingCacheKey(content, options);
-    const cachedEmbedding = await this.embeddingCache.get(cacheKey);
-    
+    const cachedEmbedding = await this.embeddingCache.get(content, embedder.getModelName());
+
     if (cachedEmbedding) {
-      return cachedEmbedding;
+      return cachedEmbedding.vector;
     }
 
     // 生成新的嵌入
-    const embedding = await embedder.generateEmbedding(content);
-    
+    const embeddingResult = await embedder.embed({text: content});
+
     // 缓存结果
-    await this.embeddingCache.set(cacheKey, embedding);
-    
-    return embedding;
+    await this.embeddingCache.set(content, embedder.getModelName(), embeddingResult);
+
+    return embeddingResult.vector;
   }
 
   /**
@@ -87,8 +87,8 @@ export class SemanticSimilarityStrategy extends BaseSimilarityStrategy {
    */
   private generateEmbeddingCacheKey(content: string, options?: SimilarityOptions): string {
     const contentHash = this.generateContentHash(content);
-    const language = options?.language || 'default';
-    return `semantic:${language}:${contentHash}`;
+    const provider = options?.embedderProvider || options?.language || 'default';
+    return `semantic:${provider}:${contentHash}`;
   }
 
   /**
@@ -164,7 +164,7 @@ export class SemanticSimilarityStrategy extends BaseSimilarityStrategy {
       'she', 'it', 'we', 'they', 'what', 'which', 'who', 'when', 'where',
       'why', 'how', 'not', 'no', 'yes'
     ]);
-    
+
     return stopWords.has(word);
   }
 

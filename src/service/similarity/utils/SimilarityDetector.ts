@@ -1,12 +1,10 @@
 import { injectable, inject } from 'inversify';
-import { 
-  SimilarityOptions, 
+import {
+  SimilarityOptions,
   ISimilarityService,
   SimilarityError,
-  SimilarityResult,
-  SimilarityGroup
+  SimilarityResult
 } from '../types/SimilarityTypes';
-import { TYPES } from '../../../types';
 
 /**
  * 相似度检测器（重构为全异步）
@@ -62,59 +60,59 @@ export class SimilarityDetector {
     const strategies = [
       // 1. 选择内容最完整的块（通常是最长的那个）
       async (items: T[]) => {
-        return items.reduce((best, current) => 
+        return items.reduce((best, current) =>
           current.content.length > best.content.length ? current : best
         );
       },
-      
+
       // 2. 选择与其他块平均相似度最高的块
       async (items: T[]) => {
         if (items.length === 1) return items[0];
-        
+
         let bestChunk = items[0];
         let bestAvgSimilarity = 0;
-        
+
         for (const chunk of items) {
           let totalSimilarity = 0;
           let comparisons = 0;
-          
+
           for (const otherChunk of items) {
             if (chunk === otherChunk) continue;
-            
+
             const similarity = await this.getService().calculateSimilarity(
-              chunk.content, 
-              otherChunk.content, 
+              chunk.content,
+              otherChunk.content,
               options
             );
             totalSimilarity += similarity.similarity;
             comparisons++;
           }
-          
+
           const avgSimilarity = comparisons > 0 ? totalSimilarity / comparisons : 0;
           if (avgSimilarity > bestAvgSimilarity) {
             bestAvgSimilarity = avgSimilarity;
             bestChunk = chunk;
           }
         }
-        
+
         return bestChunk;
       },
-      
+
       // 3. 选择包含最多唯一关键词的块
       async (items: T[]) => {
         let bestChunk = items[0];
         let maxUniqueKeywords = 0;
-        
+
         for (const chunk of items) {
           const keywords = this.extractKeywords(chunk.content);
           const uniqueKeywords = new Set(keywords).size;
-          
+
           if (uniqueKeywords > maxUniqueKeywords) {
             maxUniqueKeywords = uniqueKeywords;
             bestChunk = chunk;
           }
         }
-        
+
         return bestChunk;
       }
     ];
@@ -159,11 +157,11 @@ export class SimilarityDetector {
     for (const [groupId, groupChunks] of groups) {
       // 选择代表块
       const representative = await this.selectBestChunk(groupChunks, options);
-      
+
       // 计算组内平均相似度
       let totalSimilarity = 0;
       let comparisons = 0;
-      
+
       for (let i = 0; i < groupChunks.length; i++) {
         for (let j = i + 1; j < groupChunks.length; j++) {
           const similarity = await this.getService().calculateSimilarity(
@@ -175,9 +173,9 @@ export class SimilarityDetector {
           comparisons++;
         }
       }
-      
+
       const avgSimilarity = comparisons > 0 ? totalSimilarity / comparisons : 1.0;
-      
+
       detailedGroups.push({
         groupId,
         chunks: groupChunks,
@@ -208,7 +206,7 @@ export class SimilarityDetector {
     // 处理每个块
     for (const chunk of chunks) {
       const chunkId = chunk.id || JSON.stringify(chunk);
-      
+
       if (processed.has(chunkId)) {
         continue;
       }
@@ -222,13 +220,13 @@ export class SimilarityDetector {
           } else {
             uniques.push(chunk);
           }
-          
+
           // 标记所有组内块为已处理
           groupChunks.forEach(c => {
             const id = c.id || JSON.stringify(c);
             processed.add(id);
           });
-          
+
           foundGroup = true;
           break;
         }
@@ -264,20 +262,20 @@ export class SimilarityDetector {
     };
   }> {
     const result = await this.getService().calculateSimilarity(content1, content2, options);
-    
+
     // 计算额外的分析信息
     const contentLength1 = content1.length;
     const contentLength2 = content2.length;
     const lengthDifference = Math.abs(contentLength1 - contentLength2);
     const lengthRatio = Math.min(contentLength1, contentLength2) / Math.max(contentLength1, contentLength2);
-    
+
     // 计算关键词重叠度
     const keywords1 = this.extractKeywords(content1);
     const keywords2 = this.extractKeywords(content2);
     const intersection = keywords1.filter(k => keywords2.includes(k));
     const union = [...new Set([...keywords1, ...keywords2])];
     const keywordOverlap = union.length > 0 ? intersection.length / union.length : 0;
-    
+
     // 估算复杂度
     const estimatedComplexity = {
       content1: this.estimateComplexity(content1),
@@ -324,7 +322,7 @@ export class SimilarityDetector {
       'she', 'it', 'we', 'they', 'what', 'which', 'who', 'when', 'where',
       'why', 'how', 'not', 'no', 'yes'
     ]);
-    
+
     return stopWords.has(word);
   }
 
@@ -336,7 +334,7 @@ export class SimilarityDetector {
     const uniqueChars = new Set(content).size;
     const lines = content.split('\n').length;
     const keywords = this.extractKeywords(content).length;
-    
+
     // 归一化复杂度分数
     return Math.min(1, (uniqueChars * 0.3 + lines * 0.4 + keywords * 0.3) / 1000);
   }
@@ -352,13 +350,7 @@ export class SimilarityDetector {
 /**
  * 相似度检测结果（保持向后兼容）
  */
-export interface SimilarityResult {
-  similarity: number;
-  isSimilar: boolean;
-  threshold: number;
-  contentLength1: number;
-  contentLength2: number;
-}
+
 
 /**
  * 相似块组信息（保持向后兼容）

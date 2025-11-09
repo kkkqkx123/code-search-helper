@@ -16,6 +16,7 @@ import {
   ProjectNamingConfigService,
   EmbeddingBatchConfigService,
   GraphCacheConfigService,
+  SimilarityConfigService,
 } from './service';
 import { TYPES } from '../types';
 import { HotReloadConfigFactory } from './factories/HotReloadConfigFactory';
@@ -43,6 +44,7 @@ export class ConfigService {
     @inject(TYPES.ProjectNamingConfigService) private projectNamingConfigService: ProjectNamingConfigService,
     @inject(TYPES.EmbeddingBatchConfigService) private embeddingBatchConfigService: EmbeddingBatchConfigService,
     @inject(TYPES.GraphCacheConfigService) private graphCacheConfigService: GraphCacheConfigService,
+    @inject(TYPES.SimilarityService) private similarityConfigService: SimilarityConfigService,
   ) { }
 
 
@@ -63,6 +65,7 @@ export class ConfigService {
       const projectNaming = this.projectNamingConfigService.getConfig();
       const embeddingBatch = this.embeddingBatchConfigService.getConfig();
       const graphCache = this.graphCacheConfigService.getConfig();
+      const similarity = this.similarityConfigService.getConfig();
       // 提供默认的热重载配置
       const hotReload = this.getDefaultHotReloadConfig();
 
@@ -107,6 +110,7 @@ export class ConfigService {
         },
         project,
         graphCache, // 添加图缓存配置
+        similarity, // 添加相似度配置
       };
     } catch (error) {
       throw new Error(`Failed to initialize configuration: ${error}`);

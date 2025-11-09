@@ -19,6 +19,7 @@ export const TYPES = {
   IndexingConfigService: Symbol.for('IndexingConfigService'),
   TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
   ProjectNamingConfigService: Symbol.for('ProjectNamingConfigService'),
+  SimilarityConfigService: Symbol.for('SimilarityConfigService'),
 
   // 连接管理器
   NebulaConnectionManager: Symbol.for('NebulaConnectionManager'),
