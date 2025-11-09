@@ -130,6 +130,47 @@ export const treeSitterSchema = Joi.object({
     ])
 }).optional();
 
+// 分段配置验证模式
+export const segmentationSchema = Joi.object({
+  global: Joi.object({
+    minChunkSize: Joi.number().positive().default(50),
+    maxChunkSize: Joi.number().positive().default(2000),
+    chunkOverlap: Joi.number().positive().default(200),
+    minLinesPerChunk: Joi.number().positive().default(1),
+    maxLinesPerChunk: Joi.number().positive().default(50),
+  }).required(),
+  
+  performance: Joi.object({
+    maxFileSize: Joi.number().positive().default(1024 * 1024),
+    maxParseTime: Joi.number().positive().default(5000),
+    enableCaching: Joi.boolean().default(true),
+    maxCacheSize: Joi.number().positive().default(1000),
+    enableParallel: Joi.boolean().default(true),
+    parallelThreads: Joi.number().positive().default(4),
+  }).required(),
+  
+  nesting: Joi.object({
+    enableNestedExtraction: Joi.boolean().default(true),
+    maxNestingLevel: Joi.number().positive().default(10),
+  }).required(),
+  
+  fallback: Joi.object({
+    enableFallback: Joi.boolean().default(true),
+    fallbackThreshold: Joi.number().min(0).max(1).default(0.5),
+    strategies: Joi.array().items(Joi.string()).default(['line-based', 'bracket-balancing']),
+  }).required(),
+  
+  languageSpecific: Joi.object().pattern(
+    Joi.string(),
+    Joi.object({
+      maxChunkSize: Joi.number().positive().required(),
+      minChunkSize: Joi.number().positive().required(),
+      maxNestingLevel: Joi.number().positive().required(),
+      preserveComments: Joi.boolean().default(true),
+      preserveEmptyLines: Joi.boolean().default(false),
+    })
+  ).optional(),
+});
 // 主配置验证模式
 export const mainConfigSchema = Joi.object({
   nodeEnv: environmentSchema.extract('nodeEnv'),

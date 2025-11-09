@@ -1,6 +1,7 @@
 import { FileTraversalService, FileTraversalOptions } from '../FileTraversalService';
 import { FileSystemTraversal, TraversalResult } from '../../../filesystem/FileSystemTraversal';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { CacheService } from '../../../../infrastructure/caching/CacheService';
 import { TYPES } from '../../../../types';
 
 // Mock FileSystemTraversal
@@ -19,19 +20,31 @@ const mockLogger = {
   markAsNormalExit: jest.fn(),
 } as unknown as jest.Mocked<LoggerService>;
 
+// Mock CacheService
+const mockCacheService = {
+  getFromCache: jest.fn(),
+  setCache: jest.fn(),
+  deleteByPattern: jest.fn(),
+} as unknown as jest.Mocked<CacheService>;
+
 describe('FileTraversalService', () => {
   let fileTraversalService: FileTraversalService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Reset the service instance for each test
-    fileTraversalService = new FileTraversalService(mockLogger, mockFileSystemTraversal);
-    
+    fileTraversalService = new FileTraversalService(mockLogger, mockFileSystemTraversal, mockCacheService);
+
     // Mock getSupportedExtensions to return a known set of extensions
     mockFileSystemTraversal.getSupportedExtensions.mockReturnValue([
       '.ts', '.js', '.tsx', '.jsx', '.py', '.java'
     ]);
+
+    // Mock cache methods
+    mockCacheService.getFromCache.mockReturnValue(undefined);
+    mockCacheService.setCache.mockImplementation(() => {});
+    mockCacheService.deleteByPattern.mockImplementation(() => 0);
   });
 
   describe('getProjectFiles', () => {
@@ -102,6 +115,7 @@ describe('FileTraversalService', () => {
 
     it('should use caching for repeated calls with same parameters', async () => {
       const projectPath = '/test/project';
+      const expectedFiles = ['/test/project/file1.ts'];
       const mockTraversalResult: TraversalResult = {
         files: [
           { path: '/test/project/file1.ts', relativePath: 'file1.ts', name: 'file1.ts', extension: '.ts', size: 100, hash: 'hash1', lastModified: new Date(), language: 'typescript', isBinary: false }
@@ -114,9 +128,14 @@ describe('FileTraversalService', () => {
 
       mockFileSystemTraversal.traverseDirectory.mockResolvedValue(mockTraversalResult);
 
+      // Mock cache miss for first call, hit for second call
+      mockCacheService.getFromCache
+        .mockReturnValueOnce(undefined) // First call: cache miss
+        .mockReturnValueOnce(expectedFiles); // Second call: cache hit
+
       // First call
       const result1 = await fileTraversalService.getProjectFiles(projectPath);
-      
+
       // Second call with same parameters
       const result2 = await fileTraversalService.getProjectFiles(projectPath);
 
@@ -124,6 +143,7 @@ describe('FileTraversalService', () => {
       expect(mockFileSystemTraversal.traverseDirectory).toHaveBeenCalledTimes(1);
       expect(result1).toEqual(result2);
       expect(mockLogger.debug).toHaveBeenCalledWith('[DEBUG] Returning cached file list for project: /test/project');
+      expect(mockCacheService.setCache).toHaveBeenCalledWith('file-traversal:/test/project:', expectedFiles, 300000);
     });
 
     it('should not use cache for different parameters', async () => {
@@ -201,17 +221,21 @@ describe('FileTraversalService', () => {
 
       mockFileSystemTraversal.traverseDirectory.mockResolvedValue(mockTraversalResult);
 
+      // Mock cache miss
+      mockCacheService.getFromCache.mockReturnValue(undefined);
+
       // First call
       await fileTraversalService.getProjectFiles(projectPath);
-      
+
       // Clear cache
       fileTraversalService.clearCache();
-      
+
       // Second call - should call traverseDirectory again
       await fileTraversalService.getProjectFiles(projectPath);
 
       // Should call traverseDirectory twice because cache was cleared
       expect(mockFileSystemTraversal.traverseDirectory).toHaveBeenCalledTimes(2);
+      expect(mockCacheService.deleteByPattern).toHaveBeenCalledWith(/^file-traversal:/);
     });
   });
 });

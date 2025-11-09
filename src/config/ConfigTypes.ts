@@ -230,6 +230,95 @@ export interface AppConfig {
    hotReload: HotReloadConfig;
    graphCache?: GraphCacheConfig;
  }
+// ==================== Segmentation Configuration ====================
+
+/**
+ * 分段配置模式枚举
+ */
+export enum SegmentationMode {
+  DEFAULT = 'default',
+  HIGH_PERFORMANCE = 'high-performance',
+  HIGH_QUALITY = 'high-quality',
+}
+
+/**
+ * 降级策略配置
+ */
+export interface FallbackStrategyConfig {
+  /** 是否启用降级 */
+  enableFallback: boolean;
+  /** 降级阈值 (0-1) */
+  fallbackThreshold: number;
+  /** 降级策略列表 */
+  strategies: string[];
+}
+
+/**
+ * 语言特定的分段配置
+ */
+export interface LanguageSpecificSegmentationConfig {
+  /** 最大分段大小 */
+  maxChunkSize: number;
+  /** 最小分段大小 */
+  minChunkSize: number;
+  /** 最大嵌套级别 */
+  maxNestingLevel: number;
+  /** 是否保留注释 */
+  preserveComments: boolean;
+  /** 是否保留空行 */
+  preserveEmptyLines: boolean;
+}
+
+/**
+ * 统一的分段配置接口
+ */
+export interface SegmentationConfig {
+  // 全局分段设置 (合并自 UnifiedConfigManager)
+  global: {
+    /** 最小分段大小 */
+    minChunkSize: number;
+    /** 最大分段大小 */
+    maxChunkSize: number;
+    /** 分段重叠大小 */
+    chunkOverlap: number;
+    /** 每个分段的最小行数 */
+    minLinesPerChunk: number;
+    /** 每个分段的最大行数 */
+    maxLinesPerChunk: number;
+  };
+  
+  // 性能设置 (合并自 UnifiedConfigManager 和 ASTSplitterConfig)
+  performance: {
+    /** 最大文件大小（字节） */
+    maxFileSize: number;
+    /** 最大解析时间（毫秒） */
+    maxParseTime: number;
+    /** 是否启用缓存 */
+    enableCaching: boolean;
+    /** 最大缓存大小 */
+    maxCacheSize: number;
+    /** 是否启用并行处理 */
+    enableParallel: boolean;
+    /** 并行处理线程数 */
+    parallelThreads: number;
+  };
+
+  // 嵌套提取控制 (来自 ASTSplitterConfig)
+  nesting: {
+    /** 是否启用嵌套提取 */
+    enableNestedExtraction: boolean;
+    /** 最大嵌套级别 */
+    maxNestingLevel: number;
+  };
+
+  // 降级策略配置
+  fallback: FallbackStrategyConfig;
+
+  // 语言特定配置
+  languageSpecific: {
+    [language: string]: LanguageSpecificSegmentationConfig;
+  };
+}
   
 // 导出工具类类型
 export { EnvironmentUtils } from './utils/EnvironmentUtils';
