@@ -104,4 +104,10 @@ export const TYPES = {
   StrategyConfigManager: Symbol.for('StrategyConfigManager'),
   MarkdownTextStrategy: Symbol.for('MarkdownTextStrategy'),
   XMLTextStrategy: Symbol.for('XMLTextStrategy'),
+
+  // 块处理相关类型
+  ChunkSimilarityCalculator: Symbol.for('ChunkSimilarityCalculator'),
+  ContentQualityEvaluator: Symbol.for('ContentQualityEvaluator'),
+  ChunkMerger: Symbol.for('ChunkMerger'),
+  ChunkPostProcessorCoordinator: Symbol.for('ChunkPostProcessorCoordinator'),
 };

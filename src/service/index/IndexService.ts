@@ -10,13 +10,11 @@ import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
-import { VectorPoint } from '../../database/qdrant/IVectorStore';
-import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 // Tree-sitter AST分段支持
 import { ASTCodeSplitter } from '../parser/processing/strategies/implementations/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
 import { IndexingLogicService } from './IndexingLogicService';
-import { NebulaService, INebulaService } from '../../database/nebula/NebulaService';
+import { INebulaService } from '../../database/nebula/NebulaService';
 import { FileTraversalService } from './shared/FileTraversalService';
 import { ConcurrencyService } from './shared/ConcurrencyService';
 import { IgnoreRuleManager } from '../ignore/IgnoreRuleManager';

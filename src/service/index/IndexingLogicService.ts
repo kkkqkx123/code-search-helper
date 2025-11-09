@@ -17,7 +17,6 @@ import { CodeChunk } from '../parser/types';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
 import { ConcurrencyService } from './shared/ConcurrencyService';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import { IndexSyncOptions, BatchProcessingResult } from './IndexService';
 import { IGraphService } from '../graph/core/IGraphService';
 import { IGraphDataMappingService } from '../graph/mapping/IGraphDataMappingService';
@@ -660,7 +659,7 @@ export class IndexingLogicService {
         result.language || 'unknown',
         result.complexity || 0
       );
-      
+
       return {
         nodeId: result.id || `node_${Date.now()}_${Math.random()}`,
         name: result.name || result.type || 'unknown',

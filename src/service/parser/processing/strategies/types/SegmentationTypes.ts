@@ -8,28 +8,28 @@
 export interface ChunkingOptions {
   /** 最大块大小 */
   maxChunkSize?: number;
-  
+
   /** 最小块大小 */
   minChunkSize?: number;
-  
+
   /** 重叠大小 */
   overlapSize?: number;
-  
+
   /** 每块最大行数 */
   maxLinesPerChunk?: number;
-  
+
   /** 每块最小行数 */
   minLinesPerChunk?: number;
-  
+
   /** 是否启用智能分块 */
   enableIntelligentChunking?: boolean;
-  
+
   /** 内存限制（MB） */
   memoryLimitMB?: number;
-  
+
   /** 错误阈值 */
   errorThreshold?: number;
-  
+
   /** 自定义参数 */
   customParams?: Record<string, any>;
 }
@@ -66,13 +66,13 @@ export interface EnhancedChunkingOptions extends ChunkingOptions {
 export enum ChunkingPreset {
   /** 小块预设 */
   SMALL = 'small',
-  
+
   /** 平衡预设 */
   BALANCED = 'balanced',
-  
+
   /** 大块预设 */
   LARGE = 'large',
-  
+
   /** 高重叠预设 */
   HIGH_OVERLAP = 'high_overlap'
 }
@@ -97,7 +97,7 @@ export class ChunkingPresetFactory {
           minLinesPerChunk: 1,
           enableIntelligentChunking: true
         };
-      
+
       case ChunkingPreset.BALANCED:
         return {
           maxChunkSize: 1000,
@@ -107,7 +107,7 @@ export class ChunkingPresetFactory {
           minLinesPerChunk: 5,
           enableIntelligentChunking: true
         };
-      
+
       case ChunkingPreset.LARGE:
         return {
           maxChunkSize: 2000,
@@ -117,7 +117,7 @@ export class ChunkingPresetFactory {
           minLinesPerChunk: 10,
           enableIntelligentChunking: true
         };
-      
+
       case ChunkingPreset.HIGH_OVERLAP:
         return {
           maxChunkSize: 1000,
@@ -127,7 +127,7 @@ export class ChunkingPresetFactory {
           minLinesPerChunk: 5,
           enableIntelligentChunking: true
         };
-      
+
       default:
         return this.createPreset(ChunkingPreset.BALANCED);
     }
@@ -180,16 +180,16 @@ export interface UniversalChunkingOptions extends EnhancedChunkingOptions {
 export interface SegmentationContext {
   /** 内容 */
   content: string;
-  
+
   /** 编程语言 */
   language: string;
-  
+
   /** 文件路径 */
   filePath?: string;
-  
+
   /** 分块选项 */
   options: ChunkingOptions;
-  
+
   /** 自定义元数据 */
   metadata?: Record<string, any>;
 }
@@ -204,7 +204,7 @@ export interface ISegmentationProcessor {
    * @returns 处理后的代码块数组
    */
   process(context: SegmentationContext): Promise<any[]>;
-  
+
   /**
    * 验证上下文
    * @param context 分段上下文
@@ -219,68 +219,21 @@ export interface ISegmentationProcessor {
 export interface PerformanceStats {
   /** 总执行次数 */
   totalExecutions: number;
-  
+
   /** 成功执行次数 */
   successfulExecutions: number;
-  
+
   /** 平均执行时间 */
   averageExecutionTime: number;
-  
+
   /** 最后执行时间 */
   lastExecutionTime: number;
-  
+
   /** 错误次数 */
   errorCount: number;
-  
+
   /** 自定义指标 */
   [key: string]: any;
-}
-
-/**
- * 文本分割器接口
- */
-export interface ITextSplitter {
-  /**
-   * 分割文本
-   * @param content 文本内容
-   * @param language 编程语言
-   * @param filePath 文件路径
-   * @param options 分块选项
-   * @returns 代码块数组
-   */
-  split(
-    content: string,
-    language: string,
-    filePath?: string,
-    options?: ChunkingOptions
-  ): Promise<CodeChunk[]>;
-}
-
-/**
- * 分段上下文管理器接口
- */
-export interface ISegmentationContextManager {
-  /**
-   * 创建分段上下文
-   * @param content 内容
-   * @param language 语言
-   * @param filePath 文件路径
-   * @param options 选项
-   * @returns 分段上下文
-   */
-  createContext(
-    content: string,
-    language: string,
-    filePath?: string,
-    options?: ChunkingOptions
-  ): SegmentationContext;
-  
-  /**
-   * 验证分段上下文
-   * @param context 分段上下文
-   * @returns 是否有效
-   */
-  validateContext(context: SegmentationContext): boolean;
 }
 
 /**
@@ -293,7 +246,7 @@ export interface IProtectionCoordinator {
    * @returns 是否应该保护
    */
   shouldProtect(context: SegmentationContext): boolean;
-  
+
   /**
    * 应用保护措施
    * @param chunks 代码块数组
@@ -301,25 +254,6 @@ export interface IProtectionCoordinator {
    * @returns 保护后的代码块数组
    */
   applyProtection(chunks: CodeChunk[], context: SegmentationContext): CodeChunk[];
-}
-
-/**
- * 配置管理器接口
- */
-export interface IConfigurationManager {
-  /**
-   * 获取配置
-   * @returns 配置
-   */
-  getConfig(): any;
-  
-  /**
-   * 合并选项
-   * @param baseOptions 基础选项
-   * @param overrideOptions 覆盖选项
-   * @returns 合并后的选项
-   */
-  mergeOptions(baseOptions: any, overrideOptions: any): any;
 }
 
 /**
@@ -355,7 +289,7 @@ export interface IChunkRebalancer {
    * @returns 重新平衡结果
    */
   rebalance(context: ChunkRebalancerContext): Promise<RebalancerResult>;
-  
+
   /**
    * 检查是否应该应用此重新平衡器
    * @param chunks 代码块数组
@@ -363,7 +297,7 @@ export interface IChunkRebalancer {
    * @returns 是否应该应用
    */
   shouldApply(chunks: CodeChunk[], context: ChunkRebalancerContext): boolean;
-  
+
   /**
    * 获取重新平衡器名称
    * @returns 重新平衡器名称
@@ -377,21 +311,21 @@ export interface IChunkRebalancer {
 export interface ChunkRebalancerContext {
   /** 代码块数组 */
   chunks: CodeChunk[];
-  
+
   /** 重新平衡选项 */
   options: {
     /** 是否启用块重新平衡 */
     enableChunkRebalancing?: boolean;
-    
+
     /** 是否启用小块过滤 */
     enableSmallChunkFilter?: boolean;
-    
+
     /** 最小块大小 */
     minChunkSize?: number;
-    
+
     /** 最大块大小 */
     maxChunkSize?: number;
-    
+
     /** 其他自定义选项 */
     [key: string]: any;
   };
@@ -403,21 +337,21 @@ export interface ChunkRebalancerContext {
 export interface RebalancerResult {
   /** 重新平衡后的代码块数组 */
   chunks: CodeChunk[];
-  
+
   /** 重新平衡的块数量 */
   rebalanced: number;
-  
+
   /** 元数据信息 */
   metadata: {
     /** 重新平衡原因 */
     rebalanceReason: string;
-    
+
     /** 原始大小 */
     originalSize: number;
-    
+
     /** 重新平衡后大小 */
     rebalancedSize: number;
-    
+
     /** 其他元数据 */
     [key: string]: any;
   };
