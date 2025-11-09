@@ -17,39 +17,29 @@ import { ValidationUtils } from '../../../../../utils/processing/validation/Vali
 import { ContentAnalyzer } from '../../../../../utils/processing/ContentAnalyzer';
 import { TypeMappingUtils } from '../../../../../utils/processing/TypeMappingUtils';
 import { QueryResultToChunkConverter } from '../../../../../utils/processing/QueryResultConverter';
-import { ASTSplitterConfig, ASTSplitterConfigFactory } from '../../../../../utils/processing/ASTSplitterConfig';
-import { ConfigurationManager } from '../../../../../utils/processing/ConfigurationManager';
 import { ComplexityCalculator } from '../../../../../utils/processing/ComplexityCalculator';
 import { ICacheService } from '../../../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../../../infrastructure/monitoring/types';
+import { SegmentationConfigService } from '../../../../../config/service/SegmentationConfigService';
+import { SegmentationConfig } from '../../../../../config/ConfigTypes';
 
 @injectable()
 export class ASTCodeSplitter {
-  private config: ASTSplitterConfig;
-
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService: TreeSitterService,
     @inject(TYPES.LanguageDetectionService) private languageDetectionService: LanguageDetectionService,
     @inject(TYPES.LoggerService) private logger: LoggerService,
+    @inject(TYPES.SegmentationConfigService) private segmentationConfigService: SegmentationConfigService,
     @inject(TYPES.CacheService) private cacheService?: ICacheService,
-    @inject(TYPES.PerformanceMonitor) private performanceMonitor?: IPerformanceMonitor,
-    config: Partial<ASTSplitterConfig> = {}
+    @inject(TYPES.PerformanceMonitor) private performanceMonitor?: IPerformanceMonitor
   ) {
-    // 使用配置工厂创建默认配置并合并用户配置
-    const defaultConfig = ASTSplitterConfigFactory.createDefault();
-    this.config = ASTSplitterConfigFactory.merge(defaultConfig, config);
-    
-    
-    // 验证配置
-    const validation = ASTSplitterConfigFactory.validate(this.config);
-    if (!validation.isValid) {
-      this.logger.error('Invalid ASTSplitter configuration', validation.errors);
-      throw new Error(`Invalid configuration: ${validation.errors.join(', ')}`);
-    }
-    
-    if (validation.warnings) {
-      this.logger.warn('ASTSplitter configuration warnings', validation.warnings);
-    }
+  }
+
+  /**
+   * 获取当前配置
+   */
+  private get config(): SegmentationConfig {
+    return this.segmentationConfigService.getConfig();
   }
 
   /**
@@ -81,21 +71,8 @@ export class ASTCodeSplitter {
         return [];
       }
 
-      // 使用ConfigurationManager获取语言特定配置
-      if (language) {
-        const langSpecificConfig = ConfigurationManager.getLanguageSpecificConfig(language);
-        if (langSpecificConfig) {
-          // 应用语言特定配置到当前配置
-          if (!this.config.languageSpecific) {
-            this.config.languageSpecific = {};
-          }
-          // 合并语言特定配置
-          this.config.languageSpecific[language as keyof typeof langSpecificConfig] = {
-            ...this.config.languageSpecific[language as keyof typeof langSpecificConfig],
-            ...langSpecificConfig[language as keyof typeof langSpecificConfig]
-          };
-        }
-      }
+      // 语言特定配置现在由SegmentationConfigService处理
+      // 无需在这里手动合并
 
       // 检查内容是否适合AST处理
       if (!this.hasValidStructure(content, language)) {
@@ -192,7 +169,7 @@ export class ASTCodeSplitter {
             chunks.push(...chunk);
 
             // 第二层：嵌套结构提取（如果启用）
-            if (this.config.enableNestedExtraction && this.config.maxNestingLevel && this.config.maxNestingLevel >= 2) {
+            if (this.config.nesting.enableNestedExtraction && this.config.nesting.maxNestingLevel && this.config.nesting.maxNestingLevel >= 2) {
               const nestedChunks = await this.extractNestedStructures(
                 structure,
                 content,
@@ -206,10 +183,12 @@ export class ASTCodeSplitter {
         }
       }
 
-      // 如果启用了更多结构类型，使用QueryResultNormalizer作为补充
-      if (this.config.extraction?.structureTypes && this.config.extraction.structureTypes.length > 0) {
+      // 注意：新的SegmentationConfig没有extraction.structureTypes
+      // 如果需要，可以从languageSpecific配置中获取
+      // 暂时禁用此功能
+      if (false) { // 暂时禁用，因为新配置结构中没有这个字段
         const normalizer = new QueryResultNormalizer();
-        const standardizedResults = await normalizer.normalize(ast, language, this.config.extraction.structureTypes);
+        const standardizedResults = await normalizer.normalize(ast, language, ['function', 'class', 'method']);
 
         for (const result of standardizedResults) {
           if (result.content && result.content.trim().length > 0) {
@@ -259,7 +238,7 @@ export class ASTCodeSplitter {
   ): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
 
-    if (!this.config.maxNestingLevel || level > this.config.maxNestingLevel) {
+    if (!this.config.nesting.maxNestingLevel || level > this.config.nesting.maxNestingLevel) {
       return chunks;
     }
 
@@ -272,7 +251,7 @@ export class ASTCodeSplitter {
 
       for (const nested of nestedStructures) {
         // 验证嵌套级别
-        if (nested.level > this.config.maxNestingLevel) {
+        if (nested.level > this.config.nesting.maxNestingLevel) {
           continue;
         }
 
@@ -318,7 +297,7 @@ export class ASTCodeSplitter {
         }
 
         // 递归提取更深层的嵌套结构
-        if (level < this.config.maxNestingLevel) {
+        if (level < this.config.nesting.maxNestingLevel) {
           const deeperChunks = await this.extractNestedStructures(
             nested,
             content,
@@ -345,36 +324,36 @@ export class ASTCodeSplitter {
     switch (type) {
       case 'function':
         isValid = ValidationUtils.isValidFunction(content, location, {
-          minLines: this.config.minFunctionLines,
-          maxChars: this.config.maxFunctionSize,
-          minChars: this.config.minChunkSize
+          minLines: 3, // 默认值，新配置中没有这个字段
+          maxChars: 1000, // 默认值，新配置中没有这个字段
+          minChars: this.config.global.minChunkSize
         });
         break;
       case 'class':
         isValid = ValidationUtils.isValidClass(content, location, {
-          minLines: this.config.minClassLines,
-          maxChars: this.config.maxClassSize,
-          minChars: this.config.minChunkSize
+          minLines: 2, // 默认值，新配置中没有这个字段
+          maxChars: 2000, // 默认值，新配置中没有这个字段
+          minChars: this.config.global.minChunkSize
         });
         break;
       case 'namespace':
         isValid = ValidationUtils.isValidNamespace(content, location, {
-          maxChars: this.config.maxNamespaceSize,
-          minChars: this.config.minChunkSize
+          maxChars: 3000, // 默认值，新配置中没有这个字段
+          minChars: this.config.global.minChunkSize
         });
         break;
       case 'template':
         isValid = ValidationUtils.isValidTemplate(content, location, {
-          minChars: this.config.minChunkSize,
-          maxChars: this.config.maxChunkSize
+          minChars: this.config.global.minChunkSize,
+          maxChars: this.config.global.maxChunkSize
         });
         break;
       case 'import':
         isValid = ValidationUtils.isValidImport(content, location);
         break;
       default:
-        isValid = content.length >= (this.config.minChunkSize || 50) &&
-          content.length <= (this.config.maxChunkSize || 1500);
+        isValid = content.length >= this.config.global.minChunkSize &&
+          content.length <= this.config.global.maxChunkSize;
         break;
     }
     
@@ -444,11 +423,11 @@ export class ASTCodeSplitter {
   private shouldPreserveNestedStructure(type: string): boolean {
     switch (type) {
       case 'method':
-        return this.config.preserveNestedMethods || false;
+        return true; // 默认值，新配置中没有这个字段
       case 'function':
-        return this.config.preserveNestedFunctions || false;
+        return false; // 默认值，新配置中没有这个字段
       case 'class':
-        return this.config.preserveNestedClasses || false;
+        return false; // 默认值，新配置中没有这个字段
       default:
         return false;
     }
@@ -552,24 +531,15 @@ export class ASTCodeSplitter {
   /**
    * 更新配置
    */
-  updateConfig(config: Partial<ASTSplitterConfig>): void {
-    const validation = ASTSplitterConfigFactory.validate({ ...this.config, ...config });
-    if (!validation.isValid) {
-      throw new Error(`Invalid configuration: ${validation.errors.join(', ')}`);
-    }
-
-    this.config = { ...this.config, ...config };
-
-    if (validation.warnings) {
-      this.logger.warn('Configuration warnings', validation.warnings);
-    }
+  updateConfig(config: Partial<SegmentationConfig>): void {
+    this.segmentationConfigService.updateConfig(config);
   }
 
   /**
    * 获取配置
    */
-  getConfig(): ASTSplitterConfig {
-    return { ...this.config };
+  getConfig(): SegmentationConfig {
+    return this.segmentationConfigService.getConfig();
   }
 
   /**
@@ -591,7 +561,7 @@ export class ASTCodeSplitter {
       const stats = this.cacheService?.getCacheStats();
       return {
         size: stats?.totalEntries || 0,
-        maxSize: this.config.performance?.maxCacheSize || 10000
+        maxSize: this.config.performance.maxCacheSize
       };
     } catch (error) {
       this.logger.warn('Cache stats error:', error);

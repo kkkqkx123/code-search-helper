@@ -12,7 +12,7 @@ import {
   ChunkingOptions
 } from '../strategies/types/SegmentationTypes';
 import { ProcessingCoordinator } from '../coordinator';
-import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';
+import { SegmentationConfigService } from '../../../../config/service/SegmentationConfigService';
 import { ProtectionCoordinator } from './protection/ProtectionCoordinator';
 import { TYPES } from '../../../../types';
 import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
@@ -37,14 +37,14 @@ export class UniversalTextStrategy implements ITextSplitter {
     }
   private processors: ISegmentationProcessor[];
   private protectionCoordinator: IProtectionCoordinator;
-  private configManager: IConfigurationManager;
+  private configManager: SegmentationConfigService;
   private options: UniversalChunkingOptions;
   private logger?: LoggerService;
   private fileFeatureDetector: FileFeatureDetector;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.ConfigurationManager) configManager: UnifiedConfigManager,
+    @inject(TYPES.SegmentationConfigService) configManager: SegmentationConfigService,
     @inject(TYPES.ProtectionCoordinator) protectionCoordinator: ProtectionCoordinator
   ) {
     try {

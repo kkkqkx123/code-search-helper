@@ -41,7 +41,7 @@ import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitte
 
 import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
 import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
-import { UnifiedConfigManager } from '../../service/parser/config/UnifiedConfigManager';
+import { SegmentationConfigService } from '../../config/service/SegmentationConfigService';
 
 // 通用文件处理服务
 import { UniversalTextStrategy } from '../../service/parser/processing/utils/UniversalTextStrategy';
@@ -142,9 +142,8 @@ export class BusinessServiceRegistrar {
       // 性能优化服务
       container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).to(PerformanceOptimizerService).inSingletonScope();
 
-      // 解析服务
-      container.bind('unmanaged').toConstantValue(undefined);
-      container.bind<UnifiedConfigManager>(TYPES.UnifiedConfigManager).to(UnifiedConfigManager).inSingletonScope();
+      // 分段配置服务
+      container.bind<SegmentationConfigService>(TYPES.SegmentationConfigService).to(SegmentationConfigService).inSingletonScope();
 
 
       // 解析服务
@@ -165,9 +164,9 @@ export class BusinessServiceRegistrar {
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).to(UniversalTextStrategy).inSingletonScope();
 
       // 新增的processing模块替代组件
-      container.bind<StrategyFactory>(TYPES.StrategyFactory).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        const configManager = context.get<UnifiedConfigManager>(TYPES.UnifiedConfigManager);
+     container.bind<StrategyFactory>(TYPES.StrategyFactory).toDynamicValue(context => {
+       const logger = context.get<LoggerService>(TYPES.LoggerService);
+       const segmentationConfigService = context.get<SegmentationConfigService>(TYPES.SegmentationConfigService);
 
         // 创建默认的ProcessingConfig
         const processingConfig: ProcessingConfig = {

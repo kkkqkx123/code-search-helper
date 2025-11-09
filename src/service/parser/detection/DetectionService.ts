@@ -1,7 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
-import { UnifiedConfigManager } from '../config/UnifiedConfigManager';
 import { TreeSitterService } from '../core/parse/TreeSitterService';
 import { IFileFeatureDetector } from './IFileFeatureDetector';
 import { BackupFileProcessor } from './BackupFileProcessor';
@@ -74,7 +73,6 @@ export interface LanguageDetectionInfo {
 @injectable()
 export class DetectionService {
   private logger?: LoggerService;
-  private configManager: UnifiedConfigManager;
   private fileFeatureDetector: IFileFeatureDetector;
   private backupFileProcessor: BackupFileProcessor;
   private languageDetector: LanguageDetector;
@@ -82,7 +80,6 @@ export class DetectionService {
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.UnifiedConfigManager) configManager?: UnifiedConfigManager,
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: IFileFeatureDetector,
     @inject(TYPES.BackupFileProcessor) backupFileProcessor?: BackupFileProcessor,
@@ -90,7 +87,6 @@ export class DetectionService {
     @inject(TYPES.EventBus) eventBus?: IEventBus
   ) {
     this.logger = logger;
-    this.configManager = configManager || new UnifiedConfigManager();
     this.fileFeatureDetector = fileFeatureDetector!;
     this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
     this.languageDetector = languageDetector || new LanguageDetector();

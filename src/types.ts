@@ -303,8 +303,8 @@ export const TYPES = {
   LayeredHTMLStrategy: Symbol.for('LayeredHTMLStrategy'),
   HTMLContentExtractor: Symbol.for('HTMLContentExtractor'),
 
-  // 39. 统一配置管理器
-  UnifiedConfigManager: Symbol.for('UnifiedConfigManager'),
+  // 39. 分段配置服务
+  SegmentationConfigService: Symbol.for('SegmentationConfigService'),
 
   UnifiedProcessingCoordinator: Symbol.for('UnifiedProcessingCoordinator'),
 

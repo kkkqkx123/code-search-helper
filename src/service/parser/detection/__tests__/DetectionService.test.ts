@@ -1,5 +1,4 @@
 import { DetectionService, DetectionResult, ProcessingStrategyType } from '../DetectionService';
-import { UnifiedConfigManager } from '../../config/UnifiedConfigManager';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { FileFeatureDetector } from '../FileFeatureDetector';
 import { BackupFileProcessor } from '../BackupFileProcessor';
@@ -9,7 +8,6 @@ import { LoggerService } from '../../../../utils/LoggerService';
 describe('UnifiedDetectionService', () => {
   let service: DetectionService;
   let mockLogger: LoggerService;
-  let mockConfigManager: jest.Mocked<UnifiedConfigManager>;
   let mockTreeSitterService: jest.Mocked<TreeSitterService>;
   let mockFileFeatureDetector: jest.Mocked<FileFeatureDetector>;
   let mockBackupFileProcessor: jest.Mocked<BackupFileProcessor>;
@@ -27,14 +25,6 @@ describe('UnifiedDetectionService', () => {
       error: jest.fn()
     } as any;
 
-    // Create mock config manager
-    mockConfigManager = {
-      get: jest.fn(),
-      set: jest.fn(),
-      getAll: jest.fn(),
-      has: jest.fn(),
-      clear: jest.fn()
-    } as any;
 
     // Create mock TreeSitter service
     mockTreeSitterService = {
@@ -84,7 +74,6 @@ describe('UnifiedDetectionService', () => {
     // Create service instance
     service = new DetectionService(
       mockLogger,
-      mockConfigManager,
       mockTreeSitterService,
       mockFileFeatureDetector,
       mockBackupFileProcessor,

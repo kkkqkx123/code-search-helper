@@ -4,6 +4,7 @@ import { SegmentationConfig, SegmentationMode, EnvironmentUtils } from '../Confi
 import { SegmentationPresetFactory } from '../presets/SegmentationPresetFactory';
 import { segmentationSchema } from '../validation/ConfigValidation';
 import { ValidationUtils } from '../utils/ValidationUtils';
+import { UniversalChunkingOptions } from '../../service/parser/processing/strategies/types/SegmentationTypes';
 
 /**
  * 分段配置服务
@@ -13,11 +14,11 @@ import { ValidationUtils } from '../utils/ValidationUtils';
 export class SegmentationConfigService extends BaseConfigService<SegmentationConfig> {
   
   /**
-   * 加载配置
-   * 从环境变量读取配置模式，创建对应的配置对象
-   * @returns 分段配置对象
-   */
-  protected loadConfig(): SegmentationConfig {
+  * 加载配置
+  * 从环境变量读取配置模式，创建对应的配置对象
+  * @returns 分段配置对象
+  */
+  public loadConfig(): SegmentationConfig {
     const mode = EnvironmentUtils.parseString(
       'SEGMENTATION_MODE', 
       SegmentationMode.DEFAULT
@@ -34,12 +35,12 @@ export class SegmentationConfigService extends BaseConfigService<SegmentationCon
   }
 
   /**
-   * 验证配置
-   * 使用 Joi 验证模式验证配置对象
-   * @param config 待验证的配置对象
-   * @returns 验证后的配置对象
-   */
-  protected validateConfig(config: SegmentationConfig): SegmentationConfig {
+  * 验证配置
+  * 使用 Joi 验证模式验证配置对象
+  * @param config 待验证的配置对象
+  * @returns 验证后的配置对象
+  */
+  public validateConfig(config: SegmentationConfig): SegmentationConfig {
     return ValidationUtils.validateConfig(config, segmentationSchema);
   }
 
@@ -176,5 +177,81 @@ export class SegmentationConfigService extends BaseConfigService<SegmentationCon
     // 重置初始化标志，强制重新加载
     (this as any)._isInitialized = false;
     (this as any)._config = null;
+  }
+
+  /**
+   * 获取默认选项
+   * @returns 默认的通用分块选项
+   */
+  public getDefaultOptions(): UniversalChunkingOptions {
+    const config = this.getDefaultConfig();
+    return this.convertToUniversalChunkingOptions(config);
+  }
+
+  /**
+   * 合并选项
+   * @param baseOptions 基础选项
+   * @param overrides 覆盖选项
+   * @returns 合并后的选项
+   */
+  public mergeOptions(baseOptions: UniversalChunkingOptions, overrides: Partial<UniversalChunkingOptions>): UniversalChunkingOptions {
+    return {
+      ...baseOptions,
+      ...overrides,
+      advanced: {
+        ...baseOptions.advanced,
+        ...overrides.advanced,
+      },
+      customParams: {
+        ...baseOptions.customParams,
+        ...overrides.customParams,
+      },
+      languageConfig: {
+        ...baseOptions.languageConfig,
+        ...overrides.languageConfig,
+      },
+    };
+  }
+
+  /**
+   * 将 SegmentationConfig 转换为 UniversalChunkingOptions
+   * @param config SegmentationConfig 对象
+   * @returns UniversalChunkingOptions 对象
+   */
+  private convertToUniversalChunkingOptions(config: SegmentationConfig): UniversalChunkingOptions {
+    return {
+      maxChunkSize: config.global.maxChunkSize,
+      minChunkSize: config.global.minChunkSize,
+      overlapSize: config.global.chunkOverlap,
+      maxLinesPerChunk: config.global.maxLinesPerChunk,
+      minLinesPerChunk: config.global.minLinesPerChunk,
+      enableIntelligentChunking: true,
+      memoryLimitMB: config.performance.maxFileSize / (1024 * 1024),
+      errorThreshold: 0.1,
+      advanced: {
+        semanticWeight: 0.4,
+        syntacticWeight: 0.4,
+        structuralWeight: 0.2,
+        enableChunkDeduplication: true,
+        deduplicationThreshold: 0.8,
+        astNodeTracking: config.nesting.enableNestedExtraction,
+      },
+      strategy: 'universal',
+      languageConfig: Object.fromEntries(
+        Object.entries(config.languageSpecific).map(([language, langConfig]) => [
+          language,
+          {
+            maxChunkSize: langConfig.maxChunkSize,
+            minChunkSize: langConfig.minChunkSize,
+            overlapSize: config.global.chunkOverlap,
+            maxLinesPerChunk: config.global.maxLinesPerChunk,
+            minLinesPerChunk: config.global.minLinesPerChunk,
+            enableIntelligentChunking: true,
+            preserveComments: langConfig.preserveComments,
+            preserveEmptyLines: langConfig.preserveEmptyLines,
+          }
+        ])
+      ),
+    };
   }
 }
