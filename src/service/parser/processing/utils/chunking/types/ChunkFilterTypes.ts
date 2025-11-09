@@ -116,7 +116,7 @@ export interface IChunkSimilarityCalculator {
    * @param chunk2 第二个块
    * @returns 相似性分数 (0-1)
    */
-  calculateSimilarity(chunk1: CodeChunk, chunk2: CodeChunk): number;
+  calculateSimilarity(chunk1: CodeChunk, chunk2: CodeChunk): Promise<number>;
 
   /**
    * 计算内容相似性
@@ -124,7 +124,7 @@ export interface IChunkSimilarityCalculator {
    * @param content2 第二个内容
    * @returns 相似性分数 (0-1)
    */
-  calculateContentSimilarity(content1: string, content2: string): number;
+  calculateContentSimilarity(content1: string, content2: string): Promise<number>;
 }
 
 /**
@@ -153,5 +153,5 @@ export interface IChunkMerger {
    * @param context 上下文
    * @returns 是否应该合并
    */
-  shouldMerge(chunk1: CodeChunk, chunk2: CodeChunk, context: PostProcessingContext): boolean;
+  shouldMerge(chunk1: CodeChunk, chunk2: CodeChunk, context: PostProcessingContext): Promise<boolean>;
 }

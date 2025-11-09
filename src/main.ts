@@ -21,6 +21,7 @@ import { ChangeDetectionService } from './service/filesystem/ChangeDetectionServ
 import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
 import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
 import { ProcessEventManager } from './utils/ProcessEventManager';
+import { SimilarityServiceInitializer } from './service/similarity/initializer/SimilarityServiceInitializer';
 
 // 获取事件管理器实例，用于统一管理所有事件监听器
 const eventManager = ProcessEventManager.getInstance();
@@ -102,7 +103,8 @@ class Application {
     @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.HotReloadRestartService) private hotReloadRestartService: HotReloadRestartService,
-    @inject(TYPES.SqliteDatabaseService) private sqliteService: SqliteDatabaseService
+    @inject(TYPES.SqliteDatabaseService) private sqliteService: SqliteDatabaseService,
+    @inject(TYPES.SimilarityServiceInitializer) private similarityServiceInitializer: SimilarityServiceInitializer
   ) {
     // 使用 Logger 单例，避免重复创建实例
     this.logger = Logger.getInstance('code-search-helper');
@@ -193,6 +195,15 @@ class Application {
         }
       } else {
         await this.loggerService.info('Nebula graph database service is disabled via NEBULA_ENABLED environment variable, skipping initialization');
+      }
+
+      // 初始化相似度服务
+      await this.loggerService.info('Initializing similarity service...');
+      try {
+        await this.similarityServiceInitializer.initialize();
+        await this.loggerService.info('Similarity service initialized successfully');
+      } catch (error) {
+        await this.loggerService.warn('Failed to initialize similarity service, will continue without similarity functionality:', error);
       }
 
       this.currentPhase = ApplicationLifecyclePhase.SERVICES_STARTED;
@@ -316,6 +327,14 @@ class Application {
       }
 
 
+      // 清理相似度服务
+      try {
+        await this.similarityServiceInitializer.cleanup();
+        await this.loggerService.info('Similarity service cleaned up successfully');
+      } catch (error) {
+        await this.loggerService.error('Error cleaning up similarity service:', error);
+      }
+
       this.currentPhase = ApplicationLifecyclePhase.STOPPED;
       await this.logger.info('Application stopped');
 
@@ -361,6 +380,7 @@ class ApplicationFactory {
     const projectIdManager = diContainer.get<ProjectIdManager>(TYPES.ProjectIdManager);
     const hotReloadRestartService = diContainer.get<HotReloadRestartService>(TYPES.HotReloadRestartService);
     const sqliteService = diContainer.get<SqliteDatabaseService>(TYPES.SqliteDatabaseService);
+    const similarityServiceInitializer = diContainer.get<SimilarityServiceInitializer>(TYPES.SimilarityServiceInitializer);
 
     return new Application(
       configService,
@@ -377,7 +397,8 @@ class ApplicationFactory {
       changeDetectionService,
       projectIdManager,
       hotReloadRestartService,
-      sqliteService
+      sqliteService,
+      similarityServiceInitializer
     );
   }
 }

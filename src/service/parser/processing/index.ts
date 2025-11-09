@@ -107,10 +107,7 @@ export type {
   SegmentationContext,
   ISegmentationProcessor,
   PerformanceStats,
-  ITextSplitter,
-  ISegmentationContextManager,
   IProtectionCoordinator,
-  IConfigurationManager,
   IComplexityCalculator
 } from './strategies/types/SegmentationTypes';
 
@@ -131,7 +128,7 @@ export { ProcessingCoordinator, ProcessingRequest, ProcessingPerformanceStats } 
 export { StrategyFactory } from './factory';
 
 // 检测服务导入和导出 - 从上级目录导入
-export { 
+export {
   DetectionService as UnifiedDetectionService,
   DetectionResult,
   ProcessingStrategyType
@@ -172,7 +169,7 @@ export default {
 
   // 版本信息
   version: '1.0.0',
-  
+
   // 模块信息
   moduleInfo: {
     name: 'processing-module',

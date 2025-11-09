@@ -337,4 +337,14 @@ export const TYPES = {
   StrategyFactory: Symbol.for('StrategyFactory'),
   UnifiedPerformanceMonitoringSystem: Symbol.for('UnifiedPerformanceMonitoringSystem'),
   ChunkPostProcessorCoordinator: Symbol.for('ChunkPostProcessorCoordinator'),
+
+  // 45. 相似度服务相关
+  SimilarityService: Symbol.for('SimilarityService'),
+  SimilarityCacheManager: Symbol.for('SimilarityCacheManager'),
+  SimilarityPerformanceMonitor: Symbol.for('SimilarityPerformanceMonitor'),
+  SimilarityServiceInitializer: Symbol.for('SimilarityServiceInitializer'),
+  LevenshteinSimilarityStrategy: Symbol.for('LevenshteinSimilarityStrategy'),
+  SemanticSimilarityStrategy: Symbol.for('SemanticSimilarityStrategy'),
+  KeywordSimilarityStrategy: Symbol.for('KeywordSimilarityStrategy'),
+  HybridSimilarityStrategy: Symbol.for('HybridSimilarityStrategy'),
 };

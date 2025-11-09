@@ -2,6 +2,7 @@ import { injectable, inject } from 'inversify';
 import { CodeChunk, ChunkMetadata, ChunkType } from '../../types/CodeChunk';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
+import { SimilarityUtils } from '../../../../similarity/utils/SimilarityUtils';
 import {
   XMLChunkingConfig,
   XMLBlockType,
@@ -56,14 +57,14 @@ export class XMLTextStrategy {
   /**
    * XML 专用分段方法
    */
-  chunkXML(content: string, filePath?: string): CodeChunk[] {
+  async chunkXML(content: string, filePath?: string): Promise<CodeChunk[]> {
     try {
       if (!isXMLFile(filePath || '')) {
         this.logger?.warn(`File ${filePath} is not recognized as XML, using generic XML processing`);
       }
 
       const blocks = this.parseXMLBlocks(content);
-      const mergedBlocks = this.mergeRelatedBlocks(blocks);
+      const mergedBlocks = await this.mergeRelatedBlocks(blocks);
       const chunks = this.blocksToChunks(mergedBlocks, filePath);
 
       this.logger?.info(`XML chunking completed: ${blocks.length} blocks -> ${chunks.length} chunks`);
@@ -246,7 +247,7 @@ export class XMLTextStrategy {
   /**
    * 合并相关块
    */
-  private mergeRelatedBlocks(blocks: XMLBlock[]): XMLBlock[] {
+  private async mergeRelatedBlocks(blocks: XMLBlock[]): Promise<XMLBlock[]> {
     if (blocks.length === 0) return blocks;
 
     let currentBlocks = [...blocks];
@@ -264,7 +265,7 @@ export class XMLTextStrategy {
           const nextBlock = currentBlocks[i + 1];
 
           // 检查是否可以合并当前块和下一个块
-          if (this.shouldMergeBlocks(currentBlock, nextBlock)) {
+          if (await this.shouldMergeBlocks(currentBlock, nextBlock)) {
             // 合并块
             const mergedBlock: XMLBlock = {
               type: this.determineMergedBlockType(currentBlock, nextBlock),
@@ -319,10 +320,10 @@ export class XMLTextStrategy {
   /**
    * 判断是否应该合并块
    */
-  private shouldMergeBlocks(
+  private async shouldMergeBlocks(
     currentBlock: XMLBlock,
     nextBlock: XMLBlock
-  ): boolean {
+  ): Promise<boolean> {
     const currentType = currentBlock.type;
     const nextType = nextBlock.type;
 
@@ -368,7 +369,7 @@ export class XMLTextStrategy {
     if (this.config.enableSemanticMerge &&
       currentType === XMLBlockType.ELEMENT &&
       nextType === XMLBlockType.ELEMENT) {
-      const similarity = calculateXMLSemanticSimilarity(currentBlock.content, nextBlock.content);
+      const similarity = await this.calculateXMLSemanticSimilarity(currentBlock.content, nextBlock.content);
       return similarity >= this.config.semanticSimilarityThreshold;
     }
 
@@ -675,6 +676,23 @@ export class XMLTextStrategy {
     }
 
     return Math.round(complexity);
+  }
+
+  /**
+   * 计算XML语义相似度（使用新的相似度服务）
+   */
+  private async calculateXMLSemanticSimilarity(xml1: string, xml2: string): Promise<number> {
+    try {
+      // 使用新的相似度服务，指定文档类型
+      return await SimilarityUtils.calculateSimilarity(xml1, xml2, {
+        contentType: 'document',
+        strategy: 'keyword' // 对于XML，使用关键词策略更合适
+      });
+    } catch (error) {
+      // 如果新服务失败，回退到原始实现
+      this.logger?.warn('Failed to use new similarity service, falling back to original implementation:', error);
+      return calculateXMLSemanticSimilarity(xml1, xml2);
+    }
   }
 }
 

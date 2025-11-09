@@ -1,6 +1,6 @@
 import { Tree } from 'tree-sitter';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
-import { SimilarityUtils } from '../similarity/SimilarityUtils';
+import { SimilarityUtils } from '../../../../similarity/utils/SimilarityUtils';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ASTNode } from '../../types/ASTNode';
 
@@ -46,7 +46,7 @@ export class ASTNodeTracker {
   /**
    * 标记节点为已使用
    */
-  markUsed(node: ASTNode): void {
+  async markUsed(node: ASTNode): Promise<void> {
     const nodeId = this.generateEnhancedNodeId(node);
 
     if (this.usedNodes.has(nodeId)) {
@@ -55,7 +55,7 @@ export class ASTNodeTracker {
       return;
     }
 
-    if (this.enableContentHashing && this.isContentSimilar(node)) {
+    if (this.enableContentHashing && await this.isContentSimilar(node)) {
       this.similarityHits++;
       this.logger?.debug(`Similar content detected, skipping node: ${nodeId}`);
       return;
@@ -79,7 +79,7 @@ export class ASTNodeTracker {
   /**
    * 检查节点是否已被使用
    */
-  isUsed(node: ASTNode): boolean {
+  async isUsed(node: ASTNode): Promise<boolean> {
     const nodeId = this.generateEnhancedNodeId(node);
 
     if (this.usedNodes.has(nodeId)) {
@@ -87,7 +87,7 @@ export class ASTNodeTracker {
       return true;
     }
 
-    if (this.enableContentHashing && this.isContentSimilar(node)) {
+    if (this.enableContentHashing && await this.isContentSimilar(node)) {
       this.similarityHits++;
       return true;
     }
@@ -98,7 +98,7 @@ export class ASTNodeTracker {
   /**
    * 检查内容相似性
    */
-  private isContentSimilar(node: ASTNode): boolean {
+  private async isContentSimilar(node: ASTNode): Promise<boolean> {
     if (!node.contentHash) {
       node.contentHash = ContentHashIDGenerator.getContentHashPrefix(node.text);
     }
@@ -110,7 +110,8 @@ export class ASTNodeTracker {
       for (const existingNodeId of similarNodes) {
         const existingNode = this.nodeCache.get(existingNodeId);
         if (existingNode && this.usedNodes.has(existingNodeId)) {
-          if (SimilarityUtils.isSimilar(node.text, existingNode.text, this.similarityThreshold)) {
+          const isSimilar = await SimilarityUtils.isSimilar(node.text, existingNode.text, this.similarityThreshold);
+          if (isSimilar) {
             return true;
           }
         }
@@ -246,14 +247,20 @@ export class ASTNodeTracker {
   /**
    * 从AST树中提取节点并过滤已使用的节点
    */
-  filterUnusedNodesFromTree(tree: Tree, startLine?: number, endLine?: number): ASTNode[] {
+  async filterUnusedNodesFromTree(tree: Tree, startLine?: number, endLine?: number): Promise<ASTNode[]> {
     const allNodes: ASTNode[] = [];
     const root = tree.rootNode;
 
     const cursor = root.walk();
     this.collectNodes(cursor, allNodes, startLine, endLine);
 
-    return allNodes.filter(node => !this.isUsed(node));
+    const unusedNodes: ASTNode[] = [];
+    for (const node of allNodes) {
+      if (!(await this.isUsed(node))) {
+        unusedNodes.push(node);
+      }
+    }
+    return unusedNodes;
   }
 
   /**

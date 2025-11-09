@@ -42,7 +42,7 @@ export class ChunkMerger implements IChunkMerger {
       const lastChunk = currentGroup[currentGroup.length - 1];
 
       // 计算相似性
-      const similarity = this.similarityCalculator.calculateSimilarity(lastChunk, currentChunk);
+      const similarity = await this.similarityCalculator.calculateSimilarity(lastChunk, currentChunk);
       const combinedSize = this.calculateGroupSize(currentGroup) + currentChunk.content.length;
 
       // 如果相似性高且合并后大小不超过限制，则合并
@@ -97,8 +97,8 @@ export class ChunkMerger implements IChunkMerger {
    * @param context 上下文
    * @returns 是否应该合并
    */
-  shouldMerge(chunk1: CodeChunk, chunk2: CodeChunk, context: PostProcessingContext): boolean {
-    const similarity = this.similarityCalculator.calculateSimilarity(chunk1, chunk2);
+  async shouldMerge(chunk1: CodeChunk, chunk2: CodeChunk, context: PostProcessingContext): Promise<boolean> {
+    const similarity = await this.similarityCalculator.calculateSimilarity(chunk1, chunk2);
     const combinedSize = chunk1.content.length + chunk2.content.length;
     const maxSize = context.options.maxChunkSize || 1000;
 

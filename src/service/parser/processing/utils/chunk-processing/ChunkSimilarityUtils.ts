@@ -1,20 +1,20 @@
 import { CodeChunk } from '../../types/CodeChunk';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
-import { BaseChunkProcessor } from '../base/BaseChunkProcessor';
-import { SimilarityUtils } from '../similarity/SimilarityUtils';
+import { SimilarityUtils } from '../../../../similarity/utils/SimilarityUtils';
 import { DeduplicationUtils } from '../overlap/DeduplicationUtils';
 
 /**
  * 代码块相似性检测工具类
  * 提供检测和处理代码块相似性的方法
  */
-export class ChunkSimilarityUtils extends BaseChunkProcessor {
+export class ChunkSimilarityUtils {
   /**
    * 检查两个块是否可以合并
    */
-  static canMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk, similarityThreshold: number): boolean {
+  static async canMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk, similarityThreshold: number): Promise<boolean> {
     // 检查相似度
-    if (!SimilarityUtils.isSimilar(chunk1.content, chunk2.content, similarityThreshold)) {
+    const isSimilar = await SimilarityUtils.isSimilar(chunk1.content, chunk2.content, similarityThreshold);
+    if (!isSimilar) {
       return false;
     }
 
@@ -103,11 +103,11 @@ export class ChunkSimilarityUtils extends BaseChunkProcessor {
   /**
    * 智能重叠控制 - 检查新的重叠块是否与已有块过于相似
    */
-  static shouldCreateOverlap(
+  static async shouldCreateOverlap(
     newChunk: CodeChunk,
     existingChunks: CodeChunk[],
     similarityThreshold: number
- ): boolean {
+ ): Promise<boolean> {
     // 生成新块的内容哈希
     const newChunkHash = ContentHashIDGenerator.getContentHashPrefix(newChunk.content);
 
@@ -121,7 +121,8 @@ export class ChunkSimilarityUtils extends BaseChunkProcessor {
       }
 
       // 检查相似度
-      if (SimilarityUtils.isSimilar(newChunk.content, existingChunk.content, similarityThreshold)) {
+      const isSimilar = await SimilarityUtils.isSimilar(newChunk.content, existingChunk.content, similarityThreshold);
+      if (isSimilar) {
         return false; // 跳过过于相似的重叠块
       }
     }

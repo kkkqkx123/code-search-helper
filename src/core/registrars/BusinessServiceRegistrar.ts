@@ -3,6 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
+import { SimilarityServiceRegistrar } from './SimilarityServiceRegistrar';
 
 // 文件系统服务
 import { IgnoreRuleManager } from '../../service/ignore/IgnoreRuleManager';
@@ -366,6 +367,9 @@ export class BusinessServiceRegistrar {
       // MemoryGuard 参数
       container.bind<number>(TYPES.MemoryLimitMB).toConstantValue(500);
       container.bind<number>(TYPES.MemoryCheckIntervalMs).toConstantValue(5000);
+
+      // 注册相似度服务
+      SimilarityServiceRegistrar.register(container);
 
       logger?.info('Business services registered successfully');
     } catch (error) {

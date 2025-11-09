@@ -2,6 +2,7 @@ import { injectable, inject } from 'inversify';
 import { CodeChunk } from '../../../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TYPES } from '../../../../../types';
+import { SimilarityUtils } from '../../../../similarity/utils/SimilarityUtils';
 import {
   MarkdownChunkingConfig,
   MarkdownBlockType,
@@ -60,7 +61,7 @@ export class MarkdownTextStrategy {
       }
 
       const blocks = this.parseMarkdownBlocks(content);
-      const mergedBlocks = this.mergeRelatedBlocks(blocks);
+      const mergedBlocks = await this.mergeRelatedBlocks(blocks);
 
       // 检查并拆分大块
       const processedBlocks = await this.splitLargeBlocks(mergedBlocks);
@@ -69,7 +70,7 @@ export class MarkdownTextStrategy {
 
       // 应用重叠处理
       const finalChunks = this.config.enableOverlap ?
-        this.applyOverlap(chunks, content) : chunks;
+        await this.applyOverlap(chunks, content) : chunks;
 
       this.logger?.info(`Markdown chunking completed: ${blocks.length} blocks -> ${processedBlocks.length} processed blocks -> ${finalChunks.length} chunks`);
       return finalChunks;
@@ -239,7 +240,7 @@ export class MarkdownTextStrategy {
   /**
    * 合并相关块
    */
-  private mergeRelatedBlocks(blocks: MarkdownBlock[]): MarkdownBlock[] {
+  private async mergeRelatedBlocks(blocks: MarkdownBlock[]): Promise<MarkdownBlock[]> {
     if (blocks.length === 0) return blocks;
 
     let currentBlocks = [...blocks]; // 创建副本以避免修改原始数组
@@ -257,7 +258,7 @@ export class MarkdownTextStrategy {
           const nextBlock = currentBlocks[i + 1];
 
           // 检查是否可以合并当前块和下一个块
-          if (this.shouldMergeBlocks(currentBlock, nextBlock,
+          if (await this.shouldMergeBlocks(currentBlock, nextBlock,
             i + 2 < currentBlocks.length ? currentBlocks[i + 2] : null)) {
             // 合并块
             const mergedBlock: MarkdownBlock = {
@@ -316,11 +317,11 @@ export class MarkdownTextStrategy {
    * 3. 标题单向合并规则 - 高优先级，但可被minChunkSize覆盖
    * 4. 语义和内容相关规则 - 可被更高优先级规则覆盖
    */
-  private shouldMergeBlocks(
+  private async shouldMergeBlocks(
     currentBlock: MarkdownBlock,
     nextBlock: MarkdownBlock,
     blockAfterNext: MarkdownBlock | null
-  ): boolean {
+  ): Promise<boolean> {
     const currentType = currentBlock.type;
     const nextType = nextBlock.type;
 
@@ -399,7 +400,8 @@ export class MarkdownTextStrategy {
     if (this.config.enableSemanticMerge &&
       currentType === MarkdownBlockType.PARAGRAPH &&
       nextType === MarkdownBlockType.PARAGRAPH) {
-      const similarity = calculateSemanticSimilarity(currentBlock.content, nextBlock.content);
+      // 使用新的相似度服务
+      const similarity = await this.calculateSemanticSimilarity(currentBlock.content, nextBlock.content);
       return similarity >= this.config.semanticSimilarityThreshold;
     }
 
@@ -923,7 +925,7 @@ export class MarkdownTextStrategy {
   /**
    * 应用重叠处理
    */
-  private applyOverlap(chunks: CodeChunk[], originalContent: string): CodeChunk[] {
+  private async applyOverlap(chunks: CodeChunk[], originalContent: string): Promise<CodeChunk[]> {
     if (chunks.length <= 1) {
       return chunks;
     }
@@ -946,7 +948,7 @@ export class MarkdownTextStrategy {
 
         if (nextChunk && this.shouldAddOverlap(currentChunk, nextChunk)) {
           // 计算重叠
-          const overlapResult = overlapCalculator.calculateOptimalOverlap(
+          const overlapResult = await overlapCalculator.calculateOptimalOverlap(
             currentChunk,
             nextChunk,
             originalContent,
@@ -997,6 +999,23 @@ export class MarkdownTextStrategy {
     }
 
     return true;
+  }
+
+  /**
+   * 计算语义相似度（使用新的相似度服务）
+   */
+  private async calculateSemanticSimilarity(text1: string, text2: string): Promise<number> {
+    try {
+      // 使用新的相似度服务，指定文档类型
+      return await SimilarityUtils.calculateSimilarity(text1, text2, {
+        contentType: 'document',
+        strategy: 'keyword' // 对于Markdown，使用关键词策略更合适
+      });
+    } catch (error) {
+      // 如果新服务失败，回退到原始实现
+      this.logger?.warn('Failed to use new similarity service, falling back to original implementation:', error);
+      return calculateSemanticSimilarity(text1, text2);
+    }
   }
 }
 
