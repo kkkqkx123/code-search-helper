@@ -22,7 +22,7 @@ export type {
 
 export type {
   FileFeatures
-} from '../types/Utils';
+} from '../core/interfaces/IProcessingContext';
 
 export type {
   ProcessingConfig,

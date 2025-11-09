@@ -278,20 +278,6 @@ export const BACKUP_FILE_PATTERNS = [
   '.temp$'
 ] as const;
 
-export const BACKUP_FILE_TYPE_MAP = {
-  '.bak': 'standard-backup',
-  '.backup': 'full-backup',
-  '.old': 'old-version',
-  '.tmp': 'temporary',
-  '.temp': 'temporary',
-  '.orig': 'original',
-  '.save': 'saved',
-  '~': 'emacs-backup',
-  '#filename#': 'vim-temporary', // 特殊模式
-  '.swp': 'vim-swap',
-  '.hidden': 'hidden-backup'
-} as const;
-
 // ==================== 错误处理配置常量 ====================
 /**
  * 错误处理相关的配置常量

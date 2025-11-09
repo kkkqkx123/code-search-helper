@@ -18,16 +18,7 @@ export const BACKUP_FILE_PATTERNS = [
  '.temp$'
 ];
 
-// 备份文件类型映射
-export const BACKUP_FILE_TYPE_MAP = {
- '.bak': 'standard-backup',
-  '.backup': 'full-backup',
-  '.old': 'old-version',
-  '.tmp': 'temporary',
-  '.temp': 'temporary',
-  '.orig': 'original',
-  '.save': 'saved'
-} as const;
+
 
 // 小文件阈值 - 小于这个大小的文件直接作为一个块处理
 export const SMALL_FILE_THRESHOLD = {

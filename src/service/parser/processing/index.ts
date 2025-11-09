@@ -77,23 +77,20 @@ export type {
   StrategySelectionResult
 } from './types/Strategy';
 
-// 工具核心类型
+// 工具核心类型（从IProcessingContext导入）
 export type {
-  FileFeatures,
+  DetailedFileFeatures,
   LanguageFeatures,
   ComplexityMetrics,
-  CodeQualityMetrics,
-  CodeQualityIssue,
   LineEndingType,
   IndentType,
-  LanguageFamily,
-  QualityIssueType,
-  IssueSeverity,
-  IFileFeatureDetector,
-  IComplexityAnalyzer,
-  ICodeQualityAnalyzer,
+  CommentSyntax,
+  StringSyntax,
   FeatureUtils
-} from './types/Utils';
+} from './core/interfaces/IProcessingContext';
+export { LanguageFamily } from '../constants/language-family';
+export { LanguageClassificationUtils } from '../constants/language-classification';
+export { CommentSyntaxUtils } from '../constants/comment-syntax';
 
 // AST节点类型
 export type { ASTNode } from './types/ASTNode';

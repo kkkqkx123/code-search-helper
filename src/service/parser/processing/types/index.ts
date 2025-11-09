@@ -21,8 +21,7 @@ export * from './PostProcessing';
 // 策略类型
 export * from './Strategy';
 
-// 工具类型
-export * from './Utils';
+// 工具类型已迁移到 IProcessingContext
 
 // 重新导出常用类型，方便使用
 export {
@@ -94,23 +93,20 @@ export {
     StrategyUtils
 } from './Strategy';
 
-// 工具核心类型
+// 工具核心类型（从IProcessingContext导入）
 export {
-    FileFeatures,
+    DetailedFileFeatures,
     LanguageFeatures,
     ComplexityMetrics,
-    CodeQualityMetrics,
-    CodeQualityIssue,
     LineEndingType,
     IndentType,
-    LanguageFamily,
-    QualityIssueType,
-    IssueSeverity,
-    IFileFeatureDetector,
-    IComplexityAnalyzer,
-    ICodeQualityAnalyzer,
+    CommentSyntax,
+    StringSyntax,
     FeatureUtils
-} from './Utils';
+} from '../core/interfaces/IProcessingContext';
+export { LanguageFamily } from '../../constants/language-family';
+export { LanguageClassificationUtils } from '../../constants/language-classification';
+export { CommentSyntaxUtils } from '../../constants/comment-syntax';
 
 // AST节点类型
 export { ASTNode } from './ASTNode';

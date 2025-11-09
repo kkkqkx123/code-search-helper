@@ -143,63 +143,7 @@ export const TREE_SITTER_LANGUAGE_MAP: Record<string, string> = {
   'sql': 'sql'
 };
 
-// 特殊语言处理规则
-export const SPECIAL_LANGUAGE_HANDLERS = {
-  // 配置文件语言 - 通常基于文件扩展名而非内容
-  configFiles: {
-    extensions: ['.json', '.yaml', '.yml', '.toml', '.xml', '.ini', '.cfg', '.conf'],
-    languages: ['json', 'yaml', 'toml', 'xml']
-  },
 
-  // 前端语言 - 可能包含多种语言混合
-  frontendLanguages: {
-    extensions: ['.vue', '.jsx', '.tsx', '.html'],
-    languages: ['vue', 'jsx', 'tsx', 'html'],
-    // Vue 文件可能包含 HTML、CSS、JS/TS
-    containsMultiple: true
-  },
-
-  // 嵌入式模板语言
-  embeddedTemplates: {
-    extensions: ['.html', '.vue', '.jsx', '.tsx'],
-    languages: ['embedded_template', 'html', 'vue', 'jsx', 'tsx']
-  }
-};
-
-// 语言分类
-export const LANGUAGE_CATEGORIES = {
-  PROGRAMMING: 'programming',
-  MARKUP: 'markup',
-  DATA: 'data',
-  CONFIG: 'config',
-  TEMPLATE: 'template'
-} as const;
-
-// 按分类组织的语言映射
-export const LANGUAGES_BY_CATEGORY = {
-  [LANGUAGE_CATEGORIES.PROGRAMMING]: [
-    'typescript', 'javascript', 'python', 'java', 'go', 'rust',
-    'cpp', 'c', 'csharp', 'swift', 'kotlin', 'ruby', 'php',
-    'scala', 'elixir', 'lua', 'ocaml', 'solidity', 'systemrdl',
-    'tlaplus', 'zig', 'elisp', 'shell', 'sql'
-  ],
-
-  [LANGUAGE_CATEGORIES.MARKUP]: [
-    'html', 'css', 'vue', 'markdown'
-  ],
-
-  [LANGUAGE_CATEGORIES.DATA]: [
-    'json', 'yaml', 'toml', 'xml'
-  ],
-
-  [LANGUAGE_CATEGORIES.CONFIG]: [
-    'json', 'yaml', 'toml', 'xml'
-  ],
-
-  [LANGUAGE_CATEGORIES.TEMPLATE]: [
-    'embedded_template', 'vue', 'jsx', 'tsx'
-  ]
-};
 
 // 文本类语言列表（需要智能分段的非代码文件）
 export const TEXT_LANGUAGES = [

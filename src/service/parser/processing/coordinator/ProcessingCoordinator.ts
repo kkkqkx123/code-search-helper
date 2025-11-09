@@ -10,7 +10,7 @@ import { ProcessingConfig } from '../core/types/ConfigTypes';
 import { ProcessingResult, ProcessingUtils } from '../types/Processing';
 import { ProcessingContext, ContextBuilder, ContextUtils } from '../types/Context';
 import { FileFeatures } from '../core/interfaces/IProcessingContext';
-import { LineEndingType, IndentType } from '../types/Utils';
+import { LineEndingType, IndentType } from '../core/interfaces/IProcessingContext';
 import { CodeChunk } from '../types/CodeChunk';
 import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
 import { PostProcessingContext } from '../post-processing/IChunkPostProcessor';
