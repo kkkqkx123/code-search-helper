@@ -19,7 +19,7 @@ export const qdrantSchema = Joi.object({
 // Embedding配置验证模式
 export const embeddingSchema = Joi.object({
   provider: Joi.string()
-    .valid('openai', 'ollama', 'gemini', 'mistral', 'siliconflow')
+    .valid('openai', 'ollama', 'gemini', 'mistral', 'siliconflow', 'custom1', 'custom2', 'custom3')
     .default('openai'),
   weights: Joi.object({
     quality: Joi.number().min(0).max(1).default(0.7),

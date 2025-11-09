@@ -40,7 +40,17 @@ export interface SiliconFlowConfig extends BaseEmbeddingProviderConfig {
   baseUrl?: string;
 }
 
-export interface CustomProviderConfig extends BaseEmbeddingProviderConfig {
+export interface Custom1ProviderConfig extends BaseEmbeddingProviderConfig {
+  apiKey?: string;
+  baseUrl?: string;
+}
+
+export interface Custom2ProviderConfig extends BaseEmbeddingProviderConfig {
+  apiKey?: string;
+  baseUrl?: string;
+}
+
+export interface Custom3ProviderConfig extends BaseEmbeddingProviderConfig {
   apiKey?: string;
   baseUrl?: string;
 }
@@ -57,7 +67,7 @@ export interface EmbeddingConfig {
     performance?: number;
   };
   // Only include provider configuration that's actually used
-  providerConfig?: BaseEmbeddingProviderConfig | OpenAIConfig | OllamaConfig | GeminiConfig | MistralConfig | SiliconFlowConfig | CustomProviderConfig;
+  providerConfig?: BaseEmbeddingProviderConfig | OpenAIConfig | OllamaConfig | GeminiConfig | MistralConfig | SiliconFlowConfig | Custom1ProviderConfig | Custom2ProviderConfig | Custom3ProviderConfig;
 }
 
 /**
@@ -68,7 +78,7 @@ export class EmbeddingProviderFactory {
   /**
    * Create provider-specific configuration from environment variables
    */
-  static createProviderConfig(provider: string): BaseEmbeddingProviderConfig | OpenAIConfig | OllamaConfig | GeminiConfig | MistralConfig | SiliconFlowConfig | CustomProviderConfig {
+  static createProviderConfig(provider: string): BaseEmbeddingProviderConfig | OpenAIConfig | OllamaConfig | GeminiConfig | MistralConfig | SiliconFlowConfig | Custom1ProviderConfig | Custom2ProviderConfig | Custom3ProviderConfig {
     switch (provider) {
       case 'openai':
         return {
@@ -109,16 +119,32 @@ export class EmbeddingProviderFactory {
           dimensions: EnvironmentUtils.parseNumber('SILICONFLOW_DIMENSIONS', 1024),
         } as SiliconFlowConfig;
 
-      case 'custom':
-        return {
-          apiKey: EnvironmentUtils.parseOptionalString('CUSTOM_API_KEY'),
-          baseUrl: EnvironmentUtils.parseOptionalString('CUSTOM_BASE_URL'),
-          model: EnvironmentUtils.parseString('CUSTOM_MODEL', 'custom-embed'),
-          dimensions: EnvironmentUtils.parseNumber('CUSTOM_DIMENSIONS', 768),
-        } as CustomProviderConfig;
+      case 'custom1':
+      return {
+           apiKey: EnvironmentUtils.parseOptionalString('CUSTOM_CUSTOM1_API_KEY'),
+           baseUrl: EnvironmentUtils.parseOptionalString('CUSTOM_CUSTOM1_BASE_URL'),
+           model: EnvironmentUtils.parseString('CUSTOM_CUSTOM1_MODEL', 'custom1-embed'),
+           dimensions: EnvironmentUtils.parseNumber('CUSTOM_CUSTOM1_DIMENSIONS', 768),
+         } as Custom1ProviderConfig;
 
-      default:
-        throw new Error(`Unsupported embedding provider: ${provider}. Supported providers: openai, ollama, gemini, mistral, siliconflow, custom`);
+       case 'custom2':
+         return {
+           apiKey: EnvironmentUtils.parseOptionalString('CUSTOM_CUSTOM2_API_KEY'),
+           baseUrl: EnvironmentUtils.parseOptionalString('CUSTOM_CUSTOM2_BASE_URL'),
+           model: EnvironmentUtils.parseString('CUSTOM_CUSTOM2_MODEL', 'custom2-embed'),
+           dimensions: EnvironmentUtils.parseNumber('CUSTOM_CUSTOM2_DIMENSIONS', 768),
+         } as Custom2ProviderConfig;
+
+       case 'custom3':
+         return {
+           apiKey: EnvironmentUtils.parseOptionalString('CUSTOM_CUSTOM3_API_KEY'),
+           baseUrl: EnvironmentUtils.parseOptionalString('CUSTOM_CUSTOM3_BASE_URL'),
+           model: EnvironmentUtils.parseString('CUSTOM_CUSTOM3_MODEL', 'custom3-embed'),
+           dimensions: EnvironmentUtils.parseNumber('CUSTOM_CUSTOM3_DIMENSIONS', 768),
+         } as Custom3ProviderConfig;
+
+       default:
+         throw new Error(`Unsupported embedding provider: ${provider}. Supported providers: openai, ollama, gemini, mistral, siliconflow, custom1, custom2, custom3`);
     }
   }
 
@@ -161,14 +187,26 @@ export class EmbeddingProviderFactory {
           baseUrl: Joi.string().uri().optional(),
         });
 
-      case 'custom':
-        return baseSchema.keys({
-          apiKey: Joi.string().optional(),
-          baseUrl: Joi.string().uri().optional(),
-        });
+      case 'custom1':
+      return baseSchema.keys({
+           apiKey: Joi.string().optional(),
+           baseUrl: Joi.string().uri().optional(),
+         });
 
-      default:
-        throw new Error(`Unsupported provider for validation: ${provider}`);
+       case 'custom2':
+         return baseSchema.keys({
+           apiKey: Joi.string().optional(),
+           baseUrl: Joi.string().uri().optional(),
+         });
+
+       case 'custom3':
+         return baseSchema.keys({
+           apiKey: Joi.string().optional(),
+           baseUrl: Joi.string().uri().optional(),
+         });
+
+       default:
+         throw new Error(`Unsupported provider for validation: ${provider}`);
     }
   }
 
@@ -216,7 +254,7 @@ export class EmbeddingConfigService extends BaseConfigService<EmbeddingConfig> {
 
   validateConfig(config: any): EmbeddingConfig {
     const schema = Joi.object({
-      provider: ValidationUtils.enumSchema(['openai', 'ollama', 'gemini', 'mistral', 'siliconflow', 'custom'], 'openai'),
+      provider: ValidationUtils.enumSchema(['openai', 'ollama', 'gemini', 'mistral', 'siliconflow', 'custom1', 'custom2', 'custom3'], 'openai'),
       providerConfig: Joi.when('provider', {
         is: Joi.exist(),
         then: Joi.custom((value, helpers) => {
@@ -274,6 +312,6 @@ export class EmbeddingConfigService extends BaseConfigService<EmbeddingConfig> {
    * Get supported providers list
    */
   getSupportedProviders(): string[] {
-    return ['openai', 'ollama', 'gemini', 'mistral', 'siliconflow', 'custom'];
+    return ['openai', 'ollama', 'gemini', 'mistral', 'siliconflow', 'custom1', 'custom2', 'custom3'];
   }
 }
