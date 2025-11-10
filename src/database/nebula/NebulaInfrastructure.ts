@@ -5,11 +5,10 @@ import { DatabaseType } from '../../infrastructure/types';
 import { IDatabaseInfrastructure } from '../../infrastructure/InfrastructureManager';
 import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
-import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { IHealthChecker } from '../../infrastructure/monitoring/types';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
-import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { GraphOperation, BatchResult } from '../../infrastructure/batching/types';
 
@@ -20,7 +19,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
   private logger: LoggerService;
   private cacheService: ICacheService;
   private performanceMonitor: IPerformanceMonitor;
-  private batchOptimizer: IBatchOptimizer;
+  private batchOptimizer: BatchProcessingService;
   private healthChecker: IHealthChecker;
   private initialized = false;
 
@@ -28,7 +27,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.CacheService) cacheService: CacheService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: IPerformanceMonitor,
-    @inject(TYPES.BatchOptimizer) batchOptimizer: BatchOptimizer,
+    @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker
   ) {
     this.logger = logger;
@@ -50,7 +49,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     return this.performanceMonitor;
   }
 
-  getBatchOptimizer(): IBatchOptimizer {
+  getBatchOptimizer(): BatchProcessingService {
     this.ensureInitialized();
     return this.batchOptimizer;
   }
@@ -159,9 +158,13 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     });
 
     const startTime = Date.now();
-    const result = await (this.batchOptimizer as BatchOptimizer).executeGraphBatchOptimization(
+    const batchResult = await this.batchOptimizer.processDatabaseBatch(
       operations,
-      this.databaseType
+      DatabaseType.NEBULA,
+      {
+        operationType: 'write',
+        databaseType: DatabaseType.NEBULA
+      }
     );
     const duration = Date.now() - startTime;
 
@@ -170,10 +173,10 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
       'batch_execute',
       'unknown_space', // 实际应用中应该从操作中获取
       duration,
-      result.successfulOperations === result.totalOperations
+      batchResult.successfulOperations === batchResult.totalOperations
     );
 
-    return result;
+    return batchResult;
   }
 
   async executeGraphQuery(

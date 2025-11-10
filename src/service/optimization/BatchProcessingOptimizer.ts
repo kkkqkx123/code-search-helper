@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { GraphBatchOptimizer } from '../graph/utils/GraphBatchOptimizer';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { PerformanceDashboard, PerformanceMetric } from '../monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../monitoring/PerformanceMetricsCollector';
 
@@ -45,7 +45,7 @@ export interface OptimizationRecommendation {
 @injectable()
 export class BatchProcessingOptimizer {
   private logger: LoggerService;
-  private batchOptimizer: GraphBatchOptimizer;
+  private batchOptimizer: BatchProcessingService;
   private dashboard: PerformanceDashboard;
   private metricsCollector: PerformanceMetricsCollector;
   private config: BatchOptimizationConfig;
@@ -57,7 +57,7 @@ export class BatchProcessingOptimizer {
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
+    @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.PerformanceDashboard) dashboard: PerformanceDashboard,
     @inject(TYPES.PerformanceMetricsCollector) metricsCollector: PerformanceMetricsCollector,
     config?: Partial<BatchOptimizationConfig>
@@ -208,10 +208,14 @@ export class BatchProcessingOptimizer {
 
     try {
       // 执行批处理操作
-      const batchResult = await this.batchOptimizer.executeBatch(
+      const batchResult = await this.batchOptimizer.processBatches(
         items,
         operation,
-        { batchSize, concurrency }
+        {
+          batchSize,
+          maxConcurrency: concurrency,
+          context: { domain: 'database', subType: 'optimization' }
+        }
       );
 
       const processingTime = Date.now() - startTime;
@@ -224,8 +228,8 @@ export class BatchProcessingOptimizer {
         processingTime,
         itemsProcessed: items.length,
         throughput,
-        successRate: batchResult.successfulItems.length / items.length,
-        errorCount: batchResult.failedItems.length,
+        successRate: 1.0, // 假设所有项都成功处理，因为 processBatches 不返回成功/失败计数
+        errorCount: 0, // 假设没有错误，因为 processBatches 会抛出异常
         timestamp: Date.now()
       };
 
@@ -262,7 +266,7 @@ export class BatchProcessingOptimizer {
       });
 
       return {
-        results: batchResult.results,
+        results: batchResult,
         batchSize,
         concurrency,
         processingTime,

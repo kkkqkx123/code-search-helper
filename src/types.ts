@@ -28,7 +28,6 @@ export const TYPES = {
   LoggerService: Symbol.for('LoggerService'),
   ErrorHandlerService: Symbol.for('ErrorHandlerService'),
   ProjectIdManager: Symbol.for('ProjectIdManager'),
-  ProjectPathMappingService: Symbol.for('ProjectPathMappingService'),
   UnifiedMappingService: Symbol.for('UnifiedMappingService'),
   MemoryMonitorService: Symbol.for('MemoryMonitorService'),
   DatabaseLoggerService: Symbol.for('DatabaseLoggerService'),
@@ -72,6 +71,7 @@ export const TYPES = {
 
   // 8. 性能优化器服务
   PerformanceOptimizerService: Symbol.for('PerformanceOptimizerService'),
+  BatchProcessingService: Symbol.for('BatchProcessingService'),
 
   // 9. 嵌入器服务
   EmbedderFactory: Symbol.for('EmbedderFactory'),
@@ -336,6 +336,7 @@ export const TYPES = {
 
   // 44. Processing模块组件
   StrategyFactory: Symbol.for('StrategyFactory'),
+  BatchStrategyFactory: Symbol.for('BatchStrategyFactory'),
   UnifiedPerformanceMonitoringSystem: Symbol.for('UnifiedPerformanceMonitoringSystem'),
   ChunkPostProcessorCoordinator: Symbol.for('ChunkPostProcessorCoordinator'),
 
@@ -357,4 +358,10 @@ export const TYPES = {
   SemanticOptimizedBatchCalculator: Symbol.for('SemanticOptimizedBatchCalculator'),
   HybridOptimizedBatchCalculator: Symbol.for('HybridOptimizedBatchCalculator'),
   AdaptiveBatchCalculator: Symbol.for('AdaptiveBatchCalculator'),
+
+  // 47. 批处理策略
+  SemanticBatchStrategy: Symbol.for('SemanticBatchStrategy'),
+  QdrantBatchStrategy: Symbol.for('QdrantBatchStrategy'),
+  NebulaBatchStrategy: Symbol.for('NebulaBatchStrategy'),
+  EmbeddingBatchStrategy: Symbol.for('EmbeddingBatchStrategy'),
 };

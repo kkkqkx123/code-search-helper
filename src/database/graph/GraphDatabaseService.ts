@@ -11,7 +11,7 @@ import { TransactionResult } from '../core/TransactionManager';
 import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
-import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 
 export interface GraphDatabaseConfig {
   defaultSpace: string;
@@ -36,13 +36,13 @@ export class GraphDatabaseService {
   private spaceManager: NebulaSpaceManager;
   private queryBuilder: GraphQueryBuilder;
   private transactionManager: TransactionManager;
-  private batchOptimizer: IBatchOptimizer;
+  private batchOptimizer: BatchProcessingService;
   private cacheService: ICacheService;
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   private performanceMonitor: IPerformanceMonitor;
-  private performanceOptimizer: PerformanceOptimizerService;
+  private performanceOptimizer: BatchProcessingService;
   private config: GraphDatabaseConfig;
   private currentSpace: string | null = null;
   private isConnected: boolean = false;
@@ -54,10 +54,10 @@ export class GraphDatabaseService {
     @inject(TYPES.NebulaService) nebulaService: NebulaService,
     @inject(TYPES.INebulaSpaceManager) spaceManager: NebulaSpaceManager,
     @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
-    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: IBatchOptimizer,
+    @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.GraphCacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor,
-    @inject(TYPES.PerformanceOptimizerService) performanceOptimizer: PerformanceOptimizerService
+    @inject(TYPES.PerformanceOptimizerService) performanceOptimizer: BatchProcessingService
   ) {
     // Initialize services directly
     this.logger = logger;
@@ -171,7 +171,7 @@ export class GraphDatabaseService {
     }
 
     try {
-      const result = await this.performanceOptimizer.executeWithRetry(
+      const result = await this.batchOptimizer.executeWithRetry(
         () => this.nebulaService.executeReadQuery(query, parameters),
         'executeReadQuery'
       );
@@ -324,13 +324,16 @@ export class GraphDatabaseService {
   async executeBatch(queries: GraphQuery[]): Promise<TransactionResult> {
     const startTime = Date.now();
 
+    // Calculate optimal batch size based on query count
+    const optimalBatchSize = 50; // Default batch size
+    
     try {
-      // Use batch optimizer for efficient execution
-      const batchResults = await this.batchOptimizer.executeWithOptimalBatching(
+      // Use batch processing for efficient execution
+      const batchResults = await this.performanceOptimizer.processBatches(
         queries,
-        async (batch) => {
+        async (batch: GraphQuery[]) => {
           if (this.config.enableTransactions && batch.length > 1) {
-            return await this.executeTransaction(batch);
+            return [await this.executeTransaction(batch)];
           } else {
             // Execute queries individually
             const results = [];
@@ -339,19 +342,18 @@ export class GraphDatabaseService {
               results.push(result);
             }
 
-            return {
-              success: true,
-              results,
-              executionTime: Date.now() - startTime,
-            };
+            return results;
           }
         },
-        { concurrency: 3 }
+        {
+          batchSize: optimalBatchSize,
+          context: { domain: 'database', subType: 'nebula' }
+        }
       );
 
       // Handle case where batchResults is not an array
       if (!Array.isArray(batchResults)) {
-        this.logger.warn('Batch optimizer returned non-array result', { result: batchResults });
+        this.logger.warn('Batch processing returned non-array result', { result: batchResults });
         return {
           success: true,
           results: [],
@@ -359,31 +361,28 @@ export class GraphDatabaseService {
         };
       }
 
-      // Since batchResults is an array of results from each batch,
-      // we need to combine them into a single TransactionResult
+      // Process results from batch processing
       const combinedResults: any[] = [];
-      let totalExecutionTime = 0;
       let hasError = false;
       let errorMessage = "";
 
-      for (const batchResult of batchResults) {
-        if (batchResult && typeof batchResult === 'object') {
-          if (batchResult.success !== undefined) {
+      for (const result of batchResults) {
+        if (result && typeof result === 'object') {
+          if (result.success !== undefined) {
             // It's a TransactionResult
-            if (batchResult.success) {
-              combinedResults.push(...(batchResult.results || []));
+            if (result.success) {
+              combinedResults.push(...(result.results || []));
             } else {
               hasError = true;
-              errorMessage = batchResult.error || "Batch execution failed";
+              errorMessage = result.error || "Batch execution failed";
             }
-            totalExecutionTime += batchResult.executionTime || 0;
           } else {
             // It's a regular result from executeWriteQuery
-            combinedResults.push(batchResult);
+            combinedResults.push(result);
           }
         } else {
           // Handle primitive results
-          combinedResults.push(batchResult);
+          combinedResults.push(result);
         }
       }
 
@@ -391,7 +390,7 @@ export class GraphDatabaseService {
         success: !hasError,
         results: combinedResults,
         error: hasError ? errorMessage : undefined,
-        executionTime: totalExecutionTime || Date.now() - startTime,
+        executionTime: Date.now() - startTime,
       };
     } catch (error) {
       this.errorHandler.handleError(

@@ -284,7 +284,7 @@ describe('IndexService', () => {
       projectIdManager,
       embedderFactory,
       embeddingCacheService,
-      performanceOptimizerService,
+      performanceOptimizerService as unknown as any,
       astSplitter,
       coordinationService,
       indexingLogicService,

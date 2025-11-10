@@ -13,8 +13,6 @@ import { HotReloadRoutes } from './routes/HotReloadRoutes';
 import { HotReloadConfigService } from '../service/filesystem/HotReloadConfigService';
 import { GraphStatsRoutes } from './routes/GraphStatsRoutes';
 import { ProjectIdManager } from '../database/ProjectIdManager';
-import { QdrantConfigService } from '../config/service/QdrantConfigService';
-import { NebulaConfigService } from '../config/service/NebulaConfigService';
 import { ProjectLookupService } from '../database/ProjectLookupService';
 import { IndexService } from '../service/index/IndexService.js';
 import { EmbedderFactory } from '../embedders/EmbedderFactory';
@@ -76,10 +74,10 @@ export class ApiServer {
 
     // 初始化热更新配置服务
     const hotReloadConfigService = diContainer.get<HotReloadConfigService>(TYPES.HotReloadConfigService);
-    // 初始化项目映射服务
-    const projectPathMappingService = diContainer.get<any>(TYPES.ProjectPathMappingService);
-    
-    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService, vectorIndexService, graphIndexService, hotReloadConfigService, projectPathMappingService);
+    // 初始化统一映射服务
+    const unifiedMappingService = diContainer.get<any>(TYPES.UnifiedMappingService);
+
+    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService, vectorIndexService, graphIndexService, hotReloadConfigService, unifiedMappingService);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
 
     // 从依赖注入容器获取文件搜索服务
@@ -106,7 +104,7 @@ export class ApiServer {
     this.qdrantCollectionViewRoutes = new QdrantCollectionViewRoutes();
 
     this.setupMiddleware();
-    this.setupRoutes(projectPathMappingService);
+    this.setupRoutes(unifiedMappingService);
   }
 
   private setupMiddleware(): void {
@@ -194,7 +192,7 @@ export class ApiServer {
     });
   }
 
-  private setupRoutes(projectPathMappingService: any): void {
+  private setupRoutes(unifiedMappingService: any): void {
     // 搜索端点
     this.app.post('/api/search', async (req, res) => {
       try {
@@ -344,7 +342,7 @@ export class ApiServer {
     // Qdrant Collection视图路由
     this.app.use('/api/v1/qdrant', this.qdrantCollectionViewRoutes.getRouter());
     // 项目映射路由
-    this.app.use('/api/v1/project-mappings', createProjectMappingRouter(projectPathMappingService));
+    this.app.use('/api/v1/project-mappings', createProjectMappingRouter(unifiedMappingService));
 
     // 404处理
     this.app.use((req, res) => {

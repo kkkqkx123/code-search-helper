@@ -10,6 +10,7 @@ export const TYPES = {
   QdrantConfigService: Symbol.for('QdrantConfigService'),
   EnvironmentConfigService: Symbol.for('EnvironmentConfigService'),
   EmbeddingConfigService: Symbol.for('EmbeddingConfigService'),
+  EmbeddingBatchConfigService: Symbol.for('EmbeddingBatchConfigService'),
   LoggingConfigService: Symbol.for('LoggingConfigService'),
   MonitoringConfigService: Symbol.for('MonitoringConfigService'),
   MemoryMonitorConfigService: Symbol.for('MemoryMonitorConfigService'),
@@ -38,19 +39,40 @@ export const TYPES = {
   QdrantService: Symbol.for('QdrantService'),
   MemoryMonitorService: Symbol.for('MemoryMonitorService'),
   IMemoryMonitorService: Symbol.for('IMemoryMonitorService'),
+  PerformanceOptimizerService: Symbol.for('PerformanceOptimizerService'),
+  BatchProcessingService: Symbol.for('BatchProcessingService'),
+  BatchStrategyFactory: Symbol.for('BatchStrategyFactory'),
 
   // 解析服务
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
   TreeSitterService: Symbol.for('TreeSitterService'),
+  TreeSitterQueryEngine: Symbol.for('TreeSitterQueryEngine'),
   ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
   ChunkToVectorCoordinationService: Symbol.for('ChunkToVectorCoordinationService'),
+  QueryResultNormalizer: Symbol.for('QueryResultNormalizer'),
 
   // 嵌入服务
   EmbedderFactory: Symbol.for('EmbedderFactory'),
 
   // 项目管理
   ProjectIdManager: Symbol.for('ProjectIdManager'),
-  ProjectPathMappingService: Symbol.for('ProjectPathMappingService'),
+  IndexService: Symbol.for('IndexService'),
+  IndexingLogicService: Symbol.for('IndexingLogicService'),
+  ProjectStateManager: Symbol.for('ProjectStateManager'),
+  CoreStateService: Symbol.for('CoreStateService'),
+  StorageStateService: Symbol.for('StorageStateService'),
+  FileSystemTraversal: Symbol.for('FileSystemTraversal'),
+  FileHashManager: Symbol.for('FileHashManager'),
+  FileWatcherService: Symbol.for('FileWatcherService'),
+  ChangeDetectionService: Symbol.for('ChangeDetectionService'),
+  HotReloadRecoveryService: Symbol.for('HotReloadRecoveryService'),
+  ProjectHotReloadService: Symbol.for('ProjectHotReloadService'),
+  HotReloadConfigService: Symbol.for('HotReloadConfigService'),
+  HotReloadMonitoringService: Symbol.for('HotReloadMonitoringService'),
+  HotReloadErrorPersistenceService: Symbol.for('HotReloadErrorPersistenceService'),
+  HotReloadRestartService: Symbol.for('HotReloadRestartService'),
+  IgnoreRuleManager: Symbol.for('IgnoreRuleManager'),
+  SegmentationConfigService: Symbol.for('SegmentationConfigService'),
 
   // Nebula-specific services
   INebulaConnectionManager: Symbol.for('INebulaConnectionManager'),
@@ -76,6 +98,25 @@ export const TYPES = {
   ConfigurationManager: Symbol.for('ConfigurationManager'),
   ProtectionCoordinator: Symbol.for('ProtectionCoordinator'),
   FileFeatureDetector: Symbol.for('FileFeatureDetector'),
+  ASTNodeTracker: Symbol.for('ASTNodeTracker'),
+  ChunkRebalancer: Symbol.for('ChunkRebalancer'),
+  OverlapPostProcessor: Symbol.for('OverlapPostProcessor'),
+  StrategyFactory: Symbol.for('StrategyFactory'),
+  IntelligentFallbackEngine: Symbol.for('IntelligentFallbackEngine'),
+  UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
+  DetectionService: Symbol.for('DetectionService'),
+  ServiceContainer: Symbol.for('ServiceContainer'),
+  EventBus: Symbol.for('EventBus'),
+  HTMLContentExtractor: Symbol.for('HTMLContentExtractor'),
+  MemoryLimitMB: Symbol.for('MemoryLimitMB'),
+  MemoryCheckIntervalMs: Symbol.for('MemoryCheckIntervalMs'),
+  FileSearchService: Symbol.for('FileSearchService'),
+  FileVectorIndexer: Symbol.for('FileVectorIndexer'),
+  FileQueryProcessor: Symbol.for('FileQueryProcessor'),
+  FileQueryIntentClassifier: Symbol.for('FileQueryIntentClassifier'),
+  FileSearchCache: Symbol.for('FileSearchCache'),
+  NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
+  CleanupManager: Symbol.for('CleanupManager'),
 
   // 新增的索引服务
   VectorIndexService: Symbol.for('VectorIndexService'),
@@ -111,6 +152,9 @@ export const TYPES = {
   ContentQualityEvaluator: Symbol.for('ContentQualityEvaluator'),
   ChunkMerger: Symbol.for('ChunkMerger'),
   ChunkPostProcessorCoordinator: Symbol.for('ChunkPostProcessorCoordinator'),
+  ChunkFilter: Symbol.for('ChunkFilter'),
+  ProcessingCoordinator: Symbol.for('ProcessingCoordinator'),
+  UnifiedProcessingCoordinator: Symbol.for('UnifiedProcessingCoordinator'),
 
   // 相似度服务相关类型
   SimilarityService: Symbol.for('SimilarityService'),
@@ -128,6 +172,17 @@ export const TYPES = {
   HybridOptimizedBatchCalculator: Symbol.for('HybridOptimizedBatchCalculator'),
   AdaptiveBatchCalculator: Symbol.for('AdaptiveBatchCalculator'),
 
+  // 批处理策略
+  SemanticBatchStrategy: Symbol.for('SemanticBatchStrategy'),
+  QdrantBatchStrategy: Symbol.for('QdrantBatchStrategy'),
+  NebulaBatchStrategy: Symbol.for('NebulaBatchStrategy'),
+  EmbeddingBatchStrategy: Symbol.for('EmbeddingBatchStrategy'),
+
   // 事件监听器
   EventListener: Symbol.for('EventListener'),
+
+  // 批处理服务（新增的）
+  GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
+  VectorBatchOptimizer: Symbol.for('VectorBatchOptimizer'),
+  BatchOptimizer: Symbol.for('BatchOptimizer'),
 };

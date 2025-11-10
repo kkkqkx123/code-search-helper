@@ -78,7 +78,13 @@ class MockBatchOptimizer implements IBatchOptimizer {
     operation: (batch: T[]) => Promise<any>,
     options?: { batchSize?: number; concurrency?: number }
   ): Promise<any[]> {
-    return [];
+    // Simplified implementation for testing
+    // In the test cases, we'll mock this method to return specific values
+    const results = [];
+    for (const item of items) {
+      results.push(await operation([item]));
+    }
+    return results;
   }
 
   hasSufficientResources(): boolean {

@@ -39,15 +39,15 @@ async function deleteIncorrectProjects() {
         console.log(`在project_status表中未找到项目状态 ${projectId}`);
       }
       
-      // 检查project_path_mapping表
-      const mappingQuery = db.prepare('SELECT * FROM project_path_mapping WHERE hash = ?').get(projectId) as any;
+      // 检查unified_project_mapping表
+      const mappingQuery = db.prepare('SELECT * FROM unified_project_mapping WHERE project_id = ?').get(projectId) as any;
       if (mappingQuery) {
-        console.log(`在project_path_mapping表中找到映射:`, {
-          hash: mappingQuery.hash,
-          original_path: mappingQuery.original_path
+        console.log(`在unified_project_mapping表中找到映射:`, {
+          project_id: mappingQuery.project_id,
+          project_path: mappingQuery.project_path
         });
       } else {
-        console.log(`在project_path_mapping表中未找到映射 ${projectId}`);
+        console.log(`在unified_project_mapping表中未找到映射 ${projectId}`);
       }
     }
     
@@ -65,12 +65,12 @@ async function deleteIncorrectProjects() {
         console.error(`  - 删除project_status记录失败:`, error);
       }
       
-      // 删除project_path_mapping表中的记录
+      // 删除unified_project_mapping表中的记录
       try {
-        const mappingResult = db.prepare('DELETE FROM project_path_mapping WHERE hash = ?').run(projectId);
-        console.log(` - 从project_path_mapping表删除了 ${mappingResult.changes} 条记录`);
+        const mappingResult = db.prepare('DELETE FROM unified_project_mapping WHERE project_id = ?').run(projectId);
+        console.log(` - 从unified_project_mapping表删除了 ${mappingResult.changes} 条记录`);
       } catch (error) {
-        console.error(`  - 删除project_path_mapping记录失败:`, error);
+        console.error(`  - 删除unified_project_mapping记录失败:`, error);
       }
       
       // 删除projects表中的记录
@@ -93,8 +93,8 @@ async function deleteIncorrectProjects() {
       const statusCount = db.prepare('SELECT COUNT(*) as count FROM project_status WHERE project_id = ?').get(projectId) as { count: number };
       console.log(`  - project_status表中剩余记录数: ${statusCount.count}`);
       
-      const mappingCount = db.prepare('SELECT COUNT(*) as count FROM project_path_mapping WHERE hash = ?').get(projectId) as { count: number };
-      console.log(`  - project_path_mapping表中剩余记录数: ${mappingCount.count}`);
+      const mappingCount = db.prepare('SELECT COUNT(*) as count FROM unified_project_mapping WHERE project_id = ?').get(projectId) as { count: number };
+      console.log(`  - unified_project_mapping表中剩余记录数: ${mappingCount.count}`);
     }
     
     console.log('\n项目删除操作完成！');

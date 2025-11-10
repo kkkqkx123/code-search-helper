@@ -16,7 +16,6 @@ import { PerformanceDashboard } from '../../service/monitoring/PerformanceDashbo
 import { PerformanceMetricsCollector } from '../../service/monitoring/PerformanceMetricsCollector';
 import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
-import { GraphBatchOptimizer } from '../../service/graph/utils/GraphBatchOptimizer';
 import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
 import { MappingCacheManager } from '../../service/graph/caching/MappingCacheManager';
 import { GraphCacheConfigService } from '../../config/service/GraphCacheConfigService';
@@ -25,8 +24,15 @@ import { GraphCacheConfigService } from '../../config/service/GraphCacheConfigSe
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
 import { GraphConfigService } from '../../config/service/GraphConfigService';
 
-// 向量批处理优化器
-import { VectorBatchOptimizer } from '../../service/optimization/VectorBatchOptimizer';
+// 批处理服务
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
+import { BatchStrategyFactory } from '../../infrastructure/batching/strategies/BatchStrategyFactory';
+import { IMemoryMonitorService } from '../../service/memory/interfaces/IMemoryMonitorService';
+import { SemanticBatchStrategy } from '../../infrastructure/batching/strategies/SemanticBatchStrategy';
+import { QdrantBatchStrategy } from '../../infrastructure/batching/strategies/QdrantBatchStrategy';
+import { NebulaBatchStrategy } from '../../infrastructure/batching/strategies/NebulaBatchStrategy';
+import { EmbeddingBatchStrategy } from '../../infrastructure/batching/strategies/EmbeddingBatchStrategy';
+import { ConfigService } from '../../config/ConfigService';
 
 // SQLite基础设施
 import { SqliteInfrastructure } from '../../database/splite/SqliteInfrastructure';
@@ -42,7 +48,6 @@ import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 // 基础设施服务
 import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
-import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
 import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
@@ -132,17 +137,39 @@ container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).t
         throw error;
       }
 
-      console.log('Attempting to bind GraphBatchOptimizer...');
+      console.log('Attempting to bind BatchProcessingService...');
       try {
-        container.bind<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer).toConstantValue(
-          new GraphBatchOptimizer(
+        container.bind<BatchProcessingService>(TYPES.BatchProcessingService).toConstantValue(
+          new BatchProcessingService(
             container.get<LoggerService>(TYPES.LoggerService),
-            {} // 默认选项
+            container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
+            container.get<ConfigService>(TYPES.ConfigService),
+            container.get<IMemoryMonitorService>(TYPES.MemoryMonitorService),
+            container.get<BatchStrategyFactory>(TYPES.BatchStrategyFactory),
+            container.get<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy)
           )
         );
-        console.log('GraphBatchOptimizer bound');
+        console.log('BatchProcessingService bound');
       } catch (error: any) {
-        console.error('Error binding GraphBatchOptimizer:', error);
+        console.error('Error binding BatchProcessingService:', error);
+        console.error('Error stack:', error?.stack);
+        throw error;
+      }
+
+      console.log('Attempting to bind BatchStrategyFactory...');
+      try {
+        container.bind<BatchStrategyFactory>(TYPES.BatchStrategyFactory).toConstantValue(
+          new BatchStrategyFactory(
+            container.get<LoggerService>(TYPES.LoggerService),
+            container.get<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy),
+            container.get<QdrantBatchStrategy>(TYPES.QdrantBatchStrategy),
+            container.get<NebulaBatchStrategy>(TYPES.NebulaBatchStrategy),
+            container.get<EmbeddingBatchStrategy>(TYPES.EmbeddingBatchStrategy)
+          )
+        );
+        console.log('BatchStrategyFactory bound');
+      } catch (error: any) {
+        console.error('Error binding BatchStrategyFactory:', error);
         console.error('Error stack:', error?.stack);
         throw error;
       }
@@ -154,7 +181,7 @@ container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).t
             container.get<LoggerService>(TYPES.LoggerService),
             container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
             container.get<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector),
-            container.get<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer),
+            container.get<BatchProcessingService>(TYPES.BatchProcessingService),
             container.get<GraphMappingCache>(TYPES.GraphMappingCache),
             {} // 默认选项
           )
@@ -165,17 +192,12 @@ container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).t
         console.error('Error stack:', error?.stack);
         throw error;
       }
-      // container.bind<BatchProcessingOptimizer>(TYPES.BatchProcessingOptimizer).to(BatchProcessingOptimizer).inSingletonScope();
 
       // 基础设施配置服务
       container.bind<InfrastructureConfigService>(TYPES.InfrastructureConfigService)
         .to(InfrastructureConfigService).inSingletonScope();
       container.bind<GraphConfigService>(TYPES.GraphConfigService)
         .to(GraphConfigService).inSingletonScope();
-
-      // 向量批处理优化器
-      container.bind<VectorBatchOptimizer>(TYPES.VectorBatchOptimizer)
-        .to(VectorBatchOptimizer).inSingletonScope();
 
       // CleanupManager - 注册为基础设施服务
       container.bind<CleanupManager>(TYPES.CleanupManager).toDynamicValue(context => {
@@ -196,7 +218,6 @@ container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).t
       // 基础设施核心服务（在CleanupManager外部注册，确保正确的依赖顺序）
       container.bind<CacheService>(TYPES.CacheService).to(CacheService).inSingletonScope();
       container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
-      container.bind<BatchOptimizer>(TYPES.BatchOptimizer).to(BatchOptimizer).inSingletonScope();
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
 
       // 基础设施管理器 - 使用动态绑定确保正确的初始化顺序
@@ -204,14 +225,14 @@ container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).t
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const cacheService = context.get<CacheService>(TYPES.CacheService);
         const performanceMonitor = context.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
-        const batchOptimizer = context.get<BatchOptimizer>(TYPES.BatchOptimizer);
+        const batchProcessingService = context.get<BatchProcessingService>(TYPES.BatchProcessingService);
         const infrastructureConfigService = context.get<InfrastructureConfigService>(TYPES.InfrastructureConfigService);
 
         const infrastructureManager = new InfrastructureManager(
           logger,
           cacheService,
           performanceMonitor,
-          batchOptimizer,
+          batchProcessingService,
           infrastructureConfigService
         );
 

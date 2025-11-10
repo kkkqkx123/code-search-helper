@@ -37,18 +37,18 @@ async function deleteIncorrectProjectNames() {
     }
   }
   
-  // 额外检查并删除可能的project_path_mapping表中的错误记录
+  // 额外检查并删除可能的unified_project_mapping表中的错误记录
   for (const incorrectName of incorrectProjectNames) {
-    const mappingQuery = db.prepare('SELECT * FROM project_path_mapping WHERE hash = ? OR original_path LIKE ?').all(incorrectName, `%${incorrectName}%`) as any[];
+    const mappingQuery = db.prepare('SELECT * FROM unified_project_mapping WHERE project_id = ? OR project_path LIKE ?').all(incorrectName, `%${incorrectName}%`) as any[];
     if (mappingQuery.length > 0) {
-      console.log(`\n删除project_path_mapping表中的 ${mappingQuery.length} 条相关记录:`);
+      console.log(`\n删除unified_project_mapping表中的 ${mappingQuery.length} 条相关记录:`);
       for (const mapping of mappingQuery) {
-        console.log(`  - Hash: ${mapping.hash}, Original Path: ${mapping.original_path}`);
+        console.log(`  - Project ID: ${mapping.project_id}, Project Path: ${mapping.project_path}`);
       }
       
-      // 删除project_path_mapping表中的记录
-      const deleteMappingResult = db.prepare('DELETE FROM project_path_mapping WHERE hash = ?').run(incorrectName);
-      console.log(`  - 从project_path_mapping表删除了 ${deleteMappingResult.changes} 条记录`);
+      // 删除unified_project_mapping表中的记录
+      const deleteMappingResult = db.prepare('DELETE FROM unified_project_mapping WHERE project_id = ?').run(incorrectName);
+      console.log(`  - 从unified_project_mapping表删除了 ${deleteMappingResult.changes} 条记录`);
     }
   }
   

@@ -18,7 +18,7 @@ import { IndexService } from '../../service/index/IndexService';
 import { VectorIndexService } from '../../service/index/VectorIndexService';
 import { GraphIndexService } from '../../service/index/GraphIndexService';
 import { HotReloadConfigService } from '../../service/filesystem/HotReloadConfigService';
-import { ProjectPathMappingService } from '../../database/ProjectPathMappingService';
+import { ProjectMappingService } from '../../database/ProjectMappingService';
 
 export interface ProjectCreateBody {
   projectPath: string;
@@ -66,7 +66,7 @@ export class ProjectRoutes {
   private vectorIndexService: VectorIndexService;
   private graphIndexService: GraphIndexService;
   private hotReloadConfigService: HotReloadConfigService;
-  private projectPathMappingService: ProjectPathMappingService;
+  private unifiedMappingService: ProjectMappingService;
 
   constructor(
     projectIdManager: ProjectIdManager,
@@ -77,7 +77,7 @@ export class ProjectRoutes {
     vectorIndexService: VectorIndexService,
     graphIndexService: GraphIndexService,
     hotReloadConfigService: HotReloadConfigService,
-    projectPathMappingService: ProjectPathMappingService
+    unifiedMappingService: ProjectMappingService
   ) {
     this.projectIdManager = projectIdManager;
     this.projectLookupService = projectLookupService;
@@ -87,7 +87,7 @@ export class ProjectRoutes {
     this.vectorIndexService = vectorIndexService;
     this.graphIndexService = graphIndexService;
     this.hotReloadConfigService = hotReloadConfigService;
-    this.projectPathMappingService = projectPathMappingService;
+    this.unifiedMappingService = unifiedMappingService;
     this.router = Router();
     this.setupRoutes();
   }
@@ -191,7 +191,7 @@ export class ProjectRoutes {
 
       // Apply search filter
       if (search) {
-        projects = projects.filter(project => 
+        projects = projects.filter(project =>
           project.name.toLowerCase().includes(search.toLowerCase()) ||
           project.path.toLowerCase().includes(search.toLowerCase())
         );
@@ -325,15 +325,15 @@ export class ProjectRoutes {
 
       // 确保从ProjectIdManager中删除映射
       await this.projectIdManager.removeProject(projectPath);
-      
-      // 删除项目名称映射
+
+      // 删除项目映射
       try {
-        await this.projectPathMappingService.deleteMapping(projectId);
+        await this.unifiedMappingService.deleteMapping(projectId);
       } catch (mappingError) {
-        this.logger.warn('Failed to delete project name mapping', { projectId, error: mappingError });
+        this.logger.warn('Failed to delete project mapping', { projectId, error: mappingError });
         // 不阻止删除操作，只记录警告
       }
-      
+
       // 保存映射更改
       await this.projectIdManager.saveMapping();
 
@@ -839,21 +839,19 @@ export class ProjectRoutes {
   }
 
   /**
-   * 获取项目哈希值到名称的映射
-   */
+  * 获取项目ID到名称的映射
+  */
   private async getProjectNameMapping(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // 获取所有项目的哈希值与名称映射
-      const mappings = await this.projectPathMappingService.getAllMappings();
-      
-      // 转换为哈希值到项目名称的映射
-      const nameMapping: { [hash: string]: string } = {};
+      // 获取所有项目的映射
+      const mappings = this.unifiedMappingService.getAllMappings();
+
+      // 转换为项目ID到项目名称的映射
+      const nameMapping: { [projectId: string]: string } = {};
       mappings.forEach(mapping => {
-        // 从原始路径中提取项目名称
-        const projectName = path.basename(mapping.originalPath);
-        nameMapping[mapping.hash] = projectName;
+        nameMapping[mapping.projectId] = mapping.projectName;
       });
-      
+
       res.status(200).json({
         success: true,
         data: nameMapping,
@@ -864,40 +862,37 @@ export class ProjectRoutes {
   }
 
   /**
-   * 根据哈希值获取项目名称
-   */
+  * 根据项目ID获取项目信息
+  */
   private async getProjectNameByHash(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { hash } = req.params;
-      
+
       if (!hash) {
         res.status(400).json({
           success: false,
-          error: 'Hash is required',
+          error: 'Project ID is required',
         });
         return;
       }
-      
-      // 获取原始路径
-      const originalPath = await this.projectPathMappingService.getOriginalPath(hash);
-      
-      if (!originalPath) {
+
+      // 根据projectId获取映射
+      const mapping = this.unifiedMappingService.getMappingById(hash);
+
+      if (!mapping) {
         res.status(404).json({
           success: false,
           error: 'Project not found',
         });
         return;
       }
-      
-      // 从原始路径中提取项目名称
-      const projectName = path.basename(originalPath);
-      
+
       res.status(200).json({
         success: true,
         data: {
-          hash,
-          projectName,
-          originalPath,
+          projectId: mapping.projectId,
+          projectName: mapping.projectName,
+          projectPath: mapping.projectPath,
         },
       });
     } catch (error) {

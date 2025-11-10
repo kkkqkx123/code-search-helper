@@ -10,7 +10,7 @@ import { IGraphService } from './IGraphService';
 // 导入基础设施服务实现
 import { GraphCacheService } from '../../caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../graph/performance/GraphPerformanceMonitor';
-import { GraphBatchOptimizer } from '../../graph/performance/GraphBatchOptimizer';
+import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { GraphQueryValidator } from '../query/GraphQueryValidator';
 
 // 创建图服务模块

@@ -6,7 +6,7 @@ import { GraphDataMappingService } from '../service/graph/mapping/GraphDataMappi
 import { LoggerService } from '../utils/LoggerService';
 import { GraphMappingCache } from '../service/graph/caching/GraphMappingCache';
 import { DataMappingValidator } from '../service/graph/mapping/DataMappingValidator';
-import { GraphBatchOptimizer } from '../service/graph/utils/GraphBatchOptimizer';
+import { BatchProcessingService } from '../infrastructure/batching/BatchProcessingService';
 import { GraphConfigService } from '../config/service/GraphConfigService';
 import { ConfigService } from '../config/ConfigService';
 
@@ -74,7 +74,7 @@ describe('FaultTolerance Integration', () => {
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
     container.bind<GraphMappingCache>(TYPES.GraphMappingCache).toConstantValue(mockCache);
     container.bind<DataMappingValidator>(TYPES.DataMappingValidator).toConstantValue(mockValidator);
-    container.bind<GraphBatchOptimizer>(TYPES.GraphBatchOptimizer).toConstantValue(mockBatchOptimizer);
+    container.bind<BatchProcessingService>(TYPES.GraphBatchOptimizer).toConstantValue(mockBatchOptimizer);
     container.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService);
     container.bind<GraphConfigService>(TYPES.GraphConfigService).toConstantValue(new GraphConfigService(mockConfigService));
     container.bind<any>(TYPES.GraphCacheService).toConstantValue(mockGraphCacheService);

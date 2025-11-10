@@ -1,10 +1,10 @@
 import { BatchProcessingOptimizer, OptimizationRecommendation } from '../BatchProcessingOptimizer';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
-import { GraphBatchOptimizer } from '../../graph/utils/GraphBatchOptimizer';
+import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { PerformanceDashboard } from '../../monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../../monitoring/PerformanceMetricsCollector';
-import { BatchResult } from '../../graph/utils/GraphBatchOptimizer';
+import { BatchResult } from '../../../infrastructure/batching/types';
 
 // Mock所有依赖项
 const mockLoggerService = {
@@ -50,7 +50,7 @@ describe('BatchProcessingOptimizer', () => {
 
     batchProcessingOptimizer = new BatchProcessingOptimizer(
       mockLoggerService as unknown as LoggerService,
-      mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
+      mockGraphBatchOptimizer as unknown as BatchProcessingService,
       mockPerformanceDashboard as unknown as PerformanceDashboard,
       mockPerformanceMetricsCollector as unknown as PerformanceMetricsCollector
     );
@@ -98,7 +98,7 @@ describe('BatchProcessingOptimizer', () => {
 
       const optimizer = new BatchProcessingOptimizer(
         mockLoggerService as unknown as LoggerService,
-        mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
+        mockGraphBatchOptimizer as unknown as BatchProcessingService,
         mockPerformanceDashboard as unknown as PerformanceDashboard,
         mockPerformanceMetricsCollector as unknown as PerformanceMetricsCollector,
         customConfig
@@ -158,7 +158,7 @@ describe('BatchProcessingOptimizer', () => {
     it('should execute batch operation with optimized parameters', async () => {
       const mockItems = [1, 2, 3, 4, 5];
       const mockOperation = jest.fn().mockResolvedValue('result');
-      const mockBatchResult: BatchResult<any> = {
+      const mockBatchResult: any = {
         success: true,
         results: ['result1', 'result2', 'result3', 'result4', 'result5'],
         successfulItems: mockItems,
@@ -210,7 +210,7 @@ describe('BatchProcessingOptimizer', () => {
     it('should record performance metrics after successful operation', async () => {
       const mockItems = [1, 2, 3];
       const mockOperation = jest.fn().mockResolvedValue('result');
-      const mockBatchResult: BatchResult<any> = {
+      const mockBatchResult: any = {
         success: true,
         results: ['result1', 'result2', 'result3'],
         successfulItems: mockItems,

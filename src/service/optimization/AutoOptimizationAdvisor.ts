@@ -3,9 +3,8 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { PerformanceDashboard } from '../monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../monitoring/PerformanceMetricsCollector';
-import { GraphBatchOptimizer } from '../graph/utils/GraphBatchOptimizer';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { GraphMappingCache } from '../graph/caching/GraphMappingCache';
-import { GraphCacheStats } from '../graph/caching/GraphMappingCache';
 
 export interface OptimizationRecommendation {
   id: string;
@@ -40,7 +39,7 @@ export class AutoOptimizationAdvisor {
   private logger: LoggerService;
   private dashboard: PerformanceDashboard;
   private metricsCollector: PerformanceMetricsCollector;
-  private batchOptimizer: GraphBatchOptimizer;
+  private batchOptimizer: BatchProcessingService;
   private cache: GraphMappingCache;
   private options: AdvisorOptions;
   private recommendations: OptimizationRecommendation[] = [];
@@ -51,7 +50,7 @@ export class AutoOptimizationAdvisor {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.PerformanceDashboard) dashboard: PerformanceDashboard,
     @inject(TYPES.PerformanceMetricsCollector) metricsCollector: PerformanceMetricsCollector,
-    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
+    @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     options?: Partial<AdvisorOptions>
   ) {
@@ -284,7 +283,9 @@ export class AutoOptimizationAdvisor {
     const batchStats = this.batchOptimizer.getPerformanceStats();
 
     // 低吞吐量推荐
-    if (batchStats.avgItemsPerMs < 0.1) { // 假设阈值
+    // 计算每毫秒处理的项目数
+    const itemsPerMs = batchStats.count > 0 ? batchStats.count / batchStats.averageDuration : 0;
+    if (itemsPerMs < 0.1) { // 假设阈值
       recommendations.push({
         id: `rec_batch_throughput_${Date.now()}`,
         category: 'batching',
@@ -293,7 +294,7 @@ export class AutoOptimizationAdvisor {
         description: `Current batch processing throughput is below optimal level.`,
         suggestedAction: 'Increase batch size or adjust concurrency settings',
         expectedImprovement: '20-40% throughput improvement',
-        currentValue: batchStats.avgItemsPerMs,
+        currentValue: itemsPerMs,
         recommendedValue: 0.2,
         confidence: 0.8,
         timestamp: Date.now()
@@ -301,7 +302,7 @@ export class AutoOptimizationAdvisor {
     }
 
     // 高延迟推荐
-    if (batchStats.avgProcessingTime > 1000) { // 1秒以上
+    if (batchStats.averageDuration > 1000) { // 1秒以上
       recommendations.push({
         id: `rec_batch_latency_${Date.now()}`,
         category: 'batching',
@@ -310,7 +311,7 @@ export class AutoOptimizationAdvisor {
         description: `Batch operations are taking too long to complete.`,
         suggestedAction: 'Reduce batch size or optimize processing logic',
         expectedImprovement: 'Reduced processing time',
-        currentValue: batchStats.avgProcessingTime,
+        currentValue: batchStats.averageDuration,
         recommendedValue: 500, // 目标毫秒
         confidence: 0.78,
         timestamp: Date.now()

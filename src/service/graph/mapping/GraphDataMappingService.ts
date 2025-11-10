@@ -28,7 +28,7 @@ import { StandardizedQueryResult, SymbolTable } from '../../parser/core/normaliz
 import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
-import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
+import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { FaultToleranceHandler } from '../../../utils/FaultToleranceHandler';
 import { TYPE_MAPPING_CONFIG } from './TypeMappingConfig';
 import {
@@ -53,7 +53,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   private validator: DataMappingValidator;
   private cache: GraphMappingCache; // 保持旧的缓存引用以确保向后兼容
   private unifiedCache: any; // 新的统一缓存服务
-  private batchOptimizer: GraphBatchOptimizer;
+  private batchOptimizer: BatchProcessingService;
   private faultToleranceHandler: FaultToleranceHandler;
 
   // 新增语言特定的capture映射
@@ -97,7 +97,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     @inject(TYPES.DataMappingValidator) validator: DataMappingValidator,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
     @inject(TYPES.GraphCacheService) unifiedCache: any,
-    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer,
+    @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.FaultToleranceHandler) faultToleranceHandler: FaultToleranceHandler
   ) {
     this.logger = logger;

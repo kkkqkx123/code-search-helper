@@ -5,11 +5,9 @@ import { DatabaseType } from '../../infrastructure/types';
 import { IDatabaseInfrastructure } from '../../infrastructure/InfrastructureManager';
 import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
-import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { IHealthChecker } from '../../infrastructure/monitoring/types';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { CacheService } from '../../infrastructure/caching/CacheService';
-import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
-import { BatchOptimizer } from '../../service/optimization/BatchOptimizerService';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 
 @injectable()
@@ -19,7 +17,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
   private logger: LoggerService;
   private cacheService: ICacheService;
   private performanceMonitor: IPerformanceMonitor;
-  private batchOptimizer: IBatchOptimizer;
+  private batchOptimizer: BatchProcessingService;
   private healthChecker: IHealthChecker;
   private initialized = false;
 
@@ -27,7 +25,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.CacheService) cacheService: CacheService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: IPerformanceMonitor,
-    @inject(TYPES.BatchOptimizer) batchOptimizer: BatchOptimizer,
+    @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker
   ) {
     this.logger = logger;
@@ -49,7 +47,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     return this.performanceMonitor;
   }
 
-  getBatchOptimizer(): IBatchOptimizer {
+  getBatchOptimizer(): BatchProcessingService {
     this.ensureInitialized();
     return this.batchOptimizer;
   }
@@ -167,10 +165,15 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     });
 
     const startTime = Date.now();
-    const results = await this.batchOptimizer.executeWithOptimalBatching(
+    const batchResult = await this.batchOptimizer.processDatabaseBatch(
       items,
-      operation,
-      options
+      DatabaseType.QDRANT,
+      {
+        operationType: 'write',
+        batchSize: options?.batchSize,
+        maxConcurrency: options?.concurrency,
+        databaseType: DatabaseType.QDRANT
+      }
     );
     const duration = Date.now() - startTime;
 
@@ -184,7 +187,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
       true
     );
 
-    return results;
+    return batchResult.results;
   }
 
   isInitialized(): boolean {

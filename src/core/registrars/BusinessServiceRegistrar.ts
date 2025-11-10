@@ -34,6 +34,12 @@ import { FileTraversalService } from '../../service/index/shared/FileTraversalSe
 
 // 性能优化服务
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
+import { BatchStrategyFactory } from '../../infrastructure/batching/strategies/BatchStrategyFactory';
+import { SemanticBatchStrategy } from '../../infrastructure/batching/strategies/SemanticBatchStrategy';
+import { QdrantBatchStrategy } from '../../infrastructure/batching/strategies/QdrantBatchStrategy';
+import { NebulaBatchStrategy } from '../../infrastructure/batching/strategies/NebulaBatchStrategy';
+import { EmbeddingBatchStrategy } from '../../infrastructure/batching/strategies/EmbeddingBatchStrategy';
 
 // 解析服务
 import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
@@ -145,6 +151,12 @@ export class BusinessServiceRegistrar {
 
       // 性能优化服务
       container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).to(PerformanceOptimizerService).inSingletonScope();
+
+      // 批处理服务已在 InfrastructureServiceRegistrar 中注册
+      container.bind<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy).to(SemanticBatchStrategy).inSingletonScope();
+      container.bind<QdrantBatchStrategy>(TYPES.QdrantBatchStrategy).to(QdrantBatchStrategy).inSingletonScope();
+      container.bind<NebulaBatchStrategy>(TYPES.NebulaBatchStrategy).to(NebulaBatchStrategy).inSingletonScope();
+      container.bind<EmbeddingBatchStrategy>(TYPES.EmbeddingBatchStrategy).to(EmbeddingBatchStrategy).inSingletonScope();
 
       // 分段配置服务
       container.bind<SegmentationConfigService>(TYPES.SegmentationConfigService).to(SegmentationConfigService).inSingletonScope();
@@ -271,11 +283,11 @@ export class BusinessServiceRegistrar {
       // 块合并器
       container.bind<ChunkMerger>(TYPES.ChunkMerger).to(ChunkMerger).inSingletonScope();
 
-       // 处理器
-       container.bind<ChunkFilter>(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();
-       container.bind<OverlapPostProcessor>(TYPES.OverlapPostProcessor).to(OverlapPostProcessor).inSingletonScope();
-       container.bind<ASTNodeTracker>(TYPES.ASTNodeTracker).to(ASTNodeTracker).inSingletonScope();
-       container.bind<ChunkRebalancer>(TYPES.ChunkRebalancer).to(ChunkRebalancer).inSingletonScope();
+      // 处理器
+      container.bind<ChunkFilter>(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();
+      container.bind<OverlapPostProcessor>(TYPES.OverlapPostProcessor).to(OverlapPostProcessor).inSingletonScope();
+      container.bind<ASTNodeTracker>(TYPES.ASTNodeTracker).to(ASTNodeTracker).inSingletonScope();
+      container.bind<ChunkRebalancer>(TYPES.ChunkRebalancer).to(ChunkRebalancer).inSingletonScope();
 
       // 通用文件处理服务 - 使用新的模块化分段器
       container.bind<ErrorThresholdInterceptor>(TYPES.ErrorThresholdManager).toDynamicValue(context => {

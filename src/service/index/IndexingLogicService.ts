@@ -8,6 +8,7 @@ import { NebulaService } from '../../database/nebula/NebulaService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
 import { VectorPoint } from '../../database/qdrant/IVectorStore';
 import { EmbeddingInput } from '../../embedders/BaseEmbedder';
@@ -103,9 +104,9 @@ export class IndexingLogicService {
       // 使用性能优化器批量处理文件
       const batchResults: BatchProcessingResult[] = await this.performanceOptimizer.processBatches(
         files,
-        async (batch) => {
+        async (batch: any[]) => {
           const results: BatchProcessingResult[] = [];
-          const promises = batch.map(async (file) => {
+          const promises = batch.map(async (file: { path: string; }) => {
             const startTime = Date.now();
             try {
               await this.performanceOptimizer.executeWithRetry(

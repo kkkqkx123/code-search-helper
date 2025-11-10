@@ -2,7 +2,7 @@ import { GraphDataMappingService } from '../GraphDataMappingService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { DataMappingValidator } from '../DataMappingValidator';
 import { GraphMappingCache } from '../../caching/GraphMappingCache';
-import { GraphBatchOptimizer } from '../../utils/GraphBatchOptimizer';
+import { BatchProcessingService } from '../../../../infrastructure/batching/BatchProcessingService';
 import { FaultToleranceHandler } from '../../../../utils/FaultToleranceHandler';
 import { RelationshipExtractorFactory } from '../RelationshipExtractorFactory';
 import { GraphNodeType, GraphRelationshipType, FileAnalysisResult } from '../IGraphDataMappingService';
@@ -73,7 +73,7 @@ describe('GraphDataMappingService', () => {
       mockDataMappingValidator as unknown as DataMappingValidator,
       mockGraphMappingCache as unknown as GraphMappingCache,
       mockUnifiedCache as any,
-      mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
+      mockGraphBatchOptimizer as unknown as BatchProcessingService,
       mockFaultToleranceHandler as unknown as FaultToleranceHandler
     );
   });

@@ -8,10 +8,10 @@ import { VectorPoint } from '../../database/qdrant/IVectorStore';
 import { EmbeddingInput } from '../../embedders/BaseEmbedder';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { CodeChunk } from './types';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import * as fs from 'fs/promises';
 import { GuardCoordinator } from './guard/GuardCoordinator';
 import { ProcessingCoordinator } from './processing/coordinator/ProcessingCoordinator';
-import { VectorBatchOptimizer } from '../optimization/VectorBatchOptimizer';
 
 export interface ProcessingOptions {
   maxChunkSize?: number;
@@ -40,7 +40,7 @@ export class ChunkToVectorCoordinationService {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.ProcessingGuard) private processingGuard: GuardCoordinator,
     @inject(TYPES.UnifiedProcessingCoordinator) private processingCoordinator: ProcessingCoordinator,
-    @inject(TYPES.VectorBatchOptimizer) private batchOptimizer: VectorBatchOptimizer
+    @inject(TYPES.BatchProcessingService) private batchOptimizer: BatchProcessingService
   ) {
     // 所有策略管理完全委托给 ProcessingCoordinator 和 GuardCoordinator
   }
@@ -89,7 +89,7 @@ export class ChunkToVectorCoordinationService {
     try {
       // 使用 GuardCoordinator 的文件处理功能
       const guardResult = await this.processingGuard.processFile(filePath, '');
-      
+
       if (guardResult.chunks && guardResult.chunks.length > 0) {
         return await this.convertToVectorPoints(guardResult.chunks, projectPath, options);
       }
@@ -100,7 +100,7 @@ export class ChunkToVectorCoordinationService {
       return await this.convertToVectorPoints(basicChunks, projectPath, options);
     } catch (error) {
       this.logger.warn(`GuardCoordinator fallback failed for ${filePath}, using basic line segmentation: ${error}`);
-      
+
       // 最后的保障：基本行级分段
       const content = await fs.readFile(filePath, 'utf-8');
       const basicChunks = this.createBasicLineChunks(content, filePath);
@@ -158,10 +158,11 @@ export class ChunkToVectorCoordinationService {
     const projectId = this.projectIdManager.getProjectId(projectPath);
     const projectEmbedder = projectId ? this.projectEmbedders.get(projectId) || this.embedderFactory.getDefaultProvider() : this.embedderFactory.getDefaultProvider();
 
-    const embeddingResults = await this.batchOptimizer.executeWithOptimalBatching(
+    const embeddingResults = await this.batchOptimizer.processBatches(
       embeddingInputs,
-      async (batch) => {
-        return await this.embedderFactory.embed(batch, projectEmbedder);
+      async (batch: EmbeddingInput[]) => {
+        const result = await this.embedderFactory.embed(batch, projectEmbedder);
+        return Array.isArray(result) ? result : [result];
       }
     );
 
@@ -169,18 +170,18 @@ export class ChunkToVectorCoordinationService {
     const flatEmbeddings = embeddingResults.flat();
 
     // 创建向量点
-    return flatEmbeddings.map((embedding, index) => ({
+    return flatEmbeddings.map((embedding: any, index: number) => ({
       id: `${this.projectIdManager.getProjectId(projectPath)}_${index}`,
-      vector: embedding.embedding,
+      vector: embedding.embedding || embedding,
       payload: {
-        content: chunks[index].content,
-        filePath: chunks[index].metadata.filePath || '',
-        language: chunks[index].metadata.language || 'unknown',
+        content: (chunks as any)[index].content,
+        filePath: (chunks as any)[index].metadata.filePath || '',
+        language: (chunks as any)[index].metadata.language || 'unknown',
         chunkType: ['code'],
-        startLine: chunks[index].metadata.startLine,
-        endLine: chunks[index].metadata.endLine,
-        strategy: chunks[index].metadata.strategy || 'unknown',
-        metadata: chunks[index].metadata as any,
+        startLine: (chunks as any)[index].metadata.startLine,
+        endLine: (chunks as any)[index].metadata.endLine,
+        strategy: (chunks as any)[index].metadata.strategy || 'unknown',
+        metadata: (chunks as any)[index].metadata as any,
         timestamp: new Date()
       }
     }));

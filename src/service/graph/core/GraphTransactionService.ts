@@ -11,7 +11,7 @@ import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
 
 export interface GraphTransactionConfig {
   enableTransactions: boolean;
- maxBatchSize: number;
+  maxBatchSize: number;
   maxRetries: number;
   retryDelay: number;
   timeout: number;
@@ -125,7 +125,7 @@ export class GraphTransactionService {
       // Use batch optimizer for efficient execution
       const result = await this.batchOptimizer.executeWithOptimalBatching(
         operations,
-        async (batch) => {
+        async (batch: any) => {
           // 直接执行批量操作，不使用事务
           const results = [];
           for (const operation of batch) {

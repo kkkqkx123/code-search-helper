@@ -7,7 +7,7 @@ import { TYPES } from '../../types';
 import { EnvironmentUtils } from '../utils/EnvironmentUtils';
 import { ValidationUtils } from '../utils/ValidationUtils';
 import { HashUtils } from '../../utils/cache/HashUtils';
-import { ProjectPathMappingService } from '../../database/ProjectPathMappingService';
+import { ProjectMappingService } from '../../database/ProjectMappingService';
 
 export interface QdrantConfig {
   host: string;
@@ -23,7 +23,7 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-    @inject(TYPES.ProjectPathMappingService) private projectPathMappingService?: ProjectPathMappingService
+    @inject(TYPES.UnifiedMappingService) private unifiedMappingService?: ProjectMappingService
   ) {
     super();
   }
@@ -132,7 +132,7 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
         'project',
         63,
         true,
-        this.projectPathMappingService
+        this.unifiedMappingService
       );
 
       // 验证动态生成的命名是否符合规范（应该总是通过，但作为双重检查）

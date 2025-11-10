@@ -5,7 +5,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { HashUtils } from '../../utils/cache/HashUtils';
-import { ProjectPathMappingService } from '../../database/ProjectPathMappingService';
+import { ProjectMappingService } from '../../database/ProjectMappingService';
 
 export interface NebulaConfig {
   host: string;
@@ -27,7 +27,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-    @inject(TYPES.ProjectPathMappingService) private projectPathMappingService?: ProjectPathMappingService
+    @inject(TYPES.UnifiedMappingService) private unifiedMappingService?: ProjectMappingService
   ) {
     super();
   }
@@ -144,7 +144,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         'project',
         63,
         true,
-        this.projectPathMappingService
+        this.unifiedMappingService
       );
 
       // 验证动态生成的命名是否符合规范（应该总是通过，但作为双重检查）

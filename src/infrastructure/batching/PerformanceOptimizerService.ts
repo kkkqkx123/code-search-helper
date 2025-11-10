@@ -413,6 +413,19 @@ export class PerformanceOptimizerService {
   }
 
   /**
+   * 临时设置批处理大小
+   */
+  setBatchSize(size: number): number {
+    const oldSize = this.currentBatchSize;
+    this.currentBatchSize = Math.max(this.batchOptions.minSize, Math.min(this.batchOptions.maxSize, size));
+    this.logger.debug('Temporarily set batch size', {
+      oldSize,
+      newSize: this.currentBatchSize
+    });
+    return oldSize;
+  }
+
+  /**
    * 更新重试选项
    */
   updateRetryOptions(options: Partial<RetryOptions>): void {

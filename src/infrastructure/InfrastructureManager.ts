@@ -4,7 +4,7 @@ import { LoggerService } from '../utils/LoggerService';
 import { DatabaseType } from './types';
 import { ICacheService } from './caching/types';
 import { IPerformanceMonitor } from './monitoring/types';
-import { IBatchOptimizer } from './batching/types';
+import { BatchProcessingService } from './batching/BatchProcessingService';
 import { IHealthChecker } from './monitoring/types';
 import { QdrantInfrastructure } from '../database/qdrant/QdrantInfrastructure';
 import { NebulaInfrastructure } from '../database/nebula/NebulaInfrastructure';
@@ -24,7 +24,7 @@ export interface IDatabaseInfrastructure {
   getPerformanceMonitor(): IPerformanceMonitor;
 
   // 批处理优化
-  getBatchOptimizer(): IBatchOptimizer;
+  getBatchOptimizer(): BatchProcessingService;
 
   // 健康检查
   getHealthChecker(): IHealthChecker;
@@ -43,7 +43,7 @@ export class InfrastructureManager {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.CacheService) cacheService: any,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: any,
-    @inject(TYPES.BatchOptimizer) batchOptimizer: any,
+    @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.InfrastructureConfigService) private infrastructureConfigService: InfrastructureConfigService
   ) {
     this.logger = logger;
@@ -346,7 +346,7 @@ export class InfrastructureManager {
   private createDatabaseInfrastructures(
     cacheService: any,
     performanceMonitor: any,
-    batchOptimizer: any,
+    batchOptimizer: BatchProcessingService,
   ): void {
     // 创建 Qdrant 基础设施
     const qdrantInfrastructure = new QdrantInfrastructure(

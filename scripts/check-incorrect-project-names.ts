@@ -62,17 +62,17 @@ async function checkIncorrectProjectNames() {
     console.log('未找到任何相关的项目记录');
   }
   
-  // 检查project_path_mapping表
-  console.log('\n检查project_path_mapping表...');
+  // 检查unified_project_mapping表
+  console.log('\n检查unified_project_mapping表...');
   for (const projectId of projectIds) {
-    const mappingQuery = db.prepare('SELECT * FROM project_path_mapping WHERE hash = ? OR original_path LIKE ?').all(projectId, `%${projectId}%`) as any[];
+    const mappingQuery = db.prepare('SELECT * FROM unified_project_mapping WHERE project_id = ? OR project_path LIKE ?').all(projectId, `%${projectId}%`) as any[];
     if (mappingQuery.length > 0) {
-      console.log(`在project_path_mapping表中找到 ${mappingQuery.length} 条相关记录:`);
+      console.log(`在unified_project_mapping表中找到 ${mappingQuery.length} 条相关记录:`);
       for (const mapping of mappingQuery) {
-        console.log(`  - Hash: ${mapping.hash}, Original Path: ${mapping.original_path}`);
+        console.log(`  - Project ID: ${mapping.project_id}, Project Path: ${mapping.project_path}`);
       }
     } else {
-      console.log(`在project_path_mapping表中未找到与 ${projectId} 相关的记录`);
+      console.log(`在unified_project_mapping表中未找到与 ${projectId} 相关的记录`);
     }
   }
   

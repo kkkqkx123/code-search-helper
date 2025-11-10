@@ -9,7 +9,7 @@ import { QdrantService } from '../../database/qdrant/QdrantService';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
-import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 // Tree-sitter AST分段支持
 import { ASTCodeSplitter } from '../parser/processing/strategies/implementations/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordinationService';
@@ -218,7 +218,7 @@ export class IndexService {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
-    @inject(TYPES.PerformanceOptimizerService) private performanceOptimizer: PerformanceOptimizerService,
+    @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService,
     @inject(TYPES.ASTCodeSplitter) private astSplitter: ASTCodeSplitter,
     @inject(TYPES.ChunkToVectorCoordinationService) private coordinationService: ChunkToVectorCoordinationService,
     @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService,
@@ -498,11 +498,11 @@ export class IndexService {
       });
 
       // 处理每个文件
-      const batchSize = options?.batchSize || this.performanceOptimizer.getCurrentBatchSize();
+      const batchSize = options?.batchSize || 50; // 使用默认批大小
       const maxConcurrency = options?.maxConcurrency || 3;
 
-      // 使用性能优化器批量处理文件
-      const batchResults = await this.performanceOptimizer.processBatches(
+      // 使用新的批处理服务批量处理文件
+      const batchResults = await this.batchProcessor.processBatches(
         files,
         async (batch) => {
           // 内存检查 - 批次开始时检查内存
@@ -532,10 +532,10 @@ export class IndexService {
           }
 
           const results: BatchProcessingResult[] = [];
-          const promises = batch.map(async (file) => {
+          const promises = batch.map(async (file: string) => {
             const startTime = Date.now();
             try {
-              await this.performanceOptimizer.executeWithRetry(
+              await this.batchProcessor.executeWithRetry(
                 () => this.indexFile(projectPath, file),
                 `indexFile:${file}`
               );
@@ -591,7 +591,10 @@ export class IndexService {
           // 返回批处理结果以满足processBatches的返回类型要求
           return results;
         },
-        'indexProjectFiles'
+        {
+          batchSize,
+          maxConcurrency
+        }
       );
 
       // 完成索引
@@ -1095,7 +1098,7 @@ export class IndexService {
 
     // 处理新增和修改的文件
     if (filesToUpdate.length > 0) {
-      const batchResults = await this.performanceOptimizer.processBatches(
+      const batchResults = await this.batchProcessor.processBatches(
         filesToUpdate,
         async (batch) => {
           const promises = batch.map(async (file) => {
@@ -1113,7 +1116,7 @@ export class IndexService {
             await this.updateProgress(operation.projectId, operation);
 
             try {
-              await this.performanceOptimizer.executeWithRetry(
+              await this.batchProcessor.executeWithRetry(
                 () => this.indexFile(projectPath, file),
                 `updateFile:${file}`
               );
@@ -1131,7 +1134,7 @@ export class IndexService {
           await this.concurrencyService.processWithConcurrency(promises, maxConcurrency);
           return batch.map(file => ({ filePath: file, success: true }));
         },
-        'incrementalUpdate'
+        { context: { domain: 'database', subType: 'incrementalUpdate' } }
       );
     }
 

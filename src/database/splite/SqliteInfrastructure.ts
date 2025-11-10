@@ -7,6 +7,7 @@ import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
 import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { IHealthChecker } from '../../infrastructure/monitoring/types';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { SqliteDatabaseService } from './SqliteDatabaseService';
 import { SqliteConnectionManager } from './SqliteConnectionManager';
 
@@ -17,7 +18,7 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
   private logger: LoggerService;
   private cacheService: ICacheService;
   private performanceMonitor: IPerformanceMonitor;
-  private batchOptimizer: IBatchOptimizer;
+  private batchProcessor: BatchProcessingService;
   private healthChecker: IHealthChecker;
   private sqliteService: SqliteDatabaseService;
   private sqliteConnectionManager: SqliteConnectionManager;
@@ -27,7 +28,7 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.CacheService) cacheService: ICacheService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: IPerformanceMonitor,
-    @inject(TYPES.BatchOptimizer) batchOptimizer: IBatchOptimizer,
+    @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.HealthChecker) healthChecker: IHealthChecker,
     @inject(TYPES.SqliteDatabaseService) sqliteService: SqliteDatabaseService,
     @inject(TYPES.SqliteConnectionManager) sqliteConnectionManager: SqliteConnectionManager
@@ -35,7 +36,7 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     this.logger = logger;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
-    this.batchOptimizer = batchOptimizer;
+    this.batchProcessor = batchOptimizer;
     this.healthChecker = healthChecker;
     this.sqliteService = sqliteService;
     this.sqliteConnectionManager = sqliteConnectionManager;
@@ -53,9 +54,9 @@ export class SqliteInfrastructure implements IDatabaseInfrastructure {
     return this.performanceMonitor;
   }
 
-  getBatchOptimizer(): IBatchOptimizer {
+  getBatchOptimizer(): BatchProcessingService {
     this.ensureInitialized();
-    return this.batchOptimizer;
+    return this.batchProcessor;
   }
 
   getHealthChecker(): IHealthChecker {

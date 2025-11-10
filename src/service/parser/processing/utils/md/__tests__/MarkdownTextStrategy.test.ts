@@ -33,7 +33,32 @@ describe('MarkdownTextStrategy - 标题块单向合并', () => {
       overlapSize: 100,
       enableOverlap: true
     };
-    strategy = new MarkdownTextStrategy(mockLogger, testConfig);
+    // 创建一个模拟的SimilarityService
+    const mockSimilarityService = {
+      calculateSimilarity: jest.fn().mockResolvedValue({ similarity: 0.8 }),
+      isSimilar: jest.fn().mockResolvedValue(true),
+      calculateBatchSimilarity: jest.fn().mockResolvedValue({ matrix: [] }),
+      filterSimilarItems: jest.fn().mockResolvedValue([]),
+      findSimilarityGroups: jest.fn().mockResolvedValue(new Map()),
+      calculateAdvancedSimilarity: jest.fn().mockResolvedValue({ similarity: 0.8 })
+    };
+    
+    // 创建一个最小化的SimilarityUtils模拟对象
+    const mockSimilarityUtils: any = {
+      calculateSimilarity: jest.fn().mockResolvedValue(0.8),
+      isSimilar: jest.fn().mockResolvedValue(true),
+      calculateBatchSimilarity: jest.fn().mockResolvedValue([]),
+      canMergeChunks: jest.fn().mockResolvedValue(true),
+      shouldCreateOverlap: jest.fn().mockResolvedValue(true),
+      filterSimilarChunks: jest.fn().mockResolvedValue([]),
+      findSimilarityGroups: jest.fn().mockResolvedValue(new Map()),
+      calculateSimilarityMatrix: jest.fn().mockResolvedValue([]),
+      calculateAdvancedSimilarity: jest.fn().mockResolvedValue({ similarity: 0.8 }),
+      getAvailableStrategies: jest.fn().mockReturnValue(['keyword', 'semantic']),
+      getCoordinatorStats: jest.fn().mockReturnValue(null),
+      generateExecutionPlan: jest.fn().mockResolvedValue({})
+    };
+    strategy = new MarkdownTextStrategy(mockLogger, mockSimilarityUtils, testConfig);
   });
 
   test('标题块应该只与后面的内容合并，不与前面的内容合并', async () => {

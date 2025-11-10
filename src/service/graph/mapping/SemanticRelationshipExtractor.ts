@@ -13,7 +13,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
-import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
+import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { StandardizedQueryResult } from '../../parser/core/normalization/types';
 import { ContentHashUtils } from '../../../utils/cache/ContentHashUtils';
 
@@ -42,13 +42,13 @@ export class AdvancedMappingService {
   private logger: LoggerService;
   private validator: DataMappingValidator;
   private cache: GraphMappingCache;
-  private batchOptimizer: GraphBatchOptimizer;
+  private batchOptimizer: BatchProcessingService;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.DataMappingValidator) validator: DataMappingValidator,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
-    @inject(TYPES.GraphBatchOptimizer) batchOptimizer: GraphBatchOptimizer
+    @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService
   ) {
     this.logger = logger;
     this.validator = validator;

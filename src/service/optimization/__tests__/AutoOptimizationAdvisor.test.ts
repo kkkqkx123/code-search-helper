@@ -3,7 +3,7 @@ import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { PerformanceDashboard } from '../../monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../../monitoring/PerformanceMetricsCollector';
-import { GraphBatchOptimizer } from '../../graph/utils/GraphBatchOptimizer';
+import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { GraphMappingCache } from '../../graph/caching/GraphMappingCache';
 
 // Mock所有依赖项
@@ -55,7 +55,7 @@ describe('AutoOptimizationAdvisor', () => {
       mockLoggerService as unknown as LoggerService,
       mockPerformanceDashboard as unknown as PerformanceDashboard,
       mockPerformanceMetricsCollector as unknown as PerformanceMetricsCollector,
-      mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
+      mockGraphBatchOptimizer as unknown as any,
       mockGraphMappingCache as unknown as GraphMappingCache
     );
   });
@@ -95,7 +95,7 @@ describe('AutoOptimizationAdvisor', () => {
         mockLoggerService as unknown as LoggerService,
         mockPerformanceDashboard as unknown as PerformanceDashboard,
         mockPerformanceMetricsCollector as unknown as PerformanceMetricsCollector,
-        mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
+        mockGraphBatchOptimizer as unknown as any,
         mockGraphMappingCache as unknown as GraphMappingCache,
         customOptions
       );
@@ -125,7 +125,7 @@ describe('AutoOptimizationAdvisor', () => {
           failingLogger as unknown as LoggerService,
           mockPerformanceDashboard as unknown as PerformanceDashboard,
           mockPerformanceMetricsCollector as unknown as PerformanceMetricsCollector,
-          mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
+          mockGraphBatchOptimizer as unknown as any,
           mockGraphMappingCache as unknown as GraphMappingCache
         );
       }).toThrow();
@@ -551,7 +551,7 @@ describe('AutoOptimizationAdvisor', () => {
         mockLoggerService as unknown as LoggerService,
         mockPerformanceDashboard as unknown as PerformanceDashboard,
         mockPerformanceMetricsCollector as unknown as PerformanceMetricsCollector,
-        mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
+        mockGraphBatchOptimizer as unknown as BatchProcessingService,
         mockGraphMappingCache as unknown as GraphMappingCache
       );
 
@@ -864,7 +864,7 @@ describe('AutoOptimizationAdvisor', () => {
         mockLoggerService as unknown as LoggerService,
         mockPerformanceDashboard as unknown as PerformanceDashboard,
         mockPerformanceMetricsCollector as unknown as PerformanceMetricsCollector,
-        mockGraphBatchOptimizer as unknown as GraphBatchOptimizer,
+        mockGraphBatchOptimizer as unknown as any,
         mockGraphMappingCache as unknown as GraphMappingCache
       );
 

@@ -15,7 +15,7 @@ export interface ProjectMapping {
 }
 
 @injectable()
-export class UnifiedMappingService {
+export class ProjectMappingService {
   private mappings: Map<string, ProjectMapping> = new Map(); // projectId -> ProjectMapping
 
   constructor(
