@@ -1,6 +1,6 @@
-import { CodeChunk } from '../types/CodeChunk';
-import { EnhancedChunkingOptions } from '../strategies/types/SegmentationTypes';
-import { ProcessingConfig } from '../core/types/ConfigTypes';
+import { CodeChunk } from '../processing/types/CodeChunk';
+import { EnhancedChunkingOptions } from '../processing/strategies/types/SegmentationTypes';
+import { ProcessingConfig } from '../processing/core/types/ConfigTypes';
 
 export interface PostProcessingContext {
   originalContent: string;

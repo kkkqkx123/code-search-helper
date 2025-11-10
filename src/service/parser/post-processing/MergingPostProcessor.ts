@@ -1,9 +1,9 @@
-import { CodeChunk } from '../types/CodeChunk';
-import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../strategies/types/SegmentationTypes';
+import { CodeChunk } from '../processing/types/CodeChunk';
+import { ChunkingOptions, DEFAULT_CHUNKING_OPTIONS } from '../processing/strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { ChunkMerger } from '../utils/chunk-processing/ChunkMerger';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { DeduplicationUtils } from '../utils/overlap/DeduplicationUtils';
+import { ChunkMerger } from '../processing/utils/chunk-processing/ChunkMerger';
+import { LoggerService } from '../../../utils/LoggerService';
+import { DeduplicationUtils } from '../processing/utils/overlap/DeduplicationUtils';
 
 /**
  * 高级合并后处理器

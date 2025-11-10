@@ -1,8 +1,8 @@
-import { CodeChunk } from '../types/CodeChunk';
-import { ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../strategies/types/SegmentationTypes';
+import { CodeChunk } from '../processing/types/CodeChunk';
+import { ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../processing/strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { ChunkOptimizer } from '../processing/utils/chunk-processing/ChunkOptimizer';
+import { LoggerService } from '../../../utils/LoggerService';
 
 /**
  * 边界优化后处理器
@@ -28,7 +28,7 @@ export class BoundaryOptimizationPostProcessor implements IChunkPostProcessor {
     this.logger?.debug(`Starting boundary optimization for ${chunks.length} chunks`);
 
     try {
-     // 确保传递给ChunkOptimizer的options是完整类型
+      // 确保传递给ChunkOptimizer的options是完整类型
       const completeOptions: ChunkingOptions = {
         ...DEFAULT_ENHANCED_CHUNKING_OPTIONS,
         ...context.options
@@ -38,7 +38,7 @@ export class BoundaryOptimizationPostProcessor implements IChunkPostProcessor {
       const optimizedChunks = await optimizer.optimize(chunks, context.originalContent);
 
       this.logger?.debug(`Boundary optimization completed: ${chunks.length} -> ${optimizedChunks.length} chunks`);
-      
+
       return optimizedChunks;
     } catch (error) {
       this.logger?.error('Error during boundary optimization:', error);

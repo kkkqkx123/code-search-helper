@@ -12,8 +12,8 @@ import { ProcessingContext, ContextBuilder, ContextUtils } from '../types/Contex
 import { FileFeatures } from '../core/interfaces/IProcessingContext';
 import { LineEndingType, IndentType } from '../core/interfaces/IProcessingContext';
 import { CodeChunk } from '../types/CodeChunk';
-import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
-import { PostProcessingContext } from '../post-processing/IChunkPostProcessor';
+import { ChunkPostProcessorCoordinator } from '../../post-processing/ChunkPostProcessorCoordinator';
+import { PostProcessingContext } from '../../post-processing/IChunkPostProcessor';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { injectable, inject, optional } from 'inversify';
 import { TYPES } from '../../../../types';

@@ -1,7 +1,7 @@
-import { CodeChunk } from '../types/CodeChunk';
+import { CodeChunk } from '../processing/types/CodeChunk';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { IComplexityCalculator } from '../strategies/types/SegmentationTypes';
+import { LoggerService } from '../../../utils/LoggerService';
+import { IComplexityCalculator } from '../processing/strategies/types/SegmentationTypes';
 
 /**
  * 智能再平衡后处理器

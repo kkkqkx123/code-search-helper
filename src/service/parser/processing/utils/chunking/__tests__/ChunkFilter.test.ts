@@ -1,6 +1,6 @@
 import { ChunkFilter } from '../ChunkFilter';
 import { CodeChunk, ChunkType } from '../../../types/CodeChunk';
-import { PostProcessingContext } from '../../../post-processing/IChunkPostProcessor';
+import { PostProcessingContext } from '../../../../post-processing/IChunkPostProcessor';
 import { ContentQualityEvaluator } from '../evaluators/ContentQualityEvaluator';
 import { ChunkMerger } from '../evaluators/ChunkMerger';
 

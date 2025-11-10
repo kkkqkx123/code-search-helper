@@ -6,7 +6,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { IChunkFilter, FilterConfig } from './types/ChunkFilterTypes';
 import { ContentQualityEvaluator } from './evaluators/ContentQualityEvaluator';
 import { ChunkMerger } from './evaluators/ChunkMerger';
-import { PostProcessingContext } from '../../post-processing/IChunkPostProcessor';
+import { PostProcessingContext } from '../../../post-processing/IChunkPostProcessor';
 
 /**
  * 块过滤器
@@ -179,7 +179,7 @@ export class ChunkFilter implements ISegmentationProcessor, IChunkFilter {
    */
   private isNormalSizedChunk(chunk: CodeChunk, minChunkSize: number): boolean {
     const chunkSize = chunk.content.length;
-    
+
     // 检查是否是"正常大小"的块（基于内容特征）
     return chunkSize >= 20 || // 长度大于等于20
       chunk.content.includes(' ') || // 包含空格（可能是句子）
@@ -191,7 +191,7 @@ export class ChunkFilter implements ISegmentationProcessor, IChunkFilter {
    */
   private shouldKeepSmallChunk(chunk: CodeChunk, minChunkSize: number): boolean {
     const chunkSize = chunk.content.length;
-    
+
     // 使用更严格的阈值来确定哪些小块需要被过滤
     const verySmallThreshold = Math.min(minChunkSize * 0.3, 15); // 最多15个字符或minChunkSize的30%
 

@@ -141,10 +141,10 @@ export type { FileFeatures as DetectionFileFeatures } from '../detection/Detecti
 export type { LanguageDetectionInfo } from '../detection/DetectionService';
 
 // 后处理器导出
-export { ChunkPostProcessorCoordinator } from './post-processing/ChunkPostProcessorCoordinator';
+export { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
 
 // 后处理上下文类型 - 避免重复导出
-export type { PostProcessingContext as ChunkPostProcessingContext } from './post-processing/IChunkPostProcessor';
+export type { PostProcessingContext as ChunkPostProcessingContext } from '../post-processing/IChunkPostProcessor';
 
 // 工具函数导出
 export * from './utils';
@@ -157,7 +157,7 @@ export * from './strategies';
 import { ProcessingCoordinator } from './coordinator';
 import { StrategyFactory } from './factory';
 import { DetectionService } from '../detection/DetectionService';
-import { ChunkPostProcessorCoordinator } from './post-processing/ChunkPostProcessorCoordinator';
+import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
 
 // 默认导出
 export default {

@@ -1,7 +1,7 @@
-import { CodeChunk } from '../types/CodeChunk';
+import { CodeChunk } from '../processing/types/CodeChunk';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { BalancedChunker } from '../utils/chunking/BalancedChunker';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { BalancedChunker } from '../processing/utils/chunking/BalancedChunker';
+import { LoggerService } from '../../../utils/LoggerService';
 
 /**
  * 符号平衡后处理器
@@ -47,7 +47,7 @@ export class SymbolBalancePostProcessor implements IChunkPostProcessor {
     // 重置并分析代码块的符号平衡
     this.balancedChunker.reset();
     const lines = chunk.content.split('\n');
-    
+
     // 分析每一行的符号变化
     for (const line of lines) {
       this.balancedChunker.analyzeLineSymbols(line);
@@ -55,7 +55,7 @@ export class SymbolBalancePostProcessor implements IChunkPostProcessor {
 
     // 检查代码块是否符号平衡
     const isBalanced = this.balancedChunker.canSafelySplit();
-    
+
     if (!isBalanced) {
       // 如果代码块符号不平衡，尝试扩展内容以达到平衡
       const balancedContent = this.extendForBalance(chunk, context);
@@ -69,7 +69,7 @@ export class SymbolBalancePostProcessor implements IChunkPostProcessor {
     }
 
     return chunk;
- }
+  }
 
   private extendForBalance(chunk: CodeChunk, context: PostProcessingContext): string {
     // 这里实现扩展逻辑以达到符号平衡
@@ -80,7 +80,7 @@ export class SymbolBalancePostProcessor implements IChunkPostProcessor {
 
     let currentContent = chunk.content;
     let currentEndLine = chunkEndLine;
-    
+
     // 重置并分析当前内容
     this.balancedChunker.reset();
     const initialLines = currentContent.split('\n');
@@ -93,11 +93,11 @@ export class SymbolBalancePostProcessor implements IChunkPostProcessor {
       currentEndLine++;
       const additionalLine = originalLines[currentEndLine];
       currentContent += '\n' + additionalLine;
-      
+
       // 分析新增的行
       this.balancedChunker.analyzeLineSymbols(additionalLine);
-      
-     // 检查大小限制
+
+      // 检查大小限制
       if (context.options.maxChunkSize && currentContent.length > context.options.maxChunkSize) {
         // 如果超过大小限制，则回退到平衡状态检查
         break;

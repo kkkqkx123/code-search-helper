@@ -1,12 +1,12 @@
 import { injectable, inject } from 'inversify';
-import { CodeChunk, ChunkType, CodeChunkBuilder } from '../types/CodeChunk';
-import { ChunkingOptions, ChunkingPreset, DEFAULT_CHUNKING_OPTIONS } from '../strategies/types/SegmentationTypes';
+import { CodeChunk, ChunkType, CodeChunkBuilder } from '../processing/types/CodeChunk';
+import { ChunkingOptions, ChunkingPreset, DEFAULT_CHUNKING_OPTIONS } from '../processing/strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { OverlapCalculator } from '../utils/overlap/OverlapCalculator';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { ASTNodeTracker } from '../utils/AST/ASTNodeTracker';
-import { TYPES } from '../../../../types';
-import { DeduplicationUtils } from '../utils/overlap/DeduplicationUtils';
+import { OverlapCalculator } from '../processing/utils/overlap/OverlapCalculator';
+import { LoggerService } from '../../../utils/LoggerService';
+import { ASTNodeTracker } from '../processing/utils/AST/ASTNodeTracker';
+import { TYPES } from '../../../types';
+import { DeduplicationUtils } from '../processing/utils/overlap/DeduplicationUtils';
 
 /**
  * 重叠后处理器
@@ -185,7 +185,7 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
             break;
           }
         }
-        
+
         if (!isDuplicate) {
           finalChunks.push(chunk);
         } else {
@@ -219,7 +219,7 @@ export class OverlapPostProcessor implements IChunkPostProcessor {
           break;
         }
       }
-      
+
       if (isDuplicate) {
         this.logger?.debug(`Skipping duplicate text chunk at lines ${chunk.metadata.startLine}-${chunk.metadata.endLine}`);
         continue;

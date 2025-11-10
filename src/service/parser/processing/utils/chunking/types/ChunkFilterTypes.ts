@@ -1,5 +1,5 @@
 import { CodeChunk } from '../../../types/CodeChunk';
-import { PostProcessingContext } from '../../../post-processing/IChunkPostProcessor';
+import { PostProcessingContext } from '../../../../post-processing/IChunkPostProcessor';
 
 /**
  * 块过滤器接口

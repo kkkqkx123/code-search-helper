@@ -1,7 +1,7 @@
-import { CodeChunk } from '../types/CodeChunk';
+import { CodeChunk } from '../processing/types/CodeChunk';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { ChunkFilter } from '../utils/chunking/ChunkFilter';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { ChunkFilter } from '../processing/utils/chunking/ChunkFilter';
+import { LoggerService } from '../../../utils/LoggerService';
 
 /**
  * 智能过滤后处理器

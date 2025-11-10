@@ -49,7 +49,7 @@ import { UniversalTextStrategy } from '../../service/parser/processing/strategie
 import { ErrorThresholdInterceptor } from '../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { BackupFileProcessor } from '../../service/parser/detection/BackupFileProcessor';
-import { OverlapPostProcessor } from '../../service/parser/processing/post-processing/OverlapPostProcessor';
+import { OverlapPostProcessor } from '../../service/parser/post-processing/OverlapPostProcessor';
 import { ASTNodeTracker } from '../../service/parser/processing/utils/AST/ASTNodeTracker';
 import { ChunkRebalancer } from '../../service/parser/processing/utils/ChunkRebalancer';
 // ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名，通过类型定义处理
@@ -81,7 +81,7 @@ import { ChunkFilter } from '../../service/parser/processing/utils/chunking/Chun
 import { StrategyFactory } from '../../service/parser/processing/factory/StrategyFactory';
 import { ProcessingCoordinator } from '../../service/parser/processing/coordinator/ProcessingCoordinator';
 
-import { ChunkPostProcessorCoordinator } from '../../service/parser/processing/post-processing/ChunkPostProcessorCoordinator';
+import { ChunkPostProcessorCoordinator } from '../../service/parser/post-processing/ChunkPostProcessorCoordinator';
 import { ProcessingConfig } from '../../service/parser/processing/core/types/ConfigTypes';
 
 // 文件搜索服务
@@ -181,9 +181,9 @@ export class BusinessServiceRegistrar {
       }).inSingletonScope();
 
       // 新增的processing模块替代组件
-     container.bind<StrategyFactory>(TYPES.StrategyFactory).toDynamicValue(context => {
-       const logger = context.get<LoggerService>(TYPES.LoggerService);
-       const segmentationConfigService = context.get<SegmentationConfigService>(TYPES.SegmentationConfigService);
+      container.bind<StrategyFactory>(TYPES.StrategyFactory).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        const segmentationConfigService = context.get<SegmentationConfigService>(TYPES.SegmentationConfigService);
 
         // 创建默认的ProcessingConfig
         const processingConfig: ProcessingConfig = {

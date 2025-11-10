@@ -1,9 +1,9 @@
 import { SymbolBalancePostProcessor } from '../SymbolBalancePostProcessor';
 import { PostProcessingContext } from '../IChunkPostProcessor';
-import { CodeChunk, ChunkType } from '../../types/CodeChunk';
-import { EnhancedChunkingOptions, ChunkingPreset } from '../../strategies/types/SegmentationTypes';
-import { LoggerService } from '../../../../../utils/LoggerService';
-import { ProcessingConfig } from '../../core/types/ConfigTypes';
+import { CodeChunk, ChunkType } from '../../processing/types/CodeChunk';
+import { EnhancedChunkingOptions, ChunkingPreset } from '../../processing/strategies/types/SegmentationTypes';
+import { LoggerService } from '../../../../utils/LoggerService';
+import { ProcessingConfig } from '../../processing/core/types/ConfigTypes';
 
 describe('SymbolBalancePostProcessor', () => {
   let processor: SymbolBalancePostProcessor;
@@ -14,7 +14,7 @@ describe('SymbolBalancePostProcessor', () => {
   beforeEach(() => {
     logger = new LoggerService();
     processor = new SymbolBalancePostProcessor(logger);
-    
+
     mockOptions = {
       maxChunkSize: 1000,
       minChunkSize: 100,
@@ -213,7 +213,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该处理平衡的代码块
       expect(result).toHaveLength(1);
       expect(result[0].content).toBeDefined();
@@ -248,7 +248,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该返回原始块（因为shouldApply返回false，直接返回原始块）
       expect(result).toEqual(chunks);
     });
@@ -282,7 +282,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该保持单个块不变
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe(chunks[0].content);
@@ -318,7 +318,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该返回原始块
       expect(result).toEqual(chunks);
     });
@@ -354,7 +354,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该处理括号符号
       expect(result).toHaveLength(1);
       expect(result[0].content).toContain('calculateSum');
@@ -389,7 +389,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该处理大括号符号
       expect(result).toHaveLength(1);
       expect(result[0].content).toContain('console.log');
@@ -424,7 +424,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该处理方括号符号
       expect(result).toHaveLength(1);
       expect(result[0].content).toContain('[1, 2, [3, 4]]');
@@ -459,7 +459,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该处理引号符号，返回原始内容
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe('const str = "hello \\"world\\"";');
@@ -509,7 +509,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该处理所有块的符号平衡
       expect(result).toHaveLength(2);
       result.forEach(chunk => {
@@ -547,7 +547,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该处理混合符号类型
       expect(result).toHaveLength(1);
       expect(result[0].content).toContain('const obj');
@@ -586,7 +586,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该返回原始块
       expect(result).toEqual(chunks);
     });
@@ -620,7 +620,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该返回原始块
       expect(result).toEqual(chunks);
     });
@@ -658,7 +658,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该成功处理
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe(chunks[0].content);
@@ -695,7 +695,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       const result = await processor.process(chunks, context);
-      
+
       // 应该成功处理
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe(chunks[0].content);
@@ -705,7 +705,7 @@ describe('SymbolBalancePostProcessor', () => {
   describe('日志测试', () => {
     test('应该在处理时记录调试日志', async () => {
       const debugSpy = jest.spyOn(logger, 'debug');
-      
+
       const chunks: CodeChunk[] = [
         {
           content: 'function test() { return "hello"; }',
@@ -734,7 +734,7 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       await processor.process(chunks, context);
-      
+
       // 应该记录开始和完成的调试日志
       expect(debugSpy).toHaveBeenCalledWith('Applying symbol balance post-processing to 1 chunks');
       expect(debugSpy).toHaveBeenCalledWith('Symbol balance post-processing completed');
@@ -742,7 +742,7 @@ describe('SymbolBalancePostProcessor', () => {
 
     test('应该在调整块时记录调试日志', async () => {
       const debugSpy = jest.spyOn(logger, 'debug');
-      
+
       // 创建一个不平衡的代码块
       const chunks: CodeChunk[] = [
         {
@@ -772,14 +772,14 @@ describe('SymbolBalancePostProcessor', () => {
       };
 
       await processor.process(chunks, context);
-      
+
       // 应该记录调整日志
       expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('Adjusted chunk for symbol balance'));
     });
 
     test('应该在错误时记录错误日志', async () => {
       const errorSpy = jest.spyOn(logger, 'error');
-      
+
       // 创建一个简单的测试场景，可能会触发错误
       const chunks: CodeChunk[] = [
         {
@@ -814,7 +814,7 @@ describe('SymbolBalancePostProcessor', () => {
         // 如果发生错误，应该记录错误日志
         expect(errorSpy).toHaveBeenCalled();
       }
-      
+
       // 即使没有错误，也应该检查是否记录了任何日志
       expect(errorSpy.mock.calls.length).toBeGreaterThanOrEqual(0);
     });

@@ -1,16 +1,16 @@
-import { CodeChunk } from '../types/CodeChunk';
-import { ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../strategies/types/SegmentationTypes';
+import { CodeChunk } from '../processing/types/CodeChunk';
+import { ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../processing/strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
-import { ChunkMerger } from '../utils/chunk-processing/ChunkMerger';
-import { ChunkOptimizer } from '../utils/chunk-processing/ChunkOptimizer';
+import { ChunkMerger } from '../processing/utils/chunk-processing/ChunkMerger';
+import { ChunkOptimizer } from '../processing/utils/chunk-processing/ChunkOptimizer';
 import { SymbolBalancePostProcessor } from './SymbolBalancePostProcessor';
 import { FilterPostProcessor } from './FilterPostProcessor';
 import { RebalancingPostProcessor } from './RebalancingPostProcessor';
 import { MergingPostProcessor } from './MergingPostProcessor';
 import { BoundaryOptimizationPostProcessor } from './BoundaryOptimizationPostProcessor';
 import { OverlapPostProcessor } from './OverlapPostProcessor';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { IComplexityCalculator } from '../strategies/types/SegmentationTypes';
+import { LoggerService } from '../../../utils/LoggerService';
+import { IComplexityCalculator } from '../processing/strategies/types/SegmentationTypes';
 
 /**
  * 分段后处理协调器

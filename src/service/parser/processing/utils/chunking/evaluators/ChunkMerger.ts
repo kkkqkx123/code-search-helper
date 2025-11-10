@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { CodeChunk } from '../../../types/CodeChunk';
-import { PostProcessingContext } from '../../../post-processing/IChunkPostProcessor';
+import { PostProcessingContext } from '../../../../post-processing/IChunkPostProcessor';
 import { IChunkMerger, IChunkSimilarityCalculator } from '../types/ChunkFilterTypes';
 import { TYPES } from '../../../../../../types';
 import { LoggerService } from '../../../../../../utils/LoggerService';
