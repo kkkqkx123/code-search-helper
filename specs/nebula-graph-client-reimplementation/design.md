@@ -33,17 +33,50 @@
 - **LRUCache**: 项目现有的LRU缓存实现
 - **GraphMappingCache**: 图相关的缓存服务
 
-### 2. 需要移除的抽象层
+### 2. 需要移除的抽象层和具体文件
 
+#### 需要移除的抽象层
 - 过度复杂的连接管理抽象
 - 为适配旧客户端而创建的中间层
 - 不必要的接口隔离
 
+#### 需要修改的具体文件
+- **src/database/nebula/NebulaConnectionManager.ts**
+  - 移除复杂的连接状态管理逻辑
+  - 移除手动会话管理代码
+  - 移除过度的事件处理抽象
+  - 保留基本的配置管理接口
+
+- **src/database/nebula/query/NebulaQueryService.ts**
+  - 移除复杂的查询预处理逻辑
+  - 移除重复的错误处理代码
+  - 简化参数插值逻辑
+  - 保留基本的查询执行接口
+
+- **src/database/nebula/NebulaTypes.ts**
+  - 移除不必要的类型定义
+  - 简化配置接口
+  - 保留核心数据类型
+
 ### 3. 需要重新实现的核心组件
 
-- **连接池管理**: 解决会话泄露和连接管理问题
-- **会话管理**: 实现正确的会话生命周期管理
-- **查询执行器**: 集成批处理和缓存机制
+#### 连接池管理 (解决会话泄露和连接管理问题)
+- **新文件**: src/database/nebula/connection/ConnectionPool.ts
+- **新文件**: src/database/nebula/connection/Connection.ts
+- **新文件**: src/database/nebula/connection/ConnectionHealthChecker.ts
+- **目标**: 替换NebulaConnectionManager中的连接管理逻辑
+
+#### 会话管理 (实现正确的会话生命周期管理)
+- **新文件**: src/database/nebula/session/SessionManager.ts
+- **新文件**: src/database/nebula/session/Session.ts
+- **新文件**: src/database/nebula/session/SessionPool.ts
+- **目标**: 独立的会话管理，与连接管理解耦
+
+#### 查询执行器 (集成批处理和缓存机制)
+- **新文件**: src/database/nebula/query/QueryRunner.ts
+- **新文件**: src/database/nebula/query/QueryCache.ts
+- **修改文件**: src/database/nebula/query/NebulaQueryService.ts (重构为使用新QueryRunner)
+- **目标**: 集成现有批处理服务和缓存机制
 
 ## 架构设计
 
