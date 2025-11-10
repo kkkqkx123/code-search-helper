@@ -6,6 +6,7 @@ import {
   SimilarityError
 } from '../types/SimilarityTypes';
 import { HashUtils } from '../../../utils/HashUtils';
+import { StrategyCost } from '../coordination/types/CoordinationTypes';
 
 /**
  * 相似度策略基类
@@ -114,5 +115,60 @@ export abstract class BaseSimilarityStrategy implements ISimilarityStrategy {
     const executionTime = Date.now() - startTime;
     
     return { result, executionTime };
+  }
+
+  /**
+   * 获取策略成本信息
+   */
+  getStrategyCost(): StrategyCost {
+    // 默认实现，子类可以重写
+    return {
+      computational: 0.5,
+      memory: 0.3,
+      time: 200,
+      total: 0.5
+    };
+  }
+
+  /**
+   * 预估执行时间（毫秒）
+   */
+  estimateExecutionTime(content1: string, content2: string): number {
+    // 基于内容长度的简单估算
+    const avgLength = (content1.length + content2.length) / 2;
+    const baseTime = this.getStrategyCost().time;
+    
+    // 根据内容长度调整时间
+    if (avgLength < 100) {
+      return baseTime * 0.5;
+    } else if (avgLength > 1000) {
+      return baseTime * 2;
+    }
+    
+    return baseTime;
+  }
+
+  /**
+   * 获取策略优先级（数字越小优先级越高）
+   */
+  getPriority(): number {
+    // 默认优先级，子类可以重写
+    return 5;
+  }
+
+  /**
+   * 检查是否支持快速路径
+   */
+  supportsFastPath(content1: string, content2: string): boolean {
+    // 默认不支持快速路径，子类可以重写
+    return false;
+  }
+
+  /**
+   * 快速路径计算（如果支持）
+   */
+  async fastPathCalculate(content1: string, content2: string): Promise<number | null> {
+    // 默认返回null，表示不支持快速路径
+    return null;
   }
 }

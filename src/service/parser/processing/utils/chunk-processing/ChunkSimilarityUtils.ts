@@ -1,19 +1,26 @@
 import { CodeChunk } from '../../types/CodeChunk';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
-import { SimilarityUtils } from '../../../../similarity/utils/SimilarityUtils';
 import { DeduplicationUtils } from '../overlap/DeduplicationUtils';
+import { inject, injectable } from 'inversify';
+import { SimilarityUtils } from '../../../../similarity/utils/SimilarityUtils';
+import { TYPES } from '../../../../../types';
 
 /**
  * 代码块相似性检测工具类
  * 提供检测和处理代码块相似性的方法
  */
+@injectable()
 export class ChunkSimilarityUtils {
+  constructor(
+    @inject(TYPES.SimilarityUtils) private similarityUtils: SimilarityUtils
+  ) {}
+
   /**
    * 检查两个块是否可以合并
    */
-  static async canMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk, similarityThreshold: number): Promise<boolean> {
+  async canMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk, similarityThreshold: number): Promise<boolean> {
     // 检查相似度
-    const isSimilar = await SimilarityUtils.isSimilar(chunk1.content, chunk2.content, similarityThreshold);
+    const isSimilar = await this.similarityUtils.isSimilar(chunk1.content, chunk2.content, similarityThreshold);
     if (!isSimilar) {
       return false;
     }
@@ -45,10 +52,10 @@ export class ChunkSimilarityUtils {
 
     if (chunk1.metadata.startLine <= chunk2.metadata.startLine) {
       // chunk1在前
-      mergedContent = this.mergeContents(chunk1.content, chunk2.content, chunk1.metadata.startLine, chunk2.metadata.startLine);
+      mergedContent = ChunkSimilarityUtils.mergeContents(chunk1.content, chunk2.content, chunk1.metadata.startLine, chunk2.metadata.startLine);
     } else {
       // chunk2在前
-      mergedContent = this.mergeContents(chunk2.content, chunk1.content, chunk2.metadata.startLine, chunk1.metadata.startLine);
+      mergedContent = ChunkSimilarityUtils.mergeContents(chunk2.content, chunk1.content, chunk2.metadata.startLine, chunk1.metadata.startLine);
     }
 
     const mergedLines = mergedContent.split('\n').length;
@@ -103,7 +110,7 @@ export class ChunkSimilarityUtils {
   /**
    * 智能重叠控制 - 检查新的重叠块是否与已有块过于相似
    */
-  static async shouldCreateOverlap(
+  async shouldCreateOverlap(
     newChunk: CodeChunk,
     existingChunks: CodeChunk[],
     similarityThreshold: number
@@ -121,7 +128,7 @@ export class ChunkSimilarityUtils {
       }
 
       // 检查相似度
-      const isSimilar = await SimilarityUtils.isSimilar(newChunk.content, existingChunk.content, similarityThreshold);
+      const isSimilar = await this.similarityUtils.isSimilar(newChunk.content, existingChunk.content, similarityThreshold);
       if (isSimilar) {
         return false; // 跳过过于相似的重叠块
       }

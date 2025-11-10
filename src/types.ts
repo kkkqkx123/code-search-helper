@@ -343,6 +343,7 @@ export const TYPES = {
   SimilarityCacheManager: Symbol.for('SimilarityCacheManager'),
   SimilarityPerformanceMonitor: Symbol.for('SimilarityPerformanceMonitor'),
   SimilarityServiceInitializer: Symbol.for('SimilarityServiceInitializer'),
+  SimilarityUtils: Symbol.for('SimilarityUtils'),
   LevenshteinSimilarityStrategy: Symbol.for('LevenshteinSimilarityStrategy'),
   SemanticSimilarityStrategy: Symbol.for('SemanticSimilarityStrategy'),
   KeywordSimilarityStrategy: Symbol.for('KeywordSimilarityStrategy'),

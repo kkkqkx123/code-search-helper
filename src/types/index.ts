@@ -111,4 +111,23 @@ export const TYPES = {
   ContentQualityEvaluator: Symbol.for('ContentQualityEvaluator'),
   ChunkMerger: Symbol.for('ChunkMerger'),
   ChunkPostProcessorCoordinator: Symbol.for('ChunkPostProcessorCoordinator'),
+
+  // 相似度服务相关类型
+  SimilarityService: Symbol.for('SimilarityService'),
+  SimilarityCacheManager: Symbol.for('SimilarityCacheManager'),
+  SimilarityPerformanceMonitor: Symbol.for('SimilarityPerformanceMonitor'),
+  SimilarityServiceInitializer: Symbol.for('SimilarityServiceInitializer'),
+  SimilarityUtils: Symbol.for('SimilarityUtils'),
+  LevenshteinSimilarityStrategy: Symbol.for('LevenshteinSimilarityStrategy'),
+  SemanticSimilarityStrategy: Symbol.for('SemanticSimilarityStrategy'),
+  KeywordSimilarityStrategy: Symbol.for('KeywordSimilarityStrategy'),
+  HybridSimilarityStrategy: Symbol.for('HybridSimilarityStrategy'),
+  BatchCalculatorFactory: Symbol.for('BatchCalculatorFactory'),
+  GenericBatchCalculator: Symbol.for('GenericBatchCalculator'),
+  SemanticOptimizedBatchCalculator: Symbol.for('SemanticOptimizedBatchCalculator'),
+  HybridOptimizedBatchCalculator: Symbol.for('HybridOptimizedBatchCalculator'),
+  AdaptiveBatchCalculator: Symbol.for('AdaptiveBatchCalculator'),
+
+  // 事件监听器
+  EventListener: Symbol.for('EventListener'),
 };

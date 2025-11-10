@@ -18,6 +18,7 @@ import { SemanticSimilarityStrategy } from './strategies/SemanticSimilarityStrat
 import { KeywordSimilarityStrategy } from './strategies/KeywordSimilarityStrategy';
 import { HybridSimilarityStrategy } from './strategies/HybridSimilarityStrategy';
 import { BatchCalculatorFactory } from './batch';
+import { ISimilarityCoordinator } from './coordination/types/CoordinationTypes';
 
 /**
  * 相似度服务主类
@@ -31,6 +32,7 @@ export class SimilarityService implements ISimilarityService {
     @inject(TYPES.LoggerService) private logger?: LoggerService,
     @inject(TYPES.SimilarityCacheManager) private cacheManager?: ISimilarityCacheManager,
     @inject(TYPES.SimilarityPerformanceMonitor) private performanceMonitor?: ISimilarityPerformanceMonitor,
+    @inject('ISimilarityCoordinator') private coordinator?: ISimilarityCoordinator,
     @inject(LevenshteinSimilarityStrategy) levenshteinStrategy?: LevenshteinSimilarityStrategy,
     @inject(SemanticSimilarityStrategy) semanticStrategy?: SemanticSimilarityStrategy,
     @inject(KeywordSimilarityStrategy) keywordStrategy?: KeywordSimilarityStrategy,
@@ -51,13 +53,20 @@ export class SimilarityService implements ISimilarityService {
       this.strategies.set('hybrid', hybridStrategy);
     }
 
-    this.logger?.info('SimilarityService initialized with strategies:', 
+    // 向协调器注册策略
+    if (this.coordinator) {
+      this.strategies.forEach(strategy => {
+        this.coordinator!.registerStrategy(strategy);
+      });
+    }
+
+    this.logger?.info('SimilarityService initialized with strategies:',
       Array.from(this.strategies.keys()));
   }
 
   async calculateSimilarity(
-    content1: string, 
-    content2: string, 
+    content1: string,
+    content2: string,
     options?: SimilarityOptions
   ): Promise<SimilarityResult> {
     const endTimer = this.performanceMonitor?.startTimer() || (() => 0);
@@ -66,55 +75,32 @@ export class SimilarityService implements ISimilarityService {
       // 验证输入
       this.validateInput(content1, content2, options);
 
-      // 选择策略
-      const strategy = this.selectStrategy(options);
-      
-      // 生成缓存键
-      const cacheKey = this.cacheManager ? 
-        this.generateCacheKey(content1, content2, strategy.type, options) : null;
-
-      // 检查缓存
-      let similarity: number | undefined;
-      let cacheHit = false;
-      
-      if (cacheKey && this.cacheManager) {
-        const cachedResult = await this.cacheManager.get(cacheKey);
-        if (cachedResult !== null) {
-          similarity = cachedResult;
-          cacheHit = true;
-          this.logger?.debug(`Cache hit for similarity calculation`);
-        }
-      }
-
-      // 如果缓存未命中，计算相似度
-      if (similarity === undefined) {
-        similarity = await strategy.calculate(content1, content2, options);
+      // 如果有协调器，使用协调器进行计算
+      if (this.coordinator) {
+        const coordinationResult = await this.coordinator.calculateSimilarity(content1, content2, options);
         
-        // 缓存结果
-        if (cacheKey && this.cacheManager) {
-          await this.cacheManager.set(cacheKey, similarity);
-        }
+        // 记录性能指标
+        const executionTime = endTimer();
+        this.performanceMonitor?.recordCalculation('hybrid', executionTime, coordinationResult.executionDetails.cacheHits > 0);
+
+        // 构建结果
+        const result: SimilarityResult = {
+          similarity: coordinationResult.similarity,
+          isSimilar: coordinationResult.isSimilar,
+          threshold: coordinationResult.threshold,
+          strategy: 'hybrid', // 协调器使用混合策略
+          details: {
+            executionTime: coordinationResult.executionDetails.totalExecutionTime,
+            cacheHit: coordinationResult.executionDetails.cacheHits > 0
+          }
+        };
+
+        this.logger?.debug(`Coordinated similarity calculated: ${coordinationResult.similarity.toFixed(3)}`);
+        return result;
       }
 
-      // 记录性能指标
-      const executionTime = endTimer();
-      this.performanceMonitor?.recordCalculation(strategy.type, executionTime, cacheHit);
-
-      // 构建结果
-      const threshold = options?.threshold || strategy.getDefaultThreshold();
-      const result: SimilarityResult = {
-        similarity,
-        isSimilar: similarity >= threshold,
-        threshold,
-        strategy: strategy.type,
-        details: {
-          executionTime,
-          cacheHit
-        }
-      };
-
-      this.logger?.debug(`Similarity calculated: ${similarity.toFixed(3)} using ${strategy.name}`);
-      return result;
+      // 回退到原有实现（向后兼容）
+      return await this.calculateSimilarityLegacy(content1, content2, options);
     } catch (error) {
       this.logger?.error('Error calculating similarity:', error);
       throw new SimilarityError(
@@ -123,6 +109,60 @@ export class SimilarityService implements ISimilarityService {
         { content1Length: content1.length, content2Length: content2.length, options }
       );
     }
+  }
+
+  /**
+   * 原有的相似度计算实现（向后兼容）
+   */
+  private async calculateSimilarityLegacy(
+    content1: string,
+    content2: string,
+    options?: SimilarityOptions
+  ): Promise<SimilarityResult> {
+    // 选择策略
+    const strategy = this.selectStrategy(options);
+    
+    // 生成缓存键
+    const cacheKey = this.cacheManager ?
+      this.generateCacheKey(content1, content2, strategy.type, options) : null;
+
+    // 检查缓存
+    let similarity: number | undefined;
+    let cacheHit = false;
+    
+    if (cacheKey && this.cacheManager) {
+      const cachedResult = await this.cacheManager.get(cacheKey);
+      if (cachedResult !== null) {
+        similarity = cachedResult;
+        cacheHit = true;
+        this.logger?.debug(`Cache hit for similarity calculation`);
+      }
+    }
+
+    // 如果缓存未命中，计算相似度
+    if (similarity === undefined) {
+      similarity = await strategy.calculate(content1, content2, options);
+      
+      // 缓存结果
+      if (cacheKey && this.cacheManager) {
+        await this.cacheManager.set(cacheKey, similarity);
+      }
+    }
+
+    // 构建结果
+    const threshold = options?.threshold || strategy.getDefaultThreshold();
+    const result: SimilarityResult = {
+      similarity,
+      isSimilar: similarity >= threshold,
+      threshold,
+      strategy: strategy.type,
+      details: {
+        cacheHit
+      }
+    };
+
+    this.logger?.debug(`Legacy similarity calculated: ${similarity.toFixed(3)} using ${strategy.name}`);
+    return result;
   }
 
   async calculateBatchSimilarity(

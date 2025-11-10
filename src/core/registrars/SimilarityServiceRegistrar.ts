@@ -5,6 +5,7 @@ import { SimilarityService } from '../../service/similarity/SimilarityService';
 import { SimilarityCacheManager } from '../../service/similarity/cache/SimilarityCacheManager';
 import { SimilarityPerformanceMonitor } from '../../service/similarity/monitoring/SimilarityPerformanceMonitor';
 import { SimilarityServiceInitializer } from '../../service/similarity/initializer/SimilarityServiceInitializer';
+import { SimilarityUtils } from '../../service/similarity/utils/SimilarityUtils';
 
 // 策略类
 import { LevenshteinSimilarityStrategy } from '../../service/similarity/strategies/LevenshteinSimilarityStrategy';
@@ -18,6 +19,12 @@ import { GenericBatchCalculator } from '../../service/similarity/batch/calculato
 import { SemanticOptimizedBatchCalculator } from '../../service/similarity/batch/calculators/SemanticOptimizedBatchCalculator';
 import { HybridOptimizedBatchCalculator } from '../../service/similarity/batch/calculators/HybridOptimizedBatchCalculator';
 import { AdaptiveBatchCalculator } from '../../service/similarity/batch/calculators/AdaptiveBatchCalculator';
+
+// 协调器组件
+import { SimilarityCoordinator } from '../../service/similarity/coordination/SimilarityCoordinator';
+import { ContentAnalyzer } from '../../service/similarity/coordination/ContentAnalyzer';
+import { ExecutionPlanGenerator } from '../../service/similarity/coordination/ExecutionPlanGenerator';
+import { ThresholdManager } from '../../service/similarity/coordination/ThresholdManager';
 
 /**
  * 相似度服务注册器
@@ -49,14 +56,36 @@ export class SimilarityServiceRegistrar {
             logger = undefined;
             cacheService = undefined;
           }
-          
+
           // 从配置中获取缓存TTL，如果没有则使用默认值
           const cacheTTL = process.env.SIMILARITY_CACHE_TTL
             ? parseInt(process.env.SIMILARITY_CACHE_TTL, 10)
             : 300000; // 5分钟
-          
+
           return new SimilarityCacheManager(logger, cacheService, cacheTTL);
         })
+        .inSingletonScope();
+
+      // 注册协调器组件
+      container.bind<ContentAnalyzer>('IContentAnalyzer')
+        .to(ContentAnalyzer)
+        .inSingletonScope();
+
+      container.bind<ExecutionPlanGenerator>('IExecutionPlanGenerator')
+        .to(ExecutionPlanGenerator)
+        .inSingletonScope();
+
+      container.bind<ThresholdManager>('IThresholdManager')
+        .to(ThresholdManager)
+        .inSingletonScope();
+
+      container.bind<SimilarityCoordinator>('ISimilarityCoordinator')
+        .to(SimilarityCoordinator)
+        .inSingletonScope();
+
+      // 注册相似度工具类
+      container.bind<SimilarityUtils>(TYPES.SimilarityUtils)
+        .to(SimilarityUtils)
         .inSingletonScope();
 
       // 注册相似度策略
@@ -85,19 +114,19 @@ export class SimilarityServiceRegistrar {
       container.bind<GenericBatchCalculator>(TYPES.GenericBatchCalculator)
         .to(GenericBatchCalculator)
         .inSingletonScope();
-        
+
       container.bind<SemanticOptimizedBatchCalculator>(TYPES.SemanticOptimizedBatchCalculator)
         .to(SemanticOptimizedBatchCalculator)
         .inSingletonScope();
-        
+
       container.bind<HybridOptimizedBatchCalculator>(TYPES.HybridOptimizedBatchCalculator)
         .to(HybridOptimizedBatchCalculator)
         .inSingletonScope();
-        
+
       container.bind<AdaptiveBatchCalculator>(TYPES.AdaptiveBatchCalculator)
         .to(AdaptiveBatchCalculator)
         .inSingletonScope();
-        
+
       container.bind<BatchCalculatorFactory>(TYPES.BatchCalculatorFactory)
         .to(BatchCalculatorFactory)
         .inSingletonScope();
@@ -178,6 +207,11 @@ export class SimilarityServiceRegistrar {
         {
           symbol: TYPES.SimilarityServiceInitializer,
           implementation: SimilarityServiceInitializer,
+          scope: 'Singleton'
+        },
+        {
+          symbol: TYPES.SimilarityUtils,
+          implementation: SimilarityUtils,
           scope: 'Singleton'
         },
         {

@@ -1,14 +1,15 @@
 import { inject, injectable } from 'inversify';
 import { BaseSimilarityStrategy } from './BaseSimilarityStrategy';
 import { SimilarityOptions, SimilarityStrategyType, AdvancedSimilarityOptions } from '../types/SimilarityTypes';
+import { StrategyCost } from '../coordination/types/CoordinationTypes';
 import { TYPES } from '../../../types';
 import { LevenshteinSimilarityStrategy } from './LevenshteinSimilarityStrategy';
 import { SemanticSimilarityStrategy } from './SemanticSimilarityStrategy';
 import { KeywordSimilarityStrategy } from './KeywordSimilarityStrategy';
 
 /**
- * 混合相似度策略
- * 结合多种相似度计算方法，提供更准确的结果
+ * 简化的混合相似度策略
+ * 仅负责纯计算功能，协调逻辑移至SimilarityCoordinator
  */
 @injectable()
 export class HybridSimilarityStrategy extends BaseSimilarityStrategy {
@@ -37,13 +38,13 @@ export class HybridSimilarityStrategy extends BaseSimilarityStrategy {
     
     // 并行计算各种相似度
     const [levenshteinSim, semanticSim, keywordSim] = await Promise.all([
-      this.calculateWithFallback(this.levenshteinStrategy, content1, content2, options),
-      this.calculateWithFallback(this.semanticStrategy, content1, content2, options),
-      this.calculateWithFallback(this.keywordStrategy, content1, content2, options)
+      this.calculateStrategy(this.levenshteinStrategy, content1, content2, options),
+      this.calculateStrategy(this.semanticStrategy, content1, content2, options),
+      this.calculateStrategy(this.keywordStrategy, content1, content2, options)
     ]);
 
     // 计算加权平均
-    const hybridSimilarity = 
+    const hybridSimilarity =
       (levenshteinSim * weights.content) +
       (semanticSim * weights.semantic) +
       (keywordSim * weights.keywords);
@@ -52,9 +53,9 @@ export class HybridSimilarityStrategy extends BaseSimilarityStrategy {
   }
 
   /**
-   * 带回退机制的相似度计算
+   * 计算单个策略的相似度
    */
-  private async calculateWithFallback(
+  private async calculateStrategy(
     strategy: BaseSimilarityStrategy,
     content1: string,
     content2: string,
@@ -68,23 +69,10 @@ export class HybridSimilarityStrategy extends BaseSimilarityStrategy {
       
       return await strategy.calculate(content1, content2, options);
     } catch (error) {
-      console.warn(`Strategy ${strategy.name} failed, using fallback:`, error);
-      // 如果策略失败，使用简单的字符重叠作为回退
-      return this.calculateSimpleOverlap(content1, content2);
+      // 如果策略失败，返回0而不是使用回退机制
+      // 回退机制现在由协调器处理
+      return 0;
     }
-  }
-
-  /**
-   * 简单的字符重叠计算（作为最后的回退）
-   */
-  private calculateSimpleOverlap(content1: string, content2: string): number {
-    const chars1 = new Set(content1.toLowerCase());
-    const chars2 = new Set(content2.toLowerCase());
-    
-    const intersection = new Set([...chars1].filter(char => chars2.has(char)));
-    const union = new Set([...chars1, ...chars2]);
-    
-    return union.size > 0 ? intersection.size / union.size : 0;
   }
 
   /**
@@ -108,8 +96,8 @@ export class HybridSimilarityStrategy extends BaseSimilarityStrategy {
 
     // 合并用户自定义权重
     const userWeights = options.weights;
-    const totalWeight = (userWeights.content || 0) + 
-                       (userWeights.semantic || 0) + 
+    const totalWeight = (userWeights.content || 0) +
+                       (userWeights.semantic || 0) +
                        (userWeights.keywords || 0);
 
     // 如果用户权重总和为0或无效，使用默认权重
@@ -126,108 +114,6 @@ export class HybridSimilarityStrategy extends BaseSimilarityStrategy {
   }
 
   /**
-   * 根据内容类型调整权重
-   */
-  private adjustWeightsByContentType(
-    weights: { content: number; semantic: number; keywords: number },
-    contentType?: string
-  ): { content: number; semantic: number; keywords: number } {
-    switch (contentType) {
-      case 'code':
-        // 代码更注重结构和关键词
-        return {
-          content: 0.3,
-          semantic: 0.3,
-          keywords: 0.4
-        };
-      
-      case 'document':
-        // 文档更注重语义
-        return {
-          content: 0.3,
-          semantic: 0.5,
-          keywords: 0.2
-        };
-      
-      default:
-        return weights;
-    }
-  }
-
-  /**
-   * 根据内容长度调整权重
-   */
-  private adjustWeightsByContentLength(
-    weights: { content: number; semantic: number; keywords: number },
-    content1: string,
-    content2: string
-  ): { content: number; semantic: number; keywords: number } {
-    const avgLength = (content1.length + content2.length) / 2;
-    
-    if (avgLength < 50) {
-      // 短内容更依赖关键词
-      return {
-        content: 0.2,
-        semantic: 0.2,
-        keywords: 0.6
-      };
-    } else if (avgLength > 500) {
-      // 长内容更依赖语义
-      return {
-        content: 0.3,
-        semantic: 0.5,
-        keywords: 0.2
-      };
-    }
-    
-    return weights;
-  }
-
-  /**
-   * 计算详细相似度分析（用于调试和优化）
-   */
-  async calculateDetailedSimilarity(
-    content1: string,
-    content2: string,
-    options?: AdvancedSimilarityOptions
-  ): Promise<{
-    overall: number;
-    details: {
-      levenshtein: number;
-      semantic: number;
-      keyword: number;
-      weights: {
-        content: number;
-        semantic: number;
-        keywords: number;
-      };
-    };
-  }> {
-    const weights = this.getWeights(options);
-    
-    const [levenshteinSim, semanticSim, keywordSim] = await Promise.all([
-      this.calculateWithFallback(this.levenshteinStrategy, content1, content2, options),
-      this.calculateWithFallback(this.semanticStrategy, content1, content2, options),
-      this.calculateWithFallback(this.keywordStrategy, content1, content2, options)
-    ]);
-
-    const overall = 
-      (levenshteinSim * weights.content) +
-      (semanticSim * weights.semantic) +
-      (keywordSim * weights.keywords);
-
-    return {
-      overall: this.normalizeScore(overall),
-      details: {
-        levenshtein: levenshteinSim,
-        semantic: semanticSim,
-        keyword: keywordSim,
-        weights
-      }
-    };
-  }
-
-  /**
    * 获取默认阈值
    */
   getDefaultThreshold(): number {
@@ -240,6 +126,42 @@ export class HybridSimilarityStrategy extends BaseSimilarityStrategy {
   isSupported(contentType: string, language?: string): boolean {
     // 混合策略支持所有类型，因为它会自动选择合适的子策略
     return true;
+  }
+
+  /**
+   * 获取策略成本信息
+   */
+  getStrategyCost(): StrategyCost {
+    return {
+      computational: 0.8,  // 高计算成本（包含多个策略）
+      memory: 0.6,         // 高内存使用
+      time: 800,           // 约800ms
+      total: 0.8
+    };
+  }
+
+  /**
+   * 预估执行时间（毫秒）
+   */
+  estimateExecutionTime(content1: string, content2: string): number {
+    const baseTime = this.getStrategyCost().time;
+    const avgLength = (content1.length + content2.length) / 2;
+    
+    // 混合策略的执行时间受内容长度影响较大
+    if (avgLength < 100) {
+      return baseTime * 0.5;
+    } else if (avgLength > 1000) {
+      return baseTime * 2.5;
+    }
+    
+    return baseTime;
+  }
+
+  /**
+   * 获取策略优先级
+   */
+  getPriority(): number {
+    return 3; // 混合策略优先级中等
   }
 
   /**

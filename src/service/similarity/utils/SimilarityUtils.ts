@@ -10,67 +10,91 @@ import { TYPES } from '../../../types';
 import { CodeChunk } from '../../parser/processing/types/CodeChunk';
 import { ContentHashIDGenerator } from '../../parser/processing/utils/ContentHashIDGenerator';
 import { ContentHashUtils } from '../../../utils/ContentHashUtils';
+import { ISimilarityCoordinator } from '../coordination/types/CoordinationTypes';
 
 /**
- * 相似度计算工具类（重构为全异步）
- * 提供统一的相似度计算方法，内部使用SimilarityService
+ * 相似度计算工具类（重构为实例化）
+ * 提供统一的相似度计算方法，内部使用SimilarityService和SimilarityCoordinator
  */
 @injectable()
 export class SimilarityUtils {
-  private static similarityService?: ISimilarityService;
-
-  /**
-   * 注入服务实例（在应用启动时调用）
-   */
-  static setService(service: ISimilarityService): void {
-    this.similarityService = service;
+  private static instance: SimilarityUtils | null = null;
+  
+  constructor(
+    @inject(TYPES.SimilarityService) private similarityService: ISimilarityService,
+    @inject('ISimilarityCoordinator') private coordinator?: ISimilarityCoordinator
+  ) {
+    // 设置静态实例以支持向后兼容
+    SimilarityUtils.instance = this;
   }
 
   /**
-   * 获取服务实例
+   * 设置服务实例（静态方法，用于向后兼容）
    */
-  private static getService(): ISimilarityService {
-    if (!this.similarityService) {
-      throw new SimilarityError(
-        'SimilarityService not initialized. Call setService() first.',
-        'SERVICE_NOT_INITIALIZED'
-      );
+  static setService(similarityService: ISimilarityService): void {
+    // 注意：这个方法是为了向后兼容，但在DI环境中不应该使用
+    // 实际使用时应该通过DI容器获取实例
+    console.warn('SimilarityUtils.setService() is deprecated. Use dependency injection instead.');
+    if (SimilarityUtils.instance) {
+      (SimilarityUtils.instance as any).similarityService = similarityService;
     }
-    return this.similarityService;
+  }
+
+  /**
+   * 清理资源（静态方法，用于向后兼容）
+   */
+  static cleanup(): void {
+    // 注意：这个方法是为了向后兼容
+    console.warn('SimilarityUtils.cleanup() is deprecated. Use dependency injection instead.');
+    SimilarityUtils.instance = null;
+  }
+
+  /**
+   * 获取实例（静态方法，用于向后兼容）
+   */
+  static getInstance(): SimilarityUtils | null {
+    return SimilarityUtils.instance;
+  }
+
+  /**
+   * 设置实例（静态方法，用于向后兼容）
+   */
+  static setInstance(instance: SimilarityUtils): void {
+    SimilarityUtils.instance = instance;
   }
 
   /**
    * 计算两个代码片段的相似度（0-1之间）
    */
-  static async calculateSimilarity(
+  async calculateSimilarity(
     content1: string,
     content2: string,
     options?: SimilarityOptions
   ): Promise<number> {
-    const result = await this.getService().calculateSimilarity(content1, content2, options);
+    const result = await this.similarityService.calculateSimilarity(content1, content2, options);
     return result.similarity;
   }
 
   /**
    * 检查两个代码片段是否相似（基于阈值）
    */
-  static async isSimilar(
+  async isSimilar(
     content1: string,
     content2: string,
     threshold: number = 0.8,
     options?: SimilarityOptions
   ): Promise<boolean> {
-    return await this.getService().isSimilar(content1, content2, threshold, options);
+    return await this.similarityService.isSimilar(content1, content2, threshold, options);
   }
 
   /**
    * 批量相似度计算
    */
-  static async calculateBatchSimilarity(
+  async calculateBatchSimilarity(
     contents: string[],
     options?: SimilarityOptions
   ): Promise<number[][]> {
-    const result = await this.getService().calculateBatchSimilarity(contents, options);
+    const result = await this.similarityService.calculateBatchSimilarity(contents, options);
     return result.matrix;
   }
 
@@ -115,7 +139,7 @@ export class SimilarityUtils {
   /**
    * 检查两个块是否可以合并
    */
-  static async canMergeChunks(
+  async canMergeChunks(
     chunk1: CodeChunk,
     chunk2: CodeChunk,
     similarityThreshold: number
@@ -144,7 +168,7 @@ export class SimilarityUtils {
   /**
    * 智能重叠控制 - 检查新的重叠块是否与已有块过于相似
    */
-  static async shouldCreateOverlap(
+  async shouldCreateOverlap(
     newChunk: CodeChunk,
     existingChunks: CodeChunk[],
     similarityThreshold: number
@@ -174,36 +198,36 @@ export class SimilarityUtils {
   /**
    * 从代码块列表中过滤掉相似的块
    */
-  static async filterSimilarChunks<T extends { content: string; id?: string }>(
+  async filterSimilarChunks<T extends { content: string; id?: string }>(
     chunks: T[],
     threshold?: number,
     options?: SimilarityOptions
   ): Promise<T[]> {
-    return await this.getService().filterSimilarItems(chunks, threshold, options);
+    return await this.similarityService.filterSimilarItems(chunks, threshold, options);
   }
 
   /**
    * 查找相似块组
    */
-  static async findSimilarityGroups<T extends { content: string; id?: string }>(
+  async findSimilarityGroups<T extends { content: string; id?: string }>(
     chunks: T[],
     threshold?: number,
     options?: SimilarityOptions
   ): Promise<Map<string, T[]>> {
-    return await this.getService().findSimilarityGroups(chunks, threshold, options);
+    return await this.similarityService.findSimilarityGroups(chunks, threshold, options);
   }
 
   /**
    * 计算代码块的相似度矩阵
    */
-  static async calculateSimilarityMatrix(contents: string[]): Promise<number[][]> {
+  async calculateSimilarityMatrix(contents: string[]): Promise<number[][]> {
     return await this.calculateBatchSimilarity(contents);
   }
 
   /**
    * 高级相似度计算（包含多种策略）
    */
-  static async calculateAdvancedSimilarity(
+  async calculateAdvancedSimilarity(
     content1: string,
     content2: string,
     options: SimilarityOptions & {
@@ -218,19 +242,13 @@ export class SimilarityUtils {
       };
     }
   ): Promise<SimilarityResult> {
-    return await this.getService().calculateAdvancedSimilarity(content1, content2, options);
+    return await this.similarityService.calculateAdvancedSimilarity(content1, content2, options);
   }
-
-
 
   /**
    * 获取可用策略列表
    */
-  static getAvailableStrategies(): string[] {
-    if (!this.similarityService) {
-      return [];
-    }
-
+  getAvailableStrategies(): string[] {
     // 假设SimilarityService有这个方法
     if ('getAvailableStrategies' in this.similarityService) {
       return (this.similarityService as any).getAvailableStrategies();
@@ -240,9 +258,29 @@ export class SimilarityUtils {
   }
 
   /**
-   * 清理资源
+   * 获取协调器统计信息
    */
-  static cleanup(): void {
-    this.similarityService = undefined;
+  getCoordinatorStats(): any {
+    if (this.coordinator) {
+      return this.coordinator.getCoordinatorStats();
+    }
+    return null;
+  }
+
+  /**
+   * 生成执行计划
+   */
+  async generateExecutionPlan(
+    content1: string,
+    content2: string,
+    options?: SimilarityOptions
+  ): Promise<any> {
+    if (this.coordinator) {
+      return await this.coordinator.generateExecutionPlan(content1, content2, options);
+    }
+    throw new SimilarityError(
+      'Coordinator not available for execution plan generation',
+      'COORDINATOR_NOT_AVAILABLE'
+    );
   }
 }
