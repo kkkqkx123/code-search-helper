@@ -39,7 +39,7 @@
 批处理基础设施在整个代码库中集成良好：
 
 - **索引服务**：通过 `PerformanceOptimizerService` 在 `IndexService.ts` 和 `IndexingLogicService.ts` 中使用
-- **图服务**：通过 `IBatchOptimizer` 接口在 `GraphTransactionService.ts` 中集成
+- **图服务**：通过 `IBatchOptimizer` 接口在图服务中集成
 - **数据库操作**：应用于图数据库操作和 Qdrant 操作
 - **测试**：在 `__tests__` 子目录中有专门的单元测试
 - **依赖注入**：通过 `BusinessServiceRegistrar.ts` 正确注册到 DI 容器中
@@ -72,7 +72,7 @@
 ### 2.3 集成状态
 缓存基础设施在整个代码库中集成良好：
 
-- **图服务**：在 `GraphSearchServiceNew.ts`、`GraphDataService.ts`、`GraphAnalysisService.ts` 和 `GraphTransactionService.ts` 中使用
+- **图服务**：在 `GraphSearchServiceNew.ts`、`GraphDataService.ts` 和 `GraphAnalysisService.ts` 中使用
 - **嵌入服务**：嵌入模块中的 `EmbeddingCacheService` 使用了类似模式
 - **API 路由**：在 `GraphStatsRoutes.ts` 中用于缓存统计
 - **测试**：在各种集成测试中被使用
