@@ -44,7 +44,7 @@ import { createCache, LRUCache } from '../../../../utils/cache';
 
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { DefaultLanguageAdapter } from './adapters/DefaultLanguageAdapter';
-import { HashUtils } from '../../../../utils/HashUtils';
+import { HashUtils } from '../../../../utils/cache/HashUtils';
 
 /**
  * 增强的查询结果标准化器

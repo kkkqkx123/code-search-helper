@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { GraphNode, GraphRelationship } from '../mapping/IGraphDataMappingService';
-import { LRUCache, CacheStats } from '../../../utils/LRUCache';
+import { LRUCache, CacheStats } from '../../../utils/cache/LRUCache';
 
 export interface GraphCacheStats extends CacheStats {
   hitRate: number;

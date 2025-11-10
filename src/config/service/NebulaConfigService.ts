@@ -4,7 +4,7 @@ import { BaseConfigService } from './BaseConfigService';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
-import { HashUtils } from '../../utils/HashUtils';
+import { HashUtils } from '../../utils/cache/HashUtils';
 import { ProjectPathMappingService } from '../../database/ProjectPathMappingService';
 
 export interface NebulaConfig {
@@ -140,10 +140,10 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
 
       // 2. 使用项目隔离的动态命名，确保符合命名规范
       const dynamicName = HashUtils.generateSafeProjectName(
-        projectId, 
-        'project', 
-        63, 
-        true, 
+        projectId,
+        'project',
+        63,
+        true,
         this.projectPathMappingService
       );
 

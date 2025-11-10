@@ -1,10 +1,10 @@
 // 缓存工具模块导出
-export { LRUCache, CacheOptions, CacheStats } from '../LRUCache';
+export { LRUCache, CacheOptions, CacheStats } from './LRUCache';
 export { MemoryAwareCache, MemoryOptions } from './MemoryAwareCache';
 export { StatsDecorator, DetailedStats } from './StatsDecorator';
 
 // 导入所需的类以在工厂函数中使用
-import { LRUCache } from '../LRUCache';
+import { LRUCache } from './LRUCache';
 import { MemoryAwareCache } from './MemoryAwareCache';
 import { StatsDecorator } from './StatsDecorator';
 

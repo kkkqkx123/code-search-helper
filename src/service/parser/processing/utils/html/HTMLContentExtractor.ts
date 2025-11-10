@@ -6,7 +6,7 @@ import {
   ScriptBlock,
   StyleBlock
 } from './LayeredHTMLConfig';
-import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../../../utils/cache/ContentHashUtils';
 
 /**
  * HTML内容提取器
@@ -25,7 +25,7 @@ export class HTMLContentExtractor implements IHTMLContentExtractor {
    */
   extractScripts(content: string): ScriptBlock[] {
     const scriptBlocks: ScriptBlock[] = [];
-    
+
     // 使用正则表达式匹配script标签
     const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
     let match;
@@ -78,7 +78,7 @@ export class HTMLContentExtractor implements IHTMLContentExtractor {
    */
   extractStyles(content: string): StyleBlock[] {
     const styleBlocks: StyleBlock[] = [];
-    
+
     // 使用正则表达式匹配style标签
     const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
     let match;
@@ -134,7 +134,7 @@ export class HTMLContentExtractor implements IHTMLContentExtractor {
     const typeMatch = scriptTag.match(/type=["']([^"']+)["']/i);
     if (typeMatch) {
       const type = typeMatch[1].toLowerCase();
-      
+
       if (type.includes('javascript') || type.includes('babel')) {
         return 'javascript';
       }
@@ -188,7 +188,7 @@ export class HTMLContentExtractor implements IHTMLContentExtractor {
     const typeMatch = styleTag.match(/type=["']([^"']+)["']/i);
     if (typeMatch) {
       const type = typeMatch[1].toLowerCase();
-      
+
       if (type.includes('scss')) {
         return 'scss';
       }
@@ -236,7 +236,7 @@ export class HTMLContentExtractor implements IHTMLContentExtractor {
     const lines = beforeOffset.split('\n');
     const line = lines.length;
     const column = lines[lines.length - 1].length + 1;
-    
+
     return { line, column };
   }
 

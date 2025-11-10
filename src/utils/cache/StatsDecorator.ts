@@ -1,4 +1,4 @@
-import { LRUCache, CacheStats } from '../LRUCache';
+import { LRUCache, CacheStats } from './LRUCache';
 
 export interface DetailedStats extends CacheStats {
   gets: number;
@@ -74,7 +74,7 @@ export class StatsDecorator<K, V> {
   getStats(): DetailedStats {
     const baseStats = this.cache.getStats?.() || { hits: 0, misses: 0, evictions: 0, sets: 0, size: 0, memoryUsage: 0 };
     const totalGets = this.stats.gets;
-    
+
     return {
       ...baseStats,
       ...this.stats,

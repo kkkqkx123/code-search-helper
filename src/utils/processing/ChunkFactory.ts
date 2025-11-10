@@ -5,7 +5,7 @@
 
 import { CodeChunk, ChunkType, ChunkMetadata, CodeChunkBuilder } from '../../service/parser/processing/types/CodeChunk';
 import { ComplexityCalculator, ComplexityResult } from './ComplexityCalculator';
-import { ContentHashUtils } from '../ContentHashUtils';
+import { ContentHashUtils } from '../cache/ContentHashUtils';
 
 /**
  * 代码块创建配置接口
@@ -307,7 +307,7 @@ export class ChunkFactory {
     }>,
     config: ChunkCreationConfig = {}
   ): CodeChunk[] {
-    return chunksData.map(data => 
+    return chunksData.map(data =>
       this.createCodeChunk(
         data.content,
         data.startLine,

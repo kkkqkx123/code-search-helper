@@ -9,7 +9,7 @@ import {
 import { TYPES } from '../../../types';
 import { CodeChunk } from '../../parser/processing/types/CodeChunk';
 import { ContentHashIDGenerator } from '../../parser/processing/utils/ContentHashIDGenerator';
-import { ContentHashUtils } from '../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../utils/cache/ContentHashUtils';
 import { ISimilarityCoordinator } from '../coordination/types/CoordinationTypes';
 
 /**
@@ -18,50 +18,10 @@ import { ISimilarityCoordinator } from '../coordination/types/CoordinationTypes'
  */
 @injectable()
 export class SimilarityUtils {
-  private static instance: SimilarityUtils | null = null;
-  
   constructor(
     @inject(TYPES.SimilarityService) private similarityService: ISimilarityService,
     @inject('ISimilarityCoordinator') private coordinator?: ISimilarityCoordinator
-  ) {
-    // 设置静态实例以支持向后兼容
-    SimilarityUtils.instance = this;
-  }
-
-  /**
-   * 设置服务实例（静态方法，用于向后兼容）
-   */
-  static setService(similarityService: ISimilarityService): void {
-    // 注意：这个方法是为了向后兼容，但在DI环境中不应该使用
-    // 实际使用时应该通过DI容器获取实例
-    console.warn('SimilarityUtils.setService() is deprecated. Use dependency injection instead.');
-    if (SimilarityUtils.instance) {
-      (SimilarityUtils.instance as any).similarityService = similarityService;
-    }
-  }
-
-  /**
-   * 清理资源（静态方法，用于向后兼容）
-   */
-  static cleanup(): void {
-    // 注意：这个方法是为了向后兼容
-    console.warn('SimilarityUtils.cleanup() is deprecated. Use dependency injection instead.');
-    SimilarityUtils.instance = null;
-  }
-
-  /**
-   * 获取实例（静态方法，用于向后兼容）
-   */
-  static getInstance(): SimilarityUtils | null {
-    return SimilarityUtils.instance;
-  }
-
-  /**
-   * 设置实例（静态方法，用于向后兼容）
-   */
-  static setInstance(instance: SimilarityUtils): void {
-    SimilarityUtils.instance = instance;
-  }
+  ) {}
 
   /**
    * 计算两个代码片段的相似度（0-1之间）

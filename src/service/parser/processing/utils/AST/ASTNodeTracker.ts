@@ -29,13 +29,16 @@ export class ASTNodeTracker {
   private enableContentHashing: boolean;
   private similarityThreshold: number;
   private logger?: LoggerService;
+  private similarityUtils: SimilarityUtils;
 
   constructor(
+    similarityUtils: SimilarityUtils,
     maxCacheSize: number = 10000,
     enableContentHashing: boolean = true,
     similarityThreshold: number = 0.8,
     logger?: LoggerService
   ) {
+    this.similarityUtils = similarityUtils;
     this.maxCacheSize = maxCacheSize;
     this.cacheEvictionThreshold = Math.floor(maxCacheSize * 0.8);
     this.enableContentHashing = enableContentHashing;
@@ -110,11 +113,7 @@ export class ASTNodeTracker {
       for (const existingNodeId of similarNodes) {
         const existingNode = this.nodeCache.get(existingNodeId);
         if (existingNode && this.usedNodes.has(existingNodeId)) {
-          const similarityUtils = SimilarityUtils.getInstance();
-          if (!similarityUtils) {
-            throw new Error('SimilarityUtils instance not available. Please ensure it has been properly initialized.');
-          }
-          const isSimilar = await similarityUtils.isSimilar(node.text, existingNode.text, this.similarityThreshold);
+          const isSimilar = await this.similarityUtils.isSimilar(node.text, existingNode.text, this.similarityThreshold);
           if (isSimilar) {
             return true;
           }

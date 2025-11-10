@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { LRUCache } from '../../../../utils/LRUCache';
+import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { QueryRegistry, QueryRegistryImpl } from './QueryRegistry';
 import { QueryLoader } from './QueryLoader';

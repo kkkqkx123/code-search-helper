@@ -109,22 +109,9 @@ describe('SimilarityUtils', () => {
   });
 
   afterEach(() => {
-    SimilarityUtils.cleanup();
+    // Cleanup is no longer needed as we're using DI
   });
 
-  describe('setService and getInstance', () => {
-    it('should set and get the service correctly', () => {
-      SimilarityUtils.setService(mockService);
-      // We can't directly access private getService, but we can test that the service is set by calling other methods
-      expect(() => SimilarityUtils.cleanup()).not.toThrow();
-    });
-
-    it('should handle uninitialized service correctly', () => {
-      SimilarityUtils.cleanup();
-      // Test that instance is null after cleanup
-      expect(SimilarityUtils.getInstance()).toBeNull();
-    });
-  });
 
   describe('calculateSimilarity', () => {
     it('should calculate similarity between two contents', async () => {
@@ -510,20 +497,12 @@ describe('SimilarityUtils', () => {
       expect(strategies).toHaveLength(0);
     });
 
-    it('should return empty array when service is not initialized', () => {
-      SimilarityUtils.cleanup();
+    it('should return empty array when service is available', () => {
+      // Since our mock doesn't implement getAvailableStrategies, this should return empty array
       const strategies = similarityUtils.getAvailableStrategies();
       expect(Array.isArray(strategies)).toBe(true);
       expect(strategies).toHaveLength(0);
     });
   });
 
-  describe('cleanup', () => {
-    it('should cleanup the service', () => {
-      SimilarityUtils.setService(mockService);
-      SimilarityUtils.cleanup();
-      // After cleanup, instance should be null
-      expect(SimilarityUtils.getInstance()).toBeNull();
-    });
-  });
 });

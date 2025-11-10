@@ -12,7 +12,7 @@ describe('LRUCache TTL Test', () => {
 
     console.log('Setting value with 50ms TTL...');
     cache.set(key, value, 50);
-    
+
     // Check the entry directly
     const entry = (cache as any).cache.get(key);
     console.log('Entry after set:', {
@@ -22,7 +22,7 @@ describe('LRUCache TTL Test', () => {
       timeDiff: Date.now() - entry?.timestamp,
       willExpire: entry?.ttl ? (Date.now() - entry?.timestamp > entry?.ttl) : 'no ttl'
     });
-    
+
     // Should be available immediately
     const immediateResult = cache.get(key);
     console.log('Immediate result:', immediateResult);
@@ -31,7 +31,7 @@ describe('LRUCache TTL Test', () => {
     // Wait for expiration
     console.log('Waiting for expiration...');
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // Check the entry again
     const expiredEntry = (cache as any).cache.get(key);
     console.log('Entry after wait:', {
@@ -41,7 +41,7 @@ describe('LRUCache TTL Test', () => {
       timeDiff: Date.now() - expiredEntry?.timestamp,
       willExpire: expiredEntry?.ttl ? (Date.now() - expiredEntry?.timestamp > expiredEntry?.ttl) : 'no ttl'
     });
-    
+
     // Should be expired now
     const expiredResult = cache.get(key);
     console.log('Expired result:', expiredResult);

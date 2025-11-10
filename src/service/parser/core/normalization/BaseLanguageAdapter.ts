@@ -7,10 +7,10 @@ import { ILanguageAdapter, StandardizedQueryResult } from './types';
 import { ExtensibleMetadata } from './types/ExtensibleMetadata';
 type StandardType = StandardizedQueryResult['type'];
 import { LoggerService } from '../../../../utils/LoggerService';
-import { LRUCache } from '../../../../utils/LRUCache';
+import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { MetadataBuilder } from './utils/MetadataBuilder';
-import { ContentHashUtils } from '../../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../../utils/cache/ContentHashUtils';
 
 /**
  * 适配器选项接口
@@ -178,10 +178,10 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   protected createStandardizedResult(result: any, queryType: string, language: string): StandardizedQueryResult {
     const astNode = result.captures?.[0]?.node;
     const nodeId = astNode ? `${astNode.type}:${astNode.startPosition.row}:${astNode.startPosition.column}` : `fallback_${Date.now()}`;
-    
+
     // Use MetadataBuilder to create enhanced metadata
     const metadataBuilder = this.createMetadataBuilder(result, language);
-    
+
     return {
       nodeId,
       type: this.mapQueryTypeToStandardType(queryType),
@@ -212,7 +212,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
       .setCodeSnippet(this.extractContent(result));
 
     const languageSpecificMetadata = this.extractLanguageSpecificMetadata(result);
-    
+
     // Add language-specific metadata as custom fields
     builder.addCustomFields(languageSpecificMetadata);
 
@@ -246,7 +246,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
       .addModifiers(this.extractModifiers(result));
 
     const languageSpecificMetadata = this.extractLanguageSpecificMetadata(result);
-    
+
     // Add language-specific metadata as custom fields
     builder.addCustomFields(languageSpecificMetadata);
 
@@ -312,10 +312,10 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     // Use MetadataBuilder to properly merge metadata
     const existingBuilder = MetadataBuilder.fromComplete(existing.metadata);
     const newBuilder = MetadataBuilder.fromComplete(newResult.metadata);
-    
+
     // Merge the metadata using the builder's merge method
     existingBuilder.merge(newBuilder);
-    
+
     // Update the existing result with merged metadata
     existing.metadata = existingBuilder.build();
   }
@@ -522,10 +522,10 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     return this.simpleHash(content);
   }
 
-   /**
-    * 简单哈希函数
-    */
-   protected simpleHash(str: string): string {
+  /**
+   * 简单哈希函数
+   */
+  protected simpleHash(str: string): string {
     return ContentHashUtils.generateContentHash(str);
   }
 
@@ -575,25 +575,25 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     target: string;
     type: 'assignment' | 'parameter' | 'return';
   }>;
-  
+
   extractControlFlowRelationships?(result: any): Array<{
     source: string;
     target: string;
     type: 'conditional' | 'loop' | 'exception' | 'callback';
   }>;
-  
+
   extractSemanticRelationships?(result: any): Array<{
     source: string;
     target: string;
     type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
   }>;
-  
+
   extractLifecycleRelationships?(result: any): Array<{
     source: string;
     target: string;
     type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
   }>;
-  
+
   extractConcurrencyRelationships?(result: any): Array<{
     source: string;
     target: string;

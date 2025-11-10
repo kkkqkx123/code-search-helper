@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { CacheKeyUtils } from '../../../../utils/CacheKeyUtils';
+import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';
 
 /**
  * 统一的缓存键生成器
@@ -69,7 +69,7 @@ export class CacheKeyGenerator {
     if (!ast) {
       return 'invalid-ast';
     }
-    
+
     // 如果AST有稳定标识符，优先使用
     if ((ast as any)._stableId) {
       return (ast as any)._stableId;
@@ -79,7 +79,7 @@ export class CacheKeyGenerator {
     const text = ast.text || '';
     const structure = this.extractNodeStructure(ast);
     const combined = `${ast.type}:${text.length}:${structure}`;
-    
+
     // 简单哈希算法
     let hash = 0;
     for (let i = 0; i < combined.length; i++) {
@@ -99,13 +99,13 @@ export class CacheKeyGenerator {
    */
   private static extractNodeStructure(node: Parser.SyntaxNode, depth: number = 0, maxDepth: number = 3): string {
     if (depth > maxDepth) return '...';
-    
+
     let structure = `${node.type}[${node.childCount}]`;
     if (node.childCount > 0 && depth < maxDepth) {
       const childTypes = Array.from(node.children).slice(0, 5).map(child => child.type);
       structure += `(${childTypes.join(',')})`;
     }
-    
+
     return structure;
   }
 
@@ -121,7 +121,7 @@ export class CacheKeyGenerator {
       this.BATCH_QUERY_PREFIX,
       this.AST_PREFIX
     ];
-    
+
     return validPrefixes.some(prefix => cacheKey.startsWith(prefix));
   }
 
@@ -139,7 +139,7 @@ export class CacheKeyGenerator {
     if (parts.length >= 3) {
       return parts[2]; // 第三部分是查询类型
     }
-    
+
     return null;
   }
 
@@ -157,7 +157,7 @@ export class CacheKeyGenerator {
     if (parts.length >= 4) {
       return parts[3]; // 第四部分是语言
     }
-    
+
     return null;
   }
 }

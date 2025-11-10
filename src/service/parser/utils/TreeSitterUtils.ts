@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { ContentHashUtils } from '../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../utils/cache/ContentHashUtils';
 
 /**
  * TreeSitter 基础工具类

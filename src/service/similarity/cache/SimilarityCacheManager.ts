@@ -3,7 +3,7 @@ import { ISimilarityCacheManager } from '../types/SimilarityTypes';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { CacheService } from '../../../infrastructure/caching/CacheService';
-import { HashUtils } from '../../../utils/HashUtils';
+import { HashUtils } from '../../../utils/cache/HashUtils';
 
 /**
  * 相似度缓存管理器
@@ -32,9 +32,9 @@ export class SimilarityCacheManager implements ISimilarityCacheManager {
       if (!this.cacheService) {
         return null;
       }
-      
+
       const value = this.cacheService.getFromCache<number>(`similarity:${key}`);
-      
+
       if (value !== undefined) {
         this.stats.hits++;
         this.logger?.debug(`Cache hit for similarity key: ${key}`);
@@ -56,7 +56,7 @@ export class SimilarityCacheManager implements ISimilarityCacheManager {
       if (!this.cacheService) {
         return;
       }
-      
+
       this.cacheService.setCache(`similarity:${key}`, value, ttl || this.defaultTTL);
       this.stats.sets++;
       this.logger?.debug(`Similarity cache set for key: ${key}, value: ${value}`);
@@ -70,7 +70,7 @@ export class SimilarityCacheManager implements ISimilarityCacheManager {
       if (!this.cacheService) {
         return;
       }
-      
+
       this.cacheService.deleteFromCache(`similarity:${key}`);
       this.logger?.debug(`Similarity cache delete for key: ${key}`);
     } catch (error) {
@@ -83,7 +83,7 @@ export class SimilarityCacheManager implements ISimilarityCacheManager {
       if (!this.cacheService) {
         return;
       }
-      
+
       // 只清除相似度相关的缓存项
       const deletedCount = this.cacheService.deleteByPattern(/^similarity:/);
       this.stats = { hits: 0, misses: 0, sets: 0 };
@@ -105,10 +105,10 @@ export class SimilarityCacheManager implements ISimilarityCacheManager {
         size: 0
       };
     }
-    
+
     const cacheStats = this.cacheService.getCacheStats();
     const similarityKeys = this.cacheService.getKeysByPattern(/^similarity:/);
-    
+
     return {
       hits: this.stats.hits,
       misses: this.stats.misses,
@@ -129,7 +129,7 @@ export class SimilarityCacheManager implements ISimilarityCacheManager {
     const hash1 = this.simpleHash(content1);
     const hash2 = this.simpleHash(content2);
     const optionsHash = options ? this.simpleHash(JSON.stringify(options)) : '';
-    
+
     return `${strategy}:${hash1}:${hash2}:${optionsHash}`;
   }
 

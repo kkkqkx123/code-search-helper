@@ -1,16 +1,11 @@
 import { SimilarityServiceInitializer } from '../SimilarityServiceInitializer';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ISimilarityService, SimilarityResult, SimilarityStrategyType } from '../../types/SimilarityTypes';
-import { SimilarityUtils } from '../../utils/SimilarityUtils';
 import { SimilarityDetector } from '../../utils/SimilarityDetector';
 
 // Mock LoggerService
 jest.mock('../../../../utils/LoggerService');
-const MockLoggerService = LoggerService as jest.MockedClass<typeof LoggerService>;
 
-// Mock SimilarityUtils
-jest.mock('../../utils/SimilarityUtils');
-const MockSimilarityUtils = SimilarityUtils as jest.Mocked<typeof SimilarityUtils>;
 
 // Mock SimilarityDetector
 jest.mock('../../utils/SimilarityDetector');
@@ -131,7 +126,6 @@ describe('SimilarityServiceInitializer', () => {
     it('should initialize similarity service successfully', async () => {
       await initializer.initialize();
 
-      expect(MockSimilarityUtils.setService).toHaveBeenCalledWith(mockSimilarityService);
       expect(MockSimilarityDetector.setService).toHaveBeenCalledWith(mockSimilarityService);
       expect(mockLogger.info).toHaveBeenCalledWith('Initializing similarity service...');
       expect(mockLogger.info).toHaveBeenCalledWith('Similarity service initialized successfully');
@@ -139,7 +133,7 @@ describe('SimilarityServiceInitializer', () => {
 
     it('should handle initialization errors', async () => {
       const error = new Error('Initialization failed');
-      MockSimilarityUtils.setService.mockImplementation(() => {
+      MockSimilarityDetector.setService.mockImplementation(() => {
         throw error;
       });
 
@@ -152,7 +146,6 @@ describe('SimilarityServiceInitializer', () => {
     it('should cleanup similarity service successfully', async () => {
       await initializer.cleanup();
 
-      expect(MockSimilarityUtils.cleanup).toHaveBeenCalled();
       expect(MockSimilarityDetector.cleanup).toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith('Cleaning up similarity service...');
       expect(mockLogger.info).toHaveBeenCalledWith('Similarity service cleaned up successfully');
@@ -160,7 +153,7 @@ describe('SimilarityServiceInitializer', () => {
 
     it('should handle cleanup errors', async () => {
       const error = new Error('Cleanup failed');
-      MockSimilarityUtils.cleanup.mockImplementation(() => {
+      MockSimilarityDetector.cleanup.mockImplementation(() => {
         throw error;
       });
 
@@ -339,8 +332,6 @@ describe('SimilarityServiceInitializer', () => {
   describe('integration tests', () => {
     beforeEach(() => {
       // Reset mock implementations for integration tests
-      MockSimilarityUtils.setService.mockImplementation(() => {});
-      MockSimilarityUtils.cleanup.mockImplementation(() => {});
       MockSimilarityDetector.setService.mockImplementation(() => {});
       MockSimilarityDetector.cleanup.mockImplementation(() => {});
     });
@@ -348,7 +339,6 @@ describe('SimilarityServiceInitializer', () => {
     it('should handle complete lifecycle', async () => {
       // Initialize
       await initializer.initialize();
-      expect(MockSimilarityUtils.setService).toHaveBeenCalled();
       expect(MockSimilarityDetector.setService).toHaveBeenCalled();
 
       // Check status
@@ -361,7 +351,6 @@ describe('SimilarityServiceInitializer', () => {
 
       // Cleanup
       await initializer.cleanup();
-      expect(MockSimilarityUtils.cleanup).toHaveBeenCalled();
       expect(MockSimilarityDetector.cleanup).toHaveBeenCalled();
     });
 
@@ -369,7 +358,6 @@ describe('SimilarityServiceInitializer', () => {
       await initializer.initialize();
       await initializer.initialize();
 
-      expect(MockSimilarityUtils.setService).toHaveBeenCalledTimes(2);
       expect(MockSimilarityDetector.setService).toHaveBeenCalledTimes(2);
     });
 
@@ -377,7 +365,6 @@ describe('SimilarityServiceInitializer', () => {
       await initializer.cleanup();
       await initializer.cleanup();
 
-      expect(MockSimilarityUtils.cleanup).toHaveBeenCalledTimes(2);
       expect(MockSimilarityDetector.cleanup).toHaveBeenCalledTimes(2);
     });
   });
@@ -385,8 +372,6 @@ describe('SimilarityServiceInitializer', () => {
   describe('edge cases', () => {
     beforeEach(() => {
       // Reset mock implementations for edge case tests
-      MockSimilarityUtils.setService.mockImplementation(() => {});
-      MockSimilarityUtils.cleanup.mockImplementation(() => {});
       MockSimilarityDetector.setService.mockImplementation(() => {});
       MockSimilarityDetector.cleanup.mockImplementation(() => {});
     });

@@ -89,7 +89,7 @@ describe('HashUtils', () => {
       const start = performance.now();
       const hash = HashUtils.simpleHash(largeString);
       const end = performance.now();
-      
+
       expect(typeof hash).toBe('string');
       expect(end - start).toBeLessThan(100); // Should complete in under 100ms
     });

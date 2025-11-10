@@ -1,7 +1,7 @@
 import { StandardizedQueryResult, IEnhancedHtmlLanguageAdapter } from '../types';
 import { ScriptBlock, StyleBlock } from '../../../processing/utils/html/LayeredHTMLConfig';
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../../../utils/cache/ContentHashUtils';
 type StandardType = StandardizedQueryResult['type'];
 
 /**

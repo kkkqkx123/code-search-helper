@@ -6,7 +6,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { EnvironmentUtils } from '../utils/EnvironmentUtils';
 import { ValidationUtils } from '../utils/ValidationUtils';
-import { HashUtils } from '../../utils/HashUtils';
+import { HashUtils } from '../../utils/cache/HashUtils';
 import { ProjectPathMappingService } from '../../database/ProjectPathMappingService';
 
 export interface QdrantConfig {
@@ -67,7 +67,7 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
         }
         return explicitName;
       }
-      
+
       // 默认使用项目隔离的动态命名（在实际使用时确定）
       return 'code-snippets'; // 占位符，实际使用时会被替换
     } catch (error) {
@@ -79,7 +79,7 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
       return 'code-snippets';
     }
   }
-  
+
   /**
    * 验证命名约定是否符合数据库要求
    *
@@ -91,11 +91,11 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
       // 验证命名符合数据库约束
       const pattern = /^[a-zA-Z0-9_-]{1,63}$/;
       const isValid = pattern.test(name) && !name.startsWith('_');
-      
+
       if (!isValid) {
         this.logger.warn(`Invalid naming convention detected: "${name}" does not match pattern ${pattern}`);
       }
-      
+
       return isValid;
     } catch (error) {
       this.errorHandler.handleError(
@@ -105,51 +105,51 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
       return false;
     }
   }
-  
- /**
-  * 获取集合名称，支持显式配置或动态生成（供外部使用）
-  *
-  * @param projectId 项目ID，用于生成动态集合名称
-  * @returns 对应的集合名称，优先使用显式环境配置，否则使用项目隔离的动态命名
-  * @throws 如果生成的名称不符合命名约定，则抛出错误
-  */
-getCollectionNameForProject(projectId: string): string {
-   try {
-     // 1. 检查显式环境配置
-     const explicitName = process.env.QDRANT_COLLECTION;
-     if (explicitName && explicitName !== 'code-snippets') {
-       this.logger.warn('Using explicit QDRANT_COLLECTION configuration, which may override project isolation');
-       // 验证显式配置的命名是否符合规范
-       if (!this.validateNamingConvention(explicitName)) {
-         this.logger.error(`Explicit QDRANT_COLLECTION name "${explicitName}" does not follow naming conventions, this may cause issues.`);
-       }
-       return explicitName;
-     }
-     
-     // 2. 使用项目隔离的动态命名，确保符合命名规范
-     const dynamicName = HashUtils.generateSafeProjectName(
-        projectId, 
-        'project', 
-        63, 
-        true, 
+
+  /**
+   * 获取集合名称，支持显式配置或动态生成（供外部使用）
+   *
+   * @param projectId 项目ID，用于生成动态集合名称
+   * @returns 对应的集合名称，优先使用显式环境配置，否则使用项目隔离的动态命名
+   * @throws 如果生成的名称不符合命名约定，则抛出错误
+   */
+  getCollectionNameForProject(projectId: string): string {
+    try {
+      // 1. 检查显式环境配置
+      const explicitName = process.env.QDRANT_COLLECTION;
+      if (explicitName && explicitName !== 'code-snippets') {
+        this.logger.warn('Using explicit QDRANT_COLLECTION configuration, which may override project isolation');
+        // 验证显式配置的命名是否符合规范
+        if (!this.validateNamingConvention(explicitName)) {
+          this.logger.error(`Explicit QDRANT_COLLECTION name "${explicitName}" does not follow naming conventions, this may cause issues.`);
+        }
+        return explicitName;
+      }
+
+      // 2. 使用项目隔离的动态命名，确保符合命名规范
+      const dynamicName = HashUtils.generateSafeProjectName(
+        projectId,
+        'project',
+        63,
+        true,
         this.projectPathMappingService
       );
-     
-     // 验证动态生成的命名是否符合规范（应该总是通过，但作为双重检查）
-     if (!this.validateNamingConvention(dynamicName)) {
-       this.logger.error(`Generated collection name "${dynamicName}" does not follow naming conventions.`);
-       throw new Error(`Generated collection name "${dynamicName}" is invalid`);
-     }
-     
-     return dynamicName;
-   } catch (error) {
-     this.errorHandler.handleError(
-       error instanceof Error ? error : new Error('Unknown error in getCollectionNameForProject'),
-       { component: 'QdrantConfigService', operation: 'getCollectionNameForProject', projectId }
-     );
-     throw error;
-   }
- }
+
+      // 验证动态生成的命名是否符合规范（应该总是通过，但作为双重检查）
+      if (!this.validateNamingConvention(dynamicName)) {
+        this.logger.error(`Generated collection name "${dynamicName}" does not follow naming conventions.`);
+        throw new Error(`Generated collection name "${dynamicName}" is invalid`);
+      }
+
+      return dynamicName;
+    } catch (error) {
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error('Unknown error in getCollectionNameForProject'),
+        { component: 'QdrantConfigService', operation: 'getCollectionNameForProject', projectId }
+      );
+      throw error;
+    }
+  }
 
   /**
    * 检查配置是否冲突
@@ -162,7 +162,7 @@ getCollectionNameForProject(projectId: string): string {
     if (!explicitName) {
       return false;
     }
-    
+
     // 检查显式配置是否与项目隔离命名冲突
     const projectSpecificName = `project-${projectId}`;
     return explicitName !== projectSpecificName;

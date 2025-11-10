@@ -1,4 +1,4 @@
-import { LRUCache, CacheOptions } from '../LRUCache';
+import { LRUCache, CacheOptions } from './LRUCache';
 import * as zlib from 'zlib';
 
 export interface MemoryOptions {
@@ -67,7 +67,7 @@ export class MemoryAwareCache<K, V> extends LRUCache<K, V> {
   set(key: K, value: V, ttl?: number): void {
     const entryInfo = this.processValue(value);
     const entrySize = entryInfo.size;
-    
+
     // 如果key已存在，减去旧大小
     if (this.sizeMap.has(key)) {
       this.memoryUsage -= this.sizeMap.get(key)!;
@@ -82,12 +82,12 @@ export class MemoryAwareCache<K, V> extends LRUCache<K, V> {
     this.sizeMap.set(key, entrySize);
     this.memoryUsage += entrySize;
     this.detailedStats.totalEntries++;
-    
+
     // 更新详细统计
     if (this.enableDetailedStats) {
       this.updateDetailedStats(entrySize);
     }
-    
+
     super.set(key, entryInfo.data, ttl);
   }
 
@@ -150,8 +150,8 @@ export class MemoryAwareCache<K, V> extends LRUCache<K, V> {
       };
     }
 
-    const compressionRatio = this.compressionStats.totalOriginalSize > 0 
-      ? this.compressionStats.totalCompressedSize / this.compressionStats.totalOriginalSize 
+    const compressionRatio = this.compressionStats.totalOriginalSize > 0
+      ? this.compressionStats.totalCompressedSize / this.compressionStats.totalOriginalSize
       : 1;
 
     const successRate = this.compressionStats.compressionAttempts > 0
@@ -168,7 +168,7 @@ export class MemoryAwareCache<K, V> extends LRUCache<K, V> {
       compressionErrors: this.compressionStats.compressionErrors,
       compressionAttempts: this.compressionStats.compressionAttempts,
       successRate: successRate + '%',
-      averageCompressionRatio: this.compressionStats.compressedEntries > 0 
+      averageCompressionRatio: this.compressionStats.compressedEntries > 0
         ? (this.compressionStats.totalCompressedSize / this.compressionStats.totalOriginalSize).toFixed(3)
         : '0.000'
     };
@@ -177,17 +177,17 @@ export class MemoryAwareCache<K, V> extends LRUCache<K, V> {
   getDetailedMemoryStats(): MemoryStats {
     const compressedMemory = this.compressionStats.totalCompressedSize;
     const uncompressedMemory = this.memoryUsage - compressedMemory;
-    
+
     const totalEntries = this.detailedStats.totalEntries;
     const compressedEntries = this.compressionStats.compressedEntries;
     const uncompressedEntries = totalEntries - compressedEntries;
-    
+
     const compressionRatio = this.compressionStats.totalOriginalSize > 0
       ? this.compressionStats.totalCompressedSize / this.compressionStats.totalOriginalSize
       : 1;
-    
+
     const spaceSaved = this.compressionStats.totalOriginalSize - this.compressionStats.totalCompressedSize;
-    
+
     const averageEntrySize = totalEntries > 0
       ? this.memoryUsage / totalEntries
       : 0;
@@ -219,7 +219,7 @@ export class MemoryAwareCache<K, V> extends LRUCache<K, V> {
 
     const originalSize = this.estimateSize(value);
     this.compressionStats.compressionAttempts++;
-    
+
     // 只对大于阈值的数据进行压缩
     if (originalSize < this.compressionThreshold) {
       return { data: value, size: originalSize };
@@ -257,7 +257,7 @@ export class MemoryAwareCache<K, V> extends LRUCache<K, V> {
   private updateDetailedStats(entrySize: number): void {
     this.detailedStats.largestEntrySize = Math.max(this.detailedStats.largestEntrySize, entrySize);
     this.detailedStats.smallestEntrySize = Math.min(this.detailedStats.smallestEntrySize, entrySize);
-    
+
     // 保持最近100个条目的大小历史
     this.detailedStats.entrySizeHistory.push(entrySize);
     if (this.detailedStats.entrySizeHistory.length > 100) {
@@ -273,12 +273,12 @@ export class MemoryAwareCache<K, V> extends LRUCache<K, V> {
     try {
       // 将值序列化为JSON字符串
       const jsonString = JSON.stringify(value);
-      
+
       // 使用zlib进行真正的压缩
       const compressed = zlib.deflateSync(jsonString, {
         level: this.compressionLevel
       });
-      
+
       return compressed;
     } catch (error) {
       throw new Error(`Compression failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -289,7 +289,7 @@ export class MemoryAwareCache<K, V> extends LRUCache<K, V> {
     try {
       // 使用zlib解压缩
       const decompressed = zlib.inflateSync(entry.data);
-      
+
       // 将解压缩后的数据解析为JSON
       const jsonString = decompressed.toString('utf8');
       return JSON.parse(jsonString) as V;

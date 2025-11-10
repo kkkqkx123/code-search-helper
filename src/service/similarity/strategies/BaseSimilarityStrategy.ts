@@ -5,7 +5,7 @@ import {
   SimilarityStrategyType,
   SimilarityError
 } from '../types/SimilarityTypes';
-import { HashUtils } from '../../../utils/HashUtils';
+import { HashUtils } from '../../../utils/cache/HashUtils';
 import { StrategyCost } from '../coordination/types/CoordinationTypes';
 
 /**
@@ -93,7 +93,7 @@ export abstract class BaseSimilarityStrategy implements ISimilarityStrategy {
     const hash2 = this.generateContentHash(content2);
     const strategy = this.type;
     const threshold = options?.threshold || this.getDefaultThreshold();
-    
+
     return `${strategy}:${hash1}:${hash2}:${threshold}`;
   }
 
@@ -113,7 +113,7 @@ export abstract class BaseSimilarityStrategy implements ISimilarityStrategy {
     const startTime = Date.now();
     const result = await operation();
     const executionTime = Date.now() - startTime;
-    
+
     return { result, executionTime };
   }
 
@@ -137,14 +137,14 @@ export abstract class BaseSimilarityStrategy implements ISimilarityStrategy {
     // 基于内容长度的简单估算
     const avgLength = (content1.length + content2.length) / 2;
     const baseTime = this.getStrategyCost().time;
-    
+
     // 根据内容长度调整时间
     if (avgLength < 100) {
       return baseTime * 0.5;
     } else if (avgLength > 1000) {
       return baseTime * 2;
     }
-    
+
     return baseTime;
   }
 

@@ -1,7 +1,8 @@
-import { injectable } from 'inversify';
+import { injectable, inject } from 'inversify';
 import { CodeChunk } from '../../../types/CodeChunk';
 import { IChunkSimilarityCalculator } from '../types/ChunkFilterTypes';
 import { SimilarityUtils } from '../../../../../similarity/utils/SimilarityUtils';
+import { TYPES } from '../../../../../../types';
 
 /**
  * 块相似性计算器
@@ -9,6 +10,9 @@ import { SimilarityUtils } from '../../../../../similarity/utils/SimilarityUtils
  */
 @injectable()
 export class ChunkSimilarityCalculator implements IChunkSimilarityCalculator {
+  constructor(
+    @inject(TYPES.SimilarityUtils) private similarityUtils: SimilarityUtils
+  ) {}
 
   /**
    * 计算两个块的相似性
@@ -24,11 +28,7 @@ export class ChunkSimilarityCalculator implements IChunkSimilarityCalculator {
     const languageSimilarity = chunk1.metadata.language === chunk2.metadata.language ? 0.2 : 0;
 
     // 基于内容相似性（使用 SimilarityUtils 的更准确算法）
-    const similarityUtils = SimilarityUtils.getInstance();
-    if (!similarityUtils) {
-      throw new Error('SimilarityUtils instance not available. Please ensure it has been properly initialized.');
-    }
-    const contentSimilarity = await similarityUtils.calculateSimilarity(chunk1.content, chunk2.content);
+    const contentSimilarity = await this.similarityUtils.calculateSimilarity(chunk1.content, chunk2.content);
 
     // 组合相似性，内容相似性权重更高
     return typeSimilarity + languageSimilarity + (contentSimilarity * 0.5);
@@ -42,10 +42,6 @@ export class ChunkSimilarityCalculator implements IChunkSimilarityCalculator {
    */
   async calculateContentSimilarity(content1: string, content2: string): Promise<number> {
     // 直接使用 SimilarityUtils 的实现
-    const similarityUtils = SimilarityUtils.getInstance();
-    if (!similarityUtils) {
-      throw new Error('SimilarityUtils instance not available. Please ensure it has been properly initialized.');
-    }
-    return await similarityUtils.calculateSimilarity(content1, content2);
+    return await this.similarityUtils.calculateSimilarity(content1, content2);
   }
 }

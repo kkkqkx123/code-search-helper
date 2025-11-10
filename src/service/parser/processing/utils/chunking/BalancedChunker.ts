@@ -1,6 +1,6 @@
 
 import { LoggerService } from '../../../../../utils/LoggerService';
-import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../../../utils/cache/ContentHashUtils';
 
 /**
  * 符号栈接口
@@ -33,12 +33,12 @@ export class BalancedChunker {
     squares: 0,
     templates: 0
   };
-  
+
   private logger?: LoggerService;
   private analysisCache: Map<string, SymbolStackChange> = new Map();
   private static readonly MAX_CACHE_SIZE = 1000;
   private accessOrder: string[] = [];
-  
+
   // 解析状态变量（类级别，保持跨行状态）
   private inSingleComment = false;
   private inMultiComment = false;
@@ -55,7 +55,7 @@ export class BalancedChunker {
    */
   analyzeLineSymbols(line: string, lineNumber?: number): void {
     const lineHash = this.simpleHash(line);
-    
+
     // 检查缓存
     const cachedChange = this.getCachedChange(lineHash);
     if (cachedChange) {
@@ -100,7 +100,7 @@ export class BalancedChunker {
           i++; // 跳过下一个字符
           continue;
         }
-        
+
         // 处理模板字符串中的表达式
         if (this.stringChar === '`' && char === '$' && nextChar === '{') {
           this.templateExprDepth++;
@@ -108,21 +108,21 @@ export class BalancedChunker {
           i++; // 跳过'{'
           continue;
         }
-        
+
         // 处理模板字符串中表达式的结束
         if (this.stringChar === '`' && char === '}' && this.templateExprDepth > 0) {
           this.templateExprDepth--;
           this.symbolStack.braces--; // 表达式结束减少花括号计数
           continue;
         }
-        
+
         // 结束字符串（对于模板字符串，只有在顶层时才能结束）
         if (char === this.stringChar && (this.stringChar !== '`' || this.templateExprDepth === 0)) {
           this.inString = false;
           if (this.stringChar === '`') this.symbolStack.templates--;
           continue;
         }
-        
+
         continue;
       }
 
@@ -159,9 +159,9 @@ export class BalancedChunker {
    */
   canSafelySplit(): boolean {
     return this.symbolStack.brackets === 0 &&
-           this.symbolStack.braces === 0 &&
-           this.symbolStack.squares === 0 &&
-           this.symbolStack.templates === 0;
+      this.symbolStack.braces === 0 &&
+      this.symbolStack.squares === 0 &&
+      this.symbolStack.templates === 0;
   }
 
   /**
@@ -174,7 +174,7 @@ export class BalancedChunker {
       squares: 0,
       templates: 0
     };
-    
+
     // 重置解析状态
     this.inSingleComment = false;
     this.inMultiComment = false;
@@ -250,7 +250,7 @@ export class BalancedChunker {
         this.analysisCache.delete(oldestHash);
       }
     }
-    
+
     this.analysisCache.set(lineHash, change);
     this.accessOrder.push(lineHash);
   }
@@ -296,14 +296,14 @@ export class BalancedChunker {
   validateCodeBalance(code: string): boolean {
     const tempState = { ...this.symbolStack };
     const lines = code.split('\n');
-    
+
     for (const line of lines) {
       this.analyzeLineSymbolsInternal(line);
     }
-    
+
     const isBalanced = this.canSafelySplit();
     this.symbolStack = tempState; // 恢复状态
-    
+
     return isBalanced;
   }
 }

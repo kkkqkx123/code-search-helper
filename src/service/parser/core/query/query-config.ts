@@ -5,7 +5,7 @@
 
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { LRUCache } from '../../../../utils/LRUCache';
+import { LRUCache } from '../../../../utils/cache/LRUCache';
 
 /**
  * 查询类型配置接口
@@ -13,28 +13,28 @@ import { LRUCache } from '../../../../utils/LRUCache';
 export interface QueryTypeConfig {
   /** 查询类型名称 */
   name: string;
-  
+
   /** 查询类型描述 */
   description: string;
-  
+
   /** 相关的Tree-sitter节点类型 */
   nodeTypes: string[];
-  
+
   /** 查询优先级（数字越小优先级越高） */
   priority: number;
-  
+
   /** 是否为核心查询类型 */
   isCore: boolean;
-  
+
   /** 支持的语言列表（空数组表示支持所有语言） */
   supportedLanguages: string[];
-  
+
   /** 查询类型分类 */
   category: 'structure' | 'behavior' | 'type' | 'import' | 'export' | 'flow' | 'custom';
-  
+
   /** 依赖的其他查询类型 */
   dependencies: string[];
-  
+
   /** 查询类型标签 */
   tags: string[];
 }
@@ -45,16 +45,16 @@ export interface QueryTypeConfig {
 export interface CompoundQueryConfig {
   /** 复合查询名称 */
   name: string;
-  
+
   /** 复合查询描述 */
   description: string;
-  
+
   /** 包含的查询类型列表 */
   queryTypes: string[];
-  
+
   /** 查询合并策略 */
   mergeStrategy: 'union' | 'intersection' | 'sequence';
-  
+
   /** 支持的语言列表 */
   supportedLanguages: string[];
 }
@@ -65,10 +65,10 @@ export interface CompoundQueryConfig {
 export interface ConfigValidationResult {
   /** 是否有效 */
   isValid: boolean;
-  
+
   /** 错误信息列表 */
   errors: string[];
-  
+
   /** 警告信息列表 */
   warnings: string[];
 }
@@ -367,7 +367,7 @@ export class QueryConfigManager {
     }
 
     this.queryTypes.set(config.name, config);
-    
+
     // 更新语言查询类型映射
     for (const language of this.getSupportedLanguagesForQueryType(config)) {
       if (!this.languageQueryTypes.has(language)) {
@@ -378,7 +378,7 @@ export class QueryConfigManager {
 
     // 清除相关缓存
     this.queryTypeCache.clear();
-    
+
     this.logger.debug(`注册查询类型: ${config.name}`);
   }
 
@@ -435,7 +435,7 @@ export class QueryConfigManager {
    */
   getQueryTypesForLanguage(language: string): string[] {
     const cacheKey = `language:${language}`;
-    
+
     // 检查缓存
     const cached = this.queryTypeCache.get(cacheKey);
     if (cached) {
@@ -443,7 +443,7 @@ export class QueryConfigManager {
     }
 
     const supportedTypes: string[] = [];
-    
+
     for (const [name, config] of this.queryTypes) {
       if (this.isQueryTypeSupportedForLanguage(config, language)) {
         supportedTypes.push(name);
@@ -459,7 +459,7 @@ export class QueryConfigManager {
 
     // 缓存结果
     this.queryTypeCache.set(cacheKey, supportedTypes);
-    
+
     return supportedTypes;
   }
 
@@ -493,7 +493,7 @@ export class QueryConfigManager {
     if (config.supportedLanguages.length === 0) {
       return true;
     }
-    
+
     return config.supportedLanguages.includes(language.toLowerCase());
   }
 
@@ -505,7 +505,7 @@ export class QueryConfigManager {
       // 如果没有指定支持的语言，返回所有支持的语言
       return languageMappingManager.getAllSupportedLanguages();
     }
-    
+
     return config.supportedLanguages;
   }
 
@@ -590,7 +590,7 @@ export class QueryConfigManager {
    */
   getStats() {
     const categoryStats: Record<string, number> = {};
-    
+
     for (const config of this.queryTypes.values()) {
       categoryStats[config.category] = (categoryStats[config.category] || 0) + 1;
     }

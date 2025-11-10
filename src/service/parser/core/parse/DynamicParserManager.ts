@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { LRUCache } from '../../../../utils/LRUCache';
+import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { QueryManager } from '../query/QueryManager';
@@ -12,7 +12,7 @@ import { FallbackExtractor } from '../../utils/FallbackExtractor';
 import { QueryTypeMapper } from '../normalization/QueryTypeMappings';
 import { LANGUAGE_MAPPINGS } from '../../config/LanguageMappingConfig';
 import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
-import { CacheKeyUtils } from '../../../../utils/CacheKeyUtils';
+import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';
 
 export interface DynamicParserLanguage {
   name: string;

@@ -8,7 +8,7 @@ import {
   GraphRelationshipType,
   FileAnalysisResult
 } from './IGraphDataMappingService';
-import { CacheKeyUtils } from '../../../utils/CacheKeyUtils';
+import { CacheKeyUtils } from '../../../utils/cache/CacheKeyUtils';
 
 export interface MappingRule {
   id: string;

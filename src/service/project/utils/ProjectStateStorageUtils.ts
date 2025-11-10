@@ -75,7 +75,7 @@ export class ProjectStateStorageUtils {
       let duplicatePathCount = 0;
 
       // 用于跟踪已处理的 projectPath，防止重复
-      const { HashUtils } = await import('../../../utils/HashUtils');
+      const { HashUtils } = await import('../../../utils/cache/HashUtils');
       const processedPaths = new Set<string>();
 
       for (const rawState of rawStates) {

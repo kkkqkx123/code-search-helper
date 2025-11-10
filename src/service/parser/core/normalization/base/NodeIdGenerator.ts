@@ -4,7 +4,7 @@
  */
 
 import Parser from 'tree-sitter';
-import { ContentHashUtils } from '../../../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../../../utils/cache/ContentHashUtils';
 
 /**
  * 节点ID生成器配置接口
@@ -69,10 +69,10 @@ export class NodeIdGenerator {
 
     // 生成节点信息
     const nodeInfo = this.extractNodeInfo(astNode);
-    
+
     // 生成缓存键
     const cacheKey = this.generateCacheKey(nodeInfo);
-    
+
     // 检查缓存
     if (this.config.enableCache && this.cache.has(cacheKey)) {
       this.logDebug('Node ID cache hit', { nodeType: astNode.type });
@@ -81,7 +81,7 @@ export class NodeIdGenerator {
 
     // 生成ID
     const nodeId = this.generateNodeIdFromInfo(nodeInfo);
-    
+
     // 存储到缓存
     if (this.config.enableCache) {
       this.manageCacheSize();
@@ -138,12 +138,12 @@ export class NodeIdGenerator {
   private calculateNodeDepth(astNode: Parser.SyntaxNode): number {
     let depth = 0;
     let current: Parser.SyntaxNode | null = astNode;
-    
+
     while (current?.parent) {
       depth++;
       current = current.parent;
     }
-    
+
     return depth;
   }
 
@@ -164,7 +164,7 @@ export class NodeIdGenerator {
 
     // 生成哈希
     const hash = this.generateHash(baseString);
-    
+
     // 构建最终ID
     return `${this.config.idPrefix}_${nodeInfo.type}_${hash}`;
   }
@@ -226,7 +226,7 @@ export class NodeIdGenerator {
   private fnv1aHash(str: string): string {
     const FNV_PRIME = 16777619;
     const FNV_OFFSET_BASIS = 2166136261;
-    
+
     let hash = FNV_OFFSET_BASIS;
     for (let i = 0; i < str.length; i++) {
       hash ^= str.charCodeAt(i);
@@ -241,13 +241,13 @@ export class NodeIdGenerator {
    */
   generateNodeIds(astNodes: Parser.SyntaxNode[]): Record<string, string> {
     const nodeIds: Record<string, string> = {};
-    
+
     for (const node of astNodes) {
       const nodeId = this.generateDeterministicNodeId(node);
       const nodeKey = this.generateNodeKey(node);
       nodeIds[nodeKey] = nodeId;
     }
-    
+
     return nodeIds;
   }
 
@@ -292,7 +292,7 @@ export class NodeIdGenerator {
   isSameNodeType(nodeId1: string, nodeId2: string): boolean {
     const info1 = this.parseNodeId(nodeId1);
     const info2 = this.parseNodeId(nodeId2);
-    
+
     return info1?.type === info2?.type;
   }
 
@@ -300,11 +300,11 @@ export class NodeIdGenerator {
    * 管理缓存大小
    */
   private manageCacheSize(): void {
-  if (this.cache.size >= this.config.cacheSize!) {
-  // 简单的LRU：删除第一个元素
-  const firstKey = this.cache.keys().next().value;
-  if (firstKey) {
-      this.cache.delete(firstKey);
+    if (this.cache.size >= this.config.cacheSize!) {
+      // 简单的LRU：删除第一个元素
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) {
+        this.cache.delete(firstKey);
       }
     }
   }
@@ -346,12 +346,12 @@ export class NodeIdGenerator {
   updateConfig(newConfig: Partial<NodeIdGeneratorConfig>): void {
     this.config = { ...this.config, ...newConfig };
     this.debugMode = this.config.debug ?? false;
-    
+
     // 如果禁用了缓存，清空现有缓存
     if (!this.config.enableCache) {
       this.clearCache();
     }
-    
+
     this.logDebug('Configuration updated', this.config);
   }
 
@@ -374,7 +374,7 @@ export class NodeIdGenerator {
     for (const [key, value] of Object.entries(cacheData)) {
       this.cache.set(key, value);
     }
-    
+
     this.logDebug('Cache imported', {
       entries: Object.keys(cacheData).length
     });

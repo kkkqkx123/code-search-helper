@@ -1,6 +1,6 @@
 import Parser from 'tree-sitter';
 import { createCache } from '../../../../utils/cache';
-import { CacheKeyUtils } from '../../../../utils/CacheKeyUtils';
+import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';
 
 /**
  * 统一查询缓存管理器
@@ -14,7 +14,7 @@ export class QueryCache {
   private static queryCache = createCache<string, Parser.Query>('stats-decorated', 200, {
     enableStats: true
   });
-  
+
   // 查询结果缓存 - 改为静态，供所有引擎实例共享
   private static resultCache = createCache<string, any>('stats-decorated', 500, {
     enableStats: true
@@ -112,7 +112,7 @@ export class QueryCache {
     const queryStats = this.queryCache.getStats();
     const resultStats = this.resultCache.getStats();
     const astStats = this.astCache.getStats();
-    
+
     // 计算合并的统计信息
     const combined = {
       totalHits: (queryStats?.hits || 0) + (resultStats?.hits || 0) + (astStats?.hits || 0),
@@ -120,10 +120,10 @@ export class QueryCache {
       totalSize: (queryStats?.size || 0) + (resultStats?.size || 0) + (astStats?.size || 0),
       overallHitRate: '0.00%'
     };
-    
+
     const totalRequests = combined.totalHits + combined.totalMisses;
     combined.overallHitRate = totalRequests > 0 ? (combined.totalHits / totalRequests * 100).toFixed(2) + '%' : '0.00%';
-    
+
     return {
       queryCache: queryStats,
       resultCache: resultStats,

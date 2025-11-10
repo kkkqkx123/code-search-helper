@@ -1,4 +1,4 @@
-import { HashUtils } from '../utils/HashUtils';
+import { HashUtils } from '../utils/cache/HashUtils';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { injectable, inject } from 'inversify';
@@ -77,10 +77,10 @@ export class ProjectIdManager {
       if (existingProjectId) {
         // Update timestamp for existing project
         this.projectUpdateTimes.set(existingProjectId, new Date());
-        
+
         // 同步到SQLite
         await this.syncProjectToSQLite(existingProjectId, normalizedPath);
-        
+
         return existingProjectId;
       }
 
@@ -267,7 +267,7 @@ export class ProjectIdManager {
       try {
         // 首先从SQLite加载
         await this.loadMappingFromSQLite();
-        
+
         // 如果SQLite中没有数据，再从JSON文件加载（向后兼容）
         if (this.projectIdMap.size === 0) {
           await this.loadMappingFromJson();
@@ -312,17 +312,17 @@ export class ProjectIdManager {
         this.initializeEmptyMapping();
         return;
       }
-      
+
       const projects = await this.sqliteProjectManager.listProjectSpaces();
-      
+
       this.initializeEmptyMapping();
-      
+
       for (const project of projects) {
         const normalizedPath = HashUtils.normalizePath(project.path);
-        
+
         this.projectIdMap.set(normalizedPath, project.id);
         this.pathToProjectMap.set(project.id, normalizedPath);
-        
+
         // 使用默认值如果collection_name或space_name为空
         let collectionName = project.collection_name;
         if (!collectionName) {
@@ -333,7 +333,7 @@ export class ProjectIdManager {
             collectionName = `project_${project.id}`;
           }
         }
-        
+
         let spaceName = project.space_name;
         if (!spaceName) {
           try {
@@ -343,12 +343,12 @@ export class ProjectIdManager {
             spaceName = `project_${project.id}`;
           }
         }
-        
+
         this.collectionMap.set(project.id, collectionName);
         this.spaceMap.set(project.id, spaceName);
         this.projectUpdateTimes.set(project.id, new Date(project.updated_at));
       }
-      
+
       this.logger.info(`Loaded ${projects.length} project mappings from SQLite`);
     } catch (error) {
       this.logger.warn('Failed to load project mappings from SQLite, continuing with empty mapping', error);
@@ -363,7 +363,7 @@ export class ProjectIdManager {
    */
   private async loadMappingFromJson(): Promise<void> {
     const storagePath = this.configService.get('project')?.mappingPath || './data/project-mapping.json';
-    
+
     // 检查文件是否存在，如果不存在则创建空文件
     try {
       await fs.access(storagePath);
@@ -374,7 +374,7 @@ export class ProjectIdManager {
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(storagePath, '[]', 'utf8');
     }
-    
+
     const data = await fs.readFile(storagePath, 'utf8');
     const rawMapping = JSON.parse(data);
 
@@ -386,7 +386,7 @@ export class ProjectIdManager {
       for (const mappingInfo of rawMapping) {
         // 检查是否是用户期望的格式（包含projectIdMap, collectionMap等）
         if (mappingInfo.projectIdMap && mappingInfo.collectionMap && mappingInfo.spaceMap &&
-            mappingInfo.pathToProjectMap && mappingInfo.projectUpdateTimes) {
+          mappingInfo.pathToProjectMap && mappingInfo.projectUpdateTimes) {
           // 用户期望的格式
           for (const [projectPath, projectId] of Object.entries(mappingInfo.projectIdMap)) {
             const normalizedPath = HashUtils.normalizePath(projectPath as string);
@@ -457,7 +457,7 @@ export class ProjectIdManager {
     } catch (error) {
       this.logger.warn('Failed to load project mappings after database initialization:', error);
       this.errorHandler.handleError(
-        error instanceof Error ? error : new Error(String(error)), 
+        error instanceof Error ? error : new Error(String(error)),
         { component: 'ProjectIdManager', operation: 'loadMappingAfterDatabaseInitialization' }
       );
     }
@@ -466,7 +466,7 @@ export class ProjectIdManager {
   /**
    * 同步项目到SQLite
    */
- private async syncProjectToSQLite(projectId: string, projectPath: string): Promise<void> {
+  private async syncProjectToSQLite(projectId: string, projectPath: string): Promise<void> {
     try {
       const collectionName = this.collectionMap.get(projectId) || this.qdrantConfigService.getCollectionNameForProject(projectId);
       const spaceName = this.spaceMap.get(projectId) || this.nebulaConfigService.getSpaceNameForProject(projectId);
@@ -484,7 +484,7 @@ export class ProjectIdManager {
       };
 
       const success = await this.sqliteProjectManager.createProjectSpace(projectPath, project);
-      
+
       if (!success) {
         const error = new Error(`Failed to sync project to SQLite for project: ${projectId}, path: ${projectPath}`);
         // 使用错误处理服务记录错误
@@ -543,7 +543,7 @@ export class ProjectIdManager {
         collectionName: collectionName,
         spaceName: spaceName
       };
-      
+
       const success = await this.sqliteProjectManager.createProjectSpace(projectPath, config);
 
       if (!success) {
@@ -559,7 +559,7 @@ export class ProjectIdManager {
         } catch (checkError) {
           this.logger.debug(`Could not check for existing project: ${checkError instanceof Error ? checkError.message : String(checkError)}`);
         }
-        
+
         const error = new Error(`Failed to create project space in SQLite for project: ${projectId}, path: ${projectPath}`);
         // 使用错误处理服务记录错误
         this.errorHandler.handleError(
@@ -798,7 +798,7 @@ export class ProjectIdManager {
           validProjectUpdateTimes.set(projectId, this.projectUpdateTimes.get(projectId) || new Date());
         } else {
           this.logger.warn(`Removing invalid project mapping: ${projectId} at ${projectPath}`);
-          
+
           // 从SQLite中删除无效项目
           try {
             await this.sqliteProjectManager.deleteProjectSpace(projectPath);

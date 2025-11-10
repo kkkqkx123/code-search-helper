@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../types';
 import { SqliteDatabaseService } from './splite/SqliteDatabaseService';
 import { LoggerService } from '../utils/LoggerService';
-import { HashUtils } from '../utils/HashUtils';
+import { HashUtils } from '../utils/cache/HashUtils';
 
 export interface ProjectMapping {
   projectId: string;
@@ -31,7 +31,7 @@ export class UnifiedMappingService {
       if (!this.dbService.isConnected()) {
         this.dbService.connect();
       }
-      
+
       // 创建统一的项目映射表
       const createTableSQL = `
         CREATE TABLE IF NOT EXISTS unified_project_mapping (
@@ -44,13 +44,13 @@ export class UnifiedMappingService {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `;
-      
+
       this.dbService.exec(createTableSQL);
-      
+
       // 创建索引
       this.dbService.exec('CREATE INDEX IF NOT EXISTS idx_unified_mapping_path ON unified_project_mapping(project_path)');
       this.dbService.exec('CREATE INDEX IF NOT EXISTS idx_unified_mapping_name ON unified_project_mapping(project_name)');
-      
+
       // 创建触发器
       this.dbService.exec(`
         CREATE TRIGGER IF NOT EXISTS update_unified_mapping_timestamp 
@@ -61,10 +61,10 @@ export class UnifiedMappingService {
           WHERE project_id = NEW.project_id;
         END
       `);
-      
+
       // 加载现有映射
       await this.loadMappings();
-      
+
       this.logger.info('Unified mapping table initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize unified mapping table', error);
@@ -82,11 +82,11 @@ export class UnifiedMappingService {
         FROM unified_project_mapping
         ORDER BY updated_at DESC
       `;
-      
+
       const results = this.dbService.prepare(selectSQL).all() as any[];
-      
+
       this.mappings = new Map();
-      
+
       for (const row of results) {
         const mapping: ProjectMapping = {
           projectId: row.project_id,
@@ -97,10 +97,10 @@ export class UnifiedMappingService {
           createdAt: new Date(row.created_at),
           updatedAt: new Date(row.updated_at)
         };
-        
+
         this.mappings.set(mapping.projectId, mapping);
       }
-      
+
       this.logger.info(`Loaded ${this.mappings.size} project mappings`);
     } catch (error) {
       this.logger.error('Failed to load project mappings', error);
@@ -119,10 +119,10 @@ export class UnifiedMappingService {
     try {
       // 生成项目ID
       const projectId = await this.generateProjectId(projectPath);
-      
+
       // 提取项目名称
       const projectName = this.extractProjectName(projectPath);
-      
+
       // 创建映射对象
       const mapping: ProjectMapping = {
         projectId,
@@ -133,17 +133,17 @@ export class UnifiedMappingService {
         createdAt: new Date(),
         updatedAt: new Date()
       };
-      
+
       // 保存到内存映射
       this.mappings.set(projectId, mapping);
-      
+
       // 保存到数据库
       const insertSQL = `
         INSERT OR REPLACE INTO unified_project_mapping 
         (project_id, project_path, collection_name, space_name, project_name, updated_at)
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `;
-      
+
       this.dbService.prepare(insertSQL).run(
         mapping.projectId,
         mapping.projectPath,
@@ -151,9 +151,9 @@ export class UnifiedMappingService {
         mapping.spaceName,
         mapping.projectName
       );
-      
+
       this.logger.debug(`Saved unified mapping for project: ${projectId}`);
-      
+
       return mapping;
     } catch (error) {
       this.logger.error(`Failed to create or update mapping for path: ${projectPath}`, error);
@@ -174,13 +174,13 @@ export class UnifiedMappingService {
   getMappingByPath(projectPath: string): ProjectMapping | null {
     // 标准化路径以确保匹配
     const normalizedPath = HashUtils.deepNormalizePath(projectPath);
-    
+
     for (const mapping of this.mappings.values()) {
       if (HashUtils.arePathsEqual(mapping.projectPath, normalizedPath)) {
         return mapping;
       }
     }
-    
+
     return null;
   }
 
@@ -198,15 +198,15 @@ export class UnifiedMappingService {
     try {
       // 从内存中删除
       const deleted = this.mappings.delete(projectId);
-      
+
       if (deleted) {
         // 从数据库中删除
         const deleteSQL = `DELETE FROM unified_project_mapping WHERE project_id = ?`;
         this.dbService.prepare(deleteSQL).run(projectId);
-        
+
         this.logger.debug(`Deleted mapping for project: ${projectId}`);
       }
-      
+
       return deleted;
     } catch (error) {
       this.logger.error(`Failed to delete mapping for project: ${projectId}`, error);

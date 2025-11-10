@@ -5,9 +5,9 @@
 
 import { ILanguageAdapter, StandardizedQueryResult } from './types';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { LRUCache } from '../../../../utils/LRUCache';
+import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
-import { ContentHashUtils } from '../../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../../utils/cache/ContentHashUtils';
 
 /**
  * 配置语言适配器选项接口

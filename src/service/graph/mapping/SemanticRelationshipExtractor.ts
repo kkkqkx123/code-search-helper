@@ -15,7 +15,7 @@ import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { GraphBatchOptimizer } from '../utils/GraphBatchOptimizer';
 import { StandardizedQueryResult } from '../../parser/core/normalization/types';
-import { ContentHashUtils } from '../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../utils/cache/ContentHashUtils';
 
 export interface AdvancedMappingOptions {
   includeInheritance: boolean;
@@ -242,57 +242,57 @@ export class AdvancedMappingService {
     * @param standardizedNodes 标准化查询结果
     * @returns 被调用的函数名列表
     */
-   private extractCalledFunctionsFromStandardizedResults(
-     functionInfo: FunctionInfo,
-     standardizedNodes: StandardizedQueryResult[]
-   ): string[] {
-     const calledFunctions: string[] = [];
- 
-     // 筛选出调用关系且在当前函数范围内的节点
-     const callNodes = standardizedNodes.filter(node =>
-       node.type === 'call' &&
-       node.startLine >= functionInfo.startLine &&
-       node.endLine <= functionInfo.endLine
-     );
- 
-     for (const callNode of callNodes) {
-       const callName = callNode.metadata.extra?.callName;
-       if (callName) {
-         calledFunctions.push(callName);
-       }
-     }
- 
-     return [...new Set(calledFunctions)]; // 去重
-   }
- 
-   /**
-    * 从标准化结果中提取访问的属性
-    * @param functionInfo 当前函数信息
-    * @param standardizedNodes 标准化查询结果
-    * @returns 访问的属性名列表
-    */
-   private extractAccessedPropertiesFromStandardizedResults(
-     functionInfo: FunctionInfo,
-     standardizedNodes: StandardizedQueryResult[]
-   ): string[] {
-     const accessedProperties: string[] = [];
- 
-     // 筛选出依赖关系且在当前函数范围内的节点（作为引用关系的替代）
-     const referenceNodes = standardizedNodes.filter(node =>
-       node.type === 'dependency' &&
-       node.startLine >= functionInfo.startLine &&
-       node.endLine <= functionInfo.endLine
-     );
- 
-     for (const refNode of referenceNodes) {
-       const referenceName = refNode.metadata.extra?.target || refNode.name;
-       if (referenceName) {
-         accessedProperties.push(referenceName);
-       }
-     }
- 
-     return [...new Set(accessedProperties)]; // 去重
-   }
+  private extractCalledFunctionsFromStandardizedResults(
+    functionInfo: FunctionInfo,
+    standardizedNodes: StandardizedQueryResult[]
+  ): string[] {
+    const calledFunctions: string[] = [];
+
+    // 筛选出调用关系且在当前函数范围内的节点
+    const callNodes = standardizedNodes.filter(node =>
+      node.type === 'call' &&
+      node.startLine >= functionInfo.startLine &&
+      node.endLine <= functionInfo.endLine
+    );
+
+    for (const callNode of callNodes) {
+      const callName = callNode.metadata.extra?.callName;
+      if (callName) {
+        calledFunctions.push(callName);
+      }
+    }
+
+    return [...new Set(calledFunctions)]; // 去重
+  }
+
+  /**
+   * 从标准化结果中提取访问的属性
+   * @param functionInfo 当前函数信息
+   * @param standardizedNodes 标准化查询结果
+   * @returns 访问的属性名列表
+   */
+  private extractAccessedPropertiesFromStandardizedResults(
+    functionInfo: FunctionInfo,
+    standardizedNodes: StandardizedQueryResult[]
+  ): string[] {
+    const accessedProperties: string[] = [];
+
+    // 筛选出依赖关系且在当前函数范围内的节点（作为引用关系的替代）
+    const referenceNodes = standardizedNodes.filter(node =>
+      node.type === 'dependency' &&
+      node.startLine >= functionInfo.startLine &&
+      node.endLine <= functionInfo.endLine
+    );
+
+    for (const refNode of referenceNodes) {
+      const referenceName = refNode.metadata.extra?.target || refNode.name;
+      if (referenceName) {
+        accessedProperties.push(referenceName);
+      }
+    }
+
+    return [...new Set(accessedProperties)]; // 去重
+  }
 
   /**
    * 从标准化结果中提取属性访问关系

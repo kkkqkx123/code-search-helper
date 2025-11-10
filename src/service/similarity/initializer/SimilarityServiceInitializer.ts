@@ -23,8 +23,8 @@ export class SimilarityServiceInitializer {
     try {
       this.logger?.info('Initializing similarity service...');
       
-      // 注入服务实例到工具类
-      SimilarityUtils.setService(this.similarityService);
+      // SimilarityUtils现在通过DI容器管理，不需要手动设置服务
+      // 但SimilarityDetector仍使用旧的静态方法，需要保留
       SimilarityDetector.setService(this.similarityService);
       
       this.logger?.info('Similarity service initialized successfully');
@@ -41,7 +41,7 @@ export class SimilarityServiceInitializer {
     try {
       this.logger?.info('Cleaning up similarity service...');
       
-      SimilarityUtils.cleanup();
+      // SimilarityDetector仍使用旧的静态方法，需要保留清理
       SimilarityDetector.cleanup();
       
       this.logger?.info('Similarity service cleaned up successfully');

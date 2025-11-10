@@ -22,7 +22,7 @@ import {
   QdrantEventType,
   QdrantEvent
 } from './QdrantTypes';
-import { HashUtils } from '../../utils/HashUtils';
+import { HashUtils } from '../../utils/cache/HashUtils';
 
 /**
  * Qdrant 向量操作接口
@@ -759,7 +759,7 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
       this.eventListeners.set(type, []);
     }
     this.eventListeners.get(type)!.push(listener);
-    
+
     // 返回订阅对象，允许取消订阅
     const subscription = {
       id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -775,7 +775,7 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
         }
       }
     };
-    
+
     return subscription;
   }
 

@@ -1,6 +1,6 @@
 import { FileSearchResult, CachedSearchResult, CacheConfig } from './types';
 import { LoggerService } from '../../utils/LoggerService';
-import { LRUCache } from '../../utils/LRUCache';
+import { LRUCache } from '../../utils/cache/LRUCache';
 
 /**
  * 文件搜索缓存服务

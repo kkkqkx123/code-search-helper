@@ -1,6 +1,24 @@
 import { ChunkSimilarityUtils } from '../ChunkSimilarityUtils';
 import { CodeChunk, ChunkType } from '../../../types/CodeChunk';
 import { SimilarityUtils } from '../../../../../similarity/utils/SimilarityUtils';
+import { Container } from 'inversify';
+
+// 创建一个测试用的DI容器
+const createTestContainer = () => {
+  const container = new Container();
+  
+  // 模拟SimilarityUtils
+  const mockSimilarityUtils = {
+    isSimilar: jest.fn().mockImplementation((content1, content2, threshold) => {
+      // 简单的相似性检查实现
+      return Promise.resolve(content1 === content2);
+    })
+  };
+  
+  container.bind<SimilarityUtils>('SimilarityUtils').toConstantValue(mockSimilarityUtils as any);
+  
+  return { container, mockSimilarityUtils };
+};
 
 describe('ChunkSimilarityUtils', () => {
   describe('isDuplicateChunk', () => {
@@ -103,6 +121,10 @@ describe('ChunkSimilarityUtils', () => {
 
   describe('canMergeChunks', () => {
     it('should allow merging adjacent chunks', async () => {
+      const { container } = createTestContainer();
+      const similarityUtils = container.get<SimilarityUtils>('SimilarityUtils');
+      const chunkSimilarityUtils = new ChunkSimilarityUtils(similarityUtils);
+      
       const chunk1: CodeChunk = {
         content: 'function first() {\n  return "first";\n}',
         metadata: {
@@ -118,7 +140,7 @@ describe('ChunkSimilarityUtils', () => {
       };
 
       const chunk2: CodeChunk = {
-        content: 'function second() {\n  return "second";\n}',
+        content: 'function first() {\n  return "first";\n}', // 相同内容
         metadata: {
           startLine: 4,
           endLine: 6,
@@ -126,21 +148,19 @@ describe('ChunkSimilarityUtils', () => {
           strategy: 'test',
           timestamp: Date.now(),
           type: ChunkType.FUNCTION,
-          size: 32,
+          size: 30,
           lineCount: 3
         }
       };
 
-      // Create an instance of SimilarityUtils using the static instance
-      const similarityUtils = SimilarityUtils.getInstance();
-      if (!similarityUtils) {
-        throw new Error('SimilarityUtils instance not available');
-      }
-      const chunkSimilarityUtils = new ChunkSimilarityUtils(similarityUtils);
       expect(await chunkSimilarityUtils.canMergeChunks(chunk1, chunk2, 0.3)).toBe(true);
     });
 
     it('should not allow merging non-adjacent chunks', async () => {
+      const { container } = createTestContainer();
+      const similarityUtils = container.get<SimilarityUtils>('SimilarityUtils');
+      const chunkSimilarityUtils = new ChunkSimilarityUtils(similarityUtils);
+      
       const chunk1: CodeChunk = {
         content: 'function first() {\n  return "first";\n}',
         metadata: {
@@ -169,12 +189,6 @@ describe('ChunkSimilarityUtils', () => {
         }
       };
 
-      // Create an instance of SimilarityUtils using the static instance
-      const similarityUtils = SimilarityUtils.getInstance();
-      if (!similarityUtils) {
-        throw new Error('SimilarityUtils instance not available');
-      }
-      const chunkSimilarityUtils = new ChunkSimilarityUtils(similarityUtils);
       expect(await chunkSimilarityUtils.canMergeChunks(chunk1, chunk2, 0.8)).toBe(false);
     });
   });

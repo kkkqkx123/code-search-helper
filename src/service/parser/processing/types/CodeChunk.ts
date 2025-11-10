@@ -1,4 +1,4 @@
-import { ContentHashUtils } from '../../../../utils/ContentHashUtils';
+import { ContentHashUtils } from '../../../../utils/cache/ContentHashUtils';
 
 /**
  * 代码块核心类型定义
@@ -236,8 +236,8 @@ export class CodeChunkUtils {
    * 检查两个代码块是否重叠
    */
   static isOverlapping(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
-    return !(chunk1.metadata.endLine < chunk2.metadata.startLine || 
-             chunk2.metadata.endLine < chunk1.metadata.startLine);
+    return !(chunk1.metadata.endLine < chunk2.metadata.startLine ||
+      chunk2.metadata.endLine < chunk1.metadata.startLine);
   }
 
   /**
@@ -250,7 +250,7 @@ export class CodeChunkUtils {
 
     const startLine = Math.min(chunk1.metadata.startLine, chunk2.metadata.startLine);
     const endLine = Math.max(chunk1.metadata.endLine, chunk2.metadata.endLine);
-    
+
     // 使用优先级更高的策略（这里简单使用第一个的策略）
     const strategy = chunk1.metadata.strategy;
     const language = chunk1.metadata.language;
