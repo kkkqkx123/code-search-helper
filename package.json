@@ -48,7 +48,6 @@
     "@babel/core": "^7.28.4",
     "@babel/preset-env": "^7.28.3",
     "@modelcontextprotocol/sdk": "^1.17.4",
-    "@nebula-contrib/nebula-nodejs": "^3.0.3",
     "@nestjs/axios": "^4.0.0",
     "@qdrant/js-client-rest": "^1.15.1",
     "axios": "^1.12.2",

@@ -10,15 +10,6 @@ import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { SqliteProjectManager } from './splite/SqliteProjectManager';
 
-// 项目映射信息的接口定义（保留用于兼容旧格式）
-export interface ProjectMappingInfo {
-  projectPath: string;
-  projectId: string;
-  collectionName: string;
-  spaceName: string;
-  lastUpdateTime: Date;
-}
-
 // 用户期望的映射格式接口
 export interface UserExpectedMappingFormat {
   projectIdMap: { [path: string]: string };
