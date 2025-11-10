@@ -76,6 +76,8 @@ import { FileFeatureDetector } from '../../service/parser/detection/FileFeatureD
 // 分段器模块服务
 import { ProtectionCoordinator } from '../../service/parser/processing/utils/protection/ProtectionCoordinator';
 import { ChunkFilter } from '../../service/parser/processing/utils/chunking/ChunkFilter';
+import { ChunkMerger } from '../../service/parser/processing/utils/chunking/evaluators/ChunkMerger';
+import { ChunkSimilarityCalculator } from '../../service/parser/processing/utils/chunking/evaluators/ChunkSimilarityCalculator';
 
 // 新增的processing模块替代组件
 import { StrategyFactory } from '../../service/parser/processing/factory/StrategyFactory';
@@ -263,11 +265,17 @@ export class BusinessServiceRegistrar {
       // 注册 ProcessingCoordinator
       container.bind<ProcessingCoordinator>(TYPES.UnifiedProcessingCoordinator).to(ProcessingCoordinator).inSingletonScope();
 
-      // 处理器
-      container.bind<ChunkFilter>(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();
-      container.bind<OverlapPostProcessor>(TYPES.OverlapPostProcessor).to(OverlapPostProcessor).inSingletonScope();
-      container.bind<ASTNodeTracker>(TYPES.ASTNodeTracker).to(ASTNodeTracker).inSingletonScope();
-      container.bind<ChunkRebalancer>(TYPES.ChunkRebalancer).to(ChunkRebalancer).inSingletonScope();
+      // 块相似性计算器
+      container.bind<ChunkSimilarityCalculator>(TYPES.ChunkSimilarityCalculator).to(ChunkSimilarityCalculator).inSingletonScope();
+
+      // 块合并器
+      container.bind<ChunkMerger>(TYPES.ChunkMerger).to(ChunkMerger).inSingletonScope();
+
+       // 处理器
+       container.bind<ChunkFilter>(TYPES.ChunkFilter).to(ChunkFilter).inSingletonScope();
+       container.bind<OverlapPostProcessor>(TYPES.OverlapPostProcessor).to(OverlapPostProcessor).inSingletonScope();
+       container.bind<ASTNodeTracker>(TYPES.ASTNodeTracker).to(ASTNodeTracker).inSingletonScope();
+       container.bind<ChunkRebalancer>(TYPES.ChunkRebalancer).to(ChunkRebalancer).inSingletonScope();
 
       // 通用文件处理服务 - 使用新的模块化分段器
       container.bind<ErrorThresholdInterceptor>(TYPES.ErrorThresholdManager).toDynamicValue(context => {

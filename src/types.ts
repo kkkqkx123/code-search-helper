@@ -279,19 +279,20 @@ export const TYPES = {
   ConfigurationManager: Symbol.for('ConfigurationManager'),
   ProtectionCoordinator: Symbol.for('ProtectionCoordinator'),
   ComplexityCalculator: Symbol.for('ComplexityCalculator'),
-  
+
   BracketSegmentationStrategy: Symbol.for('BracketSegmentationStrategy'),
   LineSegmentationStrategy: Symbol.for('LineSegmentationStrategy'),
   MarkdownSegmentationStrategy: Symbol.for('MarkdownSegmentationStrategy'),
-  
-  
+
+
   OverlapProcessor: Symbol.for('OverlapProcessor'),
   OverlapPostProcessor: Symbol.for('OverlapPostProcessor'),
   ASTNodeTracker: Symbol.for('ASTNodeTracker'),
   ChunkFilter: Symbol.for('ChunkFilter'),
   ChunkRebalancer: Symbol.for('ChunkRebalancer'),
+   ChunkMerger: Symbol.for('ChunkMerger'),
 
-  // 37. 优化的降级处理相关服务
+   // 37. 优化的降级处理相关服务
   OptimizedProcessingGuard: Symbol.for('OptimizedProcessingGuard'),
   UnifiedDetectionService: Symbol.for('UnifiedDetectionService'),
   DetectionService: Symbol.for('DetectionService'),
@@ -309,7 +310,7 @@ export const TYPES = {
   UnifiedProcessingCoordinator: Symbol.for('UnifiedProcessingCoordinator'),
 
   LanguageDetector: Symbol.for('LanguageDetector'),
-   LanguageDetectionService: Symbol.for('LanguageDetectionService'),
+  LanguageDetectionService: Symbol.for('LanguageDetectionService'),
 
   // 42. 分段策略提供者
   ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
@@ -317,7 +318,7 @@ export const TYPES = {
   SyntaxAwareStrategyProvider: Symbol.for('SyntaxAwareStrategyProvider'),
   IntelligentStrategyProvider: Symbol.for('IntelligentStrategyProvider'),
   StructureAwareStrategyProvider: Symbol.for('StructureAwareStrategyProvider'),
-  
+
   // 41. 优先级管理系统
   PriorityManager: Symbol.for('PriorityManager'),
   SmartStrategySelector: Symbol.for('SmartStrategySelector'),
@@ -348,7 +349,8 @@ export const TYPES = {
   SemanticSimilarityStrategy: Symbol.for('SemanticSimilarityStrategy'),
   KeywordSimilarityStrategy: Symbol.for('KeywordSimilarityStrategy'),
   HybridSimilarityStrategy: Symbol.for('HybridSimilarityStrategy'),
-  
+  ChunkSimilarityCalculator: Symbol.for('ChunkSimilarityCalculator'),
+
   // 46. 批处理计算器相关
   BatchCalculatorFactory: Symbol.for('BatchCalculatorFactory'),
   GenericBatchCalculator: Symbol.for('GenericBatchCalculator'),

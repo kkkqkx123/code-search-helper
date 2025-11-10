@@ -51,29 +51,8 @@ export class PerformanceOptimizerService {
     @inject(TYPES.ConfigService) private configService: ConfigService,
     @inject(TYPES.MemoryMonitorService) private memoryMonitor: IMemoryMonitorService
   ) {
-
-    // 在测试环境中，使用默认值以避免配置服务未初始化的问题
-    let batchConfig;
-    try {
-      batchConfig = this.configService.get('batchProcessing');
-    } catch (error) {
-      // 如果配置服务未初始化，在测试环境中使用默认值
-      if (process.env.NODE_ENV === 'test') {
-        batchConfig = {
-          retryAttempts: 3,
-          retryDelay: 1000,
-          defaultBatchSize: 10,
-          maxBatchSize: 100,
-          adaptiveBatching: {
-            minBatchSize: 1,
-            adjustmentFactor: 0.1,
-            performanceThreshold: 5000
-          }
-        };
-      } else {
-        throw error;
-      }
-    }
+    // 从配置服务获取批处理配置
+    const batchConfig = this.configService.get('batchProcessing');
 
     this.retryOptions = {
       maxAttempts: batchConfig.retryAttempts,
@@ -85,11 +64,11 @@ export class PerformanceOptimizerService {
 
     // Initialize batch options from config service
     this.batchOptions = {
-      initialSize: batchConfig.defaultBatchSize || 10,
-      maxSize: batchConfig.maxBatchSize || 100,
-      minSize: batchConfig.minSize || 1,
-      adjustmentFactor: batchConfig.adjustmentFactor || 0.1,
-      performanceThreshold: batchConfig.performanceThreshold || 5000
+      initialSize: batchConfig.defaultBatchSize,
+      maxSize: batchConfig.maxBatchSize,
+      minSize: Math.max(1, Math.floor(batchConfig.defaultBatchSize * 0.1)), // Using 10% of default as minimum
+      adjustmentFactor: 0.1, // This value is not in the config, using default
+      performanceThreshold: batchConfig.monitoring?.alertThresholds?.highLatency || 5000
     };
 
     // Set initial batch size

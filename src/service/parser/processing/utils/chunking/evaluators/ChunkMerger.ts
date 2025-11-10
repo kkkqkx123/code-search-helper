@@ -5,7 +5,6 @@ import { IChunkMerger, IChunkSimilarityCalculator } from '../types/ChunkFilterTy
 import { TYPES } from '../../../../../../types';
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { CodeChunkBuilder } from '../../../types/CodeChunk';
-import { ChunkSimilarityCalculator } from './ChunkSimilarityCalculator';
 
 /**
  * 块合并器
@@ -13,15 +12,10 @@ import { ChunkSimilarityCalculator } from './ChunkSimilarityCalculator';
  */
 @injectable()
 export class ChunkMerger implements IChunkMerger {
-  private similarityCalculator: IChunkSimilarityCalculator;
-  private logger?: LoggerService;
-
   constructor(
-    @inject(TYPES.LoggerService) logger?: LoggerService
-  ) {
-    this.similarityCalculator = new ChunkSimilarityCalculator();
-    this.logger = logger;
-  }
+    @inject(TYPES.ChunkSimilarityCalculator) private similarityCalculator: IChunkSimilarityCalculator,
+    @inject(TYPES.LoggerService) private logger?: LoggerService
+  ) { }
 
   /**
    * 智能合并块

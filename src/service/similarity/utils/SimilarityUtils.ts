@@ -59,44 +59,6 @@ export class SimilarityUtils {
   }
 
   /**
-   * 标准化内容（用于相似度计算）
-   * 保持向后兼容的同步方法
-   */
-  static normalizeContent(content: string): string {
-    return content
-      .replace(/\s+/g, ' ') // 标准化空白字符
-      .replace(/\/\/.*$/gm, '') // 移除单行注释
-      .replace(/\/\*[\s\S]*?\*\//g, '') // 移除多行注释
-      .replace(/\s+/g, ' ') // 再次标准化空白字符
-      .trim()
-      .toLowerCase();
-  }
-
-  /**
-   * 计算内容哈希
-   * 保持向后兼容的同步方法
-   */
-  static calculateContentHash(content: string): string {
-    return ContentHashUtils.generateContentHash(content);
-  }
-
-  /**
-   * 获取推荐的相似度阈值
-   * 保持向后兼容的同步方法
-   */
-  static getRecommendedThreshold(contentType: 'function' | 'class' | 'generic' = 'generic'): number {
-    switch (contentType) {
-      case 'function':
-        return 0.85; // 函数通常更相似
-      case 'class':
-        return 0.8;  // 类定义相似度适中
-      case 'generic':
-      default:
-        return 0.8;
-    }
-  }
-
-  /**
    * 检查两个块是否可以合并
    */
   async canMergeChunks(

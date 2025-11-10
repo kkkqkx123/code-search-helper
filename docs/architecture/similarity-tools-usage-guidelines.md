@@ -63,7 +63,14 @@ export class SimilarityAnalyzer {
   
   // ✅ 推荐：内容标准化
   normalizeContent(content: string): string {
-    return SimilarityUtils.normalizeContent(content);
+    // 使用ContentHashUtils或直接实现内容标准化逻辑
+    return content
+      .replace(/\s+/g, ' ') // 标准化空白字符
+      .replace(/\/\/.*$/gm, '') // 移除单行注释
+      .replace(/\/\*[\s\S]*?\*\//g, '') // 移除多行注释
+      .replace(/\s+/g, ' ') // 再次标准化空白字符
+      .trim()
+      .toLowerCase();
   }
 }
 ```
