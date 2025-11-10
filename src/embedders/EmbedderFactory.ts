@@ -77,6 +77,7 @@ export class EmbedderFactory {
       const custom1Embedder = new CustomEmbedder(this.logger, this.errorHandler, this.cacheService, 'custom1');
       const custom2Embedder = new CustomEmbedder(this.logger, this.errorHandler, this.cacheService, 'custom2');
       const custom3Embedder = new CustomEmbedder(this.logger, this.errorHandler, this.cacheService, 'custom3');
+      const similarityEmbedder = new CustomEmbedder(this.logger, this.errorHandler, this.cacheService, 'similarity');
       const geminiEmbedder = new GeminiEmbedder(this.logger, this.errorHandler, this.cacheService);
       const mistralEmbedder = new MistralEmbedder(this.logger, this.errorHandler, this.cacheService);
 
@@ -87,6 +88,7 @@ export class EmbedderFactory {
       this.registerProvider('custom1', custom1Embedder);
       this.registerProvider('custom2', custom2Embedder);
       this.registerProvider('custom3', custom3Embedder);
+      this.registerProvider('similarity', similarityEmbedder);
       this.registerProvider('gemini', geminiEmbedder);
       this.registerProvider('mistral', mistralEmbedder);
 
@@ -528,6 +530,8 @@ export class EmbedderFactory {
             return embeddingBatchConfig.providerBatchLimits.custom2;
           case 'custom3':
             return embeddingBatchConfig.providerBatchLimits.custom3;
+          case 'similarity':
+            return embeddingBatchConfig.providerBatchLimits.similarity;
           default:
             return embeddingBatchConfig.defaultBatchSize;
         }

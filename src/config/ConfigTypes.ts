@@ -181,6 +181,7 @@ export interface NebulaConfig {
 }
 
 export interface SimilarityConfig {
+  provider: string;
   apiKey?: string;
   baseUrl: string;
   model: string;

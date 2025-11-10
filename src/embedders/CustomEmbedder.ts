@@ -25,11 +25,24 @@ export class CustomEmbedder extends BaseEmbedder {
     this.providerName = providerName;
 
     // 根据providerName获取相应的配置
-    const prefix = `CUSTOM_${providerName.toUpperCase()}`;
+    let prefix: string;
+    let defaultModel: string;
+    let defaultDimensions: string;
+    
+    if (providerName === 'similarity') {
+      prefix = 'SIMILARITY';
+      defaultModel = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2';
+      defaultDimensions = '384';
+    } else {
+      prefix = `CUSTOM_${providerName.toUpperCase()}`;
+      defaultModel = 'default-model';
+      defaultDimensions = '768';
+    }
+    
     this.apiKey = process.env[`${prefix}_API_KEY`] || '';
     this.baseUrl = process.env[`${prefix}_BASE_URL`] || '';
-    this.model = process.env[`${prefix}_MODEL`] || 'default-model';
-    this.dimensions = parseInt(process.env[`${prefix}_DIMENSIONS`] || '768');
+    this.model = process.env[`${prefix}_MODEL`] || defaultModel;
+    this.dimensions = parseInt(process.env[`${prefix}_DIMENSIONS`] || defaultDimensions);
   }
 
   async embed(

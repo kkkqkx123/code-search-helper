@@ -19,7 +19,7 @@ export const qdrantSchema = Joi.object({
 // Embedding配置验证模式
 export const embeddingSchema = Joi.object({
   provider: Joi.string()
-    .valid('openai', 'ollama', 'gemini', 'mistral', 'siliconflow', 'custom1', 'custom2', 'custom3')
+    .valid('openai', 'ollama', 'gemini', 'mistral', 'siliconflow', 'custom1', 'custom2', 'custom3', 'similarity')
     .default('openai'),
   weights: Joi.object({
     quality: Joi.number().min(0).max(1).default(0.7),
@@ -132,10 +132,11 @@ export const treeSitterSchema = Joi.object({
 
 // Similarity配置验证模式
 export const similaritySchema = Joi.object({
+  provider: Joi.string().default('similarity'),
   apiKey: Joi.string().optional().allow(''),
-  baseUrl: Joi.string().uri().default('http://localhost:11434'),
-  model: Joi.string().default('default'),
-  dimensions: Joi.number().integer().positive().default(512),
+  baseUrl: Joi.string().uri().default('http://localhost:9000'),
+  model: Joi.string().default('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'),
+  dimensions: Joi.number().integer().positive().default(384),
 });
 
 // 分段配置验证模式
