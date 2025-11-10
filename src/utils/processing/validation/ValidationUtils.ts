@@ -5,7 +5,7 @@
 
 import { BaseValidator, ValidationResult } from './BaseValidator';
 import { CodeStructureValidator } from './CodeStructureValidator';
-import { FileTypeValidator, SemanticBoundaryType, IProcessingContext, ValidationRequirements } from './FileTypeValidator';
+import { FileTypeValidator } from './FileTypeValidator';
 import { LineLocation, FunctionValidationConfig, ClassValidationConfig, NamespaceValidationConfig, TemplateValidationConfig, ImportValidationConfig } from './index';
 
 // 重新导出所有接口和枚举
@@ -17,11 +17,6 @@ export {
   TemplateValidationConfig, 
   ImportValidationConfig 
 } from './CodeStructureValidator';
-export { 
-  SemanticBoundaryType, 
-  IProcessingContext, 
-  ValidationRequirements 
-} from './FileTypeValidator';
 export { ValidationResult };
 
 /**
@@ -91,15 +86,6 @@ export class ValidationUtils {
     return CodeStructureValidator.validateNestingLevel(node, maxLevel);
   }
 
-  /**
-   * 验证语义边界
-   */
-  static validateSemanticBoundary(
-    content: string, 
-    boundaryType: SemanticBoundaryType
-  ): boolean {
-    return FileTypeValidator.validateSemanticBoundary(content, boundaryType);
-  }
 
   /**
    * 验证是否为代码文件
@@ -136,15 +122,6 @@ export class ValidationUtils {
     return FileTypeValidator.hasYamlStructure(content);
   }
 
-  /**
-   * 验证处理上下文
-   */
-  static validateContext(
-    context: IProcessingContext, 
-    requirements: ValidationRequirements
-  ): ValidationResult {
-    return FileTypeValidator.validateContext(context, requirements);
-  }
 
   /**
    * 验证结构是否有效（通用方法）

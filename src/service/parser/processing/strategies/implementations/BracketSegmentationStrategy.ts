@@ -212,17 +212,17 @@ export class BracketSegmentationStrategy extends BaseStrategy {
     // 括号平衡且达到最小块大小
     const isBalanced = bracketDepth === 0 && xmlTagDepth === 0;
     const hasMinSize = currentChunk.length >= 5 && chunkContent.length >= this.config.minChunkSize!;
-    
+
     // 块大小限制
-    const exceedsMaxSize = chunkContent.length >= this.config.maxChunkSize! || 
-                          currentChunk.length >= 50;
-    
+    const exceedsMaxSize = chunkContent.length >= this.config.maxChunkSize! ||
+      currentChunk.length >= 50;
+
     // 到达文件末尾
     const isEndOfFile = currentIndex === totalLines - 1;
-    
+
     // 括号不平衡超过阈值
-    const isTooImbalanced = Math.abs(bracketDepth) > this.config.maxImbalance! || 
-                           Math.abs(xmlTagDepth) > this.config.maxImbalance!;
+    const isTooImbalanced = Math.abs(bracketDepth) > this.config.maxImbalance! ||
+      Math.abs(xmlTagDepth) > this.config.maxImbalance!;
 
     return (isBalanced && hasMinSize) || exceedsMaxSize || isEndOfFile || isTooImbalanced;
   }

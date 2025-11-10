@@ -20,32 +20,6 @@ import { PerformanceMonitor } from '../../../infrastructure/monitoring/Performan
  */
 @injectable()
 export class ContentAnalyzer implements IContentAnalyzer {
-  private readonly complexityFactors = {
-    // 代码复杂度因素
-    code: [
-      'nesting_depth',
-      'control_structures',
-      'function_calls',
-      'class_definitions',
-      'import_statements',
-      'comment_ratio'
-    ],
-    // 文本复杂度因素
-    text: [
-      'sentence_length',
-      'vocabulary_diversity',
-      'punctuation_ratio',
-      'structure_markers'
-    ],
-    // 通用复杂度因素
-    generic: [
-      'length',
-      'unique_characters',
-      'repetition_ratio',
-      'formatting_complexity'
-    ]
-  };
-
   private readonly cacheService: CacheService;
   private performanceMonitor: PerformanceMonitor;
 
@@ -164,19 +138,9 @@ export class ContentAnalyzer implements IContentAnalyzer {
   }
 
   detectContentType(content: string, language?: string): string {
-    // 如果指定了语言，优先使用语言判断
-    if (language) {
-      const codeLanguages = [
-        'javascript', 'typescript', 'python', 'java', 'c', 'cpp', 'csharp',
-        'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'r',
-        'html', 'css', 'scss', 'less', 'xml', 'json', 'yaml', 'yml'
-      ];
-
-      if (codeLanguages.includes(language.toLowerCase())) {
-        return 'code';
-      }
-    }
-
+    // 注意：语言检测应该使用专门的 LanguageDetectionService
+    // 这里仅根据内容特征进行文件类型（代码/文档/通用）的判断
+    
     // 基于内容特征检测
     const codeIndicators = [
       /\bfunction\s+\w+\s*\(/,

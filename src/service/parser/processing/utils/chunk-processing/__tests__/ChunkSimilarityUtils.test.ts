@@ -1,5 +1,6 @@
 import { ChunkSimilarityUtils } from '../ChunkSimilarityUtils';
 import { CodeChunk, ChunkType } from '../../../types/CodeChunk';
+import { SimilarityUtils } from '../../../../../similarity/utils/SimilarityUtils';
 
 describe('ChunkSimilarityUtils', () => {
   describe('isDuplicateChunk', () => {
@@ -101,7 +102,7 @@ describe('ChunkSimilarityUtils', () => {
   });
 
   describe('canMergeChunks', () => {
-    it('should allow merging adjacent chunks', () => {
+    it('should allow merging adjacent chunks', async () => {
       const chunk1: CodeChunk = {
         content: 'function first() {\n  return "first";\n}',
         metadata: {
@@ -130,10 +131,16 @@ describe('ChunkSimilarityUtils', () => {
         }
       };
 
-      expect(ChunkSimilarityUtils.canMergeChunks(chunk1, chunk2, 0.3)).toBe(true);
+      // Create an instance of SimilarityUtils using the static instance
+      const similarityUtils = SimilarityUtils.getInstance();
+      if (!similarityUtils) {
+        throw new Error('SimilarityUtils instance not available');
+      }
+      const chunkSimilarityUtils = new ChunkSimilarityUtils(similarityUtils);
+      expect(await chunkSimilarityUtils.canMergeChunks(chunk1, chunk2, 0.3)).toBe(true);
     });
 
-    it('should not allow merging non-adjacent chunks', () => {
+    it('should not allow merging non-adjacent chunks', async () => {
       const chunk1: CodeChunk = {
         content: 'function first() {\n  return "first";\n}',
         metadata: {
@@ -162,7 +169,13 @@ describe('ChunkSimilarityUtils', () => {
         }
       };
 
-      expect(ChunkSimilarityUtils.canMergeChunks(chunk1, chunk2, 0.8)).toBe(false);
+      // Create an instance of SimilarityUtils using the static instance
+      const similarityUtils = SimilarityUtils.getInstance();
+      if (!similarityUtils) {
+        throw new Error('SimilarityUtils instance not available');
+      }
+      const chunkSimilarityUtils = new ChunkSimilarityUtils(similarityUtils);
+      expect(await chunkSimilarityUtils.canMergeChunks(chunk1, chunk2, 0.8)).toBe(false);
     });
   });
 

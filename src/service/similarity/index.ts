@@ -13,7 +13,6 @@ export { BaseSimilarityStrategy } from './strategies/BaseSimilarityStrategy';
 export { LevenshteinSimilarityStrategy } from './strategies/LevenshteinSimilarityStrategy';
 export { SemanticSimilarityStrategy } from './strategies/SemanticSimilarityStrategy';
 export { KeywordSimilarityStrategy } from './strategies/KeywordSimilarityStrategy';
-export { HybridSimilarityStrategy } from './strategies/HybridSimilarityStrategy';
 
 // 缓存管理
 export { SimilarityCacheManager } from './cache/SimilarityCacheManager';

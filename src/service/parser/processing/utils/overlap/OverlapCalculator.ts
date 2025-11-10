@@ -52,6 +52,7 @@ export class OverlapCalculator implements IOverlapCalculator {
   private semanticAnalyzer: SemanticBoundaryAnalyzer;
   private balancedChunker: BalancedChunker;
   private contextAnalyzer: ContextAwareOverlapOptimizer;
+  private chunkSimilarityUtils: ChunkSimilarityUtils;
   private options: Required<UnifiedOverlapOptions>;
   private nodeTracker?: ASTNodeTracker;
   private logger?: LoggerService;
@@ -80,6 +81,9 @@ export class OverlapCalculator implements IOverlapCalculator {
     } as Required<UnifiedOverlapOptions>;
     this.nodeTracker = options.nodeTracker;
     this.logger = options.logger;
+
+    // 初始化 ChunkSimilarityUtils（临时解决方案）
+    this.chunkSimilarityUtils = new ChunkSimilarityUtils(null as any);
 
     // 初始化 SmartOverlapController 相关功能
     this.processedChunks = new Map();
@@ -860,15 +864,15 @@ export class OverlapCalculator implements IOverlapCalculator {
 
   // SmartOverlapController 功能相关方法
   /**
-   * 智能重叠控制 - 检查新的重叠块是否与已有块过于相似
-   */
+  * 智能重叠控制 - 检查新的重叠块是否与已有块过于相似
+  */
   private async shouldCreateOverlap(
-    newChunk: CodeChunk,
-    existingChunks: CodeChunk[],
-    originalContent: string
+  newChunk: CodeChunk,
+  existingChunks: CodeChunk[],
+  originalContent: string
   ): Promise<boolean> {
-    // 使用新的工具类方法
-    return await ChunkSimilarityUtils.shouldCreateOverlap(newChunk, existingChunks, this.options.similarityThreshold);
+  // 使用新的工具类方法
+  return await this.chunkSimilarityUtils.shouldCreateOverlap(newChunk, existingChunks, this.options.similarityThreshold);
   }
 
   /**
@@ -1051,7 +1055,7 @@ export class OverlapCalculator implements IOverlapCalculator {
    */
   private async canMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk): Promise<boolean> {
     // 使用新的工具类方法
-    return await ChunkSimilarityUtils.canMergeChunks(chunk1, chunk2, this.options.similarityThreshold);
+    return await this.chunkSimilarityUtils.canMergeChunks(chunk1, chunk2, this.options.similarityThreshold);
   }
 
   /**

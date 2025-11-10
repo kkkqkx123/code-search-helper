@@ -1007,7 +1007,11 @@ export class MarkdownTextStrategy {
   private async calculateSemanticSimilarity(text1: string, text2: string): Promise<number> {
     try {
       // 使用新的相似度服务，指定文档类型
-      return await SimilarityUtils.calculateSimilarity(text1, text2, {
+      const similarityUtils = SimilarityUtils.getInstance();
+      if (!similarityUtils) {
+        throw new Error('SimilarityUtils instance not available. Please ensure it has been properly initialized.');
+      }
+      return await similarityUtils.calculateSimilarity(text1, text2, {
         contentType: 'document',
         strategy: 'keyword' // 对于Markdown，使用关键词策略更合适
       });

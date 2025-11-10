@@ -14,19 +14,16 @@ export type {
   BaseValidationConfig 
 } from './BaseValidator';
 
-export type { 
+export type {
   FunctionValidationConfig,
   ClassValidationConfig,
   NamespaceValidationConfig,
   TemplateValidationConfig,
-  ImportValidationConfig
+  ImportValidationConfig,
+  PythonValidationConfig,
+  EnhancedValidationResult
 } from './CodeStructureValidator';
 
-export type { 
-  SemanticBoundaryType,
-  IProcessingContext,
-  ValidationRequirements
-} from './FileTypeValidator';
 
 // 导出行位置接口
 export interface LineLocation {

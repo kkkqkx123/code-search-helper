@@ -16,7 +16,6 @@ import { LoggerService } from '../../utils/LoggerService';
 import { LevenshteinSimilarityStrategy } from './strategies/LevenshteinSimilarityStrategy';
 import { SemanticSimilarityStrategy } from './strategies/SemanticSimilarityStrategy';
 import { KeywordSimilarityStrategy } from './strategies/KeywordSimilarityStrategy';
-import { HybridSimilarityStrategy } from './strategies/HybridSimilarityStrategy';
 import { BatchCalculatorFactory } from './batch';
 import { ISimilarityCoordinator } from './coordination/types/CoordinationTypes';
 
@@ -36,7 +35,6 @@ export class SimilarityService implements ISimilarityService {
     @inject(LevenshteinSimilarityStrategy) levenshteinStrategy?: LevenshteinSimilarityStrategy,
     @inject(SemanticSimilarityStrategy) semanticStrategy?: SemanticSimilarityStrategy,
     @inject(KeywordSimilarityStrategy) keywordStrategy?: KeywordSimilarityStrategy,
-    @inject(HybridSimilarityStrategy) hybridStrategy?: HybridSimilarityStrategy,
     @inject(BatchCalculatorFactory) private batchCalculatorFactory?: BatchCalculatorFactory
   ) {
     // 注册策略
@@ -48,9 +46,6 @@ export class SimilarityService implements ISimilarityService {
     }
     if (keywordStrategy) {
       this.strategies.set('keyword', keywordStrategy);
-    }
-    if (hybridStrategy) {
-      this.strategies.set('hybrid', hybridStrategy);
     }
 
     // 向协调器注册策略
@@ -70,7 +65,7 @@ export class SimilarityService implements ISimilarityService {
     options?: SimilarityOptions
   ): Promise<SimilarityResult> {
     const endTimer = this.performanceMonitor?.startTimer() || (() => 0);
-    
+
     try {
       // 验证输入
       this.validateInput(content1, content2, options);
@@ -78,7 +73,7 @@ export class SimilarityService implements ISimilarityService {
       // 如果有协调器，使用协调器进行计算
       if (this.coordinator) {
         const coordinationResult = await this.coordinator.calculateSimilarity(content1, content2, options);
-        
+
         // 记录性能指标
         const executionTime = endTimer();
         this.performanceMonitor?.recordCalculation('hybrid', executionTime, coordinationResult.executionDetails.cacheHits > 0);
@@ -121,7 +116,7 @@ export class SimilarityService implements ISimilarityService {
   ): Promise<SimilarityResult> {
     // 选择策略
     const strategy = this.selectStrategy(options);
-    
+
     // 生成缓存键
     const cacheKey = this.cacheManager ?
       this.generateCacheKey(content1, content2, strategy.type, options) : null;
@@ -129,7 +124,7 @@ export class SimilarityService implements ISimilarityService {
     // 检查缓存
     let similarity: number | undefined;
     let cacheHit = false;
-    
+
     if (cacheKey && this.cacheManager) {
       const cachedResult = await this.cacheManager.get(cacheKey);
       if (cachedResult !== null) {
@@ -142,7 +137,7 @@ export class SimilarityService implements ISimilarityService {
     // 如果缓存未命中，计算相似度
     if (similarity === undefined) {
       similarity = await strategy.calculate(content1, content2, options);
-      
+
       // 缓存结果
       if (cacheKey && this.cacheManager) {
         await this.cacheManager.set(cacheKey, similarity);
@@ -186,9 +181,9 @@ export class SimilarityService implements ISimilarityService {
       if (this.batchCalculatorFactory) {
         const calculatorType = this.batchCalculatorFactory.selectOptimalCalculator(strategy, contents);
         const calculator = this.batchCalculatorFactory.createCalculator(calculatorType);
-        
+
         this.logger?.info(`Using batch calculator: ${calculator.name} (${calculator.type}) for ${contents.length} items`);
-        
+
         return await calculator.calculateBatch(contents, strategy, options);
       } else {
         // 回退到原有的实现
@@ -233,7 +228,7 @@ export class SimilarityService implements ISimilarityService {
           } else {
             const result = await this.calculateSimilarity(contents[i], contents[j], options);
             matrix[i][j] = result.similarity;
-            
+
             if (result.details?.cacheHit) {
               cacheHits++;
             }
@@ -250,9 +245,9 @@ export class SimilarityService implements ISimilarityService {
       }
 
       const executionTime = Date.now() - startTime;
-      
+
       this.logger?.info(`Batch similarity calculation completed: ${contents.length} items, ${executionTime}ms`);
-      
+
       return {
         matrix,
         pairs,
@@ -311,21 +306,21 @@ export class SimilarityService implements ISimilarityService {
     for (let i = 0; i < items.length; i++) {
       const currentItem = items[i];
       const currentId = currentItem.id || String(i);
-      
+
       if (processed.has(currentId)) {
         continue;
       }
 
       let isDuplicate = false;
-      
+
       // 检查与已处理项目的相似度
       for (const uniqueItem of uniqueItems) {
         const similarity = await this.calculateSimilarity(
-          currentItem.content, 
-          uniqueItem.content, 
+          currentItem.content,
+          uniqueItem.content,
           { ...options, threshold }
         );
-        
+
         if (similarity.isSimilar) {
           isDuplicate = true;
           processed.add(currentId);
@@ -354,7 +349,7 @@ export class SimilarityService implements ISimilarityService {
     for (let i = 0; i < items.length; i++) {
       const currentItem = items[i];
       const currentId = currentItem.id || String(i);
-      
+
       if (processed.has(currentId)) {
         continue;
       }
@@ -366,7 +361,7 @@ export class SimilarityService implements ISimilarityService {
       for (let j = i + 1; j < items.length; j++) {
         const otherItem = items[j];
         const otherId = otherItem.id || String(j);
-        
+
         if (processed.has(otherId)) {
           continue;
         }
@@ -399,7 +394,7 @@ export class SimilarityService implements ISimilarityService {
   private selectStrategy(options?: SimilarityOptions): ISimilarityStrategy {
     const strategyType = options?.strategy || 'hybrid';
     const strategy = this.strategies.get(strategyType);
-    
+
     if (!strategy) {
       throw new SimilarityError(
         `Strategy not found: ${strategyType}`,
@@ -449,12 +444,12 @@ export class SimilarityService implements ISimilarityService {
     if (this.cacheManager && 'generateCacheKey' in this.cacheManager) {
       return (this.cacheManager as any).generateCacheKey(content1, content2, strategy, options);
     }
-    
+
     // 简单的缓存键生成
     const hash1 = this.simpleHash(content1);
     const hash2 = this.simpleHash(content2);
     const optionsHash = options ? this.simpleHash(JSON.stringify(options)) : '';
-    
+
     return `${strategy}:${hash1}:${hash2}:${optionsHash}`;
   }
 

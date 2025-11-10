@@ -101,28 +101,28 @@ class MockSimilarityService implements ISimilarityService {
 
 describe('SimilarityUtils', () => {
   let mockService: MockSimilarityService;
+  let similarityUtils: SimilarityUtils;
 
   beforeEach(() => {
     mockService = new MockSimilarityService();
-    SimilarityUtils.setService(mockService);
+    similarityUtils = new SimilarityUtils(mockService);
   });
 
   afterEach(() => {
     SimilarityUtils.cleanup();
   });
 
-  describe('setService and getService', () => {
+  describe('setService and getInstance', () => {
     it('should set and get the service correctly', () => {
       SimilarityUtils.setService(mockService);
       // We can't directly access private getService, but we can test that the service is set by calling other methods
       expect(() => SimilarityUtils.cleanup()).not.toThrow();
     });
 
-    it('should throw error when service is not initialized', () => {
+    it('should handle uninitialized service correctly', () => {
       SimilarityUtils.cleanup();
-      expect(() =>
-        (SimilarityUtils as any).getService()
-      ).toThrow(SimilarityError);
+      // Test that instance is null after cleanup
+      expect(SimilarityUtils.getInstance()).toBeNull();
     });
   });
 
@@ -131,7 +131,7 @@ describe('SimilarityUtils', () => {
       const content1 = 'console.log("hello");';
       const content2 = 'console.log("hello");';
 
-      const result = await SimilarityUtils.calculateSimilarity(content1, content2);
+      const result = await similarityUtils.calculateSimilarity(content1, content2);
       expect(result).toBeGreaterThanOrEqual(0);
       expect(result).toBeLessThanOrEqual(1);
     });
@@ -142,7 +142,7 @@ describe('SimilarityUtils', () => {
       const content1 = 'console.log("hello");';
       const content2 = 'console.log("hello");';
 
-      const result = await SimilarityUtils.isSimilar(content1, content2, 0.8);
+      const result = await similarityUtils.isSimilar(content1, content2, 0.8);
       expect(typeof result).toBe('boolean');
     });
   });
@@ -155,7 +155,7 @@ describe('SimilarityUtils', () => {
         'console.log("world");'
       ];
 
-      const matrix = await SimilarityUtils.calculateBatchSimilarity(contents);
+      const matrix = await similarityUtils.calculateBatchSimilarity(contents);
       expect(matrix).toHaveLength(3);
       expect(matrix[0]).toHaveLength(3);
     });
@@ -274,7 +274,7 @@ describe('SimilarityUtils', () => {
         }
       };
 
-      const canMerge = await SimilarityUtils.canMergeChunks(chunk1, chunk2, 0.8);
+      const canMerge = await similarityUtils.canMergeChunks(chunk1, chunk2, 0.8);
       expect(canMerge).toBe(true); // Same content and adjacent lines
     });
 
@@ -307,7 +307,7 @@ describe('SimilarityUtils', () => {
         }
       };
 
-      const canMerge = await SimilarityUtils.canMergeChunks(chunk1, chunk2, 0.8);
+      const canMerge = await similarityUtils.canMergeChunks(chunk1, chunk2, 0.8);
       expect(canMerge).toBe(false); // Different content
     });
 
@@ -340,7 +340,7 @@ describe('SimilarityUtils', () => {
         }
       };
 
-      const canMerge = await SimilarityUtils.canMergeChunks(chunk1, chunk2, 0.8);
+      const canMerge = await similarityUtils.canMergeChunks(chunk1, chunk2, 0.8);
       expect(canMerge).toBe(false); // Similar content but not adjacent
     });
   });
@@ -375,7 +375,7 @@ describe('SimilarityUtils', () => {
         }
       }];
 
-      const shouldCreate = await SimilarityUtils.shouldCreateOverlap(newChunk, existingChunks, 0.8);
+      const shouldCreate = await similarityUtils.shouldCreateOverlap(newChunk, existingChunks, 0.8);
       expect(shouldCreate).toBe(true); // Different content and not duplicate
     });
 
@@ -408,7 +408,7 @@ describe('SimilarityUtils', () => {
         }
       }];
 
-      const shouldCreate = await SimilarityUtils.shouldCreateOverlap(newChunk, existingChunks, 0.8);
+      const shouldCreate = await similarityUtils.shouldCreateOverlap(newChunk, existingChunks, 0.8);
       expect(shouldCreate).toBe(false); // Same content
     });
 
@@ -441,7 +441,7 @@ describe('SimilarityUtils', () => {
         }
       }];
 
-      const shouldCreate = await SimilarityUtils.shouldCreateOverlap(newChunk, existingChunks, 0.9); // High threshold
+      const shouldCreate = await similarityUtils.shouldCreateOverlap(newChunk, existingChunks, 0.9); // High threshold
       expect(shouldCreate).toBe(false); // Similar content
     });
   });
@@ -454,7 +454,7 @@ describe('SimilarityUtils', () => {
         { content: 'console.log("world");', id: '3' }  // different
       ];
 
-      const result = await SimilarityUtils.filterSimilarChunks(chunks, 0.8);
+      const result = await similarityUtils.filterSimilarChunks(chunks, 0.8);
       // The mock implementation may filter more aggressively than expected
       // Let's just check that it returns an array with at least one element
       expect(Array.isArray(result)).toBe(true);
@@ -470,7 +470,7 @@ describe('SimilarityUtils', () => {
         { content: 'console.log("world");', id: '3' }  // different
       ];
 
-      const groups = await SimilarityUtils.findSimilarityGroups(chunks, 0.8);
+      const groups = await similarityUtils.findSimilarityGroups(chunks, 0.8);
       expect(groups.size).toBeGreaterThanOrEqual(1); // At least one group
     });
   });
@@ -483,7 +483,7 @@ describe('SimilarityUtils', () => {
         'console.log("world");'
       ];
 
-      const matrix = await SimilarityUtils.calculateSimilarityMatrix(contents);
+      const matrix = await similarityUtils.calculateSimilarityMatrix(contents);
       expect(matrix).toHaveLength(3);
       expect(matrix[0]).toHaveLength(3);
       // First and second should be similar
@@ -496,7 +496,7 @@ describe('SimilarityUtils', () => {
       const content1 = 'console.log("hello");';
       const content2 = 'console.log("hello");';
 
-      const result = await SimilarityUtils.calculateAdvancedSimilarity(content1, content2, { contentType: 'code' });
+      const result = await similarityUtils.calculateAdvancedSimilarity(content1, content2, { contentType: 'code' });
       expect(result).toHaveProperty('similarity');
       expect(result).toHaveProperty('isSimilar');
     });
@@ -505,14 +505,14 @@ describe('SimilarityUtils', () => {
   describe('getAvailableStrategies', () => {
     it('should return available strategies when service is available', () => {
       // Since our mock doesn't implement getAvailableStrategies, this should return empty array
-      const strategies = SimilarityUtils.getAvailableStrategies();
+      const strategies = similarityUtils.getAvailableStrategies();
       expect(Array.isArray(strategies)).toBe(true);
       expect(strategies).toHaveLength(0);
     });
 
     it('should return empty array when service is not initialized', () => {
       SimilarityUtils.cleanup();
-      const strategies = SimilarityUtils.getAvailableStrategies();
+      const strategies = similarityUtils.getAvailableStrategies();
       expect(Array.isArray(strategies)).toBe(true);
       expect(strategies).toHaveLength(0);
     });
@@ -522,7 +522,8 @@ describe('SimilarityUtils', () => {
     it('should cleanup the service', () => {
       SimilarityUtils.setService(mockService);
       SimilarityUtils.cleanup();
-      expect(() => (SimilarityUtils as any).getService()).toThrow();
+      // After cleanup, instance should be null
+      expect(SimilarityUtils.getInstance()).toBeNull();
     });
   });
 });

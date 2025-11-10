@@ -11,7 +11,6 @@ import { SimilarityUtils } from '../../service/similarity/utils/SimilarityUtils'
 import { LevenshteinSimilarityStrategy } from '../../service/similarity/strategies/LevenshteinSimilarityStrategy';
 import { SemanticSimilarityStrategy } from '../../service/similarity/strategies/SemanticSimilarityStrategy';
 import { KeywordSimilarityStrategy } from '../../service/similarity/strategies/KeywordSimilarityStrategy';
-import { HybridSimilarityStrategy } from '../../service/similarity/strategies/HybridSimilarityStrategy';
 
 // 批处理计算器
 import { BatchCalculatorFactory } from '../../service/similarity/batch/BatchCalculatorFactory';
@@ -99,10 +98,6 @@ export class SimilarityServiceRegistrar {
 
       container.bind<KeywordSimilarityStrategy>(KeywordSimilarityStrategy)
         .to(KeywordSimilarityStrategy)
-        .inSingletonScope();
-
-      container.bind<HybridSimilarityStrategy>(HybridSimilarityStrategy)
-        .to(HybridSimilarityStrategy)
         .inSingletonScope();
 
       // 注册主相似度服务
@@ -197,11 +192,6 @@ export class SimilarityServiceRegistrar {
         {
           symbol: TYPES.KeywordSimilarityStrategy,
           implementation: KeywordSimilarityStrategy,
-          scope: 'Singleton'
-        },
-        {
-          symbol: TYPES.HybridSimilarityStrategy,
-          implementation: HybridSimilarityStrategy,
           scope: 'Singleton'
         },
         {

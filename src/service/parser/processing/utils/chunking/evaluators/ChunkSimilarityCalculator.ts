@@ -24,7 +24,11 @@ export class ChunkSimilarityCalculator implements IChunkSimilarityCalculator {
     const languageSimilarity = chunk1.metadata.language === chunk2.metadata.language ? 0.2 : 0;
 
     // 基于内容相似性（使用 SimilarityUtils 的更准确算法）
-    const contentSimilarity = await SimilarityUtils.calculateSimilarity(chunk1.content, chunk2.content);
+    const similarityUtils = SimilarityUtils.getInstance();
+    if (!similarityUtils) {
+      throw new Error('SimilarityUtils instance not available. Please ensure it has been properly initialized.');
+    }
+    const contentSimilarity = await similarityUtils.calculateSimilarity(chunk1.content, chunk2.content);
 
     // 组合相似性，内容相似性权重更高
     return typeSimilarity + languageSimilarity + (contentSimilarity * 0.5);
@@ -38,6 +42,10 @@ export class ChunkSimilarityCalculator implements IChunkSimilarityCalculator {
    */
   async calculateContentSimilarity(content1: string, content2: string): Promise<number> {
     // 直接使用 SimilarityUtils 的实现
-    return await SimilarityUtils.calculateSimilarity(content1, content2);
+    const similarityUtils = SimilarityUtils.getInstance();
+    if (!similarityUtils) {
+      throw new Error('SimilarityUtils instance not available. Please ensure it has been properly initialized.');
+    }
+    return await similarityUtils.calculateSimilarity(content1, content2);
   }
 }

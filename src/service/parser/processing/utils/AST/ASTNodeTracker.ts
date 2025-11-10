@@ -110,7 +110,11 @@ export class ASTNodeTracker {
       for (const existingNodeId of similarNodes) {
         const existingNode = this.nodeCache.get(existingNodeId);
         if (existingNode && this.usedNodes.has(existingNodeId)) {
-          const isSimilar = await SimilarityUtils.isSimilar(node.text, existingNode.text, this.similarityThreshold);
+          const similarityUtils = SimilarityUtils.getInstance();
+          if (!similarityUtils) {
+            throw new Error('SimilarityUtils instance not available. Please ensure it has been properly initialized.');
+          }
+          const isSimilar = await similarityUtils.isSimilar(node.text, existingNode.text, this.similarityThreshold);
           if (isSimilar) {
             return true;
           }
