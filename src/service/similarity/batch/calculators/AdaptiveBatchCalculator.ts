@@ -16,7 +16,7 @@ export class AdaptiveBatchCalculator extends BaseBatchCalculator {
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject('IBatchCalculatorFactory') private calculatorFactory?: IBatchCalculatorFactory
+    @inject(TYPES.BatchCalculatorFactory) private calculatorFactory?: IBatchCalculatorFactory
   ) {
     super(logger);
   }

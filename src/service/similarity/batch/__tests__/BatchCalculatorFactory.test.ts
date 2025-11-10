@@ -6,6 +6,10 @@ import { HybridOptimizedBatchCalculator } from '../calculators/HybridOptimizedBa
 import { AdaptiveBatchCalculator } from '../calculators/AdaptiveBatchCalculator';
 import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { EmbedderFactory } from '../../../../embedders/EmbedderFactory';
+import { EmbeddingCacheService } from '../../../../embedders/EmbeddingCacheService';
+import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
+import { ConfigService } from '../../../../config/ConfigService';
 
 // Mock 策略类
 class MockStrategy {
@@ -25,6 +29,28 @@ class MockStrategy {
   }
 }
 
+// Mock ConfigService
+class MockConfigService {
+  get(key: string) {
+    if (key === 'embeddingBatch') {
+      return {
+        defaultBatchSize: 50,
+        providerBatchLimits: {
+          openai: 2048,
+          siliconflow: 64,
+          ollama: 128,
+          gemini: 100,
+          mistral: 512,
+          custom1: 100,
+          custom2: 100,
+          custom3: 100
+        }
+      };
+    }
+    return {};
+  }
+}
+
 describe('BatchCalculatorFactory', () => {
   let container: Container;
   let factory: BatchCalculatorFactory;
@@ -36,18 +62,53 @@ describe('BatchCalculatorFactory', () => {
 
     // 注册依赖
     container.bind(TYPES.LoggerService).to(LoggerService).inSingletonScope();
-    container.bind(TYPES.GenericBatchCalculator).to(GenericBatchCalculator).inSingletonScope();
-    container.bind(TYPES.SemanticOptimizedBatchCalculator).to(SemanticOptimizedBatchCalculator).inSingletonScope();
-    container.bind(TYPES.HybridOptimizedBatchCalculator).to(HybridOptimizedBatchCalculator).inSingletonScope();
-    container.bind(TYPES.AdaptiveBatchCalculator).to(AdaptiveBatchCalculator).inSingletonScope();
+    container.bind(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
+    container.bind(TYPES.ConfigService).toConstantValue(new MockConfigService());
+    container.bind(TYPES.EmbedderFactory).toDynamicValue(() => {
+      // 创建一个简单的Mock EmbedderFactory
+      return {
+        getEmbedder: jest.fn().mockResolvedValue({
+          getModelName: () => 'mock-model',
+          getDimensions: () => 1536,
+          isAvailable: () => Promise.resolve(true),
+          embed: jest.fn().mockResolvedValue([])
+        }),
+        getAvailableProviders: jest.fn().mockResolvedValue(['mock']),
+        getDefaultProvider: () => 'mock'
+      } as any;
+    }).inSingletonScope();
+    container.bind(TYPES.EmbeddingCacheService).toDynamicValue(() => {
+      // 创建一个简单的Mock EmbeddingCacheService
+      return {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined)
+      } as any;
+    }).inSingletonScope();
+    container.bind(GenericBatchCalculator).to(GenericBatchCalculator).inSingletonScope();
+    container.bind(SemanticOptimizedBatchCalculator).to(SemanticOptimizedBatchCalculator).inSingletonScope();
+    container.bind(HybridOptimizedBatchCalculator).to(HybridOptimizedBatchCalculator).inSingletonScope();
+    // 创建一个Mock BatchCalculatorFactory来解决循环依赖
+    const mockCalculatorFactory = {
+      createCalculator: jest.fn(),
+      getAvailableCalculators: jest.fn(),
+      selectOptimalCalculator: jest.fn()
+    } as any;
 
-    // 创建工厂
+    // 手动创建AdaptiveBatchCalculator，传入mock工厂
+    const logger = container.get(TYPES.LoggerService) as LoggerService;
+    const genericCalculator = container.get(GenericBatchCalculator) as GenericBatchCalculator;
+    const semanticCalculator = container.get(SemanticOptimizedBatchCalculator) as SemanticOptimizedBatchCalculator;
+    const hybridCalculator = container.get(HybridOptimizedBatchCalculator) as HybridOptimizedBatchCalculator;
+    
+    // 创建AdaptiveBatchCalculator并手动传入依赖
+    const adaptiveCalculator = new AdaptiveBatchCalculator(logger, mockCalculatorFactory);
+    
     factory = new BatchCalculatorFactory(
-      container.get(TYPES.LoggerService),
-      container.get(TYPES.GenericBatchCalculator),
-      container.get(TYPES.SemanticOptimizedBatchCalculator),
-      container.get(TYPES.HybridOptimizedBatchCalculator),
-      container.get(TYPES.AdaptiveBatchCalculator)
+      logger,
+      genericCalculator,
+      semanticCalculator,
+      hybridCalculator,
+      adaptiveCalculator
     );
   });
 
@@ -94,8 +155,14 @@ describe('BatchCalculatorFactory', () => {
   });
 
   describe('selectOptimalCalculator', () => {
-    it('should select semantic-optimized for semantic strategy with more than 3 contents', () => {
-      const contents = ['content1', 'content2', 'content3', 'content4'];
+    it('should select generic for semantic strategy with less than 5 contents', () => {
+      const contents = ['content1', 'content2', 'content3', 'content4']; // 4 contents < 5, so returns 'generic'
+      const type = factory.selectOptimalCalculator(mockStrategy, contents);
+      expect(type).toBe('generic');
+    });
+
+    it('should select semantic-optimized for semantic strategy with more than 4 contents', () => {
+      const contents = ['content1', 'content2', 'content3', 'content4', 'content5']; // 5 contents >= 5
       const type = factory.selectOptimalCalculator(mockStrategy, contents);
       expect(type).toBe('semantic-optimized');
     });
@@ -106,11 +173,18 @@ describe('BatchCalculatorFactory', () => {
       expect(type).toBe('generic');
     });
 
-    it('should select adaptive for unknown strategy', () => {
+    it('should select adaptive for unknown strategy with more than 4 contents', () => {
       const unknownStrategy = { type: 'unknown' } as any;
-      const contents = ['content1', 'content2', 'content3'];
+      const contents = ['content1', 'content2', 'content3', 'content4', 'content5']; // 5 contents >= 5
       const type = factory.selectOptimalCalculator(unknownStrategy, contents);
       expect(type).toBe('adaptive');
+    });
+
+    it('should select generic for unknown strategy with less than 5 contents', () => {
+      const unknownStrategy = { type: 'unknown' } as any;
+      const contents = ['content1', 'content2', 'content3']; // Less than 5 contents
+      const type = factory.selectOptimalCalculator(unknownStrategy, contents);
+      expect(type).toBe('generic');
     });
   });
 

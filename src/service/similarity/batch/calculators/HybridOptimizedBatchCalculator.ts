@@ -62,7 +62,7 @@ export class HybridOptimizedBatchCalculator extends BaseBatchCalculator {
       const { matrix, pairs } = this.mergeStrategyMatrices(strategyMatrices, contents, options);
       calculatedPairs = pairs.length;
 
-      const executionTime = Date.now() - startTime;
+      const executionTime = Math.max(1, Date.now() - startTime);
       
       // 记录性能指标
       this.logPerformanceMetrics(contents, {
@@ -191,10 +191,10 @@ export class HybridOptimizedBatchCalculator extends BaseBatchCalculator {
     // 从选项中获取自定义权重
     if (options && 'weights' in options && options.weights) {
       const weights = options.weights as any;
-      return weights[strategy.type] || defaultWeights[strategy.type] || 0.33;
+      return weights[strategy.type] ?? defaultWeights[strategy.type] ?? 0.33;
     }
 
-    return defaultWeights[strategy.type] || 0.33;
+    return defaultWeights[strategy.type] ?? 0.33;
   }
 
   /**
