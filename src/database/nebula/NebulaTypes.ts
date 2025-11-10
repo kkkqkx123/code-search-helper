@@ -35,15 +35,6 @@ export interface NebulaQueryResult {
   executionTime?: number;
   timeCost?: number;
   space?: string;
-  errorCode?: any;
-  errorDetails?: any;
-  query?: string;
-  stats?: {
-    rowCount?: number;
-    columnCount?: number;
-    dataSize?: number;
-    processedTime?: number;
-  };
 }
 
 // Nebula 错误处理类型
@@ -77,32 +68,6 @@ export interface NebulaSpaceInfo {
   partition_num: number;
   replica_factor: number;
   vid_type: string;
-  charset: string;
-  collate: string;
-}
-
-// Nebula 标签信息类型
-export interface NebulaTagInfo {
-  name: string;
-  fields: Array<{
-    field: string;
-    type: string;
-    null: string;
-    default: string;
-    comment: string;
-  }>;
-}
-
-// Nebula 边类型信息类型
-export interface NebulaEdgeInfo {
-  name: string;
-  fields: Array<{
-    field: string;
-    type: string;
-    null: string;
-    default: string;
-    comment: string;
-  }>;
 }
 
 // Nebula 节点类型
@@ -126,22 +91,6 @@ export interface NebulaSpaceConfig {
   partitionNum?: number;
   replicaFactor?: number;
   vidType?: string;
-  tags?: Array<{
-    name: string;
-    properties: Array<{
-      name: string;
-      type: string;
-      nullable?: boolean;
-    }>;
-  }>;
-  edges?: Array<{
-    name: string;
-    properties: Array<{
-      name: string;
-      type: string;
-      nullable?: boolean;
-    }>;
-  }>;
 }
 
 // 项目空间信息类型
@@ -151,31 +100,4 @@ export interface ProjectSpaceInfo {
   spaceInfo: NebulaSpaceInfo;
   createdAt: Date;
   updatedAt: Date;
-}
-
-// Nebula 事件类型
-export enum NebulaEventType {
-  CONNECTION_OPENED = 'connection_opened',
-  CONNECTION_CLOSED = 'connection_closed',
-  SPACE_CREATED = 'space_created',
-  SPACE_DELETED = 'space_deleted',
-  SPACE_UPDATED = 'space_updated',
-  SPACE_ERROR = 'space_error',
-  NODE_INSERTED = 'node_inserted',
-  NODE_UPDATED = 'node_updated',
-  NODE_DELETED = 'node_deleted',
-  RELATIONSHIP_INSERTED = 'relationship_inserted',
-  RELATIONSHIP_UPDATED = 'relationship_updated',
-  RELATIONSHIP_DELETED = 'relationship_deleted',
-  QUERY_EXECUTED = 'query_executed',
-  QUERY_ERROR = 'query_error',
-  ERROR_OCCURRED = 'error_occurred'
-}
-
-// Nebula 事件接口
-export interface NebulaEvent {
-  type: NebulaEventType;
-  timestamp: Date;
-  data?: any;
-  error?: Error;
 }

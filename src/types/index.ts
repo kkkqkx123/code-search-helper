@@ -83,6 +83,7 @@ export const TYPES = {
   INebulaQueryService: Symbol.for('INebulaQueryService'),
   INebulaTransactionService: Symbol.for('INebulaTransactionService'),
   ISpaceNameUtils: Symbol.for('ISpaceNameUtils'),
+   IConnectionPool: Symbol.for('IConnectionPool'),
 
   // 通用文件处理服务
   UniversalTextStrategy: Symbol.for('UniversalTextStrategy'),
@@ -185,4 +186,11 @@ export const TYPES = {
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
   VectorBatchOptimizer: Symbol.for('VectorBatchOptimizer'),
   BatchOptimizer: Symbol.for('BatchOptimizer'),
+
+  // Nebula Graph 新增服务
+  ISessionManager: Symbol.for('ISessionManager'),
+  ITransactionManager: Symbol.for('ITransactionManager'),
+  IRetryStrategy: Symbol.for('IRetryStrategy'),
+  ICircuitBreaker: Symbol.for('ICircuitBreaker'),
+  IQueryRunner: Symbol.for('IQueryRunner'),
 };

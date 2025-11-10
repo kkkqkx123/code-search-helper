@@ -50,6 +50,13 @@ import { SpaceNameUtils, ISpaceNameUtils } from '../../database/nebula/SpaceName
 import { NebulaTransactionService, INebulaTransactionService } from '../../database/nebula/transaction/NebulaTransactionService';
 import { NebulaBatchService, INebulaBatchService } from '../../database/nebula/batch/NebulaBatchService';
 import { NebulaFileDataService, INebulaFileDataService } from '../../database/nebula/file/NebulaFileDataService';
+
+// Nebula 会话和连接管理服务
+import { SessionManager, ISessionManager } from '../../database/nebula/session/SessionManager';
+import { ExponentialBackoffRetryStrategy, IRetryStrategy } from '../../database/nebula/retry/RetryStrategy';
+import { CircuitBreaker, ICircuitBreaker } from '../../database/nebula/circuit-breaker/CircuitBreaker';
+import { QueryRunner, IQueryRunner } from '../../database/nebula/query/QueryRunner';
+
 // SQLite数据库服务
 import { SqliteDatabaseService } from '../../database/splite/SqliteDatabaseService';
 import { SqliteConnectionManager } from '../../database/splite/SqliteConnectionManager';
@@ -122,7 +129,13 @@ export class DatabaseServiceRegistrar {
       container.bind<NebulaFileDataService>(TYPES.NebulaFileDataService).to(NebulaFileDataService).inSingletonScope();
       container.bind<INebulaFileDataService>(TYPES.INebulaFileDataService).to(NebulaFileDataService).inSingletonScope();
 
-      // 工具类服务
+      // Nebula 会话和连接管理服务
+       container.bind<SessionManager>(TYPES.ISessionManager).to(SessionManager).inSingletonScope();
+       container.bind<ExponentialBackoffRetryStrategy>(TYPES.IRetryStrategy).to(ExponentialBackoffRetryStrategy).inSingletonScope();
+       container.bind<CircuitBreaker>(TYPES.ICircuitBreaker).to(CircuitBreaker).inSingletonScope();
+       container.bind<QueryRunner>(TYPES.IQueryRunner).to(QueryRunner).inSingletonScope();
+
+       // 工具类服务
       container.bind<NebulaQueryUtils>(TYPES.NebulaQueryUtils).to(NebulaQueryUtils).inSingletonScope();
       container.bind<NebulaResultFormatter>(TYPES.NebulaResultFormatter).to(NebulaResultFormatter).inSingletonScope();
       container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
