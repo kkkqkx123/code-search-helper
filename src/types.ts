@@ -347,4 +347,11 @@ export const TYPES = {
   SemanticSimilarityStrategy: Symbol.for('SemanticSimilarityStrategy'),
   KeywordSimilarityStrategy: Symbol.for('KeywordSimilarityStrategy'),
   HybridSimilarityStrategy: Symbol.for('HybridSimilarityStrategy'),
+  
+  // 46. 批处理计算器相关
+  BatchCalculatorFactory: Symbol.for('BatchCalculatorFactory'),
+  GenericBatchCalculator: Symbol.for('GenericBatchCalculator'),
+  SemanticOptimizedBatchCalculator: Symbol.for('SemanticOptimizedBatchCalculator'),
+  HybridOptimizedBatchCalculator: Symbol.for('HybridOptimizedBatchCalculator'),
+  AdaptiveBatchCalculator: Symbol.for('AdaptiveBatchCalculator'),
 };

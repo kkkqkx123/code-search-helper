@@ -12,6 +12,13 @@ import { SemanticSimilarityStrategy } from '../../service/similarity/strategies/
 import { KeywordSimilarityStrategy } from '../../service/similarity/strategies/KeywordSimilarityStrategy';
 import { HybridSimilarityStrategy } from '../../service/similarity/strategies/HybridSimilarityStrategy';
 
+// 批处理计算器
+import { BatchCalculatorFactory } from '../../service/similarity/batch/BatchCalculatorFactory';
+import { GenericBatchCalculator } from '../../service/similarity/batch/calculators/GenericBatchCalculator';
+import { SemanticOptimizedBatchCalculator } from '../../service/similarity/batch/calculators/SemanticOptimizedBatchCalculator';
+import { HybridOptimizedBatchCalculator } from '../../service/similarity/batch/calculators/HybridOptimizedBatchCalculator';
+import { AdaptiveBatchCalculator } from '../../service/similarity/batch/calculators/AdaptiveBatchCalculator';
+
 /**
  * 相似度服务注册器
  * 负责将所有相似度相关的服务注册到DI容器
@@ -72,6 +79,27 @@ export class SimilarityServiceRegistrar {
       // 注册主相似度服务
       container.bind<SimilarityService>(TYPES.SimilarityService)
         .to(SimilarityService)
+        .inSingletonScope();
+
+      // 注册批处理计算器
+      container.bind<GenericBatchCalculator>(TYPES.GenericBatchCalculator)
+        .to(GenericBatchCalculator)
+        .inSingletonScope();
+        
+      container.bind<SemanticOptimizedBatchCalculator>(TYPES.SemanticOptimizedBatchCalculator)
+        .to(SemanticOptimizedBatchCalculator)
+        .inSingletonScope();
+        
+      container.bind<HybridOptimizedBatchCalculator>(TYPES.HybridOptimizedBatchCalculator)
+        .to(HybridOptimizedBatchCalculator)
+        .inSingletonScope();
+        
+      container.bind<AdaptiveBatchCalculator>(TYPES.AdaptiveBatchCalculator)
+        .to(AdaptiveBatchCalculator)
+        .inSingletonScope();
+        
+      container.bind<BatchCalculatorFactory>(TYPES.BatchCalculatorFactory)
+        .to(BatchCalculatorFactory)
         .inSingletonScope();
 
       // 注册相似度服务初始化器
@@ -150,6 +178,31 @@ export class SimilarityServiceRegistrar {
         {
           symbol: TYPES.SimilarityServiceInitializer,
           implementation: SimilarityServiceInitializer,
+          scope: 'Singleton'
+        },
+        {
+          symbol: TYPES.BatchCalculatorFactory,
+          implementation: BatchCalculatorFactory,
+          scope: 'Singleton'
+        },
+        {
+          symbol: TYPES.GenericBatchCalculator,
+          implementation: GenericBatchCalculator,
+          scope: 'Singleton'
+        },
+        {
+          symbol: TYPES.SemanticOptimizedBatchCalculator,
+          implementation: SemanticOptimizedBatchCalculator,
+          scope: 'Singleton'
+        },
+        {
+          symbol: TYPES.HybridOptimizedBatchCalculator,
+          implementation: HybridOptimizedBatchCalculator,
+          scope: 'Singleton'
+        },
+        {
+          symbol: TYPES.AdaptiveBatchCalculator,
+          implementation: AdaptiveBatchCalculator,
           scope: 'Singleton'
         }
       ],

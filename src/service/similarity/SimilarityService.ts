@@ -1,9 +1,9 @@
 import { inject, injectable } from 'inversify';
-import { 
-  ISimilarityService, 
-  ISimilarityStrategy, 
-  SimilarityOptions, 
-  SimilarityResult, 
+import {
+  ISimilarityService,
+  ISimilarityStrategy,
+  SimilarityOptions,
+  SimilarityResult,
   BatchSimilarityResult,
   AdvancedSimilarityOptions,
   SimilarityStrategyType,
@@ -17,6 +17,7 @@ import { LevenshteinSimilarityStrategy } from './strategies/LevenshteinSimilarit
 import { SemanticSimilarityStrategy } from './strategies/SemanticSimilarityStrategy';
 import { KeywordSimilarityStrategy } from './strategies/KeywordSimilarityStrategy';
 import { HybridSimilarityStrategy } from './strategies/HybridSimilarityStrategy';
+import { BatchCalculatorFactory } from './batch';
 
 /**
  * 相似度服务主类
@@ -33,7 +34,8 @@ export class SimilarityService implements ISimilarityService {
     @inject(LevenshteinSimilarityStrategy) levenshteinStrategy?: LevenshteinSimilarityStrategy,
     @inject(SemanticSimilarityStrategy) semanticStrategy?: SemanticSimilarityStrategy,
     @inject(KeywordSimilarityStrategy) keywordStrategy?: KeywordSimilarityStrategy,
-    @inject(HybridSimilarityStrategy) hybridStrategy?: HybridSimilarityStrategy
+    @inject(HybridSimilarityStrategy) hybridStrategy?: HybridSimilarityStrategy,
+    @inject(BatchCalculatorFactory) private batchCalculatorFactory?: BatchCalculatorFactory
   ) {
     // 注册策略
     if (levenshteinStrategy) {
@@ -127,10 +129,8 @@ export class SimilarityService implements ISimilarityService {
     contents: string[],
     options?: SimilarityOptions
   ): Promise<BatchSimilarityResult> {
-    const startTime = Date.now();
-    let cacheHits = 0;
-
     try {
+      // 验证输入
       if (contents.length < 2) {
         throw new SimilarityError(
           'At least 2 contents are required for batch similarity calculation',
@@ -139,7 +139,40 @@ export class SimilarityService implements ISimilarityService {
         );
       }
 
+      // 选择策略
       const strategy = this.selectStrategy(options);
+
+      // 如果有批处理计算器工厂，使用它来选择最优计算器
+      if (this.batchCalculatorFactory) {
+        const calculatorType = this.batchCalculatorFactory.selectOptimalCalculator(strategy, contents);
+        const calculator = this.batchCalculatorFactory.createCalculator(calculatorType);
+        
+        this.logger?.info(`Using batch calculator: ${calculator.name} (${calculator.type}) for ${contents.length} items`);
+        
+        return await calculator.calculateBatch(contents, strategy, options);
+      } else {
+        // 回退到原有的实现
+        this.logger?.warn('Batch calculator factory not available, falling back to legacy implementation');
+        return await this.calculateBatchSimilarityLegacy(contents, strategy, options);
+      }
+    } catch (error) {
+      this.logger?.error('Error in batch similarity calculation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 原有的批量相似度计算实现（作为回退方案）
+   */
+  private async calculateBatchSimilarityLegacy(
+    contents: string[],
+    strategy: ISimilarityStrategy,
+    options?: SimilarityOptions
+  ): Promise<BatchSimilarityResult> {
+    const startTime = Date.now();
+    let cacheHits = 0;
+
+    try {
       const matrix: number[][] = [];
       const pairs: Array<{
         index1: number;
@@ -187,7 +220,7 @@ export class SimilarityService implements ISimilarityService {
         cacheHits
       };
     } catch (error) {
-      this.logger?.error('Error in batch similarity calculation:', error);
+      this.logger?.error('Error in legacy batch similarity calculation:', error);
       throw error;
     }
   }
