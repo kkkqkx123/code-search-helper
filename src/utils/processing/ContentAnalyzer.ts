@@ -4,6 +4,7 @@
  */
 
 import { LineLocation } from './validation/ValidationUtils';
+import { BracketCounter, BracketCountResult } from '../structure/BracketCounter';
 
 /**
  * 结构检测结果接口
@@ -275,30 +276,15 @@ export class ContentAnalyzer {
   }
 
   /**
-   * 计算括号数量
+   * 计算括号数量（直接使用 BracketCounter）
    */
   static countBrackets(line: string): BracketCount {
-    const openBrackets = (line.match(/\{/g) || []).length;
-    const closeBrackets = (line.match(/\}/g) || []).length;
-    
-    let depth = 0;
-    let maxDepth = 0;
-    let currentDepth = 0;
-
-    for (const char of line) {
-      if (char === '{') {
-        currentDepth++;
-        maxDepth = Math.max(maxDepth, currentDepth);
-      } else if (char === '}') {
-        currentDepth--;
-      }
-    }
-
+    const result = BracketCounter.countCurlyBrackets(line);
     return {
-      open: openBrackets,
-      close: closeBrackets,
-      balanced: openBrackets === closeBrackets,
-      depth: maxDepth
+      open: result.open,
+      close: result.close,
+      balanced: result.balanced,
+      depth: result.depth
     };
   }
 

@@ -9,6 +9,10 @@ import {
 } from './types/CoordinationTypes';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
+import { CacheService } from '../../../infrastructure/caching/CacheService';
+import { BracketCounter } from '../../../utils/structure/BracketCounter';
+import { createHash } from 'crypto';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 
 /**
  * 内容特征分析器
@@ -42,54 +46,121 @@ export class ContentAnalyzer implements IContentAnalyzer {
     ]
   };
 
+  private readonly cacheService: CacheService;
+  private performanceMonitor: PerformanceMonitor;
+
   constructor(
     @inject(TYPES.LoggerService) private logger?: LoggerService
-  ) { }
+  ) {
+    // 创建一个默认的 LoggerService 实例，如果未提供
+    const loggerInstance = logger || new LoggerService();
+    this.cacheService = new CacheService(loggerInstance);
+    this.performanceMonitor = new PerformanceMonitor(loggerInstance);
+  }
 
   async analyzeContent(
     content1: string,
     content2: string,
     options?: SimilarityOptions
   ): Promise<ContentAnalysisResult> {
-    const startTime = Date.now();
-
+    const operationId = this.performanceMonitor.startOperation('analyze_content', {
+      contentLength: content1.length + content2.length,
+      hasOptions: !!options
+    });
+    
     try {
-      // 合并内容进行分析
-      const combinedContent = content1 + '\n' + content2;
-      const contentType = this.detectContentType(combinedContent, options?.language);
+      // 生成缓存键
+      const cacheKey = this.generateAnalysisCacheKey(content1, content2, options);
+      
+      // 尝试从缓存获取
+      const cached = await this.cacheService.getFromCache<ContentAnalysisResult>(cacheKey);
+      if (cached) {
+        this.performanceMonitor.endOperation(operationId, {
+          success: true,
+          resultCount: 1,
+          metadata: { status: 'cache_hit', contentType: cached.contentType }
+        });
+        this.logger?.debug('Cache hit for content analysis', { cacheKey });
+        return cached;
+      }
 
-      // 计算内容长度（取平均值）
-      const contentLength = Math.round((content1.length + content2.length) / 2);
-
-      // 计算复杂度
-      const complexity = this.calculateComplexity(combinedContent);
-
-      // 提取特征
-      const features = this.extractFeatures(combinedContent, contentType);
-
-      // 推荐策略
-      const recommendedStrategies = this.recommendStrategies(contentType, complexity, features);
-
-      const result: ContentAnalysisResult = {
-        contentType,
-        contentLength,
-        complexity,
-        language: options?.language,
-        features,
-        recommendedStrategies
-      };
-
-      this.logger?.debug(`Content analysis completed in ${Date.now() - startTime}ms`, {
-        contentType,
-        complexity: complexity.level,
-        recommendedStrategies
+      const result = await this.performAnalysis(content1, content2, options);
+      
+      // 存入缓存（1小时TTL）
+      this.cacheService.setCache(cacheKey, result, 3600000);
+      
+      this.performanceMonitor.endOperation(operationId, {
+        success: true,
+        resultCount: 1,
+        metadata: {
+          status: 'success',
+          contentType: result.contentType,
+          cacheSize: this.cacheService.getSize()
+        }
       });
 
       return result;
     } catch (error) {
+      this.performanceMonitor.endOperation(operationId, {
+        success: false,
+        metadata: { error: (error as Error).message }
+      });
       this.logger?.error('Error during content analysis:', error);
       throw error;
     }
+  }
+
+  private async performAnalysis(
+    content1: string,
+    content2: string,
+    options?: SimilarityOptions
+  ): Promise<ContentAnalysisResult> {
+    // 合并内容进行分析
+    const combinedContent = content1 + '\n' + content2;
+    
+    const typeOpId = this.performanceMonitor.startOperation('detect_content_type');
+    const contentType = this.detectContentType(combinedContent, options?.language);
+    this.performanceMonitor.endOperation(typeOpId, {
+      success: true,
+      metadata: { contentType }
+    });
+
+    // 计算内容长度（取平均值）
+    const contentLength = Math.round((content1.length + content2.length) / 2);
+
+    const complexityOpId = this.performanceMonitor.startOperation('calculate_complexity');
+    const complexity = this.calculateComplexity(combinedContent);
+    this.performanceMonitor.endOperation(complexityOpId, {
+      success: true,
+      metadata: { level: complexity.level, score: complexity.score }
+    });
+
+    const featuresOpId = this.performanceMonitor.startOperation('extract_features');
+    const features = this.extractFeatures(combinedContent, contentType);
+    this.performanceMonitor.endOperation(featuresOpId, {
+      success: true,
+      resultCount: features.length,
+      metadata: { featureTypes: features.map(f => f.name) }
+    });
+
+    const strategiesOpId = this.performanceMonitor.startOperation('recommend_strategies');
+    const recommendedStrategies = this.recommendStrategies(contentType, complexity, features);
+    this.performanceMonitor.endOperation(strategiesOpId, {
+      success: true,
+      resultCount: recommendedStrategies.length,
+      metadata: { strategies: recommendedStrategies }
+    });
+
+    const result: ContentAnalysisResult = {
+      contentType,
+      contentLength,
+      complexity,
+      language: options?.language,
+      features,
+      recommendedStrategies
+    };
+
+    return result;
   }
 
   detectContentType(content: string, language?: string): string {
@@ -363,19 +434,7 @@ export class ContentAnalyzer implements IContentAnalyzer {
   }
 
   private calculateMaxNestingDepth(content: string): number {
-    let maxDepth = 0;
-    let currentDepth = 0;
-
-    for (const char of content) {
-      if (char === '{' || char === '(' || char === '[') {
-        currentDepth++;
-        maxDepth = Math.max(maxDepth, currentDepth);
-      } else if (char === '}' || char === ')' || char === ']') {
-        currentDepth = Math.max(0, currentDepth - 1);
-      }
-    }
-
-    return maxDepth;
+    return BracketCounter.calculateMaxNestingDepth(content);
   }
 
   private recommendStrategies(
@@ -407,5 +466,16 @@ export class ContentAnalyzer implements IContentAnalyzer {
     strategies.push('hybrid');
 
     return strategies;
+  }
+
+  private generateAnalysisCacheKey(
+    content1: string,
+    content2: string,
+    options?: SimilarityOptions
+  ): string {
+    const combinedContent = content1 + '||' + content2;
+    const hash = createHash('sha256').update(combinedContent).digest('hex');
+    const optionsStr = JSON.stringify(options || {});
+    return `similarity:analysis:${hash}:${optionsStr}`;
   }
 }
