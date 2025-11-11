@@ -433,7 +433,7 @@ export interface IContentAnalyzer {
   /**
    * 检测内容类型
    */
-  detectContentType(content: string, language?: string): string;
+  detectContentType(content: string, language?: string): Promise<string>;
 
   /**
    * 计算内容复杂度

@@ -15,13 +15,13 @@ import { TYPES } from './types';
 import { EmbeddingConfigService } from './config/service/EmbeddingConfigService';
 import { ProjectIdManager } from './database/ProjectIdManager';
 import { NebulaClient } from './database/nebula/client/NebulaClient';
-import { NebulaConnectionMonitor } from './service/graph/performance/NebulaConnectionMonitor';
+import { NebulaConnectionMonitor } from './database/nebula/NebulaConnectionMonitor';
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
 import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
 import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
 import { ProcessEventManager } from './utils/ProcessEventManager';
 import { SimilarityServiceInitializer } from './service/similarity/initializer/SimilarityServiceInitializer';
-import { IndexService } from './service/index/IndexService';
+import { HybridIndexService } from './service/index/HybridIndexService';
 
 // 获取事件管理器实例，用于统一管理所有事件监听器
 const eventManager = ProcessEventManager.getInstance();
@@ -104,7 +104,7 @@ class Application {
     @inject(TYPES.HotReloadRestartService) private hotReloadRestartService: HotReloadRestartService,
     @inject(TYPES.SqliteDatabaseService) private sqliteService: SqliteDatabaseService,
     @inject(TYPES.SimilarityServiceInitializer) private similarityServiceInitializer: SimilarityServiceInitializer,
-    @inject(TYPES.IndexService) private indexService: IndexService
+    @inject(TYPES.IndexService) private indexService: HybridIndexService
   ) {
     // 使用 Logger 单例，避免重复创建实例
     this.logger = Logger.getInstance('code-search-helper');
@@ -380,7 +380,7 @@ class ApplicationFactory {
     const hotReloadRestartService = diContainer.get<HotReloadRestartService>(TYPES.HotReloadRestartService);
     const sqliteService = diContainer.get<SqliteDatabaseService>(TYPES.SqliteDatabaseService);
     const similarityServiceInitializer = diContainer.get<SimilarityServiceInitializer>(TYPES.SimilarityServiceInitializer);
-    const indexService = diContainer.get<IndexService>(TYPES.IndexService);
+    const indexService = diContainer.get<HybridIndexService>(TYPES.IndexService);
 
     return new Application(
       configService,

@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../../utils/LoggerService';
-import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { INebulaClient } from '../../../database/graph/interfaces/INebulaClient';
-import { TYPES } from '../../../types';
+import { LoggerService } from '../../utils/LoggerService';
+import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { INebulaClient } from '../graph/interfaces/INebulaClient';
+import { TYPES } from '../../types';
 import { EventEmitter } from 'events';
 
 export interface NebulaConnectionStatus {
@@ -53,7 +53,7 @@ export class NebulaConnectionMonitor extends EventEmitter {
 
     this.checkInterval = intervalMs;
     this.logger.info(`Starting Nebula connection monitoring with interval ${intervalMs}ms`);
-    
+
     // 立即执行一次检查
     this.checkConnectionStatus().catch(error => {
       this.logger.error('Initial connection check failed:', error);
@@ -91,12 +91,12 @@ export class NebulaConnectionMonitor extends EventEmitter {
           return;
         }
       }
-      
+
       const connected = this.nebulaService.isConnected();
-      
+
       if (connected !== this.isConnected) {
         this.isConnected = connected;
-        
+
         if (connected) {
           this.logger.info('Nebula database connection established');
           this.emit('connected', {
@@ -119,7 +119,7 @@ export class NebulaConnectionMonitor extends EventEmitter {
           // This might need to be refactored to use the correct service
           const stats = await (this.nebulaService as any).getDatabaseStats();
           this.connectionStats = stats;
-          
+
           this.emit('stats_update', {
             type: 'stats_update',
             timestamp: new Date(),
@@ -136,19 +136,19 @@ export class NebulaConnectionMonitor extends EventEmitter {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       // 只有在错误状态改变时才记录日志
       if (errorMessage !== this.lastError) {
         this.lastError = errorMessage;
         this.logger.error('Error checking Nebula connection status:', error);
-        
+
         this.emit('error', {
           type: 'error',
           timestamp: new Date(),
           data: error
         } as NebulaConnectionEvent);
       }
-      
+
       // 标记为未连接
       if (this.isConnected) {
         this.isConnected = false;
@@ -178,37 +178,37 @@ export class NebulaConnectionMonitor extends EventEmitter {
   async reconnect(): Promise<boolean> {
     try {
       this.logger.info('Attempting to reconnect to Nebula database');
-      
+
       // 增加重连尝试次数
       this.reconnectAttempts++;
-      
+
       // 如果超过最大重连次数，返回失败
       if (this.reconnectAttempts > this.maxReconnectAttempts) {
         this.logger.error(`Max reconnect attempts (${this.maxReconnectAttempts}) exceeded, giving up on Nebula service`);
         return false;
       }
-      
+
       // 关闭现有连接
       await this.nebulaService.close();
-      
+
       // 等待一小段时间
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // 重新初始化连接
       const connected = await this.nebulaService.initialize();
-      
+
       if (connected) {
         this.logger.info('Successfully reconnected to Nebula database');
         this.isConnected = true;
         this.lastError = null;
         this.reconnectAttempts = 0; // 重置重连次数
-        
+
         // 触发连接事件
         this.emit('connected', {
           type: 'connected',
           timestamp: new Date()
         } as NebulaConnectionEvent);
-        
+
         return true;
       } else {
         this.logger.warn('Failed to reconnect to Nebula database, giving up on reconnect');
@@ -219,13 +219,13 @@ export class NebulaConnectionMonitor extends EventEmitter {
       this.logger.error('Error during Nebula database reconnection:', error);
       this.isConnected = false;
       this.lastError = error instanceof Error ? error.message : String(error);
-      
+
       this.emit('error', {
         type: 'error',
         timestamp: new Date(),
         data: error
       } as NebulaConnectionEvent);
-      
+
       return false;
     }
   }

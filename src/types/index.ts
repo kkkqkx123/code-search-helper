@@ -127,7 +127,7 @@ export const TYPES = {
   FileTraversalService: Symbol.for('FileTraversalService'),
    ConcurrencyService: Symbol.for('ConcurrencyService'),
 
-  // 语言检测服务
+  // 语言检测服务（已移至DetectionService）
   LanguageDetector: Symbol.for('LanguageDetector'),
 
   // 新增的策略提供者类型

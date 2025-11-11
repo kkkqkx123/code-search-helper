@@ -1,4 +1,5 @@
 import { VectorIndexService } from '../../service/index/VectorIndexService';
+import { HybridIndexService } from '../../service/index/HybridIndexService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { FileSystemTraversal } from '../../service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../../service/filesystem/FileWatcherService';
@@ -16,15 +17,15 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 // Helper function to wait for indexing to complete
-async function waitForIndexingComplete(indexService: IndexService, projectId: string, timeout = 5000): Promise<void> {
+async function waitForIndexingComplete(indexService: HybridIndexService, projectId: string, timeout = 5000): Promise<void> {
   const startTime = Date.now();
   while (Date.now() - startTime < timeout) {
-    const status = indexService.getIndexStatus(projectId);
+    const status = await indexService.getIndexStatus(projectId);
     if (status && !status.isIndexing) {
       return;
     }
     // Also check if project is in completed state
-    const completedStatus = (indexService as any).completedProjects.get(projectId);
+    const completedStatus = (indexService as any).completedProjects?.get(projectId);
     if (completedStatus && !completedStatus.isIndexing) {
       return;
     }
@@ -40,7 +41,7 @@ jest.mock('../../service/filesystem/FileSystemTraversal');
 
 describe('Filesystem-Qdrant Integration', () => {
   let tempDir: string;
-  let indexService: IndexService;
+  let indexService: HybridIndexService;
   let projectStateManager: ProjectStateManager;
   let fileSystemTraversal: FileSystemTraversal;
   let fileWatcherService: FileWatcherService;
@@ -129,7 +130,7 @@ describe('Filesystem-Qdrant Integration', () => {
     qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService) as jest.Mocked<QdrantService>;
     embedderFactory = diContainer.get<EmbedderFactory>(TYPES.EmbedderFactory) as jest.Mocked<EmbedderFactory>;
     embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
-    indexService = diContainer.get<IndexService>(TYPES.IndexService);
+    indexService = diContainer.get<HybridIndexService>(TYPES.HybridIndexService);
     projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
 
     // Clear any existing project states to ensure clean test environment

@@ -1,7 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { IndexingRoutes } from '../IndexingRoutes';
-import { VectorIndexService } from '../../../service/index/VectorIndexService';
+import { HybridIndexService } from '../../../service/index/HybridIndexService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { ProjectStateManager } from '../../../service/project/ProjectStateManager';
@@ -66,7 +66,7 @@ describe('IndexingRoutes', () => {
 
     // Create IndexingRoutes instance
     indexingRoutes = new IndexingRoutes(
-      mockIndexSyncService as IndexService,
+      mockIndexSyncService as HybridIndexService,
       mockProjectIdManager as ProjectIdManager,
       mockEmbedderFactory as EmbedderFactory,
       mockLogger as any, // Using any to simplify mock

@@ -23,9 +23,8 @@ import { ASTCodeSplitter } from '../../parser/processing/strategies/implementati
 import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
 import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';
 import { VectorIndexService } from '../../index/VectorIndexService';
+import { HybridIndexService } from '../../index/HybridIndexService';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
-import { ConcurrencyService } from '../../index/shared/ConcurrencyService';
-import { FileTraversalService } from '../../index/shared/FileTraversalService';
 import { CoreStateService } from '../services/CoreStateService';
 import { StorageStateService } from '../services/StorageStateService';
 
@@ -33,7 +32,7 @@ import { StorageStateService } from '../services/StorageStateService';
 jest.mock('../../../utils/LoggerService');
 jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../../../database/ProjectIdManager');
-jest.mock('../../index/IndexingLogicService');
+jest.mock('../../index/HybridIndexService');
 jest.mock('../../../database/qdrant/QdrantService');
 jest.mock('../../../config/ConfigService');
 jest.mock('../services/CoreStateService');
@@ -41,17 +40,16 @@ jest.mock('../services/StorageStateService');
 jest.mock('fs/promises');
 
 describe('ProjectStateManager', () => {
-  let projectStateManager: ProjectStateManager;
-  let loggerService: jest.Mocked<LoggerService>;
-  let errorHandlerService: jest.Mocked<ErrorHandlerService>;
-  let projectIdManager: jest.Mocked<ProjectIdManager>;
-  let indexSyncService: jest.Mocked<IndexService>;
-  let qdrantService: jest.Mocked<QdrantService>;
-  let configService: jest.Mocked<ConfigService>;
-  let mockFs: jest.Mocked<typeof import('fs/promises')>;
-  let astSplitter: jest.Mocked<ASTCodeSplitter>;
-  let coordinationService: jest.Mocked<ChunkToVectorCoordinationService>;
-  let indexingLogicService: jest.Mocked<IndexingLogicService>;
+   let projectStateManager: ProjectStateManager;
+   let loggerService: jest.Mocked<LoggerService>;
+   let errorHandlerService: jest.Mocked<ErrorHandlerService>;
+   let projectIdManager: jest.Mocked<ProjectIdManager>;
+   let indexSyncService: jest.Mocked<HybridIndexService>;
+   let qdrantService: jest.Mocked<QdrantService>;
+   let configService: jest.Mocked<ConfigService>;
+   let mockFs: jest.Mocked<typeof import('fs/promises')>;
+   let astSplitter: jest.Mocked<ASTCodeSplitter>;
+   let coordinationService: jest.Mocked<ChunkToVectorCoordinationService>;
   let coreStateService: jest.Mocked<CoreStateService>;
   let storageStateService: jest.Mocked<StorageStateService>;
 
@@ -175,27 +173,6 @@ describe('ProjectStateManager', () => {
       updateBatchOptions: jest.fn(),
     } as unknown as jest.Mocked<PerformanceOptimizerService>;
 
-    // Create mock indexing logic service
-    const mockIndexingLogicService = {
-      indexProject: jest.fn(),
-      getEmbedderDimensions: jest.fn(),
-      indexFile: jest.fn(),
-      removeFileFromIndex: jest.fn(),
-      recordMetrics: jest.fn(),
-      recordError: jest.fn(),
-      processWithConcurrency: jest.fn(),
-    } as unknown as jest.Mocked<IndexingLogicService>;
-
-    // Create mock file traversal service
-    const mockFileTraversalService = {
-      getProjectFiles: jest.fn(),
-    } as unknown as jest.Mocked<FileTraversalService>;
-    
-    // Create mock concurrency service
-    const mockConcurrencyService = {
-      processWithConcurrency: jest.fn(),
-    } as unknown as jest.Mocked<ConcurrencyService>;
-
     // Create mock index sync service with event emitter methods and other required methods
     indexSyncService = {
       on: jest.fn(),
@@ -252,7 +229,7 @@ describe('ProjectStateManager', () => {
       getProjectIndexingStatusByType: jest.fn(),
       getProjectIndexingStatusByUser: jest.fn(),
       getProjectIndexingStatusByPriority: jest.fn(),
-    } as any as jest.Mocked<IndexService>;
+    } as any as jest.Mocked<HybridIndexService>;
     // Create mock instances for the remaining QdrantService dependencies
     const mockConnectionManager = {} as jest.Mocked<IQdrantConnectionManager>;
     const mockCollectionManager = {} as jest.Mocked<IQdrantCollectionManager>;
@@ -332,7 +309,7 @@ describe('ProjectStateManager', () => {
       updateProjectCollectionInfoWithRetry: jest.fn(),
       indexService: indexSyncService, // Make sure indexService is accessible as a property
     } as any as jest.Mocked<CoreStateService>;
-    
+
     // Mock the CoreStateService methods to return proper values
     (coreStateService.createOrUpdateProjectState as jest.Mock).mockImplementation(async (projectStates, projectPath, storagePath, options) => {
       const projectId = await projectIdManager.generateProjectId(projectPath);
@@ -346,20 +323,20 @@ describe('ProjectStateManager', () => {
       projectStates.set(projectId, mockState);
       return mockState;
     });
-    
+
     (coreStateService.getProjectState as jest.Mock).mockImplementation((projectStates, projectId) => {
       return projectStates.get(projectId) || null;
     });
-    
+
     (coreStateService.getAllProjectStates as jest.Mock).mockImplementation((projectStates) => {
       return Array.from(projectStates.values());
     });
-    
+
     (coreStateService.getProjectStateByPath as jest.Mock).mockImplementation((projectStates, projectPath) => {
       const projectId = projectIdManager.getProjectId(projectPath);
       return projectId ? projectStates.get(projectId) || null : null;
     });
-    
+
     (coreStateService.deleteProjectState as jest.Mock).mockImplementation(async (projectStates, projectId, storagePath) => {
       const hasProject = projectStates.has(projectId);
       if (hasProject) {
@@ -368,7 +345,7 @@ describe('ProjectStateManager', () => {
       }
       return false;
     });
-    
+
     (coreStateService.getProjectStats as jest.Mock).mockImplementation((projectStates) => {
       const states = Array.from(projectStates.values()) as ProjectState[];
       return {
@@ -382,7 +359,7 @@ describe('ProjectStateManager', () => {
           : 0
       };
     });
-    
+
     (coreStateService.updateProjectStatus as jest.Mock).mockResolvedValue(undefined);
     (coreStateService.updateProjectIndexingProgress as jest.Mock).mockResolvedValue(undefined);
     (coreStateService.updateProjectLastIndexed as jest.Mock).mockResolvedValue(undefined);
@@ -410,7 +387,7 @@ describe('ProjectStateManager', () => {
     storageStateService = new StorageStateService(
       loggerService
     ) as jest.Mocked<StorageStateService>;
-    
+
     // Mock the StorageStateService methods
     storageStateService.updateVectorStatus = jest.fn();
     storageStateService.updateGraphStatus = jest.fn();
@@ -861,7 +838,7 @@ describe('ProjectStateManager', () => {
         'Generation failed'
       );
     });
-    
+
     it('should prevent creating project with duplicate projectPath', async () => {
       const projectPath = '/test/project';
       const projectId1 = 'test-project-id-1';
@@ -1592,7 +1569,7 @@ describe('ProjectStateManager', () => {
       // Mock the CoreStateService to throw error for duplicate project path
       (coreStateService.createOrUpdateProjectState as jest.Mock)
         .mockRejectedValueOnce(new Error(`项目路径 "${projectPath}" 已被项目 "${projectId1}" 使用，不能重复添加`));
-            
+
       // Try to create second project with same path without allowReindex flag - should fail
       await expect(projectStateManager.createOrUpdateProjectState(projectPath, {
         name: 'Test Project 2'

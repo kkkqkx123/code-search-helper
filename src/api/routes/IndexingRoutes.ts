@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { Logger } from '../../utils/logger.js';
-import { VectorIndexService } from '../../service/index/VectorIndexService.js';
+import { HybridIndexService } from '../../service/index/HybridIndexService.js';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
@@ -53,14 +53,14 @@ export interface SearchQuery {
 
 export class IndexingRoutes {
   private router: Router;
-  private indexSyncService: IndexService;
+  private indexSyncService: HybridIndexService;
   private projectIdManager: ProjectIdManager;
   private embedderFactory: EmbedderFactory;
   private logger: Logger;
   private projectStateManager: ProjectStateManager;
 
   constructor(
-    indexSyncService: IndexService,
+    indexSyncService: HybridIndexService,
     projectIdManager: ProjectIdManager,
     embedderFactory: EmbedderFactory,
     logger: Logger,

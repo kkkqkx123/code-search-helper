@@ -39,7 +39,7 @@ export class SimilarityCoordinator implements ISimilarityCoordinator {
     @inject('IContentAnalyzer') private contentAnalyzer: IContentAnalyzer,
     @inject('IExecutionPlanGenerator') private planGenerator: IExecutionPlanGenerator,
     @inject('IThresholdManager') private thresholdManager: IThresholdManager,
-    @inject(TYPES.LoggerService) private logger?: LoggerService
+    @inject(TYPES.LoggerService) private logger: LoggerService
   ) {}
 
   async calculateSimilarity(
@@ -51,7 +51,7 @@ export class SimilarityCoordinator implements ISimilarityCoordinator {
     this.stats.totalCalculations++;
     
     try {
-      this.logger?.debug(`Starting coordinated similarity calculation`, {
+      this.logger.debug(`Starting coordinated similarity calculation`, {
         content1Length: content1.length,
         content2Length: content2.length,
         strategy: options?.strategy
@@ -100,7 +100,7 @@ export class SimilarityCoordinator implements ISimilarityCoordinator {
         strategyResults
       );
 
-      this.logger?.debug(`Coordinated similarity calculation completed`, {
+      this.logger.debug(`Coordinated similarity calculation completed`, {
         similarity: finalSimilarity.toFixed(3),
         isSimilar: result.isSimilar,
         executionTime: executionDetails.totalExecutionTime,
@@ -111,7 +111,7 @@ export class SimilarityCoordinator implements ISimilarityCoordinator {
       return result;
     } catch (error) {
       this.stats.errorRate = (this.stats.errorRate * (this.stats.totalCalculations - 1) + 1) / this.stats.totalCalculations;
-      this.logger?.error('Error in coordinated similarity calculation:', error);
+      this.logger.error('Error in coordinated similarity calculation:', error);
       throw error;
     }
   }
@@ -134,7 +134,7 @@ export class SimilarityCoordinator implements ISimilarityCoordinator {
    */
   registerStrategy(strategy: ISimilarityStrategy): void {
     this.strategies.set(strategy.type, strategy);
-    this.logger?.debug(`Registered similarity strategy: ${strategy.name} (${strategy.type})`);
+    this.logger.debug(`Registered similarity strategy: ${strategy.name} (${strategy.type})`);
   }
 
   /**
@@ -163,13 +163,13 @@ export class SimilarityCoordinator implements ISimilarityCoordinator {
       if (!strategy) {
         const error = `Strategy not found: ${step.strategy}`;
         errors.push(error);
-        this.logger?.warn(error);
+        this.logger.warn(error);
         continue;
       }
 
       // 检查执行条件
       if (step.condition && !this.shouldExecuteStrategy(step.condition, strategyResults)) {
-        this.logger?.debug(`Skipping strategy ${step.strategy} due to execution condition`);
+        this.logger.debug(`Skipping strategy ${step.strategy} due to execution condition`);
         continue;
       }
 
@@ -209,7 +209,7 @@ export class SimilarityCoordinator implements ISimilarityCoordinator {
       if (earlyExitCheck.shouldExit) {
         earlyExit = true;
         exitReason = earlyExitCheck.reason;
-        this.logger?.debug(`Early exit after strategy ${step.strategy}: ${exitReason}`);
+        this.logger.debug(`Early exit after strategy ${step.strategy}: ${exitReason}`);
         break;
       }
     }
@@ -260,7 +260,7 @@ export class SimilarityCoordinator implements ISimilarityCoordinator {
       success = true;
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
-      this.logger?.warn(`Strategy ${strategy.name} execution failed:`, error);
+      this.logger.warn(`Strategy ${strategy.name} execution failed:`, error);
     }
 
     const executionTime = Date.now() - startTime;
@@ -481,6 +481,6 @@ export class SimilarityCoordinator implements ISimilarityCoordinator {
       errorRate: 0,
       lastUpdated: new Date()
     };
-    this.logger?.info('SimilarityCoordinator cleaned up');
+    this.logger.info('SimilarityCoordinator cleaned up');
   }
 }

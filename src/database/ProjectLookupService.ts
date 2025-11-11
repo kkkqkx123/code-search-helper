@@ -2,18 +2,18 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../types';
 import { ProjectIdManager } from './ProjectIdManager';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { VectorIndexService } from '../service/index/VectorIndexService';
+import { HybridIndexService } from '../service/index/HybridIndexService';
 
 @injectable()
 export class ProjectLookupService {
   private projectIdManager: ProjectIdManager;
   private errorHandler: ErrorHandlerService;
-  public indexService: IndexService; // Public for access from ProjectRoutes
+  public indexService: HybridIndexService; // Public for access from ProjectRoutes
 
   constructor(
     @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.IndexService) indexService: IndexService
+    @inject(TYPES.HybridIndexService) indexService: HybridIndexService
   ) {
     this.projectIdManager = projectIdManager;
     this.errorHandler = errorHandler;

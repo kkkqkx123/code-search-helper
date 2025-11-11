@@ -1,16 +1,16 @@
 import { ProjectStateListenerManager } from '../listeners/ProjectStateListenerManager';
 import { LoggerService } from '../../../utils/LoggerService';
-import { VectorIndexService } from '../../index/VectorIndexService';
+import { HybridIndexService } from '../../index/HybridIndexService';
 import { ProjectState, StorageStatus } from '../ProjectStateManager';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
-jest.mock('../../index/IndexService');
+jest.mock('../../index/HybridIndexService');
 
 describe('ProjectStateListenerManager', () => {
   let listenerManager: ProjectStateListenerManager;
   let loggerService: jest.Mocked<LoggerService>;
-  let indexService: jest.Mocked<IndexService>;
+  let indexService: jest.Mocked<HybridIndexService>;
   let projectStates: Map<string, ProjectState>;
   let updateProjectStatus: jest.Mock;
   let updateProjectIndexingProgress: jest.Mock;
@@ -42,7 +42,7 @@ describe('ProjectStateListenerManager', () => {
       setMaxListeners: jest.fn(),
       getMaxListeners: jest.fn(),
       getIndexStatus: jest.fn(),
-    } as any as jest.Mocked<IndexService>;
+    } as any as jest.Mocked<HybridIndexService>;
 
     // Create mock functions
     updateProjectStatus = jest.fn().mockResolvedValue(undefined);

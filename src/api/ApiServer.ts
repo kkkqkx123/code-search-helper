@@ -39,14 +39,14 @@ export class ApiServer {
   private graphAnalysisRoutes: GraphAnalysisRoutes;
   private hotReloadRoutes: HotReloadRoutes;
   private graphStatsRoutes: GraphStatsRoutes;
-  private indexSyncService: VectorIndexService;
+  private indexSyncService: HybridIndexService | VectorIndexService;
   private embedderFactory: EmbedderFactory;
   private qdrantService: QdrantService;
   private nebulaClient: NebulaClient;
   private projectStateManager: ProjectStateManager;
   private qdrantCollectionViewRoutes: QdrantCollectionViewRoutes;
 
-  constructor(logger: Logger, indexSyncService: VectorIndexService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
+  constructor(logger: Logger, indexSyncService: HybridIndexService | VectorIndexService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
     this.logger = logger;
     this.indexSyncService = indexSyncService;
     this.embedderFactory = embedderFactory;

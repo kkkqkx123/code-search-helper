@@ -3,8 +3,8 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from './MemoryGuard';
-import { LanguageDetectionService, LanguageDetectionResult } from '../detection/LanguageDetectionService';
-import { DetectionResult, ProcessingStrategyType } from '../detection/DetectionService';
+import { DetectionService, DetectionResult } from '../detection/DetectionService';
+import { ProcessingStrategyType } from '../detection/DetectionService';
 import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
 import { createStrategy } from '../processing/strategies/index';
 
@@ -24,7 +24,7 @@ export class ProcessingGuard {
    private errorManager: ErrorThresholdInterceptor;
    private memoryGuard: MemoryGuard;
    private logger?: LoggerService;
-   private detectionService: LanguageDetectionService;
+   private detectionService: DetectionService;
    private fallbackEngine: IntelligentFallbackEngine;
    private isInitialized: boolean = false;
 
@@ -32,7 +32,7 @@ export class ProcessingGuard {
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.ErrorThresholdManager) errorManager?: ErrorThresholdInterceptor,
     @inject(TYPES.MemoryGuard) memoryGuard?: MemoryGuard,
-    @inject(TYPES.LanguageDetectionService) detectionService?: LanguageDetectionService,
+    @inject(TYPES.DetectionService) detectionService?: DetectionService,
     @inject(TYPES.IntelligentFallbackEngine) fallbackEngine?: IntelligentFallbackEngine
   ) {
     this.logger = logger;
@@ -66,7 +66,7 @@ export class ProcessingGuard {
       } as any,
       100, 1000, logger || new LoggerService()
     );
-    this.detectionService = detectionService || new LanguageDetectionService(logger);
+    this.detectionService = detectionService || new DetectionService(logger);
     this.fallbackEngine = fallbackEngine || new IntelligentFallbackEngine(logger);
   }
 
@@ -78,7 +78,7 @@ export class ProcessingGuard {
     logger?: LoggerService,
     errorManager?: ErrorThresholdInterceptor,
     memoryGuard?: MemoryGuard,
-    detectionService?: LanguageDetectionService
+    detectionService?: DetectionService
   ): ProcessingGuard {
     if (!ProcessingGuard.instance) {
       ProcessingGuard.instance = new ProcessingGuard(
@@ -175,11 +175,11 @@ export class ProcessingGuard {
     // 2. 统一检测（一次性完成所有检测）
     let detection;
     try {
-      const languageDetection = await this.detectionService.detectLanguage(filePath, content);
+      const languageDetection = await this.detectionService.detectFile(filePath, content);
       detection = {
         language: languageDetection.language || 'text',
         confidence: languageDetection.confidence,
-        detectionMethod: this.mapDetectionMethod(languageDetection.method),
+        detectionMethod: this.mapDetectionMethod(languageDetection.detectionMethod),
         fileType: 'normal' as const,
         processingStrategy: this.selectProcessingStrategy(languageDetection),
         metadata: {
@@ -351,11 +351,11 @@ export class ProcessingGuard {
       if (cachedDetection) {
         detection = cachedDetection;
       } else {
-        const languageDetection = await this.detectionService.detectLanguage(filePath, content);
+        const languageDetection = await this.detectionService.detectFile(filePath, content);
         detection = {
           language: languageDetection.language || 'text',
           confidence: languageDetection.confidence,
-          detectionMethod: this.mapDetectionMethod(languageDetection.method),
+          detectionMethod: this.mapDetectionMethod(languageDetection.detectionMethod),
           fileType: 'normal',
           processingStrategy: this.selectProcessingStrategy(languageDetection),
           metadata: {
@@ -547,7 +547,7 @@ export class ProcessingGuard {
     }
   }
 
-  private selectProcessingStrategy(languageDetection: LanguageDetectionResult): ProcessingStrategyType {
+  private selectProcessingStrategy(languageDetection: DetectionResult): ProcessingStrategyType {
     if (!languageDetection.language || languageDetection.language === 'text') {
       return ProcessingStrategyType.UNIVERSAL_TEXT;
     }

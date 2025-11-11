@@ -323,8 +323,8 @@ export const TYPES = {
 
   UnifiedProcessingCoordinator: Symbol.for('UnifiedProcessingCoordinator'),
 
+  // 40. 向后兼容（已移至DetectionService）
   LanguageDetector: Symbol.for('LanguageDetector'),
-  LanguageDetectionService: Symbol.for('LanguageDetectionService'),
 
   // 42. 分段策略提供者
   ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),

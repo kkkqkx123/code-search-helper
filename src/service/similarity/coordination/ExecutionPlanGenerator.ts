@@ -22,7 +22,7 @@ export class ExecutionPlanGenerator implements IExecutionPlanGenerator {
   private costHistory: Map<SimilarityStrategyType, number[]> = new Map();
 
   constructor(
-    @inject(TYPES.LoggerService) private logger?: LoggerService
+    @inject(TYPES.LoggerService) private logger: LoggerService
   ) {
     this.initializeStrategyCosts();
   }
@@ -52,7 +52,7 @@ export class ExecutionPlanGenerator implements IExecutionPlanGenerator {
         createdAt: new Date()
       };
       
-      this.logger?.debug(`Execution plan generated in ${Date.now() - startTime}ms`, {
+      this.logger.debug(`Execution plan generated in ${Date.now() - startTime}ms`, {
         planId: plan.id,
         strategyCount: strategySequence.length,
         estimatedTime: estimatedExecutionTime
@@ -60,7 +60,7 @@ export class ExecutionPlanGenerator implements IExecutionPlanGenerator {
       
       return plan;
     } catch (error) {
-      this.logger?.error('Error generating execution plan:', error);
+      this.logger.error('Error generating execution plan:', error);
       throw error;
     }
   }
@@ -72,7 +72,7 @@ export class ExecutionPlanGenerator implements IExecutionPlanGenerator {
   updateStrategyCost(strategy: SimilarityStrategyType, cost: Partial<StrategyCost>): void {
     const existingCost = this.strategyCosts.get(strategy);
     if (!existingCost) {
-      this.logger?.warn(`Attempted to update cost for unknown strategy: ${strategy}`);
+      this.logger.warn(`Attempted to update cost for unknown strategy: ${strategy}`);
       return;
     }
     
@@ -106,7 +106,7 @@ export class ExecutionPlanGenerator implements IExecutionPlanGenerator {
       history.splice(0, history.length - 100);
     }
     
-    this.logger?.debug(`Updated cost for strategy ${strategy}`, updatedCost);
+    this.logger.debug(`Updated cost for strategy ${strategy}`, updatedCost);
   }
 
   private initializeStrategyCosts(): void {
@@ -170,7 +170,7 @@ export class ExecutionPlanGenerator implements IExecutionPlanGenerator {
     strategies.forEach((strategy, index) => {
       const cost = this.strategyCosts.get(strategy);
       if (!cost) {
-        this.logger?.warn(`No cost information for strategy: ${strategy}`);
+        this.logger.warn(`No cost information for strategy: ${strategy}`);
         return;
       }
       
@@ -381,6 +381,6 @@ export class ExecutionPlanGenerator implements IExecutionPlanGenerator {
     this.strategyCosts.clear();
     this.costHistory.clear();
     this.initializeStrategyCosts();
-    this.logger?.info('Strategy costs reset to default values');
+    this.logger.info('Strategy costs reset to default values');
   }
 }

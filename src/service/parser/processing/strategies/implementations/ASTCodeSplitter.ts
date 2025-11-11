@@ -9,7 +9,7 @@ import Parser from 'tree-sitter';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TreeSitterService } from '../../../../parser/core/parse/TreeSitterService';
-import { LanguageDetectionService } from '../../../detection/LanguageDetectionService';
+import { DetectionService } from '../../../detection/DetectionService';
 import { QueryResultNormalizer } from '../../../../parser/core/normalization/QueryResultNormalizer';
 import { TYPES } from '../../../../../types';
 import { ChunkFactory } from '../../../../../utils/processing/ChunkFactory';
@@ -27,7 +27,7 @@ import { SegmentationConfig } from '../../../../../config/ConfigTypes';
 export class ASTCodeSplitter {
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService: TreeSitterService,
-    @inject(TYPES.LanguageDetectionService) private languageDetectionService: LanguageDetectionService,
+    @inject(TYPES.DetectionService) private detectionService: DetectionService,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.SegmentationConfigService) private segmentationConfigService: SegmentationConfigService,
     @inject(TYPES.CacheService) private cacheService?: ICacheService,

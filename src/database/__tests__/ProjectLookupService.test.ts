@@ -1,7 +1,7 @@
 import { ProjectLookupService } from '../ProjectLookupService';
 import { ProjectIdManager } from '../ProjectIdManager';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { VectorIndexService } from '../../service/index/VectorIndexService';
+import { HybridIndexService } from '../../service/index/HybridIndexService';
 
 // Mock ProjectIdManager
 const mockProjectIdManager = {
@@ -30,7 +30,7 @@ describe('ProjectLookupService', () => {
     projectLookupService = new ProjectLookupService(
       mockProjectIdManager as unknown as ProjectIdManager,
       mockErrorHandler as unknown as ErrorHandlerService,
-      mockIndexSyncService as unknown as IndexService
+      mockIndexSyncService as unknown as HybridIndexService
     );
   });
 
@@ -60,7 +60,7 @@ describe('ProjectLookupService', () => {
       const serviceWithError = new ProjectLookupService(
         mockProjectIdManager as unknown as ProjectIdManager,
         mockErrorHandler as unknown as ErrorHandlerService,
-        mockIndexSyncService as unknown as IndexService
+        mockIndexSyncService as unknown as HybridIndexService
       );
 
       // Override the method to simulate an error

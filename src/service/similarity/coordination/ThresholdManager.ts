@@ -19,7 +19,7 @@ export class ThresholdManager implements IThresholdManager {
   private adaptiveHistory: Map<string, StrategyExecutionResult[]> = new Map();
 
   constructor(
-    @inject(TYPES.LoggerService) private logger?: LoggerService
+    @inject(TYPES.LoggerService) private logger: LoggerService
   ) {
     this.initializeDefaultThresholds();
   }
@@ -27,7 +27,7 @@ export class ThresholdManager implements IThresholdManager {
   getEarlyExitThresholds(contentType: string): EarlyExitThresholds {
     const thresholds = this.earlyExitThresholds.get(contentType);
     if (!thresholds) {
-      this.logger?.warn(`No early exit thresholds found for content type: ${contentType}, using defaults`);
+      this.logger.warn(`No early exit thresholds found for content type: ${contentType}, using defaults`);
       return this.getDefaultEarlyExitThresholds();
     }
     return thresholds;
@@ -36,13 +36,13 @@ export class ThresholdManager implements IThresholdManager {
   getStrategyThreshold(strategy: SimilarityStrategyType, contentType: string): number {
     const contentTypeThresholds = this.strategyThresholds.get(contentType);
     if (!contentTypeThresholds) {
-      this.logger?.warn(`No strategy thresholds found for content type: ${contentType}, using defaults`);
+      this.logger.warn(`No strategy thresholds found for content type: ${contentType}, using defaults`);
       return this.getDefaultStrategyThreshold(strategy);
     }
     
     const threshold = contentTypeThresholds.get(strategy);
     if (threshold === undefined) {
-      this.logger?.warn(`No threshold found for strategy: ${strategy} in content type: ${contentType}, using default`);
+      this.logger.warn(`No threshold found for strategy: ${strategy} in content type: ${contentType}, using default`);
       return this.getDefaultStrategyThreshold(strategy);
     }
     
@@ -60,7 +60,7 @@ export class ThresholdManager implements IThresholdManager {
         throw new Error('Early exit thresholds must be EarlyExitThresholds object');
       }
       this.earlyExitThresholds.set(contentType, threshold);
-      this.logger?.debug(`Updated early exit thresholds for content type: ${contentType}`);
+      this.logger.debug(`Updated early exit thresholds for content type: ${contentType}`);
     } else if (type === 'strategy') {
       if (typeof threshold !== 'number') {
         throw new Error('Strategy thresholds must be number');
@@ -73,7 +73,7 @@ export class ThresholdManager implements IThresholdManager {
       }
       
       contentTypeThresholds.set(key as SimilarityStrategyType, threshold);
-      this.logger?.debug(`Updated strategy threshold for ${key} in content type: ${contentType}`);
+      this.logger.debug(`Updated strategy threshold for ${key} in content type: ${contentType}`);
     }
   }
 
@@ -200,7 +200,7 @@ export class ThresholdManager implements IThresholdManager {
     // 如果调整幅度超过5%，应用新阈值
     if (Math.abs(newThreshold - currentThreshold) > 0.05) {
       this.updateThreshold('strategy', strategy, newThreshold, contentType);
-      this.logger?.info(`Adapted threshold for ${strategy} (${contentType}): ${currentThreshold.toFixed(3)} -> ${newThreshold.toFixed(3)}`, {
+      this.logger.info(`Adapted threshold for ${strategy} (${contentType}): ${currentThreshold.toFixed(3)} -> ${newThreshold.toFixed(3)}`, {
         successRate,
         averageSimilarity,
         averageExecutionTime
@@ -253,7 +253,7 @@ export class ThresholdManager implements IThresholdManager {
     this.strategyThresholds.clear();
     this.adaptiveHistory.clear();
     this.initializeDefaultThresholds();
-    this.logger?.info('Thresholds reset to default values');
+    this.logger.info('Thresholds reset to default values');
   }
 
   /**
@@ -272,12 +272,12 @@ export class ThresholdManager implements IThresholdManager {
       
       if (history.length < originalLength) {
         totalCleaned += originalLength - history.length;
-        this.logger?.debug(`Cleaned ${originalLength - history.length} old records for ${key}`);
+        this.logger.debug(`Cleaned ${originalLength - history.length} old records for ${key}`);
       }
     });
     
     if (totalCleaned > 0) {
-      this.logger?.info(`Cleaned up ${totalCleaned} expired adaptive history records`);
+      this.logger.info(`Cleaned up ${totalCleaned} expired adaptive history records`);
     }
   }
 }

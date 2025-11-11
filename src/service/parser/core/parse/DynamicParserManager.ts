@@ -5,7 +5,7 @@ import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageExtensionMap } from '../../utils';
-import { LanguageDetectionService } from '../../detection/LanguageDetectionService';
+import { DetectionService } from '../../detection/DetectionService';
 import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { FallbackExtractor } from '../../utils/FallbackExtractor';
@@ -56,11 +56,11 @@ export class DynamicParserManager {
   private logger = new LoggerService();
   private errorHandler: ErrorHandlerService;
   private querySystemInitialized = false;
-  private languageDetectionService: LanguageDetectionService;
+  private detectionService: DetectionService;
 
   constructor() {
     this.errorHandler = new ErrorHandlerService(this.logger);
-    this.languageDetectionService = new LanguageDetectionService(this.logger);
+    this.detectionService = new DetectionService(this.logger);
     this.initializeLanguageLoaders();
     this.initializeQuerySystem();
   }
@@ -230,8 +230,11 @@ export class DynamicParserManager {
    * 检测语言
    */
   async detectLanguage(filePath: string, content?: string): Promise<string | null> {
-    // 使用语言检测器进行智能检测
-    const detectionResult = await this.languageDetectionService.detectLanguage(filePath, content);
+    // 使用检测服务进行智能检测
+    if (!content) {
+      return null;
+    }
+    const detectionResult = await this.detectionService.detectFile(filePath, content);
     if (detectionResult.language) {
       return detectionResult.language;
     }
@@ -242,10 +245,10 @@ export class DynamicParserManager {
   /**
    * 从内容检测语言
    */
-  private detectLanguageFromContent(content: string, filePath?: string): string | null {
-    // 使用语言检测器进行内容检测
-    const detectionResult = this.languageDetectionService.detectLanguageByContent(content);
-    if (detectionResult.language && detectionResult.confidence > 0.5) {
+  private async detectLanguageFromContent(content: string, filePath?: string): Promise<string | null> {
+    // 使用检测服务进行内容检测
+    const detectionResult = await this.detectionService.detectFile(filePath || 'unknown', content);
+    if (detectionResult && detectionResult.language && detectionResult.confidence > 0.5) {
       return detectionResult.language;
     }
 
