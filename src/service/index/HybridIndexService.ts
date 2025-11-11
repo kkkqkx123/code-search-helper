@@ -23,7 +23,7 @@ export class HybridIndexService implements IIndexService {
   ) { }
 
   private async startGraphIndexingIfEnabled(projectId: string, projectPath: string, options?: IndexOptions): Promise<void> {
-    const graphEnabled = this.configService.isGraphEnabled() && this.isVectorEnabled();
+    const graphEnabled = this.configService.isGraphEnabled();
     if (graphEnabled) {
       await this.graphIndexService.startIndexing(projectPath, {
         ...options,
@@ -76,15 +76,10 @@ export class HybridIndexService implements IIndexService {
    */
   private async determineIndexingStrategy(projectPath: string, options?: IndexOptions): Promise<string> {
     const isGraphEnabled = this.configService.isGraphEnabled();
-    const isVectorEnabled = this.isVectorEnabled();
     
     // 检查显式选项
     if (options?.enableGraphIndex === false) {
       return 'vector-only';
-    }
-    
-    if (options?.enableVectorIndex === false) {
-      return 'graph-only';
     }
     
     // 检查环境变量配置
@@ -93,26 +88,11 @@ export class HybridIndexService implements IIndexService {
     switch (defaultStrategy) {
       case 'vector':
         return 'vector-only';
-      case 'graph':
-        return 'graph-only';
       case 'hybrid':
       default:
-        // 混合策略需要同时启用向量和图索引
-        if (isGraphEnabled && isVectorEnabled) {
-          return 'hybrid';
-        } else if (isGraphEnabled) {
-          return 'graph-only';
-        } else {
-          return 'vector-only';
-        }
+        // 混合策略需要图数据库启用，否则回退到向量索引
+        return isGraphEnabled ? 'hybrid' : 'vector-only';
     }
-  }
-
-  /**
-   * 检查向量索引是否启用
-   */
-  private isVectorEnabled(): boolean {
-    return process.env.VECTOR_INDEX_ENABLED?.toLowerCase() !== 'false';
   }
 
   /**
@@ -122,9 +102,6 @@ export class HybridIndexService implements IIndexService {
     switch (strategy) {
       case 'vector-only':
         return await this.indexService.startIndexing(projectPath, options);
-      
-      case 'graph-only':
-        return await this.graphIndexService.startIndexing(projectPath, options);
       
       case 'hybrid':
       default:
@@ -179,9 +156,8 @@ export class HybridIndexService implements IIndexService {
       case IndexType.Vector:
         return this.indexService.startIndexing(projectPath, options);
       case IndexType.Graph:
-        const graphProjectId = await this.indexService.startIndexing(projectPath, options);
-        await this.startGraphIndexingIfEnabled(graphProjectId, projectPath, options);
-        return graphProjectId;
+        // Graph 类型现在等同于混合索引，因为图索引需要向量索引作为基础
+        return this.startIndexing(projectPath, options);
       case IndexType.Hybrid:
       default:
         return this.startIndexing(projectPath, options);

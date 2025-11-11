@@ -11,6 +11,7 @@ export interface ParseOptions {
   overlapSize?: number;
   extractSnippets?: boolean;
   maxDepth?: number;
+  extractRelationships?: boolean; // 是否提取关系节点
 }
 
 // 语言支持配置

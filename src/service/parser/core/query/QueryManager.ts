@@ -4,6 +4,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { QueryRegistry, QueryRegistryImpl } from './QueryRegistry';
 import { QueryLoader } from './QueryLoader';
 import { GlobalQueryInitializer } from './GlobalQueryInitializer';
+import { ParseOptions } from '../../types';
 
 /**
  * 查询管理器
@@ -46,13 +47,46 @@ export class QueryManager {
   }
 
   /**
+   * 检查是否应该执行关系查询
+   * @param queryType 查询类型
+   * @param options 解析选项
+   * @returns 是否应该执行关系查询
+   */
+  private static shouldExecuteRelationshipQuery(queryType: string, options?: ParseOptions): boolean {
+    // 如果不是关系查询，直接返回 true
+    if (!queryType.includes('relationship') && !queryType.includes('semantic')) {
+      return true;
+    }
+
+    // 首先检查 NEBULA_ENABLED 环境变量（最高优先级）
+    const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+    if (!nebulaEnabled) {
+      return false;
+    }
+
+    // 检查是否应该提取关系节点
+    if (options?.extractRelationships === false) {
+      return false;
+    }
+    
+    // 如果没有显式设置选项，则根据 NEBULA_ENABLED 决定（此时已确认为 true）
+    if (options?.extractRelationships === undefined) {
+      return true;
+    }
+    
+    // 如果显式启用了关系提取，则返回 true
+    return options.extractRelationships === true;
+  }
+
+  /**
    * 获取指定语言和查询类型的查询对象
    * @param language 语言名称
    * @param queryType 查询类型（functions, classes, imports等）
    * @param parser Tree-sitter解析器实例
+   * @param options 解析选项
    * @returns Parser.Query实例
    */
-  static getQuery(language: string, queryType: string, parser: Parser): Parser.Query {
+  static getQuery(language: string, queryType: string, parser: Parser, options?: ParseOptions): Parser.Query {
     const cacheKey = `${language}:${queryType}`;
 
     // 检查查询缓存
@@ -86,9 +120,15 @@ export class QueryManager {
   /**
    * 获取查询字符串（异步）- 简化版本
    */
-  static async getQueryString(language: string, queryType: string): Promise<string> {
+  static async getQueryString(language: string, queryType: string, options?: ParseOptions): Promise<string> {
     if (!this.initialized) {
       await this.initialize();
+    }
+
+    // 检查是否应该执行关系查询
+    if (!this.shouldExecuteRelationshipQuery(queryType, options)) {
+      this.logger.debug(`关系查询已禁用，跳过: ${language}.${queryType}`);
+      return '';
     }
 
     try {
@@ -102,12 +142,18 @@ export class QueryManager {
   /**
    * 获取查询模式字符串 - 简化版本
    */
-  static getQueryPattern(language: string, queryType: string): string | null {
+  static getQueryPattern(language: string, queryType: string, options?: ParseOptions): string | null {
     const cacheKey = `${language}:${queryType}`;
 
     // 检查模式缓存
     if (this.patternCache.has(cacheKey)) {
       return this.patternCache.get(cacheKey)!;
+    }
+
+    // 检查是否应该执行关系查询
+    if (!this.shouldExecuteRelationshipQuery(queryType, options)) {
+      this.logger.debug(`关系查询已禁用，跳过: ${language}.${queryType}`);
+      return '';
     }
 
     try {
@@ -126,16 +172,24 @@ export class QueryManager {
    * @param language 语言名称
    * @param queryType 查询类型
    * @param parser Tree-sitter解析器实例
+   * @param options 解析选项
    * @returns 查询结果数组
    */
   static executeQuery(
     ast: Parser.SyntaxNode,
     language: string,
     queryType: string,
-    parser: Parser
+    parser: Parser,
+    options?: ParseOptions
   ): Array<{ captures: Array<{ name: string; node: Parser.SyntaxNode }> }> {
+    // 检查是否应该执行关系查询
+    if (!this.shouldExecuteRelationshipQuery(queryType, options)) {
+      this.logger.debug(`关系查询已禁用，跳过执行: ${language}.${queryType}`);
+      return [];
+    }
+
     try {
-      const query = this.getQuery(language, queryType, parser);
+      const query = this.getQuery(language, queryType, parser, options);
       const matches = query.matches(ast);
 
       // 转换为标准格式
@@ -157,18 +211,25 @@ export class QueryManager {
    * @param language 语言名称
    * @param queryTypes 查询类型数组
    * @param parser Tree-sitter解析器实例
+   * @param options 解析选项
    * @returns 查询结果映射
    */
   static executeBatchQueries(
     ast: Parser.SyntaxNode,
     language: string,
     queryTypes: string[],
-    parser: Parser
+    parser: Parser,
+    options?: ParseOptions
   ): Map<string, Array<{ captures: Array<{ name: string; node: Parser.SyntaxNode }> }>> {
     const results = new Map();
 
-    for (const queryType of queryTypes) {
-      const queryResults = this.executeQuery(ast, language, queryType, parser);
+    // 过滤掉被禁用的关系查询
+    const enabledQueryTypes = queryTypes.filter(queryType => 
+      this.shouldExecuteRelationshipQuery(queryType, options)
+    );
+
+    for (const queryType of enabledQueryTypes) {
+      const queryResults = this.executeQuery(ast, language, queryType, parser, options);
       results.set(queryType, queryResults);
     }
 
@@ -179,13 +240,19 @@ export class QueryManager {
    * 合并多个查询模式为单一查询
    * @param language 语言名称
    * @param queryTypes 查询类型数组
+   * @param options 解析选项
    * @returns 合并后的查询模式
    */
-  static combinePatterns(language: string, queryTypes: string[]): string {
+  static combinePatterns(language: string, queryTypes: string[], options?: ParseOptions): string {
     const patterns: string[] = [];
 
-    for (const queryType of queryTypes) {
-      const pattern = this.getQueryPattern(language, queryType);
+    // 过滤掉被禁用的关系查询
+    const enabledQueryTypes = queryTypes.filter(queryType => 
+      this.shouldExecuteRelationshipQuery(queryType, options)
+    );
+
+    for (const queryType of enabledQueryTypes) {
+      const pattern = this.getQueryPattern(language, queryType, options);
       if (pattern) {
         patterns.push(pattern);
       }

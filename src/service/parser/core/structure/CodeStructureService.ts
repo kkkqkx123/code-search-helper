@@ -1,6 +1,7 @@
 import Parser from 'tree-sitter';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { ParseOptions } from '../../types';
 
 /**
  * 代码结构服务
@@ -118,6 +119,64 @@ export class CodeStructureService {
       // 回退到通用节点查找
       return this.coreService.findNodeByType(ast, 'export');
     }
+  }
+
+  /**
+   * 提取语义关系节点
+   * @param ast AST节点
+   * @param language 可选的语言参数
+   * @param options 解析选项
+   * @returns 关系节点数组
+   */
+  async extractSemanticRelationships(ast: Parser.SyntaxNode, language?: string, options?: ParseOptions): Promise<Parser.SyntaxNode[]> {
+    // 检查是否应该提取关系节点
+    if (!this.shouldExtractRelationships(options)) {
+      this.logger.debug('关系节点提取已禁用，跳过语义关系提取');
+      return [];
+    }
+
+    try {
+      const lang = language || this.detectLanguageFromAST(ast);
+      if (!lang) {
+        this.logger.warn('无法检测语言，跳过语义关系提取');
+        return [];
+      }
+      
+      // 使用通用查询接口，通过查询系统获取语义关系结果
+      const result = await this.coreService.findNodeByTypeAsync(ast, 'semantic-relationships');
+      
+      this.logger.debug(`提取到 ${result.length} 个语义关系节点`);
+      return result;
+    } catch (error) {
+      this.logger.error('提取语义关系失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 判断是否应该提取关系节点
+   * @param options 解析选项
+   * @returns 是否应该提取关系节点
+   */
+  private shouldExtractRelationships(options?: ParseOptions): boolean {
+    // 首先检查 NEBULA_ENABLED 环境变量（最高优先级）
+    const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+    if (!nebulaEnabled) {
+      return false;
+    }
+
+    // 如果显式禁用了关系提取，直接返回 false
+    if (options?.extractRelationships === false) {
+      return false;
+    }
+    
+    // 如果没有显式设置选项，则根据 NEBULA_ENABLED 决定（此时已确认为 true）
+    if (options?.extractRelationships === undefined) {
+      return true;
+    }
+    
+    // 如果显式启用了关系提取，则返回 true
+    return options.extractRelationships === true;
   }
 
   /**

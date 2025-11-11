@@ -54,16 +54,14 @@ describe('HybridIndexService Configuration', () => {
 
   afterEach(() => {
     // 恢复环境变量
-    delete process.env.VECTOR_INDEX_ENABLED;
-    delete process.env.GRAPH_INDEX_ENABLED;
     delete process.env.DEFAULT_INDEXING_STRATEGY;
+    delete process.env.NEBULA_ENABLED;
   });
 
   describe('Environment Configuration', () => {
-    it('should use hybrid strategy when both vector and graph are enabled', async () => {
+    it('should use hybrid strategy when NEBULA_ENABLED is true', async () => {
       // Arrange
-      process.env.VECTOR_INDEX_ENABLED = 'true';
-      process.env.GRAPH_INDEX_ENABLED = 'true';
+      process.env.NEBULA_ENABLED = 'true';
       process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
       mockConfigService.isGraphEnabled.mockReturnValue(true);
 
@@ -75,10 +73,9 @@ describe('HybridIndexService Configuration', () => {
       expect(mockGraphIndexService.startIndexing).toHaveBeenCalled();
     });
 
-    it('should use vector-only strategy when graph is disabled', async () => {
+    it('should use vector-only strategy when NEBULA_ENABLED is false', async () => {
       // Arrange
-      process.env.VECTOR_INDEX_ENABLED = 'true';
-      process.env.GRAPH_INDEX_ENABLED = 'false';
+      process.env.NEBULA_ENABLED = 'false';
       process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
       mockConfigService.isGraphEnabled.mockReturnValue(false);
 
@@ -90,25 +87,9 @@ describe('HybridIndexService Configuration', () => {
       expect(mockGraphIndexService.startIndexing).not.toHaveBeenCalled();
     });
 
-    it('should use graph-only strategy when vector is disabled', async () => {
-      // Arrange
-      process.env.VECTOR_INDEX_ENABLED = 'false';
-      process.env.GRAPH_INDEX_ENABLED = 'true';
-      process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
-      mockConfigService.isGraphEnabled.mockReturnValue(true);
-
-      // Act
-      await service.startIndexing('/test/project');
-
-      // Assert
-      expect(mockIndexService.startIndexing).not.toHaveBeenCalled();
-      expect(mockGraphIndexService.startIndexing).toHaveBeenCalled();
-    });
-
     it('should respect explicit vector strategy from environment', async () => {
       // Arrange
-      process.env.VECTOR_INDEX_ENABLED = 'true';
-      process.env.GRAPH_INDEX_ENABLED = 'true';
+      process.env.NEBULA_ENABLED = 'true';
       process.env.DEFAULT_INDEXING_STRATEGY = 'vector';
       mockConfigService.isGraphEnabled.mockReturnValue(true);
 
@@ -120,25 +101,22 @@ describe('HybridIndexService Configuration', () => {
       expect(mockGraphIndexService.startIndexing).not.toHaveBeenCalled();
     });
 
-    it('should respect explicit graph strategy from environment', async () => {
+    it('should fallback to vector when NEBULA_ENABLED is undefined', async () => {
       // Arrange
-      process.env.VECTOR_INDEX_ENABLED = 'true';
-      process.env.GRAPH_INDEX_ENABLED = 'true';
-      process.env.DEFAULT_INDEXING_STRATEGY = 'graph';
-      mockConfigService.isGraphEnabled.mockReturnValue(true);
+      process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
+      mockConfigService.isGraphEnabled.mockReturnValue(false);
 
       // Act
       await service.startIndexing('/test/project');
 
       // Assert
-      expect(mockIndexService.startIndexing).not.toHaveBeenCalled();
-      expect(mockGraphIndexService.startIndexing).toHaveBeenCalled();
+      expect(mockIndexService.startIndexing).toHaveBeenCalled();
+      expect(mockGraphIndexService.startIndexing).not.toHaveBeenCalled();
     });
 
     it('should handle options override for vector-only', async () => {
       // Arrange
-      process.env.VECTOR_INDEX_ENABLED = 'true';
-      process.env.GRAPH_INDEX_ENABLED = 'true';
+      process.env.NEBULA_ENABLED = 'true';
       process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
       mockConfigService.isGraphEnabled.mockReturnValue(true);
 
@@ -149,20 +127,71 @@ describe('HybridIndexService Configuration', () => {
       expect(mockIndexService.startIndexing).toHaveBeenCalled();
       expect(mockGraphIndexService.startIndexing).not.toHaveBeenCalled();
     });
+  });
 
-    it('should handle options override for graph-only', async () => {
+  describe('Index Type Strategy', () => {
+    it('should handle Vector index type correctly', async () => {
       // Arrange
-      process.env.VECTOR_INDEX_ENABLED = 'true';
-      process.env.GRAPH_INDEX_ENABLED = 'true';
-      process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
+      process.env.NEBULA_ENABLED = 'true';
+
+      // Act
+      await service.indexByType('/test/project', 'vector' as any);
+
+      // Assert
+      expect(mockIndexService.startIndexing).toHaveBeenCalled();
+      expect(mockGraphIndexService.startIndexing).not.toHaveBeenCalled();
+    });
+
+    it('should handle Graph index type as hybrid', async () => {
+      // Arrange
+      process.env.NEBULA_ENABLED = 'true';
       mockConfigService.isGraphEnabled.mockReturnValue(true);
 
       // Act
-      await service.startIndexing('/test/project', { enableVectorIndex: false });
+      await service.indexByType('/test/project', 'graph' as any);
 
       // Assert
-      expect(mockIndexService.startIndexing).not.toHaveBeenCalled();
+      expect(mockIndexService.startIndexing).toHaveBeenCalled();
       expect(mockGraphIndexService.startIndexing).toHaveBeenCalled();
+    });
+
+    it('should handle Hybrid index type correctly', async () => {
+      // Arrange
+      process.env.NEBULA_ENABLED = 'true';
+      mockConfigService.isGraphEnabled.mockReturnValue(true);
+
+      // Act
+      await service.indexByType('/test/project', 'hybrid' as any);
+
+      // Assert
+      expect(mockIndexService.startIndexing).toHaveBeenCalled();
+      expect(mockGraphIndexService.startIndexing).toHaveBeenCalled();
+    });
+  });
+
+  describe('Configuration Validation', () => {
+    it('should validate graph configuration when graph is enabled', async () => {
+      // Arrange
+      process.env.NEBULA_ENABLED = 'true';
+      mockConfigService.isGraphEnabled.mockReturnValue(true);
+
+      // Act
+      await service.startIndexing('/test/project');
+
+      // Assert
+      expect(mockConfigService.validateGraphConfiguration).toHaveBeenCalled();
+    });
+
+    it('should skip graph validation when graph is disabled', async () => {
+      // Arrange
+      process.env.NEBULA_ENABLED = 'false';
+      mockConfigService.isGraphEnabled.mockReturnValue(false);
+
+      // Act
+      await service.startIndexing('/test/project', { enableGraphIndex: false });
+
+      // Assert
+      expect(mockConfigService.validateGraphConfiguration).not.toHaveBeenCalled();
     });
   });
 });
