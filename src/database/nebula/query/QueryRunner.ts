@@ -118,7 +118,8 @@ export class QueryRunner extends EventEmitter implements IQueryRunner {
     @inject(TYPES.BatchProcessingService) batchProcessingService: IBatchProcessingService,
     @inject(TYPES.IRetryStrategy) retryStrategy: IRetryStrategy,
     @inject(TYPES.ICircuitBreaker) circuitBreaker: ICircuitBreaker,
-    config: Partial<QueryRunnerConfig> = {}
+    config: Partial<QueryRunnerConfig> = {},
+    queryCache?: any
   ) {
     super();
     this.logger = logger;
@@ -135,7 +136,7 @@ export class QueryRunner extends EventEmitter implements IQueryRunner {
     this.nebulaConfig = this.configService.loadConfig();
     
     // 初始化查询缓存
-    this.queryCache = new QueryCache(logger, errorHandler, this.config.cacheConfig);
+    this.queryCache = queryCache || new QueryCache(logger, errorHandler, this.config.cacheConfig);
     
     this.logger.info('QueryRunner initialized', {
       defaultTimeout: this.config.defaultTimeout,
@@ -344,14 +345,14 @@ export class QueryRunner extends EventEmitter implements IQueryRunner {
    * 获取缓存的查询结果
    */
   async getCachedResult(queryKey: string): Promise<NebulaQueryResult | null> {
-    return await this.queryCache.get(queryKey);
+    return await this.queryCache.get(queryKey, undefined);
   }
 
   /**
    * 设置查询结果到缓存
    */
   async setCachedResult(queryKey: string, result: NebulaQueryResult): Promise<void> {
-    await this.queryCache.set(queryKey, result);
+    await this.queryCache.set(queryKey, result, undefined);
   }
 
   /**

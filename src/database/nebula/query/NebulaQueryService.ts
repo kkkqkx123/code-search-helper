@@ -70,6 +70,9 @@ export class NebulaQueryService implements INebulaQueryService {
   }
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
+    // 确保连接已建立
+    await this.getClient();
+    
     // 委托给新的QueryRunner
     return await this.queryRunner.execute(nGQL, parameters);
   }

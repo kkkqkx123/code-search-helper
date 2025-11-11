@@ -33,7 +33,7 @@ export class NebulaQueryUtils implements INebulaQueryUtils {
       const escapedValue = NebulaQueryUtils.escapeValue(value);
 
       interpolatedQuery = interpolatedQuery.replace(
-        new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), 
+        new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
         escapedValue
       );
     }
@@ -59,7 +59,7 @@ export class NebulaQueryUtils implements INebulaQueryUtils {
         .replace(/\\/g, '\\\\')
         .replace(/"/g, '\\"')
         .replace(/'/g, "\\'");
-      
+
       return `"${escaped}"`;
     }
 
@@ -76,11 +76,20 @@ export class NebulaQueryUtils implements INebulaQueryUtils {
 
   /**
    * 转义属性值中的特殊字符，防止nGQL注入
+   * 在Nebula Graph的nGQL中，数字值不应该加引号，而字符串值需要加引号。
    */
   static escapeProperties(properties: Record<string, any>): Record<string, any> {
     const escaped: Record<string, any> = {};
     for (const [key, value] of Object.entries(properties)) {
-      escaped[key] = NebulaQueryUtils.escapeValue(value);
+      // 对于数字类型或可以转换为数字的字符串，我们只转换为字符串而不添加引号
+      if (typeof value === 'number') {
+        escaped[key] = String(value);
+      } else if (typeof value === 'string' && !isNaN(Number(value)) && !isNaN(parseFloat(value))) {
+        // 如果是纯数字字符串，不加引号
+        escaped[key] = value;
+      } else {
+        escaped[key] = NebulaQueryUtils.escapeValue(value);
+      }
     }
     return escaped;
   }

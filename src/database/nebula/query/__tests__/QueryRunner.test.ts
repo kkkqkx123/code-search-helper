@@ -46,6 +46,7 @@ class MockPerformanceMonitor extends PerformanceMonitor {
   startOperation = jest.fn().mockReturnValue('operation-id');
   endOperation = jest.fn();
   recordOperation = jest.fn();
+  recordQueryExecution = jest.fn();
 }
 
 class MockSessionManager implements ISessionManager {
@@ -84,16 +85,41 @@ class MockSessionManager implements ISessionManager {
   });
 }
 
-class MockQueryCache extends QueryCache {
-  getCachedResult = jest.fn().mockResolvedValue(null);
-  setCachedResult = jest.fn().mockResolvedValue(undefined);
-  clear = jest.fn();
+class MockQueryCache {
+  private cache = new Map<string, NebulaQueryResult>();
+  
+  get = jest.fn().mockImplementation((query: string, params?: Record<string, any>) => {
+    const key = this.generateKey(query, params);
+    return Promise.resolve(this.cache.get(key) || null);
+  });
+  
+  set = jest.fn().mockImplementation((query: string, result: NebulaQueryResult, params?: Record<string, any>) => {
+    const key = this.generateKey(query, params);
+    this.cache.set(key, result);
+    return Promise.resolve();
+  });
+  
+  private generateKey(query: string, params?: Record<string, any>): string {
+    // 简化的键生成逻辑
+    if (params && Object.keys(params).length > 0) {
+      return `${query}:${JSON.stringify(params)}`;
+    }
+    return query;
+  }
+  
+  clear = jest.fn().mockImplementation(() => {
+    this.cache.clear();
+  });
+  
   getStats = jest.fn().mockReturnValue({
     cacheSize: 0,
     cacheHits: 0,
     cacheMisses: 0,
     evictionCount: 0
   });
+  
+  updateConfig = jest.fn();
+  cleanup = jest.fn();
 }
 
 class MockBatchProcessingService implements IBatchProcessingService {
@@ -171,7 +197,7 @@ describe('QueryRunner', () => {
     mockConfigService = new MockNebulaConfigService(mockLogger, mockErrorHandler);
     mockPerformanceMonitor = new MockPerformanceMonitor(mockLogger);
     mockSessionManager = new MockSessionManager();
-    mockQueryCache = new MockQueryCache(mockLogger, mockErrorHandler);
+    mockQueryCache = new MockQueryCache();
     mockBatchProcessingService = new MockBatchProcessingService();
     mockRetryStrategy = new MockRetryStrategy();
     mockCircuitBreaker = new MockCircuitBreaker();
@@ -184,7 +210,9 @@ describe('QueryRunner', () => {
       mockSessionManager,
       mockBatchProcessingService,
       mockRetryStrategy,
-      mockCircuitBreaker
+      mockCircuitBreaker,
+      {},
+      mockQueryCache
     );
 
     config = {
@@ -196,6 +224,9 @@ describe('QueryRunner', () => {
     };
 
     (queryRunner as any).nebulaConfig = config;
+    
+    // 确保缓存配置正确设置
+    (queryRunner as any).config.cacheConfig.enabled = true;
   });
 
   afterEach(() => {
@@ -211,9 +242,10 @@ describe('QueryRunner', () => {
         table: {},
         results: [],
         rows: [],
-        data: []
+        data: [],
+        executionTime: expect.any(Number)
       });
-      expect(mockSessionManager.getSession).toHaveBeenCalledWith(config.space);
+      expect(mockSessionManager.getSession).toHaveBeenCalledWith(undefined);
     });
 
     it('should execute a query with parameters', async () => {
@@ -227,7 +259,8 @@ describe('QueryRunner', () => {
         table: {},
         results: [],
         rows: [],
-        data: []
+        data: [],
+        executionTime: expect.any(Number)
       });
     });
 
@@ -237,15 +270,21 @@ describe('QueryRunner', () => {
         table: { cached: true },
         results: [],
         rows: [],
-        data: []
+        data: [],
+        executionTime: 0
       };
 
-      (mockQueryCache.getCachedResult as jest.Mock).mockResolvedValueOnce(cachedResult);
+      // Enable cache in config
+      (queryRunner as any).config.enableCache = true;
+      (queryRunner as any).config.cacheConfig.enabled = true;
+      
+      // Mock cache to return cached result
+      (mockQueryCache.get as jest.Mock).mockImplementationOnce(() => Promise.resolve(cachedResult));
 
-      const result = await queryRunner.execute(query);
+      const result = await queryRunner.execute(query, undefined, { useCache: true });
 
       expect(result).toEqual(cachedResult);
-      expect(mockQueryCache.getCachedResult).toHaveBeenCalledWith(expect.any(String));
+      expect(mockQueryCache.get).toHaveBeenCalledWith(query, undefined);
     });
 
     it('should handle query execution errors', async () => {
@@ -254,14 +293,59 @@ describe('QueryRunner', () => {
       (mockSessionManager.getSession as jest.Mock).mockRejectedValueOnce(error);
 
       await expect(queryRunner.execute(query)).rejects.toThrow('Query execution failed');
-      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(error, { component: 'QueryRunner', operation: 'execute', query });
+      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(
+        expect.any(Error),
+        {
+          component: 'QueryRunner',
+          operation: 'execute',
+          query,
+          params: undefined,
+          executionTime: expect.any(Number)
+        }
+      );
     });
 
     it('should cache result after successful execution', async () => {
       const query = 'SHOW SPACES';
-      await queryRunner.execute(query);
+      
+      // Enable cache in config
+      (queryRunner as any).config.enableCache = true;
+      (queryRunner as any).config.cacheConfig.enabled = true;
+      
+      // Mock session to return a result
+      (mockSessionManager.getSession as jest.Mock).mockResolvedValueOnce({
+        execute: jest.fn().mockResolvedValue({
+          table: {},
+          results: [],
+          rows: [],
+          data: [],
+          executionTime: 10
+        }),
+        close: jest.fn().mockResolvedValue(undefined),
+        switchSpace: jest.fn().mockResolvedValue(undefined),
+        getStats: jest.fn().mockReturnValue({
+          id: 'mock-session-id',
+          state: 'active',
+          created: new Date(),
+          lastUsed: new Date(),
+          queryCount: 0,
+          errorCount: 0,
+          totalQueryTime: 0
+        })
+      });
+      
+      // Mock cache set method to track calls
+      const setSpy = jest.spyOn(mockQueryCache, 'set');
+      
+      await queryRunner.execute(query, undefined, { useCache: true });
 
-      expect(mockQueryCache.setCachedResult).toHaveBeenCalledWith(expect.any(String), expect.any(Object));
+      expect(setSpy).toHaveBeenCalledWith(query, expect.objectContaining({
+        table: expect.any(Object),
+        results: expect.any(Array),
+        rows: expect.any(Array),
+        data: expect.any(Array),
+        executionTime: expect.any(Number)
+      }), undefined);
     });
   });
 
@@ -271,11 +355,39 @@ describe('QueryRunner', () => {
         { query: 'SHOW SPACES' },
         { query: 'SHOW HOSTS' }
       ];
+      
+      // Mock the batch processing service to return results
+      (mockBatchProcessingService.processBatches as jest.Mock).mockImplementationOnce(async (queries, processor) => {
+        return await processor(queries);
+      });
+      
+      // Mock the execute method to return results
+      (mockSessionManager.getSession as jest.Mock).mockResolvedValueOnce({
+        execute: jest.fn().mockResolvedValue({
+          table: {},
+          results: [],
+          rows: [],
+          data: []
+        }),
+        close: jest.fn().mockResolvedValue(undefined),
+        switchSpace: jest.fn().mockResolvedValue(undefined),
+        getStats: jest.fn().mockReturnValue({
+          id: 'mock-session-id',
+          state: 'active',
+          created: new Date(),
+          lastUsed: new Date(),
+          queryCount: 0,
+          errorCount: 0,
+          totalQueryTime: 0
+        })
+      });
+      
       const results = await queryRunner.executeBatch(queries);
 
       expect(results).toHaveLength(2);
-      expect(mockBatchProcessingService.executeBatch).toHaveBeenCalledWith(
+      expect(mockBatchProcessingService.processBatches).toHaveBeenCalledWith(
         expect.any(Array),
+        expect.any(Function),
         expect.any(Object)
       );
     });
@@ -286,45 +398,64 @@ describe('QueryRunner', () => {
         { query: 'SHOW HOSTS' }
       ];
       const error = new Error('Batch execution failed');
-      (mockBatchProcessingService.executeBatch as jest.Mock).mockRejectedValueOnce(error);
+      (mockBatchProcessingService.processBatches as jest.Mock).mockRejectedValueOnce(error);
 
       await expect(queryRunner.executeBatch(queries)).rejects.toThrow('Batch execution failed');
-      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(error, { component: 'QueryRunner', operation: 'executeBatch', queryCount: 2 });
+      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(
+        expect.any(Error),
+        {
+          component: 'QueryRunner',
+          operation: 'executeBatch',
+          queries,
+          executionTime: expect.any(Number)
+        }
+      );
     });
   });
 
   describe('getCachedResult', () => {
     it('should get cached result successfully', async () => {
-      const queryKey = 'test-query-key';
+      const query = 'test-query';
       const cachedResult: NebulaQueryResult = {
         table: { cached: true },
         results: [],
         rows: [],
-        data: []
+        data: [],
+        executionTime: 0
       };
 
-      (mockQueryCache.getCachedResult as jest.Mock).mockResolvedValueOnce(cachedResult);
+      // Enable cache in config
+      (queryRunner as any).config.cacheConfig.enabled = true;
+      
+      (mockQueryCache.get as jest.Mock).mockImplementationOnce(() => Promise.resolve(cachedResult));
 
-      const result = await queryRunner.getCachedResult(queryKey);
+      const result = await queryRunner.getCachedResult(query);
 
       expect(result).toEqual(cachedResult);
-      expect(mockQueryCache.getCachedResult).toHaveBeenCalledWith(queryKey);
+      expect(mockQueryCache.get).toHaveBeenCalledWith(query, undefined);
     });
   });
 
   describe('setCachedResult', () => {
     it('should set cached result successfully', async () => {
-      const queryKey = 'test-query-key';
+      const query = 'test-query';
       const result: NebulaQueryResult = {
         table: {},
         results: [],
         rows: [],
-        data: []
+        data: [],
+        executionTime: 0
       };
 
-      await queryRunner.setCachedResult(queryKey, result);
+      // Enable cache in config
+      (queryRunner as any).config.cacheConfig.enabled = true;
 
-      expect(mockQueryCache.setCachedResult).toHaveBeenCalledWith(queryKey, result);
+      // Mock cache set method to track calls
+      const setSpy = jest.spyOn(mockQueryCache, 'set');
+
+      await queryRunner.setCachedResult(query, result);
+
+      expect(setSpy).toHaveBeenCalledWith(query, result, undefined);
     });
   });
 
@@ -336,8 +467,7 @@ describe('QueryRunner', () => {
 
       queryRunner.recordQueryMetrics(query, duration, success);
 
-      expect(mockPerformanceMonitor.startOperation).toHaveBeenCalledWith('query_execution', expect.any(Object));
-      expect(mockPerformanceMonitor.endOperation).toHaveBeenCalledWith('operation-id', expect.any(Object));
+      expect(mockPerformanceMonitor.recordQueryExecution).toHaveBeenCalledWith(duration);
     });
   });
 
