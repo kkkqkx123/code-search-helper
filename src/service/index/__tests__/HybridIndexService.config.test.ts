@@ -1,7 +1,7 @@
 import { HybridIndexService } from '../HybridIndexService';
 import { Container } from 'inversify';
 import { TYPES } from '../../../types';
-import { IndexService } from '../IndexService';
+import { VectorIndexService } from '../VectorIndexService';
 import { GraphIndexService } from '../GraphIndexService';
 import { InfrastructureConfigService } from '../../../infrastructure/config/InfrastructureConfigService';
 import { IGraphIndexPerformanceMonitor } from '../../../infrastructure/monitoring/GraphIndexMetrics';
@@ -9,7 +9,7 @@ import { IGraphIndexPerformanceMonitor } from '../../../infrastructure/monitorin
 describe('HybridIndexService Configuration', () => {
   let service: HybridIndexService;
   let container: Container;
-  let mockIndexService: jest.Mocked<IndexService>;
+  let mockIndexService: jest.Mocked<VectorIndexService>;
   let mockGraphIndexService: jest.Mocked<GraphIndexService>;
   let mockConfigService: jest.Mocked<InfrastructureConfigService>;
   let mockPerformanceMonitor: jest.Mocked<IGraphIndexPerformanceMonitor>;
@@ -43,7 +43,7 @@ describe('HybridIndexService Configuration', () => {
     } as any;
 
     // 绑定依赖
-    container.bind(TYPES.IndexService).toConstantValue(mockIndexService);
+    container.bind(TYPES.VectorIndexService).toConstantValue(mockIndexService);
     container.bind(TYPES.GraphIndexService).toConstantValue(mockGraphIndexService);
     container.bind(TYPES.InfrastructureConfigService).toConstantValue(mockConfigService);
     container.bind(TYPES.GraphIndexPerformanceMonitor).toConstantValue(mockPerformanceMonitor);

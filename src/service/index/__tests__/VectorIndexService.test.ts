@@ -5,9 +5,7 @@ import { ProjectStateManager } from '../../project/ProjectStateManager';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { QdrantService } from '../../../database/qdrant/QdrantService';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
-import { IndexingLogicService } from '../IndexingLogicService';
-import { FileTraversalService } from '../shared/FileTraversalService';
-import { ConcurrencyService } from '../shared/ConcurrencyService';
+import { FileSystemTraversal } from '../../filesystem/FileSystemTraversal';
 import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { TYPES } from '../../../types';
 import { Container } from 'inversify';
@@ -19,9 +17,7 @@ jest.mock('../../project/ProjectStateManager');
 jest.mock('../../../database/ProjectIdManager');
 jest.mock('../../../database/qdrant/QdrantService');
 jest.mock('../../../embedders/EmbedderFactory');
-jest.mock('../IndexingLogicService');
-jest.mock('../shared/FileTraversalService');
-jest.mock('../shared/ConcurrencyService');
+jest.mock('../../filesystem/FileSystemTraversal');
 jest.mock('../../../infrastructure/batching/BatchProcessingService');
 
 describe('VectorIndexService', () => {
@@ -32,9 +28,7 @@ describe('VectorIndexService', () => {
   let projectIdManager: jest.Mocked<ProjectIdManager>;
   let qdrantService: jest.Mocked<QdrantService>;
   let embedderFactory: jest.Mocked<EmbedderFactory>;
-  let indexingLogicService: jest.Mocked<IndexingLogicService>;
-  let fileTraversalService: jest.Mocked<FileTraversalService>;
-  let concurrencyService: jest.Mocked<ConcurrencyService>;
+  let fileTraversalService: jest.Mocked<FileSystemTraversal>;
   let batchProcessor: jest.Mocked<BatchProcessingService>;
 
   beforeEach(() => {
@@ -80,18 +74,11 @@ describe('VectorIndexService', () => {
       }),
     } as unknown as jest.Mocked<EmbedderFactory>;
 
-    indexingLogicService = {
-      indexFile: jest.fn(),
-      getEmbedderDimensions: jest.fn().mockResolvedValue(1536),
-    } as unknown as jest.Mocked<IndexingLogicService>;
 
     fileTraversalService = {
-      getProjectFiles: jest.fn(),
-    } as unknown as jest.Mocked<FileTraversalService>;
+      traverseDirectory: jest.fn(),
+    } as unknown as jest.Mocked<FileSystemTraversal>;
 
-    concurrencyService = {
-      processWithConcurrency: jest.fn(),
-    } as unknown as jest.Mocked<ConcurrencyService>;
 
     batchProcessor = {
       processBatches: jest.fn(),
@@ -106,9 +93,7 @@ describe('VectorIndexService', () => {
     testContainer.bind<ProjectIdManager>(TYPES.ProjectIdManager).toConstantValue(projectIdManager);
     testContainer.bind<QdrantService>(TYPES.QdrantService).toConstantValue(qdrantService);
     testContainer.bind<EmbedderFactory>(TYPES.EmbedderFactory).toConstantValue(embedderFactory);
-    testContainer.bind<IndexingLogicService>(TYPES.IndexingLogicService).toConstantValue(indexingLogicService);
-    testContainer.bind<FileTraversalService>(TYPES.FileTraversalService).toConstantValue(fileTraversalService);
-    testContainer.bind<ConcurrencyService>(TYPES.ConcurrencyService).toConstantValue(concurrencyService);
+    testContainer.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).toConstantValue(fileTraversalService);
     testContainer.bind<BatchProcessingService>(TYPES.BatchProcessingService).toConstantValue(batchProcessor);
 
     testContainer.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();
@@ -123,10 +108,18 @@ describe('VectorIndexService', () => {
       
       projectIdManager.generateProjectId.mockResolvedValue(projectId);
       projectIdManager.getProjectPath.mockReturnValue(projectPath);
-      fileTraversalService.getProjectFiles.mockResolvedValue(['/test/project/file1.js', '/test/project/file2.js']);
+      fileTraversalService.traverseDirectory.mockResolvedValue({
+        files: [
+          { path: '/test/project/file1.js', relativePath: 'file1.js', name: 'file1.js', extension: '.js', size: 1000, hash: 'hash1', lastModified: new Date(), language: 'javascript', isBinary: false },
+          { path: '/test/project/file2.js', relativePath: 'file2.js', name: 'file2.js', extension: '.js', size: 1000, hash: 'hash2', lastModified: new Date(), language: 'javascript', isBinary: false }
+        ],
+        directories: [],
+        errors: [],
+        totalSize: 2000,
+        processingTime: 100
+      });
       qdrantService.createCollectionForProject.mockResolvedValue(true);
       embedderFactory.getDefaultProvider.mockReturnValue('openai');
-      indexingLogicService.getEmbedderDimensions.mockResolvedValue(1536);
 
       const result = await vectorIndexService.startIndexing(projectPath);
 
@@ -141,8 +134,15 @@ describe('VectorIndexService', () => {
       
       projectIdManager.generateProjectId.mockResolvedValue(projectId);
       projectIdManager.getProjectId.mockReturnValue(projectId);
-      indexingLogicService.getEmbedderDimensions.mockResolvedValue(1536);
-      fileTraversalService.getProjectFiles.mockResolvedValue(['/test/project/file1.js']);
+      fileTraversalService.traverseDirectory.mockResolvedValue({
+        files: [
+          { path: '/test/project/file1.js', relativePath: 'file1.js', name: 'file1.js', extension: '.js', size: 1000, hash: 'hash1', lastModified: new Date(), language: 'javascript', isBinary: false }
+        ],
+        directories: [],
+        errors: [],
+        totalSize: 1000,
+        processingTime: 50
+      });
       qdrantService.createCollectionForProject.mockResolvedValue(false);
 
       await expect(vectorIndexService.startIndexing(projectPath)).rejects.toThrow(

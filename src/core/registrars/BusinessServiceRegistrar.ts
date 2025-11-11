@@ -1,8 +1,6 @@
 import { Container } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { ConfigService } from '../../config/ConfigService';
 import { SimilarityServiceRegistrar } from './SimilarityServiceRegistrar';
 
 // 文件系统服务
@@ -19,26 +17,15 @@ import { HotReloadRestartService } from '../../service/filesystem/HotReloadResta
 import { FileHashManager, FileHashManagerImpl } from '../../service/filesystem/FileHashManager';
 
 // 项目管理服务
-import { IndexingLogicService } from '../../service/index/IndexingLogicService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { CoreStateService } from '../../service/project/services/CoreStateService';
 import { StorageStateService } from '../../service/project/services/StorageStateService';
 
-// 新增的索引服务
+// 简化的索引服务
 import { VectorIndexService } from '../../service/index/VectorIndexService';
-import { GraphIndexService } from '../../service/index/GraphIndexService';
-import { HybridIndexService } from '../../service/index/HybridIndexService';
-import { StorageCoordinatorService } from '../../service/index/StorageCoordinatorService';
-import { ConcurrencyService } from '../../service/index/shared/ConcurrencyService';
-import { FileTraversalService } from '../../service/index/shared/FileTraversalService';
-
-// 图构建服务
-import { GraphConstructionService } from '../../service/graph/construction/GraphConstructionService';
 
 // 性能优化服务
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
-import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
-import { BatchStrategyFactory } from '../../infrastructure/batching/strategies/BatchStrategyFactory';
 import { SemanticBatchStrategy } from '../../infrastructure/batching/strategies/SemanticBatchStrategy';
 import { QdrantBatchStrategy } from '../../infrastructure/batching/strategies/QdrantBatchStrategy';
 import { NebulaBatchStrategy } from '../../infrastructure/batching/strategies/NebulaBatchStrategy';
@@ -129,29 +116,14 @@ export class BusinessServiceRegistrar {
       container.bind<HotReloadRestartService>(TYPES.HotReloadRestartService).to(HotReloadRestartService).inSingletonScope();
 
       // 项目管理服务
-      container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
       container.bind<CoreStateService>(TYPES.CoreStateService).to(CoreStateService).inSingletonScope();
       container.bind<StorageStateService>(TYPES.StorageStateService).to(StorageStateService).inSingletonScope();
       container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
 
-      // 文件遍历服务
-      container.bind<FileTraversalService>(TYPES.FileTraversalService).to(FileTraversalService).inSingletonScope();
 
-      // 并发服务
-      container.bind<ConcurrencyService>(TYPES.ConcurrencyService).to(ConcurrencyService).inSingletonScope();
 
-      // 新增的索引服务
+      // 简化的索引服务架构
       container.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();
-      container.bind<GraphIndexService>(TYPES.GraphIndexService).to(GraphIndexService).inSingletonScope();
-      container.bind<HybridIndexService>(TYPES.HybridIndexService).to(HybridIndexService).inSingletonScope();
-      container.bind<StorageCoordinatorService>(TYPES.StorageCoordinatorService).to(StorageCoordinatorService).inSingletonScope();
-      
-      // 图构建服务
-      container.bind<GraphConstructionService>(TYPES.GraphConstructionService)
-        .to(GraphConstructionService).inSingletonScope();
-      
-      // IndexService 作为 VectorIndexService 的别名
-      container.bind(TYPES.IndexService).toService(TYPES.VectorIndexService);
 
       // 忽略规则管理器 - 使用 toDynamicValue 确保正确注入依赖
       container.bind<IgnoreRuleManager>(TYPES.IgnoreRuleManager).toDynamicValue(context => {
@@ -180,11 +152,6 @@ export class BusinessServiceRegistrar {
 
       // 标准化服务
       container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).to(QueryResultNormalizer).inSingletonScope();
-
-      // CleanupManager 现在在 InfrastructureServiceRegistrar 中注册
-      /* 通过DIContainer.ts的注册顺序保证：
-      InfrastructureServiceRegistrar.register()在BusinessServiceRegistrar.register()之前调用
-      */
 
       // 分段器模块服务 - 注意：UniversalTextStrategy 现在不使用 @injectable，需要手动实例化
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).toDynamicValue(() => {
@@ -407,6 +374,4 @@ export class BusinessServiceRegistrar {
       throw error;
     }
   }
-
-
 }

@@ -22,9 +22,8 @@ import { IQdrantProjectManager } from '../../../database/qdrant/QdrantProjectMan
 import { ASTCodeSplitter } from '../../parser/processing/strategies/implementations/ASTCodeSplitter';
 import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
 import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';
-import { IndexService } from '../../index/IndexService';
+import { VectorIndexService } from '../../index/VectorIndexService';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
-import { IndexingLogicService } from '../../index/IndexingLogicService';
 import { ConcurrencyService } from '../../index/shared/ConcurrencyService';
 import { FileTraversalService } from '../../index/shared/FileTraversalService';
 import { CoreStateService } from '../services/CoreStateService';

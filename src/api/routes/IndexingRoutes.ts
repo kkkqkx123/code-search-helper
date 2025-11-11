@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { Logger } from '../../utils/logger.js';
-import { IndexService } from '../../service/index/IndexService.js';
+import { VectorIndexService } from '../../service/index/VectorIndexService.js';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';

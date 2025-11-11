@@ -14,7 +14,7 @@ import { HotReloadConfigService } from '../service/filesystem/HotReloadConfigSer
 import { GraphStatsRoutes } from './routes/GraphStatsRoutes';
 import { ProjectIdManager } from '../database/ProjectIdManager';
 import { ProjectLookupService } from '../database/ProjectLookupService';
-import { IndexService } from '../service/index/IndexService.js';
+import { VectorIndexService } from '../service/index/VectorIndexService.js';
 import { HybridIndexService } from '../service/index/HybridIndexService';
 import { EmbedderFactory } from '../embedders/EmbedderFactory';
 import { QdrantService } from '../database/qdrant/QdrantService.js';
@@ -39,14 +39,14 @@ export class ApiServer {
   private graphAnalysisRoutes: GraphAnalysisRoutes;
   private hotReloadRoutes: HotReloadRoutes;
   private graphStatsRoutes: GraphStatsRoutes;
-  private indexSyncService: IndexService;
+  private indexSyncService: VectorIndexService;
   private embedderFactory: EmbedderFactory;
   private qdrantService: QdrantService;
   private nebulaClient: NebulaClient;
   private projectStateManager: ProjectStateManager;
   private qdrantCollectionViewRoutes: QdrantCollectionViewRoutes;
 
-  constructor(logger: Logger, indexSyncService: IndexService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
+  constructor(logger: Logger, indexSyncService: VectorIndexService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
     this.logger = logger;
     this.indexSyncService = indexSyncService;
     this.embedderFactory = embedderFactory;

@@ -1,6 +1,6 @@
 import { ProjectStateListenerManager } from '../listeners/ProjectStateListenerManager';
 import { LoggerService } from '../../../utils/LoggerService';
-import { IndexService } from '../../index/IndexService';
+import { VectorIndexService } from '../../index/VectorIndexService';
 import { ProjectState, StorageStatus } from '../ProjectStateManager';
 
 // Mock dependencies

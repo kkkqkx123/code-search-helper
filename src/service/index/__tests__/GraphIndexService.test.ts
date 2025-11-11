@@ -7,12 +7,12 @@ import { ProjectStateManager } from '../../project/ProjectStateManager';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { IGraphDataService } from '../../graph/core/IGraphDataService';
 import { NebulaProjectManager } from '../../../database/nebula/NebulaProjectManager';
-import { IndexService } from '../IndexService';
-import { FileTraversalService } from '../shared/FileTraversalService';
-import { ConcurrencyService } from '../shared/ConcurrencyService';
+import { VectorIndexService } from '../VectorIndexService';
+import { FileSystemTraversal } from '../../filesystem/FileSystemTraversal';
 import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { IGraphIndexPerformanceMonitor } from '../../../infrastructure/monitoring/GraphIndexMetrics';
 import { IndexServiceError, IndexServiceErrorType } from '../errors/IndexServiceErrors';
+import { IGraphConstructionService } from '../../graph/construction/IGraphConstructionService';
 
 describe('GraphIndexService', () => {
   let container: Container;
@@ -23,11 +23,11 @@ describe('GraphIndexService', () => {
   let mockProjectIdManager: jest.Mocked<ProjectIdManager>;
   let mockGraphDataService: jest.Mocked<IGraphDataService>;
   let mockNebulaProjectManager: jest.Mocked<NebulaProjectManager>;
-  let mockIndexService: jest.Mocked<IndexService>;
-  let mockFileTraversalService: jest.Mocked<FileTraversalService>;
-  let mockConcurrencyService: jest.Mocked<ConcurrencyService>;
+  let mockIndexService: jest.Mocked<VectorIndexService>;
+  let mockFileTraversalService: jest.Mocked<FileSystemTraversal>;
   let mockBatchProcessor: jest.Mocked<BatchProcessingService>;
   let mockPerformanceMonitor: jest.Mocked<IGraphIndexPerformanceMonitor>;
+  let mockGraphConstructionService: jest.Mocked<IGraphConstructionService>;
 
   beforeEach(() => {
     container = new Container();
@@ -66,22 +66,19 @@ describe('GraphIndexService', () => {
     } as any;
 
     mockNebulaProjectManager = {
-      createSpaceForProject: jest.fn(),
-      clearSpaceForProject: jest.fn()
+      createSpaceForProject: jest.fn().mockResolvedValue(true),
+      clearSpaceForProject: jest.fn().mockResolvedValue(true)
     } as any;
 
     mockIndexService = {
-      indexingLogicService: {
-        indexFile: jest.fn()
-      }
+      startIndexing: jest.fn(),
+      stopIndexing: jest.fn(),
+      getIndexStatus: jest.fn(),
+      reindexProject: jest.fn()
     } as any;
 
     mockFileTraversalService = {
-      getProjectFiles: jest.fn()
-    } as any;
-
-    mockConcurrencyService = {
-      processWithConcurrency: jest.fn()
+      traverseDirectory: jest.fn()
     } as any;
 
     mockBatchProcessor = {
@@ -96,6 +93,12 @@ describe('GraphIndexService', () => {
       clearAllStats: jest.fn()
     } as any;
 
+    mockGraphConstructionService = {
+      buildGraphStructure: jest.fn(),
+      convertToGraphNodes: jest.fn(),
+      convertToGraphRelationships: jest.fn()
+    } as any;
+
     // 绑定依赖
     container.bind(TYPES.LoggerService).toConstantValue(mockLogger);
     container.bind(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandler);
@@ -105,9 +108,11 @@ describe('GraphIndexService', () => {
     container.bind(TYPES.INebulaProjectManager).toConstantValue(mockNebulaProjectManager);
     container.bind(TYPES.IndexService).toConstantValue(mockIndexService);
     container.bind(TYPES.FileTraversalService).toConstantValue(mockFileTraversalService);
-    container.bind(TYPES.ConcurrencyService).toConstantValue(mockConcurrencyService);
     container.bind(TYPES.BatchProcessingService).toConstantValue(mockBatchProcessor);
     container.bind(TYPES.GraphIndexPerformanceMonitor).toConstantValue(mockPerformanceMonitor);
+    container.bind(TYPES.VectorIndexService).toConstantValue(mockIndexService);
+    container.bind(TYPES.FileSystemTraversal).toConstantValue(mockFileTraversalService);
+    container.bind(TYPES.GraphConstructionService).toConstantValue(mockGraphConstructionService);
     container.bind(TYPES.GraphIndexService).to(GraphIndexService);
 
     graphIndexService = container.get<GraphIndexService>(TYPES.GraphIndexService);
@@ -121,7 +126,16 @@ describe('GraphIndexService', () => {
     beforeEach(() => {
       mockProjectIdManager.generateProjectId.mockResolvedValue(projectId);
       mockProjectIdManager.getProjectPath.mockReturnValue(projectPath);
-      mockFileTraversalService.getProjectFiles.mockResolvedValue(['file1.js', 'file2.ts']);
+      mockFileTraversalService.traverseDirectory.mockResolvedValue({
+        files: [
+          { path: 'file1.js', relativePath: 'file1.js', name: 'file1.js', extension: '.js', size: 1000, hash: 'hash1', lastModified: new Date(), language: 'javascript', isBinary: false },
+          { path: 'file2.ts', relativePath: 'file2.ts', name: 'file2.ts', extension: '.ts', size: 1000, hash: 'hash2', lastModified: new Date(), language: 'typescript', isBinary: false }
+        ],
+        directories: [],
+        errors: [],
+        totalSize: 2000,
+        processingTime: 100
+      });
       mockProjectStateManager.getGraphStatus.mockReturnValue(null);
     });
 
@@ -166,7 +180,13 @@ describe('GraphIndexService', () => {
     });
 
     it('should throw error when no files found', async () => {
-      mockFileTraversalService.getProjectFiles.mockResolvedValue([]);
+      mockFileTraversalService.traverseDirectory.mockResolvedValue({
+        files: [],
+        directories: [],
+        errors: [],
+        totalSize: 0,
+        processingTime: 0
+      });
 
       await expect(graphIndexService.startIndexing(projectPath, options))
         .rejects.toThrow(IndexServiceError);
@@ -288,7 +308,15 @@ describe('GraphIndexService', () => {
     it('should reindex project successfully', async () => {
       mockProjectStateManager.getGraphStatus.mockReturnValue(null);
       mockProjectIdManager.generateProjectId.mockResolvedValue(projectId);
-      mockFileTraversalService.getProjectFiles.mockResolvedValue(['file1.js']);
+      mockFileTraversalService.traverseDirectory.mockResolvedValue({
+        files: [
+          { path: 'file1.js', relativePath: 'file1.js', name: 'file1.js', extension: '.js', size: 1000, hash: 'hash1', lastModified: new Date(), language: 'javascript', isBinary: false }
+        ],
+        directories: [],
+        errors: [],
+        totalSize: 1000,
+        processingTime: 50
+      });
 
       const result = await graphIndexService.reindexProject(projectPath, options);
 
@@ -299,7 +327,15 @@ describe('GraphIndexService', () => {
     it('should handle new project', async () => {
       mockProjectIdManager.getProjectId.mockReturnValue(undefined);
       mockProjectIdManager.generateProjectId.mockResolvedValue(projectId);
-      mockFileTraversalService.getProjectFiles.mockResolvedValue(['file1.js']);
+      mockFileTraversalService.traverseDirectory.mockResolvedValue({
+        files: [
+          { path: 'file1.js', relativePath: 'file1.js', name: 'file1.js', extension: '.js', size: 1000, hash: 'hash1', lastModified: new Date(), language: 'javascript', isBinary: false }
+        ],
+        directories: [],
+        errors: [],
+        totalSize: 1000,
+        processingTime: 50
+      });
 
       const result = await graphIndexService.reindexProject(projectPath, options);
 

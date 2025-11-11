@@ -2,16 +2,18 @@ import { Container } from 'inversify';
 import 'reflect-metadata';
 import { TYPES } from '../../../types';
 import { HybridIndexService, IndexType } from '../HybridIndexService';
-import { IndexService } from '../IndexService';
+import { VectorIndexService } from '../VectorIndexService';
 import { GraphIndexService } from '../GraphIndexService';
 import { IndexServiceType } from '../IIndexService';
-import { IndexSyncOptions } from '../IndexService';
+import { IndexSyncOptions } from '../IIndexService';
+import { InfrastructureConfigService } from '../../../infrastructure/config/InfrastructureConfigService';
 
 describe('HybridIndexService', () => {
   let container: Container;
   let hybridIndexService: HybridIndexService;
-  let mockIndexService: jest.Mocked<IndexService>;
+  let mockIndexService: jest.Mocked<VectorIndexService>;
   let mockGraphIndexService: jest.Mocked<GraphIndexService>;
+  let mockConfigService: jest.Mocked<InfrastructureConfigService>;
 
   beforeEach(() => {
     container = new Container();
@@ -34,9 +36,32 @@ describe('HybridIndexService', () => {
       batchIndexGraph: jest.fn()
     } as any;
 
+    mockConfigService = {
+      isGraphEnabled: jest.fn().mockReturnValue(true),
+      isVectorEnabled: jest.fn().mockReturnValue(true),
+      getGraphConfig: jest.fn(),
+      getVectorConfig: jest.fn(),
+      getEmbedderConfig: jest.fn(),
+      getDatabaseConfig: jest.fn(),
+      getSystemConfig: jest.fn(),
+      updateConfig: jest.fn(),
+      validateConfig: jest.fn().mockReturnValue(true),
+      validateGraphConfiguration: jest.fn()
+    } as any;
+
+    const mockPerformanceMonitor = {
+      recordMetric: jest.fn(),
+      getPerformanceStats: jest.fn(),
+      getAllPerformanceStats: jest.fn(),
+      clearProjectStats: jest.fn(),
+      clearAllStats: jest.fn()
+    } as any;
+
     // 绑定依赖
-    container.bind(TYPES.IndexService).toConstantValue(mockIndexService);
+    container.bind(TYPES.VectorIndexService).toConstantValue(mockIndexService);
     container.bind(TYPES.GraphIndexService).toConstantValue(mockGraphIndexService);
+    container.bind(TYPES.InfrastructureConfigService).toConstantValue(mockConfigService);
+    container.bind(TYPES.GraphIndexPerformanceMonitor).toConstantValue(mockPerformanceMonitor);
     container.bind(TYPES.HybridIndexService).to(HybridIndexService);
 
     hybridIndexService = container.get<HybridIndexService>(TYPES.HybridIndexService);
@@ -48,9 +73,12 @@ describe('HybridIndexService', () => {
     const options: IndexSyncOptions = { embedder: 'test' };
 
     it('should start both vector and graph indexing when nebula is enabled', async () => {
-      // 设置环境变量启用nebula
-      const originalNebulaEnabled = process.env.NEBULA_ENABLED;
-      process.env.NEBULA_ENABLED = 'true';
+      // 设置环境变量以确保使用混合策略
+      const originalStrategy = process.env.DEFAULT_INDEXING_STRATEGY;
+      process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
+      
+      // 模拟配置服务启用图索引
+      mockConfigService.isGraphEnabled.mockReturnValue(true);
 
       mockIndexService.startIndexing.mockResolvedValue(projectId);
       mockGraphIndexService.startIndexing.mockResolvedValue(projectId);
@@ -59,19 +87,19 @@ describe('HybridIndexService', () => {
 
       expect(result).toBe(projectId);
       expect(mockIndexService.startIndexing).toHaveBeenCalledWith(projectPath, options);
+      expect(mockConfigService.isGraphEnabled).toHaveBeenCalled();
       expect(mockGraphIndexService.startIndexing).toHaveBeenCalledWith(projectPath, {
         ...options,
         enableGraphIndex: true
       });
-
+      
       // 恢复环境变量
-      process.env.NEBULA_ENABLED = originalNebulaEnabled;
+      process.env.DEFAULT_INDEXING_STRATEGY = originalStrategy;
     });
 
     it('should start only vector indexing when nebula is disabled', async () => {
-      // 设置环境变量禁用nebula
-      const originalNebulaEnabled = process.env.NEBULA_ENABLED;
-      process.env.NEBULA_ENABLED = 'false';
+      // 模拟配置服务禁用图索引
+      mockConfigService.isGraphEnabled.mockReturnValue(false);
 
       mockIndexService.startIndexing.mockResolvedValue(projectId);
 
@@ -80,15 +108,15 @@ describe('HybridIndexService', () => {
       expect(result).toBe(projectId);
       expect(mockIndexService.startIndexing).toHaveBeenCalledWith(projectPath, options);
       expect(mockGraphIndexService.startIndexing).not.toHaveBeenCalled();
-
-      // 恢复环境变量
-      process.env.NEBULA_ENABLED = originalNebulaEnabled;
     });
 
     it('should start both vector and graph indexing when nebula env is undefined', async () => {
-      // 设置环境变量为undefined
-      const originalNebulaEnabled = process.env.NEBULA_ENABLED;
-      delete process.env.NEBULA_ENABLED;
+      // 设置环境变量以确保使用混合策略
+      const originalStrategy = process.env.DEFAULT_INDEXING_STRATEGY;
+      process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
+      
+      // 模拟配置服务启用图索引
+      mockConfigService.isGraphEnabled.mockReturnValue(true);
 
       mockIndexService.startIndexing.mockResolvedValue(projectId);
       mockGraphIndexService.startIndexing.mockResolvedValue(projectId);
@@ -97,15 +125,14 @@ describe('HybridIndexService', () => {
 
       expect(result).toBe(projectId);
       expect(mockIndexService.startIndexing).toHaveBeenCalledWith(projectPath, options);
+      expect(mockConfigService.isGraphEnabled).toHaveBeenCalled();
       expect(mockGraphIndexService.startIndexing).toHaveBeenCalledWith(projectPath, {
         ...options,
         enableGraphIndex: true
       });
-
+      
       // 恢复环境变量
-      if (originalNebulaEnabled !== undefined) {
-        process.env.NEBULA_ENABLED = originalNebulaEnabled;
-      }
+      process.env.DEFAULT_INDEXING_STRATEGY = originalStrategy;
     });
   });
 
@@ -299,9 +326,8 @@ describe('HybridIndexService', () => {
     const options: IndexSyncOptions = { embedder: 'test' };
 
     it('should reindex both vector and graph when nebula is enabled', async () => {
-      // 设置环境变量启用nebula
-      const originalNebulaEnabled = process.env.NEBULA_ENABLED;
-      process.env.NEBULA_ENABLED = 'true';
+      // 模拟配置服务启用图索引
+      mockConfigService.isGraphEnabled.mockReturnValue(true);
 
       mockIndexService.reindexProject.mockResolvedValue(projectId);
       mockGraphIndexService.startIndexing.mockResolvedValue(projectId);
@@ -314,15 +340,11 @@ describe('HybridIndexService', () => {
         ...options,
         enableGraphIndex: true
       });
-
-      // 恢复环境变量
-      process.env.NEBULA_ENABLED = originalNebulaEnabled;
     });
 
     it('should reindex only vector when nebula is disabled', async () => {
-      // 设置环境变量禁用nebula
-      const originalNebulaEnabled = process.env.NEBULA_ENABLED;
-      process.env.NEBULA_ENABLED = 'false';
+      // 模拟配置服务禁用图索引
+      mockConfigService.isGraphEnabled.mockReturnValue(false);
 
       mockIndexService.reindexProject.mockResolvedValue(projectId);
 
@@ -331,9 +353,6 @@ describe('HybridIndexService', () => {
       expect(result).toBe(projectId);
       expect(mockIndexService.reindexProject).toHaveBeenCalledWith(projectPath, options);
       expect(mockGraphIndexService.startIndexing).not.toHaveBeenCalled();
-
-      // 恢复环境变量
-      process.env.NEBULA_ENABLED = originalNebulaEnabled;
     });
   });
 
@@ -356,58 +375,70 @@ describe('HybridIndexService', () => {
     });
 
     it('should handle removed Graph type by defaulting to Hybrid', async () => {
-      // 设置环境变量启用nebula
-      const originalNebulaEnabled = process.env.NEBULA_ENABLED;
-      process.env.NEBULA_ENABLED = 'true';
+      // 设置环境变量以确保使用混合策略
+      const originalStrategy = process.env.DEFAULT_INDEXING_STRATEGY;
+      process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
+      
+      // 模拟配置服务启用图索引
+      mockConfigService.isGraphEnabled.mockReturnValue(true);
 
       // Graph类型已移除，现在应该默认使用Hybrid
       const result = await hybridIndexService.indexByType(projectPath, 'graph' as any, options);
 
       expect(result).toBe(projectId);
       expect(mockIndexService.startIndexing).toHaveBeenCalledWith(projectPath, options);
+      expect(mockConfigService.isGraphEnabled).toHaveBeenCalled();
       expect(mockGraphIndexService.startIndexing).toHaveBeenCalledWith(projectPath, {
         ...options,
         enableGraphIndex: true
       });
-
+      
       // 恢复环境变量
-      process.env.NEBULA_ENABLED = originalNebulaEnabled;
+      process.env.DEFAULT_INDEXING_STRATEGY = originalStrategy;
     });
 
     it('should index both vector and graph when type is Hybrid', async () => {
-      // 设置环境变量启用nebula
-      const originalNebulaEnabled = process.env.NEBULA_ENABLED;
-      process.env.NEBULA_ENABLED = 'true';
+      // 设置环境变量以确保使用混合策略
+      const originalStrategy = process.env.DEFAULT_INDEXING_STRATEGY;
+      process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
+      
+      // 模拟配置服务启用图索引
+      mockConfigService.isGraphEnabled.mockReturnValue(true);
 
       const result = await hybridIndexService.indexByType(projectPath, IndexType.Hybrid, options);
 
       expect(result).toBe(projectId);
       expect(mockIndexService.startIndexing).toHaveBeenCalledWith(projectPath, options);
+      expect(mockConfigService.isGraphEnabled).toHaveBeenCalled();
       expect(mockGraphIndexService.startIndexing).toHaveBeenCalledWith(projectPath, {
         ...options,
         enableGraphIndex: true
       });
-
+      
       // 恢复环境变量
-      process.env.NEBULA_ENABLED = originalNebulaEnabled;
+      process.env.DEFAULT_INDEXING_STRATEGY = originalStrategy;
     });
 
     it('should default to hybrid when type is unknown', async () => {
-      // 设置环境变量启用nebula
-      const originalNebulaEnabled = process.env.NEBULA_ENABLED;
-      process.env.NEBULA_ENABLED = 'true';
+      // 设置环境变量以确保使用混合策略
+      const originalStrategy = process.env.DEFAULT_INDEXING_STRATEGY;
+      process.env.DEFAULT_INDEXING_STRATEGY = 'hybrid';
+      
+      // 模拟配置服务启用图索引
+      mockConfigService.isGraphEnabled.mockReturnValue(true);
 
       const result = await hybridIndexService.indexByType(projectPath, 'unknown' as IndexType, options);
 
       expect(result).toBe(projectId);
       expect(mockIndexService.startIndexing).toHaveBeenCalledWith(projectPath, options);
+      expect(mockConfigService.isGraphEnabled).toHaveBeenCalled();
       expect(mockGraphIndexService.startIndexing).toHaveBeenCalledWith(projectPath, {
         ...options,
         enableGraphIndex: true
       });
-
+      
       // 恢复环境变量
-      process.env.NEBULA_ENABLED = originalNebulaEnabled;
+      process.env.DEFAULT_INDEXING_STRATEGY = originalStrategy;
     });
   });
 });

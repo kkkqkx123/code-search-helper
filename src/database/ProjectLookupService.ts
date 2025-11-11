@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../types';
 import { ProjectIdManager } from './ProjectIdManager';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
-import { IndexService } from '../service/index/IndexService';
+import { VectorIndexService } from '../service/index/VectorIndexService';
 
 @injectable()
 export class ProjectLookupService {

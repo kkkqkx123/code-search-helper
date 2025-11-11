@@ -4,7 +4,7 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { QdrantService } from '../../../database/qdrant/QdrantService';
 import { NebulaClient } from '../../../database/nebula/client/NebulaClient';
-import { IndexService } from '../../index/IndexService';
+import { VectorIndexService } from '../../index/VectorIndexService';
 import { ProjectState, ProjectStats, StorageStatus } from '../ProjectStateManager';
 import { ProjectStateStorageUtils } from '../utils/ProjectStateStorageUtils';
 import { ProjectStateValidator } from '../utils/ProjectStateValidator';
@@ -28,7 +28,7 @@ describe('CoreStateService', () => {
   let projectIdManager: jest.Mocked<ProjectIdManager>;
   let qdrantService: jest.Mocked<QdrantService>;
   let nebulaService: jest.Mocked<NebulaClient>;
-  let indexService: jest.Mocked<IndexService>;
+  let indexService: jest.Mocked<VectorIndexService>;
   let hotReloadConfigService: jest.Mocked<HotReloadConfigService>;
 
   beforeEach(() => {
@@ -55,7 +55,7 @@ describe('CoreStateService', () => {
     } as unknown as jest.Mocked<NebulaClient>;
     indexService = {
       getIndexStatus: jest.fn()
-    } as unknown as jest.Mocked<IndexService>;
+    } as unknown as jest.Mocked<VectorIndexService>;
 
     hotReloadConfigService = {
       getGlobalConfig: jest.fn().mockReturnValue({

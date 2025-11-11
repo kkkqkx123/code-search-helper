@@ -1,7 +1,7 @@
 import { HotReloadRestartService, RestartState } from '../HotReloadRestartService';
 import { ProjectHotReloadService } from '../ProjectHotReloadService';
 import { ChangeDetectionService } from '../ChangeDetectionService';
-import { IndexService } from '../../index/IndexService';
+import { VectorIndexService } from '../../index/VectorIndexService';
 import { HotReloadConfigService } from '../HotReloadConfigService';
 import { HotReloadRecoveryService } from '../HotReloadRecoveryService';
 import { ProjectStateManager } from '../../project/ProjectStateManager';

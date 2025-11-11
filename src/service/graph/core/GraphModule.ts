@@ -3,15 +3,6 @@ import { TYPES } from '../../../types';
 import { GraphAnalysisService } from './GraphAnalysisService';
 import { GraphDataService } from './GraphDataService';
 import { GraphSearchServiceNew } from './GraphSearchService';
-import { IGraphSearchService } from './IGraphSearchService';
-import { IGraphService } from './IGraphService';
-
-
-// 导入基础设施服务实现
-import { GraphCacheService } from '../../caching/GraphCacheService';
-import { GraphPerformanceMonitor } from '../../graph/performance/GraphPerformanceMonitor';
-import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
-import { GraphQueryValidator } from '../query/GraphQueryValidator';
 
 // 创建图服务模块
 export const GraphModule = new ContainerModule((bindObj: any) => {

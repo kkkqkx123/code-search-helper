@@ -6,14 +6,13 @@ import { ProjectStateManager } from '../project/ProjectStateManager';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { IGraphDataService } from '../graph/core/IGraphDataService';
 import { NebulaProjectManager } from '../../database/nebula/NebulaProjectManager';
-import { IndexService } from './IndexService';
-import { FileTraversalService } from './shared/FileTraversalService';
-import { ConcurrencyService } from './shared/ConcurrencyService';
+import { VectorIndexService } from './VectorIndexService';
+import { FileSystemTraversal } from '../filesystem/FileSystemTraversal';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { IIndexService, IndexServiceType, IndexStatus, IndexOptions } from './IIndexService';
-import { IndexServiceError, IndexServiceErrorType } from './errors/IndexServiceErrors';
+import { IndexServiceError } from './errors/IndexServiceErrors';
 import { LANGUAGE_MAP } from '../parser/constants/language-constants';
-import { IGraphIndexPerformanceMonitor, GraphIndexMetric } from '../../infrastructure/monitoring/GraphIndexMetrics';
+import { IGraphIndexPerformanceMonitor } from '../../infrastructure/monitoring/GraphIndexMetrics';
 import { IGraphConstructionService } from '../graph/construction/IGraphConstructionService';
 
 export interface GraphIndexOptions {
@@ -54,20 +53,19 @@ export class GraphIndexService implements IIndexService {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.GraphDataService) private graphDataService: IGraphDataService,
     @inject(TYPES.INebulaProjectManager) private nebulaProjectManager: NebulaProjectManager,
-    @inject(TYPES.IndexService) private indexService: IndexService,
-    @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
-    @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService,
+    @inject(TYPES.VectorIndexService) private indexService: VectorIndexService,
+    @inject(TYPES.FileSystemTraversal) private fileTraversalService: FileSystemTraversal,
     @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService,
     @inject(TYPES.GraphIndexPerformanceMonitor) private performanceMonitor: IGraphIndexPerformanceMonitor,
     @inject(TYPES.GraphConstructionService) private graphConstructionService: IGraphConstructionService
-  ) {}
+  ) { }
 
   /**
    * 实现IIndexService接口 - 开始索引项目
    */
   async startIndexing(projectPath: string, options?: IndexOptions): Promise<string> {
     const startTime = Date.now();
-    
+
     try {
       // 检查是否启用了图索引
       if (options?.enableGraphIndex === false) {
@@ -89,10 +87,11 @@ export class GraphIndexService implements IIndexService {
       }
 
       // 获取项目文件列表
-      const files = await this.fileTraversalService.getProjectFiles(projectPath, {
+      const traversalResult = await this.fileTraversalService.traverseDirectory(projectPath, {
         includePatterns: options?.includePatterns,
         excludePatterns: options?.excludePatterns
       });
+      const files = traversalResult.files.map(file => file.path);
       const totalFiles = files.length;
 
       if (totalFiles === 0) {
@@ -155,7 +154,7 @@ export class GraphIndexService implements IIndexService {
     } catch (error) {
       const projectId = this.projectIdManager.getProjectId(projectPath);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       // 使用ErrorHandlerService记录错误
       this.errorHandler.handleError(
         new Error(`Failed to start graph indexing: ${errorMessage}`),
@@ -203,7 +202,7 @@ export class GraphIndexService implements IIndexService {
     try {
       const activeOperation = this.activeOperations.get(projectId);
       const graphStatus = this.projectStateManager.getGraphStatus(projectId);
-      
+
       // 检查是否有活跃操作或正在索引的状态
       if (!activeOperation && (!graphStatus || graphStatus.status !== 'indexing')) {
         return false;
@@ -227,18 +226,18 @@ export class GraphIndexService implements IIndexService {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       this.errorHandler.handleError(
         new Error(`Failed to stop graph indexing: ${errorMessage}`),
         { component: 'GraphIndexService', operation: 'stopIndexing', projectId }
       );
-      
+
       // 记录错误但不抛出，因为stopIndexing应该返回false而不是抛出异常
-      this.logger.error(`Failed to stop graph indexing for project ${projectId}`, { 
+      this.logger.error(`Failed to stop graph indexing for project ${projectId}`, {
         error: errorMessage,
-        projectId 
+        projectId
       });
-      
+
       return false;
     }
   }
@@ -272,17 +271,17 @@ export class GraphIndexService implements IIndexService {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       this.errorHandler.handleError(
         new Error(`Failed to get graph status: ${errorMessage}`),
         { component: 'GraphIndexService', operation: 'getIndexStatus', projectId }
       );
-      
-      this.logger.error(`Failed to get graph status for project ${projectId}`, { 
+
+      this.logger.error(`Failed to get graph status for project ${projectId}`, {
         error: errorMessage,
-        projectId 
+        projectId
       });
-      
+
       return null;
     }
   }
@@ -293,7 +292,7 @@ export class GraphIndexService implements IIndexService {
   async reindexProject(projectPath: string, options?: IndexOptions): Promise<string> {
     try {
       const projectId = this.projectIdManager.getProjectId(projectPath);
-      
+
       if (projectId) {
         // 停止当前索引（如果有）
         await this.stopIndexing(projectId);
@@ -379,7 +378,7 @@ export class GraphIndexService implements IIndexService {
    */
   async getGraphStatus(projectId: string): Promise<any> {
     const status = this.getIndexStatus(projectId);
-    
+
     if (!status) {
       throw IndexServiceError.projectNotFound(projectId, 'graph');
     }
@@ -526,10 +525,10 @@ export class GraphIndexService implements IIndexService {
               failedFiles
             );
 
-            return batch.map(file => ({ 
-              filePath: file, 
-              success: false, 
-              error: error instanceof Error ? error.message : String(error) 
+            return batch.map(file => ({
+              filePath: file,
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
             }));
           }
         },
@@ -612,7 +611,7 @@ export class GraphIndexService implements IIndexService {
       if (error instanceof IndexServiceError) {
         throw error;
       }
-      
+
       this.logger.error(`Failed to process graph files`, { projectPath, files, error });
       throw IndexServiceError.indexingFailed(
         `Failed to process graph files: ${error instanceof Error ? error.message : String(error)}`,
@@ -647,7 +646,7 @@ export class GraphIndexService implements IIndexService {
     const heapUsed = memoryUsage.heapUsed;
     const heapTotal = memoryUsage.heapTotal;
     const percentage = heapTotal > 0 ? heapUsed / heapTotal : 0;
-    
+
     return {
       heapUsed,
       heapTotal,

@@ -1,4 +1,4 @@
-import { IndexService } from '../../service/index/IndexService';
+import { VectorIndexService } from '../../service/index/VectorIndexService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { FileSystemTraversal } from '../../service/filesystem/FileSystemTraversal';
 import { FileWatcherService } from '../../service/filesystem/FileWatcherService';

@@ -1,7 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { IndexingRoutes } from '../IndexingRoutes';
-import { IndexService } from '../../../service/index/IndexService';
+import { VectorIndexService } from '../../../service/index/VectorIndexService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { ProjectStateManager } from '../../../service/project/ProjectStateManager';

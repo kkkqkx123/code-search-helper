@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { IIndexService } from './IIndexService';
-import { IndexService } from './IndexService';
+import { VectorIndexService } from './VectorIndexService';
 import { GraphIndexService } from './GraphIndexService';
 import { IndexSyncOptions, IndexOptions } from './IIndexService';
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
@@ -15,7 +15,7 @@ export enum IndexType {
 @injectable()
 export class HybridIndexService implements IIndexService {
   constructor(
-    @inject(TYPES.IndexService) private indexService: IndexService,
+    @inject(TYPES.VectorIndexService) private indexService: VectorIndexService,
     @inject(TYPES.GraphIndexService) private graphIndexService: GraphIndexService,
     @inject(TYPES.InfrastructureConfigService) private configService: InfrastructureConfigService,
     @inject(TYPES.GraphIndexPerformanceMonitor) private performanceMonitor: IGraphIndexPerformanceMonitor
