@@ -1,4 +1,5 @@
 import { Container } from 'inversify';
+import 'reflect-metadata';
 import { TYPES } from '../../../types';
 import { HybridIndexService, IndexType } from '../HybridIndexService';
 import { IndexService } from '../IndexService';
@@ -38,7 +39,7 @@ describe('HybridIndexService', () => {
     container.bind(TYPES.GraphIndexService).toConstantValue(mockGraphIndexService);
     container.bind(TYPES.HybridIndexService).to(HybridIndexService);
 
-    hybridIndexService = container.get(HybridIndexService);
+    hybridIndexService = container.get<HybridIndexService>(TYPES.HybridIndexService);
   });
 
   describe('startIndexing', () => {

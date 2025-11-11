@@ -140,6 +140,9 @@ describe('VectorIndexService', () => {
       const projectId = 'test-project-id';
       
       projectIdManager.generateProjectId.mockResolvedValue(projectId);
+      projectIdManager.getProjectId.mockReturnValue(projectId);
+      indexingLogicService.getEmbedderDimensions.mockResolvedValue(1536);
+      fileTraversalService.getProjectFiles.mockResolvedValue(['/test/project/file1.js']);
       qdrantService.createCollectionForProject.mockResolvedValue(false);
 
       await expect(vectorIndexService.startIndexing(projectPath)).rejects.toThrow(

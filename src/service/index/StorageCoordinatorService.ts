@@ -55,7 +55,14 @@ export class StorageCoordinatorService {
 
       // 如果都不需要索引，返回错误
       if (!shouldIndexVectors && !shouldIndexGraph) {
-        throw new Error('At least one of vectors or graph must be enabled');
+        return {
+          success: false,
+          projectId,
+          operationId,
+          vectorResult: null,
+          graphResult: null,
+          errors: ['At least one of vectors or graph must be enabled']
+        };
       }
 
       // 并发执行向量索引和图索引
@@ -103,9 +110,9 @@ export class StorageCoordinatorService {
       await Promise.all(promises);
 
       // 检查是否所有操作都成功
-      const hasVectorSuccess = !shouldIndexVectors || (vectorResult && vectorResult.success);
-      const hasGraphSuccess = !shouldIndexGraph || (graphResult && graphResult.success);
-      const overallSuccess = hasVectorSuccess && hasGraphSuccess;
+      const hasVectorSuccess = !shouldIndexVectors || Boolean(vectorResult && vectorResult.success === true);
+      const hasGraphSuccess = !shouldIndexGraph || Boolean(graphResult && graphResult.success === true);
+      const overallSuccess = hasVectorSuccess && hasGraphSuccess && errors.length === 0;
 
       this.logger.info(`Coordinated indexing completed for project ${projectId}`, {
         projectId,
@@ -120,8 +127,8 @@ export class StorageCoordinatorService {
         success: overallSuccess,
         projectId,
         operationId,
-        vectorResult,
-        graphResult,
+        vectorResult: shouldIndexVectors ? vectorResult : null,
+        graphResult: shouldIndexGraph ? graphResult : null,
         errors: errors.length > 0 ? errors : undefined
       };
 
@@ -158,11 +165,12 @@ export class StorageCoordinatorService {
         overallStatus: this.calculateOverallStatus(vectorStatus, graphStatus)
       };
     } catch (error) {
+      const wrappedError = new Error(`Failed to get coordinated status: ${error instanceof Error ? error.message : String(error)}`);
       this.errorHandler.handleError(
-        new Error(`Failed to get coordinated status: ${error instanceof Error ? error.message : String(error)}`),
+        wrappedError,
         { component: 'StorageCoordinatorService', operation: 'getCoordinatedStatus', projectId }
       );
-      throw error;
+      throw wrappedError;
     }
   }
 

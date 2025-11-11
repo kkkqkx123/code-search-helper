@@ -54,6 +54,7 @@ describe('GraphIndexService', () => {
 
     mockProjectIdManager = {
       generateProjectId: jest.fn(),
+      getProjectId: jest.fn(),
       getProjectPath: jest.fn(),
       updateProjectTimestamp: jest.fn(),
       saveMapping: jest.fn()
@@ -198,6 +199,15 @@ describe('GraphIndexService', () => {
     });
 
     it('should handle errors gracefully', async () => {
+      // 模拟有活跃操作，这样stopIndexing会尝试更新进度
+      mockProjectStateManager.getGraphStatus.mockReturnValue({
+        status: 'indexing',
+        progress: 50,
+        processedFiles: 10,
+        failedFiles: 0,
+        lastUpdated: new Date()
+      } as any);
+      
       mockProjectStateManager.updateGraphIndexingProgress.mockRejectedValue(new Error('Test error'));
 
       const result = await graphIndexService.stopIndexing(projectId);

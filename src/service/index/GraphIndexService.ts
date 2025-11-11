@@ -21,6 +21,11 @@ export interface GraphIndexOptions {
   excludePatterns?: string[];
 }
 
+interface IndexingConfig {
+  batchSize: number;
+  maxConcurrency: number;
+}
+
 export interface GraphIndexResult {
   success: boolean;
   projectId: string;
@@ -70,6 +75,12 @@ export class GraphIndexService implements IIndexService {
       // 生成或获取项目ID
       const projectId = await this.projectIdManager.generateProjectId(projectPath);
 
+      // 检查项目状态管理器中的状态
+      const graphStatus = this.projectStateManager.getGraphStatus(projectId);
+      if (graphStatus && graphStatus.status === 'indexing') {
+        throw IndexServiceError.projectAlreadyIndexing(projectId, 'graph');
+      }
+
       // 检查是否已有正在进行的操作
       if (this.activeOperations.has(projectId)) {
         throw IndexServiceError.projectAlreadyIndexing(projectId, 'graph');
@@ -85,6 +96,16 @@ export class GraphIndexService implements IIndexService {
       if (totalFiles === 0) {
         throw IndexServiceError.indexingFailed(
           `No files found in project: ${projectId}`,
+          projectId,
+          'graph'
+        );
+      }
+
+      // 确保项目空间存在
+      const spaceCreated = await this.nebulaProjectManager.createSpaceForProject(projectPath);
+      if (!spaceCreated) {
+        throw IndexServiceError.indexingFailed(
+          `Failed to create space for project: ${projectId}`,
           projectId,
           'graph'
         );
@@ -130,11 +151,6 @@ export class GraphIndexService implements IIndexService {
       return projectId;
 
     } catch (error) {
-      if (error instanceof IndexServiceError) {
-        // 如果已经是IndexServiceError，直接重新抛出
-        throw error;
-      }
-
       const projectId = this.projectIdManager.getProjectId(projectPath);
       const errorMessage = error instanceof Error ? error.message : String(error);
       
@@ -163,6 +179,11 @@ export class GraphIndexService implements IIndexService {
         }
       });
 
+      // 如果已经是IndexServiceError，直接重新抛出
+      if (error instanceof IndexServiceError) {
+        throw error;
+      }
+
       // 抛出统一的IndexServiceError
       throw IndexServiceError.indexingFailed(
         `Failed to start graph indexing: ${errorMessage}`,
@@ -179,16 +200,17 @@ export class GraphIndexService implements IIndexService {
   async stopIndexing(projectId: string): Promise<boolean> {
     try {
       const activeOperation = this.activeOperations.get(projectId);
-      if (!activeOperation) {
+      const graphStatus = this.projectStateManager.getGraphStatus(projectId);
+      
+      // 检查是否有活跃操作或正在索引的状态
+      if (!activeOperation && (!graphStatus || graphStatus.status !== 'indexing')) {
         return false;
       }
 
       // 从活跃操作中移除
       this.activeOperations.delete(projectId);
 
-      // 更新项目状态
       // 更新项目状态为停止
-      const graphStatus = this.projectStateManager.getGraphStatus(projectId);
       if (graphStatus) {
         await this.projectStateManager.updateGraphIndexingProgress(
           projectId,
@@ -436,6 +458,16 @@ export class GraphIndexService implements IIndexService {
   }
 
   /**
+   * 获取图索引默认配置
+   */
+  private getDefaultGraphConfig(): IndexingConfig {
+    return {
+      batchSize: 5,
+      maxConcurrency: 2
+    };
+  }
+
+  /**
    * 执行实际的图索引
    */
   private async performGraphIndexing(
@@ -445,7 +477,8 @@ export class GraphIndexService implements IIndexService {
     options?: IndexOptions
   ): Promise<void> {
     try {
-      const maxConcurrency = options?.maxConcurrency || 2; // 图索引并发数较低
+      const defaultConfig = this.getDefaultGraphConfig();
+      const maxConcurrency = options?.maxConcurrency || defaultConfig.maxConcurrency;
 
       let processedFiles = 0;
       let failedFiles = 0;
@@ -499,7 +532,7 @@ export class GraphIndexService implements IIndexService {
           }
         },
         {
-          batchSize: 5, // 图索引批次较小
+          batchSize: defaultConfig.batchSize,
           maxConcurrency,
           context: { domain: 'database', subType: 'graph' }
         }
@@ -535,16 +568,6 @@ export class GraphIndexService implements IIndexService {
           fileCount: files.length
         });
         return; // 如果Nebula被禁用，直接返回
-      }
-
-      // 确保项目空间存在
-      const spaceCreated = await this.nebulaProjectManager.createSpaceForProject(projectPath);
-      if (!spaceCreated) {
-        throw IndexServiceError.indexingFailed(
-          `Failed to create space for project: ${projectId}`,
-          projectId,
-          'graph'
-        );
       }
 
       // 处理每个文件，构建图结构

@@ -12,6 +12,7 @@ import { ConcurrencyService } from './shared/ConcurrencyService';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { IIndexService, IndexServiceType, IndexStatus, IndexOptions } from './IIndexService';
 import { IndexServiceError } from './errors/IndexServiceErrors';
+import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
 
 export interface VectorIndexOptions {
   embedder?: string;
@@ -21,6 +22,13 @@ export interface VectorIndexOptions {
   chunkOverlap?: number;
   includePatterns?: string[];
   excludePatterns?: string[];
+}
+
+interface IndexingConfig {
+  batchSize: number;
+  maxConcurrency: number;
+  chunkSize?: number;
+  chunkOverlap?: number;
 }
 
 export interface VectorIndexResult {
@@ -53,7 +61,8 @@ export class VectorIndexService implements IIndexService {
     @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService,
     @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
     @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService,
-    @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService
+    @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService,
+    @inject(TYPES.PerformanceMonitor) private performanceMonitor: IPerformanceMonitor
   ) { }
 
   /**
@@ -63,13 +72,28 @@ export class VectorIndexService implements IIndexService {
     const startTime = Date.now();
     
     try {
-      // 检查是否启用了向量索引
-      if (options?.enableVectorIndex === false) {
-        throw IndexServiceError.serviceDisabled('Vector indexing', undefined, 'vector');
-      }
+    // 检查是否启用了向量索引
+    if (options?.enableVectorIndex === false) {
+      throw IndexServiceError.serviceDisabled('Vector indexing', undefined, 'vector');
+    }
 
-      // 生成或获取项目ID
+    // 检查VECTOR_ENABLED环境变量
+    const vectorEnabled = process.env.VECTOR_ENABLED?.toLowerCase() !== 'false';
+    if (!vectorEnabled) {
+      this.logger.info('Vector indexing is disabled via VECTOR_ENABLED environment variable', {
+        projectPath
+      });
+      throw IndexServiceError.serviceDisabled('Vector indexing', undefined, 'vector');
+    }
+
+    // 生成或获取项目ID
       const projectId = await this.projectIdManager.generateProjectId(projectPath);
+
+      // 检查项目状态管理器中的状态
+      const vectorStatus = this.projectStateManager.getVectorStatus(projectId);
+      if (vectorStatus && vectorStatus.status === 'indexing') {
+        throw IndexServiceError.projectAlreadyIndexing(projectId, 'vector');
+      }
 
       // 检查是否已有正在进行的操作
       if (this.activeOperations.has(projectId)) {
@@ -134,14 +158,21 @@ export class VectorIndexService implements IIndexService {
           this.activeOperations.delete(projectId);
         });
 
+      // 记录性能指标
+      const performanceOperationId = this.performanceMonitor.startOperation('startIndexing', {
+        projectId,
+        fileCount: totalFiles,
+        memoryUsage: this.getMemoryUsage()
+      });
+      
+      this.performanceMonitor.endOperation(performanceOperationId, {
+        success: true,
+        duration: Date.now() - startTime
+      });
+
       return projectId;
 
     } catch (error) {
-      if (error instanceof IndexServiceError) {
-        // 如果已经是IndexServiceError，直接重新抛出
-        throw error;
-      }
-
       const projectId = this.projectIdManager.getProjectId(projectPath);
       const errorMessage = error instanceof Error ? error.message : String(error);
       
@@ -154,6 +185,24 @@ export class VectorIndexService implements IIndexService {
       // 更新项目状态为失败
       if (projectId) {
         await this.projectStateManager.failVectorIndexing(projectId, errorMessage);
+      }
+
+      // 记录失败的性能指标
+      const performanceOperationId = this.performanceMonitor.startOperation('startIndexing', {
+        projectId: projectId || 'unknown',
+        errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+        errorMessage,
+        memoryUsage: this.getMemoryUsage()
+      });
+      
+      this.performanceMonitor.endOperation(performanceOperationId, {
+        success: false,
+        duration: Date.now() - startTime
+      });
+
+      // 如果已经是IndexServiceError，直接重新抛出
+      if (error instanceof IndexServiceError) {
+        throw error;
       }
 
       // 抛出统一的IndexServiceError
@@ -172,15 +221,17 @@ export class VectorIndexService implements IIndexService {
   async stopIndexing(projectId: string): Promise<boolean> {
     try {
       const activeOperation = this.activeOperations.get(projectId);
-      if (!activeOperation) {
+      const vectorStatus = this.projectStateManager.getVectorStatus(projectId);
+      
+      // 检查是否有活跃操作或正在索引的状态
+      if (!activeOperation && (!vectorStatus || vectorStatus.status !== 'indexing')) {
         return false;
       }
 
       // 从活跃操作中移除
       this.activeOperations.delete(projectId);
 
-      // 更新项目状态
-      const vectorStatus = this.projectStateManager.getVectorStatus(projectId);
+      // 更新项目状态为停止
       if (vectorStatus) {
         await this.projectStateManager.updateVectorIndexingProgress(
           projectId,
@@ -432,6 +483,18 @@ export class VectorIndexService implements IIndexService {
   }
 
   /**
+   * 获取向量索引默认配置
+   */
+  private getDefaultVectorConfig(): IndexingConfig {
+    return {
+      batchSize: 10,
+      maxConcurrency: 3,
+      chunkSize: 1000,
+      chunkOverlap: 200
+    };
+  }
+
+  /**
    * 执行实际的向量索引
    */
   private async performVectorIndexing(
@@ -441,8 +504,9 @@ export class VectorIndexService implements IIndexService {
     options?: IndexOptions
   ): Promise<void> {
     try {
-      const batchSize = options?.batchSize || 10;
-      const maxConcurrency = options?.maxConcurrency || 3;
+      const defaultConfig = this.getDefaultVectorConfig();
+      const batchSize = options?.batchSize || defaultConfig.batchSize;
+      const maxConcurrency = options?.maxConcurrency || defaultConfig.maxConcurrency;
 
       let processedFiles = 0;
       let failedFiles = 0;
@@ -535,5 +599,21 @@ export class VectorIndexService implements IIndexService {
   private async failVectorIndexing(projectId: string, errorMessage: string): Promise<void> {
     await this.projectStateManager.failVectorIndexing(projectId, errorMessage);
     this.activeOperations.delete(projectId);
+  }
+
+  /**
+   * 获取当前内存使用情况
+   */
+  private getMemoryUsage(): { heapUsed: number; heapTotal: number; percentage: number } {
+    const memoryUsage = process.memoryUsage();
+    const heapUsed = memoryUsage.heapUsed;
+    const heapTotal = memoryUsage.heapTotal;
+    const percentage = heapTotal > 0 ? heapUsed / heapTotal : 0;
+    
+    return {
+      heapUsed,
+      heapTotal,
+      percentage
+    };
   }
 }
