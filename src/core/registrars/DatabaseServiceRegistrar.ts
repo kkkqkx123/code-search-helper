@@ -36,12 +36,9 @@ import { NebulaQueryBuilder } from '../../database/nebula/query/NebulaQueryBuild
 import { INebulaQueryBuilder } from '../../database/nebula/query/NebulaQueryBuilder';
 import { NebulaGraphOperations } from '../../database/nebula/operation/NebulaGraphOperations';
 import { INebulaGraphOperations } from '../../database/nebula/operation/NebulaGraphOperations';
-import { ConnectionStateManager } from '../../database/nebula/ConnectionStateManager';
 import { NebulaDataService, INebulaDataService } from '../../database/nebula/data/NebulaDataService';
 import { NebulaSpaceService, INebulaSpaceService } from '../../database/nebula/space/NebulaSpaceService';
 import { NebulaQueryUtils } from '../../database/nebula/query/NebulaQueryUtils';
-import { NebulaResultFormatter } from '../../database/nebula/NebulaResultFormatter';
-import { NebulaEventManager } from '../../database/nebula/NebulaEventManager';
 import { NebulaQueryService, INebulaQueryService } from '../../database/nebula/query/NebulaQueryService';
 import { NebulaDataOperations, INebulaDataOperations } from '../../database/nebula/operation/NebulaDataOperations';
 import { NebulaSchemaManager, INebulaSchemaManager } from '../../database/nebula/NebulaSchemaManager';
@@ -49,6 +46,10 @@ import { NebulaIndexManager, INebulaIndexManager } from '../../database/nebula/N
 import { SpaceNameUtils, ISpaceNameUtils } from '../../database/nebula/SpaceNameUtils';
 import { NebulaBatchService, INebulaBatchService } from '../../database/nebula/batch/NebulaBatchService';
 import { NebulaFileDataService, INebulaFileDataService } from '../../database/nebula/file/NebulaFileDataService';
+
+// Nebula客户端服务
+import { NebulaClient } from '../../database/nebula/client/NebulaClient';
+import { NebulaServiceAdapter } from '../../database/nebula/client/NebulaServiceAdapter';
 
 // Nebula 会话和连接管理服务
 import { ConnectionPool, IConnectionPool } from '../../database/nebula/connection/ConnectionPool';
@@ -110,7 +111,6 @@ export class DatabaseServiceRegistrar {
       container.bind<NebulaQueryBuilder>(TYPES.NebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
       container.bind<INebulaQueryBuilder>(TYPES.INebulaQueryBuilder).to(NebulaQueryBuilder).inSingletonScope();
       container.bind<NebulaGraphOperations>(TYPES.INebulaGraphOperations).to(NebulaGraphOperations).inSingletonScope();
-      container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
       container.bind<NebulaDataService>(TYPES.NebulaDataService).to(NebulaDataService).inSingletonScope();
       container.bind<INebulaDataService>(TYPES.INebulaDataService).to(NebulaDataService).inSingletonScope();
       container.bind<NebulaSpaceService>(TYPES.NebulaSpaceService).to(NebulaSpaceService).inSingletonScope();
@@ -146,8 +146,6 @@ export class DatabaseServiceRegistrar {
 
       // 工具类服务
       container.bind<NebulaQueryUtils>(TYPES.NebulaQueryUtils).to(NebulaQueryUtils).inSingletonScope();
-      container.bind<NebulaResultFormatter>(TYPES.NebulaResultFormatter).to(NebulaResultFormatter).inSingletonScope();
-      container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
 
       // 图数据映射和验证服务
       container.bind<DataConsistencyChecker>(TYPES.DataConsistencyService).to(DataConsistencyChecker).inSingletonScope();

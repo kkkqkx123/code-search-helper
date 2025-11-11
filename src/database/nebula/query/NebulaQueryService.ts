@@ -45,33 +45,23 @@ export class NebulaQueryService implements INebulaQueryService {
   }
 
   /**
-   * 获取Nebula客户端实例
+   * 确保连接已建立
    */
-  private async getClient(): Promise<any> {
+  private async ensureConnection(): Promise<void> {
     if (!this.isInitialized) {
       await this.connectionManager.connect();
       this.isInitialized = true;
     }
 
-    // NebulaConnectionManager直接管理客户端，不需要额外的getClient()方法
     // 使用connectionManager的isConnected()检查连接状态
     if (!this.connectionManager.isConnected()) {
       await this.connectionManager.connect();
-    }
-
-    // 使用getConnectionForSpace方法获取连接，如果需要空间则传入配置的空间
-    const config = this.configService.loadConfig();
-    if (config.space) {
-      return await this.connectionManager.getConnectionForSpace(config.space);
-    } else {
-      // 如果没有配置空间，返回基础连接
-      return this.connectionManager as any;
     }
   }
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
     // 确保连接已建立
-    await this.getClient();
+    await this.ensureConnection();
     
     // 委托给新的QueryRunner
     return await this.queryRunner.execute(nGQL, parameters);

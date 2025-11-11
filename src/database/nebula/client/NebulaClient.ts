@@ -5,9 +5,10 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
-import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult } from '../NebulaTypes';
-import { EventListener } from '../../../types';
+import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult, NebulaNode, NebulaRelationship } from '../NebulaTypes';
 import { IQueryRunner } from '../query/QueryRunner';
+import { INebulaProjectManager } from '../NebulaProjectManager';
+import { ProjectIdManager } from '../../ProjectIdManager';
 
 // 查询批次接口
 export interface QueryBatch {
@@ -29,29 +30,56 @@ export interface INebulaClient {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   isConnected(): boolean;
-  
+
   // 初始化
   initialize(config: NebulaConfig): Promise<void>;
-  
+
   // 查询执行
   execute(query: string, params?: Record<string, any>, options?: QueryOptions): Promise<NebulaQueryResult>;
   executeQuery(query: string, params?: Record<string, any>, options?: QueryOptions): Promise<NebulaQueryResult>;
   executeBatch(queries: QueryBatch[]): Promise<NebulaQueryResult[]>;
-  
+
   // 统计信息
   getStats(): any;
-  
+
   // 关闭
   close(): Promise<void>;
-  
+
   // 配置管理（复用现有服务）
   updateConfig(config: Partial<NebulaConfig>): void;
   getConfig(): NebulaConfig;
-  
+
   // 事件订阅（复用现有EventEmitter）
   on(event: string, listener: Function): void;
   off(event: string, listener: Function): void;
   emit(event: string, ...args: any[]): boolean;
+
+  // 项目空间管理
+  createSpaceForProject(projectPath: string): Promise<boolean>;
+  deleteSpaceForProject(projectPath: string): Promise<boolean>;
+
+  // 数据操作
+  insertNodes(nodes: NebulaNode[]): Promise<boolean>;
+  insertRelationships(relationships: NebulaRelationship[]): Promise<boolean>;
+  deleteDataForFile(filePath: string): Promise<void>;
+
+  // 查询操作
+  findNodesByLabel(label: string, filter?: any): Promise<any[]>;
+  findRelationships(type?: string, filter?: any): Promise<any[]>;
+  getDatabaseStats(): Promise<any>;
+
+  // 兼容性方法（保持向后兼容）
+  executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any>;
+  executeWriteQuery(nGQL: string, parameters?: Record<string, any>): Promise<any>;
+  useSpace(spaceName: string): Promise<void>;
+  createNode(label: string, properties: Record<string, any>): Promise<string>;
+  createRelationship(
+    type: string,
+    sourceId: string,
+    targetId: string,
+    properties?: Record<string, any>
+  ): Promise<void>;
+  findNodes(label: string, properties?: Record<string, any>): Promise<any[]>;
 }
 
 /**
@@ -65,6 +93,8 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
   private configService: NebulaConfigService;
   private performanceMonitor: PerformanceMonitor;
   private queryRunner: IQueryRunner;
+  private projectManager: INebulaProjectManager;
+  private projectIdManager: ProjectIdManager;
   private config: NebulaConfig;
   private connectionStatus: NebulaConnectionStatus;
   private isConnectedFlag: boolean = false;
@@ -77,6 +107,8 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     @inject(TYPES.NebulaConfigService) configService: NebulaConfigService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.IQueryRunner) queryRunner: IQueryRunner,
+    @inject(TYPES.INebulaProjectManager) projectManager: INebulaProjectManager,
+    @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
     @inject(TYPES.IConnectionPool) connectionPool: any,
     @inject(TYPES.ISessionManager) sessionManager: any
   ) {
@@ -86,9 +118,11 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     this.configService = configService;
     this.performanceMonitor = performanceMonitor;
     this.queryRunner = queryRunner;
+    this.projectManager = projectManager;
+    this.projectIdManager = projectIdManager;
     this.connectionPool = connectionPool;
     this.sessionManager = sessionManager;
-    
+
     // 加载配置
     this.config = this.configService.loadConfig();
     this.connectionStatus = {
@@ -134,7 +168,7 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.connectionStatus.error = errorMessage;
-      
+
       this.errorHandler.handleError(
         new Error(`Failed to connect to Nebula Graph: ${errorMessage}`),
         { component: 'NebulaClient', operation: 'connect' }
@@ -156,7 +190,7 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
 
     try {
       this.logger.info('Disconnecting from Nebula Graph');
-      
+
       // TODO: 实现实际的断开连接逻辑
       // 这里将在后续实现ConnectionPool后完成
       this.isConnectedFlag = false;
@@ -167,7 +201,7 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
       this.logger.info('Successfully disconnected from Nebula Graph');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       this.errorHandler.handleError(
         new Error(`Failed to disconnect from Nebula Graph: ${errorMessage}`),
         { component: 'NebulaClient', operation: 'disconnect' }
@@ -224,7 +258,7 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       this.performanceMonitor.endOperation(operationId, {
         success: false,
         error: errorMessage
@@ -270,7 +304,7 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       this.performanceMonitor.endOperation(operationId, {
         success: false,
         error: errorMessage
@@ -321,7 +355,7 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
   async initialize(config: NebulaConfig): Promise<void> {
     try {
       this.logger.info('Initializing NebulaClient', config);
-      
+
       // 更新配置
       this.config = { ...this.config, ...config };
       this.connectionStatus.host = this.config.host;
@@ -372,16 +406,16 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
   async close(): Promise<void> {
     try {
       this.logger.info('Closing NebulaClient');
-      
+
       // 关闭会话管理器
       await this.sessionManager.close();
-      
+
       // 关闭连接池
       await this.connectionPool.close();
-      
+
       // 断开连接
       await this.disconnect();
-      
+
       this.logger.info('NebulaClient closed successfully');
     } catch (error) {
       this.errorHandler.handleError(
@@ -391,4 +425,260 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
       throw error;
     }
   }
+
+ /**
+  * 为项目创建空间
+  */
+ async createSpaceForProject(projectPath: string): Promise<boolean> {
+   this.ensureConnected();
+   return await this.projectManager.createSpaceForProject(projectPath);
+ }
+
+ /**
+  * 删除项目的空间
+  */
+ async deleteSpaceForProject(projectPath: string): Promise<boolean> {
+   this.ensureConnected();
+   return await this.projectManager.deleteSpaceForProject(projectPath);
+ }
+
+ /**
+  * 确保已连接
+  */
+ private ensureConnected(): void {
+   if (!this.isConnectedFlag) {
+     throw new Error('Not connected to Nebula Graph');
+   }
+ }
+
+ /**
+  * 批量插入节点
+  */
+ async insertNodes(nodes: NebulaNode[]): Promise<boolean> {
+   this.ensureConnected();
+   if (!nodes || nodes.length === 0) {
+     return true;
+   }
+   
+   // 使用项目管理器的批量插入功能
+   // 需要确定当前项目，这里可以使用默认项目或从配置获取
+   // 为了简化，我们假设使用默认项目或第一个项目
+   const projectPaths = this.projectIdManager.listAllProjectPaths();
+   if (projectPaths.length === 0) {
+     throw new Error('No project found for node insertion');
+   }
+   
+   const projectPath = projectPaths[0]; // 使用第一个项目
+   return await this.projectManager.insertNodesForProject(projectPath, nodes);
+ }
+
+ /**
+  * 批量插入关系
+  */
+ async insertRelationships(relationships: NebulaRelationship[]): Promise<boolean> {
+   this.ensureConnected();
+   if (!relationships || relationships.length === 0) {
+     return true;
+   }
+   
+   const projectPaths = this.projectIdManager.listAllProjectPaths();
+   if (projectPaths.length === 0) {
+     throw new Error('No project found for relationship insertion');
+   }
+   
+   const projectPath = projectPaths[0]; // 使用第一个项目
+   return await this.projectManager.insertRelationshipsForProject(projectPath, relationships);
+ }
+
+ /**
+  * 删除文件相关的所有数据
+  */
+ async deleteDataForFile(filePath: string): Promise<void> {
+   this.ensureConnected();
+   // 这里需要根据文件路径删除相关数据
+   // 可以通过查询找到与文件相关的节点和关系，然后删除
+   // 暂时使用项目管理器的实现
+   // 实际实现可能需要更复杂的逻辑来确定哪些数据与特定文件相关
+   this.logger.warn('deleteDataForFile not fully implemented');
+ }
+
+ /**
+  * 根据标签查找节点
+  */
+ async findNodesByLabel(label: string, filter?: any): Promise<any[]> {
+   this.ensureConnected();
+   
+   const projectPaths = this.projectIdManager.listAllProjectPaths();
+   if (projectPaths.length === 0) {
+     return [];
+   }
+   
+   const projectPath = projectPaths[0]; // 使用第一个项目
+   return await this.projectManager.findNodesForProject(projectPath, label, filter);
+ }
+
+ /**
+  * 查找关系
+  */
+ async findRelationships(type?: string, filter?: any): Promise<any[]> {
+   this.ensureConnected();
+   
+   const projectPaths = this.projectIdManager.listAllProjectPaths();
+   if (projectPaths.length === 0) {
+     return [];
+   }
+   
+   const projectPath = projectPaths[0]; // 使用第一个项目
+   return await this.projectManager.findRelationshipsForProject(projectPath, type, filter);
+ }
+
+ /**
+  * 获取数据库统计信息
+  */
+ async getDatabaseStats(): Promise<any> {
+   this.ensureConnected();
+   
+   // 获取当前连接状态和基本统计
+   const stats = this.getStats();
+   
+   // 尝试获取更多数据库特定的统计信息
+   try {
+     const spacesResult = await this.execute('SHOW SPACES');
+     const spaces = spacesResult?.data || [];
+     
+     return {
+       ...stats,
+       spaces: spaces.length,
+       connected: this.isConnectedFlag,
+       connectionStatus: this.connectionStatus
+     };
+   } catch (error) {
+     this.logger.error('Failed to get database stats', error);
+     return {
+       ...stats,
+       error: error instanceof Error ? error.message : String(error),
+       connected: this.isConnectedFlag
+     };
+   }
+ }
+
+ /**
+  * 执行读查询
+  */
+ async executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
+   this.ensureConnected();
+   return await this.execute(nGQL, parameters);
+ }
+
+ /**
+  * 执行写查询
+  */
+ async executeWriteQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
+   this.ensureConnected();
+   return await this.execute(nGQL, parameters);
+ }
+
+ /**
+  * 使用指定空间
+  */
+ async useSpace(spaceName: string): Promise<void> {
+   this.ensureConnected();
+   if (!spaceName || spaceName === 'undefined' || spaceName === '') {
+     throw new Error(`Invalid space name provided: ${spaceName}`);
+   }
+   
+   const query = `USE \`${spaceName}\``;
+   await this.execute(query);
+   this.connectionStatus.space = spaceName;
+ }
+
+ /**
+  * 创建节点
+  */
+ async createNode(label: string, properties: Record<string, any>): Promise<string> {
+   this.ensureConnected();
+   
+   // 生成节点ID
+   const nodeId = `${label}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+   
+   // 构建插入节点的nGQL
+   const propertyNames = Object.keys(properties).join(', ');
+   let nGQL = `INSERT VERTEX ${label}`;
+   
+   if (propertyNames) {
+     const escapedProperties = this.escapeProperties(properties);
+     const propertyValues = Object.values(escapedProperties).map(v => `"${v}"`).join(', ');
+     nGQL += `(${propertyNames}) VALUES "${nodeId}":(${propertyValues})`;
+   } else {
+     nGQL += `() VALUES "${nodeId}":()`;
+   }
+   
+   await this.execute(nGQL);
+   return nodeId;
+ }
+
+ /**
+  * 创建关系
+  */
+ async createRelationship(
+   type: string,
+   sourceId: string,
+   targetId: string,
+   properties?: Record<string, any>
+ ): Promise<void> {
+   this.ensureConnected();
+   
+   // 构建插入边的nGQL
+   let nGQL = `INSERT EDGE ${type}`;
+   
+   if (properties && Object.keys(properties).length > 0) {
+     const propertyNames = Object.keys(properties).join(', ');
+     const escapedProperties = this.escapeProperties(properties);
+     const propertyValues = Object.values(escapedProperties).map(v => `"${v}"`).join(', ');
+     nGQL += `(${propertyNames}) VALUES "${sourceId}"->"${targetId}":(${propertyValues})`;
+   } else {
+     nGQL += `() VALUES "${sourceId}"->"${targetId}":()`;
+   }
+   
+   await this.execute(nGQL);
+ }
+
+ /**
+  * 根据标签和属性查找节点
+  */
+ async findNodes(label: string, properties?: Record<string, any>): Promise<any[]> {
+   this.ensureConnected();
+   
+   // 构建查询节点的nGQL
+   let nGQL = `MATCH (n:${label})`;
+   
+   if (properties && Object.keys(properties).length > 0) {
+     const escapedProperties = this.escapeProperties(properties);
+     const conditions = Object.entries(escapedProperties)
+       .map(([key, value]) => `n.${key} == "${value}"`)
+       .join(' AND ');
+     nGQL += ` WHERE ${conditions}`;
+   }
+   
+   nGQL += ' RETURN n';
+   
+   const result = await this.execute(nGQL);
+   return result?.data || [];
+ }
+
+ /**
+  * 转义属性值中的特殊字符，防止nGQL注入
+  */
+ private escapeProperties(properties: Record<string, any>): Record<string, any> {
+   const escaped: Record<string, any> = {};
+   for (const [key, value] of Object.entries(properties)) {
+     if (typeof value === 'string') {
+       // 转义字符串中的引号和反斜杠
+       escaped[key] = value.replace(/"/g, '\\"').replace(/\\/g, '\\\\');
+     } else {
+       escaped[key] = value;
+     }
+   }
+   return escaped;
+ }
 }

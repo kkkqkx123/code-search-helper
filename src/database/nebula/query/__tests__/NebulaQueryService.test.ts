@@ -51,7 +51,12 @@ describe('NebulaQueryService', () => {
       connect: jest.fn(),
       disconnect: jest.fn(),
       isConnected: jest.fn().mockReturnValue(true),
-      getConnectionForSpace: jest.fn()
+      executeQuery: jest.fn(),
+      executeTransaction: jest.fn(),
+      getConfig: jest.fn(),
+      updateConfig: jest.fn(),
+      getConnectionStatus: jest.fn(),
+      subscribe: jest.fn()
     } as any;
 
     mockQueryRunner = {

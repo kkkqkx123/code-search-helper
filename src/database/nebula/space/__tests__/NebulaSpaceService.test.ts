@@ -30,11 +30,11 @@ describe('NebulaSpaceService', () => {
       isConnected: jest.fn(),
       connect: jest.fn(),
       disconnect: jest.fn(),
-      getConnectionForSpace: jest.fn(),
       executeTransaction: jest.fn(),
       getConnectionStatus: jest.fn(),
       getConfig: jest.fn(),
-      updateConfig: jest.fn()
+      updateConfig: jest.fn(),
+      subscribe: jest.fn()
     } as any;
 
     mockDatabaseLogger = {

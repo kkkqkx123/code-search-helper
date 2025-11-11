@@ -31,7 +31,6 @@ export const TYPES = {
   NebulaSpaceService: Symbol.for('NebulaSpaceService'),
 
   // 状态管理
-  ConnectionStateManager: Symbol.for('ConnectionStateManager'),
   QdrantStateManager: Symbol.for('QdrantStateManager'),
 
   // 其他服务

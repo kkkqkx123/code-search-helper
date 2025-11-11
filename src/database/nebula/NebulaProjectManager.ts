@@ -18,7 +18,7 @@ import {
   ProjectSpaceInfo
 } from './NebulaTypes';
 import { NebulaEventType, NebulaEvent, DatabaseEventType } from '../common/DatabaseEventTypes';
-import { NebulaEventManager } from './NebulaEventManager';
+import { EventEmitter } from 'events';
 
 /**
  * Nebula 项目管理器接口
@@ -50,7 +50,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
   private queryBuilder: INebulaQueryBuilder;
   private dataOperations: INebulaDataOperations;
   private performanceMonitor: PerformanceMonitor;
-  private eventManager: NebulaEventManager;
+  private eventEmitter: EventEmitter;
   private subscriptions: Map<NebulaEventType, any[]> = new Map();
 
   constructor(
@@ -61,8 +61,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
     @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager,
     @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder,
     @inject(TYPES.INebulaDataOperations) dataOperations: INebulaDataOperations,
-    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor,
-    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
+    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
@@ -72,7 +71,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
     this.queryBuilder = queryBuilder;
     this.dataOperations = dataOperations;
     this.performanceMonitor = performanceMonitor;
-    this.eventManager = eventManager;
+    this.eventEmitter = new EventEmitter();
   }
 
   /**
@@ -679,7 +678,13 @@ export class NebulaProjectManager implements INebulaProjectManager {
    * 订阅事件（推荐的新API）
    */
   subscribe(type: NebulaEventType, listener: (event: NebulaEvent) => void) {
-    return this.eventManager.subscribe(type as string, listener);
+    this.eventEmitter.on(type as string, listener);
+    return {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      eventType: type as string,
+      handler: listener,
+      unsubscribe: () => this.eventEmitter.off(type as string, listener)
+    };
   }
 
   /**
@@ -693,7 +698,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
       error
     };
 
-    this.eventManager.emit(event);
+    this.eventEmitter.emit(event.type, event);
   }
 
   /**

@@ -125,13 +125,12 @@ export const TYPES = {
   IRetryStrategy: Symbol.for('IRetryStrategy'),
   ICircuitBreaker: Symbol.for('ICircuitBreaker'),
   NebulaQueryUtils: Symbol.for('NebulaQueryUtils'),
-  NebulaResultFormatter: Symbol.for('NebulaResultFormatter'),
-  NebulaEventManager: Symbol.for('NebulaEventManager'),
   NebulaBatchService: Symbol.for('NebulaBatchService'),
   INebulaBatchService: Symbol.for('INebulaBatchService'),
   NebulaFileDataService: Symbol.for('NebulaFileDataService'),
   INebulaFileDataService: Symbol.for('INebulaFileDataService'),
   NebulaClient: Symbol.for('NebulaClient'),
+  NebulaServiceAdapter: Symbol.for('NebulaServiceAdapter'),
   QueryPipeline: Symbol.for('QueryPipeline'),
   ParallelQueryExecutor: Symbol.for('ParallelQueryExecutor'),
   MemoryOptimizer: Symbol.for('MemoryOptimizer'),
@@ -139,7 +138,6 @@ export const TYPES = {
 
   // 14. Nebula 监控服务
   NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
-  ConnectionStateManager: Symbol.for('ConnectionStateManager'),
    ConnectionPool: Symbol.for('ConnectionPool'),
    ConnectionHealthChecker: Symbol.for('ConnectionHealthChecker'),
    ConnectionWarmer: Symbol.for('ConnectionWarmer'),

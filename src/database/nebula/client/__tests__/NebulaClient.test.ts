@@ -8,7 +8,9 @@ import { PerformanceMonitor } from '../../../../infrastructure/monitoring/Perfor
 import { IConnectionPool } from '../../connection/ConnectionPool';
 import { ISessionManager } from '../../session/SessionManager';
 import { IQueryRunner } from '../../query/QueryRunner';
-import { NebulaConfig } from '../../NebulaTypes';
+import { NebulaConfig, NebulaNode, NebulaRelationship } from '../../NebulaTypes';
+import { INebulaProjectManager } from '../../NebulaProjectManager';
+import { ProjectIdManager } from '../../../ProjectIdManager';
 
 // Mock implementations
 class MockLoggerService extends LoggerService {
@@ -106,6 +108,39 @@ class MockQueryRunner implements IQueryRunner {
     totalExecutionTime: 0,
     queriesByType: {}
   });
+}
+
+class MockProjectManager implements INebulaProjectManager {
+  createSpaceForProject = jest.fn().mockResolvedValue(true);
+  deleteSpaceForProject = jest.fn().mockResolvedValue(true);
+  getSpaceInfoForProject = jest.fn();
+  clearSpaceForProject = jest.fn().mockResolvedValue(true);
+  listProjectSpaces = jest.fn().mockResolvedValue([]);
+  insertNodesForProject = jest.fn().mockResolvedValue(true);
+  insertRelationshipsForProject = jest.fn().mockResolvedValue(true);
+  findNodesForProject = jest.fn().mockResolvedValue([]);
+  findRelationshipsForProject = jest.fn().mockResolvedValue([]);
+  createProjectSpace = jest.fn().mockResolvedValue(true);
+  deleteProjectSpace = jest.fn().mockResolvedValue(true);
+  getProjectSpaceInfo = jest.fn();
+  insertProjectData = jest.fn().mockResolvedValue(true);
+  updateProjectData = jest.fn().mockResolvedValue(true);
+  deleteProjectData = jest.fn().mockResolvedValue(true);
+  searchProjectData = jest.fn().mockResolvedValue([]);
+  getProjectDataById = jest.fn();
+  clearProjectSpace = jest.fn().mockResolvedValue(true);
+  subscribe = jest.fn().mockReturnValue({
+    id: 'test-subscription',
+    eventType: 'test',
+    handler: () => {},
+    unsubscribe: jest.fn()
+  });
+}
+
+class MockProjectIdManager extends ProjectIdManager {
+  listAllProjectPaths = jest.fn().mockReturnValue(['/test/project']);
+  getProjectId = jest.fn().mockReturnValue('test-project-id');
+  getSpaceName = jest.fn().mockReturnValue('test_space');
 }
 
 

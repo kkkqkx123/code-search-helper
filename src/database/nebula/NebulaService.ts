@@ -1,4 +1,5 @@
 import { injectable, inject } from 'inversify';
+import { EventEmitter } from 'events';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
@@ -11,15 +12,11 @@ import { NebulaSpaceService } from './space/NebulaSpaceService';
 import {
   NebulaNode,
   NebulaRelationship,
-  ProjectSpaceInfo,
-  NebulaSpaceInfo
 } from './NebulaTypes';
-import { NebulaEventType, NebulaEvent } from '../common/DatabaseEventTypes';
+import { NebulaEventType } from '../common/DatabaseEventTypes';
 import { BaseDatabaseService } from '../common/BaseDatabaseService';
 import { IDatabaseService, IConnectionManager, IProjectManager } from '../common/IDatabaseService';
 import { DatabaseEventType, NebulaEventType as UnifiedNebulaEventType } from '../common/DatabaseEventTypes';
-import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
-import { NebulaEventManager } from './NebulaEventManager';
 import { INebulaQueryService } from './query/NebulaQueryService';
 import { INebulaDataOperations } from './operation/NebulaDataOperations';
 import { INebulaSchemaManager } from './NebulaSchemaManager';
@@ -81,7 +78,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
   private reconnectDelay = 1000;
-  private eventManager: NebulaEventManager;
+  private eventEmitter: EventEmitter;
   private queryService: INebulaQueryService;
   private dataOperations: INebulaDataOperations;
   private schemaManager: INebulaSchemaManager;
@@ -99,7 +96,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     @inject(TYPES.NebulaSpaceService) spaceService: NebulaSpaceService,
     @inject(TYPES.NebulaQueryBuilder) queryBuilder: NebulaQueryBuilder,
     @inject(TYPES.INebulaProjectManager) projectManager: NebulaProjectManager,
-    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager,
     @inject(TYPES.NebulaQueryService) queryService: INebulaQueryService,
     @inject(TYPES.NebulaDataOperations) dataOperations: INebulaDataOperations,
     @inject(TYPES.NebulaSchemaManager) schemaManager: INebulaSchemaManager,
@@ -122,7 +118,7 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     this.spaceService = spaceService;
     this.queryBuilder = queryBuilder;
     this.projectManager = projectManager;
-    this.eventManager = eventManager;
+    this.eventEmitter = new EventEmitter();
     this.queryService = queryService;
     this.dataOperations = dataOperations;
     this.schemaManager = schemaManager;
@@ -253,164 +249,10 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
   }
 
-  async executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      // 尝试重新连接
-      const reconnected = await this.reconnect();
-      if (!reconnected) {
-        throw new Error('Nebula service is not initialized and reconnection failed');
-      }
-    }
-
-    try {
-      const result = await this.queryService.executeQuery(nGQL, parameters);
-
-      if (result.error) {
-        // 检查是否是连接错误，如果是则尝试重连
-        if (result.error.includes('connect') || result.error.includes('connection')) {
-          // 使用 DatabaseLoggerService 记录连接错误事件
-          await this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.CONNECTION_ERROR,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: { message: 'Connection error detected, attempting to reconnect...' }
-          });
-          const reconnected = await this.reconnect();
-          if (reconnected) {
-            // 重连成功后重新执行查询
-            const retryResult = await this.queryService.executeQuery(nGQL, parameters);
-            if (retryResult.error) {
-              throw new Error(retryResult.error);
-            }
-            return retryResult;
-          } else {
-            // 如果重连失败，抛出错误而不继续重试
-            throw new Error('Connection error and reconnection failed: ' + result.error);
-          }
-        }
-        throw new Error(result.error);
-      }
-
-      return result;
-    } catch (error) {
-      // 检查是否是连接错误，如果是则尝试重连
-      if (error instanceof Error && (error.message.includes('connect') || error.message.includes('connection'))) {
-        // 使用 DatabaseLoggerService 记录连接错误事件
-        await this.databaseLogger.logDatabaseEvent({
-          type: DatabaseEventType.CONNECTION_ERROR,
-          source: 'nebula',
-          timestamp: new Date(),
-          data: { message: 'Connection error in executeReadQuery, attempting to reconnect...' }
-        });
-        const reconnected = await this.reconnect();
-        if (reconnected) {
-          // 重连成功后重新执行查询
-          try {
-            const retryResult = await this.queryService.executeQuery(nGQL, parameters);
-            if (retryResult.error) {
-              throw new Error(retryResult.error);
-            }
-            return retryResult;
-          } catch (retryError) {
-            // 如果重试查询也失败，抛出错误而不继续重试
-            throw new Error('Reconnection successful but query execution failed: ' + (retryError instanceof Error ? retryError.message : String(retryError)));
-          }
-        } else {
-          // 如果重连失败，抛出错误而不继续重试
-          throw new Error('Connection error and reconnection failed: ' + error.message);
-        }
-      }
-
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
-  }
-
-  async executeWriteQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      // 尝试重新连接
-      const reconnected = await this.reconnect();
-      if (!reconnected) {
-        throw new Error('Nebula service is not initialized and reconnection failed');
-      }
-    }
-
-    try {
-      const result = await this.queryService.executeQuery(nGQL, parameters);
-
-      if (result.error) {
-        // 检查是否是连接错误，如果是则尝试重连
-        if (result.error.includes('connect') || result.error.includes('connection')) {
-          // 使用 DatabaseLoggerService 记录连接错误事件
-          await this.databaseLogger.logDatabaseEvent({
-            type: DatabaseEventType.CONNECTION_ERROR,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: { message: 'Connection error detected, attempting to reconnect...' }
-          });
-          const reconnected = await this.reconnect();
-          if (reconnected) {
-            // 重连成功后重新执行查询
-            const retryResult = await this.queryService.executeQuery(nGQL, parameters);
-            if (retryResult.error) {
-              throw new Error(retryResult.error);
-            }
-            return retryResult;
-          } else {
-            // 如果重连失败，抛出错误而不继续重试
-            throw new Error('Connection error and reconnection failed: ' + result.error);
-          }
-        }
-        throw new Error(result.error);
-      }
-
-      return result;
-    } catch (error) {
-      // 检查是否是连接错误，如果是则尝试重连
-      if (error instanceof Error && (error.message.includes('connect') || error.message.includes('connection'))) {
-        // 使用 DatabaseLoggerService 记录连接错误事件
-        await this.databaseLogger.logDatabaseEvent({
-          type: DatabaseEventType.CONNECTION_ERROR,
-          source: 'nebula',
-          timestamp: new Date(),
-          data: { message: 'Connection error in executeWriteQuery, attempting to reconnect...' }
-        });
-        const reconnected = await this.reconnect();
-        if (reconnected) {
-          // 重连成功后重新执行查询
-          try {
-            const retryResult = await this.queryService.executeQuery(nGQL, parameters);
-            if (retryResult.error) {
-              throw new Error(retryResult.error);
-            }
-            return retryResult;
-          } catch (retryError) {
-            // 如果重试查询也失败，抛出错误而不继续重试
-            throw new Error('Reconnection successful but query execution failed: ' + (retryError instanceof Error ? retryError.message : String(retryError)));
-          }
-        } else {
-          // 如果重连失败，抛出错误而不继续重连
-          throw new Error('Connection error and reconnection failed: ' + error.message);
-        }
-      }
-
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
-  }
-
-
-  async useSpace(spaceName: string): Promise<void> {
+  /**
+   * 确保服务已初始化
+   */
+  protected ensureInitialized(): void {
     if (!this.initialized) {
       // 如果服务从未成功初始化过，不尝试重新连接
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
@@ -419,49 +261,46 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
 
       throw new Error('Nebula service is not initialized');
     }
+  }
+
+  async executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
+    this.ensureInitialized();
+    return await this.queryService.executeQuery(nGQL, parameters);
+  }
+
+  async executeWriteQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
+    this.ensureInitialized();
+    return await this.queryService.executeQuery(nGQL, parameters);
+  }
+
+
+  async useSpace(spaceName: string): Promise<void> {
+    this.ensureInitialized();
 
     // 验证spaceName是否有效
     if (!spaceName || spaceName === 'undefined' || spaceName === '') {
       throw new Error(`Invalid space name provided: ${spaceName}`);
     }
 
-    try {
-      const success = await this.spaceService.useSpace(spaceName);
-      if (success) {
-        // 使用 DatabaseLoggerService 记录空间切换事件
-        await this.databaseLogger.logDatabaseEvent({
-          type: DatabaseEventType.SPACE_CREATED,  // 使用SPACE_CREATED类型，因为这是关于空间的操作
-          source: 'nebula',
-          timestamp: new Date(),
-          data: { message: `Switched to space: ${spaceName}`, spaceName }
-        });
-      } else {
-        throw new Error(`Failed to switch to space: ${spaceName}`);
-      }
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
+    const success = await this.spaceService.useSpace(spaceName);
+    if (success) {
+      // 使用 DatabaseLoggerService 记录空间切换事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SPACE_CREATED,  // 使用SPACE_CREATED类型，因为这是关于空间的操作
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Switched to space: ${spaceName}`, spaceName }
+      });
+    } else {
+      throw new Error(`Failed to switch to space: ${spaceName}`);
     }
   }
 
   async createNode(label: string, properties: Record<string, any>): Promise<string> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      throw new Error('Nebula service is not initialized');
-    }
-
-    try {
-      const nodeId = await this.dataService.createNode({ label, properties });
-      this.emitEvent('data_inserted', { label, nodeId, properties });
-      return nodeId;
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
+    this.ensureInitialized();
+    const nodeId = await this.dataService.createNode({ label, properties });
+    this.emitEvent('data_inserted', { label, nodeId, properties });
+    return nodeId;
   }
 
   async createRelationship(
@@ -470,91 +309,39 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     targetId: string,
     properties?: Record<string, any>
   ): Promise<void> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      throw new Error('Nebula service is not initialized');
-    }
-
-    try {
-      await this.dataService.createRelationship({
-        type,
-        sourceId,
-        targetId,
-        properties
-      });
-      this.emitEvent('data_inserted', { type, sourceId, targetId, properties });
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
+    this.ensureInitialized();
+    await this.dataService.createRelationship({
+      type,
+      sourceId,
+      targetId,
+      properties
+    });
+    this.emitEvent('data_inserted', { type, sourceId, targetId, properties });
   }
 
   async findNodes(label: string, properties?: Record<string, any>): Promise<any[]> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      throw new Error('Nebula service is not initialized');
-    }
-
-    try {
-      const nodes = await this.dataService.findNodesByLabel(label, properties);
-      this.emitEvent('data_queried', { label, properties, resultCount: nodes.length });
-      return nodes;
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
+    this.ensureInitialized();
+    const nodes = await this.dataService.findNodesByLabel(label, properties);
+    this.emitEvent('data_queried', { label, properties, resultCount: nodes.length });
+    return nodes;
   }
 
   async findRelationships(type?: string, properties?: Record<string, any>): Promise<any[]> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      throw new Error('Nebula service is not initialized');
-    }
-
-    try {
-      const relationships = await this.dataService.findRelationships(type, properties);
-      this.emitEvent('data_queried', { type, properties, resultCount: relationships.length });
-      return relationships;
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
+    this.ensureInitialized();
+    const relationships = await this.dataService.findRelationships(type, properties);
+    this.emitEvent('data_queried', { type, properties, resultCount: relationships.length });
+    return relationships;
   }
 
   async getDatabaseStats(): Promise<any> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      throw new Error('Nebula service is not initialized');
+    this.ensureInitialized();
+    // 检查连接状态
+    if (!this.connectionManager.isConnected()) {
+      throw new Error('Nebula service is not connected');
     }
 
-    try {
-      // 检查连接状态
-      if (!this.connectionManager.isConnected()) {
-        throw new Error('Nebula service is not connected');
-      }
-
-      const stats = await this.dataService.getDatabaseStats();
-      return stats;
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
+    const stats = await this.dataService.getDatabaseStats();
+    return stats;
   }
 
   async close(): Promise<void> {
@@ -660,225 +447,156 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
    * 为项目创建空间
    */
   async createSpaceForProject(projectPath: string): Promise<boolean> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
+    this.ensureInitialized();
+    // 使用项目管理器创建空间
+    const result = await this.projectManager.createSpaceForProject(projectPath);
 
-      throw new Error('Nebula service is not initialized');
+    if (result) {
+      this.emitEvent('project_space_created', { projectPath });
+      // 使用 DatabaseLoggerService 记录空间创建事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SPACE_CREATED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Created space for project: ${projectPath}`, projectPath }
+      });
     }
 
-    try {
-      // 使用项目管理器创建空间
-      const result = await this.projectManager.createSpaceForProject(projectPath);
-
-      if (result) {
-        this.emitEvent('project_space_created', { projectPath });
-        // 使用 DatabaseLoggerService 记录空间创建事件
-        await this.databaseLogger.logDatabaseEvent({
-          type: DatabaseEventType.SPACE_CREATED,
-          source: 'nebula',
-          timestamp: new Date(),
-          data: { message: `Created space for project: ${projectPath}`, projectPath }
-        });
-      }
-
-      return result;
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      return false;
-    }
+    return result;
   }
 
   /**
    * 删除项目的空间
    */
   async deleteSpaceForProject(projectPath: string): Promise<boolean> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
+    this.ensureInitialized();
+    // 使用项目管理器删除空间
+    const result = await this.projectManager.deleteSpaceForProject(projectPath);
 
-      throw new Error('Nebula service is not initialized');
+    if (result) {
+      this.emitEvent('project_space_deleted', { projectPath });
+      // 使用 DatabaseLoggerService 记录空间删除事件
+      await this.databaseLogger.logDatabaseEvent({
+        type: DatabaseEventType.SPACE_DELETED,
+        source: 'nebula',
+        timestamp: new Date(),
+        data: { message: `Deleted space for project: ${projectPath}`, projectPath }
+      });
     }
 
-    try {
-      // 使用项目管理器删除空间
-      const result = await this.projectManager.deleteSpaceForProject(projectPath);
-
-      if (result) {
-        this.emitEvent('project_space_deleted', { projectPath });
-        // 使用 DatabaseLoggerService 记录空间删除事件
-        await this.databaseLogger.logDatabaseEvent({
-          type: DatabaseEventType.SPACE_DELETED,
-          source: 'nebula',
-          timestamp: new Date(),
-          data: { message: `Deleted space for project: ${projectPath}`, projectPath }
-        });
-      }
-
-      return result;
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      return false;
-    }
+    return result;
   }
 
   /**
    * 批量插入节点
    */
   async insertNodes(nodes: NebulaNode[]): Promise<boolean> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      throw new Error('Nebula service is not initialized');
-    }
+    this.ensureInitialized();
 
     if (!nodes || nodes.length === 0) {
       return true; // 没有节点需要插入，视为成功
     }
 
-    try {
-      const startTime = Date.now();
+    const startTime = Date.now();
 
-      // 使用 NebulaBatchService 进行批量插入
-      const result = await this.batchService.insertNodes(nodes);
+    // 使用 NebulaBatchService 进行批量插入
+    const result = await this.batchService.insertNodes(nodes);
 
-      const duration = Date.now() - startTime;
-      this.emitEvent('data_inserted', { nodeCount: nodes.length, duration });
-      // 使用 DatabaseLoggerService 记录节点插入事件
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.DATA_INSERTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: `Inserted ${nodes.length} nodes`, nodeCount: nodes.length }
-      });
-      return result;
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      return false;
-    }
+    const duration = Date.now() - startTime;
+    this.emitEvent('data_inserted', { nodeCount: nodes.length, duration });
+    // 使用 DatabaseLoggerService 记录节点插入事件
+    await this.databaseLogger.logDatabaseEvent({
+      type: DatabaseEventType.DATA_INSERTED,
+      source: 'nebula',
+      timestamp: new Date(),
+      data: { message: `Inserted ${nodes.length} nodes`, nodeCount: nodes.length }
+    });
+    return result;
   }
 
   /**
    * 删除文件相关的所有数据
    */
   async deleteDataForFile(filePath: string): Promise<void> {
-    try {
-      // 使用 NebulaFileDataService 删除文件数据
-      await this.fileDataService.deleteDataForFile(filePath);
-    } catch (error) {
-      // 使用 DatabaseLoggerService 记录错误事件
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.SERVICE_ERROR,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: `Failed to delete data for file: ${filePath}`, filePath },
-        error: error instanceof Error ? error : new Error(String(error))
-      });
-      throw error;
-    }
+    // 使用 NebulaFileDataService 删除文件数据
+    await this.fileDataService.deleteDataForFile(filePath);
   }
 
   //批量插入关系
 
   async insertRelationships(relationships: NebulaRelationship[]): Promise<boolean> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      throw new Error('Nebula service is not initialized');
-    }
+    this.ensureInitialized();
 
     if (!relationships || relationships.length === 0) {
       return true; // 没有关系需要插入，视为成功
     }
 
-    try {
-      const startTime = Date.now();
+    const startTime = Date.now();
 
-      // 使用 NebulaBatchService 进行批量插入
-      const result = await this.batchService.insertRelationships(relationships);
+    // 使用 NebulaBatchService 进行批量插入
+    const result = await this.batchService.insertRelationships(relationships);
 
-      const duration = Date.now() - startTime;
-      this.emitEvent('data_inserted', { relationshipCount: relationships.length, duration });
-      // 使用 DatabaseLoggerService 记录关系插入事件
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.DATA_INSERTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: { message: `Inserted ${relationships.length} relationships`, relationshipCount: relationships.length }
-      });
-      return result;
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      return false;
-    }
+    const duration = Date.now() - startTime;
+    this.emitEvent('data_inserted', { relationshipCount: relationships.length, duration });
+    // 使用 DatabaseLoggerService 记录关系插入事件
+    await this.databaseLogger.logDatabaseEvent({
+      type: DatabaseEventType.DATA_INSERTED,
+      source: 'nebula',
+      timestamp: new Date(),
+      data: { message: `Inserted ${relationships.length} relationships`, relationshipCount: relationships.length }
+    });
+    return result;
   }
 
   /**
    * 根据标签查找节点
    */
   async findNodesByLabel(label: string, filter?: any): Promise<any[]> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
+    this.ensureInitialized();
+    const startTime = Date.now();
 
-      throw new Error('Nebula service is not initialized');
+    // 尝试获取当前空间信息以确定projectId
+    let projectId: string | undefined;
+    const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
+    if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
+      const currentSpace = spaceResult.data[0];
+      projectId = currentSpace.Name || currentSpace.name;
     }
 
-    try {
-      const startTime = Date.now();
-
-      // 尝试获取当前空间信息以确定projectId
-      let projectId: string | undefined;
-      const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
-      if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
-        const currentSpace = spaceResult.data[0];
-        projectId = currentSpace.Name || currentSpace.name;
-      }
-
-      if (!projectId) {
-        throw new Error('Unable to determine project ID for node lookup');
-      }
-
-      // 使用dataOperations服务进行查找
-      const spaceName = this.projectIdManager.getSpaceName(projectId);
-      if (!spaceName) {
-        throw new Error(`Unable to determine space name for project ID: ${projectId}`);
-      }
-
-      const result = await this.dataOperations.findNodesByLabel(
-        projectId,
-        spaceName, // 使用ProjectIdManager的方法
-        label,
-        filter
-      );
-
-      const duration = Date.now() - startTime;
-
-      this.emitEvent('data_queried', { label, filter, duration, resultCount: result.length });
-      return result;
-    } catch (error) {
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
+    if (!projectId) {
+      throw new Error('Unable to determine project ID for node lookup');
     }
+
+    // 使用dataOperations服务进行查找
+    const spaceName = this.projectIdManager.getSpaceName(projectId);
+    if (!spaceName) {
+      throw new Error(`Unable to determine space name for project ID: ${projectId}`);
+    }
+
+    const result = await this.dataOperations.findNodesByLabel(
+      projectId,
+      spaceName, // 使用ProjectIdManager的方法
+      label,
+      filter
+    );
+
+    const duration = Date.now() - startTime;
+
+    this.emitEvent('data_queried', { label, filter, duration, resultCount: result.length });
+    return result;
   }
 
   /**
    * 订阅事件（推荐的新API）
    */
   subscribe(type: NebulaEventType | string, listener: (event: any) => void) {
-    return this.eventManager.subscribe(type, listener);
+    this.eventEmitter.on(type, listener);
+    return {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      eventType: type,
+      handler: listener,
+      unsubscribe: () => this.eventEmitter.off(type, listener)
+    };
   }
 
   /**

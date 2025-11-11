@@ -6,7 +6,6 @@ import { INebulaSpaceManager } from '../../nebula/space/NebulaSpaceManager';
 import { INebulaConnectionManager } from '../../nebula/NebulaConnectionManager';
 import { INebulaQueryBuilder } from '../../nebula/query/NebulaQueryBuilder';
 import { INebulaDataOperations } from '../../nebula/operation/NebulaDataOperations';
-import { NebulaEventManager } from '../../nebula/NebulaEventManager';
 import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import {
   NebulaNode,
@@ -62,12 +61,6 @@ const mockNebulaQueryBuilder = {
   buildRelationshipCountQuery: jest.fn(),
 };
 
-const mockNebulaEventManager = {
-  emit: jest.fn(),
-  on: jest.fn(),
-  once: jest.fn(),
-  subscribe: jest.fn(),
-};
 
 // Mock INebulaDataOperations for testing
 const mockDataOperations = {
@@ -124,8 +117,7 @@ describe('NebulaProjectManager', () => {
       mockNebulaConnectionManager as unknown as INebulaConnectionManager,
       mockNebulaQueryBuilder as unknown as INebulaQueryBuilder,
       mockDataOperations as unknown as INebulaDataOperations,
-      mockPerformanceMonitor as unknown as PerformanceMonitor,
-      mockNebulaEventManager as unknown as NebulaEventManager
+      mockPerformanceMonitor as unknown as PerformanceMonitor
     );
   });
 
@@ -614,21 +606,19 @@ describe('NebulaProjectManager', () => {
     it('should subscribe and unsubscribe event listeners correctly', () => {
       const listener = jest.fn();
       const eventType = NebulaEventType.SPACE_CREATED;
-      const eventData = { test: 'data' };
-
-      // Mock event manager
-      const mockSubscription = { unsubscribe: jest.fn() };
-      mockNebulaEventManager.subscribe.mockReturnValue(mockSubscription);
 
       // Subscribe
       const subscription = nebulaProjectManager.subscribe(eventType, listener);
 
-      // Verify event manager was called
-      expect(mockNebulaEventManager.subscribe).toHaveBeenCalledWith(eventType, listener);
+      // Verify subscription object has required properties
+      expect(subscription).toHaveProperty('id');
+      expect(subscription).toHaveProperty('eventType', eventType);
+      expect(subscription).toHaveProperty('handler', listener);
+      expect(subscription).toHaveProperty('unsubscribe');
+      expect(typeof subscription.unsubscribe).toBe('function');
 
       // Test unsubscribe
       subscription.unsubscribe();
-      expect(mockSubscription.unsubscribe).toHaveBeenCalled();
     });
   });
 
