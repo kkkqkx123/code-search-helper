@@ -120,13 +120,12 @@ export class ProjectRoutes {
     this.router.post('/:projectId/index-vectors', this.indexVectors.bind(this));
     this.router.get('/:projectId/vector-status', this.getVectorStatus.bind(this));
 
-    // 图存储相关端点
-    this.router.post('/:projectId/index-graph', this.indexGraph.bind(this));
-    this.router.get('/:projectId/graph-status', this.getGraphStatus.bind(this));
+    // 图索引功能已移除 - 图索引现在依赖于向量索引，不能单独调用
+    // 图状态通过混合索引状态端点提供
 
     // 批量操作端点
     this.router.post('/batch-index-vectors', this.batchIndexVectors.bind(this));
-    this.router.post('/batch-index-graph', this.batchIndexGraph.bind(this));
+    // 批量图索引功能已移除 - 请使用批量向量索引进行混合索引
 
     // 热更新配置端点
     this.router.get('/:projectId/hot-reload', this.getProjectHotReloadConfig.bind(this));
@@ -453,67 +452,45 @@ export class ProjectRoutes {
   }
 
   /**
-  * 执行图存储
+  * 图索引功能已移除 - 图索引现在依赖于向量索引，不能单独调用
   */
   private async indexGraph(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-  const { projectId } = req.params;
-  const { options } = req.body;
-
-  if (!projectId) {
-  res.status(400).json({
-  success: false,
-  error: 'projectId is required',
-  });
-  return;
+    res.status(410).json({
+      success: false,
+      error: '图索引功能已移除，请使用向量索引进行混合索引（向量+图）',
+      message: 'Graph indexing has been removed. Please use vector indexing for hybrid indexing (vector + graph).'
+    });
   }
 
-  const projectPath = this.projectIdManager.getProjectPath(projectId);
-  if (!projectPath) {
-        res.status(404).json({
-      success: false,
-    error: 'Project not found',
-  });
-    return;
-    }
+  /**
+  * 获取图状态 - 从混合索引状态中获取图相关信息
+  */
+  private async getGraphStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId } = req.params;
 
-    // 调用混合索引服务执行图索引
-      const result = await this.hybridIndexService.indexByType(projectPath, 'graph' as any, options);
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'projectId is required',
+        });
+        return;
+      }
+
+      // 调用混合索引服务获取状态
+      const status = await this.hybridIndexService.getIndexStatus(projectId);
 
       res.status(200).json({
         success: true,
-        data: { projectId: result },
+        data: {
+          ...status,
+          isDependentOnVector: true,
+          message: '图索引依赖于向量索引，状态信息来自混合索引服务'
+        },
       });
     } catch (error) {
       next(error);
     }
-  }
-
-  /**
-  * 获取图状态
-  */
-  private async getGraphStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-  const { projectId } = req.params;
-
-  if (!projectId) {
-  res.status(400).json({
-  success: false,
-  error: 'projectId is required',
-  });
-  return;
-  }
-
-  // 调用混合索引服务获取状态
-  const status = await this.hybridIndexService.getIndexStatus(projectId);
-
-  res.status(200).json({
-  success: true,
-  data: status,
-  });
-  } catch (error) {
-  next(error);
-  }
   }
 
   /**
@@ -527,12 +504,13 @@ export class ProjectRoutes {
   }
 
   /**
-  * 批量图存储（暂不支持）
+  * 批量图索引功能已移除 - 请使用批量向量索引进行混合索引
   */
   private async batchIndexGraph(req: Request, res: Response, next: NextFunction): Promise<void> {
-    res.status(501).json({
-  success: false,
-  error: 'Batch graph indexing is not yet supported through the hybrid index service',
+    res.status(410).json({
+      success: false,
+      error: '批量图索引功能已移除，请使用批量向量索引进行混合索引（向量+图）',
+      message: 'Batch graph indexing has been removed. Please use batch vector indexing for hybrid indexing (vector + graph).'
     });
   }
 

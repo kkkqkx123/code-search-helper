@@ -137,13 +137,7 @@ export class StorageActionButtons extends HTMLElement {
           </span>
         </button>
         
-        <button class="action-button graph" 
-                data-action="index-graph"
-                ${this.graphStatus === 'indexing' ? 'disabled' : ''}>
-          <span class="button-text">
-            ${this.graphStatus === 'indexing' ? '图索引中...' : '图存储'}
-          </span>
-        </button>
+        <!-- 图索引功能已移除 - 图索引现在依赖于向量索引 -->
       </div>
     `;
   }

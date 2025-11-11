@@ -389,29 +389,39 @@ export class ApiClient {
     }
 
     /**
-     * 执行图存储
+     * 图索引功能已移除 - 图索引现在依赖于向量索引，不能单独调用
+     * 请使用 indexVectors 方法进行混合索引（向量+图）
      */
-    async indexGraph(projectId: string, options?: any): Promise<any> {
-        try {
-            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/index-graph`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ options })
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('图存储失败:', error);
-            throw error;
-        }
+    async indexGraph(_projectId: string, _options?: any): Promise<any> {
+        console.warn('图索引功能已移除，图索引现在依赖于向量索引。请使用 indexVectors 方法进行混合索引。');
+        return {
+            success: false,
+            error: '图索引功能已移除，请使用向量索引进行混合索引（向量+图）'
+        };
     }
 
     /**
-     * 获取图状态
+     * 获取图状态 - 从混合索引状态中获取图相关信息
      */
     async getGraphStatus(projectId: string): Promise<any> {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/graph-status`);
-            return await response.json();
+            // 从混合索引状态中获取图状态
+            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/${projectId}/status`);
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+                // 返回混合索引状态中的图部分
+                return {
+                    success: true,
+                    data: {
+                        projectId,
+                        ...result.data.graphStatus,
+                        isDependentOnVector: true
+                    }
+                };
+            }
+            
+            return result;
         } catch (error) {
             console.error('获取图状态失败:', error);
             throw error;
@@ -436,20 +446,14 @@ export class ApiClient {
     }
 
     /**
-     * 批量图存储
+     * 批量图索引功能已移除 - 请使用批量向量索引进行混合索引
      */
-    async batchIndexGraph(projectIds: string[], options?: any): Promise<any> {
-        try {
-            const response = await fetch(`${this.apiBaseUrl}/api/v1/projects/batch-index-graph`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectIds, options })
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('批量图存储失败:', error);
-            throw error;
-        }
+    async batchIndexGraph(_projectIds: string[], _options?: any): Promise<any> {
+        console.warn('批量图索引功能已移除，请使用批量向量索引进行混合索引。');
+        return {
+            success: false,
+            error: '批量图索引功能已移除，请使用批量向量索引进行混合索引（向量+图）'
+        };
     }
 
     /**

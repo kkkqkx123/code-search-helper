@@ -9,7 +9,6 @@ import { IGraphIndexPerformanceMonitor } from '../../infrastructure/monitoring/G
 
 export enum IndexType {
   Vector = 'vector',
-  Graph = 'graph',
   Hybrid = 'hybrid'
 }
 
@@ -155,9 +154,6 @@ export class HybridIndexService implements IIndexService {
     switch (indexType) {
       case IndexType.Vector:
         return this.indexService.startIndexing(projectPath, options);
-      case IndexType.Graph:
-        // Graph 类型现在等同于混合索引，因为图索引需要向量索引作为基础
-        return this.startIndexing(projectPath, options);
       case IndexType.Hybrid:
       default:
         return this.startIndexing(projectPath, options);

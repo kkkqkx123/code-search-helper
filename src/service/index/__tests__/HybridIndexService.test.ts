@@ -355,12 +355,13 @@ describe('HybridIndexService', () => {
       expect(mockGraphIndexService.startIndexing).not.toHaveBeenCalled();
     });
 
-    it('should index both vector and graph when type is Graph', async () => {
+    it('should handle removed Graph type by defaulting to Hybrid', async () => {
       // 设置环境变量启用nebula
       const originalNebulaEnabled = process.env.NEBULA_ENABLED;
       process.env.NEBULA_ENABLED = 'true';
 
-      const result = await hybridIndexService.indexByType(projectPath, IndexType.Graph, options);
+      // Graph类型已移除，现在应该默认使用Hybrid
+      const result = await hybridIndexService.indexByType(projectPath, 'graph' as any, options);
 
       expect(result).toBe(projectId);
       expect(mockIndexService.startIndexing).toHaveBeenCalledWith(projectPath, options);

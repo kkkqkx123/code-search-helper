@@ -301,8 +301,7 @@ export class ProjectsPage {
                                 </button>
                                 <button class="dropdown-item" data-project-id="${project.id}" data-action="configure-hot-reload">⚙️ 配置热重载</button>
                                 <div class="dropdown-divider"></div>
-                                <button class="dropdown-item storage" data-project-id="${project.id}" data-action="index-vectors">🔍 索引向量</button>
-                                <button class="dropdown-item storage" data-project-id="${project.id}" data-action="index-graph">🕸️ 索引图</button>
+                                <button class="dropdown-item storage" data-project-id="${project.id}" data-action="index-vectors">🔍 混合索引（向量+图）</button>
                                 <div class="dropdown-divider"></div>
                                 <button class="dropdown-item danger" data-project-id="${project.id}" data-action="delete">🗑️ 删除</button>
                             </div>
@@ -336,8 +335,6 @@ export class ProjectsPage {
                         this.toggleHotReload(projectId, button);
                     } else if (action === 'index-vectors') {
                         this.indexVectors(projectId);
-                    } else if (action === 'index-graph') {
-                        this.indexGraph(projectId);
                     } else if (action === 'toggle-menu') {
                         this.toggleDropdown(button);
                     }
@@ -370,8 +367,6 @@ export class ProjectsPage {
                         this.toggleHotReload(projectId, button);
                     } else if (action === 'index-vectors') {
                         this.indexVectors(projectId);
-                    } else if (action === 'index-graph') {
-                        this.indexGraph(projectId);
                     }
                 }
             }
@@ -382,8 +377,6 @@ export class ProjectsPage {
             const { projectId, action } = e.detail;
             if (action === 'index-vectors') {
                 await this.indexVectors(projectId);
-            } else if (action === 'index-graph') {
-                await this.indexGraph(projectId);
             }
         });
 
@@ -785,26 +778,8 @@ export class ProjectsPage {
         }
     }
 
-    async indexGraph(projectId: string) {
-        try {
-            const result = await this.apiClient.indexGraph(projectId);
-
-            if (result.success) {
-                alert('图索引已启动');
-                this.apiClient.clearProjectsCache();
-                this.apiClient.clearProjectNameMappingCache();
-                this.loadProjectsList(true);
-
-                if (this.onProjectActionComplete) {
-                    this.onProjectActionComplete('indexGraph', result);
-                }
-            } else {
-                alert('图索引启动失败: ' + (result.error || '未知错误'));
-            }
-        } catch (error: any) {
-            alert('启动图索引时发生错误: ' + error.message);
-        }
-    }
+    // 图索引功能已移除 - 图索引现在依赖于向量索引，不能单独调用
+    // 请使用 indexVectors 方法进行混合索引（向量+图）
 
     async toggleHotReload(projectId: string, button: HTMLButtonElement) {
         const currentEnabled = button.dataset.enabled === 'true';
