@@ -6,7 +6,7 @@ export type PageId = 'search' | 'index-project' | 'projects' | 'graph-explorer' 
 
 export class Router {
     private currentPage: PageId = 'search';
-    private pageChangeCallbacks: ((pageId: PageId) => void)[] = [];
+    private pageChangeCallbacks: ((pageId: PageId) => void | Promise<void>)[] = [];
 
     constructor() {
         this.initialize();
@@ -17,17 +17,17 @@ export class Router {
      */
     private initialize() {
         // 监听浏览器前进/后退
-        window.addEventListener('popstate', (event) => {
+        window.addEventListener('popstate', async (event) => {
             if (event.state && event.state.page) {
-                this.navigateTo(event.state.page as PageId, false);
+                await this.navigateTo(event.state.page as PageId, false);
             }
         });
 
         // 延迟初始化，确保DOM完全加载
-        setTimeout(() => {
+        setTimeout(async () => {
             // 初始加载时设置当前页面
             const initialPage = this.getPageFromUrl() || 'search';
-            this.navigateTo(initialPage, true);
+            await this.navigateTo(initialPage, true);
         }, 0);
     }
 
@@ -45,7 +45,7 @@ export class Router {
     /**
      * 导航到指定页面
      */
-    navigateTo(pageId: PageId, updateHistory: boolean = true) {
+    async navigateTo(pageId: PageId, updateHistory: boolean = true) {
         if (this.currentPage === pageId) return;
 
         this.currentPage = pageId;
@@ -55,8 +55,14 @@ export class Router {
             history.pushState({ page: pageId }, '', `#${pageId}`);
         }
 
-        // 通知所有监听器页面已更改
-        this.pageChangeCallbacks.forEach(callback => callback(pageId));
+        // 通知所有监听器页面已更改（支持异步回调）
+        for (const callback of this.pageChangeCallbacks) {
+            try {
+                await callback(pageId);
+            } catch (error) {
+                console.error('Error in page change callback:', error);
+            }
+        }
     }
 
     /**

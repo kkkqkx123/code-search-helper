@@ -1,52 +1,72 @@
-import { ApiClient } from './services/api.js';
 import { router, PageId } from './router/router.js';
-import { SearchPage } from './pages/SearchPage.js';
-import { IndexProjectPage } from './pages/IndexProjectPage.js';
-import { ProjectsPage } from './pages/ProjectsPage.js';
-import { GraphExplorerPage } from './pages/GraphExplorerPage.js';
-import { GraphAnalysisPage } from './pages/GraphAnalysisPage.js';
-import { GraphManagementPage } from './pages/GraphManagementPage.js';
-import { QdrantCollectionViewPage } from './pages/QdrantCollectionViewPage.js';
 
-// 导入新的组件
-import { StorageStatusIndicator } from './components/StorageStatusIndicator.js';
-import { StorageActionButtons } from './components/StorageActionButtons.js';
-import { BatchOperationsPanel } from './components/BatchOperationsPanel.js';
-import { HotReloadStatus } from './components/HotReloadStatus.js';
-import { HotReloadConfigModal } from './components/HotReloadConfigModal.js';
+// 动态导入组件
+const loadComponents = async () => {
+  try {
+    const [
+      { StorageStatusIndicator },
+      { StorageActionButtons },
+      { BatchOperationsPanel },
+      { HotReloadStatus },
+      { HotReloadConfigModal }
+    ] = await Promise.all([
+      import('./components/StorageStatusIndicator.js'),
+      import('./components/StorageActionButtons.js'),
+      import('./components/BatchOperationsPanel.js'),
+      import('./components/HotReloadStatus.js'),
+      import('./components/HotReloadConfigModal.js')
+    ]);
 
-// 注册自定义元素
-customElements.define('storage-status-indicator', StorageStatusIndicator);
-customElements.define('storage-action-buttons', StorageActionButtons);
-customElements.define('batch-operations-panel', BatchOperationsPanel);
-customElements.define('hot-reload-status', HotReloadStatus);
-customElements.define('hot-reload-config-modal', HotReloadConfigModal);
+    // 注册自定义元素
+    customElements.define('storage-status-indicator', StorageStatusIndicator);
+    customElements.define('storage-action-buttons', StorageActionButtons);
+    customElements.define('batch-operations-panel', BatchOperationsPanel);
+    customElements.define('hot-reload-status', HotReloadStatus);
+    customElements.define('hot-reload-config-modal', HotReloadConfigModal);
+  } catch (error) {
+    console.error('Failed to load components:', error);
+  }
+};
+
+// 立即加载组件
+loadComponents();
 
 /**
  * 主应用类
  * 管理整个前端应用的生命周期和页面切换
  */
 export class CodebaseSearchApp {
-    private apiClient: ApiClient;
-    private searchPage!: SearchPage;
-    private indexProjectPage!: IndexProjectPage;
-    private projectsPage!: ProjectsPage;
-    private graphExplorerPage!: GraphExplorerPage;
-    private graphAnalysisPage!: GraphAnalysisPage;
-    private graphManagementPage!: GraphManagementPage;
-    private qdrantCollectionViewPage!: QdrantCollectionViewPage;
+    private apiClient: any;
     private statusElement: HTMLElement | null;
     private versionElement: HTMLElement | null;
+    private pageLoadPromises: Map<string, Promise<any>> = new Map();
 
     constructor(apiBaseUrl: string = 'http://localhost:3010') {
-        this.apiClient = new ApiClient(apiBaseUrl);
         this.statusElement = document.getElementById('status');
         this.versionElement = document.getElementById('version');
 
-        // 设置全局apiClient供组件使用
-        (window as any).apiClient = this.apiClient;
+        // 异步初始化
+        this.initializeAsync(apiBaseUrl);
+    }
 
-        this.initialize();
+    /**
+     * 异步初始化应用
+     */
+    private async initializeAsync(apiBaseUrl: string) {
+        try {
+            // 动态导入API客户端
+            const { ApiClient } = await import('./services/api.js');
+            this.apiClient = new ApiClient(apiBaseUrl);
+
+            // 设置全局apiClient供组件使用
+            (window as any).apiClient = this.apiClient;
+
+            // 初始化应用
+            this.initialize();
+        } catch (error) {
+            console.error('Failed to initialize application:', error);
+            this.showError('应用初始化失败，请刷新页面重试');
+        }
     }
 
     /**
@@ -67,44 +87,103 @@ export class CodebaseSearchApp {
     }
 
     /**
+     * 动态加载页面组件
+     */
+    private async loadPageComponent(pageId: PageId): Promise<any> {
+        // 如果已经加载过，直接返回
+        if (this.pageLoadPromises.has(pageId)) {
+            return this.pageLoadPromises.get(pageId);
+        }
+
+        let loadPromise: Promise<any>;
+
+        switch (pageId) {
+            case 'search':
+                loadPromise = import('./pages/SearchPage.js').then(module => {
+                    const { SearchPage } = module;
+                    const container = document.getElementById('search-page') as HTMLElement;
+                    return new SearchPage(container, this.apiClient);
+                });
+                break;
+            case 'index-project':
+                loadPromise = import('./pages/IndexProjectPage.js').then(module => {
+                    const { IndexProjectPage } = module;
+                    const container = document.getElementById('index-project-page') as HTMLElement;
+                    return new IndexProjectPage(container, this.apiClient);
+                });
+                break;
+            case 'projects':
+                loadPromise = import('./pages/ProjectsPage.js').then(module => {
+                    const { ProjectsPage } = module;
+                    const container = document.getElementById('projects-page') as HTMLElement;
+                    return new ProjectsPage(container, this.apiClient);
+                });
+                break;
+            case 'graph-explorer':
+                loadPromise = import('./pages/GraphExplorerPage.js').then(module => {
+                    const { GraphExplorerPage } = module;
+                    const container = document.getElementById('graph-explorer-page') as HTMLElement;
+                    return new GraphExplorerPage(container);
+                });
+                break;
+            case 'graph-analysis':
+                loadPromise = import('./pages/GraphAnalysisPage.js').then(module => {
+                    const { GraphAnalysisPage } = module;
+                    const container = document.getElementById('graph-analysis-page') as HTMLElement;
+                    return new GraphAnalysisPage(container);
+                });
+                break;
+            case 'graph-management':
+                loadPromise = import('./pages/GraphManagementPage.js').then(module => {
+                    const { GraphManagementPage } = module;
+                    const container = document.getElementById('graph-management-page') as HTMLElement;
+                    return new GraphManagementPage(container);
+                });
+                break;
+            case 'qdrant-view':
+                loadPromise = import('./pages/QdrantCollectionViewPage.js').then(module => {
+                    const { QdrantCollectionViewPage } = module;
+                    const container = document.getElementById('qdrant-view-page') as HTMLElement;
+                    return new QdrantCollectionViewPage(container, this.apiClient);
+                });
+                break;
+            default:
+                throw new Error(`Unknown page: ${pageId}`);
+        }
+
+        this.pageLoadPromises.set(pageId, loadPromise);
+        return loadPromise;
+    }
+
+    /**
      * 设置页面组件
      */
     private setupPages() {
-        const searchPageContainer = document.getElementById('search-page') as HTMLElement;
-        const indexProjectPageContainer = document.getElementById('index-project-page') as HTMLElement;
-        const projectsPageContainer = document.getElementById('projects-page') as HTMLElement;
-        const graphExplorerPageContainer = document.getElementById('graph-explorer-page') as HTMLElement;
-        const graphAnalysisPageContainer = document.getElementById('graph-analysis-page') as HTMLElement;
-        const graphManagementPageContainer = document.getElementById('graph-management-page') as HTMLElement;
-        const qdrantCollectionViewPageContainer = document.getElementById('qdrant-view-page') as HTMLElement;
+        // 验证页面容器存在
+        const pageContainers = [
+            'search-page',
+            'index-project-page',
+            'projects-page',
+            'graph-explorer-page',
+            'graph-analysis-page',
+            'graph-management-page',
+            'qdrant-view-page'
+        ];
 
-        if (!searchPageContainer || !indexProjectPageContainer || !projectsPageContainer ||
-            !graphExplorerPageContainer || !graphAnalysisPageContainer || !graphManagementPageContainer ||
-            !qdrantCollectionViewPageContainer) {
-            throw new Error('页面容器元素未找到');
+        for (const containerId of pageContainers) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.warn(`页面容器元素未找到: ${containerId}`);
+            }
         }
-
-        this.searchPage = new SearchPage(searchPageContainer, this.apiClient);
-        this.indexProjectPage = new IndexProjectPage(indexProjectPageContainer, this.apiClient);
-        this.projectsPage = new ProjectsPage(projectsPageContainer, this.apiClient);
-        this.graphExplorerPage = new GraphExplorerPage(graphExplorerPageContainer);
-        this.graphAnalysisPage = new GraphAnalysisPage(graphAnalysisPageContainer);
-        this.graphManagementPage = new GraphManagementPage(graphManagementPageContainer);
-        this.qdrantCollectionViewPage = new QdrantCollectionViewPage(qdrantCollectionViewPageContainer, this.apiClient);
-
-        // 设置页面回调
-        this.indexProjectPage.setOnIndexComplete((_result) => {
-            // 索引创建完成后刷新项目列表
-            this.projectsPage.refresh();
-        });
     }
 
     /**
      * 设置路由
      */
     private setupRouter() {
-        router.onPageChange((pageId: PageId) => {
-            this.switchPage(pageId);
+        router.onPageChange(async (pageId: PageId) => {
+            await this.switchPage(pageId);
         });
     }
 
@@ -133,68 +212,83 @@ export class CodebaseSearchApp {
     /**
      * 处理导航按钮点击事件
      */
-    private handleNavigationClick = (e: Event) => {
+    private handleNavigationClick = async (e: Event) => {
         const target = e.target as HTMLElement;
         const pageId = target.getAttribute('data-page') as PageId;
 
         if (pageId) {
-            router.navigateTo(pageId);
+            await router.navigateTo(pageId);
         }
     }
 
     /**
      * 切换页面
      */
-    private switchPage(pageId: PageId) {
-        // 隐藏所有页面
-        this.searchPage.hide();
-        this.indexProjectPage.hide();
-        this.projectsPage.hide();
-        this.graphExplorerPage.hide();
-        this.graphAnalysisPage.hide();
-        this.graphManagementPage.hide();
-        this.qdrantCollectionViewPage.hide();
-
-        // 移除所有导航按钮的active类
-        document.querySelectorAll('.nav-button').forEach(button => {
-            button.classList.remove('active');
-        });
-
-        // 显示选中的页面
-        switch (pageId) {
-            case 'search':
-                this.searchPage.show();
-                break;
-            case 'index-project':
-                this.indexProjectPage.show();
-                break;
-            case 'projects':
-                this.projectsPage.show();
-                break;
-            case 'graph-explorer':
-                this.graphExplorerPage.show();
-                break;
-            case 'graph-analysis':
-                this.graphAnalysisPage.show();
-                break;
-            case 'graph-management':
-                this.graphManagementPage.show();
-                break;
-            case 'qdrant-view':
-                this.qdrantCollectionViewPage.show();
-                break;
-        }
-
-        // 高亮选中的导航按钮
-        // 使用延迟确保DOM元素已更新
-        setTimeout(() => {
-            const activeButton = document.querySelector(`[data-page="${pageId}"]`) as HTMLElement;
-            if (activeButton) {
-                activeButton.classList.add('active');
-            } else {
-                console.warn(`导航按钮未找到: [data-page="${pageId}"]`);
+    private async switchPage(pageId: PageId) {
+        try {
+            // 隐藏所有已加载的页面
+            for (const [id, pagePromise] of this.pageLoadPromises) {
+                try {
+                    const page = await pagePromise;
+                    if (page && typeof page.hide === 'function') {
+                        page.hide();
+                    }
+                } catch (error) {
+                    console.warn(`Failed to hide page ${id}:`, error);
+                }
             }
-        }, 0);
+
+            // 移除所有导航按钮的active类
+            document.querySelectorAll('.nav-button').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // 动态加载并显示选中的页面
+            const page = await this.loadPageComponent(pageId);
+            if (page && typeof page.show === 'function') {
+                page.show();
+            }
+
+            // 设置页面回调（仅对需要的页面）
+            if (pageId === 'index-project') {
+                page.setOnIndexComplete(async (_result: any) => {
+                    // 索引创建完成后刷新项目列表
+                    try {
+                        const projectsPage = await this.loadPageComponent('projects');
+                        if (projectsPage && typeof projectsPage.refresh === 'function') {
+                            projectsPage.refresh();
+                        }
+                    } catch (error) {
+                        console.error('Failed to refresh projects page:', error);
+                    }
+                });
+            }
+
+            // 高亮选中的导航按钮
+            // 使用延迟确保DOM元素已更新
+            setTimeout(() => {
+                const activeButton = document.querySelector(`[data-page="${pageId}"]`) as HTMLElement;
+                if (activeButton) {
+                    activeButton.classList.add('active');
+                } else {
+                    console.warn(`导航按钮未找到: [data-page="${pageId}"]`);
+                }
+            }, 0);
+        } catch (error) {
+            console.error(`Failed to switch to page ${pageId}:`, error);
+            this.showError(`页面加载失败: ${pageId}`);
+        }
+    }
+
+    /**
+     * 显示错误信息
+     */
+    private showError(message: string) {
+        const statusElement = document.getElementById('status');
+        if (statusElement) {
+            statusElement.textContent = `错误: ${message}`;
+            statusElement.style.color = '#ef4444';
+        }
     }
 
     /**
