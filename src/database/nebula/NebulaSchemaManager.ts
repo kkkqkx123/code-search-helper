@@ -189,16 +189,16 @@ export class NebulaSchemaManager implements INebulaSchemaManager {
 
       // 为常用字段创建索引
       for (const tag of tags) {
-        if (tag.properties.some(prop => prop.name === 'name')) {
+        if (tag.properties.some((prop: { name: string; }) => prop.name === 'name')) {
           await this.indexManager.createTagIndex(projectId, tag.name, 'name');
         }
-        if (tag.properties.some(prop => prop.name === 'projectId')) {
+        if (tag.properties.some((prop: { name: string; }) => prop.name === 'projectId')) {
           await this.indexManager.createTagIndex(projectId, tag.name, 'projectId');
         }
       }
 
       for (const edge of edges) {
-        if (edge.properties.some(prop => prop.name === 'projectId')) {
+        if (edge.properties.some((prop: { name: string; }) => prop.name === 'projectId')) {
           await this.indexManager.createEdgeIndex(projectId, edge.name, 'projectId');
         }
       }

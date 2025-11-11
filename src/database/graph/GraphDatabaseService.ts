@@ -6,8 +6,6 @@ import { ConfigService } from '../../config/ConfigService';
 import { NebulaService } from '../nebula/NebulaService';
 import { NebulaSpaceManager } from '../nebula/space/NebulaSpaceManager';
 import { GraphQueryBuilder } from '../nebula/query/GraphQueryBuilder';
-import { TransactionManager, TransactionOperation } from '../core/TransactionManager';
-import { TransactionResult } from '../core/TransactionManager';
 import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
@@ -35,7 +33,6 @@ export class GraphDatabaseService {
   private nebulaService: NebulaService;
   private spaceManager: NebulaSpaceManager;
   private queryBuilder: GraphQueryBuilder;
-  private transactionManager: TransactionManager;
   private batchOptimizer: BatchProcessingService;
   private cacheService: ICacheService;
   private logger: LoggerService;
@@ -66,7 +63,6 @@ export class GraphDatabaseService {
     this.nebulaService = nebulaService;
     this.spaceManager = spaceManager;
     this.queryBuilder = queryBuilder;
-    this.transactionManager = new TransactionManager(logger, errorHandler);
     this.batchOptimizer = batchOptimizer;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
@@ -248,80 +244,8 @@ export class GraphDatabaseService {
     }
   }
 
-  async executeTransaction(queries: GraphQuery[]): Promise<TransactionResult> {
-    if (!this.config.enableTransactions) {
-      throw new Error('Transactions are disabled in configuration');
-    }
 
-    const transactionId = await this.transactionManager.beginTransaction();
-
-    try {
-      // Add all queries to the transaction
-      for (const query of queries) {
-        await this.transactionManager.addOperation(transactionId, query);
-      }
-
-      // Execute the transaction
-      const result = await this.transactionManager.commitTransaction(
-        transactionId,
-        async (operations) => {
-          const startTime = Date.now();
-
-          try {
-            // Execute all operations in sequence
-            const results = [];
-            for (const operation of operations) {
-              const result = await this.nebulaService.executeWriteQuery(
-                operation.nGQL,
-                operation.parameters || {}
-              );
-              results.push(result);
-            }
-
-            const executionTime = Date.now() - startTime;
-            this.performanceMonitor.recordQueryExecution(executionTime);
-
-            return {
-              success: true,
-              results,
-              executionTime,
-            };
-          } catch (error) {
-            const executionTime = Date.now() - startTime;
-            this.performanceMonitor.recordQueryExecution(executionTime);
-
-            return {
-              success: false,
-              results: [],
-              error: error instanceof Error ? error.message : String(error),
-              executionTime,
-            };
-          }
-        }
-      );
-
-      // Invalidate cache on successful transaction
-      if (result.success && this.config.enableCaching) {
-        for (const query of queries) {
-          this.invalidateRelatedCache(query.nGQL);
-        }
-      }
-
-      return result;
-    } catch (error) {
-      // Rollback on error
-      await this.transactionManager.rollbackTransaction(transactionId);
-
-      return {
-        success: false,
-        results: [],
-        error: error instanceof Error ? error.message : String(error),
-        executionTime: 0,
-      };
-    }
-  }
-
-  async executeBatch(queries: GraphQuery[]): Promise<TransactionResult> {
+  async executeBatch(queries: GraphQuery[]): Promise<any> {
     const startTime = Date.now();
 
     // Calculate optimal batch size based on query count
@@ -332,18 +256,14 @@ export class GraphDatabaseService {
       const batchResults = await this.performanceOptimizer.processBatches(
         queries,
         async (batch: GraphQuery[]) => {
-          if (this.config.enableTransactions && batch.length > 1) {
-            return [await this.executeTransaction(batch)];
-          } else {
-            // Execute queries individually
-            const results = [];
-            for (const query of batch) {
-              const result = await this.executeWriteQuery(query.nGQL, query.parameters);
-              results.push(result);
-            }
-
-            return results;
+          // Execute queries individually since Nebula doesn't support transactions
+          const results = [];
+          for (const query of batch) {
+            const result = await this.executeWriteQuery(query.nGQL, query.parameters);
+            results.push(result);
           }
+
+          return results;
         },
         {
           batchSize: optimalBatchSize,
@@ -367,7 +287,10 @@ export class GraphDatabaseService {
       let errorMessage = "";
 
       for (const result of batchResults) {
-        if (result && typeof result === 'object') {
+        if (Array.isArray(result)) {
+          // It's an array of results from a batch
+          combinedResults.push(...result);
+        } else if (result && typeof result === 'object') {
           if (result.success !== undefined) {
             // It's a TransactionResult
             if (result.success) {

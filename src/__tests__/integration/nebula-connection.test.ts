@@ -35,7 +35,6 @@ describe('Nebula Connection Integration Test', () => {
     expect(nebulaService.findRelationships).toBeDefined();
     expect(nebulaService.executeReadQuery).toBeDefined();
     expect(nebulaService.executeWriteQuery).toBeDefined();
-    expect(nebulaService.executeTransaction).toBeDefined();
     expect(nebulaService.useSpace).toBeDefined();
     expect(nebulaService.createNode).toBeDefined();
     expect(nebulaService.createRelationship).toBeDefined();

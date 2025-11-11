@@ -12,10 +12,9 @@ import {
   NebulaNode,
   NebulaRelationship,
   NebulaSpaceInfo,
-  ProjectSpaceInfo,
-  NebulaEventType,
-  NebulaEvent
+  ProjectSpaceInfo
 } from '../../nebula/NebulaTypes';
+import { NebulaEventType } from '../../common/DatabaseEventTypes';
 
 // Mock 依赖项
 const mockDatabaseLoggerService = {
@@ -90,7 +89,7 @@ describe('NebulaProjectManager', () => {
   beforeEach(() => {
     // 重置所有mock对象的行为
     jest.clearAllMocks();
-    
+
     // 重新设置mock对象的默认行为
     mockNebulaSpaceManager.createSpace.mockResolvedValue(true);
     mockNebulaSpaceManager.deleteSpace.mockResolvedValue(true);
@@ -106,7 +105,7 @@ describe('NebulaProjectManager', () => {
     mockDataOperations.deleteRelationship.mockResolvedValue(true);
     mockDataOperations.search.mockResolvedValue([]);
     mockDataOperations.getDataById.mockResolvedValue(null);
-    
+
     // 添加缺少的ProjectIdManager相关方法的默认设置
     mockProjectIdManager.generateProjectId.mockResolvedValue('default-project-id');
     mockProjectIdManager.getProjectId.mockResolvedValue('default-project-id');
@@ -141,19 +140,19 @@ describe('NebulaProjectManager', () => {
       const projectPath = '/test/project';
       const projectId = 'test-project-id';
       const spaceName = 'project_test_project_id';
-  
+
       // 清除之前的mock设置
       mockProjectIdManager.generateProjectId.mockClear();
       mockProjectIdManager.getSpaceName.mockClear();
       mockNebulaSpaceManager.createSpace.mockClear();
-      
+
       // 设置测试特定的mock行为
       mockProjectIdManager.generateProjectId.mockResolvedValue(projectId);
       mockProjectIdManager.getSpaceName.mockReturnValue(spaceName);
       mockNebulaSpaceManager.createSpace.mockResolvedValue(true);
-  
+
       const result = await nebulaProjectManager.createSpaceForProject(projectPath);
-  
+
       expect(result).toBe(true);
       expect(mockProjectIdManager.generateProjectId).toHaveBeenCalledWith(projectPath);
       expect(mockNebulaSpaceManager.createSpace).toHaveBeenCalledWith(projectId, undefined);
@@ -203,14 +202,14 @@ describe('NebulaProjectManager', () => {
       const projectPath = '/test/project';
       const projectId = 'test-project-id';
       const spaceName = 'project_test_project_id';
-  
+
       // 设置测试特定的mock行为
       mockProjectIdManager.getProjectId.mockResolvedValue(projectId);
       mockProjectIdManager.getSpaceName.mockReturnValue(spaceName);
       mockNebulaSpaceManager.deleteSpace.mockResolvedValue(true);
-  
+
       const result = await nebulaProjectManager.deleteSpaceForProject(projectPath);
-  
+
       expect(result).toBe(true);
       expect(mockProjectIdManager.removeProject).toHaveBeenCalledWith(projectPath);
     });
@@ -409,14 +408,14 @@ describe('NebulaProjectManager', () => {
           properties: { prop1: 'value1' }
         }
       ];
-  
+
       // 设置测试特定的mock行为
       mockProjectIdManager.getProjectId.mockResolvedValue(projectId);
       mockProjectIdManager.getSpaceName.mockReturnValue(spaceName);
       mockDataOperations.insertNodes.mockResolvedValue(true);
-  
+
       const result = await nebulaProjectManager.insertNodesForProject(projectPath, nodes);
-  
+
       expect(result).toBe(true);
       expect(mockDataOperations.insertNodes).toHaveBeenCalledWith(projectId, spaceName, nodes);
     });
@@ -707,7 +706,7 @@ describe('NebulaProjectManager', () => {
         .mockResolvedValueOnce({}) // USE space query
         .mockResolvedValueOnce({ data: [{ id: nodeId }] }) // MATCH node query
         .mockResolvedValueOnce({}); // UPDATE query
-      
+
       const result = await nebulaProjectManager.updateProjectData(projectPath, nodeId, data);
 
       expect(result).toBe(true);
@@ -730,7 +729,7 @@ describe('NebulaProjectManager', () => {
         .mockResolvedValueOnce({ data: [] }) // MATCH node query (empty for relationship)
         .mockResolvedValueOnce({ data: [{ id: relId }] }) // MATCH relationship query
         .mockResolvedValueOnce({}); // UPDATE query
-      
+
       const result = await nebulaProjectManager.updateProjectData(projectPath, relId, data);
 
       expect(result).toBe(true);
@@ -756,7 +755,7 @@ describe('NebulaProjectManager', () => {
         .mockResolvedValueOnce({}) // USE space query
         .mockResolvedValueOnce({ data: [{ id: nodeId }] }) // MATCH node query
         .mockResolvedValueOnce({}); // DELETE query
-      
+
       const result = await nebulaProjectManager.deleteProjectData(projectPath, nodeId);
 
       expect(result).toBe(true);
@@ -778,7 +777,7 @@ describe('NebulaProjectManager', () => {
         .mockResolvedValueOnce({ data: [] }) // MATCH node query (empty for relationship)
         .mockResolvedValueOnce({ data: [{ id: relId }] }) // MATCH relationship query
         .mockResolvedValueOnce({}); // DELETE query
-      
+
       const result = await nebulaProjectManager.deleteProjectData(projectPath, relId);
 
       expect(result).toBe(true);
@@ -799,7 +798,7 @@ describe('NebulaProjectManager', () => {
       const spaceName = 'project_test_project_id';
       mockProjectIdManager.getProjectId.mockResolvedValue(projectId);
       mockProjectIdManager.getSpaceName.mockReturnValue(spaceName);
-      
+
       // Mock search operation
       mockDataOperations.search.mockResolvedValue([]);
 
@@ -818,7 +817,7 @@ describe('NebulaProjectManager', () => {
       const spaceName = 'project_test_project_id';
       mockProjectIdManager.getProjectId.mockResolvedValue(projectId);
       mockProjectIdManager.getSpaceName.mockReturnValue(spaceName);
-      
+
       // Mock search operation
       mockDataOperations.search.mockResolvedValue([]);
 
@@ -843,7 +842,7 @@ describe('NebulaProjectManager', () => {
       const spaceName = 'project_test_project_id';
       mockProjectIdManager.getProjectId.mockResolvedValue(projectId);
       mockProjectIdManager.getSpaceName.mockReturnValue(spaceName);
-      
+
       // Mock getDataById operation
       mockDataOperations.getDataById.mockResolvedValue(mockNodeData);
 
@@ -863,7 +862,7 @@ describe('NebulaProjectManager', () => {
       const spaceName = 'project_test_project_id';
       mockProjectIdManager.getProjectId.mockResolvedValue(projectId);
       mockProjectIdManager.getSpaceName.mockReturnValue(spaceName);
-      
+
       // Mock getDataById operation for relationship
       mockDataOperations.getDataById.mockResolvedValue(mockRelData);
 
@@ -882,7 +881,7 @@ describe('NebulaProjectManager', () => {
       const spaceName = 'project_test_project_id';
       mockProjectIdManager.getProjectId.mockResolvedValue(projectId);
       mockProjectIdManager.getSpaceName.mockReturnValue(spaceName);
-      
+
       // Mock getDataById operation returning null
       mockDataOperations.getDataById.mockResolvedValue(null);
 

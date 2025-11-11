@@ -32,7 +32,6 @@ class DependencyInjectionChecker {
     // 检查关键服务
     const criticalServices = [
       { name: 'NebulaService', symbol: TYPES.INebulaService },
-      { name: 'NebulaTransactionService', symbol: TYPES.INebulaTransactionService },
       { name: 'NebulaBatchService', symbol: TYPES.INebulaBatchService },
       { name: 'NebulaFileDataService', symbol: TYPES.INebulaFileDataService },
       { name: 'NebulaQueryService', symbol: TYPES.INebulaQueryService },
@@ -118,7 +117,6 @@ class DependencyInjectionChecker {
 
     const testServices = [
       { name: 'NebulaService', symbol: TYPES.INebulaService },
-      { name: 'NebulaTransactionService', symbol: TYPES.INebulaTransactionService },
       { name: 'NebulaBatchService', symbol: TYPES.INebulaBatchService },
       { name: 'NebulaFileDataService', symbol: TYPES.INebulaFileDataService },
     ];

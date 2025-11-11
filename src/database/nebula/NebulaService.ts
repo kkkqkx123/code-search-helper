@@ -11,11 +11,10 @@ import { NebulaSpaceService } from './space/NebulaSpaceService';
 import {
   NebulaNode,
   NebulaRelationship,
-  NebulaEventType,
-  NebulaEvent,
   ProjectSpaceInfo,
   NebulaSpaceInfo
 } from './NebulaTypes';
+import { NebulaEventType, NebulaEvent } from '../common/DatabaseEventTypes';
 import { BaseDatabaseService } from '../common/BaseDatabaseService';
 import { IDatabaseService, IConnectionManager, IProjectManager } from '../common/IDatabaseService';
 import { DatabaseEventType, NebulaEventType as UnifiedNebulaEventType } from '../common/DatabaseEventTypes';
@@ -25,7 +24,6 @@ import { INebulaQueryService } from './query/NebulaQueryService';
 import { INebulaDataOperations } from './operation/NebulaDataOperations';
 import { INebulaSchemaManager } from './NebulaSchemaManager';
 import { INebulaIndexManager } from './NebulaIndexManager';
-import { INebulaTransactionService } from './transaction/NebulaTransactionService';
 import { INebulaBatchService } from './batch/NebulaBatchService';
 import { INebulaFileDataService } from './file/NebulaFileDataService';
 import { ProjectIdManager } from '../ProjectIdManager';
@@ -54,7 +52,6 @@ export interface INebulaService {
   // 兼容性方法（保持向后兼容）
   executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any>;
   executeWriteQuery(nGQL: string, parameters?: Record<string, any>): Promise<any>;
-  executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<any[]>;
   useSpace(spaceName: string): Promise<void>;
   createNode(label: string, properties: Record<string, any>): Promise<string>;
   createRelationship(
@@ -67,7 +64,7 @@ export interface INebulaService {
   getDatabaseStats(): Promise<any>;
 
   // 事件处理
-  subscribe(type: NebulaEventType | string, listener: (event: any) => void): Subscription;
+  subscribe(type: string, listener: (event: any) => void): Subscription;
 }
 
 @injectable()
@@ -89,7 +86,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
   private dataOperations: INebulaDataOperations;
   private schemaManager: INebulaSchemaManager;
   private indexManager: INebulaIndexManager;
-  private transactionService: INebulaTransactionService;
   private batchService: INebulaBatchService;
   private fileDataService: INebulaFileDataService;
   private projectIdManager: ProjectIdManager;
@@ -108,7 +104,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     @inject(TYPES.NebulaDataOperations) dataOperations: INebulaDataOperations,
     @inject(TYPES.NebulaSchemaManager) schemaManager: INebulaSchemaManager,
     @inject(TYPES.NebulaIndexManager) indexManager: INebulaIndexManager,
-    @inject(TYPES.NebulaTransactionService) transactionService: INebulaTransactionService,
     @inject(TYPES.NebulaBatchService) batchService: INebulaBatchService,
     @inject(TYPES.NebulaFileDataService) fileDataService: INebulaFileDataService,
     @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager
@@ -132,7 +127,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     this.dataOperations = dataOperations;
     this.schemaManager = schemaManager;
     this.indexManager = indexManager;
-    this.transactionService = transactionService;
     this.batchService = batchService;
     this.fileDataService = fileDataService;
     this.projectIdManager = projectIdManager;
@@ -415,54 +409,6 @@ export class NebulaService extends BaseDatabaseService implements INebulaService
     }
   }
 
-  async executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<any[]> {
-    if (!this.initialized) {
-      // 如果服务从未成功初始化过，不尝试重新连接
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        throw new Error('Nebula service is not initialized and reconnection attempts exhausted');
-      }
-
-      // 尝试重新连接
-      const reconnected = await this.reconnect();
-      if (!reconnected) {
-        throw new Error('Nebula service is not initialized and reconnection failed');
-      }
-    }
-
-    try {
-      // 使用新的 NebulaTransactionService
-      const results = await this.transactionService.executeTransaction(queries);
-      return results;
-    } catch (error) {
-      // 检查是否是连接错误，如果是则尝试重连
-      if (error instanceof Error && (error.message.includes('connect') || error.message.includes('connection'))) {
-        // 使用 DatabaseLoggerService 记录连接错误事件
-        await this.databaseLogger.logDatabaseEvent({
-          type: DatabaseEventType.CONNECTION_ERROR,
-          source: 'nebula',
-          timestamp: new Date(),
-          data: { message: 'Connection error detected in transaction, attempting to reconnect...' }
-        });
-        const reconnected = await this.reconnect();
-        if (reconnected) {
-          // 重连成功后重新执行事务
-          try {
-            const retryResults = await this.transactionService.executeTransaction(queries);
-            return retryResults;
-          } catch (retryError) {
-            // 如果重试事务也失败，抛出错误而不继续重试
-            throw new Error('Reconnection successful but transaction execution failed: ' + (retryError instanceof Error ? retryError.message : String(retryError)));
-          }
-        } else {
-          // 如果重连失败，抛出错误而不继续重连
-          throw new Error('Connection error and reconnection failed: ' + error.message);
-        }
-      }
-
-      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
-  }
 
   async useSpace(spaceName: string): Promise<void> {
     if (!this.initialized) {

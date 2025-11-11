@@ -6,7 +6,6 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { LRUCache } from '../../../utils/cache/LRUCache';
-import { NebulaQueryResult } from '../NebulaTypes';
 import { IConnectionPool, ConnectionPoolStats } from '../connection/ConnectionPool';
 import { Session, SessionState } from './Session';
 import { SessionPool, SessionPoolStats } from './SessionPool';
@@ -50,14 +49,14 @@ export interface ISessionManager {
   getSession(spaceName?: string): Promise<Session>;
   releaseSession(session: Session): void;
   invalidateSession(sessionId: string): void;
-  
+
   // 会话池管理
   startSessionCleanup(): void;
   stopSessionCleanup(): void;
-  
+
   // 空间管理
   switchSpace(session: Session, spaceName: string): Promise<void>;
-  
+
   // 状态监控
   getSessionStats(): SessionManagerStats;
 }
@@ -73,13 +72,13 @@ export class SessionManager extends EventEmitter implements ISessionManager {
   private configService: NebulaConfigService;
   private performanceMonitor: PerformanceMonitor;
   private config: SessionManagerConfig;
-  
+
   private connectionPool: IConnectionPool;
   private sessionPools: Map<string, SessionPool> = new Map();
   private spaceSessionCache: LRUCache<string, Session>;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private isInitialized: boolean = false;
-  
+
   // 统计信息
   private stats: SessionManagerStats = {
     totalSessions: 0,
@@ -109,7 +108,7 @@ export class SessionManager extends EventEmitter implements ISessionManager {
     this.performanceMonitor = performanceMonitor;
     this.connectionPool = connectionPool;
     this.config = { ...DEFAULT_SESSION_MANAGER_CONFIG };
-    
+
     // 初始化空间-会话缓存
     this.spaceSessionCache = new LRUCache<string, Session>(this.config.spaceCacheSize, {
       enableStats: true
@@ -134,7 +133,7 @@ export class SessionManager extends EventEmitter implements ISessionManager {
 
       // 启动会话清理任务
       this.startSessionCleanup();
-      
+
       this.isInitialized = true;
       this.emit('initialized');
       this.logger.info('Session manager initialized successfully');
@@ -180,14 +179,17 @@ export class SessionManager extends EventEmitter implements ISessionManager {
       }
 
       const acquireTime = Date.now() - startTime;
-      this.performanceMonitor.recordOperation('session_acquire', acquireTime, {
-        spaceName,
-        cacheHit: !!spaceName && this.stats.cacheHits > this.stats.cacheMisses
+      this.performanceMonitor.endOperation('session_acquire', {
+        duration: acquireTime,
+        metadata: {
+          spaceName,
+          cacheHit: !!spaceName && this.stats.cacheHits > this.stats.cacheMisses
+        }
       });
 
-      this.emit('sessionAcquired', { 
-        sessionId: session.getId(), 
-        spaceName: session.getSpaceName() 
+      this.emit('sessionAcquired', {
+        sessionId: session.getId(),
+        spaceName: session.getSpaceName()
       });
 
       return session;
@@ -210,7 +212,7 @@ export class SessionManager extends EventEmitter implements ISessionManager {
 
     try {
       const spaceName = session.getSpaceName();
-      
+
       // 如果会话属于某个空间，释放回对应的会话池
       if (spaceName) {
         const sessionPool = this.sessionPools.get(spaceName);
@@ -226,10 +228,10 @@ export class SessionManager extends EventEmitter implements ISessionManager {
       }
 
       this.stats.totalReleases++;
-      
-      this.emit('sessionReleased', { 
-        sessionId: session.getId(), 
-        spaceName 
+
+      this.emit('sessionReleased', {
+        sessionId: session.getId(),
+        spaceName
       });
     } catch (error) {
       this.errorHandler.handleError(
@@ -249,7 +251,9 @@ export class SessionManager extends EventEmitter implements ISessionManager {
 
     try {
       // 从缓存中移除
-      for (const [spaceName, session] of this.spaceSessionCache.entries()) {
+      for (const spaceName of this.spaceSessionCache.keys()) {
+        const session = this.spaceSessionCache.get(spaceName);
+        if (!session) continue;
         if (session.getId() === sessionId) {
           this.spaceSessionCache.delete(spaceName);
           break;
@@ -280,7 +284,7 @@ export class SessionManager extends EventEmitter implements ISessionManager {
 
     try {
       const oldSpaceName = session.getSpaceName();
-      
+
       // 从旧空间的缓存中移除
       if (oldSpaceName) {
         this.spaceSessionCache.delete(oldSpaceName);
@@ -288,23 +292,23 @@ export class SessionManager extends EventEmitter implements ISessionManager {
 
       // 切换空间
       await session.switchSpace(spaceName);
-      
+
       // 添加到新空间的缓存
       this.spaceSessionCache.set(spaceName, session);
-      
-      this.emit('sessionSpaceSwitched', { 
-        sessionId: session.getId(), 
-        oldSpaceName, 
-        newSpaceName: spaceName 
+
+      this.emit('sessionSpaceSwitched', {
+        sessionId: session.getId(),
+        oldSpaceName,
+        newSpaceName: spaceName
       });
     } catch (error) {
       this.errorHandler.handleError(
         error instanceof Error ? error : new Error('Failed to switch session space'),
-        { 
-          component: 'SessionManager', 
-          operation: 'switchSpace', 
-          sessionId: session.getId(), 
-          spaceName 
+        {
+          component: 'SessionManager',
+          operation: 'switchSpace',
+          sessionId: session.getId(),
+          spaceName
         }
       );
       throw error;
@@ -354,7 +358,7 @@ export class SessionManager extends EventEmitter implements ISessionManager {
    */
   getSessionStats(): SessionManagerStats {
     this.updateStats();
-    
+
     // 获取缓存统计
     const cacheStats = this.spaceSessionCache.getStats();
     if (cacheStats) {
@@ -379,18 +383,18 @@ export class SessionManager extends EventEmitter implements ISessionManager {
     this.stopSessionCleanup();
 
     // 关闭所有会话池
-    const closePromises = Array.from(this.sessionPools.values()).map(pool => 
+    const closePromises = Array.from(this.sessionPools.values()).map(pool =>
       pool.close().catch(error => {
         this.logger.error('Error closing session pool', { error });
       })
     );
 
     await Promise.allSettled(closePromises);
-    
+
     this.sessionPools.clear();
     this.spaceSessionCache.clear();
     this.isInitialized = false;
-    
+
     this.emit('closed');
     this.logger.info('Session manager closed');
   }
@@ -400,11 +404,11 @@ export class SessionManager extends EventEmitter implements ISessionManager {
    */
   private async createSessionForSpace(spaceName: string): Promise<Session> {
     let sessionPool = this.sessionPools.get(spaceName);
-    
+
     if (!sessionPool) {
       // 获取连接
       const connection = await this.connectionPool.getConnection();
-      
+
       // 创建会话池
       sessionPool = new SessionPool(connection, {
         maxSessionsPerConnection: Math.floor(this.config.maxSessions / 10), // 每个连接最多10个会话
@@ -415,10 +419,10 @@ export class SessionManager extends EventEmitter implements ISessionManager {
 
       // 设置会话池事件监听
       this.setupSessionPoolEvents(sessionPool, spaceName);
-      
+
       this.sessionPools.set(spaceName, sessionPool);
       this.stats.spaceCount++;
-      
+
       this.emit('sessionPoolCreated', { spaceName });
     }
 
@@ -430,11 +434,11 @@ export class SessionManager extends EventEmitter implements ISessionManager {
    */
   private async createGenericSession(): Promise<Session> {
     let sessionPool = this.sessionPools.get('default');
-    
+
     if (!sessionPool) {
       // 获取连接
       const connection = await this.connectionPool.getConnection();
-      
+
       // 创建默认会话池
       sessionPool = new SessionPool(connection, {
         maxSessionsPerConnection: Math.floor(this.config.maxSessions / 10),
@@ -445,9 +449,9 @@ export class SessionManager extends EventEmitter implements ISessionManager {
 
       // 设置会话池事件监听
       this.setupSessionPoolEvents(sessionPool, 'default');
-      
+
       this.sessionPools.set('default', sessionPool);
-      
+
       this.emit('sessionPoolCreated', { spaceName: 'default' });
     }
 
@@ -460,10 +464,10 @@ export class SessionManager extends EventEmitter implements ISessionManager {
   private async performSessionCleanup(): Promise<void> {
     // 清理过期的缓存条目
     this.spaceSessionCache.cleanup();
-    
+
     // 更新统计信息
     this.updateStats();
-    
+
     this.emit('cleanupCompleted');
   }
 
@@ -500,7 +504,7 @@ export class SessionManager extends EventEmitter implements ISessionManager {
       const poolStats = sessionPool.getPoolStats();
       this.stats.activeSessions += poolStats.activeSessions;
       this.stats.idleSessions += poolStats.idleSessions;
-      
+
       this.stats.sessionPoolStats.push({
         ...poolStats,
         spaceName
@@ -514,30 +518,40 @@ export class SessionManager extends EventEmitter implements ISessionManager {
     if (this.stats.totalSessions > 0) {
       let totalAge = 0;
       let sessionCount = 0;
-      
+
       for (const sessionPool of this.sessionPools.values()) {
         const poolStats = sessionPool.getPoolStats();
         totalAge += poolStats.averageSessionAge * (poolStats.totalSessions || 0);
         sessionCount += poolStats.totalSessions || 0;
       }
-      
+
       if (sessionCount > 0) {
         this.stats.averageSessionAge = totalAge / sessionCount;
       }
     }
-    
+
     // 记录会话管理器性能指标
-    this.performanceMonitor.recordOperation('session_manager_stats', 0, {
-      totalSessions: this.stats.totalSessions,
-      activeSessions: this.stats.activeSessions,
-      idleSessions: this.stats.idleSessions,
-      spaceCount: this.stats.spaceCount,
-      totalAcquires: this.stats.totalAcquires,
-      totalReleases: this.stats.totalReleases,
-      cacheHits: this.stats.cacheHits,
-      cacheMisses: this.stats.cacheMisses,
-      averageSessionAge: this.stats.averageSessionAge,
-      spaceNames: this.getSpaceNames()
+    this.performanceMonitor.endOperation('session_manager_stats', {
+      duration: 0,
+      metadata: {
+        totalSessions: this.stats.totalSessions,
+        activeSessions: this.stats.activeSessions,
+        idleSessions: this.stats.idleSessions,
+        spaceCount: this.stats.spaceCount,
+        totalAcquires: this.stats.totalAcquires,
+        totalReleases: this.stats.totalReleases,
+        cacheHits: this.stats.cacheHits,
+        cacheMisses: this.stats.cacheMisses,
+        averageSessionAge: this.stats.averageSessionAge,
+        spaceNames: this.getSpaceNames()
+      }
     });
+  }
+
+  /**
+   * 获取所有空间名称
+   */
+  private getSpaceNames(): string[] {
+    return Array.from(this.sessionPools.keys());
   }
 }

@@ -24,7 +24,7 @@
 - Gemini API
 - Mistral AI
 - SiliconFlow
-- 自定义嵌入器
+- 自定义嵌入器(包括语意相似度计算专用配置，用于配置小型嵌入模型)
 
 ## 🚀 快速开始
 

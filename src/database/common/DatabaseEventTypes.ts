@@ -130,6 +130,16 @@ export interface DatabaseEvent {
 }
 
 /**
+ * Nebula特定的事件接口
+ */
+export interface NebulaEvent {
+  type: NebulaEventType | DatabaseEventType;
+  timestamp: Date;
+  data?: any;
+  error?: Error;
+}
+
+/**
  * 事件监听器接口
  *
  * 这是一个泛型接口，允许指定事件数据的具体类型以增强类型安全性。

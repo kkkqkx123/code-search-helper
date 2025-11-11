@@ -8,7 +8,6 @@ import { PerformanceMonitor } from '../../../infrastructure/monitoring/Performan
 import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult } from '../NebulaTypes';
 import { EventListener } from '../../../types';
 import { IQueryRunner } from '../query/QueryRunner';
-import { ITransactionManager, ITransaction } from '../transaction/TransactionManager';
 
 // 查询批次接口
 export interface QueryBatch {
@@ -16,13 +15,6 @@ export interface QueryBatch {
   params?: Record<string, any>;
 }
 
-// 事务接口
-export interface ITransaction {
-  id: string;
-  execute(query: string, params?: Record<string, any>): Promise<NebulaQueryResult>;
-  commit(): Promise<void>;
-  rollback(): Promise<void>;
-}
 
 // 查询选项接口
 export interface QueryOptions {
@@ -38,12 +30,19 @@ export interface INebulaClient {
   disconnect(): Promise<void>;
   isConnected(): boolean;
   
+  // 初始化
+  initialize(config: NebulaConfig): Promise<void>;
+  
   // 查询执行
   execute(query: string, params?: Record<string, any>, options?: QueryOptions): Promise<NebulaQueryResult>;
+  executeQuery(query: string, params?: Record<string, any>, options?: QueryOptions): Promise<NebulaQueryResult>;
   executeBatch(queries: QueryBatch[]): Promise<NebulaQueryResult[]>;
   
-  // 事务管理
-  beginTransaction(): Promise<ITransaction>;
+  // 统计信息
+  getStats(): any;
+  
+  // 关闭
+  close(): Promise<void>;
   
   // 配置管理（复用现有服务）
   updateConfig(config: Partial<NebulaConfig>): void;
@@ -66,10 +65,11 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
   private configService: NebulaConfigService;
   private performanceMonitor: PerformanceMonitor;
   private queryRunner: IQueryRunner;
-  private transactionManager: ITransactionManager;
   private config: NebulaConfig;
   private connectionStatus: NebulaConnectionStatus;
   private isConnectedFlag: boolean = false;
+  private connectionPool: any;
+  private sessionManager: any;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -77,7 +77,8 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     @inject(TYPES.NebulaConfigService) configService: NebulaConfigService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.IQueryRunner) queryRunner: IQueryRunner,
-    @inject(TYPES.ITransactionManager) transactionManager: ITransactionManager
+    @inject(TYPES.IConnectionPool) connectionPool: any,
+    @inject(TYPES.ISessionManager) sessionManager: any
   ) {
     super();
     this.logger = logger;
@@ -85,7 +86,8 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     this.configService = configService;
     this.performanceMonitor = performanceMonitor;
     this.queryRunner = queryRunner;
-    this.transactionManager = transactionManager;
+    this.connectionPool = connectionPool;
+    this.sessionManager = sessionManager;
     
     // 加载配置
     this.config = this.configService.loadConfig();
@@ -284,26 +286,6 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     }
   }
 
-  /**
-   * 开始事务
-   */
-  async beginTransaction(): Promise<ITransaction> {
-    if (!this.isConnectedFlag) {
-      throw new Error('Not connected to Nebula Graph');
-    }
-
-    try {
-      const transaction = await this.transactionManager.beginTransaction();
-      this.emit('transactionBegan', { transaction });
-      return transaction;
-    } catch (error) {
-      this.errorHandler.handleError(
-        error instanceof Error ? error : new Error('Failed to begin transaction'),
-        { component: 'NebulaClient', operation: 'beginTransaction' }
-      );
-      throw error;
-    }
-  }
 
   /**
    * 更新配置
@@ -331,5 +313,82 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
    */
   getConnectionStatus(): NebulaConnectionStatus {
     return { ...this.connectionStatus };
+  }
+
+  /**
+   * 初始化客户端
+   */
+  async initialize(config: NebulaConfig): Promise<void> {
+    try {
+      this.logger.info('Initializing NebulaClient', config);
+      
+      // 更新配置
+      this.config = { ...this.config, ...config };
+      this.connectionStatus.host = this.config.host;
+      this.connectionStatus.port = this.config.port;
+      this.connectionStatus.username = this.config.username;
+      this.connectionStatus.space = this.config.space;
+
+      // 初始化连接池和会话管理器
+      await this.connectionPool.initialize(config);
+      await this.sessionManager.initialize(config);
+
+      this.logger.info('NebulaClient initialized successfully');
+    } catch (error) {
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error('Failed to initialize NebulaClient'),
+        { component: 'NebulaClient', operation: 'initialize' }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 执行查询（别名方法）
+   */
+  async executeQuery(
+    query: string,
+    params?: Record<string, any>,
+    options?: QueryOptions
+  ): Promise<NebulaQueryResult> {
+    return this.execute(query, params, options);
+  }
+
+  /**
+   * 获取统计信息
+   */
+  getStats(): any {
+    return {
+      connectionPool: this.connectionPool?.getStats?.() || {},
+      sessionManager: this.sessionManager?.getStats?.() || {},
+      queryRunner: this.queryRunner?.getStats?.() || {},
+      transactionManager: {} // 如果有事务管理器的话
+    };
+  }
+
+  /**
+   * 关闭客户端
+   */
+  async close(): Promise<void> {
+    try {
+      this.logger.info('Closing NebulaClient');
+      
+      // 关闭会话管理器
+      await this.sessionManager.close();
+      
+      // 关闭连接池
+      await this.connectionPool.close();
+      
+      // 断开连接
+      await this.disconnect();
+      
+      this.logger.info('NebulaClient closed successfully');
+    } catch (error) {
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error('Failed to close NebulaClient'),
+        { component: 'NebulaClient', operation: 'close' }
+      );
+      throw error;
+    }
   }
 }

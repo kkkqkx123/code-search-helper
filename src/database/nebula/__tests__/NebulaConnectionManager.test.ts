@@ -27,6 +27,7 @@ import { EmbeddingBatchConfigService } from '../../../config/service/EmbeddingBa
 import { NebulaEventManager } from '../NebulaEventManager';
 import { NebulaQueryService } from '../query/NebulaQueryService';
 import { PerformanceMonitor } from '../../common/PerformanceMonitor';
+import { GraphConfigService } from '../../../config/service/GraphConfigService';
 
 // Mock services to avoid real instances with timers and event listeners
 jest.mock('../../../utils/LoggerService');
@@ -45,9 +46,7 @@ const mockClient = {
   removeListener: jest.fn(),
 };
 
-jest.mock('@nebula-contrib/nebula-nodejs', () => ({
-  createClient: () => mockClient,
-}));
+// 移除对@nebula-contrib/nebula-nodejs的模拟，使用项目原生客户端
 
 // Define mock services at module level to make them accessible across all test blocks
 let mockLoggerService: any;
@@ -155,22 +154,61 @@ describe('NebulaConnectionManager Refactored', () => {
 
     // 创建NebulaQueryService实例，需要INebulaConnectionManager作为依赖
     // 使用类型断言来绕过编译时检查，因为在运行时我们会设置正确的引用
+    const mockQueryRunner = {
+      execute: jest.fn(),
+      executeBatch: jest.fn(),
+      getCachedResult: jest.fn(),
+      setCachedResult: jest.fn(),
+      recordQueryMetrics: jest.fn(),
+      getStats: jest.fn().mockReturnValue({
+        totalQueries: 0,
+        successfulQueries: 0,
+        failedQueries: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+        averageExecutionTime: 0,
+        totalExecutionTime: 0,
+        queriesByType: {}
+      })
+    };
+
     const queryService = new NebulaQueryService(
       databaseLogger,
       errorHandler,
       performanceMonitor,
       nebulaConfigService,
-      undefined as any // 连接管理器将在之后设置
+      undefined as any, // 连接管理器将在之后设置
+      mockQueryRunner as any // queryRunner参数
     );
 
+
+    // 创建QueryRunner实例
+    const mockQueryRunner1 = {
+      execute: jest.fn(),
+      executeBatch: jest.fn(),
+      getCachedResult: jest.fn(),
+      setCachedResult: jest.fn(),
+      recordQueryMetrics: jest.fn(),
+      getStats: jest.fn().mockReturnValue({
+        totalQueries: 0,
+        successfulQueries: 0,
+        failedQueries: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+        averageExecutionTime: 0,
+        totalExecutionTime: 0,
+        queriesByType: {}
+      })
+    };
 
     // 现在创建NebulaConnectionManager实例
     connectionManager = new NebulaConnectionManager(
       databaseLogger,
       errorHandler,
       nebulaConfigService,
-      container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
-      new NebulaEventManager(configService)
+      container.get<GraphConfigService>(TYPES.GraphConfigService),
+      new NebulaEventManager(configService),
+      mockQueryRunner1 as any
     );
 
     // 设置connectionManager的引用到queryService中
@@ -699,6 +737,7 @@ describe('NebulaDataService', () => {
     container.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockNebulaConfigService as any);
 
     container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
+    container.bind<GraphConfigService>(TYPES.GraphConfigService).to(GraphConfigService).inSingletonScope();
 
     // Mock private methods to avoid real connection attempts
     jest.spyOn(NebulaConnectionManager.prototype as any, 'waitForClientConnection').mockResolvedValue(undefined);
@@ -715,13 +754,33 @@ describe('NebulaDataService', () => {
       executeTransaction: jest.fn()
     };
 
+    // Create mock query runner
+    const mockQueryRunner = {
+      execute: jest.fn(),
+      executeBatch: jest.fn(),
+      getCachedResult: jest.fn(),
+      setCachedResult: jest.fn(),
+      recordQueryMetrics: jest.fn(),
+      getStats: jest.fn().mockReturnValue({
+        totalQueries: 0,
+        successfulQueries: 0,
+        failedQueries: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+        averageExecutionTime: 0,
+        totalExecutionTime: 0,
+        queriesByType: {}
+      })
+    };
+
     // Create query service with mock connection manager
     const queryService = new NebulaQueryService(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
-      mockConnectionManager as any
+      mockConnectionManager as any,
+      mockQueryRunner as any
     );
 
 
@@ -729,8 +788,9 @@ describe('NebulaDataService', () => {
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
-      container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
-      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService))
+      container.get<GraphConfigService>(TYPES.GraphConfigService),
+      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService)),
+      mockQueryRunner as any
     );
 
     // Update the query service to reference the actual connection manager
@@ -882,22 +942,42 @@ describe('NebulaSpaceService', () => {
       executeTransaction: jest.fn()
     };
 
+    // Create mock query runner
+    const mockQueryRunner2 = {
+      execute: jest.fn(),
+      executeBatch: jest.fn(),
+      getCachedResult: jest.fn(),
+      setCachedResult: jest.fn(),
+      recordQueryMetrics: jest.fn(),
+      getStats: jest.fn().mockReturnValue({
+        totalQueries: 0,
+        successfulQueries: 0,
+        failedQueries: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+        averageExecutionTime: 0,
+        totalExecutionTime: 0,
+        queriesByType: {}
+      })
+    };
+
     // Create query service with mock connection manager
     const queryService = new NebulaQueryService(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<PerformanceMonitor>(TYPES.PerformanceMonitor),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
-      mockConnectionManager as any
+      mockConnectionManager as any,
+      mockQueryRunner2 as any
     );
-
 
     const connectionManager = new NebulaConnectionManager(
       container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
       container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
       container.get<NebulaConfigService>(TYPES.NebulaConfigService),
-      container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
-      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService))
+      container.get<GraphConfigService>(TYPES.GraphConfigService),
+      new NebulaEventManager(container.get<ConfigService>(TYPES.ConfigService)),
+      mockQueryRunner2 as any
     );
 
     // Update the query service to reference the actual connection manager

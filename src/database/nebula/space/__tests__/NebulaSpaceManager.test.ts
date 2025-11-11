@@ -1,6 +1,6 @@
 import { Container } from 'inversify';
 import { TYPES } from '../../../../types';
-import { NebulaSpaceManager, INebulaSpaceManager } from '../../space/NebulaSpaceManager';
+import { NebulaSpaceManager, INebulaSpaceManager } from '../NebulaSpaceManager';
 import { DatabaseLoggerService } from '../../../common/DatabaseLoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../../config/ConfigService';
@@ -385,8 +385,8 @@ describe('NebulaSpaceManager', () => {
 
       // Setup mocks
       mockSpaceNameUtils.generateSpaceName.mockReturnValue(spaceName);
-      mockNebulaConnection.executeQuery.mockResolvedValue({ 
-        data: [mockSpaceInfo] 
+      mockNebulaConnection.executeQuery.mockResolvedValue({
+        data: [mockSpaceInfo]
       } as any);
 
       const result = await spaceManager.getSpaceInfo(projectId);

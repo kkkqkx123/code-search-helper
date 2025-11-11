@@ -4,7 +4,6 @@ import { TYPES } from '../../../types';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
 import { DatabaseEventType } from '../../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { NebulaQueryResult } from '../NebulaTypes';
 
 export interface INebulaDataService {
   // 节点操作
@@ -78,7 +77,7 @@ export class NebulaDataService implements INebulaDataService {
 
       // 构建插入节点的nGQL，使用安全的参数处理
       const propertyNames = Object.keys(node.properties).join(', ');
-      
+
       let nGQL = `INSERT VERTEX ${node.label}`;
       if (propertyNames) {
         const escapedProperties = this.escapeProperties(node.properties);
@@ -656,9 +655,9 @@ export class NebulaDataService implements INebulaDataService {
       if (spacesResult.error) {
         throw new Error(`Failed to get spaces: ${spacesResult.error}`);
       }
-      
+
       const spaces = spacesResult?.data || [];
-      
+
       // 获取当前space的标签和边类型信息
       let tags: any[] = [];
       let edgeTypes: any[] = [];
@@ -667,7 +666,7 @@ export class NebulaDataService implements INebulaDataService {
 
       // 获取当前空间名称
       const currentSpace = this.connectionManager.getConnectionStatus().space;
-      
+
       // 只有在当前空间存在的情况下才执行需要空间上下文的查询
       if (currentSpace) {
         const tagsResult = await this.connectionManager.executeQuery('SHOW TAGS');

@@ -47,15 +47,20 @@ import { NebulaDataOperations, INebulaDataOperations } from '../../database/nebu
 import { NebulaSchemaManager, INebulaSchemaManager } from '../../database/nebula/NebulaSchemaManager';
 import { NebulaIndexManager, INebulaIndexManager } from '../../database/nebula/NebulaIndexManager';
 import { SpaceNameUtils, ISpaceNameUtils } from '../../database/nebula/SpaceNameUtils';
-import { NebulaTransactionService, INebulaTransactionService } from '../../database/nebula/transaction/NebulaTransactionService';
 import { NebulaBatchService, INebulaBatchService } from '../../database/nebula/batch/NebulaBatchService';
 import { NebulaFileDataService, INebulaFileDataService } from '../../database/nebula/file/NebulaFileDataService';
 
 // Nebula 会话和连接管理服务
+import { ConnectionPool, IConnectionPool } from '../../database/nebula/connection/ConnectionPool';
 import { SessionManager, ISessionManager } from '../../database/nebula/session/SessionManager';
 import { ExponentialBackoffRetryStrategy, IRetryStrategy } from '../../database/nebula/retry/RetryStrategy';
 import { CircuitBreaker, ICircuitBreaker } from '../../database/nebula/circuit-breaker/CircuitBreaker';
 import { QueryRunner, IQueryRunner } from '../../database/nebula/query/QueryRunner';
+import { ConnectionWarmer } from '../../database/nebula/connection/ConnectionWarmer';
+import { LoadBalancer } from '../../database/nebula/connection/LoadBalancer';
+import { QueryPipeline } from '../../database/nebula/query/QueryPipeline';
+import { ParallelQueryExecutor } from '../../database/nebula/query/ParallelQueryExecutor';
+import { MemoryOptimizer } from '../../database/nebula/memory/MemoryOptimizer';
 
 // SQLite数据库服务
 import { SqliteDatabaseService } from '../../database/splite/SqliteDatabaseService';
@@ -121,21 +126,25 @@ export class DatabaseServiceRegistrar {
       container.bind<SpaceNameUtils>(TYPES.SpaceNameUtils).to(SpaceNameUtils).inSingletonScope();
       container.bind<ISpaceNameUtils>(TYPES.ISpaceNameUtils).to(SpaceNameUtils).inSingletonScope();
       
-      // Nebula 事务和批量处理服务
-      container.bind<NebulaTransactionService>(TYPES.NebulaTransactionService).to(NebulaTransactionService).inSingletonScope();
-      container.bind<INebulaTransactionService>(TYPES.INebulaTransactionService).to(NebulaTransactionService).inSingletonScope();
+      // Nebula 批量处理和文件数据服务
       container.bind<NebulaBatchService>(TYPES.NebulaBatchService).to(NebulaBatchService).inSingletonScope();
       container.bind<INebulaBatchService>(TYPES.INebulaBatchService).to(NebulaBatchService).inSingletonScope();
       container.bind<NebulaFileDataService>(TYPES.NebulaFileDataService).to(NebulaFileDataService).inSingletonScope();
       container.bind<INebulaFileDataService>(TYPES.INebulaFileDataService).to(NebulaFileDataService).inSingletonScope();
 
       // Nebula 会话和连接管理服务
-       container.bind<SessionManager>(TYPES.ISessionManager).to(SessionManager).inSingletonScope();
-       container.bind<ExponentialBackoffRetryStrategy>(TYPES.IRetryStrategy).to(ExponentialBackoffRetryStrategy).inSingletonScope();
-       container.bind<CircuitBreaker>(TYPES.ICircuitBreaker).to(CircuitBreaker).inSingletonScope();
-       container.bind<QueryRunner>(TYPES.IQueryRunner).to(QueryRunner).inSingletonScope();
+      container.bind<ConnectionPool>(TYPES.IConnectionPool).to(ConnectionPool).inSingletonScope();
+      container.bind<SessionManager>(TYPES.ISessionManager).to(SessionManager).inSingletonScope();
+      container.bind<ExponentialBackoffRetryStrategy>(TYPES.IRetryStrategy).to(ExponentialBackoffRetryStrategy).inSingletonScope();
+      container.bind<CircuitBreaker>(TYPES.ICircuitBreaker).to(CircuitBreaker).inSingletonScope();
+      container.bind<QueryRunner>(TYPES.IQueryRunner).to(QueryRunner).inSingletonScope();
+      container.bind<ConnectionWarmer>(TYPES.ConnectionWarmer).to(ConnectionWarmer).inSingletonScope();
+      container.bind<LoadBalancer>(TYPES.LoadBalancer).to(LoadBalancer).inSingletonScope();
+      container.bind<QueryPipeline>(TYPES.QueryPipeline).to(QueryPipeline).inSingletonScope();
+      container.bind<ParallelQueryExecutor>(TYPES.ParallelQueryExecutor).to(ParallelQueryExecutor).inSingletonScope();
+      container.bind<MemoryOptimizer>(TYPES.MemoryOptimizer).to(MemoryOptimizer).inSingletonScope();
 
-       // 工具类服务
+      // 工具类服务
       container.bind<NebulaQueryUtils>(TYPES.NebulaQueryUtils).to(NebulaQueryUtils).inSingletonScope();
       container.bind<NebulaResultFormatter>(TYPES.NebulaResultFormatter).to(NebulaResultFormatter).inSingletonScope();
       container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();

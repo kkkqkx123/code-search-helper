@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { NebulaQueryResult } from './NebulaTypes';
+import { NebulaQueryResult, ResultStats } from './NebulaTypes';
 import { TYPES } from '../../types';
 
 export interface FormatOptions {
@@ -23,13 +23,6 @@ export interface INebulaResultFormatter {
   calculateStats(result: any): ResultStats;
   setDefaultOptions(options: FormatOptions): void;
   getDefaultOptions(): FormatOptions;
-}
-
-interface ResultStats {
-  rowCount: number;
-  columnCount: number;
-  dataSize: number;
-  processedTime: number;
 }
 
 @injectable()

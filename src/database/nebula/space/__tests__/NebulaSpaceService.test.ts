@@ -1,6 +1,6 @@
 import { Container } from 'inversify';
 import { TYPES } from '../../../../types';
-import { NebulaSpaceService, INebulaSpaceService } from '../../space/NebulaSpaceService';
+import { NebulaSpaceService, INebulaSpaceService } from '../NebulaSpaceService';
 import { INebulaConnectionManager } from '../../NebulaConnectionManager';
 import { DatabaseLoggerService } from '../../../common/DatabaseLoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';

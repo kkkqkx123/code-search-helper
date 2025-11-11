@@ -100,7 +100,7 @@ export class ConnectionPool extends EventEmitter implements IConnectionPool {
   private errorHandler: ErrorHandlerService;
   private configService: NebulaConfigService;
   private performanceMonitor: PerformanceMonitor;
-  private config: NebulaConfig;
+  private config!: NebulaConfig;
   private poolConfig: ConnectionPoolConfig;
   
   private connections: Connection[] = [];
@@ -352,6 +352,16 @@ export class ConnectionPool extends EventEmitter implements IConnectionPool {
       this.healthChecker.updateConfig(config.healthCheck);
     }
 
+    // 更新连接预热配置
+    if (config.warming) {
+      this.connectionWarmer.updateConfig(config.warming);
+    }
+
+    // 更新负载均衡配置
+    if (config.loadBalancing) {
+      this.loadBalancer.updateConfig(config.loadBalancing);
+    }
+
     this.emit('configUpdated', { config: this.poolConfig });
   }
 
@@ -386,7 +396,7 @@ export class ConnectionPool extends EventEmitter implements IConnectionPool {
     
     try {
       // TODO: 实现实际的Nebula Graph客户端创建
-      // 这里需要使用@nebula-contrib/nebula-nodejs库创建客户端
+      // 这里需要使用项目原生客户端实现
       const mockClient = {
         execute: async (query: string) => {
           // 模拟查询执行
@@ -661,7 +671,7 @@ export class ConnectionPool extends EventEmitter implements IConnectionPool {
     }
     
     // 记录连接池性能指标
-    this.performanceMonitor.recordOperation('connection_pool_stats', 0, {
+    const operationId = this.performanceMonitor.startOperation('connection_pool_stats', {
       totalConnections: this.stats.totalConnections,
       activeConnections: this.stats.activeConnections,
       idleConnections: this.stats.idleConnections,
@@ -669,5 +679,6 @@ export class ConnectionPool extends EventEmitter implements IConnectionPool {
       averageAcquireTime: this.stats.averageAcquireTime,
       averageConnectionAge: this.stats.averageConnectionAge
     });
+    this.performanceMonitor.endOperation(operationId);
   }
 }

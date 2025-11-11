@@ -10,14 +10,12 @@ import { GraphConfigService } from '../../config/service/GraphConfigService';
 import { EventListener } from '../../types';
 import { NebulaEventManager } from './NebulaEventManager';
 import { INebulaQueryService } from './query/NebulaQueryService';
-
-// 导入Nebula Graph客户端库
-import { createClient } from '@nebula-contrib/nebula-nodejs';
+import { IQueryRunner } from './query/QueryRunner';
 
 export interface INebulaConnectionManager extends IConnectionManager {
   getConnectionStatus(): NebulaConnectionStatus;
   executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
-  executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<NebulaQueryResult[]>;
+  executeTransaction(queries: Array<{ query: string; params?: Record<string, any> }>): Promise<NebulaQueryResult[]>;
   // 空间连接管理
   getConnectionForSpace(spaceName: string): Promise<any>;
   // 配置管理
@@ -32,9 +30,10 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private nebulaConfigService: NebulaConfigService;
   private graphConfigService: GraphConfigService;
   private connectionStatus: NebulaConnectionStatus;
-  private config: NebulaConfig;
-  private client: any; // Nebula Graph客户端实例
+  private config!: NebulaConfig;
+  private client: any; // Nebula Graph客户端实例 - 使用项目原生实现
   private eventManager: NebulaEventManager;
+  private queryRunner: IQueryRunner;
   private configUpdateInterval: NodeJS.Timeout | null = null;
 
   constructor(
@@ -42,13 +41,15 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.NebulaConfigService) nebulaConfigService: NebulaConfigService,
     @inject(TYPES.GraphConfigService) graphConfigService: GraphConfigService,
-    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager
+    @inject(TYPES.NebulaEventManager) eventManager: NebulaEventManager,
+    @inject(TYPES.IQueryRunner) queryRunner: IQueryRunner
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.nebulaConfigService = nebulaConfigService;
     this.graphConfigService = graphConfigService;
     this.eventManager = eventManager;
+    this.queryRunner = queryRunner;
     this.connectionStatus = {
       connected: false,
       host: '',
@@ -58,7 +59,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
     // 使用NebulaConfigService加载配置
     this.loadConfiguration();
-    
+
     // 启动配置热更新
     this.startConfigHotReload();
   }
@@ -135,7 +136,19 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
           await this.closeClient();
         }
 
-        this.client = createClient(clientConfig);
+        // 使用项目原生的连接池实现，而不是外部库
+        // 这里我们直接使用QueryRunner来执行查询，因为QueryRunner已经集成了连接管理
+        // 创建一个模拟客户端，实际查询通过QueryRunner执行
+        this.client = {
+          execute: async (query: string) => {
+            // 通过QueryRunner执行查询
+            const result = await this.queryRunner.execute(query);
+            return result;
+          },
+          close: async () => {
+            // 连接管理由QueryRunner和SessionManager处理
+          }
+        };
 
         await this.logDatabaseEvent({
           type: DatabaseEventType.SERVICE_INITIALIZED,
@@ -223,167 +236,21 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
   /**
    * 等待客户端连接就绪
-   * 针对@nebula-contrib/nebula-nodejs库的特殊处理
+   * 使用项目原生的连接管理实现
    */
   private async waitForClientConnection(): Promise<void> {
-    // 在测试环境中，如果客户端是模拟的，直接返回成功
-    if (process.env.NODE_ENV === 'test' && this.client && typeof this.client.execute === 'function' && typeof this.client.close === 'function') {
-      // 检查是否是模拟客户端（具有jest.fn()特征）
-      if (typeof (this.client.execute as any)._isMockFunction === 'boolean' || typeof (this.client.close as any)._isMockFunction === 'boolean') {
-        return Promise.resolve();
-      }
+    // 由于使用项目原生的QueryRunner，连接管理由QueryRunner和SessionManager处理
+    // 这里只需要确保QueryRunner已准备好
+    if (!this.queryRunner) {
+      throw new Error('QueryRunner is not initialized');
     }
-
-    return new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Connection timeout: Client failed to connect within reasonable time'));
-      }, this.config.timeout || 30000);
-
-      // 标记是否已连接，防止重复触发
-      let connected = false;
-      let authorizedCount = 0;
-      const requiredAuthorizations = 1; // 只需要一个成功的授权
-
-      // 监听 ready 事件，这是连接完全就绪的标志
-      const onReady = (event: any) => {
-        try {
-          if (!connected) {
-            connected = true;
-            clearTimeout(timeout);
-            // 移除事件监听器
-            this.client.removeListener('ready', onReady);
-            this.client.removeListener('error', onError);
-            this.client.removeListener('connected', onConnected);
-            this.client.removeListener('authorized', onAuthorized);
-            resolve();
-          }
-        } catch (error) {
-          if (!connected) {
-            connected = true;
-            clearTimeout(timeout);
-            this.client.removeListener('ready', onReady);
-            this.client.removeListener('error', onError);
-            this.client.removeListener('connected', onConnected);
-            this.client.removeListener('authorized', onAuthorized);
-            reject(error);
-          }
-        }
-      };
-
-      // 监听 connected 事件以进行调试
-      const onConnected = (event: any) => {
-        // 空实现，只用于调试
-      };
-
-      // 监听 authorized 事件 - 这是库版本问题的关键事件
-      const onAuthorized = (event: any) => {
-        try {
-          authorizedCount++;
-
-          // 对于@nebula-contrib/nebula-nodejs库版本3.0.3，在authorized事件后
-          // 需要等待一段时间让会话完全就绪，然后直接认为连接成功
-          // 因为ready事件可能永远不会触发
-          setTimeout(() => {
-            if (!connected && authorizedCount >= requiredAuthorizations) {
-              connected = true;
-              clearTimeout(timeout);
-              this.client.removeListener('ready', onReady);
-              this.client.removeListener('error', onError);
-              this.client.removeListener('connected', onConnected);
-              this.client.removeListener('authorized', onAuthorized);
-              resolve();
-            }
-          }, 2000); // 增加等待时间到2秒，确保会话完全就绪
-        } catch (error) {
-          if (!connected) {
-            connected = true;
-            clearTimeout(timeout);
-            this.client.removeListener('ready', onReady);
-            this.client.removeListener('error', onError);
-            this.client.removeListener('connected', onConnected);
-            this.client.removeListener('authorized', onAuthorized);
-            reject(error);
-          }
-        }
-      };
-
-      // 定义错误处理函数 - 特别处理"会话无效或连接未就绪"错误
-      const onError = (error: any) => {
-        try {
-          // 安全地提取错误信息，避免循环引用问题
-          let errorMessage = 'Unknown error';
-          if (error) {
-            if (typeof error === 'string') {
-              errorMessage = error;
-            } else if (error.message) {
-              errorMessage = error.message;
-            } else if (error.error) {
-              errorMessage = error.error;
-            } else {
-              try {
-                // 尝试安全地序列化错误对象
-                const errorObj: any = {};
-                for (const key in error) {
-                  if (key !== 'sender' && typeof error[key] !== 'object' && key !== 'client') {
-                    errorObj[key] = error[key];
-                  }
-                }
-                errorMessage = JSON.stringify(errorObj);
-              } catch (stringifyError) {
-                errorMessage = `Error object (circular reference detected): ${Object.keys(error).join(', ')}`;
-              }
-            }
-          }
-
-          // 特别处理"会话无效或连接未就绪"错误
-          // 这个错误在库版本3.0.3中经常出现，但不一定意味着连接失败
-          if (errorMessage.includes('会话无效或连接未就绪') ||
-            errorMessage.includes('Session invalid') ||
-            errorMessage.includes('Connection not ready')) {
-
-            // 不要立即拒绝，而是等待授权事件
-            // 如果已经收到足够的授权，就认为连接成功
-            if (authorizedCount >= requiredAuthorizations && !connected) {
-              connected = true;
-              clearTimeout(timeout);
-              this.client.removeListener('ready', onReady);
-              this.client.removeListener('error', onError);
-              this.client.removeListener('connected', onConnected);
-              this.client.removeListener('authorized', onAuthorized);
-              resolve();
-            }
-            return; // 不要拒绝，继续等待
-          }
-
-          // 对于其他类型的错误，拒绝连接
-          if (!connected) {
-            clearTimeout(timeout);
-            // 移除事件监听器
-            this.client.removeListener('ready', onReady);
-            this.client.removeListener('connected', onConnected);
-            this.client.removeListener('authorized', onAuthorized);
-            this.client.removeListener('error', onError);
-            reject(new Error(errorMessage));
-          }
-        } catch (handlerError) {
-          if (!connected) {
-            clearTimeout(timeout);
-            this.client.removeListener('ready', onReady);
-            this.client.removeListener('error', onError);
-            this.client.removeListener('connected', onConnected);
-            this.client.removeListener('authorized', onAuthorized);
-            // 使用安全错误信息
-            reject(new Error('Connection failed with unhandled error'));
-          }
-        }
-      };
-
-      // 监听相关事件
-      this.client.on('ready', onReady);
-      this.client.on('connected', onConnected);
-      this.client.on('authorized', onAuthorized);
-      this.client.on('error', onError);
-    });
+    
+    // 简单的连接测试
+    try {
+      await this.queryRunner.execute('YIELD 1 AS connection_test;');
+    } catch (error) {
+      throw new Error(`Connection test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -400,17 +267,9 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
 
   /**
    * 验证连接是否成功
-   * 针对@nebula-contrib/nebula-nodejs库的特殊处理
+   * 使用项目原生的连接管理实现
    */
   private async validateConnection(client: any): Promise<void> {
-    // 在测试环境中，如果客户端是模拟的，直接返回成功
-    if (process.env.NODE_ENV === 'test' && client && typeof client.execute === 'function' && typeof client.close === 'function') {
-      // 检查是否是模拟客户端（具有jest.fn()特征）
-      if (typeof (client.execute as any)._isMockFunction === 'boolean' || typeof (client.close as any)._isMockFunction === 'boolean') {
-        return Promise.resolve();
-      }
-    }
-
     try {
       // 执行简单查询验证连接 - 使用不依赖空间的查询
       await this.logDatabaseEvent({
@@ -420,162 +279,56 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
         data: { message: 'Validating connection with simple query' }
       });
 
-      // 尝试执行一个简单的查询验证连接是否可用，重试机制
-      let attempt = 0;
-      const maxAttempts = 10; // 增加重试次数
-      let lastError: any = null;
-
-      while (attempt < maxAttempts) {
-        try {
-          // 先等待一小段时间，确保连接状态同步
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-          // 验证连接时只使用不依赖空间的查询
-          const validationQuery = 'YIELD 1 AS validation;';
-          
-          // 在执行验证查询前记录调试信息
-          await this.logDatabaseEvent({
-            type: DatabaseEventType.QUERY_EXECUTED,
-            source: 'nebula',
-            timestamp: new Date(),
-            data: {
-              message: 'About to execute validation query',
-              query: validationQuery,
-              queryLength: validationQuery.length,
-              first100Chars: validationQuery.substring(0, 100)
-            }
-          });
-   
-          // 验证查询可能需要等待连接完全准备好
-          const result = await client.execute(validationQuery);
-
-          // 根据 Nebula Graph 的返回结果格式检查连接验证结果
-          // Nebula Graph 返回结果中的 error_code 为 0 表示成功
-          if (result && typeof result.error_code !== 'undefined' && result.error_code !== 0) {
-            const errorMessage = result?.error_msg || result?.error || 'Unknown error';
-            throw new Error(`Connection validation failed: ${errorMessage}`);
-          }
-
-          // 只有在连接验证成功且配置了有效的空间名称时，才尝试切换到指定空间
-          if (this.connectionStatus.space && this.connectionStatus.space !== 'undefined' && this.connectionStatus.space !== '') {
-            // 尝试切换到指定空间
-            const useQuery = `USE \`${this.connectionStatus.space}\`;`;
-            const useResult = await client.execute(useQuery);
-
-            // 检查是否是因为空间不存在导致的错误
-            if (useResult && typeof useResult.error_code !== 'undefined' && useResult.error_code !== 0) {
-              const errorMessage = useResult?.error_msg || useResult?.error || 'Unknown error';
-
-              // 检查错误信息是否表示空间不存在
-              if (errorMessage.includes('Space not found') ||
-                errorMessage.includes('Space not exist') ||
-                errorMessage.includes('Space does not exist')) {
-
-                try {
-                  // 创建空间
-                  const createSpaceQuery = `
-                    CREATE SPACE IF NOT EXISTS \`${this.connectionStatus.space}\` (
-                      partition_num = 10,
-                      replica_factor = 1,
-                      vid_type = "FIXED_STRING(32)"
-                    )
-                  `;
-
-                  // 在执行前记录查询内容以进行调试
-                  await this.logDatabaseEvent({
-                    type: DatabaseEventType.QUERY_EXECUTED,
-                    source: 'nebula',
-                    timestamp: new Date(),
-                    data: {
-                      message: 'About to execute validation CREATE SPACE query',
-                      query: createSpaceQuery,
-                      queryLength: createSpaceQuery.length,
-                      first100Chars: createSpaceQuery.substring(0, 100),
-                      spaceName: this.connectionStatus.space
-                    }
-                  });
-
-                  const createResult = await client.execute(createSpaceQuery);
-
-                  if (createResult && typeof createResult.error_code !== 'undefined' && createResult.error_code !== 0) {
-                    const createErrorMsg = createResult?.error_msg || createResult?.error || 'Unknown error';
-                    throw new Error(`Failed to create space ${this.connectionStatus.space}: ${createErrorMsg}`);
-                  }
-
-                  // 等待空间创建完成
-                  await new Promise(resolve => setTimeout(resolve, 2000));
-
-                  // 再次尝试切换到空间
-                  const reUseResult = await client.execute(useQuery);
-
-                  if (reUseResult && typeof reUseResult.error_code !== 'undefined' && reUseResult.error_code !== 0) {
-                    const reUseErrorMsg = reUseResult?.error_msg || reUseResult?.error || 'Unknown error';
-                    throw new Error(`Failed to switch to newly created space ${this.connectionStatus.space}: ${reUseErrorMsg}`);
-                  }
-
-                  // 空间切换成功
-                } catch (createError) {
-                  const createErrorMsg = createError instanceof Error ? createError.message : String(createError);
-                  throw new Error(`Space switching failed and automatic creation failed: ${createErrorMsg}`);
-                }
-              } else {
-                // 如果是其他类型的错误，抛出错误
-                throw new Error(`Failed to switch to space ${this.connectionStatus.space}: ${errorMessage}`);
-              }
-            } else {
-              // 空间切换成功
-            }
-          } else {
-            // 如果没有配置特定空间，记录信息但不抛出错误，因为项目特定的空间将在使用时动态创建
-          }
-
-          // 如果成功，跳出循环
-          return;
-        } catch (queryError) {
-          lastError = queryError;
-          const queryErrorAsAny = queryError as any;
-          const errorMsg = queryErrorAsAny.message || queryErrorAsAny.error_msg || String(queryError);
-
-          // 特殊处理"会话无效或连接未就绪"错误 - 这是库的常见问题，需要重试
-          if (errorMsg.includes('会话无效或连接未就绪') ||
-            errorMsg.includes('Session invalid') ||
-            errorMsg.includes('Connection not ready') ||
-            errorMsg.includes('ERR_NEBULA')) {
-
-            // 检查客户端连接池状态
-            // 等待更长时间，让连接状态同步
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            attempt++;
-            continue;
-          } else {
-            // 对于其他类型的错误，直接抛出
-            throw queryError;
-          }
-        }
+      // 使用QueryRunner执行验证查询
+      const validationQuery = 'YIELD 1 AS validation;';
+      const result = await this.queryRunner.execute(validationQuery);
+      
+      // 检查结果是否有效
+      if (!result || result.error) {
+        throw new Error(`Connection validation failed: ${result?.error || 'Unknown error'}`);
       }
 
-      // 如果所有尝试都失败了，抛出最后的错误
-      if (lastError) {
-        throw lastError;
+      // 如果配置了空间，尝试切换到该空间
+      if (this.connectionStatus.space && this.connectionStatus.space !== 'undefined' && this.connectionStatus.space !== '') {
+        try {
+          // 尝试切换到指定空间
+          await this.queryRunner.execute(`USE \`${this.connectionStatus.space}\`;`);
+        } catch (useError) {
+          const errorMessage = useError instanceof Error ? useError.message : String(useError);
+          
+          // 如果空间不存在，尝试创建它
+          if (errorMessage.includes('Space not found') ||
+              errorMessage.includes('Space not exist') ||
+              errorMessage.includes('Space does not exist')) {
+              
+            try {
+              // 创建空间
+              const createSpaceQuery = `
+                CREATE SPACE IF NOT EXISTS \`${this.connectionStatus.space}\` (
+                  partition_num = 10,
+                  replica_factor = 1,
+                  vid_type = "FIXED_STRING(32)"
+                )
+              `;
+              
+              await this.queryRunner.execute(createSpaceQuery);
+              
+              // 等待空间创建完成
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              // 再次尝试切换到空间
+              await this.queryRunner.execute(`USE \`${this.connectionStatus.space}\`;`);
+            } catch (createError) {
+              throw new Error(`Failed to create space ${this.connectionStatus.space}: ${createError instanceof Error ? createError.message : String(createError)}`);
+            }
+          } else {
+            throw new Error(`Failed to switch to space ${this.connectionStatus.space}: ${errorMessage}`);
+          }
+        }
       }
     } catch (error) {
-      // 改进错误处理，确保错误对象被正确转换为字符串
-      let errorMessage: string;
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      } else if (error && typeof error === 'object') {
-        try {
-          // 尝试获取错误对象的有用属性
-          errorMessage = (error as any).message || (error as any).error_msg || JSON.stringify(error);
-        } catch (stringifyError) {
-          errorMessage = `Error object: ${Object.keys(error).join(', ')}`;
-        }
-      } else {
-        errorMessage = String(error);
-      }
-
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
       await this.logDatabaseEvent({
         type: DatabaseEventType.ERROR_OCCURRED,
         source: 'nebula',
@@ -700,60 +453,22 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   }
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
-    if (!this.isConnected()) {
-      await this.connect();
-    }
-    
-    // 使用参数插值
-    let query = nGQL;
-    if (parameters) {
-      // 简单的参数插值实现
-      for (const [key, value] of Object.entries(parameters)) {
-        const placeholder = new RegExp(`\\$${key}`, 'g');
-        const escapedValue = typeof value === 'string' ? `"${value}"` : String(value);
-        query = query.replace(placeholder, escapedValue);
-      }
-    }
-    
-    // 在执行前记录查询内容以进行调试
-    await this.logDatabaseEvent({
-      type: DatabaseEventType.QUERY_EXECUTED,
-      source: 'nebula',
-      timestamp: new Date(),
-      data: {
-        message: 'About to execute Nebula query directly from connection manager',
-        query,
-        queryLength: query.length,
-        first100Chars: query.substring(0, 100)
-      }
-    });
-    
-    const result = await this.client.execute(query);
-    
-    // 转换结果格式
-    return {
-      table: result?.table || {},
-      results: result?.results || [],
-      rows: result?.rows || [],
-      data: result?.data || [],
-      executionTime: 0,  // 执行时间信息需要额外处理
-      timeCost: result?.timeCost || 0,
-      error: result?.error || undefined
-    };
+    // 委托给新的QueryRunner
+    return await this.queryRunner.execute(nGQL, parameters);
   }
 
-  async executeTransaction(queries: Array<{ query: string; params: Record<string, any> }>): Promise<NebulaQueryResult[]> {
-    if (!this.isConnected()) {
-      await this.connect();
-    }
-    
-    const results: NebulaQueryResult[] = [];
-    for (const { query, params } of queries) {
-      const result = await this.executeQuery(query, params);
-      results.push(result);
-    }
-    return results;
+  async executeTransaction(queries: Array<{ query: string; params?: Record<string, any> }>): Promise<NebulaQueryResult[]> {
+    // 转换查询格式以匹配QueryRunner的接口
+    const queryBatches = queries.map(q => ({
+      query: q.query,
+      params: q.params,
+      options: undefined
+    }));
+
+    // 委托给新的QueryRunner
+    return await this.queryRunner.executeBatch(queryBatches);
   }
+
 
   /**
    * 获取当前配置
@@ -768,7 +483,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   updateConfig(config: Partial<NebulaConfig>): void {
     this.config = { ...this.config, ...config };
     this.updateConnectionStatusFromConfig();
-    
+
     this.databaseLogger.logDatabaseEvent({
       type: DatabaseEventType.SERVICE_INITIALIZED,
       source: 'nebula',
@@ -784,20 +499,20 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     try {
       // 从NebulaConfigService加载基础配置
       const baseConfig = this.nebulaConfigService.loadConfig();
-      
+
       // 从GraphConfigService获取容错配置
       const faultToleranceOptions = this.graphConfigService.getFaultToleranceOptions();
-      
+
       // 将容错选项转换为NebulaConfig格式
       const faultTolerantConfig: Partial<NebulaConfig> = {
         retryAttempts: faultToleranceOptions.maxRetries,
         retryDelay: faultToleranceOptions.retryDelay
       };
-      
+
       // 合并配置，容错配置优先
       this.config = { ...baseConfig, ...faultTolerantConfig };
       this.updateConnectionStatusFromConfig();
-      
+
       this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.SERVICE_INITIALIZED,
         source: 'nebula',
@@ -822,20 +537,20 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       try {
         const currentConfig = this.nebulaConfigService.loadConfig();
         const faultToleranceOptions = this.graphConfigService.getFaultToleranceOptions();
-        
+
         // 将容错选项转换为NebulaConfig格式
         const faultTolerantConfig: Partial<NebulaConfig> = {
           retryAttempts: faultToleranceOptions.maxRetries,
           retryDelay: faultToleranceOptions.retryDelay
         };
         const newConfig = { ...currentConfig, ...faultTolerantConfig };
-        
+
         // 检查配置是否有变化
         if (this.hasConfigChanged(this.config, newConfig)) {
           const oldConfig = { ...this.config };
           this.config = newConfig;
           this.updateConnectionStatusFromConfig();
-          
+
           this.databaseLogger.logDatabaseEvent({
             type: DatabaseEventType.SERVICE_INITIALIZED,
             source: 'nebula',
@@ -846,14 +561,14 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
               newConfig: this.config
             }
           });
-          
+
           // 创建配置更新事件
           const configUpdateEvent = {
             type: 'config_updated' as any,
             timestamp: new Date(),
             data: { oldConfig, newConfig: this.config }
           };
-          
+
           this.eventManager.emit(configUpdateEvent);
         }
       } catch (error) {
@@ -889,159 +604,153 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       'maxConnections', 'retryAttempts', 'retryDelay', 'space',
       'bufferSize', 'pingInterval', 'vidTypeLength'
     ];
-    
+
     return keys.some(key => oldConfig[key] !== newConfig[key]);
   }
 
-   /**
-    * 获取指定空间的连接
-    */
-   async getConnectionForSpace(spaceName: string): Promise<any> {
-     // 验证空间名称
-     if (!spaceName || typeof spaceName !== 'string' || spaceName.trim() === '') {
-       throw new Error(`Cannot get connection for invalid space: "${spaceName}"`);
-     }
- 
-     // 检查是否是无效的空间名称
-     if (spaceName === 'undefined' || spaceName === '') {
-       throw new Error(`Cannot get connection for invalid space: "${spaceName}"`);
-     }
- 
-     // 检查连接状态
-     if (!this.isConnected()) {
-       throw new Error('Not connected to Nebula Graph');
-     }
- 
-     // 额外检查客户端是否存在且可执行查询
-     if (!this.client || typeof this.client.execute !== 'function') {
-       throw new Error('Client is not ready to execute queries');
-     }
- 
-     // 验证客户端连接是否就绪
-     try {
-       const testResult = await this.client.execute('YIELD 1 AS test_connection;');
-       if (testResult && typeof testResult.error_code !== 'undefined' && testResult.error_code !== 0) {
-         const testError = testResult?.error_msg || testResult?.error || 'Unknown connection error';
-         throw new Error(`Connection not ready: ${testError}`);
-       }
-     } catch (testError) {
-       const testErrorMessage = testError instanceof Error ? testError.message : String(testError);
-       if (testErrorMessage.includes('会话无效或连接未就绪') ||
-         testErrorMessage.includes('Session invalid') ||
-         testErrorMessage.includes('Connection not ready')) {
-         throw new Error(`Connection not ready: ${testErrorMessage}`);
-       }
-       // 如果测试失败，让原始错误处理来处理
-     }
- 
-     try {
-       // 切换到目标空间
-       const useQuery = `USE \`${spaceName}\``;
-       const result = await this.client.execute(useQuery);
- 
-       // 检查切换是否成功
-       if (result && (result.code === 0 || (typeof result.error_code !== 'undefined' && result.error_code === 0))) {
-         return this.client;
-       } else {
-         const errorMsg = result?.error || result?.error_msg || 'Unknown error';
- 
-         // 检查是否是因为空间不存在导致的错误
-         if (errorMsg.includes('Space not found') ||
-           errorMsg.includes('Space not exist') ||
-           errorMsg.includes('Space does not exist') ||
-           errorMsg.includes('SpaceNotFound')) {
- 
-           // 创建空间
-           const createSpaceQuery = `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`;
- 
-           // 在执行前记录查询内容以进行调试
-           await this.logDatabaseEvent({
-             type: DatabaseEventType.QUERY_EXECUTED,
-             source: 'nebula',
-             timestamp: new Date(),
-             data: {
-               message: 'About to execute getConnectionForSpace CREATE SPACE query',
-               query: createSpaceQuery,
-               queryLength: createSpaceQuery.length,
-               first100Chars: createSpaceQuery.substring(0, 100),
-               spaceName: spaceName
-             }
-           });
- 
-           const createResult = await this.client.execute(createSpaceQuery);
- 
-           if (createResult && (typeof createResult.error_code !== 'undefined' && createResult.error_code !== 0)) {
-             const createErrorMsg = createResult?.error_msg || createResult?.error || 'Unknown error';
-             throw new Error(`Failed to create space ${spaceName}: ${createErrorMsg}`);
-           }
- 
-           // 等待空间创建完成并同步到所有节点
-           await new Promise(resolve => setTimeout(resolve, 10000));
- 
-           // 再次尝试切换到空间
-           const reUseResult = await this.client.execute(useQuery);
- 
-           if (reUseResult && (reUseResult.code === 0 || (typeof reUseResult.error_code !== 'undefined' && reUseResult.error_code === 0))) {
-             return this.client;
-           } else {
-             const reUseErrorMsg = reUseResult?.error || reUseResult?.error_msg || 'Unknown error';
-             throw new Error(`Failed to switch to newly created space ${spaceName}: ${reUseErrorMsg}`);
-           }
-         } else {
-           // 如果是其他类型的错误，抛出错误
-           throw new Error(`Failed to switch to space ${spaceName}: ${errorMsg}`);
-         }
-       }
-     } catch (error) {
-       const errorMessage = error instanceof Error ? error.message : String(error);
-       // 检查是否是空间不存在的错误，如果是其他错误类型也需要处理
-       if (errorMessage.includes('SpaceNotFound') ||
-         errorMessage.includes('Space not found') ||
-         errorMessage.includes('Space not exist') ||
-         errorMessage.includes('Space does not exist')) {
- 
-         // 创建空间
-         const createSpaceQuery = `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`;
- 
-         // 在执行前记录查询内容以进行调试
-         await this.logDatabaseEvent({
-           type: DatabaseEventType.QUERY_EXECUTED,
-           source: 'nebula',
-           timestamp: new Date(),
-           data: {
-             message: 'About to execute fallback CREATE SPACE query',
-             query: createSpaceQuery,
-             queryLength: createSpaceQuery.length,
-             first100Chars: createSpaceQuery.substring(0, 100),
-             spaceName: spaceName
-           }
-         });
- 
-         const createResult = await this.client.execute(createSpaceQuery);
- 
-         if (createResult && (typeof createResult.error_code !== 'undefined' && createResult.error_code !== 0)) {
-           const createErrorMsg = createResult?.error_msg || createResult?.error || 'Unknown error';
-           throw new Error(`Failed to create space ${spaceName}: ${createErrorMsg}`);
-         }
- 
-         // 等待空间创建完成并同步到所有节点
-         await new Promise(resolve => setTimeout(resolve, 10000));
- 
-         // 再次尝试切换到空间
-         const reUseResult = await this.client.execute(`USE \`${spaceName}\``);
- 
-         if (reUseResult && (reUseResult.code === 0 || (typeof reUseResult.error_code !== 'undefined' && reUseResult.error_code === 0))) {
-           return this.client;
-         } else {
-           const reUseErrorMsg = reUseResult?.error || reUseResult?.error_msg || 'Unknown error';
-           throw new Error(`Failed to switch to newly created space ${spaceName}: ${reUseErrorMsg}`);
-         }
-       } else {
-         // 保持原有的错误格式
-         throw new Error(`Failed to switch to space ${spaceName}: ${errorMessage}`);
-       }
-     }
-   }
+  /**
+   * 获取指定空间的连接
+   */
+  async getConnectionForSpace(spaceName: string): Promise<any> {
+    // 验证空间名称
+    if (!spaceName || typeof spaceName !== 'string' || spaceName.trim() === '') {
+      throw new Error(`Cannot get connection for invalid space: "${spaceName}"`);
+    }
+
+    // 检查是否是无效的空间名称
+    if (spaceName === 'undefined' || spaceName === '') {
+      throw new Error(`Cannot get connection for invalid space: "${spaceName}"`);
+    }
+
+    // 检查连接状态
+    if (!this.isConnected()) {
+      throw new Error('Not connected to Nebula Graph');
+    }
+
+    // 使用QueryRunner来处理空间切换，而不是直接操作客户端
+    try {
+      // 切换到目标空间
+      const useQuery = `USE \`${spaceName}\``;
+      const result = await this.queryRunner.execute(useQuery);
+
+      // 检查切换是否成功
+      if (!result.error) {
+        // 返回一个包装对象，包含QueryRunner的执行方法
+        return {
+          execute: async (query: string) => {
+            return await this.queryRunner.execute(query);
+          }
+        };
+      } else {
+        const errorMsg = result.error;
+
+        // 检查是否是因为空间不存在导致的错误
+        if (errorMsg.includes('Space not found') ||
+          errorMsg.includes('Space not exist') ||
+          errorMsg.includes('Space does not exist') ||
+          errorMsg.includes('SpaceNotFound')) {
+
+          // 创建空间
+          const createSpaceQuery = `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`;
+
+          // 在执行前记录查询内容以进行调试
+          await this.logDatabaseEvent({
+            type: DatabaseEventType.QUERY_EXECUTED,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: {
+              message: 'About to execute getConnectionForSpace CREATE SPACE query',
+              query: createSpaceQuery,
+              queryLength: createSpaceQuery.length,
+              first100Chars: createSpaceQuery.substring(0, 100),
+              spaceName: spaceName
+            }
+          });
+
+          const createResult = await this.queryRunner.execute(createSpaceQuery);
+
+          if (createResult.error) {
+            const createErrorMsg = createResult.error;
+            throw new Error(`Failed to create space ${spaceName}: ${createErrorMsg}`);
+          }
+
+          // 等待空间创建完成并同步到所有节点
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          // 再次尝试切换到空间
+          const reUseResult = await this.queryRunner.execute(useQuery);
+
+          if (!reUseResult.error) {
+            // 返回一个包装对象，包含QueryRunner的执行方法
+            return {
+              execute: async (query: string) => {
+                return await this.queryRunner.execute(query);
+              }
+            };
+          } else {
+            const reUseErrorMsg = reUseResult.error;
+            throw new Error(`Failed to switch to newly created space ${spaceName}: ${reUseErrorMsg}`);
+          }
+        } else {
+          // 如果是其他类型的错误，抛出错误
+          throw new Error(`Failed to switch to space ${spaceName}: ${errorMsg}`);
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // 检查是否是空间不存在的错误，如果是其他错误类型也需要处理
+      if (errorMessage.includes('SpaceNotFound') ||
+        errorMessage.includes('Space not found') ||
+        errorMessage.includes('Space not exist') ||
+        errorMessage.includes('Space does not exist')) {
+
+        // 创建空间
+        const createSpaceQuery = `CREATE SPACE IF NOT EXISTS \`${spaceName}\` (partition_num = 10, replica_factor = 1, vid_type = FIXED_STRING(32))`;
+
+        // 在执行前记录查询内容以进行调试
+        await this.logDatabaseEvent({
+          type: DatabaseEventType.QUERY_EXECUTED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: {
+            message: 'About to execute fallback CREATE SPACE query',
+            query: createSpaceQuery,
+            queryLength: createSpaceQuery.length,
+            first100Chars: createSpaceQuery.substring(0, 100),
+            spaceName: spaceName
+          }
+        });
+
+        const createResult = await this.queryRunner.execute(createSpaceQuery);
+
+        if (createResult.error) {
+          const createErrorMsg = createResult.error;
+          throw new Error(`Failed to create space ${spaceName}: ${createErrorMsg}`);
+        }
+
+        // 等待空间创建完成并同步到所有节点
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // 再次尝试切换到空间
+        const reUseResult = await this.queryRunner.execute(`USE \`${spaceName}\``);
+
+        if (!reUseResult.error) {
+          // 返回一个包装对象，包含QueryRunner的执行方法
+          return {
+            execute: async (query: string) => {
+              return await this.queryRunner.execute(query);
+            }
+          };
+        } else {
+          const reUseErrorMsg = reUseResult.error;
+          throw new Error(`Failed to switch to newly created space ${spaceName}: ${reUseErrorMsg}`);
+        }
+      } else {
+        // 保持原有的错误格式
+        throw new Error(`Failed to switch to space ${spaceName}: ${errorMessage}`);
+      }
+    }
+  }
 
   /**
    * 订阅事件（推荐的新API）

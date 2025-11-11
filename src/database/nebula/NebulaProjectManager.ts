@@ -15,10 +15,9 @@ import {
   NebulaNode,
   NebulaRelationship,
   NebulaSpaceInfo,
-  ProjectSpaceInfo,
-  NebulaEventType,
-  NebulaEvent
+  ProjectSpaceInfo
 } from './NebulaTypes';
+import { NebulaEventType, NebulaEvent, DatabaseEventType } from '../common/DatabaseEventTypes';
 import { NebulaEventManager } from './NebulaEventManager';
 
 /**
@@ -140,7 +139,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'createSpaceForProject',
         projectPath
@@ -216,7 +215,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'deleteSpaceForProject',
         projectPath
@@ -266,7 +265,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'getSpaceInfoForProject',
         projectPath
@@ -333,7 +332,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'clearSpaceForProject',
         projectPath
@@ -391,7 +390,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'listProjectSpaces'
       });
@@ -465,7 +464,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'insertNodesForProject',
         projectPath
@@ -531,7 +530,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'insertRelationshipsForProject',
         projectPath
@@ -598,7 +597,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'findNodesForProject',
         projectPath
@@ -666,7 +665,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'findRelationshipsForProject',
         projectPath
@@ -686,7 +685,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
   /**
    * 发射事件
    */
-  private emitEvent(type: NebulaEventType, data?: any, error?: Error): void {
+  private emitEvent(type: NebulaEventType | DatabaseEventType, data?: any, error?: Error): void {
     const event: NebulaEvent = {
       type,
       timestamp: new Date(),
@@ -867,7 +866,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'updateProjectData',
         projectPath,
@@ -981,7 +980,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'deleteProjectData',
         projectPath,
@@ -1059,7 +1058,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'searchProjectData',
         projectPath
@@ -1142,7 +1141,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       this.errorHandler.handleError(dbError, dbError.context);
 
-      this.emitEvent(NebulaEventType.ERROR_OCCURRED, {
+      this.emitEvent(DatabaseEventType.ERROR_OCCURRED, {
         error: dbError,
         operation: 'getProjectDataById',
         projectPath,

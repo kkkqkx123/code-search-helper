@@ -92,7 +92,6 @@ graph TD
         B --> C[QueryRunner];
         B --> D[ConnectionPool];
         B --> E[SessionManager];
-        B --> F[TransactionManager];
     end
 
     subgraph "核心服务层"
@@ -101,7 +100,6 @@ graph TD
         D --> I[ConnectionHealthChecker];
         E --> J[SessionPool];
         E --> K[SpaceManager];
-        F --> L[TransactionCoordinator];
     end
 
     subgraph "基础设施层（复用现有）"
@@ -139,8 +137,6 @@ interface INebulaClient {
   execute(query: string, params?: Record<string, any>): Promise<NebulaQueryResult>;
   executeBatch(queries: QueryBatch[]): Promise<NebulaQueryResult[]>;
   
-  // 事务管理
-  beginTransaction(): Promise<ITransaction>;
   
   // 配置管理（复用现有服务）
   updateConfig(config: Partial<NebulaConfig>): void;
@@ -242,28 +238,6 @@ interface IQueryRunner {
 - 使用现有的LRUCache实现查询结果缓存
 - 集成PerformanceMonitor进行查询性能监控
 
-### 5. TransactionManager (事务管理器)
-
-**职责**: 管理事务生命周期，确保数据一致性
-
-**核心接口**:
-```typescript
-interface ITransactionManager {
-  // 事务管理
-  beginTransaction(): Promise<ITransaction>;
-  commitTransaction(transaction: ITransaction): Promise<void>;
-  rollbackTransaction(transaction: ITransaction): Promise<void>;
-  
-  // 事务监控
-  getActiveTransactions(): ITransaction[];
-  cleanupExpiredTransactions(): void;
-}
-```
-
-**设计要点**:
-- 集成批处理服务进行事务优化
-- 支持事务分割策略（复用NebulaBatchStrategy）
-- 使用现有监控服务记录事务指标
 
 ## 与现有基础设施的集成
 
@@ -445,9 +419,9 @@ describe('NebulaClient Integration Tests', () => {
 
 ### 阶段二：高级功能集成 (2-3周)
 1. **集成现有的BatchProcessingService和NebulaBatchStrategy**
-2. **实现TransactionManager，支持事务分割**
-3. **集成现有的LRUCache和PerformanceMonitor**
-4. **实现错误处理和重试机制**
+2. **集成现有的LRUCache和PerformanceMonitor**
+3. **实现错误处理和重试机制**
+4. **实现断路器模式和故障恢复机制**
 
 ### 阶段三：性能优化和测试 (1-2周)
 1. **性能测试和调优**

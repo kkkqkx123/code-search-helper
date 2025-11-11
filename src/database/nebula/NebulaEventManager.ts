@@ -1,7 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { randomUUID } from 'crypto';
-import { DatabaseEventType, DatabaseEventListener } from '../common/DatabaseEventTypes';
-import { NebulaEventType, NebulaEvent } from './NebulaTypes';
+import { NebulaEventType, NebulaEvent } from '../common/DatabaseEventTypes';
 import { TYPES } from '../../types';
 import { ConfigService } from '../../config/ConfigService';
 
@@ -42,9 +41,9 @@ export interface INebulaEventManager {
 }
 
 export type EventHandler = (event: NebulaEvent) => void | Promise<void>;
-export interface Subscription { 
-  id: string; 
-  eventType: string; 
+export interface Subscription {
+  id: string;
+  eventType: string;
   handler: EventHandler;
   unsubscribe: () => void;
 }
@@ -150,7 +149,7 @@ export class NebulaEventManager implements INebulaEventManager {
 
   once(eventType: string, handler: EventHandler): Subscription {
     let subscription: Subscription;
-    
+
     const onceHandler: EventHandler = (...args) => {
       handler(...args);
       subscription.unsubscribe();
@@ -249,12 +248,12 @@ export class NebulaEventManager implements INebulaEventManager {
       metrics.failureCount++;
     }
   }
-  
- /**
-  * 添加事件监听器（订阅模式）
-  */
- subscribe(eventType: string, handler: EventHandler): Subscription {
-   // 使用内部的 on 方法创建订阅
-   return this.on(eventType, handler);
- }
+
+  /**
+   * 添加事件监听器（订阅模式）
+   */
+  subscribe(eventType: string, handler: EventHandler): Subscription {
+    // 使用内部的 on 方法创建订阅
+    return this.on(eventType, handler);
+  }
 }

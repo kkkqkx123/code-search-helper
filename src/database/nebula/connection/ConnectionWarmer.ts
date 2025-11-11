@@ -135,11 +135,15 @@ export class ConnectionWarmer extends EventEmitter {
       result.warmupTime = Date.now() - startTime;
 
       // 记录性能指标
-      this.performanceMonitor.recordOperation('connection_warming', result.warmupTime, {
+      const operationId = this.performanceMonitor.startOperation('connection_warming', {
         connectionId: connection.getId(),
         success: result.success,
         queryCount: result.queryResults.length,
         successRate: result.queryResults.filter(qr => qr.success).length / result.queryResults.length
+      });
+      this.performanceMonitor.endOperation(operationId, {
+        success: result.success,
+        duration: result.warmupTime
       });
 
       this.emit('connectionWarmed', result);

@@ -1,382 +1,342 @@
 import { Container } from 'inversify';
 import { TYPES } from '../../../types';
-import { NebulaConnectionManager } from '../NebulaConnectionManager';
-import { NebulaDataService } from '../data/NebulaDataService';
-import { NebulaSpaceService } from '../space/NebulaSpaceService';
-import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
-import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { ConfigService } from '../../../config/ConfigService';
-import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
-import { ConnectionStateManager } from '../ConnectionStateManager';
-import { NebulaEventManager } from '../NebulaEventManager';
-import { NebulaQueryService } from '../query/NebulaQueryService';
-import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import { LoggerService } from '../../../utils/LoggerService';
-import {
-  EnvironmentConfigService,
-  QdrantConfigService,
-  EmbeddingConfigService,
-  EmbeddingBatchConfigService,
-  LoggingConfigService,
-  MonitoringConfigService,
-  MemoryMonitorConfigService,
-  FileProcessingConfigService,
-  BatchProcessingConfigService,
-  ProjectConfigService,
-  IndexingConfigService,
-  TreeSitterConfigService,
-  ProjectNamingConfigService
-} from '../../../config/service';
+import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
+import { NebulaClient } from '../client/NebulaClient';
+import { ConnectionPool } from '../connection/ConnectionPool';
+import { SessionManager } from '../session/SessionManager';
+import { QueryRunner } from '../query/QueryRunner';
+import { QueryCache } from '../query/QueryCache';
+import { ConnectionWarmer } from '../connection/ConnectionWarmer';
+import { LoadBalancer } from '../connection/LoadBalancer';
+import { QueryPipeline } from '../query/QueryPipeline';
+import { ParallelQueryExecutor } from '../query/ParallelQueryExecutor';
+import { MemoryOptimizer } from '../memory/MemoryOptimizer';
+import { NebulaConfig } from '../NebulaTypes';
 
-// Mock the Nebula client for testing
-const mockExecute = jest.fn();
-const mockClose = jest.fn();
-const mockClient = {
-  execute: mockExecute,
-  close: mockClose,
-  on: jest.fn(),
-  once: jest.fn(),
-};
+// Mock implementations for integration testing
+class MockLoggerService extends LoggerService {
+  debug = jest.fn();
+  info = jest.fn();
+  warn = jest.fn();
+  error = jest.fn();
+}
 
-jest.mock('@nebula-contrib/nebula-nodejs', () => ({
-  createClient: () => mockClient,
-}));
+class MockErrorHandlerService extends ErrorHandlerService {
+  handleError = jest.fn();
+  constructor() {
+    super(new MockLoggerService());
+  }
+}
 
-describe('Integration Test: Nebula Module After Refactoring', () => {
-  let container: Container;
-  let connectionManager: NebulaConnectionManager;
-  let dataService: NebulaDataService;
-  let spaceService: NebulaSpaceService;
-
-  beforeAll(() => {
-    container = new Container();
-
-    // Register all necessary services including missing dependencies
-    container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
-    container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
-    container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
-    container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
-    container.bind<LoggingConfigService>(TYPES.LoggingConfigService).to(LoggingConfigService).inSingletonScope();
-    container.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
-    container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
-    container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
-    container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
-    container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
-    container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
-    container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();
-    container.bind<ProjectNamingConfigService>(TYPES.ProjectNamingConfigService).to(ProjectNamingConfigService).inSingletonScope();
-    container.bind<EmbeddingBatchConfigService>(TYPES.EmbeddingBatchConfigService).to(EmbeddingBatchConfigService).inSingletonScope();
-
-    container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
-    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
-    container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
-    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
-    container.bind<ConnectionStateManager>(TYPES.ConnectionStateManager).to(ConnectionStateManager).inSingletonScope();
-    container.bind<NebulaEventManager>(TYPES.NebulaEventManager).to(NebulaEventManager).inSingletonScope();
-
-    // Create and register the connection manager
-    // 创建NebulaQueryService实例，需要INebulaConnectionManager作为依赖
-    // 使用类型断言来绕过编译时检查，因为在运行时我们会设置正确的引用
-    const queryService = new NebulaQueryService(
-      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-      new PerformanceMonitor(container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService)),
-      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
-      undefined as any // 连接管理器将在之后设置
-    );
-
-    // 现在创建NebulaConnectionManager实例
-    connectionManager = new NebulaConnectionManager(
-      container.get<DatabaseLoggerService>(TYPES.DatabaseLoggerService),
-      container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-      container.get<NebulaConfigService>(TYPES.NebulaConfigService),
-      container.get<ConnectionStateManager>(TYPES.ConnectionStateManager),
-      container.get<NebulaEventManager>(TYPES.NebulaEventManager)
-    );
-
-    // 设置connectionManager的引用到queryService中
-    (queryService as any).connectionManager = connectionManager;
-
-    // Create services that depend on the connection manager
-    dataService = new NebulaDataService(
-      connectionManager,
-      container.get(TYPES.DatabaseLoggerService),
-      container.get(TYPES.ErrorHandlerService)
-    );
-
-    spaceService = new NebulaSpaceService(
-      connectionManager,
-      container.get(TYPES.DatabaseLoggerService),
-      container.get(TYPES.ErrorHandlerService),
-      container.get(TYPES.NebulaConfigService)
-    );
+class MockNebulaConfigService extends NebulaConfigService {
+  getConfig = jest.fn().mockReturnValue({
+    host: 'localhost',
+    port: 9669,
+    username: 'root',
+    password: 'nebula',
+    space: 'test_space'
   });
+  constructor() {
+    super(new MockLoggerService(), new MockErrorHandlerService());
+  }
+}
+
+class MockPerformanceMonitor extends PerformanceMonitor {
+  startOperation = jest.fn().mockReturnValue('operation-id');
+  endOperation = jest.fn();
+  recordOperation = jest.fn();
+  constructor() {
+    super(new MockLoggerService());
+  }
+}
+
+describe('Nebula Graph Integration Tests', () => {
+  let container: Container;
+  let mockLogger: MockLoggerService;
+  let mockErrorHandler: MockErrorHandlerService;
+  let mockConfigService: MockNebulaConfigService;
+  let mockPerformanceMonitor: MockPerformanceMonitor;
+  let config: NebulaConfig;
 
   beforeEach(() => {
-    // Reset mocks before each test
+    container = new Container();
+
+    // Setup mocks
+    mockLogger = new MockLoggerService();
+    mockErrorHandler = new MockErrorHandlerService();
+    mockConfigService = new MockNebulaConfigService();
+    mockPerformanceMonitor = new MockPerformanceMonitor();
+
+    // Bind mocks
+    container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
+    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandler);
+    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockConfigService);
+    container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).toConstantValue(mockPerformanceMonitor);
+
+    // Create actual instances of our services
+    container.bind<ConnectionWarmer>(TYPES.ConnectionWarmer).to(ConnectionWarmer).inSingletonScope();
+    container.bind<LoadBalancer>(TYPES.LoadBalancer).to(LoadBalancer).inSingletonScope();
+    container.bind<QueryCache>(TYPES.QueryCache).to(QueryCache).inSingletonScope();
+    container.bind<QueryPipeline>(TYPES.QueryPipeline).to(QueryPipeline).inSingletonScope();
+    container.bind<ParallelQueryExecutor>(TYPES.ParallelQueryExecutor).to(ParallelQueryExecutor).inSingletonScope();
+    container.bind<MemoryOptimizer>(TYPES.MemoryOptimizer).to(MemoryOptimizer).inSingletonScope();
+
+    container.bind<ConnectionPool>(TYPES.IConnectionPool).to(ConnectionPool).inSingletonScope();
+    container.bind<SessionManager>(TYPES.ISessionManager).to(SessionManager).inSingletonScope();
+    container.bind<QueryRunner>(TYPES.IQueryRunner).to(QueryRunner).inSingletonScope();
+    container.bind<NebulaClient>(TYPES.NebulaClient).to(NebulaClient).inSingletonScope();
+
+    config = {
+      host: 'localhost',
+      port: 9669,
+      username: 'root',
+      password: 'nebula',
+      space: 'test_space'
+    };
+  });
+
+  afterEach(() => {
     jest.clearAllMocks();
-    mockExecute.mockClear();
-    mockClose.mockClear();
   });
 
-  test('should connect to database via connection manager', async () => {
-    // Setup mocks for successful connection
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
+  describe('Component Integration', () => {
+    it('should properly integrate all components through dependency injection', () => {
+      // Get the main client
+      const nebulaClient = container.get<NebulaClient>(TYPES.NebulaClient);
+
+      // Verify that all dependencies are properly injected
+      expect(nebulaClient).toBeDefined();
+
+      // Get other components to verify they're properly created
+      const connectionPool = container.get<ConnectionPool>(TYPES.IConnectionPool);
+      const sessionManager = container.get<SessionManager>(TYPES.ISessionManager);
+      const queryRunner = container.get<QueryRunner>(TYPES.IQueryRunner);
+
+      expect(connectionPool).toBeDefined();
+      expect(sessionManager).toBeDefined();
+      expect(queryRunner).toBeDefined();
     });
 
-    // Mock the client's authorized event
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
+    it('should initialize all components successfully', async () => {
+      const nebulaClient = container.get<NebulaClient>(TYPES.NebulaClient);
+
+      await nebulaClient.initialize(config);
+
+      // Verify that initialization was called on all components
+      expect(mockLogger.info).toHaveBeenCalledWith('NebulaClient initialized successfully');
     });
 
-    // Attempt to connect
-    const connected = await connectionManager.connect();
+    it('should execute a simple query through the full stack', async () => {
+      const nebulaClient = container.get<NebulaClient>(TYPES.NebulaClient);
 
-    // Assertions
-    expect(connected).toBe(true);
-    expect(connectionManager.isConnected()).toBe(true);
+      // Mock the session execute method to return a simple result
+      const mockSession = {
+        execute: jest.fn().mockResolvedValue({
+          table: {},
+          results: [],
+          rows: [],
+          data: []
+        }),
+        close: jest.fn().mockResolvedValue(undefined),
+        switchSpace: jest.fn().mockResolvedValue(undefined),
+        getStats: jest.fn().mockReturnValue({
+          id: 'mock-session-id',
+          state: 'active',
+          created: new Date(),
+          lastUsed: new Date(),
+          queryCount: 0,
+          errorCount: 0,
+          totalQueryTime: 0
+        })
+      };
+
+      // Mock the session manager to return our mock session
+      const sessionManager = container.get<SessionManager>(TYPES.ISessionManager);
+      (sessionManager.getSession as jest.Mock) = jest.fn().mockResolvedValue(mockSession);
+
+      await nebulaClient.initialize(config);
+
+      // Execute a simple query
+      const result = await nebulaClient.executeQuery('SHOW SPACES');
+
+      expect(result).toBeDefined();
+      expect(mockSession.execute).toHaveBeenCalledWith('SHOW SPACES', undefined, undefined);
+    });
+
+    it('should handle query execution with parameters', async () => {
+      const nebulaClient = container.get<NebulaClient>(TYPES.NebulaClient);
+
+      // Mock the session execute method
+      const mockSession = {
+        execute: jest.fn().mockResolvedValue({
+          table: {},
+          results: [],
+          rows: [],
+          data: []
+        }),
+        close: jest.fn().mockResolvedValue(undefined),
+        switchSpace: jest.fn().mockResolvedValue(undefined),
+        getStats: jest.fn().mockReturnValue({
+          id: 'mock-session-id',
+          state: 'active',
+          created: new Date(),
+          lastUsed: new Date(),
+          queryCount: 0,
+          errorCount: 0,
+          totalQueryTime: 0
+        })
+      };
+
+      // Mock the session manager
+      const sessionManager = container.get<SessionManager>(TYPES.ISessionManager);
+      (sessionManager.getSession as jest.Mock) = jest.fn().mockResolvedValue(mockSession);
+
+      await nebulaClient.initialize(config);
+
+      // Execute a query with parameters
+      const result = await nebulaClient.executeQuery(
+        'INSERT VERTEX person(name) VALUES "1":($name)',
+        { name: 'Alice' }
+      );
+
+      expect(result).toBeDefined();
+      expect(mockSession.execute).toHaveBeenCalledWith(
+        'INSERT VERTEX person(name) VALUES "1":($name)',
+        { name: 'Alice' },
+        undefined
+      );
+    });
+
+    it('should execute batch queries', async () => {
+      const nebulaClient = container.get<NebulaClient>(TYPES.NebulaClient);
+
+      // Mock the query runner executeBatch method
+      const queryRunner = container.get<QueryRunner>(TYPES.IQueryRunner);
+      (queryRunner.executeBatch as jest.Mock) = jest.fn().mockResolvedValue([
+        { table: {}, results: [], rows: [], data: [] },
+        { table: {}, results: [], rows: [], data: [] }
+      ]);
+
+      await nebulaClient.initialize(config);
+
+      // Execute batch queries
+      const queries = [
+        { query: 'SHOW SPACES' },
+        { query: 'SHOW HOSTS' }
+      ];
+      const results = await nebulaClient.executeBatch(queries);
+
+      expect(results).toHaveLength(2);
+      expect(queryRunner.executeBatch).toHaveBeenCalledWith(queries);
+    });
+
   });
 
-  test('should execute queries via connection manager', async () => {
-    // Setup connection first
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
+  describe('Service Integration', () => {
+    it('should integrate with configuration service', () => {
+      const configService = container.get<NebulaConfigService>(TYPES.NebulaConfigService);
+
+      expect(configService).toBeDefined();
+      expect(configService.getConfig).toBeDefined();
     });
 
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
+    it('should integrate with performance monitoring service', () => {
+      const performanceMonitor = container.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
+
+      expect(performanceMonitor).toBeDefined();
+      expect(performanceMonitor.startOperation).toBeDefined();
+      expect(performanceMonitor.endOperation).toBeDefined();
     });
 
-    await connectionManager.connect();
+    it('should integrate with query cache service', () => {
+      const queryCache = container.get<QueryCache>(TYPES.QueryCache);
 
-    // Now test query execution
-    const mockQueryResult = {
-      data: [{ Name: 'test_space' }],
-      code: 0,
-    };
+      expect(queryCache).toBeDefined();
+      expect(queryCache.get).toBeDefined();
+      expect(queryCache.set).toBeDefined();
+    });
 
-    mockExecute.mockResolvedValueOnce(mockQueryResult);
+    it('should integrate with connection management services', () => {
+      const connectionPool = container.get<ConnectionPool>(TYPES.IConnectionPool);
+      const connectionWarmer = container.get<ConnectionWarmer>(TYPES.ConnectionWarmer);
+      const loadBalancer = container.get<LoadBalancer>(TYPES.LoadBalancer);
 
-    const result = await connectionManager.executeQuery('MATCH (n) RETURN n LIMIT 1');
+      expect(connectionPool).toBeDefined();
+      expect(connectionWarmer).toBeDefined();
+      expect(loadBalancer).toBeDefined();
+    });
 
-    expect(result).toBeDefined();
-    expect(result.data).toEqual(mockQueryResult.data);
+    it('should integrate with query optimization services', () => {
+      const queryPipeline = container.get<QueryPipeline>(TYPES.QueryPipeline);
+      const parallelQueryExecutor = container.get<ParallelQueryExecutor>(TYPES.ParallelQueryExecutor);
+
+      expect(queryPipeline).toBeDefined();
+      expect(parallelQueryExecutor).toBeDefined();
+    });
+
+    it('should integrate with memory optimization services', () => {
+      const memoryOptimizer = container.get<MemoryOptimizer>(TYPES.MemoryOptimizer);
+
+      expect(memoryOptimizer).toBeDefined();
+      expect(memoryOptimizer.getMemoryStats).toBeDefined();
+    });
   });
 
-  test('should create nodes via data service', async () => {
-    // Setup connection first
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
+  describe('Error Handling Integration', () => {
+    it('should properly handle errors across components', async () => {
+      const nebulaClient = container.get<NebulaClient>(TYPES.NebulaClient);
+
+      // Mock an error in the session
+      const error = new Error('Query execution failed');
+      const mockSession = {
+        execute: jest.fn().mockRejectedValue(error),
+        close: jest.fn().mockResolvedValue(undefined),
+        switchSpace: jest.fn().mockResolvedValue(undefined),
+        getStats: jest.fn().mockReturnValue({
+          id: 'mock-session-id',
+          state: 'active',
+          created: new Date(),
+          lastUsed: new Date(),
+          queryCount: 0,
+          errorCount: 0,
+          totalQueryTime: 0
+        })
+      };
+
+      // Mock the session manager
+      const sessionManager = container.get<SessionManager>(TYPES.ISessionManager);
+      (sessionManager.getSession as jest.Mock) = jest.fn().mockResolvedValue(mockSession);
+
+      await nebulaClient.initialize(config);
+
+      // Execute a query that will fail
+      await expect(nebulaClient.executeQuery('INVALID QUERY')).rejects.toThrow('Query execution failed');
+
+      // Verify that error handling was called
+      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(
+        error,
+        { component: 'NebulaClient', operation: 'executeQuery', query: 'INVALID QUERY' }
+      );
     });
-
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
-    });
-
-    await connectionManager.connect();
-
-    // Mock the query result for node creation
-    mockExecute.mockResolvedValue({ error: null });
-
-    const nodeData = {
-      label: 'TestLabel',
-      properties: {
-        name: 'Test Node',
-        created: Date.now()
-      }
-    };
-
-    const nodeId = await dataService.createNode(nodeData);
-
-    expect(nodeId).toBeDefined();
-    expect(nodeId).toContain('TestLabel_');
   });
 
-  test('should find nodes by label via data service', async () => {
-    // Setup connection first
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
+  describe('Statistics and Monitoring Integration', () => {
+    it('should collect statistics across all components', async () => {
+      const nebulaClient = container.get<NebulaClient>(TYPES.NebulaClient);
+
+      await nebulaClient.initialize(config);
+
+      // Get stats from the client
+      const stats = nebulaClient.getStats();
+
+      expect(stats).toBeDefined();
+      expect(stats.connectionPool).toBeDefined();
+      expect(stats.sessionManager).toBeDefined();
+      expect(stats.queryRunner).toBeDefined();
+      expect(stats.transactionManager).toBeDefined();
     });
-
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
-    });
-
-    await connectionManager.connect();
-
-    // Mock the query result for node search
-    const mockNodes = [
-      { Name: 'test_space' }
-    ];
-
-    mockExecute.mockResolvedValue({
-      data: mockNodes,
-      error: null
-    });
-
-    const label = 'TestLabel';
-    const properties = { name: 'Test Node' };
-
-    const foundNodes = await dataService.findNodesByLabel(label, properties);
-
-    expect(foundNodes).toEqual(mockNodes);
-  });
-
-  test('should create relationships via data service', async () => {
-    // Setup connection first
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
-    });
-
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
-    });
-
-    await connectionManager.connect();
-
-    // Mock the query result for relationship creation
-    mockExecute.mockResolvedValue({ error: null });
-
-    const relationship = {
-      type: 'TEST_RELATIONSHIP',
-      sourceId: 'node1',
-      targetId: 'node2',
-      properties: { since: 2023 }
-    };
-
-    await expect(dataService.createRelationship(relationship)).resolves.not.toThrow();
-  });
-
-  test('should manage spaces via space service', async () => {
-    // Setup connection first
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
-    });
-
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
-    });
-
-    await connectionManager.connect();
-
-    // Mock the query result for space listing
-    const mockSpaces = [
-      { Name: 'test_space' }
-    ];
-
-    mockExecute.mockResolvedValue({
-      data: mockSpaces,
-      error: null
-    });
-
-    const spaces = await spaceService.listSpaces();
-
-    expect(spaces).toEqual(mockSpaces);
-  });
-
-  test('should create space via space service', async () => {
-    // Setup connection first
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
-    });
-
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
-    });
-
-    await connectionManager.connect();
-
-    // Mock the query result for space creation
-    mockExecute.mockResolvedValue({ error: null });
-
-    const created = await spaceService.createSpace('new_test_space');
-
-    expect(created).toBe(true);
-  });
-
-  test('should execute queries in specific space via space service', async () => {
-    // Setup connection first
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
-    });
-
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
-    });
-
-    await connectionManager.connect();
-
-    // Mock the query results
-    mockExecute.mockResolvedValueOnce({ error: null }); // for USE space
-    mockExecute.mockResolvedValueOnce({
-      data: [{ id: '1', name: 'test' }],
-      error: null
-    }); // for actual query
-
-    await spaceService.useSpace('test_space');
-    const result = await spaceService['connectionManager'].executeQuery('MATCH (n) RETURN n');
-
-    expect(result).toBeDefined();
-    expect(mockExecute).toHaveBeenCalledWith('USE `test_space`');
-  });
-
-  test('should validate space via space service', async () => {
-    // Setup connection first
-    mockExecute.mockResolvedValueOnce({
-      data: [{ Name: 'test_space' }],
-      code: 0,
-    });
-
-    const originalOnce = mockClient.once;
-    originalOnce.mockImplementation((event: string, callback: Function) => {
-      if (event === 'authorized') {
-        setTimeout(() => callback(), 10);
-      }
-    });
-
-    await connectionManager.connect();
-
-    // Mock the query results for space validation
-    mockExecute
-      .mockResolvedValueOnce({ data: [{ Name: 'test_space' }], error: null }) // SHOW SPACES
-      .mockResolvedValueOnce({ error: null }) // USE space
-      .mockResolvedValueOnce({ data: [], error: null }); // SHOW TAGS
-
-    const isValid = await spaceService.validateSpace('test_space');
-
-    expect(isValid).toBe(true);
   });
 });

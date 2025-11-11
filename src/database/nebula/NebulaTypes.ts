@@ -25,6 +25,14 @@ export interface NebulaConnectionStatus {
   error?: string;
 }
 
+// 统计信息类型
+export interface ResultStats {
+  rowCount: number;
+  columnCount: number;
+  dataSize: number;
+  processedTime: number;
+}
+
 // Nebula 查询结果类型
 export interface NebulaQueryResult {
   table: any;
@@ -35,6 +43,11 @@ export interface NebulaQueryResult {
   executionTime?: number;
   timeCost?: number;
   space?: string;
+  errorCode?: any;
+  errorDetails?: any;
+  stats?: ResultStats;
+  query?: string;
+  metadata?: Record<string, any>;
 }
 
 // Nebula 错误处理类型
@@ -68,6 +81,8 @@ export interface NebulaSpaceInfo {
   partition_num: number;
   replica_factor: number;
   vid_type: string;
+  charset?: string;
+  collate?: string;
 }
 
 // Nebula 节点类型
@@ -91,6 +106,8 @@ export interface NebulaSpaceConfig {
   partitionNum?: number;
   replicaFactor?: number;
   vidType?: string;
+  tags?: any[];
+  edges?: any[];
 }
 
 // 项目空间信息类型

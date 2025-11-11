@@ -6,9 +6,8 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { NebulaQueryResult, NebulaConfig } from '../NebulaTypes';
 import { PerformanceMonitor } from '../../common/PerformanceMonitor';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
-import { createClient } from '@nebula-contrib/nebula-nodejs';
-import { NebulaQueryUtils } from './NebulaQueryUtils';
 import { INebulaConnectionManager } from '../NebulaConnectionManager';
+import { IQueryRunner } from './QueryRunner';
 
 export interface INebulaQueryService {
   executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult>;
@@ -26,6 +25,7 @@ export class NebulaQueryService implements INebulaQueryService {
   private performanceMonitor: PerformanceMonitor;
   private configService: NebulaConfigService;
   private connectionManager: INebulaConnectionManager;
+  private queryRunner: IQueryRunner;
   private isInitialized: boolean = false;
 
   constructor(
@@ -33,13 +33,15 @@ export class NebulaQueryService implements INebulaQueryService {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.NebulaConfigService) configService: NebulaConfigService,
-    @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager
+    @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager,
+    @inject(TYPES.IQueryRunner) queryRunner: IQueryRunner
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.performanceMonitor = performanceMonitor;
     this.configService = configService;
     this.connectionManager = connectionManager;
+    this.queryRunner = queryRunner;
   }
 
   /**
@@ -56,7 +58,7 @@ export class NebulaQueryService implements INebulaQueryService {
     if (!this.connectionManager.isConnected()) {
       await this.connectionManager.connect();
     }
-    
+
     // 使用getConnectionForSpace方法获取连接，如果需要空间则传入配置的空间
     const config = this.configService.loadConfig();
     if (config.space) {
@@ -68,92 +70,8 @@ export class NebulaQueryService implements INebulaQueryService {
   }
 
   async executeQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
-    const startTime = Date.now();
-
-    try {
-      // 简单的参数插值
-      let query = nGQL;
-      if (parameters) {
-        query = this.prepareQuery(nGQL, parameters);
-      }
-      
-      // 使用 DatabaseLoggerService 记录查询执行事件
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Executing Nebula query',
-          query: query.substring(0, 100) + (query.length > 100 ? '...' : ''),
-          hasParameters: !!parameters && Object.keys(parameters).length > 0
-        }
-      });
-
-      const client = await this.getClient();
-      const result = await client.execute(query);
-      const executionTime = Date.now() - startTime;
-
-      // 转换结果格式
-      const nebulaResult = {
-        table: result?.table || {},
-        results: result?.results || [],
-        rows: result?.rows || [],
-        data: result?.data || [],
-        executionTime,
-        timeCost: result?.timeCost || 0,
-        error: result?.error || undefined
-      };
-
-      // 记录性能指标
-      this.performanceMonitor.recordOperation('executeQuery', executionTime, {
-        queryLength: query.length,
-        hasParameters: !!parameters
-      });
-
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Query executed successfully',
-          executionTime,
-          hasData: !!(nebulaResult.data && nebulaResult.data.length > 0),
-          dataSize: nebulaResult.data?.length,
-          hasError: !!nebulaResult.error,
-          error: nebulaResult.error
-        }
-      });
-
-      return nebulaResult;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const executionTime = Date.now() - startTime;
-
-      // 使用 DatabaseLoggerService 记录查询执行失败事件
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.ERROR_OCCURRED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Query execution failed',
-          error: errorMessage,
-          executionTime,
-          query: nGQL.substring(0, 100) + (nGQL.length > 100 ? '...' : '')
-        }
-      });
-
-      this.errorHandler.handleError(
-        new Error(`Failed to execute Nebula query: ${errorMessage}`),
-        {
-          component: 'NebulaQueryService',
-          operation: 'executeQuery',
-          query: nGQL,
-          parameters
-        }
-      );
-
-      throw error;
-    }
+    // 委托给新的QueryRunner
+    return await this.queryRunner.execute(nGQL, parameters);
   }
 
   async executeParameterizedQuery(nGQL: string, parameters?: Record<string, any>): Promise<NebulaQueryResult> {
@@ -210,72 +128,14 @@ export class NebulaQueryService implements INebulaQueryService {
   }
 
   async executeBatch(queries: Array<{ query: string; params?: Record<string, any> }>): Promise<NebulaQueryResult[]> {
-    const startTime = Date.now();
+    // 转换查询格式以匹配QueryRunner的接口
+    const queryBatches = queries.map(q => ({
+      query: q.query,
+      params: q.params,
+      options: undefined
+    }));
 
-    try {
-      // 使用 DatabaseLoggerService 记录批量查询执行事件
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Executing batch queries',
-          queryCount: queries.length
-        }
-      });
-
-      const results: NebulaQueryResult[] = [];
-      for (const { query, params } of queries) {
-        const result = await this.executeQuery(query, params);
-        results.push(result);
-      }
-
-      const executionTime = Date.now() - startTime;
-
-      // 记录性能指标
-      this.performanceMonitor.recordOperation('executeBatch', executionTime, {
-        queryCount: queries.length
-      });
-
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.QUERY_EXECUTED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Batch queries executed successfully',
-          executionTime,
-          resultCount: results.length
-        }
-      });
-
-      return results;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const executionTime = Date.now() - startTime;
-
-      // 使用 DatabaseLoggerService 记录批量查询执行失败事件
-      await this.databaseLogger.logDatabaseEvent({
-        type: DatabaseEventType.ERROR_OCCURRED,
-        source: 'nebula',
-        timestamp: new Date(),
-        data: {
-          message: 'Batch query execution failed',
-          error: errorMessage,
-          executionTime,
-          queryCount: queries.length
-        }
-      });
-
-      this.errorHandler.handleError(
-        new Error(`Failed to execute batch Nebula queries: ${errorMessage}`),
-        {
-          component: 'NebulaQueryService',
-          operation: 'executeBatch',
-          queries
-        }
-      );
-
-      throw error;
-    }
+    // 委托给新的QueryRunner
+    return await this.queryRunner.executeBatch(queryBatches);
   }
 }

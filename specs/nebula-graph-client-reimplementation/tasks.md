@@ -104,14 +104,6 @@
   - 实现缓存失效和更新策略
   - *参考需求*: 查询执行 (需求3.5)
 
-- [ ] 3.3 实现TransactionManager事务管理器
-  - 创建ITransactionManager接口和实现类
-  - 实现事务的开始、提交和回滚
-  - 集成批处理服务进行事务优化
-  - 使用NebulaBatchStrategy的事务分割策略
-  - 实现事务超时管理
-  - *参考需求*: 事务支持 (需求4.1-4.5)
-
 #### 4. 实现错误处理和容错机制
 - [ ] 4.1 实现重试策略
   - 创建IRetryStrategy接口和ExponentialBackoffRetryStrategy实现

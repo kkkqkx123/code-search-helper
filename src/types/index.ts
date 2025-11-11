@@ -81,7 +81,6 @@ export const TYPES = {
   INebulaIndexManager: Symbol.for('INebulaIndexManager'),
   INebulaDataOperations: Symbol.for('INebulaDataOperations'),
   INebulaQueryService: Symbol.for('INebulaQueryService'),
-  INebulaTransactionService: Symbol.for('INebulaTransactionService'),
   ISpaceNameUtils: Symbol.for('ISpaceNameUtils'),
    IConnectionPool: Symbol.for('IConnectionPool'),
 
@@ -189,8 +188,15 @@ export const TYPES = {
 
   // Nebula Graph 新增服务
   ISessionManager: Symbol.for('ISessionManager'),
-  ITransactionManager: Symbol.for('ITransactionManager'),
   IRetryStrategy: Symbol.for('IRetryStrategy'),
   ICircuitBreaker: Symbol.for('ICircuitBreaker'),
   IQueryRunner: Symbol.for('IQueryRunner'),
-};
+  ConnectionWarmer: Symbol.for('ConnectionWarmer'),
+  LoadBalancer: Symbol.for('LoadBalancer'),
+  QueryPipeline: Symbol.for('QueryPipeline'),
+  ParallelQueryExecutor: Symbol.for('ParallelQueryExecutor'),
+  MemoryOptimizer: Symbol.for('MemoryOptimizer'),
+} as const;
+
+// 确保TYPES的类型被正确识别
+export type TypesType = typeof TYPES;
