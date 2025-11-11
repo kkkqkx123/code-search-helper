@@ -20,7 +20,7 @@ import { QdrantService } from '../database/qdrant/QdrantService.js';
 import { ProjectStateManager } from '../service/project/ProjectStateManager';
 import { diContainer } from '../core/DIContainer';
 import { TYPES } from '../types';
-import { NebulaService } from '../database/nebula/NebulaService';
+import { NebulaClient } from '../database/nebula/client/NebulaClient';
 import { QdrantCollectionViewRoutes } from './routes/QdrantCollectionViewRoutes';
 import { createProjectMappingRouter } from './routes/ProjectMappingRoutes';
 
@@ -41,7 +41,7 @@ export class ApiServer {
   private indexSyncService: IndexService;
   private embedderFactory: EmbedderFactory;
   private qdrantService: QdrantService;
-  private nebulaService: NebulaService;
+  private nebulaClient: NebulaClient;
   private projectStateManager: ProjectStateManager;
   private qdrantCollectionViewRoutes: QdrantCollectionViewRoutes;
 
@@ -50,8 +50,8 @@ export class ApiServer {
     this.indexSyncService = indexSyncService;
     this.embedderFactory = embedderFactory;
     this.qdrantService = qdrantService;
-    // 从依赖注入容器获取Nebula服务
-    this.nebulaService = diContainer.get<NebulaService>(TYPES.INebulaService);
+    // 从依赖注入容器获取Nebula客户端(包含服务功能)
+    this.nebulaClient = diContainer.get<NebulaClient>(TYPES.NebulaClient);
     this.app = express();
     this.port = port;
 
@@ -238,8 +238,8 @@ export class ApiServer {
     // Nebula数据库状态检查端点
     this.app.get('/api/v1/nebula/status', async (req, res) => {
       try {
-        const isConnected = this.nebulaService.isConnected();
-        const stats = isConnected ? await this.nebulaService.getDatabaseStats() : null;
+        const isConnected = this.nebulaClient.isConnected();
+        const stats = isConnected ? await this.nebulaClient.getDatabaseStats() : null;
 
         res.json({
           connected: isConnected,
@@ -259,10 +259,10 @@ export class ApiServer {
     this.app.post('/api/v1/nebula/test-connection', async (req, res) => {
       try {
         // 尝试连接到Nebula数据库
-        const connected = await this.nebulaService.initialize();
+        const connected = await this.nebulaClient.initialize();
 
         if (connected) {
-          const stats = await this.nebulaService.getDatabaseStats();
+          const stats = await this.nebulaClient.getDatabaseStats();
           res.json({
             success: true,
             message: 'Successfully connected to Nebula database',
@@ -293,10 +293,10 @@ export class ApiServer {
     this.app.post('/api/v1/nebula/test-reconnect', async (req, res) => {
       try {
         // 尝试重新连接到Nebula数据库
-        const reconnected = await this.nebulaService.reconnect();
+        const reconnected = await this.nebulaClient.reconnect();
 
         if (reconnected) {
-          const stats = await this.nebulaService.getDatabaseStats();
+          const stats = await this.nebulaClient.getDatabaseStats();
           res.json({
             success: true,
             message: 'Successfully reconnected to Nebula database',

@@ -26,8 +26,6 @@ import { GraphQueryBuilder, IGraphQueryBuilder } from '../../database/nebula/que
 import { NebulaProjectManager } from '../../database/nebula/NebulaProjectManager';
 
 // Nebula图数据库服务
-import { NebulaService } from '../../database/nebula/NebulaService';
-import { INebulaService } from '../../database/nebula/NebulaService';
 import { NebulaConnectionManager } from '../../database/nebula/NebulaConnectionManager';
 import { INebulaConnectionManager } from '../../database/nebula/NebulaConnectionManager';
 import { NebulaSpaceManager } from '../../database/nebula/space/NebulaSpaceManager';
@@ -49,7 +47,6 @@ import { NebulaFileDataService, INebulaFileDataService } from '../../database/ne
 
 // Nebula客户端服务
 import { NebulaClient } from '../../database/nebula/client/NebulaClient';
-import { NebulaServiceAdapter } from '../../database/nebula/client/NebulaServiceAdapter';
 
 // Nebula 会话和连接管理服务
 import { ConnectionPool, IConnectionPool } from '../../database/nebula/connection/ConnectionPool';
@@ -103,8 +100,6 @@ export class DatabaseServiceRegistrar {
       container.bind<NebulaProjectManager>(TYPES.INebulaProjectManager).to(NebulaProjectManager).inSingletonScope();
 
       // Nebula图数据库服务
-      container.bind<NebulaService>(TYPES.NebulaService).to(NebulaService).inSingletonScope();
-      container.bind<INebulaService>(TYPES.INebulaService).to(NebulaService).inSingletonScope();
       container.bind<NebulaConnectionManager>(TYPES.NebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
       container.bind<INebulaConnectionManager>(TYPES.INebulaConnectionManager).to(NebulaConnectionManager).inSingletonScope();
       container.bind<INebulaSpaceManager>(TYPES.INebulaSpaceManager).to(NebulaSpaceManager).inSingletonScope();
@@ -143,6 +138,9 @@ export class DatabaseServiceRegistrar {
       container.bind<QueryPipeline>(TYPES.QueryPipeline).to(QueryPipeline).inSingletonScope();
       container.bind<ParallelQueryExecutor>(TYPES.ParallelQueryExecutor).to(ParallelQueryExecutor).inSingletonScope();
       container.bind<MemoryOptimizer>(TYPES.MemoryOptimizer).to(MemoryOptimizer).inSingletonScope();
+
+      // NebulaClient 服务 - 新的统一客户端
+      container.bind<NebulaClient>(TYPES.NebulaClient).to(NebulaClient).inSingletonScope();
 
       // 工具类服务
       container.bind<NebulaQueryUtils>(TYPES.NebulaQueryUtils).to(NebulaQueryUtils).inSingletonScope();

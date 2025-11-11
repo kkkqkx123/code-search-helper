@@ -130,6 +130,7 @@ export const TYPES = {
   NebulaFileDataService: Symbol.for('NebulaFileDataService'),
   INebulaFileDataService: Symbol.for('INebulaFileDataService'),
   NebulaClient: Symbol.for('NebulaClient'),
+  INebulaClient: Symbol.for('INebulaClient'),
   NebulaServiceAdapter: Symbol.for('NebulaServiceAdapter'),
   QueryPipeline: Symbol.for('QueryPipeline'),
   ParallelQueryExecutor: Symbol.for('ParallelQueryExecutor'),

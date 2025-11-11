@@ -15,7 +15,7 @@ import { diContainer } from './core/DIContainer';
 import { TYPES } from './types';
 import { EmbeddingConfigService } from './config/service/EmbeddingConfigService';
 import { ProjectIdManager } from './database/ProjectIdManager';
-import { NebulaService } from './database/nebula/NebulaService';
+import { NebulaClient } from './database/nebula/client/NebulaClient';
 import { NebulaConnectionMonitor } from './service/graph/performance/NebulaConnectionMonitor';
 import { ChangeDetectionService } from './service/filesystem/ChangeDetectionService';
 import { HotReloadRestartService } from './service/filesystem/HotReloadRestartService';
@@ -98,7 +98,7 @@ class Application {
     @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
     @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
-    @inject(TYPES.INebulaService) private nebulaService: NebulaService,
+    @inject(TYPES.NebulaClient) private nebulaClient: NebulaClient,
     @inject(TYPES.NebulaConnectionMonitor) private nebulaConnectionMonitor: NebulaConnectionMonitor,
     @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
@@ -182,7 +182,7 @@ class Application {
       const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
       if (nebulaEnabled) {
         await this.loggerService.info('Initializing Nebula graph database service...');
-        const nebulaConnected = await this.nebulaService.initialize();
+        const nebulaConnected = await this.nebulaClient.initialize();
         if (nebulaConnected) {
           await this.loggerService.info('Nebula graph database service initialized successfully');
 
@@ -296,7 +296,7 @@ class Application {
           this.nebulaConnectionMonitor.stopMonitoring();
           await this.loggerService.info('Nebula connection monitoring stopped');
 
-          await this.nebulaService.close();
+          await this.nebulaClient.close();
           await this.loggerService.info('Nebula graph database service closed');
         } catch (error) {
           await this.loggerService.error('Error closing Nebula graph database service:', error);
@@ -374,7 +374,7 @@ class ApplicationFactory {
     const projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     const embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
     const embeddingConfigService = diContainer.get<EmbeddingConfigService>(TYPES.EmbeddingConfigService);
-    const nebulaService = diContainer.get<NebulaService>(TYPES.INebulaService);
+    const nebulaClient = diContainer.get<NebulaClient>(TYPES.NebulaClient);
     const nebulaConnectionMonitor = diContainer.get<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor);
     const changeDetectionService = diContainer.get<ChangeDetectionService>(TYPES.ChangeDetectionService);
     const projectIdManager = diContainer.get<ProjectIdManager>(TYPES.ProjectIdManager);
@@ -392,7 +392,7 @@ class ApplicationFactory {
       projectStateManager,
       embeddingCacheService,
       embeddingConfigService,
-      nebulaService,
+      nebulaClient,
       nebulaConnectionMonitor,
       changeDetectionService,
       projectIdManager,

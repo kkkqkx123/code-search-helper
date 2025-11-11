@@ -1,191 +1,137 @@
 import { Container } from 'inversify';
-import { NebulaClient } from '../NebulaClient';
+import { NebulaClient, INebulaClient } from '../NebulaClient';
 import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { NebulaConfigService } from '../../../../config/service/NebulaConfigService';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
-import { IConnectionPool } from '../../connection/ConnectionPool';
-import { ISessionManager } from '../../session/SessionManager';
+import { NebulaConfig } from '../../NebulaTypes';
 import { IQueryRunner } from '../../query/QueryRunner';
-import { NebulaConfig, NebulaNode, NebulaRelationship } from '../../NebulaTypes';
 import { INebulaProjectManager } from '../../NebulaProjectManager';
 import { ProjectIdManager } from '../../../ProjectIdManager';
 
-// Mock implementations
-class MockLoggerService extends LoggerService {
-  debug = jest.fn();
-  info = jest.fn();
-  warn = jest.fn();
-  error = jest.fn();
-}
+// Mock dependencies
+const mockLoggerService = {
+  info: jest.fn(),
+  debug: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+};
 
-class MockErrorHandlerService extends ErrorHandlerService {
-  handleError = jest.fn();
-}
+const mockErrorHandlerService = {
+  handleError: jest.fn(),
+};
 
-class MockNebulaConfigService extends NebulaConfigService {
-  getConfig = jest.fn().mockReturnValue({
+const mockConfigService = {
+  loadConfig: jest.fn().mockReturnValue({
     host: 'localhost',
     port: 9669,
     username: 'root',
     password: 'nebula',
-    space: 'test_space'
-  });
-}
+    space: 'test_space',
+    timeout: 30000,
+    maxConnections: 10,
+    retryAttempts: 3,
+    retryDelay: 1000,
+    bufferSize: 1024,
+    pingInterval: 30000,
+    vidTypeLength: 32,
+  }),
+};
 
-class MockPerformanceMonitor extends PerformanceMonitor {
-  startOperation = jest.fn().mockReturnValue('operation-id');
-  endOperation = jest.fn();
-}
+const mockPerformanceMonitor = {
+  startOperation: jest.fn().mockReturnValue('operation-id'),
+  endOperation: jest.fn(),
+};
 
-class MockConnectionPool implements IConnectionPool {
-  initialize = jest.fn().mockResolvedValue(undefined);
-  getConnection = jest.fn().mockResolvedValue({});
-  releaseConnection = jest.fn();
-  close = jest.fn().mockResolvedValue(undefined);
-  startHealthCheck = jest.fn();
-  stopHealthCheck = jest.fn();
-  getPoolStats = jest.fn().mockReturnValue({
-    totalConnections: 1,
-    activeConnections: 0,
-    idleConnections: 1,
-    pendingRequests: 0,
-    totalAcquires: 0,
-    totalReleases: 0,
-    totalErrors: 0,
-    averageAcquireTime: 0,
-    averageConnectionAge: 0
-  });
-}
+const mockQueryRunner = {
+  execute: jest.fn(),
+  executeBatch: jest.fn(),
+  getStats: jest.fn().mockReturnValue({}),
+};
 
-class MockSessionManager implements ISessionManager {
-  initialize = jest.fn().mockResolvedValue(undefined);
-  getSession = jest.fn().mockResolvedValue({
-    execute: jest.fn().mockResolvedValue({}),
-    close: jest.fn().mockResolvedValue(undefined),
-    switchSpace: jest.fn().mockResolvedValue(undefined)
-  });
-  releaseSession = jest.fn();
-  invalidateSession = jest.fn();
-  startSessionCleanup = jest.fn();
-  stopSessionCleanup = jest.fn();
-  switchSpace = jest.fn().mockResolvedValue(undefined);
-  getSessionStats = jest.fn().mockReturnValue({
-    totalSessions: 1,
-    activeSessions: 0,
-    idleSessions: 1,
-    spaceCount: 0,
-    totalAcquires: 0,
-    totalReleases: 0,
-    cacheHits: 0,
-    cacheMisses: 0,
-    averageSessionAge: 0,
-    connectionPoolStats: {} as any,
-    sessionPoolStats: []
-  });
-  close = jest.fn().mockResolvedValue(undefined);
-}
+const mockProjectManager = {
+  createSpaceForProject: jest.fn().mockResolvedValue(true),
+  deleteSpaceForProject: jest.fn().mockResolvedValue(true),
+  insertNodesForProject: jest.fn().mockResolvedValue(true),
+  insertRelationshipsForProject: jest.fn().mockResolvedValue(true),
+  findNodesForProject: jest.fn().mockResolvedValue([]),
+  findRelationshipsForProject: jest.fn().mockResolvedValue([]),
+};
 
-class MockQueryRunner implements IQueryRunner {
-  execute = jest.fn().mockResolvedValue({
-    table: {},
-    results: [],
-    rows: [],
-    data: []
-  });
-  executeBatch = jest.fn().mockResolvedValue([]);
-  getCachedResult = jest.fn().mockResolvedValue(null);
-  setCachedResult = jest.fn().mockResolvedValue(undefined);
-  recordQueryMetrics = jest.fn();
-  getStats = jest.fn().mockReturnValue({
-    totalQueries: 0,
-    successfulQueries: 0,
-    failedQueries: 0,
-    cacheHits: 0,
-    cacheMisses: 0,
-    averageExecutionTime: 0,
-    totalExecutionTime: 0,
-    queriesByType: {}
-  });
-}
+const mockProjectIdManager = {
+  listAllProjectPaths: jest.fn().mockReturnValue(['/test/project']),
+  getSpaceName: jest.fn().mockReturnValue('test_space'),
+};
 
-class MockProjectManager implements INebulaProjectManager {
-  createSpaceForProject = jest.fn().mockResolvedValue(true);
-  deleteSpaceForProject = jest.fn().mockResolvedValue(true);
-  getSpaceInfoForProject = jest.fn();
-  clearSpaceForProject = jest.fn().mockResolvedValue(true);
-  listProjectSpaces = jest.fn().mockResolvedValue([]);
-  insertNodesForProject = jest.fn().mockResolvedValue(true);
-  insertRelationshipsForProject = jest.fn().mockResolvedValue(true);
-  findNodesForProject = jest.fn().mockResolvedValue([]);
-  findRelationshipsForProject = jest.fn().mockResolvedValue([]);
-  createProjectSpace = jest.fn().mockResolvedValue(true);
-  deleteProjectSpace = jest.fn().mockResolvedValue(true);
-  getProjectSpaceInfo = jest.fn();
-  insertProjectData = jest.fn().mockResolvedValue(true);
-  updateProjectData = jest.fn().mockResolvedValue(true);
-  deleteProjectData = jest.fn().mockResolvedValue(true);
-  searchProjectData = jest.fn().mockResolvedValue([]);
-  getProjectDataById = jest.fn();
-  clearProjectSpace = jest.fn().mockResolvedValue(true);
-  subscribe = jest.fn().mockReturnValue({
-    id: 'test-subscription',
-    eventType: 'test',
-    handler: () => {},
-    unsubscribe: jest.fn()
-  });
-}
+const mockConnectionPool = {
+  initialize: jest.fn().mockResolvedValue(undefined),
+  close: jest.fn().mockResolvedValue(undefined),
+  getStats: jest.fn().mockReturnValue({}),
+};
 
-class MockProjectIdManager extends ProjectIdManager {
-  listAllProjectPaths = jest.fn().mockReturnValue(['/test/project']);
-  getProjectId = jest.fn().mockReturnValue('test-project-id');
-  getSpaceName = jest.fn().mockReturnValue('test_space');
-}
-
+const mockSessionManager = {
+  initialize: jest.fn().mockResolvedValue(undefined),
+  close: jest.fn().mockResolvedValue(undefined),
+  getStats: jest.fn().mockReturnValue({}),
+};
 
 describe('NebulaClient', () => {
   let container: Container;
-  let nebulaClient: NebulaClient;
-  let mockLogger: MockLoggerService;
-  let mockErrorHandler: MockErrorHandlerService;
-  let mockConfigService: MockNebulaConfigService;
-  let mockPerformanceMonitor: MockPerformanceMonitor;
-  let mockConnectionPool: MockConnectionPool;
-  let mockSessionManager: MockSessionManager;
-  let mockQueryRunner: MockQueryRunner;
+  let nebulaClient: INebulaClient;
 
   beforeEach(() => {
     container = new Container();
 
-    // Setup mocks
-    mockLogger = new MockLoggerService();
-    mockErrorHandler = new MockErrorHandlerService(mockLogger);
-    mockConfigService = new MockNebulaConfigService(mockLogger, mockErrorHandler);
-    mockPerformanceMonitor = new MockPerformanceMonitor(mockLogger);
-    mockConnectionPool = new MockConnectionPool();
-    mockSessionManager = new MockSessionManager();
-    mockQueryRunner = new MockQueryRunner();
     // Bind mocks
-    container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLogger);
-    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandler);
-    container.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockConfigService);
-    container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).toConstantValue(mockPerformanceMonitor);
-    container.bind<IConnectionPool>(TYPES.IConnectionPool).toConstantValue(mockConnectionPool);
-    container.bind<ISessionManager>(TYPES.ISessionManager).toConstantValue(mockSessionManager);
-    container.bind<IQueryRunner>(TYPES.IQueryRunner).toConstantValue(mockQueryRunner);
-    container.bind<NebulaClient>(TYPES.NebulaClient).to(NebulaClient);
+    container.bind(TYPES.LoggerService).toConstantValue(mockLoggerService);
+    container.bind(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService);
+    container.bind(TYPES.NebulaConfigService).toConstantValue(mockConfigService);
+    container.bind(TYPES.PerformanceMonitor).toConstantValue(mockPerformanceMonitor);
+    container.bind(TYPES.IQueryRunner).toConstantValue(mockQueryRunner);
+    container.bind(TYPES.INebulaProjectManager).toConstantValue(mockProjectManager);
+    container.bind(TYPES.ProjectIdManager).toConstantValue(mockProjectIdManager);
+    container.bind(TYPES.IConnectionPool).toConstantValue(mockConnectionPool);
+    container.bind(TYPES.ISessionManager).toConstantValue(mockSessionManager);
 
-    // Create NebulaClient instance
-    nebulaClient = container.get<NebulaClient>(TYPES.NebulaClient);
+    // Bind NebulaClient
+    container.bind<INebulaClient>(TYPES.INebulaClient).to(NebulaClient).inSingletonScope();
+
+    nebulaClient = container.get<INebulaClient>(TYPES.INebulaClient);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  describe('Interface Compliance', () => {
+    it('should implement all INebulaService methods', () => {
+      const requiredMethods: (keyof INebulaClient)[] = [
+        'initialize', 'isConnected', 'isInitialized', 'close', 'reconnect',
+        'createSpaceForProject', 'deleteSpaceForProject',
+        'insertNodes', 'insertRelationships',
+        'findNodesByLabel', 'findRelationships',
+        'executeReadQuery', 'executeWriteQuery', 'useSpace',
+        'createNode', 'createRelationship', 'findNodes', 'getDatabaseStats',
+        'subscribe', 'healthCheck'
+      ];
+
+      requiredMethods.forEach(method => {
+        expect(typeof nebulaClient[method]).toBe('function');
+      });
+    });
+
+    it('should implement all INebulaClient specific methods', () => {
+      const clientSpecificMethods: (keyof INebulaClient)[] = [
+        'connect', 'disconnect', 'execute', 'executeQuery', 'executeBatch',
+        'getStats', 'updateConfig', 'getConfig', 'on', 'off', 'emit',
+        'deleteDataForFile'
+      ];
+
+      clientSpecificMethods.forEach(method => {
+        expect(typeof nebulaClient[method]).toBe('function');
+      });
+    });
   });
 
-  describe('initialize', () => {
-    it('should initialize the client successfully', async () => {
+  describe('Initialization', () => {
+    it('should initialize successfully with config', async () => {
       const config: NebulaConfig = {
         host: 'localhost',
         port: 9669,
@@ -194,130 +140,264 @@ describe('NebulaClient', () => {
         space: 'test_space'
       };
 
-      await nebulaClient.initialize(config);
-
+      const result = await nebulaClient.initialize(config);
+      expect(result).toBe(true);
       expect(mockConnectionPool.initialize).toHaveBeenCalledWith(config);
       expect(mockSessionManager.initialize).toHaveBeenCalledWith(config);
-      expect(mockLogger.info).toHaveBeenCalledWith('NebulaClient initialized successfully');
     });
 
-    it('should handle initialization errors', async () => {
-      const config: NebulaConfig = {
-        host: 'localhost',
-        port: 9669,
-        username: 'root',
-        password: 'nebula',
-        space: 'test_space'
-      };
+    it('should initialize successfully without config (use existing)', async () => {
+      const result = await nebulaClient.initialize();
+      expect(result).toBe(true);
+      expect(mockConnectionPool.initialize).toHaveBeenCalled();
+      expect(mockSessionManager.initialize).toHaveBeenCalled();
+    });
 
-      const error = new Error('Initialization failed');
-      mockConnectionPool.initialize.mockRejectedValueOnce(error);
+    it('should return false on initialization failure', async () => {
+      mockConnectionPool.initialize.mockRejectedValueOnce(new Error('Connection failed'));
+      
+      const result = await nebulaClient.initialize();
+      expect(result).toBe(false);
+      expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
+    });
 
-      await expect(nebulaClient.initialize(config)).rejects.toThrow('Initialization failed');
-      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(error, { component: 'NebulaClient', operation: 'initialize' });
+    it('should check initialization status', () => {
+      expect(nebulaClient.isInitialized()).toBe(false);
     });
   });
 
-  describe('executeQuery', () => {
-    beforeEach(async () => {
-      // Connect the client before each query test
+  describe('Connection Management', () => {
+    it('should connect successfully', async () => {
       await nebulaClient.connect();
+      expect(nebulaClient.isConnected()).toBe(true);
     });
 
-    it('should execute a query successfully', async () => {
-      const query = 'SHOW SPACES';
-      const result = await nebulaClient.executeQuery(query);
-
-      expect(mockQueryRunner.execute).toHaveBeenCalledWith(query, undefined, undefined);
-      expect(result).toEqual({
-        table: {},
-        results: [],
-        rows: [],
-        data: []
-      });
-    });
-
-    it('should execute a query with parameters', async () => {
-      const query = 'INSERT VERTEX person(name) VALUES "1":("Alice")';
-      const params = { name: 'Alice' };
-      const options = { useCache: false };
-
-      const result = await nebulaClient.executeQuery(query, params, options);
-
-      expect(mockQueryRunner.execute).toHaveBeenCalledWith(query, params, options);
-      expect(result).toEqual({
-        table: {},
-        results: [],
-        rows: [],
-        data: []
-      });
-    });
-
-    it('should handle query execution errors', async () => {
-      const query = 'INVALID QUERY';
-      const error = new Error('Query execution failed');
-      mockQueryRunner.execute.mockRejectedValueOnce(error);
-
-      await expect(nebulaClient.executeQuery(query)).rejects.toThrow('Query execution failed');
-      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(new Error('Failed to execute query: Query execution failed'), { component: 'NebulaClient', operation: 'execute', query, params: undefined });
-    });
-  });
-
-  describe('executeBatch', () => {
-    beforeEach(async () => {
-      // Connect the client before each batch test
+    it('should disconnect successfully', async () => {
       await nebulaClient.connect();
+      await nebulaClient.disconnect();
+      expect(nebulaClient.isConnected()).toBe(false);
     });
 
-    it('should execute a batch of queries successfully', async () => {
-      const queries = [
-        { query: 'SHOW SPACES' },
-        { query: 'SHOW HOSTS' }
-      ];
-      const results = await nebulaClient.executeBatch(queries);
-
-      expect(mockQueryRunner.executeBatch).toHaveBeenCalledWith(queries);
-      expect(results).toEqual([]);
-    });
-
-    it('should handle batch execution errors', async () => {
-      const queries = [
-        { query: 'SHOW SPACES' },
-        { query: 'SHOW HOSTS' }
-      ];
-      const error = new Error('Batch execution failed');
-      mockQueryRunner.executeBatch.mockRejectedValueOnce(error);
-
-      await expect(nebulaClient.executeBatch(queries)).rejects.toThrow('Batch execution failed');
-      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(new Error('Failed to execute batch queries: Batch execution failed'), { component: 'NebulaClient', operation: 'executeBatch', queries });
+    it('should reconnect successfully', async () => {
+      await nebulaClient.connect();
+      const result = await nebulaClient.reconnect();
+      expect(result).toBe(true);
+      expect(nebulaClient.isConnected()).toBe(true);
     });
   });
 
-  describe('getStats', () => {
-    it('should return client statistics', () => {
-      const stats = nebulaClient.getStats();
+  describe('Health Check', () => {
+    it('should return healthy status when connected', async () => {
+      await nebulaClient.connect();
+      const health = await nebulaClient.healthCheck();
+      
+      expect(health.status).toBe('healthy');
+      expect(health.details).toBeDefined();
+      expect(health.details.connected).toBe(true);
+    });
 
-      expect(stats).toHaveProperty('connectionPool');
-      expect(stats).toHaveProperty('sessionManager');
-      expect(stats).toHaveProperty('queryRunner');
+    it('should return unhealthy status when not connected', async () => {
+      const health = await nebulaClient.healthCheck();
+      
+      expect(health.status).toBe('unhealthy');
+      expect(health.details.connected).toBe(false);
     });
   });
 
-  describe('close', () => {
-    it('should close the client successfully', async () => {
-      await nebulaClient.close();
-
-      expect(mockSessionManager.close).toHaveBeenCalled();
-      expect(mockConnectionPool.close).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith('NebulaClient closed successfully');
+  describe('Event Subscription', () => {
+    it('should subscribe to events and return subscription', () => {
+      const listener = jest.fn();
+      const subscription = nebulaClient.subscribe('test-event', listener);
+      
+      expect(subscription).toBeDefined();
+      expect(subscription.id).toBeDefined();
+      expect(subscription.eventType).toBe('test-event');
+      expect(typeof subscription.unsubscribe).toBe('function');
     });
 
-    it('should handle close errors', async () => {
-      const error = new Error('Close failed');
-      mockConnectionPool.close.mockRejectedValueOnce(error);
+    it('should unsubscribe correctly', () => {
+      const listener = jest.fn();
+      const subscription = nebulaClient.subscribe('test-event', listener);
+      
+      subscription.unsubscribe();
+      
+      // Emit event and verify listener is not called
+      nebulaClient.emit('test-event', 'test-data');
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
 
-      await expect(nebulaClient.close()).rejects.toThrow('Close failed');
-      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(error, { component: 'NebulaClient', operation: 'close' });
+  describe('Project Space Management', () => {
+    it('should create space for project', async () => {
+      await nebulaClient.connect();
+      const result = await nebulaClient.createSpaceForProject('/test/project');
+      
+      expect(result).toBe(true);
+      expect(mockProjectManager.createSpaceForProject).toHaveBeenCalledWith('/test/project');
+    });
+
+    it('should delete space for project', async () => {
+      await nebulaClient.connect();
+      const result = await nebulaClient.deleteSpaceForProject('/test/project');
+      
+      expect(result).toBe(true);
+      expect(mockProjectManager.deleteSpaceForProject).toHaveBeenCalledWith('/test/project');
+    });
+  });
+
+  describe('Data Operations', () => {
+    it('should insert nodes', async () => {
+      await nebulaClient.connect();
+      const nodes = [{
+        id: 'test-node-1',
+        label: 'Test',
+        properties: { name: 'test' }
+      }];
+      
+      const result = await nebulaClient.insertNodes(nodes);
+      expect(result).toBe(true);
+    });
+
+    it('should insert relationships', async () => {
+      await nebulaClient.connect();
+      const relationships = [{
+        id: 'test-rel-1',
+        type: 'TEST_REL',
+        sourceId: 'node1',
+        targetId: 'node2',
+        properties: {}
+      }];
+      
+      const result = await nebulaClient.insertRelationships(relationships);
+      expect(result).toBe(true);
+    });
+
+    it('should delete data for file', async () => {
+      await nebulaClient.connect();
+      mockQueryRunner.execute.mockClear().mockResolvedValue({ data: [] });
+      
+      await nebulaClient.deleteDataForFile('/test/file.ts');
+      expect(mockQueryRunner.execute).toHaveBeenCalledWith(
+        expect.stringContaining('MATCH (v:File)'),
+        { filePath: '/test/file.ts' },
+        undefined
+      );
+    });
+  });
+
+  describe('Query Operations', () => {
+    it('should find nodes by label', async () => {
+      await nebulaClient.connect();
+      const result = await nebulaClient.findNodesByLabel('TestLabel');
+      
+      expect(Array.isArray(result)).toBe(true);
+      expect(mockProjectManager.findNodesForProject).toHaveBeenCalled();
+    });
+
+    it('should find relationships', async () => {
+      await nebulaClient.connect();
+      const result = await nebulaClient.findRelationships('TestType');
+      
+      expect(Array.isArray(result)).toBe(true);
+      expect(mockProjectManager.findRelationshipsForProject).toHaveBeenCalled();
+    });
+
+    it('should get database stats', async () => {
+      await nebulaClient.connect();
+      mockQueryRunner.execute.mockResolvedValue({ data: [{ Name: 'test_space' }] });
+      
+      const stats = await nebulaClient.getDatabaseStats();
+      expect(stats).toBeDefined();
+      expect(stats.spaces).toBe(1);
+    });
+  });
+
+  describe('Compatibility Methods', () => {
+    it('should execute read query', async () => {
+      await nebulaClient.connect();
+      mockQueryRunner.execute.mockClear().mockResolvedValue({ data: [] });
+      
+      const result = await nebulaClient.executeReadQuery('MATCH (n) RETURN n');
+      expect(mockQueryRunner.execute).toHaveBeenCalledWith('MATCH (n) RETURN n', undefined, undefined);
+    });
+
+    it('should execute write query', async () => {
+      await nebulaClient.connect();
+      mockQueryRunner.execute.mockClear().mockResolvedValue({ data: [] });
+      
+      const result = await nebulaClient.executeWriteQuery('CREATE (n:Test)');
+      expect(mockQueryRunner.execute).toHaveBeenCalledWith('CREATE (n:Test)', undefined, undefined);
+    });
+
+    it('should use space', async () => {
+      await nebulaClient.connect();
+      mockQueryRunner.execute.mockClear().mockResolvedValue({ data: [] });
+      
+      await nebulaClient.useSpace('test_space');
+      expect(mockQueryRunner.execute).toHaveBeenCalledWith('USE `test_space`', undefined, undefined);
+    });
+
+    it('should create node', async () => {
+      await nebulaClient.connect();
+      mockQueryRunner.execute.mockClear().mockResolvedValue({ data: [] });
+      
+      const nodeId = await nebulaClient.createNode('Test', { name: 'test' });
+      expect(nodeId).toBeDefined();
+      expect(nodeId).toMatch(/^Test_\d+_[a-z0-9]+$/);
+    });
+
+    it('should create relationship', async () => {
+      await nebulaClient.connect();
+      mockQueryRunner.execute.mockClear().mockResolvedValue({ data: [] });
+      
+      await nebulaClient.createRelationship('TEST_REL', 'node1', 'node2');
+      expect(mockQueryRunner.execute).toHaveBeenCalled();
+    });
+
+    it('should find nodes', async () => {
+      await nebulaClient.connect();
+      mockQueryRunner.execute.mockClear().mockResolvedValue({ data: [] });
+      
+      const result = await nebulaClient.findNodes('Test', { name: 'test' });
+      expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  describe('Configuration Management', () => {
+    it('should get config', () => {
+      const config = nebulaClient.getConfig();
+      expect(config).toBeDefined();
+      expect(config.host).toBe('localhost');
+    });
+
+    it('should update config', () => {
+      const newConfig = { host: 'new-host' };
+      nebulaClient.updateConfig(newConfig);
+      
+      const updatedConfig = nebulaClient.getConfig();
+      expect(updatedConfig.host).toBe('new-host');
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle connection errors', async () => {
+      // Mock connection failure
+      const originalConnect = nebulaClient.connect;
+      nebulaClient.connect = jest.fn().mockRejectedValue(new Error('Connection failed'));
+      
+      await expect(nebulaClient.connect()).rejects.toThrow('Connection failed');
+      expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
+      
+      // Restore original method
+      nebulaClient.connect = originalConnect;
+    });
+
+    it('should handle query errors', async () => {
+      await nebulaClient.connect();
+      mockQueryRunner.execute.mockRejectedValue(new Error('Query failed'));
+      
+      await expect(nebulaClient.execute('INVALID QUERY')).rejects.toThrow('Query failed');
+      expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
     });
   });
 });

@@ -5,7 +5,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { QdrantService } from '../../../database/qdrant/QdrantService';
-import { NebulaService } from '../../../database/nebula/NebulaService';
+import { NebulaClient } from '../../../database/nebula/client/NebulaClient';
 import { IndexService } from '../../index/IndexService';
 import { ProjectState, ProjectStats, StorageStatus } from '../ProjectStateManager';
 import { ProjectStateStorageUtils } from '../utils/ProjectStateStorageUtils';
@@ -25,7 +25,7 @@ export class CoreStateService {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
-    @inject(TYPES.NebulaService) private nebulaService: NebulaService,
+    @inject(TYPES.NebulaClient) private nebulaClient: NebulaClient,
     @inject(TYPES.HotReloadConfigService) private hotReloadConfigService: HotReloadConfigService
   ) {}
 
@@ -82,7 +82,7 @@ export class CoreStateService {
         
         // 删除旧的Nebula Graph空间
         try {
-          await this.nebulaService.deleteSpaceForProject(existingStateByPath.projectPath);
+          await this.nebulaClient.deleteSpaceForProject(existingStateByPath.projectPath);
           this.logger.info(`已删除旧项目的Nebula空间: ${existingStateByPath.projectPath}`, {
             projectId: existingStateByPath.projectId
           });
@@ -259,7 +259,7 @@ options.description !== undefined) state.description = options.description;
       
       // 删除对应的Nebula Graph空间（注意：这里可能会重复删除映射，但removeProject方法会处理）
       try {
-        await this.nebulaService.deleteSpaceForProject(state.projectPath);
+        await this.nebulaClient.deleteSpaceForProject(state.projectPath);
         this.logger.info(`Deleted Nebula space for project ${projectId}`);
       } catch (spaceError) {
         this.logger.warn(`Failed to delete Nebula space for project ${projectId}`, { error: spaceError });

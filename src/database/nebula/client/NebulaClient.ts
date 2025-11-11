@@ -9,13 +9,13 @@ import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult, NebulaNode, Ne
 import { IQueryRunner } from '../query/QueryRunner';
 import { INebulaProjectManager } from '../NebulaProjectManager';
 import { ProjectIdManager } from '../../ProjectIdManager';
+import { Subscription } from '../../common/DatabaseEventTypes';
 
 // 查询批次接口
 export interface QueryBatch {
   query: string;
   params?: Record<string, any>;
 }
-
 
 // 查询选项接口
 export interface QueryOptions {
@@ -24,15 +24,18 @@ export interface QueryOptions {
   useCache?: boolean;
 }
 
-// NebulaClient接口
+// NebulaClient接口 - 完整的独立接口，包含所有必要的方法
 export interface INebulaClient {
+  // 基础操作
+  initialize(config?: NebulaConfig): Promise<boolean>;
+  isConnected(): boolean;
+  isInitialized(): boolean;
+  close(): Promise<void>;
+  reconnect(): Promise<boolean>;
+
   // 连接管理
   connect(): Promise<void>;
   disconnect(): Promise<void>;
-  isConnected(): boolean;
-
-  // 初始化
-  initialize(config: NebulaConfig): Promise<void>;
 
   // 查询执行
   execute(query: string, params?: Record<string, any>, options?: QueryOptions): Promise<NebulaQueryResult>;
@@ -42,17 +45,15 @@ export interface INebulaClient {
   // 统计信息
   getStats(): any;
 
-  // 关闭
-  close(): Promise<void>;
-
-  // 配置管理（复用现有服务）
+  // 配置管理
   updateConfig(config: Partial<NebulaConfig>): void;
   getConfig(): NebulaConfig;
 
-  // 事件订阅（复用现有EventEmitter）
+  // 事件订阅
   on(event: string, listener: Function): void;
   off(event: string, listener: Function): void;
   emit(event: string, ...args: any[]): boolean;
+  subscribe(type: string, listener: (event: any) => void): Subscription;
 
   // 项目空间管理
   createSpaceForProject(projectPath: string): Promise<boolean>;
@@ -80,6 +81,13 @@ export interface INebulaClient {
     properties?: Record<string, any>
   ): Promise<void>;
   findNodes(label: string, properties?: Record<string, any>): Promise<any[]>;
+
+  // 健康检查
+  healthCheck(): Promise<{
+    status: 'healthy' | 'unhealthy';
+    details?: any;
+    error?: string;
+  }>;
 }
 
 /**
@@ -352,29 +360,114 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
   /**
    * 初始化客户端
    */
-  async initialize(config: NebulaConfig): Promise<void> {
+  async initialize(config?: NebulaConfig): Promise<boolean> {
     try {
-      this.logger.info('Initializing NebulaClient', config);
+      if (config) {
+        this.logger.info('Initializing NebulaClient', config);
 
-      // 更新配置
-      this.config = { ...this.config, ...config };
-      this.connectionStatus.host = this.config.host;
-      this.connectionStatus.port = this.config.port;
-      this.connectionStatus.username = this.config.username;
-      this.connectionStatus.space = this.config.space;
+        // 更新配置
+        this.config = { ...this.config, ...config };
+        this.connectionStatus.host = this.config.host;
+        this.connectionStatus.port = this.config.port;
+        this.connectionStatus.username = this.config.username;
+        this.connectionStatus.space = this.config.space;
 
-      // 初始化连接池和会话管理器
-      await this.connectionPool.initialize(config);
-      await this.sessionManager.initialize(config);
+        // 初始化连接池和会话管理器
+        await this.connectionPool.initialize(config);
+        await this.sessionManager.initialize(config);
+      } else {
+        // 使用现有配置初始化
+        await this.connectionPool.initialize(this.config);
+        await this.sessionManager.initialize(this.config);
+      }
+
+      // 尝试连接
+      await this.connect();
 
       this.logger.info('NebulaClient initialized successfully');
+      return true;
     } catch (error) {
       this.errorHandler.handleError(
         error instanceof Error ? error : new Error('Failed to initialize NebulaClient'),
         { component: 'NebulaClient', operation: 'initialize' }
       );
-      throw error;
+      return false;
     }
+  }
+
+  /**
+   * 检查服务是否已初始化
+   */
+  isInitialized(): boolean {
+    return this.isConnected();
+  }
+
+  /**
+   * 尝试重新连接到Nebula数据库
+   */
+  async reconnect(): Promise<boolean> {
+    try {
+      this.logger.info('Attempting to reconnect to Nebula Graph');
+
+      // 断开现有连接
+      await this.disconnect();
+
+      // 等待一段时间再重连
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 重新连接
+      await this.connect();
+
+      this.logger.info('Successfully reconnected to Nebula Graph');
+      return true;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to reconnect to Nebula Graph: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'NebulaClient', operation: 'reconnect' }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 健康检查
+   */
+  async healthCheck(): Promise<{
+    status: 'healthy' | 'unhealthy';
+    details?: any;
+    error?: string;
+  }> {
+    try {
+      const connectionStatus = this.isConnected();
+      const stats = this.getStats();
+      
+      return {
+        status: connectionStatus ? 'healthy' : 'unhealthy',
+        details: {
+          connected: connectionStatus,
+          stats,
+          lastCheck: new Date()
+        }
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * 订阅事件
+   */
+  subscribe(type: string, listener: (event: any) => void): Subscription {
+    this.on(type, listener);
+    return {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      eventType: type,
+      handler: listener,
+      unsubscribe: () => this.off(type, listener)
+    };
   }
 
   /**
@@ -495,11 +588,27 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
   */
  async deleteDataForFile(filePath: string): Promise<void> {
    this.ensureConnected();
-   // 这里需要根据文件路径删除相关数据
-   // 可以通过查询找到与文件相关的节点和关系，然后删除
-   // 暂时使用项目管理器的实现
-   // 实际实现可能需要更复杂的逻辑来确定哪些数据与特定文件相关
-   this.logger.warn('deleteDataForFile not fully implemented');
+   
+   try {
+     this.logger.info('Deleting data for file', { filePath });
+     
+     // 实现完整的文件数据删除逻辑
+     const deleteQuery = `
+       MATCH (v:File)
+       WHERE v.filePath == $filePath
+       DETACH DELETE v
+     `;
+     
+     await this.execute(deleteQuery, { filePath });
+     
+     this.logger.info('Successfully deleted data for file', { filePath });
+   } catch (error) {
+     this.errorHandler.handleError(
+       new Error(`Failed to delete data for file ${filePath}: ${error instanceof Error ? error.message : String(error)}`),
+       { component: 'NebulaClient', operation: 'deleteDataForFile', filePath }
+     );
+     throw error;
+   }
  }
 
  /**
